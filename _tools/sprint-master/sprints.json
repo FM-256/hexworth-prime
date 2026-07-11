@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-07-11T04:13:28.555Z",
+    "lastUpdated": "2026-07-11T04:22:13.896Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z",
     "archivedCount": 488
@@ -27781,12 +27781,30 @@
     },
     {
       "id": "MON-1",
+      "title": "Fleet monitoring & alerting — build & verify (Prometheus fix + container crash-loop alerts + ntfy push)",
+      "series": "MON",
+      "status": "done",
+      "priority": "high",
+      "houses": [],
+      "depends": [],
+      "commits": [
+        "0ae093b4"
+      ],
+      "notes": "Fleet monitoring & alerting BUILT + VERIFIED 2026-07-11 (response to the ~80-day silent redis crash-loop incident). What was done:\n- Root cause + fix: Prometheus had been detached from its Docker network ~9 days (Cockpit's systemd socket claimed host port 9090); remapped Prometheus to host 9091, all fleet targets (bc1/bc2/neon) back up.\n- docker-restart-exporter.py: container RestartCount/health from the Docker API (cAdvisor is broken on neon's containerd image store — Storage Driver overlayfs).\n- 6 alert rules: ContainerCrashLooping / ContainerRestarting / ContainerUnhealthy / ScrapeTargetDown (self-reports blindness) / DiskAlmostFull / HostMemoryHigh.\n- Alertmanager + webhook-ntfy formatting relay + self-hosted ntfy (Tailscale-bound); Prometheus scrapes itself + Alertmanager (watches the watcher).\n- Verified end-to-end: a real crash-looping container fired a readable push in minutes. Nancy-reviewed; promtool/amtool validated before apply.\n- DR mirror in repo _tools/monitoring/ (was live-only on neon); runbook _docs/operations/monitoring-alerting.md; admin KBA Confluence page 43417601; memory reference_monitoring_alerting.\nRemaining follow-on = MON-2 (external dead-man's-switch).",
+      "created": "2026-07-11",
+      "updated": "2026-07-11",
+      "completed": "2026-07-11"
+    },
+    {
+      "id": "MON-2",
       "title": "External dead-man's-switch: off-neon watcher that alerts if neon monitoring goes dark",
       "series": "MON",
       "status": "backlog",
       "priority": "medium",
       "houses": [],
-      "depends": [],
+      "depends": [
+        "MON-1"
+      ],
       "commits": [],
       "notes": "EXTERNAL DEAD-MAN'S-SWITCH for the neon monitoring stack. Closes the one known gap in the 2026-07-10 alerting build: the alerter (Prometheus/Alertmanager/ntfy) runs ON neon, so if neon itself dies the alerting dies silently with it. Need an OFF-neon watcher that screams if neon's monitoring goes dark.\n\nCONTEXT / READ FIRST: _docs/operations/monitoring-alerting.md (runbook), memory reference_monitoring_alerting.md, and the KBA 'Hexworth Monitoring & Alerting'. Stack lives at /home/eq/hexworth-monitoring on neon, mirrored in repo _tools/monitoring/. neon Tailscale IP 100.65.122.90. Prometheus host 9091, Alertmanager 100.65.122.90:9093, ntfy 100.65.122.90:8090 topic hexworth-alerts.\n\nDESIGN (pre-decided, account-free — do NOT stop to ask): cross-host heartbeat from bc1. The primary ntfy is on neon and dies with it, so the dead-man delivery path must NOT traverse neon. Approach:\n1. Stand up a SECOND tiny ntfy on bc1 (distinct compose project, e.g. /home/eq/hexworth-deadman on bc1), topic hexworth-deadman, bound to bc1's Tailscale interface (get bc1 IP via `tailscale ip -4` on bc1; verify 8090 free on bc1 first — pick another port if taken).\n2. Install a checker cron on bc1 (every 5 min): curl neon Prometheus http://100.65.122.90:9091/-/healthy AND Alertmanager http://100.65.122.90:9093/-/healthy. Keep a counter file; on 3 consecutive failures push a CRITICAL message to bc1's hexworth-deadman ntfy ('neon monitoring DOWN — <which endpoint> unreachable'). On recovery push a resolved message and reset the counter.\n3. (Stretch, optional) symmetry: have neon's stack also probe bc1/bc2 liveness so a dead bc1 is caught too. Not required for acceptance.\nALTERNATIVE (note only, do not build unless owner later asks): healthchecks.io SaaS is zero-maintenance and fully external, but needs an owner account/API key — that's why the self-hosted cross-check is the default.\n\nFILES: add under repo mirror _tools/monitoring/deadman/ : check-peer.sh (the cron script, dead-simple curl+counter, pure POSIX sh), deadman-compose.yml (bc1 second-ntfy), and a README. git add -f (tools is gitignored). Update _docs/operations/monitoring-alerting.md 'follow-ups' section to mark this done + how to operate. Update the KBA with the second (deadman) subscription steps.\n\nOWNER ACTION TO RECORD (not blocking the build): Frank subscribes his S25 to a SECOND ntfy subscription — server http://<bc1-tailscale-ip>:8090 topic hexworth-deadman. Document in KBA; leave a note in the completion summary so the operator does it.\n\nACCEPTANCE (must self-verify unsupervised, no questions):\na) bc1 second-ntfy up + reachable on bc1 Tailscale interface (curl 200). Checker cron installed and running; healthy state produces NO alert.\nb) FAILOVER TEST with neon monitoring fully stopped: on neon `docker stop prometheus alertmanager`. Within ~15 min bc1 detects 3 consecutive failures and pushes 'neon monitoring DOWN' to hexworth-deadman. Poll bc1 ntfy (http://<bc1-ip>:8090/hexworth-deadman/json?poll=1) and CONFIRM the message landed WHILE neon monitoring was down — this proves the delivery path does not depend on neon. Then `docker start prometheus alertmanager` on neon; confirm recovery/resolved message.\nc) No student sandbox containers on bc1 disturbed (lab-manager caveat — use a distinct compose project; never `docker compose down` the lab-manager stack).\n\nGOTCHAS: Zscaler can block Tailscale in some contexts (see reference_sandbox_infrastructure) — bc1->neon is server-to-server over the tailnet, should be fine, but if curl to 100.65.122.90 fails from bc1, diagnose the route before assuming neon is down. Keep the checker idempotent and quiet on success. Do NOT publish anything to production Firebase — this is self-hosted infra only, no deploy gate applies.",
       "created": "2026-07-11",
