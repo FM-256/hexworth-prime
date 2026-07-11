@@ -1,0 +1,47 @@
+# External dead-man's-switch — SECOND ntfy, runs on bc1 (NOT neon).
+#
+# WHY THIS EXISTS: the primary monitoring stack (Prometheus + Alertmanager + ntfy)
+# all run ON neon. If neon itself dies, that whole alerting path dies silently with
+# it — nobody is told the watcher went dark. This second ntfy lives on bc1 so the
+# dead-man delivery path does NOT traverse neon: a bc1 cron probes neon's health and,
+# on sustained failure, pushes to THIS ntfy, which reaches Frank's phone independent
+# of neon being up. See _docs/operations/monitoring-alerting.md and MON-2.
+#
+# ISOLATION: distinct compose project (hexworth-deadman) + distinct named volumes +
+# distinct container name so it never collides with bc1's lab-manager stack
+# (compose project hexworth-sandbox: traefik/cloudflared/sablier/lab-manager).
+# NEVER `docker compose down` that stack — only ever act on THIS project:
+#   docker compose -p hexworth-deadman -f deadman-compose.yml up -d
+#
+# Deploy on bc1 from /home/eq1/hexworth-deadman/ (mirror of this repo dir; bc1 login
+# user is eq1). Publishing goes to 100.96.136.114:8090 (the tailnet IP the port is
+# bound to), NOT localhost — the checker script accounts for that.
+services:
+  # Same image + posture as the primary neon ntfy (binwiederhier/ntfy:latest, bound
+  # to the Tailscale interface only). Topic: hexworth-deadman. Frank's S25 subscribes
+  # to server http://100.96.136.114:8090 topic hexworth-deadman as a SECOND sub.
+  ntfy-deadman:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy-deadman
+    restart: unless-stopped
+    command:
+      - serve
+    environment:
+      - TZ=America/New_York
+      - NTFY_BASE_URL=http://100.96.136.114:8090
+      - NTFY_LISTEN_HTTP=:80
+      - NTFY_AUTH_DEFAULT_ACCESS=read-write
+      - NTFY_ATTACHMENT_CACHE_DIR=/var/cache/ntfy/attachments
+    volumes:
+      - deadman_ntfy_data:/var/lib/ntfy
+      - deadman_ntfy_cache:/var/cache/ntfy
+    ports:
+      # bc1 Tailscale interface ONLY (100.96.136.114). read-write default access with
+      # no auth is acceptable ONLY because this never listens on a public/LAN
+      # interface — binding to the tailnet IP enforces that rather than assuming it.
+      # (Mirrors the primary neon ntfy's 100.65.122.90:8090:80 posture.)
+      - "100.96.136.114:8090:80"
+
+volumes:
+  deadman_ntfy_data:
+  deadman_ntfy_cache:

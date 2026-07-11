@@ -110,13 +110,33 @@ ssh neon 'docker exec prometheus wget -qO- localhost:9090/api/v1/rules'  # rule 
 - **cAdvisor does not work here** (containerd image store). Use the Docker-API
   exporter.
 
+## Mutual dead-man's-switch (MON-2, done 2026-07-11)
+
+The fate-sharing gap below is **closed**. neon and bc1 now watch each other over the
+tailnet, each alerting through its own ntfy so a dead host cannot suppress its own
+alarm:
+
+- **bc1 → neon:** `check-peer.sh` (5-min cron.d on bc1) probes neon's Prometheus
+  (9091), Alertmanager (9093), **and neon's own alert ntfy (8090)**; 3 consecutive
+  failures push CRITICAL to a **second ntfy on bc1** (`ntfy-deadman`, topic
+  `hexworth-deadman`). Delivery does not traverse neon — proven by a live failover
+  test (stopped neon Prom+AM, message landed on the bc1 topic while neon was down).
+- **neon → bc1:** `check-bc1.sh` (5-min cron.d on neon) probes bc1's deadman-ntfy
+  health; 3 failures push CRITICAL to neon's existing `hexworth-alerts` (no new phone
+  subscription needed for this direction).
+
+Both use a self-precheck (skip, don't false-alert, if the local ntfy isn't up — e.g.
+mid-reboot; docker is `enabled` on both hosts so it self-heals), one-alert-per-outage
+suppression, and a decision log at each host's state dir. Files + full runbook:
+`_tools/monitoring/deadman/` (README covers install, the two-direction failover test,
+and the honest residuals: live-host-dead-cron and both-hosts-down are out of scope).
+
+**Owner action pending:** subscribe the S25 to a SECOND ntfy — server
+`http://100.96.136.114:8090` (bc1 Tailscale IP), topic `hexworth-deadman` — this is
+the channel that fires only when neon's monitoring itself is dark.
+
 ## Known follow-ups (not yet done)
 
-- **Fate-sharing:** the alerter runs on neon, the box it watches. It catches the
-  redis-class failure (container thrashing while the host is alive), but if neon
-  itself dies, the alerter dies silently with it. An **external dead-man's-switch**
-  (e.g. healthchecks.io pinged by a cron) would close that. Needs an owner-provided
-  account, so it is deferred.
 - **ntfy off-Tailscale / phone push anywhere:** currently reachable only on
   Tailscale. A Cloudflare Access tunnel (like bc1) would expose it safely for
   push when off-network.
@@ -132,8 +152,8 @@ ssh neon 'docker exec prometheus wget -qO- localhost:9090/api/v1/rules'  # rule 
 - **Admin-facing KBA** (what it is + how to subscribe to alerts): Confluence "Fleet
   Infrastructure Monitoring & Alerting — Prometheus, Alertmanager & ntfy", page id
   `43417601` under Operations and Procedures.
-- **Sprint MON-2** — external dead-man's-switch (closes the fate-sharing gap above;
-  MON-1 is this completed build).
+- **Sprint MON-2** — mutual dead-man's-switch, DONE 2026-07-11 (see section above);
+  files in `_tools/monitoring/deadman/`. MON-1 is the original neon build.
 - Website monitor (separate system): Confluence "Runtime Monitor, Site-Health &
   Alerting — Runbook", page id `33849345`.
 - Infra inventory: `_tools/INTRO.md`, memory `reference_sandbox_infrastructure.md`
