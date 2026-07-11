@@ -7,13 +7,12 @@
  * Cabinet) can see them. This module is the intended canonical home so BOTH the
  * sandbox page AND the cabinet can read one list.
  *
- * STATUS (be honest): NOT yet the single source of truth. houses/observatory/
- * index.html still declares its OWN copy of these defs (plus local obsRarity/
- * obsBadgeEarned) and does not load this module. The two arrays are byte-identical
- * today, but until the observatory page is migrated to load ObservatoryBadges.js
- * and its local const is retired, there are TWO copies to keep in sync — if only
- * one is edited (e.g. an SBX-7 lab flips pending→live), the cabinet and the sandbox
- * page will disagree. Migration is a tracked, render-verified follow-up.
+ * STATUS: this IS the single source of truth as of 2026-07-11 (task #96).
+ * houses/observatory/index.html now loads this module and reads DEFS/rarity/earned
+ * from it (its former local OBS_BADGE_DEFS / obsRarity / obsBadgeEarned were retired
+ * after a verified byte-identical diff). trophies.html + TrophyCabinet.js are the
+ * other consumers. Edit a def here ONCE (e.g. an SBX-7 lab flips pending→live) and
+ * both the sandbox page and the cabinet pick it up.
  *
  * SCOPE: this module owns DEFINITIONS + pure helpers only. It does NOT own earned
  * state (that stays in the durable progress doc `hexworth_obs_sandbox_progress`
@@ -78,10 +77,19 @@
     }
 
     // Read the durable progress doc (earned obs badges live at p.obsBadges).
-    // Fail-safe: a missing/corrupt doc reads as "nothing earned yet".
+    // This applies the SAME schema-v1 normalization the observatory sandbox page
+    // enforces (a doc without v:1 reads as fresh; tutorial/missions defaulted), so
+    // BOTH consumers — the sandbox page and the Trophy Cabinet — agree on malformed
+    // or missing docs, not merely on well-formed ones. The observatory page
+    // delegates to this function, so there is ONE normalizer and it cannot drift.
+    // (Real writes always carry v:1; the guard matters for corrupt/legacy docs.)
     function readProgress() {
-        try { return JSON.parse(localStorage.getItem(PROG_LS) || 'null') || {}; }
-        catch (e) { return {}; }
+        var p = null;
+        try { p = JSON.parse(localStorage.getItem(PROG_LS) || 'null'); } catch (e) { /* corrupt = fresh */ }
+        if (!p || p.v !== 1) p = { v: 1, updatedAt: 0, tutorial: { step: 0, done: false }, missions: {} };
+        if (!p.tutorial) p.tutorial = { step: 0, done: false };
+        if (!p.missions) p.missions = {};
+        return p;
     }
 
     // Earned check. legacy badges defer to AchievementSystem (their real home);

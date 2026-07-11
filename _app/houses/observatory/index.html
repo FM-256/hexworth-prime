@@ -555,6 +555,7 @@
          per existing firestore.rules — zero rules changes). Degrades to
          localStorage-only when Firestore is unavailable. -->
     <script src="../../components/LabStateSync.js"></script>
+    <script src="../../components/ObservatoryBadges.js"></script>
 
     <script>
         // Observatory has no native modules of its own — it is a launcher for
@@ -752,6 +753,7 @@
                     <div class="obs-pbadges__head">Observatory Badges <span id="obs-pbadges-count"></span></div>
                     <p class="obs-pbadges__sub">Earned in the Observatory sandbox — missions, labs, and field work. A separate collection from your core Hexworth achievements: real artwork, rarity tiers, and everything still left to earn.</p>
                     <div id="obs-pbadges-grid"></div>
+                    <a href="/trophies.html" style="display:inline-block;margin-top:14px;color:#fbbf24;font-weight:700;text-decoration:none;border-bottom:1px solid rgba(251,191,36,0.3);">View your full Trophy Cabinet &rarr;</a>
                 </div>`
         };
 
@@ -953,14 +955,12 @@
                 try { return (window.ArenaFirebase && ArenaFirebase.db) || null; } catch (e) { return null; }
             } };
         }
-        function readProgress() {
-            var p = null;
-            try { p = JSON.parse(localStorage.getItem(OBS_PROG_LS) || 'null'); } catch (e) { /* corrupt = fresh */ }
-            if (!p || p.v !== 1) p = { v: 1, updatedAt: 0, tutorial: { step: 0, done: false }, missions: {} };
-            if (!p.tutorial) p.tutorial = { step: 0, done: false };
-            if (!p.missions) p.missions = {};
-            return p;
-        }
+        // Single normalizer: delegate to ObservatoryBadges.readProgress (loaded
+        // above), which applies this exact schema-v1 guard. Retired the local copy
+        // 2026-07-11 (#96, Chris QC) so the sandbox page and the Trophy Cabinet read
+        // progress through ONE function and cannot diverge on malformed docs.
+        // OBS_PROG_LS === ObservatoryBadges.PROG_LS (same key), verified.
+        function readProgress() { return ObservatoryBadges.readProgress(); }
         // THE ONLY write path (adversarial review L1 hard requirement): every
         // writer passes a mutator; read-current -> mutate -> persist -> queue
         // cloud push. Independent read-modify-writes would clobber each other
@@ -1313,48 +1313,17 @@
         //  - pending:true entries render locked and cannot be earned until the
         //    per-lab server checks deploy (SBX-7 backend; post-marathon).
         // Art is display-mapping ONLY — reusing gallery pieces per operator call.
-        var OBS_BADGE_DEFS = [
-            { id: 'sandbox_first_boot', legacy: true, name: 'First Boot', desc: 'Launch your first sandbox', art: 'first_visit', pts: 10 },
-            { id: 'sandbox_getting_there', legacy: true, name: 'Getting There', desc: 'Pass your first graded step', art: 'first_module', pts: 10 },
-            { id: 'sandbox_tutorial_graduate', legacy: true, name: 'Tutorial Graduate', desc: 'Finish the 5-step guided tutorial', art: 'terminal_explorer', pts: 25 },
-            { id: 'sandbox_fresh_start', legacy: true, name: 'Fresh Start', desc: 'Come back after a session ended', art: 'deja_vu', pts: 15 },
-            { id: 'linux_sandbox_practitioner', legacy: true, name: 'Linux Practitioner', desc: 'Complete all 5 free-play challenges', art: 'script_linux_sage', pts: 150 },
-            { id: 'obs_first_mission', name: 'First Blood: Mission One', desc: 'Complete your first Command Mastery mission', art: 'first_blood', pts: 25 },
-            { id: 'obs_mission_5', name: 'Field Operative', desc: 'Complete 5 Command Mastery missions', art: 'cli_operative', pts: 75 },
-            { id: 'obs_mission_10', name: 'Command Phantom', desc: 'Complete 10 Command Mastery missions', art: 'cli_phantom', pts: 150 },
-            { id: 'obs_mission_18', name: 'Command Master', desc: 'Complete ALL 18 Command Mastery missions', art: 'cli_master', pts: 500, style: 'legendary' },
-            { id: 'obs_first_task', name: 'First Green Check', desc: 'Pass your first mission task', art: 'terminal_initiate', pts: 10 },
-            { id: 'obs_bonus_hunter', name: 'Bonus Hunter', desc: 'Pass any [bonus] task', art: 'secret_hunter', pts: 50 },
-            { id: 'obs_hidden_finder', name: 'Unseen Requirement', desc: 'Satisfy a hidden requirement', art: 'ghost_protocol', pts: 100 },
-            { id: 'obs_perfect_mission', name: 'Flawless Clear', desc: 'Pass EVERY task in a mission, bonus included', art: 'perfect_run', pts: 150 },
-            { id: 'obs_task_50', name: 'Fifty Checks', desc: 'Pass 50 mission tasks in total', art: 'dedication', pts: 75 },
-            { id: 'obs_grade_persistent', name: 'Grade Early, Grade Often', desc: 'Grade one mission 10+ times, then complete it', art: 'persistence', pts: 50 },
-            { id: 'obs_comeback', name: 'The Return', desc: 'Finish a mission you started on an earlier day', art: 'time_traveler', pts: 50 },
-            { id: 'obs_night_shift', name: 'Night Shift', desc: 'Complete a mission between midnight and 5 AM', art: 'midnight_hacker', pts: 50 },
-            { id: 'obs_speedrun', name: 'Speedrun', desc: 'Complete a mission within 10 minutes of starting it', art: 'speed_demon', pts: 100 },
-            { id: 'obs_manual_scholar', name: 'Read The Manual', desc: 'Open the Field Manual', art: 'fundamentals_scholar', pts: 10 },
-            { id: 'obs_lab_workbench', name: 'Workbench: Tooled Up', desc: 'Complete the DevOps Workbench graded checks', art: 'tool_wielder', pts: 100, pending: true },
-            { id: 'obs_lab_git', name: 'Git: History Surgeon', desc: 'Complete the Git Fundamentals graded checks', art: 'code_git_guru', pts: 150, pending: true },
-            { id: 'obs_lab_dataformats', name: 'Data Formats: Parsed Clean', desc: 'Complete the Data Formats graded checks', art: 'binary_reader', pts: 75, pending: true },
-            { id: 'obs_lab_ide', name: 'IDE: Configured', desc: 'Complete the DevOps IDE graded checks', art: 'construct_master', pts: 50, pending: true },
-            { id: 'obs_lab_postgres', name: 'PostgreSQL Operator', desc: 'Complete the PostgreSQL lab graded checks', art: 'console_hacker', pts: 150, pending: true },
-            { id: 'obs_realbox', name: 'Real Box: Field Work', desc: 'Complete BOTH Real Box practicals', art: 'command_warrior', pts: 250, pending: true }
-        ];
-        // Rarity from points — same thresholds the core system derives from.
-        function obsRarity(def) {
-            if (def.style === 'legendary' || def.pts >= 500) return 'legendary';
-            if (def.pts >= 200) return 'epic';
-            if (def.pts >= 100) return 'rare';
-            if (def.pts >= 50) return 'uncommon';
-            return 'common';
-        }
-        function obsBadgeEarned(def, prog) {
-            if (def.legacy) {
-                try { return typeof AchievementSystem !== 'undefined' && AchievementSystem.isUnlocked(def.id); }
-                catch (e) { return false; }
-            }
-            return !!(prog.obsBadges && prog.obsBadges[def.id]);
-        }
+        // Canonical defs now live in _app/components/ObservatoryBadges.js (loaded
+        // above). Migrated 2026-07-11 (task #96) — verified byte-identical to the
+        // former local literal before swapping. ONE source shared with the Trophy
+        // Cabinet (trophies.html), so an SBX-7 pending->live flip is edited once.
+        var OBS_BADGE_DEFS = ObservatoryBadges.DEFS;
+        // Retired local copies — single-sourced from ObservatoryBadges.js (verified
+        // byte-identical thresholds/logic before the swap, 2026-07-11 task #96).
+        // obsBadgeEarned(def, prog): callers here always pass prog; the shared
+        // earned() additionally defaults prog to the live doc if omitted.
+        var obsRarity = ObservatoryBadges.rarity;
+        var obsBadgeEarned = ObservatoryBadges.earned;
 
         // Award engine: derives every obs_* condition from the durable progress
         // doc (mission counts come ONLY from server-verified claim moments) and

@@ -87,7 +87,13 @@ function src(rel) { return fs.readFileSync(path.join(APP, rel), 'utf8'); }
         var obsEarned = {};
         ObservatoryBadges.DEFS.filter(function (d) { return !d.legacy && !d.pending; })
             .forEach(function (d, i) { if (i % 2 === 0) obsEarned[d.id] = { earnedAt: 1 }; });
-        localStorage.setItem(ObservatoryBadges.PROG_LS, JSON.stringify({ obsBadges: obsEarned }));
+        // v:1-shaped doc — matches what the observatory page's writeProgress()
+        // actually persists. ObservatoryBadges.readProgress() enforces the v:1 schema
+        // guard (single normalizer, Chris QC 2026-07-11), so an un-versioned seed
+        // would read as fresh and drop these badges — as real production docs always
+        // carry v:1, the seed must too.
+        localStorage.setItem(ObservatoryBadges.PROG_LS, JSON.stringify({
+            v: 1, updatedAt: 1, tutorial: { step: 0, done: false }, missions: {}, obsBadges: obsEarned }));
 
         var model = TrophyCabinet.mount(document.getElementById('root'));
         return {
