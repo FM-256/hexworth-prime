@@ -1246,9 +1246,49 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             }
 
             case 'ssh-keygen': {
-                const keyType = args.includes('-t') ? args[args.indexOf('-t') + 1] || 'rsa' : 'rsa';
+                let keyType = args.includes('-t') ? args[args.indexOf('-t') + 1] || 'rsa' : 'rsa';
+                // Whitelist -t to real ssh-keygen values; anything else falls back to rsa
+                // (matches real ssh-keygen, and stops junk like `-t ../../etc` from becoming
+                // a garbage `id_../../etc` entry in the fs / ls output).
+                if (['rsa', 'dsa', 'ecdsa', 'ed25519', 'ed25519-sk', 'ecdsa-sk'].indexOf(keyType) === -1) keyType = 'rsa';
                 const keyBits = keyType === 'ed25519' ? 256 : 3072;
-                return `Generating public/private ${keyType} key pair.\nYour identification has been saved in /home/${state.currentUser?.name || 'student'}/.ssh/id_${keyType}\nYour public key has been saved in /home/${state.currentUser?.name || 'student'}/.ssh/id_${keyType}.pub\nThe key fingerprint is:\nSHA256:xR4jK9mN2pL5qW8vT1yB3zF6hD0cA7eG+nU4sO2iVw ${state.currentUser?.name || 'student'}@${state.env.HOSTNAME || 'linux-mastery'}\nThe key's randomart image is:\n+---[${keyType.toUpperCase()} ${keyBits}]----+\n|       .o+.      |\n|      . =o.o     |\n|     . o.+= .    |\n|    . +.=o.o     |\n|   . o.=S+.      |\n|    o.+oB.+      |\n|   ..+.= + .     |\n|    .o= . .      |\n|    .oE          |\n+----[SHA256]-----+`;
+                // Use the ACTUAL current user, not a hardcoded 'student'. _initCurrentUser
+                // stores the name under `username` (NOT `name`), so the old
+                // `state.currentUser?.name` always fell through to 'student' and printed
+                // /home/student paths even for a 'learner' session.
+                const uName = (state.currentUser && state.currentUser.username) || config.user;
+                const uHome = (state.currentUser && state.currentUser.home) || ('/home/' + uName);
+                const sshDir = uHome + '/.ssh';
+                const priv = 'id_' + keyType;
+                const pub = priv + '.pub';
+                const privPath = sshDir + '/' + priv;
+                const pubPath = sshDir + '/' + pub;
+                // Actually CREATE ~/.ssh + the key pair in the filesystem, so a follow-up
+                // `ls ~/.ssh` / `cat ~/.ssh/*.pub` works — previously ssh-keygen only printed
+                // text and wrote nothing, so ls ~/.ssh errored even right after generating a key.
+                if (!state.fs[sshDir]) {
+                    state.fs[sshDir] = { type: 'dir', perms: 'drwx------', owner: uName, group: uName, children: [] };
+                    const homeNode = state.fs[uHome];
+                    if (homeNode && homeNode.children && homeNode.children.indexOf('.ssh') === -1) homeNode.children.push('.ssh');
+                }
+                // Do NOT overwrite pre-existing keys (real ssh-keygen prompts before clobbering;
+                // a lab may pre-seed authored key content via addFilesystem — e.g.
+                // script-linux-ssh.lab.html seeds sysop's keys, and its Task 1 runs ssh-keygen).
+                // Atomic: real ssh-keygen aborts if EITHER half of the pair already exists — it
+                // never writes just the missing half. So only create when NEITHER exists; this
+                // preserves an authored key AND avoids fabricating a lone id_rsa.pub next to an
+                // asymmetric pre-seed (e.g. da-linux-post-exploitation.lab.html seeds id_rsa,
+                // no .pub). The generation banner still prints — the fs just isn't clobbered.
+                if (!state.fs[privPath] && !state.fs[pubPath]) {
+                    state.fs[privPath] = { type: 'file', perms: '-rw-------', owner: uName, group: uName, size: 411,
+                        content: '-----BEGIN OPENSSH PRIVATE KEY-----\n[simulated private key — keep this secret]\n-----END OPENSSH PRIVATE KEY-----\n' };
+                    state.fs[pubPath] = { type: 'file', perms: '-rw-r--r--', owner: uName, group: uName, size: 96,
+                        content: 'ssh-' + keyType + ' AAAAC3NzaC1lZDI1NTE5AAAAI' + 'SIMULATEDKEY ' + uName + '@' + (state.env.HOSTNAME || 'linux-mastery') + '\n' };
+                    const sshNode = state.fs[sshDir];
+                    if (sshNode.children.indexOf(priv) === -1) sshNode.children.push(priv);
+                    if (sshNode.children.indexOf(pub) === -1) sshNode.children.push(pub);
+                }
+                return `Generating public/private ${keyType} key pair.\nYour identification has been saved in ${privPath}\nYour public key has been saved in ${pubPath}\nThe key fingerprint is:\nSHA256:xR4jK9mN2pL5qW8vT1yB3zF6hD0cA7eG+nU4sO2iVw ${uName}@${state.env.HOSTNAME || 'linux-mastery'}\nThe key's randomart image is:\n+---[${keyType.toUpperCase()} ${keyBits}]----+\n|       .o+.      |\n|      . =o.o     |\n|     . o.+= .    |\n|    . +.=o.o     |\n|   . o.=S+.      |\n|    o.+oB.+      |\n|   ..+.= + .     |\n|    .o= . .      |\n|    .oE          |\n+----[SHA256]-----+`;
             }
 
             case 'scp': {
