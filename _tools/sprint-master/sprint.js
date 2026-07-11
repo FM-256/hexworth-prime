@@ -32,6 +32,7 @@ const SERIES_MAP = {
   'WSA': 'Windows Server Admin',
   'AI':  'AI & Agents',
   'MON': 'Monitoring & Observability',
+  'JCS': 'Job Campaign System (Frank personal PoC)',
 };
 const HOUSES = ['forge', 'shield', 'cloud', 'web', 'script', 'code', 'key', 'eye', 'dark-arts', 'multi', 'ai'];
 
