@@ -1,0 +1,151 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      # Host 9090 is owned by cockpit.socket on neon; publish the UI on 9091.
+      # Grafana/Alertmanager reach Prometheus over the internal network, not this port.
+      - "9091:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      # Bound to neon's Tailscale interface only — the Alertmanager API can
+      # create silences (suppress real alerts), so it must not listen on all
+      # interfaces. 100.65.122.90 = neon tailscale ip -4.
+      - "100.65.122.90:9093:9093"
+    volumes:
+      - ./config/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+
+  # Container restart/health metrics, read straight from the Docker Engine API.
+  # This replaces cAdvisor: neon uses the containerd image store (Storage Driver
+  # "overlayfs", cgroup v2), under which cAdvisor cannot enrich containers (it
+  # reads the legacy layerdb layout that no longer exists) and drops every one.
+  # This exporter reads Docker's RestartCount directly — the exact signal that
+  # was ~12,942 on the crash-looping redis — so it is immune to that layout.
+  # See config/docker-restart-exporter.py for the socket-access security note.
+  docker-restart-exporter:
+    image: python:3.11-slim
+    container_name: docker-restart-exporter
+    restart: unless-stopped
+    volumes:
+      - ./config/docker-restart-exporter.py:/app/docker-restart-exporter.py:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: ["python3", "/app/docker-restart-exporter.py"]
+    # Scraped internally on 9101; no host port needed.
+
+  # Self-hosted notification bus. Reachable from the operator's devices over
+  # Tailscale (neon is not publicly exposed). Alertmanager publishes to the
+  # hexworth-alerts topic; the operator subscribes via the ntfy app/browser.
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: ntfy
+    restart: unless-stopped
+    command:
+      - serve
+    environment:
+      - TZ=America/New_York
+      - NTFY_BASE_URL=http://neon:8090
+      - NTFY_LISTEN_HTTP=:80
+      - NTFY_AUTH_DEFAULT_ACCESS=read-write
+      - NTFY_ATTACHMENT_CACHE_DIR=/var/cache/ntfy/attachments
+    volumes:
+      - ntfy_data:/var/lib/ntfy
+      - ntfy_cache:/var/cache/ntfy
+    ports:
+      # Tailscale interface only. read-write default access + no auth is
+      # acceptable ONLY because this never listens on a public/LAN interface;
+      # binding to 100.65.122.90 enforces that rather than assuming it.
+      - "100.65.122.90:8090:80"
+
+  # Translates Alertmanager's webhook JSON into readable ntfy notifications.
+  # Alertmanager posts its fixed JSON schema (with an alerts[] array) here; this
+  # relay iterates the array and pushes one titled, severity-tagged message per
+  # alert. Without it, Alertmanager's raw JSON blob would be pushed verbatim and
+  # be unusable on a phone. Internal only — Alertmanager reaches it by name.
+  webhook-ntfy:
+    image: python:3.11-slim
+    container_name: webhook-ntfy
+    restart: unless-stopped
+    depends_on:
+      - ntfy
+    environment:
+      - NTFY_URL=http://ntfy/hexworth-alerts
+    volumes:
+      - ./config/webhook-ntfy.py:/app/webhook-ntfy.py:ro
+    command: ["python3", "/app/webhook-ntfy.py"]
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=hexworth
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./config/grafana/dashboards/hexworth-infra.json:/var/lib/grafana/dashboards/hexworth-infra.json:ro
+
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./config/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./config/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/config.yml
+
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: node_exporter
+    restart: unless-stopped
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+
+volumes:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  alertmanager_data:
+  ntfy_data:
+  ntfy_cache:

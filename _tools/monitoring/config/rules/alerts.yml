@@ -1,0 +1,86 @@
+groups:
+  # --------------------------------------------------------------------------
+  # Container health. This group is the direct answer to the 2026-07-10 finding:
+  # hexworth-redis crash-looped ~12,942 times over ~80 days with no alert,
+  # because nothing watched container state. Metrics come from the Docker Engine
+  # API via docker-restart-exporter (cAdvisor cannot see containers under neon's
+  # containerd image store). ContainerCrashLooping catches the exact redis case.
+  # --------------------------------------------------------------------------
+  - name: containers
+    rules:
+      - alert: ContainerCrashLooping
+        # RestartCount is Docker's own counter, incremented on every restart-policy
+        # restart. increase() over 15m handles the counter reset when a container is
+        # recreated. >3 restarts in 15m is a crash loop, not a routine restart.
+        expr: increase(docker_container_restart_count[15m]) > 3
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container crash-looping: {{ $labels.name }}"
+          description: "{{ $labels.name }} on {{ $labels.server }} restarted {{ $value | printf \"%.0f\" }} times in the last 15m (Docker RestartCount)."
+
+      - alert: ContainerRestarting
+        # Docker reports State.Restarting=true while a container is mid-restart-loop.
+        # Sustained for 2m means it is stuck restarting, not a one-off bounce.
+        expr: docker_container_restarting == 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Container stuck restarting: {{ $labels.name }}"
+          description: "{{ $labels.name }} on {{ $labels.server }} has been in the restarting state for >2m."
+
+      - alert: ContainerUnhealthy
+        # For containers with a Docker HEALTHCHECK, alert when it reports unhealthy.
+        expr: docker_container_health{status="unhealthy"} == 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container unhealthy: {{ $labels.name }}"
+          description: "{{ $labels.name }} on {{ $labels.server }} has reported an unhealthy Docker healthcheck for >5m."
+
+  # --------------------------------------------------------------------------
+  # Scrape health. If Prometheus cannot reach a target, the target is invisible.
+  # This is exactly how the whole stack silently went blind for ~9 days when
+  # Prometheus lost its network. up==0 makes that self-reporting now.
+  # --------------------------------------------------------------------------
+  - name: scrape
+    rules:
+      - alert: ScrapeTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Monitoring target down: {{ $labels.job }}"
+          description: "Prometheus cannot scrape {{ $labels.instance }} (job {{ $labels.job }}) for 5m. Metrics from this target are blind."
+
+  # --------------------------------------------------------------------------
+  # Host vitals. node_exporter was already collecting these; now they alert.
+  # --------------------------------------------------------------------------
+  - name: host
+    rules:
+      - alert: DiskAlmostFull
+        # The `and ... > 5e9` guard restricts to filesystems larger than 5GB, so
+        # tiny system partitions (/boot/efi ~1.1G, efivarfs) that sit near-full by
+        # design never trip this. Without it, day-one noise trains you to ignore it.
+        expr: >-
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs"} / node_filesystem_size_bytes)) > 0.85
+          and node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs"} > 5e9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk >85% on {{ $labels.server }}"
+          description: "{{ $labels.mountpoint }} on {{ $labels.server }} is {{ $value | humanizePercentage }} full."
+
+      - alert: HostMemoryHigh
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.90
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory >90% on {{ $labels.server }}"
+          description: "{{ $labels.server }} memory usage has been above 90% for 10m."
