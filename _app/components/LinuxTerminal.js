@@ -1965,23 +1965,44 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             return '<span class="lt-error">mv: missing file operand</span>';
         }
 
-        const src = _resolvePath(args[0]);
-        const srcNode = state.fs[src];
-
-        if (!srcNode) {
-            return `<span class="lt-error">mv: cannot stat '${args[0]}': No such file or directory</span>`;
+        // Expand glob source(s) the SAME way _cp does (all args but the last are sources; the last
+        // is the dest). Without this, a glob like `*.log` was resolved as a LITERAL path, failed the
+        // existence check, and short-circuited to `cannot stat '*.log'` — so `mv *.log dir/` moved
+        // nothing. A no-wildcard arg expands to itself, so a plain `mv a b` is unchanged.
+        const sourceArgs = args.slice(0, -1);
+        const expandedSources = [];
+        for (let s = 0; s < sourceArgs.length; s++) {
+            const expanded = _expandGlob(sourceArgs[s]);
+            for (let e = 0; e < expanded.length; e++) expandedSources.push(expanded[e]);
         }
 
+        // A glob that matched nothing, or a literal missing source, is an error (like real mv / _cp).
+        if (expandedSources.length === 0) {
+            return `<span class="lt-error">mv: cannot stat '${sourceArgs[0]}': No such file or directory</span>`;
+        }
+        for (let i = 0; i < expandedSources.length; i++) {
+            if (!state.fs[expandedSources[i]]) {
+                return `<span class="lt-error">mv: cannot stat '${expandedSources[i]}': No such file or directory</span>`;
+            }
+        }
+
+        // A move is a copy-then-delete-original. Delegate the copy to _cp (which re-expands the same
+        // globs deterministically); abort the whole move if the copy errored (e.g. a dir without -r).
         const result = _cp(args);
         if (result && result.includes('lt-error')) return result;
 
-        const srcParent = src.split('/').slice(0, -1).join('/') || '/';
-        const srcName = src.split('/').pop();
-        const parent = state.fs[srcParent];
-        if (parent && parent.children) {
-            parent.children = parent.children.filter(c => c !== srcName);
+        // Delete each ORIGINAL source (the move half). For a single literal source this is exactly
+        // the previous behavior; for a glob it removes every file the copy just relocated.
+        for (let j = 0; j < expandedSources.length; j++) {
+            const src = expandedSources[j];
+            const srcParent = src.split('/').slice(0, -1).join('/') || '/';
+            const srcName = src.split('/').pop();
+            const parent = state.fs[srcParent];
+            if (parent && parent.children) {
+                parent.children = parent.children.filter(c => c !== srcName);
+            }
+            delete state.fs[src];
         }
-        delete state.fs[src];
 
         return null;
     }
