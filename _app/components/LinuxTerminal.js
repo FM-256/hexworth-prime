@@ -1922,22 +1922,40 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
      * Returns array of resolved paths.
      */
     function _expandGlob(pattern) {
-        if (pattern.indexOf('*') === -1) {
+        // No wildcard -> a literal path; resolve and return as-is.
+        if (pattern.indexOf('*') === -1 && pattern.indexOf('?') === -1) {
             return [_resolvePath(pattern)];
         }
 
-        // Handle dir/* pattern
-        var parts = pattern.split('*');
-        var dirPath = _resolvePath(parts[0].replace(/\/$/, ''));
+        // Only the LAST path segment is globbed (e.g. "Documents/*.txt" matches *.txt inside
+        // Documents; "*.txt" matches in the current dir). Split the directory part from the
+        // filename glob so the wildcard applies to child names, not the whole path.
+        var lastSlash = pattern.lastIndexOf('/');
+        var dirSpec = lastSlash === -1 ? '' : pattern.slice(0, lastSlash);
+        var globPart = lastSlash === -1 ? pattern : pattern.slice(lastSlash + 1);
+        var dirPath = _resolvePath(dirSpec);
         var dirNode = state.fs[dirPath];
 
         if (!dirNode || dirNode.type !== 'dir' || !dirNode.children) {
             return [];
         }
 
+        // Convert the shell glob to an anchored regex: escape every regex metachar EXCEPT the glob
+        // wildcards, then map '*' -> '.*' and '?' -> '.'. Without this, a pattern like "*.txt"
+        // matched EVERY child (its '.txt' suffix was ignored), so `cp *.txt dir/` tried to copy
+        // sibling directories and aborted on the first one — copying nothing (marathon backlog).
+        var rx = new RegExp('^' + globPart
+            .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+            .replace(/\*/g, '.*')
+            .replace(/\?/g, '.') + '$');
+        // Bash: a leading '*' does NOT match hidden (dot) files; only an explicit leading '.' does.
+        var matchHidden = globPart.charAt(0) === '.';
+
         var results = [];
         for (var i = 0; i < dirNode.children.length; i++) {
-            results.push(dirPath + '/' + dirNode.children[i]);
+            var name = dirNode.children[i];
+            if (!matchHidden && name.charAt(0) === '.') continue;
+            if (rx.test(name)) results.push(dirPath + '/' + name);
         }
         return results;
     }
