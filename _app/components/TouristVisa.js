@@ -242,13 +242,27 @@ const TouristVisa = (function () {
         function wrapIfExists(obj, methodName, label) {
             if (!obj || typeof obj[methodName] !== 'function') return;
             var original = obj[methodName];
-            obj[methodName] = function () {
+            // Idempotency: tryInstall() runs up to 3x per page (immediate + DOMContentLoaded +
+            // setTimeout), so without this guard each method got wrapped up to 3 times — layered
+            // duplicate blockers. The flag lives on the wrapper FUNCTION and is checked against
+            // whatever currently sits at obj[methodName]. GUARANTEE (not "exactly once in all
+            // cases"): TouristVisa adds at most one layer across a contiguous run of its OWN passes.
+            // If another wrapper (e.g. LinuxReplay) lands BETWEEN two TouristVisa passes, its wrapper
+            // hides this flag and a later pass adds a second TouristVisa layer — still correct
+            // (isActive() is a pure read, so the outermost layer short-circuits identically) and
+            // still fewer layers than pre-fix, just not a hard "once". Checking function IDENTITY
+            // (not method name) is deliberate: it re-wraps a method that was REPLACED wholesale,
+            // which a name-based guard would leave unguarded. Mirrors LinuxReplay's __linuxReplayWrapped.
+            if (original.__touristWrapped) return;
+            var wrapped = function () {
                 if (isActive()) {
                     console.log('[TouristVisa] Blocked ' + label + ' — tourist mode');
                     return false;
                 }
                 return original.apply(obj, arguments);
             };
+            wrapped.__touristWrapped = true;
+            obj[methodName] = wrapped;
         }
 
         // Defer until the globals are defined (they load after AccessGuard)
