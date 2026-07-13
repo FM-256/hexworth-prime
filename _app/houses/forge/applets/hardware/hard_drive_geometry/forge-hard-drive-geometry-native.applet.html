@@ -681,6 +681,7 @@ const ZONES = [
     { rings: [4, 5], sectors: 8, hue: 32, name: 'Inner' }
 ];
 let armAngle = 0, armRaf = null;   // current actuator-arm angle (deg) + in-flight animation frame id
+const LOC_DEFAULT_TEXT = 'Pick a track, head, and sector to find it on the disk.';   // mirrors #locResult's initial copy
 
 // Copy + spotlight targets for every concept chip / clicked wedge. cellMatch is either null (no wedge
 // highlight), 'center'/'arm' (glow the spindle/arm group instead of any wedge), 'ctx' (highlight the
@@ -719,12 +720,12 @@ const EXPLAIN_COPY = {
     sector: {
         title: 'Sector',
         body: 'A sector is one small wedge of a track — the smallest chunk the drive reads or writes at once. Traditionally 512 bytes; modern drives use 4,096-byte (4K) sectors.',
-        side: [], spindle: false, cellMatch: 'ctx'
+        side: null, spindle: false, cellMatch: 'ctx'
     },
     zone: {
         title: 'Zone (Zone Bit Recording)',
         body: 'Outer tracks are physically longer, so they hold more sectors than the short inner tracks. Drives group tracks into zones by how many sectors each holds — that\'s Zone Bit Recording. Notice the outer band here has more wedges than the inner.',
-        side: [], spindle: false, cellMatch: function (el) { return el.dataset.zone === 'Outer'; }
+        side: null, spindle: false, cellMatch: function (el) { return el.dataset.zone === 'Outer'; }
     }
 };
 
@@ -765,6 +766,28 @@ function clearAllPick() {
     document.querySelectorAll('#cellLayer .cell.pick').forEach(function (c) { c.classList.remove('pick'); });
 }
 
+// Return the locator channel to rest as one unit: drop the pick outline, restore the status text to its
+// default prompt, and swing the arm back to neutral. Text and arm are only rewritten when they are
+// actually non-default, so a plain concept-chip click never re-announces the aria-live prompt or snaps
+// the arm. Called by explain() so switching from the locator to a concept can't leave outline, text, and
+// arm disagreeing with each other.
+function standDownLocator() {
+    clearAllPick();
+    const lr = document.getElementById('locResult');
+    if (lr && lr.textContent !== LOC_DEFAULT_TEXT) lr.textContent = LOC_DEFAULT_TEXT;
+    // Snap the arm home when it is off-neutral OR a tween is still pending. The `armRaf ||` guard closes
+    // a sub-frame race: moveArmToSector()'s animated branch does not update armAngle until its first
+    // requestAnimationFrame fires, so a first-ever locator pick (armAngle still 0) followed within one
+    // frame by a chip click would otherwise leave a scheduled tween running after standdown. A plain chip
+    // click with no locator use (armRaf null, armAngle 0) still no-ops here — no needless arm write.
+    if (armRaf || armAngle !== 0) {
+        if (armRaf) { cancelAnimationFrame(armRaf); armRaf = null; }
+        armAngle = 0;
+        const arm = document.getElementById('headArm');
+        if (arm) arm.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
+    }
+}
+
 // Spotlight helper for the top-down platter: dim every wedge, then re-brighten (.hl) the ones for
 // which matchFn returns true. Passing null clears dim/hl entirely (used when the concept being
 // explained isn't a wedge at all, e.g. the platter/spindle/arm, or at initial load).
@@ -800,6 +823,13 @@ function sideSpotlight(activeClasses, showSpindle) {
 function explain(key, ctx) {
     const spec = EXPLAIN_COPY[key];
     if (!spec) return;
+    // Stand the whole locator channel down before explaining a concept, so a prior locator selection
+    // can't leave its outline, its status text, AND its arm position contradicting each other (e.g. the
+    // gold pick cleared but "You picked Track 2..." still on screen and the arm still swung to it). The
+    // status text and arm are only rewritten when actually non-default, so a plain chip click never
+    // spams the aria-live region or snaps the arm. A wedge click re-adds .pick to its own cell after
+    // this runs; the locator dropdowns (onLocatorChange) never call explain(), so their flow is intact.
+    standDownLocator();
     document.querySelectorAll('.concept-chip').forEach(function (c) {
         c.classList.toggle('active', c.dataset.key === key);
     });
@@ -959,7 +989,8 @@ function buildPlatter() {
                 path.dataset.sector = sectorNum;
                 path.dataset.zone = zone.name;
                 function activate() {
-                    clearAllPick();
+                    // explain('sector') stands the locator down (incl. clearAllPick) first; we then mark
+                    // this specific wedge as the picked one. Order matters: .pick is added AFTER explain.
                     explain('sector', { ring: ring, sector: sectorNum });
                     path.classList.add('pick');
                 }
