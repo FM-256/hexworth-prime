@@ -16,8 +16,19 @@ colliding — see `feedback_parallel_agents_shared_tree_collide`). See `feedback
 |----------|------|---------------|-------|----------|
 | `agent-a277adbd641268e49` | 862M | `worktree-agent-a277adbd641268e49` @ `3c7b6a179` | **locked (frozen 2026-07-13)** | 3 uncommitted files: an **early draft** of the Observatory class-switcher + admin class-editor |
 | `agent-a60c3889d57be2c15` | 862M | `worktree-agent-a60c3889d57be2c15` @ `3c7b6a179` | **locked** (harness lock) | clean, no uncommitted changes |
-| `agent-a2694f45` | 12K | — (not a registered worktree) | leftover shell | empty nested `.claude/worktrees/` skeleton only |
-| `agent-a9c3f40c` | 12K | — (not a registered worktree) | leftover shell | empty nested `.claude/worktrees/` skeleton only |
+| `agent-a2694f45` | 12K | — (not a registered worktree) | **frozen (`.FROZEN` marker, 2026-07-14)** | empty nested `.claude/worktrees/` skeleton only (0 files) |
+| `agent-a9c3f40c` | 12K | — (not a registered worktree) | **frozen (`.FROZEN` marker, 2026-07-14)** | empty nested `.claude/worktrees/` skeleton only (0 files) |
+
+### The two empty shells — freeze adapted (2026-07-14)
+`agent-a2694f45` and `agent-a9c3f40c` are **not registered git worktrees** and hold **zero files**, so the
+standard three steps map differently:
+- **Lock** → `git worktree lock` can't apply (git doesn't know them as worktrees). A `.FROZEN` marker file
+  in each dir is the freeze signal instead — a readable "do not reuse, do not delete" stop sign.
+- **Archive** → nothing unique to preserve (0 files); the never-destroy rule has nothing at stake. Recorded
+  here rather than copying an empty skeleton.
+- **Inventory** → this table + the marker files.
+
+Still **never deleted / never pruned**, consistent with the freeze standard.
 
 ## The `a277adbd` draft — verified, superseded, DO NOT merge
 The 3 uncommitted files (`_app/components/ObservatoryConsent.js`, `_app/houses/observatory/index.html`,
