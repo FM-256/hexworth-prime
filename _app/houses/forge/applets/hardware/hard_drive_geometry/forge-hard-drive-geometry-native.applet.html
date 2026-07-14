@@ -766,26 +766,29 @@ function clearAllPick() {
     document.querySelectorAll('#cellLayer .cell.pick').forEach(function (c) { c.classList.remove('pick'); });
 }
 
-// Return the locator channel to rest as one unit: drop the pick outline, restore the status text to its
-// default prompt, and swing the arm back to neutral. Text and arm are only rewritten when they are
-// actually non-default, so a plain concept-chip click never re-announces the aria-live prompt or snaps
-// the arm. Called by explain() so switching from the locator to a concept can't leave outline, text, and
-// arm disagreeing with each other.
-function standDownLocator() {
+// Return the locator channel to rest: drop the pick outline and restore the status text to its default
+// prompt. Any in-flight arm tween is ALWAYS cancelled so it can't fight what happens next — this also
+// closes a sub-frame race where a first-ever locator pick's just-scheduled tween (armAngle still 0)
+// would otherwise keep running after standdown. The arm is only PARKED at neutral when the caller is not
+// about to re-target it: pass retargeting=true from a sector seek so the arm stays where it is and
+// moveArmToSector() can tween smoothly from the current position instead of snapping to centre first
+// (which would read as a "flash to centre, then re-seek" glitch on the second and later clicks). Text is
+// only rewritten when non-default, so a plain concept-chip click never re-announces the aria-live prompt.
+function standDownLocator(retargeting) {
     clearAllPick();
     const lr = document.getElementById('locResult');
     if (lr && lr.textContent !== LOC_DEFAULT_TEXT) lr.textContent = LOC_DEFAULT_TEXT;
-    // Snap the arm home when it is off-neutral OR a tween is still pending. The `armRaf ||` guard closes
-    // a sub-frame race: moveArmToSector()'s animated branch does not update armAngle until its first
-    // requestAnimationFrame fires, so a first-ever locator pick (armAngle still 0) followed within one
-    // frame by a chip click would otherwise leave a scheduled tween running after standdown. A plain chip
-    // click with no locator use (armRaf null, armAngle 0) still no-ops here — no needless arm write.
-    if (armRaf || armAngle !== 0) {
-        if (armRaf) { cancelAnimationFrame(armRaf); armRaf = null; }
-        armAngle = 0;
-        const arm = document.getElementById('headArm');
-        if (arm) arm.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
-    }
+    if (armRaf) { cancelAnimationFrame(armRaf); armRaf = null; }
+    if (!retargeting) parkArm();
+}
+
+// Snap the actuator arm to its neutral 12-o'clock rest position; no-ops when it is already home. Used
+// when the explained concept is not a specific sector location (platter, spindle, track, cylinder, ...).
+function parkArm() {
+    if (armAngle === 0) return;
+    armAngle = 0;
+    const arm = document.getElementById('headArm');
+    if (arm) arm.setAttribute('transform', 'rotate(0 ' + CX + ' ' + CY + ')');
 }
 
 // Spotlight helper for the top-down platter: dim every wedge, then re-brighten (.hl) the ones for
@@ -823,13 +826,14 @@ function sideSpotlight(activeClasses, showSpindle) {
 function explain(key, ctx) {
     const spec = EXPLAIN_COPY[key];
     if (!spec) return;
-    // Stand the whole locator channel down before explaining a concept, so a prior locator selection
-    // can't leave its outline, its status text, AND its arm position contradicting each other (e.g. the
-    // gold pick cleared but "You picked Track 2..." still on screen and the arm still swung to it). The
-    // status text and arm are only rewritten when actually non-default, so a plain chip click never
-    // spams the aria-live region or snaps the arm. A wedge click re-adds .pick to its own cell after
-    // this runs; the locator dropdowns (onLocatorChange) never call explain(), so their flow is intact.
-    standDownLocator();
+    // Stand the locator channel down before explaining a concept, so a prior locator selection can't
+    // leave its outline, status text, and arm position contradicting each other. When the concept IS a
+    // specific sector (cellMatch 'ctx' — a wedge click or the Sector chip) we're about to re-target the
+    // arm, so tell standDownLocator to leave it in place (retargeting) and let moveArmToSector() tween it
+    // smoothly from where it is; otherwise the arm is parked at neutral. The locator dropdowns
+    // (onLocatorChange) never call explain(), so their flow is unaffected.
+    const seeking = spec.cellMatch === 'ctx' && !!ctx;
+    standDownLocator(seeking);
     document.querySelectorAll('.concept-chip').forEach(function (c) {
         c.classList.toggle('active', c.dataset.key === key);
     });
@@ -848,10 +852,14 @@ function explain(key, ctx) {
         spotlightCells(null);
         if (topArm) topArm.classList.add('spotlight-part');
     } else if (spec.cellMatch === 'ctx') {
-        const match = ctx
-            ? function (el) { return Number(el.dataset.ring) === ctx.ring && Number(el.dataset.sector) === ctx.sector; }
-            : function (el) { return el.dataset.ring === '0' && el.dataset.sector === '1'; };
-        spotlightCells(match);
+        // Highlight one wedge. A DIRECT wedge click (ctx present) also swings the actuator arm out to point
+        // at that exact sector — the head seeking it. Because standDownLocator(seeking=true) left the arm
+        // in place for a wedge click, moveArmToSector() tweens smoothly from the current position rather
+        // than snapping to centre first. The bare "Sector" chip (no ctx) only highlights a representative
+        // wedge and leaves the arm parked at neutral — it explains the concept, it does not seek an address.
+        const target = ctx || { ring: 0, sector: 1 };
+        spotlightCells(function (el) { return Number(el.dataset.ring) === target.ring && Number(el.dataset.sector) === target.sector; });
+        if (ctx) moveArmToSector(ctx.ring, ctx.sector);
     } else if (typeof spec.cellMatch === 'function') {
         spotlightCells(spec.cellMatch);
     } else {
@@ -891,6 +899,7 @@ function moveArmToSector(ring, sector) {
         armAngle = start + delta * e;
         arm.setAttribute('transform', 'rotate(' + armAngle.toFixed(2) + ' ' + CX + ' ' + CY + ')');
         if (p < 1) armRaf = requestAnimationFrame(step);
+        else armRaf = null;   // tween complete — clear the handle so it never reads as "in flight" later
     }
     armRaf = requestAnimationFrame(step);
 }
