@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="../../../components/AccessGuard.js"></script>
+  <script>AccessGuard.require('sorted');</script>
+  <script src="../../../components/AchievementManager.js"></script>
+  <script src="../../../components/ModuleProgress.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEH-01: Reconnaissance &amp; Footprinting Lab</title>
+  <link rel="icon" type="image/webp" href="/assets/images/icons/icon-footprint.webp">
+  <!--
+      GROUNDING (primary): _planning/usb-import/extracted-guides/ec-council-ceh-v12/
+        eccouncil-ceh31250-v12-2-9-1-whois-and-dns.md (WHOIS thick/thin, DNS, zone transfer)
+        eccouncil-ceh31250-v12-2-2-1-google-dorks.md (dork operators)
+        eccouncil-ceh31250-v12-2-3-1-shodan-and-censys.md
+        eccouncil-ceh31250-v12-2-5-1-social-networking-recon.md (Sherlock)
+        eccouncil-ceh31250-v12-2-11-1-other-footprinting-tools.md (FOCA)
+      GROUNDING (supplementary): Raw sources/HUMBLE-MAY-2026/cehv12...pdf Chapter 4
+        (DNS record types A/AAAA/MX/NS/CNAME/PTR/TXT/SOA).
+      All targets in this lab are FICTIONAL and provided ("meridiantech-corp.example").
+      No real-world domain, IP, or organization is scanned or contacted.
+  -->
+  <style>
+    :root{--hp:#9b59d0;--ha:#9333ea;--tg:#00ff41;--bg:#0a0a0a;--tbg:#0d1117;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh;width:100%;}
+    header{background:rgba(107,33,168,.15);border-bottom:1px solid rgba(107,33,168,.3);padding:14px 24px;display:flex;align-items:center;gap:16px;}
+    .back{color:var(--ha);text-decoration:none;font-size:20px;line-height:1;}
+    h1{color:var(--ha);font-size:1.1rem;}
+    .progress-bar{margin-left:auto;font-size:.8rem;color:#9ca3af;}
+
+    /* ── Rules of Engagement gate ─────────────────────────────── */
+    .roe-gate{max-width:760px;margin:40px auto;padding:32px;background:rgba(15,17,23,.9);border:1px solid rgba(239,68,68,.35);border-radius:10px;}
+    .roe-gate h2{color:#f87171;font-size:1.2rem;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+    .roe-gate h2 img{width:22px;height:22px;}
+    .roe-gate p{color:#c9b8d4;font-size:.88rem;line-height:1.7;margin-bottom:14px;}
+    .roe-box{background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:16px 20px;margin:18px 0;}
+    .roe-box h3{color:#f87171;font-size:.85rem;letter-spacing:.05em;margin-bottom:10px;text-transform:uppercase;}
+    .roe-box ul{margin-left:20px;color:#d8c8de;font-size:.85rem;line-height:1.9;}
+    .roe-checkline{display:flex;align-items:flex-start;gap:10px;margin-top:22px;padding:14px 16px;background:rgba(0,255,65,.04);border:1px solid rgba(0,255,65,.2);border-radius:6px;}
+    .roe-checkline input{margin-top:3px;accent-color:var(--tg);width:16px;height:16px;flex-shrink:0;}
+    .roe-checkline label{font-size:.85rem;color:#e2e8f0;line-height:1.6;cursor:pointer;}
+    .roe-begin-btn{display:block;margin:22px auto 0;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;color:#fff;padding:12px 36px;border-radius:6px;cursor:pointer;font-size:.9rem;letter-spacing:.05em;font-family:inherit;}
+    .roe-begin-btn:disabled{opacity:.35;cursor:not-allowed;}
+    .roe-target-box{background:var(--tbg);border:1px solid rgba(0,255,65,.2);border-radius:6px;padding:14px 18px;margin:14px 0;font-size:.8rem;color:var(--tg);}
+
+    /* ── Lab body (hidden until gate passed) ──────────────────── */
+    #labBody{display:none;}
+    .tabs{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(107,33,168,.2);flex-wrap:wrap;}
+    .tab{padding:6px 14px;border:1px solid rgba(107,33,168,.3);border-radius:4px;cursor:pointer;font-size:.8rem;color:#9ca3af;background:transparent;transition:.2s;font-family:inherit;}
+    .tab.active{background:var(--hp);color:#fff;border-color:var(--hp);}
+    .tab.done{border-color:var(--tg);color:var(--tg);}
+    .ex{display:none;padding:24px;max-width:900px;margin:0 auto;}
+    .ex.active{display:block;}
+    h2.ex-title{color:var(--ha);margin-bottom:8px;font-size:1rem;}
+    p.ex-desc{color:#9ca3af;font-size:.85rem;margin-bottom:16px;line-height:1.6;}
+    .hint-btn{background:rgba(107,33,168,.2);border:1px solid rgba(107,33,168,.4);color:var(--ha);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:.8rem;margin-bottom:12px;font-family:inherit;}
+    .hint-box{background:rgba(107,33,168,.1);border-left:3px solid var(--ha);padding:10px 14px;font-size:.82rem;color:#c4b5fd;margin-bottom:12px;display:none;}
+    .btn{background:var(--hp);border:none;color:#fff;padding:8px 20px;border-radius:4px;cursor:pointer;font-size:.85rem;transition:.2s;font-family:inherit;}
+    .btn:hover{background:var(--ha);}
+    .result{margin-top:12px;padding:10px;border-radius:4px;font-size:.85rem;display:none;}
+    .result.ok{background:rgba(0,255,65,.1);border:1px solid rgba(0,255,65,.3);color:var(--tg);}
+    .result.err{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;}
+
+    .data-block{background:var(--tbg);border:1px solid rgba(107,33,168,.3);padding:14px 18px;border-radius:6px;margin-bottom:16px;font-size:.78rem;color:#a8b5c4;line-height:1.7;white-space:pre-wrap;overflow-x:auto;}
+    .qa-grid{display:grid;gap:10px;margin-bottom:14px;}
+    .qa-row{display:grid;grid-template-columns:280px 1fr;gap:10px;align-items:center;}
+    .qa-label{font-size:.8rem;color:#9ca3af;}
+    select,input[type=text]{background:var(--tbg);border:1px solid rgba(107,33,168,.3);color:#e2e8f0;padding:6px 8px;border-radius:4px;font-size:.8rem;width:100%;font-family:inherit;}
+    input[type=text]{color:var(--tg);}
+    input[type=text]::placeholder{color:#4b5563;}
+
+    /* Ex2: DNS classification */
+    .dns-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+    .dns-rec{background:var(--tbg);border:1px solid rgba(107,33,168,.3);padding:8px 12px;border-radius:4px;font-size:.78rem;color:var(--tg);}
+
+    /* Ex4: matching */
+    .match-grid{display:grid;gap:10px;}
+    .match-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:center;}
+    .match-need{background:rgba(107,33,168,.1);border:1px solid rgba(107,33,168,.25);padding:10px 12px;border-radius:4px;font-size:.8rem;color:#c4b5fd;}
+
+    .complete-btn{display:block;margin:24px auto 0;background:linear-gradient(135deg,var(--hp),var(--ha));border:none;color:#fff;padding:12px 32px;border-radius:6px;cursor:pointer;font-size:.9rem;letter-spacing:.05em;font-family:inherit;}
+  </style>
+</head>
+<body>
+<header>
+  <a href="../offensive/ceh/index.html" class="back">&#8592;</a>
+  <h1>CEH-01: Reconnaissance &amp; Footprinting Lab</h1>
+  <div class="progress-bar" id="prog">Gate: not accepted</div>
+</header>
+
+<!-- ═══════════ ROE / AUTHORIZED-USE GATE (blocks everything below) ═══════════ -->
+<div class="roe-gate" id="roeGate">
+  <h2><img src="/assets/images/icons/icon-warning.webp" alt="">Rules of Engagement - Read Before Continuing</h2>
+  <p>
+    This lab practices reconnaissance and footprinting techniques taught in CEH v12. Before any exercise
+    unlocks, you must read and accept the Rules of Engagement for this training exercise.
+  </p>
+  <div class="roe-target-box">
+    ENGAGEMENT TARGET: <strong>meridiantech-corp.example</strong> - a FICTIONAL company created for this
+    lab. All WHOIS records, DNS data, and scenarios below are synthetic and provided by Hexworth Prime.
+  </div>
+  <div class="roe-box">
+    <h3>Scope &amp; Authorization</h3>
+    <ul>
+      <li>This exercise uses only the synthetic, provided target data shown in each step - never a real-world domain, IP address, or organization.</li>
+      <li>Techniques taught here (WHOIS, DNS enumeration, Google dorking, OSINT source selection) are for authorized, educational engagements only.</li>
+      <li>Running these same techniques against a real target without signed written authorization is unauthorized computer access - a crime under the Computer Fraud and Abuse Act (CFAA) and equivalent laws worldwide, regardless of intent.</li>
+      <li>This is not a live-fire platform. No exercise in this lab sends traffic to any real host.</li>
+    </ul>
+  </div>
+  <div class="roe-checkline">
+    <input type="checkbox" id="roeAccept" onchange="onRoeToggle()">
+    <label for="roeAccept">I understand this exercise uses a sandboxed, fictional target and will not be used to perform reconnaissance against unauthorized or real-world systems.</label>
+  </div>
+  <button class="roe-begin-btn" id="roeBeginBtn" onclick="beginLab()" disabled>Accept &amp; Begin Lab</button>
+</div>
+
+<!-- ═══════════ LAB BODY (hidden until gate accepted) ═══════════ -->
+<div id="labBody">
+  <div class="tabs">
+    <button class="tab active" onclick="showEx(0)">Exercise 1</button>
+    <button class="tab" onclick="showEx(1)">Exercise 2</button>
+    <button class="tab" onclick="showEx(2)">Exercise 3</button>
+    <button class="tab" onclick="showEx(3)">Exercise 4</button>
+  </div>
+
+  <!-- EX 1: WHOIS Analysis -->
+  <div class="ex active" id="ex0">
+    <h2 class="ex-title">Exercise 1: WHOIS Record Analysis</h2>
+    <p class="ex-desc">Read the synthetic WHOIS output below for the provided target and answer the analysis questions.</p>
+    <button class="hint-btn" onclick="toggleHint('h1')">Show Hint</button>
+    <div class="hint-box" id="h1">Thick WHOIS returns full admin/billing/technical contact detail. Thin WHOIS returns only a pointer to the registrar's WHOIS server.</div>
+    <div class="data-block" id="whoisBlock"></div>
+    <div class="qa-grid">
+      <div class="qa-row"><span class="qa-label">Registrar for this domain</span>
+        <select id="q1-registrar">
+          <option value="">-- Select --</option>
+          <option value="cscglobal">CSC Corporate Domains, Inc.</option>
+          <option value="godaddy">GoDaddy</option>
+          <option value="domainmonger">DomainMonger</option>
+        </select>
+      </div>
+      <div class="qa-row"><span class="qa-label">WHOIS response model shown</span>
+        <select id="q1-model">
+          <option value="">-- Select --</option>
+          <option value="thick">Thick (full contact detail)</option>
+          <option value="thin">Thin (registrar reference only)</option>
+        </select>
+      </div>
+      <div class="qa-row"><span class="qa-label">Primary authoritative name server</span>
+        <select id="q1-ns">
+          <option value="">-- Select --</option>
+          <option value="ns1">ns1.meridiantech-corp.example</option>
+          <option value="ns1cloud">ns1.cloudhost-dns.example</option>
+          <option value="ns1google">ns1.google.com</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn" onclick="checkEx1()">Check Answers</button>
+    <div class="result" id="r1"></div>
+  </div>
+
+  <!-- EX 2: DNS Record Classification -->
+  <div class="ex" id="ex1">
+    <h2 class="ex-title">Exercise 2: DNS Record Classification</h2>
+    <p class="ex-desc">Classify each DNS record pulled from the target's zone and identify what it reveals about the infrastructure.</p>
+    <button class="hint-btn" onclick="toggleHint('h2')">Show Hint</button>
+    <div class="hint-box" id="h2">A = IPv4 address. MX = mail server. NS = authoritative name server. CNAME = alias. TXT = free-form text (SPF, verification).</div>
+    <div id="dns-grid"></div>
+    <button class="btn" style="margin-top:14px" onclick="checkEx2()">Check Answers</button>
+    <div class="result" id="r2"></div>
+  </div>
+
+  <!-- EX 3: Google Dork Construction -->
+  <div class="ex" id="ex2">
+    <h2 class="ex-title">Exercise 3: Google Dork Construction</h2>
+    <p class="ex-desc">Build a valid Google dork for each recon objective against the target domain <strong style="color:var(--tg)">meridiantech-corp.example</strong>.</p>
+    <button class="hint-btn" onclick="toggleHint('h3')">Show Hint</button>
+    <div class="hint-box" id="h3">Operators: site: restricts to a domain, filetype: restricts to a file type, inurl: matches the URL, intext: matches page text. Combine them with spaces.</div>
+    <div class="qa-grid" id="dork-grid"></div>
+    <button class="btn" style="margin-top:14px" onclick="checkEx3()">Check Answers</button>
+    <div class="result" id="r3"></div>
+  </div>
+
+  <!-- EX 4: OSINT Source Matching -->
+  <div class="ex" id="ex3">
+    <h2 class="ex-title">Exercise 4: OSINT Source Matching</h2>
+    <p class="ex-desc">Match each information need to the correct footprinting tool or technique.</p>
+    <button class="hint-btn" onclick="toggleHint('h4')">Show Hint</button>
+    <div class="hint-box" id="h4">Think about what each tool actually indexes: usernames across platforms, internet-connected devices, document metadata, or the full DNS zone.</div>
+    <div class="match-grid" id="match-grid"></div>
+    <button class="btn" style="margin-top:14px" onclick="checkEx4()">Check Answers</button>
+    <div class="result" id="r4"></div>
+    <button class="complete-btn" id="fin-btn" onclick="finishLab()" style="display:none">Mark Lab Complete</button>
+  </div>
+</div>
+
+<script>
+// ═══════════ ROE Gate ═══════════
+function onRoeToggle(){
+  document.getElementById('roeBeginBtn').disabled = !document.getElementById('roeAccept').checked;
+}
+function beginLab(){
+  document.getElementById('roeGate').style.display = 'none';
+  document.getElementById('labBody').style.display = 'block';
+  document.getElementById('prog').textContent = '0 / 4 complete';
+  buildWhois(); buildDns(); buildDorks(); buildMatch();
+}
+
+// ═══════════ Exercise state ═══════════
+let ex1done=false,ex2done=false,ex3done=false,ex4done=false;
+
+// EX1: WHOIS
+function buildWhois(){
+  document.getElementById('whoisBlock').textContent =
+`$ whois meridiantech-corp.example
+
+Domain Name: MERIDIANTECH-CORP.EXAMPLE
+Registry Domain ID: 118822_DOMAIN_EXAMPLE-VRSN
+Registrar WHOIS Server: whois.corporatedomains.com
+Registrar URL: http://cscdbs.com
+Updated Date: 2026-02-11T10:04:02Z
+Creation Date: 2011-06-30T00:00:00Z
+Registry Expiry Date: 2027-06-30T00:00:00Z
+Registrar: CSC Corporate Domains, Inc.
+Registrar IANA ID: 299
+Registrar Abuse Contact Email: domainabuse@cscglobal.example
+Domain Status: clientTransferProhibited
+Name Server: NS1.MERIDIANTECH-CORP.EXAMPLE
+Name Server: NS2.MERIDIANTECH-CORP.EXAMPLE
+DNSSEC: unsigned
+
+--- registrant / admin / technical contact fields intentionally omitted ---
+--- this registrar returns only the fields above on request ---`;
+}
+function checkEx1(){
+  const r=document.getElementById('r1');r.style.display='block';
+  const okRegistrar = document.getElementById('q1-registrar').value==='cscglobal';
+  const okModel = document.getElementById('q1-model').value==='thin';
+  const okNs = document.getElementById('q1-ns').value==='ns1';
+  const correct=[okRegistrar,okModel,okNs].filter(Boolean).length;
+  if(correct===3){
+    r.className='result ok';r.textContent='Correct. This record omits registrant/admin/technical contact detail entirely - a thin WHOIS response, routed through the registrar.';
+    if(!ex1done){ex1done=true;updateProg();}markTab(0);
+  } else {
+    r.className='result err';r.textContent=`${correct}/3 correct. Look again at what fields are present vs. missing in the record.`;
+  }
+}
+
+// EX2: DNS classification
+const dnsRecords=[
+  {rec:'meridiantech-corp.example.   3600  IN  A     198.51.100.42', type:'A', reveals:'ip'},
+  {rec:'mail.meridiantech-corp.example. 3600 IN MX 10 mail.meridiantech-corp.example.', type:'MX', reveals:'mail'},
+  {rec:'meridiantech-corp.example.   3600  IN  NS    ns1.meridiantech-corp.example.', type:'NS', reveals:'ns'},
+  {rec:'vpn.meridiantech-corp.example. 3600 IN CNAME edge.cloudhost-dns.example.', type:'CNAME', reveals:'cname'},
+  {rec:'meridiantech-corp.example.   3600  IN  TXT   "v=spf1 include:_spf.mailhost.example ~all"', type:'TXT', reveals:'txt'}
+];
+const dnsTypes=['A','AAAA','MX','NS','SOA','CNAME','PTR','TXT'];
+const revealOptions=[
+  {v:'ip', t:'Maps a hostname directly to an IPv4 address'},
+  {v:'mail', t:'Identifies the server that accepts email for the domain'},
+  {v:'ns', t:'Identifies an authoritative name server for the domain'},
+  {v:'cname', t:'Aliases one hostname to another - here, to a third-party edge host'},
+  {v:'txt', t:'Free-form text used for SPF/verification, not routing'}
+];
+function buildDns(){
+  const g=document.getElementById('dns-grid');
+  dnsRecords.forEach((r,i)=>{
+    const row=document.createElement('div');row.className='dns-row';
+    row.innerHTML=`<div class="dns-rec">${r.rec}</div>
+      <div style="display:flex;gap:6px;">
+        <select id="dns-type-${i}" style="flex:1"><option value="">Type</option>${dnsTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+        <select id="dns-reveal-${i}" style="flex:2"><option value="">What it reveals</option>${revealOptions.map(o=>`<option value="${o.v}">${o.t}</option>`).join('')}</select>
+      </div>`;
+    g.appendChild(row);
+  });
+}
+function checkEx2(){
+  let correct=0;
+  dnsRecords.forEach((r,i)=>{
+    const t=document.getElementById('dns-type-'+i).value;
+    const rv=document.getElementById('dns-reveal-'+i).value;
+    if(t===r.type && rv===r.reveals) correct++;
+  });
+  const r=document.getElementById('r2');r.style.display='block';
+  if(correct>=4){
+    r.className='result ok';r.textContent=`${correct}/5 correct. Solid DNS record reading - this is exactly how a zone maps out mail flow, name resolution, and third-party dependencies.`;
+    if(!ex2done){ex2done=true;updateProg();}markTab(1);
+  } else {
+    r.className='result err';r.textContent=`${correct}/5 correct. Re-check each record's type field (A, MX, NS, CNAME, TXT) against what it actually points to.`;
+  }
+}
+
+// EX3: Google dorks
+const dorkObjectives=[
+  {need:'Find PDF documents indexed by Google within the target domain', check:d=>/site:meridiantech-corp\.example/i.test(d)&&/filetype:pdf/i.test(d)},
+  {need:'Find pages on the target domain whose URL contains the word "admin"', check:d=>/site:meridiantech-corp\.example/i.test(d)&&/inurl:admin/i.test(d)},
+  {need:'Find pages on the target domain containing the exact phrase "internal use only"', check:d=>/site:meridiantech-corp\.example/i.test(d)&&/intext:("|)internal use only("|)/i.test(d)}
+];
+function buildDorks(){
+  const g=document.getElementById('dork-grid');
+  dorkObjectives.forEach((o,i)=>{
+    const row=document.createElement('div');row.className='qa-row';
+    row.innerHTML=`<span class="qa-label">${o.need}</span><input type="text" id="dork-${i}" placeholder="e.g. site:meridiantech-corp.example filetype:pdf">`;
+    g.appendChild(row);
+  });
+}
+function checkEx3(){
+  let correct=0;
+  dorkObjectives.forEach((o,i)=>{ if(o.check(document.getElementById('dork-'+i).value.trim())) correct++; });
+  const r=document.getElementById('r3');r.style.display='block';
+  if(correct===3){
+    r.className='result ok';r.textContent='All 3 dorks are correctly formed - each one scopes to the target domain and adds the right operator.';
+    if(!ex3done){ex3done=true;updateProg();}markTab(2);
+  } else {
+    r.className='result err';r.textContent=`${correct}/3 correctly formed. Every dork needs site:meridiantech-corp.example plus the operator matching the objective (filetype:, inurl:, or intext:).`;
+  }
+}
+
+// EX4: OSINT source matching
+const matchNeeds=[
+  {need:'Find every social media platform where a specific username appears', options:['Sherlock','Shodan / Censys','FOCA','Zone transfer (dig axfr)'], answer:'Sherlock'},
+  {need:'Find internet-connected devices and exposed services tied to the target', options:['FOCA','Shodan / Censys','Job board recon','Sherlock'], answer:'Shodan / Censys'},
+  {need:'Extract hidden metadata (author, software version, internal paths) from PDFs published on the target site', options:['Shodan / Censys','Job board recon','FOCA','Sherlock'], answer:'FOCA'},
+  {need:'Pull the target domain’s complete DNS record set in one request from a misconfigured server', options:['Sherlock','FOCA','Job board recon','Zone transfer (dig axfr)'], answer:'Zone transfer (dig axfr)'},
+  {need:'Discover which specific vendor technologies (firewalls, ERP, database) the target runs', options:['Job board recon','Sherlock','Zone transfer (dig axfr)','Shodan / Censys'], answer:'Job board recon'}
+];
+function buildMatch(){
+  const g=document.getElementById('match-grid');
+  matchNeeds.forEach((m,i)=>{
+    const row=document.createElement('div');row.className='match-row';
+    row.innerHTML=`<div class="match-need">${m.need}</div>
+      <select id="match-${i}"><option value="">-- Select tool/technique --</option>${m.options.map(o=>`<option value="${o}">${o}</option>`).join('')}</select>`;
+    g.appendChild(row);
+  });
+}
+function checkEx4(){
+  let correct=0;
+  matchNeeds.forEach((m,i)=>{ if(document.getElementById('match-'+i).value===m.answer) correct++; });
+  const r=document.getElementById('r4');r.style.display='block';
+  if(correct>=4){
+    r.className='result ok';r.textContent=`${correct}/5 correct. You matched the information need to the tool actually built for it.`;
+    if(!ex4done){ex4done=true;updateProg();}markTab(3);
+    document.getElementById('fin-btn').style.display='block';
+  } else {
+    r.className='result err';r.textContent=`${correct}/5 correct. Match what each tool indexes (usernames, devices, document metadata, DNS zones, job postings) to the need.`;
+  }
+}
+
+function toggleHint(id){const h=document.getElementById(id);h.style.display=h.style.display==='block'?'none':'block';}
+function showEx(n){
+  document.querySelectorAll('.ex').forEach((e,i)=>e.classList.toggle('active',i===n));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+}
+function markTab(n){document.querySelectorAll('.tab')[n].classList.add('done');}
+function updateProg(){
+  const done=[ex1done,ex2done,ex3done,ex4done].filter(Boolean).length;
+  document.getElementById('prog').textContent=`${done} / 4 complete`;
+}
+function finishLab(){
+  if(typeof ModuleProgress!=='undefined') {
+    ModuleProgress.complete('dark-arts','dark-arts-ceh-01-lab',{returnUrl:'../offensive/ceh/index.html'});
+  } else alert('Lab complete! (ModuleProgress not loaded in standalone mode)');
+}
+</script>
+
+    <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+         Always-visible chat entry point. State machine is attempt-driven;
+         button stays calm and serves as a general chat entry until lab
+         activity ticks the mood-ring.
+         Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+    <hex-ai-button mission-id="dark-arts-ceh-01" house="dark-arts"></hex-ai-button>
+    <script type="module" src="/_lib/HexAIButton.js"></script>
+    <script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>
