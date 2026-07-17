@@ -296,13 +296,13 @@
     'use strict';
 
     const TASKS = [
-        { id: 1, phase: 'Phase 1 -- Publish', name: 'Explore My Workspace', desc: 'Click "My Workspace" in the left nav to see your personal workspace.' },
+        { id: 1, phase: 'Phase 1 -- Publish', name: 'Explore My Workspace', desc: 'Open My Workspace, then click "Workspace settings" to inspect who can access it.' },
         { id: 2, phase: 'Phase 1 -- Publish', name: 'Publish the Sales report', desc: 'Click "Publish Report", choose the Sales Analytics workspace, and confirm.' },
-        { id: 3, phase: 'Phase 1 -- Publish', name: 'Navigate to Sales Analytics workspace', desc: 'Click "Sales Analytics" in the left nav to view the published content.' },
-        { id: 4, phase: 'Phase 2 -- Dashboard', name: 'Navigate to Dashboards', desc: 'Click "Dashboards" in the left nav.' },
+        { id: 3, phase: 'Phase 1 -- Publish', name: 'Navigate to Sales Analytics workspace', desc: 'Go to Sales Analytics, then click "Verify published content" to confirm your report appears.' },
+        { id: 4, phase: 'Phase 2 -- Dashboard', name: 'Navigate to Dashboards', desc: 'Go to Dashboards, then click "Open Executive Overview" to open the dashboard.' },
         { id: 5, phase: 'Phase 2 -- Dashboard', name: 'Pin a visual tile to a dashboard', desc: 'Click "Pin Tile" on any report item to add it to the Executive Overview dashboard.' },
         { id: 6, phase: 'Phase 3 -- Refresh', name: 'Configure scheduled refresh', desc: 'Click "Configure Refresh" in the toolbar and set a Daily schedule at 06:00 AM.' },
-        { id: 7, phase: 'Phase 3 -- Refresh', name: 'Navigate to Deployment Pipeline', desc: 'Click "Deployment Pipeline" in the left nav.' },
+        { id: 7, phase: 'Phase 3 -- Refresh', name: 'Navigate to Deployment Pipeline', desc: 'Go to Deployment Pipeline, then click "Review Development stage" to inspect the source stage.' },
         { id: 8, phase: 'Phase 4 -- Pipeline', name: 'Deploy from Dev to Test', desc: 'Click the "Deploy to Test" button in the pipeline view.' },
         { id: 9, phase: 'Phase 4 -- RLS', name: 'Configure Row-Level Security', desc: 'Navigate to Row-Level Security and create a role with a DAX filter.' },
         { id: 10, phase: 'Phase 5 -- Confirm', name: 'Confirm deployment complete', desc: 'Click "Confirm Deployment" to finalize.' }
@@ -370,16 +370,19 @@
         else if (view === 'apps') renderApps(main);
         else { main.innerHTML = '<div style="padding:30px;color:var(--text2);font-size:0.9rem;">Select a workspace or content area from the left navigation.</div>'; }
 
-        if (view === 'my-workspace' && !completedTasks.has(1)) markDone(1);
-        if (view === 'sales-ws' && publishedItems.length > 0 && !completedTasks.has(3)) markDone(3);
-        if (view === 'dashboards' && !completedTasks.has(4)) markDone(4);
-        if (view === 'pipeline' && !completedTasks.has(7)) markDone(7);
+        /* Honest completion: Tasks 1, 3, 4, 7 never credit on pure navigation. Each gates on a real
+           in-view action (inspectWorkspace / verifyPublishedContent / openExecDashboard /
+           inspectDevStage), mirroring the publish/pin/refresh/deploy/RLS tasks. (#72 pattern) */
         if (view === 'rls') { document.getElementById('dot-rls').style.background = 'var(--blue)'; }
     };
 
     function renderMyWorkspace(el) {
         let rows = '<tr><td colspan="5" style="color:var(--text2);font-size:0.82rem;padding:20px 14px;">My Workspace is empty. Publish a report to add content.</td></tr>';
-        el.innerHTML = '<div class="ws-header"><div><div class="ws-title">My Workspace</div><div class="ws-subtitle">Personal workspace -- content here is private</div></div></div>' +
+        /* Task 1 gates on this deliberate in-view action, not on navigating here. */
+        const settingsBtn = completedTasks.has(1)
+            ? '<button class="tb-btn" disabled>Workspace settings</button>'
+            : '<button class="tb-btn" onclick="inspectWorkspace()">Workspace settings</button>';
+        el.innerHTML = '<div class="ws-header"><div><div class="ws-title">My Workspace</div><div class="ws-subtitle">Personal workspace -- content here is private</div></div>' + settingsBtn + '</div>' +
             '<table class="content-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Owner</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
@@ -394,7 +397,12 @@
                 rows += '<tr class="slide-in"><td><div class="item-icon ' + icon + '">' + abbr + '</div></td><td><div class="item-name">' + item.name + '</div><div class="item-meta">Last modified just now</div></td><td><span class="item-badge status-live">' + item.type + '</span></td><td><div class="item-meta">You</div></td><td><button class="action-link" onclick="openPinModal(\'' + item.name + '\')">Pin Tile</button> <button class="action-link" onclick="openRlsModal()">Manage RLS</button></td></tr>';
             });
         }
-        el.innerHTML = '<div class="ws-header"><div><div class="ws-title">Sales Analytics</div><div class="ws-subtitle">Shared workspace for the sales team</div></div></div>' +
+        /* Task 3 gates on this deliberate verification click, not on navigating to this view.
+           The button is inert until real content has been published (Task 2). */
+        const verifyBtn = completedTasks.has(3)
+            ? '<button class="tb-btn" disabled>Content verified</button>'
+            : '<button class="tb-btn" onclick="verifyPublishedContent()">Verify published content</button>';
+        el.innerHTML = '<div class="ws-header"><div><div class="ws-title">Sales Analytics</div><div class="ws-subtitle">Shared workspace for the sales team</div></div>' + verifyBtn + '</div>' +
             '<table class="content-table"><thead><tr><th></th><th>Name</th><th>Type</th><th>Owner</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
         document.getElementById('refreshBtn').disabled = publishedItems.length === 0;
         if (publishedItems.length > 0) {
@@ -412,7 +420,11 @@
         } else {
             tiles = pinnedTiles.map((t,i) => '<div class="dash-tile pinned slide-in"><div class="dash-tile-title">' + t.name + '</div><div class="dash-tile-value">$' + (1.2 + i*0.3).toFixed(1) + 'M</div><div class="dash-tile-sub">vs last period</div></div>').join('');
         }
-        el.innerHTML = '<div class="ws-header"><div class="ws-title">Executive Overview Dashboard</div></div><div class="dashboard-tiles">' + tiles + '</div>';
+        /* Task 4 gates on opening the dashboard here, not on navigating to this view. */
+        const openBtn = completedTasks.has(4)
+            ? '<button class="tb-btn" disabled>Executive Overview opened</button>'
+            : '<button class="tb-btn" onclick="openExecDashboard()">Open Executive Overview</button>';
+        el.innerHTML = '<div class="ws-header"><div class="ws-title">Executive Overview Dashboard</div>' + openBtn + '</div><div class="dashboard-tiles">' + tiles + '</div>';
         const n = document.getElementById('badge-dash');
         if (n) n.textContent = pinnedTiles.length;
         if (pinnedTiles.length > 0) document.getElementById('dot-dash').classList.add('filled');
@@ -431,7 +443,11 @@
             stagesHtml += '<div class="pipeline-stage' + (isDeployed ? ' deployed' : '') + '"><div class="stage-label">' + s + '</div><div class="stage-content">' + content + deployBtn + '</div></div>';
             if (i < stages.length - 1) stagesHtml += '<div class="stage-arrow">-&gt;</div>';
         });
-        el.innerHTML = '<div class="ws-header"><div class="ws-title">Deployment Pipeline</div></div><div class="pipeline">' + stagesHtml + '</div>';
+        /* Task 7 gates on inspecting the Development stage here, not on navigating to this view. */
+        const inspectBtn = completedTasks.has(7)
+            ? '<button class="tb-btn" disabled>Development stage reviewed</button>'
+            : '<button class="tb-btn" onclick="inspectDevStage()">Review Development stage</button>';
+        el.innerHTML = '<div class="ws-header"><div class="ws-title">Deployment Pipeline</div>' + inspectBtn + '</div><div class="pipeline">' + stagesHtml + '</div>';
         document.getElementById('dot-pipeline').classList.add('filled');
     }
 
@@ -519,6 +535,40 @@
         markDone(8);
         showFeedback('ok', 'Deployed to Test stage. Content promoted from Development to Test.');
         showView('pipeline');
+        checkConfirmReady();
+    };
+
+    /* Task 1: inspect My Workspace access. A deliberate in-view action, not just navigating here. */
+    window.inspectWorkspace = function() {
+        markDone(1);
+        showView('my-workspace');
+        showFeedback('ok', 'My Workspace is private to you. Publish content to a shared workspace so your team can access it.');
+        checkConfirmReady();
+    };
+
+    /* Task 3: verify published content actually landed in the shared workspace. Requires a click
+       within the Sales Analytics view AND real published content (Task 2), never bare navigation. */
+    window.verifyPublishedContent = function() {
+        if (publishedItems.length === 0) { showFeedback('err', 'Publish a report first, then verify it appears here.'); return; }
+        markDone(3);
+        showView('sales-ws');
+        showFeedback('ok', 'Confirmed. Your published report and its dataset appear in the Sales Analytics workspace, visible to the whole team.');
+        checkConfirmReady();
+    };
+
+    /* Task 4: open the Executive Overview dashboard. Requires a click within the Dashboards view. */
+    window.openExecDashboard = function() {
+        markDone(4);
+        showView('dashboards');
+        showFeedback('ok', 'Executive Overview dashboard opened. Dashboards surface pinned tiles from across your reports in one view.');
+        checkConfirmReady();
+    };
+
+    /* Task 7: inspect the Development stage. Requires a click within the Deployment Pipeline view. */
+    window.inspectDevStage = function() {
+        markDone(7);
+        showView('pipeline');
+        showFeedback('ok', 'Development stage selected. A deployment pipeline promotes content through Development, Test, and Production.');
         checkConfirmReady();
     };
 

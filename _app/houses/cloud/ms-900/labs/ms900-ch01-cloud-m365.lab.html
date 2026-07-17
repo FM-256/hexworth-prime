@@ -148,6 +148,12 @@
         .cp-opt.cp-correct { background: rgba(34,197,94,0.15); border-color: var(--success); color: var(--success); }
         .cp-opt.cp-wrong { background: rgba(239,68,68,0.12); border-color: var(--danger); color: var(--danger); }
         .cp-result { margin-top: 10px; font-size: 0.8rem; min-height: 1em; }
+        .cp-result.ok { color: var(--success); }
+        .cp-result.no { color: var(--danger); }
+        .cp-entry { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .cp-input { border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); border-radius: 6px; padding: 7px 11px; font-size: 0.82rem; font-family: inherit; min-width: 220px; outline: none; }
+        .cp-input:focus { border-color: var(--cloud-primary); }
+        .cp-input:disabled { opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -235,12 +241,10 @@
                 </div>
                 <!-- Task 10 checkpoint: read a value off the summary dashboard above -->
                 <div class="cp-card" id="cp10">
-                    <div class="cp-q"><span class="cp-tag">Checkpoint</span> According to the dashboard, how many <b>licenses are assigned</b>?</div>
-                    <div class="cp-opts">
-                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">14</button>
-                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">231</button>
-                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">247</button>
-                        <button type="button" class="cp-opt" onclick="answerCheckpoint(10,this)">250</button>
+                    <div class="cp-q"><span class="cp-tag">Checkpoint</span> Read the Home dashboard and type how many <b>licenses are assigned</b>:</div>
+                    <div class="cp-entry">
+                        <input type="text" class="cp-input" id="cp10-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint(10,this);}">
+                        <button type="button" class="cp-opt cp-check" onclick="checkCheckpoint(10, document.getElementById('cp10-input'))">Check</button>
                     </div>
                     <div class="cp-result"></div>
                 </div>
@@ -493,6 +497,11 @@
        DOM at click-time (never in markup; resolver is closure-private, not a console oracle).
     -------------------------------------------------- */
     (function () {
+        /* Tasks whose answer is a number (compared with units/commas/whitespace stripped). */
+        var NUMERIC_CP = { 10: true };
+        /* Panel each checkpoint asks the student to read, used only in the retry hint. */
+        var PANEL_NAME = { 10: 'Home dashboard' };
+
         /* Read the correct answer straight from the Home dashboard the student sees. */
         function correctValue(taskNum) {
             if (taskNum === 10) {
@@ -501,30 +510,47 @@
                 for (var i = 0; i < cards.length; i++) {
                     var label = cards[i].querySelector('.stat-label');
                     var value = cards[i].querySelector('.stat-value');
-                    if (label && value && label.textContent.trim().toLowerCase() === 'licenses assigned') { return value.textContent; }
+                    if (label && value && label.textContent.trim().toLowerCase() === 'licenses assigned') { return value.textContent.trim(); }
                 }
                 return null;
             }
             return null;
         }
-        /* Normalize so case/whitespace/comma drift never fails a genuinely right answer. */
-        function norm(s) { return (s == null ? '' : String(s)).replace(/,/g, '').trim().toLowerCase(); }
 
-        /* Multiple-choice checkpoint: student clicked an option button. */
-        window.answerCheckpoint = function (taskNum, btnEl) {
-            var card = btnEl.closest('.cp-card');
+        /* Numeric compare: strip currency, percent, commas, and whitespace. */
+        function numNorm(s) { return (s == null ? '' : String(s)).replace(/[\s$,%]/g, '').toLowerCase(); }
+        /* Text compare: trim + lowercase only. */
+        function textNorm(s) { return (s == null ? '' : String(s)).trim().toLowerCase(); }
+
+        /* Decide whether a typed value counts as correct for a given checkpoint. */
+        function isMatch(taskNum, input, correct) {
+            if (correct == null) { return false; }
+            if (NUMERIC_CP[taskNum]) {
+                var a = numNorm(input), b = numNorm(correct);
+                return a !== '' && a === b;
+            }
+            var x = textNorm(input), y = textNorm(correct);
+            if (x === '') { return false; }              /* guard: empty input never matches */
+            if (x === y) { return true; }
+            /* Accept a leading fragment of the real value, anchored to the start and length-guarded. */
+            return x.length >= 5 && y.indexOf(x) === 0;
+        }
+
+        /* Free-text checkpoint: student typed a value and pressed Check (or Enter). Non-gameable:
+           open input space, correct value resolved live from the panel, a wrong entry only hints. */
+        window.checkCheckpoint = function (taskNum, inputEl) {
+            var card = inputEl.closest('.cp-card');
             var result = card ? card.querySelector('.cp-result') : null;
             var correct = correctValue(taskNum);
-            if (correct !== null && norm(btnEl.textContent) === norm(correct)) {
-                if (card) { card.querySelectorAll('.cp-opt').forEach(function (b) { b.disabled = true; }); }
-                btnEl.classList.add('cp-correct');
+            if (isMatch(taskNum, inputEl.value, correct)) {
+                inputEl.disabled = true;
+                var btn = card ? card.querySelector('.cp-check') : null;
+                if (btn) { btn.disabled = true; }
                 if (result) { result.textContent = 'Correct.'; result.className = 'cp-result ok'; }
                 markDone(taskNum);
             } else {
-                /* Reset so a wrong answer can't be used to eliminate — each attempt is a fresh read. */
-                if (card) { card.querySelectorAll('.cp-opt').forEach(function (b) { b.disabled = false; b.classList.remove('cp-correct', 'cp-wrong'); }); }
-                btnEl.classList.add('cp-wrong');
-                if (result) { result.textContent = 'Not quite — read the dashboard on this screen and try again.'; result.className = 'cp-result no'; }
+                /* No reveal, no elimination. The student must actually read the panel and retry. */
+                if (result) { result.textContent = 'Not quite. Re-check the ' + (PANEL_NAME[taskNum] || 'panel') + ' and type the exact value you see.'; result.className = 'cp-result no'; }
             }
         };
 
@@ -534,11 +560,11 @@
                 if (!completed[n]) return;
                 var card = document.getElementById('cp' + n);
                 if (!card) return;
+                var input = card.querySelector('.cp-input');
+                var btn = card.querySelector('.cp-check');
                 var correct = correctValue(n);
-                card.querySelectorAll('.cp-opt').forEach(function (b) {
-                    b.disabled = true;
-                    if (norm(b.textContent) === norm(correct)) b.classList.add('cp-correct');
-                });
+                if (input) { input.value = correct == null ? '' : correct; input.disabled = true; }
+                if (btn) { btn.disabled = true; }
                 var result = card.querySelector('.cp-result');
                 if (result) { result.textContent = 'Completed.'; result.className = 'cp-result ok'; }
             });
