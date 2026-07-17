@@ -1079,7 +1079,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             case 'apt':
             case 'apt-get': {
                 _checkObjective('apt');
-                return '<span class="lt-highlight">apt: package management simulated - requires sudo</span>';
+                return _apt(args);
             }
 
             case 'dpkg':
@@ -2973,6 +2973,85 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         }
 
         return `<span class="lt-success">ln: link created${symbolic ? ' (symbolic)' : ''}</span>`;
+    }
+
+    // Simulated apt/apt-get. Read-only subcommands (search/show/list) need no
+    // privilege; mutating ones (update/upgrade/install/remove/purge/autoremove)
+    // require root, which the learner reaches via `sudo` (uid 0 for the subcommand).
+    // Learner-typed package args are escaped — _appendOutput writes via innerHTML.
+    function _apt(args) {
+        const sub = args[0] || '';
+        const isRoot = state.currentUser.uid === 0;
+        const pkgs = args.slice(1).filter(a => !a.startsWith('-'));
+        const pkgList = _escape(pkgs.join(' ') || 'nginx');
+        const firstPkg = _escape(pkgs[0] || 'nginx');
+
+        // Read-only queries: no root required.
+        if (sub === 'search') {
+            return `<span class="lt-output-line">Sorting... Done
+Full Text Search... Done
+${firstPkg}/stable 1.24.0-1 amd64
+  high performance web server and reverse proxy</span>`;
+        }
+        if (sub === 'show') {
+            return `<span class="lt-output-line">Package: ${firstPkg}
+Version: 1.24.0-1
+Priority: optional
+Section: httpd
+Installed-Size: 1,592 kB
+Description: high performance web server</span>`;
+        }
+        if (sub === 'list') {
+            return `<span class="lt-output-line">Listing... Done
+bash/now 5.2.15-2 amd64 [installed]
+coreutils/now 9.1-1 amd64 [installed]
+nginx/now 1.24.0-1 amd64 [installed,automatic]</span>`;
+        }
+
+        // Mutating subcommands require root (learner gets here via sudo).
+        if (!isRoot) {
+            return `<span class="lt-error">E: Could not open lock file /var/lib/dpkg/lock-frontend - open (13: Permission denied)
+E: Unable to acquire the dpkg frontend lock (/var/lib/dpkg/lock-frontend), are you root?</span>`;
+        }
+        if (sub === 'update') {
+            return `<span class="lt-output-line">Hit:1 http://deb.debian.org/debian stable InRelease
+Reading package lists... Done
+Building dependency tree... Done
+All packages are up to date.</span>`;
+        }
+        if (sub === 'upgrade') {
+            return `<span class="lt-output-line">Reading package lists... Done
+Building dependency tree... Done
+Calculating upgrade... Done
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.</span>`;
+        }
+        if (sub === 'install') {
+            if (pkgs.length === 0) {
+                return `<span class="lt-error">E: You must give at least one package to install</span>`;
+            }
+            return `<span class="lt-output-line">Reading package lists... Done
+Building dependency tree... Done
+The following NEW packages will be installed:
+  ${pkgList}
+0 upgraded, ${pkgs.length} newly installed, 0 to remove and 0 not upgraded.
+Setting up ${firstPkg} ... Done.</span>`;
+        }
+        if (sub === 'remove' || sub === 'purge') {
+            if (pkgs.length === 0) {
+                return `<span class="lt-error">E: You must give at least one package to remove</span>`;
+            }
+            return `<span class="lt-output-line">Reading package lists... Done
+Building dependency tree... Done
+The following packages will be REMOVED:
+  ${pkgList}
+0 upgraded, 0 newly installed, ${pkgs.length} to remove and 0 not upgraded.</span>`;
+        }
+        if (sub === 'autoremove') {
+            return `<span class="lt-output-line">Reading package lists... Done
+Building dependency tree... Done
+0 upgraded, 0 newly installed, 0 to remove and 0 not upgraded.</span>`;
+        }
+        return `<span class="lt-output-line">apt ${_escape(sub)}: simulated</span>`;
     }
 
     function _sudo(args) {

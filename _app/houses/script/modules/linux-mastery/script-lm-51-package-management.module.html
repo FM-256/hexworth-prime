@@ -630,11 +630,17 @@
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
                 var ok = !output || !output.includes('lt-error');
-                if (cmd === 'apt' && args[0] === 'search') completeTask('search');
-                if (cmd === 'apt' && args[0] === 'list') completeTask('list');
-                if (cmd === 'apt' && (args[0] === 'update' || args[0] === 'install' || args[0] === 'upgrade')) completeTask('workflow');
-                if (cmd === 'dpkg' && args.length > 0 && ok) completeTask('dpkg');
-                if (cmd === 'apt' && args[0] === 'show') completeTask('search');
+                // The module teaches `sudo apt ...`; after the sim sudo auth the callback re-fires with
+                // cmd='sudo', args=['apt', <subcmd>, ...]. Strip a leading sudo into an effective
+                // cmd/args (mirrors lm-34) so the taught command credits its task. The `ok` gate on
+                // 'workflow' means only a SUCCESSFUL (root, via sudo) run credits. Sim password: P@55w0rd!!.
+                var effectiveCmd = cmd, effectiveArgs = args;
+                if (cmd === 'sudo' && args.length) { effectiveCmd = args[0]; effectiveArgs = args.slice(1); }
+                if (effectiveCmd === 'apt' && effectiveArgs[0] === 'search') completeTask('search');
+                if (effectiveCmd === 'apt' && effectiveArgs[0] === 'list') completeTask('list');
+                if (effectiveCmd === 'apt' && (effectiveArgs[0] === 'update' || effectiveArgs[0] === 'install' || effectiveArgs[0] === 'upgrade') && ok) completeTask('workflow');
+                if (effectiveCmd === 'dpkg' && effectiveArgs.length > 0 && ok) completeTask('dpkg');
+                if (effectiveCmd === 'apt' && effectiveArgs[0] === 'show') completeTask('search');
             }
         });
 
@@ -657,7 +663,7 @@
             'workflow': {
                 num: '3 of 4 &mdash; Install Workflow',
                 desc: 'Practice the update/install/upgrade workflow with <code>apt</code>.',
-                hint: 'Run: <code>sudo apt update</code> then <code>sudo apt install nginx</code>'
+                hint: 'Run: <code>sudo apt update</code> then <code>sudo apt install nginx</code>. When prompted for a password, the sandbox password is <code>P@55w0rd!!</code>'
             },
             'dpkg': {
                 num: '4 of 4 &mdash; dpkg Low-Level',

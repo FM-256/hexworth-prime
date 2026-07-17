@@ -38,7 +38,7 @@ Plus a family of misleading lesson-card examples that error if copied (MAJOR) an
 | lm-46 functions | Local Variables | `local name="value"` | `local` unimplemented → `lt-error` → `&& ok` rejects; only hint for the final task | `suppressUnknown: true` | fixing 2026-07-16 |
 | lm-48 sec7 practice | Ch3 File-Existence Check | `test -f …` / `[ -f notes.txt ] && echo` | `test`/`[` unimplemented → `lt-error` → `&& ok` rejects; blocks the 8-challenge badge | `suppressUnknown: true` | fixing 2026-07-16 |
 | lm-48 sec7 practice | Ch6 Number Comparison | `[ 10 -gt 5 ] && echo` | same `[`/`test` error | `suppressUnknown: true` | fixing 2026-07-16 |
-| lm-51 pkg-mgmt | Task 3 Install Workflow | `sudo apt update` then `sudo apt install nginx` | `sudo` opens an unstated password prompt; validator also sees `cmd='sudo'` not `apt`. Bare `apt` works | retarget hint to bare `apt` | fixing 2026-07-16 |
+| lm-51 pkg-mgmt | Task 3 Install Workflow | `sudo apt update` then `sudo apt install nginx` | `sudo` opens an unstated password prompt; validator also sees `cmd='sudo'` not `apt`. Bare `apt` works | **OVERRIDE of "retarget to bare apt"** — operator chose "Teach the password" (keep `sudo apt` for real-world fidelity; teaching `apt` without sudo is wrong Linux). Fix: engine `_apt` now simulates apt (search/show/list need no root; update/install/upgrade require root via sudo); validator strips a leading sudo + gates 'workflow' on a successful run; Task 3 hint discloses the sim password `P@55w0rd!!`. | FIXED 2026-07-17 |
 
 ## MAJOR — hint fails but a correct path is discoverable, OR a lesson-card example misleads
 
