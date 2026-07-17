@@ -933,14 +933,22 @@
                     return true;
                 }
 
-                // --- ./backup.sh background job ---
-                if (cmd === './backup.sh' || (cmd === 'bash' && /backup\.sh/.test(cmdLine))) {
-                    if (/&\s*$/.test(cmdLine)) {
+                // --- background job: ./backup.sh & ---
+                // The engine (LinuxTerminal.js _handleExecute) intercepts ANY trailing '&' BEFORE
+                // normal parse/dispatch and re-fires onCommand with cmd='bg-start' (cmdLine kept
+                // intact, args[0] = the real command) — so a backgrounded backup.sh always reaches
+                // us as 'bg-start', never as './backup.sh'. INVARIANT: the engine already printed its
+                // own "[jobId] pid" line for bg-start before this callback runs, so we must NOT print
+                // a job line on that path. The bare './backup.sh' / 'bash' forms below are foreground only.
+                const bgOfBackup = cmd === 'bg-start' && /backup\.sh/.test(cmdLine);
+                if (bgOfBackup || cmd === './backup.sh' || (cmd === 'bash' && /backup\.sh/.test(cmdLine))) {
+                    if (bgOfBackup) {
                         completeTask('3');
-                        const pid = 4000 + Math.floor(Math.random() * 1000);
-                        labJobs.push({ num: nextJobNum, status: 'Running', cmd: './backup.sh', pid });
-                        LinuxTerminal.print(`[${nextJobNum}] ${pid}`);
-                        nextJobNum++;
+                        // Register the job so `jobs` / `fg %1` (challenge 4) have something to juggle.
+                        if (!labJobs.some(j => j.cmd === './backup.sh')) {
+                            labJobs.push({ num: nextJobNum, status: 'Running', cmd: './backup.sh', pid: 4000 + Math.floor(Math.random() * 1000) });
+                            nextJobNum++;
+                        }
                     } else {
                         LinuxTerminal.print('(Running backup... this would take a while in foreground)');
                     }
