@@ -209,6 +209,9 @@ const LinuxTerminal = (function() {
         if (options.onCommand) config.onCommand = options.onCommand;
         if (options.onObjectiveComplete) config.onObjectiveComplete = options.onObjectiveComplete;
         if (options.suppressUnknown) config.suppressUnknown = true;
+        // Set explicitly (not conditionally) so a re-init without the flag can't inherit
+        // a stale `true` — the pipe gate must reflect THIS module's options exactly.
+        config.realPipes = !!options.realPipes;
 
         // Set objectives
         if (options.objectives) {
@@ -657,7 +660,7 @@ Type <span class="lt-cmd">help</span> for available commands.
                   .replace(/\$(\w+)/g, (_, v) => _lookup(v));
     }
 
-    function _executeCommand(cmd, args, fullLine) {
+    function _executeCommand(cmd, args, fullLine, stdin) {
         // Check for --help flag
         if (args.includes('--help') || args.includes('-h')) {
             return _getHelp(cmd);
@@ -682,26 +685,26 @@ Type <span class="lt-cmd">help</span> for available commands.
 
             // --------------- File Operations ---------------
             case 'cat': {
-                const result = _cat(args);
+                const result = _cat(args, stdin);
                 _checkObjective('cat');
                 return result;
             }
 
             case 'head': {
-                const result = _head(args);
+                const result = _head(args, stdin);
                 _checkObjective('head');
                 return result;
             }
 
             case 'tail': {
-                const result = _tail(args);
+                const result = _tail(args, stdin);
                 _checkObjective('tail');
                 return result;
             }
 
             case 'less':
             case 'more':
-                return _cat(args); // Simplified
+                return _cat(args, stdin); // Simplified
 
             case 'touch': {
                 const result = _touch(args);
@@ -750,7 +753,7 @@ Type <span class="lt-cmd">help</span> for available commands.
             }
 
             case 'grep': {
-                const result = _grep(args);
+                const result = _grep(args, stdin);
                 _checkObjective('grep');
                 return result;
             }
@@ -854,22 +857,22 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
                 return args.join(' ').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 
             case 'wc': {
-                const result = _wc(args);
+                const result = _wc(args, stdin);
                 _checkObjective('wc');
                 return result;
             }
 
             case 'sort': {
-                const result = _sort(args);
+                const result = _sort(args, stdin);
                 _checkObjective('sort');
                 return result;
             }
 
             case 'uniq':
-                return _uniq(args);
+                return _uniq(args, stdin);
 
             case 'cut': {
-                const result = _cut(args);
+                const result = _cut(args, stdin);
                 _checkObjective('cut');
                 return result;
             }
@@ -884,7 +887,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             }
 
             case 'awk': {
-                const result = _awk(args);
+                const result = _awk(args, stdin);
                 _checkObjective('awk');
                 return result;
             }
@@ -1576,8 +1579,9 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
         return node.perms && node.perms[7] === 'r';
     }
 
-    function _cat(args) {
+    function _cat(args, stdin) {
         if (args.length === 0) {
+            if (stdin != null && stdin !== '') return stdin;
             return '<span class="lt-highlight">cat: reading from stdin (Ctrl+C to exit)</span>';
         }
 
@@ -1600,7 +1604,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
         return results.join('\n');
     }
 
-    function _head(args) {
+    function _head(args, stdin) {
         let lines = 10;
         let files = [];
 
@@ -1608,12 +1612,17 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             if (args[i] === '-n' && args[i + 1]) {
                 lines = parseInt(args[i + 1]);
                 i++;
+            } else if (/^-\d+$/.test(args[i])) {
+                lines = parseInt(args[i].slice(1)); // combined form: head -10
             } else if (!args[i].startsWith('-')) {
                 files.push(args[i]);
             }
         }
 
         if (files.length === 0) {
+            if (stdin != null && stdin !== '') {
+                return stdin.split('\n').slice(0, lines).join('\n');
+            }
             return '<span class="lt-highlight">head: reading from stdin</span>';
         }
 
@@ -1630,7 +1639,7 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
         return results.join('\n');
     }
 
-    function _tail(args) {
+    function _tail(args, stdin) {
         let lines = 10;
         let files = [];
 
@@ -1638,12 +1647,17 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
             if (args[i] === '-n' && args[i + 1]) {
                 lines = parseInt(args[i + 1]);
                 i++;
+            } else if (/^-\d+$/.test(args[i])) {
+                lines = parseInt(args[i].slice(1)); // combined form: tail -10
             } else if (!args[i].startsWith('-')) {
                 files.push(args[i]);
             }
         }
 
         if (files.length === 0) {
+            if (stdin != null && stdin !== '') {
+                return stdin.split('\n').slice(-lines).join('\n');
+            }
             return '<span class="lt-highlight">tail: reading from stdin</span>';
         }
 
@@ -2110,7 +2124,7 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         return results.join('\n') || '<span class="lt-output-line">No matches found</span>';
     }
 
-    function _grep(args) {
+    function _grep(args, stdin) {
         let ignoreCase = false;
         let showLineNumbers = false;
         let pattern = null;
@@ -2125,10 +2139,24 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         }
 
         if (!pattern) return '<span class="lt-error">grep: missing pattern</span>';
-        if (files.length === 0) return '<span class="lt-highlight">grep: reading from stdin</span>';
 
         const results = [];
         const regex = new RegExp(pattern, ignoreCase ? 'i' : '');
+
+        if (files.length === 0) {
+            if (stdin != null && stdin !== '') {
+                const lines = stdin.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    if (regex.test(lines[i])) {
+                        const lineNum = showLineNumbers ? `${i + 1}:` : '';
+                        const highlighted = lines[i].replace(regex, '<span class="lt-highlight">$&</span>');
+                        results.push(`${lineNum}${highlighted}`);
+                    }
+                }
+                return results.join('\n') || '';
+            }
+            return '<span class="lt-highlight">grep: reading from stdin</span>';
+        }
 
         for (const file of files) {
             const path = _resolvePath(file);
@@ -2298,7 +2326,7 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         return resultLines.join('\n');
     }
 
-    function _awk(args) {
+    function _awk(args, stdin) {
         if (args.length === 0) return '<span class="lt-error">awk: missing program</span>';
 
         let separator = null;
@@ -2361,7 +2389,6 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         }
 
         if (!program) return '<span class="lt-error">awk: missing program</span>';
-        if (files.length === 0) return '<span class="lt-highlight">awk: reading from stdin (not supported in this simulation)</span>';
 
         // Parse the awk program into pattern and action
         // Forms: '{action}', '/pattern/ {action}', 'NR==N', 'NR==N {action}'
@@ -2379,7 +2406,13 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         const plainActionMatch = program.match(/^\{(.*)\}$/);
 
         if (patternActionMatch) {
-            patternRegex = new RegExp(patternActionMatch[1]);
+            // A malformed pattern must not throw uncaught (that crashes the terminal);
+            // real awk reports a regex error, so mirror that gracefully.
+            try {
+                patternRegex = new RegExp(patternActionMatch[1]);
+            } catch (e) {
+                return '<span class="lt-error">awk: invalid regular expression in program</span>';
+            }
             action = patternActionMatch[2].trim();
         } else if (nrCondition === null && nrActionMatch) {
             nrCondition = parseInt(nrActionMatch[1]);
@@ -2397,21 +2430,35 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
         const results = [];
         const fs = separator || /\s+/;
 
-        for (const file of files) {
-            const path = _resolvePath(file);
-            const node = state.fs[path];
-
-            if (!node) {
-                results.push(`<span class="lt-error">awk: ${file}: No such file or directory</span>`);
-                continue;
+        // Build the list of input contents: either the named files, or (in a pipe)
+        // the piped stdin. Interactive stdin with nothing piped keeps the old stub.
+        const contentList = [];
+        if (files.length === 0) {
+            if (stdin != null && stdin !== '') {
+                contentList.push(stdin);
+            } else {
+                return '<span class="lt-highlight">awk: reading from stdin (not supported in this simulation)</span>';
             }
-            if (node.type === 'dir') {
-                results.push(`<span class="lt-error">awk: ${file}: Is a directory</span>`);
-                continue;
-            }
-            if (!node.content && node.content !== '') continue;
+        } else {
+            for (const file of files) {
+                const path = _resolvePath(file);
+                const node = state.fs[path];
 
-            const lines = node.content.split('\n');
+                if (!node) {
+                    results.push(`<span class="lt-error">awk: ${file}: No such file or directory</span>`);
+                    continue;
+                }
+                if (node.type === 'dir') {
+                    results.push(`<span class="lt-error">awk: ${file}: Is a directory</span>`);
+                    continue;
+                }
+                if (!node.content && node.content !== '') continue;
+                contentList.push(node.content);
+            }
+        }
+
+        for (const content of contentList) {
+            const lines = content.split('\n');
 
             for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
                 const line = lines[lineIdx];
@@ -2444,7 +2491,15 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
                         } else if (token === 'NF') {
                             outputParts.push(String(nf));
                         } else if (token.startsWith('$')) {
-                            const fieldNum = parseInt(token.substring(1));
+                            // Resolve $N, $NF, $(NF), and $(NF-k) field references.
+                            let ref = token.substring(1);
+                            let fieldNum;
+                            const nfMatch = ref.match(/^\(?\s*NF\s*(?:-\s*(\d+))?\s*\)?$/);
+                            if (nfMatch) {
+                                fieldNum = nf - (nfMatch[1] ? parseInt(nfMatch[1]) : 0);
+                            } else {
+                                fieldNum = parseInt(ref.replace(/[()]/g, ''));
+                            }
                             if (fieldNum === 0) {
                                 outputParts.push(line);
                             } else if (fieldNum >= 1 && fieldNum <= nf) {
@@ -2694,7 +2749,7 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
  1234 pts/0    00:00:00 ps`;
     }
 
-    function _wc(args) {
+    function _wc(args, stdin) {
         let countLines = true, countWords = true, countBytes = true;
         const files = [];
 
@@ -2705,7 +2760,21 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
             else if (!arg.startsWith('-')) files.push(arg);
         }
 
-        if (files.length === 0) return '<span class="lt-highlight">wc: reading from stdin</span>';
+        if (files.length === 0) {
+            if (stdin != null && stdin !== '') {
+                const content = stdin;
+                const lines = content.split('\n').length;
+                const words = content.split(/\s+/).filter(w => w).length;
+                const bytes = content.length;
+
+                const parts = [];
+                if (countLines) parts.push(lines.toString().padStart(7));
+                if (countWords) parts.push(words.toString().padStart(7));
+                if (countBytes) parts.push(bytes.toString().padStart(7));
+                return parts.join(' ');
+            }
+            return '<span class="lt-highlight">wc: reading from stdin</span>';
+        }
 
         const results = [];
         for (const file of files) {
@@ -2729,18 +2798,26 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         return results.join('\n');
     }
 
-    function _sort(args) {
-        let reverse = args.includes('-r');
-        let numeric = args.includes('-n');
+    function _sort(args, stdin) {
+        // Accept combined short flags (-rn / -nr) as well as separate -r -n.
+        let flagChars = args.filter(a => /^-[a-z]+$/i.test(a)).join('');
+        let reverse = flagChars.indexOf('r') !== -1;
+        let numeric = flagChars.indexOf('n') !== -1;
         let file = args.find(a => !a.startsWith('-'));
 
-        if (!file) return '<span class="lt-highlight">sort: reading from stdin</span>';
+        let content;
+        if (file) {
+            const path = _resolvePath(file);
+            const node = state.fs[path];
+            if (!node || !node.content) return `<span class="lt-error">sort: ${file}: No such file</span>`;
+            content = node.content;
+        } else if (stdin != null && stdin !== '') {
+            content = stdin;
+        } else {
+            return '<span class="lt-highlight">sort: reading from stdin</span>';
+        }
 
-        const path = _resolvePath(file);
-        const node = state.fs[path];
-        if (!node || !node.content) return `<span class="lt-error">sort: ${file}: No such file</span>`;
-
-        let lines = node.content.split('\n').filter(l => l);
+        let lines = content.split('\n').filter(l => l);
         if (numeric) {
             lines.sort((a, b) => parseFloat(a) - parseFloat(b));
         } else {
@@ -2751,19 +2828,28 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         return lines.join('\n');
     }
 
-    // uniq: collapse ADJACENT duplicate lines from a file (use -c to prefix counts).
-    // Reads a filename arg only; bare piped stdin is not threaded by the sim (see _executePipeline).
-    function _uniq(args) {
+    // uniq: collapse ADJACENT duplicate lines (use -c to prefix counts).
+    // Reads a filename arg, or — inside a pipe — the piped stdin threaded by _executePipeline.
+    function _uniq(args, stdin) {
         let countMode = args.includes('-c');
         let file = args.find(a => !a.startsWith('-'));
 
-        if (!file) return '<span class="lt-highlight">uniq: reading from stdin</span>';
+        let content;
+        if (file) {
+            const path = _resolvePath(file);
+            const node = state.fs[path];
+            if (!node || !node.content) return `<span class="lt-error">uniq: ${file}: No such file</span>`;
+            content = node.content;
+        } else if (stdin != null && stdin !== '') {
+            content = stdin;
+        } else {
+            return '<span class="lt-highlight">uniq: reading from stdin</span>';
+        }
 
-        const path = _resolvePath(file);
-        const node = state.fs[path];
-        if (!node || !node.content) return `<span class="lt-error">uniq: ${file}: No such file</span>`;
-
-        const lines = node.content.split('\n');
+        // Split raw content into lines (behavior intentionally identical to the
+        // original: a trailing newline yields an empty final element, matching what
+        // every existing `uniq` consumer already sees — do not normalize here).
+        const lines = content.split('\n');
         const result = [];
         let prevLine = null;
         let count = 0;
@@ -2786,7 +2872,7 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         return result.join('\n');
     }
 
-    function _cut(args) {
+    function _cut(args, stdin) {
         let delimiter = '\t';
         let fields = null;
         let charRanges = null;
@@ -2821,14 +2907,21 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         // usually removes them already).
         if (delimiter && delimiter.length > 1) delimiter = delimiter.replace(/^['"]|['"]$/g, '');
 
-        if (!file) return '<span class="lt-highlight">cut: reading from stdin</span>';
+        const haveStdin = (stdin != null && stdin !== '');
+        if (!file && !haveStdin) return '<span class="lt-highlight">cut: reading from stdin</span>';
         if (!fields && !charRanges) return '<span class="lt-error">cut: you must specify a list of fields</span>';
 
-        const path = _resolvePath(file);
-        const node = state.fs[path];
-        if (!node || !node.content) return `<span class="lt-error">cut: ${file}: No such file</span>`;
+        let content;
+        if (file) {
+            const path = _resolvePath(file);
+            const node = state.fs[path];
+            if (!node || !node.content) return `<span class="lt-error">cut: ${file}: No such file</span>`;
+            content = node.content;
+        } else {
+            content = stdin;
+        }
 
-        const lines = node.content.split('\n');
+        const lines = content.split('\n');
 
         if (charRanges) {
             // -c: select character positions (1-indexed, inclusive)
@@ -3559,14 +3652,31 @@ Building dependency tree... Done
 
     function _executePipeline(cmdLine) {
         const commands = cmdLine.split('|').map(c => c.trim());
-        let input = '';
+        let data = '';                     // stdout of the previous stage → stdin of the next
 
-        for (const cmd of commands) {
-            const { cmd: command, args } = _parseCommand(cmd);
-            const output = _executeCommand(command, args, cmd);
-            if (output) input = output;
+        if (config.realPipes) {
+            // OPT-IN real pipes: thread each stage's stdout as the next stage's stdin,
+            // short-circuiting if a stage errors. Only modules that set `realPipes: true`
+            // get this. Every other consumer keeps the legacy branch below, so labs that
+            // layer their own pipe simulation in onCommand are completely unaffected.
+            for (const cmd of commands) {
+                const { cmd: command, args } = _parseCommand(cmd);
+                const out = _executeCommand(command, args, cmd, data);
+                // An errored stage stops the pipe (real shells don't feed error text downstream).
+                if (out != null && out.indexOf('lt-error') !== -1) { data = out; break; }
+                data = (out != null) ? out : '';
+            }
+        } else {
+            // LEGACY (default): run each stage independently with no stdin threading,
+            // keeping the last non-empty output. This is the exact pre-existing behavior.
+            for (const cmd of commands) {
+                const { cmd: command, args } = _parseCommand(cmd);
+                const out = _executeCommand(command, args, cmd);
+                if (out) data = out;
+            }
         }
 
+        const input = data;
         if (input) _appendOutput(input);
 
         // Scroll to bottom
