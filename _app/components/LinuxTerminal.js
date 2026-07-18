@@ -1020,7 +1020,9 @@ reboot   system boot  6.1.0-hexworth   Dec 27 06:30   still running`;
 
             case 'ip': {
                 _checkObjective('ifconfig');
-                const ipSub = args[0] || 'addr';
+                // Skip leading option flags (e.g. -br, -4, -6, -s) to find the
+                // subcommand, matching real `ip` which accepts options before the object.
+                const ipSub = args.filter(function (a) { return a.charAt(0) !== '-'; })[0] || 'addr';
                 if (ipSub === 'addr' || ipSub === 'a' || ipSub === 'address') {
                     return `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN\n    inet 127.0.0.1/8 scope host lo\n    inet6 ::1/128 scope host\n2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP\n    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0\n    inet6 fe80::1/64 scope link`;
                 }
@@ -2749,6 +2751,8 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         return lines.join('\n');
     }
 
+    // uniq: collapse ADJACENT duplicate lines from a file (use -c to prefix counts).
+    // Reads a filename arg only; bare piped stdin is not threaded by the sim (see _executePipeline).
     function _uniq(args) {
         let countMode = args.includes('-c');
         let file = args.find(a => !a.startsWith('-'));
