@@ -2785,31 +2785,96 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
     function _cut(args) {
         let delimiter = '\t';
         let fields = null;
+        let charRanges = null;
         let file = null;
 
+        // Accept both separate tokens (-f 1, -d ,) and the joined forms real cut allows
+        // (-f1, -d,, -c1-5). Real users type `cut -f1 file` and `cut -d',' -f2 file`
+        // constantly; the tokenizer strips the quotes so -d',' arrives here as `-d,`.
         for (let i = 0; i < args.length; i++) {
-            if (args[i] === '-d' && args[i + 1]) {
+            const a = args[i];
+            if (a === '-d' && args[i + 1]) {
                 delimiter = args[i + 1];
                 i++;
-            } else if (args[i] === '-f' && args[i + 1]) {
-                fields = args[i + 1].split(',').map(f => parseInt(f) - 1);
+            } else if (a.length > 2 && a.startsWith('-d')) {
+                delimiter = a.slice(2);
+            } else if (a === '-f' && args[i + 1]) {
+                fields = _cutParseFields(args[i + 1]);
                 i++;
-            } else if (!args[i].startsWith('-')) {
-                file = args[i];
+            } else if (a.length > 2 && a.startsWith('-f')) {
+                fields = _cutParseFields(a.slice(2));
+            } else if (a === '-c' && args[i + 1]) {
+                charRanges = _cutParseRanges(args[i + 1]);
+                i++;
+            } else if (a.length > 2 && a.startsWith('-c')) {
+                charRanges = _cutParseRanges(a.slice(2));
+            } else if (!a.startsWith('-')) {
+                file = a;
             }
         }
 
+        // Strip any surrounding quotes left on a delimiter (defensive; the tokenizer
+        // usually removes them already).
+        if (delimiter && delimiter.length > 1) delimiter = delimiter.replace(/^['"]|['"]$/g, '');
+
         if (!file) return '<span class="lt-highlight">cut: reading from stdin</span>';
-        if (!fields) return '<span class="lt-error">cut: you must specify a list of fields</span>';
+        if (!fields && !charRanges) return '<span class="lt-error">cut: you must specify a list of fields</span>';
 
         const path = _resolvePath(file);
         const node = state.fs[path];
         if (!node || !node.content) return `<span class="lt-error">cut: ${file}: No such file</span>`;
 
-        return node.content.split('\n').map(line => {
+        const lines = node.content.split('\n');
+
+        if (charRanges) {
+            // -c: select character positions (1-indexed, inclusive)
+            return lines.map(line => {
+                let out = '';
+                for (let idx = 1; idx <= line.length; idx++) {
+                    if (charRanges.some(([s, e]) => idx >= s && idx <= e)) out += line[idx - 1];
+                }
+                return out;
+            }).join('\n');
+        }
+
+        return lines.map(line => {
             const parts = line.split(delimiter);
             return fields.map(f => parts[f] || '').join(delimiter);
         }).join('\n');
+    }
+
+    // Parse a cut -f field list into 0-indexed positions. Supports singles ("1"),
+    // comma lists ("1,3"), and closed ranges ("1-3" -> columns 1,2,3).
+    function _cutParseFields(spec) {
+        const out = [];
+        spec.split(',').forEach(part => {
+            const dash = part.indexOf('-');
+            if (dash === -1) {
+                const n = parseInt(part, 10);
+                if (!isNaN(n) && n >= 1) out.push(n - 1);
+            } else {
+                const s = part.slice(0, dash) === '' ? 1 : parseInt(part.slice(0, dash), 10);
+                const eStr = part.slice(dash + 1);
+                const e = eStr === '' ? s : parseInt(eStr, 10);
+                if (!isNaN(s) && !isNaN(e)) {
+                    for (let f = s; f <= e; f++) if (f >= 1) out.push(f - 1);
+                }
+            }
+        });
+        return out;
+    }
+
+    // Parse a cut -c range list into [start,end] pairs (1-indexed): "1-5", "3",
+    // "2-" (open end), "-4" (open start), "1-5,10-12".
+    function _cutParseRanges(spec) {
+        return spec.split(',').map(r => {
+            const dash = r.indexOf('-');
+            if (dash === -1) { const n = parseInt(r, 10); return [n, n]; }
+            const start = r.slice(0, dash) === '' ? 1 : parseInt(r.slice(0, dash), 10);
+            const endStr = r.slice(dash + 1);
+            const end = endStr === '' ? Infinity : parseInt(endStr, 10);
+            return [start, end];
+        }).filter(([s, e]) => !isNaN(s) && (e === Infinity || !isNaN(e)));
     }
 
     function _chmod(args) {
