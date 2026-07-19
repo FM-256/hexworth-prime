@@ -41,8 +41,9 @@
 
 **Leg 1 QC verdict: PASS. No open issues on the completed work.**
 
-### Discoveries for later legs (out of Leg 1 scope, do NOT fix as part of Leg 1)
-- **`houses/shield/index.html` — 11 live 404s** for `/assets/images/categories/{infosec,risk,ms-security,shield,sc-900,network,governance,sc-200,cse,pis,career}.webp` (category-tile icons). PRE-DATES this marathon, NOT a marathon asset. These are real broken images on a house hub — fold into the Leg 2 (house-hubs) effort or a standalone fix. Flagged by Chris during the Leg 1 live sweep.
+### Discoveries + spot fixes
+- **`houses/shield/index.html` — 11 live 404s → FIXED 2026-07-19** (commit `f08a1c760`, live-verified 11/11 serve 200). `/assets/images/categories/{infosec,risk,ms-security,shield,sc-900,sc-200,network,governance,cse,pis,career}.webp`. Root cause: `HouseRenderer.js:1618` builds category tiles at runtime from `ContentCatalog.getHouseModules('shield')` IDs; 11 IDs had no tile file (an `onerror` fallback masked the 404s in the UI). Fix: generated 11 neon-cyberpunk category emblems (256x256, matching the `categories/*.webp` family), purely additive — no code or existing asset touched. Chris PASS: runtime IDs match filenames exactly, 0 category 404s (was 11), 0 regression on the 10 working tiles. Flagged by Chris during the Leg 1 live sweep, fixed on operator request.
+- **NOTE for Leg 2:** the same runtime mechanism (`HouseRenderer.js` → `categories/${id}.webp`) likely leaves similar missing-tile 404s on OTHER house hubs. When Leg 2 runs, audit every house's `ContentCatalog` category IDs against the `categories/` dir and backfill gaps the same additive way.
 
 ---
 
