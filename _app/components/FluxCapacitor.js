@@ -101,13 +101,13 @@
     // ═══════════════════════════════════════════════════════════════
 
     const STYLES = `
-        /* Flux Capacitor - Slime Green Radioactive Theme */
+        /* Flux Capacitor - Plasma Purple Theme */
         :root {
-            --flux-green: #39ff14;
-            --flux-green-dim: #2ecc0f;
-            --flux-glow: rgba(57, 255, 20, 0.6);
-            --flux-glow-strong: rgba(57, 255, 20, 0.9);
-            --flux-dark: #0a1a0a;
+            --flux-purple: #c65cff;
+            --flux-purple-dim: #9a3fe0;
+            --flux-glow: rgba(180, 100, 255, 0.6);
+            --flux-glow-strong: rgba(198, 92, 255, 0.9);
+            --flux-dark: #0d0a1a;
         }
 
         /* Floating Button */
@@ -117,8 +117,8 @@
             width: 64px;
             height: 64px;
             border-radius: 12px;
-            background: radial-gradient(circle at 30% 30%, #1a2a1a 0%, #0a1a0a 100%);
-            border: 2px solid var(--flux-green);
+            background: radial-gradient(circle at 30% 30%, #1a1430 0%, #0a0a1a 100%);
+            border: 2px solid var(--flux-purple);
             cursor: pointer;
             z-index: 9998;
             display: flex;
@@ -126,8 +126,8 @@
             justify-content: center;
             box-shadow:
                 0 0 20px var(--flux-glow),
-                0 0 40px rgba(57, 255, 20, 0.3),
-                inset 0 0 15px rgba(57, 255, 20, 0.1);
+                0 0 40px rgba(180, 100, 255, 0.3),
+                inset 0 0 15px rgba(180, 100, 255, 0.1);
             animation: fluxPulse 2s ease-in-out infinite;
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -137,7 +137,7 @@
             box-shadow:
                 0 0 30px var(--flux-glow-strong),
                 0 0 60px var(--flux-glow),
-                inset 0 0 20px rgba(57, 255, 20, 0.2);
+                inset 0 0 20px rgba(180, 100, 255, 0.2);
         }
 
         .flux-btn:active {
@@ -151,7 +151,7 @@
             justify-content: center;
             width: 100%;
             height: 100%;
-            filter: drop-shadow(0 0 8px var(--flux-green));
+            filter: drop-shadow(0 0 8px var(--flux-purple));
             animation: fluxSpin 8s linear infinite;
         }
 
@@ -165,15 +165,15 @@
             0%, 100% {
                 box-shadow:
                     0 0 20px var(--flux-glow),
-                    0 0 40px rgba(57, 255, 20, 0.3),
-                    inset 0 0 15px rgba(57, 255, 20, 0.1);
+                    0 0 40px rgba(180, 100, 255, 0.3),
+                    inset 0 0 15px rgba(180, 100, 255, 0.1);
                 transform: scale(1);
             }
             50% {
                 box-shadow:
                     0 0 30px var(--flux-glow-strong),
                     0 0 60px var(--flux-glow),
-                    inset 0 0 25px rgba(57, 255, 20, 0.2);
+                    inset 0 0 25px rgba(180, 100, 255, 0.2);
                 transform: scale(1.05);
             }
         }
@@ -216,7 +216,7 @@
 
         .flux-title {
             font-size: 1.5rem;
-            color: var(--flux-green);
+            color: var(--flux-purple);
             margin-bottom: 8px;
             text-shadow: 0 0 20px var(--flux-glow);
             font-family: 'Segoe UI', system-ui, sans-serif;
@@ -276,7 +276,7 @@
         }
 
         .flux-house.current {
-            border-color: var(--flux-green);
+            border-color: var(--flux-purple);
             box-shadow: 0 0 20px var(--flux-glow);
         }
 
@@ -426,7 +426,7 @@
         .flux-warp {
             position: absolute;
             inset: 0;
-            background: var(--flux-green);
+            background: var(--flux-purple);
             z-index: 99999;
             opacity: 0;
             pointer-events: none;
@@ -578,7 +578,7 @@
 
     /**
      * FluxCapacitor — Floating house navigation system.
-     * Creates a radioactive-green button in the bottom-right that opens a modal
+     * Creates a plasma-purple button in the bottom-right that opens a modal
      * showing all 12 houses with their emblems. Includes warp animation on navigation.
      *
      * Also bootstraps 6 sub-components via script injection:
@@ -628,7 +628,7 @@
             this.button.setAttribute('aria-expanded', 'false');
             this.button.setAttribute('aria-haspopup', 'dialog');
             this.button.setAttribute('title', 'Flux Capacitor (Press ~)');
-            this.button.innerHTML = '<span class="flux-icon"><img src="/assets/images/icons/icon-explosion.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
+            this.button.innerHTML = '<span class="flux-icon"><img src="/assets/images/icons/flux-capacitor.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></span>';
             document.body.appendChild(this.button);
 
             // Keep button pinned to viewport (position:fixed is broken when body has filter)
@@ -776,7 +776,7 @@
             return card;
         }
 
-        /** Create the full-screen warp animation overlay (green vortex on navigation) */
+        /** Create the full-screen warp animation overlay (purple vortex on navigation) */
         createWarpEffect() {
             this.warp = document.createElement('div');
             this.warp.className = 'flux-warp';
