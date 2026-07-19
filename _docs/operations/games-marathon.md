@@ -1,0 +1,42 @@
+# Games Quality Marathon
+
+**Goal:** Play-test, fix, and polish the arcade games one at a time to a "perfected" bar — real working engines with premium art, clear feedback, and no bugs — matching the quality set by ThreatDex.
+
+**Started:** 2026-07-19 · **Operator:** Frank · **Status:** ACTIVE
+
+---
+
+## Operating contract (LOCKED)
+
+1. **One game = one mission = one commit = one deploy.** Fully perfect + deploy a game before starting the next. Never batch games.
+2. **Non-stop mode, NO questions.** After a game ships, auto-advance to the next. Don't stop for per-game go-ahead or ask permission between missions — use own judgment on priority; surface only a genuine blocker. Pre-approved.
+2b. **Consult Nancy (adversarial-reviewer) OFTEN.** Route fixes, design decisions, and "is this the right approach" through Nancy before/around implementing — she catches flaws and simpler paths (e.g. she caught the bad `armory` alias + the ContentDiscovery root-cause during the imagery work). Standing dispatch approval; don't ask, just consult her.
+3. **TEST BY ACTUALLY PLAYING (non-negotiable).** Boot the REAL engine (Puppeteer, AccessGuard bypass: `localStorage hexworth_house=<house>` + `hexworth_tourist_active=true`) and PLAY it — multiple rounds, the WIN path AND the LOSE path, every level/wave, past the first move. The ThreatDex softlock + missing-feedback bugs were invisible to static review and a single click; they only showed on the second move / at end-of-round. See [[feedback_play_games_to_second_move]].
+4. **"Perfected" bar (each game):**
+   - Plays end-to-end, all levels/waves reachable, no softlock/dead-button/stuck state (win AND lose paths).
+   - Clear, unmissable outcome feedback (win / lose / level-complete / final victory).
+   - Premium art where it's "silly PNGs" or flat procedural (fal.ai, matches the cartridge/tile bar); functional tiny UI stays clean.
+   - Mobile usable (no horizontal scroll, controls reachable).
+   - Honest scoring/pedagogy preserved (games are not quizzes; obscured tiers stay obscured, etc.).
+5. **QC gate:** Chris must PLAY it through (win + lose + all levels) and confirm the bar before deploy. Then `record-chris-pass` → `./deploy.sh` → verify live.
+6. **Local commits only** on `master`. Explicit `git add` of the game file + its scoped art dir. No AI attribution. Never `git add .`.
+
+## Per-mission loop
+1. Boot + PLAY the game (win path, lose path, all levels). Log the concrete issues.
+2. Diagnose root causes (read the actual turn/render/outcome code; don't guess).
+3. Fix bugs → polish (art, feedback, mobile).
+4. Re-play to verify each fix.
+5. Chris real-playthrough QC.
+6. `git add` scoped → commit → `record-chris-pass` → `./deploy.sh` → verify live.
+7. Mark below. Auto-advance.
+
+---
+
+## Missions
+
+- [~] **G1 — ThreatDex (`shield-threatdex.applet.html`)** — IN PROGRESS (near done). Shipped: softlock fix (unplayable past move 1: `nextWave`/`resolveMiss` set turn after HUD re-render), premium cyber-monster creatures + Defender + 3 badge medals, obscured-tier mask widen, mobile transition-title clamp. FINAL fix in QC: clear win/lose/level outcome banners (operator: "no indication of what the hell just happened"). Commits `132db2a13` (softlock), `f4573a51a` (art), + feedback banner pending.
+- [ ] **G2 — Contra (`shield-contra.applet.html`)** — NEXT. Operator reports "weird issues." Boot + PLAY through to reproduce before touching anything.
+- [ ] **G3+ — TBD** — expand as we go (95 arcade games; prioritize by operator report + play-test).
+
+## How to resume (after any context reset)
+Read this file. Find the first unchecked/in-progress mission. Boot + PLAY that ONE game to reproduce its issues, then run the per-mission loop. Do not batch. Update this file when it ships.

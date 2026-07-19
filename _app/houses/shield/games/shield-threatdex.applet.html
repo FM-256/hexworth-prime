@@ -721,20 +721,22 @@
         }
 
         /* Leader intro banner */
-        #leaderBanner {
+        #leaderBanner, #outcomeBanner {
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.85);
+            background: rgba(3,4,10,0.94);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 0 16px;
             z-index: 200;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s;
         }
-        #leaderBanner.show { opacity: 1; pointer-events: all; }
+        #leaderBanner.show, #outcomeBanner.show { opacity: 1; pointer-events: all; }
         .leader-intro-title {
             font-size: 11px;
             letter-spacing: 4px;
@@ -817,6 +819,7 @@
         <div class="leader-intro-name" id="leaderIntroName"></div>
         <div class="leader-intro-sub" id="leaderIntroSub"></div>
     </div>
+    <div id="outcomeBanner"></div>
     <div id="swapOverlay">
         <div class="swap-overlay-title">[ SELECT CREATURE ]</div>
         <div class="swap-overlay-grid" id="swapOverlayGrid"></div>
@@ -2903,16 +2906,30 @@ function nextWave() {
 //  model is now deployControl -> resolveBlock/resolveMiss -> nextWave above.)
 
 // Campaign cleared: all waves survived. Award the badge and accumulate score.
+// Full-screen outcome banner (reuses the leaderBanner overlay pattern) so every
+// round ends with a clear, unmissable result — a badge-earned win or a breach —
+// instead of silently dropping back to the selection screen.
+function showOutcomeBanner(html, ms, done) {
+    const el = document.getElementById('outcomeBanner');
+    el.innerHTML = html;
+    el.classList.add('show');
+    setTimeout(() => {
+        el.classList.remove('show');
+        if (done) done();
+    }, ms);
+}
+
 function handleVictoryBattle() {
     stopBattleAnim();
     const camp = State.battle.camp;
+    const score = State.battle.score;
     if (!State.defeatedGyms.includes(camp.id)) State.defeatedGyms.push(camp.id);
     State.gymProgress = Math.max(State.gymProgress, CAMPAIGNS.findIndex(c => c.id === camp.id) + 1);
-    State.totalScore = (State.totalScore || 0) + State.battle.score;
+    State.totalScore = (State.totalScore || 0) + score;
 
     clearLog();
     addLog(`${camp.name} contained! Every wave held.`, 'effective');
-    addLog(`Obtained: ${camp.badge} (+${State.battle.score})`, 'crit');
+    addLog(`Obtained: ${camp.badge} (+${score})`, 'crit');
 
     if (State.gymProgress >= CAMPAIGNS.length) {
         if (typeof GameTracker !== 'undefined') {
@@ -2920,11 +2937,18 @@ function handleVictoryBattle() {
         }
         setTimeout(() => { showVictory(); }, 1500);
     } else {
-        setTimeout(() => {
+        const remaining = CAMPAIGNS.length - State.defeatedGyms.length;
+        showOutcomeBanner(`
+            <div style="font-size:11px;letter-spacing:4px;color:var(--green);margin-bottom:16px;">THREAT CONTAINED</div>
+            <img src="threatdex-art/badge_${camp.badgeIcon}.webp" alt="" style="width:120px;height:120px;object-fit:contain;filter:drop-shadow(0 0 22px ${camp.badgeColor}cc);">
+            <div style="font-size:clamp(20px,6vw,30px);font-weight:900;letter-spacing:3px;color:#fff;margin-top:16px;text-shadow:0 0 20px ${camp.badgeColor}, 0 0 8px ${camp.badgeColor};">${camp.badge} EARNED</div>
+            <div style="font-size:13px;color:var(--cyan);margin-top:10px;letter-spacing:2px;">+${score} &nbsp;·&nbsp; ${remaining} ADVERSAR${remaining === 1 ? 'Y' : 'IES'} REMAINING</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:14px;letter-spacing:1px;">Returning to the arena…</div>
+        `, 3000, () => {
             State.battle = null;
             renderOverworld();
             showScreen('overworld');
-        }, 1800);
+        });
     }
 }
 
@@ -2932,17 +2956,23 @@ function handleVictoryBattle() {
 // the operator simply retries the campaign (integrity resets from the tier).
 function handleDefeatBattle() {
     stopBattleAnim();
+    const campName = (State.battle && State.battle.camp) ? State.battle.camp.name : 'The adversary';
     if (typeof GameTracker !== 'undefined') {
         GameTracker.record('threatdex', { score: State.totalScore || 0, result: 'failure' });
     }
     clearLog();
     addLog(`Breach not contained. The intrusion succeeded.`, 'danger');
     addLog(`Regroup and defend again.`, 'system');
-    setTimeout(() => {
+    showOutcomeBanner(`
+        <div style="font-size:11px;letter-spacing:4px;color:var(--red);margin-bottom:14px;">SECURITY BREACH</div>
+        <div style="font-size:clamp(26px,7vw,46px);font-weight:900;letter-spacing:3px;color:var(--red);text-shadow:0 0 22px var(--red);">INTRUSION SUCCEEDED</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-top:14px;letter-spacing:1px;max-width:34ch;">${campName} broke through — system integrity failed. Regroup and defend again.</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:14px;letter-spacing:1px;">Returning to the arena…</div>
+    `, 3000, () => {
         State.battle = null;
         renderOverworld();
         showScreen('overworld');
-    }, 2000);
+    });
 }
 
 // ────────────────────────────────────────────────────────────
