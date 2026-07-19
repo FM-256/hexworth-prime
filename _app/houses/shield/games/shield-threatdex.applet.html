@@ -742,11 +742,15 @@
             margin-bottom: 8px;
         }
         .leader-intro-name {
-            font-size: 40px;
+            font-size: clamp(24px, 8vw, 40px);
             font-weight: 900;
             letter-spacing: 4px;
             color: var(--red);
             text-shadow: 0 0 20px var(--red);
+            max-width: 92vw;
+            text-align: center;
+            text-wrap: balance;
+            padding: 0 10px;
         }
         .leader-intro-sub {
             font-size: 12px;
@@ -1124,11 +1128,11 @@ const MOVE_POOL = {
 //    referenceTable: show the standing control->threat cheat sheet or not.
 // ────────────────────────────────────────────────────────────
 const CAMPAIGNS = [
-    { id: 'kiddie',   name: 'SCRIPT KIDDIE', title: 'Copy-Paste Menace',  badge: 'CONTAINMENT BADGE', badgeColor: '#64748b',
+    { id: 'kiddie',   name: 'SCRIPT KIDDIE', title: 'Copy-Paste Menace',  badge: 'CONTAINMENT BADGE', badgeColor: '#64748b', badgeIcon: 'containment',
       integrity: 120, dmgPerMiss: 18, threatDisplay: 'type',    referenceTable: true,  waves: 3 },
-    { id: 'blackhat', name: 'BLACK HAT',     title: 'For-Hire Operator',  badge: 'HARDENED BADGE',    badgeColor: '#7c3aed',
+    { id: 'blackhat', name: 'BLACK HAT',     title: 'For-Hire Operator',  badge: 'HARDENED BADGE',    badgeColor: '#7c3aed', badgeIcon: 'hardened',
       integrity: 100, dmgPerMiss: 28, threatDisplay: 'name',    referenceTable: true,  waves: 3 },
-    { id: 'apt',      name: 'APT GROUP',     title: 'Nation-State Actor', badge: 'RESILIENT BADGE',   badgeColor: '#00f0ff',
+    { id: 'apt',      name: 'APT GROUP',     title: 'Nation-State Actor', badge: 'RESILIENT BADGE',   badgeColor: '#00f0ff', badgeIcon: 'resilient',
       integrity: 80,  dmgPerMiss: 40, threatDisplay: 'symptom', referenceTable: false, waves: 3 },
 ];
 
@@ -2229,12 +2233,39 @@ const SPRITE_FN = {
     trojan_tiger: Sprites.trojan_tiger.bind(Sprites),
 };
 
-// Draw a sprite on a canvas element (for UI cards)
+// ── Premium image sprites (painterly cyber-monster art; replaces the
+//    procedural canvas creatures). Transparent PNGs so the source-atop
+//    silhouette masking on the obscured tiers still works. Falls back to
+//    the procedural SPRITE_FN until the image finishes loading. ──
+const CREATURE_IMG = {};
+['malware_moth','phish_phantom','rootkit_rex','ddos_drake','ransomware_raven','trojan_tiger','defender'].forEach(id => {
+    const im = new Image();
+    im.src = `threatdex-art/${id}.png`;
+    CREATURE_IMG[id] = im;
+});
+function creatureImgReady(id) {
+    const im = CREATURE_IMG[id];
+    return !!(im && im.complete && im.naturalWidth > 0);
+}
+// Draw a creature image centered at (cx,cy) inside a box of `box` px, honoring mirror.
+function drawCreatureImg(id, ctx, cx, cy, box, mirror) {
+    if (!creatureImgReady(id)) return false;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (mirror) ctx.scale(-1, 1);
+    ctx.drawImage(CREATURE_IMG[id], -box / 2, -box / 2, box, box);
+    ctx.restore();
+    return true;
+}
+
+// Draw a sprite on a canvas element (for UI cards). Prefers the image sprite,
+// sized to fit the canvas; falls back to the procedural drawing.
 function drawSpriteOnCanvas(canvas, creatureId, size = 80, mirror = false) {
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, size, size);
+    if (drawCreatureImg(creatureId, ctx, size / 2, size / 2, size, mirror)) return;
     const fn = SPRITE_FN[creatureId];
     if (fn) fn(ctx, size / 2, size / 2, size / 80, mirror);
 }
@@ -2402,7 +2433,7 @@ function renderOverworld() {
         entry.innerHTML = `
             <div class="gym-name" style="color:${beaten ? 'var(--green)' : isNext ? 'var(--yellow)' : 'var(--text)'}">${beaten ? '[V] ' : ''}${camp.name}</div>
             <div class="gym-meta">${camp.title} // ${camp.waves} waves // integrity ${camp.integrity}</div>
-            ${beaten ? `<div class="gym-badge">[BADGE] ${camp.badge}</div>` : ''}
+            ${beaten ? `<div class="gym-badge" style="display:flex;align-items:center;gap:5px;"><img src="threatdex-art/badge_${camp.badgeIcon}.webp" alt="" style="width:18px;height:18px;object-fit:contain"> ${camp.badge}</div>` : ''}
         `;
         entry.appendChild(btn);
         gymList.appendChild(entry);
@@ -2415,8 +2446,8 @@ function renderOverworld() {
         const camp = CAMPAIGNS.find(c => c.id === cid);
         if (!camp) return;
         const b = document.createElement('div');
-        b.style.cssText = `font-size:9px;padding:4px 8px;border:1px solid ${camp.badgeColor};color:${camp.badgeColor};letter-spacing:1px;`;
-        b.textContent = camp.badge;
+        b.style.cssText = `display:flex;align-items:center;gap:6px;font-size:9px;padding:3px 8px 3px 4px;border:1px solid ${camp.badgeColor}55;color:${camp.badgeColor};letter-spacing:1px;`;
+        b.innerHTML = `<img src="threatdex-art/badge_${camp.badgeIcon}.webp" alt="" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 0 5px ${camp.badgeColor}99)"> ${camp.badge}`;
         badgeDisplay.appendChild(b);
     });
 }
@@ -2503,18 +2534,22 @@ function drawBattleScene() {
     if (enemy.currentHp > 0) {
         ctx.save();
         if (enemyFlash > 0) { ctx.globalAlpha = 0.4 + (enemyFlash % 2) * 0.4; }
-        const fn = SPRITE_FN[enemy.defId];
-        if (fn) fn(ctx, exBase + exOff, eyBase + eyOff, 0.9, true);
-        if (hideThreat) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = '#05070d'; ctx.fillRect(exBase - 44, eyBase - 44, 88, 88);
-            ctx.fillStyle = '#ff3366'; ctx.font = 'bold 22px monospace'; ctx.textAlign = 'center'; ctx.globalCompositeOperation = 'source-over'; ctx.fillText('?', exBase + exOff, eyBase + eyOff + 4); }
+        if (!drawCreatureImg(enemy.defId, ctx, exBase + exOff, eyBase + eyOff, 140, true)) {
+            const fn = SPRITE_FN[enemy.defId];
+            if (fn) fn(ctx, exBase + exOff, eyBase + eyOff, 0.9, true);
+        }
+        if (hideThreat) { ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = '#05070d'; ctx.fillRect(exBase - 74, eyBase - 74, 148, 148);
+            ctx.fillStyle = '#ff3366'; ctx.font = 'bold 26px monospace'; ctx.textAlign = 'center'; ctx.globalCompositeOperation = 'source-over'; ctx.fillText('?', exBase + exOff, eyBase + eyOff + 6); }
         ctx.restore();
         if (shakeEnemy > 0) shakeEnemy--;
         if (enemyFlash > 0) enemyFlash--;
     } else {
         // Block / faint animation: fade out
         ctx.save(); ctx.globalAlpha = 0.3;
-        const fn = SPRITE_FN[enemy.defId];
-        if (fn) fn(ctx, exBase, eyBase + 30, 0.9, true);
+        if (!drawCreatureImg(enemy.defId, ctx, exBase, eyBase + 30, 140, true)) {
+            const fn = SPRITE_FN[enemy.defId];
+            if (fn) fn(ctx, exBase, eyBase + 30, 0.9, true);
+        }
         ctx.restore();
     }
 
@@ -2537,6 +2572,8 @@ function drawBattleScene() {
 
 // Draw the SHIELD SOC defender avatar (a glowing shield crest) at a canvas point.
 function drawDefenderShield(ctx, cx, cy, scale) {
+    // Premium sentinel image if loaded; otherwise the procedural shield crest.
+    if (drawCreatureImg('defender', ctx, cx, cy, 150 * scale, false)) return;
     const w = 34 * scale, h = 42 * scale;
     ctx.save();
     ctx.translate(cx, cy);
@@ -2964,10 +3001,8 @@ function showVictory() {
     row.innerHTML = '';
     CAMPAIGNS.forEach(camp => {
         const b = document.createElement('div');
-        b.className = 'badge-icon';
-        b.style.borderColor = camp.badgeColor;
-        b.style.boxShadow = `0 0 20px ${camp.badgeColor}66`;
-        b.innerHTML = `<span style="color:${camp.badgeColor};font-size:10px;letter-spacing:1px;text-align:center;">${camp.badge}</span>`;
+        b.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;';
+        b.innerHTML = `<img src="threatdex-art/badge_${camp.badgeIcon}.webp" alt="" style="width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 0 14px ${camp.badgeColor}aa)"><span style="color:${camp.badgeColor};font-size:10px;letter-spacing:1px;text-align:center;">${camp.badge}</span>`;
         row.appendChild(b);
     });
     showScreen('victory');
