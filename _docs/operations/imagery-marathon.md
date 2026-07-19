@@ -2,7 +2,47 @@
 
 **Goal:** Replace the platform's "silly PNGs" (generic tiny icons, garbled-text AI badges, the DDOS orb) with premium, consistent, fal.ai-generated art — matching the quality bar set by the arcade cartridges and the landing-page cartridge cards.
 
-**Started:** 2026-07-19 · **Operator:** Frank · **Status:** ACTIVE
+**Started:** 2026-07-19 · **Operator:** Frank · **Status:** LEG 1 COMPLETE (front-of-house + brand) · QC in progress
+
+> **This is a multi-leg upgrade.** Leg 1 = the prominent-imagery layer every visitor/prospect/student-landing surface sees (front-of-house pages + the shared brand mark + shared flux button). Leg 1 is shipped; the QC log below is its verification. Further legs (shared functional-glyph library, deep content pages) are a categorically different, higher-risk effort — see "Legs of the complete upgrade" and the operator decision at the bottom. Do NOT treat the remaining legs as more one-page missions; they need their own scoped project.
+
+---
+
+## Legs of the complete upgrade
+
+- **Leg 1 — Front-of-house + brand (DONE, this leg):** Landing, About, FAQ, Product-info, Press, Vision, Products, Research, Partners + the shared brand favicon/logo + the shared Flux Capacitor button. Every page a visitor or prospect first lands on, plus the sitewide brand mark. All bespoke per-page art. SHIPPED + QC'd (see QC log).
+- **Leg 2 — Shared functional-glyph library (PARKED, operator decision 2026-07-19):** The ~157 small `icon-*.webp` glyphs used 2,600+ times platform-wide (dashboard, 12 house hubs, deep content). Every remaining "icon-heavy" page draws from this one shared set; there are NO more per-page bespoke targets. Upgrading it = a shared-library refresh: high leverage but platform-wide breakage risk (one changed aspect/padding on e.g. `icon-target` touches 411 pages — the "shared swap broke the admin console" failure class). Payoff is a cleaner/consistent glyph set, NOT cinematic badges (cinematic art doesn't belong at 16px). **Operator drew the line at Leg 1.** If pursued later, run it as its own risk-managed project WITH a visual-regression harness — not as marathon page-missions.
+- **Leg 3+ — deeper content pages (future):** Presentations, labs, reviews. Also shared-library-dependent; folds into the Leg 2 decision.
+
+---
+
+## QC log
+
+### Leg 1 verification — 2026-07-19
+**Mechanical audit (deterministic, complete):**
+- All 20 Leg-1 assets serve LIVE 200 (2 icons `flux-capacitor.webp` + `hexworth-mark.webp`; 3 `hero/hero-*.webp`; 7 `sections/about-*.webp`; 8 `sections/faq-*.webp`).
+- 0 broken image refs on touched pages (index, about, faq, product-info, FluxCapacitor.js).
+- Flux button: 0 leftover green literals (`rgba(57,255,20`/`39ff14`), 0 orb refs, uses `flux-capacitor.webp`.
+- About + FAQ: `.section-icon img` sizing rule present; all 15 emblems wired (7 + 8).
+- Product-info: 9 achievement-badge feature images present.
+- index.html: 3 hero images + CTA art wired; no orb.
+- About: 0 leftover emoji entities (the 3 swapped ones gone).
+- **Platform-wide: 0 non-archive pages use the DDOS orb (`icon-explosion.webp`) as favicon or nav-brand logo.** The ~196 SEMANTIC "explosion" content-icon uses are intentionally retained.
+- No em-dash/emoji violations INTRODUCED by imagery commits (pre-existing `&#10003;` checkmarks + copy em-dashes on faq/index/product-info are out of imagery scope; flagged for a separate copy pass if desired).
+
+**Per-mission Chris passes (at each deploy):** M0 flux (0/266 green frames), Landing (cartridge/hero/z-index fixes), M1 About, M3 FAQ, product-info badges, MB1 brand mark (byte-exact diff, 200/webp, 28px legible, 196 semantic uses intact).
+
+**Consolidated live render sweep (desktop + mobile) — Chris PASS (2026-07-19):** All 6 shipped checkpoints render correctly on live `hexworth.com` at 1440x900 + 390x844 (fresh Puppeteer renders/screenshots/DOM, not assumed):
+- Brand mark: `.nav-brand img` 128px→28x28, favicon same file, clean single hexagon at 4x zoom, nav intact both viewports.
+- Landing: 3 hero images `complete:true` 768px; CTA cards `opacity:1` at every 300ms sample 0-3000ms (stuck-invisible bug does NOT reproduce); mobile subhead not occluded (`elementFromPoint` returns the `<p>`, not the bg div); real mobile horizontal overflow = 0 (the 414-vs-390 `documentElement.scrollWidth` is decorative full-bleed under `body{overflow-x:hidden}`, `body.scrollWidth===390`, forced scroll gives `scrollX===0`).
+- About: 7 emblems, FAQ: 8 emblems — all `complete:true` 96px→30px in purple chips, `overflowPx:0` both viewports.
+- Product-info: 9 badges load 512px→78x78, semantically matched, `overflowPx:0`.
+- Flux button: verified on `houses/shield/index.html` (NOT about/faq — those legitimately don't load `FluxCapacitor.js`; it was scoped out of content pages in QC-39 `f0f1a4828`/`a8712a434`/`c504a9682`). boxShadow sampled 8x across a full pulse = `rgba(180-198, 92-100, 255)` throughout, **0 green frames**, border `rgb(198,92,255)`, icon `flux-capacitor.webp` 128px.
+
+**Leg 1 QC verdict: PASS. No open issues on the completed work.**
+
+### Discoveries for later legs (out of Leg 1 scope, do NOT fix as part of Leg 1)
+- **`houses/shield/index.html` — 11 live 404s** for `/assets/images/categories/{infosec,risk,ms-security,shield,sc-900,network,governance,sc-200,cse,pis,career}.webp` (category-tile icons). PRE-DATES this marathon, NOT a marathon asset. These are real broken images on a house hub — fold into the Leg 2 (house-hubs) effort or a standalone fix. Flagged by Chris during the Leg 1 live sweep.
 
 ---
 
@@ -52,13 +92,9 @@ https://claude.ai/code/artifact/20707334-9d82-426f-b744-52039b15f99e
 - [x] **M3 — FAQ (`faq.html`)** — 8 section markers → matched neon-emblem set (same family as About). SHIPPED. Chris PASS.
 - [~] **M4 — Product-info** — already clean: prominent art (feature badges) done in prior work; remainder is functional `&#10003;` checkmarks + meta/favicon (not silly PNGs). No mission needed.
 - [ ] **M4 — Product-info (`product-info.html`)** — feature badges done; sweep remaining icons.
-- [ ] **M5 — Press (`press.html`)**
-- [ ] **M6 — Vision (`vision.html`)**
-- [ ] **M7 — Products (`products.html`)**
-- [ ] **M8 — Research (`research.html`)**
-- [ ] **M9 — Partners (`partners.html`)**
-- [ ] **M10 — Dashboard (`dashboard.html`)**
-- [ ] **M11-M22 — 12 house hubs** (`houses/*/index.html`)
+- [x] **M5-M9 — Press / Vision / Products / Research / Partners** — VERIFIED CLEAN (0 silly `icon-*.webp` refs each; already on the new design system with premium art). No mission needed. Confirmed 2026-07-19 via icon-density scan.
+- [ ] **M10 — Dashboard (`dashboard.html`)** — NEXT. Icon-dense (61 distinct `icon-*.webp`, 177 refs) — the biggest remaining silly-PNG surface. Requires scoping (cinematic slots vs functional UI vs shared-asset breakage risk) before generating; do NOT blanket-swap all 61.
+- [ ] **M11-M22 — 12 house hubs** (`houses/*/index.html`) — icon density: observatory 18, ai 11, eye 5, script 4, dark-arts 3, code 3, web 2, forge 2, cloud 2, shield 1.
 - [ ] **M23+ — deeper pages** (TBD, expand as we go)
 
 ---
