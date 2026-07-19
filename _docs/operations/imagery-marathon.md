@@ -49,7 +49,7 @@
   - Nancy corrections applied: `armory`→bespoke code-arsenal tile (NOT offensive-tools; it's 160 Code programming modules), `ccna`→networking (matches existing `PATH_CATEGORY_MAP`), `comptia-aplus`→its own A+ tile (not collapsed to Core 1).
 
 ### Follow-ups (logged, not done)
-- **DATA BUG — `netplus` (92 modules) vs `network-plus` (37):** same CompTIA Network+ content authored under two different `category` spellings in `ContentCatalog.js`. Both aliased to `networking.webp` to kill the 404s, but the underlying inconsistency remains — normalize to ONE category value in the data (separate task; touches ~129 records, needs care).
+- **DATA BUG — `netplus` (92) vs `network-plus` (37) → FIXED 2026-07-19.** Same CompTIA Network+ (N10-009) content in the `web` house authored under two `category` spellings. Normalized all 92 `category: 'netplus'` → `category: 'network-plus'` in `ContentCatalog.js` (canonical per `HubRegistry.js:95` `id: 'network-plus'` + the `network-plus/` hub dir). Category field ONLY — module IDs (`web-ne-01`, `web-netplus-final-practice`), hrefs, localStorage progress keys, and Firestore quiz-key IDs left untouched (load-bearing, independent of display category). Now one category group of 129. `netplus.webp` tile is now an orphaned alias (harmless, kept per never-destroy). Chris PASS.
 - **Other houses still have gaps:** `forensics` house (`forensics-hub`, `evidence-foundations`, ...) and `signal` house (`toolkit`, ...) have their own pre-existing missing category tiles (outside the 10-elemental scope of this sweep). Same additive fix applies when addressed.
 
 ---
