@@ -841,9 +841,15 @@ const ContentDiscovery = (function() {
                 <div class="discovery-filter-divider"></div>
                 <div class="discovery-filter-group" id="categoryFilters">
                     <button class="discovery-filter-btn active" data-category="all">All Categories</button>
-                    ${CATEGORIES.slice(0, 6).map(cat =>
-                        `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="/assets/images/categories/${cat.id}.webp" alt="${cat.name}" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.src='/assets/images/icons/icon-folder.webp';this.onerror=null"> ${cat.name}</button>`
-                    ).join('')}
+                    ${CATEGORIES.slice(0, 6).map(cat => {
+                        // Use the author-provided cat.icon src (already the correct tile/icon for this
+                        // category). Only reconstruct from cat.id if no icon src is set. Reconstructing
+                        // unconditionally caused 404s whenever a category's id != its tile filename
+                        // (e.g. aws-services -> categories/aws.webp). onerror keeps the folder fallback.
+                        const iconMatch = (cat.icon || '').match(/src="([^"]+)"/);
+                        const iconSrc = iconMatch ? iconMatch[1] : `/assets/images/categories/${cat.id}.webp`;
+                        return `<button class="discovery-filter-btn" data-category="${cat.id}"><img src="${iconSrc}" alt="${cat.name}" style="width:18px;height:18px;border-radius:3px;vertical-align:middle;margin-right:4px;" onerror="this.src='/assets/images/icons/icon-folder.webp';this.onerror=null"> ${cat.name}</button>`;
+                    }).join('')}
                 </div>
                 <div class="discovery-filter-divider"></div>
                 <button class="discovery-filter-btn cd-cross-house-chip active" id="crossHouseToggle" title="Toggle cross-house search">
