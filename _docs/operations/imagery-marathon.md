@@ -41,6 +41,7 @@ https://claude.ai/code/artifact/20707334-9d82-426f-b744-52039b15f99e
 
 ### Track B — shared assets (one file updates many pages)
 - [x] **M0 — Flux Capacitor button** → plasma-C (hexagon-framed) into `components/FluxCapacitor.js` (131 pages) + full green→purple retint. SHIPPED. Chris PASS (0/266 green frames).
+- [x] **MB1 — Brand logo + favicon** → new `assets/images/icons/hexworth-mark.webp` (clean neon hexagon-in-hexagon, purple+cyan, reads at 16px). Re-pointed ONLY the favicon `<link rel="icon">` + header `nav-brand` logo on 22 non-archive pages, off the garbled `icon-explosion.webp` DDOS orb. LEFT the ~196 semantic `icon-explosion` "explosion" content icons untouched (labs/dashboard/presentations). SHIPPED.
 
 ### Track A — per page (by visibility)
 - [x] **Landing (`index.html`)** — cartridge CTA cards + feature badges + hero. SHIPPED (`6ede67f90`).
