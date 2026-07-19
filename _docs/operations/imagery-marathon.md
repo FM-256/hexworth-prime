@@ -45,7 +45,9 @@ https://claude.ai/code/artifact/20707334-9d82-426f-b744-52039b15f99e
 ### Track A — per page (by visibility)
 - [x] **Landing (`index.html`)** — cartridge CTA cards + feature badges + hero. SHIPPED (`6ede67f90`).
 - [x] **M1 — About (`about.html`)** — 7 section markers (incl. 3 emoji-entity violations) → matched neon-emblem set. SHIPPED. Chris PASS.
-- [ ] **M2 — Sorting (`sorting.html`)** — house picker.
+- [~] **M2 — Sorting (`sorting.html`)** — DEFERRED. No page-specific silly PNGs: visuals are the 12 shared `${house.emblem}` crests (decent) + 1 nav icon. House-emblem refresh is a Track-B shared-library item (see below), not a per-page mission.
+
+### Track B (queued) — 12 house emblems refresh (shared: sorting + house hubs + flux panel). Decide keep-vs-upgrade.
 - [ ] **M3 — FAQ (`faq.html`)**
 - [ ] **M4 — Product-info (`product-info.html`)** — feature badges done; sweep remaining icons.
 - [ ] **M5 — Press (`press.html`)**
