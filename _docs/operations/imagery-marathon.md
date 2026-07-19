@@ -48,7 +48,8 @@ https://claude.ai/code/artifact/20707334-9d82-426f-b744-52039b15f99e
 - [~] **M2 — Sorting (`sorting.html`)** — DEFERRED. No page-specific silly PNGs: visuals are the 12 shared `${house.emblem}` crests (decent) + 1 nav icon. House-emblem refresh is a Track-B shared-library item (see below), not a per-page mission.
 
 ### Track B (queued) — 12 house emblems refresh (shared: sorting + house hubs + flux panel). Decide keep-vs-upgrade.
-- [ ] **M3 — FAQ (`faq.html`)**
+- [x] **M3 — FAQ (`faq.html`)** — 8 section markers → matched neon-emblem set (same family as About). SHIPPED. Chris PASS.
+- [~] **M4 — Product-info** — already clean: prominent art (feature badges) done in prior work; remainder is functional `&#10003;` checkmarks + meta/favicon (not silly PNGs). No mission needed.
 - [ ] **M4 — Product-info (`product-info.html`)** — feature badges done; sweep remaining icons.
 - [ ] **M5 — Press (`press.html`)**
 - [ ] **M6 — Vision (`vision.html`)**
