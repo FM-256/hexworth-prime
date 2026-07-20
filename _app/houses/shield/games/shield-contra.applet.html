@@ -484,6 +484,13 @@
     // Screen shake
     let shakeX = 0, shakeY = 0, shakeMag = 0, shakeDur = 0;
 
+    // Player-hit damage vignette (frame counter, fades to 0). Red edge glow, not a full-screen wash.
+    let damageFlash = 0;
+
+    // Accessibility: respect the OS "reduce motion" setting — suppress screen shake + the damage
+    // vignette for photosensitive/vestibular users. Particles (non-shaking) stay. Teaching platform.
+    const reduceMotion = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || false;
+
     // Boss HP bar visibility
     let bossBarVisible = false;
 
@@ -1021,7 +1028,8 @@
                 ctx.fillStyle = WEAPONS[this.weapon].color;
                 ctx.fillRect(22, -2, 3, 4);
                 spawnMuzzle(this.x + this.w / 2 + 16 * this.aimDir.x,
-                            this.y + this.h * 0.35 + 16 * this.aimDir.y);
+                            this.y + this.h * 0.35 + 16 * this.aimDir.y,
+                            this.aimDir.x, this.aimDir.y, WEAPONS[this.weapon].color);
             }
             ctx.restore();
         }
@@ -1034,6 +1042,7 @@
             updateHUD();
             playSound('playerdeath');
             triggerShake(6, 20);
+            if (!reduceMotion) damageFlash = 14;   // red edge vignette pulse (a11y-gated)
             spawnExplosion(this.x + this.w/2, this.y + this.h/2, '#06b6d4', 14);
             if (lives <= 0) {
                 this.dead = true;
@@ -1352,7 +1361,7 @@
                 this.dead = true;
                 score += this._scoreValue();
                 updateHUD();
-                spawnExplosion(this.screenX + this.w/2, this.y + this.h/2, '#ef4444', 10);
+                spawnDeathBurst(this.screenX + this.w/2, this.y + this.h/2, '#ef4444');
                 playSound('enemydeath');
                 return true;
             }
@@ -2534,16 +2543,57 @@
         }
     }
 
-    // Muzzle flash particle
-    function spawnMuzzle(x, y) {
-        for (let i = 0; i < 4; i++) {
+    // Enemy kill burst: base fragment explosion + an expanding shockwave ring + chunky arcing debris
+    // + a small punch of screen shake. Pure side-effect (particles + shake only) — a safe drop-in for
+    // the plain spawnExplosion at the Enemy.hit() death callsite. Sheds debris under particle load but
+    // always keeps the core flash + ring so a fresh kill never loses its feedback.
+    function spawnDeathBurst(x, y, color) {
+        spawnExplosion(x, y, color, 12);          // base flash + shards
+        // Expanding shockwave ring (hollow square that grows + fades)
+        particles.push({
+            x, y, vx: 0, vy: 0,
+            life: 12, maxLife: 12,
+            color, shape: 'shockwave',
+            ring: 5, ringMax: 32, size: 5
+        });
+        // Chunky debris that kicks upward then falls under gravity (skip only the extras under load)
+        if (particles.length < 280) {
+            for (let i = 0; i < 6; i++) {
+                const a    = Math.random() * Math.PI * 2;
+                const spd  = 1.5 + Math.random() * 3;
+                const life = 26 + Math.floor(Math.random() * 18);
+                particles.push({
+                    x, y,
+                    vx: Math.cos(a) * spd,
+                    vy: Math.sin(a) * spd - 2.4,   // strong upward kick; gravity arcs them back down
+                    life, maxLife: life,
+                    color, baseColor: color,
+                    size: 3 + Math.random() * 2.5, // chunkier than normal fragments
+                    shape: 'debris'
+                });
+            }
+        }
+        triggerShake(4, 6);                        // small kill punch (no-op under reduce-motion)
+    }
+
+    // Muzzle flash particle — bright weapon-colored core + sparks kicked along the aim vector.
+    function spawnMuzzle(x, y, dirX = 1, dirY = 0, color = '#fff') {
+        particles.push({                           // bright white core pop
+            x, y, vx: 0, vy: 0,
+            life: 5, maxLife: 5,
+            color: '#ffffff', size: 7 + Math.random() * 3, shape: 'flash'
+        });
+        for (let i = 0; i < 5; i++) {              // colored directional sparks
+            const spread = (Math.random() - 0.5) * 1.2;
+            const spd    = 2 + Math.random() * 3;
             particles.push({
                 x, y,
-                vx: (Math.random()-0.5) * 3,
-                vy: (Math.random()-0.5) * 3,
-                life: 6, maxLife: 6,
-                color: '#fff',
-                size: 1 + Math.random() * 2
+                vx: (dirX + spread) * spd,
+                vy: (dirY + spread) * spd,
+                life: 7, maxLife: 7,
+                color: Math.random() < 0.5 ? '#ffffff' : color,
+                size: 1.5 + Math.random() * 2,
+                shape: 'spark'
             });
         }
     }
@@ -2551,6 +2601,13 @@
     function updateParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
+            // Shockwave ring: grows outward (eased), stays put, no gravity
+            if (p.shape === 'shockwave') {
+                p.ring += (p.ringMax - p.ring) * 0.22;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+                continue;
+            }
             // Save last pos for trail before moving
             if (p.hasTrail) { p.tx = p.x; p.ty = p.y; }
             p.x  += p.vx;
@@ -2571,6 +2628,17 @@
 
             ctx.save();
             ctx.globalAlpha = alpha;
+
+            // Shockwave: hollow expanding square ring that fades as it grows
+            if (p.shape === 'shockwave') {
+                const rr = Math.max(1, Math.floor(p.ring));
+                ctx.globalAlpha = alpha * 0.8;
+                ctx.strokeStyle = p.color;
+                ctx.lineWidth   = 2;
+                ctx.strokeRect(px - rr, py - rr, rr * 2, rr * 2);
+                ctx.restore();
+                continue;
+            }
 
             // Flash circle: white expanding ring that fades fast
             if (p.shape === 'flash') {
@@ -2929,6 +2997,7 @@
 
     // ── Screen shake ──────────────────────────────────────────────
     function triggerShake(mag, dur) {
+        if (reduceMotion) return;             // a11y: no screen shake when reduce-motion is requested
         if (mag > shakeMag) { shakeMag = mag; shakeDur = dur; }
     }
 
@@ -3196,8 +3265,9 @@
             }
         }
 
-        // Apply shake
+        // Apply shake + decay the damage vignette
         applyShake();
+        if (damageFlash > 0) damageFlash--;
     }
 
     // ── Main draw ─────────────────────────────────────────────────
@@ -3232,6 +3302,18 @@
 
         // Draw particles
         drawParticles();
+
+        // Player-hit damage vignette: red glow at the edges, transparent center so the on-canvas
+        // HUD (drawn next, on top) and the action stay readable. Fades with damageFlash.
+        if (damageFlash > 0) {
+            const fa = (damageFlash / 14) * 0.55;
+            const g  = ctx.createRadialGradient(W/2, H/2, Math.min(W, H) * 0.28,
+                                                W/2, H/2, Math.max(W, H) * 0.62);
+            g.addColorStop(0, 'rgba(239,68,68,0)');
+            g.addColorStop(1, `rgba(239,68,68,${fa})`);
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, W, H);
+        }
 
         // HUD elements drawn on canvas
         drawHUD();
