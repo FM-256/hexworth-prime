@@ -493,7 +493,11 @@ class EngineValidator {
             const scriptStart = match.index;
 
             for (const [globalName, info] of Object.entries(commonGlobals)) {
-                const regex = new RegExp(`\\b${this.escapeRegex(globalName)}\\s*[.([]`, 'g');
+                // Require a real call/index/property-access after the global — `name(`, `name[`, or
+                // `name.<identifier>`. A bare `name.` (period + space/quote/end) is English prose like
+                // "wait a moment." and must NOT match (the isInsideStringLiteral guard misses these when
+                // the surrounding prose contains apostrophes that desync its naive quote counter).
+                const regex = new RegExp(`\\b${this.escapeRegex(globalName)}\\s*(?:\\(|\\[|\\.[\\w$])`, 'g');
                 let globalMatch;
 
                 while ((globalMatch = regex.exec(scriptContent)) !== null) {
