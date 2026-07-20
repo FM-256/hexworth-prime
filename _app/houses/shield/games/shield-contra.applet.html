@@ -548,6 +548,7 @@
     let particles    = [];
     let platforms    = [];  // mid-air platforms per stage
     let bgScrollX    = 0;   // background parallax offset
+    let vignetteGrad = null; // cached cinematic vignette gradient (built once in drawAtmosphere)
 
     // Level data — platform layouts per stage (relative x from level start 0–3200)
     // Each entry: { x, y, w }
@@ -2950,6 +2951,71 @@
         ctx.restore();
     }
 
+    // ── Cinematic atmosphere + foreground depth ───────────────────
+    // Cosmetic overlay drawn over the scene, under the HUD: volumetric light shafts, drifting
+    // foreground motes, a fast-scrolling foreground floor strip (near parallax layer), and an
+    // always-on vignette that frames the action. Subtle + readability-safe; motion respects reduceMotion.
+    function drawAtmosphere() {
+        const P = BG_THEMES[currentStage] || BG_THEMES[0];
+        const t = gameFrame;
+
+        // Volumetric light shafts slanting down from above (additive, very faint)
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = 0; i < 3; i++) {
+            const sx = (((i * 300 + 120 - bgScrollX * 0.1) % 900) + 900) % 900 - 150;
+            ctx.globalAlpha = 0.035;
+            ctx.fillStyle = P.accent;
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx + 64, 0);
+            ctx.lineTo(sx + 64 - 130, GROUND_Y);
+            ctx.lineTo(sx - 130, GROUND_Y);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
+
+        // Drifting foreground ambient motes (nearer + larger than the bg motes)
+        ctx.save();
+        for (let i = 0; i < 16; i++) {
+            const mx = (((i * 91 - bgScrollX * 0.5) % (W + 30)) + (W + 30)) % (W + 30) - 15;
+            const my = (((i * 71 + (reduceMotion ? 0 : t * 0.4)) % (H + 20)) + (H + 20)) % (H + 20) - 10;
+            ctx.globalAlpha = reduceMotion ? 0.12 : (0.10 + 0.06 * Math.sin(t * 0.05 + i));
+            ctx.fillStyle = (i % 3 === 0) ? '#ffffff' : P.accent;
+            const s = 1 + (i % 3);
+            ctx.fillRect(mx, my, s, s);
+        }
+        ctx.restore();
+
+        // Foreground floor strip: fast-scrolling cable-tray detail below the player's feet (near depth layer)
+        ctx.save();
+        const fgOff = (bgScrollX * 1.6) % 64;
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = P.groundBot;
+        ctx.fillRect(0, H - 16, W, 16);
+        ctx.globalAlpha = 0.7;
+        ctx.fillStyle = P.rackEdge;
+        for (let x = -fgOff; x < W; x += 64) {
+            ctx.fillRect(x, H - 14, 34, 3);            // tray rail
+            ctx.fillStyle = P.accent;
+            ctx.globalAlpha = 0.55;
+            ctx.fillRect(x + 40, H - 13, 4, 4);        // conduit node
+            ctx.fillStyle = P.rackEdge;
+            ctx.globalAlpha = 0.7;
+        }
+        ctx.restore();
+
+        // Always-on cinematic vignette (theme-independent dark corners) — cached once
+        if (!vignetteGrad) {
+            vignetteGrad = ctx.createRadialGradient(W / 2, H / 2, H * 0.36, W / 2, H / 2, W * 0.72);
+            vignetteGrad.addColorStop(0, 'rgba(0,0,0,0)');
+            vignetteGrad.addColorStop(1, 'rgba(0,0,0,0.34)');
+        }
+        ctx.fillStyle = vignetteGrad;
+        ctx.fillRect(0, 0, W, H);
+    }
+
     // ── Platform drawing ──────────────────────────────────────────
     function drawPlatforms() {
         for (const p of platforms) {
@@ -3370,6 +3436,9 @@
             ctx.fillStyle = g;
             ctx.fillRect(0, 0, W, H);
         }
+
+        // Cinematic atmosphere + foreground depth (over the scene, under the HUD)
+        drawAtmosphere();
 
         // HUD elements drawn on canvas
         drawHUD();
