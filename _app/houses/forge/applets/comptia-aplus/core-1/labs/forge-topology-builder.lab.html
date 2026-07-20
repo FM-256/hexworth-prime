@@ -663,10 +663,18 @@
                         const canvas = document.getElementById('network-canvas');
                         const centerX = canvas.offsetWidth / 2;
                         const centerY = canvas.offsetHeight / 2;
-                        // Check if devices are roughly equidistant from center
+                        // Roughly equidistant from center...
                         const distances = pcs.map(p => Math.sqrt(Math.pow(p.x - centerX, 2) + Math.pow(p.y - centerY, 2)));
                         const avgDist = distances.reduce((a, b) => a + b) / distances.length;
-                        return distances.every(d => Math.abs(d - avgDist) < 100);
+                        if (!distances.every(d => Math.abs(d - avgDist) < 100)) return false;
+                        // ...AND a real ring radius (not a point cluster), AND spread around the center.
+                        // Without these, stacking all 6 devices on one spot trivially satisfied "equidistant".
+                        if (avgDist < 60) return false;
+                        const sectors = new Set(pcs.map(p => {
+                            const ang = Math.atan2(p.y - centerY, p.x - centerX); // -PI..PI
+                            return Math.floor(((ang + Math.PI) / (Math.PI / 4))) % 8; // 8 x 45-degree sectors
+                        }));
+                        return sectors.size >= 4; // devices distributed around the loop, not bunched
                     }},
                     { text: 'No switch or hub (token passing)', check: (placed) => !placed.some(d => d.type === 'switch' || d.type === 'hub') }
                 ],
@@ -728,6 +736,7 @@
 
         let currentChallenge = 0;
         let placedDevices = [];
+        let advancing = false; // guards the 2.5s auto-advance so a double-click can't queue two advances and skip a challenge
         let deviceIdCounter = 0;
         let draggedDevice = null;
         let completedChallenges = [];
@@ -766,6 +775,7 @@
 
         function loadChallenge(index) {
             currentChallenge = index;
+            advancing = false; // new challenge is ready — re-arm the auto-advance guard
             const challenge = challenges[index];
 
             // Update progress dots
@@ -919,6 +929,8 @@
             feedback.classList.add('show');
 
             if (allMet) {
+                if (advancing) return; // a previous correct check is already advancing — ignore the double-click
+                advancing = true;
                 feedback.className = 'feedback show success';
                 feedback.innerHTML = `
                     <strong><img src="/assets/images/icons/icon-checkbox.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"> Excellent!</strong> Your ${challenge.title} design meets all requirements!
@@ -929,10 +941,12 @@
                 completedChallenges[currentChallenge] = true;
                 document.getElementById(`prog-${currentChallenge}`).classList.add('completed');
 
-                // Auto advance after delay
+                // Auto advance after delay. Capture the target index NOW (not at fire time) so a
+                // second queued timer can't read an already-advanced currentChallenge and skip one.
+                const nextIndex = currentChallenge + 1;
                 setTimeout(() => {
-                    if (currentChallenge < challenges.length - 1) {
-                        loadChallenge(currentChallenge + 1);
+                    if (nextIndex < challenges.length) {
+                        loadChallenge(nextIndex);
                     } else {
                         showResults();
                     }
