@@ -89,7 +89,14 @@ class SandboxValidator {
         const hasLauncherScript = /SandboxLauncher\.js/.test(content);
         const hasRenderButton = /SandboxLauncher\.renderButton/.test(content);
         const hasFirebaseAuth = /FirebaseAuth\.js/.test(content);
-        const hasSandboxMount = /id\s*=\s*["']sandbox-mount["']/.test(content);
+        // A mount div exists if the page has the canonical id="sandbox-mount" OR the code targets a
+        // different id via `getElementById('X')` feeding renderButton, and that id="X" div is present
+        // (e.g. the Linux Mastery practice modules mount to id="realBoxMount"). Checking only the
+        // literal 'sandbox-mount' false-positived on every non-canonical but valid mount id.
+        const dynMountMatch = content.match(/getElementById\(\s*["']([^"']+)["']\s*\)[\s\S]{0,400}?SandboxLauncher\.renderButton/);
+        const hasDynamicMount = !!(dynMountMatch &&
+            new RegExp(`id\\s*=\\s*["']${dynMountMatch[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`).test(content));
+        const hasSandboxMount = /id\s*=\s*["']sandbox-mount["']/.test(content) || hasDynamicMount;
 
         // Check if a body-wiping renderer is loaded
         const hasBodyWipingRenderer = BODY_WIPING_RENDERERS.some(r => content.includes(r));
