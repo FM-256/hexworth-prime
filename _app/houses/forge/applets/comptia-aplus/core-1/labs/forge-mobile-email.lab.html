@@ -798,6 +798,7 @@
         let currentScenario = 0;
         let completedScenarios = [];
         let userConfigs = [];
+        const emailTestTimers = new Map(); // scenarioIdx -> pending test timer, so a re-test cancels ONLY that scenario's own stale grade (never another scenario's correct pending grade)
 
         // Initialize
         function init() {
@@ -946,15 +947,23 @@
         }
 
         function testConnection() {
+            // Tri-state SSL: '' (untouched) must NOT be silently graded as "No Encryption".
+            // The two no-encryption scenarios exist to test that judgment call, so an
+            // untouched dropdown has to fail the SSL check, not pass it.
+            const sslRaw = document.getElementById('sslEnabled').value;
             const config = {
                 incomingProtocol: document.getElementById('incomingProtocol').value,
                 incomingPort: document.getElementById('incomingPort').value,
                 outgoingProtocol: 'SMTP',
                 outgoingPort: document.getElementById('outgoingPort').value,
-                ssl: document.getElementById('sslEnabled').value === 'true'
+                ssl: sslRaw === '' ? null : (sslRaw === 'true')
             };
 
-            userConfigs[currentScenario] = config;
+            // Bind this submission to the scenario being tested. currentScenario is a
+            // live global; if the student clicks Next during the 1.5s spinner it would
+            // otherwise be graded against the next scenario's answer key.
+            const scenarioIdx = currentScenario;
+            userConfigs[scenarioIdx] = config;
 
             // Show connecting animation
             document.getElementById('configForm').style.display = 'none';
@@ -962,14 +971,20 @@
             document.getElementById('connectionResult').className = 'connection-result';
             document.getElementById('connectionResult').style.display = 'none';
 
+            // Cancel any still-pending test FOR THIS SCENARIO so a rapid re-test can't
+            // have a stale timer grade an abandoned config. Keyed per scenario so testing
+            // a different scenario never cancels this one's correct pending grade.
+            if (emailTestTimers.has(scenarioIdx)) clearTimeout(emailTestTimers.get(scenarioIdx));
+
             // Simulate connection test
-            setTimeout(() => {
-                validateConfig(config);
-            }, 1500);
+            emailTestTimers.set(scenarioIdx, setTimeout(() => {
+                emailTestTimers.delete(scenarioIdx);
+                validateConfig(config, scenarioIdx);
+            }, 1500));
         }
 
-        function validateConfig(config) {
-            const scenario = scenarios[currentScenario];
+        function validateConfig(config, scenarioIdx) {
+            const scenario = scenarios[scenarioIdx];
             const req = scenario.requirements;
             const results = [];
             let correct = 0;
@@ -999,12 +1014,13 @@
                 results.push({ pass: false, text: `Outgoing Port: ${config.outgoingPort || 'Not set'} (should be ${req.outgoingPort})` });
             }
 
-            // Check SSL
-            if (config.ssl === req.ssl) {
+            // Check SSL (null = student never chose an encryption setting)
+            if (config.ssl !== null && config.ssl === req.ssl) {
                 results.push({ pass: true, text: `SSL/TLS: ${config.ssl ? 'Enabled' : 'Disabled'} (correct)` });
                 correct++;
             } else {
-                results.push({ pass: false, text: `SSL/TLS: ${config.ssl ? 'Enabled' : 'Disabled'} (should be ${req.ssl ? 'Enabled' : 'Disabled'})` });
+                const chosen = config.ssl === null ? 'Not set' : (config.ssl ? 'Enabled' : 'Disabled');
+                results.push({ pass: false, text: `SSL/TLS: ${chosen} (should be ${req.ssl ? 'Enabled' : 'Disabled'})` });
             }
 
             // Show result
@@ -1015,8 +1031,8 @@
                 connectionResult.className = 'connection-result success';
                 connectionResult.innerHTML = '<strong>Connection Successful!</strong><br>All settings are correct.';
 
-                if (!completedScenarios.includes(currentScenario)) {
-                    completedScenarios.push(currentScenario);
+                if (!completedScenarios.includes(scenarioIdx)) {
+                    completedScenarios.push(scenarioIdx);
                     localStorage.setItem('emailLabCompleted', JSON.stringify(completedScenarios));
                     updateProgressDots();
                 }
@@ -1024,6 +1040,11 @@
                 connectionResult.className = 'connection-result failure';
                 connectionResult.innerHTML = `<strong>Connection Failed</strong><br>${correct}/${total} settings correct. Check your configuration.`;
             }
+
+            // If the student navigated to a different scenario during the 1.5s test,
+            // the credit above was applied to the correct scenario — but don't paint
+            // this result panel over the scenario they're now looking at.
+            if (scenarioIdx !== currentScenario) return;
 
             // Show validation details
             const validationItems = document.getElementById('validationItems');

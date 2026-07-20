@@ -477,6 +477,8 @@
         let score = 0;
         let shuffledChallenges = [];
         let answered = false;   // per-question latch, blocks click-spam score inflation
+        let advanceTimer = null; // pending auto-advance timer, so Skip can't double-advance
+        const PASS_THRESHOLD = 6; // >= 6 of 8 (75%) to record module completion
 
         // Fisher-Yates shuffle: returns a randomized COPY so challenge order is never fixed.
         function shuffle(array) {
@@ -509,6 +511,9 @@
 
         // Render the current challenge (prompt, hint, progress), or finish when none remain.
         function showQuestion() {
+            // Defensive: clear any stale auto-advance timer so it can't fire against a
+            // question that has already moved on.
+            if (advanceTimer !== null) { clearTimeout(advanceTimer); advanceTimer = null; }
             if (currentQuestion >= shuffledChallenges.length) {
                 showCompletion();
                 return;
@@ -561,8 +566,9 @@
                 feedback.classList.add('show', 'incorrect');
             }
 
-            // Next question after delay
-            setTimeout(() => {
+            // Next question after delay (store the handle so Skip can cancel it)
+            advanceTimer = setTimeout(() => {
+                advanceTimer = null;
                 currentQuestion++;
                 showQuestion();
             }, 2500);
@@ -583,6 +589,10 @@
 
         // Advance past the current challenge without scoring it.
         function skipQuestion() {
+            // Cancel any pending auto-advance from an already-answered question so a
+            // Skip during the 2.5s feedback window doesn't advance twice (skipping a
+            // question the student never saw).
+            if (advanceTimer !== null) { clearTimeout(advanceTimer); advanceTimer = null; }
             currentQuestion++;
             showQuestion();
         }
@@ -609,7 +619,9 @@
                 msg.textContent = 'Review the identifier reference table and try again.';
             }
 
-            if (typeof ModuleProgress !== 'undefined') {
+            // Only record module completion when the student actually passed
+            // (>= 6/8). A 0/8 or all-skipped run must not mark the module mastered.
+            if (score >= PASS_THRESHOLD && typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.complete('forge', 'forge-mobile-identifier', { returnUrl: '../index.html' });
             }
         }

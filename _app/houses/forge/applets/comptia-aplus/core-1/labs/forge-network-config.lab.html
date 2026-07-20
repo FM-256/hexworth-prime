@@ -898,6 +898,7 @@
                     pc1: { ip: "192.168.1.10", subnet: "255.255.255.0", gateway: "192.168.1.1", dns: "192.168.1.100" },
                     pc2: { ip: "192.168.1.20", subnet: "255.255.255.0", gateway: "192.168.1.1", dns: "192.168.1.100" }
                 },
+                requiresPing: { from: "pc2", to: "pc1" }, // objective explicitly requires testing connectivity
                 hint: "Both PCs must be on the same network (192.168.1.x) with matching subnet masks to communicate directly."
             },
             {
@@ -920,6 +921,8 @@
         let selectedDevice = null;
         let useDhcp = false;
         let completedScenarios = new Set();
+        let verifiedPings = new Set(); // "<source>-<target>" pairs the student has successfully pinged
+        let configGeneration = 0;      // bumped on every applyConfig; a ping only credits if config is unchanged since it started
 
         // Device configurations
         const deviceConfigs = {
@@ -1088,9 +1091,22 @@
                 return;
             }
 
-            if (!isValidIP(subnet)) {
+            if (!isValidSubnetMask(subnet)) {
                 document.getElementById('inputSubnet').classList.add('error');
-                showConfigFeedback('Invalid subnet mask format', 'error');
+                showConfigFeedback('Invalid subnet mask (must be a contiguous mask, e.g. 255.255.255.0)', 'error');
+                return;
+            }
+
+            // Gateway and DNS are optional, but if entered they must be valid IPs -
+            // otherwise the lab would report "applied successfully" over garbage values.
+            if (gateway && !isValidIP(gateway)) {
+                document.getElementById('inputGateway').classList.add('error');
+                showConfigFeedback('Invalid default gateway format', 'error');
+                return;
+            }
+            if (dns && !isValidIP(dns)) {
+                document.getElementById('inputDNS').classList.add('error');
+                showConfigFeedback('Invalid DNS server format', 'error');
                 return;
             }
 
@@ -1108,8 +1124,22 @@
             document.getElementById('inputIP').classList.add('valid');
             document.getElementById('inputSubnet').classList.remove('error');
             document.getElementById('inputSubnet').classList.add('valid');
+            document.getElementById('inputGateway').classList.remove('error');
+            document.getElementById('inputDNS').classList.remove('error');
 
             showConfigFeedback('Configuration applied successfully!', 'success');
+
+            // A config change invalidates any prior connectivity test involving this
+            // device: a ping proven under an old (possibly wrong) config must not count
+            // toward a scenario now graded against the new config. The student has to
+            // re-test connectivity after editing. Closes the stale-ping bypass.
+            Array.from(verifiedPings).forEach(pair => {
+                const [src, dst] = pair.split('-');
+                if (src === selectedDevice || dst === selectedDevice) verifiedPings.delete(pair);
+            });
+            // Bump the generation so a ping already in flight (whose async tail hasn't
+            // credited yet) will see a changed config at resolution and decline to credit.
+            configGeneration++;
 
             // Check scenario completion
             checkScenarioCompletion();
@@ -1136,9 +1166,24 @@
             const parts = ip.split('.');
             if (parts.length !== 4) return false;
             return parts.every(part => {
-                const num = parseInt(part);
-                return !isNaN(num) && num >= 0 && num <= 255;
+                // Require a pure 1-3 digit octet. Without this, parseInt('10a') === 10
+                // silently accepts malformed strings like "192.168.1.10a".
+                if (!/^\d{1,3}$/.test(part)) return false;
+                const num = parseInt(part, 10);
+                return num >= 0 && num <= 255;
             });
+        }
+
+        // A valid subnet mask is a contiguous block of 1-bits followed by 0-bits
+        // (e.g. 255.255.255.0). Something like 255.255.255.1 is a valid dotted-quad
+        // but NOT a legal mask, so isValidIP alone is not enough here.
+        function isValidSubnetMask(mask) {
+            if (!isValidIP(mask)) return false;
+            const bits = mask.split('.').reduce((acc, o) => (acc * 256) + parseInt(o, 10), 0);
+            // Invert; a legal mask's inverse is 0...01...1 (contiguous low ones),
+            // for which (inv & (inv + 1)) === 0. Covers 0.0.0.0 and 255.255.255.255 too.
+            const inv = (~bits) >>> 0;
+            return ((inv & (inv + 1)) >>> 0) === 0;
         }
 
         function updateDeviceDisplays() {
@@ -1241,19 +1286,9 @@
                 const targetNetwork = getNetworkAddress(target.ip, target.subnet || '255.255.255.0');
 
                 if (sourceNetwork === targetNetwork) {
-                    // Same network - can reach directly via switch
-                    // BUT for learning purposes, we still require gateway to be set for router
-                    if (targetId === 'router') {
-                        // Pinging the router/gateway - should work if on same network
-                        return { success: true };
-                    }
-                    // For other local devices, check that source has gateway set (for lab learning)
-                    if (source.gateway === '' || source.gateway === undefined) {
-                        return { success: false, error: 'No default gateway configured' };
-                    }
-                    if (source.gateway !== deviceConfigs.router.ip) {
-                        return { success: false, error: `Gateway ${source.gateway} is unreachable - should be ${deviceConfigs.router.ip}` };
-                    }
+                    // Same subnet: hosts reach each other directly through the switch via
+                    // ARP. No default gateway is involved in same-subnet traffic - a gateway
+                    // is only needed to leave the local network (220-1101 obj 2.6).
                     return { success: true };
                 } else {
                     // Different network - definitely need gateway
@@ -1384,7 +1419,13 @@
             addTerminalLine('info', `Pinging ${targetIP} (${targetName}) with 32 bytes of data:`);
             addTerminalLine('info', '');
 
-            // Check if we can reach the target
+            // Check if we can reach the target. Capture the source/target and the
+            // config generation NOW (ping start) - the async tail below must credit the
+            // pair it actually tested, under the config it tested, not whatever is live
+            // seconds later after the student may have re-selected a device or edited IPs.
+            const pingSrc = selectedDevice;
+            const pingDst = targetId;
+            const pingGen = configGeneration;
             const canReach = canReachTarget(selectedDevice, targetId);
             const path = getPingPath(selectedDevice, targetId);
             const returnPath = [...path].reverse();
@@ -1442,6 +1483,15 @@
 
             pingInProgress = false;
             document.getElementById('pingBtn').disabled = false;
+
+            // Record a genuinely successful reachability test so scenarios that require
+            // "test connectivity" (e.g. Scenario 4) can gate on it. Credit the pair that
+            // was actually tested (captured ids), and only if no config edit happened
+            // while this ping was in flight (generation unchanged) - otherwise the test
+            // was run against a config the student has since replaced.
+            if (canReach.success && pingStats.received > 0 && configGeneration === pingGen) {
+                verifiedPings.add(`${pingSrc}-${pingDst}`);
+            }
 
             // Check scenario completion after ping
             checkScenarioCompletion();
@@ -1504,6 +1554,13 @@
                 if (required.subnet && actual.subnet !== required.subnet) allMet = false;
                 if (required.gateway && actual.gateway !== required.gateway) allMet = false;
                 if (required.dns && actual.dns !== required.dns) allMet = false;
+            }
+
+            // If the objective promised a connectivity test, require it to have actually
+            // been run and succeeded - config-match alone doesn't satisfy this scenario.
+            if (scenario.requiresPing) {
+                const { from, to } = scenario.requiresPing;
+                if (!verifiedPings.has(`${from}-${to}`)) allMet = false;
             }
 
             if (allMet && !completedScenarios.has(currentScenario)) {
