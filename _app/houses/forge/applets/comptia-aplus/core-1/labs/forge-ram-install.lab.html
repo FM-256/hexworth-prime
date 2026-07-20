@@ -690,6 +690,17 @@
 
         <div class="guide-grid">
 
+            <!-- Safety first: ESD & power-down (A+ 220-1101 safety procedures) -->
+            <div class="guide-box">
+                <h3>Safety First: ESD &amp; Power</h3>
+                <ul class="steps-list">
+                    <li><span class="num">1</span>Shut down the system, switch off the PSU, and <strong>unplug the power cable</strong> before opening the case.</li>
+                    <li><span class="num">2</span>Guard against ESD: wear an <strong>anti-static wrist strap</strong> clipped to bare chassis metal, or self-ground by touching the metal case first. A static jolt you can't feel can still kill a memory module.</li>
+                    <li><span class="num">3</span>Handle DIMMs by their edges, never the gold contacts or chips; set them on an anti-static mat, not carpet.</li>
+                    <li><span class="num">4</span>These precautions come <strong>first</strong> &mdash; before any of the steps below. CompTIA A+ tests ESD-prevention and safe power-down as their own objective.</li>
+                </ul>
+            </div>
+
             <!-- Notch / orientation guide -->
             <div class="guide-box">
                 <h3>The DIMM Notch (Key)</h3>
@@ -718,7 +729,7 @@
                 <h3>Dual-Channel Population</h3>
                 <ul class="steps-list">
                     <li><span class="num">1</span>Dual-channel requires a matched pair of DIMMs (same capacity, ideally same speed) in the correct paired slots.</li>
-                    <li><span class="num">2</span>Paired slots share the same color on the board. The CPU interleaves across both channels, doubling effective memory bandwidth.</li>
+                    <li><span class="num">2</span>A matched pair goes in same-shade slots &mdash; both the darker "primary" pair (A2+B2) or both the lighter "secondary" pair (A1+B1). The CPU interleaves across both channels, doubling effective bandwidth. (Boards vary: many color-key the paired slots the same hue &mdash; always check the manual.)</li>
                     <li><span class="num">3</span>Most boards with 4 slots pair them as: <strong>A1+B1</strong> (secondary, lighter color) and <strong>A2+B2</strong> (primary, darker color).</li>
                     <li><span class="num">4</span>With only 2 sticks, manufacturers typically recommend the <strong>A2+B2</strong> pair (slots 2 and 4, closest to the CPU) for best signal integrity.</li>
                     <li><span class="num">5</span><strong>Always consult the motherboard manual.</strong> Preferred slot order varies. A2+B2 is the most common default, not a universal rule.</li>
@@ -993,6 +1004,7 @@
     let seatedSlotIds = [];        // slots where DIMMs were seated in step 3
     let selectedStickIdx = null;   // index of selected DIMM stick in inventory (0..stickCount-1)
     let postInterval  = null;      // setInterval id for POST animation; cleared on reset
+    let orientTimer   = null;      // setTimeout id for step-2 auto-advance; cleared on reset / answer-change
 
     /* ══════════════════════════════════════════════════════════════════════
        MOTHERBOARD SLOT ELEMENT BUILDERS
@@ -1216,8 +1228,12 @@
         if (choice === 'correct') {
             fb.className = 'feedback-box success';
             fb.textContent = 'Correct. The notch aligns with the slot ridge and the DIMM drops in smoothly. Proceeding to seat.';
-            /* Auto-advance after a short visual delay so the student reads the feedback */
-            setTimeout(function () {
+            /* Auto-advance after a short visual delay so the student reads the feedback.
+             * Guard against a rapid switch to "wrong" before the timer fires (which reset
+             * orientChoice to null): only advance if the choice is still 'correct'. */
+            clearTimeout(orientTimer);
+            orientTimer = setTimeout(function () {
+                if (orientChoice !== 'correct') return; // student changed answer during the delay
                 markStepDone(1);
                 /* Build the seating board using the slots the student opened in step 1 */
                 buildStep3Board();
@@ -1226,6 +1242,7 @@
                 updateProgressBar();
             }, 900);
         } else {
+            clearTimeout(orientTimer); // cancel any pending advance from a prior 'correct' click
             fb.className = 'feedback-box error';
             fb.textContent = 'The DIMM notch does not line up. It only seats one way; do not force it. Flip the module and try again.';
             /* Let student re-choose by not locking anything */
@@ -1606,6 +1623,7 @@
     function resetLab() {
         /* Cancel any in-flight POST animation so a stale callback cannot grade a reset lab */
         if (postInterval) { clearInterval(postInterval); postInterval = null; }
+        if (orientTimer) { clearTimeout(orientTimer); orientTimer = null; } // cancel pending step-2 auto-advance
 
         /* Reset state variables */
         currentStep      = 0;
