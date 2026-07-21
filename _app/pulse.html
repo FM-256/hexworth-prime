@@ -453,7 +453,7 @@
                 <div class="scan-stat"><div class="scan-stat-value sev-high" id="scanHigh">--</div><div class="scan-stat-label">High</div></div>
                 <div class="scan-stat"><div class="scan-stat-value sev-medium" id="scanMedium">--</div><div class="scan-stat-label">Medium</div></div>
                 <div class="scan-stat"><div class="scan-stat-value" id="scanLow">--</div><div class="scan-stat-label">Low</div></div>
-                <div class="scan-stat"><div class="scan-stat-value" id="scanAutofix">--</div><div class="scan-stat-label">Auto-fixable</div></div>
+                <div class="scan-stat" title="Findings whose rule has a registered fix-template + validator (currently CAT-002), so the self-healing pipeline can auto-fix them. Mirrors AUTO_FIX_ELIGIBLE_RULES in _tools/nexus/publish.js."><div class="scan-stat-value" id="scanAutofix">--</div><div class="scan-stat-label">Auto-fixable</div></div>
             </div>
             <div id="topFindings">
                 <div class="scan-finding"><span class="finding-code" style="color:var(--text-muted)">Loading findings...</span></div>
@@ -2207,6 +2207,21 @@
             }
         }
 
+        // Rules with a registered fix-template + validator, i.e. findings the
+        // self-healing pipeline can auto-fix. MUST mirror AUTO_FIX_ELIGIBLE_RULES
+        // in _tools/nexus/publish.js (single source of truth): when a rule is
+        // promoted there, add its code here so the "Auto-fixable" tile counts it.
+        var AUTO_FIX_ELIGIBLE_RULES = ['CAT-002'];
+
+        // Sum the published per-rule finding counts (ruleBreakdown) over the
+        // auto-fix-eligible rules → how many scanned findings are auto-fixable.
+        function countAutoFixable(s) {
+            var rb = (s && s.ruleBreakdown) || {};
+            return AUTO_FIX_ELIGIBLE_RULES.reduce(function (sum, rule) {
+                return sum + (rb[rule] || 0);
+            }, 0);
+        }
+
         function renderHealthFromSummary(s) {
             // Compute health score from live severity counts
             var crit = (s.severity && s.severity.critical) || 0;
@@ -2283,8 +2298,8 @@
             document.getElementById('scanHigh').textContent = fmtInt(high);
             document.getElementById('scanMedium').textContent = fmtInt((s.severity && s.severity.medium) || 0);
             document.getElementById('scanLow').textContent = fmtInt((s.severity && s.severity.low) || 0);
-            // Auto-fixable count would require reading per-rule autofix flags; placeholder for now
-            document.getElementById('scanAutofix').textContent = '--';
+            // Auto-fixable: findings whose rule has a fix-template (ruleBreakdown ∩ eligible rules)
+            document.getElementById('scanAutofix').textContent = fmtInt(countAutoFixable(s));
 
             var scanBadge = document.getElementById('scanBadge');
             scanBadge.textContent = 'Live · ' + fmtRelativeTime(s.scannedAt);
