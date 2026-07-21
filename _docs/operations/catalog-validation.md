@@ -1,8 +1,9 @@
 # ContentCatalog Validation Report
 
-**Date:** 2026-03-18
-**Wave:** CA-8
+**Date:** 2026-07-21
+**Wave:** CA-REGEN (auto-regenerated)
 **Catalog:** `_app/components/ContentCatalog.js`
+**Generator:** `_tools/reports/gen-content-audit.js`
 
 ---
 
@@ -10,77 +11,117 @@
 
 | Metric | Count |
 |--------|-------|
-| Total catalog modules | 1,832 |
-| Modules pointing to existing files | 1,830 |
-| Modules pointing to missing files | 2 |
-| Total HTML content files (houses + operator) | 2,724 |
-| HTML files NOT in catalog | 994 |
-| Non-house content areas missing from catalog | 6 |
+| Total catalog modules | 4,282 |
+| Modules marked `available` | 4,237 |
+| Modules whose href resolves to an existing file | 4,240 |
+| Modules whose href is missing on disk | 42 |
+| Total HTML content files on disk (excl. `_`-dirs) | 5,172 |
+| HTML files NOT referenced by the catalog | 2,260 |
+
+Href resolution: `_app/` + `HOUSES[module.house].basePath` + `module.href`.
 
 ---
 
 ## Entries Pointing to Missing Files
 
-| House | Catalog href | Resolved Path |
-|-------|-------------|---------------|
-| key | `applets/hashing-lab.html` | `houses/key/applets/hashing-lab.html` |
-| code | `games/pod-crossing.html` | `houses/code/games/pod-crossing.html` |
+All 42 entries below are catalog modules whose resolved href does
+not exist on disk. Every one is currently marked `coming-soon` — placeholder catalog
+rows for content not yet built (not broken links to shipped content).
 
-**Recommendation:** Either create these files or remove/update the catalog entries.
+| House | Resolved Path | Status |
+|-------|---------------|--------|
+| key | `houses/key/applets/hashing-lab.html` | coming-soon |
+| code | `houses/code/games/pod-crossing.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-01.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-02.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-03.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-04.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-05.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-07.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-08.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-09.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-10.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-12.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-13.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-14.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-15.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-17.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-18.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-19.html` | coming-soon |
+| shield | `houses/shield/infosec/pis-20.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w1-fundamentals.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w1-word.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w1-fundamentals.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w1-word.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/presentations/fb-w2-excel-basics.presentation.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w2-word-adv.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w2-excel.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w2-word-adv.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w2-excel.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/exams/fb-midterm.exam.html` | coming-soon |
+| forge | `houses/forge/intro-computers/presentations/fb-w3-excel-advanced.presentation.html` | coming-soon |
+| forge | `houses/forge/intro-computers/presentations/fb-w3-access.presentation.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w3-excel-adv.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w3-access.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w3-excel-adv.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w3-access.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/presentations/fb-w4-powerpoint.presentation.html` | coming-soon |
+| forge | `houses/forge/intro-computers/presentations/fb-w4-integration.presentation.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w4-ppt.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/labs/fb-w4-integration.lab.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w4-ppt.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/quizzes/fb-w4-integration.quiz.html` | coming-soon |
+| forge | `houses/forge/intro-computers/exams/fb-final.exam.html` | coming-soon |
 
----
-
-## Major Content Areas NOT Represented in Catalog
-
-### 1. Houses with Large Uncataloged Sections
-
-| Area | Uncataloged Files | Notes |
-|------|-------------------|-------|
-| `houses/code/armory/` | 192 | Python Graphics, Web Dev, and other armory tracks |
-| `houses/web/backbone/` | 166 | SD-WAN, datacenter, and additional backbone modules |
-| `houses/ai/cortex/` | 155 | Adversarial, CNN, deep-learning, generative, math, MLOps |
-| `houses/code/algorithm-chamber/` | 122 | Discrete math, graphs, and other algorithm tracks |
-| `houses/code/devops/` | 98 | Git, Ansible, cert prep, and CI/CD sections |
-| `houses/cloud/api/` | 88 | API pentest, additional cloud API modules |
-| `houses/cloud/modules/` | 23 | Windows Server Administration (WSA) modules |
-| `houses/code/modules/` | 24 | Python Hub labs (stdlib, graphics) |
-| `houses/web/network-essentials/` | 11 | Network essentials track |
-| `houses/shield/ms-security/` | 11 | Microsoft Security modules |
-| `houses/script/exams/` | 9 | Python exam chapters |
-| `houses/forge/applets/` | 9 | CompTIA A+ domain applets |
-
-### 2. Non-House Content Areas Entirely Missing from Catalog
-
-| Area | Files | Description |
-|------|-------|-------------|
-| `dark-arts/vault/` | 221 | Bug hunting labs, Linux credential/hidden-file labs, vault content (59 are cataloged via dark-arts house, 162 are not) |
-| `signal/sections/` | 39 | Signal field-prep and section content |
-| `signal/toolkit/` | 21 | Signal toolkit tool pages (Ventoy, etc.) |
-| `forensics/sections/` | 26 | Disk forensics, log-timeline, memory forensics modules (12 cataloged, 14 not) |
-| `arena/boxes/` | 22 | CTF Arena box pages (not represented at all) |
-| `arctic/districts/` | 16 | Arctic district content |
-| `dispatch/boxes/` | 5 | IT Dispatch troubleshooting boxes |
-
----
-
-## Recommendations
-
-1. **Fix 2 broken entries** -- `key/applets/hashing-lab.html` and `code/games/pod-crossing.html` either need to be created or their catalog entries removed.
-
-2. **Add Cortex content** -- 155 AI Cortex files (adversarial, CNN, deep-learning, generative, math, MLOps) are fully built but missing from the catalog. This is the largest single gap in searchability.
-
-3. **Add Algorithm Chamber** -- 122 files across discrete-math, graphs, and other algorithm tracks are uncataloged.
-
-4. **Add Backbone modules** -- 166 Web Backbone files (SD-WAN, datacenter, QoS expansions, routing) are missing.
-
-5. **Add Code Armory** -- 192 files in Python Graphics, Web Dev, and related armory tracks are not searchable.
-
-6. **Add DevOps section** -- 98 DevOps files (Git, Ansible, cert prep) are uncataloged.
-
-7. **Consider non-house areas** -- Arena (22 boxes), Signal (60 files), Dispatch (5 boxes), and Arctic (16 districts) are product-level features that may warrant catalog entries or a separate index.
-
-8. **Do NOT bulk-add** -- Each area should be reviewed for correct metadata (status, components, category, description) before adding to the catalog. A scripted bulk-add would create low-quality entries.
+**Recommendation:** These are expected placeholders. Create the file before flipping a
+row to `available`, or remove the row if the content is abandoned. EduScan rule CAT-004
+tracks these continuously.
 
 ---
 
-*Validated against ContentCatalog.js (1,832 modules) and CONTENT_AUDIT.json (3,231 files).*
+## HTML On Disk But Not In The Catalog
+
+2,260 HTML files exist under `_app/` that no catalog href points to.
+This is largely intentional: chapter sub-pages, per-unit view fragments, generated
+box/mission pages, and support surfaces are reachable through their parent module or hub
+index rather than being catalog entries themselves. Largest uncataloged areas:
+
+| Area | Uncataloged Files |
+|------|-------------------|
+| `houses/web/backbone/` | 166 |
+| `houses/matrix/piverse/` | 156 |
+| `houses/ai/cortex/` | 155 |
+| `projects/` | 127 |
+| `houses/code/algorithm-chamber/` | 122 |
+| `houses/matrix/protocore/` | 103 |
+| `houses/code/devops/` | 98 |
+| `houses/cloud/api/` | 89 |
+| `dark-arts/vault/bug-hunting/` | 70 |
+| `houses/matrix/adv-linux/` | 52 |
+| `dark-arts/vault/ehe/` | 46 |
+| `/` | 45 |
+| `houses/code/armory/` | 32 |
+| `houses/cloud/modules/` | 31 |
+| `dark-arts/vault/` | 30 |
+| `dark-arts/vault/wifi-arsenal/` | 28 |
+| `houses/code/modules/` | 25 |
+| `dark-arts/vault/labs/` | 24 |
+| `dark-arts/vault/gates/` | 21 |
+| `signal/sections/red-team-hw/` | 19 |
+| `houses/forge/applets/` | 13 |
+| `dark-arts/vault/modules/` | 12 |
+| `tenant/` | 12 |
+| `admin/` | 11 |
+| `houses/ai/certifications/` | 11 |
+| `houses/code/python-for-it/` | 11 |
+| `signal/sections/drone-security/` | 11 |
+| `signal/sections/esp32-s3-arsenal/` | 11 |
+| `signal/sections/home-lab-builds/` | 11 |
+| `signal/sections/iot-hacking/` | 11 |
+
+**Recommendation:** Not every page needs a catalog entry. Review the largest areas only
+if a track is meant to be independently discoverable via search/landing pages.
+
+---
+
+*Regenerated 2026-07-21 from `ContentCatalog.js` (4,282 modules) cross-referenced against a live `_app/` filesystem walk (5,172 HTML files). Reproduce with `node _tools/reports/gen-content-audit.js`.*

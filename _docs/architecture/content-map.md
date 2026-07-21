@@ -1,7 +1,8 @@
 # Content Map
 
-> Master assignment of all 3,231 modules to their primary hub, with cross-link table and coverage summary.
-> Generated from CONTENT_AUDIT.json on 2026-03-18.
+> Master hub assignment for all 5,172 content files, with cross-link table and coverage summary.
+> Regenerated from a live filesystem walk of `_app/` on 2026-07-21 via `_tools/reports/gen-content-audit.js` + `gen-content-docs.js`.
+> Type by filename suffix; hub by path. Excludes `_`-prefixed dirs (archive, games-lab).
 
 ---
 
@@ -20,362 +21,502 @@
 
 ### Houses (Primary Content)
 
-| Hub | Total Files | Applets | Labs | Modules | Pages | Presentations | Tools | Other |
-|-----|------------|---------|------|---------|-------|---------------|-------|-------|
-| Code | 550 | 8 | 10 | 194 | 262 | 19 | 5 | 52 index |
-| Script | 505 | 91 | 149 | 119 | 100 | 23 | 11 | 12 index |
-| Cloud | 306 | 8 | 18 | 83 | 117 | 29 | 15 | 36 index |
-| Web | 300 | 27 | 8 | 2 | 180 | 31 | 27 | 25 index |
-| Forge | 281 | 36 | 98 | 0 | 56 | 39 | 12 | 40 index |
-| Shield | 263 | 146 | 34 | 0 | 39 | 24 | 10 | 10 index |
-| Dark Arts (house) | 47 | 8 | 11 | 0 | 11 | 10 | 1 | 6 index |
-| AI | 190 | 11 | 7 | 0 | 144 | 6 | 6 | 16 index |
-| Eye | 190 | 56 | 65 | 1 | 28 | 22 | 6 | 12 index |
-| Key | 51 | 2 | 14 | 1 | 12 | 12 | 7 | 3 index |
-| Matrix | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 1 index |
-| **Houses Total** | **2,684** | **393** | **414** | **400** | **949** | **215** | **100** | -- |
+| Hub | Total Files | Applets | Labs | Modules | Pages | Presentations | Tools | Missions | Index |
+|-----|------------|---------|------|---------|-------|---------------|-------|----------|-------|
+| Code | 626 | 8 | 33 | 194 | 288 | 42 | 5 | 0 | 56 |
+| Script | 536 | 91 | 157 | 119 | 111 | 31 | 11 | 0 | 16 |
+| Web | 526 | 27 | 78 | 27 | 227 | 87 | 51 | 0 | 29 |
+| Shield | 442 | 146 | 69 | 0 | 104 | 70 | 10 | 0 | 43 |
+| Cloud | 426 | 8 | 51 | 84 | 159 | 62 | 15 | 0 | 47 |
+| Forge | 354 | 36 | 121 | 0 | 82 | 58 | 12 | 0 | 45 |
+| Matrix | 313 | 0 | 84 | 0 | 102 | 103 | 0 | 0 | 24 |
+| AI | 265 | 11 | 13 | 0 | 198 | 12 | 6 | 0 | 25 |
+| Eye | 258 | 57 | 65 | 62 | 29 | 22 | 6 | 0 | 17 |
+| Dark Arts (house) | 54 | 8 | 12 | 0 | 13 | 11 | 1 | 0 | 9 |
+| Divergent | 135 | 0 | 16 | 0 | 37 | 55 | 0 | 0 | 27 |
+| Key | 54 | 2 | 14 | 1 | 13 | 12 | 7 | 0 | 5 |
+| **Houses Total** | **3,989** | **394** | **713** | **487** | **1,363** | **565** | **124** | **0** | **343** |
 
-### Standalone Hubs
+### Standalone Hubs & Support Areas
 
 | Hub | Total Files | Primary Content Types |
 |-----|------------|----------------------|
-| Dark Arts Hub (Vault) | 228 | 43 labs, 20 modules, 154 pages, 1 applet, 1 presentation |
-| Projects | 89 | 88 project pages + 1 index |
-| Signal | 61 | 32 pages, 20 tools, 9 indexes |
-| Forensics | 27 | 26 modules, 1 index |
-| Operator | 25 | 24 missions, 1 index |
-| Arena/CTF | 23 | 22 box configs, 1 index |
-| Components | 18 | 18 pages |
-| Arctic | 17 | 16 district indexes, 1 hub index |
-| Workshop | 7 | 4 current items, 2 old-hive, 1 index |
-| Dispatch | 6 | 5 box configs, 1 index |
-| Root pages | 20 | 20 top-level pages |
-| Cert track indexes | 15 | 15 landing pages |
-| Other (oasis, hive, etc.) | 11 | Misc pages |
-| **Standalone Total** | **547** | -- |
+| Dark Arts Hub / Vault | 247 | 1 applet, 43 labs, 20 modules, 168 pages, 1 presentation, 14 indexes |
+| Arena / CTF | 231 | 82 pages, 149 indexes |
+| Signal Hub | 169 | 126 pages, 22 tools, 21 indexes |
+| Projects Hub | 127 | 126 pages, 1 index |
+| Operator Hub | 125 | 124 missions, 1 index |
+| Dispatch | 96 | 96 indexes |
+| Wireshark Range | 33 | 32 modules, 1 index |
+| Arctic | 25 | 25 indexes |
+| Components | 19 | 19 pages |
+| Tenant | 12 | 11 pages, 1 index |
+| Workshop | 7 | 5 pages, 2 indexes |
+| Career | 7 | 6 pages, 1 index |
+| Root pages | 46 | 45 pages, 1 index |
+| Other support & cert-index pages | 39 | cert landing stubs, oasis, hive, observatory, admin, misc |
+| **Standalone Total** | **1,183** | — |
 
-### Grand Total: 3,231 files
+### Grand Total: 5,172 files
+
+By type across the whole platform: 395 applets · 756 labs · 539 modules · 1,967 pages · 566 presentations · 146 tools · 124 missions · 679 indexes.
 
 ---
 
 ## House Content Breakdown
 
-### Code House (550 files)
+Top sections per house by file count (live subdirectory tallies).
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Code Armory | `houses/code/armory/` | 192 | 17 language tracks (11 modules each): Assembly, Bash, C, C++, C#, Go, Java, JavaScript, Lua/Perl/R, PHP, PowerShell, Python, Python Graphics, Ruby, Rust, SQL, Swift/Kotlin + challenges, compare tool, security guide |
-| DevOps | `houses/code/devops/` | 129 | DevOps curriculum sections + index |
-| Algorithm Chamber | `houses/code/algorithm-chamber/` | 122 | 11 topic tracks (11 modules each): Complexity, Data Structures, Discrete Math, DP, Geometry, Graphs, Greedy, Sorting, Strings, Capstone + index |
-| Python Hub | `houses/code/modules/python-hub/` | 47 | Python programming modules |
-| Python Engineering | `houses/code/modules/python-engineering/` | 13 | Python engineering modules |
-| Games | `houses/code/games/` | 9 | build-breaker, docker-escape, deploy-friday, git-bisect, git-blame, kill-nine, k8s-rescue, pipeline-panic, rmrf |
-| Presentations | `houses/code/presentations/` | 9 | Agile, CI/CD, Docker, Git, K8s, Terraform, CloudFormation, Automation, Unit Testing |
-| Quizzes | `houses/code/quizzes/` | 7 | Agile, CI/CD, CloudFormation, Docker, K8s, Terraform, Unit Testing |
-| Labs | `houses/code/labs/` | 6 | CI/CD, CloudFormation, Docker, K8s, Terraform, Unit Testing |
-| Applets | `houses/code/applets/` | 6 | CloudFormation Designer, Data Format Converter, Docker Playground, K8s Cluster Sim, Pipeline Builder + index |
-| Tools | `houses/code/tools/` | 5 | Ansible Playbook, API, Automation, Sprint, Terraform |
+### Code (626 files)
 
-### Script House (505 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `devops/sections/` | 128 | 4 labs, 102 pages, 10 presentations, 12 indexes |
+| `modules/python-hub/` | 48 | 22 modules, 24 pages, 2 indexes |
+| `python-for-it/labs/` | 15 | 15 labs |
+| `python-for-it/presentations/` | 15 | 15 presentations |
+| `modules/python-engineering/` | 13 | 12 modules, 1 index |
+| `python-for-it/` | 12 | 11 pages, 1 index |
+| `algorithm-chamber/capstone/` | 11 | 10 pages, 1 index |
+| `algorithm-chamber/challenges/` | 11 | 10 pages, 1 index |
+| `algorithm-chamber/complexity/` | 11 | 10 pages, 1 index |
+| `algorithm-chamber/data-structures/` | 11 | 10 pages, 1 index |
+| `algorithm-chamber/discrete-math/` | 11 | 10 pages, 1 index |
+| `algorithm-chamber/dp/` | 11 | 10 pages, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| CLH Course | `houses/script/clh/` | 94 | 31-unit Command Line Hero track (applet + lab + quiz per unit) |
-| CLH Companion | `houses/script/courses/clh/` | 94 | CLH course companion modules |
-| Linux Mastery | `houses/script/modules/linux-mastery/` | 54 | 53-module comprehensive Linux walkthrough + index |
-| Linux Track | `houses/script/linux/` | 57 | Labs (26), presentations (12), quizzes (12), tools (4), reviews (1), quick ref |
-| Linux Labs | `houses/script/labs/linux/` | 48 | Hands-on Linux labs |
-| Linux Applets | `houses/script/applets/linux/` | 38 | Interactive Linux applets |
-| Databases | `houses/script/modules/databases/` | 35 | Database fundamentals |
-| Python Modules | `houses/script/modules/python/` | 10 | Python programming |
-| Python Presentations | `houses/script/presentations/python/` | 9 | Python presentations |
-| Python Exams | `houses/script/exams/` | 9 | 8 chapter exams + index |
-| Applets (misc) | `houses/script/applets/` | 15 | PowerShell (3), Python (8), automation/reporting/log (4) |
-| Games | `houses/script/games/` | 6 | pipe-snake, shell-sprint, sudo-flap, sudo-su, chmod777, dont-kill-server |
-| Quizzes | `houses/script/quizzes/` | 6 | Linux bash, basics, PowerShell, Python, scripting, sysadmin |
-| Reviews | `houses/script/reviews/` | 5 | CLI review, permission puzzle, regex runner, terminal velocity + index |
-| Tools | `houses/script/tools/` | 7 | Automation, Linux command, permissions, log management, package manager, process management, Windows registry |
-| Labs (general) | `houses/script/labs/` | 7 | Cron, general lab, bash, patch Tuesday, PowerShell, Python, sysadmin |
+### Script (536 files)
 
-### Cloud House (306 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `clh/` | 94 | 31 applets, 31 labs, 31 pages, 1 index |
+| `courses/clh/` | 94 | 31 labs, 31 modules, 31 pages, 1 index |
+| `modules/linux-mastery/` | 54 | 53 modules, 1 index |
+| `labs/linux/` | 49 | 47 labs, 2 indexes |
+| `applets/linux/` | 38 | 38 applets |
+| `modules/databases/` | 36 | 7 labs, 26 modules, 2 pages, 1 index |
+| `linux/labs/` | 26 | 26 labs |
+| `linux/presentations/` | 12 | 12 presentations |
+| `linux/quizzes/` | 12 | 12 pages |
+| `modules/python/` | 10 | 9 modules, 1 index |
+| `applets/` | 9 | 8 applets, 1 index |
+| `exams/` | 9 | 8 pages, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| WSA Modules | `houses/cloud/modules/wsa/` | 107 | Web Services Architecture curriculum |
-| API Security | `houses/cloud/api/` | 94 | 8 tracks (auth, capstone, cloud-patterns, design, event-driven, OWASP, pentest, rate-limiting) at 11 modules each + presentations + lab |
-| Quizzes | `houses/cloud/quizzes/` | 24 | AWS, CSE series, chapter quizzes |
-| Presentations | `houses/cloud/presentations/` | 20 | AWS, Azure, Cloud concepts, CSE 01-08 series |
-| Tools | `houses/cloud/tools/` | 15 | AWS services, VPC, IAM, storage, compute, automation, regions, support |
-| Labs | `houses/cloud/labs/` | 14 | Architecture, AWS, CSE 01-08 series, GUI, PS, security |
-| OpenStack | `houses/cloud/openstack/` | 13 | Labs (3), presentations (4), quizzes (4), reviews (1), index |
-| Games | `houses/cloud/games/` | 12 | cloud-hop, destroyer, architect, IAM-debugger, AD-attack, STS, etc. |
-| Applets | `houses/cloud/applets/` | 4 | Architecture, comparison, fundamentals + index |
-| CSE | `houses/cloud/cse/` | 2 | Cloud Security Essentials index + review |
+### Web (526 files)
 
-### Web House (300 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `network-plus/presentations/` | 40 | 40 presentations |
+| `network-plus/labs/` | 33 | 33 labs |
+| `presentations/` | 31 | 31 presentations |
+| `tools/` | 27 | 27 tools |
+| `ccna/modules/` | 25 | 25 modules |
+| `labs/` | 23 | 23 labs |
+| `network-plus/tools/` | 20 | 20 tools |
+| `applets/ip-addressing/` | 16 | 16 applets |
+| `network-plus/quizzes/` | 15 | 15 pages |
+| `network-plus/modules/` | 12 | 12 pages |
+| `backbone/bgp/` | 11 | 10 pages, 1 index |
+| `backbone/capstone/` | 11 | 10 pages, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Backbone | `houses/web/backbone/` | 166 | 15 advanced tracks (BGP, Carrier, Datacenter, Forensics, InfiniBand, IPv6, MPLS, Netsec, Optical, QoS, Routing, SDN, SD-WAN, Wireless, Capstone) at 11 modules each + index |
-| Presentations | `houses/web/presentations/` | 31 | OSI, DNS, DHCP, OSPF, VLANs, wireless, subnetting, TCP, etc. |
-| Tools | `houses/web/tools/` | 27 | Subnet calc, port lookup, OSI, VLAN, Wireshark, SQLmap, etc. |
-| IP Addressing Applets | `houses/web/applets/ip-addressing/` | 16 | IP addressing interactive applets |
-| Network Essentials | `houses/web/network-essentials/` | 11 | NE-01 through NE-10 + index |
-| Games | `houses/web/games/` | 10 | packet-invaders, subnet-siege, DNS-resolver, nmap, packet-run, etc. |
-| Labs | `houses/web/labs/` | 8 | DNS, firewall, subnetting, VLANs, packet analysis, etc. |
-| Quizzes | `houses/web/quizzes/` | 7 | Networking, OSI, subnetting, ports |
-| Reviews | `houses/web/reviews/` | 5 | API interceptor, DNS resolver, protocol stack, subnet siege + index |
-| Applets (misc) | `houses/web/applets/services/` | 4 | Services applets + index |
-| Exams | `houses/web/exams/` | 3 | Flashcards, midterm + index |
-| Modules | `houses/web/modules/` | 3 | IP addressing, flashcards + index |
-| Simulators | `houses/web/simulators/` | 3 | Network simulator v2, Packet Tracer Lite v3 + index |
-| Textbook | `houses/web/textbook/` | 2 | Chapters 7-20 + index |
-| Troubleshooting | `houses/web/troubleshooting/` | 2 | Reference + index |
+### Shield (442 files)
 
-### Forge House (281 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `applets/crypto/` | 40 | 39 applets, 1 index |
+| `applets/threats/` | 30 | 30 applets |
+| `infosec/presentations/` | 23 | 23 presentations |
+| `applets/compliance/` | 21 | 20 applets, 1 page |
+| `security-plus/labs/` | 21 | 12 labs, 9 indexes |
+| `games/` | 16 | 8 applets, 1 lab, 7 pages |
+| `labs/linux/` | 15 | 14 labs, 1 index |
+| `security-plus/quizzes/` | 15 | 15 pages |
+| `applets/fundamentals/` | 14 | 14 applets |
+| `infosec/labs/` | 14 | 14 indexes |
+| `applets/network/` | 11 | 11 applets |
+| `labs/` | 11 | 11 labs |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| A+ Applets | `houses/forge/applets/comptia-aplus/` | 127 | CompTIA A+ interactive applets |
-| MD-100 | `houses/forge/md-100/` | 52 | Microsoft MD-100 track: labs (25), presentations (11), quizzes (11), reviews (4), index |
-| MD-101 | `houses/forge/md-101/` | 31 | Microsoft MD-101 track: labs (9), presentations (9), quizzes (9), reviews (3), index |
-| Hardware Applets | `houses/forge/applets/hardware/` | 20 | Hardware interactive applets |
-| Applets (misc) | `houses/forge/applets/` | 10 | Command translator, CPU arch, system tools, Windows components, shortcuts, editions + index |
-| Labs | `houses/forge/labs/` | 8 | Admin tools, control panel, hardware, Windows editions/settings, Core 2 roleplay, macOS/Linux |
-| Games | `houses/forge/games/` | 8 | bit-dash, chip-match, printer, brick-pc, fsck, rack-stack, RAID-calc, root-access |
-| Tools | `houses/forge/tools/` | 8 | Admin tools, RAID, OS core, Windows components/editions/settings |
-| Presentations | `houses/forge/presentations/` | 6 | Admin tools, control panel, macOS/Linux, system tools, editions, settings |
-| Reviews | `houses/forge/reviews/` | 6 | A+ Core 1, Core 2, jeopardy, backup-or-bust, binary blitz + index |
-| Quizzes | `houses/forge/quizzes/` | 4 | A+ Core 2, hardware essentials, Windows admin |
+### Cloud (426 files)
 
-### Shield House (263 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `modules/wsa/` | 116 | 84 modules, 6 pages, 26 indexes |
+| `quizzes/` | 24 | 24 pages |
+| `presentations/` | 20 | 20 presentations |
+| `tools/` | 15 | 15 tools |
+| `labs/` | 14 | 14 labs |
+| `games/` | 12 | 5 applets, 7 pages |
+| `api/auth/` | 11 | 10 pages, 1 index |
+| `api/capstone/` | 11 | 10 pages, 1 index |
+| `api/cloud-patterns/` | 11 | 10 pages, 1 index |
+| `api/design/` | 11 | 10 pages, 1 index |
+| `api/event-driven/` | 11 | 10 pages, 1 index |
+| `api/owasp/` | 11 | 10 pages, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Threat Applets | `houses/shield/applets/threats/` | 30 | Threat analysis applets |
-| Crypto Applets | `houses/shield/applets/crypto/` | 40 | Cryptography applets |
-| Compliance Applets | `houses/shield/applets/compliance/` | 21 | Compliance applets |
-| Fundamentals Applets | `houses/shield/applets/fundamentals/` | 14 | Security fundamentals applets |
-| Network Applets | `houses/shield/applets/network/` | 11 | Network security applets |
-| Other Applets | `houses/shield/applets/` | 30 | Risk (7), games (7), operations (5), access (4), governance (1) + misc |
-| Cyber Framework | `houses/shield/cyber-framework/` | 26 | Labs (8), presentations (8), quizzes (8), reviews (1), index |
-| Labs (general) | `houses/shield/labs/` | 11 | Access control, compliance, crypto, OSINT, IR, etc. |
-| Linux Labs | `houses/shield/labs/linux/` | 15 | Linux security labs |
-| Games | `houses/shield/games/` | 16 | contra, debugger, phishing, malware-zoo, threat-runner, etc. |
-| Security 101 | `houses/shield/security-101/` | 9 | 8 presentation modules + index |
-| MS Security | `houses/shield/ms-security/` | 11 | MS-SEC-01 through MS-SEC-10 + index |
-| Tools | `houses/shield/tools/` | 10 | CVE lookup, IR, YARA, zero trust, etc. |
-| Presentations | `houses/shield/presentations/` | 8 | CIA triad, fundamentals, social engineering, etc. |
-| Quizzes | `houses/shield/quizzes/` | 10 | Access control, CIA, compliance, crypto, network sec, etc. |
+### Forge (354 files)
 
-### AI House (190 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `applets/comptia-aplus/` | 138 | 4 applets, 62 labs, 24 pages, 13 presentations, 1 tool, 34 indexes |
+| `md-100/labs/` | 26 | 26 labs |
+| `applets/hardware/` | 20 | 20 applets |
+| `md-100/presentations/` | 11 | 11 presentations |
+| `md-100/quizzes/` | 11 | 11 pages |
+| `applets/` | 10 | 6 applets, 3 tools, 1 index |
+| `md-101/labs/` | 9 | 9 labs |
+| `md-101/presentations/` | 9 | 9 presentations |
+| `md-101/quizzes/` | 9 | 9 pages |
+| `games/` | 8 | 5 applets, 3 pages |
+| `hardware-support/labs/` | 8 | 8 labs |
+| `hardware-support/presentations/` | 8 | 8 presentations |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Cortex | `houses/ai/cortex/` | 155 | 14 ML/AI tracks (11 modules each): Adversarial, Capstone, CNN, Cyber-ML, Deep Learning, Foundations, Generative, Math, MLOps, NLP, RL, Supervised, Transformers, Unsupervised |
-| Labs | `houses/ai/labs/` | 7 | Agent workflow, ethics, fine-tuning, prompt injection, RAG, SOC triage, vector DB |
-| Modules | `houses/ai/modules/` | 7 | Agent components, automation rubric, guardrails, no-code, prompt engineering, SOC automation, what-are-agents |
-| Presentations | `houses/ai/presentations/` | 6 | Agent patterns, deployment, foundations, model architecture, prompt engineering, safety |
-| Games | `houses/ai/games/` | 5 | agent-builder, guardrail-challenge, red-team, singularity, triage-trainer |
-| Tools | `houses/ai/tools/` | 6 | Benchmark explorer, cost calculator, flashcards, LLM comparison, prompt tester, tokenizer |
-| Quizzes | `houses/ai/quizzes/` | 3 | Builder, foundations, security |
+### Matrix (313 files)
 
-### Eye House (190 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `protocore/arduino/` | 57 | 19 labs, 19 pages, 19 presentations |
+| `protocore/esp32/` | 45 | 15 labs, 15 pages, 15 presentations |
+| `piverse/micropython/` | 37 | 12 labs, 12 pages, 12 presentations, 1 index |
+| `piverse/electronics/` | 31 | 10 labs, 10 pages, 10 presentations, 1 index |
+| `piverse/fundamentals/` | 31 | 10 labs, 10 pages, 10 presentations, 1 index |
+| `piverse/maker/` | 31 | 10 labs, 10 pages, 10 presentations, 1 index |
+| `piverse/engineering/` | 25 | 8 labs, 8 pages, 8 presentations, 1 index |
+| `adv-linux/presentations/` | 19 | 19 presentations |
+| `adv-linux/labs/` | 15 | 15 indexes |
+| `adv-linux/` | 9 | 8 pages, 1 index |
+| `adv-linux/exams/` | 4 | 4 pages |
+| `adv-linux/quizzes/` | 4 | 4 pages |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| CyberOps Applets | `houses/eye/applets/cyberops/` | 99 | CyberOps interactive applets |
-| CySA+ Track | `houses/eye/cysa/` | 50 | Labs (16), presentations (16), quizzes (16), reviews (1), index |
-| Games | `houses/eye/games/` | 11 | alert-triage, detection-engineering, grep-noir, log-centipede, etc. |
-| Labs | `houses/eye/labs/` | 7 | Correlation, hunting, incident timeline, log detective, SIEM, SOC, traffic |
-| Presentations | `houses/eye/presentations/` | 6 | Log basics, correlation, traffic analysis, SIEM, SOC, threat hunting |
-| Tools | `houses/eye/tools/` | 6 | Correlation, hunt, packet, SIEM, SOC, Wireshark |
-| Quizzes | `houses/eye/quizzes/` | 5 | Correlation, hunting, SIEM, SOC, traffic |
-| Modules | `houses/eye/modules/cyberops/` | 2 | CyberOps modules |
-| OSINT | `houses/eye/applets/osint/` | 1 | OSINT applet |
+### AI (265 files)
 
-### Key House (51 files)
+| Section | Files | Content |
+|---------|-------|---------|
+| `certifications/ai-102/` | 11 | 10 pages, 1 index |
+| `cortex/adversarial/` | 11 | 10 pages, 1 index |
+| `cortex/capstone/` | 11 | 10 pages, 1 index |
+| `cortex/cnn/` | 11 | 10 pages, 1 index |
+| `cortex/cyber-ml/` | 11 | 10 pages, 1 index |
+| `cortex/deep-learning/` | 11 | 10 pages, 1 index |
+| `cortex/foundations/` | 11 | 10 pages, 1 index |
+| `cortex/generative/` | 11 | 10 pages, 1 index |
+| `cortex/math/` | 11 | 10 pages, 1 index |
+| `cortex/mlops/` | 11 | 10 pages, 1 index |
+| `cortex/nlp/` | 11 | 10 pages, 1 index |
+| `cortex/rl/` | 11 | 10 pages, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Labs | `houses/key/labs/` | 14 | AES, attacks, certs, cryptanalysis, ECC, hashing, HMAC, KDF, PQC, steganography, etc. |
-| Presentations | `houses/key/presentations/` | 11 | Advanced symmetric, certificates, cryptanalysis, ECC, fundamentals, derivation, management, MAC, PQC, TLS/SSL, encryption basics |
-| Quizzes | `houses/key/quizzes/` | 8 | Certs, cryptanalysis, ECC, HSM, KDF, MAC, PQC, symmetric |
-| Tools | `houses/key/tools/` | 7 | AES, cert, ECC, HMAC, KDF, lifecycle, PQC |
-| Games | `houses/key/games/` | 6 | cipher-bubbles, cipher-cracker, crypto-flap, crypto-pong, dont-leak-the-key, gpg-decrypt |
+### Eye (258 files)
 
+| Section | Files | Content |
+|---------|-------|---------|
+| `applets/cyberops/` | 100 | 50 applets, 42 labs, 8 indexes |
+| `forensics/sections/` | 61 | 61 modules |
+| `cysa/labs/` | 16 | 16 labs |
+| `cysa/presentations/` | 16 | 16 presentations |
+| `cysa/quizzes/` | 16 | 16 pages |
+| `games/` | 11 | 6 applets, 5 pages |
+| `labs/` | 7 | 7 labs |
+| `presentations/` | 6 | 6 presentations |
+| `tools/` | 6 | 6 tools |
+| `quizzes/` | 5 | 5 pages |
+| `forensics/certs/` | 3 | 3 indexes |
+| `modules/cyberops/` | 2 | 1 module, 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
+
+### Dark Arts (house) (54 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `labs/` | 12 | 11 labs, 1 index |
+| `quizzes/` | 12 | 11 pages, 1 index |
+| `presentations/` | 11 | 11 presentations |
+| `games/` | 8 | 8 applets |
+| `reviews/` | 2 | 1 page, 1 index |
+| `feh/` | 1 | 1 index |
+| `incubator/` | 1 | 1 index |
+| `labs/dark-arts-ceh-01-recon/` | 1 | 1 index |
+| `offensive/ceh/` | 1 | 1 index |
+| `offensive/` | 1 | 1 index |
+| `tools/ctf-leaderboard/` | 1 | 1 tool |
+| `vault/ehe/` | 1 | 1 lab |
+| _(hub root)_ | 2 | 1 page, 1 index |
+
+### Divergent (135 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `ethics-it/presentations/` | 29 | 29 presentations |
+| `cybersecurity-policy/labs/` | 16 | 16 labs |
+| `cybersecurity-policy/presentations/` | 16 | 16 presentations |
+| `cybersecurity-policy/quizzes/` | 16 | 16 pages |
+| `ethics-it/labs/` | 15 | 15 indexes |
+| `cybersecurity-ethics/presentations/` | 10 | 10 presentations |
+| `cybersecurity-ethics/labs/` | 8 | 8 indexes |
+| `ethics-it/exams/` | 6 | 6 pages |
+| `cybersecurity-ethics/quizzes/` | 4 | 4 pages |
+| `ethics-it/` | 4 | 3 pages, 1 index |
+| `ethics-it/quizzes/` | 3 | 3 pages |
+| `cybersecurity-ethics/exams/` | 2 | 2 pages |
+| _(hub root)_ | 2 | 1 page, 1 index |
+
+### Key (54 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `labs/` | 14 | 14 labs |
+| `presentations/` | 11 | 11 presentations |
+| `quizzes/` | 8 | 8 pages |
+| `tools/` | 7 | 7 tools |
+| `games/` | 6 | 2 applets, 3 pages, 1 presentation |
+| `modules/` | 2 | 1 module, 1 index |
+| `reviews/` | 2 | 1 page, 1 index |
+| `districts/blockchain/` | 1 | 1 index |
+| `districts/cryptography/` | 1 | 1 index |
+| _(hub root)_ | 2 | 1 page, 1 index |
 ---
 
 ## Standalone Hub Content
 
-### Dark Arts Hub / Vault (228 files)
+### Dark Arts Hub / Vault (247 files)
 
-| Section | Path | Files | Content |
-|---------|------|-------|---------|
-| Bug Hunting Academy | `dark-arts/vault/bug-hunting/` | 55 | Modules (27), labs (16), quizzes (7), tools (4), index |
-| EHE Track | `dark-arts/vault/ehe/` | 45 | Modules (13), labs (20), quizzes (11), index |
-| WiFi Arsenal | `dark-arts/vault/wifi-arsenal/` | 27 | Modules (10), labs (12), quizzes (3), tools (1), index |
-| Linux Offensive Labs | `dark-arts/vault/labs/linux/` | 24 | Linux-focused offensive labs |
-| Gate Challenges | `dark-arts/vault/gates/` | 21 | Gate-8 series (13), gates 6-7, 9-13 |
-| Malware Analysis | `dark-arts/vault/modules/` | 12 | Static/dynamic/behavioral analysis, reverse engineering, IR, sandbox + index |
-| Offensive Tools | `dark-arts/vault/tools/` | 6 | Nmap, Metasploit, Hydra, John, Hashcat, analysis toolkit |
-| Standalone Labs | `dark-arts/vault/` | 20 | SQL injection, XSS, CSRF, SSRF, buffer overflow, privilege escalation, etc. |
-| Top-level Gates | `dark-arts/gates/` | 4 | Gates 2-5 |
-| Gate 1 | `dark-arts/gate-1.html` | 1 | Entry gate |
-| CTF Leaderboard | `dark-arts/ctf-leaderboard.applet.html` | 1 | Scoreboard |
+| Section | Files | Content |
+|---------|-------|---------|
+| `vault/bug-hunting/` | 70 | 67 pages, 3 indexes |
+| `vault/ehe/` | 46 | 20 labs, 13 modules, 11 pages, 2 indexes |
+| `vault/` | 30 | 28 pages, 1 presentation, 1 index |
+| `vault/wifi-arsenal/` | 28 | 26 pages, 2 indexes |
+| `vault/labs/` | 24 | 23 labs, 1 index |
+| `vault/gates/` | 21 | 19 pages, 2 indexes |
+| `vault/modules/` | 12 | 7 modules, 4 pages, 1 index |
+| `vault/tools/` | 6 | 6 pages |
+| `gates/` | 4 | 4 pages |
+| _(hub root)_ | 3 | 1 applet, 1 page, 1 index |
 
-### Projects Hub (89 files)
+### Arena / CTF (231 files)
 
-| Domain | Files | Projects |
-|--------|-------|----------|
-| AI | 11 | data-augmentation, explainable-ml, face-detection, intrusion-detector, music-generation, network-anomaly, rag-chatbot, rasa-chatbot, reinforcement-taxi, research-agent, threat-classifier |
-| Cloud | 10 | api-nginx, aws-vpc, budget-fern, container-checker, django-eks, helm-charts, k8s-deploy, pi-homelab, serverless-django, terraform-infra |
-| Code | 10 | arduino-pipeline, chat-app, cli-task-manager, ecommerce-stripe, memory-game, resume-builder, serial-console, task-manager, typing-speed, wordle-clone |
-| Matrix | 10 | climate-analysis, customer-segmentation, data-viz, kafka-streaming, packet-visualizer, plotly-viz, sentiment-nlp, stock-analysis, time-series, traffic-dashboard |
-| Script | 8 | data-logger, data-pipeline, etl-pipeline, github-actions, pi-automation, system-monitor, video-summarizer, web-crawler |
-| Dark Arts | 6 | metasploit, port-scanner, puppeteer, recon-automation, web-scraping, wifi-scanner |
-| Forge | 6 | crossword-puzzle, env-monitor, flashcard-engine, sensor-dashboard, spring-fullstack, telegram-bot |
-| Key | 6 | blockchain, brownie-contracts, nft-marketplace, password-vault, rfid-access, secure-doc-storage |
-| Shield | 6 | aws-cognito, fake-news, ids-ml, log-analyzer, perimeter-alarm, pi-ids |
-| Web | 6 | elearning-flask, online-portfolio, pi-network-probe, react-router, rest-api, topology-visualizer |
-| Eye | 5 | motion-surveillance, osint-dashboard, playwright-testing, pytorch-onnx, selenium-testing |
-| Divergent | 4 | discord-bot, field-terminal, manim, multi-tool |
-| **Total** | **88** | + 1 index |
+| Section | Files | Content |
+|---------|-------|---------|
+| `boxes/ow-01-mole-hunt/` | 7 | 6 pages, 1 index |
+| `boxes/ow-02-dead-drop/` | 7 | 6 pages, 1 index |
+| `boxes/ow-03-glass-house/` | 7 | 6 pages, 1 index |
+| `boxes/ow-04-burned-source/` | 7 | 6 pages, 1 index |
+| `boxes/ow-05-phantom-ledger/` | 7 | 6 pages, 1 index |
+| `boxes/ow-06-signal-lost/` | 7 | 6 pages, 1 index |
+| `boxes/ow-07-counterfeit/` | 7 | 6 pages, 1 index |
+| `boxes/ows-01-ghost-haul/` | 7 | 6 pages, 1 index |
+| `boxes/ows-02-paper-trail/` | 7 | 6 pages, 1 index |
+| `boxes/ows-03-black-box/` | 7 | 6 pages, 1 index |
 
-### Signal Hub (61 files)
+### Signal Hub (169 files)
 
-| Section | Path | Files |
-|---------|------|-------|
-| Foundations | `signal/sections/foundations/` | 6 |
-| Firmware Ops | `signal/sections/firmware-ops/` | 6 |
-| Network Recon | `signal/sections/network-recon/` | 6 |
-| Security Tools | `signal/sections/security-tools/` | 6 |
-| Privacy Builds | `signal/sections/privacy-builds/` | 6 |
-| Arcade Ops | `signal/sections/arcade-ops/` | 6 |
-| Field Prep | `signal/sections/field-prep/` | 3 |
-| Toolkit Library | `signal/toolkit/tools/` | 20 |
-| Indexes | various | 2 |
+| Section | Files | Content |
+|---------|-------|---------|
+| `toolkit/tools/` | 22 | 22 tools |
+| `sections/red-team-hw/` | 19 | 18 pages, 1 index |
+| `sections/drone-security/` | 11 | 10 pages, 1 index |
+| `sections/esp32-s3-arsenal/` | 11 | 10 pages, 1 index |
+| `sections/home-lab-builds/` | 11 | 10 pages, 1 index |
+| `sections/iot-hacking/` | 11 | 10 pages, 1 index |
+| `sections/pcb-design/` | 11 | 10 pages, 1 index |
+| `sections/sdr-radio/` | 11 | 10 pages, 1 index |
+| `sections/arcade-ops/` | 6 | 5 pages, 1 index |
+| `sections/firmware-ops/` | 6 | 5 pages, 1 index |
 
-### Forensics Hub (27 files)
+### Projects Hub (127 files)
 
-| Section | Path | Files |
-|---------|------|-------|
-| Evidence Foundations | `forensics/sections/evidence-foundations/` | 10 |
-| Disk Forensics | `forensics/sections/disk-forensics/` | 8 |
-| Memory Forensics | `forensics/sections/memory-forensics/` | 8 |
-| Index | `forensics/index.html` | 1 |
+| Section | Files | Content |
+|---------|-------|---------|
+| _(hub root)_ | 127 | 126 pages, 1 index |
 
-### Operator Hub (25 files)
+### Operator Hub (125 files)
 
-| Category | Missions |
-|----------|----------|
-| Python | python-01, python-02, python-03, python-04 |
-| Forensics | forensics-01, forensics-02, forensics-03 |
-| Incident Response | incident-response-01, incident-response-02, incident-response-03 |
-| Linux Filesystem | linux-fs-01, linux-fs-02, linux-fs-03 |
-| Recon | recon-01, recon-02, recon-03 |
-| Crypto | crypto-01, crypto-02 |
-| Firewall | firewall-01, firewall-02 |
-| Log Analysis | log-analysis-01, log-analysis-02 |
-| Windows CMD | windows-cmd-01, windows-cmd-02 |
+| Section | Files | Content |
+|---------|-------|---------|
+| `missions/` | 124 | 124 missions |
+| _(hub root)_ | 1 | 1 index |
 
-### Arena CTF (23 files)
+### Dispatch (96 files)
 
-22 boxes (A1-A20, NT1, PR7) + 1 index.
+| Section | Files | Content |
+|---------|-------|---------|
+| `boxes/ad001-lockout-storm/` | 1 | 1 index |
+| `boxes/ad002-password-policy/` | 1 | 1 index |
+| `boxes/ad003-gpo-issues/` | 1 | 1 index |
+| `boxes/ad004-new-hire/` | 1 | 1 index |
+| `boxes/ad005-permission-denied/` | 1 | 1 index |
+| `boxes/ad006-replication-failure/` | 1 | 1 index |
+| `boxes/cld001-teams-broken/` | 1 | 1 index |
+| `boxes/cld002-onedrive-sync/` | 1 | 1 index |
+| `boxes/cld003-aad-sync/` | 1 | 1 index |
+| `boxes/cld004-saas-access/` | 1 | 1 index |
 
-### Dispatch (6 files)
+### Wireshark Range (33 files)
 
-5 boxes (AD001, HW001, NT1, OS001, PR001) + 1 index.
+| Section | Files | Content |
+|---------|-------|---------|
+| `sections/protocol-analysis/` | 7 | 7 modules |
+| `sections/fundamentals/` | 6 | 6 modules |
+| `sections/security-analysis/` | 6 | 6 modules |
+| `sections/forensic-capture/` | 5 | 5 modules |
+| `sections/advanced-automation/` | 4 | 4 modules |
+| `sections/wireless-iot/` | 4 | 4 modules |
+| _(hub root)_ | 1 | 1 index |
 
+### Arctic (25 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `districts/advanced-topics/` | 1 | 1 index |
+| `districts/arena/` | 1 | 1 index |
+| `districts/clh-advanced/` | 1 | 1 index |
+| `districts/clh-fundamentals/` | 1 | 1 index |
+| `districts/clh-intermediate/` | 1 | 1 index |
+| `districts/cli-fundamentals/` | 1 | 1 index |
+| `districts/cloud/` | 1 | 1 index |
+| `districts/cybersecurity/` | 1 | 1 index |
+| `districts/data-science/` | 1 | 1 index |
+| `districts/databases/` | 1 | 1 index |
+
+### Components (19 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `hive/` | 4 | 4 pages |
+| `analytics/` | 3 | 3 pages |
+| `mascot/` | 2 | 2 pages |
+| `messaging/` | 2 | 2 pages |
+| `multiplayer/` | 2 | 2 pages |
+| `profile/` | 2 | 2 pages |
+| _(hub root)_ | 2 | 2 pages |
+| `lockscreen/` | 1 | 1 page |
+| `slides/` | 1 | 1 page |
+
+### Tenant (12 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| _(hub root)_ | 12 | 11 pages, 1 index |
+
+### Workshop (7 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| `old-hive/` | 2 | 1 page, 1 index |
+| `a1-ancient-ledger/` | 1 | 1 page |
+| `a2-shadow-encoder/` | 1 | 1 page |
+| `backup-or-bust/` | 1 | 1 page |
+| _(hub root)_ | 1 | 1 index |
+| `network-forensics-lab/` | 1 | 1 page |
+
+### Career (7 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| _(hub root)_ | 7 | 6 pages, 1 index |
+
+### Root pages (46 files)
+
+| Section | Files | Content |
+|---------|-------|---------|
+| _(hub root)_ | 46 | 45 pages, 1 index |
 ---
 
 ## Cross-Link Table
 
-Content that appears in one hub but is referenced or relevant to other hubs.
+Content that lives in one hub but is referenced or relevant to others.
 
 | Module/Area | Primary Hub | Cross-linked Hubs | Relationship |
 |-------------|-------------|-------------------|--------------|
-| Cryptography labs | Key House | Shield House | Shield references crypto concepts; Key owns deep-dive labs |
-| A+ Applets | Forge House | Cert: A+ Core 1, A+ Core 2 | Cert track index pages link to Forge content |
-| CySA+ Track | Eye House | Cert: CySA+ | Cert index aggregates Eye CySA content |
-| Cloud Security Essentials | Cloud House | Cert: AWS CCP, Azure AZ-900 | CSE modules span multiple cloud cert objectives |
-| Linux CLI content | Script House | Arctic Hub | Arctic districts curate paths through Script's Linux content |
+| Cryptography labs | Key House | Shield House | Shield references crypto concepts; Key owns the deep-dive labs |
+| A+ applets | Forge House | Cert: A+ Core 1 / Core 2 | Cert track index pages link to Forge content |
+| CySA+ track | Eye House | Cert: CySA+ | Cert index aggregates Eye CySA content |
+| Cloud Security Essentials | Cloud House | Cert: AWS CCP, AZ-900 | CSE modules span multiple cloud cert objectives |
+| Linux CLI content | Script House | Arctic, Operator | Arctic districts + Operator missions curate paths through Script's Linux content |
 | Networking fundamentals | Web House | Cert: Network+, CCNA | Cert indexes reference Web house modules |
 | Security+ content | Shield House | Cert: Security+ | Shield applets mapped to SY0-701 objectives |
-| Ethical Hacking | Dark Arts (house + hub) | Cert: CASP+ | Advanced attack content overlaps CASP+ objectives |
-| Python content | Script House, Code House | Projects Hub | Script owns fundamentals; Code owns engineering; Projects has capstones |
-| MD-100 / MD-101 | Forge House | (standalone tracks) | Microsoft endpoint admin tracks within Forge |
-| Linux security labs | Shield House, Dark Arts Hub | Script House | Offensive/defensive Linux labs reference Script CLI foundations |
-| Bug Hunting | Dark Arts Hub | Eye House | Bug hunting overlaps with SOC detection engineering |
-| Network forensics | Web House (Backbone) | Forensics Hub | Backbone forensics track complements Forensics hub |
-| API Security | Cloud House | Code House, Shield House | API track touches DevOps (Code) and security (Shield) |
-| Divergent Projects | Projects Hub | Multiple houses | Cross-domain projects not tied to one house |
-| Malware Analysis | Dark Arts Hub | Eye House, Shield House | Malware modules relevant to SOC and defense |
-| WiFi Arsenal | Dark Arts Hub | Web House, Signal Hub | Wireless attacks cross network (Web) and hardware (Signal) |
+| Ethical hacking / offensive | Dark Arts (house + Vault) | Cert: CASP+ | Advanced attack content overlaps CASP+ objectives |
+| Python content | Script + Code Houses | Projects Hub | Script owns fundamentals; Code owns engineering; Projects has capstones |
+| MD-100 / MD-101 | Forge House | (standalone tracks) | Microsoft endpoint-admin tracks inside Forge |
+| Linux security labs | Shield House, Dark Arts Vault | Script House | Offensive/defensive Linux labs reference Script CLI foundations |
+| Bug Hunting Academy | Dark Arts Vault | Eye House | Bug hunting overlaps SOC detection engineering |
+| Hardware / maker (ProtoCore, PiVerse) | Matrix House | Signal Hub | Embedded/electronics tracks complement Signal's RF/firmware work |
+| Ethics & policy | Divergent House | Shield, Dark Arts | Governance/ethics framing for security and offensive work |
+| API Security | Cloud House | Code, Shield Houses | API track touches DevOps (Code) and security (Shield) |
+| Divergent capstones | Projects Hub | Multiple houses | Cross-domain projects not tied to one house |
+| Malware analysis | Dark Arts Vault | Eye, Shield Houses | Malware modules relevant to SOC and defense |
+| WiFi Arsenal | Dark Arts Vault | Web, Signal Hubs | Wireless attacks cross network (Web) and hardware (Signal) |
 | Operator missions | Operator Hub | Script, Shield, Eye, Key | Missions span CLI, forensics, crypto, IR domains |
-| Backbone | Web House | Cert: CCNA | Advanced networking extends beyond Network+ into CCNA territory |
-| Cortex ML/AI | AI House | Eye House | Cyber-ML track links to SOC/detection use cases |
+| Overwatch / CTF boxes | Arena, Dispatch | All houses | Live-fire boxes exercise skills from every curriculum house |
+| Cortex ML/AI | AI House | Eye House | Cyber-ML track links to SOC / detection use cases |
 
 ---
 
 ## Certification Track Mappings
 
-Each cert track index page aggregates content from its mapped houses.
+Each cert-track index page aggregates content from its mapped houses (the cert pages
+themselves hold no unique modules — they are landing/aggregation pages).
 
 | Certification | Exam | Primary House | Supporting Content |
-|---------------|------|---------------|-------------------|
-| CompTIA A+ Core 1 | 220-1101 | Forge | A+ applets (127), hardware applets (20), hardware labs |
+|---------------|------|---------------|--------------------|
+| CompTIA A+ Core 1 | 220-1101 | Forge | A+ applets, hardware applets, hardware labs |
 | CompTIA A+ Core 2 | 220-1102 | Forge | MD-100, system tools, Windows admin |
-| CompTIA Network+ | N10-009 | Web | Presentations (31), labs (8), tools (27), Network Essentials |
-| CompTIA Security+ | SY0-701 | Shield | 140 applets, Cyber Framework (26), Security 101 (9) |
-| Security+ Crypto | SY0-701 | Shield + Key | Shield crypto applets (40) + Key labs (14) |
-| CompTIA CySA+ | CS0-003 | Eye | CySA track (50), CyberOps applets (99) |
+| CompTIA Network+ | N10-009 | Web | Presentations, labs, tools, Network Essentials |
+| CompTIA Security+ | SY0-701 | Shield | Applet suites, Cyber Framework, Security 101 |
+| Security+ Crypto | SY0-701 | Shield + Key | Shield crypto applets + Key labs |
+| CompTIA CySA+ | CS0-003 | Eye | CySA track + CyberOps applets |
 | CompTIA CASP+ | CAS-004 | Shield + Dark Arts | Advanced security + offensive techniques |
-| CompTIA Linux+ | XK0-005 | Script | Linux Mastery (54), CLH (94), Linux labs (74) |
+| CompTIA Linux+ | XK0-005 | Script | Linux Mastery, CLH, Linux labs |
 | Cisco CCNA | 200-301 | Web | Backbone tracks, network simulators, routing/switching |
-| AWS Cloud Practitioner | CLF-C02 | Cloud | WSA modules (107), AWS presentations, chapter tools |
-| AWS Developer Associate | DVA-C02 | Cloud | API Security track (94), CSE modules |
+| AWS Cloud Practitioner | CLF-C02 | Cloud | WSA modules, AWS presentations, chapter tools |
+| AWS Developer Associate | DVA-C02 | Cloud | API Security track, CSE modules |
 | Azure Fundamentals | AZ-900 | Cloud | Azure presentations, cloud fundamentals |
-| Cryptography Track | -- | Key | Full Key house content (51 files) |
-| DevOps Fundamentals | -- | Code | DevOps track (129 files) |
-| Security Operations | -- | Eye | SOC labs, SIEM, threat hunting, log analysis |
+| Cryptography Track | — | Key | Full Key house content |
+| DevOps Fundamentals | — | Code | DevOps track |
+| Security Operations | — | Eye | SOC labs, SIEM, threat hunting, log analysis |
 
 ---
 
 ## Coverage Summary by Domain
 
-### Domain Coverage Matrix
+Depth ratings are editorial; file magnitudes track the regenerated tables above.
 
-| Domain | Files | Houses/Hubs | Depth Rating |
-|--------|-------|-------------|-------------|
-| **Linux / CLI** | ~700+ | Script, Arctic, Operator, Dark Arts Hub | Deep -- CLH (94), Linux Mastery (54), 74+ labs, offensive labs |
-| **Networking** | ~350+ | Web, Backbone (inside Web) | Deep -- Backbone (166), presentations (31), tools (27), Network Essentials |
-| **Cybersecurity Fundamentals** | ~310+ | Shield, Security 101, Cyber Framework | Deep -- 146 applets, 34 labs, 26 framework modules |
-| **Programming** | ~260+ | Code (Armory + Python Hub), Script (Python) | Deep -- 17 languages, Algorithm Chamber (122) |
-| **Cloud Computing** | ~310+ | Cloud, API Security | Deep -- WSA (107), API (94), 15 tools, OpenStack |
-| **DevOps** | ~130+ | Code (DevOps) | Moderate -- 128 section modules |
-| **AI / Machine Learning** | ~190+ | AI, Cortex | Deep -- 14 Cortex tracks (155), 7 labs, 7 modules |
-| **SOC / Blue Team** | ~190+ | Eye, CySA+ | Deep -- 99 CyberOps applets, 50 CySA modules, 65 labs |
-| **Offensive Security** | ~275+ | Dark Arts (house + hub) | Deep -- Vault (228), FEH (47), Bug Hunting (55), WiFi Arsenal (27) |
-| **Cryptography** | ~90+ | Key, Shield (crypto applets) | Moderate -- 14 labs, 40 applets, 12 presentations |
-| **Hardware / IT Support** | ~280+ | Forge, Signal | Deep -- 147 A+ applets, MD-100/101 (83), Signal (61) |
-| **Digital Forensics** | ~27 | Forensics | Foundation -- 26 modules across 3 tracks |
-| **Data Science** | ~10 | Matrix (index only), Projects | Thin -- 10 Matrix projects, no dedicated modules |
-| **Algorithms / DSA** | ~122 | Code (Algorithm Chamber) | Deep -- 11 topic tracks |
-| **Capstone Projects** | ~88 | Projects | Broad -- 12 domain tags, all houses represented |
-| **CTF / Challenges** | ~29 | Arena (23), Dispatch (6) | Growing -- 22 Arena boxes, 5 Dispatch boxes |
-| **Hardware Projects** | ~61 | Signal | Moderate -- 7 sections, 20 toolkit pages |
-
-### Gap Analysis
-
-| Domain | Status | Notes |
-|--------|--------|-------|
-| Matrix / Data Science | **Thin** | Only index page + 10 projects. No dedicated modules, labs, or applets. |
-| Forensics | **Foundation** | 26 modules in 3 sections. Missing log-timeline and network forensics sections (ghosts found in audit). |
-| Dispatch | **Early** | 5 boxes. Room for growth across all IT support domains. |
-| Certifications | **Index-only** | 15 cert landing pages exist but contain no unique content -- they aggregate from houses. |
-| Hive / Multiplayer | **Prototype** | 4 components exist but are partially orphaned. |
+| Domain | Houses / Hubs | Depth |
+|--------|---------------|-------|
+| Linux / CLI | Script, Arctic, Operator, Dark Arts Vault | Deep — CLH, Linux Mastery, dozens of labs + offensive labs |
+| Networking | Web (incl. Backbone) | Deep — Backbone tracks, presentations, tools, Network Essentials |
+| Cybersecurity Fundamentals | Shield, Security 101, Cyber Framework | Deep — large applet suites, labs, framework modules |
+| Programming | Code (Armory + Python), Script (Python) | Deep — many language tracks, Algorithm Chamber |
+| Cloud Computing | Cloud, API Security | Deep — WSA, API, cloud tools, OpenStack |
+| DevOps | Code (DevOps) | Deep — full section curriculum |
+| AI / Machine Learning | AI (Cortex) | Deep — many Cortex tracks, labs, modules |
+| SOC / Blue Team | Eye, CySA+ | Deep — CyberOps applets, CySA modules, labs |
+| Offensive Security | Dark Arts (house + Vault) | Deep — Vault (Bug Hunting, EHE, WiFi Arsenal, gates), FEH |
+| Cryptography | Key, Shield (crypto applets) | Deep — labs, applets, presentations |
+| Hardware / IT Support | Forge, Signal | Deep — A+ applets, MD-100/101, Signal builds |
+| Embedded / Maker | Matrix (ProtoCore, PiVerse) | Deep — Arduino, ESP32, MicroPython, electronics tracks |
+| Ethics / Policy / Governance | Divergent | Moderate — ethics, cyber-policy, cyberspace governance |
+| Digital Forensics | Eye (forensics) | Foundation — evidence, disk, memory tracks |
+| CTF / Live-fire | Arena, Dispatch | Deep — large box catalog across both ranges |
+| Capstone Projects | Projects | Broad — domain-tagged projects across all houses |
+| Data Science | Matrix, Projects | Moderate — projects + adjacent Matrix content |
 
 ---
 
-*Content Map version: 1.0 -- Source: CONTENT_AUDIT.json (3,231 files), CONTENT_ORPHANS.json (1,255 orphans), CONTENT_GHOSTS.json (467 ghosts)*
+## Gap Analysis
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Forensics | **Foundation** | Evidence / disk / memory tracks under `houses/eye/forensics/`; room to grow network + timeline forensics. |
+| Cert landing pages | **Index-only** | Cert track pages aggregate from houses and hold no unique content by design. |
+| Observatory | **Platform surface** | Analytics/telemetry house, not a curriculum content area. |
+| Uncataloged HTML | **Tracked** | See catalog-validation.md — a large tail of on-disk pages (chapter sub-pages, generated views) is intentionally not in ContentCatalog. |
+
+---
+
+*Content Map — regenerated 2026-07-21 from `CONTENT_AUDIT.json` (5,172 files) + `ContentCatalog.js` (4,282 catalog modules). Count-bearing sections are machine-generated; cross-link / cert / coverage / gap sections are curated analysis.*
