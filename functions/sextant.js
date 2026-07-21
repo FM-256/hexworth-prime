@@ -145,6 +145,8 @@ async function runSnapshot(db, pepper, now) {
     if (!pepper || pepper.length < 16) {
         throw new Error('[sextant] SEXTANT_PEPPER is missing or too short — aborting to protect token stability.');
     }
+    // Belt-and-suspenders: finish any withdrawal whose Plane-B purge failed at withdrawal time.
+    const reconciliation = await reconcileWithdrawals(db, pepper);
     const snapshotId = snapshotIdFor(now);
     const cutoff = now.getTime() - ACTIVE_WINDOW_DAYS * DAY_MS;
     const consented = await loadConsentedLearners(db);
@@ -179,6 +181,8 @@ async function runSnapshot(db, pepper, now) {
         finishedAt: FieldValue.serverTimestamp(),
         consentedLearners: consented.size,
         pointsWritten,
+        reconciledWithdrawals: reconciliation.reconciledLearners,
+        reconciledCohortPoints: reconciliation.reconciledPoints,
     };
     await db.collection('sextant_runs').doc(snapshotId).set(summary); // deterministic id
     return summary;
@@ -187,23 +191,43 @@ async function runSnapshot(db, pepper, now) {
 // purgeLearner — withdrawal hook. Under design D the only persisted Sextant store is Plane B, so
 // this deletes the learner's tokenized cohort points (found by recomputing their token). The
 // self-view needs no purge: withdrawal already deletes the underlying observatory_activity it is
-// derived from. Needs the pepper; if absent, no Plane-B data could exist, so nothing to purge.
+// derived from. FAILS LOUD if the pepper is unavailable: real Plane-B data may exist (the snapshot
+// job wrote it with the pepper) and could NOT be found without it, so a silent no-op would falsely
+// report a completed deletion. The caller records this failure and reconcileWithdrawals cleans it up.
 async function purgeLearner(db, uid, pepper) {
+    if (!pepper) {
+        throw new Error('[sextant] purgeLearner: SEXTANT_PEPPER unavailable — cannot resolve token to purge Plane B for ' + uid);
+    }
+    const token = tokenize(uid, pepper);
     let deletedCohortPoints = 0;
-    if (pepper) {
-        const token = tokenize(uid, pepper);
-        let more = true;
-        while (more) {
-            const s = await db.collection('sextant_cohort_points').where('token', '==', token).limit(BATCH_LIMIT).get();
-            if (s.empty) break;
-            const b = db.batch();
-            s.docs.forEach((d) => b.delete(d.ref));
-            await b.commit();
-            deletedCohortPoints += s.size;
-            more = s.size === BATCH_LIMIT;
-        }
+    let more = true;
+    while (more) {
+        const s = await db.collection('sextant_cohort_points').where('token', '==', token).limit(BATCH_LIMIT).get();
+        if (s.empty) break;
+        const b = db.batch();
+        s.docs.forEach((d) => b.delete(d.ref));
+        await b.commit();
+        deletedCohortPoints += s.size;
+        more = s.size === BATCH_LIMIT;
     }
     return { deletedCohortPoints };
+}
+
+// reconcileWithdrawals — belt-and-suspenders guarantee for the right-to-withdraw. Any withdrawal
+// whose Plane-B purge did not complete at withdrawal time (the pepper was unavailable to that
+// callable) leaves an observatory_withdrawals tombstone with sextantPurged===false. This runs at
+// the top of every weekly snapshot — which holds a validated pepper — recomputes each such
+// learner's token, deletes their cohort points, and marks the tombstone reconciled. Idempotent.
+async function reconcileWithdrawals(db, pepper) {
+    const snap = await db.collection('observatory_withdrawals').where('sextantPurged', '==', false).get();
+    let reconciledLearners = 0, reconciledPoints = 0;
+    for (const d of snap.docs) {
+        const r = await purgeLearner(db, d.id, pepper);
+        await d.ref.set({ sextantPurged: true, sextantReconciledAt: FieldValue.serverTimestamp() }, { merge: true });
+        reconciledLearners += 1;
+        reconciledPoints += r.deletedCohortPoints;
+    }
+    return { reconciledLearners, reconciledPoints };
 }
 
 // sextantSnapshot — scheduled entry point. Weekly (Sun 06:00 ET). Uses the logical scheduled
@@ -227,6 +251,6 @@ const sextantSnapshot = onSchedule(
 );
 
 module.exports = {
-    sextantSnapshot, runSnapshot, purgeLearner, deriveTrajectory,
+    sextantSnapshot, runSnapshot, purgeLearner, reconcileWithdrawals, deriveTrajectory,
     tokenize, snapshotIdFor, weekStartMs, buildPoint, loadConsentedLearners,
 };

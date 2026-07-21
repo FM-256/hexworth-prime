@@ -140,8 +140,10 @@ research-gating a self-facing feature (consent-basis mismatch).
 
 ### Pre-deploy checklist (Nancy's non-blocking + process items)
 - [ ] Provision `SEXTANT_PEPPER` (32 random bytes) in Secret Manager before first run.
-- [ ] Firestore rules emulator test (Nancy #8): non-owner cannot read another's `sextant_trajectory`;
-      non-admin cannot read `sextant_cohort_points`.
+- [ ] Firestore rules/behaviour test (Nancy #8, design D): `getMyTrajectory` returns only the
+      caller's own events (uid pinned from auth, cannot spoof); non-admin cannot read
+      `sextant_cohort_points` or `observatory_activity`.
+- [ ] Deploy the `observatory_activity (uid asc, at desc)` composite index before/with the callable.
 - [ ] One-time audit of `observatory_enrollment` for stray non-real/test uids (Nancy #10) before first snapshot.
 - [x] Consent-scope question RESOLVED via design D (self-view derived, not a research use).
 

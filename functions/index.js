@@ -3828,12 +3828,19 @@ exports.withdrawFromObservatory = onCall({ ...cfOptions, secrets: [sextantPepper
         // live from observatory_activity, which the loop above already deleted. Recomputing the
         // token needs the pepper; if it is unset, no Plane-B data could exist, so nothing to
         // purge. Never blocks the withdrawal.
-        let sextantPurge = { deletedCohortPoints: 0 };
+        let sextantPurged = false;
+        let deletedCohortPoints = 0;
         try {
             const pepper = process.env.SEXTANT_PEPPER || (sextantPepper.value && sextantPepper.value());
-            sextantPurge = await require('./sextant').purgeLearner(db, uid, pepper || null);
+            const r = await require('./sextant').purgeLearner(db, uid, pepper || null);
+            deletedCohortPoints = r.deletedCohortPoints;
+            sextantPurged = true;
         } catch (e) {
-            console.error('[Observatory] Sextant purge during withdrawal failed:', e.message);
+            // purgeLearner throws when the pepper is unavailable (real Plane-B data may exist and
+            // could not be resolved). The withdrawal STILL completes (PII already deleted above);
+            // the tombstone records sextantPurged:false so the next snapshot's reconcileWithdrawals
+            // finishes the job with a validated pepper. Logged at ERROR so it is not silent.
+            console.error('[Observatory] Sextant Plane-B purge deferred to reconciliation (pepper unavailable):', e.message);
         }
 
         // Delete all activity events for this uid, in batches (Firestore caps a
@@ -3851,17 +3858,20 @@ exports.withdrawFromObservatory = onCall({ ...cfOptions, secrets: [sextantPepper
             more = snap.size === 400; // a full page may mean more remain
         }
 
-        // Minimal audit tombstone — records THAT a withdrawal happened, with no
-        // PII and no retained research data.
+        // Minimal audit tombstone — records THAT a withdrawal happened, with no PII and no
+        // retained research data. sextantPurged records whether the Plane-B purge completed; a
+        // false value is the reconciliation queue reconcileWithdrawals drains on the next snapshot.
         await db.doc(`observatory_withdrawals/${uid}`).set({
             uid: uid,
-            withdrawnAt: FieldValue.serverTimestamp()
+            withdrawnAt: FieldValue.serverTimestamp(),
+            sextantPurged: sextantPurged
         });
 
         return {
             ok: true,
             deletedActivity: deletedActivity,
-            deletedSextantCohortPoints: sextantPurge.deletedCohortPoints
+            deletedSextantCohortPoints: deletedCohortPoints,
+            sextantPurged: sextantPurged
         };
     } catch (e) {
         console.error('[Observatory] withdrawFromObservatory failed:', e.message);
@@ -3883,13 +3893,17 @@ exports.getMyTrajectory = onCall(cfOptions, async (request) => {
     }
     const uid = request.auth.uid;
     try {
-        // Read only THIS learner's activity events. Capped for cost/latency; a learner with
-        // more than the cap gets their most-recent window (weekly buckets are still correct).
+        // Read only THIS learner's activity, MOST-RECENT-FIRST (orderBy at desc), capped for
+        // cost/latency. The cap therefore truncates the OLDEST history, not an arbitrary slice —
+        // so the recent weekly buckets/velocity a learner cares about are always correct; only a
+        // learner past the cap loses their oldest weeks. `truncated` signals that to the client.
+        // (Requires the observatory_activity (uid asc, at desc) composite index — firestore.indexes.json.)
+        const CAP = 20000;
         const snap = await db.collection('observatory_activity')
-            .where('uid', '==', uid).limit(20000).get();
+            .where('uid', '==', uid).orderBy('at', 'desc').limit(CAP).get();
         const events = snap.docs.map((d) => d.data());
         const weeks = require('./sextant').deriveTrajectory(events);
-        return { uid: uid, weeks: weeks, eventCount: events.length };
+        return { uid: uid, weeks: weeks, eventCount: events.length, truncated: events.length >= CAP };
     } catch (e) {
         console.error('[Sextant] getMyTrajectory failed:', e.message);
         throw new HttpsError('internal', 'Could not load your trajectory. Please try again.');
@@ -8867,8 +8881,8 @@ exports.hexAiEngagementEvent  = _hexAiBridge.hexAiEngagementEvent; // TELEMETRY-
 // live-feed sections (LIVE-4). Schedule: every 4h at :15.
 exports.fetchOpportunities = require('./fetchOpportunities').fetchOpportunities;
 
-// Sextant Stage 1 — the consented learner-trajectory snapshot pipeline. Weekly
-// scheduled job: freezes each consented learner's position into Plane A (identified,
-// self-view under users/{uid}/sextant_trajectory) and Plane B (tokenized cohort,
-// sextant_cohort_points). Design: _docs/architecture/career-trajectory-navigator.md
+// Sextant Stage 1 (design D) — weekly scheduled job. Reconciles any deferred withdrawal
+// purges, then freezes each consented, recently-active learner's position into Plane B only
+// (tokenized cohort, sextant_cohort_points — no PII). The identified self-view is NOT persisted;
+// it is derived live by getMyTrajectory. Design: _docs/architecture/career-trajectory-navigator.md
 exports.sextantSnapshot = require('./sextant').sextantSnapshot;
