@@ -12,15 +12,17 @@
     :root{--hp:#9b59d0;--ha:#9333ea;--tg:#00ff41;--bg:#0a0a0a;--tbg:#0d1117;}
     *{box-sizing:border-box;margin:0;padding:0;}
     body{background:var(--bg);color:#e2e8f0;font-family:'Courier New',monospace;min-height:100vh;}
-    header{background:rgba(107,33,168,.15);border-bottom:1px solid rgba(107,33,168,.3);padding:14px 24px;display:flex;align-items:center;gap:16px;}
+    header{background:rgba(107,33,168,.15);border-bottom:1px solid rgba(107,33,168,.3);padding:14px max(24px, calc((100% - 1700px)/2));display:flex;align-items:center;gap:16px;}
     .back{color:var(--ha);text-decoration:none;font-size:20px;}
     h1{color:var(--ha);font-size:1.1rem;}
     .prog{margin-left:auto;font-size:.8rem;color:#9ca3af;}
-    .tabs{display:flex;gap:4px;padding:12px 24px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(107,33,168,.2);flex-wrap:wrap;}
+    .tabs{display:flex;gap:4px;padding:12px max(24px, calc((100% - 1700px)/2));background:rgba(0,0,0,.3);border-bottom:1px solid rgba(107,33,168,.2);flex-wrap:wrap;}
     .tab{padding:6px 14px;border:1px solid rgba(107,33,168,.3);border-radius:4px;cursor:pointer;font-size:.8rem;color:#9ca3af;background:transparent;transition:.2s;}
     .tab.active{background:var(--hp);color:#fff;border-color:var(--hp);}
     .tab.done{border-color:var(--tg);color:var(--tg);}
-    .ex{display:none;padding:24px;max-width:900px;margin:0 auto;}
+    .ex{display:none;padding:24px;max-width:1700px;margin:0 auto;}
+    .term-output,.term-line{overflow-wrap:anywhere;word-break:break-word;}
+    .meta-table td{word-break:break-word;}
     .ex.active{display:block;}
     h2{color:var(--ha);margin-bottom:8px;font-size:1rem;}
     p{color:#9ca3af;font-size:.85rem;margin-bottom:14px;line-height:1.6;}
@@ -154,7 +156,9 @@
 </div>
 
 <script>
+// Per-exercise completion flags (5 exercises) for progress tracking
 let done=[false,false,false,false,false];
+// Simulated terminal command->output map for the nmap/nc/telnet exercises
 const nmapDB={
   'nmap -ss 10.0.0.1':['Starting Nmap 7.94 ( https://nmap.org )','Nmap scan report for 10.0.0.1','PORT     STATE    SERVICE','22/tcp   open     ssh','80/tcp   open     http','443/tcp  open     https','3306/tcp open     mysql','8080/tcp filtered http-proxy','3389/tcp closed   ms-wbt-server','Nmap done: 1 IP address (1 host up) scanned in 2.34s'],
   'nmap -sv -p 22,80,443,3306 10.0.0.1':['Starting Nmap 7.94','PORT     STATE SERVICE  VERSION','22/tcp   open  ssh      OpenSSH 7.4 (protocol 2.0)','80/tcp   open  http     Apache httpd 2.4.29 ((Ubuntu))','443/tcp  open  ssl/http Apache httpd 2.4.29','3306/tcp open  mysql    MySQL 5.7.34-log','Service detection performed.'],
@@ -163,6 +167,7 @@ const nmapDB={
   'telnet 10.0.0.1 25':['Trying 10.0.0.1...','Connected to 10.0.0.1.','220 mail.meridiantech.com ESMTP Postfix 3.3.0'],
   'nmap -sn 10.0.0.0/24':['Starting Nmap 7.94','Nmap scan report for 10.0.0.1 [host up]','Nmap scan report for 10.0.0.5 [host up]','Nmap scan report for 10.0.0.22 [host up]','Nmap scan report for 10.0.0.100 [host up]','Nmap done: 4 hosts up'],
 };
+// Resolve a typed command to canned output: exact key first, else a key whose tokens all appear in the input
 function fuzzyMatch(cmd,db){
   const c=cmd.toLowerCase().replace(/\s+/g,' ').trim();
   if(db[c])return db[c];
@@ -171,6 +176,7 @@ function fuzzyMatch(cmd,db){
     return kp.every(p=>c.includes(p.toLowerCase()));
   })?db[Object.keys(db).find(k=>k.split(' ').every(p=>c.includes(p.toLowerCase())))]:null;
 }
+// Echo the typed command, look it up, and print the matched output (or a not-found warning)
 function runCmd(inId,outId,db){
   const inp=document.getElementById(inId);const q=inp.value.trim();inp.value='';
   addLine(outId,'$ '+q);
@@ -178,11 +184,13 @@ function runCmd(inId,outId,db){
   if(res)res.forEach(l=>addLine(outId,l,l.includes('VULNERABLE')||l.includes('open')?'':'dim'));
   else addLine(outId,'bash: command not found or wrong target. Check syntax.','warn');
 }
+// Append one styled line to a terminal output and auto-scroll to the bottom
 function addLine(outId,text,cls){
   const o=document.getElementById(outId);
   const d=document.createElement('div');d.className='tl '+(cls||'');d.textContent=text;
   o.appendChild(d);o.scrollTop=o.scrollHeight;
 }
+// Generic grader: run the exercise's validator, show pass message or hint, update progress/tab
 function checkEx(idx,validator,resultId){
   const r=document.getElementById(resultId);r.style.display='block';
   if(validator()){
@@ -194,23 +202,30 @@ function checkEx(idx,validator,resultId){
     r.className='result err';r.textContent=hints[idx];
   }
 }
+// Switch the active exercise tab/panel to index n
 function showEx(n){
   document.querySelectorAll('.ex').forEach((e,i)=>e.classList.toggle('active',i===n));
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n));
 }
+// Mark the tab at index n as completed
 function markTab(n){document.querySelectorAll('.tab')[n].classList.add('done');}
+// Recompute and display the "X / 5 complete" progress counter
 function updateProg(){document.getElementById('prog').textContent=done.filter(Boolean).length+' / 5 complete';}
+// Toggle a hint box open/closed by id
 function toggleHint(id){const h=document.getElementById(id);h.style.display=h.style.display==='block'?'none':'block';}
 
-// Ex5 ordering
+// Ex5 data: the four nmap workflow steps (shuffled for the ordering challenge)
 const steps=[
   {label:'nmap -sn 10.0.0.0/24 (Host Discovery)',key:'sn'},
   {label:'nmap -sS -p- 10.0.0.0/24 (SYN Port Scan)',key:'sS'},
   {label:'nmap -sV -p [open-ports] 10.0.0.0/24 (Service Detection)',key:'sV'},
   {label:'nmap --script vuln -p [ports] 10.0.0.0/24 (Vuln Scan)',key:'vuln'},
 ];
+// Ex5 data: the correct execution order of the step keys
 const correctOrder=['sn','sS','sV','vuln'];
+// Ex5 state: the steps the user has selected so far, in click order
 let orderSelected=[];
+// Ex5: render the step chips into the pool in randomized order
 function buildSteps(){
   const pool=document.getElementById('steps-pool');
   [...steps].sort(()=>Math.random()-.5).forEach(s=>{
@@ -218,12 +233,14 @@ function buildSteps(){
     d.onclick=()=>addToOrder(s);pool.appendChild(d);
   });
 }
+// Ex5: add a clicked step to the selected order (ignoring duplicates) and re-render
 function addToOrder(s){
   if(orderSelected.find(x=>x.key===s.key))return;
   orderSelected.push(s);
   document.getElementById('chip-'+s.key).classList.add('selected');
   renderOrder();
 }
+// Ex5: redraw the ordered list of selected steps with removal controls
 function renderOrder(){
   const ol=document.getElementById('order-list');ol.innerHTML='';
   orderSelected.forEach((s,i)=>{
@@ -232,11 +249,13 @@ function renderOrder(){
     ol.appendChild(d);
   });
 }
+// Ex5: remove the step at index i from the selected order and re-render
 function removeOrder(i){
   const s=orderSelected.splice(i,1)[0];
   document.getElementById('chip-'+s.key).classList.remove('selected');
   renderOrder();
 }
+// Ex5: verify all 4 steps are selected in the correct order, then reveal finish button
 function checkEx5(){
   const r=document.getElementById('r5');r.style.display='block';
   if(orderSelected.length<4){r.className='result err';r.textContent='Select all 4 steps in order first.';return;}
@@ -247,11 +266,13 @@ function checkEx5(){
     document.getElementById('fin-btn').style.display='block';
   }else{r.className='result err';r.textContent='Incorrect order. You must discover live hosts before scanning ports, and detect services before running vuln scripts against them.';}
 }
+// Record lab completion via ModuleProgress (or fall back to an alert standalone)
 function finishLab(){
   if (typeof ModuleProgress!=='undefined' && ModuleProgress.copyLegacyKey) ModuleProgress.copyLegacyKey('dark-arts', 'dark-arts-feh-03', 'dark-arts-feh-03-lab');
   if(typeof ModuleProgress!=='undefined')ModuleProgress.complete('dark-arts','dark-arts-feh-03-lab',{returnUrl:'../index.html'});
   else alert('Lab complete!');
 }
+// Initialize the Ex5 ordering challenge on load
 buildSteps();
 </script>
 
