@@ -144,7 +144,7 @@ research-gating a self-facing feature (consent-basis mismatch).
       caller's own events (uid pinned from auth, cannot spoof); non-admin cannot read
       `sextant_cohort_points` or `observatory_activity`.
 - [ ] Deploy the `observatory_activity (uid asc, at desc)` composite index before/with the callable.
-- [ ] One-time audit of `observatory_enrollment` for stray non-real/test uids (Nancy #10) before first snapshot.
+- [x] One-time audit of `observatory_enrollment` (Nancy #10): 34 records, 2 declined, 0 suspicious (2026-07-21).
 - [x] Consent-scope question RESOLVED via design D (self-view derived, not a research use).
 
 ### Consent-scope question (Nancy — operator's call, not a code sign-off)

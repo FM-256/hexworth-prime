@@ -183,6 +183,7 @@ async function runSnapshot(db, pepper, now) {
         pointsWritten,
         reconciledWithdrawals: reconciliation.reconciledLearners,
         reconciledCohortPoints: reconciliation.reconciledPoints,
+        reconcileFailures: reconciliation.failed,
     };
     await db.collection('sextant_runs').doc(snapshotId).set(summary); // deterministic id
     return summary;
@@ -220,14 +221,22 @@ async function purgeLearner(db, uid, pepper) {
 // learner's token, deletes their cohort points, and marks the tombstone reconciled. Idempotent.
 async function reconcileWithdrawals(db, pepper) {
     const snap = await db.collection('observatory_withdrawals').where('sextantPurged', '==', false).get();
-    let reconciledLearners = 0, reconciledPoints = 0;
+    let reconciledLearners = 0, reconciledPoints = 0, failed = 0;
     for (const d of snap.docs) {
-        const r = await purgeLearner(db, d.id, pepper);
-        await d.ref.set({ sextantPurged: true, sextantReconciledAt: FieldValue.serverTimestamp() }, { merge: true });
-        reconciledLearners += 1;
-        reconciledPoints += r.deletedCohortPoints;
+        // Isolate the failure domain: one flaky reconciliation must NOT abort the whole weekly
+        // snapshot for every consented learner. On error, leave the tombstone sextantPurged:false
+        // so the next run retries it, and continue with the rest.
+        try {
+            const r = await purgeLearner(db, d.id, pepper);
+            await d.ref.set({ sextantPurged: true, sextantReconciledAt: FieldValue.serverTimestamp() }, { merge: true });
+            reconciledLearners += 1;
+            reconciledPoints += r.deletedCohortPoints;
+        } catch (e) {
+            failed += 1;
+            console.error('[sextant] reconcileWithdrawals: could not reconcile ' + d.id + ':', e.message);
+        }
     }
-    return { reconciledLearners, reconciledPoints };
+    return { reconciledLearners, reconciledPoints, failed };
 }
 
 // sextantSnapshot — scheduled entry point. Weekly (Sun 06:00 ET). Uses the logical scheduled
