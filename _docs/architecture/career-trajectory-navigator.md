@@ -5,7 +5,7 @@
 > as a personal guide for the student, a research substrate for the institution, and an
 > advisory routing layer.
 
-**Status:** Design agreed + all decisions RESOLVED 2026-07-21. Build GREEN-LIT ("all the way"). Stage 1 in progress.
+**Status:** Stage 1 SHIPPED LIVE 2026-07-21 (Nancy PROCEED x3 + Chris PASS). First snapshot verified: 32 consented, 31 points, Plane B PII-free in prod. Next: the self-view PAGE (calls getMyTrajectory), then Stage 2 cohort reader.
 **North star:** This completes the [Career OS mission](../../CLAUDE.md) — it is the GPS the OS was missing, not a new product.
 
 ---
@@ -139,11 +139,11 @@ research-gating a self-facing feature (consent-basis mismatch).
 - **Pepper:** fails loud if `SEXTANT_PEPPER` is missing/short. Provisioned in Secret Manager (32 random bytes).
 
 ### Pre-deploy checklist (Nancy's non-blocking + process items)
-- [ ] Provision `SEXTANT_PEPPER` (32 random bytes) in Secret Manager before first run.
+- [x] `SEXTANT_PEPPER` provisioned in Secret Manager (v1 ENABLED, 2026-07-21).
 - [x] Rules/behaviour verified at the code layer by Nancy (3 passes, PROCEED) + Chris (PASS, 39/39
       invariant assertions re-run): getMyTrajectory uid-pinned + unspoofable, cohort_points/activity
       admin-only, deny-by-default. LIVE rules-emulator assertion optional post-deploy nicety.
-- [ ] Deploy the `observatory_activity (uid asc, at desc)` composite index before/with the callable.
+- [x] Composite index deployed + functions live (sextantSnapshot, getMyTrajectory, withdrawFromObservatory).
 - [x] One-time audit of `observatory_enrollment` (Nancy #10): 34 records, 2 declined, 0 suspicious (2026-07-21).
 - [x] Consent-scope question RESOLVED via design D (self-view derived, not a research use).
 
