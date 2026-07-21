@@ -243,7 +243,7 @@ Shared renderer for all 9 house index pages. Each house provides a thin config (
 - **Pattern:** Follows CMMCDomainRenderer.js IIFE pattern -- CSS injected as `<style>` string, all HTML generated in JS
 
 #### ContentCatalog.js
-Module search and filter system. Contains metadata for 1,832 modules.
+Module search and filter system. Contains metadata for 4,282 modules.
 
 - **API:** `getHouseModules(house)`, `search(query)`, `getByType(type)`
 - **Entry fields:** id, title, description, house, type, difficulty, duration, topics, paths, components (presentation/applet/lab)
