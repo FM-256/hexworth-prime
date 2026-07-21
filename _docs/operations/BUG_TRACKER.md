@@ -31,7 +31,35 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-_(none — all logged bugs resolved)_
+_From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
+
+### BUG-011 — `ala-hunt` module ids absent from ContentCatalog → empty cards (HUB-001)  ·  P2  ·  open
+- **Found:** 2026-07-21 · by triage (scan) · in backlog item 7 residual
+- **Area:** `_app/components/ContentCatalog.js` (2× `ala-hunt` ids referenced by a hub but not registered — grep = 0 hits)
+- **Symptom:** hub cards for those ids render empty (no catalog metadata to populate them).
+- **Fix:** pending — add the 2 catalog entries or remove the dangling hub refs.
+
+### BUG-010 — `validateFlag` rejects trailing-dot FQDN answers  ·  P2  ·  open
+- **Found:** 2026-07-21 · by triage · in backlog item 8
+- **Area:** `functions/index.js` `validateFlag` (~:223/231/251) — only `.trim().toLowerCase()`, no trailing-dot normalize
+- **Symptom:** DNS/recon boxes: a student who pastes `ns1.example.` (dig prints the trailing dot) mismatches the stored `ns1.example` → wrong-flag penalty for a correct answer.
+- **Fix:** pending — strip a single trailing `.` on FQDN-shaped answers before compare.
+
+### BUG-009 — Honor-click Jeopardy: self-judged, no answer check (shared engine + siblings)  ·  P2  ·  open (operator scope decision)
+- **Found:** 2026-07-21 · by triage · in backlog item 26
+- **Area:** shared `_app/_games-lab/jeopardy.html` (`judgeAnswer(true)` on "I Got It Right", ~:581,1004) + 5 sibling forge review files (e.g. `eth-jeopardy.review.html:979`). The `accepts:[]` auto-grading upgrade only reached `forge-aplus-jeopardy.applet.html`.
+- **Symptom:** solo player reveals a clue and self-marks correct with zero answer validation. Low-stakes (review game, not a graded exam), but an integrity gap.
+- **Decision:** scope — fix the shared engine + ~5 siblings, or accept honor-mode for review games. Operator call. (Related: `forge.mjs mapJeopardy` drops `accepts` on re-run — BUG-cluster P3 below.)
+
+### BUG-008 — Grading honesty: Armory + da-linux labs grant credit on command TEXT, no success check  ·  P2  ·  open (sweep-scale)
+- **Found:** 2026-07-21 · by triage · in backlog item 12 (= marathon Lane-A item 4)
+- **Area:** `_app/houses/code/armory/**` (~20: arm-bash/sql/c-*) + `_app/houses/dark-arts/**` (23 `da-linux-*`). Example `arm-bash-01-intro.module.html:511-515,555` — `completeTask` fires on `cmdLine.includes(...)` alone (grep `lt-error` across armory = 0 files), then `ModuleProgress.complete('code','arm-bash-01-intro')` grants real credit.
+- **Symptom:** `chmod +x nonexistent.sh` completes the task though nothing was chmod'd. Same honesty class as the LM-1 sweep.
+- **Nuance:** intro modules MAY intend command-shape pedagogy (per LM-1) — needs per-module practice-intent judgment, not a blanket wire-in of `ok`. Sweep-scale.
+- **Fix:** pending — per-module LM-1 pass (real success guard where the lab claims to check work).
+
+### BUG-CLUSTER-P3 — 2026-07-21 triage P3 tail (cosmetic / latent / low-value)  ·  P3  ·  open (batch when convenient)
+- forge-troubleshooting-scenarios pill objective numbers vs corrected headers (item 1) · Dark-Arts Five-Gates→Vault CTA 404, post-all-gates only (item 9) · EduScan HTML-011 ×24 stray `</div>` in eye/cyberops applets (item 7) · cloud-iam-debugger dead CSS (item 22) · cloud-iam-debugger case-sensitive action match — fix action path ONLY, not resourceMatches (item 23) · cloud-iam-debugger Round-8 explanation Null-check enrichment (item 24) · Game Forge `mapJeopardy` drops `accepts` on re-run (item 27) · LinuxTerminal root home `/home/root` vs `/root`, no grading impact (item 13) · LinuxTerminal `_cp` partial-copy + `_mv`/`_cp` leading-flag strip, bash-borderline, zero live exposure (items 37,38).
 
 ---
 
