@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Your learning trajectory on Hexworth Prime — where you are, how fast you are moving, and your heading, from your own activity.">
+    <title>Your Trajectory &mdash; Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-rocket.webp">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg:#0a0a0f; --card:#12121a; --card-2:#181824; --border:rgba(255,255,255,.08);
+            --accent:#10b981; --accent-dim:rgba(16,185,129,.12); --accent-bright:#34d399;
+            --text:#e5e7eb; --muted:#94a3b8; --dim:#64748b;
+            --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+            --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+        }
+        body { background:var(--bg); color:var(--text); font-family:var(--sans); line-height:1.6; min-height:100vh; }
+        a { color:var(--accent-bright); }
+        /* Full-width with a breathing centered cap (never a narrow strip). */
+        .wrap { max-width:1700px; margin:0 auto; padding:0 clamp(20px,4vw,48px); }
+        header { padding:56px 0 24px; border-bottom:1px solid var(--border); }
+        .kicker { font-family:var(--mono); font-size:.72rem; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+        h1 { font-size:clamp(28px,4.5vw,44px); letter-spacing:.3px; }
+        .sub { color:var(--muted); margin-top:10px; max-width:60ch; }
+
+        /* State panels (loading / signed-out / empty / error) share this shell. */
+        .state { padding:64px 24px; text-align:center; color:var(--muted); }
+        .state h2 { color:var(--text); font-size:1.4rem; margin-bottom:10px; }
+        .state .icon { font-size:2.4rem; margin-bottom:14px; opacity:.8; }
+        .btn { display:inline-block; margin-top:18px; padding:11px 20px; border-radius:10px; background:var(--accent);
+               color:#062018; font-weight:600; text-decoration:none; }
+        .spinner { width:34px; height:34px; border:3px solid var(--border); border-top-color:var(--accent);
+                   border-radius:50%; margin:0 auto 16px; animation:spin 1s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @media (prefers-reduced-motion:reduce){ .spinner{ animation:none; } }
+
+        /* Stat cards — the headline "where am I / how fast" numbers. */
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin:32px 0; }
+        .stat { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:20px; }
+        .stat .v { font-size:2rem; font-weight:700; font-family:var(--mono); color:var(--accent-bright); }
+        .stat .l { font-size:.8rem; color:var(--muted); margin-top:6px; text-transform:uppercase; letter-spacing:.06em; }
+
+        .panel { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px; margin:24px 0; }
+        .panel h2 { font-size:1.2rem; margin-bottom:4px; }
+        .panel .cap { color:var(--muted); font-size:.85rem; margin-bottom:18px; }
+        canvas { width:100%; height:auto; display:block; }
+        .legend { display:flex; gap:20px; flex-wrap:wrap; margin-top:14px; font-size:.82rem; color:var(--muted); }
+        .legend span { display:inline-flex; align-items:center; gap:7px; }
+        .swatch { width:12px; height:12px; border-radius:3px; display:inline-block; }
+
+        /* Weekly table — the raw trajectory rows. Scrolls horizontally on narrow screens. */
+        .tbl-wrap { overflow-x:auto; }
+        table { width:100%; border-collapse:collapse; font-size:.88rem; }
+        th, td { padding:10px 14px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
+        th { color:var(--muted); font-weight:600; text-transform:uppercase; font-size:.72rem; letter-spacing:.05em; }
+        td.num { font-family:var(--mono); text-align:right; }
+        .note { color:var(--dim); font-size:.8rem; margin:8px 0 40px; }
+        footer { border-top:1px solid var(--border); padding:24px 0; text-align:center; }
+        footer a { color:var(--muted); font-size:.85rem; text-decoration:none; }
+        .hidden { display:none; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header>
+            <div class="kicker">Career OS &middot; Sextant</div>
+            <h1>Your Learning Trajectory</h1>
+            <p class="sub">Where you are, how fast you are moving, and your heading &mdash; charted from your own activity on the platform. This is your data, visible only to you.</p>
+        </header>
+
+        <!-- Loading state -->
+        <div id="loadingState" class="state"><div class="spinner"></div>Charting your trajectory&hellip;</div>
+
+        <!-- Signed-out state -->
+        <div id="signedOutState" class="state hidden">
+            <div class="icon">&#128274;</div>
+            <h2>Sign in to see your trajectory</h2>
+            <p>Your trajectory is private to your account. Sign in to view it.</p>
+            <a class="btn" href="/dashboard.html">Go to sign in</a>
+        </div>
+
+        <!-- Empty state (signed in, no activity yet) -->
+        <div id="emptyState" class="state hidden">
+            <div class="icon">&#129517;</div>
+            <h2>Your journey hasn&rsquo;t started charting yet</h2>
+            <p>Once you spend time in courses, labs, and games, your trajectory appears here &mdash; your pace, your heading, and how far you&rsquo;ve come.</p>
+            <a class="btn" href="/dashboard.html">Start learning</a>
+        </div>
+
+        <!-- Error state -->
+        <div id="errorState" class="state hidden">
+            <div class="icon">&#9888;&#65039;</div>
+            <h2>Couldn&rsquo;t load your trajectory</h2>
+            <p id="errorMsg">Something went wrong. Please try again in a moment.</p>
+            <a class="btn" href="/career/trajectory.html">Retry</a>
+        </div>
+
+        <!-- Data state -->
+        <div id="dataState" class="hidden">
+            <div class="stats" id="statCards"></div>
+
+            <div class="panel">
+                <h2>Position &amp; velocity over time</h2>
+                <p class="cap">The line is your <strong>position</strong> &mdash; total activity accumulated week over week (how far you&rsquo;ve travelled). The bars are your <strong>velocity</strong> &mdash; activity in each individual week (how fast you were moving).</p>
+                <canvas id="chart" width="1600" height="460" aria-label="Trajectory chart"></canvas>
+                <div class="legend">
+                    <span><i class="swatch" style="background:var(--accent)"></i> Position (cumulative)</span>
+                    <span><i class="swatch" style="background:rgba(16,185,129,.35)"></i> Velocity (per week)</span>
+                </div>
+                <p class="note" id="truncNote"></p>
+            </div>
+
+            <div class="panel">
+                <h2>Weekly log</h2>
+                <p class="cap">Your motion, week by week.</p>
+                <div class="tbl-wrap">
+                    <table>
+                        <thead><tr>
+                            <th>Week of</th><th>Activity</th><th>Time (min)</th><th>Labs touched</th><th>Pages</th><th>Cumulative activity</th>
+                        </tr></thead>
+                        <tbody id="weekRows"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <footer><a href="/career/">&larr; Career Launchpad</a></footer>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+        import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js';
+
+        // Standard Hexworth Firebase config (same app across the platform).
+        const app = initializeApp({
+            apiKey: "AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M",
+            authDomain: "hexworth-prime.firebaseapp.com",
+            projectId: "hexworth-prime",
+            storageBucket: "hexworth-prime.firebasestorage.app",
+            messagingSenderId: "11726236962",
+            appId: "1:11726236962:web:1829ea0839f2587121497b"
+        });
+        const auth = getAuth(app);
+        const functions = getFunctions(app, 'us-central1');
+        const getMyTrajectory = httpsCallable(functions, 'getMyTrajectory');
+
+        // Show exactly one of the state panels, hide the rest.
+        function show(id) {
+            ['loadingState','signedOutState','emptyState','errorState','dataState']
+                .forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+        }
+
+        // Format helpers.
+        const nf = n => (n || 0).toLocaleString('en-US');
+        const fmtWeek = iso => { const [y,m,d] = iso.split('-'); return new Date(Date.UTC(+y,+m-1,+d))
+            .toLocaleDateString('en-US',{month:'short',day:'numeric',timeZone:'UTC'}); };
+
+        // Build the headline stat cards from the derived trajectory.
+        function renderStats(weeks) {
+            const last = weeks[weeks.length - 1];
+            const totalEvents = last.cumulativeEvents;
+            const totalMinutes = Math.round(last.cumulativeDwellSeconds / 60);
+            const activeWeeks = weeks.length;
+            const avgPerWeek = Math.round(totalEvents / activeWeeks);
+            const recent = weeks[weeks.length - 1].events; // this-week velocity
+            const cards = [
+                { v: nf(activeWeeks), l: 'Weeks active' },
+                { v: nf(totalEvents), l: 'Total activity' },
+                { v: nf(recent), l: 'This week' },
+                { v: nf(avgPerWeek), l: 'Avg / week' },
+                { v: nf(last.cumulativeDistinctLabs), l: 'Labs touched' },
+                { v: nf(totalMinutes), l: 'Minutes on task' },
+            ];
+            document.getElementById('statCards').innerHTML = cards
+                .map(c => `<div class="stat"><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`).join('');
+        }
+
+        // Draw the position line (cumulative) + velocity bars (per-week) on the canvas.
+        function renderChart(weeks) {
+            const canvas = document.getElementById('chart');
+            const ctx = canvas.getContext('2d');
+            const W = canvas.width, H = canvas.height;
+            const padL = 56, padR = 20, padT = 20, padB = 44;
+            const plotW = W - padL - padR, plotH = H - padT - padB;
+            ctx.clearRect(0, 0, W, H);
+
+            const maxCum = Math.max(1, ...weeks.map(w => w.cumulativeEvents));
+            const maxWk = Math.max(1, ...weeks.map(w => w.events));
+            const n = weeks.length;
+            const xAt = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+
+            // Faint horizontal gridlines + y-axis labels (cumulative scale).
+            ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.fillStyle = '#64748b';
+            ctx.font = '12px ui-monospace, monospace'; ctx.textAlign = 'right';
+            for (let g = 0; g <= 4; g++) {
+                const y = padT + (g / 4) * plotH;
+                ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+                ctx.fillText(nf(Math.round(maxCum * (1 - g / 4))), padL - 8, y + 4);
+            }
+
+            // Velocity bars (per-week activity), scaled to the same plot height.
+            const barW = Math.max(2, Math.min(28, plotW / n * 0.5));
+            ctx.fillStyle = 'rgba(16,185,129,.35)';
+            weeks.forEach((w, i) => {
+                const bh = (w.events / maxWk) * plotH;
+                ctx.fillRect(xAt(i) - barW / 2, padT + plotH - bh, barW, bh);
+            });
+
+            // Position line (cumulative) with an emerald stroke + endpoint marker.
+            ctx.beginPath();
+            weeks.forEach((w, i) => {
+                const x = xAt(i), y = padT + plotH - (w.cumulativeEvents / maxCum) * plotH;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2.5; ctx.stroke();
+            const lx = xAt(n - 1), ly = padT + plotH - (weeks[n - 1].cumulativeEvents / maxCum) * plotH;
+            ctx.fillStyle = '#34d399'; ctx.beginPath(); ctx.arc(lx, ly, 4.5, 0, 6.2832); ctx.fill();
+
+            // X-axis week labels (first, a few middle, last — avoid crowding).
+            ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
+            const step = Math.ceil(n / 8);
+            weeks.forEach((w, i) => {
+                if (i % step === 0 || i === n - 1) ctx.fillText(fmtWeek(w.weekStart), xAt(i), H - 16);
+            });
+        }
+
+        // Fill the weekly log table.
+        function renderTable(weeks) {
+            document.getElementById('weekRows').innerHTML = weeks.slice().reverse().map(w =>
+                `<tr><td>${fmtWeek(w.weekStart)}</td>`
+                + `<td class="num">${nf(w.events)}</td>`
+                + `<td class="num">${nf(Math.round(w.dwellSeconds / 60))}</td>`
+                + `<td class="num">${nf(w.distinctLabs)}</td>`
+                + `<td class="num">${nf(w.distinctPaths)}</td>`
+                + `<td class="num">${nf(w.cumulativeEvents)}</td></tr>`).join('');
+        }
+
+        // Fetch the signed-in learner's trajectory and render it (or the empty state).
+        async function loadTrajectory() {
+            try {
+                const res = await getMyTrajectory();
+                const weeks = (res.data && res.data.weeks) || [];
+                if (!weeks.length) { show('emptyState'); return; }
+                renderStats(weeks);
+                renderChart(weeks);
+                renderTable(weeks);
+                document.getElementById('truncNote').textContent = res.data.truncated
+                    ? 'Showing your most recent activity (older weeks beyond the display cap are not charted).' : '';
+                show('dataState');
+            } catch (e) {
+                document.getElementById('errorMsg').textContent =
+                    (e && e.message) ? e.message : 'Something went wrong. Please try again in a moment.';
+                show('errorState');
+            }
+        }
+
+        // Gate on auth: signed-in learners get their trajectory; others get the sign-in prompt.
+        onAuthStateChanged(auth, (user) => {
+            if (user) loadTrajectory();
+            else show('signedOutState');
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-07-07 1:24:59 AM
+                    Scanned: 2026-07-21 4:05:49 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5199 |
-| Directories | 1262 |
-| Content Files | 5199 |
-| Scan Duration | 589ms |
+| Files Scanned | 5219 |
+| Directories | 1267 |
+| Content Files | 5219 |
+| Scan Duration | 495ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2340 |
-| html | 1556 |
+| presentation | 2344 |
+| html | 1565 |
 | lab | 584 |
-| quiz | 504 |
-| applet | 215 |
+| quiz | 507 |
+| applet | 219 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 4281 |
-| Available | 4236 |
+| Total Modules | 4282 |
+| Available | 4237 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 3 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 35 |
-| Warning | 958 |
-| Info | 699 |
-| **Total** | **12967** |
+| Suspect | 37 |
+| Warning | 967 |
+| Info | 703 |
+| **Total** | **13014** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3626 |
+| Ready | 3637 |
 | Not Ready | 17 |
-| Unknown | 1556 |
+| Unknown | 1565 |
 
 
 ## FILE HIERARCHY
@@ -563,6 +563,7 @@
 │   ├── 📄 resume-builder.html
 │   └── 📄 salary-data.html
 ├── ❓ career-quiz.html
+├── 📄 chris_qc_tile_grid_tmp.html
 ├── 📁 components
 │   ├── 📁 analytics
 │   │   ├── 📄 attendance-heatmap.html
@@ -1081,6 +1082,7 @@
 ├── 📁 funding
 │   ├── 📍 index.html
 │   └── 📄 proposal-guide.html
+├── 📄 gallery.html
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
 ├── 📁 hive
@@ -2663,6 +2665,9 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
 │   │   ├── 📁 labs [labs]
+│   │   │   ├── 📁 dark-arts-ceh-01-recon [labs]
+│   │   │   │   └── 📍 index.html
+│   │   │   ├── 🔬 dark-arts-ceh-01.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-01.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-02.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-03.lab.html
@@ -2674,7 +2679,12 @@
 │   │   │   ├── 🔬 dark-arts-feh-09.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-10.lab.html
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 offensive
+│   │   │   ├── 📁 ceh
+│   │   │   │   └── 📍 index.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 presentations [presentations]
+│   │   │   ├── 📊 dark-arts-ceh-01.presentation.html
 │   │   │   ├── 📊 dark-arts-feh-01.presentation.html
 │   │   │   ├── 📊 dark-arts-feh-02.presentation.html
 │   │   │   ├── 📊 dark-arts-feh-03.presentation.html
@@ -2686,6 +2696,7 @@
 │   │   │   ├── 📊 dark-arts-feh-09.presentation.html
 │   │   │   └── 📊 dark-arts-feh-10.presentation.html
 │   │   ├── 📁 quizzes [quizzes]
+│   │   │   ├── ❓ dark-arts-ceh-01.quiz.html
 │   │   │   ├── ❓ dark-arts-feh-01.quiz.html
 │   │   │   ├── ❓ dark-arts-feh-02.quiz.html
 │   │   │   ├── ❓ dark-arts-feh-03.quiz.html
@@ -3242,6 +3253,8 @@
 │   │   │   │   │   │   │   └── 📍 index.html
 │   │   │   │   │   │   └── 📁 troubleshooting [applets]
 │   │   │   │   │   │       └── 📍 index.html
+│   │   │   │   │   ├── 📁 exams [applets]
+│   │   │   │   │   │   └── 📄 forge-aplus-core1-midterm-domains-1-3.html
 │   │   │   │   │   ├── 📍 index.html
 │   │   │   │   │   ├── 📁 labs [labs]
 │   │   │   │   │   │   ├── 🔬 forge-bluetooth-pairing.lab.html
@@ -3284,6 +3297,7 @@
 │   │   │   │   │   │   ├── 🔬 forge-soho-rescue.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-storage-upgrade.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-subnet-calculator.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-tim-application.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-topology-builder.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-troubleshooting-flowchart.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-troubleshooting-scenarios.lab.html
@@ -3291,6 +3305,9 @@
 │   │   │   │   │   │   ├── 🔬 forge-vm-setup.lab.html
 │   │   │   │   │   │   └── 🔬 forge-wireless-security.lab.html
 │   │   │   │   │   └── 📁 quizzes [quizzes]
+│   │   │   │   │       ├── 📄 forge-aplus-core1-practice-ch1-4.html
+│   │   │   │   │       ├── 📄 forge-aplus-core1-practice-ch5-8.html
+│   │   │   │   │       ├── 📄 forge-aplus-core1-practice-ch9-12.html
 │   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-1.quiz.html
 │   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-2.quiz.html
 │   │   │   │   │       ├── ❓ forge-aplus-core1-prep-round-3.quiz.html
@@ -4077,6 +4094,7 @@
 │   │       │       └── ❓ pc-esp-15.quiz.html
 │   │       └── 📍 index.html
 │   ├── 🏠 observatory [house:observatory]
+│   │   ├── 📄 field-manual.html
 │   │   └── 📍 index.html
 │   ├── 🏠 script [house:script]
 │   │   ├── 📁 applets [applets]
@@ -4999,7 +5017,8 @@
 │   │   │   ├── 📄 shield-threat-swarm.applet.html
 │   │   │   ├── 📄 shield-threatdex.applet.html
 │   │   │   ├── 📄 shield-tor-darkweb.html
-│   │   │   └── 🔬 shield-web-security-headers-lab.applet.html
+│   │   │   ├── 🔬 shield-web-security-headers-lab.applet.html
+│   │   │   └── 📁 threatdex-art
 │   │   ├── 📁 incubator
 │   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
@@ -6082,9 +6101,12 @@
 │       ├── 📄 recon-03.mission.html
 │       ├── 📄 windows-cmd-01.mission.html
 │       └── 📄 windows-cmd-02.mission.html
+├── 📄 partners.html
 ├── 📄 path-view.html
+├── 📄 press.html
 ├── 📄 privacy.html
 ├── 📄 product-info.html
+├── 📄 products.html
 ├── 📁 projects
 │   ├── 📄 ai-build-your-department.html
 │   ├── 📄 ai-data-augmentation.html
@@ -6215,6 +6237,7 @@
 │   └── 📄 web-topology-visualizer.html
 ├── 📄 pulse.html
 ├── 📄 quickstart.html
+├── 📄 research.html
 ├── 📁 scripts
 ├── 📁 shield
 │   └── 📁 districts
@@ -6458,10 +6481,12 @@
 ├── 📄 test-rare-only.html
 ├── 📁 tools
 │   └── 📄 career-pathway-planner.html
+├── 📄 trophies.html
 ├── 📄 unauthorized.html
 ├── 📁 utils
 ├── 📁 vendor
 │   └── 📁 skulpt
+├── 📄 vision.html
 ├── 📁 wall-of-shame
 │   └── 📍 index.html
 ├── 📁 wireshark
@@ -7969,7 +7994,8 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
+| aplus-core1-midterm-domains-1-3 | quiz | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | forge-bluetooth-pairing.lab | presentation | ✓ | 0 |
 | forge-cable-building.lab | presentation | ✓ | 0 |
 | forge-cable-matching.lab | presentation | ✓ | 0 |
@@ -8010,6 +8036,7 @@
 | forge-soho-rescue.lab | presentation | ✓ | 0 |
 | forge-storage-upgrade.lab | presentation | ✓ | 0 |
 | forge-subnet-calculator.lab | lab | ✓ | 0 |
+| forge-tim-application.lab | presentation | ✓ | 0 |
 | forge-topology-builder.lab | lab | ✓ | 0 |
 | forge-troubleshooting-flowchart.lab | presentation | ✓ | 0 |
 | forge-troubleshooting-scenarios.lab | presentation | ✓ | 0 |
@@ -8677,34 +8704,34 @@
 | clh-004 | quiz | ✓ | 0 |
 | script-clh-005-intro.applet | presentation | ✓ | 0 |
 | script-clh-005.lab | lab | ✓ | 0 |
-| clh-005 | quiz | ✓ | 0 |
+| clh-005-legacy | quiz | ✓ | 0 |
 | script-clh-006-intro.applet | presentation | ✓ | 0 |
 | script-clh-006.lab | lab | ✓ | 0 |
-| clh-006 | quiz | ✓ | 0 |
+| clh-006-legacy | quiz | ✓ | 0 |
 | script-clh-007-intro.applet | presentation | ✓ | 0 |
 | script-clh-007.lab | lab | ✓ | 0 |
-| clh-007 | quiz | ✓ | 0 |
+| clh-007-legacy | quiz | ✓ | 0 |
 | script-clh-008-intro.applet | presentation | ✓ | 0 |
 | script-clh-008.lab | lab | ✓ | 0 |
-| clh-008 | quiz | ✓ | 0 |
+| clh-008-legacy | quiz | ✓ | 0 |
 | script-clh-009-intro.applet | presentation | ✓ | 0 |
 | script-clh-009.lab | lab | ✓ | 0 |
-| clh-009 | quiz | ✓ | 0 |
+| clh-009-legacy | quiz | ✓ | 0 |
 | script-clh-010-intro.applet | presentation | ✓ | 0 |
 | script-clh-010.lab | lab | ✓ | 0 |
-| clh-010 | quiz | ✓ | 0 |
+| clh-010-legacy | quiz | ✓ | 0 |
 | script-clh-011-intro.applet | presentation | ✓ | 0 |
 | script-clh-011.lab | lab | ✓ | 0 |
-| clh-011 | quiz | ✓ | 0 |
+| clh-011-legacy | quiz | ✓ | 0 |
 | script-clh-012-intro.applet | presentation | ✓ | 0 |
 | script-clh-012.lab | lab | ✓ | 0 |
-| clh-012 | quiz | ✓ | 0 |
+| clh-012-legacy | quiz | ✓ | 0 |
 | script-clh-013-intro.applet | presentation | ✓ | 0 |
 | script-clh-013.lab | lab | ✓ | 0 |
-| clh-013 | quiz | ✓ | 0 |
+| clh-013-legacy | quiz | ✓ | 0 |
 | script-clh-014-intro.applet | presentation | ✓ | 0 |
 | script-clh-014.lab | lab | ✓ | 0 |
-| clh-014 | quiz | ✓ | 0 |
+| clh-014-legacy | quiz | ✓ | 0 |
 | script-clh-015-intro.applet | presentation | ✓ | 0 |
 | script-clh-015.lab | lab | ✓ | 0 |
 | clh-015 | quiz | ✓ | 0 |
@@ -8728,10 +8755,10 @@
 | clh-021 | quiz | ✓ | 0 |
 | script-clh-022-intro.applet | presentation | ✓ | 0 |
 | script-clh-022.lab | lab | ✓ | 0 |
-| clh-022 | quiz | ✓ | 0 |
+| clh-022-legacy | quiz | ✓ | 0 |
 | script-clh-023-intro.applet | presentation | ✓ | 0 |
 | script-clh-023.lab | lab | ✓ | 0 |
-| clh-023 | quiz | ✓ | 0 |
+| clh-023-legacy | quiz | ✓ | 0 |
 | script-clh-024-intro.applet | presentation | ✓ | 0 |
 | script-clh-024.lab | lab | ✓ | 0 |
 | clh-024 | quiz | ✓ | 0 |
@@ -8743,7 +8770,7 @@
 | clh-026 | quiz | ✓ | 0 |
 | script-clh-027-intro.applet | presentation | ✓ | 0 |
 | script-clh-027.lab | lab | ✓ | 0 |
-| clh-027 | quiz | ✓ | 0 |
+| clh-027-legacy | quiz | ✓ | 0 |
 | script-clh-028-intro.applet | presentation | ✓ | 0 |
 | script-clh-028.lab | lab | ✓ | 0 |
 | clh-028 | quiz | ✓ | 0 |
@@ -9666,6 +9693,7 @@
 | index | applet | ✓ | 1 |
 | faq | applet | ✓ | 1 |
 | proposal-guide | applet | ✓ | 1 |
+| gallery | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | dark-ids-evasion-lab.applet | lab | ✓ | 0 |
 | dark-m365-attack-lab.applet | applet | ✓ | 1 |
@@ -9674,6 +9702,7 @@
 | dark-osint-recon-lab.applet | lab | ✓ | 0 |
 | dark-slowloris-dos-lab.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
+| dark-arts-ceh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-02.lab | lab | ✓ | 0 |
 | dark-arts-feh-03.lab | lab | ✓ | 0 |
@@ -9684,6 +9713,8 @@
 | dark-arts-feh-08.lab | presentation | ✓ | 0 |
 | dark-arts-feh-09.lab | presentation | ✓ | 0 |
 | dark-arts-feh-10.lab | lab | ✓ | 0 |
+| dark-arts-ceh-NN-quiz | quiz | ✓ | 0 |
+| dark-arts-ceh-01.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-01.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-02.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-03.presentation | presentation | ✓ | 0 |
@@ -9694,6 +9725,7 @@
 | dark-arts-feh-08.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-09.presentation | presentation | ✓ | 0 |
 | dark-arts-feh-10.presentation | presentation | ✓ | 0 |
+| ceh-01 | quiz | ✓ | 0 |
 | feh-01 | quiz | ✓ | 0 |
 | feh-02 | quiz | ✓ | 0 |
 | feh-03 | quiz | ✓ | 0 |
@@ -9712,7 +9744,10 @@
 | pfi-op-02.mission | presentation | ✓ | 0 |
 | pfi-op-03.mission | presentation | ✓ | 0 |
 | pfi-op-04.mission | presentation | ✓ | 0 |
+| partners | applet | ✓ | 1 |
+| press | applet | ✓ | 1 |
 | product-info | applet | ✓ | 1 |
+| products | applet | ✓ | 1 |
 | ai-data-augmentation | applet | ✓ | 1 |
 | ai-network-anomaly | applet | ✓ | 1 |
 | ai-rag-chatbot | applet | ✓ | 1 |
@@ -9772,6 +9807,7 @@
 | subscription | applet | ✓ | 1 |
 | instructor | presentation | ✓ | 0 |
 | career-pathway-planner | applet | ✓ | 1 |
+| vision | applet | ✓ | 1 |
 | ws-01 | applet | ✓ | 1 |
 | ws-03 | applet | ✓ | 1 |
 | ws-04 | applet | ✓ | 1 |
@@ -10245,7 +10281,7 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (35) — heuristic, needs review
+### SUSPECT (37) — heuristic, needs review
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10319,6 +10355,14 @@
   File: `houses/code/armory/compare.html`
   Fix: Remove console.log or replace with proper logging
 
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-network-config.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-tim-application.lab.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
 **[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
   File: `houses/key/games/key-crypto-flap.html`
   Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
@@ -10387,7 +10431,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (958)
+### WARNING (967)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `_games-lab/jeopardy.html`
@@ -10883,6 +10927,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `funding/proposal-guide.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `gallery.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12918,6 +12966,18 @@
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/labs/dark-arts-ceh-01.lab.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/presentations/dark-arts-ceh-01.presentation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/dark-arts/quizzes/dark-arts-ceh-01.quiz.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html`
   Fix: Add entry to content-registry.js
 
@@ -12992,6 +13052,10 @@
 **[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/divergent/cybersecurity-policy/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/forge/applets/comptia-aplus/core-1/exams/forge-aplus-core1-midterm-domains-1-3.html`
+  Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/reviews/forge-md101-comprehensive-review.html`
@@ -13722,6 +13786,18 @@
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
+  File: `partners.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `press.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `products.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
   File: `projects/ai-data-augmentation.html`
   Fix: Add entry to content-registry.js
 
@@ -13955,6 +14031,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `tools/career-pathway-planner.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `vision.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14221,7 +14301,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (699)
+### INFO (703)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -14357,6 +14437,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `funding/proposal-guide.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `gallery.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14616,10 +14700,6 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/forge/applets/comptia-aplus/core-1/index.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/forge/games/forge-bit-dash.applet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -14808,7 +14888,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `partners.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `press.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `product-info.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `products.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -15041,6 +15133,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `tools/career-pathway-planner.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `vision.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -15507,7 +15603,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3211 of 4281 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3211 of 4282 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -16882,7 +16978,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (889)
+### Unregistered Content (898)
 
 | Path | Type | House |
 |------|------|-------|
@@ -17007,6 +17103,7 @@
 | dark-arts/vault/wifi-arsenal/quizzes/wifi-quiz-snitch.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/tools/wifi-tool-reference.html | presentation | - |
 | funding/proposal-guide.html | applet | - |
+| gallery.html | applet | - |
 | houses/ai/advanced/ai-adv-01.html | presentation | ai |
 | houses/ai/advanced/ai-adv-02.html | presentation | ai |
 | houses/ai/advanced/ai-adv-03.html | presentation | ai |
@@ -17507,6 +17604,9 @@
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-foundations.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-systems.html | presentation | code |
 | houses/code/python-for-it/upgrade-guide.html | applet | code |
+| houses/dark-arts/labs/dark-arts-ceh-01.lab.html | presentation | - |
+| houses/dark-arts/presentations/dark-arts-ceh-01.presentation.html | presentation | - |
+| houses/dark-arts/quizzes/dark-arts-ceh-01.quiz.html | quiz | - |
 | houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-midterm-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w1-concepts.lab.html | presentation | divergent |
@@ -17525,6 +17625,7 @@
 | houses/divergent/cybersecurity-policy/_source/csp-w4-nist-csf.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-risk-management.lab.html | lab | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w4-sovereignty.lab.html | lab | divergent |
+| houses/forge/applets/comptia-aplus/core-1/exams/forge-aplus-core1-midterm-domains-1-3.html | quiz | forge |
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
@@ -17707,6 +17808,9 @@
 | houses/web/backbone/wireless/bb-wl-08.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-09.html | presentation | web |
 | houses/web/backbone/wireless/bb-wl-10.html | presentation | web |
+| partners.html | applet | - |
+| press.html | applet | - |
+| products.html | applet | - |
 | projects/ai-data-augmentation.html | applet | - |
 | projects/ai-network-anomaly.html | applet | - |
 | projects/ai-rag-chatbot.html | applet | - |
@@ -17765,6 +17869,7 @@
 | subscription.html | applet | - |
 | tenant/instructor.html | presentation | - |
 | tools/career-pathway-planner.html | applet | - |
+| vision.html | applet | - |
 | wireshark/sections/fundamentals/ws-01-interface-tour.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-03-capture-filters.module.html | applet | - |
 | wireshark/sections/fundamentals/ws-04-display-filters.module.html | applet | - |
