@@ -3823,11 +3823,12 @@ exports.withdrawFromObservatory = onCall({ ...cfOptions, secrets: [sextantPepper
         await db.doc(`observatory_consent/${uid}`).delete();
         await db.doc(`observatory_enrollment/${uid}`).delete();
 
-        // Purge the learner's Sextant trajectory from BOTH planes (identified Plane A +
-        // tokenized Plane B) so the right-to-withdraw covers this feature too. Recomputing
-        // the token needs the pepper; if it is unset, no Plane-B data could have been
-        // written, so there is nothing to purge. Never blocks the withdrawal.
-        let sextantPurge = { deletedTrajectory: 0, deletedCohortPoints: 0 };
+        // Purge the learner's tokenized Sextant cohort points (Plane B) so the right-to-
+        // withdraw covers this feature. The identified self-view needs no purge: it is derived
+        // live from observatory_activity, which the loop above already deleted. Recomputing the
+        // token needs the pepper; if it is unset, no Plane-B data could exist, so nothing to
+        // purge. Never blocks the withdrawal.
+        let sextantPurge = { deletedCohortPoints: 0 };
         try {
             const pepper = process.env.SEXTANT_PEPPER || (sextantPepper.value && sextantPepper.value());
             sextantPurge = await require('./sextant').purgeLearner(db, uid, pepper || null);
@@ -3860,12 +3861,38 @@ exports.withdrawFromObservatory = onCall({ ...cfOptions, secrets: [sextantPepper
         return {
             ok: true,
             deletedActivity: deletedActivity,
-            deletedSextantTrajectory: sextantPurge.deletedTrajectory,
             deletedSextantCohortPoints: sextantPurge.deletedCohortPoints
         };
     } catch (e) {
         console.error('[Observatory] withdrawFromObservatory failed:', e.message);
         throw new HttpsError('internal', 'Withdrawal failed. Please try again.');
+    }
+});
+
+/**
+ * getMyTrajectory — Sextant self-view (design D). Returns the signed-in learner's OWN
+ * week-by-week trajectory, DERIVED LIVE from their observatory_activity events. No new
+ * persisted identified store, no research-consent gate: this is the learner's own data shown
+ * back to them (same category as the dashboard), so it works for every signed-in learner.
+ * The activity read is scoped to request.auth.uid via the admin SDK — a learner can only ever
+ * see their own trajectory, and observatory_activity stays admin-only at the rules layer.
+ */
+exports.getMyTrajectory = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const uid = request.auth.uid;
+    try {
+        // Read only THIS learner's activity events. Capped for cost/latency; a learner with
+        // more than the cap gets their most-recent window (weekly buckets are still correct).
+        const snap = await db.collection('observatory_activity')
+            .where('uid', '==', uid).limit(20000).get();
+        const events = snap.docs.map((d) => d.data());
+        const weeks = require('./sextant').deriveTrajectory(events);
+        return { uid: uid, weeks: weeks, eventCount: events.length };
+    } catch (e) {
+        console.error('[Sextant] getMyTrajectory failed:', e.message);
+        throw new HttpsError('internal', 'Could not load your trajectory. Please try again.');
     }
 });
 

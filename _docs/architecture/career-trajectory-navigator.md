@@ -109,32 +109,41 @@ countdown.
 4. **Advisor.** Position (Plane A) joined against known-good routes (Plane B) over the map (Stage 3).
    Descriptive first; prescriptive only if the operator crosses that line.
 
-### Stage 1 as built (`functions/sextant.js`, gated on deploy) — post-Nancy
-- **Reads** `observatory_enrollment` + `observatory_consent` (the consent gate) and
-  `observatory_activity` (the position). classId/className are denormalized on the enrollment
-  doc, so `observatory_classes` is not read; `observatory_withdrawals` is handled by the purge
-  hook (below), not read here.
-- **Consent gate (Nancy #2):** a learner is excluded iff `participates === false` on EITHER the
-  enrollment OR the consent doc (absent/true = consented). Mirrors the telemetry CF exactly.
-- **Recency gate (Nancy #4):** only learners with activity inside `ACTIVE_WINDOW_DAYS` (90) get a
-  new point, so neither plane accretes near-empty rows forever. Dormant learners keep their history.
-- **Plane A** `/users/{uid}/sextant_trajectory/{snapshotId}` — identified, carries classId; the
-  learner reads only their own (rules). **Plane B** `/sextant_cohort_points/{snapshotId__token}` —
-  `token = HMAC(SEXTANT_PEPPER, uid)`, NO uid/name/email and **no classId** (dropped until k-anon
-  suppression ships, Nancy #5). Both use deterministic ids → re-runs overwrite, never duplicate.
-- **Withdrawal purge (Nancy #1, BLOCKING — fixed):** `withdrawFromObservatory` now calls
-  `sextant.purgeLearner`, deleting the learner's Plane A subcollection and their Plane B points
-  (found by recomputing their token) so the right-to-withdraw covers this feature.
-- **Pepper:** fails loud if `SEXTANT_PEPPER` is missing/short (protects token stability). Provisioned
-  out-of-band in Secret Manager with a real 32-byte random value.
-- **Self-view:** historical (snapshot-fed) per decision #3 — the reader over Plane A is the next piece.
+### DESIGN D (operator ruling 2026-07-21): derive the self-view, persist only Plane B
+The self-view is DERIVED LIVE from the learner's own `observatory_activity` (retained forever,
+timestamped, keyed by uid) — no new identified store. This makes it "the learner's own data
+shown back to them" (like the dashboard), so it needs NO new consent and works for every
+learner. The only new persisted store is Plane B (tokenized cohort), which stays research-
+consent-gated. This dissolved the consent-scope question rather than answering it. Fallback if
+activity is ever pruned for cost: revisit a persisted, separately-opted-in self-view (option C).
+Rejected: ungated persisted self-view for all (profiles decliners, largest footprint) and
+research-gating a self-facing feature (consent-basis mismatch).
+
+### Stage 1 as built (`functions/sextant.js` + `getMyTrajectory`, gated on deploy) — post-Nancy, design D
+- **Self-view (`getMyTrajectory` callable):** derives the signed-in learner's week-by-week
+  trajectory LIVE from their own `observatory_activity` (read scoped to `request.auth.uid` via
+  admin SDK; activity stays admin-only at the rules layer). No persisted identified store, no new
+  consent gate. `deriveTrajectory` buckets events by ISO week → per-week + cumulative position.
+- **Snapshot pipeline (`sextantSnapshot`, Plane B only):**
+  - **Reads** `observatory_enrollment` + `observatory_consent` (the consent gate) and
+    `observatory_activity` (the position). `observatory_classes` is not read (classId denormalized
+    on enrollment, and Plane B no longer carries classId); `observatory_withdrawals` handled by purge.
+  - **Consent gate (Nancy #2):** excluded iff `participates === false` on EITHER enrollment OR
+    consent doc (absent/true = consented). Mirrors the telemetry CF exactly.
+  - **Recency gate (Nancy #4):** only learners active within `ACTIVE_WINDOW_DAYS` (90) get a point.
+  - **Plane B** `/sextant_cohort_points/{snapshotId__token}` — `token = HMAC(SEXTANT_PEPPER, uid)`,
+    NO uid/name/email/classId (classId dropped until k-anon, Nancy #5). Deterministic id → idempotent.
+- **Withdrawal purge (Nancy #1, BLOCKING — fixed):** `withdrawFromObservatory` calls
+  `sextant.purgeLearner` to delete the learner's Plane B points (by recomputed token). The self-view
+  needs no separate purge — withdrawal already deletes the `observatory_activity` it derives from.
+- **Pepper:** fails loud if `SEXTANT_PEPPER` is missing/short. Provisioned in Secret Manager (32 random bytes).
 
 ### Pre-deploy checklist (Nancy's non-blocking + process items)
 - [ ] Provision `SEXTANT_PEPPER` (32 random bytes) in Secret Manager before first run.
 - [ ] Firestore rules emulator test (Nancy #8): non-owner cannot read another's `sextant_trajectory`;
       non-admin cannot read `sextant_cohort_points`.
 - [ ] One-time audit of `observatory_enrollment` for stray non-real/test uids (Nancy #10) before first snapshot.
-- [ ] OPERATOR: confirm the consent basis covers Plane A self-view (see "Consent-scope question" below).
+- [x] Consent-scope question RESOLVED via design D (self-view derived, not a research use).
 
 ### Consent-scope question (Nancy — operator's call, not a code sign-off)
 The IRB consent text describes **research** use (publications, frameworks like CERBI). Plane B
