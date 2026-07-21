@@ -149,12 +149,20 @@
                 document.querySelectorAll('.mbtn').forEach(x=>x.classList.remove('active'));
                 b.classList.add('active'); drawChart();
             }));
-            document.getElementById('cohortToggles').innerHTML = Object.keys(COHORTS).map(cls =>
-                `<label class="toggle"><input type="checkbox" data-cls="${cls}" checked>`
-                + `<span class="dot" style="background:${colorFor(cls)}"></span>${cls}</label>`).join('');
-            document.querySelectorAll('.toggle input').forEach(cb => cb.addEventListener('change', () => {
-                cb.checked ? visible.add(cb.dataset.cls) : visible.delete(cb.dataset.cls); drawChart();
-            }));
+            // Build cohort toggles via DOM APIs, NOT innerHTML: classId is user-writable
+            // (a learner sets their own observatory_enrollment.classId, no server validation),
+            // so it must never be parsed as HTML. dataset + createTextNode are injection-safe.
+            const togglesEl = document.getElementById('cohortToggles');
+            togglesEl.textContent = '';
+            Object.keys(COHORTS).forEach(cls => {
+                const label = document.createElement('label'); label.className = 'toggle';
+                const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true;
+                cb.addEventListener('change', () => { cb.checked ? visible.add(cls) : visible.delete(cls); drawChart(); });
+                const dot = document.createElement('span'); dot.className = 'dot';
+                dot.style.background = colorFor(cls); // palette hex, not user data
+                label.append(cb, dot, document.createTextNode(cls)); // classId as text, never HTML
+                togglesEl.appendChild(label);
+            });
         }
 
         // Draw one line per visible cohort: x = week (shared axis), y = selected metric.
@@ -210,8 +218,8 @@
                 visible = new Set(Object.keys(COHORTS));
                 buildControls(); drawChart();
                 document.getElementById('kanonNote').innerHTML = suppressed.length
-                    ? `<strong>${suppressed.length}</strong> cohort-week(s) hidden to protect privacy (fewer than ${k} learners).`
-                    : `k-anonymity: cohorts of fewer than ${k} learners are never shown.`;
+                    ? `Aggregate view. <strong>${suppressed.length}</strong> cohort-week(s) suppressed here (fewer than ${k} learners).`
+                    : `Aggregate view. Cohorts of fewer than ${k} learners are suppressed here.`;
                 show('dataState');
             } catch (e) {
                 if (e && e.code === 'functions/permission-denied') { show('deniedState'); return; }

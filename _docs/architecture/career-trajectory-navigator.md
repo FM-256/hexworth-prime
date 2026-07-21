@@ -127,12 +127,36 @@ research-gating a self-facing feature (consent-basis mismatch).
 - **Snapshot pipeline (`sextantSnapshot`, Plane B only):**
   - **Reads** `observatory_enrollment` + `observatory_consent` (the consent gate) and
     `observatory_activity` (the position). `observatory_classes` is not read (classId denormalized
-    on enrollment, and Plane B no longer carries classId); `observatory_withdrawals` handled by purge.
+    on enrollment); `observatory_withdrawals` handled by purge.
   - **Consent gate (Nancy #2):** excluded iff `participates === false` on EITHER enrollment OR
     consent doc (absent/true = consented). Mirrors the telemetry CF exactly.
   - **Recency gate (Nancy #4):** only learners active within `ACTIVE_WINDOW_DAYS` (90) get a point.
   - **Plane B** `/sextant_cohort_points/{snapshotId__token}` — `token = HMAC(SEXTANT_PEPPER, uid)`,
-    NO uid/name/email/classId (classId dropped until k-anon, Nancy #5). Deterministic id → idempotent.
+    NO uid/name/email. As of Stage 2 it CARRIES `classId` (the cohort key — see Stage 2 below).
+    Deterministic id → idempotent.
+
+### Stage 2 as built (cohort reader) — 2026-07-21
+- **Plane B now carries `classId`** (`loadConsentedLearners` returns uid→classId; runSnapshot writes it).
+  Reverses the Stage-1 Nancy-#5 deferral, now that k-anon suppression ships. classId is admin-read-only
+  and never leaves the server un-aggregated.
+- **`aggregateCohorts(points, k=5)`** groups by class+week, averages metrics, and SUPPRESSES any
+  (cohort, week) cell with fewer than k=5 DISTINCT learners (counted by distinct token). `suppressed`
+  returns only `{classId, snapshotId, n}` counts — no per-learner data.
+- **`getCohortComparison`** (callable, ADMIN-gated: custom claim OR ADMIN_EMAILS) enforces k-anon
+  SERVER-SIDE — the client only ever receives aggregated, suppressed series, never raw tokenized rows.
+- **Reader** `_app/admin/sextant-cohorts.html` — overlay of one line per cohort. classId is rendered via
+  DOM `createTextNode`/`dataset` (never `innerHTML`) because classId is user-writable (learners set their
+  own `observatory_enrollment.classId` with no server validation) — Nancy Stage-2 #1 XSS fix.
+
+### Stage 2 RESIDUAL RISK (operator, written acceptance) — Nancy Stage-2 #4/#5
+The k-anon suppression on the cohort reader is **future-proofing, not a live control today**: the same
+admins who can call `getCohortComparison` already have raw, identified, per-learner access to
+`observatory_enrollment` + `observatory_activity` via `_app/admin/observatory.html`. So k-anon protects a
+*future* broader/external "research substrate" audience, not the current 2-admin audience. Also, averaging
+at exactly k=5 is **differencing-attackable** by someone who already knows 4 of 5 members (which the
+current admin audience does). ACCEPTED for Stage 2 because the reader adds NO new exposure beyond what
+admins already see raw; the k-anon control becomes load-bearing only if `sextant_cohort_points` is ever
+exposed beyond the admin allowlist (at which point: differential privacy / larger k / cell-count noise).
 - **Withdrawal purge (Nancy #1, BLOCKING — fixed):** `withdrawFromObservatory` calls
   `sextant.purgeLearner` to delete the learner's Plane B points (by recomputed token). The self-view
   needs no separate purge — withdrawal already deletes the `observatory_activity` it derives from.

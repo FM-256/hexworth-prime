@@ -171,7 +171,8 @@ async function aggregateActivity(db, consented) {
     return perUid;
 }
 
-// buildPoint — the v1 position metrics WITHOUT any identifier (Plane B carries no classId).
+// buildPoint — the v1 position metrics WITHOUT any identifier. classId is NOT added here; it is
+// attached at the Plane B write site in runSnapshot (as the admin-only, k-anon-guarded cohort key).
 function buildPoint(m) {
     return {
         events: m ? m.events : 0,
