@@ -1,0 +1,161 @@
+# Sextant — Career Trajectory Navigator
+
+> The sensor + navigation layer for the Career OS. A consented, longitudinal record of
+> where each learner is, how fast they are moving, and which heading they are on — surfaced
+> as a personal guide for the student, a research substrate for the institution, and an
+> advisory routing layer.
+
+**Status:** Design agreed + all decisions RESOLVED 2026-07-21. Build GREEN-LIT ("all the way"). Stage 1 in progress.
+**North star:** This completes the [Career OS mission](../../CLAUDE.md) — it is the GPS the OS was missing, not a new product.
+
+---
+
+## DECISIONS (resolved 2026-07-21)
+
+1. **Name → Sextant.** The instrument for fixing position + setting a heading by the stars.
+2. **Advisor stance → descriptive.** "Here is what similar learners did," not "you should turn left." Matches Lodestar's *measure, don't refit* (LODE-5). Prescriptive is not on the roadmap unless explicitly reopened.
+3. **Student self-view → historical (snapshot-fed).** Shares the Stage 1 pipeline everything else needs (not a separate live "where I stand now" widget).
+4. **Build → green-lit end-to-end.** Proceed through the stages with the standard QC gates (Nancy before edits, Chris before any deploy); each production deploy still honors the master + explicit-auth write gate.
+
+---
+
+## The frame
+
+The Career OS already has an engine (Lodestar), a cockpit (Launchpad, `_app/career/`), and evidence
+(badges / Observatory). What it lacks is *position telemetry*: a truthful, over-time record of each
+learner's location and motion through the curriculum. This layer supplies it and turns it into
+navigation.
+
+The GPS decomposition, and where each piece comes from:
+
+| Question | Quantity | Source |
+|----------|----------|--------|
+| Where am I? | Position vector in skill/curriculum space | ContentCatalog (4,282 modules) + per-user activity |
+| How fast? | Velocity (progress / week) | Snapshot deltas |
+| What heading? | Direction of recent motion (trending domains) | Snapshot deltas |
+| Destination? | Target role / cert | Lodestar True North |
+| How far left / ETA? | (distance to destination) ÷ velocity | Position + destination + velocity |
+| Route guidance | Deviation from paths that reached the same destination | Tokenized cohort archive |
+
+---
+
+## Data model — two planes
+
+Privacy is solved by *construction*, not by a policy bolted on afterward.
+
+### Plane A — Self trajectory (identified, in the user profile)
+- The learner's own trajectory over time, persisted into their profile.
+- Identified because it is *their* data and they view *themselves*. No tokenization needed for self-view.
+- Consent-gated: only consented learners get their trajectory persisted and get the self-guide + advisor.
+- Powers "where am I, my heading, my pace, my ETA" — the personal guide / true north view.
+
+### Plane B — Cohort archive (tokenized, research + advisory reference)
+- Immutable, dated snapshots of the four Observatory collections, tokenized on the way in.
+- Token = `HMAC(pepper, uid)`. Stable across terms/classes (same learner → same token), which is what
+  enables cross-class trajectory tracking.
+- **The pepper is a crown-jewel secret**: lives in server-side secret storage (Secret Manager / KMS),
+  **never** ships to the client. Tokenizing happens at snapshot time (server), so the reader is born
+  clean and never holds PII.
+- No mapping table and no admin bulk-reversal are needed:
+  - Student self-view is *forward* computation, scoped to self: an authenticated learner's server-side
+    request resolves `HMAC(pepper, theirUid)` and returns only their own row. A learner can never compute
+    another learner's token.
+  - The institution never needs to unmask. If a future "reach a struggling student" need arises, revisit
+    then; do not build reversal speculatively.
+- **k-anonymity suppression**: never render a cohort/segment below a floor (proposed k = 5), because a
+  3-person curve re-identifies by elimination regardless of tokenization.
+
+Note on why "just discard the salt" does not apply here: stable cross-term tokens require reusing the
+same pepper every snapshot, so the pepper must be *retained*. Combined with holding the uid list, that
+means the pepper-holder inherently *could* reverse by recomputation — which is exactly why the pepper is
+treated as a top secret and the design deliberately avoids ever needing to.
+
+---
+
+## Privacy / crypto specifics
+- Construction: `HMAC-SHA256(key = pepper, message = uid)` (not `SHA256(uid + salt)`).
+- The shared-for-everyone secret is a **pepper**, not a per-record salt (a per-record salt would require
+  storing each salt = a mapping table again).
+- Rotating the pepper re-tokenizes the whole archive (breaks token stability), so pick it once.
+- Consent is enforced at the pipe: non-consented learners are neither snapshotted into Plane B nor given
+  Plane A persistence.
+
+---
+
+## The hard part: the map (Stage 3)
+
+Route guidance ("left at APIs, u-turn at networking, if you reach algorithms you went too far") only has
+meaning if there is a **skill-adjacency graph** with direction and distance. Today there is a *flat*
+catalog of 4,282 modules, not a road network. Building that graph — nodes (skills/domains/modules),
+directed edges (prerequisite / leads-to), and a distance metric toward a destination — is a first-class
+piece of work, not a byproduct of the pipeline. Everything else is telemetry over this graph.
+
+ETA honesty follows from the same gap: "how long do I have left" is truthful against a countable set
+(modules remaining on a chosen cert track) and hand-wavy against a fuzzy career goal. Earliest version
+anchors ETA to a concrete track and keeps career-heading as *directional advice*, not a false-precision
+countdown.
+
+---
+
+## Staged roadmap (each stage stands alone and feeds the next)
+
+1. **Snapshot pipeline + student self-view.** Server-side scheduled snapshots (cadence + guaranteed
+   end-of-term freeze) → durable store, tokenized for Plane B, self-trajectory into Plane A profile.
+   Ships the *missing Observatory student viewer* immediately and starts accruing perishable history.
+2. **Cohort archive + comparison reader.** The "Archive" — grid + class/term/year filters + the
+   stock-market-style overlay (cohort vs itself over terms, cohort vs cohort). Tokenized, aggregate,
+   k-anon suppressed. Graph-style selector is v2 polish; start with one well-chosen metric + one chart.
+3. **Skill-adjacency map.** The road network (see above).
+4. **Advisor.** Position (Plane A) joined against known-good routes (Plane B) over the map (Stage 3).
+   Descriptive first; prescriptive only if the operator crosses that line.
+
+### Stage 1 as built (`functions/sextant.js`, gated on deploy) — post-Nancy
+- **Reads** `observatory_enrollment` + `observatory_consent` (the consent gate) and
+  `observatory_activity` (the position). classId/className are denormalized on the enrollment
+  doc, so `observatory_classes` is not read; `observatory_withdrawals` is handled by the purge
+  hook (below), not read here.
+- **Consent gate (Nancy #2):** a learner is excluded iff `participates === false` on EITHER the
+  enrollment OR the consent doc (absent/true = consented). Mirrors the telemetry CF exactly.
+- **Recency gate (Nancy #4):** only learners with activity inside `ACTIVE_WINDOW_DAYS` (90) get a
+  new point, so neither plane accretes near-empty rows forever. Dormant learners keep their history.
+- **Plane A** `/users/{uid}/sextant_trajectory/{snapshotId}` — identified, carries classId; the
+  learner reads only their own (rules). **Plane B** `/sextant_cohort_points/{snapshotId__token}` —
+  `token = HMAC(SEXTANT_PEPPER, uid)`, NO uid/name/email and **no classId** (dropped until k-anon
+  suppression ships, Nancy #5). Both use deterministic ids → re-runs overwrite, never duplicate.
+- **Withdrawal purge (Nancy #1, BLOCKING — fixed):** `withdrawFromObservatory` now calls
+  `sextant.purgeLearner`, deleting the learner's Plane A subcollection and their Plane B points
+  (found by recomputing their token) so the right-to-withdraw covers this feature.
+- **Pepper:** fails loud if `SEXTANT_PEPPER` is missing/short (protects token stability). Provisioned
+  out-of-band in Secret Manager with a real 32-byte random value.
+- **Self-view:** historical (snapshot-fed) per decision #3 — the reader over Plane A is the next piece.
+
+### Pre-deploy checklist (Nancy's non-blocking + process items)
+- [ ] Provision `SEXTANT_PEPPER` (32 random bytes) in Secret Manager before first run.
+- [ ] Firestore rules emulator test (Nancy #8): non-owner cannot read another's `sextant_trajectory`;
+      non-admin cannot read `sextant_cohort_points`.
+- [ ] One-time audit of `observatory_enrollment` for stray non-real/test uids (Nancy #10) before first snapshot.
+- [ ] OPERATOR: confirm the consent basis covers Plane A self-view (see "Consent-scope question" below).
+
+### Consent-scope question (Nancy — operator's call, not a code sign-off)
+The IRB consent text describes **research** use (publications, frameworks like CERBI). Plane B
+(tokenized cohort research set) clearly sits under that. Plane A is a learner viewing **their own
+data** — arguably not "research on a subject" at all, the same category as the existing dashboard.
+Open decision: does Plane A need its own disclosure/opt-in, or is showing a learner their own
+trajectory outside the research-consent gate (so every learner gets a self-view, only consented
+learners feed Plane B)? Resolve before scheduling the job.
+
+---
+
+## Ties to existing systems
+- **Lodestar** (Career Engine): supplies the destination (True North) and the descriptive/revealed-preference
+  precedent (LODE-7) and the *measure-don't-refit* tension (LODE-5) the advisor inherits.
+- **Launchpad** (`_app/career/`): the cockpit this feeds.
+- **Observatory** (`_app/admin/observatory.html`, `ObservatoryTracker/Telemetry/Consent`): source of the
+  four collections + the consent architecture. Today its only reader is admin CSV export; this adds the
+  student viewer + cohort reader it lacks. Fits the pinned Observatory IA redesign (kill one-long-scroll).
+- **ContentCatalog** (4,282 modules): the node set the skill map is built over.
+
+---
+
+*Design captured 2026-07-21 from an operator design conversation. Build gated on operator green-light for
+Stage 1 and rulings on the two OPEN DECISIONS above.*

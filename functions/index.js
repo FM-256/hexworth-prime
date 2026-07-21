@@ -23,6 +23,9 @@ const LIVEKIT_WS_URL = 'wss://hexworth-fxq4kwzr.livekit.cloud';
 // Same secret hex-ai-bridge.js declares for sandbox_task_state; declared
 // here too so awardMissionBadge can bind it.
 const sandboxServiceKeyIdx = defineSecret('SANDBOX_SERVICE_KEY');
+// Sextant trajectory pepper — bound to withdrawFromObservatory so a withdrawal can
+// recompute a learner's cohort token and purge their tokenized Plane-B points.
+const sextantPepper = defineSecret('SEXTANT_PEPPER');
 
 initializeApp();
 const db = getFirestore();
@@ -3810,7 +3813,7 @@ exports.logObservatoryEvent = onRequest({ region: 'us-central1', cors: true }, a
  * a withdrawal occurred. Clients cannot delete these docs directly (rules deny
  * it); deletion is admin-SDK-only, here, after verifying the caller owns the uid.
  */
-exports.withdrawFromObservatory = onCall(cfOptions, async (request) => {
+exports.withdrawFromObservatory = onCall({ ...cfOptions, secrets: [sextantPepper] }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in to withdraw.');
     }
@@ -3819,6 +3822,18 @@ exports.withdrawFromObservatory = onCall(cfOptions, async (request) => {
         // Delete the consent + enrollment docs for this participant.
         await db.doc(`observatory_consent/${uid}`).delete();
         await db.doc(`observatory_enrollment/${uid}`).delete();
+
+        // Purge the learner's Sextant trajectory from BOTH planes (identified Plane A +
+        // tokenized Plane B) so the right-to-withdraw covers this feature too. Recomputing
+        // the token needs the pepper; if it is unset, no Plane-B data could have been
+        // written, so there is nothing to purge. Never blocks the withdrawal.
+        let sextantPurge = { deletedTrajectory: 0, deletedCohortPoints: 0 };
+        try {
+            const pepper = process.env.SEXTANT_PEPPER || (sextantPepper.value && sextantPepper.value());
+            sextantPurge = await require('./sextant').purgeLearner(db, uid, pepper || null);
+        } catch (e) {
+            console.error('[Observatory] Sextant purge during withdrawal failed:', e.message);
+        }
 
         // Delete all activity events for this uid, in batches (Firestore caps a
         // batch at 500 writes; 400 leaves headroom). Loop until none remain.
@@ -3842,7 +3857,12 @@ exports.withdrawFromObservatory = onCall(cfOptions, async (request) => {
             withdrawnAt: FieldValue.serverTimestamp()
         });
 
-        return { ok: true, deletedActivity: deletedActivity };
+        return {
+            ok: true,
+            deletedActivity: deletedActivity,
+            deletedSextantTrajectory: sextantPurge.deletedTrajectory,
+            deletedSextantCohortPoints: sextantPurge.deletedCohortPoints
+        };
     } catch (e) {
         console.error('[Observatory] withdrawFromObservatory failed:', e.message);
         throw new HttpsError('internal', 'Withdrawal failed. Please try again.');
@@ -8819,3 +8839,9 @@ exports.hexAiEngagementEvent  = _hexAiBridge.hexAiEngagementEvent; // TELEMETRY-
 // featured_opportunities. Read by Internship Finder + Job Board
 // live-feed sections (LIVE-4). Schedule: every 4h at :15.
 exports.fetchOpportunities = require('./fetchOpportunities').fetchOpportunities;
+
+// Sextant Stage 1 — the consented learner-trajectory snapshot pipeline. Weekly
+// scheduled job: freezes each consented learner's position into Plane A (identified,
+// self-view under users/{uid}/sextant_trajectory) and Plane B (tokenized cohort,
+// sextant_cohort_points). Design: _docs/architecture/career-trajectory-navigator.md
+exports.sextantSnapshot = require('./sextant').sextantSnapshot;
