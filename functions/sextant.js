@@ -91,19 +91,62 @@ function deriveTrajectory(events) {
     });
 }
 
-// loadConsentedLearners — set of uids with a consent/enrollment record who have NOT declined.
-// Mirrors the telemetry CF gate exactly: declined iff participates===false on EITHER doc.
+// aggregateCohorts — the Stage 2 reader engine. Group tokenized cohort points by classId +
+// snapshot week, average the metrics per cohort per week, and SUPPRESS any (cohort, week) cell
+// with fewer than k distinct learners (k-anonymity: a tiny cohort can be re-identified by
+// elimination even when tokenized). Returns cohorts keyed by classId with a sorted weekly series,
+// plus a suppressed list (counts only) for transparency. Pure + unit-testable.
+function aggregateCohorts(points, k = 5) {
+    const byClassWeek = new Map(); // classId -> (snapshotId -> {tokens:Set, sums...})
+    for (const p of points || []) {
+        const cls = p.classId || '(unassigned)';
+        const wk = p.snapshotId;
+        if (!wk) continue;
+        if (!byClassWeek.has(cls)) byClassWeek.set(cls, new Map());
+        const weeks = byClassWeek.get(cls);
+        let cell = weeks.get(wk);
+        if (!cell) { cell = { tokens: new Set(), sumEvents: 0, sumDwell: 0, sumLabs: 0, sumPaths: 0 }; weeks.set(wk, cell); }
+        cell.tokens.add(p.token);
+        cell.sumEvents += p.events || 0;
+        cell.sumDwell += p.dwellSeconds || 0;
+        cell.sumLabs += p.distinctLabs || 0;
+        cell.sumPaths += p.distinctPaths || 0;
+    }
+    const cohorts = {};
+    const suppressed = [];
+    for (const [cls, weeks] of byClassWeek) {
+        const series = [];
+        for (const [wk, cell] of weeks) {
+            const n = cell.tokens.size;
+            if (n < k) { suppressed.push({ classId: cls, snapshotId: wk, n }); continue; } // k-anon
+            series.push({
+                snapshotId: wk, n,
+                avgEvents: Math.round(cell.sumEvents / n),
+                avgDwellSeconds: Math.round(cell.sumDwell / n),
+                avgDistinctLabs: Math.round((cell.sumLabs / n) * 10) / 10,
+                avgDistinctPaths: Math.round((cell.sumPaths / n) * 10) / 10,
+            });
+        }
+        series.sort((a, b) => (a.snapshotId < b.snapshotId ? -1 : 1));
+        if (series.length) cohorts[cls] = series;
+    }
+    return { cohorts, suppressed, k };
+}
+
+// loadConsentedLearners — Map uid -> classId for learners with a consent/enrollment record
+// who have NOT declined. Mirrors the telemetry CF gate exactly: declined iff participates===false
+// on EITHER doc. classId (enrollment wins, then consent) is the cohort key for the Stage 2 reader.
 async function loadConsentedLearners(db) {
     const [enrollSnap, consentSnap] = await Promise.all([
         db.collection('observatory_enrollment').get(),
         db.collection('observatory_consent').get(),
     ]);
     const declined = new Set();
-    const uids = new Set();
-    enrollSnap.forEach((d) => { const e = d.data() || {}; if (e.participates === false) declined.add(d.id); uids.add(d.id); });
-    consentSnap.forEach((d) => { const c = d.data() || {}; if (c.participates === false) declined.add(d.id); uids.add(d.id); });
-    const out = new Set();
-    for (const uid of uids) if (!declined.has(uid)) out.add(uid);
+    const classById = new Map();
+    enrollSnap.forEach((d) => { const e = d.data() || {}; if (e.participates === false) declined.add(d.id); classById.set(d.id, e.classId || null); });
+    consentSnap.forEach((d) => { const c = d.data() || {}; if (c.participates === false) declined.add(d.id); if (!classById.has(d.id)) classById.set(d.id, c.classId || null); });
+    const out = new Map();
+    for (const [uid, classId] of classById) if (!declined.has(uid)) out.set(uid, classId);
     return out;
 }
 
@@ -157,17 +200,19 @@ async function runSnapshot(db, pepper, now) {
     let batch = db.batch();
     const flush = async () => { await batch.commit(); batch = db.batch(); writes = 0; };
 
-    for (const uid of consented) {
+    for (const [uid, classId] of consented) {
         const m = activity.get(uid);
         if (!m || !m.lastAt || m.lastAt < cutoff) continue; // recency gate
 
         const point = buildPoint(m);
-        // Plane B — the only persisted store: a tokenized cohort point, no PII, no classId.
-        // Doc id = snapshot__token → idempotent overwrite on re-run. (No Plane A: the self-view
-        // is derived live from the learner's own activity, so nothing identified is persisted.)
+        // Plane B — the only persisted store: a tokenized cohort point. NO uid/name/email. Carries
+        // classId as the cohort key for the Stage 2 reader; this is admin-read-only and the reader
+        // applies k-anonymity (never displays a cohort below k), so classId here is not a re-id vector.
+        // Doc id = snapshot__token → idempotent overwrite on re-run. (No Plane A: the self-view is
+        // derived live from the learner's own activity, so nothing identified is persisted.)
         const token = tokenize(uid, pepper);
         batch.set(db.collection('sextant_cohort_points').doc(snapshotId + '__' + token), {
-            token, snapshotId, snapshotAt: Timestamp.fromDate(now), ...point,
+            token, classId: classId || null, snapshotId, snapshotAt: Timestamp.fromDate(now), ...point,
         });
         writes++;
         pointsWritten++;
@@ -261,5 +306,5 @@ const sextantSnapshot = onSchedule(
 
 module.exports = {
     sextantSnapshot, runSnapshot, purgeLearner, reconcileWithdrawals, deriveTrajectory,
-    tokenize, snapshotIdFor, weekStartMs, buildPoint, loadConsentedLearners,
+    aggregateCohorts, tokenize, snapshotIdFor, weekStartMs, buildPoint, loadConsentedLearners,
 };

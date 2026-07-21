@@ -5,7 +5,7 @@
 > as a personal guide for the student, a research substrate for the institution, and an
 > advisory routing layer.
 
-**Status:** Stage 1 SHIPPED LIVE 2026-07-21 (Nancy PROCEED x3 + Chris PASS). First snapshot verified: 32 consented, 31 points, Plane B PII-free in prod. Next: the self-view PAGE (calls getMyTrajectory), then Stage 2 cohort reader.
+**Status:** Stage 1 COMPLETE + LIVE 2026-07-21 — backend (3 fns, Nancy x3 + Chris) AND the student self-view page `/career/trajectory.html` (Chris PASS: 5 states, canvas drawn, 0 overflow, privacy holds) + a "Your Trajectory" card on the Career Launchpad. First snapshot: 32 consented, 31 points, PII-free. NOW: Stage 2 cohort reader (admin, aggregate, k-anon) — requires classId returned to Plane B under k-anon suppression.
 **North star:** This completes the [Career OS mission](../../CLAUDE.md) — it is the GPS the OS was missing, not a new product.
 
 ---

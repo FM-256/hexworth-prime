@@ -3911,6 +3911,33 @@ exports.getMyTrajectory = onCall(cfOptions, async (request) => {
 });
 
 /**
+ * getCohortComparison — Sextant Stage 2 reader (ADMIN only). Reads the tokenized cohort
+ * points (Plane B), aggregates them by class + week, and applies k-anonymity suppression
+ * SERVER-SIDE via sextant.aggregateCohorts — so the client only ever receives averaged,
+ * suppressed cohort series, never the raw per-learner tokenized rows. No PII in or out
+ * (points carry a token + classId + metrics, never a uid/name/email).
+ */
+exports.getCohortComparison = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    // Admin gate — mirrors firestore.rules isAdmin() (custom claim OR email allowlist).
+    const email = (request.auth.token.email || '').toLowerCase();
+    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    if (!isAdmin) {
+        throw new HttpsError('permission-denied', 'Cohort analytics are admin-only.');
+    }
+    try {
+        const snap = await db.collection('sextant_cohort_points').get();
+        const points = snap.docs.map((d) => d.data());
+        return require('./sextant').aggregateCohorts(points, 5); // k = 5
+    } catch (e) {
+        console.error('[Sextant] getCohortComparison failed:', e.message);
+        throw new HttpsError('internal', 'Could not load cohort comparison.');
+    }
+});
+
+/**
  * getTenantCatalog — Returns licensed content catalog for a tenant.
  * Requires auth — the student must be signed in to see their content.
  */
