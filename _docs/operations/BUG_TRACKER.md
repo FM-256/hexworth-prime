@@ -33,11 +33,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-011 — `ala-hunt` module ids absent from ContentCatalog → empty cards (HUB-001)  ·  P2  ·  open
+### BUG-011 — `ala-hunt` module ids absent from ContentCatalog → untracked progress (HUB-001)  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-21 · by triage (scan) · in backlog item 7 residual
-- **Area:** `_app/components/ContentCatalog.js` (2× `ala-hunt` ids referenced by a hub but not registered — grep = 0 hits)
-- **Symptom:** hub cards for those ids render empty (no catalog metadata to populate them).
-- **Fix:** pending — add the 2 catalog entries or remove the dangling hub refs.
+- **Area:** `_app/components/ContentCatalog.js` — the adv-linux hub tracks 4 module ids for progress but none were registered.
+- **Symptom:** the adv-linux hub's progress/completion tracking can't account for 4 `data-module` ids (`ala-hunt1-website-down`, `ala-hunt2-perimeter-open`, `ala-hunt3-lost-authority`, `ala-final-practical`). Cards render (inline HTML) but their completion state has no catalog entry.
+- **Verified:** all 4 map to REAL content (3 scavenger-hunt labs + the final practical `ala-final.html`), so all 4 were ADDED (not removed). Catalog `node --check` passes; 4 ids registered; all 4 hrefs resolve to files on disk.
+- **Fix:** added 4 `{house:'matrix', category:'ala'}` entries after `ala-l09` in ContentCatalog.js (2026-07-22). Deploys with next hosting push.
 
 ### BUG-010 — `validateFlag` rejects trailing-dot FQDN answers  ·  P2  ·  open
 - **Found:** 2026-07-21 · by triage · in backlog item 8
