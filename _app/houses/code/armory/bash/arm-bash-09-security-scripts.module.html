@@ -325,9 +325,17 @@
         LinuxTerminal.init('BASH-09', '#terminal', {
             user: 'learner', hostname: 'bash-lab', startDir: '/home/learner', height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
-                if (cmd === 'ss' || cmd === 'netstat' || cmdLine.includes('/dev/tcp')) completeTask('ports');
-                if (cmdLine.includes('/etc/passwd') || cmd === 'id' || cmd === 'who' || cmd === 'w') completeTask('users');
-                if (cmd === 'find' && cmdLine.includes('-perm')) completeTask('perms');
+                // Honesty gate (BUG-008): credit only when the command ran without an engine error.
+                var ok = !(output || '').includes('lt-error');
+                if (ok && (cmd === 'ss' || cmd === 'netstat' || cmdLine.includes('/dev/tcp'))) completeTask('ports');
+                if (ok && (cmdLine.includes('/etc/passwd') || cmd === 'id' || cmd === 'who' || cmd === 'w')) completeTask('users');
+                // Text-match `find` in command position (not `cmd === 'find'`): the instructed command
+                // `find ... -perm -4000 2>/dev/null` is redirected, and the engine flattens `cmd` to
+                // 'redirect' for a '>'-bearing line, so cmd==='find' never fires (Nancy BUG-008 finding).
+                if (ok && /(^|\||;)\s*find\b/.test(cmdLine) && cmdLine.includes('-perm')) completeTask('perms');
+                // NOTE (BUG-008 pinned): sha256sum/md5sum are NOT implemented in LinuxTerminal.js, so
+                // they error ("command not found"). Gating would make this unreachable. Left text-matched
+                // (no regression) pending a real sync-hash engine impl (SubtleCrypto is async) — reframe batch.
                 if (cmd === 'sha256sum' || cmd === 'md5sum') completeTask('hash');
             }
         });
