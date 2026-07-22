@@ -33,12 +33,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-011 — `ala-hunt` module ids absent from ContentCatalog → untracked progress (HUB-001)  ·  P2  ·  fixed-not-deployed
-- **Found:** 2026-07-21 · by triage (scan) · in backlog item 7 residual
-- **Area:** `_app/components/ContentCatalog.js` — the adv-linux hub tracks 4 module ids for progress but none were registered.
-- **Symptom:** the adv-linux hub's progress/completion tracking can't account for 4 `data-module` ids (`ala-hunt1-website-down`, `ala-hunt2-perimeter-open`, `ala-hunt3-lost-authority`, `ala-final-practical`). Cards render (inline HTML) but their completion state has no catalog entry.
-- **Verified:** all 4 map to REAL content (3 scavenger-hunt labs + the final practical `ala-final.html`), so all 4 were ADDED (not removed). Catalog `node --check` passes; 4 ids registered; all 4 hrefs resolve to files on disk.
-- **Fix:** added 4 `{house:'matrix', category:'ala'}` entries after `ala-l09` in ContentCatalog.js (2026-07-22). Deploys with next hosting push.
+### BUG-011 — 4 adv-linux module ids absent from BOTH content registries (HUB-001)  ·  P2  ·  open (two-registry sync)
+- **Found:** 2026-07-21 · by triage (scan); scope corrected by Nancy 2026-07-22
+- **Area:** `_app/components/ContentCatalog.js` AND `_app/components/LearningPaths.js` — the adv-linux hub tracks 4 `data-module` ids (`ala-hunt1-website-down`, `ala-hunt2-perimeter-open`, `ala-hunt3-lost-authority`, `ala-final-practical`, all real content) that are in NEITHER registry.
+- **Symptom:** ContentCatalog gap → completion state untracked. LearningPaths `'adv-linux'.modules[]` gap → the 3 hunts + final practical are absent from `path-view.html`'s roadmap, path duration is short, and `getNextModule` walks past them.
+- **Nancy finding (why the first attempt was reverted):** a ContentCatalog-only patch (drafted 2026-07-22, then REVERTED off master before deploy) is HALF a fix — it repeats the "one registry updated, one forgotten" mistake this codebase has been burned by (`7d39393a1`). The two registries also have DIFFERENT membership (LearningPaths omits the lecture modules the hub uses as sequence anchors), so the hunts must be placed against LearningPaths' actual prerequisite chain, not the hub's order.
+- **Fix (pending, do together):** add the 4 to ContentCatalog **and** to LearningPaths `'adv-linux'.modules[]` at the correct sequence position with rewired `prerequisites` (insert + repoint the following module), then verify `path-view.html` renders them. Hub canonical order: hunt1 after `ala-w1` block, hunt2 before `ala-midterm`, hunt3 before `ala-w4`, final-practical after `ala-final`.
 
 ### BUG-010 — `validateFlag` rejects trailing-dot FQDN answers  ·  P2  ·  open
 - **Found:** 2026-07-21 · by triage · in backlog item 8
