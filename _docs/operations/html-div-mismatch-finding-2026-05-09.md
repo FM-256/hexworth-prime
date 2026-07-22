@@ -1,5 +1,8 @@
 # HTML Div Tag Mismatch Finding — 27 files (2026-05-09)
 
+> **RESOLVED 2026-07-22.** A fresh `<div>`-balance scan of all 5,181 `_app` HTML files, run through the real EduScan HTML validator (`_tools/eduscan/validators/syntax/html.js`, which strips scripts/styles/comments/template-literals), shows **0 real HTML-011/012 findings remaining**. The last real ones were 6 eye/cyberops applets whose 4 tab panels opened `<section class="co-tab-content">` but closed `</div>` — fixed by converting the opens to `<div>` (commit `9a7b989f8`, deployed). The only raw-count imbalances still present (`admin/audit-tool.html`, `forge-ram-install.lab.html`, `script-regex-runner.html`, `lobby.html`, `forge-tim-application.lab.html`) are JS-template/string artifacts — validator-CLEAN, not real bugs. This finding is closed; the historical detail below is retained for reference.
+
+
 **Detection method:** Marathon tick 75. Node scan walks `_app/**/*.html` (5,025 files), strips `<!-- -->` comments + `<script>` + `<style>` blocks, counts `<div>` opens vs `</div>` closes. Files with imbalance flagged.
 
 **Important caveat:** Regex-based HTML mismatch detection is APPROXIMATE. AST-level parsing would be authoritative. Some findings may be scan artifacts (template literals containing div text in JS, edge-case patterns). Operator should visually verify each file before applying fixes.
