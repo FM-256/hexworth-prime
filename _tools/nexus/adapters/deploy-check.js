@@ -300,11 +300,38 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         );
         if (htmlFiles.length === 0) return { name: 'HTML Syntax', pass: true, count: 0, details: ['No HTML changed'], severity: 'info' };
 
+        // Tag counting must ignore <script>/<style> that appear inside HTML
+        // comments or quoted strings (teaching content, commented-out blocks)
+        // — otherwise a literal "<script>" in a comment skews the open/close
+        // count into a false "unclosed tag". stripNonCode blanks HTML comments
+        // and the contents of quoted strings inside inline <script> blocks,
+        // while PRESERVING the real <script>/<style> tags. Corpus-verified
+        // 2026-07-23: 7 comment-only false positives cleared, 0 real unclosed
+        // tags hidden (an unclosed tag has no matching close, so
+        // neutralizeInlineScripts — which only matches PAIRED tags — leaves it
+        // intact and it still counts). Task #198.
+        //
+        // Sibling Check 5 (checkBrokenLinks) deliberately does NOT use this.
+        // stripNonCode's quote-blanking is context-blind: it blanks the
+        // contents of ANY single/double-quoted substring inside an inline
+        // <script> block — including HTML attribute values in markup-as-string
+        // (e.g. dashboard.html builds nav via `explorerContainer.innerHTML =
+        // \`<div href="houses/.../index.html">\``, 51 real href refs). Check 5
+        // validates those refs exist, so stripping would blind it to real
+        // links. Its own comment-hidden-link false-positive baseline is
+        // currently ZERO (full-corpus scan 2026-07-23), so there is nothing to
+        // trade for that risk. KNOWN GAPS in stripNonCode (fine for tag
+        // counting, noted for the next editor): CSS comments inside <style> are
+        // not stripped, and a literal quoted "<script>" WITH a trailing ">"
+        // inside an inline script would be blanked — a forward-risk for active
+        // dark-arts XSS labs (taskboard #207).
+        const { stripNonCode } = require('../../eduscan/utils/strip-noncode.js');
+
         const issues = [];
         htmlFiles.slice(0, 100).forEach(f => {
             const fullPath = path.join(projectRoot, f);
             if (!fs.existsSync(fullPath)) return;
-            const content = fs.readFileSync(fullPath, 'utf8');
+            const content = stripNonCode(fs.readFileSync(fullPath, 'utf8'));
 
             // Count script/style opens vs closes
             ['script', 'style'].forEach(tag => {
