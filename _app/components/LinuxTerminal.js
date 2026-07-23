@@ -88,36 +88,48 @@ const LinuxTerminal = (function() {
     // BASE FILESYSTEM
     // =========================================================================
 
+    // Real Linux: root's home is /root, everyone else lives under /home.
+    // (Task #104 — the engine used to model root's home as /home/root,
+    // contradicting the curriculum's own teaching content.)
+    function _homeFor(user) {
+        return user === 'root' ? '/root' : `/home/${user}`;
+    }
+
     function _createBaseFilesystem(user) {
-        return {
+        const home = _homeFor(user);
+        const isRoot = user === 'root';
+        const fs = {
             '/': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['home', 'etc', 'var', 'tmp', 'usr', 'bin', 'sbin', 'opt', 'root', 'dev', 'proc'] },
-            '/home': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [user] },
-            [`/home/${user}`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['Documents', 'Downloads', 'scripts', '.bashrc', '.profile', 'notes.txt', 'readme.md', 'users.txt', 'log.txt', 'scores.txt'] },
-            [`/home/${user}/users.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 192, content: 'john 25 engineer austin\njane 30 designer seattle\nadmin 45 sysadmin denver\nguest 22 visitor boston\nmike 35 analyst chicago\nsara 28 developer portland\n' },
-            [`/home/${user}/log.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 384, content: '2025-01-15 09:00:12 INFO Server started on port 8080\n2025-01-15 09:05:33 WARNING Disk usage at 85%\n2025-01-15 09:12:07 ERROR Connection refused to database\n2025-01-15 09:15:44 INFO Retry successful\n2025-01-15 09:30:00 ERROR Timeout waiting for response\n2025-01-15 09:45:22 CRITICAL Out of memory exception\n2025-01-15 10:00:01 INFO Service restarted\n2025-01-15 10:05:18 WARNING CPU usage at 92%\n' },
-            [`/home/${user}/scores.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 160, content: 'alice 95 math\nbob 78 science\ncharlie 88 math\ndiana 92 science\neve 67 math\nfrank 85 science\ngrace 99 math\n' },
-            [`/home/${user}/Documents`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['report.txt', 'data.csv', 'project'] },
-            [`/home/${user}/Documents/project`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['main.py', 'config.json', 'README.md'] },
-            [`/home/${user}/Documents/report.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 2048, content: 'Quarterly Report Q4 2025\n========================\n\nExecutive Summary:\nThis report covers system administration activities.\n\nKey Metrics:\n- Uptime: 99.9%\n- Security incidents: 0\n- Patches applied: 47\n\nRecommendations:\n1. Upgrade kernel to 6.x series\n2. Implement automated backups\n3. Review firewall rules\n' },
-            [`/home/${user}/Documents/data.csv`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 512, content: 'id,name,value,status\n1,alpha,100,active\n2,beta,200,inactive\n3,gamma,150,active\n4,delta,300,active\n5,epsilon,50,inactive\n' },
-            [`/home/${user}/Documents/project/main.py`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 1024, content: '#!/usr/bin/env python3\n"""Main application entry point."""\n\nimport sys\nimport config\n\ndef main():\n    print("Hello from Hexworth!")\n    return 0\n\nif __name__ == "__main__":\n    sys.exit(main())\n' },
-            [`/home/${user}/Documents/project/config.json`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: '{\n  "app_name": "hexworth-demo",\n  "version": "1.0.0",\n  "debug": false,\n  "port": 8080\n}\n' },
-            [`/home/${user}/Documents/project/README.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 384, content: '# Project README\n\nA sample project for learning Linux commands.\n\n## Usage\n\n```bash\npython3 main.py\n```\n\n## License\n\nMIT\n' },
-            [`/home/${user}/Downloads`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['archive.tar.gz', 'image.png', 'installer.sh'] },
-            [`/home/${user}/Downloads/archive.tar.gz`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 15360, content: '[binary data]' },
-            [`/home/${user}/Downloads/image.png`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 24576, content: '[binary data]' },
-            [`/home/${user}/Downloads/installer.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 4096, content: '#!/bin/bash\necho "Installing..."\nsleep 2\necho "Done!"\n' },
-            [`/home/${user}/scripts`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['backup.sh', 'monitor.sh', 'deploy.sh'] },
-            [`/home/${user}/scripts/backup.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 512, content: '#!/bin/bash\n# Backup script\ntar -czf backup_$(date +%Y%m%d).tar.gz ~/Documents\necho "Backup complete"\n' },
-            [`/home/${user}/scripts/monitor.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 384, content: '#!/bin/bash\n# System monitor\necho "CPU: $(uptime)"\necho "Memory: $(free -h | grep Mem)"\necho "Disk: $(df -h / | tail -1)"\n' },
-            [`/home/${user}/scripts/deploy.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 256, content: '#!/bin/bash\necho "Deploying application..."\ncd ~/Documents/project\npython3 main.py\n' },
-            [`/home/${user}/.bashrc`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 3024, content: '# ~/.bashrc\nexport PATH=$PATH:~/bin\nalias ll="ls -la"\nalias la="ls -A"\nalias l="ls -CF"\n' },
-            [`/home/${user}/.profile`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 807, content: '# ~/.profile\nif [ -f ~/.bashrc ]; then\n    . ~/.bashrc\nfi\n' },
-            [`/home/${user}/notes.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: 'Linux Learning Notes\n====================\n\n1. Use man pages for help\n2. Tab completion saves time\n3. History with arrow keys\n4. Ctrl+C to interrupt\n5. Ctrl+L to clear screen\n' },
-            [`/home/${user}/readme.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 128, content: '# Welcome to Hexworth Linux Labs\n\nThis is your home directory. Explore and learn!\n' },
+            '/home': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: isRoot ? [] : [user] },
+            [home]: { type: 'dir', perms: isRoot ? 'drwx------' : 'drwxr-xr-x', owner: user, group: user, children: ['Documents', 'Downloads', 'scripts', '.bashrc', '.profile', 'notes.txt', 'readme.md', 'users.txt', 'log.txt', 'scores.txt'] },
+            [`${home}/users.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 192, content: 'john 25 engineer austin\njane 30 designer seattle\nadmin 45 sysadmin denver\nguest 22 visitor boston\nmike 35 analyst chicago\nsara 28 developer portland\n' },
+            [`${home}/log.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 384, content: '2025-01-15 09:00:12 INFO Server started on port 8080\n2025-01-15 09:05:33 WARNING Disk usage at 85%\n2025-01-15 09:12:07 ERROR Connection refused to database\n2025-01-15 09:15:44 INFO Retry successful\n2025-01-15 09:30:00 ERROR Timeout waiting for response\n2025-01-15 09:45:22 CRITICAL Out of memory exception\n2025-01-15 10:00:01 INFO Service restarted\n2025-01-15 10:05:18 WARNING CPU usage at 92%\n' },
+            [`${home}/scores.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 160, content: 'alice 95 math\nbob 78 science\ncharlie 88 math\ndiana 92 science\neve 67 math\nfrank 85 science\ngrace 99 math\n' },
+            [`${home}/Documents`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['report.txt', 'data.csv', 'project'] },
+            [`${home}/Documents/project`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['main.py', 'config.json', 'README.md'] },
+            [`${home}/Documents/report.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 2048, content: 'Quarterly Report Q4 2025\n========================\n\nExecutive Summary:\nThis report covers system administration activities.\n\nKey Metrics:\n- Uptime: 99.9%\n- Security incidents: 0\n- Patches applied: 47\n\nRecommendations:\n1. Upgrade kernel to 6.x series\n2. Implement automated backups\n3. Review firewall rules\n' },
+            [`${home}/Documents/data.csv`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 512, content: 'id,name,value,status\n1,alpha,100,active\n2,beta,200,inactive\n3,gamma,150,active\n4,delta,300,active\n5,epsilon,50,inactive\n' },
+            [`${home}/Documents/project/main.py`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 1024, content: '#!/usr/bin/env python3\n"""Main application entry point."""\n\nimport sys\nimport config\n\ndef main():\n    print("Hello from Hexworth!")\n    return 0\n\nif __name__ == "__main__":\n    sys.exit(main())\n' },
+            [`${home}/Documents/project/config.json`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: '{\n  "app_name": "hexworth-demo",\n  "version": "1.0.0",\n  "debug": false,\n  "port": 8080\n}\n' },
+            [`${home}/Documents/project/README.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 384, content: '# Project README\n\nA sample project for learning Linux commands.\n\n## Usage\n\n```bash\npython3 main.py\n```\n\n## License\n\nMIT\n' },
+            [`${home}/Downloads`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['archive.tar.gz', 'image.png', 'installer.sh'] },
+            [`${home}/Downloads/archive.tar.gz`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 15360, content: '[binary data]' },
+            [`${home}/Downloads/image.png`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 24576, content: '[binary data]' },
+            [`${home}/Downloads/installer.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 4096, content: '#!/bin/bash\necho "Installing..."\nsleep 2\necho "Done!"\n' },
+            [`${home}/scripts`]: { type: 'dir', perms: 'drwxr-xr-x', owner: user, group: user, children: ['backup.sh', 'monitor.sh', 'deploy.sh'] },
+            [`${home}/scripts/backup.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 512, content: '#!/bin/bash\n# Backup script\ntar -czf backup_$(date +%Y%m%d).tar.gz ~/Documents\necho "Backup complete"\n' },
+            [`${home}/scripts/monitor.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 384, content: '#!/bin/bash\n# System monitor\necho "CPU: $(uptime)"\necho "Memory: $(free -h | grep Mem)"\necho "Disk: $(df -h / | tail -1)"\n' },
+            [`${home}/scripts/deploy.sh`]: { type: 'file', perms: '-rwxr-xr-x', owner: user, group: user, size: 256, content: '#!/bin/bash\necho "Deploying application..."\ncd ~/Documents/project\npython3 main.py\n' },
+            [`${home}/.bashrc`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 3024, content: '# ~/.bashrc\nexport PATH=$PATH:~/bin\nalias ll="ls -la"\nalias la="ls -A"\nalias l="ls -CF"\n' },
+            [`${home}/.profile`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 807, content: '# ~/.profile\nif [ -f ~/.bashrc ]; then\n    . ~/.bashrc\nfi\n' },
+            [`${home}/notes.txt`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 256, content: 'Linux Learning Notes\n====================\n\n1. Use man pages for help\n2. Tab completion saves time\n3. History with arrow keys\n4. Ctrl+C to interrupt\n5. Ctrl+L to clear screen\n' },
+            [`${home}/readme.md`]: { type: 'file', perms: '-rw-r--r--', owner: user, group: user, size: 128, content: '# Welcome to Hexworth Linux Labs\n\nThis is your home directory. Explore and learn!\n' },
             '/etc': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['passwd', 'group', 'shadow', 'hostname', 'hosts', 'resolv.conf', 'fstab'] },
-            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: `root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n${user}:x:1000:1000:${user.charAt(0).toUpperCase() + user.slice(1)} User:/home/${user}:/bin/bash\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n` },
-            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: `root:x:0:\n${user}:x:1000:${user}\nsudo:x:27:${user}\nusers:x:100:${user}\ndocker:x:999:${user}\nwww-data:x:998:${user}\n` },
+            // Root sessions: the hardcoded root:x:0:0 line already covers the
+            // session user — emitting the templated uid-1000 line too would
+            // produce two contradictory root entries (Nancy design review).
+            '/etc/passwd': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 1024, content: `root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nbin:x:2:2:bin:/bin:/usr/sbin/nologin\nsys:x:3:3:sys:/dev:/usr/sbin/nologin\nnobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n${isRoot ? '' : `${user}:x:1000:1000:${user.charAt(0).toUpperCase() + user.slice(1)} User:/home/${user}:/bin/bash\n`}www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n` },
+            '/etc/group': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 512, content: isRoot ? 'root:x:0:\nsudo:x:27:\nusers:x:100:\ndocker:x:999:\nwww-data:x:998:\n' : `root:x:0:\n${user}:x:1000:${user}\nsudo:x:27:${user}\nusers:x:100:${user}\ndocker:x:999:${user}\nwww-data:x:998:${user}\n` },
             '/etc/shadow': { type: 'file', perms: '-rw-------', owner: 'root', group: 'shadow', size: 256, content: '[Permission denied - requires root]' },
             '/etc/hostname': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 16, content: 'hexworth\n' },
             '/etc/hosts': { type: 'file', perms: '-rw-r--r--', owner: 'root', group: 'root', size: 256, content: '127.0.0.1\tlocalhost\n127.0.1.1\thexworth\n::1\t\tlocalhost ip6-localhost ip6-loopback\n' },
@@ -126,7 +138,7 @@ const LinuxTerminal = (function() {
             '/var': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['log', 'www', 'tmp'] },
             '/var/log': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['syslog', 'auth.log', 'dmesg'] },
             '/var/log/syslog': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 8192, content: 'Dec 27 09:00:01 hexworth CRON[1234]: (root) CMD (test -x /usr/sbin/anacron)\nDec 27 09:15:22 hexworth systemd[1]: Started Daily apt download activities.\nDec 27 09:30:45 hexworth kernel: [UFW BLOCK] IN=eth0 OUT= SRC=192.168.1.100\n' },
-            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096, content: `Dec 27 08:30:00 hexworth sshd[5678]: Accepted publickey for ${user}\nDec 27 08:30:00 hexworth systemd-logind[890]: New session 1 of user ${user}.\nDec 27 08:45:12 hexworth sudo: ${user} : TTY=pts/0 ; PWD=/home/${user} ; USER=root ; COMMAND=/bin/apt update\n` },
+            '/var/log/auth.log': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 4096, content: `Dec 27 08:30:00 hexworth sshd[5678]: Accepted publickey for ${user}\nDec 27 08:30:00 hexworth systemd-logind[890]: New session 1 of user ${user}.\nDec 27 08:45:12 hexworth sudo: ${user} : TTY=pts/0 ; PWD=${home} ; USER=root ; COMMAND=/bin/apt update\n` },
             '/var/log/dmesg': { type: 'file', perms: '-rw-r-----', owner: 'root', group: 'adm', size: 2048, content: '[    0.000000] Linux version 6.1.0-hexworth\n[    0.000001] Command line: BOOT_IMAGE=/vmlinuz\n[    0.523456] CPU: 4 cores detected\n[    1.234567] Memory: 8192MB available\n' },
             '/var/www': { type: 'dir', perms: 'drwxr-xr-x', owner: 'www-data', group: 'www-data', children: ['html'] },
             '/var/www/html': { type: 'dir', perms: 'drwxr-xr-x', owner: 'www-data', group: 'www-data', children: ['index.html'] },
@@ -147,7 +159,6 @@ const LinuxTerminal = (function() {
             '/bin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['bash', 'sh', 'ls', 'cat', 'cp', 'mv', 'rm', 'mkdir', 'rmdir'] },
             '/sbin': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['init', 'shutdown', 'reboot'] },
             '/opt': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: [] },
-            '/root': { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: [] },
             '/dev': { type: 'dir', perms: 'drwxr-xr-x', owner: 'root', group: 'root', children: ['null', 'zero', 'random', 'tty'] },
             '/proc': { type: 'dir', perms: 'dr-xr-xr-x', owner: 'root', group: 'root', children: ['cpuinfo', 'meminfo', 'version', 'uptime'] },
             '/proc/cpuinfo': { type: 'file', perms: '-r--r--r--', owner: 'root', group: 'root', size: 1024, content: 'processor\t: 0\nvendor_id\t: GenuineIntel\nmodel name\t: Intel Core i7-9700K\ncpu MHz\t\t: 3600.000\ncache size\t: 12288 KB\ncpu cores\t: 8\n' },
@@ -155,13 +166,20 @@ const LinuxTerminal = (function() {
             '/proc/version': { type: 'file', perms: '-r--r--r--', owner: 'root', group: 'root', size: 128, content: 'Linux version 6.1.0-hexworth (gcc version 12.2.0) #1 SMP PREEMPT_DYNAMIC\n' },
             '/proc/uptime': { type: 'file', perms: '-r--r--r--', owner: 'root', group: 'root', size: 32, content: '86400.00 172800.00\n' }
         };
+        // Non-root sessions keep the classic empty /root stub. For root
+        // sessions [home] above IS '/root' (seeded tree) — adding the stub
+        // here would clobber it, so it's conditional.
+        if (!isRoot) {
+            fs['/root'] = { type: 'dir', perms: 'drwx------', owner: 'root', group: 'root', children: [] };
+        }
+        return fs;
     }
 
     function _initEnv() {
         const pid = 1000 + Math.floor(Math.random() * 9000); // Simulated shell PID
         return {
             USER: config.user,
-            HOME: `/home/${config.user}`,
+            HOME: _homeFor(config.user),
             PWD: config.startDir,
             SHELL: '/bin/bash',
             PATH: '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
@@ -177,18 +195,24 @@ const LinuxTerminal = (function() {
     }
 
     function _initCurrentUser() {
+        // Root sessions get real root identity: uid/gid 0 activates the
+        // _canRead uid-0 branch and the _apt privilege gate (matching real
+        // Linux). Task #104; previously uid was hardcoded 1000 even for root.
+        const isRoot = config.user === 'root';
         return {
             username: config.user,
-            uid: 1000,
-            gid: 1000,
-            groups: [
+            uid: isRoot ? 0 : 1000,
+            gid: isRoot ? 0 : 1000,
+            groups: isRoot ? [
+                { gid: 0, name: 'root' }
+            ] : [
                 { gid: 1000, name: config.user },
                 { gid: 27, name: 'sudo' },
                 { gid: 100, name: 'users' },
                 { gid: 999, name: 'docker' },
                 { gid: 998, name: 'www-data' }
             ],
-            home: `/home/${config.user}`,
+            home: _homeFor(config.user),
             shell: '/bin/bash'
         };
     }
@@ -229,6 +253,14 @@ const LinuxTerminal = (function() {
         state.env = _initEnv();
         state.currentUser = _initCurrentUser();
         state.fs = JSON.parse(JSON.stringify(_createBaseFilesystem(config.user)));
+        // Track which /root keys came from the BASE seed (root sessions only,
+        // reset unconditionally on every init so a re-init or a second lab in
+        // the same singleton can never inherit a stale set). addFilesystem
+        // uses this to prune the generic home tree when a lab claims /root
+        // wholesale — see addFilesystem for the why.
+        state.baseSeededHomeKeys = config.user === 'root'
+            ? new Set(Object.keys(state.fs).filter(k => k === '/root' || k.startsWith('/root/')))
+            : new Set();
         state.umask = '0022';
         state.packages = {};
         state.services = {};
@@ -3765,7 +3797,9 @@ Building dependency tree... Done
     function _getPrompt() {
         const dir = state.currentDir === state.currentUser.home ? '~' :
                     state.currentDir.replace(state.currentUser.home, '~');
-        return `${state.currentUser.username}@${config.hostname}:${dir}$`;
+        // Real bash \$ semantics: '#' for uid 0, '$' otherwise.
+        const mark = state.currentUser.uid === 0 ? '#' : '$';
+        return `${state.currentUser.username}@${config.hostname}:${dir}${mark}`;
     }
 
     function _updatePrompt() {
@@ -3957,8 +3991,24 @@ Building dependency tree... Done
         getState,
         completeObjective,
 
-        // Module overlays for labs to inject custom content
-        addFilesystem: (overlay) => Object.assign(state.fs, overlay),
+        // Module overlays for labs to inject custom content.
+        // Root sessions: if a lab claims '/root' wholesale, drop the
+        // base-seeded generic home tree first — cd/cat resolve by fs KEY
+        // (not the parent's children array), so leaving base keys under a
+        // lab-authored /root would make phantom content reachable by exact
+        // path while invisible to ls (Nancy reviews, task #104). Only keys
+        // the base seed created are candidates; any key the overlay itself
+        // redefines survives. The set is cleared after one prune so later
+        // addFilesystem calls are plain merges.
+        addFilesystem: (overlay) => {
+            if (overlay && overlay['/root'] && state.baseSeededHomeKeys && state.baseSeededHomeKeys.size) {
+                for (const key of state.baseSeededHomeKeys) {
+                    if (!(key in overlay)) delete state.fs[key];
+                }
+                state.baseSeededHomeKeys.clear();
+            }
+            Object.assign(state.fs, overlay);
+        },
         addPackages: (pkgs) => Object.assign(state.packages, pkgs),
         addServices: (svcs) => Object.assign(state.services, svcs),
 
