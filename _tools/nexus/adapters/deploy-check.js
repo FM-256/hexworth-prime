@@ -650,18 +650,51 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
             if (!fs.existsSync(fullPath)) return;
             const content = fs.readFileSync(fullPath, 'utf8');
 
+            // Scan a MARKUP-ONLY view: blank whole <script> blocks and HTML
+            // comments (length-preserving) so that <img>/<html>/viewport
+            // substrings living in inline JS (string literals, backtick
+            // template literals, // and /* */ comments) or commented-out
+            // markup can't produce false positives. Task #208: every raw
+            // img-no-alt hit (8) and lang hit (10) in the corpus was such a
+            // buried match — e.g. `// Builds a webp icon <img> tag`, or a fake
+            // <html> with no lang inside a lab's simulated-filesystem template
+            // literal, while the real root <html> has lang. (strip-noncode
+            // can't reach backtick templates or attribute-value strings, so we
+            // blank whole <script> blocks here; the lang check below also only
+            // inspects the document's root <html> tag.)
+            //
+            // EXCEPTION: <script type="text/html"> and "text/x-template" hold
+            // real client-side-template markup that gets injected into the DOM,
+            // so they are NOT blanked — an alt-less <img> in one is a genuine
+            // finding. (Corpus has zero such templates today; forward-defensive.)
+            //
+            // KNOWN RESIDUAL BLIND SPOT (deferred to task #207): real markup
+            // assembled inside ORDINARY JS strings and injected via
+            // innerHTML/document.write is still invisible here — statically we
+            // can't tell such a string from dead example text without strip-
+            // noncode gaining backtick + injection awareness. checkAccessibility
+            // is WARN-only (never blocks a deploy, see verdict logic below), so
+            // this residual miss is a non-blocking gap, not a regression.
+            const markup = content
+                .replace(/<script(?![^>]*type\s*=\s*["'](?:text\/html|text\/x-template)["'])[\s\S]*?<\/script>/gi, m => m.replace(/[^\n]/g, ' '))
+                .replace(/<!--[\s\S]*?-->/g, m => m.replace(/[^\n]/g, ' '));
+
             // Check for missing viewport meta
-            if (!content.includes('name="viewport"') && !content.includes("name='viewport'")) {
+            if (!markup.includes('name="viewport"') && !markup.includes("name='viewport'")) {
                 issues.push(`${f}: missing <meta name="viewport"> — breaks mobile`);
             }
 
-            // Check for missing lang attribute on html
-            if (/<html(?!\s[^>]*lang=)/i.test(content)) {
+            // Check for missing lang attribute — inspect ONLY the document's
+            // first (root) <html> tag. A well-formed document has exactly one
+            // root <html>; any later "<html" is necessarily inside content or
+            // a string, not a second root element.
+            const rootHtml = markup.match(/<html\b[^>]*>/i);
+            if (rootHtml && !/\blang\s*=/i.test(rootHtml[0])) {
                 issues.push(`${f}: <html> missing lang attribute`);
             }
 
             // Check for img without alt (only new images, not icons with alt="")
-            const imgNoAlt = content.match(/<img(?![^>]*alt=)[^>]*>/gi);
+            const imgNoAlt = markup.match(/<img(?![^>]*alt=)[^>]*>/gi);
             if (imgNoAlt && imgNoAlt.length > 0) {
                 // Filter out icons that intentionally have no alt
                 const real = imgNoAlt.filter(tag => !tag.includes('icon-') && !tag.includes('emblem'));

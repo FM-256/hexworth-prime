@@ -33,6 +33,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-018 — deploy-check checkPaths: identical `..//assets` regex tested twice (dead copy-paste)  ·  P3  ·  open
+- **Found:** 2026-07-23 · by Nancy (during task #208 checkAccessibility review) · marathon session
+- **Area:** `_tools/nexus/adapters/deploy-check.js:166-171` (checkPaths)
+- **Symptom:** two consecutive `if` blocks test the exact same regex `/\.\.\/\/assets/` under two different messages ("double-slash path (..//assets/)" and "double-slash in asset path"). A file with that pattern gets flagged twice; the second block is dead redundancy. No functional harm (over-reports, never under-reports), pure hygiene.
+- **Root cause:** copy-paste duplication when the check was written.
+- **Fix:** pending — delete the second block (lines 169-171), or make it test a genuinely different broken-path pattern if that was the intent. Left unfixed under #208 (out of scope; no edit = no new risk).
+- **Related:** task #208 (deploy-check comment/string-blindness sweep, where this was incidentally found).
+
 ### BUG-017 — da-linux-post-exploitation: /root/.bashrc + /root/.ssh/authorized_keys listed in `ls` but `cat` fails (phantom files)  ·  P3  ·  fixed-not-deployed
 - **Found:** 2026-07-23 · by Nancy (during task #104 design v2 review; became task #205) · marathon session
 - **Area:** `_app/dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html` (the `LinuxTerminal.addFilesystem({...})` overlay in the main inline `<script>`)
