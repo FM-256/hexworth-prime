@@ -118,11 +118,16 @@ class HTMLValidator {
     }
 
     /**
-     * Strip HTML comments from content
-     * Replace with equivalent-length spaces to preserve line numbers
+     * Strip HTML comments from content (shared util, newline-preserving).
+     * The previous inline version replaced a multi-line comment with a single
+     * run of spaces INCLUDING its newlines, silently merging lines — every
+     * finding located after such a comment carried a drifted line number.
+     * The shared stripHtmlComments blanks only non-newline chars, so line
+     * numbers stay accurate. (Taskboard #199, corpus-diffed 2026-07-23.)
      */
     stripComments(content) {
-        return content.replace(/<!--[\s\S]*?-->/g, match => ' '.repeat(match.length));
+        const { stripHtmlComments } = require('../../utils/strip-noncode.js');
+        return stripHtmlComments(content);
     }
 
     /**
