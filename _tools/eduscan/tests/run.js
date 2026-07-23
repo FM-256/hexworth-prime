@@ -813,6 +813,51 @@ console.log('');
     }
 }
 
+// ── strip-noncode shared util — contract pin ─────────────────────────
+// Three consumers (validators/syntax/html.js, validators/syntax/
+// dependency-check.js, nexus/adapters/deploy-check.js) share these
+// functions with different FP/FN tolerances; these tests pin the
+// documented guarantees so a change for one consumer can't silently
+// regress the others (Nancy condition, 2026-07-23).
+{
+    const S = require(path.join(EDUSCAN_DIR, 'utils/strip-noncode.js'));
+    let subPassed = 0, subFailed = 0;
+    const check = (name, cond) => { if (cond) subPassed++; else { subFailed++; console.log(`    ✗ strip-noncode: ${name}`); } };
+
+    // T1: length + line-count preservation across all three exports
+    const sample = '<html><!-- multi\nline -->\n<script>var a = "x"; // c\n/* b\nc */ var d = 1;</script>\n<p>t</p></html>';
+    for (const fn of ['neutralizeInlineScripts', 'stripHtmlComments', 'stripNonCode']) {
+        const out = S[fn](sample);
+        check(`${fn} length-preserving`, out.length === sample.length);
+        check(`${fn} line-preserving`, out.split('\n').length === sample.split('\n').length);
+    }
+    // T2: string-before-comment order — `//` inside a string must not eat code after it
+    const t2 = '<script>var u = "http://x.io"; Foo.bar();</script>';
+    check('URL-in-string does not comment-eat code', S.neutralizeInlineScripts(t2).includes('Foo.bar()'));
+    // T3: fake HTML-comment opener inside a JS string cannot fool the HTML-comment pass
+    const t3 = '<script>var s = "<!--";</script><p>KEEP</p><script>x();</script> -->';
+    check('fake <!-- in JS string does not swallow markup', S.stripNonCode(t3).includes('KEEP'));
+    // T4: external <script src> tags untouched (attribute values intact)
+    const t4 = '<script src="/components/ModuleProgress.js"></script>';
+    check('external src tag preserved', S.stripNonCode(t4).includes('ModuleProgress.js'));
+    // T5: comment-wrapped call blanked; live call kept
+    const t5 = '<!-- <script>Foo.fire("x");</script> --><script>Bar.keep("y");</script>';
+    const t5out = S.stripNonCode(t5);
+    check('comment-wrapped call blanked', !t5out.includes('Foo.fire'));
+    check('live call kept', t5out.includes('Bar.keep'));
+    // T6: commented-out script load removed
+    const t6 = '<!-- <script src="/components/ModuleProgress.js"></script> -->';
+    check('commented-out load removed', !S.stripNonCode(t6).includes('ModuleProgress.js'));
+
+    if (subFailed === 0) {
+        console.log(`  ✓ strip-noncode — all ${subPassed} unit tests pass (length/line preservation, strip ordering, src exclusion, comment neutralization)`);
+        passed++;
+    } else {
+        console.log(`  ✗ strip-noncode — ${subFailed}/${subPassed + subFailed} unit tests failed`);
+        failed++;
+    }
+}
+
 console.log('');
 console.log(`Results: ${passed}/${passed + failed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

@@ -94,29 +94,33 @@ class DependencyCheckValidator {
 
         if (!content) return issues;
 
-        // Extract all <script> tags from the file for checking
-        const scriptTags = this.extractScriptTags(content);
+        // Neutralize non-code contexts via the shared hardened util (see
+        // strip-noncode.js for the Task #207 ordering constraints). Inline
+        // JS strings/comments are blanked FIRST, THEN HTML comments — so a
+        // commented-out <script>Foo.bar()</script> can neither fire a rule
+        // (call-pattern side) nor satisfy one (script-tag side). Previously
+        // HTML comments were never stripped here (false DEP-004 positives on
+        // comment-wrapped scripts) and script tags were extracted from RAW
+        // content (a commented-out src tag counted as a real load).
+        const { neutralizeInlineScripts, stripHtmlComments, stripPreserveLines } =
+            require('../../utils/strip-noncode.js');
+        const stripPL = stripPreserveLines;
 
-        // Strip false-positive contexts where a call-pattern substring is
-        // documentation/example text, NOT an actual JS invocation:
+        // Tag-presence source: HTML comments removed, but attribute values
+        // (src="...") kept intact for extractScriptTags' pattern matching.
+        const liveContent = stripHtmlComments(neutralizeInlineScripts(content));
+        const scriptTags = this.extractScriptTags(liveContent);
+
+        // Call-pattern source: additionally strip documentation/example
+        // contexts where a call-pattern substring is text, not an invocation:
         //   - <code>...</code>, <pre>...</pre> (documentation/code samples)
         //   - HTML attribute values (titles, placeholders, error msgs)
-        //   - JS string literals + JS comments inside inline scripts
-        // The stripped version is used ONLY for call-pattern detection;
-        // script-tag presence is still checked against the original content.
-        const stripPL = (s) => s.replace(/[^\n]/g, ' ');
         let scanContent = content
             .replace(/(<(code|pre|textarea)\b[^>]*>)([\s\S]*?)(<\/\2>)/gi,
                 (_f, o, _n, b, c) => o + stripPL(b) + c)
             .replace(/=(["'])([\s\S]*?)\1/g,
-                (_f, q, v) => '=' + q + stripPL(v) + q)
-            .replace(/<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi,
-                (block) => block
-                    .replace(/"(?:[^"\\\n]|\\[\s\S])*"/g, m => '"' + stripPL(m.slice(1,-1)) + '"')
-                    .replace(/'(?:[^'\\\n]|\\[\s\S])*'/g, m => "'" + stripPL(m.slice(1,-1)) + "'")
-                    .replace(/\/\/[^\n]*/g, m => ' '.repeat(m.length))
-                    .replace(/\/\*[\s\S]*?\*\//g, m => stripPL(m))
-            );
+                (_f, q, v) => '=' + q + stripPL(v) + q);
+        scanContent = stripHtmlComments(neutralizeInlineScripts(scanContent));
 
         for (const rule of this.rules) {
             // Step 1: Does the file contain the call pattern? (use sanitized
