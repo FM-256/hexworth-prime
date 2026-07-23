@@ -234,6 +234,7 @@ class HeuristicsValidator {
         issues.push(...this.checkHasVisualWithoutSvg(file));
         issues.push(...this.checkWsaSlideLayoutContract(file));
         issues.push(...this.checkWsaHasVisualTextBudget(file));
+        issues.push(...this.checkDuplicateRootHtmlAttr(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -4340,6 +4341,78 @@ class HeuristicsValidator {
             line: this.getLineNumber(content, firstPos),
             fix: `Replace " — " (em-dash with surrounding spaces) with ", " (comma) for clause separation, or ": " (colon) when introducing an explanation.`
         });
+        return issues;
+    }
+
+    /**
+     * HEUR-040: Duplicate attribute on the document root <html> tag. A
+     * duplicate attribute (e.g. `<html lang="en" lang="en">`) is an HTML parse
+     * error; browsers silently keep the first and discard the rest, so it
+     * renders fine but is invalid and signals a buggy generator or fix-script
+     * that added an attribute without guarding an existing one (BUG-019 was a
+     * one-off lang-adder doing exactly this across 10 pages).
+     *
+     * Only the document's root <html> tag is inspected. HTML comments are
+     * blanked FIRST, so a comment BEFORE the root tag containing example markup
+     * — e.g. `<!-- was: <html lang="en" lang="en"> -->`, plausible given this
+     * repo just fixed BUG-019 — cannot make the match fire on the comment
+     * instead of the valid root (Nancy, task #212; 8 corpus files carry a
+     * leading comment today). After comment-blanking, the FIRST "<html" is the
+     * real root: any occurrence AFTER it lives in body content, a string, or a
+     * template literal (a lab's simulated page), never a 2nd root element —
+     * the same false-positive-avoidance lesson as task #208.
+     *
+     * Known limitations (deliberate — this is a targeted root-tag check, not a
+     * general duplicate-attribute detector): (a) only attributes in `name=`
+     * form are considered, so a duplicated BOOLEAN attribute (`<html itemscope
+     * itemscope>`) is not flagged; (b) an attribute value containing a literal
+     * `>` truncates the tag capture and can silently miss a downstream dup —
+     * not a concern for real <html> tags, whose attributes never carry `>`.
+     */
+    checkDuplicateRootHtmlAttr(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content) return issues;
+
+        // Blank HTML comments first (length/line-preserving, so the match
+        // index still maps to the original content for getLineNumber). This
+        // removes any leading-comment example markup before the real root tag.
+        const { stripHtmlComments } = require('../../utils/strip-noncode.js');
+        const scan = stripHtmlComments(content);
+
+        // Grab the document's first (root) <html ...> opening tag only.
+        const tagMatch = scan.match(/<html\b([^>]*)>/i);
+        if (!tagMatch) return issues;
+
+        // Blank quoted attribute VALUES first so a value that itself contains
+        // an '=' (e.g. class="a=b") can't be misread as another attribute,
+        // then collect the attribute names that precede an '='.
+        const attrText = tagMatch[1]
+            .replace(/=\s*"[^"]*"/g, '=""')
+            .replace(/=\s*'[^']*'/g, "=''");
+        const names = (attrText.match(/([-a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=/g) || [])
+            .map(s => s.replace(/\s*=$/, '').toLowerCase());
+
+        // Any attribute name appearing more than once on the root tag is a dup.
+        const seen = new Set();
+        const dups = new Set();
+        for (const n of names) {
+            if (seen.has(n)) dups.add(n);
+            else seen.add(n);
+        }
+
+        if (dups.size > 0) {
+            const line = this.getLineNumber(content, tagMatch.index);
+            issues.push({
+                code: 'HEUR-040',
+                severity: 'low',
+                category: 'heuristic',
+                message: `Root <html> tag has duplicate attribute(s): ${[...dups].join(', ')}. Invalid HTML (browsers keep the first and discard the rest) — usually a generator or fix-script that added an attribute without guarding an existing one.`,
+                file: file.path,
+                line,
+                fix: `Remove the duplicate ${[...dups].join(', ')} attribute so the <html> tag declares each attribute once.`
+            });
+        }
         return issues;
     }
 
