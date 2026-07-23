@@ -33,13 +33,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-013 — `azure-fundamentals` LearningPath renders a stale legacy curriculum (twin of the aws-ccp bug)  ·  P3  ·  open
+### BUG-013 — `azure-fundamentals` LearningPath renders a stale legacy curriculum (twin of the aws-ccp bug)  ·  P3  ·  FIXED (pending deploy) 2026-07-23
 - **Found:** 2026-07-22 · by Nancy · during CLF-C02 course-build review
 - **Area:** `_app/components/LearningPaths.js` `'azure-fundamentals'` path `.modules` array + `_app/houses/cloud/index.html:113` paths-card (no explicit `href`)
 - **Symptom:** the `azure-fundamentals` path's `modules` array is still the old scattered `cloud-concepts`/`cloud-models`/`cloud-ch0X-*.tool` list, NOT the real `az900-ch0X-*` chapter modules. Its cloud-hub paths-card has no `href`, so it falls through to `path-view.html?...azure-fundamentals` and renders that stale checklist — a disconnected curriculum under the "Azure Fundamentals" name, parallel to the real AZ-900 course (`az-900/index.html`).
 - **Root cause:** same as the aws-ccp bug fixed during the CLF-C02 build (2026-07-22) — the LearningPath `.modules` arrays predate the dedicated `az-900/` course dir and were never repointed. AZ-900 predates the CLF-C02 work so it was left out of scope.
-- **Fix (deferred):** mirror the aws-ccp fix — replace `azure-fundamentals.modules` with the 9 real `az900-ch0{1,2,3}-{pres,lab,quiz}` modules (hrefs into `houses/cloud/az-900/...`), prerequisite-chained. `courseHref` is already correct (`houses/cloud/az-900/index.html`).
-- **Related:** the aws-ccp equivalent was fixed in the CLF-C02 build. Cloud QC campaign [[project]] candidate.
+- **Fix (applied 2026-07-23):** mirrored the aws-ccp fix — replaced `azure-fundamentals.modules` (14 stale modules) with the 9 real `az900-ch0{1,2,3}-{pres,lab,quiz}` modules (hrefs into `houses/cloud/az-900/...`), prerequisite-chained, Ch03 title "Management and Governance" matching the hub verbatim. `courseHref` was already correct. ONE file changed (`LearningPaths.js`). No `cloud/index.html` change needed: the paths-card renders correctly through `path-view.html` once the modules array is real (same as aws-ccp), and a separate direct AZ-900 course card already exists (`cloud/index.html:178`). Nancy PROCEED, Chris PASS.
+- **Side benefit (Nancy):** also resolves a pre-existing cross-path id collision — `cse-01-fundamentals` and `cse-02-iam` existed verbatim in BOTH this path and the separate `'cse'` LearningPath (`LearningPaths.js:3139`); `path-view.html`'s flat completion Set bled state between them. Removing them here ends that bleed.
+- **FOLLOW-UP (logged, not blocking):** the `'cse'` LearningPath (EC-Council Cloud Security Engineer) is fully defined with its own `courseHref`/`PATH_HOUSE_MAP` entry but is NOT exposed on `cloud/index.html`'s `paths` array — a second half-built cert path sitting dark in the same file. Decide expose-or-remove in a Cloud QC pass. Also: `_app/houses/azure-fundamentals/index.html` (orphaned from live nav, only referenced by an archived router) reads this same array via `CertPathRenderer` and incidentally benefits from the fix.
+- **Related:** the aws-ccp equivalent was fixed in the CLF-C02 build (`b7440b426`). Cloud QC campaign [[project]] candidate.
 
 ### BUG-012 — Dead internal links across _app (59 broken .html hrefs/redirects)  ·  P2  ·  in-progress (9 path-fixes shipping; clusters need decisions)
 - **Found:** 2026-07-22 · by self (full-site dead-link scan) · in "continue easy work" session

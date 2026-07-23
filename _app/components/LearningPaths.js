@@ -5382,145 +5382,18 @@ class LearningPaths {
             color: '#0ea5e9',
             courseHref: 'houses/cloud/az-900/index.html',
             modules: [
-                // Cloud Concepts
-                {
-                    id: 'cloud-concepts',
-                    title: 'Cloud Computing Concepts',
-                    type: 'presentation',
-                    difficulty: 'beginner',
-                    duration: '25 min',
-                    href: 'houses/cloud/presentations/cloud-concepts.presentation.html',
-                    prerequisites: []
-                },
-                {
-                    id: 'cloud-models',
-                    title: 'Cloud Models & Deployment',
-                    type: 'tool',
-                    difficulty: 'beginner',
-                    duration: '20 min',
-                    href: 'houses/cloud/tools/cloud-ch01-cloud-models.tool.html',
-                    prerequisites: ['cloud-concepts']
-                },
-                {
-                    id: 'cloud-providers',
-                    title: 'Cloud Provider Comparison',
-                    type: 'applet',
-                    difficulty: 'beginner',
-                    duration: '20 min',
-                    href: 'houses/cloud/applets/fundamentals/cloud-provider-comparison.applet.html',
-                    prerequisites: ['cloud-models']
-                },
-                // Azure Core Services
-                {
-                    id: 'cloud-azure-fundamentals',
-                    title: 'Azure Fundamentals',
-                    type: 'presentation',
-                    difficulty: 'beginner',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-azure-fundamentals.presentation.html',
-                    prerequisites: ['cloud-providers']
-                },
-                {
-                    id: 'cloud-aws-quiz',
-                    title: 'Azure Fundamentals Quiz',
-                    type: 'quiz',
-                    difficulty: 'beginner',
-                    duration: '20 min',
-                    href: 'houses/cloud/quizzes/cloud-aws-fundamentals.quiz.html',
-                    prerequisites: ['cloud-azure-fundamentals']
-                },
-                // Cloud Security
-                {
-                    id: 'cse-01-fundamentals',
-                    title: 'Cloud Security Fundamentals',
-                    type: 'presentation',
-                    difficulty: 'intermediate',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-cse-01-cloud-fundamentals.presentation.html',
-                    prerequisites: ['cloud-aws-quiz']
-                },
-                {
-                    id: 'cse-02-iam',
-                    title: 'Identity & Access Management',
-                    type: 'presentation',
-                    difficulty: 'intermediate',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-cse-02-identity-access-management.presentation.html',
-                    prerequisites: ['cse-01-fundamentals']
-                },
-                {
-                    id: 'cse-02-quiz',
-                    title: 'IAM Quiz',
-                    type: 'quiz',
-                    difficulty: 'intermediate',
-                    duration: '15 min',
-                    href: 'houses/cloud/quizzes/cloud-cse-02.quiz.html',
-                    prerequisites: ['cse-02-iam']
-                },
-                {
-                    id: 'cse-03-encryption',
-                    title: 'Data Protection & Encryption',
-                    type: 'presentation',
-                    difficulty: 'intermediate',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-cse-03-data-protection-encryption.presentation.html',
-                    prerequisites: ['cse-02-quiz']
-                },
-                {
-                    id: 'cse-03-quiz',
-                    title: 'Data Protection Quiz',
-                    type: 'quiz',
-                    difficulty: 'intermediate',
-                    duration: '15 min',
-                    href: 'houses/cloud/quizzes/cloud-cse-03.quiz.html',
-                    prerequisites: ['cse-03-encryption']
-                },
-                // Compliance & Pricing
-                {
-                    id: 'cse-04-network',
-                    title: 'Cloud Network Security',
-                    type: 'presentation',
-                    difficulty: 'intermediate',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-cse-04-network-security.presentation.html',
-                    prerequisites: ['cse-03-quiz']
-                },
-                {
-                    id: 'cse-04-quiz',
-                    title: 'Network Security Quiz',
-                    type: 'quiz',
-                    difficulty: 'intermediate',
-                    duration: '15 min',
-                    href: 'houses/cloud/quizzes/cloud-cse-04.quiz.html',
-                    prerequisites: ['cse-04-network']
-                },
-                {
-                    id: 'cloud-cse-08-compliance',
-                    title: 'Cloud Compliance & Governance',
-                    type: 'presentation',
-                    difficulty: 'intermediate',
-                    duration: '30 min',
-                    href: 'houses/cloud/presentations/cloud-cse-08-compliance-governance.presentation.html',
-                    prerequisites: ['cse-04-quiz']
-                },
-                {
-                    id: 'cloud-cse-08-quiz',
-                    title: 'Compliance Quiz',
-                    type: 'quiz',
-                    difficulty: 'intermediate',
-                    duration: '15 min',
-                    href: 'houses/cloud/quizzes/cloud-cse-08.quiz.html',
-                    prerequisites: ['cloud-cse-08-compliance']
-                },
-                {
-                    id: 'cloud-architecture',
-                    title: 'Cloud Architecture Designer',
-                    type: 'applet',
-                    difficulty: 'intermediate',
-                    duration: '45 min',
-                    href: 'houses/cloud/applets/architecture/cloud-architecture-designer.applet.html',
-                    prerequisites: ['cloud-cse-08-quiz']
-                }
+                // Chapter 01: Cloud Concepts
+                { id: 'az900-ch01-pres', title: 'Ch01: Cloud Concepts (Slides)', type: 'presentation', difficulty: 'beginner', duration: '25 min', href: 'houses/cloud/az-900/presentations/az900-ch01-cloud-concepts.presentation.html', prerequisites: [] },
+                { id: 'az900-ch01-lab', title: 'Ch01: Cloud Concepts Lab', type: 'lab', difficulty: 'beginner', duration: '35 min', href: 'houses/cloud/az-900/labs/az900-ch01-cloud-concepts.lab.html', prerequisites: ['az900-ch01-pres'] },
+                { id: 'az900-ch01-quiz', title: 'Ch01: Cloud Concepts Quiz', type: 'quiz', difficulty: 'beginner', duration: '15 min', href: 'houses/cloud/az-900/quizzes/az900-ch01.quiz.html', prerequisites: ['az900-ch01-lab'] },
+                // Chapter 02: Azure Architecture
+                { id: 'az900-ch02-pres', title: 'Ch02: Azure Architecture (Slides)', type: 'presentation', difficulty: 'beginner', duration: '25 min', href: 'houses/cloud/az-900/presentations/az900-ch02-azure-architecture.presentation.html', prerequisites: ['az900-ch01-quiz'] },
+                { id: 'az900-ch02-lab', title: 'Ch02: Azure Architecture Lab', type: 'lab', difficulty: 'beginner', duration: '35 min', href: 'houses/cloud/az-900/labs/az900-ch02-azure-architecture.lab.html', prerequisites: ['az900-ch02-pres'] },
+                { id: 'az900-ch02-quiz', title: 'Ch02: Azure Architecture Quiz', type: 'quiz', difficulty: 'beginner', duration: '15 min', href: 'houses/cloud/az-900/quizzes/az900-ch02.quiz.html', prerequisites: ['az900-ch02-lab'] },
+                // Chapter 03: Management and Governance
+                { id: 'az900-ch03-pres', title: 'Ch03: Management and Governance (Slides)', type: 'presentation', difficulty: 'beginner', duration: '25 min', href: 'houses/cloud/az-900/presentations/az900-ch03-management-governance.presentation.html', prerequisites: ['az900-ch02-quiz'] },
+                { id: 'az900-ch03-lab', title: 'Ch03: Management and Governance Lab', type: 'lab', difficulty: 'beginner', duration: '35 min', href: 'houses/cloud/az-900/labs/az900-ch03-management-governance.lab.html', prerequisites: ['az900-ch03-pres'] },
+                { id: 'az900-ch03-quiz', title: 'Ch03: Management and Governance Quiz', type: 'quiz', difficulty: 'beginner', duration: '15 min', href: 'houses/cloud/az-900/quizzes/az900-ch03.quiz.html', prerequisites: ['az900-ch03-lab'] }
             ]
         },
 
