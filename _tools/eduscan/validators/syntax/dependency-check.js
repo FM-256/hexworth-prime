@@ -111,16 +111,37 @@ class DependencyCheckValidator {
         const liveContent = stripHtmlComments(neutralizeInlineScripts(content));
         const scriptTags = this.extractScriptTags(liveContent);
 
-        // Call-pattern source: additionally strip documentation/example
-        // contexts where a call-pattern substring is text, not an invocation:
+        // Call-pattern source: start from liveContent (HTML comments +
+        // inline-script strings/comments already neutralized above) — reused,
+        // NOT recomputed, so the two derivations can never drift apart. Doing
+        // the comment/string neutralization FIRST means an unbalanced quote
+        // inside an HTML comment can't feed the attribute-value strip below.
+        // Then additionally strip documentation/example contexts where a
+        // call-pattern substring is text, not an invocation:
         //   - <code>...</code>, <pre>...</pre> (documentation/code samples)
         //   - HTML attribute values (titles, placeholders, error msgs)
-        let scanContent = content
+        // The attribute-value strip is bounded to a SINGLE LINE ([^\n]) so an
+        // unbalanced `="` — in a comment OR in visible body text — can at most
+        // blank to the end of its own line; it can never run forward across
+        // newlines and swallow a real API call on a later line (task #203 FN:
+        // that overreach silently hid genuinely-missing dependencies).
+        // KNOWN, ACCEPTED TRADE-OFF (Nancy, task #203): a genuinely multi-line
+        // attribute value whose opening quote has no closing quote on the same
+        // line is now left UNstripped (the bounded regex simply fails to match
+        // it). So a call-pattern substring used as documentation prose inside
+        // such a value (e.g. title="...the old pattern was
+        // ProgressManager.completeModule('x')...") can produce a DEP false
+        // positive where the old unbounded regex suppressed it. Accepted
+        // because the failure is asymmetric in the right direction: a rare,
+        // human-triaged, currently zero-occurrence (corpus-verified across all
+        // 5230 files) internal false alarm is far less harmful than the FN it
+        // replaces (silently hiding a missing dependency that zeroes a
+        // student's grade). Prefer widening coverage over re-introducing the FN.
+        let scanContent = liveContent
             .replace(/(<(code|pre|textarea)\b[^>]*>)([\s\S]*?)(<\/\2>)/gi,
                 (_f, o, _n, b, c) => o + stripPL(b) + c)
-            .replace(/=(["'])([\s\S]*?)\1/g,
+            .replace(/=(["'])([^\n]*?)\1/g,
                 (_f, q, v) => '=' + q + stripPL(v) + q);
-        scanContent = stripHtmlComments(neutralizeInlineScripts(scanContent));
 
         for (const rule of this.rules) {
             // Step 1: Does the file contain the call pattern? (use sanitized
