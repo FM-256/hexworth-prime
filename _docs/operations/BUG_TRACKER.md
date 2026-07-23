@@ -33,6 +33,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-019 — 10 house pages have duplicate `lang` attribute on root tag (`<html lang="en" lang="en">`)  ·  P3  ·  fixed-not-deployed
+- **Found:** 2026-07-23 · by Nancy (incidental during task #208 checkAccessibility review) · marathon session
+- **Area:** 10 files (code-docker.lab, script-reporting-automation.applet, clh-012/script-intro.module, script-dont-kill-the-server, script-linux-compression.lab, script-linux-links.lab, script-mission-permissions.lab, shield-linux-selinux.lab, web-packet-sniffer.applet, web-burp.tool)
+- **Symptom:** root tag rendered `<html lang="en" lang="en">` — invalid HTML (duplicate attribute is a parse error) but harmless: browsers discard the second `lang`, effective DOM identical. No functional/rendering impact.
+- **Root cause:** one-off past commit `ceb13a08a` (2026-02-27, "Add screen reader support ... AC-6") — an a11y batch that added `lang="en"` without guarding against an existing `lang`. NOT the current tooling: `_tools/eduscan/fixers/fix-a11y.js` fixLangAttribute is idempotent + guarded (skips any line already containing `lang=`), and the 3 page generators all emit a correct single `lang="en"` — verified no active recurrence source. (That same commit touched 14 files; 4 self-healed via later full-file rewrites, leaving these 10.)
+- **Fix:** exact-string dedup `<html lang="en" lang="en">` → `<html lang="en">` in all 10 (verified 1 occurrence each; `git diff --stat` = 10 files, 1 line each, only the lang change). Nancy PROCEED (independently verified).
+- **Verified:** self (git diff clean, 0 double-lang remaining) + Nancy (exact-string counts, root-cause trace, fixer idempotency, generators). Rendering effect is a provable no-op (HTML spec discards duplicate attr) — no browser test needed.
+- **Related:** task #211 (this fix); task #212 (proposed EduScan duplicate-attribute HEUR rule — recurrence gate, since no validator catches this class today). Same detector-blindness family as #208 (a fake no-lang `<html>` in a lab template literal is what made the old checkAccessibility flag several of these, and likely mis-triggered the original AC-6 fixer).
+
 ### BUG-018 — deploy-check checkPaths: identical `..//assets` regex tested twice (dead copy-paste)  ·  P3  ·  open
 - **Found:** 2026-07-23 · by Nancy (during task #208 checkAccessibility review) · marathon session
 - **Area:** `_tools/nexus/adapters/deploy-check.js:166-171` (checkPaths)
