@@ -37,6 +37,112 @@ class LinuxTerminalValidator {
         issues.push(...this.checkAddCommand(file));
         issues.push(...this.checkMissingModuleProgress(file));
         issues.push(...this.checkNestedProgressKey(file));
+        issues.push(...this.checkPhantomRootChildren(file));
+
+        return issues;
+    }
+
+    /**
+     * LT-005: Phantom child in a root session's /root filesystem overlay.
+     *
+     * For root sessions (user:'root'), LinuxTerminal's #104 root-home prune
+     * (LinuxTerminal.js ~line 4003) deletes every base-seeded /root/* node the
+     * lab's addFilesystem overlay does not itself re-declare. So if a dir node
+     * under /root lists a name in its `children` array but the overlay defines
+     * no node at that path, the name shows in `ls` while `cat`/`stat` fail — a
+     * phantom file (this is exactly BUG-017 on da-linux-post-exploitation).
+     *
+     * Scope is deliberately narrow to guarantee ZERO false positives: only
+     * root sessions that claim /root in the overlay, and only children under
+     * the /root subtree — that is precisely where the prune removes the base
+     * fallback, so an undeclared child is unambiguously unreachable. Non-root
+     * sessions and non-/root paths keep their base-seeded fallback and are NOT
+     * checked here (a broader per-user base-tree-aware audit is future work;
+     * a naive whole-corpus scan is ~98% false positives — see task #210). If
+     * the overlay is not a statically parseable object literal, nothing is
+     * flagged (conservative — no guessing).
+     */
+    checkPhantomRootChildren(file) {
+        const issues = [];
+        const content = file.content;
+
+        // Only root sessions are subject to the /root prune.
+        if (!/user\s*:\s*['"]root['"]/.test(content)) return issues;
+
+        // Brace-match EVERY addFilesystem({...}) overlay. A lab may layer
+        // several (e.g. a staged root reveal); they all merge into one
+        // filesystem, so declared nodes + children accumulate across all calls.
+        const overlays = [];
+        let searchIdx = 0;
+        while (true) {
+            const callIdx = content.indexOf('addFilesystem(', searchIdx);
+            if (callIdx === -1) break;
+            const objStart = content.indexOf('{', callIdx);
+            if (objStart === -1) break;
+            let depth = 0, end = -1;
+            for (let i = objStart; i < content.length; i++) {
+                if (content[i] === '{') depth++;
+                else if (content[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+            }
+            if (end === -1) break;
+            overlays.push({ text: content.slice(objStart, end), start: objStart });
+            searchIdx = end;
+        }
+        if (overlays.length === 0) return issues;
+
+        // Computed/template key ([expr]:{...}) => declared paths can't be
+        // resolved statically. `[` in KEY position follows `{` or `,` (an
+        // array VALUE follows `:`, so `children:[...]` does not match). If any
+        // overlay uses one, skip entirely: a false negative is acceptable, a
+        // false positive on a node that IS declared under a computed key is not.
+        if (overlays.some(o => /[{,]\s*\[/.test(o.text))) return issues;
+
+        // Union of all declared node paths across every overlay.
+        const declared = new Set();
+        for (const o of overlays) {
+            const keyRe = /(['"])(\/[^'"\n]*?)\1\s*:\s*\{/g;
+            let k;
+            while ((k = keyRe.exec(o.text)) !== null) declared.add(k[2]);
+        }
+        // Only a /root-claiming overlay triggers the prune.
+        if (!declared.has('/root')) return issues;
+
+        // For each declared /root dir node, brace-match its body (so a nested
+        // object before `children`, e.g. meta:{...}, can't hide the array) and
+        // flag any child with no declared node in the union (fallback pruned).
+        for (const o of overlays) {
+            const nodeRe = /(['"])(\/root[^'"\n]*?)\1\s*:\s*\{/g;
+            let m;
+            while ((m = nodeRe.exec(o.text)) !== null) {
+                const dirPath = m[2];
+                const bodyStart = m.index + m[0].length - 1; // the '{'
+                let depth = 0, bodyEnd = -1;
+                for (let i = bodyStart; i < o.text.length; i++) {
+                    if (o.text[i] === '{') depth++;
+                    else if (o.text[i] === '}') { depth--; if (depth === 0) { bodyEnd = i + 1; break; } }
+                }
+                if (bodyEnd === -1) continue;
+                const body = o.text.slice(bodyStart, bodyEnd);
+                const childrenMatch = body.match(/children\s*:\s*\[([^\]]*)\]/);
+                if (!childrenMatch) continue;
+                const kids = [...childrenMatch[1].matchAll(/(['"])([^'"]+)\1/g)].map(c => c[2]);
+                for (const kid of kids) {
+                    const childPath = (dirPath === '/root' ? '/root/' : dirPath + '/') + kid;
+                    if (!declared.has(childPath)) {
+                        const line = content.substring(0, o.start + m.index).split('\n').length;
+                        issues.push({
+                            code: 'LT-005',
+                            severity: 'medium',
+                            category: 'linux-terminal',
+                            message: `Root session lists "${kid}" in ${dirPath} children, but no filesystem node is declared at ${childPath}. The root-home prune removes the base-seeded fallback, so "ls" shows it while "cat"/"stat" fail (phantom file).`,
+                            file: file.path,
+                            line,
+                            fix: `Seed a node for ${childPath} in addFilesystem(), or remove "${kid}" from the ${dirPath} children array.`
+                        });
+                    }
+                }
+            }
+        }
 
         return issues;
     }
