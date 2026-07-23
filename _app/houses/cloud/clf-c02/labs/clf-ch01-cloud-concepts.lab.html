@@ -1,0 +1,2280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control — must be first -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>
+        AccessGuard.require('sorted');
+    </script>
+    <!-- Progress & Auth -->
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Concepts Explorer Lab — CLF-C02 Chapter 1</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            height: 100vh;
+            overflow: hidden;
+            background: #0c0c0c;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #b3cef5;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .lab-header {
+            flex-shrink: 0;
+            padding: 15px 30px;
+            background: rgba(10, 12, 20, 0.95);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .back-btn {
+            padding: 8px 16px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+        }
+
+        .lab-title {
+            font-size: 1rem;
+            color: #dbeafe;
+        }
+
+        .lab-badge {
+            padding: 4px 12px;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #60a5fa;
+            letter-spacing: 0.05em;
+        }
+
+        .lab-badge-ch {
+            padding: 4px 12px;
+            background: rgba(52, 211, 153, 0.15);
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            border-radius: 12px;
+            font-size: 0.7rem;
+            color: #34d399;
+            letter-spacing: 0.05em;
+        }
+
+        .task-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #6b82a0;
+        }
+
+        .task-count {
+            color: #3b82f6;
+            font-weight: 500;
+        }
+
+        /* Progress bar */
+        .progress-bar-wrap {
+            width: 140px;
+            height: 6px;
+            background: rgba(59, 130, 246, 0.15);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        /* ── Main Layout ── */
+        .lab-container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* ── Task Panel ── */
+        .task-panel {
+            background: rgba(10, 14, 22, 0.95);
+            border-right: 1px solid rgba(59, 130, 246, 0.15);
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .task-section {
+            margin-bottom: 25px;
+        }
+
+        .task-section-title {
+            font-size: 0.68rem;
+            color: #3b5278;
+            letter-spacing: 0.15em;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .task-card {
+            background: rgba(12, 18, 32, 0.8);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .task-card.active {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-card.completed {
+            border-color: rgba(52, 211, 153, 0.4);
+            background: rgba(52, 211, 153, 0.04);
+        }
+
+        /* Completed badge — CSS only, no emoji */
+        .task-card.completed .task-name::after {
+            content: ' [done]';
+            font-size: 0.72rem;
+            color: #34d399;
+            font-weight: 400;
+        }
+
+        .task-number {
+            font-size: 0.68rem;
+            color: #3b82f6;
+            margin-bottom: 4px;
+        }
+
+        .task-name {
+            font-size: 0.9rem;
+            color: #dbeafe;
+            margin-bottom: 4px;
+        }
+
+        .task-desc {
+            font-size: 0.77rem;
+            color: #6b82a0;
+            line-height: 1.45;
+        }
+
+        /* Inline code in task cards */
+        .task-desc code {
+            background: rgba(59, 130, 246, 0.15);
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 0.82em;
+            color: #60a5fa;
+            font-family: 'Consolas', monospace;
+        }
+
+        /* ── Terminal Panel ── */
+        .terminal-panel {
+            display: flex;
+            flex-direction: column;
+            background: #0a0a0a;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Toolbar */
+        .term-toolbar {
+            flex-shrink: 0;
+            padding: 8px 20px;
+            background: rgba(12, 18, 28, 0.9);
+            border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .term-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .term-dot-red   { background: #ff5f57; }
+        .term-dot-amber { background: #febc2e; }
+        .term-dot-green { background: #28c840; }
+
+        .term-title {
+            flex: 1;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #4a6080;
+            font-family: 'Consolas', 'Courier New', monospace;
+        }
+
+        .term-vm-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            color: #34d399;
+        }
+
+        .term-status-dot {
+            width: 7px;
+            height: 7px;
+            background: #34d399;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── Terminal scroll area ── */
+        .term-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px 360px 8px 20px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            line-height: 1.6;
+        }
+
+        /* ── Terminal input row ── */
+        .term-input-row {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            padding: 8px 360px 12px 20px;
+            border-top: 1px solid rgba(59, 130, 246, 0.1);
+            gap: 0;
+        }
+
+        .term-prompt-label {
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .term-prompt-user   { color: #3b82f6; }
+        .term-prompt-sep    { color: #3b5278; }
+        .term-prompt-path   { color: #34d399; }
+        .term-prompt-dollar { color: #dbeafe; margin-right: 6px; }
+
+        .term-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #dbeafe;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.875rem;
+            caret-color: #3b82f6;
+        }
+
+        /* ── Terminal line classes ── */
+        .term-line {
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .term-line-cmd  { color: #b3cef5; }
+        .term-line-out  { color: #a0d4a0; }
+        .term-line-err  { color: #f87171; }
+        .term-line-info { color: #60a5fa; }
+        .term-line-warn { color: #fbbf24; }
+        .term-line-dim  { color: #374860; }
+        .term-welcome   { color: #3b82f6; }
+        .term-line-code { color: #86efac; font-family: 'Consolas', 'Courier New', monospace; }
+
+        /* Prompt echo spans */
+        .term-prompt-span { color: #3b82f6; }
+        .term-path-span   { color: #34d399; }
+        .term-ps1-sep     { color: #3b5278; }
+
+        /* JSON syntax highlighting */
+        .json-key    { color: #60a5fa; }
+        .json-string { color: #86efac; }
+        .json-number { color: #fbbf24; }
+        .json-bool   { color: #93c5fd; }
+        .json-null   { color: #f87171; }
+
+        /* ── Instructions Panel — absolute within terminal-panel, no position:fixed ── */
+        .instructions-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .instructions-panel.collapsed {
+            width: auto;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-body {
+            display: none;
+        }
+
+        .instructions-panel.collapsed .instructions-toggle {
+            transform: rotate(180deg);
+        }
+
+        .instructions-title {
+            font-size: 1rem;
+            color: #3b82f6;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .instructions-panel.collapsed .instructions-title {
+            margin-bottom: 0;
+            font-size: 0.85rem;
+        }
+
+        .instructions-toggle {
+            margin-left: auto;
+            width: 28px;
+            height: 28px;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .instructions-toggle:hover {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        .instructions-step {
+            font-size: 0.88rem;
+            color: #b3cef5;
+            line-height: 1.65;
+            margin-bottom: 14px;
+        }
+
+        .instructions-step code {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-family: 'Consolas', monospace;
+            color: #60a5fa;
+            font-size: 0.85em;
+        }
+
+        .instructions-hint {
+            font-size: 0.78rem;
+            color: #3b5278;
+            font-style: italic;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(59, 130, 246, 0.15);
+            line-height: 1.5;
+        }
+
+        /* Hint reveal button */
+        .hint-btn {
+            margin-top: 12px;
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 5px;
+            color: #3b82f6;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-family: 'Segoe UI', sans-serif;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-align: center;
+        }
+
+        .hint-btn:hover {
+            background: rgba(59, 130, 246, 0.22);
+        }
+
+        .hint-command {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 0.78rem;
+            color: #86efac;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .hint-command.visible {
+            display: block;
+        }
+
+        /* ── Success Overlay ── */
+        .success-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .success-overlay.active {
+            display: flex;
+        }
+
+        .success-card {
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(52, 211, 153, 0.35);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 480px;
+            width: 90%;
+        }
+
+        .success-icon {
+            margin-bottom: 20px;
+        }
+
+        .success-title {
+            font-size: 1.5rem;
+            color: #34d399;
+            margin-bottom: 10px;
+        }
+
+        .success-message {
+            color: #b3cef5;
+            margin-bottom: 25px;
+            line-height: 1.65;
+            font-size: 0.95rem;
+        }
+
+        .success-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .success-btn:hover {
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.35);
+            transform: translateY(-1px);
+        }
+
+        /* ── Tab completion popup ── */
+        .tab-suggestions {
+            display: none;
+            position: absolute;
+            bottom: 52px;
+            left: 20px;
+            background: rgba(10, 16, 28, 0.97);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 200;
+            font-family: 'Consolas', monospace;
+            font-size: 0.8rem;
+        }
+
+        .tab-suggestions.visible {
+            display: block;
+        }
+
+        .tab-option {
+            padding: 4px 14px;
+            color: #86efac;
+            cursor: pointer;
+        }
+
+        .tab-option:hover, .tab-option.selected {
+            background: rgba(59, 130, 246, 0.15);
+            color: #dbeafe;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 1024px) {
+            .lab-container {
+                grid-template-columns: 1fr;
+            }
+            .task-panel {
+                display: none;
+            }
+            .term-output,
+            .term-input-row {
+                padding-right: 20px;
+            }
+            .instructions-panel {
+                position: absolute;
+                bottom: 60px;
+                top: auto;
+                right: 10px;
+                left: 10px;
+                width: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ── Header ── -->
+    <header class="lab-header">
+        <div class="header-left">
+            <a href="../index.html" class="back-btn">&larr; CLF-C02</a>
+            <span class="lab-title">Cloud Concepts Explorer Lab</span>
+            <span class="lab-badge">CLF-C02</span>
+            <span class="lab-badge-ch">CH 1</span>
+        </div>
+        <div class="task-progress">
+            <span>Progress:</span>
+            <div class="progress-bar-wrap">
+                <div class="progress-bar-fill" id="progressBarFill"></div>
+            </div>
+            <span class="task-count" id="taskProgress">0 / 10 Tasks</span>
+        </div>
+    </header>
+
+    <!-- ── Main ── -->
+    <div class="lab-container">
+
+        <!-- ── Left: Task Panel ── -->
+        <aside class="task-panel" id="taskPanel">
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 1 — Accounts and Regions</div>
+
+                <div class="task-card" id="task-card-1" data-task="1" onclick="selectTask(1)">
+                    <div class="task-number">Task 1</div>
+                    <div class="task-name">Check Your Account</div>
+                    <div class="task-desc">Run <code>aws sts get-caller-identity</code> to inspect your active AWS account -- the billing and resource boundary for everything you create.</div>
+                </div>
+
+                <div class="task-card" id="task-card-2" data-task="2" onclick="selectTask(2)">
+                    <div class="task-number">Task 2</div>
+                    <div class="task-name">List AWS Regions</div>
+                    <div class="task-desc">Run <code>aws ec2 describe-regions --output table</code> to browse AWS's 30+ global Regions and understand geo-distribution.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 2 — IaaS vs PaaS</div>
+
+                <div class="task-card" id="task-card-3" data-task="3" onclick="selectTask(3)">
+                    <div class="task-number">Task 3</div>
+                    <div class="task-name">Explore IaaS Instance Types</div>
+                    <div class="task-desc">Run <code>aws ec2 describe-instance-types --region us-east-1 --output table</code> to see IaaS compute specs -- vCPUs and memory for each instance type.</div>
+                </div>
+
+                <div class="task-card" id="task-card-4" data-task="4" onclick="selectTask(4)">
+                    <div class="task-number">Task 4</div>
+                    <div class="task-name">PaaS Runtimes</div>
+                    <div class="task-desc">Run <code>aws elasticbeanstalk list-available-solution-stacks</code> to see Elastic Beanstalk runtimes -- PaaS abstracts the OS so you just pick a runtime.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 3 — Cloud Environments</div>
+
+                <div class="task-card" id="task-card-5" data-task="5" onclick="selectTask(5)">
+                    <div class="task-number">Task 5</div>
+                    <div class="task-name">Regions and Partitions</div>
+                    <div class="task-desc">Run <code>aws ec2 describe-regions --all-regions --output table</code> to see opt-in Regions and learn about AWS's isolated partitions -- standard, GovCloud, and China.</div>
+                </div>
+
+                <div class="task-card" id="task-card-6" data-task="6" onclick="selectTask(6)">
+                    <div class="task-number">Task 6</div>
+                    <div class="task-name">Trusted Advisor Recommendations</div>
+                    <div class="task-desc">Run <code>aws trustedadvisor list-recommendations --output table</code> to see cost optimization suggestions from AWS Trusted Advisor.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 4 — Cost and Billing Models</div>
+
+                <div class="task-card" id="task-card-7" data-task="7" onclick="selectTask(7)">
+                    <div class="task-number">Task 7</div>
+                    <div class="task-name">Consumption Billing</div>
+                    <div class="task-desc">Run <code>aws ce get-cost-and-usage --time-period Start=2025-01-01,End=2025-01-31 --granularity DAILY --metrics UnblendedCost --output table</code> to view pay-as-you-go billing data from Cost Explorer.</div>
+                </div>
+
+                <div class="task-card" id="task-card-8" data-task="8" onclick="selectTask(8)">
+                    <div class="task-number">Task 8</div>
+                    <div class="task-name">Reserved Pricing</div>
+                    <div class="task-desc">Run <code>aws ec2 describe-reserved-instances-offerings --instance-type m5.large --region us-east-1 --output table</code> to compare reserved pricing.</div>
+                </div>
+            </div>
+
+            <div class="task-section">
+                <div class="task-section-title">Phase 5 — Resource Types</div>
+
+                <div class="task-card" id="task-card-9" data-task="9" onclick="selectTask(9)">
+                    <div class="task-number">Task 9</div>
+                    <div class="task-name">EC2 Resource Types</div>
+                    <div class="task-desc">Run <code>aws cloudformation list-types --visibility PUBLIC --filters TypeNamePrefix=AWS::EC2 --output table</code> to see how the EC2 service exposes resource types via CloudFormation.</div>
+                </div>
+
+                <div class="task-card" id="task-card-10" data-task="10" onclick="selectTask(10)">
+                    <div class="task-number">Task 10</div>
+                    <div class="task-name">Service Resource Types</div>
+                    <div class="task-desc">Run <code>aws cloudformation list-types --visibility PUBLIC --output table</code> to list resource types across AWS services that back IaaS, PaaS, and SaaS.</div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- ── Right: Terminal Panel ── -->
+        <main class="terminal-panel" id="terminalPanel">
+        <h1 class="sr-only">Cloud Concepts Explorer Lab — CLF-C02 Chapter 1</h1>
+
+            <!-- Toolbar -->
+            <div class="term-toolbar">
+                <div class="term-dot term-dot-red"></div>
+                <div class="term-dot term-dot-amber"></div>
+                <div class="term-dot term-dot-green"></div>
+                <div class="term-title">awslearner@cloud-shell — bash</div>
+                <div class="term-vm-status">
+                    <div class="term-status-dot"></div>
+                    AWS CloudShell Online
+                </div>
+            </div>
+
+            <!-- Scrollable output -->
+            <div class="term-output" id="termOutput"></div>
+
+            <!-- Input row -->
+            <div class="term-input-row">
+                <span class="term-prompt-label">
+                    <span class="term-prompt-user">awslearner@cloud-shell</span><span class="term-prompt-sep">:</span><span class="term-prompt-path" id="termPS1Path">~</span><span class="term-prompt-dollar">$</span>
+                </span>
+                <input class="term-input" id="termInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Terminal input" />
+            </div>
+
+            <!-- Tab completion popup -->
+            <div class="tab-suggestions" id="tabSuggestions"></div>
+
+            <!-- Instructions Panel — absolute within terminal-panel, no position:fixed -->
+            <div class="instructions-panel" id="instructionsPanel">
+                <div class="instructions-title" onclick="toggleInstructions()">
+                    <img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">
+                    Task Instructions
+                    <button class="instructions-toggle" id="instructionsToggle" title="Collapse instructions">&#9660;</button>
+                </div>
+                <div class="instructions-body" id="instructionsBody">
+                    <div class="instructions-step" id="instructionsStep">
+                        Type the command in the terminal and press Enter.
+                    </div>
+                    <div class="instructions-hint" id="instructionsHint">
+                        <img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block">
+                        Hint text loads when you select a task.
+                    </div>
+                    <button class="hint-btn" onclick="revealHint()" id="hintBtn">Show command hint</button>
+                    <div class="hint-command" id="hintCommand"></div>
+                </div>
+            </div>
+
+            <!-- Success Overlay — absolute within terminal-panel, no position:fixed -->
+            <div class="success-overlay" id="successOverlay">
+                <div class="success-card">
+                    <div class="success-icon">
+                        <img src="/assets/images/icons/icon-star.webp" alt="" style="width:3rem;height:3rem;object-fit:contain">
+                    </div>
+                    <div class="success-title">CLF-C02 Chapter 1 Complete!</div>
+                    <div class="success-message">
+                        You explored AWS accounts, global Regions, IaaS instance types, PaaS runtimes,
+                        Region partitions, Trusted Advisor cost optimization, consumption-based billing,
+                        reserved instance pricing, EC2 resource types, and the broader service resource catalog.
+                        You now understand the core cloud concepts that form the foundation
+                        of every AWS deployment.
+                    </div>
+                    <button class="success-btn" onclick="finishLab()">Complete Lab</button>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        /* ════════════════════════════════════════════════
+           CONSTANTS
+        ════════════════════════════════════════════════ */
+        var USER         = 'awslearner';
+        var HOST         = 'cloud-shell';
+        var HOME         = '/home/awslearner';
+        var ACCOUNT_ID   = '123456789012';
+        var USER_ARN     = 'arn:aws:iam::123456789012:user/awslearner';
+        var ACCOUNT_ALIAS = 'aws-learning-account';
+
+        /* ════════════════════════════════════════════════
+           STATE
+        ═══��════════════════════════════════════════════ */
+        var cwd        = HOME;
+        var cmdHistory = [];
+        var histIdx    = -1;
+
+        var taskDone = {
+            1: false, 2: false, 3: false, 4: false, 5: false,
+            6: false, 7: false, 8: false, 9: false, 10: false
+        };
+        var TOTAL_TASKS = 10;
+        var currentTask = 1;
+
+        /* ════════════════════════════════════════════════
+           VIRTUAL FILE SYSTEM
+        ════════════════════════════════════════════════ */
+        var vfs = {};
+
+        function initFS() {
+            var dirs = [
+                '/', '/bin', '/etc', '/home', '/home/awslearner',
+                '/home/awslearner/docs',
+                '/tmp', '/usr', '/usr/bin', '/var', '/var/log'
+            ];
+            dirs.forEach(function (d) {
+                vfs[d] = { type: 'dir', mode: 'drwxr-xr-x' };
+            });
+
+            var files = {
+                '/etc/hostname': {
+                    c: HOST,
+                    m: '-rw-r--r--'
+                },
+                '/etc/hosts': {
+                    c: '127.0.0.1\tlocalhost\n::1\t\tlocalhost\n127.0.1.1\t' + HOST,
+                    m: '-rw-r--r--'
+                },
+                '/var/log/aws-cli.log': {
+                    c: [
+                        '[2026-04-21 08:00:01] INFO  AWS CLI 2.17.0 initialised',
+                        '[2026-04-21 08:00:02] INFO  Account: ' + ACCOUNT_ALIAS + ' (' + ACCOUNT_ID + ')',
+                        '[2026-04-21 08:00:03] INFO  Identity: ' + USER_ARN,
+                        '[2026-04-21 08:00:04] INFO  CloudShell environment ready'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/awslearner/docs/cloud-models.txt': {
+                    c: [
+                        'AWS Cloud Service Models',
+                        '=========================',
+                        '',
+                        'IaaS (Infrastructure as a Service)',
+                        '  - You manage: OS, runtime, middleware, apps, data',
+                        '  - AWS manages: physical host, network, storage',
+                        '  - Example: Amazon EC2, Amazon VPC',
+                        '',
+                        'PaaS (Platform as a Service)',
+                        '  - You manage: apps, data',
+                        '  - AWS manages: OS, runtime, middleware, host, network',
+                        '  - Example: AWS Elastic Beanstalk, Amazon RDS',
+                        '',
+                        'SaaS (Software as a Service)',
+                        '  - You manage: data, access',
+                        '  - Provider manages: everything else',
+                        '  - Example: Salesforce, Dropbox (SaaS apps commonly hosted on AWS)'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                },
+                '/home/awslearner/docs/shared-responsibility.txt': {
+                    c: [
+                        'Shared Responsibility Model',
+                        '===========================',
+                        '',
+                        'On-Premises: Customer responsible for EVERYTHING',
+                        'IaaS:        AWS handles physical security, host, network',
+                        'PaaS:        AWS handles OS, runtime; customer handles apps/data',
+                        'SaaS:        Provider handles almost everything; customer handles data/access',
+                        '',
+                        'ALWAYS customer responsibility (regardless of model):',
+                        '  - Information and data',
+                        '  - Devices (mobile and PCs)',
+                        '  - Accounts and identities'
+                    ].join('\n'),
+                    m: '-rw-r--r--'
+                }
+            };
+
+            Object.keys(files).forEach(function (p) {
+                vfs[p] = { type: 'file', content: files[p].c, mode: files[p].m };
+            });
+        }
+
+        /* ════════════════════════════════════════════════
+           PATH UTILITIES
+        ════════════════════════════════════════════════ */
+        function resolve(path) {
+            if (!path) return cwd;
+            path = path.replace(/^~/, HOME);
+            if (path[0] !== '/') path = cwd + '/' + path;
+            var parts = path.split('/'), stack = [];
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i] === '' || parts[i] === '.') continue;
+                if (parts[i] === '..') { stack.pop(); }
+                else { stack.push(parts[i]); }
+            }
+            return '/' + stack.join('/');
+        }
+
+        function parentOf(path) {
+            var i = path.lastIndexOf('/');
+            return i <= 0 ? '/' : path.substring(0, i);
+        }
+
+        function baseName(path) {
+            return path.substring(path.lastIndexOf('/') + 1);
+        }
+
+        function listDir(path) {
+            var prefix = path === '/' ? '/' : path + '/';
+            var names  = {};
+            Object.keys(vfs).forEach(function (p) {
+                if (p === path) return;
+                if (p.indexOf(prefix) === 0) {
+                    var rest = p.substring(prefix.length);
+                    var name = rest.split('/')[0];
+                    if (name && !names[name]) names[name] = true;
+                }
+            });
+            return Object.keys(names).sort();
+        }
+
+        function exists(p) { return Object.prototype.hasOwnProperty.call(vfs, p); }
+        function isDir(p)  { return exists(p) && vfs[p].type === 'dir'; }
+        function isFile(p) { return exists(p) && vfs[p].type === 'file'; }
+
+        function promptPath() {
+            if (cwd === HOME) return '~';
+            if (cwd.indexOf(HOME + '/') === 0) return '~' + cwd.substring(HOME.length);
+            return cwd;
+        }
+
+        /* ════════════════════════════════════════════════
+           TERMINAL UI HELPERS
+        ════════════════════════════════════════════════ */
+        var outputEl, inputEl, ps1PathEl;
+
+        function addLine(text, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.textContent = text;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addHTML(html, cls) {
+            var div = document.createElement('div');
+            div.className = 'term-line' + (cls ? ' ' + cls : '');
+            div.innerHTML = html;
+            outputEl.appendChild(div);
+            outputEl.scrollTop = outputEl.scrollHeight;
+        }
+
+        function addBlank() {
+            addLine('', '');
+        }
+
+        function addPromptLine(cmd) {
+            addHTML(
+                '<span class="term-prompt-span">' + USER + '@' + HOST + '</span>' +
+                '<span class="term-ps1-sep">:</span>' +
+                '<span class="term-path-span">' + escH(promptPath()) + '</span>' +
+                '<span class="term-ps1-sep">$ </span>' + escH(cmd),
+                'term-line-cmd'
+            );
+        }
+
+        function updatePS1() {
+            if (ps1PathEl) ps1PathEl.textContent = promptPath();
+        }
+
+        function escH(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /* ── JSON syntax highlighter ── */
+        function printJSON(obj) {
+            var raw = JSON.stringify(obj, null, 2);
+            var html = raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+                .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+                .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+                .replace(/: null/g, ': <span class="json-null">null</span>')
+                .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+
+            html.split('\n').forEach(function (line) {
+                addHTML(line, 'term-line-out');
+            });
+        }
+
+        /* ── Table printer ──
+           Renders an array of flat objects as a padded ASCII table,
+           similar to az --output table. */
+        function printTable(rows, columns) {
+            if (!rows || !rows.length) {
+                addLine('(empty result set)', 'term-line-dim');
+                return;
+            }
+            /* Determine column order */
+            var cols = columns || Object.keys(rows[0]);
+            /* Compute widths */
+            var widths = {};
+            cols.forEach(function (c) { widths[c] = c.length; });
+            rows.forEach(function (r) {
+                cols.forEach(function (c) {
+                    var v = String(r[c] !== undefined && r[c] !== null ? r[c] : '');
+                    if (v.length > widths[c]) widths[c] = v.length;
+                });
+            });
+            /* Header */
+            var header = cols.map(function (c) {
+                return pad(formatColHeader(c), widths[c]);
+            }).join('  ');
+            addLine(header, 'term-line-info');
+            /* Separator */
+            var sep = cols.map(function (c) {
+                return repeat('-', widths[c]);
+            }).join('  ');
+            addLine(sep, 'term-line-dim');
+            /* Rows */
+            rows.forEach(function (r) {
+                var line = cols.map(function (c) {
+                    var v = String(r[c] !== undefined && r[c] !== null ? r[c] : '');
+                    return pad(v, widths[c]);
+                }).join('  ');
+                addLine(line, 'term-line-out');
+            });
+        }
+
+        function pad(s, w) {
+            while (s.length < w) s += ' ';
+            return s;
+        }
+
+        function repeat(ch, n) {
+            var s = '';
+            for (var i = 0; i < n; i++) s += ch;
+            return s;
+        }
+
+        function formatColHeader(key) {
+            /* camelCase -> Title Case with spaces */
+            return key.replace(/([A-Z])/g, ' $1').replace(/^./, function (m) {
+                return m.toUpperCase();
+            }).trim();
+        }
+
+        /* ════════════════════════════════════════════════
+           ARG PARSING
+        ════════════════════════════════════════════════ */
+        function parseArgs(cmd) {
+            var args = [], buf = '', inQ = false, qC = '';
+            for (var i = 0; i < cmd.length; i++) {
+                var c = cmd[i];
+                if (inQ) {
+                    if (c === qC) { inQ = false; }
+                    else { buf += c; }
+                } else if (c === '"' || c === "'") {
+                    inQ = true; qC = c;
+                } else if (c === ' ' || c === '\t') {
+                    if (buf) { args.push(buf); buf = ''; }
+                } else {
+                    buf += c;
+                }
+            }
+            if (buf) args.push(buf);
+            return args;
+        }
+
+        /* Extract a named flag value from an args array */
+        function flagVal(args, flag) {
+            var idx = args.indexOf(flag);
+            if (idx < 0) return null;
+            return args[idx + 1] || null;
+        }
+
+        /* Check if any flag matches */
+        function hasFlag(args, flag) {
+            return args.indexOf(flag) >= 0;
+        }
+
+        /* Determine output format from --output flag */
+        function getOutputFormat(args) {
+            var val = flagVal(args, '--output') || flagVal(args, '-o');
+            if (val === 'table') return 'table';
+            if (val === 'json') return 'json';
+            return 'json'; /* default */
+        }
+
+        /* ════════════════════════════════════════════════
+           FILESYSTEM COMMANDS
+        ════════════════════════════════════════════════ */
+        function cmd_ls(args) {
+            var path = args[0] ? resolve(args[0]) : cwd;
+            var long = args.indexOf('-l') >= 0 || args.indexOf('-la') >= 0 || args.indexOf('-al') >= 0;
+
+            if (!exists(path)) {
+                addLine('ls: cannot access \'' + (args[0] || '') + '\': No such file or directory', 'term-line-err');
+                return null;
+            }
+
+            if (isFile(path)) {
+                if (long) {
+                    var f = vfs[path];
+                    addLine((f.mode || '-rw-r--r--') + ' 1 ' + USER + ' ' + USER + '  ' +
+                            (f.content || '').length + ' Apr 21 08:00 ' + baseName(path), 'term-line-out');
+                } else {
+                    addLine(baseName(path), 'term-line-out');
+                }
+                return 'listed';
+            }
+
+            var items = listDir(path);
+            if (!items.length) {
+                addLine('(empty directory)', 'term-line-dim');
+                return 'listed';
+            }
+
+            if (long) {
+                addLine('total ' + items.length, 'term-line-out');
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    var node = vfs[full];
+                    var mode = node ? node.mode : 'drwxr-xr-x';
+                    var size = (node && node.content) ? node.content.length : 0;
+                    addLine(mode + ' 1 ' + USER + ' ' + USER + '  ' +
+                            String(size).padStart(6) + ' Apr 21 08:00 ' + name, 'term-line-out');
+                });
+            } else {
+                var cols = [];
+                items.forEach(function (name) {
+                    var full = (path === '/' ? '' : path) + '/' + name;
+                    cols.push(isDir(full) ? name + '/' : name);
+                });
+                addLine(cols.join('  '), 'term-line-out');
+            }
+            return 'listed';
+        }
+
+        function cmd_cat(args) {
+            if (!args.length) {
+                addLine('cat: missing file operand', 'term-line-err');
+                return null;
+            }
+            var path = resolve(args[0]);
+            if (!exists(path)) {
+                addLine('cat: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (isDir(path)) {
+                addLine('cat: ' + args[0] + ': Is a directory', 'term-line-err');
+                return null;
+            }
+            var content = vfs[path].content || '';
+            content.split('\n').forEach(function (line) {
+                addLine(line, 'term-line-out');
+            });
+            return 'catted';
+        }
+
+        function cmd_cd(args) {
+            var target = args[0] ? resolve(args[0]) : HOME;
+            if (!exists(target)) {
+                addLine('bash: cd: ' + args[0] + ': No such file or directory', 'term-line-err');
+                return null;
+            }
+            if (!isDir(target)) {
+                addLine('bash: cd: ' + args[0] + ': Not a directory', 'term-line-err');
+                return null;
+            }
+            cwd = target;
+            updatePS1();
+            return 'changed';
+        }
+
+        function cmd_pwd() {
+            addLine(cwd, 'term-line-out');
+            return 'pwd';
+        }
+
+        function cmd_echo(args) {
+            addLine(args.join(' '), 'term-line-out');
+            return 'echoed';
+        }
+
+        function cmd_env() {
+            addLine('HOME=' + HOME,                         'term-line-out');
+            addLine('USER=' + USER,                         'term-line-out');
+            addLine('SHELL=/bin/bash',                      'term-line-out');
+            addLine('TERM=xterm-256color',                  'term-line-out');
+            addLine('AWS_ACCOUNT_ID=' + ACCOUNT_ID,          'term-line-out');
+            addLine('AWS_DEFAULT_REGION=us-east-1',          'term-line-out');
+            return 'env';
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws sts — Task 1
+        ════════════════════════════════════════════════ */
+        function cmd_aws_sts(args) {
+            if (!args.length) {
+                addLine('aws sts: usage: aws sts get-caller-identity', 'term-line-err');
+                return null;
+            }
+            var op = args[0];
+
+            /* ── aws sts get-caller-identity — Task 1 ── */
+            if (op === 'get-caller-identity') {
+                var showResult = {
+                    UserId:  'AIDAEXAMPLE7Q4LEARNER',
+                    Account: ACCOUNT_ID,
+                    Arn:     USER_ARN
+                };
+                printJSON(showResult);
+                addBlank();
+                addLine('  Account: ' + ACCOUNT_ID + ' (' + ACCOUNT_ALIAS + ')', 'term-line-info');
+                addLine('  The AWS account is the billing and resource boundary -- all costs roll up here.', 'term-line-info');
+                addLine('  Identity: ' + USER_ARN, 'term-line-dim');
+                return { account_shown: true };
+            }
+
+            addLine('aws sts: unknown operation "' + op + '". Try "get-caller-identity".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws iam — account alias (supporting command, not gated)
+        ════════════════════════════════════════════════ */
+        function cmd_aws_iam(args) {
+            if (!args.length) {
+                addLine('aws iam: usage: aws iam list-account-aliases', 'term-line-err');
+                return null;
+            }
+            var op = args[0];
+
+            if (op === 'list-account-aliases') {
+                printJSON({ AccountAliases: [ACCOUNT_ALIAS] });
+                addBlank();
+                addLine('  1 account alias found.', 'term-line-info');
+                return { account_listed: true };
+            }
+
+            addLine('aws iam: unknown operation "' + op + '". Try "list-account-aliases".', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws ec2 describe-regions — Task 2 and Task 5
+        ════════════════════════════════════════════════ */
+        function cmd_aws_ec2_regions(args) {
+            var fmt = getOutputFormat(args);
+            var allRegions = hasFlag(args, '--all-regions');
+
+            /* Regions enabled by default in every AWS account */
+            var regions = [
+                { RegionName: 'us-east-1',      Endpoint: 'ec2.us-east-1.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'us-east-2',      Endpoint: 'ec2.us-east-2.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'us-west-1',      Endpoint: 'ec2.us-west-1.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'us-west-2',      Endpoint: 'ec2.us-west-2.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ca-central-1',   Endpoint: 'ec2.ca-central-1.amazonaws.com',   OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'sa-east-1',      Endpoint: 'ec2.sa-east-1.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'eu-west-1',      Endpoint: 'ec2.eu-west-1.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'eu-west-2',      Endpoint: 'ec2.eu-west-2.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'eu-west-3',      Endpoint: 'ec2.eu-west-3.amazonaws.com',      OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'eu-central-1',   Endpoint: 'ec2.eu-central-1.amazonaws.com',   OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'eu-north-1',     Endpoint: 'ec2.eu-north-1.amazonaws.com',     OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-northeast-1', Endpoint: 'ec2.ap-northeast-1.amazonaws.com', OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-northeast-2', Endpoint: 'ec2.ap-northeast-2.amazonaws.com', OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-northeast-3', Endpoint: 'ec2.ap-northeast-3.amazonaws.com', OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-southeast-1', Endpoint: 'ec2.ap-southeast-1.amazonaws.com', OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-southeast-2', Endpoint: 'ec2.ap-southeast-2.amazonaws.com', OptInStatus: 'opt-in-not-required' },
+                { RegionName: 'ap-south-1',     Endpoint: 'ec2.ap-south-1.amazonaws.com',     OptInStatus: 'opt-in-not-required' }
+            ];
+
+            /* Regions currently disabled by default (opt-in) as of this lab's authoring.
+               This set is NOT fixed -- AWS periodically launches new Regions and may change
+               opt-in status over time, so treat this list as illustrative, not authoritative. */
+            var optInRegions = [
+                { RegionName: 'af-south-1',     Endpoint: 'ec2.af-south-1.amazonaws.com',     OptInStatus: 'not-opted-in' },
+                { RegionName: 'ap-east-1',      Endpoint: 'ec2.ap-east-1.amazonaws.com',      OptInStatus: 'not-opted-in' },
+                { RegionName: 'ap-south-2',     Endpoint: 'ec2.ap-south-2.amazonaws.com',     OptInStatus: 'not-opted-in' },
+                { RegionName: 'ap-southeast-3', Endpoint: 'ec2.ap-southeast-3.amazonaws.com', OptInStatus: 'not-opted-in' },
+                { RegionName: 'ap-southeast-4', Endpoint: 'ec2.ap-southeast-4.amazonaws.com', OptInStatus: 'not-opted-in' },
+                { RegionName: 'ca-west-1',      Endpoint: 'ec2.ca-west-1.amazonaws.com',      OptInStatus: 'not-opted-in' },
+                { RegionName: 'eu-central-2',   Endpoint: 'ec2.eu-central-2.amazonaws.com',   OptInStatus: 'not-opted-in' },
+                { RegionName: 'eu-south-1',     Endpoint: 'ec2.eu-south-1.amazonaws.com',     OptInStatus: 'not-opted-in' },
+                { RegionName: 'eu-south-2',     Endpoint: 'ec2.eu-south-2.amazonaws.com',     OptInStatus: 'not-opted-in' },
+                { RegionName: 'me-central-1',   Endpoint: 'ec2.me-central-1.amazonaws.com',   OptInStatus: 'not-opted-in' },
+                { RegionName: 'me-south-1',     Endpoint: 'ec2.me-south-1.amazonaws.com',     OptInStatus: 'not-opted-in' },
+                { RegionName: 'il-central-1',   Endpoint: 'ec2.il-central-1.amazonaws.com',   OptInStatus: 'not-opted-in' }
+            ];
+
+            var results = allRegions ? regions.concat(optInRegions) : regions;
+
+            if (fmt === 'table') {
+                printTable(results, ['RegionName', 'Endpoint', 'OptInStatus']);
+            } else {
+                printJSON(results);
+            }
+            addBlank();
+
+            if (!allRegions) {
+                addLine('  ' + results.length + ' Regions listed (enabled by default).', 'term-line-info');
+                addLine('  AWS has 30+ Regions and 100+ Availability Zones worldwide.', 'term-line-info');
+                addLine('  Deploy close to users for lower latency. Run with --all-regions to see opt-in Regions.', 'term-line-dim');
+                return { locations_listed: true, count: results.length };
+            }
+
+            addLine('  ' + results.length + ' Regions listed, including ' + optInRegions.length + ' opt-in Regions.', 'term-line-info');
+            addLine('  Opt-in Regions (like ap-east-1, il-central-1) must be explicitly enabled before use.', 'term-line-dim');
+            addLine('  Regions currently disabled by default (opt-in); the exact set changes over time', 'term-line-dim');
+            addLine('  as AWS launches new Regions -- always check the current Regions table before relying on it.', 'term-line-dim');
+            addLine('  AWS Partitions:', 'term-line-info');
+            addLine('    aws         -- Standard partition (all Regions shown above, worldwide)', 'term-line-dim');
+            addLine('    aws-us-gov  -- AWS GovCloud (US) (FedRAMP High, ITAR, DoD compliance)', 'term-line-dim');
+            addLine('    aws-cn      -- China (Beijing/Ningxia, operated by Sinnet and NWCD)', 'term-line-dim');
+            addLine('  Each partition is a fully isolated set of Regions with separate credentials.', 'term-line-dim');
+            return { cloud_shown: true, count: results.length };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws ec2 describe-instance-types — Task 3
+        ════════════════════════════════════════════════ */
+        function cmd_aws_ec2_instance_types(args) {
+            var region = flagVal(args, '--region');
+            if (!region) {
+                addLine('aws ec2 describe-instance-types: --region is required.', 'term-line-err');
+                addLine('Example: aws ec2 describe-instance-types --region us-east-1 --output table', 'term-line-info');
+                return null;
+            }
+            var fmt = getOutputFormat(args);
+            var types = [
+                { InstanceType: 't3.micro',    VCPUs: 2,  MemoryMiB: 1024,   NetworkPerformance: 'Up to 5 Gigabit' },
+                { InstanceType: 't3.small',    VCPUs: 2,  MemoryMiB: 2048,   NetworkPerformance: 'Up to 5 Gigabit' },
+                { InstanceType: 't3.medium',   VCPUs: 2,  MemoryMiB: 4096,   NetworkPerformance: 'Up to 5 Gigabit' },
+                { InstanceType: 'm5.large',    VCPUs: 2,  MemoryMiB: 8192,   NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'm5.xlarge',   VCPUs: 4,  MemoryMiB: 16384,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'm5.2xlarge',  VCPUs: 8,  MemoryMiB: 32768,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'c5.large',    VCPUs: 2,  MemoryMiB: 4096,   NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'c5.xlarge',   VCPUs: 4,  MemoryMiB: 8192,   NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'c5.2xlarge',  VCPUs: 8,  MemoryMiB: 16384,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'r5.large',    VCPUs: 2,  MemoryMiB: 16384,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'r5.xlarge',   VCPUs: 4,  MemoryMiB: 32768,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'r5.2xlarge',  VCPUs: 8,  MemoryMiB: 65536,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'i3.large',    VCPUs: 2,  MemoryMiB: 15616,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'i3.xlarge',   VCPUs: 4,  MemoryMiB: 31232,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'g4dn.xlarge', VCPUs: 4,  MemoryMiB: 16384,  NetworkPerformance: 'Up to 25 Gigabit' },
+                { InstanceType: 'p3.2xlarge',  VCPUs: 8,  MemoryMiB: 62464,  NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'a1.medium',   VCPUs: 1,  MemoryMiB: 2048,   NetworkPerformance: 'Up to 10 Gigabit' },
+                { InstanceType: 'a1.large',    VCPUs: 2,  MemoryMiB: 4096,   NetworkPerformance: 'Up to 10 Gigabit' }
+            ];
+
+            addLine('Querying instance types in ' + region + '...', 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(types, ['InstanceType', 'VCPUs', 'MemoryMiB', 'NetworkPerformance']);
+            } else {
+                printJSON(types);
+            }
+            addBlank();
+            addLine('  IaaS: YOU manage OS, runtime, apps. AWS manages the physical host.', 'term-line-info');
+            addLine('  Instance families: t=burstable, m=general, c=compute, r=memory, i=storage, g/p=GPU, a=Graviton (Arm)', 'term-line-dim');
+            return { vm_sizes_listed: true, location: region };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws elasticbeanstalk list-available-solution-stacks — Task 4
+        ════════════════════════════════════════════════ */
+        function cmd_aws_elasticbeanstalk(args) {
+            var op = args[0];
+            if (op !== 'list-available-solution-stacks') {
+                addLine('aws elasticbeanstalk: usage: aws elasticbeanstalk list-available-solution-stacks', 'term-line-err');
+                return null;
+            }
+
+            /* Platform version numbers below (e.g. v4.3.5) are an EXAMPLE snapshot, not the live
+               current versions -- Elastic Beanstalk platform versions update frequently. Always
+               check the EB console or `aws elasticbeanstalk list-platform-versions` for current ones. */
+            var stacks = {
+                amazonLinux2023: [
+                    '64bit Amazon Linux 2023 v4.3.5 running Python 3.12',
+                    '64bit Amazon Linux 2023 v4.3.5 running Python 3.11',
+                    '64bit Amazon Linux 2023 v4.3.5 running Node.js 20',
+                    '64bit Amazon Linux 2023 v4.3.5 running Node.js 18',
+                    '64bit Amazon Linux 2023 v4.3.5 running Corretto 21',
+                    '64bit Amazon Linux 2023 v4.3.5 running Corretto 17',
+                    '64bit Amazon Linux 2023 v4.3.5 running PHP 8.3',
+                    '64bit Amazon Linux 2023 v4.3.5 running PHP 8.2',
+                    '64bit Amazon Linux 2023 v4.3.5 running Ruby 3.3',
+                    '64bit Amazon Linux 2023 v4.3.5 running Go 1.22',
+                    '64bit Amazon Linux 2023 v4.3.5 running Docker'
+                ],
+                windowsServer: [
+                    '64bit Windows Server 2022 v2.16.0 running IIS 10.0',
+                    '64bit Windows Server 2019 v2.16.0 running IIS 10.0'
+                ]
+            };
+
+            addLine('Fetching PaaS Elastic Beanstalk solution stacks (sample data)...', 'term-line-info');
+            addBlank();
+            printJSON(stacks);
+            addBlank();
+            addLine('  PaaS: AWS manages the OS, runtime patches, and scaling.', 'term-line-info');
+            addLine('  You just pick a solution stack and deploy your code -- no instance management needed.', 'term-line-info');
+            addLine('  Compare: IaaS (EC2) = you manage OS. PaaS (Elastic Beanstalk) = AWS manages OS.', 'term-line-dim');
+            addLine('  Note: platform version numbers above (e.g. v4.3.5) are an example platform version --', 'term-line-dim');
+            addLine('  current versions change over time. Check the EB console for what is live today.', 'term-line-dim');
+            return { runtimes_listed: true };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws trustedadvisor list-recommendations — Task 6
+        ════════════════════════════════════════════════ */
+        function cmd_aws_trustedadvisor(args) {
+            var op = args[0];
+            if (op !== 'list-recommendations') {
+                addLine('aws trustedadvisor: usage: aws trustedadvisor list-recommendations', 'term-line-err');
+                return null;
+            }
+            var fmt = getOutputFormat(args);
+            /* Sample shape modeled on the AWS Trusted Advisor list-recommendations API:
+               id, name, pillars (array), status, awsServices (array). estimatedMonthlySavings
+               is a simplified stand-in for the real nested pillarSpecificAggregates.costOptimizing
+               field, flattened here for readability in this sample. */
+            var recommendations = [
+                {
+                    id:      'ta-check-ec2-low-utilization',
+                    name:    'Right-size or stop underutilized EC2 instances',
+                    pillars: ['cost_optimizing'],
+                    status:  'warning',
+                    awsServices: ['EC2'],
+                    estimatedMonthlySavings: 127.40
+                },
+                {
+                    id:      'ta-check-ec2-reserved-instance-optimization',
+                    name:    'Buy Reserved Instances to save over On-Demand costs',
+                    pillars: ['cost_optimizing'],
+                    status:  'warning',
+                    awsServices: ['EC2'],
+                    estimatedMonthlySavings: 74.33
+                },
+                {
+                    id:      'ta-check-ebs-unattached-volumes',
+                    name:    'Delete unattached EBS volumes to eliminate waste',
+                    pillars: ['cost_optimizing'],
+                    status:  'warning',
+                    awsServices: ['EC2'],
+                    estimatedMonthlySavings: 23.50
+                },
+                {
+                    id:      'ta-check-ec2-spot-opportunities',
+                    name:    'Use EC2 Spot Instances for fault-tolerant batch workloads',
+                    pillars: ['cost_optimizing', 'performance'],
+                    status:  'warning',
+                    awsServices: ['EC2', 'AutoScaling'],
+                    estimatedMonthlySavings: null
+                },
+                {
+                    id:      'ta-check-elasticbeanstalk-right-sizing',
+                    name:    'Right-size Elastic Beanstalk environments based on CPU/memory metrics',
+                    pillars: ['cost_optimizing', 'performance'],
+                    status:  'warning',
+                    awsServices: ['ElasticBeanstalk'],
+                    estimatedMonthlySavings: 64.20
+                },
+                {
+                    id:      'ta-check-s3-storage-class',
+                    name:    'Move infrequently accessed objects to S3 Standard-IA or Glacier',
+                    pillars: ['cost_optimizing'],
+                    status:  'ok',
+                    awsServices: ['S3'],
+                    estimatedMonthlySavings: 31.00
+                }
+            ];
+
+            addLine('Fetching AWS Trusted Advisor cost recommendations (sample data)...', 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(recommendations, ['id', 'name', 'status', 'pillars', 'awsServices', 'estimatedMonthlySavings']);
+            } else {
+                printJSON(recommendations);
+            }
+            addBlank();
+            addLine('  Trusted Advisor provides personalized best practices across 5 pillars:', 'term-line-info');
+            addLine('  cost_optimizing, security, fault_tolerance, performance, service_limits', 'term-line-dim');
+            addLine('  These recommendations help optimize your cloud spend (OpEx model).', 'term-line-dim');
+            addLine('  Sample data above is illustrative -- real output includes additional fields.', 'term-line-dim');
+            return { advisor_listed: true };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws ce get-cost-and-usage — Task 7
+        ════════════════════════════════════════════════ */
+        function parseTimePeriod(val) {
+            /* val looks like "Start=2025-01-01,End=2025-01-31" */
+            if (!val) return null;
+            var startMatch = val.match(/Start=([^,]+)/);
+            var endMatch   = val.match(/End=([^,]+)/);
+            if (!startMatch || !endMatch) return null;
+            return { start: startMatch[1], end: endMatch[1] };
+        }
+
+        function cmd_aws_ce(args) {
+            var op = args[0];
+            if (op !== 'get-cost-and-usage') {
+                addLine('aws ce: usage: aws ce get-cost-and-usage --time-period Start=<date>,End=<date> --granularity <g> --metrics <m>', 'term-line-err');
+                return null;
+            }
+
+            var period = parseTimePeriod(flagVal(args, '--time-period'));
+            if (!period) {
+                addLine('aws ce get-cost-and-usage: --time-period Start=<date>,End=<date> is required.', 'term-line-err');
+                addLine('Example: aws ce get-cost-and-usage --time-period Start=2025-01-01,End=2025-01-31 --granularity DAILY --metrics UnblendedCost --output table', 'term-line-info');
+                return null;
+            }
+
+            var fmt = getOutputFormat(args);
+            var usageData = [
+                { usageStart: '2025-01-03', service: 'Amazon Elastic Compute Cloud - Compute', resourceId: 'i-0a1b2c3d4web01', quantity: 744.00,  unit: 'Hours',  unblendedCost: 178.56, currency: 'USD' },
+                { usageStart: '2025-01-03', service: 'Amazon Elastic Compute Cloud - Compute', resourceId: 'i-0a1b2c3d4web02', quantity: 744.00,  unit: 'Hours',  unblendedCost: 178.56, currency: 'USD' },
+                { usageStart: '2025-01-01', service: 'Amazon Simple Storage Service',          resourceId: 'appdata-storage-01', quantity: 256.40, unit: 'GB',     unblendedCost: 5.38,   currency: 'USD' },
+                { usageStart: '2025-01-01', service: 'Amazon Simple Storage Service',          resourceId: 'logsarchive2024',    quantity: 1024.00, unit: 'GB',    unblendedCost: 10.24,  currency: 'USD' },
+                { usageStart: '2025-01-01', service: 'Amazon Relational Database Service',     resourceId: 'sqldb-prod-east',    quantity: 744.00,  unit: 'Hours',  unblendedCost: 297.60, currency: 'USD' },
+                { usageStart: '2025-01-05', service: 'Amazon Virtual Private Cloud',            resourceId: 'eip-web-prod',       quantity: 744.00,  unit: 'Hours',  unblendedCost: 3.72,   currency: 'USD' },
+                { usageStart: '2025-01-01', service: 'Elastic Load Balancing',                 resourceId: 'alb-prod-east',      quantity: 744.00,  unit: 'Hours',  unblendedCost: 167.40, currency: 'USD' },
+                { usageStart: '2025-01-10', service: 'AWS Elastic Beanstalk',                  resourceId: 'app-plan-prod-east', quantity: 744.00,  unit: 'Hours',  unblendedCost: 73.00,  currency: 'USD' },
+                { usageStart: '2025-01-01', service: 'Amazon Elastic Kubernetes Service',      resourceId: 'eks-prod-01',        quantity: 744.00,  unit: 'Hours',  unblendedCost: 73.00,  currency: 'USD' },
+                { usageStart: '2025-01-15', service: 'Amazon Bedrock',                         resourceId: 'bedrock-prod',       quantity: 2500000, unit: 'Tokens', unblendedCost: 45.00,  currency: 'USD' }
+            ];
+
+            addLine('Fetching cost and usage data for ' + period.start + ' to ' + period.end + '...', 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(usageData, ['usageStart', 'service', 'resourceId', 'quantity', 'unit', 'unblendedCost', 'currency']);
+            } else {
+                printJSON(usageData);
+            }
+
+            var totalCost = 0;
+            usageData.forEach(function (u) { totalCost += u.unblendedCost; });
+
+            addBlank();
+            addLine('  Total unblended cost: $' + totalCost.toFixed(2) + ' USD', 'term-line-info');
+            addLine('  Consumption-based billing (OpEx): You pay only for what you use.', 'term-line-info');
+            addLine('  Compare to on-premises (CapEx): Large upfront investment in hardware.', 'term-line-dim');
+            addLine('  Cloud = OpEx model. No upfront cost, pay monthly based on usage.', 'term-line-dim');
+            return { consumption_listed: true };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws ec2 describe-reserved-instances-offerings — Task 8
+        ════════════════════════════════════════════════ */
+        function cmd_aws_ec2_reserved(args) {
+            var op = args[0];
+            if (op !== 'describe-reserved-instances-offerings') {
+                addLine('aws ec2: usage: aws ec2 describe-reserved-instances-offerings --instance-type <type> --region <region>', 'term-line-err');
+                return null;
+            }
+
+            var instType = flagVal(args, '--instance-type');
+            var region   = flagVal(args, '--region');
+
+            if (!instType) {
+                addLine('aws ec2 describe-reserved-instances-offerings: --instance-type is required.', 'term-line-err');
+                addLine('Example: aws ec2 describe-reserved-instances-offerings --instance-type m5.large --region us-east-1 --output table', 'term-line-info');
+                return null;
+            }
+            if (!region) {
+                addLine('aws ec2 describe-reserved-instances-offerings: --region is required.', 'term-line-err');
+                return null;
+            }
+
+            var fmt = getOutputFormat(args);
+            /* Example rates for illustration only -- NOT live pricing. On-Demand and Reserved
+               Instance prices vary by Region and change over time. Check the AWS Pricing
+               Calculator (calculator.aws) or `aws pricing get-products` for current rates. */
+            var catalog = [
+                { instanceType: 't3.medium',  onDemand: '$30.37/mo (example)',  oneYearReserved: '$19.20/mo (example)',  oneYearSavings: '~37%', threeYearReserved: '$12.10/mo (example)',  threeYearSavings: '~60%' },
+                { instanceType: 'm5.large',   onDemand: '$70.08/mo (example)',  oneYearReserved: '$43.80/mo (example)',  oneYearSavings: '~38%', threeYearReserved: '$27.60/mo (example)',  threeYearSavings: '~61%' },
+                { instanceType: 'm5.xlarge',  onDemand: '$140.16/mo (example)', oneYearReserved: '$87.60/mo (example)',  oneYearSavings: '~38%', threeYearReserved: '$55.20/mo (example)',  threeYearSavings: '~61%' },
+                { instanceType: 'c5.xlarge',  onDemand: '$124.10/mo (example)', oneYearReserved: '$78.11/mo (example)',  oneYearSavings: '~37%', threeYearReserved: '$49.64/mo (example)',  threeYearSavings: '~60%' },
+                { instanceType: 'r5.xlarge',  onDemand: '$184.32/mo (example)', oneYearReserved: '$116.53/mo (example)', oneYearSavings: '~37%', threeYearReserved: '$73.73/mo (example)',  threeYearSavings: '~60%' },
+                { instanceType: 'p3.2xlarge', onDemand: '$2233.44/mo (example)', oneYearReserved: '$1407.06/mo (example)', oneYearSavings: '~37%', threeYearReserved: '$893.38/mo (example)', threeYearSavings: '~60%' }
+            ];
+
+            addLine('Fetching Reserved Instance pricing for ' + instType + ' in ' + region + ' (example rates)...', 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(catalog, ['instanceType', 'onDemand', 'oneYearReserved', 'oneYearSavings', 'threeYearReserved', 'threeYearSavings']);
+            } else {
+                printJSON(catalog);
+            }
+            addBlank();
+            addLine('  Reserved Instances: Commit to 1 or 3 years for significant discounts.', 'term-line-info');
+            addLine('  On-Demand = maximum flexibility, higher per-unit cost.', 'term-line-dim');
+            addLine('  Reserved = lower cost, requires commitment (still OpEx, not CapEx).', 'term-line-dim');
+            addLine('  Savings Plans are an alternative -- commit to $/hr spend, not specific instance types.', 'term-line-dim');
+            addLine('  Prices above are example rates for illustration; check the AWS Pricing Calculator', 'term-line-dim');
+            addLine('  (calculator.aws) for current pricing in your Region.', 'term-line-dim');
+            return { reservations_shown: true };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws cloudformation list-types — Task 9 (EC2 only)
+        ════════════════════════════════════════════════ */
+function parseTypeNamePrefix(val) {
+            /* val looks like "TypeNamePrefix=AWS::EC2" (the value of --filters) */
+            if (!val) return null;
+            var m = val.match(/TypeNamePrefix=([^,]+)/);
+            return m ? m[1] : null;
+        }
+
+        function cmd_aws_cloudformation_ec2(args) {
+            var op = args[0];
+            if (op !== 'list-types') {
+                addLine('aws cloudformation: usage: aws cloudformation list-types --visibility PUBLIC --filters TypeNamePrefix=<prefix>', 'term-line-err');
+                return null;
+            }
+
+            var prefix = parseTypeNamePrefix(flagVal(args, '--filters'));
+            if (!prefix) {
+                addLine('aws cloudformation list-types: --filters TypeNamePrefix=<prefix> is required for this task.', 'term-line-err');
+                addLine('Example: aws cloudformation list-types --visibility PUBLIC --filters TypeNamePrefix=AWS::EC2 --output table', 'term-line-info');
+                return null;
+            }
+
+            var fmt = getOutputFormat(args);
+            var types = [
+                { typeName: 'AWS::EC2::Instance',            provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::Volume',               provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::VolumeAttachment',     provisioningType: 'IMMUTABLE' },
+                { typeName: 'AWS::EC2::SecurityGroup',        provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::VPC',                  provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::Subnet',               provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::InternetGateway',      provisioningType: 'IMMUTABLE' },
+                { typeName: 'AWS::EC2::NatGateway',           provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::RouteTable',           provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::LaunchTemplate',       provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::SpotFleet',            provisioningType: 'FULLY_MUTABLE' },
+                { typeName: 'AWS::EC2::KeyPair',              provisioningType: 'FULLY_MUTABLE' }
+            ];
+
+            addLine('Listing CloudFormation resource types for prefix: ' + prefix, 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(types, ['typeName', 'provisioningType']);
+            } else {
+                printJSON(types);
+            }
+            addBlank();
+            addLine('  Every AWS service exposes typed resources through CloudFormation.', 'term-line-info');
+            addLine('  FULLY_MUTABLE = can be updated in place. IMMUTABLE = must be replaced to change.', 'term-line-dim');
+            addLine('  EC2 alone backs dozens of resource types -- this is a small IaaS-focused slice.', 'term-line-dim');
+            return { features_listed: true, namespace: prefix };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND: aws cloudformation list-types — Task 10 (all services)
+        ════════════════════════════════════════════════ */
+        function cmd_aws_cloudformation_all(args) {
+            var op = args[0];
+            if (op !== 'list-types') {
+                addLine('aws cloudformation: usage: aws cloudformation list-types --visibility PUBLIC', 'term-line-err');
+                return null;
+            }
+
+            var fmt = getOutputFormat(args);
+            var types = [
+                { service: 'EC2',              typeNamePrefix: 'AWS::EC2::*',              exampleTypes: 'Instance, VPC, SecurityGroup, LaunchTemplate' },
+                { service: 'S3',               typeNamePrefix: 'AWS::S3::*',                exampleTypes: 'Bucket, BucketPolicy, AccessPoint' },
+                { service: 'RDS',              typeNamePrefix: 'AWS::RDS::*',               exampleTypes: 'DBInstance, DBCluster, DBSubnetGroup' },
+                { service: 'Lambda',           typeNamePrefix: 'AWS::Lambda::*',            exampleTypes: 'Function, EventSourceMapping, Alias' },
+                { service: 'DynamoDB',         typeNamePrefix: 'AWS::DynamoDB::*',          exampleTypes: 'Table, GlobalTable' },
+                { service: 'IAM',              typeNamePrefix: 'AWS::IAM::*',               exampleTypes: 'Role, Policy, User, Group' },
+                { service: 'ElasticBeanstalk', typeNamePrefix: 'AWS::ElasticBeanstalk::*',  exampleTypes: 'Application, Environment, ConfigurationTemplate' },
+                { service: 'EKS',              typeNamePrefix: 'AWS::EKS::*',               exampleTypes: 'Cluster, Nodegroup, FargateProfile' },
+                { service: 'ECS',              typeNamePrefix: 'AWS::ECS::*',               exampleTypes: 'Cluster, Service, TaskDefinition' },
+                { service: 'CloudWatch',       typeNamePrefix: 'AWS::CloudWatch::*',        exampleTypes: 'Alarm, Dashboard, MetricStream' },
+                { service: 'SNS',              typeNamePrefix: 'AWS::SNS::*',               exampleTypes: 'Topic, Subscription' },
+                { service: 'SQS',              typeNamePrefix: 'AWS::SQS::*',               exampleTypes: 'Queue, QueuePolicy' },
+                { service: 'KMS',              typeNamePrefix: 'AWS::KMS::*',               exampleTypes: 'Key, Alias' },
+                { service: 'SecretsManager',   typeNamePrefix: 'AWS::SecretsManager::*',    exampleTypes: 'Secret, RotationSchedule' },
+                { service: 'ApiGateway',       typeNamePrefix: 'AWS::ApiGateway::*',        exampleTypes: 'RestApi, Deployment, Stage' },
+                { service: 'CloudFront',       typeNamePrefix: 'AWS::CloudFront::*',        exampleTypes: 'Distribution, OriginAccessControl' },
+                { service: 'Route53',          typeNamePrefix: 'AWS::Route53::*',           exampleTypes: 'HostedZone, RecordSet' },
+                { service: 'AutoScaling',      typeNamePrefix: 'AWS::AutoScaling::*',       exampleTypes: 'AutoScalingGroup, LaunchConfiguration' },
+                { service: 'ElasticLoadBalancingV2', typeNamePrefix: 'AWS::ElasticLoadBalancingV2::*', exampleTypes: 'LoadBalancer, TargetGroup' },
+                { service: 'Bedrock',          typeNamePrefix: 'AWS::Bedrock::*',           exampleTypes: 'Agent, KnowledgeBase, Guardrail' }
+            ];
+
+            addLine('Listing registered resource types across AWS services...', 'term-line-info');
+            addBlank();
+
+            if (fmt === 'table') {
+                printTable(types, ['service', 'typeNamePrefix', 'exampleTypes']);
+            } else {
+                printJSON(types);
+            }
+            addBlank();
+            addLine('  ' + types.length + ' services shown, each backed by CloudFormation resource types.', 'term-line-info');
+            addLine('  Every AWS service is exposed as typed resources (AWS::{Service}::{Resource}).', 'term-line-info');
+            addLine('  IaaS: AWS::EC2, AWS::AutoScaling, AWS::ElasticLoadBalancingV2', 'term-line-dim');
+            addLine('  PaaS: AWS::ElasticBeanstalk, AWS::Lambda, AWS::RDS', 'term-line-dim');
+            addLine('  SaaS: Salesforce, Dropbox (third-party SaaS, not exposed via AWS resource types)', 'term-line-dim');
+            return { providers_listed: true };
+        }
+
+        /* ════════════════════════════════════════════════
+           COMMAND DISPATCH
+        ════════════════════════════════════════════════ */
+        function cmd_help() {
+            addLine('Cloud Concepts Explorer Lab -- Available Commands', 'term-line-info');
+            addBlank();
+            addLine('AWS CLI:', 'term-line-warn');
+            addLine('  aws sts get-caller-identity                              Show active AWS account', 'term-line-dim');
+            addLine('  aws iam list-account-aliases                             List account alias', 'term-line-dim');
+            addLine('  aws ec2 describe-regions [--output table]                List AWS Regions', 'term-line-dim');
+            addLine('  aws ec2 describe-regions --all-regions [--output table]  List Regions + partitions', 'term-line-dim');
+            addLine('  aws ec2 describe-instance-types --region <r>             List instance types (IaaS)', 'term-line-dim');
+            addLine('    [--output table]', 'term-line-dim');
+            addLine('  aws elasticbeanstalk list-available-solution-stacks      List PaaS runtimes', 'term-line-dim');
+            addLine('  aws trustedadvisor list-recommendations [--output table] Cost recommendations', 'term-line-dim');
+            addLine('  aws ce get-cost-and-usage --time-period                  Consumption billing data', 'term-line-dim');
+            addLine('    Start=<d>,End=<d> --granularity <g> --metrics <m>', 'term-line-dim');
+            addLine('    [--output table]', 'term-line-dim');
+            addLine('  aws ec2 describe-reserved-instances-offerings            Reserved pricing', 'term-line-dim');
+            addLine('    --instance-type <t> --region <r> [--output table]', 'term-line-dim');
+            addLine('  aws cloudformation list-types --visibility PUBLIC        List resource types', 'term-line-dim');
+            addLine('    [--filters TypeNamePrefix=<p>] [--output table]', 'term-line-dim');
+            addBlank();
+            addLine('FILESYSTEM:', 'term-line-warn');
+            addLine('  ls [path]   cd <path>   pwd   cat <file>   echo <text>   env', 'term-line-dim');
+            addBlank();
+            addLine('FLAGS:', 'term-line-warn');
+            addLine('  --output table    Format output as ASCII table', 'term-line-dim');
+            addLine('  --output json     Format output as JSON (default)', 'term-line-dim');
+            addBlank();
+            addLine('LAB FILES:', 'term-line-warn');
+            addLine('  Reference docs: ~/docs/  (cloud-models.txt, shared-responsibility.txt)', 'term-line-dim');
+            addBlank();
+            return 'help';
+        }
+
+        function cmd_clear() {
+            outputEl.innerHTML = '';
+            return 'clear';
+        }
+
+        /* ════════════════════════════════════════════════
+           MAIN EXEC
+        ════════════════════════════════════════════════ */
+        function execLine(raw) {
+            var trimmed = raw.trim();
+            addPromptLine(trimmed);
+
+            if (!trimmed) return;
+
+            var args = parseArgs(trimmed);
+            var cmd  = args[0];
+            var rest = args.slice(1);
+
+            var result = null;
+
+            if (cmd === 'help' || cmd === '--help') {
+                result = cmd_help();
+
+            } else if (cmd === 'clear') {
+                result = cmd_clear();
+
+            } else if (cmd === 'ls') {
+                result = cmd_ls(rest);
+
+            } else if (cmd === 'cat') {
+                result = cmd_cat(rest);
+
+            } else if (cmd === 'cd') {
+                result = cmd_cd(rest);
+
+            } else if (cmd === 'pwd') {
+                result = cmd_pwd();
+
+            } else if (cmd === 'echo') {
+                result = cmd_echo(rest);
+
+            } else if (cmd === 'env') {
+                result = cmd_env();
+
+            } else if (cmd === 'aws') {
+                result = execAws(rest);
+
+            } else {
+                addLine('bash: ' + cmd + ': command not found', 'term-line-err');
+                addLine('Type "help" for available commands.', 'term-line-dim');
+            }
+
+            checkTasks(cmd, trimmed, result);
+        }
+
+        /* Route aws sub-commands (service + operation, e.g. "aws ec2 describe-regions") */
+        function execAws(args) {
+            if (!args.length) {
+                addLine('Welcome to AWS CLI (simulated). Type "help" for commands.', 'term-line-info');
+                return null;
+            }
+            var service = args[0];
+            var rest    = args.slice(1);
+            var op      = rest[0];
+
+            if (service === 'sts') {
+                return cmd_aws_sts(rest);
+            }
+            if (service === 'iam') {
+                return cmd_aws_iam(rest);
+            }
+            if (service === 'ec2') {
+                if (op === 'describe-regions') {
+                    return cmd_aws_ec2_regions(rest.slice(1));
+                }
+                if (op === 'describe-instance-types') {
+                    return cmd_aws_ec2_instance_types(rest.slice(1));
+                }
+                if (op === 'describe-reserved-instances-offerings') {
+                    return cmd_aws_ec2_reserved(rest);
+                }
+                addLine('aws ec2: unknown operation "' + (op || '') + '". Try "describe-regions", "describe-instance-types", or "describe-reserved-instances-offerings".', 'term-line-err');
+                return null;
+            }
+            if (service === 'elasticbeanstalk') {
+                return cmd_aws_elasticbeanstalk(rest);
+            }
+            if (service === 'trustedadvisor') {
+                return cmd_aws_trustedadvisor(rest);
+            }
+            if (service === 'ce') {
+                return cmd_aws_ce(rest);
+            }
+            if (service === 'cloudformation') {
+                if (hasFlag(rest, '--filters')) {
+                    return cmd_aws_cloudformation_ec2(rest);
+                }
+                return cmd_aws_cloudformation_all(rest);
+            }
+            if (service === '--version') {
+                addLine('aws-cli/2.17.0 Python/3.12.4 Linux/6.5.0 exe/x86_64.al2023', 'term-line-out');
+                return { version: true };
+            }
+
+            addLine('aws: unknown service "' + service + '". Type "help" for available commands.', 'term-line-err');
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK VERIFICATION
+           Tasks must be completed in order (task N requires 1..N-1 complete).
+        ════════════════════════════════════════════════ */
+        function allPriorDone(n) {
+            for (var i = 1; i < n; i++) {
+                if (!taskDone[i]) return false;
+            }
+            return true;
+        }
+
+        function checkTasks(cmd, raw, result) {
+            if (!result || typeof result !== 'object') return;
+
+            /* ── Task 1: aws sts get-caller-identity ── */
+            if (!taskDone[1] && result.account_shown === true) {
+                completeTask(1);
+            }
+
+            /* ── Task 2: aws ec2 describe-regions --output table ── */
+            if (!taskDone[2] && allPriorDone(2) && result.locations_listed === true) {
+                completeTask(2);
+            }
+
+            /* ── Task 3: aws ec2 describe-instance-types --region us-east-1 --output table ── */
+            if (!taskDone[3] && allPriorDone(3) && result.vm_sizes_listed === true) {
+                completeTask(3);
+            }
+
+            /* ── Task 4: aws elasticbeanstalk list-available-solution-stacks ── */
+            if (!taskDone[4] && allPriorDone(4) && result.runtimes_listed === true) {
+                completeTask(4);
+            }
+
+            /* ── Task 5: aws ec2 describe-regions --all-regions --output table ── */
+            if (!taskDone[5] && allPriorDone(5) && result.cloud_shown === true) {
+                completeTask(5);
+            }
+
+            /* ── Task 6: aws trustedadvisor list-recommendations --output table ── */
+            if (!taskDone[6] && allPriorDone(6) && result.advisor_listed === true) {
+                completeTask(6);
+            }
+
+            /* ── Task 7: aws ce get-cost-and-usage ... ── */
+            if (!taskDone[7] && allPriorDone(7) && result.consumption_listed === true) {
+                completeTask(7);
+            }
+
+            /* ── Task 8: aws ec2 describe-reserved-instances-offerings ... ── */
+            if (!taskDone[8] && allPriorDone(8) && result.reservations_shown === true) {
+                completeTask(8);
+            }
+
+            /* ── Task 9: aws cloudformation list-types --filters TypeNamePrefix=AWS::EC2 --output table ── */
+            if (!taskDone[9] && allPriorDone(9) && result.features_listed === true) {
+                completeTask(9);
+            }
+
+            /* ── Task 10: aws cloudformation list-types --output table ── */
+            if (!taskDone[10] && allPriorDone(10) && result.providers_listed === true) {
+                completeTask(10);
+            }
+        }
+
+        /* ════════════════════════════════════════════════
+           TASK PROGRESS MANAGEMENT
+        ════════════════════════════════════════════════ */
+        function completeTask(num) {
+            if (taskDone[num]) return;
+            taskDone[num] = true;
+
+            var card = document.getElementById('task-card-' + num);
+            if (card) {
+                card.classList.add('completed');
+                card.classList.remove('active');
+            }
+
+            var doneCount = countDone();
+
+            document.getElementById('taskProgress').textContent = doneCount + ' / ' + TOTAL_TASKS + ' Tasks';
+            var fill = document.getElementById('progressBarFill');
+            if (fill) fill.style.width = Math.round((doneCount / TOTAL_TASKS) * 100) + '%';
+
+            addBlank();
+            addHTML(
+                '  <span style="color:#34d399">[Task ' + num + ' complete]</span> ' +
+                '<span style="color:#3b5278">' + escH(getTaskName(num)) + '</span>',
+                'term-line-info'
+            );
+            addBlank();
+
+            if (doneCount === TOTAL_TASKS) {
+                setTimeout(function () {
+                    document.getElementById('successOverlay').classList.add('active');
+                }, 700);
+                return;
+            }
+
+            var next = nextIncompleteTask();
+            if (next !== null) selectTask(next);
+        }
+
+        function getTaskName(num) {
+            var names = {
+                1:  'Check Your Account',
+                2:  'List AWS Regions',
+                3:  'Explore IaaS Instance Types',
+                4:  'PaaS Runtimes',
+                5:  'Regions and Partitions',
+                6:  'Trusted Advisor Recommendations',
+                7:  'Consumption Billing',
+                8:  'Reserved Pricing',
+                9:  'EC2 Resource Types',
+                10: 'Service Resource Types'
+            };
+            return names[num] || 'Task ' + num;
+        }
+
+        function countDone() {
+            var n = 0;
+            for (var k in taskDone) {
+                if (Object.prototype.hasOwnProperty.call(taskDone, k) && taskDone[k]) n++;
+            }
+            return n;
+        }
+
+        function nextIncompleteTask() {
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                if (!taskDone[i]) return i;
+            }
+            return null;
+        }
+
+        /* ════════════════════════════════════════════════
+           INSTRUCTIONS PANEL CONTENT
+        ════════════════════════════════════════════════ */
+        var taskInstructions = {
+            1: {
+                step: 'Run this command to inspect your active AWS account:\n<code>aws sts get-caller-identity</code>\n\nLook at the output carefully. The <code>Account</code> field is your 12-digit AWS account ID -- the billing and resource boundary. The <code>Arn</code> shows your full identity path, and <code>UserId</code> is a unique identifier for the calling identity.',
+                hint: 'The AWS account is the billing and resource boundary. Every resource you create belongs to exactly one account, and all costs roll up to that account. Organizations often use AWS Organizations to manage many accounts (production, dev/test, sandbox) under one consolidated bill, each still fully isolated. The account ID appears in every resource ARN: arn:aws:{service}:{region}:{account-id}:{resource}.',
+                cmd: 'aws sts get-caller-identity'
+            },
+            2: {
+                step: 'List AWS Regions to see global cloud infrastructure:\n<code>aws ec2 describe-regions --output table</code>\n\nThe <code>--output table</code> flag formats the output as a readable ASCII table instead of JSON. Look at the <code>RegionName</code> column -- you use values like "us-east-1" in CLI commands and service configuration.',
+                hint: 'AWS has 30+ Regions and 100+ Availability Zones across every inhabited continent. Each Region contains multiple isolated Availability Zones for fault tolerance. When choosing a Region, consider: latency to your users, data residency laws (GDPR requires EU data stay in EU), available services (not all Regions have all services), and pricing (some Regions cost more). Availability Zones within a Region provide additional fault isolation.',
+                cmd: 'aws ec2 describe-regions --output table'
+            },
+            3: {
+                step: 'Explore Infrastructure as a Service (IaaS) by listing EC2 instance types:\n<code>aws ec2 describe-instance-types --region us-east-1 --output table</code>\n\nThe table shows vCPUs, memory, and network performance for each instance type. These are the compute specs YOU choose and manage in the IaaS model.',
+                hint: 'IaaS gives you the most control but the most responsibility. Instance families are designed for different workloads: t-series = burstable (dev/test), m-series = general purpose (web servers), r-series = memory-optimized (databases), c-series = compute-optimized (batch), g/p-series = GPU (ML/AI), i-series = storage-optimized (big data), a-series = Graviton/Arm (cost-efficient). Scale up = larger instance. Scale out = more instances. This is the "shared responsibility" model in action -- you manage the OS and everything above it.',
+                cmd: 'aws ec2 describe-instance-types --region us-east-1 --output table'
+            },
+            4: {
+                step: 'Now explore Platform as a Service (PaaS) runtimes:\n<code>aws elasticbeanstalk list-available-solution-stacks</code>\n\nCompare this to the IaaS instance list. With PaaS, you do not choose vCPUs or manage an OS. You simply select a solution stack (Node.js, Python, Java, .NET, etc.) and deploy your code. AWS handles everything underneath.',
+                hint: 'PaaS abstracts the OS layer entirely. With AWS Elastic Beanstalk, you pick a language runtime and AWS provisions and manages the EC2 instances, load balancer, and auto scaling group underneath. The tradeoff: less control but less operational burden. PaaS is ideal when you want to focus on code, not infrastructure. Compare: IaaS (EC2) = you patch the OS. PaaS (Elastic Beanstalk) = AWS patches the OS. SaaS (Salesforce) = the vendor manages everything, you just use it.',
+                cmd: 'aws elasticbeanstalk list-available-solution-stacks'
+            },
+            5: {
+                step: 'Inspect the full Region picture, including opt-in Regions:\n<code>aws ec2 describe-regions --all-regions --output table</code>\n\nThe <code>--all-regions</code> flag also shows Regions that require an explicit opt-in before use. The <code>OptInStatus</code> column shows which Regions are active by default versus which require enabling.',
+                hint: 'AWS operates multiple isolated partitions: aws (the standard partition, all commercial Regions worldwide), aws-us-gov (AWS GovCloud (US), FedRAMP High/ITAR/DoD compliant, physically and logically isolated), and aws-cn (China, operated by Sinnet and NWCD in compliance with Chinese data regulations). Each partition has its own endpoints, credentials, and compliance certifications. Government and sovereign partitions never mix data with the standard partition. Within the standard partition, some Regions (like ap-east-1 Hong Kong or il-central-1 Tel Aviv) currently require an explicit opt-in before you can use them -- this specific list of opt-in Regions is NOT fixed; AWS periodically launches new Regions and changes opt-in status over time, so always check the current AWS Regions table rather than memorizing a static list.',
+                cmd: 'aws ec2 describe-regions --all-regions --output table'
+            },
+            6: {
+                step: 'View AWS Trusted Advisor cost optimization recommendations:\n<code>aws trustedadvisor list-recommendations --output table</code>\n\nTrusted Advisor analyzes your resource usage and provides actionable recommendations. The <code>status</code> column shows severity. The <code>pillars</code> column shows which Trusted Advisor category each recommendation belongs to. The <code>estimatedMonthlySavings</code> shows potential cost reduction (this sample simplifies the real API\'s nested cost-impact structure for readability).',
+                hint: 'AWS Trusted Advisor analyzes your deployed resources and provides recommendations across five pillars: cost_optimizing, performance, security, fault_tolerance, and service_limits. For cost: it identifies underutilized EC2 instances, suggests Reserved Instances, flags unattached EBS volumes, and recommends right-sizing. This is a key benefit of the cloud -- the platform itself helps you optimize spend. On-premises, you would need third-party tools to get similar insights. The sample data shown here is illustrative; the real API returns additional fields like ARNs and timestamps.',
+                cmd: 'aws trustedadvisor list-recommendations --output table'
+            },
+            7: {
+                step: 'View consumption-based billing data from Cost Explorer:\n<code>aws ce get-cost-and-usage --time-period Start=2025-01-01,End=2025-01-31 --granularity DAILY --metrics UnblendedCost --output table</code>\n\nThe table shows resource usage by service, quantity, and cost. Notice how each resource is billed separately based on actual usage -- this is the pay-as-you-go (consumption) model.',
+                hint: 'Cloud computing shifts IT spending from CapEx (Capital Expenditure -- buying servers upfront) to OpEx (Operational Expenditure -- paying monthly for what you use). Benefits of OpEx/consumption model: no upfront investment, scale up/down as needed, stop paying when you stop using, predictable monthly bills. The consumption model aligns costs with value -- you pay more when business is booming (more traffic = more resources = more revenue), less during quiet periods.',
+                cmd: 'aws ce get-cost-and-usage --time-period Start=2025-01-01,End=2025-01-31 --granularity DAILY --metrics UnblendedCost --output table'
+            },
+            8: {
+                step: 'Compare Reserved Instance pricing vs On-Demand:\n<code>aws ec2 describe-reserved-instances-offerings --instance-type m5.large --region us-east-1 --output table</code>\n\nThe table shows On-Demand vs 1-year and 3-year Reserved Instance pricing. Reserved Instances offer roughly 35-61% savings in exchange for a commitment. The dollar figures shown are example rates for illustration, not live prices -- check the AWS Pricing Calculator (calculator.aws) for current rates in your Region.',
+                hint: 'AWS offers several EC2 pricing models: On-Demand (maximum flexibility, highest per-unit cost), Reserved Instances (1 or 3 year commitment, roughly 35-61% savings), and Spot Instances (use spare capacity at up to 90% discount, but can be interrupted). Savings Plans are a newer alternative -- you commit to a dollar amount per hour, applicable across instance families and Regions. All of these are still OpEx (monthly payments), not CapEx. Even Reserved Instances are billed monthly -- you commit to usage, not hardware. Actual prices vary by Region, instance generation, and change over time -- always verify with the AWS Pricing Calculator before making purchasing decisions.',
+                cmd: 'aws ec2 describe-reserved-instances-offerings --instance-type m5.large --region us-east-1 --output table'
+            },
+            9: {
+                step: 'List CloudFormation resource types exposed by the EC2 service:\n<code>aws cloudformation list-types --visibility PUBLIC --filters TypeNamePrefix=AWS::EC2 --output table</code>\n\nThe <code>--filters TypeNamePrefix=AWS::EC2</code> flag narrows the catalog to just the EC2 service. Each entry is a typed resource the EC2 service exposes. The <code>provisioningType</code> shows whether a resource can be updated in place (FULLY_MUTABLE) or must be replaced (IMMUTABLE).',
+                hint: 'CloudFormation resource types are the typed API surface that every AWS service exposes, following the pattern AWS::{Service}::{Resource}. AWS::EC2 alone exposes types like Instance, VPC, SecurityGroup, and LaunchTemplate. This is the closest AWS analog to the "resource provider" concept: every service registers its resource types so Infrastructure as Code tools (CloudFormation, CDK, Terraform) know how to create, update, and delete them.',
+                cmd: 'aws cloudformation list-types --visibility PUBLIC --filters TypeNamePrefix=AWS::EC2 --output table'
+            },
+            10: {
+                step: 'List resource types across AWS services to see the full service catalog:\n<code>aws cloudformation list-types --visibility PUBLIC --output table</code>\n\nEach row maps to an AWS service family. The <code>typeNamePrefix</code> shows the resource type namespace, and <code>exampleTypes</code> shows what each service manages.',
+                hint: 'Every AWS service is backed by a family of CloudFormation resource types, following the pattern AWS::{ServiceName}::{Resource}. IaaS types: AWS::EC2 (instances, VPCs), AWS::AutoScaling (scaling groups), AWS::ElasticLoadBalancingV2 (load balancers). PaaS types: AWS::ElasticBeanstalk (managed app hosting), AWS::Lambda (serverless functions), AWS::RDS (managed databases). Understanding this catalog helps you map the CLF-C02 service model concepts (IaaS/PaaS/SaaS) to actual AWS services.',
+                cmd: 'aws cloudformation list-types --visibility PUBLIC --output table'
+            }
+        };
+
+        function selectTask(num) {
+            currentTask = num;
+
+            /* Highlight active card */
+            for (var i = 1; i <= TOTAL_TASKS; i++) {
+                var card = document.getElementById('task-card-' + i);
+                if (!card) continue;
+                card.classList.remove('active');
+                if (i === num) card.classList.add('active');
+            }
+
+            /* Scroll active card into view */
+            var activeCard = document.getElementById('task-card-' + num);
+            if (activeCard) activeCard.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+
+            /* Update instructions panel */
+            var info = taskInstructions[num];
+            if (!info) return;
+
+            var stepEl  = document.getElementById('instructionsStep');
+            var hintEl  = document.getElementById('instructionsHint');
+            var hintCmd = document.getElementById('hintCommand');
+
+            if (stepEl) stepEl.innerHTML = info.step.replace(/\n/g, '<br>');
+            if (hintEl) {
+                hintEl.innerHTML =
+                    '<img src="/assets/images/icons/icon-lightning.webp" alt="" style="width:1em;height:1em;vertical-align:middle;display:inline-block"> ' +
+                    escH(info.hint);
+            }
+            if (hintCmd) {
+                hintCmd.textContent = info.cmd;
+                hintCmd.classList.remove('visible');
+            }
+
+            /* Reset hint button label */
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = 'Show command hint';
+
+            /* Re-expand panel if collapsed */
+            var panel = document.getElementById('instructionsPanel');
+            if (panel && panel.classList.contains('collapsed')) {
+                panel.classList.remove('collapsed');
+            }
+        }
+
+        function toggleInstructions() {
+            var panel = document.getElementById('instructionsPanel');
+            if (panel) panel.classList.toggle('collapsed');
+        }
+
+        function revealHint() {
+            var hintCmd = document.getElementById('hintCommand');
+            if (hintCmd) hintCmd.classList.toggle('visible');
+            var btn = document.getElementById('hintBtn');
+            if (btn) btn.textContent = (hintCmd && hintCmd.classList.contains('visible')) ? 'Hide hint' : 'Show command hint';
+        }
+
+        /* Expose for inline HTML handlers */
+        window.selectTask         = selectTask;
+        window.toggleInstructions = toggleInstructions;
+        window.revealHint         = revealHint;
+
+        /* ════════════════════════════════════════════════
+           TAB COMPLETION
+        ════════════════════════════════════════════════ */
+        var AWS_COMPLETIONS = {
+            'aws ':                                                   ['sts', 'iam', 'ec2', 'elasticbeanstalk', 'trustedadvisor', 'ce', 'cloudformation', '--version'],
+            'aws sts ':                                               ['get-caller-identity'],
+            'aws iam ':                                               ['list-account-aliases'],
+            'aws ec2 ':                                               ['describe-regions', 'describe-instance-types', 'describe-reserved-instances-offerings'],
+            'aws ec2 describe-regions ':                              ['--all-regions', '--output'],
+            'aws ec2 describe-instance-types ':                       ['--region', '--output'],
+            'aws ec2 describe-reserved-instances-offerings ':          ['--instance-type', '--region', '--output'],
+            'aws elasticbeanstalk ':                                  ['list-available-solution-stacks'],
+            'aws trustedadvisor ':                                    ['list-recommendations'],
+            'aws trustedadvisor list-recommendations ':               ['--output'],
+            'aws ce ':                                                ['get-cost-and-usage'],
+            'aws ce get-cost-and-usage ':                             ['--time-period', '--granularity', '--metrics', '--output'],
+            'aws cloudformation ':                                    ['list-types'],
+            'aws cloudformation list-types ':                         ['--visibility', '--filters', '--output']
+        };
+
+        function handleTab(value) {
+            var suggestions = [];
+            var matchKey    = '';
+
+            var keys = Object.keys(AWS_COMPLETIONS);
+            for (var i = 0; i < keys.length; i++) {
+                if (value.indexOf(keys[i]) === 0 && keys[i].length > matchKey.length) {
+                    matchKey = keys[i];
+                }
+            }
+
+            if (matchKey) {
+                var partial  = value.substring(matchKey.length);
+                var options  = AWS_COMPLETIONS[matchKey];
+                suggestions  = options.filter(function (o) { return o.indexOf(partial) === 0; });
+            }
+
+            var popup = document.getElementById('tabSuggestions');
+            if (!popup) return;
+
+            if (suggestions.length === 0) {
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            if (suggestions.length === 1) {
+                inputEl.value = matchKey + suggestions[0] + ' ';
+                popup.classList.remove('visible');
+                popup.innerHTML = '';
+                return;
+            }
+
+            /* Show popup for multiple options */
+            popup.innerHTML = '';
+            suggestions.forEach(function (s) {
+                var div = document.createElement('div');
+                div.className = 'tab-option';
+                div.textContent = s;
+                div.addEventListener('click', function () {
+                    inputEl.value = matchKey + s + ' ';
+                    popup.classList.remove('visible');
+                    popup.innerHTML = '';
+                    inputEl.focus();
+                });
+                popup.appendChild(div);
+            });
+            popup.classList.add('visible');
+        }
+
+        /* ════════════════════════════════════════════════
+           FINISH LAB
+        ════════════════════════════════════════════════ */
+        function finishLab() {
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('cloud', 'clf-ch01-lab', {
+                    returnUrl: '../index.html'
+                });
+            } else {
+                window.location.href = '../index.html';
+            }
+        }
+
+        window.finishLab = finishLab;
+
+        /* ════════════════════════════════════════════════
+           INIT
+        ════════════════════════════════════════════════ */
+        function init() {
+            initFS();
+
+            outputEl  = document.getElementById('termOutput');
+            inputEl   = document.getElementById('termInput');
+            ps1PathEl = document.getElementById('termPS1Path');
+
+            if (!outputEl || !inputEl) return;
+
+            /* ── Welcome Banner ── */
+            addLine('Cloud Concepts Explorer Lab -- AWS CloudShell Simulation', 'term-welcome');
+            addLine('AWS CLI 2.17.0   CLF-C02 Chapter 1 -- Cloud Concepts', 'term-welcome');
+            addBlank();
+            addLine('[SIM] This is a simulated AWS CloudShell environment for learning.', 'term-line-warn');
+            addLine('[SIM] Commands return realistic but synthetic data. In production,', 'term-line-warn');
+            addLine('[SIM] use AWS CloudShell (console.aws.amazon.com/cloudshell) or install the AWS CLI.', 'term-line-warn');
+            addBlank();
+            addLine('Your account is pre-configured: ' + ACCOUNT_ALIAS + ' (' + ACCOUNT_ID + ')', 'term-line-info');
+            addLine('This lab explores the core cloud concepts tested on the CLF-C02 exam:', 'term-line-info');
+            addLine('  -- Cloud service models (IaaS, PaaS, SaaS)', 'term-line-dim');
+            addLine('  -- Cloud deployment models and global Regions', 'term-line-dim');
+            addLine('  -- Cost management (OpEx vs CapEx, consumption model)', 'term-line-dim');
+            addLine('  -- Resource types and the AWS service catalog', 'term-line-dim');
+            addBlank();
+            addLine('Reference docs available: cat ~/docs/cloud-models.txt', 'term-line-dim');
+            addLine('Type "help" for all available commands.', 'term-line-info');
+            addLine('Complete 10 tasks in order to finish the lab.', 'term-line-info');
+            addBlank();
+
+            /* ── Keyboard Handler ── */
+            inputEl.addEventListener('keydown', function (e) {
+                var tabPopup = document.getElementById('tabSuggestions');
+
+                if (e.key === 'Enter') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    var cmd = inputEl.value;
+                    inputEl.value = '';
+                    if (cmd.trim()) {
+                        cmdHistory.push(cmd);
+                        histIdx = cmdHistory.length;
+                    }
+                    execLine(cmd);
+                } else if (e.key === 'Tab') {
+                    e.preventDefault();
+                    handleTab(inputEl.value);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx > 0) {
+                        histIdx--;
+                        inputEl.value = cmdHistory[histIdx];
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                    if (histIdx < cmdHistory.length - 1) {
+                        histIdx++;
+                        inputEl.value = cmdHistory[histIdx];
+                    } else {
+                        histIdx = cmdHistory.length;
+                        inputEl.value = '';
+                    }
+                } else if (e.key === 'Escape') {
+                    if (tabPopup) { tabPopup.classList.remove('visible'); tabPopup.innerHTML = ''; }
+                }
+            });
+
+            /* Click anywhere in output to refocus input */
+            outputEl.addEventListener('click', function () { inputEl.focus(); });
+
+            /* Auto-focus on load */
+            inputEl.focus();
+
+            /* Show task 1 in instructions panel */
+            selectTask(1);
+        }
+
+        /* Boot after DOM ready */
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+    })();
+    </script>
+
+    <script src="../../../../components/AchievementManager.js"></script>
+
+    <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+         Always-visible chat entry point. State machine is attempt-driven;
+         button stays calm and serves as a general chat entry until lab
+         activity ticks the mood-ring.
+         Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+    <hex-ai-button mission-id="clf-ch01-cloud-concepts" house="cloud"></hex-ai-button>
+    <script type="module" src="/_lib/HexAIButton.js"></script>
+</body>
+</html>

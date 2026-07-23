@@ -33,6 +33,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-013 — `azure-fundamentals` LearningPath renders a stale legacy curriculum (twin of the aws-ccp bug)  ·  P3  ·  open
+- **Found:** 2026-07-22 · by Nancy · during CLF-C02 course-build review
+- **Area:** `_app/components/LearningPaths.js` `'azure-fundamentals'` path `.modules` array + `_app/houses/cloud/index.html:113` paths-card (no explicit `href`)
+- **Symptom:** the `azure-fundamentals` path's `modules` array is still the old scattered `cloud-concepts`/`cloud-models`/`cloud-ch0X-*.tool` list, NOT the real `az900-ch0X-*` chapter modules. Its cloud-hub paths-card has no `href`, so it falls through to `path-view.html?...azure-fundamentals` and renders that stale checklist — a disconnected curriculum under the "Azure Fundamentals" name, parallel to the real AZ-900 course (`az-900/index.html`).
+- **Root cause:** same as the aws-ccp bug fixed during the CLF-C02 build (2026-07-22) — the LearningPath `.modules` arrays predate the dedicated `az-900/` course dir and were never repointed. AZ-900 predates the CLF-C02 work so it was left out of scope.
+- **Fix (deferred):** mirror the aws-ccp fix — replace `azure-fundamentals.modules` with the 9 real `az900-ch0{1,2,3}-{pres,lab,quiz}` modules (hrefs into `houses/cloud/az-900/...`), prerequisite-chained. `courseHref` is already correct (`houses/cloud/az-900/index.html`).
+- **Related:** the aws-ccp equivalent was fixed in the CLF-C02 build. Cloud QC campaign [[project]] candidate.
+
 ### BUG-012 — Dead internal links across _app (59 broken .html hrefs/redirects)  ·  P2  ·  in-progress (9 path-fixes shipping; clusters need decisions)
 - **Found:** 2026-07-22 · by self (full-site dead-link scan) · in "continue easy work" session
 - **Area:** 24 files link/redirect to local `.html` targets that don't resolve on disk (scan: 5,181 files / 13,854 local .html links → 59 dead instances)

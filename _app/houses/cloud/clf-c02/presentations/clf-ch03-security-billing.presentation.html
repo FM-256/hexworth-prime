@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Progress & Achievements -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <!-- FirebaseAuth: required for tenant progress sync -->
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security, Billing &amp; Support | CLF-C02 Chapter 3</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #090910 0%, #0f0f1a 50%, #111128 100%);
+            color: #e2e8f0; font-size: 15px; line-height: 1.5;
+        }
+
+        /* Slide container — fixed to viewport, hidden by default */
+        .slide {
+            display: none; position: fixed; inset: 0;
+            padding: 20px 28px 72px; overflow: hidden;
+            animation: slideIn 0.35s ease-out;
+        }
+        .slide.active {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        /* Max-width wrapper so content does not stretch on wide screens */
+        .slide-inner {
+            width: 100%; max-width: 1100px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+
+        /* Blue progress bar across the very top — Cloud house color */
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 3px;
+            background: #3b82f6; transition: width 0.4s ease; z-index: 200;
+        }
+
+        /* Fixed bottom navigation bar */
+        #nav-bar {
+            position: fixed; bottom: 0; left: 0; right: 0; height: 58px;
+            background: rgba(9, 9, 16, 0.95);
+            border-top: 1px solid rgba(255, 255, 255, 0.07);
+            display: flex; align-items: center; justify-content: center;
+            gap: 14px; z-index: 200; padding: 0 20px;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.07); color: #94a3b8;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 8px 22px; border-radius: 6px; font-size: 0.88rem;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .nav-btn:hover:not(:disabled) {
+            background: rgba(59, 130, 246, 0.15); color: #3b82f6; border-color: #3b82f6;
+        }
+        .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .nav-btn.back-btn { font-size: 0.82rem; padding: 8px 16px; }
+        #slide-counter { color: #64748b; font-size: 0.82rem; min-width: 90px; text-align: center; }
+
+        /* Mark Complete button — shown only on last slide via JS */
+        #complete-btn {
+            display: none; background: #3ab577; color: #000; border: none;
+            padding: 9px 26px; border-radius: 6px; font-size: 0.9rem;
+            font-weight: 700; cursor: pointer; transition: background 0.2s, transform 0.15s;
+        }
+        #complete-btn:hover { background: #4fcf8a; transform: translateY(-1px); }
+
+        /* Slide typography */
+        .slide-meta { font-size: 0.78rem; color: #3b82f6; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; }
+        .slide-title { font-size: 1.75rem; font-weight: 700; color: #f1f5f9; text-align: center; line-height: 1.25; }
+        .slide-title .accent { color: #c9a83a; }
+        .slide-subtitle { font-size: 0.95rem; color: #94a3b8; text-align: center; }
+
+        /* Callout strip for scenario or instructor notes */
+        .scenario-strip {
+            background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6;
+            border-radius: 0 8px 8px 0; padding: 10px 16px;
+            font-size: 0.88rem; color: #bfdbfe; font-style: italic;
+        }
+
+        /* Colored information boxes */
+        .box { border-radius: 8px; padding: 12px 16px; font-size: 0.875rem; }
+        .box-cyan  { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.3); color: #cffafe; }
+        .box-green { background: rgba(58, 181, 119, 0.08); border: 1px solid rgba(58, 181, 119, 0.35); color: #d1fae5; }
+        .box-red   { background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: #fee2e2; }
+        .box-gold  { background: rgba(201, 168, 58, 0.08); border: 1px solid rgba(201, 168, 58, 0.3); color: #fef3c7; }
+        .box-blue  { background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; }
+        .box-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; opacity: 0.75; }
+
+        /* Title slide hero block */
+        .title-hero { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .title-hero .big-title { font-size: 2.4rem; font-weight: 800; color: #f1f5f9; line-height: 1.2; }
+        .title-hero .big-title .accent { color: #c9a83a; }
+        .title-meta-row {
+            display: flex; gap: 28px; justify-content: center; margin-top: 6px;
+            font-size: 0.82rem; color: #475569;
+        }
+        .title-meta-row span { border-left: 2px solid #1e293b; padding-left: 28px; }
+        .title-meta-row span:first-child { border-left: none; padding-left: 0; }
+
+        /* Card grids — 3-column and 2-column */
+        .card-grid   { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .card-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .card {
+            background: rgba(255, 255, 255, 0.04); border-radius: 8px;
+            padding: 12px 14px; border-left: 3px solid #3b82f6;
+        }
+        .card:hover { background: rgba(255, 255, 255, 0.07); }
+        .card .card-label { font-size: 0.95rem; font-weight: 700; color: #f1f5f9; margin-bottom: 4px; }
+        .card .card-desc  { font-size: 0.82rem; color: #94a3b8; line-height: 1.4; }
+        .card.c-green  { border-left-color: #3ab577; }
+        .card.c-red    { border-left-color: #ef4444; }
+        .card.c-gold   { border-left-color: #c9a83a; }
+        .card.c-cyan   { border-left-color: #06b6d4; }
+        .card.c-purple { border-left-color: #a78bfa; }
+        .card.c-orange { border-left-color: #f97316; }
+        .card.c-blue   { border-left-color: #3b82f6; }
+
+        /* Section label — small caps divider text */
+        .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: #475569; }
+        .divider { border: none; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+
+        /* Numbered summary facts */
+        .summary-facts { display: flex; flex-direction: column; gap: 6px; }
+        .fact-row { display: flex; gap: 12px; align-items: baseline; font-size: 0.875rem; }
+        .fact-num  { font-size: 0.78rem; font-weight: 700; color: #3b82f6; min-width: 22px; text-align: right; flex-shrink: 0; }
+        .fact-text { color: #cbd5e1; }
+        /* code inline in fact rows uses gold accent */
+        .fact-text code {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* Inline code span — gold accent for code highlights */
+        .ic {
+            font-family: 'Courier New', monospace; color: #c9a83a;
+            background: rgba(201, 168, 58, 0.08); padding: 1px 5px;
+            border-radius: 3px; font-size: 0.85em;
+        }
+
+        /* SVG diagram containers */
+        .diagram-row {
+            display: flex; gap: 16px; align-items: center; justify-content: center;
+        }
+        .diagram-center { display: flex; justify-content: center; align-items: center; }
+
+        /* Hex grid */
+        .hex-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+        }
+        .hex-cell {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 8px; padding: 12px 14px;
+            text-align: center;
+            opacity: 0;
+            animation: hexAppear 0.4s ease forwards;
+        }
+        .hex-cell:nth-child(1) { animation-delay: 0.1s; }
+        .hex-cell:nth-child(2) { animation-delay: 0.25s; }
+        .hex-cell:nth-child(3) { animation-delay: 0.4s; }
+        .hex-cell:nth-child(4) { animation-delay: 0.55s; }
+        .hex-cell:nth-child(5) { animation-delay: 0.7s; }
+        .hex-cell:nth-child(6) { animation-delay: 0.85s; }
+        @keyframes hexAppear {
+            from { opacity: 0; transform: scale(0.85); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .hex-cell .hex-title { font-size: 0.88rem; font-weight: 700; color: #3b82f6; margin-bottom: 4px; }
+        .hex-cell .hex-desc  { font-size: 0.78rem; color: #94a3b8; line-height: 1.4; }
+
+        /* Shared animation keyframes */
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50%       { opacity: 1; }
+        }
+        @keyframes flow {
+            0%   { stroke-dashoffset: 20; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes boxGrow {
+            from { opacity: 0; transform: scale(0.7); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        @keyframes labelSlide {
+            from { opacity: 0; transform: translateX(-8px); }
+            to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes entityPop {
+            from { opacity: 0; transform: scale(0.6) translateY(6px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes spokePulse {
+            0%   { stroke-dashoffset: 40; opacity: 0.3; }
+            50%  { opacity: 1; }
+            100% { stroke-dashoffset: 0; opacity: 0.6; }
+        }
+        @keyframes barGrow {
+            from { width: 0; }
+        }
+        @keyframes bubblePop {
+            from { opacity: 0; transform: scale(0.8) translateY(8px); }
+            to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes orbitSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes waveFlow {
+            0%   { stroke-dashoffset: 24; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes glowPulse {
+            0%, 100% { filter: drop-shadow(0 0 4px rgba(59,130,246,0.3)); }
+            50%       { filter: drop-shadow(0 0 14px rgba(59,130,246,0.9)); }
+        }
+        @keyframes barRise {
+            from { transform: scaleY(0); transform-origin: bottom; }
+            to   { transform: scaleY(1); transform-origin: bottom; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes arrowMarch {
+            0%   { stroke-dashoffset: 14; }
+            100% { stroke-dashoffset: 0; }
+        }
+        @keyframes lockBounce {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-3px); }
+        }
+        @keyframes shieldPulse {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50%      { opacity: 1; transform: scale(1.04); }
+        }
+        @keyframes gearSpin {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        }
+        @keyframes tagFloat {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-4px); }
+        }
+        @keyframes extendArm {
+            from { stroke-dashoffset: 60; opacity: 0; }
+            to   { stroke-dashoffset: 0; opacity: 1; }
+        }
+        @keyframes codeTransform {
+            0%   { opacity: 0.4; transform: translateX(-6px); }
+            50%  { opacity: 1; }
+            100% { opacity: 0.4; transform: translateX(6px); }
+        }
+        @keyframes celebratePop {
+            from { opacity: 0; transform: scale(0.3) rotate(-15deg); }
+            to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+
+        /* Step-by-step flow list */
+        .step-list { display: flex; flex-direction: column; gap: 6px; }
+        .step-row  { display: flex; gap: 12px; align-items: flex-start; font-size: 0.85rem; }
+        .step-num  {
+            background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.4);
+            color: #3b82f6; font-weight: 700; font-size: 0.78rem;
+            border-radius: 4px; padding: 2px 7px; flex-shrink: 0; margin-top: 1px;
+        }
+        .step-text { color: #cbd5e1; line-height: 1.4; }
+        .step-text strong { color: #f1f5f9; }
+
+        /* Code block */
+        .code-block {
+            background: rgba(0,0,0,0.35); border: 1px solid rgba(201,168,58,0.2);
+            border-radius: 6px; padding: 10px 14px; font-family: 'Courier New', monospace;
+            font-size: 0.8rem; color: #c9a83a; line-height: 1.6; white-space: pre;
+        }
+        .code-block .cm { color: #64748b; } /* comment */
+        .code-block .kw { color: #93c5fd; } /* keyword / property */
+        .code-block .st { color: #86efac; } /* string value */
+        .code-block .nu { color: #fdba74; } /* number */
+
+        /* Two-column code compare */
+        .code-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .code-panel-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.07em; margin-bottom: 5px; }
+
+        @media (max-height: 700px) { .slide-inner { gap: 9px; } .slide-title { font-size: 1.4rem; } .title-hero .big-title { font-size: 1.9rem; } }
+        @media (max-width: 768px)  { .card-grid { grid-template-columns: 1fr; } .card-grid-2 { grid-template-columns: 1fr; } .slide-title { font-size: 1.3rem; } .hex-grid { grid-template-columns: 1fr 1fr; } .code-compare { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<!-- Visually-hidden h1 for screen reader accessibility -->
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Security, Billing &amp; Support — CLF-C02 Chapter 3</h1>
+
+<!-- Blue progress bar — width updated by goToSlide() -->
+<div id="progress-bar" style="width:7.14%"></div>
+
+<!-- ==================== SLIDE 1 — TITLE ==================== -->
+<section class="slide active" id="slide-1">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 1 of 14 &nbsp;|&nbsp; CLF-C02 &nbsp;|&nbsp; Chapter 3 &nbsp;|&nbsp; Security, Billing &amp; Support</div>
+        <div class="title-hero">
+            <!-- Shield with a padlock, orbited by IAM / Pricing / Support icons -->
+            <svg width="420" height="140" viewBox="0 0 420 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M210,12 L260,32 L260,72 Q260,108 210,128 Q160,108 160,72 L160,32 Z" fill="rgba(59,130,246,0.1)" stroke="#3b82f6" stroke-width="2"
+                    style="animation: shieldPulse 3s ease-in-out infinite;"/>
+                <g style="animation: lockBounce 2.2s ease-in-out infinite;" transform="translate(210, 70)">
+                    <rect x="-13" y="-2" width="26" height="20" rx="4" fill="rgba(201,168,58,0.2)" stroke="#c9a83a" stroke-width="1.5"/>
+                    <path d="M-7,-4 L-7,-14 Q-7,-22 0,-22 Q7,-22 7,-14 L7,-4" fill="none" stroke="#c9a83a" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="0" cy="8" r="2.4" fill="#c9a83a"/>
+                </g>
+                <!-- Orbit ring -->
+                <ellipse cx="210" cy="70" rx="150" ry="60" fill="none" stroke="rgba(59,130,246,0.08)" stroke-width="1.5"
+                    style="animation: pulse 2.8s ease-in-out infinite;"/>
+                <!-- IAM -->
+                <circle cx="70" cy="40" r="18" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.3"
+                    style="animation: bubblePop 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="70" y="44" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">IAM</text>
+                <!-- Pricing -->
+                <circle cx="350" cy="40" r="18" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.3"
+                    style="animation: bubblePop 0.4s ease forwards 0.3s; opacity:0;"/>
+                <text x="350" y="44" text-anchor="middle" font-size="14" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">$</text>
+                <!-- Support -->
+                <circle cx="70" cy="110" r="18" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: bubblePop 0.4s ease forwards 0.45s; opacity:0;"/>
+                <text x="70" y="108" text-anchor="middle" font-size="6.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">SUP</text>
+                <text x="70" y="117" text-anchor="middle" font-size="6.5" fill="#67e8f9" font-family="Segoe UI,sans-serif">PORT</text>
+                <!-- Compliance -->
+                <circle cx="350" cy="110" r="18" fill="rgba(167,139,250,0.12)" stroke="#a78bfa" stroke-width="1.3"
+                    style="animation: bubblePop 0.4s ease forwards 0.6s; opacity:0;"/>
+                <polyline points="343,110 349,116 359,104" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="big-title">
+                Security, Billing <span class="accent">&amp; Support</span>
+            </div>
+            <div class="slide-subtitle" style="font-size:1.05rem; margin-top:6px;">
+                Shared Responsibility &nbsp;&bull;&nbsp; IAM &nbsp;&bull;&nbsp; Security Services &nbsp;&bull;&nbsp; Compliance &nbsp;&bull;&nbsp; Pricing &nbsp;&bull;&nbsp; Billing Tools &nbsp;&bull;&nbsp; Support Plans &nbsp;&bull;&nbsp; Well-Architected
+            </div>
+        </div>
+        <div class="scenario-strip">
+            Chapter 3 covers Domain 2 (Security and Compliance) and Domain 4 (Billing, Pricing, and Support) of the CLF-C02 exam. You will learn how AWS and the customer share security duties, how to control access with IAM, which AWS services detect and stop threats, how AWS pricing actually works, and how to get help when something breaks.
+        </div>
+        <div class="title-meta-row">
+            <span>14 Slides</span>
+            <span>CLF-C02 Exam Objectives</span>
+            <span>Chapter 3 of 3</span>
+            <span>AWS Cloud Fundamentals</span>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 2 — SHARED RESPONSIBILITY MODEL ==================== -->
+<section class="slide" id="slide-2">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 2 of 14</div>
+        <div class="slide-title">The <span class="accent">Shared Responsibility</span> Model</div>
+        <div class="slide-subtitle">AWS secures the cloud. You secure what you put in it. Exactly where the line falls shifts depending on which service you use.</div>
+
+        <!-- SVG: split diagram — AWS side vs Customer side -->
+        <div class="diagram-center">
+            <svg width="620" height="130" viewBox="0 0 620 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- AWS side -->
+                <rect x="10" y="8" width="290" height="114" rx="10" fill="rgba(59,130,246,0.07)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.05s; opacity:0;"/>
+                <text x="155" y="26" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">AWS: Security OF the Cloud</text>
+                <text x="30" y="44" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Regions, Availability Zones, edge locations</text>
+                <text x="30" y="58" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Physical hardware and data-center security</text>
+                <text x="30" y="72" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Global network infrastructure</text>
+                <text x="30" y="86" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Hypervisor and host-OS patching</text>
+                <text x="30" y="100" font-size="7" fill="#93c5fd" font-family="Segoe UI,sans-serif">Managed-service software (RDS engine, Lambda runtime)</text>
+
+                <!-- Divider with lock -->
+                <line x1="310" y1="10" x2="310" y2="120" stroke="rgba(255,255,255,0.15)" stroke-width="1.2" stroke-dasharray="4,3"/>
+                <circle cx="310" cy="65" r="14" fill="#0c0c14" stroke="#c9a83a" stroke-width="1.3" style="animation: pulse 2.4s ease-in-out infinite;"/>
+                <text x="310" y="69" text-anchor="middle" font-size="10" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">vs</text>
+
+                <!-- Customer side -->
+                <rect x="320" y="8" width="290" height="114" rx="10" fill="rgba(201,168,58,0.07)" stroke="#c9a83a" stroke-width="1.5"
+                    style="animation: boxGrow 0.4s ease forwards 0.15s; opacity:0;"/>
+                <text x="465" y="26" text-anchor="middle" font-size="9" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Customer: Security IN the Cloud</text>
+                <text x="336" y="44" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Data classification and encryption choices</text>
+                <text x="336" y="58" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">IAM: identities, permissions, MFA</text>
+                <text x="336" y="72" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Guest OS, patching, and app config (EC2)</text>
+                <text x="336" y="86" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Security groups, NACLs, firewall rules</text>
+                <text x="336" y="100" font-size="7" fill="#fef3c7" font-family="Segoe UI,sans-serif">Client-side and network traffic protection</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">EC2 (IaaS)</div>
+                <div class="card-desc">AWS secures the hypervisor and hardware. You patch the guest OS, configure security groups, and manage every layer above the virtual machine.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">RDS / Lambda (Managed)</div>
+                <div class="card-desc">AWS patches the database engine or runtime. You still own your data, your IAM permissions, and your network access controls.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">S3 (Storage)</div>
+                <div class="card-desc">AWS secures the storage infrastructure and durability. You control bucket policies, encryption, and who can read or write objects.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Rule</div>
+            <strong>Your responsibility never disappears -- it shifts.</strong> Regardless of the service, the customer always owns data, identities, and access management. AWS never sees a scenario answer that says "the cloud handles security for you."
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 3 — IAM FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-3">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 3 of 14</div>
+        <div class="slide-title">IAM <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">AWS Identity and Access Management controls who can do what. Four building blocks: users, groups, roles, and policies.</div>
+
+        <!-- SVG: root account at top, IAM structure below -->
+        <div class="diagram-center">
+            <svg width="600" height="130" viewBox="0 0 600 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- Root warning box -->
+                <rect x="220" y="6" width="160" height="30" rx="7" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="300" y="26" text-anchor="middle" font-size="8.5" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Root User -- lock it away</text>
+
+                <line x1="300" y1="36" x2="300" y2="52" stroke="rgba(239,68,68,0.4)" stroke-width="1.3" stroke-dasharray="4,3"/>
+
+                <!-- IAM box -->
+                <rect x="130" y="54" width="340" height="66" rx="10" fill="rgba(59,130,246,0.06)" stroke="#3b82f6" stroke-width="1.5"
+                    style="animation: boxGrow 0.35s ease forwards 0.15s; opacity:0;"/>
+                <text x="300" y="70" text-anchor="middle" font-size="9" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">IAM</text>
+
+                <rect x="144" y="80" width="72" height="30" rx="6" fill="rgba(58,181,119,0.1)" stroke="#3ab577" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.3s; opacity:0;"/>
+                <text x="180" y="99" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Users</text>
+
+                <rect x="228" y="80" width="72" height="30" rx="6" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.4s; opacity:0;"/>
+                <text x="264" y="99" text-anchor="middle" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Groups</text>
+
+                <rect x="312" y="80" width="72" height="30" rx="6" fill="rgba(6,182,212,0.1)" stroke="#06b6d4" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.5s; opacity:0;"/>
+                <text x="348" y="99" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Roles</text>
+
+                <rect x="396" y="80" width="60" height="30" rx="6" fill="rgba(167,139,250,0.1)" stroke="#a78bfa" stroke-width="1"
+                    style="animation: entityPop 0.3s ease forwards 0.6s; opacity:0;"/>
+                <text x="426" y="99" text-anchor="middle" font-size="7.5" fill="#a78bfa" font-weight="700" font-family="Segoe UI,sans-serif">Policies</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Users</div>
+                <div class="card-desc">A persistent identity for one person or application. Has long-term credentials (password, access keys). Create one per human -- never share.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Groups</div>
+                <div class="card-desc">A collection of users. Attach a policy once to a group instead of to every user individually. Groups cannot be nested and cannot be assumed by a resource.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Roles</div>
+                <div class="card-desc">A temporary identity assumed by a user, application, or AWS service (like EC2 or Lambda). No long-term credentials -- short-lived tokens only. Preferred over embedding access keys in code.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Policies</div>
+                <div class="card-desc">JSON documents that define permissions. Attached to users, groups, or roles. Nothing has any access until a policy grants it -- deny is the default.</div>
+            </div>
+        </div>
+
+        <div class="box box-red">
+            <div class="box-label">Exam Tip</div>
+            The <strong>root user</strong> has unrestricted access, including the ability to close the account. Enable MFA on root immediately, do not create access keys for it, and use it only for the handful of tasks that genuinely require root (like changing the support plan).
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 4 — IAM POLICIES & LEAST PRIVILEGE ==================== -->
+<section class="slide" id="slide-4">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 4 of 14</div>
+        <div class="slide-title">IAM Policies &amp; <span class="accent">Least Privilege</span></div>
+        <div class="slide-subtitle">A policy is a JSON document with a Version and one or more Statements. Grant only the permissions a job actually requires.</div>
+
+        <div class="code-compare">
+            <div>
+                <div class="code-panel-label" style="color:#3ab577;">Least Privilege</div>
+                <div class="code-block"><span class="kw">{</span>
+  <span class="kw">"Version"</span>: <span class="st">"2012-10-17"</span>,
+  <span class="kw">"Statement"</span>: [
+    <span class="kw">{</span>
+      <span class="kw">"Effect"</span>: <span class="st">"Allow"</span>,
+      <span class="kw">"Action"</span>: [
+        <span class="st">"s3:GetObject"</span>,
+        <span class="st">"s3:ListBucket"</span>
+      ],
+      <span class="kw">"Resource"</span>: [
+        <span class="st">"arn:aws:s3:::reports"</span>,
+        <span class="st">"arn:aws:s3:::reports/*"</span>
+      ]
+    <span class="kw">}</span>
+  ]
+<span class="kw">}</span></div>
+            </div>
+            <div>
+                <div class="code-panel-label" style="color:#ef4444;">Overly Permissive</div>
+                <div class="code-block"><span class="kw">{</span>
+  <span class="kw">"Version"</span>: <span class="st">"2012-10-17"</span>,
+  <span class="kw">"Statement"</span>: [
+    <span class="kw">{</span>
+      <span class="kw">"Effect"</span>: <span class="st">"Allow"</span>,
+      <span class="kw">"Action"</span>: <span class="st">"s3:*"</span>,
+      <span class="kw">"Resource"</span>: <span class="st">"*"</span>
+    <span class="kw">}</span>
+  ]
+<span class="kw">}</span>
+
+
+
+</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>Effect:</strong> Allow or Deny. An explicit Deny always overrides any Allow, anywhere in the evaluation.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>Action:</strong> the specific API calls permitted, such as <code class="ic">s3:GetObject</code> or <code class="ic">ec2:StartInstances</code>.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>Resource:</strong> the ARN(s) the statement applies to. Scope it to one bucket, not <code class="ic">"*"</code> (every bucket you own).</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>Managed vs. inline:</strong> AWS managed policies are maintained by AWS; customer managed policies are reusable and version-controlled by you; inline policies are embedded in a single identity and cannot be reused.</span></div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            <strong>By default, IAM denies everything.</strong> Access exists only where a policy explicitly allows it. The right-hand example above (<code class="ic">"Action": "s3:*"</code>, <code class="ic">"Resource": "*"</code>) grants full control of every S3 bucket in the account -- exactly the pattern least privilege exists to prevent.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 5 — MFA, ROOT PROTECTION & IAM IDENTITY CENTER ==================== -->
+<section class="slide" id="slide-5">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 5 of 14</div>
+        <div class="slide-title">MFA, Root Protection &amp; <span class="accent">IAM Identity Center</span></div>
+        <div class="slide-subtitle">A password alone is not enough. Multi-factor authentication and centralized access are how real organizations protect accounts at scale.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell" style="border-color: rgba(58,181,119,0.35);">
+                <div class="hex-title" style="color:#3ab577;">Virtual MFA</div>
+                <div class="hex-desc">An authenticator app (e.g., a TOTP app) on a phone or tablet generates a rotating six-digit code. Free and the most common option.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(201,168,58,0.35);">
+                <div class="hex-title" style="color:#c9a83a;">Hardware / Security Key</div>
+                <div class="hex-desc">A physical FIDO security key or hardware TOTP token. Highest assurance -- recommended for the root user and privileged administrators.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(6,182,212,0.35);">
+                <div class="hex-title" style="color:#06b6d4;">MFA on Sign-In</div>
+                <div class="hex-desc">Requires the second factor at every console sign-in. Can also be required for specific sensitive API calls via a policy condition.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(239,68,68,0.35);">
+                <div class="hex-title" style="color:#ef4444;">Protect the Root User</div>
+                <div class="hex-desc">Enable MFA on root immediately after account creation. Do not generate root access keys. Use root only for tasks that require it, such as changing the AWS Support plan.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(167,139,250,0.35);">
+                <div class="hex-title" style="color:#a78bfa;">IAM Identity Center</div>
+                <div class="hex-desc">Formerly AWS SSO. Provides single sign-on across every AWS account in an AWS Organizations structure, plus supported business applications.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(59,130,246,0.35);">
+                <div class="hex-title" style="color:#3b82f6;">Permission Sets</div>
+                <div class="hex-desc">IAM Identity Center assigns reusable permission sets to users or groups per account -- centralized management instead of one IAM user per account.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">Key Point</div>
+            IAM Identity Center is the recommended way to manage human access across <strong>multiple</strong> AWS accounts in an organization. Individual IAM users are still appropriate for service accounts and single-account scenarios, but do not scale cleanly across dozens of accounts.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 6 — NETWORK & APPLICATION SECURITY ==================== -->
+<section class="slide" id="slide-6">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 6 of 14</div>
+        <div class="slide-title">Network &amp; Application <span class="accent">Security</span></div>
+        <div class="slide-subtitle">Security Groups and Network ACLs filter traffic at different layers. Shield and WAF defend against attacks aimed at your applications.</div>
+
+        <!-- SVG: VPC with subnet (NACL) containing instance (SG) -->
+        <div class="diagram-center">
+            <svg width="560" height="130" viewBox="0 0 560 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="8" width="330" height="114" rx="10" fill="rgba(59,130,246,0.05)" stroke="rgba(59,130,246,0.3)" stroke-width="1.2" stroke-dasharray="6,3"/>
+                <text x="30" y="24" font-size="8" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">VPC</text>
+
+                <!-- Subnet w/ NACL -->
+                <rect x="26" y="32" width="298" height="80" rx="8" fill="rgba(201,168,58,0.06)" stroke="#c9a83a" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.1s; opacity:0;"/>
+                <text x="46" y="48" font-size="7.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Subnet -- protected by a Network ACL</text>
+                <text x="46" y="60" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Stateless -- allow AND deny rules, numbered order</text>
+
+                <!-- Instance w/ SG -->
+                <rect x="60" y="70" width="230" height="34" rx="7" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.2"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="175" y="86" text-anchor="middle" font-size="7.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">EC2 Instance -- protected by a Security Group</text>
+                <text x="175" y="98" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Stateful -- allow rules only, evaluates all rules</text>
+
+                <!-- Inbound arrow -->
+                <line x1="342" y1="60" x2="400" y2="60" stroke="rgba(239,68,68,0.5)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="0.9s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- Shield -->
+                <path d="M440,20 L470,30 L470,52 Q470,68 440,78 Q410,68 410,52 L410,30 Z" fill="rgba(239,68,68,0.1)" stroke="#ef4444" stroke-width="1.5"
+                    style="animation: shieldPulse 3s ease-in-out infinite;"/>
+                <text x="440" y="48" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Shield</text>
+                <text x="440" y="59" text-anchor="middle" font-size="6" fill="#fca5a5" font-family="Segoe UI,sans-serif">DDoS</text>
+
+                <!-- WAF -->
+                <rect x="482" y="20" width="70" height="58" rx="8" fill="rgba(6,182,212,0.08)" stroke="#06b6d4" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.35s; opacity:0;"/>
+                <text x="517" y="44" text-anchor="middle" font-size="7.5" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">WAF</text>
+                <text x="517" y="58" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">L7 rules</text>
+                <text x="517" y="68" text-anchor="middle" font-size="6" fill="#67e8f9" font-family="Segoe UI,sans-serif">SQLi / XSS</text>
+
+                <text x="440" y="95" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif" font-style="italic">Internet-facing edge</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-green">
+                <div class="card-label">Security Groups</div>
+                <div class="card-desc">Instance/ENI level. Stateful -- return traffic is automatically allowed. Allow rules only; everything else is implicitly denied. Evaluates every rule before deciding.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Network ACLs</div>
+                <div class="card-desc">Subnet level. Stateless -- return traffic must be explicitly allowed. Supports both allow and deny rules, processed in numbered order, first match wins.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">AWS Shield</div>
+                <div class="card-desc">DDoS protection. Standard is free and automatic for every customer. Advanced adds enhanced detection, cost protection, and 24x7 DDoS Response Team access.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">AWS WAF</div>
+                <div class="card-desc">Layer 7 web application firewall for CloudFront, ALB, API Gateway, and AppSync. Blocks common exploits like SQL injection and cross-site scripting using rule-based web ACLs.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 7 — DETECTION & AUDIT SERVICES ==================== -->
+<section class="slide" id="slide-7">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 7 of 14</div>
+        <div class="slide-title">Detection &amp; <span class="accent">Audit Services</span></div>
+        <div class="slide-subtitle">Five managed services that watch your account, your resources, and your data so you do not have to build detection tooling yourself.</div>
+
+        <div class="hex-grid">
+            <div class="hex-cell" style="border-color: rgba(59,130,246,0.35);">
+                <div class="hex-title" style="color:#3b82f6;">CloudTrail</div>
+                <div class="hex-desc">Records every API call in the account -- who, what, when, from where. The audit log for forensics and compliance evidence.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(239,68,68,0.35);">
+                <div class="hex-title" style="color:#ef4444;">GuardDuty</div>
+                <div class="hex-desc">Continuous, ML-driven threat detection. Analyzes CloudTrail, VPC Flow Logs, and DNS logs for anomalies. No agents required.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(58,181,119,0.35);">
+                <div class="hex-title" style="color:#3ab577;">AWS Config</div>
+                <div class="hex-desc">Records resource configuration over time and evaluates it against Config Rules. Answers "what changed, and is it still compliant?"</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(201,168,58,0.35);">
+                <div class="hex-title" style="color:#c9a83a;">Inspector</div>
+                <div class="hex-desc">Automated vulnerability management for EC2 instances, container images in ECR, and Lambda functions. Finds software CVEs and network exposure.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(167,139,250,0.35);">
+                <div class="hex-title" style="color:#a78bfa;">Macie</div>
+                <div class="hex-desc">Uses machine learning and pattern matching to discover sensitive data -- like PII -- stored in Amazon S3, and alerts on unintended exposure.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(6,182,212,0.35);">
+                <div class="hex-title" style="color:#06b6d4;">How They Fit Together</div>
+                <div class="hex-desc">CloudTrail records activity. Config tracks configuration. GuardDuty and Inspector hunt for threats and vulnerabilities. Macie protects sensitive data specifically.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Exam Tip</div>
+            When a scenario asks "which service tells you <em>who did what</em>" &rarr; CloudTrail. "<em>Is this account under attack</em>" &rarr; GuardDuty. "<em>Did this resource's configuration drift</em>" &rarr; Config. "<em>Is there a vulnerability in this workload</em>" &rarr; Inspector. "<em>Is there exposed PII in my S3 buckets</em>" &rarr; Macie.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 8 — ENCRYPTION & SECRETS ==================== -->
+<section class="slide" id="slide-8">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 8 of 14</div>
+        <div class="slide-title">Encryption &amp; <span class="accent">Secrets</span></div>
+        <div class="slide-subtitle">AWS KMS manages the encryption keys. AWS Secrets Manager manages the credentials those keys often protect.</div>
+
+        <!-- SVG: KMS key protecting data, Secrets Manager rotating a credential -->
+        <div class="diagram-center">
+            <svg width="560" height="120" viewBox="0 0 560 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <!-- KMS key -->
+                <circle cx="110" cy="55" r="34" fill="rgba(201,168,58,0.1)" stroke="#c9a83a" stroke-width="1.6"
+                    style="animation: glowPulse 3s ease-in-out infinite;"/>
+                <text x="110" y="50" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">KMS</text>
+                <text x="110" y="63" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Key</text>
+
+                <line x1="144" y1="55" x2="200" y2="55" stroke="rgba(201,168,58,0.5)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite"/>
+                </line>
+
+                <!-- Encrypted data -->
+                <rect x="204" y="30" width="120" height="50" rx="8" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.3"
+                    style="animation: boxGrow 0.3s ease forwards 0.2s; opacity:0;"/>
+                <text x="264" y="50" text-anchor="middle" font-size="7.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">S3 / EBS / RDS</text>
+                <text x="264" y="64" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Encrypted at rest</text>
+
+                <line x1="330" y1="55" x2="386" y2="55" stroke="rgba(59,130,246,0.4)" stroke-width="1.3" stroke-dasharray="5,3">
+                    <animate attributeName="stroke-dashoffset" values="16;0" dur="1s" repeatCount="indefinite" begin="0.2s"/>
+                </line>
+
+                <!-- Secrets Manager -->
+                <rect x="390" y="16" width="150" height="78" rx="10" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.35s ease forwards 0.3s; opacity:0;"/>
+                <text x="465" y="34" text-anchor="middle" font-size="8" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Secrets Manager</text>
+                <circle cx="465" cy="60" r="16" fill="none" stroke="#3ab577" stroke-width="1.3" style="animation: gearSpin 5s linear infinite;"/>
+                <text x="465" y="64" text-anchor="middle" font-size="8" fill="#86efac" font-family="Segoe UI,sans-serif">&#8635;</text>
+                <text x="465" y="84" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Automatic rotation</text>
+            </svg>
+        </div>
+
+        <div class="card-grid-2">
+            <div class="card c-gold">
+                <div class="card-label">AWS KMS</div>
+                <div class="card-desc">Create and manage encryption keys. Integrates natively with S3, EBS, RDS, and more. Key policies control who can use or manage a key. Symmetric keys can auto-rotate annually.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AWS Secrets Manager</div>
+                <div class="card-desc">Stores database credentials, API keys, and tokens. Rotates them automatically on a schedule via Lambda, so applications never hardcode a password.</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Envelope Encryption</div>
+                <div class="card-desc">KMS encrypts a data key, and that data key encrypts your actual data. This avoids repeatedly sending large amounts of data to KMS itself.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Secrets Manager vs. Parameter Store</div>
+                <div class="card-desc">Parameter Store (part of Systems Manager) is free at standard tier and great for configuration values. Secrets Manager costs more per secret but adds built-in automatic rotation.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 9 — COMPLIANCE ==================== -->
+<section class="slide" id="slide-9">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 9 of 14</div>
+        <div class="slide-title">Compliance &amp; <span class="accent">AWS Artifact</span></div>
+        <div class="slide-subtitle">AWS operates under dozens of global compliance programs and gives you self-service access to the evidence auditors ask for.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AWS Artifact</div>
+                <div class="card-desc">A self-service portal for on-demand access to AWS compliance reports (SOC, PCI, ISO) and to review and accept agreements, such as a Business Associate Addendum (BAA) for HIPAA workloads.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Shared Compliance</div>
+                <div class="card-desc">AWS handles compliance of the infrastructure; you are responsible for how you configure and use it. Using a HIPAA-eligible service does not automatically make your application HIPAA compliant.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Continuous Auditing</div>
+                <div class="card-desc">AWS infrastructure is independently assessed on a recurring basis. New reports are published to Artifact as audits complete -- no waiting on a sales request.</div>
+            </div>
+        </div>
+
+        <div class="step-list">
+            <div class="step-row"><span class="step-num">1</span><span class="step-text"><strong>SOC 1 / 2 / 3:</strong> reports on internal controls relevant to financial reporting and security/availability/confidentiality.</span></div>
+            <div class="step-row"><span class="step-num">2</span><span class="step-text"><strong>ISO 27001 / 27017 / 27018:</strong> international standards for information security management and cloud-specific privacy controls.</span></div>
+            <div class="step-row"><span class="step-num">3</span><span class="step-text"><strong>PCI DSS:</strong> required for any organization that processes, stores, or transmits payment card data.</span></div>
+            <div class="step-row"><span class="step-num">4</span><span class="step-text"><strong>HIPAA:</strong> AWS supports HIPAA-eligible services under a signed BAA for workloads handling protected health information.</span></div>
+            <div class="step-row"><span class="step-num">5</span><span class="step-text"><strong>FedRAMP:</strong> a US government risk-management framework; AWS GovCloud (US) is designed for FedRAMP High, ITAR, and DoD workloads.</span></div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            If a question describes needing an <strong>audit report or signed agreement</strong>, the answer is <strong>AWS Artifact</strong>. It is not a security scanning tool -- it is a document library.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 10 — PRICING FUNDAMENTALS ==================== -->
+<section class="slide" id="slide-10">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 10 of 14</div>
+        <div class="slide-title">Pricing <span class="accent">Fundamentals</span></div>
+        <div class="slide-subtitle">Nearly every AWS bill comes down to three dimensions: compute, storage, and data transfer out.</div>
+
+        <!-- SVG: three pillars -->
+        <div class="diagram-center">
+            <svg width="560" height="120" viewBox="0 0 560 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="30" y="20" width="150" height="88" rx="9" fill="rgba(59,130,246,0.08)" stroke="#3b82f6" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.05s; opacity:0;"/>
+                <text x="105" y="40" text-anchor="middle" font-size="8.5" fill="#3b82f6" font-weight="700" font-family="Segoe UI,sans-serif">Compute</text>
+                <text x="105" y="56" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">Pay per second/hour</text>
+                <text x="105" y="70" text-anchor="middle" font-size="6.5" fill="#93c5fd" font-family="Segoe UI,sans-serif">while a resource runs</text>
+                <text x="105" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">EC2, Lambda, Fargate</text>
+
+                <rect x="205" y="20" width="150" height="88" rx="9" fill="rgba(201,168,58,0.08)" stroke="#c9a83a" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.15s; opacity:0;"/>
+                <text x="280" y="40" text-anchor="middle" font-size="8.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Storage</text>
+                <text x="280" y="56" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">Pay per GB stored</text>
+                <text x="280" y="70" text-anchor="middle" font-size="6.5" fill="#fef3c7" font-family="Segoe UI,sans-serif">per month</text>
+                <text x="280" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">S3, EBS, EFS</text>
+
+                <rect x="380" y="20" width="150" height="88" rx="9" fill="rgba(58,181,119,0.08)" stroke="#3ab577" stroke-width="1.4"
+                    style="animation: boxGrow 0.3s ease forwards 0.25s; opacity:0;"/>
+                <text x="455" y="40" text-anchor="middle" font-size="8.5" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Data Transfer</text>
+                <text x="455" y="56" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Data IN is free</text>
+                <text x="455" y="70" text-anchor="middle" font-size="6.5" fill="#86efac" font-family="Segoe UI,sans-serif">Data OUT to internet is billed</text>
+                <text x="455" y="90" text-anchor="middle" font-size="6" fill="#64748b" font-family="Segoe UI,sans-serif">per GB transferred out</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Compute</div>
+                <div class="card-desc">You pay for the resource while it runs -- by the second for EC2 and Fargate, or per invocation and duration for Lambda. Stop the resource, stop paying for compute.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Storage</div>
+                <div class="card-desc">Billed per GB stored per month, with additional charges for requests and retrieval depending on the storage class (S3 Standard vs. Glacier, for example).</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Data Transfer Out</div>
+                <div class="card-desc">Data transferred into AWS is free. Data transferred out to the internet is billed per GB. Transfers within the same Availability Zone are typically free or discounted.</div>
+            </div>
+        </div>
+
+        <div class="box box-cyan">
+            <div class="box-label">AWS Free Tier</div>
+            Three categories: <strong>Always Free</strong> (e.g., a fixed amount of Lambda requests every month, forever), <strong>12 Months Free</strong> (new-account offers like limited EC2/S3/RDS usage), and <strong>Trials</strong> (short-term free access to specific services). Free Tier limits are illustrative and change over time -- always confirm current limits at aws.amazon.com/free.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 11 — COMPUTE PRICING MODELS ==================== -->
+<section class="slide" id="slide-11">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 11 of 14</div>
+        <div class="slide-title">Compute <span class="accent">Pricing Models</span></div>
+        <div class="slide-subtitle">The same EC2 instance can cost wildly different amounts depending on how you commit to using it.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">On-Demand</div>
+                <div class="card-desc">Pay by the second, no commitment. Maximum flexibility, highest per-unit price. Best for unpredictable or short-term workloads.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Reserved Instances</div>
+                <div class="card-desc">Commit to a specific instance family for 1 or 3 years for a significant discount versus On-Demand. Standard RIs lock the instance type; Convertible RIs allow changes.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Savings Plans</div>
+                <div class="card-desc">Commit to a $/hour spend for 1 or 3 years. Compute Savings Plans apply across instance family, Region, OS, and even Fargate/Lambda. More flexible than Reserved Instances.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Spot Instances</div>
+                <div class="card-desc">Bid on spare AWS capacity for steep discounts versus On-Demand. AWS can reclaim a Spot instance with a two-minute warning. Ideal for fault-tolerant, flexible workloads.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Dedicated Hosts</div>
+                <div class="card-desc">An entire physical server dedicated to you. Useful when licensing is tied to physical cores/sockets (bring-your-own-license) or compliance requires hardware isolation.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Choosing a Model</div>
+                <div class="card-desc">Steady-state production &rarr; Reserved/Savings Plans. Spiky or unknown &rarr; On-Demand. Interruptible batch jobs &rarr; Spot. Licensing/compliance &rarr; Dedicated Hosts.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            All of these are still <strong>OpEx</strong>, not CapEx -- even a 3-year Reserved Instance is billed monthly, not purchased as a capital asset. Illustrative discount ranges (Reserved roughly 40-70% off, Spot up to ~90% off) vary by instance type and Region -- confirm current numbers with the AWS Pricing Calculator before quoting a figure.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 12 — BILLING & COST MANAGEMENT TOOLS ==================== -->
+<section class="slide" id="slide-12">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 12 of 14</div>
+        <div class="slide-title">Billing &amp; Cost Management <span class="accent">Tools</span></div>
+        <div class="slide-subtitle">Estimate before you spend, watch spend as it happens, and get alerted before you blow past your plan.</div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">AWS Pricing Calculator</div>
+                <div class="card-desc">Model the cost of a planned deployment before creating a single resource. Free web tool at calculator.aws. Save and share estimates with stakeholders.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Cost Explorer</div>
+                <div class="card-desc">Visualize and analyze spend that has already happened -- by service, account, Region, or cost allocation tag. Free to use, up to 12 months of history by default.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">AWS Budgets</div>
+                <div class="card-desc">Set custom cost, usage, or Savings Plans/Reservation coverage thresholds and get alerted at configurable percentages before you overspend.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Cost and Usage Report (CUR)</div>
+                <div class="card-desc">The most granular billing data AWS produces -- hourly, resource-level line items delivered automatically to an S3 bucket for deep analysis or BI tools.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Consolidated Billing</div>
+                <div class="card-desc">AWS Organizations combines usage across every linked account onto a single bill, often unlocking volume pricing tiers and shared Reserved Instance/Savings Plans discounts.</div>
+            </div>
+            <div class="card c-orange">
+                <div class="card-label">Cost Allocation Tags</div>
+                <div class="card-desc">Key-value labels (e.g., CostCenter, Project) attached to resources. Activate them in Billing settings to break down Cost Explorer and CUR data by team or project.</div>
+            </div>
+        </div>
+
+        <div class="box box-blue">
+            <div class="box-label">Key Distinction</div>
+            <strong>Pricing Calculator</strong> = before you spend (estimate). <strong>Cost Explorer</strong> = after you spend (analyze). <strong>Budgets</strong> = while you spend (alert). All three answer a different question about the same dollar.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 13 — AWS SUPPORT PLANS ==================== -->
+<section class="slide" id="slide-13">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 13 of 14</div>
+        <div class="slide-title">AWS <span class="accent">Support Plans</span></div>
+        <div class="slide-subtitle">Five tiers of support, plus two tools every plan includes: Trusted Advisor and the AWS Health Dashboard.</div>
+
+        <!-- SVG: 5-step response-time ladder -->
+        <div class="diagram-center">
+            <svg width="600" height="100" viewBox="0 0 600 100" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <rect x="10" y="60" width="100" height="24" rx="5" fill="rgba(100,116,139,0.12)" stroke="#64748b" stroke-width="1.1"
+                    style="animation: barRise 0.5s ease forwards 0.1s; transform-origin:bottom; transform: scaleY(0);"/>
+                <text x="60" y="76" text-anchor="middle" font-size="7" fill="#94a3b8" font-weight="700" font-family="Segoe UI,sans-serif">Basic</text>
+
+                <rect x="128" y="48" width="100" height="36" rx="5" fill="rgba(6,182,212,0.12)" stroke="#06b6d4" stroke-width="1.1"
+                    style="animation: barRise 0.5s ease forwards 0.2s; transform-origin:bottom; transform: scaleY(0);"/>
+                <text x="178" y="70" text-anchor="middle" font-size="7" fill="#06b6d4" font-weight="700" font-family="Segoe UI,sans-serif">Developer</text>
+
+                <rect x="246" y="32" width="100" height="52" rx="5" fill="rgba(58,181,119,0.12)" stroke="#3ab577" stroke-width="1.1"
+                    style="animation: barRise 0.5s ease forwards 0.3s; transform-origin:bottom; transform: scaleY(0);"/>
+                <text x="296" y="62" text-anchor="middle" font-size="7" fill="#3ab577" font-weight="700" font-family="Segoe UI,sans-serif">Business</text>
+
+                <rect x="364" y="18" width="110" height="66" rx="5" fill="rgba(201,168,58,0.12)" stroke="#c9a83a" stroke-width="1.1"
+                    style="animation: barRise 0.5s ease forwards 0.4s; transform-origin:bottom; transform: scaleY(0);"/>
+                <text x="419" y="46" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">Enterprise</text>
+                <text x="419" y="56" text-anchor="middle" font-size="6.5" fill="#c9a83a" font-weight="700" font-family="Segoe UI,sans-serif">On-Ramp</text>
+
+                <rect x="490" y="6" width="100" height="78" rx="5" fill="rgba(239,68,68,0.12)" stroke="#ef4444" stroke-width="1.1"
+                    style="animation: barRise 0.5s ease forwards 0.5s; transform-origin:bottom; transform: scaleY(0);"/>
+                <text x="540" y="42" text-anchor="middle" font-size="7" fill="#ef4444" font-weight="700" font-family="Segoe UI,sans-serif">Enterprise</text>
+
+                <text x="300" y="96" text-anchor="middle" font-size="6.5" fill="#64748b" font-family="Segoe UI,sans-serif" font-style="italic">Response speed and coverage increase left to right</text>
+            </svg>
+        </div>
+
+        <div class="card-grid">
+            <div class="card c-blue">
+                <div class="card-label">Basic (Free)</div>
+                <div class="card-desc">Included with every account. Documentation, whitepapers, forums, core Trusted Advisor checks, and the AWS Health Dashboard. No technical support cases.</div>
+            </div>
+            <div class="card c-cyan">
+                <div class="card-label">Developer</div>
+                <div class="card-desc">Business-hours email access to Cloud Support Associates. General guidance under 24 hours; system impaired under 12 hours. Good for early development.</div>
+            </div>
+            <div class="card c-green">
+                <div class="card-label">Business</div>
+                <div class="card-desc">24x7 phone, chat, and email. Full Trusted Advisor checks. Production system down: under 1 hour response. The baseline for production workloads.</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Enterprise On-Ramp</div>
+                <div class="card-desc">Everything in Business, plus a pool of Technical Account Managers (TAMs) and a business-critical response target under 30 minutes.</div>
+            </div>
+            <div class="card c-red">
+                <div class="card-label">Enterprise</div>
+                <div class="card-desc">A dedicated, named TAM, a Concierge team, and a business-critical system down response under 15 minutes, 24x7. For mission-critical workloads.</div>
+            </div>
+            <div class="card c-purple">
+                <div class="card-label">Trusted Advisor</div>
+                <div class="card-desc">Everyone gets 7 core checks free. Business and Enterprise plans unlock the full check catalog across Cost, Performance, Security, Fault Tolerance, and Service Limits.</div>
+            </div>
+        </div>
+
+        <div class="box box-gold">
+            <div class="box-label">Exam Tip</div>
+            The <strong>AWS Health Dashboard</strong> has two views: a public Service Health view (status of AWS services globally) and a personalized Account Health view (issues affecting resources you actually run). Support-plan minimum fees and exact response-time numbers change over time -- treat any dollar figure as illustrative and confirm current terms at aws.amazon.com/premiumsupport.
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SLIDE 14 — WELL-ARCHITECTED FRAMEWORK + KEY TAKEAWAYS ==================== -->
+<section class="slide" id="slide-14">
+    <div class="slide-inner">
+        <div class="slide-meta">Slide 14 of 14 &nbsp;|&nbsp; Chapter 3 Summary &nbsp;|&nbsp; CLF-C02 Course Complete</div>
+        <div class="slide-title">Well-Architected Framework + <span class="accent">Key Takeaways</span></div>
+
+        <div class="hex-grid">
+            <div class="hex-cell" style="border-color: rgba(59,130,246,0.35);">
+                <div class="hex-title" style="color:#3b82f6;">Operational Excellence</div>
+                <div class="hex-desc">Run and monitor systems to deliver business value, and continuously improve processes and procedures.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(239,68,68,0.35);">
+                <div class="hex-title" style="color:#ef4444;">Security</div>
+                <div class="hex-desc">Protect data, systems, and assets through risk assessments and mitigation strategies -- everything covered in this chapter.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(58,181,119,0.35);">
+                <div class="hex-title" style="color:#3ab577;">Reliability</div>
+                <div class="hex-desc">Ensure a workload performs its intended function correctly and consistently, recovering quickly from failure.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(201,168,58,0.35);">
+                <div class="hex-title" style="color:#c9a83a;">Performance Efficiency</div>
+                <div class="hex-desc">Use computing resources efficiently to meet requirements, and maintain that efficiency as demand and technology evolve.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(167,139,250,0.35);">
+                <div class="hex-title" style="color:#a78bfa;">Cost Optimization</div>
+                <div class="hex-desc">Run systems to deliver business value at the lowest price point -- everything covered in the pricing and billing sections.</div>
+            </div>
+            <div class="hex-cell" style="border-color: rgba(6,182,212,0.35);">
+                <div class="hex-title" style="color:#06b6d4;">Sustainability</div>
+                <div class="hex-desc">The newest pillar (added 2021). Minimize the environmental impact of running cloud workloads -- energy, water, and waste.</div>
+            </div>
+        </div>
+
+        <div class="section-label">Chapter 3 &mdash; Five Key Facts</div>
+        <div class="summary-facts">
+            <div class="fact-row"><span class="fact-num">1</span><span class="fact-text"><strong>Responsibility shifts, it never disappears.</strong> AWS secures the cloud; you always secure your data, identities, and access -- regardless of service model.</span></div>
+            <div class="fact-row"><span class="fact-num">2</span><span class="fact-text"><strong>IAM denies by default.</strong> Users, groups, and roles have zero access until a policy explicitly grants it. Least privilege means granting only what a job requires.</span></div>
+            <div class="fact-row"><span class="fact-num">3</span><span class="fact-text"><strong>Security Groups are stateful and instance-level; NACLs are stateless and subnet-level.</strong> CloudTrail audits, GuardDuty detects threats, Config tracks drift.</span></div>
+            <div class="fact-row"><span class="fact-num">4</span><span class="fact-text"><strong>Every bill reduces to compute, storage, and data transfer out.</strong> Pricing Calculator estimates before you spend; Cost Explorer analyzes after; Budgets alerts while you spend.</span></div>
+            <div class="fact-row"><span class="fact-num">5</span><span class="fact-text"><strong>Support plans scale from free to a dedicated TAM.</strong> Trusted Advisor and the Health Dashboard are included at every tier; full Trusted Advisor checks require Business or higher.</span></div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="section-label">CLF-C02 Course Summary &mdash; All 3 Chapters</div>
+        <div class="card-grid">
+            <div class="card c-green">
+                <div class="card-label">Ch1: Cloud Concepts</div>
+                <div class="card-desc">Shared responsibility, cloud deployment models (public/private/hybrid), cloud benefits (scalability, elasticity, reliability), service types (IaaS, PaaS, SaaS).</div>
+            </div>
+            <div class="card c-gold">
+                <div class="card-label">Ch2: Core Services</div>
+                <div class="card-desc">Compute (EC2, Lambda, containers), Networking (VPC, Route 53, CloudFront), Storage (S3, EBS, EFS), Databases (RDS, DynamoDB).</div>
+            </div>
+            <div class="card c-blue">
+                <div class="card-label">Ch3: Security, Billing &amp; Support</div>
+                <div class="card-desc">Shared responsibility, IAM, security services, compliance, pricing models, billing tools, AWS Support plans, Well-Architected Framework.</div>
+            </div>
+        </div>
+
+        <div class="box box-green" style="font-size:0.85rem; text-align:center;">
+            <strong>CLF-C02 Course Complete.</strong> You have covered Cloud Concepts, Core Services, and Security/Billing/Support -- the four domains of the AWS Certified Cloud Practitioner exam. Review each chapter, practice with the exam prep tools, and schedule your exam when ready.
+        </div>
+
+        <div style="text-align:center; margin-top:6px;">
+            <button id="complete-btn" onclick="completeModule()">Mark Complete</button>
+        </div>
+    </div>
+</section>
+
+<!-- Bottom navigation bar -->
+<nav id="nav-bar">
+    <a href="../index.html" style="text-decoration:none;">
+        <button class="nav-btn back-btn">&larr; CLF-C02</button>
+    </a>
+    <button class="nav-btn" id="prev-btn" onclick="goToSlide(currentSlide - 1)" disabled>Previous</button>
+    <span id="slide-counter">Slide 1 of 14</span>
+    <button class="nav-btn" id="next-btn" onclick="goToSlide(currentSlide + 1)">Next</button>
+</nav>
+
+<script>
+    /* ── Slide navigation state ── */
+    let currentSlide = 1;
+    const TOTAL_SLIDES = 14;
+
+    function goToSlide(n) {
+        /* Boundary check */
+        if (n < 1 || n > TOTAL_SLIDES) return;
+
+        /* Deactivate the currently visible slide */
+        const prev = document.getElementById('slide-' + currentSlide);
+        if (prev) prev.classList.remove('active');
+
+        currentSlide = n;
+
+        /* Activate the target slide */
+        const next = document.getElementById('slide-' + currentSlide);
+        if (next) next.classList.add('active');
+
+        /* Update the blue progress bar at the top */
+        document.getElementById('progress-bar').style.width =
+            (currentSlide / TOTAL_SLIDES) * 100 + '%';
+
+        /* Update the counter label in the nav bar */
+        document.getElementById('slide-counter').textContent =
+            'Slide ' + currentSlide + ' of ' + TOTAL_SLIDES;
+
+        /* Disable Prev on slide 1, Next on last slide */
+        document.getElementById('prev-btn').disabled = (currentSlide === 1);
+        document.getElementById('next-btn').disabled = (currentSlide === TOTAL_SLIDES);
+
+        /* Show Mark Complete button only on the final slide */
+        const completeBtn = document.getElementById('complete-btn');
+        if (completeBtn) {
+            completeBtn.style.display = (currentSlide === TOTAL_SLIDES) ? 'inline-block' : 'none';
+        }
+    }
+
+    /* Keyboard arrow key navigation */
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { e.preventDefault(); goToSlide(currentSlide + 1); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); goToSlide(currentSlide - 1); }
+    });
+
+    /* Initialize to slide 1 on page load */
+    goToSlide(1);
+</script>
+
+<script>
+    /* ── Module completion via ModuleProgress component ── */
+    function completeModule() {
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('cloud', 'clf-ch03-pres', { returnUrl: '../index.html' });
+        }
+    }
+</script>
+</body>
+</html>
