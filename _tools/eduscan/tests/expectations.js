@@ -38,5 +38,6 @@ module.exports = {
     'dep-bodytext-quote-fn.html':          ['DEP-002'],
     'blob-issues.module.html':              ['BLOB-001', 'BLOB-002', 'BLOB-003', 'BLOB-004'],
     'heur-029-issues.html':                  ['HEUR-029'],
-    'heur-018-issues.html':                  ['HEUR-018']
+    'heur-018-issues.html':                  ['HEUR-018'],
+    'heur-035-issues.html':                  ['HEUR-035']
 };
