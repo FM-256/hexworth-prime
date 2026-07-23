@@ -29,9 +29,34 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
     const keysPath = path.join(projectRoot, 'functions/quiz_keys.json');
     const MIN_LEN = 8;
 
+    // QUIZ-011 Karl-PASS allowlist: quizzes whose answer arrays were verbatim
+    // Karl Mode-2 verified. Suppression requires a CURRENT hash match against
+    // the audited array (getAnswerHash, single source of truth in
+    // placeholder-detector.js). Scope note: if a verified quiz's own array is
+    // later edited, its fingerprint changes and it usually just EXITS the
+    // cluster (falls to a singleton) — that self-drift is QUIZ-011B's job
+    // (heuristics.js), not QUIZ-DUP's. What the hash check here protects is
+    // the copycat-contamination case: an unverified quiz copying a verified
+    // quiz's current array must keep the cluster firing (see .every() below).
+    // Fail-open on any load error: no allowlist => nothing suppressed.
+    // Trigger case 2026-07-23: az900-ch03-quiz (verified 05-09) + ceh-01
+    // (verified 07-15) share the same balanced cycling array by authoring
+    // convention => permanent QUIZ-DUP HIGH false positive on every scan.
+    function loadVerifiedHashes() {
+        try {
+            const allowPath = path.join(projectRoot, '_tools/eduscan/config/quiz-011-allowlist.json');
+            const { getAnswerHash } = require(path.join(projectRoot, 'functions/placeholder-detector.js'));
+            const entries = JSON.parse(fs.readFileSync(allowPath, 'utf8')).entries || [];
+            return { map: new Map(entries.map(e => [e.id, e.answerHash])), getAnswerHash };
+        } catch (e) {
+            return { map: new Map(), getAnswerHash: null };
+        }
+    }
+
     function detectClusters() {
         if (!fs.existsSync(keysPath)) return [];
         const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+        const verified = loadVerifiedHashes();
         const fp = new Map();
         for (const [qid, entry] of Object.entries(keys)) {
             if (!entry || !Array.isArray(entry.answers)) continue;
@@ -68,6 +93,16 @@ module.exports = function createQuizSyncAdapter({ name, dataPath, projectRoot })
         const out = [];
         for (const [key, qids] of fp) {
             if (qids.length < 2) continue;
+            // Suppress a cluster ONLY when EVERY member is Karl-verified with
+            // a current hash match — independently-verified quizzes sharing a
+            // balanced array by authoring convention is a structural false
+            // positive (az900-ch03-quiz + ceh-01, 2026-07-23). Clusters with
+            // ANY unverified member still fire in full: a hand-copy of a
+            // verified key onto a new quiz must not evade detection (removing
+            // verified members from clustering instead would shrink such a
+            // pair below the 2-member threshold and hide the copycat).
+            if (verified.getAnswerHash && qids.every(q =>
+                verified.map.get(q) === verified.getAnswerHash(keys[q].answers))) continue;
             const arr = key.split(',').map(s => parseInt(s, 10));
             const allSame = arr.every(v => v === arr[0]);
             const isCycle = (() => {

@@ -1,5 +1,16 @@
 # Karl Mode-2 Audit — QUIZ-011 Post-Deploy Batch (2026-05-09)
 
+> **STATUS UPDATE 2026-07-23 — clh-022 DENY is RESOLVED, do not act on it.**
+> The 2026-07-08 CLH dual-tree remediation (commit `f9a9f67ff`, plus same-day Firestore
+> seeds) implemented "Operator action" option 3 (distinct quiz IDs), NOT option 3.1:
+> HTML-A (`houses/script/clh/script-clh-022.quiz.html`) now has `moduleId: 'clh-022-legacy'`
+> with its own key `[1,1,1,1,1]` (correct for its option order); HTML-B (canonical module
+> path) grades against `quiz_keys/clh-022` = `[0,1,2,3,0]` (correct for its order). Both
+> paths verified correctly graded in production 2026-07-23. Aligning HTML-A's option order
+> to HTML-B — the literal reading of option 3.1 below — would now BREAK HTML-A's grading
+> (Nancy REJECT, 2026-07-23). Still open from this audit: Confluence page 2818687 Q1
+> letter/index correction (Karl gate) and stale BRIDGE GAP banners on pages 9469954/9601026.
+
 **Trigger:** Post-deploy of commit `46d59c8b` flagged 5 NEW QUIZ-011 HIGH findings (CLASSIC-CYCLING placeholder pattern). The validator shipped earlier today (`fd1fa566`) and immediately surfaced these 5 quiz IDs with `[0,1,2,3,...]` repeating answer arrays in `functions/quiz_keys.json`.
 
 **Auditor:** Karl (Mode-2 re-key audit). Read each HTML quiz fresh + cross-reference Confluence Solutions Manual per-question.
