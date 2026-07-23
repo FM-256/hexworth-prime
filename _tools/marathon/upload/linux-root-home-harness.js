@@ -138,8 +138,22 @@ const lastLine = (s) => s.split('\n').map(x => x.trim()).filter(Boolean).pop() |
         for (const orphan of ORPHANS) {
           if (fsKeys.includes(orphan)) r.problems.push(`ORPHAN reachable: ${orphan} still in fs after prune`);
         }
+        // Payload survival — TWO independent checks (Chris gate): the key must
+        // exist in the fs AND the node must actually LIST in its parent's `ls`
+        // (which reads the parent's children[] array, the real visibility
+        // mechanism — a surviving key with a missing children entry is the
+        // exact ls-invisibility bug perms-drill's /root node fix targets).
+        const lsCache = {};
+        const lsOf = async (dir) => (lsCache[dir] ??= await run(page, 'ls -la ' + dir));
         for (const keep of (lab.payload || [])) {
-          if (!fsKeys.includes(keep)) r.problems.push(`PAYLOAD LOST: ${keep} missing after prune`);
+          if (!fsKeys.includes(keep)) r.problems.push(`PAYLOAD LOST: ${keep} missing from fs after prune`);
+          const parent = keep.slice(0, keep.lastIndexOf('/')) || '/';
+          const base = keep.slice(keep.lastIndexOf('/') + 1);
+          const listing = await lsOf(parent);
+          // match basename as a whole token (ls -la columns are space-separated)
+          if (!new RegExp('(^|\\s)' + base.replace(/[.]/g, '\\.') + '(\\s|$)', 'm').test(listing)) {
+            r.problems.push(`PAYLOAD INVISIBLE: ${base} not listed by 'ls -la ${parent}' (children[] gap)`);
+          }
         }
         // behavioral: cat a known orphan must fail
         const catOrphan = await run(page, 'cat /root/notes.txt');
