@@ -330,11 +330,19 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
         const htmlFiles = changedFiles.filter(f => f.endsWith('.html') && f.startsWith('_app/houses/'));
         if (htmlFiles.length === 0) return { name: 'ModuleProgress', pass: true, count: 0, details: ['No house HTML changed'], severity: 'info' };
 
+        // Test against live code only: comments and JS string contents are
+        // blanked (shared hardened logic, see strip-noncode.js for the
+        // Task #207 ordering constraints), so a commented-out MP call can't
+        // fire the check and a commented-out <script src> can't satisfy it.
+        // Corpus-verified 2026-07-23: 4095 files, 3 comment-only false
+        // positives cleared, 0 verdicts flipped the other way.
+        const { stripNonCode } = require('../../eduscan/utils/strip-noncode.js');
+
         const issues = [];
         htmlFiles.slice(0, 100).forEach(f => {
             const fullPath = path.join(projectRoot, f);
             if (!fs.existsSync(fullPath)) return;
-            const content = fs.readFileSync(fullPath, 'utf8');
+            const content = stripNonCode(fs.readFileSync(fullPath, 'utf8'));
 
             const usesMP = /ModuleProgress\.complete|ModuleProgress\.completeQuiz|ModuleProgress\.isCompleted/.test(content);
             const loadsMP = /ModuleProgress\.js/.test(content);

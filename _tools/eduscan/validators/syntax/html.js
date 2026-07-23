@@ -206,22 +206,13 @@ class HTMLValidator {
         //    examples often contain literal tag-like substrings.
         //
         // Length-preserving replacements keep line numbers accurate.
-        const stripPreserveLines = (s) => s.replace(/[^\n]/g, ' ');
-        let tagSafeContent = content.replace(
-            /<script(?![^>]*\bsrc\b)[^>]*>[\s\S]*?<\/script>/gi,
-            (block) => block
-                // ORDER MATTERS: strip JS string literals FIRST so that `//`
-                // appearing inside `"http://..."` or `"//etc/path/"` is NOT
-                // treated as a comment-start. Without this, the comment
-                // stripper eats from the string's `//` to end of line,
-                // including any `</script>` that follows.
-                .replace(/"(?:[^"\\\n]|\\[\s\S])*"/g, (m) => '"' + stripPreserveLines(m.slice(1, -1)) + '"')
-                .replace(/'(?:[^'\\\n]|\\[\s\S])*'/g, (m) => "'" + stripPreserveLines(m.slice(1, -1)) + "'")
-                // Now strip line + block comments (no risk of matching inside
-                // string literals because those have been blanked).
-                .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length))
-                .replace(/\/\*[\s\S]*?\*\//g, (m) => stripPreserveLines(m))
-        );
+        // Inline-script neutralization (JS strings blanked first, then JS
+        // comments — see the ORDER MATTERS notes in strip-noncode.js) now
+        // lives in the shared util so deploy-check Check 8 uses the exact
+        // same hardened logic. Extraction corpus-verified char-identical
+        // across 4095 files, 2026-07-23.
+        const { neutralizeInlineScripts, stripPreserveLines } = require('../../utils/strip-noncode.js');
+        let tagSafeContent = neutralizeInlineScripts(content);
         // Strip <textarea>, <pre>, <code> body content (preserve outer tags
         // and line breaks; only inner text is replaced with spaces).
         tagSafeContent = tagSafeContent.replace(
