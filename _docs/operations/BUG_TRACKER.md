@@ -52,12 +52,12 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** self (git diff clean, 0 double-lang remaining) + Nancy (exact-string counts, root-cause trace, fixer idempotency, generators). Rendering effect is a provable no-op (HTML spec discards duplicate attr) — no browser test needed.
 - **Related:** task #211 (this fix); task #212 (proposed EduScan duplicate-attribute HEUR rule — recurrence gate, since no validator catches this class today). Same detector-blindness family as #208 (a fake no-lang `<html>` in a lab template literal is what made the old checkAccessibility flag several of these, and likely mis-triggered the original AC-6 fixer).
 
-### BUG-018 — deploy-check checkPaths: identical `..//assets` regex tested twice (dead copy-paste)  ·  P3  ·  open
+### BUG-018 — deploy-check checkPaths: identical `..//assets` regex tested twice (dead copy-paste)  ·  P3  ·  resolved
 - **Found:** 2026-07-23 · by Nancy (during task #208 checkAccessibility review) · marathon session
 - **Area:** `_tools/nexus/adapters/deploy-check.js:166-171` (checkPaths)
 - **Symptom:** two consecutive `if` blocks test the exact same regex `/\.\.\/\/assets/` under two different messages ("double-slash path (..//assets/)" and "double-slash in asset path"). A file with that pattern gets flagged twice; the second block is dead redundancy. No functional harm (over-reports, never under-reports), pure hygiene.
 - **Root cause:** copy-paste duplication when the check was written.
-- **Fix:** pending — delete the second block (lines 169-171), or make it test a genuinely different broken-path pattern if that was the intent. Left unfixed under #208 (out of scope; no edit = no new risk).
+- **Fix:** removed the dead second block; `node --check` clean. Tooling only (_tools/nexus/), no deploy. Committed this session.
 - **Related:** task #208 (deploy-check comment/string-blindness sweep, where this was incidentally found).
 
 ### BUG-017 — da-linux-post-exploitation: /root/.bashrc + /root/.ssh/authorized_keys listed in `ls` but `cat` fails (phantom files)  ·  P3  ·  fixed-not-deployed
