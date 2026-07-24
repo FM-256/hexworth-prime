@@ -33,7 +33,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-020 — 8 topic decks call `ModuleProgress.trackVisit()` with arguments reversed  ·  P2  ·  fixed-not-deployed
+### BUG-020 — 8 topic decks call `ModuleProgress.trackVisit()` with arguments reversed  ·  P2  ·  resolved
 - **Found:** 2026-07-24 · by Nancy (incidental during BUG-014 Tier 2 spec review) · CSE expose session
 - **Area:** `ModuleProgress.trackVisit(houseId, moduleId, meta)` per JSDoc `_app/components/ModuleProgress.js:1228`; call sites pass `trackVisit('<topic-id>', 'cloud')` — module id first — in cloud topic decks `cloud-cse-01..05-*.presentation.html` (e.g. `cloud-cse-01-cloud-fundamentals.presentation.html:882`) and 3 shield-house decks (8 files total, cloud + shield)
 - **Symptom:** `hexworth_last_visited.houseId`/`.moduleId` are swapped for anyone visiting these decks; feeds the dashboard "Continue Learning" card with a bogus house/module pairing.
@@ -43,7 +43,7 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** —
 - **Related:** BUG-014 Tier 2 (new `ModuleProgress.complete('cloud', …)` calls are written adjacent to the reversed calls; implementation gate explicitly checks `'cloud'` is the first argument in each new call)
 
-### BUG-019 — 10 house pages have duplicate `lang` attribute on root tag (`<html lang="en" lang="en">`)  ·  P3  ·  fixed-not-deployed
+### BUG-019 — 10 house pages have duplicate `lang` attribute on root tag (`<html lang="en" lang="en">`)  ·  P3  ·  resolved
 - **Found:** 2026-07-23 · by Nancy (incidental during task #208 checkAccessibility review) · marathon session
 - **Area:** 10 files (code-docker.lab, script-reporting-automation.applet, clh-012/script-intro.module, script-dont-kill-the-server, script-linux-compression.lab, script-linux-links.lab, script-mission-permissions.lab, shield-linux-selinux.lab, web-packet-sniffer.applet, web-burp.tool)
 - **Symptom:** root tag rendered `<html lang="en" lang="en">` — invalid HTML (duplicate attribute is a parse error) but harmless: browsers discard the second `lang`, effective DOM identical. No functional/rendering impact.
@@ -70,7 +70,7 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** self (static: compile + engine prune trace + size recompute) + Nancy (re-derived sizes, recompiled script, re-enumerated the 6 root-overlay labs). Not browser-rendered (per CLAUDE.md acceptable bar when browser unavailable).
 - **Related:** task #104 (`baf4ccadd`, root-home prune — introduced the `.bashrc` case); taskboard #205 (this fix), #210 (proposed base-aware LinuxTerminal phantom-child EduScan heuristic — the systemic gate so future `/root`-overlay labs can't reintroduce this class).
 
-### BUG-016 — bm-* hardware course: one answer-position template across all 8 quizzes, no render shuffle  ·  P2  ·  fixed-not-deployed
+### BUG-016 — bm-* hardware course: one answer-position template across all 8 quizzes, no render shuffle  ·  P2  ·  resolved
 - **Found:** 2026-07-23 · by self (QUIZ-DUP cluster QC, primary-agent derivation after Karl declined) · marathon session
 - **Area:** `_app/houses/forge/hardware-support/quizzes/bm-*.quiz.html` (8 files, CTS1150C "Bare Metal"); keys in `functions/quiz_keys.json` + Firestore
 - **Symptom:** all 8 quizzes share the exact correct-answer position template `[3,2,2,1,2,2,1,1,1,0,0,0,0,3,3]` AND render options in authored order (hand-rolled pages, zero shuffle — verified `Math.random` count 0 in all 8). A student who notes week-1's letter pattern (D,C,C,B,C,C,B,B,B,A,A,A,A,D,D) can ace the remaining 7 without knowledge. Grading itself is CORRECT (120/120 explanation-derived, audit `~/hexworth-shared/Solutions/_audit/qc-quizdup-cluster6-2026-07-23.md`).
