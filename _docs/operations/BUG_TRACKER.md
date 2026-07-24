@@ -33,13 +33,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-020 — 8 topic decks call `ModuleProgress.trackVisit()` with arguments reversed  ·  P2  ·  open
+### BUG-020 — 8 topic decks call `ModuleProgress.trackVisit()` with arguments reversed  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-24 · by Nancy (incidental during BUG-014 Tier 2 spec review) · CSE expose session
 - **Area:** `ModuleProgress.trackVisit(houseId, moduleId, meta)` per JSDoc `_app/components/ModuleProgress.js:1228`; call sites pass `trackVisit('<topic-id>', 'cloud')` — module id first — in cloud topic decks `cloud-cse-01..05-*.presentation.html` (e.g. `cloud-cse-01-cloud-fundamentals.presentation.html:882`) and 3 shield-house decks (8 files total, cloud + shield)
 - **Symptom:** `hexworth_last_visited.houseId`/`.moduleId` are swapped for anyone visiting these decks; feeds the dashboard "Continue Learning" card with a bogus house/module pairing.
 - **Repro:** open any affected deck, inspect `hexworth_last_visited` in localStorage.
 - **Root cause:** copy-paste of a reversed-argument call across the deck family; correct order used internally at `ModuleProgress.js:1637`.
-- **Fix:** pending — flip args at all 8 call sites (mechanical); out of BUG-014 scope, do as its own pass.
+- **Fix:** d63e188cd — all 11 broken HTML call sites corrected (8 reversed + 3 single-arg incl. funding/index.html:1788 which Nancy caught after the initial sweep undercounted). Gate: 11/11 house-first, syntax clean. Rides next authorized deploy.
 - **Verified:** —
 - **Related:** BUG-014 Tier 2 (new `ModuleProgress.complete('cloud', …)` calls are written adjacent to the reversed calls; implementation gate explicitly checks `'cloud'` is the first argument in each new call)
 
