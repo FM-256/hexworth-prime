@@ -208,6 +208,112 @@
             color: #c0c0c0;
         }
 
+        /* Honest checkpoint rows (BUG-014 Tier 2 Part E) — replace the old read-only task <ol>.
+           Expected values are computed live from the static terminal output above at Check-time;
+           never hardcoded in markup. Free-text only, unlimited non-punitive retries. */
+        .cp-list {
+            margin-left: 0;
+        }
+
+        .cp-item {
+            background: rgba(34, 197, 94, 0.06);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-left: 3px solid #22c55e;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+
+        .cp-q {
+            color: #c0c0c0;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+
+        .cp-q .cp-num {
+            color: #22c55e;
+            font-weight: bold;
+            margin-right: 4px;
+        }
+
+        .cp-row-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .cp-input {
+            flex: 1;
+            min-width: 220px;
+            background: #0a0a0f;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: #e0e0e0;
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+
+        .cp-input:focus {
+            outline: none;
+            border-color: #22c55e;
+        }
+
+        .cp-input:disabled {
+            opacity: 0.7;
+            cursor: default;
+        }
+
+        .cp-check-btn {
+            background: #22c55e;
+            color: #0a0a0f;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 18px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-family: inherit;
+        }
+
+        .cp-check-btn:hover:not(:disabled) {
+            background: #16a34a;
+        }
+
+        .cp-check-btn:disabled {
+            opacity: 0.6;
+            cursor: default;
+        }
+
+        .cp-status {
+            min-width: 22px;
+            text-align: center;
+            font-size: 1.1em;
+            color: #22c55e;
+        }
+
+        .cp-feedback {
+            margin-top: 8px;
+            font-size: 0.85em;
+            min-height: 1.2em;
+        }
+
+        .cp-feedback.ok {
+            color: #22c55e;
+        }
+
+        .cp-feedback.no {
+            color: #ff6b6b;
+        }
+
+        #checkpointProgress {
+            text-align: center;
+            color: #90ee90;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+        }
+
         .command-reference {
             background: rgba(0, 100, 0, 0.2);
             border: 1px solid rgba(34, 139, 34, 0.3);
@@ -293,11 +399,280 @@
         }
     </style>
     <script>
+        /* ==========================================================================
+           HONEST LAB CHECKPOINTS (BUG-014 Tier 2 Part E)
+           Every task-list item below is a free-text "read the static output above and
+           type the exact value" checkpoint. Expected answers are NEVER hardcoded here —
+           each checkpoint's extract() function parses the value live from the terminal
+           output DOM at Check-time. No multiple choice, no answer reveal on a miss,
+           unlimited non-punitive retries. Passed checkpoint ids persist to localStorage
+           so progress survives a reload, and the Complete Module button stays disabled
+           until every checkpoint has passed.
+           ========================================================================== */
+
+        var CP_STORAGE_KEY = 'cse-module08-lab-checkpoints';
+        /* Set of checkpoint ids ('t1'..'t21') the student has already passed. */
+        var passedCheckpoints = new Set();
+
+        /* Strip currency/percent/comma/whitespace and lowercase, for numeric comparisons.
+           Accepts values with or without units (e.g. "84", "84%", "$84" all normalize the same). */
+        function cpNormNum(s) {
+            return (s === null || s === undefined ? '' : String(s)).replace(/[\s$,%]/g, '').toLowerCase();
+        }
+
+        /* Trim/lowercase for text comparisons; also drops an optional leading "s3://" so
+           bucket-name answers match with or without the protocol prefix. */
+        function cpNormText(s) {
+            var t = (s === null || s === undefined ? '' : String(s)).trim().toLowerCase();
+            return t.replace(/^s3:\/\//, '');
+        }
+
+        /* Numeric match: both sides normalized and compared as strings; empty input never matches. */
+        function cpNumericMatch(input, expected) {
+            if (expected === null || expected === undefined) return false;
+            var a = cpNormNum(input), b = cpNormNum(expected);
+            return a !== '' && a === b;
+        }
+
+        /* Text match: case-insensitive exact match, OR a length-guarded leading prefix
+           (typed text must cover at least 60% of the expected value's length) so a bare
+           fragment like "admin" cannot credit "Administrative Safeguards". */
+        function cpTextMatch(input, expected) {
+            if (expected === null || expected === undefined) return false;
+            var x = cpNormText(input), y = cpNormText(expected);
+            if (x === '') return false;
+            if (x === y) return true;
+            return x.length >= Math.ceil(y.length * 0.6) && y.indexOf(x) === 0;
+        }
+
+        /* Checkpoint registry: sourceSelector points at the static terminal output block
+           the answer lives in; extract(text) parses the correct value out of that block's
+           live textContent each time Check is pressed. Nothing here is a hardcoded answer. */
+        var CHECKPOINTS = {
+            t1: { sourceSelector: '#l1o2', type: 'numeric', extract: function (text) {
+                var m = text.match(/│\s*GAP\s*│/g);
+                return m ? String(m.length) : null;
+            } },
+            t2: { sourceSelector: '#l1o2', type: 'numeric', extract: function (text) {
+                var m = text.match(/Score:\s*(\d+)%/);
+                return m ? m[1] : null;
+            } },
+            t3: { sourceSelector: '#l1o3', type: 'text', extract: function (text) {
+                var re = /│\s*([A-Za-z][A-Za-z ]*?)\s*│\s*[A-Z][A-Z.]*\s*│\s*[A-Z][A-Z0-9.]*\s*│\s*Req[^│]*│\s*(\d+)%\s*│/g;
+                var m, best = null, bestPct = 101;
+                while ((m = re.exec(text))) {
+                    var pct = parseInt(m[2], 10);
+                    if (pct < bestPct) { bestPct = pct; best = m[1].trim(); }
+                }
+                return best;
+            } },
+            t4: { sourceSelector: '#l1o3', type: 'numeric', extract: function (text) {
+                var idx = text.indexOf('Best Value Controls');
+                if (idx === -1) return null;
+                var end = text.indexOf('[i]', idx);
+                var seg = end === -1 ? text.slice(idx) : text.slice(idx, end);
+                var m = seg.match(/•/g);
+                return m ? String(m.length) : null;
+            } },
+            t5: { sourceSelector: '#l2o2', type: 'numeric', extract: function (text) {
+                var m = text.match(/MFA for IAM users:\s*FAIL\s*\((\d+)\s*users without MFA\)/);
+                return m ? m[1] : null;
+            } },
+            t6: { sourceSelector: '#l2o2', type: 'numeric', extract: function (text) {
+                var idx = text.indexOf('Section 4: Monitoring');
+                if (idx === -1) return null;
+                var end = text.indexOf('Section 5:', idx);
+                var seg = end === -1 ? text.slice(idx) : text.slice(idx, end);
+                var m = seg.match(/Score:\s*\d+\/\d+\s*\((\d+)%\)/);
+                return m ? m[1] : null;
+            } },
+            t7: { sourceSelector: '#l2o1', type: 'text', extract: function (text) {
+                var idx = text.indexOf('(SOX)');
+                if (idx === -1) return null;
+                var seg = text.slice(0, idx);
+                var lastIdx = seg.lastIndexOf('s3://');
+                if (lastIdx === -1) return null;
+                var rest = text.slice(lastIdx + 5);
+                var m = rest.match(/^[\w.-]+/);
+                return m ? m[0] : null;
+            } },
+            t8: { sourceSelector: '#l2o3', type: 'numeric', extract: function (text) {
+                var m = text.match(/(\d+\.?\d*)%\s*→\s*(\d+\.?\d*)%/);
+                if (!m) return null;
+                return (parseFloat(m[2]) - parseFloat(m[1])).toFixed(1);
+            } },
+            t9: { sourceSelector: '#l3o1', type: 'numeric', extract: function (text) {
+                var m = text.match(/Privilege Escalations:\s*(\d+)/);
+                return m ? m[1] : null;
+            } },
+            t10: { sourceSelector: '#l3o2', type: 'text', extract: function (text) {
+                var overdueIdx = text.indexOf('Overdue');
+                if (overdueIdx === -1) return null;
+                var re = /(ADMINISTRATIVE|PHYSICAL|TECHNICAL) SAFEGUARDS/g;
+                var m, last = null;
+                while ((m = re.exec(text))) { if (m.index < overdueIdx) last = m[1]; }
+                if (!last) return null;
+                return last.charAt(0) + last.slice(1).toLowerCase() + ' Safeguards';
+            } },
+            t11: { sourceSelector: '#l3o3', type: 'text', extract: function (text) {
+                var idx = text.indexOf('DETECTION #1');
+                var end = text.indexOf('DETECTION #2');
+                if (idx === -1) return null;
+                var seg = end === -1 ? text.slice(idx) : text.slice(idx, end);
+                var m = seg.match(/Source IP:[^(\n]*\(([^)]+)\)/);
+                return m ? m[1].trim() : null;
+            } },
+            t12: { sourceSelector: '#l3o3', type: 'numeric', extract: function (text) {
+                var m = text.match(/Brute force attempts \(blocked\):\s*([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+            t13: { sourceSelector: '#l4o2', type: 'numeric', extract: function (text) {
+                var re = /CVSS:\s*(\d+\.?\d*)/g;
+                var m, max = null;
+                while ((m = re.exec(text))) { var v = parseFloat(m[1]); if (max === null || v > max) max = v; }
+                return max === null ? null : String(max);
+            } },
+            t14: { sourceSelector: '#l4o2', type: 'text', extract: function (text) {
+                var m = text.match(/BLOCKED by (\w+)/);
+                return m ? m[1] : null;
+            } },
+            t15: { sourceSelector: '#l4o3', type: 'numeric', extract: function (text) {
+                var start = text.indexOf('SQL Injection in Customer Portal');
+                var end = text.indexOf('SSRF Exposing AWS Metadata');
+                if (start === -1) return null;
+                var seg = end === -1 ? text.slice(start) : text.slice(start, end);
+                var m = seg.match(/Compliance Impact:\s*([^\n]+)/);
+                if (!m) return null;
+                return String(m[1].split(',').length);
+            } },
+            t16: { sourceSelector: '#l4o3', type: 'text', extract: function (text) {
+                var start = text.indexOf('SSRF Exposing AWS Metadata');
+                var end = text.indexOf('POSITIVE FINDINGS');
+                if (start === -1) return null;
+                var seg = end === -1 ? text.slice(start) : text.slice(start, end);
+                var recIdx = seg.indexOf('Recommendation:');
+                if (recIdx === -1) return null;
+                var tail = seg.slice(recIdx);
+                var m = tail.match(/1\.\s*([^(\n│]+)/);
+                return m ? m[1].trim() : null;
+            } },
+            t17: { sourceSelector: '#l5o3', type: 'numeric', extract: function (text) {
+                var m = text.match(/HIPAA\s*│\s*(\d+)%/);
+                return m ? m[1] : null;
+            } },
+            t18: { sourceSelector: '#l5o3', type: 'text', extract: function (text) {
+                var idx = text.indexOf('PRIORITY 1');
+                var end = text.indexOf('PRIORITY 2', idx);
+                if (idx === -1) return null;
+                var seg = end === -1 ? text.slice(idx) : text.slice(idx, end);
+                var m = seg.match(/□\s*([^(\n]+)/);
+                return m ? m[1].trim() : null;
+            } },
+            t19: { sourceSelector: '#l5o3', type: 'text', extract: function (text) {
+                var re = /([\w-]+)\s*│\s*\d+%\s*│\s*(\d+)\s*│/g;
+                var m, best = null, bestGaps = -1;
+                while ((m = re.exec(text))) { var g = parseInt(m[2], 10); if (g > bestGaps) { bestGaps = g; best = m[1]; } }
+                return best;
+            } },
+            t20: { sourceSelector: '#l5o3', type: 'numeric', extract: function (text) {
+                var m = text.match(/Evidence Items:\s*([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+            t21: { sourceSelector: '#l5o3', type: 'text', extract: function (text) {
+                var m = text.match(/([\w-]+):\s*CONDITIONAL PASS/);
+                return m ? m[1] : null;
+            } }
+        };
+
+        var CP_TOTAL = Object.keys(CHECKPOINTS).length;
+
+        /* Persist the passed-checkpoint set to localStorage. */
+        function cpSave() {
+            localStorage.setItem(CP_STORAGE_KEY, JSON.stringify(Array.from(passedCheckpoints)));
+        }
+
+        /* Update the "N / M checkpoints" indicator and gate/ungate the Complete Module button. */
+        function cpUpdateProgress() {
+            var progressEl = document.getElementById('checkpointProgress');
+            if (progressEl) progressEl.textContent = passedCheckpoints.size + ' / ' + CP_TOTAL + ' checkpoints';
+            var btn = document.getElementById('completeModuleBtn');
+            if (btn) {
+                var done = passedCheckpoints.size === CP_TOTAL;
+                btn.disabled = !done;
+                btn.style.opacity = done ? '1' : '0.45';
+                btn.style.cursor = done ? 'pointer' : 'not-allowed';
+                btn.title = done ? '' : 'Complete all lab checkpoints to unlock';
+            }
+        }
+
+        /* Called by a checkpoint row's Check button (or Enter in its input). Reads the live
+           terminal output, computes the correct value fresh, and grades the typed answer.
+           A wrong entry never reveals the answer and never blocks retrying. */
+        function checkCheckpoint(id) {
+            var cfg = CHECKPOINTS[id];
+            var row = document.getElementById('cp-' + id);
+            if (!cfg || !row) return;
+            var input = row.querySelector('.cp-input');
+            var feedback = row.querySelector('.cp-feedback');
+            var statusEl = row.querySelector('.cp-status');
+            var srcEl = document.querySelector(cfg.sourceSelector);
+            var sourceText = srcEl ? srcEl.textContent : '';
+            var expected = cfg.extract(sourceText);
+            var matched = cfg.type === 'numeric' ? cpNumericMatch(input.value, expected) : cpTextMatch(input.value, expected);
+            if (matched) {
+                passedCheckpoints.add(id);
+                cpSave();
+                input.disabled = true;
+                var btn = row.querySelector('.cp-check-btn');
+                if (btn) btn.disabled = true;
+                if (statusEl) statusEl.textContent = '✓';
+                if (feedback) { feedback.textContent = 'Correct.'; feedback.className = 'cp-feedback ok'; }
+            } else if (feedback) {
+                feedback.textContent = 'Not quite - re-check the lab output above and type the exact value.';
+                feedback.className = 'cp-feedback no';
+            }
+            cpUpdateProgress();
+        }
+
+        /* On load: restore any previously-passed checkpoints from localStorage, lock their
+           rows, and re-sync the progress indicator + Complete Module button state. */
+        function restoreCheckpoints() {
+            var saved = localStorage.getItem(CP_STORAGE_KEY);
+            if (saved) {
+                try {
+                    var arr = JSON.parse(saved);
+                    arr.forEach(function (id) { if (CHECKPOINTS[id]) passedCheckpoints.add(id); });
+                } catch (e) { /* corrupt/old storage value - ignore, start fresh */ }
+            }
+            passedCheckpoints.forEach(function (id) {
+                var row = document.getElementById('cp-' + id);
+                if (!row) return;
+                var input = row.querySelector('.cp-input');
+                var btn = row.querySelector('.cp-check-btn');
+                var statusEl = row.querySelector('.cp-status');
+                var feedback = row.querySelector('.cp-feedback');
+                if (input) input.disabled = true;
+                if (btn) btn.disabled = true;
+                if (statusEl) statusEl.textContent = '✓';
+                if (feedback) { feedback.textContent = 'Correct.'; feedback.className = 'cp-feedback ok'; }
+            });
+            cpUpdateProgress();
+        }
+
+        document.addEventListener('DOMContentLoaded', restoreCheckpoints);
+
+        /* Gate: re-checks every checkpoint has passed before granting module completion.
+           If any are unmet, tells the student how many remain instead of completing. */
         function completeModule() {
+            if (passedCheckpoints.size < CP_TOTAL) {
+                alert('Complete all ' + CP_TOTAL + ' lab checkpoints before finishing the module. (' + passedCheckpoints.size + ' / ' + CP_TOTAL + ' done)');
+                cpUpdateProgress();
+                return;
+            }
             if (typeof ModuleProgress !== 'undefined') {
                 if (ModuleProgress.copyLegacyKey) ModuleProgress.copyLegacyKey('cloud', 'cloud-cse-module08', 'cse-module08-lab');
                 ModuleProgress.complete('cloud', 'cse-module08-lab', {
-                    returnUrl: '../index.html'
+                    returnUrl: '../cse/index.html'
                 });
             }
         }
@@ -381,7 +756,7 @@
 <span class="info">[i] Use 'compliance-mapper analyze --framework [name]' to assess</span></div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">compliance-mapper analyze --framework pci-dss</span></div>
-                    <div class="output">
+                    <div class="output" id="l1o2">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           PCI-DSS 4.0 COMPLIANCE ANALYSIS                      ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -419,7 +794,7 @@
   Req 11: Vulnerability scan incomplete (3 systems missed)</div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">compliance-mapper cross-walk --compare nist-csf,iso27001,pci-dss</span></div>
-                    <div class="output">
+                    <div class="output" id="l1o3">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           FRAMEWORK CROSS-WALK ANALYSIS                        ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -457,12 +832,44 @@
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify which PCI-DSS requirements have critical gaps</li>
-                    <li>Calculate the overall PCI-DSS compliance percentage</li>
-                    <li>Determine which control domain has the lowest cross-framework coverage</li>
-                    <li>List the 4 "best value" controls that satisfy multiple frameworks</li>
-                </ol>
+                <div class="cp-list">
+                    <div class="cp-item" id="cp-t1">
+                        <div class="cp-q"><span class="cp-num">1.</span> How many PCI-DSS requirements are marked <strong>GAP</strong> status?</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t1-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t1');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t1')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t2">
+                        <div class="cp-q"><span class="cp-num">2.</span> Calculate the overall PCI-DSS compliance percentage.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t2-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t2');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t2')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t3">
+                        <div class="cp-q"><span class="cp-num">3.</span> Determine which control domain has the lowest cross-framework coverage.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t3-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t3');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t3')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t4">
+                        <div class="cp-q"><span class="cp-num">4.</span> How many "best value" controls satisfy 3+ frameworks?</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t4-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t4');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t4')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -496,7 +903,7 @@
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">policy-engine scan --provider aws</span></div>
-                    <div class="output">
+                    <div class="output" id="l2o1">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           AWS CONFIG POLICY EVALUATION                         ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -543,7 +950,7 @@
      Fix: Restrict resource-based policy</div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">policy-engine evaluate --cis-benchmark aws-1.5</span></div>
-                    <div class="output">
+                    <div class="output" id="l2o2">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           CIS AWS FOUNDATIONS BENCHMARK v1.5 ASSESSMENT        ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -590,7 +997,7 @@
 <span class="info">[i] Full report: /reports/cis-aws-benchmark-v1.5.pdf</span></div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">policy-engine remediate --auto-fix --critical-only</span></div>
-                    <div class="output">
+                    <div class="output" id="l2o3">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           AUTOMATED REMEDIATION - CRITICAL ISSUES              ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -636,12 +1043,44 @@
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify how many IAM users are missing MFA</li>
-                    <li>Calculate the CIS Benchmark Section 4 (Monitoring) score percentage</li>
-                    <li>Determine which S3 bucket contains potential SOX-relevant data</li>
-                    <li>Calculate the compliance improvement after auto-remediation</li>
-                </ol>
+                <div class="cp-list">
+                    <div class="cp-item" id="cp-t5">
+                        <div class="cp-q"><span class="cp-num">1.</span> Identify how many IAM users are missing MFA.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t5-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t5');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t5')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t6">
+                        <div class="cp-q"><span class="cp-num">2.</span> Calculate the CIS Benchmark Section 4 (Monitoring) score percentage.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t6-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t6');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t6')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t7">
+                        <div class="cp-q"><span class="cp-num">3.</span> Determine which S3 bucket contains potential SOX-relevant data.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t7-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t7');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t7')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t8">
+                        <div class="cp-q"><span class="cp-num">4.</span> Calculate the compliance improvement (percentage points) after auto-remediation.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t8-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t8');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t8')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -675,7 +1114,7 @@
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">audit-analyzer query --events compliance --last 30d</span></div>
-                    <div class="output">
+                    <div class="output" id="l3o1">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           COMPLIANCE EVENT ANALYSIS (Last 30 Days)             ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -723,7 +1162,7 @@
 └─────────────────────────────────────────────────────────────────┘</div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">audit-analyzer report --framework hipaa</span></div>
-                    <div class="output">
+                    <div class="output" id="l3o2">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           HIPAA COMPLIANCE EVIDENCE REPORT                     ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -768,7 +1207,7 @@
 <span class="success">[✓] Report generated: /reports/hipaa-compliance-evidence-Q4-2025.pdf</span></div>
 
                     <div><span class="prompt">compliance-auditor@grc:~$</span> <span class="command">audit-analyzer detect --unauthorized --last 7d</span></div>
-                    <div class="output">
+                    <div class="output" id="l3o3">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           UNAUTHORIZED ACCESS DETECTION                        ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -823,12 +1262,44 @@
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify how many privilege escalation events require review</li>
-                    <li>Determine which HIPAA safeguard section has an overdue requirement</li>
-                    <li>Identify the source of the unauthorized privilege escalation (Detection #1)</li>
-                    <li>Calculate how many brute force attempts were blocked in 7 days</li>
-                </ol>
+                <div class="cp-list">
+                    <div class="cp-item" id="cp-t9">
+                        <div class="cp-q"><span class="cp-num">1.</span> Identify how many privilege escalation events require review.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t9-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t9');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t9')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t10">
+                        <div class="cp-q"><span class="cp-num">2.</span> Determine which HIPAA safeguard section has an overdue requirement.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t10-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t10');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t10')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t11">
+                        <div class="cp-q"><span class="cp-num">3.</span> Identify the source IP reputation flag noted for the unauthorized privilege escalation (Detection #1).</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t11-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t11');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t11')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t12">
+                        <div class="cp-q"><span class="cp-num">4.</span> Calculate how many brute force attempts were blocked in 7 days.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t12-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t12');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t12')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -902,7 +1373,7 @@
   • Point of contact: security@company.com</div>
 
                     <div><span class="prompt">pentester@authorized:~$</span> <span class="command">pentest-sim execute --methodology recon-scan-exploit</span></div>
-                    <div class="output">
+                    <div class="output" id="l4o2">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           PENETRATION TEST EXECUTION                           ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -961,7 +1432,7 @@
   CVSS: N/A (Control validated)</div>
 
                     <div><span class="prompt">pentester@authorized:~$</span> <span class="command">pentest-sim report --generate-findings</span></div>
-                    <div class="output">
+                    <div class="output" id="l4o3">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           PENETRATION TEST REPORT                              ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -1030,12 +1501,44 @@
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify the CVSS score of the most critical finding</li>
-                    <li>Determine what control successfully blocked the credential stuffing attack</li>
-                    <li>Identify which compliance frameworks are impacted by the SQL injection</li>
-                    <li>List the 4 recommended remediation steps for the SSRF vulnerability</li>
-                </ol>
+                <div class="cp-list">
+                    <div class="cp-item" id="cp-t13">
+                        <div class="cp-q"><span class="cp-num">1.</span> Identify the CVSS score of the most critical finding.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t13-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t13');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t13')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t14">
+                        <div class="cp-q"><span class="cp-num">2.</span> Determine what control successfully blocked the credential stuffing attack.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t14-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t14');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t14')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t15">
+                        <div class="cp-q"><span class="cp-num">3.</span> How many compliance frameworks are cited as impacted by the SQL injection finding?</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t15-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t15');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t15')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t16">
+                        <div class="cp-q"><span class="cp-num">4.</span> Enter the FIRST recommended remediation step for the SSRF vulnerability (just the action, e.g. "Enable IMDSv2").</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t16-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t16');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t16')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1172,7 +1675,7 @@ require evidence of compliance across all domains.
   <span class="warning">[<img src="/assets/images/icons/icon-siren.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">]</span> Training: 7 employees overdue</div>
 
                     <div><span class="prompt">lead-auditor@grc:~$</span> <span class="command">audit-prep readiness --final-assessment</span></div>
-                    <div class="output">
+                    <div class="output" id="l5o3">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           AUDIT READINESS FINAL ASSESSMENT                     ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -1239,13 +1742,53 @@ require evidence of compliance across all domains.
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify the HIPAA readiness percentage</li>
-                    <li>List the 3 Priority 1 blockers that must be completed in 7 days</li>
-                    <li>Determine which module (M01-M08) has the most compliance gaps</li>
-                    <li>Calculate the total number of evidence items collected</li>
-                    <li>Identify which framework has a "Conditional Pass" prediction</li>
-                </ol>
+                <div class="cp-list">
+                    <div class="cp-item" id="cp-t17">
+                        <div class="cp-q"><span class="cp-num">1.</span> Identify the HIPAA readiness percentage.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t17-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t17');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t17')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t18">
+                        <div class="cp-q"><span class="cp-num">2.</span> Enter the FIRST Priority 1 blocker (7-day) item.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t18-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t18');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t18')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t19">
+                        <div class="cp-q"><span class="cp-num">3.</span> Determine which framework (HIPAA, GDPR, PCI-DSS) has the most critical gaps in the final readiness assessment.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t19-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t19');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t19')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t20">
+                        <div class="cp-q"><span class="cp-num">4.</span> Calculate the total number of evidence items collected.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t20-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t20');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t20')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                    <div class="cp-item" id="cp-t21">
+                        <div class="cp-q"><span class="cp-num">5.</span> Identify which framework has a "Conditional Pass" prediction.</div>
+                        <div class="cp-row-controls">
+                            <input type="text" class="cp-input" id="cp-t21-input" placeholder="Type the value you see" onkeydown="if(event.key==='Enter'){event.preventDefault();checkCheckpoint('t21');}">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('t21')">Check</button>
+                            <span class="cp-status"></span>
+                        </div>
+                        <div class="cp-feedback"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1256,7 +1799,8 @@ require evidence of compliance across all domains.
     </div>
 
     <div style="text-align:center; padding:20px; margin-top:10px;">
-        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
+        <div id="checkpointProgress">0 / 21 checkpoints</div>
+        <button id="completeModuleBtn" onclick="completeModule()" disabled title="Complete all lab checkpoints to unlock" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:not-allowed; opacity:0.45; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
     </div>
 
     <div style="text-align:center;padding:20px 0;margin-top:30px;border-top:1px solid rgba(255,255,255,0.08);">

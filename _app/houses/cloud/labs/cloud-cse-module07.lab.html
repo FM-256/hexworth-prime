@@ -295,16 +295,428 @@
                 margin-bottom: 5px;
             }
         }
+
+        /* Honest lab checkpoints (BUG-014 Tier 2 Part E) — free-text
+           read-the-output verification. No multiple choice, no reveal
+           on a wrong guess, unlimited non-punitive retries. */
+        .checkpoint-list {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .checkpoint-item {
+            background: rgba(10, 10, 15, 0.35);
+            border: 1px solid rgba(138, 43, 226, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+        }
+
+        .checkpoint-item.cp-passed {
+            border-color: rgba(34, 197, 94, 0.5);
+            background: rgba(34, 197, 94, 0.08);
+        }
+
+        .cp-text {
+            display: block;
+            margin-bottom: 8px;
+            color: #c0c0c0;
+        }
+
+        .cp-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cp-input {
+            flex: 1;
+            min-width: 160px;
+            background: #0a0a0f;
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            color: #e0e0e0;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9em;
+        }
+
+        .cp-input:disabled {
+            opacity: 0.7;
+        }
+
+        .cp-check-btn {
+            background: linear-gradient(135deg, #8a2be2, #4b0082);
+            color: white;
+            border: none;
+            padding: 7px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85em;
+            font-family: inherit;
+            transition: transform 0.2s ease;
+        }
+
+        .cp-check-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .cp-status {
+            display: inline-block;
+            min-width: 18px;
+            text-align: center;
+            font-weight: bold;
+            color: #22c55e;
+        }
+
+        .cp-feedback {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.85em;
+            min-height: 1em;
+            color: #ff6b6b;
+        }
+
+        .cp-feedback.cp-ok {
+            color: #22c55e;
+        }
+
+        .checkpoint-progress {
+            text-align: center;
+            color: #da70d6;
+            font-size: 0.95em;
+            margin: -15px 0 25px;
+        }
+
+        /* !important needed here because the button also carries an inline
+           style attribute (cursor:pointer) which otherwise outranks this rule. */
+        #completeModuleBtn:disabled {
+            opacity: 0.45 !important;
+            cursor: not-allowed !important;
+        }
     </style>
     <script>
+        /* ==================================================================
+           Honest lab checkpoints (BUG-014 Tier 2 Part E)
+           Each task-list item is gated by a free-text checkpoint. The
+           expected answer is never hardcoded in markup — it is computed
+           at check-time from the static terminal output already rendered
+           on the page (see CHECKPOINTS below), so a student can only pass
+           by locating and reading the real value. No multiple choice
+           (brute-forceable), no reveal on a wrong guess, unlimited
+           non-punitive retries.
+           ================================================================== */
+
+        var STORAGE_KEY = 'cse-module07-lab-checkpoints';
+        var passedCheckpoints = {}; // { checkpointId: true }
+
+        /* Read the live textContent of a static output block by id. This is
+           the ONLY source of truth for "correct" — never a literal in this
+           script — so the checkpoint tracks the page content, not a copy of it. */
+        function outputText(sourceId) {
+            var el = document.getElementById(sourceId);
+            return el ? el.textContent : '';
+        }
+
+        /* Strip $, %, commas and whitespace so "1,935,000", "$1,935,000" and
+           "1935000" all normalize identically for numeric comparison. */
+        function normalizeNumeric(value) {
+            if (value == null) return '';
+            return String(value).replace(/[$%,\s]/g, '').trim();
+        }
+
+        /* Collapse whitespace and lowercase for case-insensitive text comparison. */
+        function normalizeText(value) {
+            if (value == null) return '';
+            return String(value).replace(/\s+/g, ' ').trim().toLowerCase();
+        }
+
+        /* Compare a student's typed answer against the live-computed expected
+           value. Empty input never passes (guards an indexOf/includes empty-
+           string bypass). Numeric answers compare the normalized digits.
+           Text answers accept a case-insensitive exact match OR a length-
+           guarded leading prefix — the candidate must be a real prefix of the
+           expected answer AND cover at least 60% of its length, so "billing
+           admin" credits "Billing Administrator" but bare "admin" does not. */
+        function isMatch(type, candidateRaw, expectedRaw) {
+            var candidate = (candidateRaw == null ? '' : String(candidateRaw)).trim();
+            if (candidate === '') return false;
+            if (expectedRaw == null || expectedRaw === '') return false;
+
+            if (type === 'numeric') {
+                var c = normalizeNumeric(candidate);
+                var e = normalizeNumeric(expectedRaw);
+                if (c === '' || e === '') return false;
+                return c === e;
+            }
+
+            var c2 = normalizeText(candidate);
+            var e2 = normalizeText(expectedRaw);
+            if (c2 === '' || e2 === '') return false;
+            if (c2 === e2) return true;
+            return e2.indexOf(c2) === 0 && c2.length >= e2.length * 0.6;
+        }
+
+        /* Checkpoint config. Each extract() runs against the current
+           textContent of its sourceId block — the same output the student
+           reads on screen — and returns the value the student must type,
+           or null if the pattern was not found (never crashes the check). */
+        var CHECKPOINTS = [
+            // ---- Lab 1: Cloud Risk Identification & Inventory ----
+            { id: 'l1t1', sourceId: 'l1-inventory', type: 'numeric', extract: function (text) {
+                var m = text.match(/Total Assets:\s*([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l1t2', sourceId: 'l1-inventory', type: 'numeric', extract: function (text) {
+                var m = text.match(/S3 Buckets:\s*\d+\s*\(\s*(\d+)\s*public\)/i);
+                return m ? m[1] : null;
+            } },
+            { id: 'l1t3', sourceId: 'l1-categorize', type: 'numeric', extract: function (text) {
+                var mc = text.match(/CRITICAL:.*?(\d+)%/);
+                var mh = text.match(/HIGH:.*?(\d+)%/);
+                if (!mc || !mh) return null;
+                return String(parseInt(mc[1], 10) + parseInt(mh[1], 10));
+            } },
+            { id: 'l1t4', sourceId: 'l1-categorize', type: 'text', extract: function (text) {
+                var lines = text.split('\n');
+                for (var i = 0; i < lines.length; i++) {
+                    if (lines[i].indexOf('Immediate (24 hours)') !== -1) {
+                        var cells = lines[i].split('│').map(function (c) { return c.trim(); }).filter(Boolean);
+                        return cells.length ? cells[0] : null;
+                    }
+                }
+                return null;
+            } },
+
+            // ---- Lab 2: Quantitative Risk Analysis (ALE Calculation) ----
+            { id: 'l2t1', sourceId: 'l2-sle', type: 'numeric', extract: function (text) {
+                var m = text.match(/Single Loss Expectancy:\s*\$?([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l2t2', sourceId: 'l2-ale', type: 'numeric', extract: function (text) {
+                var m = text.match(/ALE = \$([\d,]+)\/year/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l2t3', sourceId: 'l2-ale', type: 'text', extract: function (text) {
+                var lines = text.split('\n');
+                var best = null, bestVal = -1;
+                for (var i = 0; i < lines.length; i++) {
+                    var cells = lines[i].split('│').map(function (c) { return c.trim(); }).filter(Boolean);
+                    if (cells.length === 4 && /%$/.test(cells[3])) {
+                        var val = parseInt(cells[3], 10);
+                        if (!isNaN(val) && val > bestVal) { bestVal = val; best = cells[0]; }
+                    }
+                }
+                return best;
+            } },
+            { id: 'l2t4', sourceId: 'l2-ale', type: 'numeric', extract: function (text) {
+                var m = text.match(/ALE After Controls:\s*\$?([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+
+            // ---- Lab 3: Vulnerability Assessment & Scanning ----
+            { id: 'l3t1', sourceId: 'l3-execute', type: 'numeric', extract: function (text) {
+                var m = text.match(/(\d+)\s*actively exploited vulnerabilities/i);
+                return m ? m[1] : null;
+            } },
+            { id: 'l3t2', sourceId: 'l3-analyze', type: 'numeric', extract: function (text) {
+                var m = text.match(/Remote Code Execution:.*?(\d+)%/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l3t3', sourceId: 'l3-analyze', type: 'text', extract: function (text) {
+                var lines = text.split('\n');
+                var best = null, bestVal = -1;
+                for (var i = 0; i < lines.length; i++) {
+                    var cells = lines[i].split('│').map(function (c) { return c.trim(); }).filter(Boolean);
+                    if (cells.length === 5) {
+                        var val = parseFloat(cells[1]);
+                        if (!isNaN(val) && val > bestVal) { bestVal = val; best = cells[2]; }
+                    }
+                }
+                return best;
+            } },
+            { id: 'l3t4', sourceId: 'l3-remediate', type: 'text', extract: function (text) {
+                var idx = text.indexOf('CVE-2024-3400');
+                if (idx === -1) return null;
+                var m = text.slice(idx).match(/Owner:\s*([^\n]+)/);
+                return m ? m[1].trim() : null;
+            } },
+
+            // ---- Lab 4: Business Continuity & Disaster Recovery Planning ----
+            { id: 'l4t1', sourceId: 'l4-bia', type: 'numeric', extract: function (text) {
+                var m = text.match(/4 Hour Outage:\s*\$?([\d,]+)/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l4t2', sourceId: 'l4-rtorpo', type: 'text', extract: function (text) {
+                var lines = text.split('\n');
+                for (var i = 0; i < lines.length; i++) {
+                    var cells = lines[i].split('│').map(function (c) { return c.trim(); }).filter(Boolean);
+                    if (cells.length === 5 && /^HIGH$/i.test(cells[4])) return cells[0];
+                }
+                return null;
+            } },
+            { id: 'l4t3', sourceId: 'l4-tabletop', type: 'text', extract: function (text) {
+                var m = text.match(/1\.\s*(.+?)\s*-\s*Root cause of breach/);
+                return m ? m[1].trim() : null;
+            } },
+            { id: 'l4t4', sourceId: 'l4-tabletop', type: 'text', extract: function (text) {
+                var m = text.match(/4\.\s*(.+?)\s*-\s*2 hour delay/);
+                return m ? m[1].trim() : null;
+            } },
+
+            // ---- Lab 5: Integrated Risk Management Scenario ----
+            { id: 'l5t1', sourceId: 'l5-threatmodel', type: 'text', extract: function (text) {
+                var lines = text.split('\n');
+                for (var i = 0; i < lines.length; i++) {
+                    var cells = lines[i].split('│').map(function (c) { return c.trim(); }).filter(Boolean);
+                    if (cells.length === 3 && /unencrypted s3 data/i.test(cells[1])) return cells[0];
+                }
+                return null;
+            } },
+            { id: 'l5t2', sourceId: 'l5-threatmodel', type: 'numeric', extract: function (text) {
+                var idx = text.indexOf('Shared Root Account Access');
+                if (idx === -1) return null;
+                var m = text.slice(idx).match(/DREAD Score:\s*([\d.]+)\/10/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l5t3', sourceId: 'l5-riskresponse', type: 'numeric', extract: function (text) {
+                var m = text.match(/Recommended Price Adjustment:.*?\((\d+)%/);
+                return m ? m[1] : null;
+            } },
+            { id: 'l5t4', sourceId: 'l5-riskresponse', type: 'numeric', extract: function (text) {
+                var start = text.indexOf('BOARD RECOMMENDATION');
+                var end = text.indexOf('RESIDUAL RISK AFTER CONTROLS');
+                if (start === -1 || end === -1) return null;
+                var section = text.slice(start, end);
+                var matches = section.match(/^\s*\d+\.\s/gm);
+                return matches ? String(matches.length) : null;
+            } },
+            { id: 'l5t5', sourceId: 'l5-riskresponse', type: 'numeric', extract: function (text) {
+                var m = text.match(/Risk Reduction:\s*([\d.]+)%/);
+                return m ? m[1] : null;
+            } }
+        ];
+
+        /* Persist the set of passed checkpoint ids so progress survives a reload. */
+        function savePassed() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.keys(passedCheckpoints)));
+            } catch (e) { /* localStorage unavailable — progress just won't persist */ }
+        }
+
+        /* Restore the passed-checkpoint set from localStorage into memory. */
+        function loadPassed() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY);
+                if (!raw) return;
+                var arr = JSON.parse(raw);
+                if (Array.isArray(arr)) {
+                    arr.forEach(function (id) { passedCheckpoints[id] = true; });
+                }
+            } catch (e) { /* corrupt/unavailable storage — start fresh */ }
+        }
+
+        /* Re-render every checkpoint row that is already marked passed
+           (called on load, after the DOM has parsed, since these rows
+           live below where they're referenced). */
+        function restoreCheckpointUI() {
+            CHECKPOINTS.forEach(function (cp) {
+                if (!passedCheckpoints[cp.id]) return;
+                var input = document.getElementById(cp.id + '-input');
+                var status = document.getElementById(cp.id + '-status');
+                var feedback = document.getElementById(cp.id + '-feedback');
+                var row = document.getElementById(cp.id + '-row');
+                if (input) input.disabled = true;
+                if (status) { status.textContent = '✓'; status.className = 'cp-status'; }
+                if (feedback) { feedback.textContent = 'Correct.'; feedback.className = 'cp-feedback cp-ok'; }
+                if (row) row.classList.add('cp-passed');
+            });
+        }
+
+        /* Update the "N / M checkpoints complete" indicator; returns the count. */
+        function updateProgress() {
+            var passedCount = CHECKPOINTS.filter(function (cp) { return passedCheckpoints[cp.id]; }).length;
+            var el = document.getElementById('checkpointProgress');
+            if (el) el.textContent = passedCount + ' / ' + CHECKPOINTS.length + ' checkpoints complete';
+            return passedCount;
+        }
+
+        /* Enable the Complete Module button only once every checkpoint has passed. */
+        function updateCompleteButtonState() {
+            var btn = document.getElementById('completeModuleBtn');
+            if (!btn) return;
+            var allPassed = CHECKPOINTS.every(function (cp) { return passedCheckpoints[cp.id]; });
+            btn.disabled = !allPassed;
+        }
+
+        /* Handler wired to each checkpoint's Check button. Grades the typed
+           answer against the value freshly extracted from the live DOM. */
+        function checkCheckpoint(id) {
+            var cp = null;
+            for (var i = 0; i < CHECKPOINTS.length; i++) {
+                if (CHECKPOINTS[i].id === id) { cp = CHECKPOINTS[i]; break; }
+            }
+            if (!cp) return;
+
+            var input = document.getElementById(id + '-input');
+            var status = document.getElementById(id + '-status');
+            var feedback = document.getElementById(id + '-feedback');
+            var row = document.getElementById(id + '-row');
+            if (!input) return;
+
+            var expected = cp.extract(outputText(cp.sourceId));
+
+            if (isMatch(cp.type, input.value, expected)) {
+                passedCheckpoints[id] = true;
+                savePassed();
+                input.disabled = true;
+                if (status) { status.textContent = '✓'; status.className = 'cp-status'; }
+                if (feedback) { feedback.textContent = 'Correct.'; feedback.className = 'cp-feedback cp-ok'; }
+                if (row) row.classList.add('cp-passed');
+            } else if (feedback) {
+                feedback.textContent = 'Not quite - re-check the lab output above and type the exact value.';
+                feedback.className = 'cp-feedback';
+            }
+
+            updateProgress();
+            updateCompleteButtonState();
+        }
+
+        /* Gate the existing completion call behind the checkpoint set. */
         function completeModule() {
+            var passedCount = updateProgress();
+            var allPassed = CHECKPOINTS.every(function (cp) { return passedCheckpoints[cp.id]; });
+            updateCompleteButtonState();
+            if (!allPassed) {
+                alert('Complete all lab checkpoints before finishing the module. ' + passedCount + ' / ' + CHECKPOINTS.length + ' passed so far.');
+                return;
+            }
             if (typeof ModuleProgress !== 'undefined') {
                 if (ModuleProgress.copyLegacyKey) ModuleProgress.copyLegacyKey('cloud', 'cloud-cse-module07', 'cse-module07-lab');
                 ModuleProgress.complete('cloud', 'cse-module07-lab', {
-                    returnUrl: '../index.html'
+                    returnUrl: '../cse/index.html'
                 });
             }
         }
+
+        /* Boot: restore saved progress, re-render passed rows, sync the
+           progress indicator and button state, and wire Enter-to-check on
+           every checkpoint input. */
+        document.addEventListener('DOMContentLoaded', function () {
+            loadPassed();
+            restoreCheckpointUI();
+            updateProgress();
+            updateCompleteButtonState();
+            document.querySelectorAll('.cp-input').forEach(function (inp) {
+                inp.addEventListener('keydown', function (evt) {
+                    if (evt.key === 'Enter') {
+                        evt.preventDefault();
+                        checkCheckpoint(inp.id.replace(/-input$/, ''));
+                    }
+                });
+            });
+        });
     </script>
 </head>
 <body>
@@ -319,6 +731,9 @@
             <h1>Risk Assessment & Management Lab</h1>
             <p>Module 07 - Hands-On Security Risk Analysis</p>
         </div>
+
+        <!-- Live count of passed checkpoints; kept in sync by updateProgress() -->
+        <div class="checkpoint-progress" id="checkpointProgress">0 / 21 checkpoints complete</div>
 
         <!-- Lab 1: Risk Identification -->
         <div class="lab-section">
@@ -350,7 +765,7 @@
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">risk-analyzer inventory --cloud</span></div>
-                    <div class="output">
+                    <div class="output" id="l1-inventory">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           CLOUD ASSET INVENTORY SCAN                          ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -426,7 +841,7 @@
 Recommendation: Immediate remediation required for critical findings</div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">risk-analyzer categorize --risk-level</span></div>
-                    <div class="output">
+                    <div class="output" id="l1-categorize">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           RISK CATEGORIZATION MATRIX                           ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -456,11 +871,43 @@ Recommendation: Immediate remediation required for critical findings</div>
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify the total number of cloud assets discovered</li>
-                    <li>Determine how many S3 buckets are publicly accessible</li>
-                    <li>Calculate the percentage of critical/high risks vs total risks</li>
-                    <li>Prioritize which risk category requires immediate attention</li>
+                <ol class="checkpoint-list">
+                    <li class="checkpoint-item" id="l1t1-row">
+                        <span class="cp-text">Identify the total number of cloud assets discovered</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l1t1-input" placeholder="Type the value" aria-label="Answer: total cloud assets discovered">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l1t1')">Check</button>
+                            <span class="cp-status" id="l1t1-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l1t1-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l1t2-row">
+                        <span class="cp-text">Determine how many S3 buckets are publicly accessible</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l1t2-input" placeholder="Type the value" aria-label="Answer: public S3 buckets">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l1t2')">Check</button>
+                            <span class="cp-status" id="l1t2-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l1t2-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l1t3-row">
+                        <span class="cp-text">Calculate the percentage of critical/high risks vs total risks</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l1t3-input" placeholder="Type the value" aria-label="Answer: combined critical and high risk percentage">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l1t3')">Check</button>
+                            <span class="cp-status" id="l1t3-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l1t3-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l1t4-row">
+                        <span class="cp-text">Prioritize which risk category requires immediate attention</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l1t4-input" placeholder="Type the value" aria-label="Answer: risk category requiring immediate attention">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l1t4')">Check</button>
+                            <span class="cp-status" id="l1t4-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l1t4-feedback"></span>
+                    </li>
                 </ol>
             </div>
         </div>
@@ -500,7 +947,7 @@ Recommendation: Immediate remediation required for critical findings</div>
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">risk-calc sle --asset customer-database --impact breach</span></div>
-                    <div class="output">
+                    <div class="output" id="l2-sle">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           SINGLE LOSS EXPECTANCY (SLE) CALCULATION             ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -563,7 +1010,7 @@ Recommendation: Immediate remediation required for critical findings</div>
 <span class="success">[✓] Annualized Rate of Occurrence: 0.40</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">risk-calc ale --comprehensive</span></div>
-                    <div class="output">
+                    <div class="output" id="l2-ale">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           ANNUALIZED LOSS EXPECTANCY (ALE) REPORT              ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -606,11 +1053,43 @@ Recommendation: Immediate remediation required for critical findings</div>
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Calculate the SLE if asset value is $5M and exposure factor is 40%</li>
-                    <li>Determine the ALE for a threat with SLE of $2M and ARO of 0.25</li>
-                    <li>Identify which control provides the best ROI from the analysis</li>
-                    <li>Calculate the residual ALE after implementing all controls</li>
+                <ol class="checkpoint-list">
+                    <li class="checkpoint-item" id="l2t1-row">
+                        <span class="cp-text">Read the calculated Single Loss Expectancy (SLE) value for the Customer Database asset from the terminal output</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l2t1-input" placeholder="Type the value" aria-label="Answer: Customer Database SLE">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l2t1')">Check</button>
+                            <span class="cp-status" id="l2t1-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l2t1-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l2t2-row">
+                        <span class="cp-text">Read the calculated Annualized Loss Expectancy (ALE) value from the comprehensive ALE report</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l2t2-input" placeholder="Type the value" aria-label="Answer: comprehensive ALE value">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l2t2')">Check</button>
+                            <span class="cp-status" id="l2t2-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l2t2-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l2t3-row">
+                        <span class="cp-text">Identify which control provides the best ROI from the analysis</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l2t3-input" placeholder="Type the value" aria-label="Answer: best ROI control">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l2t3')">Check</button>
+                            <span class="cp-status" id="l2t3-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l2t3-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l2t4-row">
+                        <span class="cp-text">Calculate the residual ALE after implementing all controls</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l2t4-input" placeholder="Type the value" aria-label="Answer: residual ALE after controls">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l2t4')">Check</button>
+                            <span class="cp-status" id="l2t4-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l2t4-feedback"></span>
+                    </li>
                 </ol>
             </div>
         </div>
@@ -645,7 +1124,7 @@ Recommendation: Immediate remediation required for critical findings</div>
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">vuln-scan execute --target cloud-infra</span></div>
-                    <div class="output">
+                    <div class="output" id="l3-execute">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           CLOUD VULNERABILITY SCAN                             ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -676,7 +1155,7 @@ Recommendation: Immediate remediation required for critical findings</div>
 <span class="error">[!] Immediate action required for CRITICAL findings</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">vuln-scan analyze --cvss-priority</span></div>
-                    <div class="output">
+                    <div class="output" id="l3-analyze">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           VULNERABILITY ANALYSIS BY CVSS                       ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -713,7 +1192,7 @@ Recommendation: Immediate remediation required for critical findings</div>
   Other:                 ████░░░░░░░░░░░░░░░░  8%</div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">vuln-scan remediate --generate-plan</span></div>
-                    <div class="output">
+                    <div class="output" id="l3-remediate">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           REMEDIATION ACTION PLAN                              ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -758,11 +1237,43 @@ Recommendation: Immediate remediation required for critical findings</div>
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify how many vulnerabilities are on the Known Exploited Vulnerabilities list</li>
-                    <li>Calculate the percentage of RCE vulnerabilities vs total</li>
-                    <li>Determine which asset has the highest CVSS vulnerability</li>
-                    <li>Prioritize remediation for the top 3 critical vulnerabilities</li>
+                <ol class="checkpoint-list">
+                    <li class="checkpoint-item" id="l3t1-row">
+                        <span class="cp-text">Identify how many vulnerabilities are on the Known Exploited Vulnerabilities list</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l3t1-input" placeholder="Type the value" aria-label="Answer: KEV-listed vulnerabilities">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l3t1')">Check</button>
+                            <span class="cp-status" id="l3t1-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l3t1-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l3t2-row">
+                        <span class="cp-text">Calculate the percentage of RCE vulnerabilities vs total</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l3t2-input" placeholder="Type the value" aria-label="Answer: RCE percentage">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l3t2')">Check</button>
+                            <span class="cp-status" id="l3t2-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l3t2-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l3t3-row">
+                        <span class="cp-text">Determine which asset has the highest CVSS vulnerability</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l3t3-input" placeholder="Type the value" aria-label="Answer: highest CVSS asset">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l3t3')">Check</button>
+                            <span class="cp-status" id="l3t3-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l3t3-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l3t4-row">
+                        <span class="cp-text">Identify the team responsible for remediating CVE-2024-3400 in the remediation plan</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l3t4-input" placeholder="Type the value" aria-label="Answer: CVE-2024-3400 remediation owner">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l3t4')">Check</button>
+                            <span class="cp-status" id="l3t4-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l3t4-feedback"></span>
+                    </li>
                 </ol>
             </div>
         </div>
@@ -797,7 +1308,7 @@ Recommendation: Immediate remediation required for critical findings</div>
                 </div>
                 <div class="terminal-body">
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">bcdr-planner bia --analyze</span></div>
-                    <div class="output">
+                    <div class="output" id="l4-bia">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           BUSINESS IMPACT ANALYSIS (BIA)                       ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -825,7 +1336,7 @@ Recommendation: Immediate remediation required for critical findings</div>
 <span class="warning">[!] Maximum Tolerable Downtime (MTD): 4 hours for payment systems</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">bcdr-planner rto-rpo --calculate</span></div>
-                    <div class="output">
+                    <div class="output" id="l4-rtorpo">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           RTO/RPO REQUIREMENTS ANALYSIS                        ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -862,7 +1373,7 @@ Recommendation: Immediate remediation required for critical findings</div>
 <span class="warning">Recommendation: Implement active-active configuration</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">bcdr-planner test --tabletop ransomware</span></div>
-                    <div class="output">
+                    <div class="output" id="l4-tabletop">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           TABLETOP EXERCISE: RANSOMWARE ATTACK                 ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -913,11 +1424,43 @@ Recommendation: Immediate remediation required for critical findings</div>
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Calculate the total cost of a 4-hour outage based on BIA data</li>
-                    <li>Identify which system has the largest gap between current and target RTO</li>
-                    <li>Determine the root cause of the ransomware scenario</li>
-                    <li>List 3 improvements needed based on tabletop results</li>
+                <ol class="checkpoint-list">
+                    <li class="checkpoint-item" id="l4t1-row">
+                        <span class="cp-text">Calculate the total cost of a 4-hour outage based on BIA data</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l4t1-input" placeholder="Type the value" aria-label="Answer: 4-hour outage cost">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l4t1')">Check</button>
+                            <span class="cp-status" id="l4t1-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l4t1-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l4t2-row">
+                        <span class="cp-text">Identify which system has the largest gap between current and target RTO</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l4t2-input" placeholder="Type the value" aria-label="Answer: largest RTO gap system">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l4t2')">Check</button>
+                            <span class="cp-status" id="l4t2-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l4t2-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l4t3-row">
+                        <span class="cp-text">Determine the root cause of the ransomware scenario</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l4t3-input" placeholder="Type the value" aria-label="Answer: ransomware root cause">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l4t3')">Check</button>
+                            <span class="cp-status" id="l4t3-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l4t3-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l4t4-row">
+                        <span class="cp-text">Identify which lessons-learned item from the tabletop exercise caused a 2-hour delay</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l4t4-input" placeholder="Type the value" aria-label="Answer: lesson learned causing a 2-hour delay">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l4t4')">Check</button>
+                            <span class="cp-status" id="l4t4-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l4t4-feedback"></span>
+                    </li>
                 </ol>
             </div>
         </div>
@@ -989,7 +1532,7 @@ assessment before the board meeting.
 <span class="info">[i] Press ENTER to begin assessment or type 'help' for commands</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">threat-model --dread-stride</span></div>
-                    <div class="output">
+                    <div class="output" id="l5-threatmodel">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           STRIDE/DREAD THREAT MODELING                         ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -1030,7 +1573,7 @@ assessment before the board meeting.
   <span class="error">DREAD Score: 7.8/10 (HIGH)</span></div>
 
                     <div><span class="prompt">risk-analyst@cloud-soc:~$</span> <span class="command">risk-response --decision-matrix</span></div>
-                    <div class="output">
+                    <div class="output" id="l5-riskresponse">
 <span class="info">╔═══════════════════════════════════════════════════════════════╗
 ║           RISK RESPONSE DECISION MATRIX                        ║
 ╚═══════════════════════════════════════════════════════════════╝</span>
@@ -1097,12 +1640,52 @@ assessment before the board meeting.
 
             <div class="task-list">
                 <h4>Lab Tasks</h4>
-                <ol>
-                    <li>Identify which STRIDE category poses the most critical risk</li>
-                    <li>Calculate the DREAD score for "No centralized logging" risk</li>
-                    <li>Determine the recommended acquisition price adjustment percentage</li>
-                    <li>List the 4 conditions precedent for board approval</li>
-                    <li>Calculate the risk reduction percentage after controls</li>
+                <ol class="checkpoint-list">
+                    <li class="checkpoint-item" id="l5t1-row">
+                        <span class="cp-text">Identify which STRIDE category is associated with the "Unencrypted S3 data" finding</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l5t1-input" placeholder="Type the value" aria-label="Answer: STRIDE category for unencrypted S3 data">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l5t1')">Check</button>
+                            <span class="cp-status" id="l5t1-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l5t1-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l5t2-row">
+                        <span class="cp-text">Calculate the DREAD score for the "Shared Root Account Access" risk</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l5t2-input" placeholder="Type the value" aria-label="Answer: Shared Root Account Access DREAD score">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l5t2')">Check</button>
+                            <span class="cp-status" id="l5t2-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l5t2-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l5t3-row">
+                        <span class="cp-text">Determine the recommended acquisition price adjustment percentage</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l5t3-input" placeholder="Type the value" aria-label="Answer: price adjustment percentage">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l5t3')">Check</button>
+                            <span class="cp-status" id="l5t3-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l5t3-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l5t4-row">
+                        <span class="cp-text">Identify how many numbered recommendation items are listed under Board Recommendation</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l5t4-input" placeholder="Type the value" aria-label="Answer: number of Board Recommendation items">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l5t4')">Check</button>
+                            <span class="cp-status" id="l5t4-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l5t4-feedback"></span>
+                    </li>
+                    <li class="checkpoint-item" id="l5t5-row">
+                        <span class="cp-text">Calculate the risk reduction percentage after controls</span>
+                        <span class="cp-controls">
+                            <input type="text" class="cp-input" id="l5t5-input" placeholder="Type the value" aria-label="Answer: risk reduction percentage">
+                            <button type="button" class="cp-check-btn" onclick="checkCheckpoint('l5t5')">Check</button>
+                            <span class="cp-status" id="l5t5-status"></span>
+                        </span>
+                        <span class="cp-feedback" id="l5t5-feedback"></span>
+                    </li>
                 </ol>
             </div>
         </div>
@@ -1114,7 +1697,7 @@ assessment before the board meeting.
     </div>
 
     <div style="text-align:center; padding:20px; margin-top:10px;">
-        <button onclick="completeModule()" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
+        <button id="completeModuleBtn" onclick="completeModule()" disabled title="Complete all lab checkpoints to unlock" style="background:#22c55e; color:#fff; border:none; padding:12px 32px; border-radius:8px; font-size:1rem; cursor:pointer; box-shadow:0 2px 8px rgba(34,197,94,0.3);">Complete Module ✓</button>
     </div>
 
     <div style="text-align:center;padding:20px 0;margin-top:30px;border-top:1px solid rgba(255,255,255,0.08);">
