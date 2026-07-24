@@ -70,12 +70,12 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** self (static: compile + engine prune trace + size recompute) + Nancy (re-derived sizes, recompiled script, re-enumerated the 6 root-overlay labs). Not browser-rendered (per CLAUDE.md acceptable bar when browser unavailable).
 - **Related:** task #104 (`baf4ccadd`, root-home prune — introduced the `.bashrc` case); taskboard #205 (this fix), #210 (proposed base-aware LinuxTerminal phantom-child EduScan heuristic — the systemic gate so future `/root`-overlay labs can't reintroduce this class).
 
-### BUG-016 — bm-* hardware course: one answer-position template across all 8 quizzes, no render shuffle  ·  P2  ·  open
+### BUG-016 — bm-* hardware course: one answer-position template across all 8 quizzes, no render shuffle  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-23 · by self (QUIZ-DUP cluster QC, primary-agent derivation after Karl declined) · marathon session
 - **Area:** `_app/houses/forge/hardware-support/quizzes/bm-*.quiz.html` (8 files, CTS1150C "Bare Metal"); keys in `functions/quiz_keys.json` + Firestore
 - **Symptom:** all 8 quizzes share the exact correct-answer position template `[3,2,2,1,2,2,1,1,1,0,0,0,0,3,3]` AND render options in authored order (hand-rolled pages, zero shuffle — verified `Math.random` count 0 in all 8). A student who notes week-1's letter pattern (D,C,C,B,C,C,B,B,B,A,A,A,A,D,D) can ace the remaining 7 without knowledge. Grading itself is CORRECT (120/120 explanation-derived, audit `~/hexworth-shared/Solutions/_audit/qc-quizdup-cluster6-2026-07-23.md`).
 - **Root cause:** authoring template reused per week; page pattern predates QuizEngine QC-8 enforced shuffle.
-- **Fix:** pending operator auth — either per-quiz option reorder + matched `quiz_keys` reseed (fl-final precedent, needs Firestore write), or add permutation-shuffle to the page pattern (pis-w* `permShuffleQuiz` precedent, hosting deploy only). Lesser cues, same standard: `cb-w4-troubleshoot-quiz` renders 14/15 correct answers at position B (no shuffle); `md101-m08` correct option is consistently the longest.
+- **Fix:** d01cf42fe — permShuffleQuiz render-shuffle ported to all 8 bm-* pages + cb-w4-troubleshoot (option chosen: hosting-only, no Firestore write; server key stays canonical, gradeOne submits original indices via q._perm). Nancy PROCEED. Residual: `md101-m08` longest-option cue (different cue class, not fixed by shuffle) — still open under this bug.
 - **Related:** feedback_assessment_testing_standard; contrast fw-w*/pis-w* (same template but shuffled at render — no exposure).
 
 ### BUG-015 — 7bc9a158b apostrophe-mangling extends beyond CSE: cloud-ch09-database Q5 options corrupted  ·  P1  ·  resolved
