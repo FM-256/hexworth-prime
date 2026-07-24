@@ -1,5 +1,24 @@
 # Karl Mode-2 Audit — QUIZ-011 Post-Deploy Batch (2026-05-09)
 
+> **CHARTER-RECONCILIATION NOTE 2026-07-24 (task 202, decision pending Frank).**
+> This document, in its own voice, credits **Karl** with ruling on answer-key
+> *correctness* — it says "Auditor: Karl (Mode-2 re-key audit)... cross-reference
+> Confluence Solutions Manual per-question" and issues index-level correctness
+> verdicts ("The answer text is correct; the letter/index is wrong"; "Current
+> Confluence key [1,1,1,1,1] is wrong for both files"). The current Karl charter
+> (`~/.claude/agents/karl.md`, "Mode 2 does NOT check") was **sharpened since** and
+> now explicitly EXCLUDES that: "Whether the answer index is correct —
+> operator/instructor verification, not Karl." So this doc's process and the
+> current charter disagree about whether answer-index adjudication is Karl's job.
+> This is a genuine open governance question, NOT resolved here: the old process
+> gave an *independent, source-cross-referencing correctness check from a second
+> agent* (distinct from what the primary agent + Nancy catch); the current charter
+> trades that away for a cleaner structure-vs-correctness division. Frank decides:
+> (a) formally EXPAND the charter to bless second-agent key adjudication, or
+> (b) RATIFY the current charter and RENAME this class of process (it was
+> answer-key adjudication, not a structural audit). No edit has been made to
+> karl.md or the architecture doc; this banner only flags the gap.
+
 > **STATUS UPDATE 2026-07-23 — clh-022 DENY is RESOLVED, do not act on it.**
 > The 2026-07-08 CLH dual-tree remediation (commit `f9a9f67ff`, plus same-day Firestore
 > seeds) implemented "Operator action" option 3 (distinct quiz IDs), NOT option 3.1:
