@@ -78,13 +78,14 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Fix:** pending operator auth — either per-quiz option reorder + matched `quiz_keys` reseed (fl-final precedent, needs Firestore write), or add permutation-shuffle to the page pattern (pis-w* `permShuffleQuiz` precedent, hosting deploy only). Lesser cues, same standard: `cb-w4-troubleshoot-quiz` renders 14/15 correct answers at position B (no shuffle); `md101-m08` correct option is consistently the longest.
 - **Related:** feedback_assessment_testing_standard; contrast fw-w*/pis-w* (same template but shuffled at render — no exposure).
 
-### BUG-015 — 7bc9a158b apostrophe-mangling extends beyond CSE: cloud-ch09-database Q5 options corrupted  ·  P1  ·  open
+### BUG-015 — 7bc9a158b apostrophe-mangling extends beyond CSE: cloud-ch09-database Q5 options corrupted  ·  P1  ·  resolved
 - **Found:** 2026-07-23 · by QC agent (QUIZ-DUP cluster-3 derivation) + corpus signature sweep · marathon session
 - **Area:** `_app/houses/cloud/quizzes/cloud-ch09-database.quiz.html:117-124` (Q5, Aurora)
 - **Symptom:** Q5 renders 5 mangled options (`'It'`, `','`, `'t support SQL queries'`, ...) — the CORRECT option ("It provides up to 5x better performance through cloud-native architecture") is absent from the page. WORSE than display-only (Nancy): QuizEngine submits via `_originalOptions.indexOf(selectedText)`, and the corrupted array has DUPLICATE `'It'` strings at positions 1 and 4, so clicks on either resolve to index 1 — a silent mis-grader, not just a rendering glitch. 0 recorded attempts on `ch09-database` (independently confirmed by live read-only Firestore count 2026-07-23), so no student harm occurred.
 - **Repro:** open the quiz, view Q5 options.
 - **Root cause:** same apostrophe-eating restore-era regex as BUG-014's 4 CSE corruptions (one-shot commit family 7bc9a158b — not a recurring pipeline; no tool in `_tools/` re-runs that transform). Original intact at `git show be39cb329`. Note: an UNcorrupted, unserved mirror also exists at `_output/migrated-quizzes/cloud/quizzes/cloud-ch09-database.quiz.html` (`_output/` is not in `firebase.json` public root; do not "fix" it, and no migration script syncs it back).
 - **Fix:** Q5's 4 original options restored verbatim in current (server-graded) format — Nancy PROCEED; post-edit whole-file check: brackets balanced, 10 questions × 4 options, 0 fragments. Key value 1 already correct, no reseed needed. **Scope-check RESULT (Tier-5 item from BUG-014):** corpus fragment-detector over all `_app` options arrays => exactly 3 affected files: `cloud-cse-module02.quiz.html` (3 fragments), `cloud-cse-module03.quiz.html` (3), this file (4). No corruption elsewhere; EHE lab hits were ASCII-banner false positives.
+- **Deployed+Verified:** 2026-07-24 — fix shipped with the BUG-014 Tier 6 deploy (full _app surface); live curl confirms the correct Aurora option present on prod.
 - **Related:** BUG-014 (CSE fixes awaiting operator tier approvals).
 
 ### BUG-014 — `'cse'` LearningPath (EC-Council Cloud Security Engineer) fully defined but dark — expose-or-remove decision  ·  P3  ·  resolved
