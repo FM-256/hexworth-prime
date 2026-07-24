@@ -256,6 +256,8 @@
     <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
     <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
     <script src="/__/firebase/init.js"></script>
+    <!-- Canonical CTF standings ranking (BUG-022): score DESC then earliest lastSolveTime ASC. -->
+    <script src="/components/CtfStandings.js"></script>
 
     <script>
     (function() {
@@ -363,9 +365,17 @@
                 return;
             }
 
-            // Collect teams
-            const teams = [];
-            snap.forEach(d => teams.push({ id: d.id, ...d.data() }));
+            // Collect teams, then apply the canonical tie-break ranking (BUG-022).
+            // Firestore returns them ordered by score, but score-ties fall back to
+            // document-id order; CtfStandings.rankTeams re-ranks by score DESC then
+            // earliest lastSolveTime ASC, so positions (and any trophy/credential
+            // minted from them) are correct. Falls back to raw score order if the
+            // helper failed to load. See /components/CtfStandings.js.
+            const rawTeams = [];
+            snap.forEach(d => rawTeams.push({ id: d.id, ...d.data() }));
+            const teams = (window.CtfStandings && window.CtfStandings.rankTeams)
+                ? window.CtfStandings.rankTeams(rawTeams)
+                : rawTeams;
 
             let html = '';
 
@@ -385,13 +395,7 @@
             // Top 3 podium (only when active, frozen, or ended)
             if (status === 'active' || status === 'frozen' || status === 'ended') {
                 const top3 = teams.slice(0, 3);
-                // Display order: 2nd, 1st, 3rd
-                const podiumOrder = [];
-                if (top3[1]) podiumOrder.push({ ...top3[1], place: 2 });
-                if (top3[0]) podiumOrder.push({ ...top3[0], place: 1 });
-                if (top3[2]) podiumOrder.push({ ...top3[2], place: 2 < 3 ? 3 : 3 });
-
-                // Correct order push
+                // Pedestal is rendered in visual order 2nd, 1st, 3rd directly below.
                 html += '<div class="podium-top3">';
                 // 2nd
                 if (top3[1]) {

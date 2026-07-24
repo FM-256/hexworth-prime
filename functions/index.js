@@ -7312,17 +7312,44 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
 
                 const tourn = tournSnap.docs[0];
                 const tournData = tourn.data();
+                // Fetch ALL teams (not limit(10) — a score tie at the 10/11 boundary could
+                // otherwise drop the correct team) and rank with the canonical CTF tie-break
+                // (BUG-022): score DESC, then earliest lastSolveTime ASC, id fallback for stability.
+                // Mirrors the browser rule in /components/CtfStandings.js and is the server-side
+                // reference the HCA finalization service will reuse.
                 const teamsSnap = await tourn.ref.collection('teams')
                     .orderBy('score', 'desc')
-                    .limit(10)
                     .get();
+
+                // Normalize lastSolveTime (admin Timestamp | {seconds} | number | string | missing) to ms.
+                // Rule kept BYTE-IDENTICAL to the browser canonical helper _app/components/CtfStandings.js.
+                // Duplicated (not imported) because Cloud Functions bundle only functions/ and cannot reach
+                // _app/. If you edit the rule in one place, edit both. (BUG-022, Nancy R2.)
+                const solveMs = (v) => {
+                    if (v == null) return Infinity;   // null/undefined only — a literal 0 (epoch ms) is a real time
+                    if (typeof v.toMillis === 'function') return v.toMillis();
+                    if (typeof v.seconds === 'number') return v.seconds * 1000;
+                    const n = new Date(v).getTime();
+                    return isNaN(n) ? Infinity : n;
+                };
+                const ranked = teamsSnap.docs
+                    .map(doc => ({ id: doc.id, ...doc.data() }))
+                    .sort((a, b) => {
+                        const sd = (b.score || 0) - (a.score || 0);
+                        if (sd !== 0) return sd;
+                        // Compare equality before subtracting so Infinity-Infinity (both missing) can't
+                        // produce NaN and corrupt the sort; falls through to the stable id tiebreak.
+                        const am = solveMs(a.lastSolveTime), bm = solveMs(b.lastSolveTime);
+                        if (am !== bm) return am - bm;
+                        return String(a.id || '').localeCompare(String(b.id || ''));
+                    })
+                    .slice(0, 10);
 
                 let leaderboard = '';
                 let rank = 1;
-                teamsSnap.forEach(doc => {
-                    const t = doc.data();
+                ranked.forEach(t => {
                     const medal = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : rank + 'th';
-                    leaderboard += `**${medal}** — ${t.name || doc.id} — ${t.score || 0} pts (${(t.solves || []).length} flags)\n`;
+                    leaderboard += `**${medal}** — ${t.name || t.id} — ${t.score || 0} pts (${(t.solves || []).length} flags)\n`;
                     rank++;
                 });
 

@@ -4319,6 +4319,8 @@
     <script src="../utils/SyncUtils.js"></script>
     <script src="../components/FirestoreManager.js"></script>
     <script src="../components/AccountFrame.js"></script>
+    <!-- Canonical CTF standings ranking (BUG-022): shared with the student podium. -->
+    <script src="../components/CtfStandings.js"></script>
 
     <script>
     /* =================================================================
@@ -11025,10 +11027,18 @@
             html += '<th>#</th><th>Team</th><th>Members</th><th>Score</th><th>Solves</th><th>Last Solve</th>';
             html += '</tr></thead><tbody>';
 
+            // Rank with the canonical CTF tie-break (BUG-022) so the admin/instructor view
+            // matches the student-facing podium exactly — and makes the "earliest lastSolveTime
+            // wins" tooltip above actually true. See /components/CtfStandings.js.
+            const rawTeams = [];
+            snap.forEach(tDoc => rawTeams.push({ id: tDoc.id, ...tDoc.data() }));
+            const teams = (window.CtfStandings && window.CtfStandings.rankTeams)
+                ? window.CtfStandings.rankTeams(rawTeams)
+                : rawTeams;
+
             let rank = 0;
-            snap.forEach(tDoc => {
+            teams.forEach(t => {
                 rank++;
-                const t = tDoc.data();
                 const lastSolve = t.lastSolveTime ? (t.lastSolveTime.toDate ? t.lastSolveTime.toDate().toLocaleTimeString() : '--') : '--';
 
                 // Podium highlighting
@@ -11136,14 +11146,17 @@
             try {
                 const { collection, getDocs, query, orderBy } = _firestoreModule;
 
-                // Get teams
+                // Get teams, ranked by the canonical CTF tie-break (BUG-022). This is the
+                // standings-OF-RECORD export (ctf-results-<id>.json) that feeds HCA credential
+                // issuance, so the baked-in rank MUST be correct on ties, not raw score order.
+                // Include the team id (the credential record needs it). See /components/CtfStandings.js.
                 const teamSnap = await getDocs(query(collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
-                const teams = [];
-                let rank = 0;
-                teamSnap.forEach(d => {
-                    rank++;
-                    teams.push({ rank, ...d.data() });
-                });
+                const rawTeams = [];
+                teamSnap.forEach(d => rawTeams.push({ id: d.id, ...d.data() }));
+                const ranked = (window.CtfStandings && window.CtfStandings.rankTeams)
+                    ? window.CtfStandings.rankTeams(rawTeams)
+                    : rawTeams;
+                const teams = ranked.map((t, i) => ({ rank: i + 1, ...t }));
 
                 // Get submissions
                 const subSnap = await getDocs(query(collection(db, 'tournaments', id, 'submissions'), orderBy('timestamp', 'asc')));
