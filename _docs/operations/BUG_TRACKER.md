@@ -33,6 +33,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-021 — Armory: 150 modules credit completion without any demonstrated work  ·  P1  ·  open (awaiting approach green-light)
+- **Found:** 2026-07-24 · by self (task 103 grading-honesty audit, exhaustive ~215 files) · marathon session
+- **Area:** `_app/houses/code/armory/**/*.module.html` + `python-graphics/pg-*.html` — 150 files across 3 template families
+- **Symptom:** students earn `ModuleProgress.complete('code', <id>)` without demonstrating any work. Three classes: (1) **JavaScript, 10 files** — bare `ModuleProgress.complete(...)` fires ON PAGE LOAD, zero interaction (worst); (2) **C, 10 files** — completion after clicking N "click here when done" task chips, no validation; (3) **scroll-credit, 130 files** — `checkScroll()` credits completion at `scrollTop/docHeight >= 0.999` across 12 languages (assembly/cpp/csharp/go/java/lua-perl-r/php/powershell/python/ruby/rust/swift-kotlin, 10 each) + python-graphics pg-01..10. This inflates progress %, XP, and the Firestore instructor dashboard / tenant class progress — the Evidence layer the Career-OS mission depends on.
+- **Repro:** open any flagged module; JS credits on load, scroll modules credit on reaching the bottom, C credits on clicking the chips.
+- **Root cause:** per-language module template authored without a completion gate; predates the honest-checkpoint standard.
+- **NOT affected (audit-confirmed honest):** `armory/bash/` (10, LinuxTerminal command-gating w/ error-guard) and `armory/sql/` (10, SQLEngine query-gating) are the in-tree GOLD-STANDARD fix pattern; all 43 dark-arts labs (23 linux + 20 ehe) gate on real typed-command/objective engines — the CSE-class defect does NOT exist there.
+- **Fix:** PENDING OPERATOR APPROACH DECISION (150-file student-facing product-surface rework = architecture, green-light-first per CLAUDE.md). Options in task 103 note. Recommended: extend the honest checkpoint pattern (free-text "type the value/output from the content" per feedback_honest_ui_lab_checkpoint_pattern, already shipped on CSE labs 07/08; or the bash/sql LinuxTerminal task-gate for runnable langs); pilot the 10 JS + 10 C families first (indefensible under any architecture), Nancy+Chris gate the template, then roll the 130 scroll modules.
+- **Related:** task 103 (this audit); feedback_honest_ui_lab_checkpoint_pattern; feedback_labs_must_be_legit_engines; project_career_os_mission (Evidence layer integrity); BUG-014 Tier 2 (same defect class, CSE labs — fixed pattern to reuse).
+
 ### BUG-020 — 8 topic decks call `ModuleProgress.trackVisit()` with arguments reversed  ·  P2  ·  resolved
 - **Found:** 2026-07-24 · by Nancy (incidental during BUG-014 Tier 2 spec review) · CSE expose session
 - **Area:** `ModuleProgress.trackVisit(houseId, moduleId, meta)` per JSDoc `_app/components/ModuleProgress.js:1228`; call sites pass `trackVisit('<topic-id>', 'cloud')` — module id first — in cloud topic decks `cloud-cse-01..05-*.presentation.html` (e.g. `cloud-cse-01-cloud-fundamentals.presentation.html:882`) and 3 shield-house decks (8 files total, cloud + shield)
