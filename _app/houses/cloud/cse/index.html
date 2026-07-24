@@ -414,39 +414,50 @@
     </footer>
 
     <script>
-        // Progress key arrays - mirror the localStorage keys written by each content file
-        const presIds = [
-            'cloud-cse-01-fundamentals',
-            'cloud-cse-02-iam',
-            'cloud-cse-03-data-protection',
-            'cloud-cse-04-network-security',
-            'cloud-cse-05-app-security',
-            'cloud-cse-06-monitoring-ir',
-            'cloud-cse-07-risk-assessment',
-            'cloud-cse-08-compliance'
+        // Progress key arrays - every string below is copied from a VERIFIED
+        // write site (the ModuleProgress.complete / trackVisit call in the
+        // linked content file), never invented (BUG-014 Tier 2 hub rewire:
+        // the previous arrays matched nothing any file actually writes).
+        // Three historical naming schemes exist across the two deck families,
+        // so each module's presentation accepts any of its aliases: the
+        // hub-linked topic deck id, plus the module-deck bare and prefixed ids
+        // (copyLegacyKey bridges mean either may hold a student's history).
+        const presAliases = [
+            ['cse-01-cloud-fundamentals', 'cse-module01', 'cloud-cse-module01'],
+            ['cse-02-identity-access-management', 'cse-module02', 'cloud-cse-module02'],
+            ['cse-03-data-protection-encryption', 'cse-module03', 'cloud-cse-module03'],
+            ['cse-04-network-security', 'cse-module04', 'cloud-cse-module04'],
+            ['cse-05-application-security', 'cse-module05', 'cloud-cse-module05'],
+            ['cse-06-monitoring-ir', 'cse-module06', 'cloud-cse-module06'],
+            ['cse-07-risk-assessment', 'cse-module07', 'cloud-cse-module07'],
+            ['cse-08-compliance-governance', 'cse-module08', 'cloud-cse-module08']
         ];
 
         const labIds = [
-            'cloud-cse-lab-01',
-            'cloud-cse-lab-02',
-            'cloud-cse-lab-03',
-            'cloud-cse-lab-04',
-            'cloud-cse-lab-05',
-            'cloud-cse-lab-06',
-            'cloud-cse-lab-07',
-            'cloud-cse-lab-08'
+            'cse-module01-lab',
+            'cse-module02-lab',
+            'cse-module03-lab',
+            'cse-module04-lab',
+            'cse-module05-lab',
+            'cse-module06-lab',
+            'cse-module07-lab',
+            'cse-module08-lab'
         ];
 
-        // Quiz localStorage keys - one per module
-        const quizKeys = [
-            'hexworth_cse_module01_quiz_score',
-            'hexworth_cse_module02_quiz_score',
-            'hexworth_cse_module03_quiz_score',
-            'hexworth_cse_module04_quiz_score',
-            'hexworth_cse_module05_quiz_score',
-            'hexworth_cse_module06_quiz_score',
-            'hexworth_cse_module07_quiz_score',
-            'hexworth_cse_module08_quiz_score'
+        // Quiz completion comes from QuizEngine's hexworth_quiz_stats blob:
+        // quizzesCompleted stores config.achievement || config.title, and the
+        // 8 module quizzes define no achievement field, so these are their
+        // exact TITLES. FRAGILE BY DESIGN: if a quiz title changes, update it
+        // here too (see d-series-staging.md, BUG-014).
+        const quizTitles = [
+            'Cloud Computing & Security Fundamentals',
+            'IAM in Cloud',
+            'Data Protection & Encryption',
+            'Network Security',
+            'Application Security',
+            'Security Monitoring & IR',
+            'Risk Assessment & Management',
+            'Cloud Compliance & Governance'
         ];
 
         const TOTAL_ACTIVITIES = 25; // 8 presentations + 8 labs + 8 quizzes + 1 review
@@ -461,6 +472,20 @@
             return _cloud[id] && _cloud[id].completed === true;
         }
 
+        // A presentation counts as done if ANY of its alias ids is complete
+        function presDone(idx) {
+            return presAliases[idx].some(isProgressComplete);
+        }
+
+        // Completed-quiz titles from QuizEngine's stats blob (see quizTitles note)
+        const _quizDone = (function () {
+            try {
+                return JSON.parse(localStorage.getItem('hexworth_quiz_stats') || '{}').quizzesCompleted || [];
+            } catch (e) {
+                return [];
+            }
+        })();
+
         /**
          * Compute completed count, update the progress bar and text,
          * and apply the .completed class to fully-finished module cards.
@@ -468,9 +493,9 @@
         function updateProgress() {
             let completed = 0;
 
-            // Count completed presentations
-            presIds.forEach(id => {
-                if (isProgressComplete(id)) completed++;
+            // Count completed presentations (any alias)
+            presAliases.forEach(function (_, i) {
+                if (presDone(i)) completed++;
             });
 
             // Count completed labs
@@ -478,9 +503,9 @@
                 if (isProgressComplete(id)) completed++;
             });
 
-            // Count completed quizzes (any stored score counts as complete)
-            quizKeys.forEach(key => {
-                if (localStorage.getItem(key) !== null) completed++;
+            // Count completed quizzes (any completion counts, pass or fail)
+            quizTitles.forEach(title => {
+                if (_quizDone.includes(title)) completed++;
             });
 
             // Count review completion
@@ -493,9 +518,9 @@
 
             // Mark individual module cards as completed when all three activities are done
             document.querySelectorAll('.module-card').forEach((card, idx) => {
-                const presComplete = isProgressComplete(presIds[idx]);
+                const presComplete = presDone(idx);
                 const labComplete  = isProgressComplete(labIds[idx]);
-                const quizComplete = localStorage.getItem(quizKeys[idx]) !== null;
+                const quizComplete = _quizDone.includes(quizTitles[idx]);
 
                 if (presComplete && labComplete && quizComplete) {
                     card.classList.add('completed');
