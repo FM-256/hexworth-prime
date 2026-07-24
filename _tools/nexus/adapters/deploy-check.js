@@ -166,9 +166,6 @@ module.exports = function createDeployCheckAdapter({ name, dataPath, projectRoot
             if (/\.\.\/\/assets/.test(content)) {
                 issues.push(`${f}: double-slash path (..//assets/)`);
             }
-            if (/\.\.\/\/assets/.test(content)) {
-                issues.push(`${f}: double-slash in asset path`);
-            }
         });
 
         return {
