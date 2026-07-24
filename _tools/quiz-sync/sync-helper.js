@@ -716,8 +716,37 @@ async function main() {
             fingerprints.get(key).push(qid);
         }
         const dups = [];
+        // Task 197: suppress a duplicate group when EVERY member is Karl-verified
+        // in the QUIZ-011 allowlist AND its current answers hash matches the
+        // allowlisted answerHash (mirrors QUIZ-011B semantics: hash drift means
+        // the Karl PASS is stale, so the group still fires). Case that motivated
+        // this: az900-ch03-quiz + ceh-01 are both verified correct-by-design and
+        // share the same balanced cycling array — a permanent false HIGH.
+        let allowMap = new Map();
+        let getAnswerHash = null;
+        try {
+            const allow = JSON.parse(fs.readFileSync(
+                path.join(__dirname, '../eduscan/config/quiz-011-allowlist.json'), 'utf8'));
+            for (const e of (allow.entries || [])) allowMap.set(e.id, e);
+            getAnswerHash = require(path.join(__dirname, '../../functions/placeholder-detector.js')).getAnswerHash;
+        } catch (e) { /* allowlist unavailable -> no suppression, fail open to firing */ }
+        const suppressed = [];
         for (const [key, qids] of fingerprints) {
-            if (qids.length >= 2) dups.push({ key, qids });
+            if (qids.length < 2) continue;
+            const allVerified = getAnswerHash && qids.every(q => {
+                const entry = allowMap.get(q);
+                return entry && getAnswerHash(registry[q].answers) === entry.answerHash;
+            });
+            if (allVerified) { suppressed.push({ key, qids }); continue; }
+            dups.push({ key, qids });
+        }
+        if (suppressed.length > 0) {
+            counts.DUPLICATE_ARRAYS_SUPPRESSED = suppressed.length;
+            if (!JSON_MODE) {
+                for (const s of suppressed) {
+                    console.log(`  C9 suppressed (all Karl-verified, hashes current): ${s.qids.join(', ')}`);
+                }
+            }
         }
         if (dups.length > 0) {
             counts.DUPLICATE_ANSWER_ARRAYS = dups.length;
