@@ -33,7 +33,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-026 — CTF team self-join is blocked by the update rule (captain-gated, but captain is always null)  ·  P2  ·  FIXED via ctfJoinTeam/ctfLeaveTeam Cloud Functions (pending deploy)
+### BUG-026 — CTF team self-join is blocked by the update rule (captain-gated, but captain is always null)  ·  P2  ·  RESOLVED — CFs deployed + live 2026-07-25 (end-to-end browser join test pending)
 - **Found:** 2026-07-24 · by self (BUG-024 flow investigation) · marathon
 - **Area:** `firestore.rules:788` update rule (`resource.data.captain == request.auth.uid || isAdmin()`) vs `_app/arena/tournament-lobby.html:509` `joinTeam` client `update({ members: arrayUnion(uid), memberNames: arrayUnion(name) })`.
 - **Symptom:** the lobby "Join Team" button performs a client-side team update to add the student to `members`, but the update rule only permits the team `captain` (a field that is ALWAYS null — never set anywhere) or an admin. There is no join Cloud Function. So a non-admin clicking "Join Team" gets `permission-denied`; self-join is broken, teams can only be populated by an admin.
@@ -43,7 +43,7 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** flows grepped (client self-join was empirically DENIED under the old rule via the emulator — advertised-but-broken, so the CF is the enabler not a regression fix); `functions/index.js` `node --check` clean; Nancy reviewed the CFs (id-validation + leave-misalignment guard added on her catch). Deploy = functions + firestore:rules + hosting together.
 - **Related:** BUG-024 (same rules change); tournament-lobby.html self-join flow.
 
-### BUG-025 — `tournament-lobby.html` puts the attacker-chosen team **doc id** into an onclick → live zero-click stored XSS  ·  P1  ·  fixed (pending deploy)
+### BUG-025 — `tournament-lobby.html` puts the attacker-chosen team **doc id** into an onclick → live zero-click stored XSS  ·  P1  ·  RESOLVED — client fix deployed 2026-07-24 (8994812ff); root closed by BUG-024 (crafted doc id can no longer be created)
 - **Found:** 2026-07-24 · by Nancy (final XSS sweep of the tournament pages) · during the BUG-023 hardening pass
 - **Area:** `_app/arena/tournament-lobby.html:621,625` — `onclick="leaveTeam('" + team.id + "')"` / `joinTeam('" + team.id + "')"`, built into a string later assigned to `container.innerHTML`.
 - **Symptom:** the MOST SEVERE instance of the crafted-team-field class. `team.id` is the Firestore **document id**, and `teams.create` (firestore.rules:787) lets any authenticated user CHOOSE the id with no format constraint. A team created with id `x"><img src=x onerror=…>` closes the `onclick` attribute and the `<button>`, then injects a self-contained `<img onerror>` that executes **on page render — zero clicks required** — in the browser of every visitor (student / instructor / admin) to `tournament-lobby.html?id=<tid>`, for as long as that team doc exists. Script execution (session/credential theft), not mere defacement.
@@ -53,7 +53,7 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** grep-clean (no raw `team.id` in any onclick); Nancy final sweep independently walked every sink → PROCEED; extracted-script `node --check` OK; lobby div balance 28/28.
 - **Related:** BUG-023 (same class, same hardening pass), BUG-024 (root cause — the durable fix constrains the team doc-id FORMAT in `firestore.rules`, not just field types).
 
-### BUG-024 — `tournaments/*/teams` create/update open to any authed user (crafted fields + crafted doc id)  ·  P1  ·  FIXED via admin lockdown (emulator-tested, pending deploy)
+### BUG-024 — `tournaments/*/teams` create/update open to any authed user (crafted fields + crafted doc id)  ·  P1  ·  RESOLVED — deployed + live-verified 2026-07-25 (rules + CFs live, lobby byte-identical)
 - **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
 - **Area:** `firestore.rules:787` — `match /teams/{teamId} { allow create: if request.auth != null; ... }`
 - **Symptom:** any authenticated user (any student) can create a team doc in ANY tournament with arbitrary fields of arbitrary types — e.g. `score` as an HTML/JS string instead of a number, or a `color` carrying a CSS payload. Because `teams` read is public (`allow read: if true`) and every standings surface (podium, broadcast, admin) renders these fields, a malicious value becomes a stored-XSS / defacement vector on high-visibility screens (see BUG-023). `update` is effectively locked (captain is a dead null field + isAdmin) but `create` is wide open, so an attacker needs no update access.
@@ -64,7 +64,7 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** rule read directly (`firestore.rules:786-788`).
 - **Related:** BUG-023 (the render-side XSS this enables); broadcast.html Phase A (defended client-side).
 
-### BUG-023 — crafted team fields render unsafely across the tournament pages (stored XSS / DoS class)  ·  P1  ·  3 PUBLIC pages FIXED (pending deploy); admin + ranking deferred to BUG-024
+### BUG-023 — crafted team fields render unsafely across the tournament pages (stored XSS / DoS class)  ·  P1  ·  RESOLVED — 3 public pages deployed 2026-07-24 (8994812ff); admin/CtfStandings residual closed at source by BUG-024 (no crafted team can be created)
 - **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
 - **Area:** `_app/arena/tournament-podium.html:433` and `:450` — `(t.score || 0)` interpolated into innerHTML with no escape/coercion.
 - **Symptom:** a team whose `score` field is an HTML string (writable via BUG-024) executes script in the browser of anyone viewing the podium — including a projected screen at a live event, the highest-value defacement target on the platform. The same pattern would have shipped in broadcast.html (3 render paths) but was coerced before commit.
