@@ -303,6 +303,66 @@
                 return (a.sortOrder || 999) - (b.sortOrder || 999);
             });
         },
+        // ── Dynamic (Firestore-backed) hubs — task #225 ──────────────
+        // Merges admin-created hubs from the `hubRegistry` Firestore collection with the static
+        // 19+ above. Firestore is HubRegistry's PERSISTENCE LAYER for browser-created hubs, not a
+        // competing registry — same schema, doc-id == hub id. Async because it reads Firestore.
+        //
+        // opts = {
+        //   db,                       // Firestore db handle
+        //   firestore,                // { collection, query, where, getDocs } (modular SDK)
+        //   isAdmin,                  // bool — admins list unconstrained; non-admins are forced
+        //                             //        to where('status','==','published') so the rules
+        //                             //        `list` gate is satisfiable (see firestore.rules
+        //                             //        hubRegistry block). A non-admin unconstrained list
+        //                             //        would be DENIED WHOLESALE by Firestore.
+        //   onError                   // optional (err) => void
+        // }
+        //
+        // Guarantees (both adversarial-review, Nancy R2):
+        //  #4 status-normalization — every STATIC entry lacks a `status` field; it is defaulted to
+        //     'published' here so a consumer doing `if (h.status !== 'published') hide()` over the
+        //     merged array never hides the 19+ real courses.
+        //  #5 STATIC WINS — a static id ALWAYS overrides a same-id dynamic doc, so a stray/typo'd
+        //     Firestore doc can never shadow a live hardcoded course at read time (defense-in-depth
+        //     with the rules-level reserved-id rejection on create).
+        //
+        // NEVER THROWS: a registry read must not break a consumer page. On any Firestore error
+        // (offline, rules deny, missing context) it falls back to the static-only list.
+        allWithDynamic: function (opts) {
+            opts = opts || {};
+            var normalizedStatic = HUBS.map(function (h) {
+                return h.status ? h : Object.assign({}, h, { status: 'published' });
+            });
+            if (!opts.db || !opts.firestore || typeof opts.firestore.getDocs !== 'function') {
+                // No Firestore context — static-only baseline (also the SSR/offline path).
+                return Promise.resolve(normalizedStatic.slice());
+            }
+            var fs = opts.firestore;
+            var col;
+            try {
+                col = fs.collection(opts.db, 'hubRegistry');
+            } catch (e) {
+                if (opts.onError) { opts.onError(e); }
+                return Promise.resolve(normalizedStatic.slice());
+            }
+            var q = opts.isAdmin ? col : fs.query(col, fs.where('status', '==', 'published'));
+            return Promise.resolve(fs.getDocs(q)).then(function (snap) {
+                var dynamic = [];
+                snap.forEach(function (d) {
+                    var data = d.data() || {};
+                    data.id = d.id; // doc id is authoritative for the hub id
+                    dynamic.push(data);
+                });
+                var staticIds = {};
+                normalizedStatic.forEach(function (h) { staticIds[h.id] = true; });
+                // STATIC WINS: drop any dynamic doc colliding with a static id, then append static.
+                return dynamic.filter(function (d) { return !staticIds[d.id]; }).concat(normalizedStatic);
+            }, function (err) {
+                if (opts.onError) { opts.onError(err); }
+                return normalizedStatic.slice();
+            });
+        },
         // Adapter functions for the 5 dashboard COURSE_MAP shapes (Phase 3
         // refactor uses these so existing dashboard read-side code is
         // unchanged). Each adapter takes (hub, routingFn) and returns the

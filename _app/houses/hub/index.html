@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hub - Hexworth Prime</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/hexworth-mark.webp">
+
+    <!-- Page gate: identical to every house index (sorted+; tenants bypass). Synchronous,
+         before render, so it cannot depend on the async hub fetch (adversarial-review #7:
+         the renderer applies ONE gate up front; all houses use 'sorted' today). -->
+    <script src="/components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <style>
+        :root{ --bg:#0a0c16; --panel:#12151f; --panel2:#171b28; --line:#232838;
+               --cyan:#22d3ee; --violet:#8b5cf6; --text:#e9edf4; --muted:#8b95a8; --gold:#f5c451; }
+        *{ margin:0; padding:0; box-sizing:border-box; }
+        body{ min-height:100vh; background:radial-gradient(1100px 520px at 76% -10%, #161d30 0, var(--bg) 62%);
+              color:var(--text); font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; line-height:1.5; }
+        .wrap{ max-width:1040px; margin:0 auto; padding:40px 24px 90px; }
+        .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:34px;
+                 font-size:.8rem; letter-spacing:.08em; }
+        .topbar a{ color:var(--muted); text-decoration:none; }
+        .topbar a:hover{ color:var(--cyan); }
+        .eyebrow{ font-size:.72rem; letter-spacing:.3em; text-transform:uppercase; color:var(--cyan); font-weight:700; }
+        h1{ font-size:clamp(2rem,5vw,3rem); letter-spacing:-.01em; margin:6px 0 8px; text-wrap:balance; }
+        .sub{ color:var(--muted); font-size:1.05rem; }
+        .hub-head{ display:flex; gap:22px; align-items:center; border-bottom:1px solid var(--line); padding-bottom:26px; }
+        .hub-icon{ width:76px; height:76px; flex:0 0 auto; border:1px solid var(--line); border-radius:16px;
+                   background:var(--panel); display:flex; align-items:center; justify-content:center; }
+        .hub-icon img{ width:46px; height:46px; }
+        .draft-banner{ margin:22px 0 0; background:rgba(245,196,81,.10); border:1px solid rgba(245,196,81,.4);
+                       border-radius:12px; padding:13px 18px; color:var(--gold); font-size:.9rem; font-weight:600; }
+        .section{ margin-top:40px; }
+        .section h2{ font-size:.82rem; letter-spacing:.22em; text-transform:uppercase; color:var(--muted);
+                     font-weight:700; display:flex; align-items:center; gap:10px; margin-bottom:16px;
+                     border-bottom:1px solid var(--line); padding-bottom:10px; }
+        .section h2 .count{ color:var(--cyan); }
+        .items{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); }
+        .item{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px;
+               text-decoration:none; color:var(--text); transition:border-color .2s ease, transform .15s ease; display:block; }
+        .item:hover{ border-color:rgba(34,211,238,.4); transform:translateY(-2px); }
+        .item .t{ font-weight:600; font-size:.98rem; }
+        .item .d{ color:var(--muted); font-size:.84rem; margin-top:4px; }
+        .empty{ color:var(--muted); font-size:.9rem; font-style:italic; padding:6px 2px; }
+        .path{ margin-top:40px; background:linear-gradient(160deg,rgba(139,92,246,.10),var(--panel));
+               border:1px solid var(--line); border-radius:14px; padding:22px 24px; }
+        .path .eyebrow{ color:var(--violet); }
+        .path .steps{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+        .path .steps span{ padding:7px 14px; border:1px solid var(--line); border-radius:999px; font-size:.86rem; color:#d8dfea; }
+        .state{ text-align:center; padding:90px 20px; }
+        .state h1{ font-size:1.8rem; }
+        .state p{ color:var(--muted); margin-top:10px; }
+        .state a{ color:var(--cyan); text-decoration:none; }
+        .hidden{ display:none; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <div class="topbar">
+            <a href="/" id="homeLink">&larr; Hexworth Prime</a>
+            <a href="#" id="houseLink" class="hidden"></a>
+        </div>
+        <div id="loading" class="state"><p>Loading hub&hellip;</p></div>
+        <div id="notfound" class="state hidden">
+            <h1>Hub not found</h1>
+            <p>This hub does not exist or is not available yet. <a href="/">Return home</a>.</p>
+        </div>
+        <div id="hub" class="hidden"></div>
+    </div>
+
+    <!-- Firebase (compat) + init, mirrors the podium/house Firestore boot -->
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <!-- FirebaseAuth is required by ObservatoryTelemetry (uid + token). Telemetry self-inits
+         on DOMContentLoaded and derives its per-hub course identity from location.pathname
+         (/houses/hub/<id>), which the firebase.json rewrite preserves. -->
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/ObservatoryTelemetry.js"></script>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── XSS-safe helpers (adversarial-review #4/#8: hub fields are admin-written but the
+        //    BUG-023 lesson is that "trusted" fields still reach stored-XSS sinks). Every hub
+        //    field is escaped/allowlisted/path-validated before it touches the DOM. We build
+        //    nodes with textContent + createElement; no hub data is ever passed to innerHTML. ──
+        var SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;                 // hub id / house id shape
+        var ICON = /^\/assets\/images\/icons\/[A-Za-z0-9_-]+\.webp$/;   // same-origin webp only
+        var INTERNAL_HREF = /^\/(?!\/)[A-Za-z0-9/_.-]*$/;      // internal path only: single leading slash, no scheme/host, no protocol-relative //
+
+        function el(tag, text, cls) {
+            var n = document.createElement(tag);
+            if (cls) { n.className = cls; }
+            if (text != null) { n.textContent = String(text); }  // textContent = XSS-safe
+            return n;
+        }
+        function safeIcon(v) {
+            return (typeof v === 'string' && ICON.test(v)) ? v : '/assets/images/icons/hexworth-mark.webp';
+        }
+        function safeHref(v) {
+            return (typeof v === 'string' && INTERNAL_HREF.test(v)) ? v : null;
+        }
+        function num(v) { var n = Number(v); return Number.isFinite(n) ? n : 0; }
+
+        function show(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function fail() { hide('loading'); hide('hub'); show('notfound'); }
+
+        // Render one typed section (slides/labs/quizzes/exams/projects/games). Items are rendered
+        // safely; v1 hubs are empty skeletons so the empty state is the common path.
+        function renderSection(parent, label, items) {
+            var arr = Array.isArray(items) ? items : [];
+            var sec = el('div', null, 'section');
+            var h = el('h2');
+            h.appendChild(el('span', label));
+            h.appendChild(el('span', '(' + arr.length + ')', 'count'));
+            sec.appendChild(h);
+            if (arr.length === 0) {
+                sec.appendChild(el('div', 'No ' + label.toLowerCase() + ' yet.', 'empty'));
+            } else {
+                var grid = el('div', null, 'items');
+                arr.forEach(function (it) {
+                    if (!it || typeof it !== 'object') { return; }
+                    var href = safeHref(it.href);
+                    var card = document.createElement(href ? 'a' : 'div');
+                    card.className = 'item';
+                    if (href) { card.setAttribute('href', href); }
+                    card.appendChild(el('div', it.title || it.label || 'Untitled', 't'));
+                    if (it.desc || it.sublabel) { card.appendChild(el('div', it.desc || it.sublabel, 'd')); }
+                    grid.appendChild(card);
+                });
+                sec.appendChild(grid);
+            }
+            parent.appendChild(sec);
+        }
+
+        function renderHub(id, data) {
+            document.title = (data.label ? String(data.label) : 'Hub') + ' - Hexworth Prime';
+
+            // House back-link (houseId slug-validated -> safe path)
+            if (typeof data.houseId === 'string' && SLUG.test(data.houseId)) {
+                var hl = document.getElementById('houseLink');
+                hl.setAttribute('href', '/houses/' + data.houseId + '/');
+                hl.textContent = 'House: ' + data.houseId + ' →';
+                hl.classList.remove('hidden');
+            }
+
+            var root = document.getElementById('hub');
+
+            // Draft banner: only an admin can read a draft (rules enforce it), so if we got here
+            // with a non-published doc, the viewer is an admin previewing.
+            if (data.status !== 'published') {
+                root.appendChild(el('div', 'DRAFT: visible to admins only. Publish this hub to make it live.', 'draft-banner'));
+            }
+
+            var head = el('div', null, 'hub-head');
+            var iconBox = el('div', null, 'hub-icon');
+            var img = document.createElement('img');
+            img.src = safeIcon(data.icon);
+            img.alt = '';
+            iconBox.appendChild(img);
+            head.appendChild(iconBox);
+
+            var meta = el('div');
+            meta.appendChild(el('div', (data.catalogCode ? String(data.catalogCode) + ' · ' : '') + 'Hub', 'eyebrow'));
+            meta.appendChild(el('h1', data.label || 'Untitled Hub'));
+            if (data.sublabel) { meta.appendChild(el('div', data.sublabel, 'sub')); }
+            head.appendChild(meta);
+            root.appendChild(head);
+
+            // Optional multi-cert path
+            if (Array.isArray(data.path) && data.path.length) {
+                var pathBox = el('div', null, 'path');
+                pathBox.appendChild(el('div', 'Certification Path', 'eyebrow'));
+                var steps = el('div', null, 'steps');
+                data.path.forEach(function (p) {
+                    var lbl = (p && typeof p === 'object') ? (p.label || p.id) : p;
+                    steps.appendChild(el('span', lbl != null ? lbl : ''));
+                });
+                pathBox.appendChild(steps);
+                root.appendChild(pathBox);
+            }
+
+            // Typed content sections (the structured-but-empty skeleton)
+            var s = (data.sections && typeof data.sections === 'object') ? data.sections : {};
+            renderSection(root, 'Slides', s.slides);
+            renderSection(root, 'Labs', s.labs);
+            renderSection(root, 'Quizzes', s.quizzes);
+            renderSection(root, 'Exams', s.exams);
+            renderSection(root, 'Projects', s.projects);
+            renderSection(root, 'Games', s.games);
+
+            hide('loading');
+            show('hub');
+        }
+
+        // ── Boot: parse id from /houses/hub/<id>, validate, fetch, render. ──
+        // Whole body is try/catch-guarded: any synchronous throw (a malformed firebase init,
+        // an unexpected DOM state) must degrade to the not-found state, never hang on the
+        // loading spinner (adversarial-review #2). We do NOT decodeURIComponent the id: a
+        // legitimate hub id is [a-z0-9-] and never percent-encoded, and decodeURIComponent
+        // throws URIError on a stray '%' (e.g. /houses/hub/foo%) — validating the raw segment
+        // against SLUG both avoids that throw and removes any smuggling surface.
+        function boot() {
+            try {
+                var m = location.pathname.match(/\/houses\/hub\/([^/]+)\/?$/);
+                var id = m ? m[1] : '';
+                if (!SLUG.test(id)) { return fail(); }        // no/invalid id -> not found
+                if (typeof firebase === 'undefined' || !firebase.firestore) { return fail(); }
+                var db = firebase.firestore();
+                db.collection('hubRegistry').doc(id).get().then(function (snap) {
+                    // Reached only when rules ALLOWED the read: a published hub (any viewer) or a
+                    // draft an admin may preview. A non-admin's get of a draft OR a truly-missing
+                    // doc is permission-denied (the rule errors on a null resource), so it lands in
+                    // .catch() below — the two cases converge on the same not-found UI (no leak).
+                    if (!snap.exists) { return fail(); }      // admin-only path: missing id
+                    renderHub(id, snap.data() || {});
+                }).catch(function () {
+                    // Denied (non-admin draft/missing) or offline. Never leak that a draft exists.
+                    fail();
+                });
+            } catch (e) { fail(); }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot);
+        } else { boot(); }
+    })();
+    </script>
+</body>
+</html>

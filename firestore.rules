@@ -811,6 +811,34 @@ service cloud.firestore {
       }
     }
 
+    // ─── Hub Registry (dynamic, admin-created hubs) ────────────────
+    // Firestore persistence layer for HubRegistry.js (task #225). Admin-created hubs render at
+    // /houses/hub/<id> (one dynamic renderer) and are Observatory-tracked from creation.
+    // status ('draft' | 'published') is the SOLE exposure gate:
+    //   read   — readable if published, or by an admin (draft preview). For a LIST query,
+    //            Firestore denies the WHOLE query unless every returnable doc provably satisfies
+    //            the rule, so NON-ADMIN consumers MUST constrain with
+    //            where('status','==','published'); admins may list unconstrained (isAdmin
+    //            short-circuits). A single-doc get on a draft by a non-admin returns
+    //            permission-denied -> the renderer shows "not available yet". (Every doc in this
+    //            collection is dynamic and always carries a status, so there is no null-status
+    //            edge in list; the static hubs live in HubRegistry.js, never here.)
+    //   create — admin only AND the id must NOT collide with a reserved static HubRegistry.js id,
+    //            so a dynamic doc can never shadow a live hardcoded course. Defense-in-depth with
+    //            the static-wins merge in allWithDynamic(). Reserved set mirrors HubRegistry.all()
+    //            (22 ids as of 2026-07-25); _tools/rules-test/hub-registry-rules.test.js asserts
+    //            no drift between this list and HubRegistry.js.
+    //   update, delete — admin only.
+    match /hubRegistry/{hubId} {
+      allow read: if isAdmin() || resource.data.status == 'published';
+      allow create: if isAdmin()
+        && !(hubId in ['wireshark', 'forensics', 'bug-hunting', 'signal', 'arctic-cli',
+                       'network-plus', 'cyberops', 'aplus-core1', 'aplus-core2', 'md-100',
+                       'md-101', 'feh', 'python-hub', 'python-for-it', 'security-plus', 'isc2-cc',
+                       'server-plus', 'wsa', 'adv-linux', 'ethics-it', 'domino-effect', 'infosec']);
+      allow update, delete: if isAdmin();
+    }
+
     // ─── Cohorts (REMOVED) ──────────────────────────────────
     // Cohort system consolidated into tenants/classes. See TENANT_COHORT_CONSOLIDATION.md.
 

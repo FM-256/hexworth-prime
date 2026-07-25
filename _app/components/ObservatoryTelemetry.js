@@ -83,10 +83,15 @@ window.ObservatoryTelemetry = (function () {
 
     // Coarse course slug from the path (e.g. comptia-aplus/core-1), a convenience for
     // the dashboard; the full path is always stored server-side too. Null if unknown.
+    // The third alternative gives data-driven hubs (task #225, rendered at
+    // /houses/hub/<id>) a distinct per-hub course identity. ADDITIVE: /applets/ and
+    // /modules/ paths match the earlier alternatives first, so no existing page changes;
+    // /houses/hub/<id> previously returned null and now returns its hub id.
     function courseFromPath() {
         try {
             const m = location.pathname.match(/\/applets\/([^/]+\/[^/]+)/) ||
-                      location.pathname.match(/\/modules\/([^/]+)/);
+                      location.pathname.match(/\/modules\/([^/]+)/) ||
+                      location.pathname.match(/\/houses\/hub\/([^/]+)/);
             return m ? m[1] : null;
         } catch (e) { return null; }
     }
