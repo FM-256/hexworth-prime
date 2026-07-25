@@ -319,7 +319,7 @@
 
             if (!t.startTime) { timerEl.textContent = ''; return; }
 
-            const startMs = t.startTime.toDate ? t.startTime.toDate().getTime() : t.startTime;
+            const startMs = (typeof t.startTime.toDate === 'function') ? t.startTime.toDate().getTime() : t.startTime;
             const durationMs = (t.duration || 120) * 60 * 1000;
             const endMs = startMs + durationMs;
 
@@ -420,18 +420,21 @@
 
             teams.forEach((t, i) => {
                 const rank = i + 1;
-                const lastSolve = t.lastSolveTime
-                    ? (t.lastSolveTime.toDate ? t.lastSolveTime.toDate().toLocaleTimeString() : '--')
+                // Guard toDate: a captain can set lastSolveTime to a map with a truthy-but-not-
+                // callable toDate (crafted team field), which would throw inside forEach and blank
+                // the live podium for every spectator. Only call it when it's actually a function.
+                const lastSolve = (t.lastSolveTime && typeof t.lastSolveTime.toDate === 'function')
+                    ? t.lastSolveTime.toDate().toLocaleTimeString()
                     : '--';
 
                 html += '<tr>';
                 html += '<td class="podium-rank">' + rank + '</td>';
                 html += '<td class="podium-team-name">';
-                html += '<span class="podium-team-dot" style="background:' + (t.color || 'var(--accent)') + ';"></span>';
+                html += '<span class="podium-team-dot" style="background:' + safeColor(t.color) + ';"></span>';
                 html += escHtml(t.name || 'Unnamed');
                 html += '</td>';
-                html += '<td class="podium-score">' + (t.score || 0) + '</td>';
-                html += '<td>' + (t.solves ? t.solves.length : 0) + '</td>';
+                html += '<td class="podium-score">' + num(t.score) + '</td>';
+                html += '<td>' + (Array.isArray(t.solves) ? t.solves.length : 0) + '</td>';
                 html += '<td style="color:var(--text-dim);">' + lastSolve + '</td>';
                 html += '</tr>';
             });
@@ -447,8 +450,8 @@
             h += '<div class="podium-place-box">';
             h += '<div class="podium-place-rank">#' + place + '</div>';
             h += '<div class="podium-place-name">' + escHtml(team.name || 'Unnamed') + '</div>';
-            h += '<div class="podium-place-score">' + (team.score || 0) + ' pts</div>';
-            h += '<div class="podium-place-solves">' + (team.solves ? team.solves.length : 0) + ' solves</div>';
+            h += '<div class="podium-place-score">' + num(team.score) + ' pts</div>';
+            h += '<div class="podium-place-solves">' + (Array.isArray(team.solves) ? team.solves.length : 0) + ' solves</div>';
             h += '</div>';
             h += '<div class="podium-pedestal"></div>';
             h += '</div>';
@@ -460,6 +463,15 @@
             d.textContent = str;
             return d.innerHTML;
         }
+
+        // Coerce a value that MUST be numeric (score/solves) before it reaches innerHTML.
+        // Blocks stored XSS via the wide-open teams.create rule (BUG-024): a crafted string
+        // or object becomes 0, never markup. See BUG-023.
+        function num(v) { return Number(v) || 0; }
+        // Whitelist a team color to a hex literal before injecting it into an inline style;
+        // anything else falls back to the accent var, so a crafted color cannot break out of
+        // the style attribute and inject markup/handlers.
+        function safeColor(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : 'var(--accent)'; }
 
         init();
     })();

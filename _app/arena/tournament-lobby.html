@@ -467,7 +467,7 @@
                 myTeamId = null;
                 if (currentUser) {
                     for (const team of teamsData) {
-                        if (team.members && team.members.includes(currentUser.uid)) {
+                        if (Array.isArray(team.members) && team.members.includes(currentUser.uid)) {
                             myTeamId = team.id;
                             break;
                         }
@@ -499,7 +499,7 @@
             if (!team) return;
 
             const maxSize = tournamentData.maxTeamSize || 4;
-            if (team.members && team.members.length >= maxSize) {
+            if (Array.isArray(team.members) && team.members.length >= maxSize) {
                 toast('Team is full.', 'error');
                 return;
             }
@@ -548,9 +548,9 @@
             html += '<div class="lobby-header">';
             html += '<div class="lobby-title">' + escHtml(t.name || 'CTF Tournament') + '</div>';
             if (t.description) html += '<div class="lobby-desc">' + escHtml(t.description) + '</div>';
-            html += '<div class="lobby-status lobby-status-' + status + '">';
+            html += '<div class="lobby-status lobby-status-' + (/^[a-z]+$/.test(status) ? status : 'unknown') + '">';
             const labels = { draft: 'COMING SOON', lobby: 'REGISTRATION OPEN', active: 'IN PROGRESS', frozen: 'IN PROGRESS', ended: 'FINISHED' };
-            html += labels[status] || status.toUpperCase();
+            html += labels[status] || escHtml(String(status).toUpperCase());
             html += '</div>';
             html += '</div>';
 
@@ -588,8 +588,17 @@
             html += '<div class="lobby-section-title">Choose Your Team</div>';
             html += '<div class="lobby-teams-grid">';
             teamsData.forEach(team => {
-                const color = team.color || '#a855f7';
-                const memberCount = team.members ? team.members.length : 0;
+                // Hex-whitelist the team color before it goes into an inline style, and count
+                // members only from a real array — team docs accept arbitrary fields/types via the
+                // open teams.create rule (BUG-024), so a crafted color/members would otherwise
+                // inject into the style attribute or render a string length as markup (BUG-023).
+                const color = (typeof team.color === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(team.color)) ? team.color : '#a855f7';
+                const memberCount = Array.isArray(team.members) ? team.members.length : 0;
+                // team.id is the Firestore doc id, and teams.create lets any user CHOOSE it (BUG-024),
+                // so it is attacker-controlled and must NOT be interpolated raw into the onclick HTML
+                // (a crafted id would break out of the attribute and inject markup). Only act on it
+                // when it is a plain slug / Firestore auto-id; a crafted id yields no join/leave button.
+                const safeId = /^[A-Za-z0-9_-]{1,128}$/.test(team.id) ? team.id : '';
                 const maxSize = t.maxTeamSize || 4;
                 const isFull = memberCount >= maxSize;
                 const isMyTeam = team.id === myTeamId;
@@ -599,7 +608,7 @@
                 html += '<div class="lobby-team-stripe" style="background:' + color + ';"></div>';
                 html += '<div class="lobby-team-name">' + escHtml(team.name) + '</div>';
                 html += '<div class="lobby-team-members">';
-                if (team.memberNames && team.memberNames.length > 0) {
+                if (Array.isArray(team.memberNames) && team.memberNames.length > 0) {
                     team.memberNames.forEach(name => {
                         html += '<span>' + escHtml(name) + '</span>';
                     });
@@ -613,12 +622,12 @@
                 if (isMyTeam) {
                     html += '<span style="display:flex;gap:6px;">';
                     html += '<span class="lobby-join-btn joined">JOINED</span>';
-                    if (status === 'lobby' || status === 'draft') {
-                        html += '<button class="lobby-leave-btn" onclick="leaveTeam(\'' + team.id + '\')">Leave</button>';
+                    if ((status === 'lobby' || status === 'draft') && safeId) {
+                        html += '<button class="lobby-leave-btn" onclick="leaveTeam(\'' + safeId + '\')">Leave</button>';
                     }
                     html += '</span>';
-                } else if (canJoin) {
-                    html += '<button class="lobby-join-btn" onclick="joinTeam(\'' + team.id + '\')">Join Team</button>';
+                } else if (canJoin && safeId) {
+                    html += '<button class="lobby-join-btn" onclick="joinTeam(\'' + safeId + '\')">Join Team</button>';
                 } else if (isFull) {
                     html += '<span class="lobby-join-btn" style="opacity:0.3;cursor:default;">FULL</span>';
                 }
@@ -643,9 +652,9 @@
             // Links
             html += '<div class="lobby-links">';
             if (myTeamId && (status === 'active' || status === 'frozen')) {
-                html += '<a href="/arena/tournament-board.html?id=' + tournamentId + '" style="background:var(--accent); color:#fff; border-color:var(--accent);">Enter Challenge Board</a> ';
+                html += '<a href="/arena/tournament-board.html?id=' + encodeURIComponent(tournamentId) + '" style="background:var(--accent); color:#fff; border-color:var(--accent);">Enter Challenge Board</a> ';
             }
-            html += '<a href="/arena/tournament-podium.html?id=' + tournamentId + '">View Live Podium</a>';
+            html += '<a href="/arena/tournament-podium.html?id=' + encodeURIComponent(tournamentId) + '">View Live Podium</a>';
             html += '</div>';
 
             container.innerHTML = html;
