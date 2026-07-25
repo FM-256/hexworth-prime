@@ -49,6 +49,17 @@ const fails = async (p) => { try { await p; return false; } catch (e) { return t
   check('student get(published) OK', await succeeds(getDoc(doc(stu, 'hubRegistry/dyn-pub'))));
   check('admin get(draft) OK (preview)', await succeeds(getDoc(doc(admin, 'hubRegistry/dyn-draft'))));
 
+  // ── unauthenticated tourist (AccessGuard 'sorted' TouristVisa is decoupled from Firebase Auth,
+  //    so a house-page visitor may have NO Firebase session) — this is the exact HubDiscovery read
+  //    path, so it must work for request.auth == null. ──
+  const anon = env.unauthenticatedContext().firestore();
+  check('anon get(published) OK', await succeeds(getDoc(doc(anon, 'hubRegistry/dyn-pub'))));
+  check('anon get(draft) DENIED', await fails(getDoc(doc(anon, 'hubRegistry/dyn-draft'))));
+  check('anon constrained list where(status==published) OK (HubDiscovery query)',
+    await succeeds(getDocs(query(collection(anon, 'hubRegistry'), where('status', '==', 'published')))));
+  check('anon UNconstrained list DENIED (draft would leak)',
+    await fails(getDocs(collection(anon, 'hubRegistry'))));
+
   // ── allWithDynamic (what consumers/renderer read) ──
   const mStu = await HubRegistry.allWithDynamic({ db: stu, firestore: fsMod(), isAdmin: false });
   const idsStu = mStu.map((h) => h.id);
