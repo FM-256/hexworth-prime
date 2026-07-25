@@ -50,7 +50,7 @@ const fails = async (p) => { try { await p; return false; } catch (e) { return t
   check('admin get(draft) OK (preview)', await succeeds(getDoc(doc(admin, 'hubRegistry/dyn-draft'))));
 
   // ── unauthenticated tourist (AccessGuard 'sorted' TouristVisa is decoupled from Firebase Auth,
-  //    so a house-page visitor may have NO Firebase session) — this is the exact HubDiscovery read
+  //    so a house-page visitor may have NO Firebase session), this is the exact HubDiscovery read
   //    path, so it must work for request.auth == null. ──
   const anon = env.unauthenticatedContext().firestore();
   check('anon get(published) OK', await succeeds(getDoc(doc(anon, 'hubRegistry/dyn-pub'))));

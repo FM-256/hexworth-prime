@@ -4,11 +4,11 @@
 //     "NODE_PATH=$(pwd)/node_modules node _tools/rules-test/hub-registry-rules.test.js"
 //
 // Proves the two adversarial-review (Nancy R2) must-fixes:
-//  C3 — the draft/published read gate is correct for BOTH get and list. Critically, a NON-ADMIN
+//  C3, the draft/published read gate is correct for BOTH get and list. Critically, a NON-ADMIN
 //       UNCONSTRAINED list with a draft doc present must be DENIED WHOLESALE (Firestore proves every
-//       returnable doc satisfies the rule, so it cannot post-filter) — a non-admin must query
+//       returnable doc satisfies the rule, so it cannot post-filter), a non-admin must query
 //       where('status','==','published'); an admin may list unconstrained.
-//  #5 — create rejects any doc id colliding with a reserved static HubRegistry.js id, so a dynamic
+//  #5, create rejects any doc id colliding with a reserved static HubRegistry.js id, so a dynamic
 //       hub can never shadow a live hardcoded course. Plus a drift assertion: the reserved-id set in
 //       firestore.rules must exactly equal HubRegistry.all() ids.
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
@@ -58,19 +58,19 @@ function assert(name, cond){ if (cond){ out.push(['PASS', name]); pass++; } else
 
   await seed();
 
-  // ── C3 READ — single-doc get ──
+  // ── C3 READ, single-doc get ──
   await ok('get published hub (student)',        getDoc(doc(stu,  'hubRegistry/pub-alpha')));
   await ok('get published hub (anon)',           getDoc(doc(anon, 'hubRegistry/pub-alpha')));
   await no('get DRAFT hub (student)',            getDoc(doc(stu,  'hubRegistry/draft-beta')));
   await no('get DRAFT hub (anon)',               getDoc(doc(anon, 'hubRegistry/draft-beta')));
-  await ok('get DRAFT hub (admin — preview)',    getDoc(doc(admin,'hubRegistry/draft-beta')));
+  await ok('get DRAFT hub (admin, preview)',    getDoc(doc(admin,'hubRegistry/draft-beta')));
 
-  // ── C3 READ — list query (the linchpin) ──
+  // ── C3 READ, list query (the linchpin) ──
   await ok('list CONSTRAINED where(status==published) (student)',
     getDocs(query(collection(stu, 'hubRegistry'), where('status', '==', 'published'))));
-  await no('list UNCONSTRAINED with a draft present (student) — whole query denied',
+  await no('list UNCONSTRAINED with a draft present (student), whole query denied',
     getDocs(collection(stu, 'hubRegistry')));
-  await no('list where(status==draft) (student) — cannot enumerate drafts',
+  await no('list where(status==draft) (student), cannot enumerate drafts',
     getDocs(query(collection(stu, 'hubRegistry'), where('status', '==', 'draft'))));
   await ok('list UNCONSTRAINED (admin)',         getDocs(collection(admin, 'hubRegistry')));
 
@@ -80,19 +80,19 @@ function assert(name, cond){ if (cond){ out.push(['PASS', name]); pass++; } else
   assert(`constrained student list returns only published [${stuIds}]`,
     stuIds.length === 1 && stuIds[0] === 'pub-alpha');
 
-  // ── #5 CREATE — admin only, reserved static ids rejected ──
+  // ── #5 CREATE, admin only, reserved static ids rejected ──
   await ok('admin creates a fresh non-reserved hub',
     setDoc(doc(admin, 'hubRegistry/brand-new'), NEWHUB));
   await no('admin CANNOT create a hub that shadows a reserved static id (aplus-core1)',
     setDoc(doc(admin, 'hubRegistry/aplus-core1'), { ...NEWHUB, id:'aplus-core1' }));
   await no('admin CANNOT shadow another reserved static id (security-plus)',
     setDoc(doc(admin, 'hubRegistry/security-plus'), { ...NEWHUB, id:'security-plus' }));
-  await no('student creates a hub (denied — admin only)',
+  await no('student creates a hub (denied, admin only)',
     setDoc(doc(stu, 'hubRegistry/stu-hub'), NEWHUB));
   await no('anon creates a hub (denied)',
     setDoc(doc(anon, 'hubRegistry/anon-hub'), NEWHUB));
 
-  // ── UPDATE / DELETE — admin only (publish toggle lives here) ──
+  // ── UPDATE / DELETE, admin only (publish toggle lives here) ──
   await seed();
   await ok('admin publishes a draft (status draft->published)',
     updateDoc(doc(admin, 'hubRegistry/draft-beta'), { status:'published', publishedAt: 1 }));
@@ -105,7 +105,7 @@ function assert(name, cond){ if (cond){ out.push(['PASS', name]); pass++; } else
   await seed();
   await no('student cannot delete a hub', deleteDoc(doc(stu, 'hubRegistry/pub-alpha')));
 
-  console.log('\n=== hubRegistry rules test (task #225 — draft/published gate + reserved-id) ===');
+  console.log('\n=== hubRegistry rules test (task #225, draft/published gate + reserved-id) ===');
   out.forEach(r => console.log('  ' + r[0].padEnd(34) + r[1]));
   console.log(`\n${pass} passed, ${fail} failed`);
   await testEnv.cleanup();

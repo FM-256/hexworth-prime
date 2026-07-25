@@ -7,7 +7,7 @@
  *
  *   A. Reserved-id PARITY: the hardcoded reserved-id list in firestore.rules must equal
  *      HubRegistry.all() ids. (Same assertion as the rules-test's drift check, but STATIC /
- *      no-emulator, so it is cheap enough to run in the deploy gate — the authoritative fix for
+ *      no-emulator, so it is cheap enough to run in the deploy gate, the authoritative fix for
  *      the two-sources-of-truth drift risk. A dynamic hub must never be able to shadow a static
  *      course id.)
  *   B. The dynamic renderer + the firebase.json rewrite are present.

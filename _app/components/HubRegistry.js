@@ -1,15 +1,15 @@
 /**
- * HubRegistry — Single source of truth for platform hubs and tenant-assignable
+ * HubRegistry, Single source of truth for platform hubs and tenant-assignable
  * courses.
  *
- * Status: Phase 1 (registry only — no consumer integrations yet). See
+ * Status: Phase 1 (registry only, no consumer integrations yet). See
  * _docs/architecture/hub-registry-design.md for the migration plan.
  *
  * Nancy v1 review (2026-05-09) addressed:
  *  - `dashboardHref` removed: every entry except cyberops had `/lobby.html`,
  *    making it consumer-level routing not hub-level data. Consumers now pass
  *    a routing function to adapters.
- *  - `status` field removed: all 19 entries were `'live'`. YAGNI applies —
+ *  - `status` field removed: all 19 entries were `'live'`. YAGNI applies -
  *    the field returns when beta/deprecated semantics are defined.
  *  - Phase 1 ships THIS FILE ONLY. Script-tag injection into 13 consumer
  *    pages requires CSP header audit first (Nancy concern 1).
@@ -18,7 +18,7 @@
  *  - id: stable string written to tenant.licensing.contentAccess.{courses|hubs}
  *  - category: 'course' | 'platform-hub' | 'tool'
  *  - label, sublabel: display text. sublabel is descriptor / catalog code.
- *  - catalogCode: official exam/course code (optional — courses only)
+ *  - catalogCode: official exam/course code (optional, courses only)
  *  - icon: webp icon path
  *  - hubHref: canonical hub URL (used by lobby + nav, also as a default
  *    route fallback for consumers that pass `h => h.hubHref` as routingFn)
@@ -29,7 +29,7 @@
  * {name,desc,icon,href}, clean-ops uses {title,desc,...}, etc.) gets a
  * dedicated adapter function. Adapters take (hub, routingFn) and return
  * the consumer-shape entry. routingFn is called per hub to determine the
- * href value — consumers pass `() => '/lobby.html'` to route through the
+ * href value, consumers pass `() => '/lobby.html'` to route through the
  * lobby (default for tenant dashboards) or `h => h.hubHref` to navigate
  * directly (default for the lobby itself).
  */
@@ -90,7 +90,7 @@
             sortOrder: 5
         },
 
-        // ─── Courses (14 — original 12 + ethics-it + infosec from Task #96) ─
+        // ─── Courses (14, original 12 + ethics-it + infosec from Task #96) ─
         {
             id: 'network-plus',
             category: 'course',
@@ -303,15 +303,15 @@
                 return (a.sortOrder || 999) - (b.sortOrder || 999);
             });
         },
-        // ── Dynamic (Firestore-backed) hubs — task #225 ──────────────
+        // ── Dynamic (Firestore-backed) hubs, task #225 ──────────────
         // Merges admin-created hubs from the `hubRegistry` Firestore collection with the static
         // 19+ above. Firestore is HubRegistry's PERSISTENCE LAYER for browser-created hubs, not a
-        // competing registry — same schema, doc-id == hub id. Async because it reads Firestore.
+        // competing registry, same schema, doc-id == hub id. Async because it reads Firestore.
         //
         // opts = {
         //   db,                       // Firestore db handle
         //   firestore,                // { collection, query, where, getDocs } (modular SDK)
-        //   isAdmin,                  // bool — admins list unconstrained; non-admins are forced
+        //   isAdmin,                  // bool, admins list unconstrained; non-admins are forced
         //                             //        to where('status','==','published') so the rules
         //                             //        `list` gate is satisfiable (see firestore.rules
         //                             //        hubRegistry block). A non-admin unconstrained list
@@ -320,10 +320,10 @@
         // }
         //
         // Guarantees (both adversarial-review, Nancy R2):
-        //  #4 status-normalization — every STATIC entry lacks a `status` field; it is defaulted to
+        //  #4 status-normalization, every STATIC entry lacks a `status` field; it is defaulted to
         //     'published' here so a consumer doing `if (h.status !== 'published') hide()` over the
         //     merged array never hides the 19+ real courses.
-        //  #5 STATIC WINS — a static id ALWAYS overrides a same-id dynamic doc, so a stray/typo'd
+        //  #5 STATIC WINS, a static id ALWAYS overrides a same-id dynamic doc, so a stray/typo'd
         //     Firestore doc can never shadow a live hardcoded course at read time (defense-in-depth
         //     with the rules-level reserved-id rejection on create).
         //
@@ -335,7 +335,7 @@
                 return h.status ? h : Object.assign({}, h, { status: 'published' });
             });
             if (!opts.db || !opts.firestore || typeof opts.firestore.getDocs !== 'function') {
-                // No Firestore context — static-only baseline (also the SSR/offline path).
+                // No Firestore context, static-only baseline (also the SSR/offline path).
                 return Promise.resolve(normalizedStatic.slice());
             }
             var fs = opts.firestore;
@@ -367,7 +367,7 @@
         // refactor uses these so existing dashboard read-side code is
         // unchanged). Each adapter takes (hub, routingFn) and returns the
         // entry in the consumer's expected shape. routingFn(h) returns the
-        // href — consumers pass `() => '/lobby.html'` for tenant-dashboard
+        // href, consumers pass `() => '/lobby.html'` for tenant-dashboard
         // routing, or `h => h.hubHref` for direct hub navigation (lobby).
         adapters: {
             // Used by lobby.html (3-field shape, label includes catalog code)
