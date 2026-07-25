@@ -6658,6 +6658,138 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
     };
 });
 
+// ─── CTF: Team join / leave (Model B self-service, server-validated) ──────────────
+// Teams are admin-write-only at the rules layer (BUG-024); a client cannot securely self-join
+// the parallel members[]/memberNames[] arrays (BUG-026). These callables run with the admin SDK
+// (bypassing rules) and validate the self-join/leave server-side, so a user can only add/remove
+// THEMSELVES. members[] and memberNames[] are kept index-aligned inside a transaction (push/splice
+// both together), binding each name to its uid positionally without a schema change.
+
+// Resolve a display name the way the lobby does: profile callsign > displayName > token > uid.
+async function _resolveUserName(uid, token) {
+    try {
+        const snap = await db.collection('users').doc(uid).get();
+        if (snap.exists) {
+            const d = snap.data();
+            return d.callsign || d.displayName || (token && token.name) || (token && token.email) || uid;
+        }
+    } catch (e) { /* fall through to token */ }
+    return (token && token.name) || (token && token.email) || uid;
+}
+
+exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+    const { tournamentId, teamId } = request.data || {};
+    if (!tournamentId || !teamId) throw new HttpsError('invalid-argument', 'tournamentId and teamId are required.');
+    // Validate the path segments — the CF is the sole write authority now (BUG-024), so it must
+    // enforce the slug shape itself (a '/' in teamId would change the Firestore path depth). Same
+    // guard the client uses for the doc id (safeId), applied server-side.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(tournamentId) || !/^[A-Za-z0-9_-]{1,128}$/.test(teamId)) {
+        throw new HttpsError('invalid-argument', 'Invalid tournament or team id.');
+    }
+    const uid = request.auth.uid;
+
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const tSnap = await tRef.get();
+    if (!tSnap.exists) throw new HttpsError('not-found', 'Tournament not found.');
+    const tournament = tSnap.data();
+    if (tournament.status !== 'lobby' && tournament.status !== 'active') {
+        throw new HttpsError('failed-precondition', 'Team registration is closed for this tournament.');
+    }
+
+    // One team per user: reject if already on a DIFFERENT team in this tournament.
+    const teamsSnap = await tRef.collection('teams').get();
+    let existing = null;
+    teamsSnap.forEach(d => { const m = d.data().members; if (Array.isArray(m) && m.includes(uid)) existing = d.id; });
+    if (existing === teamId) return { ok: true, teamId }; // idempotent — consistent shape with all return paths
+    if (existing) throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
+
+    const name = await _resolveUserName(uid, request.auth.token);
+    const maxSize = tournament.maxTeamSize || 4;
+    const teamRef = tRef.collection('teams').doc(teamId);
+    const lockRef = tRef.collection('rosterLocks').doc(uid);
+
+    // Transaction serializes per-user on the rosterLock doc (one lock = one team claim), so
+    // concurrent joins to DIFFERENT teams cannot flood multiple rosters (a real registration-DoS,
+    // since per-team transactions don't serialize against each other). Also re-checks team-full.
+    await db.runTransaction(async (tx) => {
+        const lockSnap = await tx.get(lockRef);
+        const snap = await tx.get(teamRef);
+        if (!snap.exists) throw new HttpsError('not-found', 'Team not found.');
+        if (lockSnap.exists) {
+            if (lockSnap.data().teamId === teamId) return; // idempotent — already on this team
+            throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
+        }
+        const team = snap.data();
+        const members = Array.isArray(team.members) ? team.members.slice() : [];
+        const memberNames = Array.isArray(team.memberNames) ? team.memberNames.slice() : [];
+        // Legacy member (in members[] but no lock, e.g. admin-assigned): backfill the lock, no dup.
+        if (members.includes(uid)) { tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() }); return; }
+        if (members.length >= maxSize) throw new HttpsError('failed-precondition', 'That team is full.');
+        members.push(uid);
+        memberNames.push(name);
+        tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() });
+        tx.update(teamRef, { members, memberNames });
+    });
+    return { ok: true, teamId };
+});
+
+exports.ctfLeaveTeam = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+    const { tournamentId, teamId } = request.data || {};
+    if (!tournamentId || !teamId) throw new HttpsError('invalid-argument', 'tournamentId and teamId are required.');
+    // Validate the path segments — the CF is the sole write authority now (BUG-024), so it must
+    // enforce the slug shape itself (a '/' in teamId would change the Firestore path depth). Same
+    // guard the client uses for the doc id (safeId), applied server-side.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(tournamentId) || !/^[A-Za-z0-9_-]{1,128}$/.test(teamId)) {
+        throw new HttpsError('invalid-argument', 'Invalid tournament or team id.');
+    }
+    const uid = request.auth.uid;
+
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const tSnap = await tRef.get();
+    if (!tSnap.exists) throw new HttpsError('not-found', 'Tournament not found.');
+    const tournament = tSnap.data();
+    // Leaving is allowed only before the tournament starts (matches the lobby's leave button,
+    // shown for 'lobby'/'draft'). Once active, rosters are locked.
+    if (tournament.status !== 'lobby' && tournament.status !== 'draft') {
+        throw new HttpsError('failed-precondition', 'You can only leave a team before the tournament starts.');
+    }
+
+    const teamRef = tRef.collection('teams').doc(teamId);
+    const lockRef = tRef.collection('rosterLocks').doc(uid);
+    // Transaction removes uid + its index-aligned name from the roster and releases the lock. Also
+    // RECOVERS a stranded user: if the team doc is gone (admin deleted it) or the admin removed the
+    // user from members[] directly, still release a lock that points at this team — so a user can
+    // never be permanently locked out of the tournament with no self-service path.
+    await db.runTransaction(async (tx) => {
+        const snap = await tx.get(teamRef);
+        const lockSnap = await tx.get(lockRef);
+        const lockHere = lockSnap.exists && lockSnap.data().teamId === teamId;
+        if (!snap.exists) {
+            if (lockHere) { tx.delete(lockRef); return; } // team deleted — free the stuck lock
+            throw new HttpsError('not-found', 'Team not found.');
+        }
+        const team = snap.data();
+        const members = Array.isArray(team.members) ? team.members.slice() : [];
+        const memberNames = Array.isArray(team.memberNames) ? team.memberNames.slice() : [];
+        const membersLenBefore = members.length;
+        const idx = members.indexOf(uid);
+        if (idx === -1) {
+            if (lockHere) { tx.delete(lockRef); return; } // not in members but stale lock points here — release it
+            throw new HttpsError('failed-precondition', 'You are not on that team.');
+        }
+        members.splice(idx, 1);
+        // Remove the index-aligned name only when the arrays were parallel (always true for
+        // CF-managed teams); on a legacy/misaligned doc, leave memberNames alone rather than
+        // splice a wrong name — members (authoritative) is still corrected.
+        if (memberNames.length === membersLenBefore && idx < memberNames.length) memberNames.splice(idx, 1);
+        tx.update(teamRef, { members, memberNames });
+        tx.delete(lockRef); // release the roster lock (no-op if absent)
+    });
+    return { ok: true, teamId };
+});
+
 // ─── EDT: Ethical Decision Training Lab Submission ───────────────
 
 /**

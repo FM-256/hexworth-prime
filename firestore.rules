@@ -784,13 +784,16 @@ service cloud.firestore {
       // Teams — public read (podium shows rankings), Cloud Functions manage joins/scoring
       match /teams/{teamId} {
         allow read: if true;  // Public — live podium needs this
-        allow create: if request.auth != null;  // Authenticated users can create teams
-        allow update: if request.auth != null && (
-          // Team captain can update roster
-          resource.data.captain == request.auth.uid ||
-          // Admin can update anything
-          isAdmin()
-        );
+        // BUG-024: teams are created only inside the admin-gated tournament-creation flow
+        // (tournaments create = isAdmin). Locking create+update to admins closes the crafted-
+        // team-field / crafted-doc-id XSS+DoS class (BUG-023/025) at the source, and drops the
+        // dead `captain` clause (captain is ALWAYS null — it never granted anyone). Cloud
+        // Functions (ctfSubmitFlag) update score/solves via the admin SDK, bypassing these rules.
+        // Self-service join/leave (Model B, BUG-026) is re-enabled via a ctfJoinTeam/ctfLeaveTeam
+        // Cloud Function so name<->uid binding is validated server-side: a client rule cannot
+        // secure the parallel members[]/memberNames[] arrays (adversarial-review finding).
+        allow create: if isAdmin();
+        allow update: if isAdmin();
         allow delete: if isAdmin();
       }
 
@@ -798,6 +801,13 @@ service cloud.firestore {
       match /submissions/{submissionId} {
         allow read: if request.auth != null;
         allow write: if false;  // Cloud Functions only (ctfSubmitFlag)
+      }
+
+      // Roster locks — one doc per uid = one team claim; serializes self-join so a user cannot
+      // flood multiple teams. Cloud Functions only (ctfJoinTeam/ctfLeaveTeam, admin SDK); never
+      // client-accessible.
+      match /rosterLocks/{uid} {
+        allow read, write: if false;
       }
     }
 

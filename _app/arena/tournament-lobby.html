@@ -381,6 +381,7 @@
     <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
     <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
     <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-functions-compat.js"></script>
     <script src="/__/firebase/init.js"></script>
 
     <script>
@@ -505,16 +506,14 @@
             }
 
             try {
-                const teamRef = db.collection('tournaments').doc(tournamentId).collection('teams').doc(teamId);
-                await teamRef.update({
-                    members: firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
-                    memberNames: firebase.firestore.FieldValue.arrayUnion(currentUserName || 'Unknown')
-                });
+                // Server-validated self-join (Cloud Function). Teams are admin-write-only at the
+                // rules layer (BUG-024); the CF binds the joiner's name to their uid server-side.
+                await firebase.functions().httpsCallable('ctfJoinTeam')({ tournamentId, teamId });
                 myTeamId = teamId;
                 toast('Joined ' + team.name + '!', 'success');
                 await loadTournament();
             } catch (e) {
-                toast('Failed to join: ' + e.message, 'error');
+                toast(e.message || 'Failed to join.', 'error');
             }
         };
 
@@ -523,16 +522,13 @@
             if (!currentUser) return;
 
             try {
-                const teamRef = db.collection('tournaments').doc(tournamentId).collection('teams').doc(teamId);
-                await teamRef.update({
-                    members: firebase.firestore.FieldValue.arrayRemove(currentUser.uid),
-                    memberNames: firebase.firestore.FieldValue.arrayRemove(currentUserName || 'Unknown')
-                });
+                // Server-validated self-leave (Cloud Function).
+                await firebase.functions().httpsCallable('ctfLeaveTeam')({ tournamentId, teamId });
                 myTeamId = null;
                 toast('Left team.', 'success');
                 await loadTournament();
             } catch (e) {
-                toast('Failed to leave: ' + e.message, 'error');
+                toast(e.message || 'Failed to leave.', 'error');
             }
         };
 
