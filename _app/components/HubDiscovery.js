@@ -82,17 +82,38 @@
         container.style.display = '';
     }
 
+    // Session cache: the published-hub set is the SAME for every house, so one query per session
+    // serves all house pages. A cache HIT skips the Firebase load entirely (the main per-page cost).
+    // Short TTL so a freshly-published hub still appears within a couple minutes without a hard refresh.
+    var CACHE_KEY = 'hubdisc_published_v1';
+    var CACHE_TTL = 120000; // 2 min
+    function readCache() {
+        try {
+            var raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) { return null; }
+            var o = JSON.parse(raw);
+            if (!o || typeof o.t !== 'number' || (Date.now() - o.t) > CACHE_TTL || !Array.isArray(o.hubs)) { return null; }
+            return o.hubs;
+        } catch (e) { return null; }
+    }
+    function writeCache(hubs) {
+        try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ t: Date.now(), hubs: hubs })); } catch (e) { /* quota/private mode */ }
+    }
+
     function init() {
         if (!SLUG.test(HOUSE)) { return; }          // no/invalid data-house -> no-op
         var container = document.querySelector('[data-hub-discovery]');
         if (!container) { container = document.createElement('div'); container.setAttribute('data-hub-discovery', ''); document.body.appendChild(container); }
         container.className = 'hubdisc'; container.style.display = 'none';
         injectStyles();
+        var cached = readCache();
+        if (cached) { renderTiles(container, cached); return; }   // cache hit: no Firebase load
         ensureFirebase().then(function (ready) {
             if (!ready) { return; }
             return firebase.firestore().collection('hubRegistry').where('status', '==', 'published').get()
                 .then(function (snap) {
                     var hubs = []; snap.forEach(function (d) { var x = d.data() || {}; x.id = d.id; hubs.push(x); });
+                    writeCache(hubs);
                     renderTiles(container, hubs);
                 });
         }).catch(function () { /* discovery must never break the house page */ });
