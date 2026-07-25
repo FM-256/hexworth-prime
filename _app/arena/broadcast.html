@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Broadcast — Hexworth Prime</title>
+    <meta name="robots" content="noindex">
+
+    <!--
+      ============================================================================
+      TOURNAMENT BROADCAST CHANNEL (Panopticon) — PHASE A: data-driven broadcast
+      ============================================================================
+      Purpose: a PRODUCED, zero-scroll, auto-rotating broadcast of a live CTF
+      tournament for projection at the event (the "golf / NASCAR leaderboard"
+      flow Frank asked for). The operator picks a tournament from the dropdown
+      and the director loops through data scenes with no manual scrolling.
+
+      SCOPE — PHASE A (this file): 100% backed by verified Firestore data. No
+      video, no LiveKit. Scenes: Standings board, Race (gap bars), Team Spotlight
+      (rotates each team). Persistent HUD (timer/status) + solve ticker.
+      Depends on NOBODY streaming — works from the first minute of the event.
+
+      DEFERRED — PHASE B (not here): live video peeks (Captain Cam / Quad / Team
+      View / Battle / Solve Cam). Those require product decisions that do not yet
+      exist in the platform, confirmed by code audit (Nancy review, 2026-07-24):
+        - "captain" is a dead field (always null; no createdBy on team docs), so
+          there is no subject for a Captain scene yet.
+        - streams have no tournament linkage and nothing tells competitors to go
+          live during a match, so the live feeds may not exist.
+        - access level for disclosing live feeds is an operator decision.
+      Phase B layers on once those are decided. The uid->team join already works.
+
+      SAFETY RULES enforced below:
+        - NEVER render submission.submittedFlag (it is the actual flag). The ticker
+          shows only teamName + challenge title + points for correct===true solves.
+        - Respect status 'frozen': HARD-FREEZE the board + ticker — snapshot the standings at
+          freeze and hold them until 'ended'. This is a DISPLAY-level freeze: the projected board
+          stops moving, but the teams collection stays a public read (as it is for the podium), so
+          it is presentation control, NOT a data-access lock.
+        - Ranking uses the canonical window.CtfStandings.rankTeams (BUG-022:
+          score DESC, then earliest lastSolveTime ASC), with a score-desc fallback.
+        - All Firestore field access is defensive (open display; data may be partial).
+
+      DATA MODEL (verified in code, 2026-07-24):
+        tournaments/{id} = {name, description, status(draft|lobby|active|frozen|
+          ended), startTime, duration(min, default 120), createdAt, teamCount}
+        tournaments/{id}/teams/{tid} = {name, color, score, solves:[chId],
+          lastSolveTime(Timestamp), members:[uid], memberNames:[]}
+        tournaments/{id}/submissions/{sid} = {teamId, teamName, challengeId,
+          submittedFlag(SECRET), correct, points, submittedBy, submittedByName,
+          timestamp}
+        tournaments/{id}/challenges/{chId} = {title, category, points, order, ...}
+
+      ACCESS: public display page (mirrors tournament-podium.html). It signs in
+      ANONYMOUSLY at startup so the auth-gated submissions read (solve ticker +
+      recent captures) succeeds; tournaments/teams/challenges are already public
+      reads. PRIVACY: member names render as "First L." only (shortName), because
+      this is a public URL and competitors may be minors (operator decision 2026-
+      07-24). The board hard-freezes during 'frozen' (operator decision 2026-07-24).
+      ============================================================================
+    -->
+
+    <style>
+    :root {
+        --void:#05060d; --panel:rgba(9,12,22,.72); --panel2:rgba(20,26,44,.9);
+        --cyan:#22d3ee; --cyan-dim:rgba(34,211,238,.55); --violet:#8b5cf6;
+        --gold:#f5c542; --silver:#cdd6e4; --bronze:#e0965a; --up:#34e0a1;
+        --text:#e8eef8; --dim:#7f8daa; --line:rgba(120,160,220,.14);
+        --mono:ui-monospace,"JetBrains Mono","SF Mono",Menlo,Consolas,monospace;
+        --sans:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    }
+    * { box-sizing:border-box; }
+    html,body {
+        margin:0; height:100%; overflow:hidden; background:var(--void);
+        color:var(--text); font-family:var(--sans); -webkit-font-smoothing:antialiased;
+    }
+    body { display:flex; flex-direction:column; }
+
+    /* Ambient backdrop: faint scanning grid so a static leaderboard still feels alive */
+    body::before {
+        content:""; position:fixed; inset:0; z-index:0; pointer-events:none;
+        background:
+            radial-gradient(1200px 700px at 78% -10%, rgba(34,211,238,.06), transparent 60%),
+            radial-gradient(900px 600px at 12% 110%, rgba(139,92,246,.07), transparent 60%),
+            linear-gradient(rgba(120,160,220,.035) 1px, transparent 1px) 0 0/100% 46px,
+            linear-gradient(90deg, rgba(120,160,220,.035) 1px, transparent 1px) 0 0/46px 100%;
+    }
+
+    /* ── Operator control strip (dropdown + fullscreen). Auto-dims on a projector. ── */
+    #controlBar {
+        position:relative; z-index:5; display:flex; align-items:center; gap:14px;
+        padding:9px 18px; border-bottom:1px solid var(--line);
+        background:rgba(4,6,12,.85); transition:opacity .5s ease;
+    }
+    #controlBar.dim { opacity:.1; }
+    #controlBar .cb-brand {
+        font-family:var(--mono); font-weight:800; letter-spacing:.06em; font-size:.8rem;
+        color:var(--cyan); display:flex; align-items:center; gap:9px;
+    }
+    #controlBar .cb-mark {
+        width:24px; height:24px; border-radius:6px; display:flex; align-items:center;
+        justify-content:center; font-family:var(--mono); font-weight:800; font-size:.62rem;
+        color:#04060b; background:linear-gradient(135deg,var(--cyan),var(--violet));
+    }
+    #controlBar label { font-family:var(--mono); font-size:.6rem; letter-spacing:.2em; text-transform:uppercase; color:var(--dim); }
+    #tournamentSelect {
+        font-family:var(--mono); font-size:.82rem; color:var(--text);
+        background:var(--panel2); border:1px solid var(--line); border-radius:8px;
+        padding:7px 12px; min-width:280px; cursor:pointer;
+    }
+    #tournamentSelect:focus { outline:2px solid var(--cyan-dim); }
+    #fsBtn {
+        margin-left:auto; font-family:var(--mono); font-size:.66rem; letter-spacing:.14em;
+        text-transform:uppercase; color:var(--dim); background:transparent;
+        border:1px solid var(--line); border-radius:8px; padding:7px 14px; cursor:pointer;
+    }
+    #fsBtn:hover { color:var(--cyan); border-color:var(--cyan-dim); }
+
+    /* ── Persistent HUD (tournament identity, status, countdown, counts, scene tag) ── */
+    #hud {
+        position:relative; z-index:4; display:flex; align-items:center; gap:20px;
+        padding:14px 26px; border-bottom:1px solid var(--line);
+        background:linear-gradient(180deg, rgba(10,14,26,.6), transparent);
+    }
+    #hudName { font-weight:800; font-size:1.5rem; letter-spacing:.01em; max-width:44vw; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .statusBadge {
+        font-family:var(--mono); font-size:.66rem; font-weight:800; letter-spacing:.16em;
+        text-transform:uppercase; padding:5px 12px; border-radius:999px; border:1px solid var(--line);
+    }
+    .statusBadge.active { color:var(--up); border-color:rgba(52,224,161,.4); background:rgba(52,224,161,.08); }
+    .statusBadge.frozen { color:var(--cyan); border-color:rgba(34,211,238,.4); background:rgba(34,211,238,.08); }
+    .statusBadge.lobby  { color:var(--gold); border-color:rgba(245,197,66,.4); background:rgba(245,197,66,.08); }
+    .statusBadge.ended, .statusBadge.draft { color:var(--dim); }
+    #hudTimer {
+        font-family:var(--mono); font-size:1.55rem; font-weight:700; letter-spacing:.06em;
+        color:var(--text); font-variant-numeric:tabular-nums; margin-left:auto;
+    }
+    #hudTimer.warn { color:var(--gold); }
+    #hudCounts { font-family:var(--mono); font-size:.72rem; color:var(--dim); letter-spacing:.05em; }
+    #hudScene {
+        font-family:var(--mono); font-size:.64rem; letter-spacing:.2em; text-transform:uppercase;
+        color:var(--cyan); border:1px solid var(--cyan-dim); border-radius:999px;
+        padding:5px 13px; display:flex; align-items:center; gap:8px;
+    }
+    #hudScene .dot { width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 10px var(--up); animation:blink 1.6s infinite; }
+
+    /* ── Stage (scenes render here). Crossfades on scene change. ── */
+    #stage { position:relative; z-index:2; flex:1; min-height:0; padding:28px 34px; }
+    #stageInner { height:100%; opacity:1; transition:opacity .38s ease; }
+
+    /* Empty / waiting states */
+    .waiting {
+        height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+        gap:14px; color:var(--dim); font-family:var(--mono); letter-spacing:.12em; text-transform:uppercase; font-size:.9rem;
+    }
+    .waiting .big { font-size:1.4rem; color:var(--text); letter-spacing:.04em; text-transform:none; }
+
+    /* ── Scene: STANDINGS (full leaderboard board) ── */
+    .board { height:100%; display:flex; flex-direction:column; }
+    .board-head {
+        display:grid; grid-template-columns:70px 1fr 130px 110px 150px; gap:16px;
+        font-family:var(--mono); font-size:.62rem; letter-spacing:.2em; text-transform:uppercase;
+        color:var(--dim); padding:0 18px 12px; border-bottom:1px solid var(--line);
+    }
+    .board-rows { flex:1; display:flex; flex-direction:column; gap:8px; margin-top:12px; overflow:hidden; }
+    .board-row {
+        display:grid; grid-template-columns:70px 1fr 130px 110px 150px; gap:16px; align-items:center;
+        padding:0 18px; height:100%; max-height:74px;
+        border:1px solid var(--line); border-left:5px solid var(--tc,var(--cyan));
+        border-radius:11px; background:var(--panel);
+        box-shadow:inset 0 0 60px -34px var(--tc,var(--cyan));
+    }
+    .board-row .rk { font-family:var(--mono); font-size:1.5rem; font-weight:800; color:var(--tc,var(--cyan)); font-variant-numeric:tabular-nums; }
+    .board-row.p1 .rk { color:var(--gold); } .board-row.p2 .rk { color:var(--silver); } .board-row.p3 .rk { color:var(--bronze); }
+    .board-row .nm { font-size:1.35rem; font-weight:700; display:flex; align-items:center; gap:12px; }
+    .board-row .dot { width:14px; height:14px; border-radius:50%; background:var(--tc,var(--cyan)); box-shadow:0 0 12px var(--tc,var(--cyan)); flex:none; }
+    .board-row .sc { font-family:var(--mono); font-size:1.6rem; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums; }
+    .board-row .sv { font-family:var(--mono); font-size:1.05rem; color:var(--dim); font-variant-numeric:tabular-nums; }
+    .board-row .lt { font-family:var(--mono); font-size:.9rem; color:var(--dim); font-variant-numeric:tabular-nums; }
+    .tie { font-family:var(--mono); font-size:.52rem; color:var(--violet); border:1px solid rgba(139,92,246,.45); border-radius:3px; padding:1px 5px; margin-left:8px; text-transform:uppercase; letter-spacing:.08em; }
+
+    /* ── Scene: RACE (relative-score gap bars — the NASCAR/golf gap read) ── */
+    .race { height:100%; display:flex; flex-direction:column; gap:12px; justify-content:center; }
+    .race-track { position:relative; display:flex; align-items:center; gap:16px; }
+    .race-rank { font-family:var(--mono); font-size:1.05rem; color:var(--dim); width:38px; text-align:right; font-variant-numeric:tabular-nums; }
+    .race-lane { position:relative; flex:1; height:46px; border-radius:10px; background:rgba(120,160,220,.06); border:1px solid var(--line); overflow:hidden; }
+    .race-fill {
+        position:absolute; left:0; top:0; bottom:0; border-radius:10px;
+        background:linear-gradient(90deg, color-mix(in srgb, var(--tc) 35%, transparent), var(--tc));
+        box-shadow:0 0 26px -6px var(--tc); transition:width .8s cubic-bezier(.22,.61,.36,1);
+        display:flex; align-items:center; justify-content:flex-end; padding-right:14px; min-width:44px;
+    }
+    .race-name { position:absolute; left:16px; top:50%; transform:translateY(-50%); font-weight:700; font-size:1.05rem; text-shadow:0 1px 4px rgba(0,0,0,.6); white-space:nowrap; }
+    .race-score { font-family:var(--mono); font-weight:800; font-size:1.05rem; color:#04060b; font-variant-numeric:tabular-nums; }
+    .race-finish { position:absolute; right:0; top:0; bottom:0; width:3px; background:repeating-linear-gradient(45deg,#fff 0 6px,transparent 6px 12px); opacity:.25; }
+
+    /* ── Scene: TEAM SPOTLIGHT (one team, large) ── */
+    .spot { height:100%; display:grid; grid-template-columns:1.1fr 1fr; gap:28px; }
+    .spot-main {
+        position:relative; border:2px solid var(--tc,var(--cyan)); border-radius:18px;
+        background:linear-gradient(150deg, color-mix(in srgb, var(--tc) 16%, var(--panel2)), var(--void));
+        box-shadow:0 0 60px -18px var(--tc), inset 0 0 120px -60px var(--tc);
+        padding:34px 38px; display:flex; flex-direction:column; justify-content:center; overflow:hidden;
+    }
+    .spot-rank { font-family:var(--mono); font-size:.7rem; letter-spacing:.26em; text-transform:uppercase; color:var(--tc,var(--cyan)); }
+    .spot-name { font-size:3.1rem; font-weight:800; line-height:1.02; margin:10px 0 4px; }
+    .spot-score { font-family:var(--mono); font-size:4.6rem; font-weight:800; color:var(--tc,var(--cyan)); font-variant-numeric:tabular-nums; line-height:1; }
+    .spot-score span { font-size:1.2rem; color:var(--dim); margin-left:10px; letter-spacing:.1em; }
+    .spot-sub { font-family:var(--mono); font-size:1rem; color:var(--dim); margin-top:14px; letter-spacing:.04em; }
+    .spot-side { display:flex; flex-direction:column; gap:18px; min-height:0; }
+    .spot-card { border:1px solid var(--line); border-radius:14px; background:var(--panel); padding:20px 22px; }
+    .spot-card h4 { margin:0 0 14px; font-family:var(--mono); font-size:.62rem; letter-spacing:.24em; text-transform:uppercase; color:var(--dim); font-weight:700; }
+    .roster { display:flex; flex-wrap:wrap; gap:9px; }
+    .roster .chip {
+        font-family:var(--mono); font-size:.9rem; padding:7px 13px; border-radius:8px;
+        border:1px solid var(--line); background:var(--panel2); display:flex; align-items:center; gap:8px;
+    }
+    .roster .chip::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--tc,var(--cyan)); }
+    .recent { display:flex; flex-direction:column; gap:9px; }
+    .recent .r { display:flex; align-items:center; gap:11px; font-size:.98rem; }
+    .recent .r .cat { font-family:var(--mono); font-size:.56rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; background:var(--tc,var(--cyan)); color:#04060b; border-radius:4px; padding:2px 6px; }
+    .recent .r .pts { font-family:var(--mono); font-weight:700; color:var(--up); margin-left:auto; font-variant-numeric:tabular-nums; }
+    .recent .none { color:var(--dim); font-family:var(--mono); font-size:.9rem; }
+
+    /* ── Persistent solve ticker (bottom crawl) ── */
+    #ticker { position:relative; z-index:4; height:46px; overflow:hidden; border-top:1px solid var(--line); background:rgba(4,7,14,.9); display:flex; align-items:center; }
+    #tickerTrack { display:inline-flex; white-space:nowrap; font-family:var(--mono); font-size:.86rem; color:var(--dim); padding-left:100%; animation:crawlx 38s linear infinite; }
+    #ticker.frozen #tickerTrack { animation:none; padding-left:26px; color:var(--cyan); }
+    #tickerTrack b { color:var(--up); }
+    #tickerTrack .tt { color:var(--text); }
+    #tickerTrack .sep { color:rgba(120,160,220,.3); margin:0 18px; }
+    #tickerLabel { flex:none; }
+
+    @keyframes blink { 50% { opacity:.3; } }
+    @keyframes crawlx { from { transform:translateX(0); } to { transform:translateX(-100%); } }
+    @media (prefers-reduced-motion: reduce) {
+        #tickerTrack { animation-duration:80s; }
+        #hudScene .dot { animation:none; }
+        #stageInner { transition:none; }
+    }
+    </style>
+
+    <!-- Firebase SDK (compat) + auto-init + canonical standings helper — mirrors tournament-podium.html -->
+    <script src="/__/firebase/10.12.2/firebase-app-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="/__/firebase/10.12.2/firebase-auth-compat.js"></script>
+    <script src="/__/firebase/init.js"></script>
+    <!-- Canonical CTF ranking (BUG-022): score DESC then earliest lastSolveTime ASC. -->
+    <script src="/components/CtfStandings.js"></script>
+</head>
+<body>
+    <!-- Operator controls: pick a tournament, go fullscreen for projection -->
+    <div id="controlBar">
+        <div class="cb-brand"><span class="cb-mark">HX</span> BROADCAST</div>
+        <label for="tournamentSelect">Tournament</label>
+        <select id="tournamentSelect"><option value="">Loading tournaments...</option></select>
+        <button id="fsBtn" type="button">Fullscreen</button>
+    </div>
+
+    <!-- Persistent HUD -->
+    <div id="hud">
+        <div id="hudName">Tournament Broadcast</div>
+        <span id="hudStatus" class="statusBadge draft">STANDBY</span>
+        <span id="hudCounts"></span>
+        <div id="hudScene"><span class="dot"></span><span id="hudSceneName">Standby</span></div>
+        <div id="hudTimer"></div>
+    </div>
+
+    <!-- Scene stage -->
+    <div id="stage">
+        <div id="stageInner">
+            <div class="waiting"><div class="big">Select a tournament to broadcast</div><div>choose an event from the dropdown above</div></div>
+        </div>
+    </div>
+
+    <!-- Persistent solve ticker -->
+    <div id="ticker"><div id="tickerTrack"></div></div>
+
+    <script>
+    (function () {
+        'use strict';
+
+        // ── Firestore handle (compat, auto-initialized by /__/firebase/init.js) ──
+        var db = firebase.firestore();
+        var $ = function (id) { return document.getElementById(id); };
+
+        // ── HTML-escape helper (all tournament/team/challenge text is user-authored) ──
+        function esc(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // ── Coerce a value that MUST be numeric (score/points). Blocks stored XSS via the
+        //    wide-open teams.create rule: a non-number (e.g. an injected markup string)
+        //    becomes 0 instead of being rendered as HTML. ──
+        function num(v) { return Number(v) || 0; }
+
+        // ── Whitelist a team color to a hex literal before injecting it into an inline
+        //    style. Anything else (garbage, or a CSS-injection attempt) falls back to the
+        //    accent, so a malicious color cannot inject extra style declarations. ──
+        function sanitizeColor(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#22d3ee'; }
+
+        // ── Which teams to DISPLAY. While 'frozen', hard-freeze the board: capture the
+        //    standings at the first frozen observation and keep showing that snapshot
+        //    (ignoring live updates) until status leaves 'frozen'; at 'ended' the snapshot
+        //    is dropped and the true final standings are revealed. If the operator opens
+        //    the page AFTER a freeze already began, we snapshot from first sight (the
+        //    pre-freeze board is not recoverable), which still stops any further movement. ──
+        function displayTeams() {
+            var st = state.info ? (state.info.status || '') : '';
+            if (st === 'frozen') {
+                if (!state.frozenTeams && state.teams.length) state.frozenTeams = state.teams.slice();
+                return state.frozenTeams || state.teams;
+            }
+            state.frozenTeams = null;
+            return state.teams;
+        }
+
+        // ── Shorten a member's name to "First L." for this PUBLIC url (privacy; competitors
+        //    may be minors). A single-token handle/callsign passes through unchanged. ──
+        function shortName(n) {
+            var s = String(n == null ? '' : n).trim();
+            if (!s) return '';
+            // memberNames may fall back to user.email (tournament-lobby.html). An email has no
+            // space, so drop the @domain FIRST — a full address must never appear on this public
+            // URL — then split the remainder on spaces or dots (covers "Alex Rivera" and the
+            // "alex.rivera" email local-part alike). A bare handle/local (no space or dot) passes
+            // through capitalized, still carrying no domain and no clean full name.
+            if (s.indexOf('@') !== -1) s = s.split('@')[0];
+            var parts = s.split(/[\s.]+/).filter(Boolean);
+            function cap(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; }
+            if (parts.length <= 1) return cap(parts[0] || '');
+            return cap(parts[0]) + ' ' + parts[parts.length - 1].charAt(0).toUpperCase() + '.';
+        }
+
+        // ── Live state for the currently-selected tournament ──
+        var state = {
+            id: null,           // selected tournament id
+            info: null,         // tournaments/{id} doc data
+            teams: [],          // ranked teams (canonical)
+            challenges: {},     // chId -> {title, category, points}
+            solves: [],         // correct submissions, newest first (flag NEVER stored/shown)
+            solvesKey: '',      // change-detection key so we only rebuild the ticker on real change
+            frozenTeams: null   // standings snapshot captured at 'frozen' (hard-freeze the board)
+        };
+
+        // ── Subscriptions + timers (all torn down on tournament switch / unload) ──
+        var subs = { info: null, teams: null, subs: null };
+        var timers = { director: null, countdown: null, crossfade: null };
+
+        // ── Director rotation state ──
+        var scenes = [];        // built from data: 'standings','race', then 'spot:<index>' per team
+        var sceneIdx = 0;
+        var isTransitioning = false;  // true only during a 380ms crossfade; reset in teardown() so a
+                                      // teardown-cancelled fade can never wedge live in-place updates off
+
+        var STATUS_LABELS = { draft:'Draft', lobby:'Registration', active:'Live', frozen:'Frozen', ended:'Finished' };
+
+        // ════════════════════════════════════════════════════════════════════
+        // TOURNAMENT DROPDOWN
+        // ════════════════════════════════════════════════════════════════════
+
+        // Populate the dropdown from all existing tournaments (newest first).
+        function loadTournaments() {
+            db.collection('tournaments').orderBy('createdAt', 'desc').get().then(function (snap) {
+                var sel = $('tournamentSelect');
+                if (snap.empty) { sel.innerHTML = '<option value="">No tournaments found</option>'; return; }
+
+                var opts = ['<option value="">Select a tournament</option>'];
+                var autoPick = null;
+                snap.forEach(function (d) {
+                    var t = d.data();
+                    var status = t.status || 'draft';
+                    var label = (t.name || 'Untitled') + '  ·  ' + (STATUS_LABELS[status] || status).toUpperCase();
+                    opts.push('<option value="' + esc(d.id) + '">' + esc(label) + '</option>');
+                    // Auto-select a single live/frozen event so the projector lights up on load.
+                    if ((status === 'active' || status === 'frozen') && !autoPick) autoPick = d.id;
+                });
+                sel.innerHTML = opts.join('');
+                if (autoPick) { sel.value = autoPick; selectTournament(autoPick); }
+            }).catch(function (e) {
+                console.error('[Broadcast] Failed to load tournaments:', e);
+                $('tournamentSelect').innerHTML = '<option value="">Error loading tournaments</option>';
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SELECT / TEARDOWN
+        // ════════════════════════════════════════════════════════════════════
+
+        // Tear down every listener + timer and reset state. Called before switching
+        // tournaments and on unload, so switching events never leaks a listener or
+        // leaves a stale timer firing against the old tournament's data.
+        function teardown() {
+            if (subs.info) { subs.info(); subs.info = null; }
+            if (subs.teams) { subs.teams(); subs.teams = null; }
+            if (subs.subs) { subs.subs(); subs.subs = null; }
+            if (timers.director) { clearTimeout(timers.director); timers.director = null; }
+            if (timers.countdown) { clearInterval(timers.countdown); timers.countdown = null; }
+            if (timers.crossfade) { clearTimeout(timers.crossfade); timers.crossfade = null; }
+            state = { id: null, info: null, teams: [], challenges: {}, solves: [], solvesKey: '', frozenTeams: null };
+            scenes = []; sceneIdx = 0; isTransitioning = false;
+        }
+
+        // Point the broadcast at a tournament id.
+        function selectTournament(id) {
+            teardown();
+            if (!id) { renderWaiting('Select a tournament to broadcast', 'choose an event from the dropdown above'); resetHud(); return; }
+            state.id = id;
+
+            // Load the challenge catalog once (id -> title/category/points) for the ticker + spotlight.
+            db.collection('tournaments').doc(id).collection('challenges').get().then(function (snap) {
+                var map = {};
+                snap.forEach(function (d) { var c = d.data(); map[d.id] = { title: c.title || d.id, category: c.category || '', points: c.points || 0 }; });
+                if (state.id !== id) return; // operator switched tournaments mid-load; drop this stale challenge map
+                state.challenges = map;
+                buildTicker(); // challenge titles may now be resolvable
+            }).catch(function (e) { console.warn('[Broadcast] challenge load failed (non-fatal):', e); });
+
+            // Tournament doc (name/status/timer).
+            subs.info = db.collection('tournaments').doc(id).onSnapshot(function (snap) {
+                if (!snap.exists) { renderWaiting('Tournament not found', ''); return; }
+                state.info = snap.data();
+                renderHud();
+                startCountdown();
+                buildTicker();           // reflect a status change (e.g. -> frozen) in the ticker at once
+                if (!timers.director) startDirector();
+                else { rebuildScenes(); renderCurrentScene(false); } // resync scene list + reflect freeze/reveal on the stage
+            }, function (e) { console.error('[Broadcast] tournament listener error:', e); });
+
+            // Teams (leaderboard). Re-ranked canonically on every update.
+            subs.teams = db.collection('tournaments').doc(id).collection('teams').onSnapshot(function (snap) {
+                var raw = [];
+                snap.forEach(function (d) { raw.push(Object.assign({ id: d.id }, d.data())); });
+                state.teams = rank(raw);
+                rebuildScenes();
+                renderHud();
+                renderCurrentScene(false); // live update in place (no crossfade)
+            }, function (e) { console.error('[Broadcast] teams listener error:', e); });
+
+            // Submissions -> correct-only solve feed for the ticker + spotlight recent list.
+            // Requires auth (submissions read rule allows only request.auth != null); the
+            // anonymous sign-in at startup satisfies it. NOTE: limit() is applied to the
+            // newest RAW attempts (correct or not) BEFORE the client-side correct===true
+            // filter, so in a very busy event the feed reflects "recent attempts", not all
+            // historical solves. We NEVER store or render submittedFlag.
+            subs.subs = db.collection('tournaments').doc(id).collection('submissions')
+                .orderBy('timestamp', 'desc').limit(60).onSnapshot(function (snap) {
+                    var list = [];
+                    snap.forEach(function (d) {
+                        var s = d.data();
+                        if (s.correct === true) {
+                            list.push({
+                                teamId: s.teamId || '', teamName: s.teamName || 'Unknown',
+                                challengeId: s.challengeId || '', points: s.points || 0,
+                                ts: s.timestamp || null
+                            });
+                        }
+                    });
+                    state.solves = list;
+                    var key = list.map(function (x) { return x.teamId + x.challengeId; }).join('|');
+                    if (key !== state.solvesKey) { state.solvesKey = key; buildTicker(); }
+                    renderCurrentScene(false);
+                }, function (e) { console.error('[Broadcast] submissions listener error:', e); });
+        }
+
+        // Canonical ranking with a safe fallback if the helper failed to load.
+        function rank(teams) {
+            if (window.CtfStandings && window.CtfStandings.rankTeams) return window.CtfStandings.rankTeams(teams);
+            return teams.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); });
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // HUD + TIMER
+        // ════════════════════════════════════════════════════════════════════
+
+        function resetHud() {
+            $('hudName').textContent = 'Tournament Broadcast';
+            $('hudStatus').className = 'statusBadge draft'; $('hudStatus').textContent = 'STANDBY';
+            $('hudCounts').textContent = ''; $('hudTimer').textContent = '';
+            $('hudSceneName').textContent = 'Standby';
+        }
+
+        function renderHud() {
+            var t = state.info; if (!t) return;
+            $('hudName').textContent = t.name || 'CTF Tournament';
+            var status = t.status || 'draft';
+            $('hudStatus').className = 'statusBadge ' + status;
+            $('hudStatus').textContent = (STATUS_LABELS[status] || status).toUpperCase();
+            var teams = displayTeams();
+            var solveCount = teams.reduce(function (n, tm) { return n + (tm.solves ? tm.solves.length : 0); }, 0);
+            $('hudCounts').textContent = teams.length + ' teams · ' + solveCount + (solveCount === 1 ? ' solve' : ' solves');
+        }
+
+        // Countdown mirrors the podium: startTime + duration(min). Only runs while active/frozen.
+        function startCountdown() {
+            if (timers.countdown) { clearInterval(timers.countdown); timers.countdown = null; }
+            var el = $('hudTimer');
+            var t = state.info || {};
+            if ((t.status !== 'active' && t.status !== 'frozen') || !t.startTime) { el.textContent = ''; el.className = ''; return; }
+            var startMs = t.startTime.toDate ? t.startTime.toDate().getTime() : t.startTime;
+            var endMs = startMs + (t.duration || 120) * 60000;
+            function tick() {
+                var rem = endMs - Date.now();
+                if (rem <= 0) { el.textContent = '00:00:00'; el.className = 'warn'; clearInterval(timers.countdown); timers.countdown = null; return; }
+                var h = Math.floor(rem / 3600000), m = Math.floor((rem % 3600000) / 60000), s = Math.floor((rem % 60000) / 1000);
+                function p(n) { return String(n).padStart(2, '0'); }
+                el.textContent = p(h) + ':' + p(m) + ':' + p(s);
+                el.className = rem < 300000 ? 'warn' : '';
+            }
+            tick();
+            timers.countdown = setInterval(tick, 1000);
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // DIRECTOR (scene rotation) — timer independent of data updates, so live
+        // score changes never reset the rotation and never cause a flicker.
+        // ════════════════════════════════════════════════════════════════════
+
+        var SCENE_MS = { standings: 9000, race: 8000, spot: 6500 };
+
+        // Build the rotation list from current data. Standings + Race always; then
+        // one Spotlight per team (capped so a huge field doesn't make the loop crawl).
+        function rebuildScenes() {
+            var teams = displayTeams();
+            var list = ['standings'];
+            if (teams.length >= 3) list.push('race');
+            var cap = Math.min(teams.length, 8);
+            for (var i = 0; i < cap; i++) list.push('spot:' + i);
+            scenes = list.length ? list : ['standings'];
+            if (sceneIdx >= scenes.length) sceneIdx = 0;
+        }
+
+        function startDirector() {
+            rebuildScenes();
+            sceneIdx = 0;
+            renderCurrentScene(true);
+            scheduleNext();
+        }
+
+        // Schedule the next scene using the CURRENT scene's duration.
+        function scheduleNext() {
+            if (timers.director) clearTimeout(timers.director);
+            var kind = (scenes[sceneIdx] || 'standings').split(':')[0];
+            timers.director = setTimeout(function () {
+                sceneIdx = (sceneIdx + 1) % scenes.length;
+                renderCurrentScene(true);
+                scheduleNext();
+            }, SCENE_MS[kind] || 8000);
+        }
+
+        // Render the active scene. animate=true crossfades on a scene change AND computes
+        // the scene HTML FRESH when the fade completes, so a live snapshot that lands during
+        // the fade can never revert the stage to stale data captured at fade-start. animate=
+        // false updates content in place for a live data tick, but yields while a crossfade
+        // is in flight (that fade already re-renders fresh), so the two never fight.
+        function renderCurrentScene(animate) {
+            if (!state.id || !state.info) return;
+            var inner = $('stageInner');
+            if (animate) {
+                isTransitioning = true;
+                inner.style.opacity = '0';
+                if (timers.crossfade) clearTimeout(timers.crossfade);
+                timers.crossfade = setTimeout(function () {
+                    inner.innerHTML = sceneHtml(scenes[sceneIdx] || 'standings');
+                    inner.style.opacity = '1';
+                    isTransitioning = false;
+                }, 380);
+            } else {
+                if (isTransitioning) return;
+                inner.innerHTML = sceneHtml(scenes[sceneIdx] || 'standings');
+                inner.style.opacity = '1';
+            }
+        }
+
+        // Set the HUD scene tag.
+        function setSceneTag(name) { $('hudSceneName').textContent = name; }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SCENE RENDERERS (return HTML strings)
+        // ════════════════════════════════════════════════════════════════════
+
+        function sceneHtml(scene) {
+            if (!displayTeams().length) { setSceneTag('Standby'); return waitingHtml('Waiting for teams to register', state.info.name || ''); }
+            var parts = scene.split(':');
+            if (parts[0] === 'race') { setSceneTag('The Race'); return raceHtml(); }
+            if (parts[0] === 'spot') { setSceneTag('Team Spotlight'); return spotlightHtml(parseInt(parts[1], 10) || 0); }
+            setSceneTag('Standings'); return standingsHtml();
+        }
+
+        function waitingHtml(big, sub) {
+            return '<div class="waiting"><div class="big">' + esc(big) + '</div><div>' + esc(sub) + '</div></div>';
+        }
+        function renderWaiting(big, sub) { $('stageInner').innerHTML = waitingHtml(big, sub); $('stageInner').style.opacity = '1'; }
+
+        // Detect a score tie against the neighbour above (informational badge only —
+        // the canonical rank already broke it by earliest solve time).
+        function isTied(i) {
+            if (i === 0) return false;
+            var teams = displayTeams();
+            return num(teams[i].score) === num(teams[i - 1].score);
+        }
+
+        // Scene: full leaderboard board (top 8 to stay zero-scroll on a projector).
+        function standingsHtml() {
+            var rows = displayTeams().slice(0, 8).map(function (t, i) {
+                var color = sanitizeColor(t.color);
+                var tie = isTied(i) ? '<span class="tie">tie-break</span>' : '';
+                return '<div class="board-row p' + (i + 1) + '" style="--tc:' + color + '">' +
+                    '<div class="rk">' + (i + 1) + '</div>' +
+                    '<div class="nm"><span class="dot"></span>' + esc(t.name || 'Unnamed') + tie + '</div>' +
+                    '<div class="sc">' + num(t.score) + '</div>' +
+                    '<div class="sv">' + (t.solves ? t.solves.length : 0) + ' solves</div>' +
+                    '<div class="lt">' + lastSolveLabel(t) + '</div>' +
+                '</div>';
+            }).join('');
+            return '<div class="board">' +
+                '<div class="board-head"><div>Rank</div><div>Team</div><div>Score</div><div>Solves</div><div>Last Solve</div></div>' +
+                '<div class="board-rows">' + rows + '</div>' +
+            '</div>';
+        }
+
+        function lastSolveLabel(t) {
+            if (!t.lastSolveTime) return 'no solves yet';
+            try { return t.lastSolveTime.toDate ? t.lastSolveTime.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'; }
+            catch (e) { return '-'; }
+        }
+
+        // Scene: relative-score race bars (gap visualization). Leader = full track.
+        function raceHtml() {
+            var top = displayTeams().slice(0, 8);
+            var lead = Math.max(1, top[0] ? num(top[0].score) : 1); // avoid divide-by-zero pre-solves
+            var tracks = top.map(function (t, i) {
+                var color = sanitizeColor(t.color);
+                var pct = Math.max(6, Math.round((num(t.score) / lead) * 100)); // floor so the name is always legible
+                return '<div class="race-track" style="--tc:' + color + '">' +
+                    '<div class="race-rank">' + (i + 1) + '</div>' +
+                    '<div class="race-lane">' +
+                        '<div class="race-fill" style="width:' + pct + '%"><span class="race-score">' + num(t.score) + '</span></div>' +
+                        '<div class="race-name">' + esc(t.name || 'Unnamed') + '</div>' +
+                        '<div class="race-finish"></div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            return '<div class="race">' + tracks + '</div>';
+        }
+
+        // Scene: single-team spotlight. Shows roster (member names) + that team's recent solves.
+        function spotlightHtml(idx) {
+            var t = displayTeams()[idx]; if (!t) return standingsHtml();
+            var color = sanitizeColor(t.color);
+            var rank = idx + 1;
+            var ord = rank === 1 ? '1st' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : rank + 'th';
+
+            // Roster chips (member names). Falls back to a count if names are absent.
+            var names = Array.isArray(t.memberNames) ? t.memberNames.filter(Boolean) : [];
+            var roster;
+            if (names.length) roster = names.map(function (n) { return '<span class="chip">' + esc(shortName(n)) + '</span>'; }).join('');
+            else { var mc = Array.isArray(t.members) ? t.members.length : 0; roster = '<span class="chip">' + mc + ' member' + (mc === 1 ? '' : 's') + '</span>'; }
+
+            // Recent captures. Live: from the submissions feed (ordered, with points).
+            // Frozen: from the frozen snapshot's solves[] (titles only, no points) so the
+            // panel cannot reveal post-freeze solves — consistent with the hard-frozen board.
+            // (solves[] is append-ordered via arrayUnion in ctfSubmitFlag, so slice(-5).reverse()
+            //  yields most-recent-first; if that write path ever reorders, revisit this.)
+            var recentHtml;
+            if (state.info && state.info.status === 'frozen') {
+                var ids = Array.isArray(t.solves) ? t.solves.slice(-5).reverse() : [];
+                recentHtml = ids.length ? ids.map(function (cid) {
+                    var chf = state.challenges[cid] || {};
+                    var catf = chf.category ? '<span class="cat">' + esc(chf.category) + '</span>' : '';
+                    return '<div class="r">' + catf + '<span>' + esc(chf.title || cid) + '</span></div>';
+                }).join('') : '<div class="none">No captures</div>';
+            } else {
+                var recent = state.solves.filter(function (s) { return s.teamId === t.id; }).slice(0, 5);
+                recentHtml = recent.length ? recent.map(function (s) {
+                    var ch = state.challenges[s.challengeId] || {};
+                    var cat = ch.category ? '<span class="cat">' + esc(ch.category) + '</span>' : '';
+                    return '<div class="r">' + cat + '<span>' + esc(ch.title || s.challengeId) + '</span><span class="pts">+' + num(s.points) + '</span></div>';
+                }).join('') : '<div class="none">No captures yet</div>';
+            }
+
+            return '<div class="spot" style="--tc:' + color + '">' +
+                '<div class="spot-main">' +
+                    '<div class="spot-rank">Rank ' + ord + '</div>' +
+                    '<div class="spot-name">' + esc(t.name || 'Unnamed') + '</div>' +
+                    '<div class="spot-score">' + num(t.score) + '<span>PTS</span></div>' +
+                    '<div class="spot-sub">' + (t.solves ? t.solves.length : 0) + ' challenges solved · last ' + lastSolveLabel(t) + '</div>' +
+                '</div>' +
+                '<div class="spot-side">' +
+                    '<div class="spot-card"><h4>Roster</h4><div class="roster">' + roster + '</div></div>' +
+                    '<div class="spot-card"><h4>Recent Captures</h4><div class="recent">' + recentHtml + '</div></div>' +
+                '</div>' +
+            '</div>';
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // SOLVE TICKER (bottom crawl). Correct solves only; frozen => static notice.
+        // ════════════════════════════════════════════════════════════════════
+
+        function buildTicker() {
+            var track = $('tickerTrack');
+            var tickerEl = $('ticker');
+            var status = state.info ? (state.info.status || 'draft') : 'draft';
+
+            // Scoreboard freeze: stop revealing new solves (standard CTF freeze rule).
+            if (status === 'frozen') {
+                tickerEl.classList.add('frozen');
+                track.innerHTML = 'SCOREBOARD FROZEN · standings locked for the final stretch';
+                return;
+            }
+            tickerEl.classList.remove('frozen');
+
+            if (!state.solves.length) {
+                track.innerHTML = 'Awaiting first blood';
+                return;
+            }
+
+            // Newest solves first. Never show the flag — only team, challenge title, points.
+            var items = state.solves.slice(0, 24).map(function (s) {
+                var ch = state.challenges[s.challengeId] || {};
+                return '<span class="tt">' + esc(s.teamName) + '</span> captured <b>' + esc(ch.title || s.challengeId) + '</b> (+' + num(s.points) + ')';
+            });
+            track.innerHTML = items.join('<span class="sep">//</span>');
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // WIRING
+        // ════════════════════════════════════════════════════════════════════
+
+        $('tournamentSelect').addEventListener('change', function () { selectTournament(this.value); });
+
+        $('fsBtn').addEventListener('click', function () {
+            if (!document.fullscreenElement) { if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen(); }
+            else if (document.exitFullscreen) document.exitFullscreen();
+        });
+
+        // Auto-dim the operator control bar on a projector: full on mouse move, fades after idle.
+        var dimTimer = null;
+        function pokeControls() {
+            $('controlBar').classList.remove('dim');
+            if (dimTimer) clearTimeout(dimTimer);
+            dimTimer = setTimeout(function () { $('controlBar').classList.add('dim'); }, 4000);
+        }
+        document.addEventListener('mousemove', pokeControls);
+        pokeControls();
+
+        // Clean teardown on unload (belt-and-suspenders against leaked listeners).
+        window.addEventListener('beforeunload', teardown);
+
+        // ── Startup: sign in ANONYMOUSLY so the auth-gated submissions read (the solve
+        //    ticker + spotlight recent captures) works on this otherwise-public display
+        //    page. This is the platform's standard pattern for a public page that needs an
+        //    authenticated read (see lobby.html / join / dashboard). Public reads
+        //    (tournaments/teams/challenges) work regardless, so if anonymous auth is ever
+        //    unavailable we still render everything except the solve feed. ──
+        var authReady = false;
+        function beginOnce() { if (!authReady) { authReady = true; loadTournaments(); } }
+        firebase.auth().onAuthStateChanged(function (user) { if (user) beginOnce(); });
+        firebase.auth().signInAnonymously().catch(function (e) {
+            console.error('[Broadcast] anonymous auth failed; solve ticker unavailable:', e);
+            beginOnce(); // degrade gracefully to public-data-only
+        });
+    })();
+    </script>
+</body>
+</html>

