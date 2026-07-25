@@ -182,6 +182,21 @@ else
     fi
 fi
 
+# ── Gate 2.5: Hub registry audit (task #225) ─────────────────────────
+# Firestore-only hubs are invisible to Nexus/EduScan/smoke (all filesystem-rooted). This static
+# check gates reserved-id PARITY (firestore.rules <-> HubRegistry) + renderer/rewrite presence, and,
+# when firebase-admin + creds are present, validates each hubRegistry doc + that every PUBLISHED hub
+# sits in a 'sorted'-gated house. Guarded so a checkout without the script skips rather than blocks.
+if [ -f _tools/eduscan/hub-registry-audit.js ]; then
+    echo -e "${BOLD}[2.5/7]${NC} Hub registry audit..."
+    if node _tools/eduscan/hub-registry-audit.js; then
+        echo ""
+    else
+        echo -e "${RED}DEPLOY BLOCKED${NC}: hub-registry audit failed (reserved-id drift or an invalid published hub)."
+        exit 1
+    fi
+fi
+
 # ── Gate 3: Smoke gate (real-browser pre-render check) ───────────────
 if [ "$SKIP_SMOKE" = true ]; then
     echo -e "${BOLD}[3/7]${NC} Smoke gate ${YELLOW}[SKIPPED]${NC} — --skip-smoke flag set"
