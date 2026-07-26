@@ -130,17 +130,23 @@ try {
         }
         return out.join('/').replace(/index\.html$/, '').replace(/\/+$/, '') || '/';
     };
-    const regByHref = {};
-    HubRegistry.all().forEach((h) => { const n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; });
-    let total = 0, matched = 0, unmatched = 0, noHref = 0; const surfaced = {};
+    const regByHref = {}, regById = {};
+    HubRegistry.all().forEach((h) => { const n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; regById[h.id] = h; });
+    let total = 0, matched = 0, unmatched = 0, noHref = 0, brokenRef = 0; const surfaced = {};
     Object.keys(fresh).forEach((hid) => fresh[hid].forEach((c) => {
         total++;
+        if (c.registryRef) {   // a bare-string entry: a direct HubRegistry id reference (cannot drift by design)
+            if (regById[c.id]) { matched++; surfaced[c.id] = true; } else { brokenRef++; }
+            return;
+        }
         if (!c.href) { noHref++; return; }
-        if (regByHref[normHref(c.href, hid)]) { matched++; surfaced[regByHref[normHref(c.href, hid)].id] = true; } else { unmatched++; }
+        const m = regByHref[normHref(c.href, hid)];
+        if (m) { matched++; surfaced[m.id] = true; } else { unmatched++; }
     }));
     const notSurfaced = HubRegistry.all().filter((h) => !surfaced[h.id]).map((h) => h.id);
     ok('house cards: ' + total + ' across ' + Object.keys(fresh).length + ' houses (' + matched + ' matched, ' + unmatched + ' link elsewhere, ' + noHref + ' no-link)');
     if (unmatched) warn(unmatched + ' house card(s) link to a target not in HubRegistry');
+    if (brokenRef) fail(brokenRef + ' house card(s) reference a HubRegistry id that does not exist');
     if (notSurfaced.length) warn(notSurfaced.length + ' registry hub(s) surfaced on no house page: [' + notSurfaced + ']');
 } catch (e) {
     warn('house-card reconciliation skipped: ' + String(e.message || e).split('\n')[0]);

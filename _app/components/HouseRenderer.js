@@ -535,6 +535,22 @@ const HouseRenderer = (function() {
                 border-color: var(--house-border);
             }
 
+            /* Cartridge cards: opt-in via config.cardStyle === 'cartridge'. Arcade-style cover + title,
+               sourced from HubRegistry. Only houses that set the flag are affected. */
+            .hr-cart-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+            .hr-cart {
+                display: flex; flex-direction: column; border-radius: 12px; overflow: hidden; text-decoration: none;
+                border: 1px solid var(--house-primary, #22d3ee); background: rgba(255, 255, 255, 0.03);
+                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+            .hr-cart:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(0,0,0,0.45), 0 0 16px var(--house-primary, #22d3ee); }
+            .hr-cart:focus-visible { outline: 2px solid var(--house-primary, #22d3ee); outline-offset: 2px; }
+            .hr-cart-cover { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: #0a0a14; }
+            .hr-cart-cover.is-fallback { object-fit: contain; padding: 34px; }
+            .hr-cart-bar { padding: 11px 13px; }
+            .hr-cart-title { font-weight: 700; font-size: 0.92rem; color: #fff; line-height: 1.2; }
+            .hr-cart-sub { font-size: 0.73rem; color: rgba(255, 255, 255, 0.6); margin-top: 3px; }
+
             .path-icon { font-size: 1.5rem; display: flex; align-items: center; }
             .path-icon img {
                 width: 40px;
@@ -1477,10 +1493,56 @@ const HouseRenderer = (function() {
     // ========================================
 
     /** Render the Learning Paths tab with certification path cards */
+    // ── Cartridge rendering (opt-in via config.cardStyle === 'cartridge') ─────────────────────────
+    // A paths entry that is a STRING is a HubRegistry id: the card's data (title / sublabel / link / cover)
+    // comes from the registry, the single source of truth (Option B, so house pages and the catalog can't
+    // drift). An OBJECT entry is a house-local card used as-is (e.g. a course not yet in the registry).
+    // Both render as arcade-style cover+title cartridges. All interpolated values are escaped/validated.
+    function hrEsc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+    function hrSafeHref(h) { return (typeof h === 'string' && /^\/(?!\/)[A-Za-z0-9/_.?=&%-]*$/.test(h)) ? h : '#'; }
+    function hrSafeIcon(i) {
+        var s = (typeof i === 'string' && i.indexOf('src=') > -1) ? (i.match(/src="([^"]+)"/) || [])[1] : i;
+        return (typeof s === 'string' && /^\/assets\/images\/[A-Za-z0-9/_-]+\.webp$/.test(s)) ? s : '/assets/images/icons/hexworth-mark.webp';
+    }
+    function hrResolveCartridge(entry) {
+        if (typeof entry === 'string') {
+            var reg = (window.HubRegistry && HubRegistry.all) ? HubRegistry.all() : [];
+            var h = null;
+            for (var i = 0; i < reg.length; i++) { if (reg[i].id === entry) { h = reg[i]; break; } }
+            if (!h) return null; // unknown registry id -> skip; the Hub Health audit surfaces the mismatch
+            return { id: h.id, title: h.label, sub: h.sublabel, href: h.hubHref, cover: '/assets/images/covers/' + h.id + '.webp', icon: h.icon };
+        }
+        return { id: entry.id, title: entry.name, sub: entry.cert, href: entry.href, cover: null, icon: entry.icon };
+    }
+    function hrCartridgeHTML(entry) {
+        var c = hrResolveCartridge(entry);
+        if (!c) return '';
+        var icon = hrSafeIcon(c.icon);
+        var cover = c.cover
+            ? '<img class="hr-cart-cover" src="' + hrEsc(c.cover) + '" alt="" onerror="this.onerror=null;this.classList.add(\'is-fallback\');this.src=\'' + hrEsc(icon) + '\'">'
+            : '<img class="hr-cart-cover is-fallback" src="' + hrEsc(icon) + '" alt="">';
+        return '<a class="hr-cart" role="listitem" href="' + hrSafeHref(c.href) + '" aria-label="' + hrEsc((c.title || c.id) + (c.sub ? ' - ' + c.sub : '')) + '">'
+            + cover
+            + '<div class="hr-cart-bar"><div class="hr-cart-title">' + hrEsc(c.title || c.id) + '</div>'
+            + (c.sub ? '<div class="hr-cart-sub">' + hrEsc(c.sub) + '</div>' : '')
+            + '</div></a>';
+    }
+    function hrCartridgeGrid(entries) {
+        return '<div class="hr-cart-grid" role="list">' + (entries || []).map(hrCartridgeHTML).join('') + '</div>';
+    }
+
     function renderPathsPanel() {
         const panel = document.getElementById('hr-panel-paths');
         if (!config.paths || config.paths.length === 0) {
             panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-target.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">No certification paths configured yet.</div></div>';
+            return;
+        }
+
+        // Cartridge mode (opt-in): render the paths as HubRegistry-sourced cartridges. They are <a> links,
+        // so native navigation handles clicks (no JS binding needed).
+        if (config.cardStyle === 'cartridge') {
+            panel.innerHTML = '<section class="paths-section" role="region" aria-label="Courses">'
+                + '<h2 class="paths-title">Courses</h2>' + hrCartridgeGrid(config.paths) + '</section>';
             return;
         }
 
@@ -1547,7 +1609,10 @@ const HouseRenderer = (function() {
 
         // Build course hub cards from paths config
         let hubHTML = '';
-        if (paths.length > 0) {
+        if (paths.length > 0 && config.cardStyle === 'cartridge') {
+            // Cartridge mode: same HubRegistry-sourced cartridges as the Courses tab, for consistency.
+            hubHTML = '<div class="hr-hub-section"><h3 class="hr-hub-title">Course Hubs</h3>' + hrCartridgeGrid(paths) + '</div>';
+        } else if (paths.length > 0) {
             const hubCards = paths.map(p => {
                 const catId = PATH_CATEGORY_MAP[p.id];
                 const iconSrc = catId

@@ -67,26 +67,36 @@ function field(entry, key) {
     return out; // unterminated (malformed source); return what we have
 }
 
-// Extract one house's cards. Returns { cards:[{id,name,cert,href}], warnings:[] }.
+// Extract one house's cards. Returns { cards:[{id,name,cert,href,registryRef?}], warnings:[] }.
+// A paths array can hold TWO entry shapes (Option B, stage 2+): object literals (house-local cards) and
+// bare STRINGS (HubRegistry id references, whose data lives in the registry). Both must be enumerated, or
+// the drift audit under-counts silently.
 function extractHouse(houseId) {
     const f = path.join(ROOT, '_app/houses', houseId, 'index.html');
     if (!fs.existsSync(f)) return { cards: [], warnings: ['no index.html'] };
     const block = extractPathsBlock(fs.readFileSync(f, 'utf8'));
     if (block === null) return { cards: [], warnings: ['no paths: [ ... ] array found'] };
-    // Entries are flat object literals; the icon field is an <img> string with no braces, so a
-    // non-nested {...} match captures each entry whole.
-    const entries = block.match(/\{[^{}]*\}/g) || [];
+    // Strip line comments so quoted words inside a comment are not mistaken for string entries.
+    const clean = block.replace(/\/\/[^\n]*/g, '');
     const cards = [];
-    entries.forEach((e) => {
+    // Object entries: house-local cards. The icon field is an <img> string with no braces, so a
+    // non-nested {...} match captures each entry whole.
+    const objs = clean.match(/\{[^{}]*\}/g) || [];
+    objs.forEach((e) => {
         const id = field(e, 'id');
         if (!id) return;
         cards.push({ id: id, name: field(e, 'name'), cert: field(e, 'cert'), href: field(e, 'href') });
     });
-    // Honesty check: every `id:` in the block should have become a card. If not, the format is off and
-    // we are under-counting; surface it rather than pretend the enumeration is complete.
-    const rawIds = (block.match(/(^|[\s,{])id\s*:/g) || []).length;
+    // Bare-string entries = HubRegistry id references. Remove the objects first so their inner quoted
+    // values are not captured; any remaining quoted id-like token is a top-level registry reference.
+    const strEntries = clean.replace(/\{[^{}]*\}/g, '').match(/(['"])[a-z0-9][a-z0-9-]*\1/g) || [];
+    strEntries.forEach((s) => cards.push({ id: s.slice(1, -1), name: null, cert: null, href: null, registryRef: true }));
+    // Honesty check: every `id:` (one per object entry) should have become an object card. If not, an
+    // object entry failed to parse and we are under-counting; surface it.
+    const rawObjIds = (clean.match(/(^|[\s,{])id\s*:/g) || []).length;
+    const objCards = cards.filter((c) => !c.registryRef).length;
     const warnings = [];
-    if (rawIds !== cards.length) warnings.push('parsed ' + cards.length + ' of ' + rawIds + ' id: entries (paths format anomaly; enumeration may be incomplete)');
+    if (rawObjIds !== objCards) warnings.push('parsed ' + objCards + ' of ' + rawObjIds + ' object entries (paths format anomaly; enumeration may be incomplete)');
     return { cards: cards, warnings: warnings };
 }
 

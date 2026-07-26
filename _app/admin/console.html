@@ -4913,8 +4913,8 @@
                 h = out.join('/').replace(/index\.html$/, '').replace(/\/+$/, '');
                 return h || '/';
             }
-            var regByHref = {};
-            if (staticOk) HubRegistry.all().forEach(function (h) { var n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; });
+            var regByHref = {}, regById = {};
+            if (staticOk) HubRegistry.all().forEach(function (h) { var n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; regById[h.id] = h; });
 
             var hc = null, hcOk = true;
             try {
@@ -4928,18 +4928,22 @@
                 houseStatsEl.innerHTML = statCard('?', 'House cards', 'warning');
                 housesEl.innerHTML = '<div class="ac-empty" style="color:var(--ac-warning);">house-cards.json unavailable (run <code>node _tools/eduscan/gen-house-cards.js</code>). House-list reconciliation skipped.</div>';
             } else {
-                var hrows = [], matched = 0, unmatched = 0, noHref = 0, totalCards = 0, surfaced = {};
+                var hrows = [], matched = 0, unmatched = 0, noHref = 0, brokenRef = 0, totalCards = 0, surfaced = {};
                 Object.keys(hc.houses).forEach(function (hid) {
                     hc.houses[hid].forEach(function (c) {
                         totalCards++;
-                        var status, regId = '';
-                        if (!c.href) { status = 'no-href'; noHref++; }
+                        var status, regId = '', name = c.name || c.id;
+                        if (c.registryRef) {                       // bare-string entry = direct registry id reference
+                            var rh = regById[c.id];
+                            if (rh) { status = 'matched'; regId = c.id; name = rh.label || c.id; matched++; surfaced[c.id] = true; }
+                            else { status = 'broken-ref'; unmatched++; brokenRef++; }
+                        } else if (!c.href) { status = 'no-href'; noHref++; }
                         else {
                             var reg = regByHref[normHref(c.href, hid)];
                             if (reg) { status = 'matched'; regId = reg.id; matched++; surfaced[reg.id] = true; }
                             else { status = 'unmatched'; unmatched++; }
                         }
-                        hrows.push({ house: hid, name: c.name || c.id, id: c.id, status: status, regId: regId });
+                        hrows.push({ house: hid, name: name, id: c.id, status: status, regId: regId });
                     });
                 });
                 var regNotSurfaced = staticOk ? HubRegistry.all().filter(function (h) { return !surfaced[h.id]; }) : [];
@@ -4954,8 +4958,10 @@
                 var hh = parseWarn + '<table class="ac-table"><thead><tr><th>House</th><th>Card</th><th>Link status</th><th>Registry hub</th></tr></thead><tbody>';
                 hrows.sort(function (a, b) { return a.house.localeCompare(b.house) || a.name.localeCompare(b.name); });
                 hrows.forEach(function (r) {
-                    var col = r.status === 'matched' ? 'var(--ac-success)' : 'var(--ac-warning)';
-                    var lbl = r.status === 'matched' ? 'in registry' : (r.status === 'no-href' ? 'no link (path-view)' : 'link not in registry');
+                    var col = r.status === 'matched' ? 'var(--ac-success)' : (r.status === 'broken-ref' ? 'var(--ac-danger)' : 'var(--ac-warning)');
+                    var lbl = r.status === 'matched' ? 'in registry'
+                        : (r.status === 'no-href' ? 'no link (path-view)'
+                        : (r.status === 'broken-ref' ? 'BROKEN registry ref' : 'link not in registry'));
                     hh += '<tr>'
                         + '<td style="font-size:0.78rem;color:var(--ac-text-muted);">' + escHtml(r.house) + '</td>'
                         + '<td>' + escHtml(r.name) + '<div style="font-size:0.7rem;color:var(--ac-text-muted);">' + escHtml(r.id) + '</div></td>'
