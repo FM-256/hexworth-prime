@@ -33,14 +33,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
-### BUG-028 — lobby.html hardcodes the same dead CyberOps path (`/houses/eye/cyberops/`)  ·  P2  ·  fixed-not-deployed
+### BUG-028 — lobby.html hardcodes the same dead CyberOps path (`/houses/eye/cyberops/`)  ·  P2  ·  RESOLVED — deployed + live-verified 2026-07-26 (c7a5a4947)
 - **Found:** 2026-07-25 · by Nancy (catalog.html deploy review) · cover-cartridge bundle
 - **Area:** `_app/lobby.html:644` (`'cyberops': { ... href: '/houses/eye/cyberops/' }`).
 - **Symptom:** the CyberOps course link in the lobby 404s; the real page is `/houses/eye/modules/cyberops/index.html`. Clicking CyberOps from the lobby lands on a 404.
 - **Repro:** open `/lobby.html`, click the CyberOps card → 404.
 - **Root cause:** pre-existing hardcoded path, duplicated from the same wrong value that was in `HubRegistry.js:112` (fixed this session). lobby.html maintains its own hub map instead of reading the registry, so the registry fix does not cover it.
-- **Fix:** 2026-07-26 — lobby.html:644 href corrected to `/houses/eye/modules/cyberops/index.html` (verified target exists). Chris QC in flight, deploy pending. Longer-term (still open): lobby.html should source hub links from HubRegistry rather than duplicate them.
-- **Verified:** N/A (open). Registry side already corrected so catalog.html links correctly.
+- **Fix:** `c7a5a4947` (2026-07-26) — lobby.html:644 href corrected to `/houses/eye/modules/cyberops/index.html`. Chris PASS, deployed. Longer-term (still open, separate): lobby.html should source hub links from HubRegistry rather than duplicate them.
+- **Verified:** live on hexworth.com/lobby.html (serves the corrected href; old `/houses/eye/cyberops/` gone; target 200).
 - **Related:** cover-cartridge bundle; `HubRegistry.js` cyberops hubHref fix (this session).
 
 ### BUG-027 — hub-registry-audit Part C (dynamic-hub checks) never executes in a bare `./deploy.sh` run  ·  P2  ·  open
