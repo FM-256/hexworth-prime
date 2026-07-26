@@ -40,6 +40,42 @@ HUBS = {
     "ethics-it":     ("divergent",     "scales of justice rendered in glowing circuitry at an ethical crossroads, a neon moral dilemma"),
     "domino-effect": ("divergent",     "a chain reaction of glowing data-block dominoes toppling through a neon policy landscape"),
     "infosec":       ("shield",        "a fortress of encrypted data, glowing padlocks and layered firewalls, a neon security perimeter"),
+
+    # ── derived hubs (2026-07-26 catalog expansion). Same rules: original generic scenes, no brand/logo. ──
+    # cert-prep
+    "ccna":              ("web",           "a neon enterprise routing and switching lab, glowing network topology, VLAN and routing paths of light, switch and router status lights"),
+    "cysa-plus":         ("shield",        "a cyber analyst's threat-hunting desk, glowing behavioral-analytics dashboards, alert timelines, anomaly heatmaps"),
+    "casp-plus":         ("shield",        "a security architect's command wall, layered enterprise-defense blueprints in glowing lines, risk-governance holograms"),
+    "comptia-linux":     ("matrix",        "a green-lit Linux terminal grove, cascading shell commands, glowing filesystem trees, kernel and daemon light"),
+    "aws-ccp":           ("cloud",         "a luminous cloud-infrastructure diagram, glowing compute and storage nodes in a neon sky, cloud-scale data flows"),
+    "aws-developer":     ("cloud",         "a serverless cloud-development scene, glowing function pipelines and API gateways, event-driven data streams"),
+    "azure-fundamentals":("cloud",         "a neon cloud-services landscape, glowing resource groups and virtual networks, a cloud control plane of light"),
+    "security-operations":("eye",          "a security operations center, a wall of live threat dashboards, incident-response glow, analyst silhouettes at monitoring stations"),
+    "devops-fundamentals":("code",         "a glowing CI/CD pipeline, containers flowing through automated build-and-deploy stages, infrastructure-as-code streams"),
+    "cryptography-track":("key",           "a vault of glowing cryptographic keys and ciphers, streams of encrypted light, a lattice of encryption algorithms"),
+    "security-plus-crypto":("key",         "an encryption chamber, glowing hash functions and key exchanges, cipher streams weaving through neon locks"),
+    "az-104":            ("cloud",         "an Azure-style cloud administration control room, glowing virtual machines and network resources, a governance console"),
+    "ai-900":            ("ai",            "a luminous neural network unfolding, glowing nodes and weighted connections, an AI model taking shape in purple light"),
+    "ai-102":            ("ai",            "an AI engineer's workstation, glowing cognitive-service pipelines, computer-vision and language models rendered as light"),
+    "ehe":               ("dark-arts",     "an ethical hacker's neon lair, glowing exploit frameworks and reconnaissance maps, a hooded figure at penetration-test terminals"),
+    # platform-hub containers
+    "cortex":            ("ai",            "a glowing artificial cortex, a vast neural lattice of light, machine-learning data streams converging into intelligence"),
+    "code-armory":       ("code",          "a neon armory of programming languages, glowing racks of code syntax, luminous language sigils on a wall of light"),
+    "algorithm-chamber": ("code",          "a chamber of glowing algorithms, sorting and graph structures as light, data structures floating in neon space"),
+    "proving-grounds":   ("dark-arts",     "a red-team proving ground, glowing attack-path graphs, capture-the-flag arenas of light, an offensive-security battlefield"),
+    "backbone":          ("web",           "a glowing network backbone, high-capacity fiber trunks pulsing with data, core routers and a spine-and-leaf topology of light"),
+    # courses
+    "intro-networks":    ("web",           "a first networking lab, glowing cables connecting switches and hosts, an OSI-layer stack in light, introductory topology"),
+    "net-essentials":    ("web",           "essential networking gear on a neon bench, glowing patch panels and cabling, subnet diagrams of light"),
+    "cloud-essentials":  ("cloud",         "a cloud-essentials scene, glowing virtualization and cloud service nodes, foundational cloud architecture in neon"),
+    "hardware-support":  ("forge",         "a hardware support bench, glowing open PC chassis, motherboards, RAM and drives under neon repair light"),
+    "intro-security":    ("shield",        "an introductory security scene, a glowing shield over a data core, first-line firewalls and access controls in neon"),
+    "cybersecurity-ethics":("divergent",   "an ethical crossroads in cybersecurity, glowing scales weighing privacy and access, a neon moral decision tree"),
+    "linux-essentials":  ("script",        "an essential Linux terminal, glowing basic shell commands, a penguin motif in neon light, foundational command-line"),
+    "linux-mastery":     ("script",        "a master's Linux command sanctum, cascading advanced shell pipelines, glowing text-processing streams, deep terminal mastery"),
+    "grep-pipe-mastery": ("script",        "streams of text flowing through glowing pipes and filters, regex patterns of light, a command-line data-processing forge"),
+    "databases":         ("code",          "a neon database landscape, glowing relational tables and query streams, indexed data structures pulsing with light"),
+    "zero-to-python":    ("code",          "a beginner's coding journey rendered as a luminous serpent of light rising from darkness into neon, first scripts glowing"),
 }
 
 if __name__ == "__main__":

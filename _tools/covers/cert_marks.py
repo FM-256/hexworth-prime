@@ -27,6 +27,22 @@ CERT = {
     "security-plus": ("Security+", "#ef4444"),
     "isc2-cc":       ("ISC2 CC",   "#ef4444"),
     "server-plus":   ("Server+",   "#06b6d4"),
+    # derived cert-prep hubs (2026-07-26). Short-name chip in the hub's house-accent color.
+    "ccna":                ("CCNA",        "#3b82f6"),
+    "cysa-plus":           ("CySA+",       "#ef4444"),
+    "casp-plus":           ("CASP+",       "#ef4444"),
+    "comptia-linux":       ("Linux+",      "#22c55e"),
+    "aws-ccp":             ("AWS CCP",     "#06b6d4"),
+    "aws-developer":       ("AWS Dev",     "#06b6d4"),
+    "azure-fundamentals":  ("AZ-900",      "#06b6d4"),
+    "security-operations": ("SecOps",      "#6366f1"),
+    "devops-fundamentals": ("DevOps",      "#ec4899"),
+    "cryptography-track":  ("Crypto",      "#eab308"),
+    "security-plus-crypto":("Sec+ Crypto", "#eab308"),
+    "az-104":              ("AZ-104",      "#06b6d4"),
+    "ai-900":              ("AI-900",      "#a855f7"),
+    "ai-102":              ("AI-102",      "#a855f7"),
+    "ehe":                 ("EHE",         "#c026d3"),
 }
 
 def main():
