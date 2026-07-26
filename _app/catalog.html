@@ -73,6 +73,7 @@
         <div class="eyebrow">The Collection</div>
         <h1>Hub Catalog</h1>
         <p class="sub">Every course and learning hub, as a cartridge. Pick your path.</p>
+        <div class="filters" id="catfilters"></div>
         <div class="filters" id="filters"></div>
         <div class="grid" id="grid"></div>
         <div class="empty" id="empty" style="display:none;">No hubs match that filter.</div>
@@ -126,18 +127,24 @@
 
         var grid = document.getElementById('grid');
         var houses = [];
+        var cats = [];   // hub categories present (cert-prep / course / platform-hub), for the category filter
 
         function buildCard(entry) {
             var h = entry.hub, house = entry.house;
             var href = safeHref(h.hubHref);
             if (!href) { return null; }   // never render a card that would link somewhere unsafe/broken
             var color = HOUSE_COLOR[house] || '#22d3ee';
-            if (houses.indexOf(house) === -1 && house) { houses.push(house); }
+            // Only REAL houses (those with a color) get a house-filter button. Flat cert-prep hubs live at
+            // /houses/<cert-slug>/, so houseOf() derives the cert slug as a pseudo-house; excluding those
+            // here prevents 11 singleton buttons. Such cards still show under "All" and filter by category.
+            if (house && HOUSE_COLOR[house] && houses.indexOf(house) === -1) { houses.push(house); }
 
             var card = document.createElement('a');
             card.className = 'cart';
             card.style.setProperty('--hc', color);
             card.dataset.house = house;
+            card.dataset.category = h.category || 'other';
+            if (h.category && cats.indexOf(h.category) === -1) { cats.push(h.category); }
             card.setAttribute('href', href);
 
             // Cover image, with an icon fallback tile if the cover is missing (e.g. a brand-new hub).
@@ -162,24 +169,36 @@
 
         hubs.forEach(function (e) { var c = buildCard(e); if (c) { grid.appendChild(c); } });
 
-        // House filter bar
-        var filters = document.getElementById('filters');
-        var all = document.createElement('button'); all.className = 'filter-btn active'; all.textContent = 'All'; all.dataset.house = 'all';
-        filters.appendChild(all);
-        houses.sort().forEach(function (h) {
-            var b = document.createElement('button'); b.className = 'filter-btn'; b.dataset.house = h; b.textContent = h;
-            filters.appendChild(b);
-        });
-        filters.addEventListener('click', function (ev) {
-            var btn = ev.target.closest('.filter-btn'); if (!btn) { return; }
-            filters.querySelectorAll('.filter-btn').forEach(function (x) { x.classList.toggle('active', x === btn); });
-            var want = btn.dataset.house; var shown = 0;
+        // Two filter dimensions: category (cert-prep / course / platform-hub) and house. A card shows
+        // only if it matches BOTH active filters. The category bar is the organizing label Frank added.
+        var activeHouse = 'all', activeCat = 'all';
+        function applyFilter() {
+            var shown = 0;
             grid.querySelectorAll('.cart').forEach(function (c) {
-                var vis = (want === 'all' || c.dataset.house === want);
+                var vis = (activeHouse === 'all' || c.dataset.house === activeHouse)
+                    && (activeCat === 'all' || c.dataset.category === activeCat);
                 c.style.display = vis ? '' : 'none'; if (vis) { shown++; }
             });
             document.getElementById('empty').style.display = shown ? 'none' : 'block';
-        });
+        }
+        function buildBar(el, values, onPick) {
+            var all = document.createElement('button'); all.className = 'filter-btn active';
+            all.textContent = 'All'; all.dataset.val = 'all'; el.appendChild(all);
+            values.forEach(function (v) {
+                var b = document.createElement('button'); b.className = 'filter-btn';
+                b.dataset.val = v; b.textContent = v; el.appendChild(b);
+            });
+            el.addEventListener('click', function (ev) {
+                var btn = ev.target.closest('.filter-btn'); if (!btn) { return; }
+                el.querySelectorAll('.filter-btn').forEach(function (x) { x.classList.toggle('active', x === btn); });
+                onPick(btn.dataset.val); applyFilter();
+            });
+        }
+        // Category order: cert-prep, course, platform-hub, then any others.
+        var CAT_ORDER = ['cert-prep', 'course', 'platform-hub'];
+        cats.sort(function (a, b) { var ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+        buildBar(document.getElementById('catfilters'), cats, function (v) { activeCat = v; });
+        buildBar(document.getElementById('filters'), houses.slice().sort(), function (v) { activeHouse = v; });
     })();
     </script>
 </body>

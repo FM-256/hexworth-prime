@@ -33,6 +33,22 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-031 — cert-prep hub-inventory reconciliation can't see redirects; A+ stubs flagged unregistered forever  ·  P3  ·  open
+- **Found:** 2026-07-26 · by Nancy (cert-prep catalog review) · Option A cert-prep increment
+- **Area:** `_tools/eduscan/gen-hub-inventory.js` reconciliation (exact-hubHref match) vs `_app/houses/aplus-core1/index.html` + `aplus-core2` (self-redirect stubs to the deep applet pages).
+- **Symptom:** registered `aplus-core1`/`aplus-core2` point at the deep applet pages; the `/houses/aplus-core1|2/` stubs self-redirect there (so no live content split), BUT the inventory generator matches by exact href and doesn't understand redirects, so it permanently reports those two stub pages as unregistered cert-prep pages, residual noise by construction.
+- **Repro:** `hub-inventory.json` -> aplus-core1/2 stub pages show `inRegistry:false`.
+- **Fix:** not yet — either teach the generator to follow meta-refresh/location.replace redirects, or repoint the registry aplus-core1/2 hubHref to the `/houses/aplus-core1|2/` stubs (canonical=stub, the deferred dedup), or accept + document the residual.
+- **Related:** BUG-030; the deferred A+ dedup (Option B canonical=stub).
+
+### BUG-030 — two live Network+ experiences: registered `network-plus` vs unregistered `/houses/comptia-network/`  ·  P2  ·  open
+- **Found:** 2026-07-26 · by Nancy (cert-prep catalog review) · Option A cert-prep increment
+- **Area:** `_app/houses/comptia-network/index.html` (live CertPathRenderer Network+ page, unregistered) vs registry `network-plus` -> `/houses/web/network-plus/index.html` (separate, larger hand-built page; `LearningPaths.js` has a distinct `comptia-network` key, zero `network-plus`).
+- **Symptom:** two different Network+ (N10-009) experiences exist in production, one licensable (network-plus), one not (comptia-network). A student reaching `/houses/comptia-network/` via search or the inventory gets a different, unlicensed experience for a cert a tenant may have paid for. Not double-registered by the cert-prep increment (intentional), so `comptia-network` stays an unregistered duplicate.
+- **Repro:** both pages load; only network-plus is in the registry.
+- **Fix:** not yet — decide the canonical Network+ page, consolidate/redirect the other, then register one. Needs an owner (content decision).
+- **Related:** BUG-031; the parallel-hub-systems consolidation (LearningPaths/CertPathRenderer vs HubRegistry).
+
 ### BUG-029 — ForensicsEngine.js links to the deprecated `/houses/security-plus/` redirect stub  ·  P3  ·  open
 - **Found:** 2026-07-26 · by Nancy (registry href-cleanup review) · Option B stage 1
 - **Area:** `_app/components/ForensicsEngine.js:296` links to `/houses/security-plus/index.html` (a redirect stub -> `/houses/shield/security-plus/`).

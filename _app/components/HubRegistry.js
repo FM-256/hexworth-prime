@@ -19,7 +19,7 @@
  *
  * Schema:
  *  - id: stable string written to tenant.licensing.contentAccess.{courses|hubs}
- *  - category: 'course' | 'platform-hub' | 'tool'
+ *  - category: 'cert-prep' | 'course' | 'platform-hub' | 'tool' (drives the catalog category filter)
  *  - label, sublabel: display text. sublabel is descriptor / catalog code.
  *  - catalogCode: official exam/course code (optional, courses only)
  *  - icon: webp icon path
@@ -96,7 +96,7 @@
         // ─── Courses (14, original 12 + ethics-it + infosec from Task #96) ─
         {
             id: 'network-plus',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'N10-009',
             label: 'CompTIA Network+',
             sublabel: 'N10-009',
@@ -107,7 +107,7 @@
         },
         {
             id: 'cyberops',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: '200-201',
             label: 'CyberOps',
             sublabel: '200-201',
@@ -118,7 +118,7 @@
         },
         {
             id: 'aplus-core1',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: '220-1101',
             label: 'CompTIA A+ Core 1',
             sublabel: '220-1101',
@@ -129,7 +129,7 @@
         },
         {
             id: 'aplus-core2',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: '220-1102',
             label: 'CompTIA A+ Core 2',
             sublabel: '220-1102',
@@ -140,7 +140,7 @@
         },
         {
             id: 'md-100',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'MD-100',
             label: 'MD-100',
             sublabel: 'Windows Client',
@@ -151,7 +151,7 @@
         },
         {
             id: 'md-101',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'MD-101',
             label: 'MD-101',
             sublabel: 'Windows Devices',
@@ -193,7 +193,7 @@
         },
         {
             id: 'security-plus',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'SY0-701',
             label: 'CompTIA Security+',
             sublabel: 'SY0-701',
@@ -204,7 +204,7 @@
         },
         {
             id: 'isc2-cc',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'CC',
             label: 'ISC2 Certified in Cybersecurity',
             sublabel: 'CC',
@@ -215,7 +215,7 @@
         },
         {
             id: 'server-plus',
-            category: 'course',
+            category: 'cert-prep',
             catalogCode: 'SK0-005',
             label: 'CompTIA Server+',
             sublabel: 'SK0-005',
@@ -280,7 +280,21 @@
             hubHref: '/houses/shield/infosec/index.html',
             tenantAssignable: true,
             sortOrder: 140
-        }
+        },
+        // ── cert-prep hubs (derived from the CertPathRenderer stub pages, 2026-07-26). These full
+        //    cert-prep courses existed live but were never in the registry; added so the catalog can
+        //    see + filter them. Canonical page = the clean /houses/<slug>/ stub. Covers pending. ──
+        { id: 'ccna',                 category: 'cert-prep', catalogCode: '200-301', label: 'Cisco CCNA',                sublabel: '200-301', icon: '/assets/images/icons/icon-network.webp',  hubHref: '/houses/ccna/index.html',                 tenantAssignable: true, sortOrder: 200 },
+        { id: 'cysa-plus',            category: 'cert-prep', catalogCode: 'CS0-003', label: 'CompTIA CySA+',            sublabel: 'CS0-003', icon: '/assets/images/icons/icon-radar.webp',    hubHref: '/houses/cysa-plus/index.html',            tenantAssignable: true, sortOrder: 210 },
+        { id: 'casp-plus',            category: 'cert-prep', catalogCode: 'CAS-004', label: 'CompTIA CASP+',            sublabel: 'CAS-004', icon: '/assets/images/icons/icon-shield.webp',   hubHref: '/houses/casp-plus/index.html',            tenantAssignable: true, sortOrder: 220 },
+        { id: 'comptia-linux',        category: 'cert-prep', catalogCode: 'XK0-005', label: 'CompTIA Linux+',           sublabel: 'XK0-005', icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/comptia-linux/index.html',        tenantAssignable: true, sortOrder: 230 },
+        { id: 'aws-ccp',              category: 'cert-prep', catalogCode: 'CLF-C02', label: 'AWS Cloud Practitioner',   sublabel: 'CLF-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-ccp/index.html',              tenantAssignable: true, sortOrder: 240 },
+        { id: 'aws-developer',        category: 'cert-prep', catalogCode: 'DVA-C02', label: 'AWS Developer Associate',  sublabel: 'DVA-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-developer/index.html',        tenantAssignable: true, sortOrder: 250 },
+        { id: 'azure-fundamentals',   category: 'cert-prep', catalogCode: 'AZ-900',  label: 'Azure Fundamentals',      sublabel: 'AZ-900',  icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/azure-fundamentals/index.html',   tenantAssignable: true, sortOrder: 260 },
+        { id: 'security-operations',  category: 'cert-prep', catalogCode: '',        label: 'Security Operations',     sublabel: 'SOC Analyst', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/security-operations/index.html',  tenantAssignable: true, sortOrder: 270 },
+        { id: 'devops-fundamentals',  category: 'cert-prep', catalogCode: '',        label: 'DevOps Fundamentals',     sublabel: 'DevOps',  icon: '/assets/images/icons/icon-gear.webp',     hubHref: '/houses/devops-fundamentals/index.html',  tenantAssignable: true, sortOrder: 280 },
+        { id: 'cryptography-track',   category: 'cert-prep', catalogCode: '',        label: 'Cryptography Track',      sublabel: 'Cryptography', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/cryptography-track/index.html',   tenantAssignable: true, sortOrder: 290 },
+        { id: 'security-plus-crypto', category: 'cert-prep', catalogCode: '',        label: 'Security+ Cryptography',  sublabel: 'SY0-701 domain', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/security-plus-crypto/index.html', tenantAssignable: true, sortOrder: 300 }
     ];
 
     function _filter(predicate) {

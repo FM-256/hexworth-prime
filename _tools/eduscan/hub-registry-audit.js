@@ -152,6 +152,26 @@ try {
     warn('house-card reconciliation skipped: ' + String(e.message || e).split('\n')[0]);
 }
 
+// ── F. Hub INVENTORY (derived): the audit's reality check against the pages themselves. gen-hub-inventory
+//    detects hub-renderer pages and reconciles them vs the registry; here the deploy gate (a) flags a stale
+//    hub-inventory.json and (b) reports the DERIVED count, so "the registry has N" is grounded in real pages
+//    rather than the hand-curated list. NOTE: the detector's signal is hub RENDERERS, so it covers the
+//    renderer-driven hubs, not yet the plainly-rendered nested course pages (a known, tracked gap).
+try {
+    const genInv = require('./gen-hub-inventory.js');
+    const fresh = genInv.inventory();
+    let committed = null;
+    try { committed = JSON.parse(fs.readFileSync(A('_app/assets/data/hub-inventory.json'), 'utf8')); } catch (e) { /* handled below */ }
+    if (!committed || !committed.counts) warn('hub-inventory.json missing/unreadable; run node _tools/eduscan/gen-hub-inventory.js');
+    else if (JSON.stringify(committed.hubPages) !== JSON.stringify(fresh.hubPages)) warn('hub-inventory.json is STALE vs the pages; re-run node _tools/eduscan/gen-hub-inventory.js');
+    else ok('hub-inventory.json is current');
+    const c = fresh.counts;
+    ok('hub inventory (renderer-detected): ' + c.hubPagesDetected + ' pages (' + c.registered + ' registered, ' + c.unregistered + ' unregistered); registry has ' + c.registrySize);
+    if (c.unregistered) warn(c.unregistered + ' renderer-detected hub page(s) not in the registry');
+} catch (e) {
+    warn('hub-inventory reconciliation skipped: ' + String(e.message || e).split('\n')[0]);
+}
+
 // ── doc-validation helpers ──
 const icons = new Set(fs.readdirSync(A('_app/assets/images/icons')).filter((f) => f.endsWith('.webp')));
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
