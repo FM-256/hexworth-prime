@@ -61,6 +61,44 @@ if (!rewrites.some((r) => r.source === '/houses/hub/**' && r.destination === '/h
     ok('firebase.json hub rewrite present');
 }
 
+// ── D. Three-way reconciliation: hubs-in-existence <-> hubs-in-gallery <-> hubs-by-name ──
+// (Frank's requirement) Ensures every hub gets a cover and the three sets never silently diverge or
+// duplicate. "Existence" = static HubRegistry ids + dynamic Firestore hubs. This SYNC section handles
+// everything decidable from the filesystem alone: static coverage, manifest integrity, static dupes.
+// The cross-existence orphan check needs the dynamic ids too, so it is COMPLETED in Part C (Firestore):
+// offline we cannot tell an orphan cover from a cover for a dynamic hub we can't see, so deferring it
+// (WARN) is correct and a hard FAIL here would false-block every deploy once dynamic hubs get covers.
+const GAL = A('_app/assets/images/covers');
+let manifest = null, galleryIds = [];
+try {
+    manifest = JSON.parse(fs.readFileSync(path.join(GAL, 'manifest.json'), 'utf8'));
+    galleryIds = Object.keys(manifest);
+} catch (e) {
+    warn('covers/manifest.json unreadable (' + e.message + '); gallery reconciliation skipped');
+}
+if (manifest) {
+    // coverage for STATIC hubs (dynamic coverage is checked in Part C, where dynamic ids are known)
+    const missingCover = staticIds.filter((id) => galleryIds.indexOf(id) === -1);
+    ok('gallery coverage (static): ' + (staticIds.length - missingCover.length) + '/' + staticIds.length + ' hubs have a cover');
+    if (missingCover.length) warn(missingCover.length + ' static hub(s) missing a cover: [' + missingCover + ']');
+    // manifest integrity: every referenced cover file must exist on disk (existence-independent -> FAIL)
+    galleryIds.forEach((id) => {
+        const f = (manifest[id] && manifest[id].file) || (id + '.webp');
+        if (!fs.existsSync(path.join(GAL, f))) fail("cover file missing on disk for '" + id + "': " + f);
+    });
+}
+// duplicate static ids (routing-breaking -> FAIL) + duplicate static names (confusing, not corrupting -> WARN)
+const dupIds = staticIds.filter((id, i) => staticIds.indexOf(id) !== i);
+dupIds.forEach((id) => fail("duplicate hub id: '" + id + "'"));
+if (!dupIds.length) ok('no duplicate hub ids (' + staticIds.length + ' unique)');
+const nameCount = {};
+HubRegistry.all().forEach((h) => {
+    const n = String(h.label || '').trim().toLowerCase();
+    if (n) (nameCount[n] = nameCount[n] || []).push(h.id);
+});
+Object.keys(nameCount).filter((n) => nameCount[n].length > 1)
+    .forEach((n) => warn("duplicate hub name: '" + n + "' shared by [" + nameCount[n] + ']'));
+
 // ── doc-validation helpers ──
 const icons = new Set(fs.readdirSync(A('_app/assets/images/icons')).filter((f) => f.endsWith('.webp')));
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
@@ -89,19 +127,51 @@ function validateDoc(id, d) {
     }
 }
 
-// ── C. Firestore docs (optional; needs admin credentials) ──
+// ── C. Firestore docs + the dynamic half of the three-way reconciliation (needs admin credentials) ──
 (async () => {
     try {
         const admin = require('firebase-admin');
         if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
         const snap = await admin.firestore().collection('hubRegistry').get();
-        if (snap.empty) ok('hubRegistry: no dynamic hubs yet (nothing to validate)');
-        else {
+        const dynIds = [], dynByName = {};
+        if (snap.empty) {
+            ok('hubRegistry: no dynamic hubs yet (nothing to validate)');
+        } else {
             ok('hubRegistry: validating ' + snap.size + ' dynamic hub(s)');
-            snap.forEach((doc) => validateDoc(doc.id, doc.data() || {}));
+            snap.forEach((doc) => {
+                const d = doc.data() || {};
+                validateDoc(doc.id, d);
+                dynIds.push(doc.id);
+                const lbl = String(d.label || '').trim().toLowerCase();
+                if (lbl) (dynByName[lbl] = dynByName[lbl] || []).push(doc.id);
+                // a dynamic hub must never shadow a static id (rules reject this on create; belt-and-braces here)
+                if (staticIds.indexOf(doc.id) !== -1) fail("dynamic hub '" + doc.id + "' collides with a static hub id");
+                // Frank's goal: any new hub gets a cover. A PUBLISHED dynamic hub with none -> WARN (drafts exempt).
+                if (d.status === 'published' && galleryIds.indexOf(doc.id) === -1)
+                    warn("published dynamic hub '" + doc.id + "' has no cover (cartridge falls back to its icon)");
+            });
         }
+        // Both halves of "existence" are now known -> complete the cross-existence orphan check.
+        if (manifest) {
+            const fullExist = staticIds.concat(dynIds);
+            galleryIds.filter((id) => fullExist.indexOf(id) === -1)
+                .forEach((id) => fail("orphan cover '" + id + "': a cover exists for no hub (static or dynamic)"));
+        }
+        // duplicate names spanning static+dynamic (pure-static dupes already reported in Part D)
+        Object.keys(dynByName).forEach((n) => {
+            const staticShare = nameCount[n] ? nameCount[n].length : 0;
+            if (staticShare + dynByName[n].length > 1 && staticShare < 2)
+                warn("duplicate hub name across static+dynamic: '" + n + "'");
+        });
     } catch (e) {
         warn('Firestore validation skipped (no admin credentials / offline): ' + String(e.message || e).split('\n')[0]);
+        // We cannot see dynamic hubs, so an unmatched cover MIGHT belong to one -> DEFER (WARN), never FAIL.
+        // A truly bogus cover with no file on disk is still caught by Part D's file-existence FAIL.
+        if (manifest) {
+            const unmatched = galleryIds.filter((id) => staticIds.indexOf(id) === -1);
+            if (unmatched.length) warn(unmatched.length + ' cover(s) not matched to a static hub; orphan check DEFERRED ' +
+                '(run with Firestore creds, or use the admin Hub Health panel): [' + unmatched + ']');
+        }
     }
     console.log('\nhub-registry-audit: ' + failures + ' failure(s), ' + warnings + ' warning(s)');
     process.exit(failures ? 1 : 0);

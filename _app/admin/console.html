@@ -2457,6 +2457,10 @@
                 <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z"/><path d="M12 22V12"/><path d="M20.66 7L12 12 3.34 7"/></svg>
                 <span>Hubs</span>
             </div>
+            <div class="ac-nav-item" data-panel="hubhealth" onclick="switchPanel('hubhealth')">
+                <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                <span>Hub Health</span>
+            </div>
             <div class="ac-nav-item" data-panel="coursetree" onclick="switchPanel('coursetree')">
                 <svg class="ac-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M8 7l4-4 4 4"/><path d="M6 12h4"/><path d="M14 12h4"/><path d="M4 17h4"/><path d="M16 17h4"/></svg>
                 <span>Course Tree</span>
@@ -4342,6 +4346,35 @@
             </div>
 
             <!-- ===================================================
+                 PANEL: HUB HEALTH (cover-cartridge three-way audit)
+                 =================================================== -->
+            <div class="ac-panel" data-panel="hubhealth">
+                <div class="ac-panel-title">Hub Health</div>
+                <p style="font-size:0.82rem; color:var(--ac-text-muted); margin-bottom:14px; max-width:78ch;">
+                    Reconciles the three views of a hub so nothing silently diverges: <strong>in existence</strong>
+                    (static registry + dynamic Firestore hubs), <strong>in gallery</strong> (has a cover in
+                    <code>covers/manifest.json</code>), and <strong>by name</strong> (canonical label list, to catch
+                    duplicates). This panel runs the reconciliation live with Firestore access; the same
+                    checks are enforced as a deploy gate in <code>hub-registry-audit.js</code> (Gate 2.5),
+                    which defers the orphan check to a credentialed run since it cannot see dynamic hubs offline.
+                </p>
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-bottom:14px;">
+                    <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="loadHubHealth()">Re-run audit</button>
+                </div>
+                <div class="ac-stats-grid" id="hubHealthStats"></div>
+                <div class="ac-card">
+                    <div class="ac-card-title">Three-way audit</div>
+                    <div id="hubHealthFindings">
+                        <div class="ac-loading"><div class="ac-spinner"></div>Reconciling hubs...</div>
+                    </div>
+                </div>
+                <div class="ac-card">
+                    <div class="ac-card-title">Enumeration (hubs by name)</div>
+                    <div id="hubHealthEnum"></div>
+                </div>
+            </div>
+
+            <!-- ===================================================
                  PANEL: COURSE TREE MAPPER
                  =================================================== -->
             <div class="ac-panel" data-panel="coursetree">
@@ -4517,6 +4550,7 @@
             if (panelName === 'tenants') loadTenants();
             if (panelName === 'tournaments') loadTournaments();
             if (panelName === 'hubs') loadHubs();
+            if (panelName === 'hubhealth') loadHubHealth();
             if (panelName === 'coursetree') loadCourseTree();
             if (panelName === 'reviewgames') loadReviewGames();
             if (panelName === 'arcadefixes') afxLoad();
@@ -4726,6 +4760,139 @@
                 apply();
             }
         };
+
+        // ── Hub Health panel (cover-cartridge three-way audit) ───────────────────────
+        // Browser-side mirror of _tools/eduscan/hub-registry-audit.js Part D. Reconciles three
+        // views so nothing silently diverges or duplicates:
+        //   existence = static HubRegistry.all() + dynamic Firestore hubRegistry docs
+        //   gallery   = covers/manifest.json keys (a hub that has a cover)
+        //   by name   = canonical label list (duplicate-name guard)
+        // Read-only: it reports, it never writes. The deploy gate is the enforcement copy.
+        window.loadHubHealth = async function () {
+            var statsEl = document.getElementById('hubHealthStats');
+            var findEl = document.getElementById('hubHealthFindings');
+            var enumEl = document.getElementById('hubHealthEnum');
+            findEl.innerHTML = '<div class="ac-loading"><div class="ac-spinner"></div>Reconciling hubs...</div>';
+            statsEl.innerHTML = '';
+            enumEl.innerHTML = '';
+
+            // ── existence: static registry (always) + dynamic Firestore (best-effort) ──
+            // staticOk / dynamicOk / galleryOk each flag a source that failed to load, so a partial
+            // read is reported honestly instead of rendering a falsely-clean or falsely-broken state.
+            var existence = [];
+            var staticOk = !!(window.HubRegistry && HubRegistry.all);
+            if (staticOk) {
+                HubRegistry.all().forEach(function (h) {
+                    existence.push({ id: h.id, label: h.label || h.id, source: 'static', status: 'static' });
+                });
+            }
+            var dynamicOk = true;
+            try {
+                const { collection, getDocs } = _firestoreModule;
+                var snap = await getDocs(collection(db, 'hubRegistry'));
+                snap.forEach(function (d) {
+                    var data = d.data() || {};
+                    existence.push({ id: d.id, label: data.label || d.id, source: 'dynamic', status: data.status || 'draft' });
+                });
+            } catch (e) {
+                dynamicOk = false;
+            }
+
+            // ── gallery: covers/manifest.json ──
+            var galleryIds = [];
+            var galleryOk = true;
+            try {
+                var res = await fetch('/assets/images/covers/manifest.json', { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                galleryIds = Object.keys(await res.json());
+            } catch (e) {
+                galleryOk = false;
+            }
+            var partial = !staticOk || !dynamicOk || !galleryOk;
+            var gallerySet = {};
+            galleryIds.forEach(function (id) { gallerySet[id] = true; });
+            var existIds = existence.map(function (h) { return h.id; });
+
+            // ── reconcile ──
+            // A draft hub is invisible to students, so not having a cover yet is not a defect: only
+            // "flaggable" hubs (static + PUBLISHED dynamic) count toward coverage and missing-cover
+            // findings. Every hub still appears in the enumeration table with its status.
+            var flaggable = existence.filter(function (h) { return h.status !== 'draft'; });
+            var withCover = flaggable.filter(function (h) { return gallerySet[h.id]; });
+            var missingCover = flaggable.filter(function (h) { return !gallerySet[h.id]; });
+            var inGallery = existence.filter(function (h) { return gallerySet[h.id]; });
+            var orphanCovers = galleryIds.filter(function (id) { return existIds.indexOf(id) === -1; });
+            var nameCount = {};
+            existence.forEach(function (h) {
+                var n = String(h.label || '').trim().toLowerCase();
+                if (n) (nameCount[n] = nameCount[n] || []).push(h);
+            });
+            var dupNames = Object.keys(nameCount).filter(function (n) { return nameCount[n].length > 1; });
+            var idCount = {};
+            existIds.forEach(function (id) { idCount[id] = (idCount[id] || 0) + 1; });
+            var dupIds = Object.keys(idCount).filter(function (id) { return idCount[id] > 1; });
+
+            // Issues = real reconciliation problems only. Gallery-derived counts (missing / orphan) are
+            // included ONLY when the manifest actually loaded, so a fetch failure never fabricates issues.
+            var issues = dupNames.length + dupIds.length + (galleryOk ? (missingCover.length + orphanCovers.length) : 0);
+            var pct = flaggable.length ? Math.round((withCover.length / flaggable.length) * 100) : 0;
+
+            // ── stat cards ── partial data -> amber, never a green "all good" it can't vouch for.
+            var issueCls = issues ? 'danger' : (partial ? 'warning' : 'success');
+            statsEl.innerHTML =
+                statCard(existence.length, 'Hubs in existence', (staticOk && dynamicOk) ? '' : 'warning') +
+                statCard(galleryOk ? inGallery.length : '?', 'Hubs in gallery', galleryOk ? 'success' : 'warning') +
+                statCard(galleryOk ? (pct + '%') : '?', 'Cover coverage', !galleryOk ? 'warning' : (pct === 100 ? 'success' : (pct >= 80 ? 'warning' : 'danger'))) +
+                statCard(issues, 'Issues', issueCls);
+
+            // ── findings ──
+            var f = [];
+            if (!staticOk) f.push(findRow('warning', 'Registry unavailable', 'HubRegistry.js did not load; static hubs are not counted.'));
+            if (!dynamicOk) f.push(findRow('warning', 'Dynamic hubs unavailable', 'Firestore hubRegistry could not be read; counts reflect static hubs only.'));
+            if (!galleryOk) f.push(findRow('warning', 'Gallery manifest unavailable', 'covers/manifest.json could not be fetched; coverage not computed.'));
+            dupIds.forEach(function (id) { f.push(findRow('danger', 'Duplicate hub id', '"' + escHtml(id) + '" appears ' + idCount[id] + ' times (static/dynamic collision).')); });
+            if (galleryOk) orphanCovers.forEach(function (id) { f.push(findRow('danger', 'Orphan cover', '"' + escHtml(id) + '" has a cover but no hub exists for it.')); });
+            // Duplicate name is confusing but not corrupting -> 'warning', matching the deploy gate's WARN.
+            dupNames.forEach(function (n) {
+                var ids = nameCount[n].map(function (h) { return h.id; }).join(', ');
+                f.push(findRow('warning', 'Duplicate name', '"' + escHtml(nameCount[n][0].label) + '" is used by ' + nameCount[n].length + ' hubs (' + escHtml(ids) + ').'));
+            });
+            if (galleryOk) missingCover.forEach(function (h) {
+                f.push(findRow('warning', 'Missing cover', '"' + escHtml(h.label) + '" (' + escHtml(h.id) + ') has no cover; the cartridge falls back to its icon.'));
+            });
+            findEl.innerHTML = f.length
+                ? f.join('')
+                : '<div class="ac-empty" style="color:var(--ac-success);">All clear. Every hub reconciles across existence, gallery, and name.</div>';
+
+            // ── enumeration (by name) ──
+            var rows = existence.slice().sort(function (a, b) {
+                return String(a.label).toLowerCase().localeCompare(String(b.label).toLowerCase());
+            });
+            var eh = '<table class="ac-table"><thead><tr><th>Name</th><th>Id</th><th>Source</th><th>Status</th><th>Cover</th></tr></thead><tbody>';
+            rows.forEach(function (h) {
+                var has = gallerySet[h.id];
+                eh += '<tr>'
+                    + '<td>' + escHtml(h.label) + '</td>'
+                    + '<td style="font-size:0.72rem;color:var(--ac-text-muted);">' + escHtml(h.id) + '</td>'
+                    + '<td>' + escHtml(h.source) + '</td>'
+                    + '<td>' + escHtml(h.status) + '</td>'
+                    + '<td>' + (galleryOk ? (has ? '<span style="color:var(--ac-success);">yes</span>' : '<span style="color:var(--ac-warning);">no</span>') : '-') + '</td>'
+                    + '</tr>';
+            });
+            eh += '</tbody></table>';
+            enumEl.innerHTML = eh;
+        };
+        function statCard(value, label, cls) {
+            return '<div class="ac-stat-card ' + (cls || '') + '">'
+                + '<div class="ac-stat-value">' + value + '</div>'
+                + '<div class="ac-stat-label">' + label + '</div></div>';
+        }
+        function findRow(sev, title, detail) {
+            var color = sev === 'danger' ? 'var(--ac-danger)' : (sev === 'warning' ? 'var(--ac-warning)' : 'var(--ac-success)');
+            return '<div style="display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--ac-border);">'
+                + '<span style="color:' + color + ';font-weight:600;font-size:0.75rem;min-width:130px;">' + escHtml(title) + '</span>'
+                + '<span style="font-size:0.82rem;color:var(--ac-text);">' + detail + '</span></div>';
+        }
 
         // ── Toast ───────────────────────────────────────────────────
         window.showToast = function(msg, type) {

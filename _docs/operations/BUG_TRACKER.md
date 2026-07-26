@@ -33,6 +33,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-027 — hub-registry-audit Part C (dynamic-hub checks) never executes in a bare `./deploy.sh` run  ·  P2  ·  open
+- **Found:** 2026-07-25 · by Nancy (hub-health re-review) · cover-cartridge hub-health session
+- **Area:** `_tools/eduscan/hub-registry-audit.js:133` (`require('firebase-admin')`) invoked as `node _tools/eduscan/hub-registry-audit.js` from `deploy.sh` Gate 2.5.
+- **Symptom:** `firebase-admin` only lives in `functions/node_modules`, which Node's module resolution won't reach from `_tools/eduscan/`. So the require throws `Cannot find module 'firebase-admin'`, the whole async Part C is caught and WARN-skipped, and its three dynamic-hub gate checks never run at deploy time: the cross-existence orphan-cover FAIL, the dynamic-id-vs-static collision FAIL, and the published-dynamic-hub-with-no-cover WARN. The gate's protection for dynamic hubs is therefore theoretical in a bare deploy.
+- **Repro:** `node _tools/eduscan/hub-registry-audit.js` → observe `WARN Firestore validation skipped (... Cannot find module 'firebase-admin')`.
+- **Root cause:** PRE-EXISTING (commit `46a4958f5`, the original step-5 audit); predates the 2026-07-25 hub-health patch. Also requires ADC/creds even once the module resolves.
+- **Fix:** not yet — options: (a) install/symlink `firebase-admin` resolvable from `_tools/eduscan/`, or (b) run the audit with an explicit `NODE_PATH`/require path + creds in the deploy env, or (c) document Part C as a credentialed-only pass. Decide with Frank.
+- **Verified:** N/A (open). Working fallback in the meantime: the admin **Hub Health** panel runs the same reconciliation live via the client SDK (no firebase-admin).
+- **Related:** cover-cartridge system (`_docs/operations/hub-cover-cartridge-plan.md`); hub scaffolder task #225.
+
 ### BUG-026 — CTF team self-join is blocked by the update rule (captain-gated, but captain is always null)  ·  P2  ·  RESOLVED — CFs deployed + live 2026-07-25 (end-to-end browser join test pending)
 - **Found:** 2026-07-24 · by self (BUG-024 flow investigation) · marathon
 - **Area:** `firestore.rules:788` update rule (`resource.data.captain == request.auth.uid || isAdmin()`) vs `_app/arena/tournament-lobby.html:509` `joinTeam` client `update({ members: arrayUnion(uid), memberNames: arrayUnion(name) })`.
