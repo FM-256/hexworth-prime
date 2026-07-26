@@ -219,3 +219,10 @@ const TenantFilter = (function() {
     };
 
 })();
+
+// Self-register on the global, matching HubRegistry.js's convention. A top-level `const` in a classic
+// <script> is a lexical global, NOT a property of window, so consumers that check `window.TenantFilter`
+// (the codebase convention) would otherwise never see it. catalog.html is the first page to load this
+// component, so wiring this up correctly here fixes it for every future consumer too.
+if (typeof window !== 'undefined') { window.TenantFilter = TenantFilter; }
+if (typeof module !== 'undefined' && module.exports) { module.exports = TenantFilter; }

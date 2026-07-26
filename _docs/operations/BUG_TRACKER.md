@@ -33,6 +33,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-028 — lobby.html hardcodes the same dead CyberOps path (`/houses/eye/cyberops/`)  ·  P2  ·  open
+- **Found:** 2026-07-25 · by Nancy (catalog.html deploy review) · cover-cartridge bundle
+- **Area:** `_app/lobby.html:644` (`'cyberops': { ... href: '/houses/eye/cyberops/' }`).
+- **Symptom:** the CyberOps course link in the lobby 404s; the real page is `/houses/eye/modules/cyberops/index.html`. Clicking CyberOps from the lobby lands on a 404.
+- **Repro:** open `/lobby.html`, click the CyberOps card → 404.
+- **Root cause:** pre-existing hardcoded path, duplicated from the same wrong value that was in `HubRegistry.js:112` (fixed this session). lobby.html maintains its own hub map instead of reading the registry, so the registry fix does not cover it.
+- **Fix:** not yet — one-line: point lobby.html:644 href to `/houses/eye/modules/cyberops/index.html`. Scoped out of the cover-cartridge bundle to avoid touching a high-traffic live page mid-bundle; do as a targeted fix. Longer-term: lobby.html should source hub links from HubRegistry rather than duplicate them.
+- **Verified:** N/A (open). Registry side already corrected so catalog.html links correctly.
+- **Related:** cover-cartridge bundle; `HubRegistry.js` cyberops hubHref fix (this session).
+
 ### BUG-027 — hub-registry-audit Part C (dynamic-hub checks) never executes in a bare `./deploy.sh` run  ·  P2  ·  open
 - **Found:** 2026-07-25 · by Nancy (hub-health re-review) · cover-cartridge hub-health session
 - **Area:** `_tools/eduscan/hub-registry-audit.js:133` (`require('firebase-admin')`) invoked as `node _tools/eduscan/hub-registry-audit.js` from `deploy.sh` Gate 2.5.

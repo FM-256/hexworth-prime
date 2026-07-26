@@ -109,7 +109,7 @@
             label: 'CyberOps',
             sublabel: '200-201',
             icon: '/assets/images/icons/icon-shield.webp',
-            hubHref: '/houses/eye/cyberops/index.html',
+            hubHref: '/houses/eye/modules/cyberops/index.html',
             tenantAssignable: true,
             sortOrder: 20
         },

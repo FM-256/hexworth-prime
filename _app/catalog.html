@@ -82,6 +82,7 @@
     </footer>
 
     <script src="/components/HubRegistry.js"></script>
+    <script src="/components/TenantFilter.js"></script>
     <script>
     (function () {
         'use strict';
@@ -106,8 +107,20 @@
             return h;
         }
         function safeIcon(v) { return (typeof v === 'string' && ICON.test(v)) ? v : '/assets/images/icons/hexworth-mark.webp'; }
+        // Internal-path only: reject protocol-relative (//), schemes (javascript:), and anything not a
+        // rooted app path. Today hubHref is static/trusted; this keeps the card safe if the source ever
+        // becomes dynamic (e.g. admin-authored allWithDynamic hubs).
+        function safeHref(v) { return (typeof v === 'string' && /^\/(?!\/)[A-Za-z0-9/_.?=&%-]*$/.test(v)) ? v : null; }
 
-        var hubs = (window.HubRegistry ? HubRegistry.sorted() : []).map(function (h) {
+        // Source list, with two guards applied before render:
+        //  - tenantAssignable !== false: keep internal/non-catalog hubs off this public browse page.
+        //  - TenantFilter.filterHubs: a white-label tenant sees only its licensed hubs (direct users
+        //    are unaffected; filterHubs returns everything when no tenant context is present).
+        var source = (window.HubRegistry ? HubRegistry.sorted() : []).filter(function (h) {
+            return h && h.tenantAssignable !== false;
+        });
+        if (window.TenantFilter && TenantFilter.filterHubs) { source = TenantFilter.filterHubs(source); }
+        var hubs = source.map(function (h) {
             return { hub: h, house: houseOf(h), color: '' };
         });
 
@@ -116,6 +129,8 @@
 
         function buildCard(entry) {
             var h = entry.hub, house = entry.house;
+            var href = safeHref(h.hubHref);
+            if (!href) { return null; }   // never render a card that would link somewhere unsafe/broken
             var color = HOUSE_COLOR[house] || '#22d3ee';
             if (houses.indexOf(house) === -1 && house) { houses.push(house); }
 
@@ -123,7 +138,7 @@
             card.className = 'cart';
             card.style.setProperty('--hc', color);
             card.dataset.house = house;
-            card.setAttribute('href', h.hubHref);   // internal registry href (trusted, static)
+            card.setAttribute('href', href);
 
             // Cover image, with an icon fallback tile if the cover is missing (e.g. a brand-new hub).
             var img = document.createElement('img');
@@ -145,7 +160,7 @@
             return card;
         }
 
-        hubs.forEach(function (e) { grid.appendChild(buildCard(e)); });
+        hubs.forEach(function (e) { var c = buildCard(e); if (c) { grid.appendChild(c); } });
 
         // House filter bar
         var filters = document.getElementById('filters');
