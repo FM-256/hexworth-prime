@@ -33,6 +33,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
+### BUG-029 — ForensicsEngine.js links to the deprecated `/houses/security-plus/` redirect stub  ·  P3  ·  open
+- **Found:** 2026-07-26 · by Nancy (registry href-cleanup review) · Option B stage 1
+- **Area:** `_app/components/ForensicsEngine.js:296` links to `/houses/security-plus/index.html` (a redirect stub -> `/houses/shield/security-plus/`).
+- **Symptom:** works today (stub redirects), but the stub cannot be safely deleted while this live inbound reference survives. HubRegistry + lobby now route around the stub (point directly at `/houses/shield/security-plus/`); this is the last known consumer still pointing AT the stub.
+- **Repro:** grep `_app` for `/houses/security-plus/` -> ForensicsEngine.js:296 is the straggler.
+- **Root cause:** the real Security+ hub moved to `/houses/shield/security-plus/`; the stub was left as a redirect and this reference never updated.
+- **Fix:** not yet — repoint ForensicsEngine.js:296 to `/houses/shield/security-plus/index.html`, THEN the stub can be archived. Bundled out of the registry-cleanup change to keep it scoped.
+- **Verified:** N/A (open).
+- **Related:** Option B registry-href cleanup (this session); the also-open task of making lobby.html read hub links from HubRegistry instead of its duplicate COURSE_MAP (the root duplication that keeps causing these).
+
 ### BUG-028 — lobby.html hardcodes the same dead CyberOps path (`/houses/eye/cyberops/`)  ·  P2  ·  RESOLVED — deployed + live-verified 2026-07-26 (c7a5a4947)
 - **Found:** 2026-07-25 · by Nancy (catalog.html deploy review) · cover-cartridge bundle
 - **Area:** `_app/lobby.html:644` (`'cyberops': { ... href: '/houses/eye/cyberops/' }`).

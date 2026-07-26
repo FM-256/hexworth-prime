@@ -2,8 +2,11 @@
  * HubRegistry, Single source of truth for platform hubs and tenant-assignable
  * courses.
  *
- * Status: Phase 1 (registry only, no consumer integrations yet). See
- * _docs/architecture/hub-registry-design.md for the migration plan.
+ * Status: consumed live by _app/catalog.html (the hub catalog page) and the admin Hub Health
+ * panel; hubHref values here are the canonical link targets students land on, so keep them
+ * pointing at real course-hub pages (not house roots or redirect stubs). See
+ * _docs/architecture/hub-registry-design.md for the broader migration plan (houses reading from
+ * this registry is Option B, staged).
  *
  * Nancy v1 review (2026-05-09) addressed:
  *  - `dashboardHref` removed: every entry except cyberops had `/lobby.html`,
@@ -45,7 +48,7 @@
             label: 'Wireshark Hub',
             sublabel: '32 modules',
             icon: '/assets/images/icons/icon-antenna.webp',
-            hubHref: '/houses/eye/index.html',
+            hubHref: '/wireshark/index.html',
             tenantAssignable: true,
             sortOrder: 1
         },
@@ -120,7 +123,7 @@
             label: 'CompTIA A+ Core 1',
             sublabel: '220-1101',
             icon: '/assets/images/icons/icon-wrench.webp',
-            hubHref: '/houses/forge/index.html',
+            hubHref: '/houses/forge/applets/comptia-aplus/core-1/index.html',
             tenantAssignable: true,
             sortOrder: 30
         },
@@ -131,7 +134,7 @@
             label: 'CompTIA A+ Core 2',
             sublabel: '220-1102',
             icon: '/assets/images/icons/icon-wrench.webp',
-            hubHref: '/houses/forge/index.html',
+            hubHref: '/houses/forge/applets/comptia-aplus/core-2/index.html',
             tenantAssignable: true,
             sortOrder: 40
         },
@@ -142,7 +145,7 @@
             label: 'MD-100',
             sublabel: 'Windows Client',
             icon: '/assets/images/icons/icon-terminal.webp',
-            hubHref: '/houses/forge/index.html',
+            hubHref: '/houses/forge/md-100/index.html',
             tenantAssignable: true,
             sortOrder: 50
         },
@@ -163,7 +166,7 @@
             label: 'FEH',
             sublabel: 'Forensics & Ethical Hacking',
             icon: '/assets/images/icons/icon-magnifier.webp',
-            hubHref: '/houses/eye/forensics/index.html',
+            hubHref: '/houses/dark-arts/feh/index.html',
             tenantAssignable: true,
             sortOrder: 70
         },
@@ -195,7 +198,7 @@
             label: 'CompTIA Security+',
             sublabel: 'SY0-701',
             icon: '/assets/images/icons/icon-shield.webp',
-            hubHref: '/houses/security-plus/index.html',
+            hubHref: '/houses/shield/security-plus/index.html',
             tenantAssignable: true,
             sortOrder: 100
         },
