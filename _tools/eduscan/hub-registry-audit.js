@@ -99,6 +99,53 @@ HubRegistry.all().forEach((h) => {
 Object.keys(nameCount).filter((n) => nameCount[n].length > 1)
     .forEach((n) => warn("duplicate hub name: '" + n + "' shared by [" + nameCount[n] + ']'));
 
+// ── E. House card lists (the 4th source): reconcile each house's config.paths cards against the
+//    registry BY LINK TARGET. Surfaces the registry<->house drift the registry/gallery/name three-way
+//    cannot see (house lists are hand-maintained, separate from HubRegistry). WARN-level: the drift is
+//    large and pre-existing, so this reports scope rather than blocking every deploy. Also flags a
+//    house-cards.json that has fallen out of date with the house pages.
+try {
+    const genHC = require('./gen-house-cards.js');
+    const freshFull = genHC.extract();
+    const fresh = freshFull.houses;
+    let committedFull = null;
+    try { committedFull = JSON.parse(fs.readFileSync(A('_app/assets/data/house-cards.json'), 'utf8')); } catch (e) { /* handled below */ }
+    if (!committedFull || !committedFull.houses) warn('house-cards.json missing/unreadable; run node _tools/eduscan/gen-house-cards.js');
+    // compare cards AND parse-warnings, so a changed warning state also counts as stale
+    else if (JSON.stringify({ h: committedFull.houses, w: committedFull.warnings || {} }) !== JSON.stringify({ h: fresh, w: freshFull.warnings || {} })) warn('house-cards.json is STALE vs the house pages; re-run node _tools/eduscan/gen-house-cards.js');
+    else ok('house-cards.json is current');
+    // Resolve to a rooted path with . and .. segments collapsed (dark-arts uses ../ hrefs); identical to
+    // the admin panel's normHref so the gate and the dashboard never disagree.
+    const normHref = (href, houseId) => {
+        if (!href) return null;
+        let h = String(href).trim();
+        if (h.charAt(0) !== '/') h = '/houses/' + houseId + '/' + h;
+        h = h.split('#')[0].split('?')[0];
+        const parts = h.split('/'), out = [];
+        for (let pi = 0; pi < parts.length; pi++) {
+            const seg = parts[pi];
+            if (seg === '.') continue;
+            if (seg === '..') { if (out.length > 1) out.pop(); continue; }
+            out.push(seg);
+        }
+        return out.join('/').replace(/index\.html$/, '').replace(/\/+$/, '') || '/';
+    };
+    const regByHref = {};
+    HubRegistry.all().forEach((h) => { const n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; });
+    let total = 0, matched = 0, unmatched = 0, noHref = 0; const surfaced = {};
+    Object.keys(fresh).forEach((hid) => fresh[hid].forEach((c) => {
+        total++;
+        if (!c.href) { noHref++; return; }
+        if (regByHref[normHref(c.href, hid)]) { matched++; surfaced[regByHref[normHref(c.href, hid)].id] = true; } else { unmatched++; }
+    }));
+    const notSurfaced = HubRegistry.all().filter((h) => !surfaced[h.id]).map((h) => h.id);
+    ok('house cards: ' + total + ' across ' + Object.keys(fresh).length + ' houses (' + matched + ' matched, ' + unmatched + ' link elsewhere, ' + noHref + ' no-link)');
+    if (unmatched) warn(unmatched + ' house card(s) link to a target not in HubRegistry');
+    if (notSurfaced.length) warn(notSurfaced.length + ' registry hub(s) surfaced on no house page: [' + notSurfaced + ']');
+} catch (e) {
+    warn('house-card reconciliation skipped: ' + String(e.message || e).split('\n')[0]);
+}
+
 // ── doc-validation helpers ──
 const icons = new Set(fs.readdirSync(A('_app/assets/images/icons')).filter((f) => f.endsWith('.webp')));
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
