@@ -218,6 +218,24 @@ function summary(m) {
     console.log(`    ${k.padEnd(20)} ${String(byClass[k]).padStart(4)}  | ${floatByClass[k] || 0} floating`);
 }
 
+// Admin / internal routes to keep OUT of the PUBLIC served map (they remain in the
+// full internal report). Their paths are withheld; an aggregate count is still
+// published so admin destinations stay accounted-for without being publicly listed.
+const INTERNAL_TOP = new Set(['admin', 'operator', 'tenant', 'funding', '_games-lab', '_archive']);
+function isInternal(r) {
+  const top = r.href.split('/').filter(Boolean)[0];
+  return INTERNAL_TOP.has(top) || r.klass === 'system' || r.klass === 'admin' || r.klass === 'archived';
+}
+// Public view: internal rows stripped, replaced by an aggregate {withheld} so the
+// HUD can still report "N internal destinations (paths withheld)".
+function publicView(m) {
+  const kept = m.rows.filter(r => !isInternal(r));
+  const withheld = m.rows.length - kept.length;
+  const withheldFloating = m.rows.filter(r => isInternal(r) && r.floating).length;
+  return { generated: m.generated, total: kept.length, rows: kept,
+    withheld: { count: withheld, floating: withheldFloating, note: 'admin/internal destinations — paths withheld from public map' } };
+}
+
 if (require.main === module) {
   const args = process.argv.slice(2);
   const m = build();
@@ -229,11 +247,13 @@ if (require.main === module) {
     fs.writeFileSync(REPORT, JSON.stringify(m, null, 2));
     console.log('\n  wrote ' + path.relative(path.resolve(__dirname, '..', '..'), REPORT));
   }
-  // Always refresh the served copy the HUD reads (unless explicitly skipped).
+  // Refresh the PUBLIC served copy the HUD reads — internal/admin paths stripped
+  // (kept only in the internal REPORT above). Aggregate withheld count is retained.
   if (!args.includes('--no-serve')) {
+    const pub = publicView(m);
     fs.mkdirSync(path.dirname(SERVED), { recursive: true });
-    fs.writeFileSync(SERVED, JSON.stringify(m));
-    console.log('  wrote ' + path.relative(path.resolve(__dirname, '..', '..'), SERVED) + ' (served for HUD)');
+    fs.writeFileSync(SERVED, JSON.stringify(pub));
+    console.log(`  wrote ${path.relative(path.resolve(__dirname, '..', '..'), SERVED)} (served, public: ${pub.total} rows, ${pub.withheld.count} internal withheld)`);
   }
 }
 
