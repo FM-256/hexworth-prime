@@ -4856,6 +4856,59 @@
                 statCard(galleryOk ? (pct + '%') : '?', 'Cover coverage', !galleryOk ? 'warning' : (pct === 100 ? 'success' : (pct >= 80 ? 'warning' : 'danger'))) +
                 statCard(issues, 'Issues', issueCls);
 
+            // ── accountability: the COMPLETE destination map (every page in the app,
+            //    nothing excluded — admin/features/incubators/stubs all counted). The
+            //    tree's whole job is that nothing floats; this surfaces the gap. Reads
+            //    the pre-generated /data/accountability-map.json (browser can't walk FS).
+            //    Rendered as content into existing containers only (no new HTML nodes). ──
+            var acctHtml = '';
+            try {
+                var amRes = await fetch('/data/accountability-map.json', { cache: 'no-store' });
+                if (!amRes.ok) throw new Error('HTTP ' + amRes.status);
+                var am = await amRes.json();
+                var amTotal = am.total, amReg = 0, amFloat = 0, amByClass = {}, amFloatByClass = {};
+                (am.rows || []).forEach(function (r) {
+                    amByClass[r.klass] = (amByClass[r.klass] || 0) + 1;
+                    if (r.registered) amReg++;
+                    if (r.floating) { amFloat++; amFloatByClass[r.klass] = (amFloatByClass[r.klass] || 0) + 1; }
+                });
+                statsEl.innerHTML +=
+                    statCard(amTotal, 'Destinations (all)', '') +
+                    // amber, not red: the page-level orphan flag is best-effort (some are
+                    // reachable via dynamic navigation a static scan can't see), so it must
+                    // not read with the same definitive weight as the solid hub-level metrics.
+                    statCard(amFloat, 'Orphan candidates (verify)', amFloat ? 'warning' : 'success');
+                var ah = '<div style="margin:4px 0 14px;">'
+                    + '<div style="font-weight:600;margin-bottom:6px;">Platform accountability &mdash; every destination that exists ('
+                    + amTotal + ' total, ' + amReg + ' in catalog). Every HUB is reachable; the '
+                    + amFloat + ' below are page-level orphan CANDIDATES.</div>'
+                    + '<div style="font-size:0.74rem;color:var(--ac-text-muted);margin-bottom:8px;">Best-effort: '
+                    + 'reachability is detected by static scan, so a candidate may still be reachable via '
+                    + 'dynamic navigation (slug builders, iframe/widget mounts). Verify before treating as dead.</div>'
+                    + '<table class="ac-table"><thead><tr><th>Class</th><th>Total</th><th>Floating</th></tr></thead><tbody>';
+                Object.keys(amByClass).sort(function (a, b) { return amByClass[b] - amByClass[a]; }).forEach(function (k) {
+                    ah += '<tr><td>' + escHtml(k) + '</td><td>' + amByClass[k] + '</td><td style="color:'
+                        + (amFloatByClass[k] ? 'var(--ac-warning)' : 'var(--ac-text-muted)') + ';">'
+                        + (amFloatByClass[k] || 0) + '</td></tr>';
+                });
+                ah += '</tbody></table>';
+                var amFl = (am.rows || []).filter(function (r) { return r.floating; })
+                    .sort(function (a, b) { return a.href.localeCompare(b.href); });
+                ah += '<details style="margin-top:8px;"><summary style="cursor:pointer;color:var(--ac-warning);">'
+                    + amFloat + ' orphan candidates (best-effort &mdash; no catalog / static link / tree membership found; verify)</summary>'
+                    + '<table class="ac-table"><thead><tr><th>Destination</th><th>Class</th><th>Links in</th></tr></thead><tbody>';
+                amFl.forEach(function (r) {
+                    ah += '<tr><td style="font-size:0.72rem;">' + escHtml(r.href) + '</td><td>' + escHtml(r.klass)
+                        + '</td><td>' + (r.linkedFrom || 0) + '</td></tr>';
+                });
+                ah += '</tbody></table></details></div>';
+                acctHtml = ah;
+            } catch (e) {
+                statsEl.innerHTML += statCard('?', 'Destinations (all)', 'warning');
+                acctHtml = '<div class="ac-empty" style="color:var(--ac-warning);">accountability-map.json unavailable '
+                    + '(run <code>node _tools/eduscan/gen-accountability-map.js</code>).</div>';
+            }
+
             // ── findings ──
             var f = [];
             if (!staticOk) f.push(findRow('warning', 'Registry unavailable', 'HubRegistry.js did not load; static hubs are not counted.'));
@@ -4891,7 +4944,7 @@
                     + '</tr>';
             });
             eh += '</tbody></table>';
-            enumEl.innerHTML = eh;
+            enumEl.innerHTML = acctHtml + eh;
 
             // ── House card lists (the 4th source): enumerate each house's config.paths and reconcile
             //    each card against a registry hub BY LINK TARGET (normalized href), since house-card ids

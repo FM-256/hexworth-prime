@@ -1124,22 +1124,37 @@ function runTree(options, colorFn) {
 
     // --tree --all: generate all trees and write JSON for admin console
     if (options.treeAll) {
-        const hubs = mapper.discoverHubs();
-        console.log(c('\nCOURSE TREE GENERATOR', 'bright'));
+        // discoverAll() (not discoverHubs) — the tree must account for EVERY
+        // destination in the app, not just houses/: admin pages, features,
+        // incubators, stubs. Total accountability is the tree's reason to exist.
+        const hubs = mapper.discoverAll();
+        console.log(c('\nCOURSE TREE GENERATOR (complete — every destination)', 'bright'));
         console.log(c('─'.repeat(60), 'dim'));
-        console.log(`  Discovered ${hubs.length} hubs\n`);
+        console.log(`  Discovered ${hubs.length} destinations\n`);
 
+        // Keep only lightweight {hub,title,stats} per destination — NOT the full
+        // tree — or 684 accumulated trees OOM the heap. Each tree is written to disk
+        // then discarded. A single destination that fails to map (cyclic/huge) is
+        // caught and gets a minimal stub tree so it still appears in the manifest and
+        // never 404s — total accountability means no destination is dropped on error.
         const results = [];
+        let okCount = 0, errCount = 0;
         for (const hub of hubs) {
-            process.stdout.write(`  Mapping ${c(hub.title, 'cyan')}...`);
-            const result = mapper.buildTree(hub.path);
-            const filePath = mapper.writeJSON(result);
-            results.push(result);
-            const statusMsg = result.stats.broken > 0
-                ? c(` ${result.stats.totalNodes} nodes, ${result.stats.broken} BROKEN`, 'red')
-                : c(` ${result.stats.totalNodes} nodes, ${result.stats.ok} ok`, 'green');
-            console.log(statusMsg);
+            try {
+                const result = mapper.buildTree(hub.path);
+                mapper.writeJSON(result);
+                results.push({ hub: result.hub, title: result.title, stats: result.stats });
+                okCount++;
+            } catch (e) {
+                const stub = { hub: hub.path, title: hub.title || hub.path, generated: '(stub — buildTree failed)',
+                    stats: { totalNodes: 1, ok: 0, broken: 1, visited: 0, error: String((e && e.message) || e).slice(0, 120) },
+                    tree: { path: hub.path, title: hub.title || hub.path, status: 'broken', depth: 0, children: [] } };
+                try { mapper.writeJSON(stub); } catch (e2) { /* ignore */ }
+                results.push({ hub: hub.path, title: hub.title || hub.path, stats: stub.stats });
+                errCount++;
+            }
         }
+        console.log(`  Mapped ${okCount} destinations` + (errCount ? c(` (${errCount} stubbed after buildTree error)`, 'yellow') : ''));
 
         const manifestPath = mapper.writeManifest(results);
         console.log(c('\n─'.repeat(60), 'dim'));
