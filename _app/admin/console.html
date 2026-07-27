@@ -4866,11 +4866,12 @@
                 var amRes = await fetch('/data/accountability-map.json', { cache: 'no-store' });
                 if (!amRes.ok) throw new Error('HTTP ' + amRes.status);
                 var am = await amRes.json();
-                var amTotal = am.total, amReg = 0, amFloat = 0, amByClass = {}, amFloatByClass = {};
+                var amTotal = am.total, amReg = 0, amFloat = 0, amByClass = {}, amFloatByClass = {}, amDups = [];
                 (am.rows || []).forEach(function (r) {
                     amByClass[r.klass] = (amByClass[r.klass] || 0) + 1;
                     if (r.registered) amReg++;
                     if (r.floating) { amFloat++; amFloatByClass[r.klass] = (amFloatByClass[r.klass] || 0) + 1; }
+                    if (r.duplicateOf) amDups.push(r);
                 });
                 // admin/internal destinations are withheld from the public map (paths not
                 // listed publicly) but still COUNTED here via the aggregate, so accountability
@@ -4882,7 +4883,10 @@
                     // amber, not red: the page-level orphan flag is best-effort (some are
                     // reachable via dynamic navigation a static scan can't see), so it must
                     // not read with the same definitive weight as the solid hub-level metrics.
-                    statCard(amFloat, 'Orphan candidates (verify)', amFloat ? 'warning' : 'success');
+                    statCard(amFloat, 'Orphan candidates (verify)', amFloat ? 'warning' : 'success') +
+                    // duplicate hubs are MARKED, not removed — a page carrying a registered
+                    // hub's course code (kept live pending an operator consolidate ruling).
+                    statCard(amDups.length, 'Duplicate hubs (marked)', amDups.length ? 'warning' : 'success');
                 var ah = '<div style="margin:4px 0 14px;">'
                     + '<div style="font-weight:600;margin-bottom:6px;">Platform accountability &mdash; every destination that exists ('
                     + amGrand + ' total = ' + amTotal + ' public + ' + amWithheld + ' admin/internal withheld, '
@@ -4907,7 +4911,20 @@
                     ah += '<tr><td style="font-size:0.72rem;">' + escHtml(r.href) + '</td><td>' + escHtml(r.klass)
                         + '</td><td>' + (r.linkedFrom || 0) + '</td></tr>';
                 });
-                ah += '</tbody></table></details></div>';
+                ah += '</tbody></table></details>';
+                // Marked duplicates: a page carrying a registered hub's course code, kept
+                // live (redirect/consolidate is an operator decision) but labeled here.
+                if (amDups.length) {
+                    ah += '<details style="margin-top:8px;" open><summary style="cursor:pointer;color:var(--ac-warning);">'
+                        + amDups.length + ' duplicate hub(s) marked (share a catalog hub\'s course code; kept live pending consolidation)</summary>'
+                        + '<table class="ac-table"><thead><tr><th>Duplicate page</th><th>Duplicate of</th><th>Code</th></tr></thead><tbody>';
+                    amDups.sort(function (a, b) { return a.href.localeCompare(b.href); }).forEach(function (r) {
+                        ah += '<tr><td style="font-size:0.72rem;">' + escHtml(r.href) + '</td><td>' + escHtml(r.duplicateOf.ofId)
+                            + '</td><td>' + escHtml(r.duplicateOf.code) + '</td></tr>';
+                    });
+                    ah += '</tbody></table></details>';
+                }
+                ah += '</div>';
                 acctHtml = ah;
             } catch (e) {
                 statsEl.innerHTML += statCard('?', 'Destinations (all)', 'warning');

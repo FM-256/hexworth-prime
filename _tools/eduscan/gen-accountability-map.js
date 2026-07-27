@@ -52,6 +52,23 @@ function read(f) { try { return fs.readFileSync(f, 'utf8'); } catch { return '';
 function registryHrefs() {
   return new Set([...read(REGISTRY).matchAll(/hubHref:\s*['"](\/[^'"\s]+)['"]/g)].map(m => norm(m[1])));
 }
+function titleOf(file) { const m = read(file).match(/<title>([^<]*)<\/title>/i); return m ? m[1].trim() : ''; }
+
+// ── duplicate detection: a landing page that carries the same certification/course
+// code as an ALREADY-REGISTERED catalog hub is a likely duplicate. Marked (not
+// removed) so the Hub Health HUD can label it "duplicate of <hub>". Coincidence-
+// gated (only fires on an exact registered-code match), so treat as flag-for-review.
+const normCode = s => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '');
+const CERT_CODE = /\b[A-Z0-9]{2,4}-[A-Z0-9]{2,4}\b|\b[A-Z]{2,4}\d{2,4}[A-Z]?\b/g;
+function registryCatalogCodes() {
+  const src = read(REGISTRY), map = {};
+  for (const m of src.matchAll(/id:\s*['"]([^'"]+)['"][^}]*?catalogCode:\s*['"]([^'"]+)['"]/g)) map[normCode(m[2])] = m[1];
+  return map;
+}
+function dupOf(title, codeMap) {
+  for (const tok of title.match(CERT_CODE) || []) { const id = codeMap[normCode(tok)]; if (id) return { code: tok, ofId: id }; }
+  return null;
+}
 
 // Walk ALL of _app; collect EVERY .html file (not just index.html) as a
 // destination — a lesson page exists and so must be accounted for. index.html
@@ -182,6 +199,7 @@ function build() {
   const baseCount = {};
   landings.forEach(h => { const b = h.replace(/\/$/, '').split('/').pop(); if (b) baseCount[b] = (baseCount[b] || 0) + 1; });
   const uniqueBase = new Set(Object.keys(baseCount).filter(b => baseCount[b] === 1));
+  const codeMap = registryCatalogCodes();
   const rows = landings.map(href => {
     const registered = reg.has(href);
     const linkedFrom = links[href] || 0;
@@ -192,7 +210,17 @@ function build() {
     // path suffix is referenced anywhere (convention-agnostic), OR built by a known
     // slug-constructor, OR intentionally archived. Floating = none hold → unaccounted.
     const floating = !registered && linkedFrom === 0 && !treed && !referenced && klass !== 'archived';
-    return { href, registered, linkedFrom, inTree: treed, referenced, klass, floating };
+    // Duplicate flag: an UNregistered index.html landing carrying a registered hub's
+    // cert code (marked, not removed — the HUD labels it "duplicate of <hub>").
+    // Excludes CTF boxes / sub-pages / lesson dirs (which merely mention a code, not a
+    // duplicate hub) and already-redirected stubs (a resolved dup, not an active one).
+    let duplicateOf = null;
+    if (!registered && href.endsWith('/') && klass !== 'stub-redirect'
+        && !/\/(boxes|reviews|sections|labs|quizzes|exams|modules)\//.test(href)) {
+      const d = dupOf(titleOf(path.join(ROOT, href, 'index.html')), codeMap);
+      if (d) duplicateOf = d;
+    }
+    return { href, registered, linkedFrom, inTree: treed, referenced, klass, floating, duplicateOf };
   });
   // registered hubs whose href has no index.html on disk = broken registry pointer
   const onDisk = new Set(landings);
