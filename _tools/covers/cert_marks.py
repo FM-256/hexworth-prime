@@ -44,6 +44,12 @@ CERT = {
     "ai-102":              ("AI-102",      "#a855f7"),
     "ehe":                 ("EHE",         "#c026d3"),
     "cse":                 ("CSE",         "#06b6d4"),
+    # derived wave 3 (2026-07-26) — hyphenated vendor certs only (short-name chip, house-accent hex).
+    "ms-102":              ("MS-102",      "#06b6d4"),
+    "ms-900":              ("MS-900",      "#06b6d4"),
+    "pl-300":              ("PL-300",      "#06b6d4"),
+    "sc-200":              ("SC-200",      "#ef4444"),
+    "sc-900":              ("SC-900",      "#ef4444"),
 }
 
 def main():
