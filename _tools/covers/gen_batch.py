@@ -76,6 +76,14 @@ HUBS = {
     "grep-pipe-mastery": ("script",        "streams of text flowing through glowing pipes and filters, regex patterns of light, a command-line data-processing forge"),
     "databases":         ("code",          "a neon database landscape, glowing relational tables and query streams, indexed data structures pulsing with light"),
     "zero-to-python":    ("code",          "a beginner's coding journey rendered as a luminous serpent of light rising from darkness into neon, first scripts glowing"),
+    # Observatory + LearningPaths reconciliation finds
+    "projects":          ("key",           "a maker's workshop of glowing hands-on tech projects, circuit builds and code artifacts on a neon bench, a launch of ideas"),
+    "clh":               ("script",        "a command-line hacker's neon terminal den, cascading offensive shell commands, a hooded figure at glowing prompts"),
+    "linux-admin":       ("script",        "a Linux system administration control room, glowing server terminals, daemons and services, root-access management console"),
+    "cse":               ("cloud",         "a cloud security engineering scene, glowing cloud fortresses and encrypted data flows, security controls over a neon cloud"),
+    "openstack":         ("cloud",         "an open-source cloud platform, glowing orchestration of virtual machines and networks, a modular cloud infrastructure of light"),
+    "cyber-framework":   ("shield",        "a cyber law and policy scene, glowing governance frameworks, scales of justice over a neon compliance landscape"),
+    "python-programming":("code",          "a Python programming pit, a coiled serpent of luminous code, glowing scripts and data structures in a neon den"),
 }
 
 if __name__ == "__main__":
