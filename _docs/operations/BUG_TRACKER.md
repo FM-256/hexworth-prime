@@ -31,6 +31,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-032 — FEH dashboard cards linked to the Forensics Hub, not the FEH course  ·  P2  ·  fixed-not-deployed
+- **Found:** 2026-07-27 · by Chris + Nancy · in cartridge-fy / FEH-rename QC
+- **Area:** _app/tenant/{index,dashboard-clean-ops,dashboard-command-center,dashboard-enterprise,dashboard-tactical-hud}.html — 6 `feh` entries
+- **Symptom:** 6 tenant-dashboard "FEH" cards `href`'d to `/houses/eye/forensics/` (Digital Forensics Hub, 60-module unrelated course) instead of the FEH course. Surfaced when the label was corrected to "Foundations of Ethical Hacking" (was masked while the label wrongly said "Forensics & Ethical Hacking").
+- **Root cause:** whoever authored these read FEH as "Forensics", so both mislabeled AND mis-linked it to the forensics hub.
+- **Fix:** feh-name-rename commit — 6 hrefs → `/houses/dark-arts/feh/index.html` (only lines containing `'feh'`; forensics-hub entries untouched).
+- **Verified:** grep 0 remaining feh→forensics; div balance intact on all 5 files; target page exists.
+- **Related:** the coordinated FEH rename (14 files); the hardcoded-consumer-name disease that motivates the registry-source migration (option C).
+
 _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 14 real). P2s logged individually; the P3 tail is one cluster entry. Resolved/not-a-bug items were cleaned from the marathon backlog, not re-filed here._
 
 ### BUG-031 — cert-prep hub-inventory reconciliation can't see redirects; A+ stubs flagged unregistered forever  ·  P3  ·  open

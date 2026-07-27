@@ -1,5 +1,5 @@
 /**
- * Forensics & Ethical Hacking — Course Map (auto-extracted)
+ * Foundations of Ethical Hacking — Course Map (auto-extracted)
  *
  * Used by the instructor dashboard for:
  *   - Course Progress overlay
@@ -10,7 +10,7 @@
  */
 var FEH_MAP = {
     courseId: "feh",
-    title: "Forensics & Ethical Hacking",
+    title: "Foundations of Ethical Hacking",
     houseId: "dark-arts",
     totalChapters: 1,
     chapters: [
