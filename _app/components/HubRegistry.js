@@ -287,8 +287,6 @@
         // ── cert-prep hubs (derived from the CertPathRenderer stub pages, 2026-07-26). These full
         //    cert-prep courses existed live but were never in the registry; added so the catalog can
         //    see + filter them. Canonical page = the clean /houses/<slug>/ stub. Covers pending. ──
-        { id: 'ccna', origin: 'derived',                 category: 'cert-prep', catalogCode: '200-301', label: 'Cisco CCNA',                sublabel: '200-301', icon: '/assets/images/icons/icon-network.webp',  hubHref: '/houses/ccna/index.html',                 tenantAssignable: true, sortOrder: 200 },
-        { id: 'cysa-plus', origin: 'derived',            category: 'cert-prep', catalogCode: 'CS0-003', label: 'CompTIA CySA+',            sublabel: 'CS0-003', icon: '/assets/images/icons/icon-radar.webp',    hubHref: '/houses/cysa-plus/index.html',            tenantAssignable: true, sortOrder: 210 },
         { id: 'casp-plus', origin: 'derived',            category: 'cert-prep', catalogCode: 'CAS-004', label: 'CompTIA CASP+',            sublabel: 'CAS-004', icon: '/assets/images/icons/icon-shield.webp',   hubHref: '/houses/casp-plus/index.html',            tenantAssignable: true, sortOrder: 220 },
         { id: 'comptia-linux', origin: 'derived',        category: 'cert-prep', catalogCode: 'XK0-005', label: 'CompTIA Linux+',           sublabel: 'XK0-005', icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/comptia-linux/index.html',        tenantAssignable: true, sortOrder: 230 },
         { id: 'aws-ccp', origin: 'derived',              category: 'cert-prep', catalogCode: 'CLF-C02', label: 'AWS Cloud Practitioner',   sublabel: 'CLF-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-ccp/index.html',              tenantAssignable: true, sortOrder: 240 },
@@ -418,6 +416,8 @@
         { id: 'wireless', origin: 'derived', category: 'course', label: 'Advanced Wireless', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/wireless/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 679 },
         { id: 'wifi-arsenal', origin: 'derived', category: 'course', label: 'WiFi Arsenal', sublabel: 'The Vault', icon: '/assets/images/icons/icon-spider.webp', hubHref: '/dark-arts/vault/wifi-arsenal/index.html', parent: 'vault', tenantAssignable: true, sortOrder: 680 },
         { id: 'toolkit', origin: 'derived', category: 'course', label: 'The Signal Toolkit: Essential Software', sublabel: 'Signal', icon: '/assets/images/icons/icon-signal.webp', hubHref: '/signal/toolkit/index.html', parent: 'signal', tenantAssignable: true, sortOrder: 681 },
+        { id: 'eye-cysa', origin: 'derived', category: 'cert-prep', catalogCode: 'CS0-003', label: 'CompTIA CySA+', sublabel: 'CS0-003', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/eye/cysa/index.html', tenantAssignable: true, sortOrder: 690 },
+        { id: 'web-ccna', origin: 'derived', category: 'cert-prep', catalogCode: '200-301', label: 'Cisco CCNA', sublabel: '200-301', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/ccna/index.html', tenantAssignable: true, sortOrder: 700 },
     ];
 
     function _filter(predicate) {

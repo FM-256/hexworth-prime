@@ -292,7 +292,7 @@ const ForensicsEngine = (() => {
         section.className = 'fh-section fh-cert-section';
 
         const externalCerts = [
-            { name: 'CompTIA CySA+ (CS0-003)', body: 'Domain 4: Incident Response', href: '/houses/cysa-plus/index.html', certId: 'cysa-plus' },
+            { name: 'CompTIA CySA+ (CS0-003)', body: 'Domain 4: Incident Response', href: '/houses/eye/cysa/index.html', certId: 'cysa-plus' },
             { name: 'CompTIA Security+ (SY0-701)', body: 'Domain 4: Security Operations', href: '/houses/security-plus/index.html', certId: 'security-plus' },
         ];
 

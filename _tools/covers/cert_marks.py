@@ -44,6 +44,9 @@ CERT = {
     "ai-102":              ("AI-102",      "#a855f7"),
     "ehe":                 ("EHE",         "#c026d3"),
     "cse":                 ("CSE",         "#06b6d4"),
+    # dedicated cert courses promoted to canonical (2026-07-27), replacing thin stubs.
+    "eye-cysa":            ("CySA+",       "#6366f1"),
+    "web-ccna":            ("CCNA",        "#3b82f6"),
     # derived wave 3 (2026-07-26) — hyphenated vendor certs only (short-name chip, house-accent hex).
     "ms-102":              ("MS-102",      "#06b6d4"),
     "ms-900":              ("MS-900",      "#06b6d4"),

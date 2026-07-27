@@ -168,6 +168,11 @@ HUBS = {
     "wireless":            ("web",       "advanced wireless networking, glowing access points and spectrum channels, roaming clients across a neon radio landscape"),
     "wifi-arsenal":        ("dark-arts", "a wireless-attack arsenal, glowing antennas and packet-capture rigs probing neon radio waves, wireless-security tools in the dark"),
     "toolkit":             ("signal",    "an essential-software toolkit, glowing utility apps and installers arranged on a neon technician's workbench"),
+
+    # ── dedicated cert courses promoted to canonical (2026-07-27), replacing thin stubs. ──
+    "eye-cysa":            ("eye",       "a cyber analyst's threat-hunting desk, glowing behavioral-analytics dashboards, alert timelines, anomaly heatmaps"),
+    "web-ccna":            ("web",       "a neon enterprise routing and switching lab, glowing network topology, VLAN and routing paths of light, switch and router status lights"),
+    "server-management":   ("forge",     "a server administration control room, glowing server racks and management consoles, operating-system deployment and maintenance under neon light"),
 }
 
 if __name__ == "__main__":
