@@ -12,8 +12,11 @@
  *  - `dashboardHref` removed: every entry except cyberops had `/lobby.html`,
  *    making it consumer-level routing not hub-level data. Consumers now pass
  *    a routing function to adapters.
- *  - `status` field removed: all 19 entries were `'live'`. YAGNI applies -
- *    the field returns when beta/deprecated semantics are defined.
+ *  - `status` field removed 2026-05-09 (all 19 entries were 'live'; YAGNI) and
+ *    RETURNED 2026-07-28 with defined semantics: `status: 'workshop'` =
+ *    quarantined lifecycle state (hidden from student surfaces, admin-testable,
+ *    tracked in the Workshop shelf + Hub Health HUD). ABSENT status = live.
+ *    See "Lifecycle status" in _docs/architecture/unified-hub-registry.md.
  *  - Phase 1 ships THIS FILE ONLY. Script-tag injection into 13 consumer
  *    pages requires CSP header audit first (Nancy concern 1).
  *

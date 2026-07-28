@@ -104,6 +104,27 @@ house-domain → House Content; everything → Explore All.
    (kills FEH-style drift); its path STRUCTURE (ordered steps/milestones) stays its
    own data for now. Full path unification is a later chapter.
 
+## Lifecycle status (decided 2026-07-28)
+
+Frank: "some hubs will end up rotated in the workshop and we need the workshop to be
+part of the change management process." Workshopping is a LIFECYCLE STATE, not a
+deletion — the registry never loses sight of a hub.
+
+- `status: 'workshop'` on a registry entry = quarantined: broken/unfinished content
+  pulled from every student surface but kept registered, admin-testable, and tracked.
+  **Absence of `status` = live** (the default for all other entries).
+- The workshopping PROCEDURE sets BOTH fields: `tenantAssignable: false` (the proven
+  hiding flag — catalog + licensing selectors honor it today) AND `status: 'workshop'`
+  (the lifecycle label). The entry keeps its `house` — that is where it returns when
+  fixed (shown in the HUD).
+- Consumers: catalog + handler Course Browser filter it out; the hub page and
+  path-view gate it to admins; the Workshop shelf (`/workshop/`, barricade entry) and
+  the Hub Health HUD "Workshop" section surface it for change management.
+- Validators: assignability rules (e.g. EduScan ASGN-005) EXEMPT workshop-status hubs
+  — quarantined content being unmappable/unassignable is the intent, not a defect.
+  When status is removed (hub returns to live), those rules automatically apply again.
+- First use: `security-plus-crypto` (2026-07-28, commit d11dc8e2f).
+
 ## Immediate context / where we are
 
 - The 8-house **cartridge-fy** SHIPPED (houses read hub cards from HubRegistry as

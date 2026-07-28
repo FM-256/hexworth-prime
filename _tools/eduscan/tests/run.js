@@ -608,6 +608,38 @@ console.log('');
     }
 }
 
+// ASGN-005 workshop exemption: quarantined (status:'workshop') hubs are INTENTIONALLY
+// unmapped in PATH_HOUSE_MAP and must NOT be flagged — and the rule must still fire for
+// them when the exemption is disabled (proving the exemption, not a dead rule, is what
+// suppresses the finding). Guards the require()-of-HubRegistry path against silent breakage.
+{
+    const AssignmentLinkValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/assignment-links'));
+    const v1 = new AssignmentLinkValidator({ rootPath: ROOT_PATH });
+    const r1 = v1.validate();
+    const wsIds = v1.workshopIds || new Set();
+    const wsFlagged = r1.issues.filter(i => i.code === 'ASGN-005' && [...wsIds].some(id => i.message.includes(`'${id}'`)));
+    if (wsIds.size > 0 && wsFlagged.length === 0) {
+        console.log(`  ✓ ASGN-005 workshop exemption — ${wsIds.size} quarantined hub(s) read from HubRegistry, none flagged`);
+        passed++;
+    } else if (wsIds.size === 0) {
+        console.log(`  ✗ ASGN-005 workshop exemption — workshopIds is EMPTY (HubRegistry require broke, or no workshop hubs exist; expected security-plus-crypto)`);
+        failed++;
+    } else {
+        console.log(`  ✗ ASGN-005 workshop exemption — ${wsFlagged.length} workshop-status hub(s) still flagged`);
+        failed++;
+    }
+    const v2 = new AssignmentLinkValidator({ rootPath: ROOT_PATH, disableWorkshopExemption: true });
+    const r2 = v2.validate();
+    const wsFlaggedWhenDisabled = r2.issues.filter(i => i.code === 'ASGN-005' && [...wsIds].some(id => i.message.includes(`'${id}'`)));
+    if (wsIds.size > 0 && wsFlaggedWhenDisabled.length === wsIds.size) {
+        console.log(`  ✓ ASGN-005 rule still fires with exemption disabled (${wsFlaggedWhenDisabled.length}/${wsIds.size}) — exemption, not a dead rule`);
+        passed++;
+    } else {
+        console.log(`  ✗ ASGN-005 with exemption disabled flagged ${wsFlaggedWhenDisabled.length}/${wsIds.size} workshop hub(s) — rule may be dead or exemption leaking`);
+        failed++;
+    }
+}
+
 // AssignmentLinkValidator: all emitted issues use ASGN-001..006 codes; current platform has zero broken item assignments (ASGN-001)
 {
     const AssignmentLinkValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/assignment-links'));

@@ -33,6 +33,9 @@ class AssignmentLinkValidator {
         this.verbose = options.verbose || false;
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
         this.handlerDashboardFile = options.handlerDashboardFile || './handler-dashboard.html';
+        /* test-only: force ASGN-005 to ignore workshop-status exemptions so the
+           regression test can prove the rule still fires without them */
+        this.disableWorkshopExemption = options.disableWorkshopExemption || false;
 
         // Reuse LearningPathsValidator for parsing
         this.lpValidator = new LearningPathsValidator({
@@ -363,10 +366,32 @@ class AssignmentLinkValidator {
             }
         }
 
+        // Workshop-status hubs (HubRegistry lifecycle state, see "Lifecycle
+        // status" in _docs/architecture/unified-hub-registry.md) are
+        // INTENTIONALLY absent from PATH_HOUSE_MAP: quarantined content must
+        // not be assignable. Exempt them from ASGN-005 instead of demanding a
+        // mapping that would re-expose them. Resolved from rootPath so fixture
+        // trees exercise their own registry. Exposed on the instance (and
+        // disable-able via options.disableWorkshopExemption) for the
+        // regression test that pins both directions.
+        this.workshopIds = new Set();
+        try {
+            const HubRegistry = require(path.resolve(this.rootPath, 'components/HubRegistry.js'));
+            (HubRegistry.all ? HubRegistry.all() : []).forEach(h => {
+                if (h && h.status === 'workshop') this.workshopIds.add(h.id);
+            });
+        } catch (e) {
+            // Registry unreadable: no exemptions -> the stricter rule stands
+            // (fail-closed), but say so instead of silently resurrecting ASGN-005.
+            if (this.verbose) console.warn(`[assignment-links] HubRegistry unreadable; workshop exemptions inactive: ${e.message}`);
+        }
+
         // ASGN-005: Check cert paths have PATH_HOUSE_MAP entries
         for (const pathId of Object.keys(paths)) {
             // Skip actual house folders — they don't need MAP entries
             if (HOUSE_FOLDERS.includes(pathId)) continue;
+            // Skip quarantined (workshop-status) paths — see above.
+            if (!this.disableWorkshopExemption && this.workshopIds.has(pathId)) continue;
 
             // This is a certification/course path — it should have a MAP entry
             if (!pathHouseMap[pathId]) {
