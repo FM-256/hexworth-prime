@@ -275,6 +275,19 @@
             opacity: 0.8;
         }
 
+        /* Verification notice. Distinct from the wrong-answer copy above: this says the
+           platform could not CHECK the synthesis, not that it was wrong. Kept fully
+           legible on purpose -- the error styling is deliberately faint and atmospheric,
+           which is wrong for an instruction the student has to act on. */
+        .gate-notice {
+            color: #a78bfa;
+            opacity: 0;
+        }
+
+        .gate-notice.show {
+            opacity: 0.95;
+        }
+
         /* Portal reveal */
         .portal-button {
             display: none;
@@ -378,6 +391,7 @@
             </div>
             <button class="gate-submit" id="gateSubmit">Open the Gate</button>
             <div class="gate-error" id="gateError">The synthesis is incomplete.</div>
+            <div class="gate-error gate-notice" id="gateNotice"></div>
         </div>
 
         <button class="portal-button" id="portalButton">Enter the Vault</button>
@@ -425,6 +439,22 @@
         const portal = document.getElementById('portalButton');
         const synthesis = document.getElementById('synthesisSection');
 
+        // Either check returning null means the synthesis could NOT be verified: signed out,
+        // the auth script unavailable, or a transient Cloud Function failure. null never means
+        // "wrong" -- collapsing it into the wrong-answer path told students who had solved it
+        // correctly that they had failed (BUG-042). Explain the real blocker, choosing the
+        // message from the actual auth state rather than assuming signed-out.
+        function showVerifyNotice() {
+            const notice = document.getElementById('gateNotice');
+            if (!notice) return;
+            const authReady = typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.isSignedIn === 'function';
+            notice.textContent = (authReady && !FirebaseAuth.isSignedIn())
+                ? 'Sign in to verify your synthesis.'
+                : 'Could not verify your synthesis. Check your connection and try again.';
+            notice.classList.add('show');
+            setTimeout(() => { notice.classList.remove('show'); }, 6000);
+        }
+
         async function checkAnswer() {
             const code = codeInput.value.trim();
             const phrase = phraseInput.value.trim().toLowerCase();
@@ -435,8 +465,13 @@
                 const codeResult = await GATE_CIPHER.checkAnswerServer(4, code);
                 const wordResult = await GATE_CIPHER.checkAnswerServer(5, phrase);
 
-                const codeCorrect = codeResult !== null ? codeResult : false;
-                const wordCorrect = wordResult !== null ? wordResult : false;
+                // If EITHER half could not be checked, we do not know whether the synthesis
+                // is right, so we must not claim it is wrong. Known simplification: when one
+                // half is a verified false and the other is null we still show the notice
+                // rather than the rejection, because a partial verdict would be misleading.
+                if (codeResult === null || wordResult === null) { showVerifyNotice(); return; }
+                const codeCorrect = codeResult;
+                const wordCorrect = wordResult;
 
                 if (codeCorrect && wordCorrect) {
                     synthesis.style.display = 'none';

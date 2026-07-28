@@ -276,6 +276,19 @@
             opacity: 0.9;
         }
 
+        /* Verification notice. Distinct from the wrong-answer copy above: this says the
+           platform could not CHECK the answer, not that the answer was wrong. Kept fully
+           legible on purpose -- the error styling is deliberately faint and atmospheric,
+           which is wrong for an instruction the student has to act on. */
+        .gate-notice {
+            color: #66d9ff;
+            opacity: 0;
+        }
+
+        .gate-notice.show {
+            opacity: 0.95;
+        }
+
         /* Success */
         .gate-container.unlocked {
             animation: unlockGlitch 1.5s ease forwards;
@@ -362,6 +375,7 @@
             <input type="text" class="gate-input" id="gateInput" placeholder="####" autocomplete="off" spellcheck="false" maxlength="8">
             <button class="gate-submit" id="gateSubmit">[ VERIFY ]</button>
             <div class="gate-error" id="gateError">SEQUENCE INVALID</div>
+            <div class="gate-error gate-notice" id="gateNotice"></div>
         </div>
 
         <div class="gate-hint" style="font-size: 0.65rem; color: #0a3a0a; margin-top: 25px; font-style: italic;">
@@ -510,13 +524,30 @@
         const error = document.getElementById('gateError');
         const container = document.getElementById('gateContainer');
 
+        // checkAnswerServer returns null when the answer could NOT be checked: signed out,
+        // the auth script unavailable, or a transient Cloud Function failure. null never
+        // means "wrong" -- collapsing it into the wrong-answer path told students following
+        // the lesson correctly that they had failed (BUG-042). Explain the real blocker,
+        // and pick the message from the actual auth state rather than assuming signed-out.
+        function showVerifyNotice() {
+            const notice = document.getElementById('gateNotice');
+            if (!notice) return;
+            const authReady = typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.isSignedIn === 'function';
+            notice.textContent = (authReady && !FirebaseAuth.isSignedIn())
+                ? 'Sign in to verify your answer.'
+                : 'Could not verify your answer. Check your connection and try again.';
+            notice.classList.add('show');
+            setTimeout(() => { notice.classList.remove('show'); }, 6000);
+        }
+
         async function checkAnswer() {
             const answer = input.value.trim();
             if (!answer) return;
 
             try {
                 const serverResult = await GATE_CIPHER.checkAnswerServer(4, answer);
-                const isCorrect = serverResult !== null ? serverResult : false;
+                if (serverResult === null) { showVerifyNotice(); return; }
+                const isCorrect = serverResult;
 
                 if (isCorrect) {
                     container.classList.add('unlocked');
