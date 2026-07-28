@@ -671,6 +671,11 @@
     <div class="op-footer">HEXWORTH PRIME &mdash; OPERATOR v1.0</div>
 
     <!-- Progress tracking -->
+    <!-- FirebaseAuth + FirestoreManager power the cross-device completion pull
+         (hydrateFromCloud below); both are presence-guarded -- signed-out or
+         offline, the page renders from localStorage exactly as before. -->
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/FirestoreManager.js"></script>
     <script src="/components/ModuleProgress.js"></script>
     <script src="/components/AchievementManager.js"></script>
 
@@ -1232,6 +1237,59 @@
 
     /* ── Initial render (all) ── */
     renderTiers('all');
+
+    /* ── Cross-device completion hydration (BUG operator sync, 2026-07-28) ──
+       Server-VALIDATED completions live in users/{uid}/mission_completions
+       (written only by the validateMissionCompletion Cloud Function). This page
+       renders from per-mission localStorage keys, which do not travel between
+       browsers -- so a mission completed on another device never marked here.
+       One-way pull: merge cloud completions into the local keys, then re-render.
+       Deliberately NO local->cloud push: only the server vouches for validated
+       completions (SEC-4); local-only completions stay local.
+       Every step is presence-guarded -- signed-out/offline/rules-denied all
+       degrade to a silent no-op and the page behaves exactly as before. ── */
+    function hydrateFromCloud() {
+        try {
+            if (!(window.FirebaseAuth && FirebaseAuth.waitForAuth &&
+                  window.FirestoreManager && FirestoreManager.init)) return;
+            FirebaseAuth.waitForAuth().then(function(user) {
+                if (!user || !user.uid) return;
+                return FirestoreManager.init().then(function(ok) {
+                    if (!ok) return;
+                    var fx = window.firebaseFirestore;
+                    var db = FirestoreManager.getDb && FirestoreManager.getDb();
+                    if (!fx || !fx.collection || !fx.getDocs || !db) return;
+                    return fx.getDocs(fx.collection(db, 'users/' + user.uid + '/mission_completions')).then(function(snap) {
+                        // Map Firestore doc id (config id == mission file base) -> this
+                        // page's localStorage key, from the same data the cards render from.
+                        var keyByMission = {};
+                        TIERS.forEach(function(tier) {
+                            tier.missions.forEach(function(m) {
+                                var base = (m.href.match(/missions\/(.+)\.mission\.html$/) || [])[1];
+                                if (base) keyByMission[base] = m.key;
+                            });
+                        });
+                        var merged = 0;
+                        snap.forEach(function(doc) {
+                            var key = keyByMission[doc.id];
+                            if (!key || isComplete(key)) return;
+                            try {
+                                localStorage.setItem(key, JSON.stringify({
+                                    completed: true, source: 'cloud', timestamp: Date.now()
+                                }));
+                                merged++;
+                            } catch (e) { /* storage full -- skip */ }
+                        });
+                        if (merged > 0) {
+                            var active = document.querySelector('.op-lang-tab.active');
+                            renderTiers((active && active.dataset.lang) || 'all');
+                        }
+                    });
+                });
+            }).catch(function() { /* auth/firestore unavailable -- local render stands */ });
+        } catch (e) { /* hydration is best-effort */ }
+    }
+    hydrateFromCloud();
 
     /* ── Briefing toggle ── */
     var toggle = document.getElementById('briefing-toggle');

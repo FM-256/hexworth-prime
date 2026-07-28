@@ -1793,12 +1793,19 @@ function evaluateCheck(checkExpr, state) {
         const expr = checkExpr;
 
         // Handle Set.has() calls: nmapTargets.has("x")
+        // Custom mission Sets (flags, dmzNodesMapped, ...) reach the server as plain
+        // arrays -- the client serializes every Set via Array.from and the sanitizer
+        // only re-converts the two built-in set keys. Accept both shapes, or every
+        // custom-Set check hard-rejects legitimately completed missions.
         const hasMatch = expr.match(/^(\w+)\.has\(["']([^"']+)["']\)$/);
         if (hasMatch) {
             const setName = hasMatch[1];
             const value = hasMatch[2];
             if (state[setName] && typeof state[setName].has === 'function') {
                 return state[setName].has(value);
+            }
+            if (Array.isArray(state[setName])) {
+                return state[setName].includes(value);
             }
             return false;
         }
@@ -1848,12 +1855,14 @@ function evaluateCheck(checkExpr, state) {
         }
 
         // Handle .size comparisons: nodesDiscovered.size >= 4
+        // Arrays accepted for the same reason as in the .has handler above.
         const sizeMatch = expr.match(/^(\w+)\.size\s*(>=|<=|===|==|>|<|!==|!=)\s*(\d+)$/);
         if (sizeMatch) {
             const setObj = state[sizeMatch[1]];
             const op = sizeMatch[2];
             const num = parseInt(sizeMatch[3], 10);
-            const sz = (setObj && typeof setObj.size === 'number') ? setObj.size : 0;
+            const sz = (setObj && typeof setObj.size === 'number') ? setObj.size
+                : (Array.isArray(setObj) ? setObj.length : 0);
             switch (op) {
                 case '>=':  return sz >= num;
                 case '<=':  return sz <= num;
@@ -1902,6 +1911,10 @@ function sanitizeStateSnapshot(snapshot, allowedKeys) {
     const clean = {};
     // Known Set-type state keys (always present on operator state)
     const setKeys = ['nodesDiscovered', 'nmapTargets'];
+    // Client-supplied arrays are capped: no legitimate mission state (flags, nodes,
+    // captured items) approaches this size, and an uncapped array is the one input a
+    // hostile client could inflate cheaply now that the evaluator accepts arrays.
+    const MAX_ARRAY_LEN = 200;
 
     for (const key of allowedKeys) {
         if (!(key in snapshot)) continue;
@@ -1909,11 +1922,11 @@ function sanitizeStateSnapshot(snapshot, allowedKeys) {
 
         if (setKeys.includes(key)) {
             // Convert array to Set for .has()/.size evaluation
-            clean[key] = new Set(Array.isArray(val) ? val : []);
+            clean[key] = new Set(Array.isArray(val) ? val.slice(0, MAX_ARRAY_LEN) : []);
         } else if (typeof val === 'boolean' || typeof val === 'number' || typeof val === 'string') {
             clean[key] = val;
         } else if (Array.isArray(val)) {
-            clean[key] = val;
+            clean[key] = val.slice(0, MAX_ARRAY_LEN);
         }
         // Skip objects, functions, etc.
     }

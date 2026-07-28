@@ -2,8 +2,9 @@
 /**
  * migrate-operator-keys.js -- SEC-4: Operator Mission Key Migration
  *
- * Scans all 24 operator mission config files in _app/operator/configs/,
- * extracts missionId, objectives (id, check expression), and customState keys.
+ * Scans every *.config.js in _app/operator/configs/ (124 at the 2026-07-28 count;
+ * the count is discovered at runtime, never hard-coded), extracts missionId,
+ * objectives (id, check expression), and state keys.
  *
  * Usage:
  *   node migrate-operator-keys.js --dry-run        Preview extraction results
@@ -163,6 +164,19 @@ function extractMissionConfig(content, filePath) {
     for (const key of builtinKeys) {
         if (knownBuiltins.includes(key) && !result.stateKeys.includes(key)) {
             result.stateKeys.push(key);
+        }
+    }
+
+    // Any identifier used as a .has()/.size/.indexOf receiver in a check IS a state
+    // property by construction (boot-script Sets like recon-02's dmzNodesMapped, the
+    // engine's gate-flag Set 'flags') even when it never appears in customState/gates.
+    // It must be in stateKeys or the server sanitizer strips it and the check can
+    // never pass server-side (hard rejection of a legitimately completed mission).
+    for (const obj of result.objectives) {
+        for (const m of obj.check.matchAll(/(\w+)\.(?:has|size|indexOf)\b/g)) {
+            if (!result.stateKeys.includes(m[1])) {
+                result.stateKeys.push(m[1]);
+            }
         }
     }
 
