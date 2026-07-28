@@ -32,6 +32,19 @@
         .draft-banner{ margin:22px 0 0; background:rgba(245,196,81,.10); border:1px solid rgba(245,196,81,.4);
                        border-radius:12px; padding:13px 18px; color:var(--gold); font-size:.9rem; font-weight:600; }
         .section{ margin-top:40px; }
+        /* Container children: cover-cartridge grid (same visual family as catalog.html) */
+        .kids-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:18px; margin-top:16px; }
+        .kid-card{ display:block; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden;
+                   background:rgba(255,255,255,.03); text-decoration:none; color:#e9edf4;
+                   transition:border-color .2s, transform .15s; }
+        .kid-card:hover{ border-color:rgba(34,211,238,.5); transform:translateY(-2px); }
+        .kid-cover{ width:100%; aspect-ratio:16/10; object-fit:cover; display:block; }
+        .kid-fallback{ width:100%; aspect-ratio:16/10; display:flex; align-items:center; justify-content:center;
+                       background:rgba(255,255,255,.04); }
+        .kid-fallback img{ width:42px; height:42px; }
+        .kid-body{ padding:12px 14px; }
+        .kid-label{ font-weight:600; font-size:.98rem; }
+        .kid-sub{ color:#8b95a8; font-size:.82rem; margin-top:2px; }
         .section h2{ font-size:.82rem; letter-spacing:.22em; text-transform:uppercase; color:var(--muted);
                      font-weight:700; display:flex; align-items:center; gap:10px; margin-bottom:16px;
                      border-bottom:1px solid var(--line); padding-bottom:10px; }
@@ -79,6 +92,9 @@
          (/houses/hub/<id>), which the firebase.json rewrite preserves. -->
     <script src="/components/FirebaseAuth.js"></script>
     <script src="/components/ObservatoryTelemetry.js"></script>
+    <!-- Static registry: container hubs render their member hubs (parent === this id)
+         as a cartridge grid. Static data only; failure to load simply means no grid. -->
+    <script src="/components/HubRegistry.js"></script>
 
     <script>
     (function () {
@@ -184,6 +200,48 @@
                 });
                 pathBox.appendChild(steps);
                 root.appendChild(pathBox);
+            }
+
+            // ── Container children: static registry hubs whose parent is this hub. ──
+            // Rendered as a cover-cartridge grid ABOVE the typed sections (Frank: "it all
+            // needs to be cartridge-fied"). Cover resolution copies catalog.html's pattern
+            // (URL guess + onerror icon fallback -- deliberately NOT a manifest fetch, so
+            // there is one cover-resolution mechanism platform-wide). Workshop-status
+            // children are excluded (quarantined hubs never surface). Depth is capped at 1
+            // by the registry audit (a hub with children may not itself have a parent), so
+            // no recursion. Static registry only: dynamic hubs cannot carry parent yet
+            // (the admin creator has no such input).
+            var kids = (window.HubRegistry && HubRegistry.all ? HubRegistry.all() : [])
+                .filter(function (h) { return h && h.parent === id && h.status !== 'workshop'; })
+                .sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); });
+            if (kids.length) {
+                var ksec = el('div', null, 'section');
+                var kh = el('h2');
+                kh.appendChild(el('span', 'Hubs'));
+                kh.appendChild(el('span', '(' + kids.length + ')', 'count'));
+                ksec.appendChild(kh);
+                var kgrid = el('div', null, 'kids-grid');
+                kids.forEach(function (h) {
+                    var card = el('a', null, 'kid-card');
+                    var href = safeHref(h.hubHref);
+                    if (href) { card.setAttribute('href', href); }   // same degrade as renderSection: no href, dead card, never href="null"
+                    var cov = document.createElement('img');
+                    cov.className = 'kid-cover'; cov.alt = '';
+                    if (SLUG.test(h.id)) { cov.src = '/assets/images/covers/' + h.id + '.webp'; }
+                    cov.onerror = function () {
+                        var fb = el('div', null, 'kid-fallback');
+                        var fi = document.createElement('img'); fi.src = safeIcon(h.icon); fi.alt = '';
+                        fb.appendChild(fi); cov.replaceWith(fb);
+                    };
+                    card.appendChild(cov);
+                    var body = el('div', null, 'kid-body');
+                    body.appendChild(el('div', h.label || h.id, 'kid-label'));
+                    if (h.sublabel) { body.appendChild(el('div', h.sublabel, 'kid-sub')); }
+                    card.appendChild(body);
+                    kgrid.appendChild(card);
+                });
+                ksec.appendChild(kgrid);
+                root.appendChild(ksec);
             }
 
             // Typed content sections (the structured-but-empty skeleton)

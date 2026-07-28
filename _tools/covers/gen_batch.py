@@ -68,6 +68,7 @@ HUBS = {
     "intro-networks":    ("web",           "a first networking lab, glowing cables connecting switches and hosts, an OSI-layer stack in light, introductory topology"),
     "net-essentials":    ("web",           "essential networking gear on a neon bench, glowing patch panels and cabling, subnet diagrams of light"),
     "cloud-essentials":  ("cloud",         "a cloud-essentials scene, glowing virtualization and cloud service nodes, foundational cloud architecture in neon"),
+    "cloud-master":      ("cloud",         "a grand cloud command nexus, multiple glowing cloud platforms orbiting a central neon control core, AWS-and-Azure-like constellations converging, master control room of the clouds"),
     "hardware-support":  ("forge",         "a hardware support bench, glowing open PC chassis, motherboards, RAM and drives under neon repair light"),
     "intro-security":    ("shield",        "an introductory security scene, a glowing shield over a data core, first-line firewalls and access controls in neon"),
     "cybersecurity-ethics":("divergent",   "an ethical crossroads in cybersecurity, glowing scales weighing privacy and access, a neon moral decision tree"),

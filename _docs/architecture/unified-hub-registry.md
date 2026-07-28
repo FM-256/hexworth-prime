@@ -103,6 +103,45 @@ house-domain → House Content; everything → Explore All.
 6. **LearningPaths scope:** its hub NAMES and LINKS must resolve through the registry
    (kills FEH-style drift); its path STRUCTURE (ordered steps/milestones) stays its
    own data for now. Full path unification is a later chapter.
+7. **Batch-2 house rulings (Frank approved all 8, 2026-07-28)** — the cert-prep stubs
+   living at `/houses/<cert-slug>/` where the slug is not a real house:
+   | hub | house | rationale |
+   |---|---|---|
+   | aws-ccp | cloud | vendor cloud cert |
+   | aws-developer | cloud | vendor cloud cert |
+   | azure-fundamentals | cloud | vendor cloud cert |
+   | devops-fundamentals | cloud | CI/CD, containers, IaC — infrastructure-side |
+   | comptia-linux | matrix | Linux cert, Linux house |
+   | casp-plus | shield | advanced defensive cert; Security+ family home |
+   | security-operations | eye | SOC = watching and responding; CyberOps precedent |
+   | cryptography-track | key | the Key house IS the cryptography house |
+   (security-plus-crypto resolved separately: workshopped with `house: 'key'` as its
+   return address.) With batch 1 and the 124 URL-derivable hubs, the 142-hub house
+   map is COMPLETE — no orphans.
+
+## Container grouping (decided 2026-07-28)
+
+Frank's Cloud Master plan ("in this hub I plan to add multiple hubs that focus on
+cloud"), ruled as: **pure registry grouping — no physical path moves** — and
+"it all needs to be cartridge-fied."
+
+- A hub becomes a container's member by carrying `parent: '<container-id>'` in the
+  registry. This extends the pre-existing convention (~50 entries across 8 container
+  families: cortex, code-armory, algorithm-chamber, proving-grounds, backbone, api,
+  vault, signal). `parent` is ORTHOGONAL to `house` — members keep their own house
+  and their own real URLs.
+- The dynamic hub renderer (`/houses/hub/<id>`) shows a container's members as a
+  cover-cartridge grid (static registry children only; workshop-status children
+  excluded; covers resolve by URL-guess + onerror icon fallback — the platform's
+  single cover-resolution mechanism, same as catalog.html).
+- Nesting is capped at DEPTH 1: a hub that is someone's parent may not itself carry
+  a parent. Enforced by hub-registry-audit (FAIL), along with self/malformed/dangling
+  parent checks; dynamic-container parents are verified against Firestore in the
+  credentialed pass and WARN-deferred offline.
+- Dynamic hubs cannot carry `parent` yet (the admin creator has no such input) —
+  containers' children are static-registry entries for now.
+- First container-of-hubs: `cloud-master` (dynamic, Observatory) containing aws-ccp,
+  aws-developer, azure-fundamentals, az-104, cloud-essentials, openstack.
 
 ## Lifecycle status (decided 2026-07-28)
 

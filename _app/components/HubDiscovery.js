@@ -36,10 +36,13 @@
             '.hubdisc{max-width:1100px;margin:32px auto;padding:0 24px}' +
             '.hubdisc-head{font-size:.75rem;letter-spacing:.28em;text-transform:uppercase;color:#22d3ee;font-weight:700;margin-bottom:14px}' +
             '.hubdisc-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}' +
-            '.hubdisc-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid rgba(255,255,255,.12);' +
+            '.hubdisc-card{display:block;overflow:hidden;border:1px solid rgba(255,255,255,.12);' +
             'border-radius:12px;background:rgba(255,255,255,.03);text-decoration:none;color:#e9edf4;transition:border-color .2s,transform .15s}' +
             '.hubdisc-card:hover{border-color:rgba(34,211,238,.5);transform:translateY(-2px)}' +
-            '.hubdisc-card img{width:38px;height:38px;flex:0 0 auto}' +
+            '.hubdisc-cover{width:100%;aspect-ratio:16/10;object-fit:cover;display:block}' +
+            '.hubdisc-fallback{width:100%;aspect-ratio:16/10;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.04)}' +
+            '.hubdisc-fallback img{width:42px;height:42px}' +
+            '.hubdisc-body{padding:12px 14px}' +
             '.hubdisc-label{font-weight:600;font-size:.98rem}.hubdisc-sub{color:#8b95a8;font-size:.82rem;margin-top:2px}';
         document.head.appendChild(s);
     }
@@ -71,8 +74,18 @@
         mine.forEach(function (h) {
             var card = el('a', null, 'hubdisc-card');
             card.setAttribute('href', '/houses/hub/' + h.id);   // id is slug-validated above
-            var img = document.createElement('img'); img.src = safeIcon(h.icon); img.alt = ''; card.appendChild(img);
-            var t = el('div');
+            // Cover cartridge: same URL-guess + onerror-icon-fallback pattern as
+            // catalog.html (the platform's single cover-resolution mechanism).
+            var cov = document.createElement('img');
+            cov.className = 'hubdisc-cover'; cov.alt = '';
+            cov.src = '/assets/images/covers/' + h.id + '.webp';   // id slug-validated above
+            cov.onerror = function () {
+                var fb = el('div', null, 'hubdisc-fallback');
+                var fi = document.createElement('img'); fi.src = safeIcon(h.icon); fi.alt = '';
+                fb.appendChild(fi); cov.replaceWith(fb);
+            };
+            card.appendChild(cov);
+            var t = el('div', null, 'hubdisc-body');
             t.appendChild(el('div', h.label || h.id, 'hubdisc-label'));
             if (h.sublabel) { t.appendChild(el('div', h.sublabel, 'hubdisc-sub')); }
             card.appendChild(t);

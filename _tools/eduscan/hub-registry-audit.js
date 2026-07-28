@@ -99,6 +99,33 @@ HubRegistry.all().forEach((h) => {
 Object.keys(nameCount).filter((n) => nameCount[n].length > 1)
     .forEach((n) => warn("duplicate hub name: '" + n + "' shared by [" + nameCount[n] + ']'));
 
+// ── Parent (container membership) integrity: `parent` values must reference a real hub id
+//    (a dangling parent silently breaks the container's cartridge grid), never self, and
+//    nesting is capped at depth 1 -- a hub that is itself someone's parent may not carry a
+//    parent of its own (see "Container grouping" in _docs/architecture/unified-hub-registry.md).
+{
+    const idSet = new Set(staticIds);
+    const parentsInUse = new Set(HubRegistry.all().filter((h) => h.parent).map((h) => h.parent));
+    let parentIssues = 0;
+    // parent id -> [child ids] for parents not found in the static registry (candidate
+    // dynamic containers). Verified against Firestore in Part C; module-scoped so Part C can see it.
+    global.__nonStaticParents = global.__nonStaticParents || new Map();
+    const nonStaticParents = global.__nonStaticParents;
+    HubRegistry.all().forEach((h) => {
+        if (!h.parent) return;
+        if (h.parent === h.id) { fail("hub '" + h.id + "' lists itself as parent"); parentIssues++; return; }
+        if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(h.parent)) { fail("hub '" + h.id + "' has malformed parent '" + h.parent + "'"); parentIssues++; return; }
+        if (parentsInUse.has(h.id)) { fail("hub '" + h.id + "' is both a parent and a child (nesting is capped at depth 1)"); parentIssues++; return; }
+        // Dynamic containers (e.g. cloud-master) are legal parents but are not in the static
+        // id set; Part C verifies they exist in Firestore when credentials are available. A
+        // parent that is neither static nor (per Part C) dynamic is dangling.
+        if (!idSet.has(h.parent)) {
+            nonStaticParents.set(h.parent, (nonStaticParents.get(h.parent) || []).concat(h.id));
+        }
+    });
+    if (!parentIssues) ok('parent integrity: ' + HubRegistry.all().filter((h) => h.parent).length + ' child hub(s), depth-1, no self/malformed refs');
+}
+
 // ── E. House card lists (the 4th source): reconcile each house's config.paths cards against the
 //    registry BY LINK TARGET. Surfaces the registry<->house drift the registry/gallery/name three-way
 //    cannot see (house lists are hand-maintained, separate from HubRegistry). WARN-level: the drift is
@@ -230,6 +257,17 @@ function validateDoc(id, d) {
             galleryIds.filter((id) => fullExist.indexOf(id) === -1)
                 .forEach((id) => fail("orphan cover '" + id + "': a cover exists for no hub (static or dynamic)"));
         }
+        // Parent integrity, dynamic half: static entries whose parent is not a static id
+        // (collected in the Part-D parent check) must reference a REAL dynamic container.
+        // Anything else is a dangling parent -> the container cartridge grid renders nowhere.
+        if (global.__nonStaticParents && global.__nonStaticParents.size) {
+            global.__nonStaticParents.forEach((children, pid) => {
+                if (dynIds.indexOf(pid) === -1)
+                    fail("dangling parent '" + pid + "' (children: " + children.join(', ') + ") exists neither statically nor dynamically");
+                else
+                    ok("dynamic container '" + pid + "' verified (" + children.length + " child hub(s))");
+            });
+        }
         // duplicate names spanning static+dynamic (pure-static dupes already reported in Part D)
         Object.keys(dynByName).forEach((n) => {
             const staticShare = nameCount[n] ? nameCount[n].length : 0;
@@ -238,6 +276,13 @@ function validateDoc(id, d) {
         });
     } catch (e) {
         warn('Firestore validation skipped (no admin credentials / offline): ' + String(e.message || e).split('\n')[0]);
+        // Same deferral for parents pointing at (claimed) dynamic containers: offline we cannot
+        // prove them real, so WARN rather than false-FAIL; the credentialed run decides.
+        if (global.__nonStaticParents && global.__nonStaticParents.size) {
+            global.__nonStaticParents.forEach((children, pid) => {
+                warn("parent '" + pid + "' (children: " + children.join(', ') + ") is not a static hub; dynamic existence NOT verified (offline)");
+            });
+        }
         // We cannot see dynamic hubs, so an unmatched cover MIGHT belong to one -> DEFER (WARN), never FAIL.
         // A truly bogus cover with no file on disk is still caught by Part D's file-existence FAIL.
         if (manifest) {
