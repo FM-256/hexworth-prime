@@ -31,6 +31,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-036 — eye-osint-dashboard.html: unescaped HTML inside a code sample pollutes the live DOM  ·  P2  ·  open
+- **Found:** 2026-07-28 · by Nancy · during SEM-002 marathon review (misclassified as a heading-count issue until she traced it)
+- **Area:** _app/projects/eye-osint-dashboard.html:1306-1339+ — a Python triple-quoted Flask template shown as example code inside `<div class="cf-code">` is NOT entity-escaped
+- **Symptom:** the browser parses the sample's raw `<html>/<head>/<meta>/<title>/<style>/<h1>` into REAL DOM nodes mid-body; the leaked `<style>` rules (`h1{color:#c084fc}`, `.card{}`, `form input[type=text]{}`) apply document-wide. No visible breakage TODAY only because `.cf-subject` outranks the bare h1 rule and no `.card`/form collisions exist on the page — one selector collision away from visible corruption.
+- **Fix (correct):** HTML-entity-escape the code sample (`&lt;`). Do NOT "fix" by demoting an h1 — that treats the SEM-002 symptom and leaves the parser pollution.
+- **Related:** SEM-002 marathon round 3 (this page was its 1 MANUAL item — reclassified here).
+
 ### BUG-035 — PIS written final credited the PRACTICAL final's progress module  ·  P1  ·  fixed-not-deployed
 - **Found:** 2026-07-28 · by Nancy · during marathon catalog-declaration review (her rescan surfaced the CAT-007 dup that unraveled it)
 - **Area:** _app/houses/shield/infosec/exams/pis-final.exam.html:621 + ContentCatalog.js pis-final/pis-final-practical entries
