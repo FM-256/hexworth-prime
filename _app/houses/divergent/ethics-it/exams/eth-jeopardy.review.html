@@ -324,6 +324,8 @@
             color: var(--gold); outline: none; margin-bottom: 16px;
         }
         .dd-wager-input:focus { border-color: var(--gold); background: rgba(255,204,0,0.14); }
+        /* BUG-033: rejected wager input (unparseable or below the $5 minimum) */
+        .dd-wager-input.dd-wager-bad { border-color: #ef4444; }
         .dd-note { font-size: 11px; color: rgba(255,255,255,0.35); margin-bottom: 20px; }
         .dd-submit-btn {
             display: block; width: 100%; padding: 14px;
@@ -490,7 +492,7 @@
                 <li>The clue is phrased as an "answer", and you must think of the matching "question"</li>
                 <li>Click <strong>Reveal Response</strong> to see the correct question (or press Space / Enter)</li>
                 <li>Self-judge: mark correct to earn the value, or wrong to lose it</li>
-                <li>One cell is a <strong>Daily Double</strong>: wager from $5 to max(score, $500) before seeing the clue</li>
+                <li>Two cells are <strong>Daily Doubles</strong>: wager from $5 to max(score, $500) before seeing the clue</li>
                 <li>Higher values equal harder clues, so start low if warming up</li>
                 <li>Clear all 25 cells to see your final score and category breakdown</li>
             </ul>
@@ -773,17 +775,32 @@
 
         /* ================================================================
            DAILY DOUBLE SETUP
-           One random cell per board. Initialized at game start.
+           Two per board, always in distinct categories. Initialized at
+           game start, re-rolled on reset.
            ================================================================ */
-        let dailyDoubleCat = -1;
-        let dailyDoubleRow = -1;
+        let dailyDoubles   = [];         /* [{cat, row, found}] */
         let ddWager        = 0;          /* confirmed wager for the current DD */
         let ddPending      = false;      /* true while DD overlay is open */
         let ddOpenGuard    = false;      /* re-entry guard: prevents triple-click spawning */
 
         function pickDailyDouble() {
-            dailyDoubleCat = Math.floor(Math.random() * 5);
-            dailyDoubleRow = Math.floor(Math.random() * 5);
+            /* Two Daily Doubles per board, in distinct categories (a one-category
+               board falls back to distinct cells). Boards with fewer than 2 clues
+               get what they can hold; a board with no playable cells gets none. */
+            dailyDoubles = [];
+            const eligible = [];
+            categories.forEach((c, i) => { if ((c.clues || []).length > 0) eligible.push(i); });
+            if (!eligible.length) return;
+            const totalClues = eligible.reduce((s, i) => s + categories[i].clues.length, 0);
+            const want = Math.min(2, totalClues);
+            let guard = 0;
+            while (dailyDoubles.length < want && guard++ < 200) {
+                const cat = eligible[Math.floor(Math.random() * eligible.length)];
+                const row = Math.floor(Math.random() * categories[cat].clues.length);
+                const clash = dailyDoubles.some(d =>
+                    (eligible.length > 1) ? (d.cat === cat) : (d.cat === cat && d.row === row));
+                if (!clash) dailyDoubles.push({ cat: cat, row: row, found: false });
+            }
         }
 
         /* ================================================================
@@ -875,11 +892,19 @@
             /* Don't re-open used cells */
             if (cell && cell.classList.contains('used')) return;
 
-            if (catIdx === dailyDoubleCat && rowIdx === dailyDoubleRow) {
+            /* Daily Double detection: first unfound entry matching this cell. */
+            let ddRef = null;
+            for (let di = 0; di < dailyDoubles.length; di++) {
+                if (!dailyDoubles[di].found
+                    && dailyDoubles[di].cat === catIdx
+                    && dailyDoubles[di].row === rowIdx) { ddRef = dailyDoubles[di]; break; }
+            }
+
+            if (ddRef) {
                 /* Daily Double: show wager screen first */
                 ddOpenGuard = true;
                 ddPending   = true;
-                currentClue = { catIdx, rowIdx, value: categories[catIdx].clues[rowIdx].value };
+                currentClue = { catIdx, rowIdx, value: categories[catIdx].clues[rowIdx].value, ddRef: ddRef };
                 openDDWager(catIdx, rowIdx);
                 if (window.HexworthGameAudio) HexworthGameAudio.dailyDouble();
                 /* Release guard after a tick so rapid double-clicks don't bypass it */
@@ -913,17 +938,30 @@
         }
 
         function submitDDWager() {
+            const inp = document.getElementById('ddWagerInput');
+            if (!inp || !currentClue) return;
+            inp.classList.remove('dd-wager-bad');
             const maxWager = Math.max(score, 500);
-            const raw      = document.getElementById('ddWagerInput').value.trim();
-
-            /* Strict wager parsing: reject non-numeric, Infinity, NaN, and overflow */
-            let wager = parseInt(raw, 10);
-            if (!raw || isNaN(wager) || !isFinite(wager) || wager < 5) {
-                wager = 5;
+            /* BUG-033: parse what the player actually typed ($/commas/spaces
+               stripped, decimals floored). Anything that does not resolve to a
+               number of at least the $5 minimum is REJECTED -- hold the wager
+               screen and flag the input; never silently substitute a bet.
+               (Escape writes '5' into the input before calling this, so the
+               escape-with-minimum path still parses clean.) Over-max clamps
+               down to the advertised cap. */
+            const raw = String(inp.value || '').replace(/[$,\s]/g, '');
+            let wager = Math.floor(Number(raw));
+            if (raw === '' || !Number.isFinite(wager) || wager < 5) {
+                inp.classList.add('dd-wager-bad');
+                inp.focus(); inp.select();
+                return;   /* ddPending stays true: overlay held open for retry */
             }
-            /* Clamp to [5, maxWager] as a percentage of maxWager (prevents insane inputs) */
-            wager = Math.min(wager, maxWager);
-            wager = Math.max(wager, 5);
+            if (wager > maxWager) wager = maxWager;
+
+            /* MUST PRESERVE ORDER: mark this DD consumed BEFORE showClueModal --
+               showClueModal REBUILDS currentClue without ddRef, so moving this
+               below that call would throw on currentClue.ddRef. */
+            if (currentClue.ddRef) currentClue.ddRef.found = true;
 
             ddWager  = wager;
             ddPending = false;
