@@ -666,6 +666,30 @@ console.log('');
         '<html><head><meta http-equiv="refresh" content="0; url=../"><title>T</title></head><body><p>Redirecting...</p></body></html>' };
     const bare = { path: 'synthetic/bare.html', content:
         '<html><head><title>T</title></head><body><p>content but no heading</p></body></html>' };
+    // ENG-002 comment guard: prose in comments must not flag; a REAL uncovered call
+    // must still flag even on the same line as a regex literal containing \/\/
+    // (Nancy's reproduced masking case — /https?:\/\// exists in 117 live files).
+    const EngineValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/engine'));
+    const ev = new EngineValidator({ rootPath: ROOT_PATH });
+    const commentProse = { path: 'synthetic/prose.html', content:
+        '<html><head><title>T</title></head><body><h1>t</h1><script>\n// moment (the CF re-graded and awarded XP)\nvar x = 1;\n</script></body></html>' };
+    const regexAdjacent = { path: 'synthetic/regexline.html', content:
+        '<html><head><title>T</title></head><body><h1>t</h1><script>\nconst clean = url.replace(/https?:\\/\\//, ""); moment().format();\n</script></body></html>' };
+    // Chris's live catch (HED.js:68 idiom): a KEYWORD-prefixed regex literal must also
+    // be recognized — `return /^https?:\/\//` would otherwise open a phantom comment.
+    const keywordRegex = { path: 'synthetic/kwregex.html', content:
+        '<html><head><title>T</title></head><body><h1>t</h1><script>\nfunction f(el){ return /^https?:\\/\\//.test(el.src); } moment().format();\n</script></body></html>' };
+    const proseHits = ev.validate(commentProse).filter(i => i.code === 'ENG-002');
+    const regexHits = ev.validate(regexAdjacent).filter(i => i.code === 'ENG-002');
+    const kwHits = ev.validate(keywordRegex).filter(i => i.code === 'ENG-002');
+    if (proseHits.length === 0 && regexHits.length === 1 && kwHits.length === 1) {
+        console.log('  ✓ ENG-002 precision — comment prose exempt; real calls after call-shape AND keyword-prefixed \\/\\/ regex literals still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ ENG-002 precision — prose:${proseHits.length}(0) regex-adjacent:${regexHits.length}(1) keyword-regex:${kwHits.length}(1)`);
+        failed++;
+    }
+
     // Nancy's live regression case: a page that TEACHES meta-refresh (entity-encoded
     // sample) is NOT a redirect and must still flag; nor is a long-delay interstitial.
     const teaches = { path: 'synthetic/teaches.html', content:

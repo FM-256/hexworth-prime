@@ -507,6 +507,13 @@ class EngineValidator {
                     if (this.isInsideStringLiteral(scriptContent, globalMatch.index)) {
                         continue;
                     }
+                    // Skip matches inside JS comments — prose like
+                    // "// moment (the CF re-graded...)" satisfies the call-shape
+                    // regex but is not code (observatory ENG-002 false positive,
+                    // marathon 2026-07-28, task #228 item 2).
+                    if (this.isInsideComment(scriptContent, globalMatch.index)) {
+                        continue;
+                    }
 
                     // Check if library is included
                     const isIncluded = info.files.some(f =>
@@ -623,6 +630,74 @@ class EngineValidator {
         }
 
         return false;
+    }
+
+    /**
+     * Whether `position` inside scriptContent falls within a JS comment
+     * (// line comment or /* block comment *​/). Complements
+     * isInsideStringLiteral: prose in comments ("// moment (the CF...)")
+     * satisfies the call-shape regex but is not code (task #228 item 2).
+     * Comment markers inside string literals are ignored via the sibling guard.
+     */
+    isInsideComment(scriptContent, position) {
+        let inLine = false;
+        let inBlock = false;
+        let inRegex = false;
+        let inClass = false;               // character class [...] inside a regex literal
+        let lastSig = '';                  // last significant (non-space) char outside comments/regex
+        for (let i = 0; i < position; i++) {
+            const ch = scriptContent[i];
+            const next = scriptContent[i + 1];
+            if (inLine) {
+                if (ch === '\n') inLine = false;
+                continue;
+            }
+            if (inBlock) {
+                if (ch === '*' && next === '/') { inBlock = false; i++; }
+                continue;
+            }
+            if (inRegex) {
+                // Track escapes and character classes so an escaped or class-bound '/'
+                // (e.g. /https?:\/\//) cannot terminate early or open a comment.
+                if (ch === '\\') { i++; continue; }
+                if (ch === '[') inClass = true;
+                else if (ch === ']') inClass = false;
+                else if (ch === '/' && !inClass) { inRegex = false; lastSig = '/'; }
+                continue;
+            }
+            if (ch === '/' && next === '/' && !this.isInsideStringLiteral(scriptContent, i)) {
+                inLine = true; i++;
+            } else if (ch === '/' && next === '*' && !this.isInsideStringLiteral(scriptContent, i)) {
+                inBlock = true; i++;
+            } else if (ch === '/' && !this.isInsideStringLiteral(scriptContent, i)) {
+                // Lone '/': regex literal vs division. A regex can only START where an
+                // expression is expected -- after an operator/opener boundary OR an
+                // expression-context KEYWORD (Chris's live catch: `return /^https?:\/\//`
+                // in HED.js:68 -- keyword prefix, not punctuation, so a char-only
+                // heuristic missed it and the escaped slashes opened a phantom comment).
+                // Nancy's repro (call-shape prefix) and Chris's (keyword prefix) are
+                // both pinned in tests/run.js.
+                let regexStart = (lastSig === '' || '(,=:[!&|?{};+-*%~^<>'.indexOf(lastSig) !== -1);
+                if (!regexStart && /[A-Za-z_$]/.test(lastSig)) {
+                    // Walk back over the preceding word to token-check keywords.
+                    let w = i - 1;
+                    while (w >= 0 && /\s/.test(scriptContent[w])) w--;
+                    let end = w + 1;
+                    while (w >= 0 && /[A-Za-z_$]/.test(scriptContent[w])) w--;
+                    const tok = scriptContent.substring(w + 1, end);
+                    regexStart = ['return', 'typeof', 'case', 'throw', 'delete', 'void',
+                        'yield', 'instanceof', 'in', 'of', 'new', 'else', 'do'].indexOf(tok) !== -1;
+                }
+                if (regexStart) {
+                    inRegex = true; inClass = false;
+                    continue;
+                }
+                lastSig = ch;
+            } else if (!/\s/.test(ch)) {
+                lastSig = ch;
+            }
+        }
+        return inLine || inBlock;
     }
 
     /**
