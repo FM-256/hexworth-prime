@@ -226,15 +226,14 @@ curated cross-house lens by ruling):
 - PATH_HOUSE_MAP (handler-dashboard.js) reconciled to registry houses: comptia-linux
   script->matrix, devops-fundamentals code->cloud, python-hub script->code (full 33-entry
   sweep vs registry: 0 mismatches).
-- Hero-card coexistence (NAMED DECISION for Frank, per Nancy): 4 houses render rich
-  hand-authored featured-course cards in afterStatsHTML whose destinations also appear
-  as projection cartridges (same destination, different section/detail -- NOT the
-  BUG-038 different-destination defect). Executed inventory: divergent 3 of 3 projected
-  ids also hero-carded (100%), matrix 3 of 5 (60%), ai 2 of 8 (25%), web 2 of 5 via
-  onclick sections. Options for Frank: (a) keep both (current state, AI precedent),
-  (b) remove hero cards (destroys hand-authored content -- NOT default), (c) filtered
-  shelf: projection excludes ids that already have a hero card (no deletion, no
-  duplication). Nothing removed pending his ruling.
+- Hero-card coexistence -- RULED by Frank 2026-07-28: **keep both.** 4 houses render
+  rich hand-authored featured-course cards in afterStatsHTML whose destinations also
+  appear as projection cartridges (same destination, different section/detail -- NOT
+  the BUG-038 different-destination defect). Executed inventory: divergent 3 of 3
+  projected ids also hero-carded (100%), matrix 3 of 5 (60%), ai 2 of 8 (25%), web
+  2 of 5 via onclick sections. The featured card is the spotlight, the cartridge is
+  the shelf entry; the pattern is intentional and no filtering or removal is wanted.
+  Hero cards remain hand-authored page content (they are NOT registry-driven).
 
 ## Immediate context / where we are
 
