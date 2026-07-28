@@ -4280,8 +4280,14 @@ class HeuristicsValidator {
             const body = m[2];
             // Match 0% { ... opacity: 0 ... } and 100% { ... opacity: 1 ... }
             // Allow either keyword "from"/"to" or "0%"/"100%".
-            const startsZero = /(?:from|0%)\s*\{[^}]*opacity:\s*0(?:\b|[^.\d])/.test(body);
-            const endsOne = /(?:to|100%)\s*\{[^}]*opacity:\s*1(?:\b|[^.\d])/.test(body);
+            // Lookahead (?![\d.]) — NOT (?:\b|[^.\d]): \b matches the digit-to-dot
+            // boundary inside "opacity: 0.8", so the old guard false-matched every
+            // decimal opacity as 0/1 and flagged intentional pulse animations
+            // (298-finding false-positive class, marathon 2026-07-28, task #228 item 7).
+            // (?<!\d) — a bare '0%' also matches inside '50%'/'40%' (that plus the
+            // decimal bug is exactly how dotPulse's '50% { opacity: 0.8 }' fired).
+            const startsZero = /(?<!\d)(?:from|0%)[^{]*\{[^}]*opacity:\s*0(?![\d.])/.test(body);
+            const endsOne = /(?<!\d)(?:to|100%)[^{]*\{[^}]*opacity:\s*1(?![\d.])/.test(body);
             if (startsZero && endsOne) {
                 fadeInKeyframes.push(m[1]);
             }

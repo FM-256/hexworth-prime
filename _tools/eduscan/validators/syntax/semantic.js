@@ -195,6 +195,17 @@ class SemanticValidator {
             return issues;
         }
 
+        // 0-second redirect stubs are never meaningfully rendered — a page heading
+        // is noise there. Anchored to a REAL <meta http-equiv="refresh"> TAG with a
+        // 0-second delay: a bare substring match also exempted pages that TEACH
+        // about meta-refresh (entity-encoded code samples — live regression case:
+        // projects/web-pi-network-probe.html), and a long-delay interstitial IS
+        // rendered, so it still deserves a heading. (Task #228 item 6; Nancy R5.)
+        const metaRefresh = content.match(/<meta\b[^>]*http-equiv=["']?refresh["']?[^>]*>/i);
+        if (metaRefresh && /content=["']?0\s*[;"'\s>]/i.test(metaRefresh[0])) {
+            return issues;
+        }
+
         const h1Match = /<h1\b[^>]*>/i.test(content);
         if (!h1Match) {
             issues.push({

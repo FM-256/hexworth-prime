@@ -552,6 +552,13 @@ class SyntaxValidator {
         for (const file of contentFiles) {
             if (!file.path.endsWith('.html')) continue;
             const dir = path.dirname(file.path);
+            // Underscore-prefixed segments are internal material students never
+            // navigate to — no index required (task #228). Practical effect on the
+            // live tree: the 2 _source dirs. (_archive never reaches this code at
+            // all — scanner.js SKIP_DIRS drops it upstream by exact name; this
+            // exclusion additionally covers any future _-prefixed dir the scanner
+            // does not already skip, e.g. _drafts/_compare.)
+            if (/(^|\/)_[^/]+(\/|$)/.test(dir)) continue;
             // Only check navigable content directories (houses, dark-arts, and their subdirs)
             if (/^(houses\/|dark-arts\/)/.test(dir)) {
                 // Skip leaf content directories that users don't navigate to directly

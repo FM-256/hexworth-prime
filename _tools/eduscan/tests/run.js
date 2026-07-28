@@ -640,6 +640,70 @@ console.log('');
     }
 }
 
+// Validator-precision tranche 1 (marathon 2026-07-28, task #228): each fix pinned in BOTH
+// directions so the rule can neither regress to false-positives nor silently die.
+{
+    // HEUR-034: decimal opacities (0.8) and '0%'-inside-'50%' must NOT flag; a true
+    // 0->1 infinite fade must STILL flag.
+    const hv = new HeuristicsValidator({ rootPath: ROOT_PATH });
+    const pulseFP = { path: 'synthetic/pulse.html', content:
+        '<html><head><style>@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } } .x { animation: pulse 1.2s ease-in-out infinite; }</style></head><body><h1>t</h1></body></html>' };
+    const fadeTP = { path: 'synthetic/fade.html', content:
+        '<html><head><style>@keyframes fade { 0% { opacity: 0; } 100% { opacity: 1; } } .y { animation: fade 2s infinite; }</style></head><body><h1>t</h1></body></html>' };
+    const fpHits = hv.validate(pulseFP).filter(i => i.code === 'HEUR-034');
+    const tpHits = hv.validate(fadeTP).filter(i => i.code === 'HEUR-034');
+    if (fpHits.length === 0 && tpHits.length === 1) {
+        console.log('  ✓ HEUR-034 precision — decimal pulse not flagged, true 0->1 infinite still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ HEUR-034 precision — pulse FP hits: ${fpHits.length} (want 0), fade TP hits: ${tpHits.length} (want 1)`);
+        failed++;
+    }
+
+    // SEM-003: redirect stubs (meta refresh) exempt; a normal h1-less page still flags.
+    const sv = new SemanticValidator({ rootPath: ROOT_PATH });
+    const stub = { path: 'synthetic/stub.html', content:
+        '<html><head><meta http-equiv="refresh" content="0; url=../"><title>T</title></head><body><p>Redirecting...</p></body></html>' };
+    const bare = { path: 'synthetic/bare.html', content:
+        '<html><head><title>T</title></head><body><p>content but no heading</p></body></html>' };
+    // Nancy's live regression case: a page that TEACHES meta-refresh (entity-encoded
+    // sample) is NOT a redirect and must still flag; nor is a long-delay interstitial.
+    const teaches = { path: 'synthetic/teaches.html', content:
+        '<html><head><title>T</title></head><body><p>Polling example: &lt;meta http-equiv="refresh" content="30"&gt;</p></body></html>' };
+    const interstitial = { path: 'synthetic/interstitial.html', content:
+        '<html><head><meta http-equiv="refresh" content="30; url=../"><title>T</title></head><body><p>Moving in 30s...</p></body></html>' };
+    const stubHits = sv.validate(stub).filter(i => i.code === 'SEM-003');
+    const bareHits = sv.validate(bare).filter(i => i.code === 'SEM-003');
+    const teachHits = sv.validate(teaches).filter(i => i.code === 'SEM-003');
+    const interHits = sv.validate(interstitial).filter(i => i.code === 'SEM-003');
+    if (stubHits.length === 0 && bareHits.length === 1 && teachHits.length === 1 && interHits.length === 1) {
+        console.log('  ✓ SEM-003 precision — 0s stub exempt; bare page, meta-refresh TEACHING page, and 30s interstitial all still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ SEM-003 precision — stub:${stubHits.length}(0) bare:${bareHits.length}(1) teaches:${teachHits.length}(1) interstitial:${interHits.length}(1)`);
+        failed++;
+    }
+
+    // PATH-IDX-001: underscore-prefixed dirs (_source etc.) exempt; a normal
+    // index-less content dir still flags. (Synthetic dirs don't exist on disk, so
+    // existsSync is false for both — only the exclusion differentiates them.)
+    const SyntaxValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/index'));
+    const sx = new SyntaxValidator({ rootPath: ROOT_PATH });
+    const pix = sx.checkMissingDirectoryIndexes([
+        { path: 'houses/synthhouse/_source/raw.html' },
+        { path: 'houses/synthhouse/exams/final.html' }
+    ]).filter(i => i.code === 'PATH-IDX-001');
+    const srcFlagged = pix.some(i => String(i.file).includes('_source'));
+    const examFlagged = pix.some(i => String(i.file).includes('exams'));
+    if (!srcFlagged && examFlagged) {
+        console.log('  ✓ PATH-IDX-001 precision — _source exempt, index-less content dir still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ PATH-IDX-001 precision — _source flagged: ${srcFlagged} (want false), exams flagged: ${examFlagged} (want true)`);
+        failed++;
+    }
+}
+
 // AssignmentLinkValidator: all emitted issues use ASGN-001..006 codes; current platform has zero broken item assignments (ASGN-001)
 {
     const AssignmentLinkValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/assignment-links'));
