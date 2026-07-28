@@ -286,6 +286,8 @@
             font-size: 22px; cursor: pointer; padding: 4px 8px; transition: color 0.2s;
         }
         .modal-close:hover { color: var(--accent); }
+        /* A wagered Daily Double cannot be dismissed: hide the X while locked */
+        .modal-overlay.dd-locked .modal-close { display: none; }
         .modal-category {
             font-size: 11px; color: var(--accent); text-transform: uppercase;
             letter-spacing: 2px; margin-bottom: 6px; font-family: var(--mono); font-weight: 700;
@@ -660,7 +662,7 @@
     <!-- Modal overlay (outside gameRoot so it layers over everything) -->
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal" id="modal">
-            <button class="modal-close" onclick="closeModal()" title="Close">&times;</button>
+            <button class="modal-close" onclick="requestCloseModal()" title="Close">&times;</button>
             <div class="modal-category" id="modalCategory"></div>
             <div class="modal-value"    id="modalValue"></div>
             <div class="modal-clue"     id="modalClue"></div>
@@ -954,6 +956,9 @@
         var overlay = document.getElementById('modalOverlay');
         overlay.classList.add('active');
         overlay.classList.toggle('is-daily-double', isDD);
+        /* toggle (not conditional add): must force-clear on non-DD clues so a
+           reset that bypasses closeModal can never strand a stale lock */
+        overlay.classList.toggle('dd-locked', isDD);
         document.body.style.overflow = 'hidden';
     }
 
@@ -1092,10 +1097,22 @@
         }
     }
 
+    /* A Daily Double with a locked wager cannot be dismissed -- the only exits
+       are judging the clue (or Reset Board). Pre-wager splash close is allowed. */
+    function ddCloseLocked() {
+        return !!(currentClue && currentClue.isDailyDouble && currentClue.wager >= 5);
+    }
+    /* User-initiated close (X button); blocked while a wagered DD is in play. */
+    function requestCloseModal() {
+        if (ddCloseLocked()) return;
+        closeModal();
+    }
+
     function closeModal() {
         var overlay = document.getElementById('modalOverlay');
         overlay.classList.remove('active');
         overlay.classList.remove('is-daily-double');
+        overlay.classList.remove('dd-locked');
         document.body.style.overflow = '';
         currentClue    = null;
         stopClueTimer();
@@ -1313,7 +1330,7 @@
     document.addEventListener('keydown', function(e) {
         var overlay = document.getElementById('modalOverlay');
         if (!overlay.classList.contains('active')) return;
-        if (e.key === 'Escape') { closeModal(); return; }
+        if (e.key === 'Escape') { if (!ddCloseLocked()) closeModal(); return; }
 
         /* DD wager input: Enter submits, other keys go to the input naturally */
         var wagerInput = document.getElementById('ddWagerInput');
@@ -1331,9 +1348,9 @@
         }
     });
 
-    /* Close modal on backdrop click */
+    /* Close modal on backdrop click (blocked while a wagered DD is in play) */
     document.getElementById('modalOverlay').addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
+        if (e.target === this && !ddCloseLocked()) closeModal();
     });
 
     /* ── Main entry: fetch + initialise ─────────────────────────────── */
