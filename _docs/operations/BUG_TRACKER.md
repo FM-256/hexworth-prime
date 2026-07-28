@@ -31,6 +31,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-040 -- BLACKSITE: sections 2-4 were unplayable; the terminal never rebound on tab switch  ·  P1  ·  fixed-not-deployed
+- **Found:** 2026-07-28 · by self (played it as a student, puppeteer, against production) · Frank asked to verify the Grep & Pipe Mastery BLACKSITE levels are completable
+- **Area:** _app/components/BlacksiteTerminal.js loadModule() (~:280) + _app/components/CLHTerminal.js:3512 (constructor binds keydown directly to the input node)
+- **Symptom:** only TRACE was playable. Switching to DECODE / EXTRACT / DEFUSE rendered the new objectives but every command still executed against the PREVIOUS section's filesystem, so nothing could be completed. Live scores before the fix: TRACE 7/8, DECODE 0/8, EXTRACT 0/8, DEFUSE 0/6 (22 of 30 objectives unreachable). Visible tell: on DECODE, `grep "^2024" intercepted_codes.log` answered `No such file or directory` under the prompt `analyst@logserver:/var/log$` (TRACE's host), not DECODE's `intelserver`.
+- **Root cause:** loadModule dropped its reference to the old CLHTerminal and built a new one on the SAME input node, but CLHTerminal binds its keydown handler to that node and exposes no teardown (no destroy(), no removeEventListener anywhere in the 16k-line component). The stale listener fired first, ran the command against the old module, and cleared the input, so the new terminal only ever saw an empty string. Clinching detail: on EXTRACT, typing `wc -l` ticked exactly one objective -- the STALE TRACE instance completing its own `-l` objective, marked into the freshly rendered EXTRACT panel.
+- **Fix:** this commit -- loadModule replaces the input element with a clone before constructing the new terminal, detaching every stale listener at once. Scoped to BlacksiteTerminal because it is the only multi-instance consumer (91 files construct CLHTerminal; each creates exactly one per page). **Known gap, named not silent:** CLHTerminal still has no teardown by design; any FUTURE second multi-instance consumer will hit this same class and should get a real destroy() rather than repeating the clone-swap. The fix also depends on loadModule staying synchronous between the swap and the rebuild (noted in a code comment).
+- **Verified:** student playthrough (types each objective's taught command, answers all four CRITICAL DECISION modals correctly): 8/8 + 8/8 + 8/8 + 6/6 = 30/30, each section on its own host (logserver / intelserver / forensics / evidence), zero page errors. Production re-verify pending deploy.
+- **Related:** BUG-041 (found in the same playthrough).
+
+### BUG-041 -- BLACKSITE: two objectives could not be completed with the command they teach  ·  P2  ·  fixed-not-deployed
+- **Found:** 2026-07-28 · by self (TRACE-7) and Nancy (DECODE-2) · same playthrough / review
+- **Area:** _app/components/CLHConfig.js GPM-TRACE objective 7, GPM-DECODE objective 2
+- **Symptom:** TRACE-7 ("List all files mentioning the bomb threat") teaches `grep -rl "bomb" /var/log/` but checked `cmd.includes('-l')`, and the string `-rl` does not contain `-l`. DECODE-2 teaches `grep -Eo "[0-9]+\..."` but checked `lowerCmd.includes('-o')`, and `-Eo` lowercases to `-eo`. A student following the hint exactly could never tick either. Verified by running the real check functions against their own taught commands: 28 of 30 passed, these 2 failed.
+- **Root cause:** substring tests against the raw command string cannot see a flag letter that is not first after the dash.
+- **Fix:** this commit -- shared `hasFlag(cmd, letter)` helper (whitespace tokenize, whole single-dash letter cluster) replaces the brittle substring tests on the pure single-flag checks in these modules (TRACE 1,2,3,4,5,7,8; DECODE 2,3). Phrase/pattern checks (`uniq -c`, `sort -rn`, `[0-9]`, `^`, `$`, the `-(A|B|C)\d` regex) are deliberately untouched: all pass their taught commands, so changing them is risk without a reproduced defect.
+- **Scope of the false-positive improvement (precise, per Nancy):** hasFlag closes the GLUED quoted-token case -- `grep "-c" file` used to tick the -c objective and no longer does. It does NOT close a free-standing flag-shaped word inside a quoted phrase (`grep "some -v text" file` still ticks, exactly as before). That case is unchanged, not fixed, and is not exploitable by accident here since no taught search term is a single-letter flag word.
+- **Verified:** all 30 objectives pass their taught commands; adversarial set passes (combined `-rl`/`-Eo`/`-ic` tick; `--long-format`, `-largefile.log`, quoted `"-l"`, and no-flag variants correctly rejected).
+- **Related:** BUG-040.
+
+### BUG-039 -- PFI Operator bridge polls a key the engine never writes (dash vs underscore)  ·  P2  ·  open
+- **Found:** 2026-07-28 · by Nancy · during operator completion-fix review (her attack on "other hexworth_operator_ consumers")
+- **Area:** _app/operator/missions/pfi-op-0{1..4}.mission.html (~:52, `COMP_KEY = 'hexworth_operator_' + MISSION_ID` = dashed `hexworth_operator_pfi-op-01`) and _app/houses/code/python-for-it/index.html:2332-2340 (same dashed read) vs _app/operator/configs/pfi-op-0*.config.js (`storageKey: 'hexworth_operator_pfi_op_01'` = underscored, which is what OperatorEngine actually writes)
+- **Symptom:** the in-mission ModuleProgress bridge polls a key that never exists, so it NEVER fires; the python-for-it course page backfill reads the same wrong key. Students who complete PFI Operator missions get no course-progress credit. Silent no-op since the bridge shipped.
+- **Root cause:** bridge and backfill derive the key from the dashed mission id; the configs define underscored storageKeys. Two conventions, no shared constant.
+- **Fix (when scheduled):** point bridge + backfill at the configs' underscored storageKeys (or read both, migrate-forward). NOT fixed by the 2026-07-28 operator sync build -- that build hydrates the OPERATOR HUB's own keys; this bug is in the PFI course-credit path and remains open. Also decide whether historical underscored completions should be backfilled into ModuleProgress at fix time.
+- **Related:** operator completion sync build 2026-07-28; BUG-037/BUG-038 (same hand-list drift family).
+
 ### BUG-038 -- cartridge-fy orphaned 12 learning-path links across 6 houses (real paths unreachable)  ·  P2  ·  open
 - **Found:** 2026-07-28 · by self (completeness-checked by Nancy) · during Eye projection conversion, extending the AI-house near-miss to all cartridge-fied houses
 - **Area:** _app/houses/{cloud,code,eye,key,script,shield}/index.html vs _app/components/LearningPaths.js + handler-dashboard.js PATH_HOUSE_MAP

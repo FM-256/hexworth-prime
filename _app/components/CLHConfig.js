@@ -16,6 +16,31 @@ const CLHConfig = (function() {
     'use strict';
 
     // ═══════════════════════════════════════════════════════════════
+    // OBJECTIVE-CHECK HELPERS
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * True when the command carries `letter` as a real short-flag.
+     *
+     * Objective checks used to test the raw string (cmd.includes('-l')), which is wrong
+     * in BOTH directions: it misses combined flags, because '-rl' does not contain the
+     * substring '-l' (the taught command `grep -rl "bomb" /var/log/` could never satisfy
+     * its own objective), and it accepts a flag that is not one, because '-c' inside a
+     * quoted pattern or a filename matches just as happily.
+     *
+     * Tokenizing on whitespace and requiring a whole single-dash letter cluster fixes
+     * both: -rl / -Eo match their letters, --long-options and dash-prefixed filenames
+     * (-largefile.log) do not, and text inside quotes can never match because a quoted
+     * token does not start with '-'. Letters are case-sensitive on purpose -- grep -o
+     * and -O are different flags, and the labs teach that distinction.
+     */
+    function hasFlag(cmd, letter) {
+        return String(cmd).split(/\s+/).some(function (token) {
+            return /^-[a-zA-Z]+[0-9]*$/.test(token) && token.slice(1).indexOf(letter) !== -1;
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // TIER DEFINITIONS
     // ═══════════════════════════════════════════════════════════════
 
@@ -12223,7 +12248,7 @@ The Consortium knows where.`
                     task: 'Find RAVEN in the auth logs (case-insensitive)',
                     hint: 'Use -i flag: grep -i "raven" auth.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-i') &&
+                        return cmd.includes('grep') && hasFlag(cmd, 'i') &&
                                cmd.toLowerCase().includes('raven');
                     }
                 },
@@ -12232,7 +12257,7 @@ The Consortium knows where.`
                     task: 'Count how many times RAVEN accessed the system',
                     hint: 'Use -c flag: grep -c "RAVEN" auth.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-c') &&
+                        return cmd.includes('grep') && hasFlag(cmd, 'c') &&
                                cmd.toUpperCase().includes('RAVEN');
                     }
                 },
@@ -12241,7 +12266,7 @@ The Consortium knows where.`
                     task: 'Find Room 105 anomalies with line numbers',
                     hint: 'Use -n flag: grep -n "105" keycard.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-n') &&
+                        return cmd.includes('grep') && hasFlag(cmd, 'n') &&
                                cmd.includes('105');
                     }
                 },
@@ -12250,7 +12275,7 @@ The Consortium knows where.`
                     task: 'Find keycard entries that are NOT normal access',
                     hint: 'Use -v to exclude normal: grep -v "Guest" keycard.log',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-v');
+                        return cmd.includes('grep') && hasFlag(cmd, 'v');
                     }
                 },
                 {
@@ -12258,7 +12283,7 @@ The Consortium knows where.`
                     task: 'Search all intel files for "RAVEN"',
                     hint: 'Use -r flag: grep -r "RAVEN" /var/log/intel/',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-r');
+                        return cmd.includes('grep') && hasFlag(cmd, 'r');
                     }
                 },
                 {
@@ -12274,7 +12299,7 @@ The Consortium knows where.`
                     task: 'List all files mentioning the bomb threat',
                     hint: 'Use -l flag: grep -rl "bomb" /var/log/',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-l');
+                        return cmd.includes('grep') && hasFlag(cmd, 'l');
                     }
                 },
                 {
@@ -12282,7 +12307,7 @@ The Consortium knows where.`
                     task: 'Find the exact room number in radio intercept',
                     hint: 'Use -w for whole word: grep -w "105" radio_intercept.txt',
                     check: (cmd, state, output) => {
-                        return cmd.includes('grep') && cmd.includes('-w') &&
+                        return cmd.includes('grep') && hasFlag(cmd, 'w') &&
                                cmd.includes('105');
                     }
                 }
@@ -12546,9 +12571,8 @@ PHOENIX out. Standing by for your call.`
                     task: 'Extract RAVEN\'s IP address pattern from the intercepts',
                     hint: 'Use -Eo with digit pattern: grep -Eo "[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+" intercepted_codes.log',
                     check: (cmd, state, output) => {
-                        const lowerCmd = cmd.toLowerCase();
-                        return cmd.includes('grep') && lowerCmd.includes('-o') &&
-                               (lowerCmd.includes('-e') || lowerCmd.includes('[0-9]'));
+                        return cmd.includes('grep') && hasFlag(cmd, 'o') &&
+                               (hasFlag(cmd, 'E') || hasFlag(cmd, 'e') || cmd.includes('[0-9]'));
                     }
                 },
                 {
@@ -12557,7 +12581,7 @@ PHOENIX out. Standing by for your call.`
                     hint: 'Use | operator with -E: grep -E "RED|BLUE" wire_protocols.db',
                     check: (cmd, state, output) => {
                         return cmd.includes('grep') && cmd.includes('|') &&
-                               (cmd.includes('-E') || cmd.includes('-e'));
+                               (hasFlag(cmd, 'E') || hasFlag(cmd, 'e'));
                     }
                 },
                 {

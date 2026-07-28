@@ -277,10 +277,29 @@ const BlacksiteTerminal = (function() {
         elements.camId.textContent = theme.camera;
         elements.location.textContent = theme.location;
 
-        // Destroy existing terminal
+        // Destroy existing terminal.
+        // CLHTerminal binds its keydown handler straight to the input NODE and exposes no
+        // teardown (no destroy(), no removeEventListener anywhere in the component), so
+        // dropping our reference does NOT detach the old listener. Left attached, the
+        // previous section's terminal keeps winning the keystroke: it runs the command
+        // against the OLD module's filesystem and clears the input, so the newly built
+        // terminal only ever sees an empty string -- which made every section after the
+        // first uncompletable (0/8 on DECODE and EXTRACT, 0/6 on DEFUSE).
+        // Replacing the input with a clone detaches every listener at once; the old
+        // instance keeps a reference to the now-detached node and goes quiet.
+        // NOTE: this is safe only because loadModule stays SYNCHRONOUS from here to the
+        // CLHTerminal construction below -- inserting an await/rAF/animation between the
+        // swap and the rebuild would reopen the window for a keystroke to land on the
+        // fresh, unbound node.
         if (state.terminal) {
             state.terminal = null;
             elements.terminalOutput.innerHTML = '';
+        }
+        if (elements.terminalInput && elements.terminalInput.parentNode) {
+            const freshInput = elements.terminalInput.cloneNode(true);
+            freshInput.value = '';
+            elements.terminalInput.parentNode.replaceChild(freshInput, elements.terminalInput);
+            elements.terminalInput = freshInput;
         }
 
         // Get module config for objectives display
