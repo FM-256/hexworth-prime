@@ -378,6 +378,8 @@
         }
         .dd-wager-input::-webkit-outer-spin-button,
         .dd-wager-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        /* BUG-033: rejected wager input (unparseable or below the $5 minimum) */
+        .dd-wager-input.dd-wager-bad { border-color: #ef4444; }
         .dd-wager-input[type=number] { -moz-appearance: textfield; }
 
         @keyframes fadeUp {
@@ -582,7 +584,7 @@
                     <li>Self-judge: mark correct to earn the value, or wrong to lose it</li>
                     <li>Higher values = harder clues; start low if warming up</li>
                     <li>Build a streak of correct answers for bonus glory</li>
-                    <li>One cell on the board is the <strong>Daily Double</strong>: wager any amount from $5 up to the higher of your current score or $500</li>
+                    <li>Two cells on the board are <strong>Daily Doubles</strong>: wager any amount from $5 up to the higher of your current score or $500</li>
                     <li>Clear all cells to see your final score and category breakdown</li>
                 </ul>
             </div>
@@ -716,9 +718,7 @@
     let answerRevealed  = false;
     let currentStreak   = 0;
     let bestStreak      = 0;
-    let dailyDoubleCat  = 0;
-    let dailyDoubleRow  = 0;
-    let dailyDoubleFound = false;
+    let dailyDoubles    = [];  /* two per board: [{cat, row, found}] */
 
     /* ── AccessGuard: optional in sandbox ─────────────────────────── */
     (function guardOptional() {
@@ -778,10 +778,26 @@
 
     /* ── Board construction ─────────────────────────────────────────── */
     function rollDailyDouble() {
-        dailyDoubleCat   = Math.floor(Math.random() * categories.length);
-        var ddClues      = (categories[dailyDoubleCat].clues || []).length || 1;
-        dailyDoubleRow   = Math.floor(Math.random() * ddClues);
-        dailyDoubleFound = false;
+        /* Two Daily Doubles per board, in distinct categories (a one-category
+           board falls back to distinct cells). Boards with fewer than 2 clues
+           get what they can hold; a board with no playable cells gets none. */
+        dailyDoubles = [];
+        var eligible = [];
+        categories.forEach(function(c, i) {
+            if ((c.clues || []).length > 0) eligible.push(i);
+        });
+        if (!eligible.length) return;
+        var totalClues = eligible.reduce(function(s, i) { return s + categories[i].clues.length; }, 0);
+        var want  = Math.min(2, totalClues);
+        var guard = 0;
+        while (dailyDoubles.length < want && guard++ < 200) {
+            var cat = eligible[Math.floor(Math.random() * eligible.length)];
+            var row = Math.floor(Math.random() * categories[cat].clues.length);
+            var clash = dailyDoubles.some(function(d) {
+                return (eligible.length > 1) ? (d.cat === cat) : (d.cat === cat && d.row === row);
+            });
+            if (!clash) dailyDoubles.push({ cat: cat, row: row, found: false });
+        }
     }
 
     function buildBoard() {
@@ -870,9 +886,13 @@
 
         var cat  = categories[catIdx];
         var clue = cat.clues[rowIdx];
-        var isDailyDouble = !dailyDoubleFound
-            && catIdx === dailyDoubleCat
-            && rowIdx === dailyDoubleRow;
+        var ddRef = null;
+        for (var di = 0; di < dailyDoubles.length; di++) {
+            if (!dailyDoubles[di].found
+                && dailyDoubles[di].cat === catIdx
+                && dailyDoubles[di].row === rowIdx) { ddRef = dailyDoubles[di]; break; }
+        }
+        var isDailyDouble = !!ddRef;
 
         currentClue = {
             catIdx: catIdx,
@@ -882,6 +902,7 @@
             clue: clue.clue,
             explain: clue.explain || '',
             isDailyDouble: isDailyDouble,
+            ddRef: ddRef,
             wager: 0
         };
         answerRevealed = false;
@@ -976,18 +997,23 @@
     function submitDailyDoubleWager() {
         var inp = document.getElementById('ddWagerInput');
         if (!inp || !currentClue) return;
+        inp.classList.remove('dd-wager-bad');
         var maxWager = Math.max(score, 500);
-        var raw      = (inp.value || '').trim();
-        var wager;
-        if (/^\d+$/.test(raw)) {
-            wager = parseInt(raw, 10);
-        } else {
-            wager = 5;
+        /* BUG-033: parse what the player actually typed ($/commas/spaces
+           stripped, decimals floored). Anything that does not resolve to a
+           number of at least the $5 minimum is REJECTED -- hold the splash and
+           flag the input; never silently substitute a bet. Over-max clamps
+           down to the advertised cap. */
+        var raw   = String(inp.value || '').replace(/[$,\s]/g, '');
+        var wager = Math.floor(Number(raw));
+        if (raw === '' || !Number.isFinite(wager) || wager < 5) {
+            inp.classList.add('dd-wager-bad');
+            inp.focus(); inp.select();
+            return;
         }
-        if (wager < 5)        wager = 5;
         if (wager > maxWager) wager = maxWager;
-        currentClue.wager  = wager;
-        dailyDoubleFound   = true;
+        currentClue.wager = wager;
+        if (currentClue.ddRef) currentClue.ddRef.found = true;
         renderClueModal();
         startClueTimer();
         if (window.HexworthGameAudio) HexworthGameAudio.startThink(CLUE_TIMER_SECONDS, onClueTimeExpired);

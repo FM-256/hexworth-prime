@@ -31,6 +31,20 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-033 — Jeopardy Daily Double wager silently becomes $5 on any non-pure-digit input  ·  P1  ·  in-progress
+- **Found:** 2026-07-27 · by user (Frank, live A+ Core 1 class session) · in Review Games / Jeopardy engine
+- **Area:** _app/_games-lab/jeopardy.html:976-994 `submitDailyDoubleWager()` (shared engine, all 18 courses)
+- **Symptom:** Player types a wager; if the value is not a pure integer string (decimal "350.5", cleared/empty field, "5e2", "$500", "1,000"), the bet silently becomes $5. Scoring then pays/deducts $5, not the intended wager — "the bet amount did not process properly" in class.
+- **Repro:** headless vs LIVE hexworth.com, forced DD: "350.5"→$5, ""→$5, "5e2"→$5 (integers and over-max clamp behave correctly). Script: scratchpad/dd-math-repro.js.
+- **Root cause:** wager parsed with `/^\d+$/` gate and a blanket `wager = 5` fallback for anything that fails it.
+- **Fix:** in flight (bundled with the 2-Daily-Doubles engine change) — strip $/commas/spaces, `Math.floor(Number(...))`, clamp 5..max; unparseable input keeps the wager splash open (no silent bet). Nancy reviewing.
+- **Related:** secondary UX debt found in same repro: locking a wager then closing the modal (Escape/backdrop) without judging silently voids the wager (DD consumed at lock-in; reopened cell reverts to face value). Held for a separate Frank ruling — not part of this fix.
+- **SCOPE CAVEAT (Chris QC catch, 2026-07-27):** the games-lab engine fix does NOT cover three standalone review-game pages that carry their own independent copies of the same defect class (single DD + silent $5-substitute wager fallback), all live and linked from their course pages ("Play" buttons):
+  - `_app/houses/divergent/ethics-it/exams/eth-jeopardy.review.html` (~913-923) — linked from `houses/divergent/ethics-it/index.html:2117`
+  - `_app/houses/shield/infosec/exams/pis-jeopardy.review.html` (~789-799, ~990-992) — linked from `houses/shield/infosec/index.html:2094`
+  - `_app/houses/matrix/adv-linux/exams/ala-jeopardy.review.html` (~811-821, ~993-998) — linked from `houses/matrix/adv-linux/index.html:2201`
+  Running Jeopardy review in Ethics/PIS/ALA hits the identical "bet didn't process" failure until these are patched. **Frank RULED 2026-07-27: "option 1 ship it now then fix the other three"** — engine bundle deploys first; the three standalone pages get the same 2-DD + wager-parse fix as the IMMEDIATE next work item (taskboard task, each page individually tested + QC'd). (forge-aplus-jeopardy.applet.html checked: NO DD/wager mechanic — unaffected.)
+
 ### BUG-032 — FEH dashboard cards linked to the Forensics Hub, not the FEH course  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-27 · by Chris + Nancy · in cartridge-fy / FEH-rename QC
 - **Area:** _app/tenant/{index,dashboard-clean-ops,dashboard-command-center,dashboard-enterprise,dashboard-tactical-hud}.html — 6 `feh` entries
