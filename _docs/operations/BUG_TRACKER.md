@@ -31,6 +31,25 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-042 -- Dark Arts gates are unpassable for signed-out students, and the error blames the student  ·  P1  ·  open
+- **Found:** 2026-07-28 · by user report (Frank: "users are reporting problems with Gate 5") · reproduced live
+- **Area:** _app/dark-arts/gate-cipher.js checkAnswerServer (~:53-85) + all five gate pages' identical `serverResult !== null ? serverResult : false` (gate-1.html:275, gate-2.html:279, gate-3.html:311, gate-4.html:519, gates/gate-5.html:439-441)
+- **Symptom:** a student who is house-sorted but NOT signed in can never clear ANY gate. checkAnswerServer returns null when `FirebaseAuth.isSignedIn()` is false (the client-side hash fallback was retired in the 2026-02 rotation and now always returns null), every gate coerces null to `false`, and the page shows "The synthesis is incomplete." So a correct answer is reported as wrong, with no hint that sign-in is required. Gate 5 draws the reports because it is the vault entrance and the last one students reach.
+- **Repro (live, hexworth.com):** seed only `hexworth_house`, open /dark-arts/gates/gate-5.html, submit the correct Gate 4 code (1973 for the current cipher set) + any binding word -> `FirebaseAuth.isSignedIn() === false`, `GATE_CIPHER.checkAnswerServer(4,'1973')` returns `null`, error "The synthesis is incomplete." shows, `gate5_complete` stays null.
+- **Note:** the pages gate on `AccessGuard.require('sorted')`, which does NOT imply signed-in -- that mismatch is the whole bug. Server validation itself is correct (validateGateAnswer handles gate 5's hash ARRAY properly; gate_registry/set_2 has all five keys).
+- **Fix options (operator ruling needed):** (a) require sign-in on gate pages (AccessGuard level change) so the situation cannot arise; (b) keep access open but distinguish null from false -- show "Sign in to verify your answer" instead of "incomplete"; (c) both. Recommendation: (c), with (b) as the minimum since it stops the platform from telling a correct student they are wrong.
+- **Related:** BUG-043 (same audit).
+
+### BUG-043 -- Gate answers are readable in dev tools, and the vault opens on client-side flags alone  ·  P1  ·  open
+- **Found:** 2026-07-28 · by user report (Frank: "they can access the solutions via dev tools (f12)") · both halves reproduced live
+- **Area:** _app/dark-arts/gate-cipher.js SETS (~:10-40); AccessGuard gate checks reading `localStorage.gate{N}_complete`
+- **Symptom A (answers in the client):** gate-cipher.js ships all four cipher sets to every visitor. Its own header claims "No plaintext answers exist in this file", which is false: `gate4: { code: '1973' }` is the literal Gate 4 answer for the active set, needing no decoding, and it is also half of Gate 5's synthesis input. Gates 1-3's hex/base64 are one command from plaintext ("beneath the code lies meaning", "shadows teach the patient mind", "hidden layers guard the path"). Anyone who opens Sources reads the month's solutions.
+- **Symptom B (progress is client-trusted):** setting `gate1..8_complete = 'true'` in the Application tab opens /dark-arts/vault/index.html at Master rank with no server check (verified live: full 8.5KB vault UI renders). Server-verified completions ARE written to users/{uid}/gates/{gateN} by validateGateAnswer, but nothing reads them back -- the client flag is the only thing consulted.
+- **Constraint to respect when fixing A:** Gate 4 synthesizes DTMF audio in the browser, so the tone sequence has to exist client-side in some form; the honest fixes are pre-rendered audio served as an asset, or per-user server-issued codes. Obfuscating the string in place is not a fix.
+- **Fix options (operator ruling needed):** A: pre-render Gate 4 audio (or server-issue the code) and ship only the puzzle inputs the gate genuinely needs; B: hydrate gate state from users/{uid}/gates on load and treat the server as authority (localStorage becomes a cache, not the credential), mirroring the operator mission_completions hydration shipped 2026-07-28. Both are real work; neither is started.
+- **Severity note:** this is a CTF-style teaching gate, not an assessment of record, so the impact is a student skipping content rather than grade fraud. Filed P1 anyway because the platform's own docs claim server-side authority that does not hold end to end.
+- **Related:** BUG-042 (same audit); operator sync build (the hydration pattern option B would follow).
+
 ### BUG-040 -- BLACKSITE: sections 2-4 were unplayable; the terminal never rebound on tab switch  ·  P1  ·  fixed-not-deployed
 - **Found:** 2026-07-28 · by self (played it as a student, puppeteer, against production) · Frank asked to verify the Grep & Pipe Mastery BLACKSITE levels are completable
 - **Area:** _app/components/BlacksiteTerminal.js loadModule() (~:280) + _app/components/CLHTerminal.js:3512 (constructor binds keydown directly to the input node)
