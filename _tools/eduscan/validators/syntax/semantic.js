@@ -56,7 +56,7 @@ class SemanticValidator {
         issues.push(...this._checkHeadingHierarchy(cleanContent, file));
 
         // SEM-002: Multiple h1 elements
-        issues.push(...this._checkMultipleH1(cleanContent, file));
+        issues.push(...this._checkMultipleH1(cleanContent, file, content));
 
         // SEM-003: Missing h1
         issues.push(...this._checkMissingH1(cleanContent, file));
@@ -114,6 +114,42 @@ class SemanticValidator {
     }
 
     /**
+     * Count <h1> tags physically nested inside elements whose class list contains
+     * any of `classes` (exact token match -- \b would treat hyphens as boundaries).
+     * Lightweight depth walk; malformed nesting degrades to a widened span, which
+     * over-counts state h1s -> fail-toward-exemption is bounded by the caller's
+     * nonStateH1 <= 1 requirement.
+     */
+    _countH1sInsideClassed(html, classes) {
+        const hasToken = (tag) => {
+            const m = tag.match(/class=["']([^"']*)["']/);
+            if (!m) return false;
+            const list = m[1].split(/\s+/);
+            return classes.some((c) => list.indexOf(c) !== -1);
+        };
+        let count = 0;
+        const openRE = /<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+        let om;
+        while ((om = openRE.exec(html)) !== null) {
+            if (/^<\//.test(om[0]) || !hasToken(om[0])) continue;
+            let depth = 1;
+            const tagRE = /<\/?[a-zA-Z][a-zA-Z0-9-]*(?:[^>"']|"[^"]*"|'[^']*')*>/g;
+            tagRE.lastIndex = om.index + om[0].length;
+            let tm;
+            while (depth > 0 && (tm = tagRE.exec(html)) !== null) {
+                const tag = tm[0];
+                if (/^<\//.test(tag)) { depth--; continue; }
+                if (/\/>$/.test(tag) || /^<(br|img|input|meta|link|hr|source|track|wbr|area|base|col|embed)\b/i.test(tag)) {
+                    // void: no depth change
+                } else { depth++; }
+                if (/^<h1\b/i.test(tag)) count++;
+            }
+            openRE.lastIndex = tagRE.lastIndex;   // don't re-enter nested same-class containers
+        }
+        return count;
+    }
+
+    /**
      * SEM-001: Check heading hierarchy — headings should not skip levels
      * e.g., h1 → h3 (skipping h2) is a violation
      */
@@ -160,9 +196,60 @@ class SemanticValidator {
      * SEM-002: Check for multiple h1 elements
      * Best practice: one h1 per page for the main title
      */
-    _checkMultipleH1(content, file) {
+    _checkMultipleH1(content, file, rawContent) {
         const issues = [];
         const h1Matches = [...content.matchAll(/<h1\b[^>]*>/gi)];
+        // Toggle-pattern detection must read the RAW file: the .C{display:none}
+        // declarations live in <style> blocks, which are stripped from `content`.
+        const cssSource = rawContent || content;
+
+        // State-machine pages (mutually-exclusive display-toggled containers: quiz
+        // flows, slide decks) legitimately carry one h1 PER STATE -- only one is in
+        // the accessibility tree at a time. Reworked per Nancy's tranche-2b attack
+        // (four reproduced defects in the first cut):
+        //   1. EVERY toggle group (.C{display:none} + .C.active) is validated --
+        //      each must ship EXACTLY ONE static ".C active" container; any group
+        //      violating the one-active invariant voids the exemption (two states
+        //      active = two headings in the a11y tree = the genuine bug).
+        //   2. The exemption is SCOPED: only h1s physically nested inside toggle
+        //      containers are excused. Non-state h1s still count toward the limit,
+        //      so an unrelated tab widget cannot swallow an unrelated dup-h1 bug.
+        //   3. Class matching is exact-token and ORDER-INDEPENDENT
+        //      (class="active state" == class="state active").
+        if (h1Matches.length > 1) {
+            const groupRE = /\.([A-Za-z][\w-]*)\s*\{[^}]*display\s*:\s*none[^}]*\}/g;
+            const groups = [];
+            let gm;
+            while ((gm = groupRE.exec(cssSource)) !== null) {
+                const cls = gm[1];
+                if (groups.indexOf(cls) === -1 &&
+                    new RegExp('\\.' + cls + '\\.active\\b').test(cssSource)) {
+                    groups.push(cls);
+                }
+            }
+            if (groups.length > 0) {
+                const classListsOf = (source) => {
+                    const lists = [];
+                    const re = /class=["']([^"']*)["']/g;
+                    let m;
+                    while ((m = re.exec(source)) !== null) lists.push(m[1].split(/\s+/));
+                    return lists;
+                };
+                const allLists = classListsOf(cssSource);
+                const everyGroupOneActive = groups.every((cls) =>
+                    allLists.filter((l) => l.indexOf(cls) !== -1 && l.indexOf('active') !== -1).length === 1);
+                if (everyGroupOneActive) {
+                    // Count h1s nested inside ANY toggle container (raw markup walk;
+                    // container spans found by exact class-token depth tracking).
+                    const stateH1Count = this._countH1sInsideClassed(cssSource, groups);
+                    const rawH1Count = (cssSource.match(/<h1\b[^>]*>/gi) || []).length;
+                    const nonStateH1 = Math.max(0, h1Matches.length - Math.min(stateH1Count, rawH1Count));
+                    if (nonStateH1 <= 1) {
+                        return issues;
+                    }
+                }
+            }
+        }
 
         if (h1Matches.length > 1) {
             // Report the second and subsequent h1 occurrences

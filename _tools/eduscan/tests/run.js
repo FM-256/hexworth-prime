@@ -690,6 +690,112 @@ console.log('');
         failed++;
     }
 
+    // FLEX-001: only flag flex-column containers that actually HAVE a scrollable
+    // descendant; a decorative flex column (no overflow child) is inert.
+    const FlexValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/flex-overflow'));
+    const fv = new FlexValidator({ rootPath: ROOT_PATH });
+    const flexNoChild = { path: 'synthetic/flexdeco.html', content:
+        '<html><head><style>.deco { display: flex; flex-direction: column; flex: 1; }</style></head><body><h1>t</h1></body></html>' };
+    const flexWithChild = { path: 'synthetic/flexscroll.html', content:
+        '<html><head><style>.panel { display: flex; flex-direction: column; flex: 1; } .panel .list { overflow-y: auto; }</style></head><body><h1>t</h1></body></html>' };
+    const fnHits = fv.validate(flexNoChild).filter(i => i.code === 'FLEX-001');
+    const fwHits = fv.validate(flexWithChild).filter(i => i.code === 'FLEX-001');
+    if (fnHits.length === 0 && fwHits.length === 1) {
+        console.log('  ✓ FLEX-001 precision — decorative flex column exempt; scrollable-descendant container still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ FLEX-001 precision — no-child hits: ${fnHits.length} (want 0), with-child hits: ${fwHits.length} (want 1)`);
+        failed++;
+    }
+
+    // SEM-002: state-machine pages (toggle CSS + exactly ONE static .active) exempt;
+    // TWO shipped .active = the genuine bug the invariant protects (still flags);
+    // a plain multi-h1 page still flags.
+    const stateOk = { path: 'synthetic/stateok.html', content:
+        '<html><head><style>.state { display: none; } .state.active { display: block; }</style></head><body>' +
+        '<div class="state active"><h1>Step one</h1></div><div class="state"><h1>Step two</h1></div></body></html>' };
+    const stateDouble = { path: 'synthetic/statedouble.html', content:
+        '<html><head><style>.state { display: none; } .state.active { display: block; }</style></head><body>' +
+        '<div class="state active"><h1>Step one</h1></div><div class="state active"><h1>Step two</h1></div></body></html>' };
+    const plainDouble = { path: 'synthetic/plaindouble.html', content:
+        '<html><head><title>T</title></head><body><h1>One</h1><h1>Two</h1></body></html>' };
+    const sOk = sv.validate(stateOk).filter(i => i.code === 'SEM-002');
+    const sDbl = sv.validate(stateDouble).filter(i => i.code === 'SEM-002');
+    const pDbl = sv.validate(plainDouble).filter(i => i.code === 'SEM-002');
+    // Nancy's tranche-2b reproductions, all four pinned:
+    // (1) FLEX-001 hyphen-substring masking: an unrelated 'custom-terminal-area-box'
+    //     must NOT make a scroll-less '.terminal-area' pass the descendant check.
+    const flexSubstr = { path: 'synthetic/flexsubstr.html', content:
+        '<html><head><style>.terminal-area { display: flex; flex-direction: column; flex: 1; } ' +
+        '.custom-terminal-area-box { display: flex; } .some-scroller { overflow-y: auto; }</style></head>' +
+        '<body><h1>t</h1><div class="terminal-area"><p>static</p></div>' +
+        '<div class="custom-terminal-area-box"><div class="some-scroller">x</div></div></body></html>' };
+    // Correct direction: .terminal-area has NO scrollable descendant, so it is
+    // exempt (0) — the exact-token fix means the unrelated look-alike class can
+    // neither lend it a phantom descendant (false flag) nor mask a real one.
+    const fsHits = fv.validate(flexSubstr).filter(i => i.code === 'FLEX-001');
+    // Chris's tranche-2b probes: the cssAncestry evidence path must use exact
+    // selector tokens too — '.sidebar-widget-unrelated'/'.card-scroll-wrap' must
+    // NOT lend '.sidebar'/'.card' a phantom scrollable descendant.
+    const cssCollide1 = { path: 'synthetic/csscollide1.html', content:
+        '<html><head><style>.sidebar { display: flex; flex-direction: column; flex: 1; } ' +
+        '.sidebar-widget-unrelated { overflow-y: auto; }</style></head>' +
+        '<body><h1>t</h1><div class="sidebar"><p>static</p></div>' +
+        '<div class="sidebar-widget-unrelated">x</div></body></html>' };
+    const cssCollide2 = { path: 'synthetic/csscollide2.html', content:
+        '<html><head><style>.card { display: flex; flex-direction: column; flex: 1; } ' +
+        '.card-scroll-wrap { overflow-y: auto; }</style></head>' +
+        '<body><h1>t</h1><div class="card"><p>static</p></div>' +
+        '<footer><div class="card-scroll-wrap">x</div></footer></body></html>' };
+    const cc1 = fv.validate(cssCollide1).filter(i => i.code === 'FLEX-001');
+    const cc2 = fv.validate(cssCollide2).filter(i => i.code === 'FLEX-001');
+    // True ancestry must still count: '.panel .list' names .panel as real ancestor.
+    const cssTrue = { path: 'synthetic/csstrue.html', content:
+        '<html><head><style>.panel { display: flex; flex-direction: column; flex: 1; } ' +
+        '.panel .list { overflow-y: auto; }</style></head><body><h1>t</h1></body></html>' };
+    const ct = fv.validate(cssTrue).filter(i => i.code === 'FLEX-001');
+    if (cc1.length === 0 && cc2.length === 0 && ct.length === 1) {
+        console.log('  ✓ FLEX-001 cssAncestry token discipline — hyphen look-alikes neutral, true ancestry still flags');
+        passed++;
+    } else {
+        console.log(`  ✗ FLEX-001 cssAncestry — collide1:${cc1.length}(0) collide2:${cc2.length}(0) true:${ct.length}(1)`);
+        failed++;
+    }
+
+    // (2) unrelated tab widget must NOT swallow an unrelated dup-h1 bug
+    const tabPlusDup = { path: 'synthetic/tabdup.html', content:
+        '<html><head><style>.tab { display: none; } .tab.active { display: block; }</style></head><body>' +
+        '<div class="tab active">Pricing</div><div class="tab">Docs</div>' +
+        '<h1>Welcome</h1><h1>Duplicate pasted by accident</h1></body></html>' };
+    const tdHits = sv.validate(tabPlusDup).filter(i => i.code === 'SEM-002');
+    // (3) second toggle group violating one-active must void the exemption
+    const twoGroups = { path: 'synthetic/twogroups.html', content:
+        '<html><head><style>.pa { display: none; } .pa.active { display: block; } ' +
+        '.pb { display: none; } .pb.active { display: block; }</style></head><body>' +
+        '<div class="pa active"><h1>A1</h1></div><div class="pa"><h1>A2</h1></div>' +
+        '<div class="pb active"><h1>B1</h1></div><div class="pb active"><h1>B2</h1></div></body></html>' };
+    const tgHits = sv.validate(twoGroups).filter(i => i.code === 'SEM-002');
+    // (4) order-independent class matching: class="active state" must exempt like "state active"
+    const orderFlip = { path: 'synthetic/orderflip.html', content:
+        '<html><head><style>.state { display: none; } .state.active { display: block; }</style></head><body>' +
+        '<div class="active state"><h1>One</h1></div><div class="state"><h1>Two</h1></div></body></html>' };
+    const ofHits = sv.validate(orderFlip).filter(i => i.code === 'SEM-002');
+    if (fsHits.length === 0 && tdHits.length >= 1 && tgHits.length >= 1 && ofHits.length === 0) {
+        console.log('  ✓ tranche-2b adversarial pins — substring look-alike neutral; tab widget cannot swallow dup-h1; bad second group flags; order-flipped active exempts');
+        passed++;
+    } else {
+        console.log(`  ✗ tranche-2b adversarial pins — substr:${fsHits.length}(0) tabdup:${tdHits.length}(>=1) twogroups:${tgHits.length}(>=1) orderflip:${ofHits.length}(0)`);
+        failed++;
+    }
+
+    if (sOk.length === 0 && sDbl.length === 1 && pDbl.length === 1) {
+        console.log('  ✓ SEM-002 precision — one-active state machine exempt; double-active and plain multi-h1 still flagged');
+        passed++;
+    } else {
+        console.log(`  ✗ SEM-002 precision — stateOk:${sOk.length}(0) stateDouble:${sDbl.length}(1) plainDouble:${pDbl.length}(1)`);
+        failed++;
+    }
+
     // Nancy's live regression case: a page that TEACHES meta-refresh (entity-encoded
     // sample) is NOT a redirect and must still flag; nor is a long-delay interstitial.
     const teaches = { path: 'synthetic/teaches.html', content:
