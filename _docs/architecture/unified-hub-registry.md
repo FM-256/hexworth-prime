@@ -207,6 +207,35 @@ The first-build-step ruling (decision 3) is implemented:
   "surfaced on no house page" list dropped 105 -> 97 (the 8 AI hubs); the rest
   clears as houses convert house-by-house.
 
+## Projection rollout COMPLETE (2026-07-28, Frank: "do the rest of the houses")
+
+All 12 non-Observatory houses are now pure byHouse() projections (Observatory stays a
+curated cross-house lens by ruling):
+
+- ai (b92534ad7, +3 preserved path cards), eye (03eb5318f), then the batch: cloud, code
+  (+1 preserved python-engineering house-local card), dark-arts, forge, key, script,
+  shield converted from hand-lists; matrix, web, divergent cartridge-fied for the first
+  time (HubRegistry include + cardStyle + projection; their paths were EMPTY before --
+  students saw the no-paths placeholder).
+- Net effect (executed audit numbers): unsurfaced 96 -> 70; cross-house carding WARN
+  6 -> 0 (all cross-listed cards dropped by projection design; each hub remains on its
+  home house's page; the pending cyberops ruling was answered by Frank's rollout
+  instruction = pull). Container children (cloud-master's 6, vault's wifi-arsenal,
+  cortex's 13, armory/api families) surface inside their containers; the unsurfaced
+  metric does not model that yet (taskboard #234).
+- PATH_HOUSE_MAP (handler-dashboard.js) reconciled to registry houses: comptia-linux
+  script->matrix, devops-fundamentals code->cloud, python-hub script->code (full 33-entry
+  sweep vs registry: 0 mismatches).
+- Hero-card coexistence (NAMED DECISION for Frank, per Nancy): 4 houses render rich
+  hand-authored featured-course cards in afterStatsHTML whose destinations also appear
+  as projection cartridges (same destination, different section/detail -- NOT the
+  BUG-038 different-destination defect). Executed inventory: divergent 3 of 3 projected
+  ids also hero-carded (100%), matrix 3 of 5 (60%), ai 2 of 8 (25%), web 2 of 5 via
+  onclick sections. Options for Frank: (a) keep both (current state, AI precedent),
+  (b) remove hero cards (destroys hand-authored content -- NOT default), (c) filtered
+  shelf: projection excludes ids that already have a hero card (no deletion, no
+  duplication). Nothing removed pending his ruling.
+
 ## Immediate context / where we are
 
 - The 8-house **cartridge-fy** SHIPPED (houses read hub cards from HubRegistry as
