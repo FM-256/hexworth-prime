@@ -8,10 +8,15 @@
  * not see this because it never read the house lists. This generator extracts them into a single manifest
  * so the dashboard + the deploy audit can reconcile house cards <-> registry and surface the drift.
  *
- * All house paths are inline static arrays (verified: nothing builds them at runtime), so a static parse is
- * complete. Entries vary: most are {id,name,cert,href?}; some houses (e.g. dark-arts) use `paths` for other
+ * House paths come in two source shapes. Most are inline static arrays, so a static parse is complete.
+ * Entries vary: most are {id,name,cert,href?}; some houses (e.g. dark-arts) use `paths` for other
  * things (game gates: {id,number,name,hint}). We extract whatever id/name/cert/href are present and stay
  * honest about anything we could not parse (a per-house parse-warning), rather than silently dropping it.
+ * The second shape (north-star step 1, first used by ai) is a registry PROJECTION:
+ *   paths: HubRegistry.byHouse('<house>').map(h => h.id)[.concat([ ...house-local object cards ])]
+ * For that shape the registry half is resolved by calling byHouse() against the real HubRegistry module
+ * (the same file the page loads), so the manifest reflects what the projection actually renders, and the
+ * optional .concat([...]) array is parsed like a normal inline paths block.
  *
  * Output: _app/assets/data/house-cards.json  (fetched by the Hub Health panel; read by hub-registry-audit).
  * Run:    node _tools/eduscan/gen-house-cards.js
@@ -25,20 +30,24 @@ const ROOT = path.resolve(__dirname, '../..');
 // The 13 houses that include the shared HouseRenderer.
 const HOUSES = ['divergent', 'code', 'eye', 'forge', 'script', 'shield', 'cloud', 'matrix', 'web', 'ai', 'key', 'observatory', 'dark-arts'];
 
-// Extract the text INSIDE the first `paths: [ ... ]` array via bracket-depth scan (robust to newlines and
-// to `[`/`]` that may appear inside entry strings, since we only balance the outermost array brackets).
+// Return the text INSIDE the array whose opening '[' sits at openIdx, via bracket-depth scan (robust
+// to newlines and to `[`/`]` that may appear inside entry strings, since we only balance the outermost
+// array brackets).
+function scanArray(html, openIdx) {
+    let depth = 0;
+    for (let i = openIdx; i < html.length; i++) {
+        const c = html[i];
+        if (c === '[') depth++;
+        else if (c === ']') { depth--; if (depth === 0) return html.slice(openIdx + 1, i); }
+    }
+    return null; // unbalanced
+}
+
+// Extract the text INSIDE the first `paths: [ ... ]` array.
 function extractPathsBlock(html) {
     const m = html.match(/paths\s*:\s*\[/);
     if (!m) return null;
-    let i = m.index + m[0].length - 1; // index of the opening '['
-    const start = i;
-    let depth = 0;
-    for (; i < html.length; i++) {
-        const c = html[i];
-        if (c === '[') depth++;
-        else if (c === ']') { depth--; if (depth === 0) return html.slice(start + 1, i); }
-    }
-    return null; // unbalanced
+    return scanArray(html, m.index + m[0].length - 1);
 }
 
 // Read a quoted field value from a JS object-literal entry. Walks the string respecting backslash
@@ -71,11 +80,8 @@ function field(entry, key) {
 // A paths array can hold TWO entry shapes (Option B, stage 2+): object literals (house-local cards) and
 // bare STRINGS (HubRegistry id references, whose data lives in the registry). Both must be enumerated, or
 // the drift audit under-counts silently.
-function extractHouse(houseId) {
-    const f = path.join(ROOT, '_app/houses', houseId, 'index.html');
-    if (!fs.existsSync(f)) return { cards: [], warnings: ['no index.html'] };
-    const block = extractPathsBlock(fs.readFileSync(f, 'utf8'));
-    if (block === null) return { cards: [], warnings: ['no paths: [ ... ] array found'] };
+// Parse the inner text of a paths array into cards (both entry shapes) + honesty warnings.
+function parseBlockCards(block) {
     // Strip line comments so quoted words inside a comment are not mistaken for string entries.
     const clean = block.replace(/\/\/[^\n]*/g, '');
     const cards = [];
@@ -98,6 +104,34 @@ function extractHouse(houseId) {
     const warnings = [];
     if (rawObjIds !== objCards) warnings.push('parsed ' + objCards + ' of ' + rawObjIds + ' object entries (paths format anomaly; enumeration may be incomplete)');
     return { cards: cards, warnings: warnings };
+}
+
+function extractHouse(houseId) {
+    const f = path.join(ROOT, '_app/houses', houseId, 'index.html');
+    if (!fs.existsSync(f)) return { cards: [], warnings: ['no index.html'] };
+    const html = fs.readFileSync(f, 'utf8');
+    // Projection shape first (see header): resolve byHouse() against the real registry so the
+    // manifest lists exactly the cards the page renders, then parse the optional concat array.
+    const proj = html.match(/paths\s*:\s*HubRegistry\.byHouse\((['"])([a-z0-9-]+)\1\)\s*\.map\(\s*h\s*=>\s*h\.id\s*\)(\s*\.concat\(\s*\[)?/);
+    if (proj) {
+        const HubRegistry = require(path.join(ROOT, '_app/components/HubRegistry.js'));
+        const cards = HubRegistry.byHouse(proj[2]).map((h) => ({ id: h.id, name: null, cert: null, href: null, registryRef: true, projected: true }));
+        const warnings = [];
+        if (proj[2] !== houseId) warnings.push("projection sources byHouse('" + proj[2] + "') on the " + houseId + ' page');
+        if (proj[3]) {   // trailing .concat([ ...house-local object cards ])
+            const inner = scanArray(html, proj.index + proj[0].length - 1);
+            if (inner === null) warnings.push('unbalanced .concat([...]) array (house-local cards NOT enumerated)');
+            else {
+                const rest = parseBlockCards(inner);
+                cards.push.apply(cards, rest.cards);
+                warnings.push.apply(warnings, rest.warnings);
+            }
+        }
+        return { cards: cards, warnings: warnings };
+    }
+    const block = extractPathsBlock(html);
+    if (block === null) return { cards: [], warnings: ['no paths: [ ... ] array found'] };
+    return parseBlockCards(block);
 }
 
 // Enumerate all houses. Returns { houses:{id:[cards]}, warnings:{id:[...]} }.

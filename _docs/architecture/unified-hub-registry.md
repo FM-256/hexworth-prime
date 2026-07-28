@@ -164,13 +164,56 @@ deletion — the registry never loses sight of a hub.
   When status is removed (hub returns to live), those rules automatically apply again.
 - First use: `security-plus-crypto` (2026-07-28, commit d11dc8e2f).
 
+## Step 1 BUILT (2026-07-28)
+
+The first-build-step ruling (decision 3) is implemented:
+
+- **`house` seeded on all 142 static entries.** Verified partition against the live
+  file: 1 already-set (security-plus-crypto) + 124 URL-derivable + 13 pure-ruled +
+  4 overlap (vault/bug-hunting/ehe/wifi-arsenal, where the /dark-arts/ URL and the
+  ruling agree) = 142; 0 unresolved, 0 conflicts. (Decision 3's "143" was a
+  miscount -- the registry holds 142 static entries.) Placement: `house` sits
+  immediately before `sortOrder` on every entry.
+- **Audit gate live** (hub-registry-audit "house assignment integrity"): FAIL on a
+  missing or non-whitelist house (the 13 real houses); WARN when an entry's hubHref
+  lives under a DIFFERENT real house's directory than its assigned house (legal
+  override, visible drift). Drift-tested in both directions with reverted fixtures.
+- **`HubRegistry.byHouse(houseId)` query** -- a house page's projection of its owned
+  hubs. Contract: TOP-LEVEL entries only (`!parent` -- container members render
+  inside their container per "Container grouping", not as sibling cartridges),
+  `status !== 'workshop'`, sortOrder-sorted. NAMED DECISION (composition of the
+  container-grouping + all-cartridge rulings, flagged for Frank's veto at deploy):
+  the AI projection shows 8 top-level hubs, with Cortex's 13 sub-tracks reachable
+  inside Cortex rather than flattened beside it. Known pre-existing tension:
+  catalog.html still renders parented children flat -- logged as follow-up, NOT
+  changed here.
+- **AI house = first pure projection consumer.** `cardStyle: 'cartridge'` +
+  `paths: HubRegistry.byHouse('ai').map(h => h.id).concat([...3 learning-path
+  cards...])`. CORRECTION to decisions 2/4: the 3 replaced cards were NOT phantoms --
+  ai-foundations/ai-builder/ai-security are real 6-9-module LearningPaths entries
+  (quizzes, PATH_HOUSE_MAP wiring, Dr. Hex knowledge base). They are PRESERVED as
+  house-local object cartridges with explicit `/path-view.html?house=ai&path=<id>`
+  hrefs -- byte-identical destinations to the old JS-bound cards (Nancy-verified
+  against path-view.html's param parsing). Nothing orphaned.
+- **BUG-037 found and fixed en route:** the 8 cartridge-fied house pages never
+  included HubRegistry.js, so their Courses grids rendered EMPTY in production
+  (silent skip in hrResolveCartridge's guard). One include per page added before
+  HouseRenderer.js; all 9 cartridge pages render-verified locally, 9/9 PASS. See
+  BUG_TRACKER BUG-037.
+- **gen-house-cards understands projections:** it resolves the byHouse() half
+  against the real registry module and parses the .concat([...]) half as a normal
+  paths block, so house-cards.json and the HUD reconciliation reflect what a
+  projection page actually renders (cards carry `projected: true`). The HUD's
+  "surfaced on no house page" list dropped 105 -> 97 (the 8 AI hubs); the rest
+  clears as houses convert house-by-house.
+
 ## Immediate context / where we are
 
 - The 8-house **cartridge-fy** SHIPPED (houses read hub cards from HubRegistry as
   cover cartridges — a first real step toward "houses are filtered registry views").
-- The **ai house was NOT cartridge-fied** — its 3 cards are the phantom ids above;
-  this is the wedge that surfaced the whole unified-registry need. Do NOT patch the
-  ai house's 3 cards in isolation; it's the first candidate for the real fix.
+  (2026-07-28: it shipped with a missing-include bug that blanked those grids in
+  production -- BUG-037, fixed in step 1 above.)
+- The **ai house** is now the first pure projection consumer (see Step 1 BUILT).
 - Related prior doc: `_docs/architecture/hub-registry-design.md` (Option B staging —
   houses reading from the registry). This unified-registry vision is the full form of
   that Option B, extended from houses to EVERY consumer.

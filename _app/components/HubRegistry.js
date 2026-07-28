@@ -56,6 +56,7 @@
             icon: '/assets/images/icons/icon-antenna.webp',
             hubHref: '/wireshark/index.html',
             tenantAssignable: true,
+            house: 'eye',
             sortOrder: 1
         },
         {
@@ -66,6 +67,7 @@
             icon: '/assets/images/icons/icon-magnifier.webp',
             hubHref: '/houses/eye/forensics/index.html',
             tenantAssignable: true,
+            house: 'eye',
             sortOrder: 2
         },
         {
@@ -76,6 +78,7 @@
             icon: '/assets/images/icons/icon-spider.webp',
             hubHref: '/dark-arts/vault/bug-hunting/index.html',
             tenantAssignable: true,
+            house: 'dark-arts',
             sortOrder: 3
         },
         {
@@ -86,6 +89,7 @@
             icon: '/assets/images/icons/icon-signal.webp',
             hubHref: '/signal/index.html',
             tenantAssignable: true,
+            house: 'forge',
             sortOrder: 4
         },
         {
@@ -96,6 +100,7 @@
             icon: '/assets/images/icons/icon-penguin.webp',
             hubHref: '/arctic/index.html',
             tenantAssignable: true,
+            house: 'matrix',
             sortOrder: 5
         },
 
@@ -109,6 +114,7 @@
             icon: '/assets/images/icons/icon-globe.webp',
             hubHref: '/houses/web/network-plus/index.html',
             tenantAssignable: true,
+            house: 'web',
             sortOrder: 10
         },
         {
@@ -120,6 +126,7 @@
             icon: '/assets/images/icons/icon-shield.webp',
             hubHref: '/houses/eye/modules/cyberops/index.html',
             tenantAssignable: true,
+            house: 'eye',
             sortOrder: 20
         },
         {
@@ -131,6 +138,7 @@
             icon: '/assets/images/icons/icon-wrench.webp',
             hubHref: '/houses/forge/applets/comptia-aplus/core-1/index.html',
             tenantAssignable: true,
+            house: 'forge',
             sortOrder: 30
         },
         {
@@ -142,6 +150,7 @@
             icon: '/assets/images/icons/icon-wrench.webp',
             hubHref: '/houses/forge/applets/comptia-aplus/core-2/index.html',
             tenantAssignable: true,
+            house: 'forge',
             sortOrder: 40
         },
         {
@@ -153,6 +162,7 @@
             icon: '/assets/images/icons/icon-terminal.webp',
             hubHref: '/houses/forge/md-100/index.html',
             tenantAssignable: true,
+            house: 'forge',
             sortOrder: 50
         },
         {
@@ -164,6 +174,7 @@
             icon: '/assets/images/icons/icon-terminal.webp',
             hubHref: '/houses/forge/md-101/index.html',
             tenantAssignable: true,
+            house: 'forge',
             sortOrder: 60
         },
         {
@@ -174,6 +185,7 @@
             icon: '/assets/images/icons/icon-magnifier.webp',
             hubHref: '/houses/dark-arts/feh/index.html',
             tenantAssignable: true,
+            house: 'dark-arts',
             sortOrder: 70
         },
         {
@@ -184,6 +196,7 @@
             icon: '/assets/images/icons/icon-terminal.webp',
             hubHref: '/houses/code/modules/python-hub/index.html',
             tenantAssignable: true,
+            house: 'code',
             sortOrder: 80
         },
         {
@@ -195,6 +208,7 @@
             icon: '/assets/images/icons/icon-terminal.webp',
             hubHref: '/houses/code/python-for-it/index.html',
             tenantAssignable: true,
+            house: 'code',
             sortOrder: 90
         },
         {
@@ -206,6 +220,7 @@
             icon: '/assets/images/icons/icon-shield.webp',
             hubHref: '/houses/shield/security-plus/index.html',
             tenantAssignable: true,
+            house: 'shield',
             sortOrder: 100
         },
         {
@@ -217,6 +232,7 @@
             icon: '/assets/images/icons/icon-key.webp',
             hubHref: '/houses/shield/isc2-cc/index.html',
             tenantAssignable: true,
+            house: 'shield',
             sortOrder: 110
         },
         {
@@ -228,6 +244,7 @@
             icon: '/assets/images/icons/icon-keyboard.webp',
             hubHref: '/houses/cloud/server-plus/index.html',
             tenantAssignable: true,
+            house: 'cloud',
             sortOrder: 120
         },
         {
@@ -239,6 +256,7 @@
             icon: '/assets/images/icons/icon-server.webp',
             hubHref: '/houses/cloud/modules/wsa/index.html',
             tenantAssignable: true,
+            house: 'cloud',
             sortOrder: 125
         },
         {
@@ -250,6 +268,7 @@
             icon: '/assets/images/icons/icon-terminal.webp',
             hubHref: '/houses/matrix/adv-linux/index.html',
             tenantAssignable: true,
+            house: 'matrix',
             sortOrder: 127
         },
         {
@@ -261,6 +280,7 @@
             icon: '/assets/images/icons/icon-scales.webp',
             hubHref: '/houses/divergent/ethics-it/index.html',
             tenantAssignable: true,
+            house: 'divergent',
             sortOrder: 130
         },
         {
@@ -274,6 +294,7 @@
             // even though the course was rebranded "The Domino Effect" (CIS2208).
             hubHref: '/houses/divergent/cybersecurity-policy/index.html',
             tenantAssignable: true,
+            house: 'divergent',
             sortOrder: 135
         },
         {
@@ -285,19 +306,20 @@
             icon: '/assets/images/icons/icon-padlock.webp',
             hubHref: '/houses/shield/infosec/index.html',
             tenantAssignable: true,
+            house: 'shield',
             sortOrder: 140
         },
         // ── cert-prep hubs (derived from the CertPathRenderer stub pages, 2026-07-26). These full
         //    cert-prep courses existed live but were never in the registry; added so the catalog can
         //    see + filter them. Canonical page = the clean /houses/<slug>/ stub. Covers pending. ──
-        { id: 'casp-plus', origin: 'derived',            category: 'cert-prep', catalogCode: 'CAS-004', label: 'CompTIA CASP+',            sublabel: 'CAS-004', icon: '/assets/images/icons/icon-shield.webp',   hubHref: '/houses/casp-plus/index.html',            tenantAssignable: true, sortOrder: 220 },
-        { id: 'comptia-linux', origin: 'derived',        category: 'cert-prep', catalogCode: 'XK0-005', label: 'CompTIA Linux+',           sublabel: 'XK0-005', icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/comptia-linux/index.html',        tenantAssignable: true, sortOrder: 230 },
-        { id: 'aws-ccp', origin: 'derived',              category: 'cert-prep', catalogCode: 'CLF-C02', label: 'AWS Cloud Practitioner',   sublabel: 'CLF-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-ccp/index.html',              parent: 'cloud-master', tenantAssignable: true, sortOrder: 240 },
-        { id: 'aws-developer', origin: 'derived',        category: 'cert-prep', catalogCode: 'DVA-C02', label: 'AWS Developer Associate',  sublabel: 'DVA-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-developer/index.html',        parent: 'cloud-master', tenantAssignable: true, sortOrder: 250 },
-        { id: 'azure-fundamentals', origin: 'derived',   category: 'cert-prep', catalogCode: 'AZ-900',  label: 'Azure Fundamentals',      sublabel: 'AZ-900',  icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/azure-fundamentals/index.html',   parent: 'cloud-master', tenantAssignable: true, sortOrder: 260 },
-        { id: 'security-operations', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'Security Operations',     sublabel: 'SOC Analyst', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/security-operations/index.html',  tenantAssignable: true, sortOrder: 270 },
-        { id: 'devops-fundamentals', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'DevOps Fundamentals',     sublabel: 'DevOps',  icon: '/assets/images/icons/icon-gear.webp',     hubHref: '/houses/devops-fundamentals/index.html',  tenantAssignable: true, sortOrder: 280 },
-        { id: 'cryptography-track', origin: 'derived',   category: 'cert-prep', catalogCode: '',        label: 'Cryptography Track',      sublabel: 'Cryptography', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/cryptography-track/index.html',   tenantAssignable: true, sortOrder: 290 },
+        { id: 'casp-plus', origin: 'derived',            category: 'cert-prep', catalogCode: 'CAS-004', label: 'CompTIA CASP+',            sublabel: 'CAS-004', icon: '/assets/images/icons/icon-shield.webp',   hubHref: '/houses/casp-plus/index.html',            tenantAssignable: true, house: 'shield', sortOrder: 220 },
+        { id: 'comptia-linux', origin: 'derived',        category: 'cert-prep', catalogCode: 'XK0-005', label: 'CompTIA Linux+',           sublabel: 'XK0-005', icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/comptia-linux/index.html',        tenantAssignable: true, house: 'matrix', sortOrder: 230 },
+        { id: 'aws-ccp', origin: 'derived',              category: 'cert-prep', catalogCode: 'CLF-C02', label: 'AWS Cloud Practitioner',   sublabel: 'CLF-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-ccp/index.html',              parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 240 },
+        { id: 'aws-developer', origin: 'derived',        category: 'cert-prep', catalogCode: 'DVA-C02', label: 'AWS Developer Associate',  sublabel: 'DVA-C02', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/aws-developer/index.html',        parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 250 },
+        { id: 'azure-fundamentals', origin: 'derived',   category: 'cert-prep', catalogCode: 'AZ-900',  label: 'Azure Fundamentals',      sublabel: 'AZ-900',  icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/azure-fundamentals/index.html',   parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 260 },
+        { id: 'security-operations', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'Security Operations',     sublabel: 'SOC Analyst', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/security-operations/index.html',  tenantAssignable: true, house: 'eye', sortOrder: 270 },
+        { id: 'devops-fundamentals', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'DevOps Fundamentals',     sublabel: 'DevOps',  icon: '/assets/images/icons/icon-gear.webp',     hubHref: '/houses/devops-fundamentals/index.html',  tenantAssignable: true, house: 'cloud', sortOrder: 280 },
+        { id: 'cryptography-track', origin: 'derived',   category: 'cert-prep', catalogCode: '',        label: 'Cryptography Track',      sublabel: 'Cryptography', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/cryptography-track/index.html',   tenantAssignable: true, house: 'key', sortOrder: 290 },
         // status:'workshop' = quarantined lifecycle state (Frank 2026-07-28): page is admin-gated,
         // hidden from student surfaces (tenantAssignable:false is the hiding flag), listed on the
         // Workshop shelf + Hub Health HUD Workshop section. house = where it returns when fixed.
@@ -306,124 +328,124 @@
         //    existed but were unregistered. Container hubs = the parent only (their sub-tracks are modules,
         //    NOT registered). Covers pending -> icon-fallback in the catalog. ──
         // Container / anthology hubs (parent registered; sub-tracks are modules, excluded).
-        { id: 'cortex', origin: 'derived',              category: 'platform-hub', label: 'The Cortex',            sublabel: 'AI/ML Hub',            icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/cortex/index.html',                 tenantAssignable: true, sortOrder: 310 },
-        { id: 'code-armory', origin: 'derived',         category: 'platform-hub', label: 'The Code Armory',       sublabel: 'Programming Languages', icon: '/assets/images/icons/icon-code.webp',    hubHref: '/houses/code/armory/index.html',               tenantAssignable: true, sortOrder: 320 },
-        { id: 'algorithm-chamber', origin: 'derived',   category: 'platform-hub', label: 'Algorithm Chamber',     sublabel: 'CS Fundamentals',      icon: '/assets/images/icons/icon-branch.webp',   hubHref: '/houses/code/algorithm-chamber/index.html',    tenantAssignable: true, sortOrder: 330 },
-        { id: 'proving-grounds', origin: 'derived',     category: 'platform-hub', label: 'The Proving Grounds',   sublabel: 'Offensive / Red Team', icon: '/assets/images/icons/icon-swords.webp',   hubHref: '/houses/dark-arts/offensive/index.html',       tenantAssignable: true, sortOrder: 340 },
-        { id: 'backbone', origin: 'derived',            category: 'platform-hub', label: 'The Backbone',          sublabel: 'Advanced Networking',  icon: '/assets/images/icons/icon-network.webp',  hubHref: '/houses/web/backbone/index.html',              tenantAssignable: true, sortOrder: 350 },
+        { id: 'cortex', origin: 'derived',              category: 'platform-hub', label: 'The Cortex',            sublabel: 'AI/ML Hub',            icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/cortex/index.html',                 tenantAssignable: true, house: 'ai', sortOrder: 310 },
+        { id: 'code-armory', origin: 'derived',         category: 'platform-hub', label: 'The Code Armory',       sublabel: 'Programming Languages', icon: '/assets/images/icons/icon-code.webp',    hubHref: '/houses/code/armory/index.html',               tenantAssignable: true, house: 'code', sortOrder: 320 },
+        { id: 'algorithm-chamber', origin: 'derived',   category: 'platform-hub', label: 'Algorithm Chamber',     sublabel: 'CS Fundamentals',      icon: '/assets/images/icons/icon-branch.webp',   hubHref: '/houses/code/algorithm-chamber/index.html',    tenantAssignable: true, house: 'code', sortOrder: 330 },
+        { id: 'proving-grounds', origin: 'derived',     category: 'platform-hub', label: 'The Proving Grounds',   sublabel: 'Offensive / Red Team', icon: '/assets/images/icons/icon-swords.webp',   hubHref: '/houses/dark-arts/offensive/index.html',       tenantAssignable: true, house: 'dark-arts', sortOrder: 340 },
+        { id: 'backbone', origin: 'derived',            category: 'platform-hub', label: 'The Backbone',          sublabel: 'Advanced Networking',  icon: '/assets/images/icons/icon-network.webp',  hubHref: '/houses/web/backbone/index.html',              tenantAssignable: true, house: 'web', sortOrder: 350 },
         // Standalone cert-prep hubs.
-        { id: 'az-104', origin: 'derived',              category: 'cert-prep', catalogCode: 'AZ-104',  label: 'Azure Administrator',   sublabel: 'AZ-104', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/az-104/index.html',              parent: 'cloud-master', tenantAssignable: true, sortOrder: 360 },
-        { id: 'ai-900', origin: 'derived',              category: 'cert-prep', catalogCode: 'AI-900',  label: 'Azure AI Fundamentals', sublabel: 'AI-900', icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/ai-900/index.html',                 tenantAssignable: true, sortOrder: 370 },
-        { id: 'ai-102', origin: 'derived',              category: 'cert-prep', catalogCode: 'AI-102',  label: 'Azure AI Engineer',     sublabel: 'AI-102', icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/certifications/ai-102/index.html',  tenantAssignable: true, sortOrder: 380 },
-        { id: 'ehe', origin: 'derived',                 category: 'cert-prep', catalogCode: 'EHEv1',   label: 'Ethical Hacking Essentials', sublabel: 'EC-Council EHE', icon: '/assets/images/icons/icon-mask.webp', hubHref: '/dark-arts/vault/ehe/index.html',          tenantAssignable: true, sortOrder: 390 },
+        { id: 'az-104', origin: 'derived',              category: 'cert-prep', catalogCode: 'AZ-104',  label: 'Azure Administrator',   sublabel: 'AZ-104', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/az-104/index.html',              parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 360 },
+        { id: 'ai-900', origin: 'derived',              category: 'cert-prep', catalogCode: 'AI-900',  label: 'Azure AI Fundamentals', sublabel: 'AI-900', icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/ai-900/index.html',                 tenantAssignable: true, house: 'ai', sortOrder: 370 },
+        { id: 'ai-102', origin: 'derived',              category: 'cert-prep', catalogCode: 'AI-102',  label: 'Azure AI Engineer',     sublabel: 'AI-102', icon: '/assets/images/icons/icon-brain.webp',    hubHref: '/houses/ai/certifications/ai-102/index.html',  tenantAssignable: true, house: 'ai', sortOrder: 380 },
+        { id: 'ehe', origin: 'derived',                 category: 'cert-prep', catalogCode: 'EHEv1',   label: 'Ethical Hacking Essentials', sublabel: 'EC-Council EHE', icon: '/assets/images/icons/icon-mask.webp', hubHref: '/dark-arts/vault/ehe/index.html',          tenantAssignable: true, house: 'dark-arts', sortOrder: 390 },
         // Academic course hubs (CIS/CTS coded).
-        { id: 'intro-networks', origin: 'derived',      category: 'course', catalogCode: 'CTS1090C', label: 'Introduction to Networks', sublabel: 'CTS1090C', icon: '/assets/images/icons/icon-globe.webp',   hubHref: '/houses/web/intro-networks/index.html',        tenantAssignable: true, sortOrder: 400 },
-        { id: 'net-essentials', origin: 'derived',      category: 'course', catalogCode: 'CTS1305C', label: 'Essentials of Networking', sublabel: 'CTS1305C', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/net-essentials/index.html',        tenantAssignable: true, sortOrder: 410 },
-        { id: 'cloud-essentials', origin: 'derived',    category: 'course', catalogCode: 'CTS2145C', label: 'Cloud Essentials',       sublabel: 'CTS2145C', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/cloud-essentials/index.html',    parent: 'cloud-master', tenantAssignable: true, sortOrder: 420 },
-        { id: 'hardware-support', origin: 'derived',    category: 'course', catalogCode: 'CTS1150C', label: 'Hardware Support',       sublabel: 'CTS1150C', icon: '/assets/images/icons/icon-wrench.webp',   hubHref: '/houses/forge/hardware-support/index.html',    tenantAssignable: true, sortOrder: 430 },
-        { id: 'intro-security', origin: 'derived',      category: 'course', catalogCode: 'CTS1120C', label: 'Introduction to Security', sublabel: 'CTS1120C', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/intro-security/index.html',     tenantAssignable: true, sortOrder: 440 },
-        { id: 'cybersecurity-ethics', origin: 'derived', category: 'course', catalogCode: 'CIS2253', label: 'Cybersecurity Ethics',  sublabel: 'CIS2253', icon: '/assets/images/icons/icon-scales.webp',   hubHref: '/houses/divergent/cybersecurity-ethics/index.html', tenantAssignable: true, sortOrder: 450 },
-        { id: 'linux-essentials', origin: 'derived',    category: 'course', catalogCode: 'CTS2165C', label: 'Linux Essentials',       sublabel: 'CTS2165C', icon: '/assets/images/icons/icon-penguin.webp', hubHref: '/houses/script/linux-essentials/index.html',   tenantAssignable: true, sortOrder: 460 },
+        { id: 'intro-networks', origin: 'derived',      category: 'course', catalogCode: 'CTS1090C', label: 'Introduction to Networks', sublabel: 'CTS1090C', icon: '/assets/images/icons/icon-globe.webp',   hubHref: '/houses/web/intro-networks/index.html',        tenantAssignable: true, house: 'web', sortOrder: 400 },
+        { id: 'net-essentials', origin: 'derived',      category: 'course', catalogCode: 'CTS1305C', label: 'Essentials of Networking', sublabel: 'CTS1305C', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/net-essentials/index.html',        tenantAssignable: true, house: 'web', sortOrder: 410 },
+        { id: 'cloud-essentials', origin: 'derived',    category: 'course', catalogCode: 'CTS2145C', label: 'Cloud Essentials',       sublabel: 'CTS2145C', icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/cloud-essentials/index.html',    parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 420 },
+        { id: 'hardware-support', origin: 'derived',    category: 'course', catalogCode: 'CTS1150C', label: 'Hardware Support',       sublabel: 'CTS1150C', icon: '/assets/images/icons/icon-wrench.webp',   hubHref: '/houses/forge/hardware-support/index.html',    tenantAssignable: true, house: 'forge', sortOrder: 430 },
+        { id: 'intro-security', origin: 'derived',      category: 'course', catalogCode: 'CTS1120C', label: 'Introduction to Security', sublabel: 'CTS1120C', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/intro-security/index.html',     tenantAssignable: true, house: 'shield', sortOrder: 440 },
+        { id: 'cybersecurity-ethics', origin: 'derived', category: 'course', catalogCode: 'CIS2253', label: 'Cybersecurity Ethics',  sublabel: 'CIS2253', icon: '/assets/images/icons/icon-scales.webp',   hubHref: '/houses/divergent/cybersecurity-ethics/index.html', tenantAssignable: true, house: 'divergent', sortOrder: 450 },
+        { id: 'linux-essentials', origin: 'derived',    category: 'course', catalogCode: 'CTS2165C', label: 'Linux Essentials',       sublabel: 'CTS2165C', icon: '/assets/images/icons/icon-penguin.webp', hubHref: '/houses/script/linux-essentials/index.html',   tenantAssignable: true, house: 'script', sortOrder: 460 },
         // Skills-track course hubs (no cert code, but top-level courses).
-        { id: 'linux-mastery', origin: 'derived',       category: 'course', label: 'Linux Mastery',          sublabel: '55 modules',       icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/script/modules/linux-mastery/index.html',    tenantAssignable: true, sortOrder: 470 },
-        { id: 'grep-pipe-mastery', origin: 'derived',   category: 'course', label: 'Grep & Pipe Mastery',    sublabel: 'Command-line',     icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/script/courses/grep-pipe-mastery/index.html', tenantAssignable: true, sortOrder: 480 },
-        { id: 'databases', origin: 'derived',           category: 'course', label: 'Database Track',         sublabel: 'Databases',        icon: '/assets/images/icons/icon-database.webp', hubHref: '/houses/script/modules/databases/index.html',        tenantAssignable: true, sortOrder: 490 },
-        { id: 'zero-to-python', origin: 'derived',      category: 'course', label: 'Zero to Python',        sublabel: 'Beginner Python', icon: '/assets/images/icons/icon-snake.webp',    hubHref: '/houses/script/modules/python/index.html',           tenantAssignable: true, sortOrder: 500 },
+        { id: 'linux-mastery', origin: 'derived',       category: 'course', label: 'Linux Mastery',          sublabel: '55 modules',       icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/script/modules/linux-mastery/index.html',    tenantAssignable: true, house: 'script', sortOrder: 470 },
+        { id: 'grep-pipe-mastery', origin: 'derived',   category: 'course', label: 'Grep & Pipe Mastery',    sublabel: 'Command-line',     icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/script/courses/grep-pipe-mastery/index.html', tenantAssignable: true, house: 'script', sortOrder: 480 },
+        { id: 'databases', origin: 'derived',           category: 'course', label: 'Database Track',         sublabel: 'Databases',        icon: '/assets/images/icons/icon-database.webp', hubHref: '/houses/script/modules/databases/index.html',        tenantAssignable: true, house: 'script', sortOrder: 490 },
+        { id: 'zero-to-python', origin: 'derived',      category: 'course', label: 'Zero to Python',        sublabel: 'Beginner Python', icon: '/assets/images/icons/icon-snake.webp',    hubHref: '/houses/script/modules/python/index.html',           tenantAssignable: true, house: 'script', sortOrder: 500 },
         // Observatory-vs-catalog reconciliation (2026-07-26): scheduled courses the Observatory teaches
         // that the page-scan missed (plainly-rendered, no hub-renderer signal). Real course pages.
-        { id: 'projects',      origin: 'derived',       category: 'platform-hub', label: 'Projects Hub',        sublabel: 'Hands-On Projects', icon: '/assets/images/icons/icon-rocket.webp',  hubHref: '/projects/index.html',                        tenantAssignable: true, sortOrder: 510 },
-        { id: 'clh',           origin: 'derived',       category: 'course', label: 'Command Line Hacker',       sublabel: 'CLH',             icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/script/courses/clh/index.html',       tenantAssignable: true, sortOrder: 520 },
-        { id: 'linux-admin',   origin: 'derived',       category: 'course', label: 'Linux Administration',      sublabel: 'Linux',           icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/script/linux/index.html',             tenantAssignable: true, sortOrder: 530 },
+        { id: 'projects',      origin: 'derived',       category: 'platform-hub', label: 'Projects Hub',        sublabel: 'Hands-On Projects', icon: '/assets/images/icons/icon-rocket.webp',  hubHref: '/projects/index.html',                        tenantAssignable: true, house: 'observatory', sortOrder: 510 },
+        { id: 'clh',           origin: 'derived',       category: 'course', label: 'Command Line Hacker',       sublabel: 'CLH',             icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/script/courses/clh/index.html',       tenantAssignable: true, house: 'script', sortOrder: 520 },
+        { id: 'linux-admin',   origin: 'derived',       category: 'course', label: 'Linux Administration',      sublabel: 'Linux',           icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/script/linux/index.html',             tenantAssignable: true, house: 'script', sortOrder: 530 },
         // Multi-list (LearningPaths) reconciliation (2026-07-26): tracks with real landing pages not yet registered.
-        { id: 'cse',             origin: 'derived',     category: 'cert-prep', catalogCode: 'CSE v1', label: 'Cloud Security Engineer', sublabel: 'EC-Council CSE', icon: '/assets/images/icons/icon-cloud.webp',  hubHref: '/houses/cloud/cse/index.html',              tenantAssignable: true, sortOrder: 540 },
-        { id: 'openstack',       origin: 'derived',     category: 'course', label: 'OpenStack Cloud',          sublabel: 'Cloud Platform',  icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/openstack/index.html',          parent: 'cloud-master', tenantAssignable: true, sortOrder: 550 },
-        { id: 'cyber-framework', origin: 'derived',     category: 'course', label: 'Cyber Law & Policy',       sublabel: 'Framework',       icon: '/assets/images/icons/icon-scales.webp',   hubHref: '/houses/shield/cyber-framework/index.html',   tenantAssignable: true, sortOrder: 560 },
-        { id: 'python-programming', origin: 'derived',  category: 'course', catalogCode: 'COP2891', label: 'Python (Snake Pit)', sublabel: 'COP2891', icon: '/assets/images/icons/icon-snake.webp',    hubHref: '/houses/code/python-programming/index.html',        tenantAssignable: true, sortOrder: 590 },
+        { id: 'cse',             origin: 'derived',     category: 'cert-prep', catalogCode: 'CSE v1', label: 'Cloud Security Engineer', sublabel: 'EC-Council CSE', icon: '/assets/images/icons/icon-cloud.webp',  hubHref: '/houses/cloud/cse/index.html',              tenantAssignable: true, house: 'cloud', sortOrder: 540 },
+        { id: 'openstack',       origin: 'derived',     category: 'course', label: 'OpenStack Cloud',          sublabel: 'Cloud Platform',  icon: '/assets/images/icons/icon-cloud.webp',    hubHref: '/houses/cloud/openstack/index.html',          parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 550 },
+        { id: 'cyber-framework', origin: 'derived',     category: 'course', label: 'Cyber Law & Policy',       sublabel: 'Framework',       icon: '/assets/images/icons/icon-scales.webp',   hubHref: '/houses/shield/cyber-framework/index.html',   tenantAssignable: true, house: 'shield', sortOrder: 560 },
+        { id: 'python-programming', origin: 'derived',  category: 'course', catalogCode: 'COP2891', label: 'Python (Snake Pit)', sublabel: 'COP2891', icon: '/assets/images/icons/icon-snake.webp',    hubHref: '/houses/code/python-programming/index.html',        tenantAssignable: true, house: 'code', sortOrder: 590 },
         // ─── Derived wave 3 (2026-07-26): course-tree reconciliation (gen-catalog-from-tree.js), 82 hubs, sortOrder 600+ ───
-        { id: 'api', origin: 'derived', category: 'platform-hub', label: 'API Security', sublabel: 'Cloud', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/index.html', tenantAssignable: true, sortOrder: 600 },
-        { id: 'vault', origin: 'derived', category: 'platform-hub', label: 'The Vault', sublabel: 'Dark Arts', icon: '/assets/images/icons/icon-spider.webp', hubHref: '/dark-arts/vault/index.html', tenantAssignable: true, sortOrder: 601 },
-        { id: 'ai-advanced', origin: 'derived', category: 'course', label: 'Advanced AI Features', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/advanced/index.html', tenantAssignable: true, sortOrder: 602 },
-        { id: 'ai-agents', origin: 'derived', category: 'course', label: 'Agent Architecture', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/agents/index.html', tenantAssignable: true, sortOrder: 603 },
-        { id: 'ai-automation', origin: 'derived', category: 'course', label: 'N8N and Automation', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/automation/index.html', tenantAssignable: true, sortOrder: 604 },
-        { id: 'azure-openai', origin: 'derived', category: 'course', label: 'Azure OpenAI Service', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/azure-openai/index.html', tenantAssignable: true, sortOrder: 605 },
-        { id: 'cli-tools', origin: 'derived', category: 'course', label: 'CLI and Developer Tools', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cli-tools/index.html', tenantAssignable: true, sortOrder: 606 },
-        { id: 'adversarial', origin: 'derived', category: 'course', label: 'Adversarial ML', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/adversarial/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 607 },
-        { id: 'cnn', origin: 'derived', category: 'course', label: 'CNNs', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/cnn/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 608 },
-        { id: 'cyber-ml', origin: 'derived', category: 'course', label: 'ML for Cybersecurity', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/cyber-ml/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 609 },
-        { id: 'deep-learning', origin: 'derived', category: 'course', label: 'Deep Learning Fundamentals', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/deep-learning/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 610 },
-        { id: 'cortex-foundations', origin: 'derived', category: 'course', label: 'AI Foundations, History & Ethics', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/foundations/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 611 },
-        { id: 'generative', origin: 'derived', category: 'course', label: 'Generative AI', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/generative/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 612 },
-        { id: 'cortex-math', origin: 'derived', category: 'course', label: 'Mathematics for Machine Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/math/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 613 },
-        { id: 'mlops', origin: 'derived', category: 'course', label: 'MLOps', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/mlops/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 614 },
-        { id: 'nlp', origin: 'derived', category: 'course', label: 'Natural Language Processing', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/nlp/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 615 },
-        { id: 'cortex-rl', origin: 'derived', category: 'course', label: 'Reinforcement Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/rl/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 616 },
-        { id: 'supervised', origin: 'derived', category: 'course', label: 'Supervised Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/supervised/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 617 },
-        { id: 'transformers', origin: 'derived', category: 'course', label: 'RNNs & Transformers', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/transformers/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 618 },
-        { id: 'unsupervised', origin: 'derived', category: 'course', label: 'Unsupervised Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/unsupervised/index.html', parent: 'cortex', tenantAssignable: true, sortOrder: 619 },
-        { id: 'api-auth', origin: 'derived', category: 'course', label: 'Authentication & Authorization', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/auth/index.html', parent: 'api', tenantAssignable: true, sortOrder: 620 },
-        { id: 'cloud-patterns', origin: 'derived', category: 'course', label: 'Cloud APIs', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/cloud-patterns/index.html', parent: 'api', tenantAssignable: true, sortOrder: 621 },
-        { id: 'api-design', origin: 'derived', category: 'course', label: 'API Design & Documentation', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/design/index.html', parent: 'api', tenantAssignable: true, sortOrder: 622 },
-        { id: 'event-driven', origin: 'derived', category: 'course', label: 'Webhooks, WebSockets & Event-Driven', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/event-driven/index.html', parent: 'api', tenantAssignable: true, sortOrder: 623 },
-        { id: 'owasp', origin: 'derived', category: 'course', label: 'OWASP API Top 10', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/owasp/index.html', parent: 'api', tenantAssignable: true, sortOrder: 624 },
-        { id: 'pentest', origin: 'derived', category: 'course', label: 'Hands-On API Penetration Testing', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/pentest/index.html', parent: 'api', tenantAssignable: true, sortOrder: 625 },
-        { id: 'rate-limiting', origin: 'derived', category: 'course', label: 'Rate Limiting, Throttling & Caching', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/rate-limiting/index.html', parent: 'api', tenantAssignable: true, sortOrder: 626 },
-        { id: 'ms-102', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-102', label: 'Microsoft 365 Administrator', sublabel: 'MS-102', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-102/index.html', tenantAssignable: true, sortOrder: 627 },
-        { id: 'ms-900', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-900', label: 'Microsoft 365 Fundamentals', sublabel: 'MS-900', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-900/index.html', tenantAssignable: true, sortOrder: 628 },
-        { id: 'pl-300', origin: 'derived', category: 'cert-prep', catalogCode: 'PL-300', label: 'Power BI Data Analyst', sublabel: 'PL-300', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/pl-300/index.html', tenantAssignable: true, sortOrder: 629 },
-        { id: 'complexity', origin: 'derived', category: 'course', label: 'Big O and Complexity', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/complexity/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 630 },
-        { id: 'data-structures', origin: 'derived', category: 'course', label: 'Data Structures', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/data-structures/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 631 },
-        { id: 'discrete-math', origin: 'derived', category: 'course', label: 'Discrete Mathematics', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/discrete-math/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 632 },
-        { id: 'algorithm-chamber-dp', origin: 'derived', category: 'course', label: 'Divide and Conquer + DP', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/dp/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 633 },
-        { id: 'geometry', origin: 'derived', category: 'course', label: 'Computational Geometry', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/geometry/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 634 },
-        { id: 'graphs', origin: 'derived', category: 'course', label: 'Graph Theory', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/graphs/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 635 },
-        { id: 'greedy', origin: 'derived', category: 'course', label: 'Greedy Algorithms', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/greedy/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 636 },
-        { id: 'sorting', origin: 'derived', category: 'course', label: 'Sorting & Searching', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/sorting/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 637 },
-        { id: 'strings', origin: 'derived', category: 'course', label: 'String Algorithms', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/strings/index.html', parent: 'algorithm-chamber', tenantAssignable: true, sortOrder: 638 },
-        { id: 'assembly', origin: 'derived', category: 'course', label: 'Assembly', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/assembly/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 639 },
-        { id: 'bash', origin: 'derived', category: 'course', label: 'Bash & Shell Scripting', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/bash/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 640 },
-        { id: 'armory-c', origin: 'derived', category: 'course', label: 'C Programming', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/c/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 641 },
-        { id: 'cpp', origin: 'derived', category: 'course', label: 'C++', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/cpp/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 642 },
-        { id: 'csharp', origin: 'derived', category: 'course', label: 'C# / .NET', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/csharp/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 643 },
-        { id: 'armory-go', origin: 'derived', category: 'course', label: 'Go', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/go/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 644 },
-        { id: 'java', origin: 'derived', category: 'course', label: 'Java', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/java/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 645 },
-        { id: 'javascript', origin: 'derived', category: 'course', label: 'JavaScript & TypeScript', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/javascript/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 646 },
-        { id: 'lua-perl-r', origin: 'derived', category: 'course', label: 'Lua / Perl / R', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/lua-perl-r/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 647 },
-        { id: 'php', origin: 'derived', category: 'course', label: 'PHP', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/php/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 648 },
-        { id: 'powershell', origin: 'derived', category: 'course', label: 'PowerShell', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/powershell/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 649 },
-        { id: 'armory-python', origin: 'derived', category: 'course', label: 'Python', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/python/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 650 },
-        { id: 'python-graphics', origin: 'derived', category: 'course', label: 'Python Graphics', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/python-graphics/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 651 },
-        { id: 'ruby', origin: 'derived', category: 'course', label: 'Ruby', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/ruby/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 652 },
-        { id: 'rust', origin: 'derived', category: 'course', label: 'Rust', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/rust/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 653 },
-        { id: 'armory-sql', origin: 'derived', category: 'course', label: 'SQL', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/sql/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 654 },
-        { id: 'swift-kotlin', origin: 'derived', category: 'course', label: 'Swift / Kotlin', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/swift-kotlin/index.html', parent: 'code-armory', tenantAssignable: true, sortOrder: 655 },
-        { id: 'devops', origin: 'derived', category: 'course', label: 'DevOps', sublabel: 'Code', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/code/devops/index.html', tenantAssignable: true, sortOrder: 656 },
-        { id: 'ceh', origin: 'derived', category: 'course', label: 'CEH v12', sublabel: 'The Proving Grounds', icon: '/assets/images/icons/icon-swords.webp', hubHref: '/houses/dark-arts/offensive/ceh/index.html', parent: 'proving-grounds', tenantAssignable: true, sortOrder: 657 },
-        { id: 'intro-computers', origin: 'derived', category: 'course', label: 'First Boot', sublabel: 'The Forge', icon: '/assets/images/icons/icon-wrench.webp', hubHref: '/houses/forge/intro-computers/index.html', tenantAssignable: true, sortOrder: 658 },
-        { id: 'piverse', origin: 'derived', category: 'course', label: 'PiVerse', sublabel: 'Matrix', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/matrix/piverse/index.html', tenantAssignable: true, sortOrder: 659 },
-        { id: 'protocore', origin: 'derived', category: 'course', label: 'ProtoCore', sublabel: 'Matrix', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/matrix/protocore/index.html', tenantAssignable: true, sortOrder: 660 },
-        { id: 'cmmc', origin: 'derived', category: 'course', label: 'CMMC', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/compliance/cmmc/index.html', tenantAssignable: true, sortOrder: 661 },
-        { id: 'ms-security', origin: 'derived', category: 'course', label: 'Microsoft Security-101', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/ms-security/index.html', tenantAssignable: true, sortOrder: 662 },
-        { id: 'sc-200', origin: 'derived', category: 'cert-prep', catalogCode: 'SC-200', label: 'Microsoft Security Operations Analyst', sublabel: 'SC-200', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/sc-200/index.html', tenantAssignable: true, sortOrder: 663 },
-        { id: 'sc-900', origin: 'derived', category: 'cert-prep', catalogCode: 'SC-900', label: 'Microsoft Security, Compliance, and Identity Fundamentals', sublabel: 'SC-900', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/sc-900/index.html', tenantAssignable: true, sortOrder: 664 },
-        { id: 'security-101', origin: 'derived', category: 'course', label: 'Security 101', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/security-101/index.html', tenantAssignable: true, sortOrder: 665 },
-        { id: 'bgp', origin: 'derived', category: 'course', label: 'BGP', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/bgp/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 666 },
-        { id: 'carrier', origin: 'derived', category: 'course', label: '5G & Carrier Networks', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/carrier/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 667 },
-        { id: 'datacenter', origin: 'derived', category: 'course', label: 'Data Center Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/datacenter/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 668 },
-        { id: 'backbone-forensics', origin: 'derived', category: 'course', label: 'Network Forensics', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/forensics/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 669 },
-        { id: 'infiniband', origin: 'derived', category: 'course', label: 'InfiniBand & RDMA', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/infiniband/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 670 },
-        { id: 'ipv6', origin: 'derived', category: 'course', label: 'Advanced IPv6', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/ipv6/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 671 },
-        { id: 'mpls', origin: 'derived', category: 'course', label: 'MPLS & Service Provider Technologies', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/mpls/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 672 },
-        { id: 'netsec', origin: 'derived', category: 'course', label: 'Network Security Architecture', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/netsec/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 673 },
-        { id: 'optical', origin: 'derived', category: 'course', label: 'Optical Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/optical/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 674 },
-        { id: 'qos', origin: 'derived', category: 'course', label: 'QoS', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/qos/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 675 },
-        { id: 'routing', origin: 'derived', category: 'course', label: 'Advanced Routing', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/routing/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 676 },
-        { id: 'sdn', origin: 'derived', category: 'course', label: 'Software-Defined Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/sdn/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 677 },
-        { id: 'sdwan', origin: 'derived', category: 'course', label: 'Advanced SD-WAN', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/sdwan/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 678 },
-        { id: 'wireless', origin: 'derived', category: 'course', label: 'Advanced Wireless', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/wireless/index.html', parent: 'backbone', tenantAssignable: true, sortOrder: 679 },
-        { id: 'wifi-arsenal', origin: 'derived', category: 'course', label: 'WiFi Arsenal', sublabel: 'The Vault', icon: '/assets/images/icons/icon-spider.webp', hubHref: '/dark-arts/vault/wifi-arsenal/index.html', parent: 'vault', tenantAssignable: true, sortOrder: 680 },
-        { id: 'toolkit', origin: 'derived', category: 'course', label: 'The Signal Toolkit: Essential Software', sublabel: 'Signal', icon: '/assets/images/icons/icon-signal.webp', hubHref: '/signal/toolkit/index.html', parent: 'signal', tenantAssignable: true, sortOrder: 681 },
-        { id: 'eye-cysa', origin: 'derived', category: 'cert-prep', catalogCode: 'CS0-003', label: 'CompTIA CySA+', sublabel: 'CS0-003', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/eye/cysa/index.html', tenantAssignable: true, sortOrder: 690 },
-        { id: 'web-ccna', origin: 'derived', category: 'cert-prep', catalogCode: '200-301', label: 'Cisco CCNA', sublabel: '200-301', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/ccna/index.html', tenantAssignable: true, sortOrder: 700 },
+        { id: 'api', origin: 'derived', category: 'platform-hub', label: 'API Security', sublabel: 'Cloud', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/index.html', tenantAssignable: true, house: 'cloud', sortOrder: 600 },
+        { id: 'vault', origin: 'derived', category: 'platform-hub', label: 'The Vault', sublabel: 'Dark Arts', icon: '/assets/images/icons/icon-spider.webp', hubHref: '/dark-arts/vault/index.html', tenantAssignable: true, house: 'dark-arts', sortOrder: 601 },
+        { id: 'ai-advanced', origin: 'derived', category: 'course', label: 'Advanced AI Features', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/advanced/index.html', tenantAssignable: true, house: 'ai', sortOrder: 602 },
+        { id: 'ai-agents', origin: 'derived', category: 'course', label: 'Agent Architecture', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/agents/index.html', tenantAssignable: true, house: 'ai', sortOrder: 603 },
+        { id: 'ai-automation', origin: 'derived', category: 'course', label: 'N8N and Automation', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/automation/index.html', tenantAssignable: true, house: 'ai', sortOrder: 604 },
+        { id: 'azure-openai', origin: 'derived', category: 'course', label: 'Azure OpenAI Service', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/azure-openai/index.html', tenantAssignable: true, house: 'ai', sortOrder: 605 },
+        { id: 'cli-tools', origin: 'derived', category: 'course', label: 'CLI and Developer Tools', sublabel: 'AI', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cli-tools/index.html', tenantAssignable: true, house: 'ai', sortOrder: 606 },
+        { id: 'adversarial', origin: 'derived', category: 'course', label: 'Adversarial ML', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/adversarial/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 607 },
+        { id: 'cnn', origin: 'derived', category: 'course', label: 'CNNs', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/cnn/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 608 },
+        { id: 'cyber-ml', origin: 'derived', category: 'course', label: 'ML for Cybersecurity', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/cyber-ml/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 609 },
+        { id: 'deep-learning', origin: 'derived', category: 'course', label: 'Deep Learning Fundamentals', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/deep-learning/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 610 },
+        { id: 'cortex-foundations', origin: 'derived', category: 'course', label: 'AI Foundations, History & Ethics', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/foundations/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 611 },
+        { id: 'generative', origin: 'derived', category: 'course', label: 'Generative AI', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/generative/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 612 },
+        { id: 'cortex-math', origin: 'derived', category: 'course', label: 'Mathematics for Machine Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/math/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 613 },
+        { id: 'mlops', origin: 'derived', category: 'course', label: 'MLOps', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/mlops/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 614 },
+        { id: 'nlp', origin: 'derived', category: 'course', label: 'Natural Language Processing', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/nlp/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 615 },
+        { id: 'cortex-rl', origin: 'derived', category: 'course', label: 'Reinforcement Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/rl/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 616 },
+        { id: 'supervised', origin: 'derived', category: 'course', label: 'Supervised Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/supervised/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 617 },
+        { id: 'transformers', origin: 'derived', category: 'course', label: 'RNNs & Transformers', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/transformers/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 618 },
+        { id: 'unsupervised', origin: 'derived', category: 'course', label: 'Unsupervised Learning', sublabel: 'The Cortex', icon: '/assets/images/icons/icon-brain.webp', hubHref: '/houses/ai/cortex/unsupervised/index.html', parent: 'cortex', tenantAssignable: true, house: 'ai', sortOrder: 619 },
+        { id: 'api-auth', origin: 'derived', category: 'course', label: 'Authentication & Authorization', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/auth/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 620 },
+        { id: 'cloud-patterns', origin: 'derived', category: 'course', label: 'Cloud APIs', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/cloud-patterns/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 621 },
+        { id: 'api-design', origin: 'derived', category: 'course', label: 'API Design & Documentation', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/design/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 622 },
+        { id: 'event-driven', origin: 'derived', category: 'course', label: 'Webhooks, WebSockets & Event-Driven', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/event-driven/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 623 },
+        { id: 'owasp', origin: 'derived', category: 'course', label: 'OWASP API Top 10', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/owasp/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 624 },
+        { id: 'pentest', origin: 'derived', category: 'course', label: 'Hands-On API Penetration Testing', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/pentest/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 625 },
+        { id: 'rate-limiting', origin: 'derived', category: 'course', label: 'Rate Limiting, Throttling & Caching', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/rate-limiting/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 626 },
+        { id: 'ms-102', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-102', label: 'Microsoft 365 Administrator', sublabel: 'MS-102', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-102/index.html', tenantAssignable: true, house: 'cloud', sortOrder: 627 },
+        { id: 'ms-900', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-900', label: 'Microsoft 365 Fundamentals', sublabel: 'MS-900', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-900/index.html', tenantAssignable: true, house: 'cloud', sortOrder: 628 },
+        { id: 'pl-300', origin: 'derived', category: 'cert-prep', catalogCode: 'PL-300', label: 'Power BI Data Analyst', sublabel: 'PL-300', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/pl-300/index.html', tenantAssignable: true, house: 'cloud', sortOrder: 629 },
+        { id: 'complexity', origin: 'derived', category: 'course', label: 'Big O and Complexity', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/complexity/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 630 },
+        { id: 'data-structures', origin: 'derived', category: 'course', label: 'Data Structures', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/data-structures/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 631 },
+        { id: 'discrete-math', origin: 'derived', category: 'course', label: 'Discrete Mathematics', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/discrete-math/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 632 },
+        { id: 'algorithm-chamber-dp', origin: 'derived', category: 'course', label: 'Divide and Conquer + DP', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/dp/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 633 },
+        { id: 'geometry', origin: 'derived', category: 'course', label: 'Computational Geometry', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/geometry/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 634 },
+        { id: 'graphs', origin: 'derived', category: 'course', label: 'Graph Theory', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/graphs/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 635 },
+        { id: 'greedy', origin: 'derived', category: 'course', label: 'Greedy Algorithms', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/greedy/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 636 },
+        { id: 'sorting', origin: 'derived', category: 'course', label: 'Sorting & Searching', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/sorting/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 637 },
+        { id: 'strings', origin: 'derived', category: 'course', label: 'String Algorithms', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/strings/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 638 },
+        { id: 'assembly', origin: 'derived', category: 'course', label: 'Assembly', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/assembly/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 639 },
+        { id: 'bash', origin: 'derived', category: 'course', label: 'Bash & Shell Scripting', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/bash/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 640 },
+        { id: 'armory-c', origin: 'derived', category: 'course', label: 'C Programming', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/c/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 641 },
+        { id: 'cpp', origin: 'derived', category: 'course', label: 'C++', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/cpp/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 642 },
+        { id: 'csharp', origin: 'derived', category: 'course', label: 'C# / .NET', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/csharp/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 643 },
+        { id: 'armory-go', origin: 'derived', category: 'course', label: 'Go', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/go/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 644 },
+        { id: 'java', origin: 'derived', category: 'course', label: 'Java', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/java/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 645 },
+        { id: 'javascript', origin: 'derived', category: 'course', label: 'JavaScript & TypeScript', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/javascript/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 646 },
+        { id: 'lua-perl-r', origin: 'derived', category: 'course', label: 'Lua / Perl / R', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/lua-perl-r/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 647 },
+        { id: 'php', origin: 'derived', category: 'course', label: 'PHP', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/php/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 648 },
+        { id: 'powershell', origin: 'derived', category: 'course', label: 'PowerShell', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/powershell/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 649 },
+        { id: 'armory-python', origin: 'derived', category: 'course', label: 'Python', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/python/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 650 },
+        { id: 'python-graphics', origin: 'derived', category: 'course', label: 'Python Graphics', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/python-graphics/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 651 },
+        { id: 'ruby', origin: 'derived', category: 'course', label: 'Ruby', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/ruby/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 652 },
+        { id: 'rust', origin: 'derived', category: 'course', label: 'Rust', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/rust/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 653 },
+        { id: 'armory-sql', origin: 'derived', category: 'course', label: 'SQL', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/sql/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 654 },
+        { id: 'swift-kotlin', origin: 'derived', category: 'course', label: 'Swift / Kotlin', sublabel: 'The Code Armory', icon: '/assets/images/icons/icon-code.webp', hubHref: '/houses/code/armory/swift-kotlin/index.html', parent: 'code-armory', tenantAssignable: true, house: 'code', sortOrder: 655 },
+        { id: 'devops', origin: 'derived', category: 'course', label: 'DevOps', sublabel: 'Code', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/code/devops/index.html', tenantAssignable: true, house: 'code', sortOrder: 656 },
+        { id: 'ceh', origin: 'derived', category: 'course', label: 'CEH v12', sublabel: 'The Proving Grounds', icon: '/assets/images/icons/icon-swords.webp', hubHref: '/houses/dark-arts/offensive/ceh/index.html', parent: 'proving-grounds', tenantAssignable: true, house: 'dark-arts', sortOrder: 657 },
+        { id: 'intro-computers', origin: 'derived', category: 'course', label: 'First Boot', sublabel: 'The Forge', icon: '/assets/images/icons/icon-wrench.webp', hubHref: '/houses/forge/intro-computers/index.html', tenantAssignable: true, house: 'forge', sortOrder: 658 },
+        { id: 'piverse', origin: 'derived', category: 'course', label: 'PiVerse', sublabel: 'Matrix', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/matrix/piverse/index.html', tenantAssignable: true, house: 'matrix', sortOrder: 659 },
+        { id: 'protocore', origin: 'derived', category: 'course', label: 'ProtoCore', sublabel: 'Matrix', icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/matrix/protocore/index.html', tenantAssignable: true, house: 'matrix', sortOrder: 660 },
+        { id: 'cmmc', origin: 'derived', category: 'course', label: 'CMMC', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/compliance/cmmc/index.html', tenantAssignable: true, house: 'shield', sortOrder: 661 },
+        { id: 'ms-security', origin: 'derived', category: 'course', label: 'Microsoft Security-101', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/ms-security/index.html', tenantAssignable: true, house: 'shield', sortOrder: 662 },
+        { id: 'sc-200', origin: 'derived', category: 'cert-prep', catalogCode: 'SC-200', label: 'Microsoft Security Operations Analyst', sublabel: 'SC-200', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/sc-200/index.html', tenantAssignable: true, house: 'shield', sortOrder: 663 },
+        { id: 'sc-900', origin: 'derived', category: 'cert-prep', catalogCode: 'SC-900', label: 'Microsoft Security, Compliance, and Identity Fundamentals', sublabel: 'SC-900', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/sc-900/index.html', tenantAssignable: true, house: 'shield', sortOrder: 664 },
+        { id: 'security-101', origin: 'derived', category: 'course', label: 'Security 101', sublabel: 'Shield', icon: '/assets/images/icons/icon-shield.webp', hubHref: '/houses/shield/security-101/index.html', tenantAssignable: true, house: 'shield', sortOrder: 665 },
+        { id: 'bgp', origin: 'derived', category: 'course', label: 'BGP', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/bgp/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 666 },
+        { id: 'carrier', origin: 'derived', category: 'course', label: '5G & Carrier Networks', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/carrier/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 667 },
+        { id: 'datacenter', origin: 'derived', category: 'course', label: 'Data Center Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/datacenter/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 668 },
+        { id: 'backbone-forensics', origin: 'derived', category: 'course', label: 'Network Forensics', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/forensics/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 669 },
+        { id: 'infiniband', origin: 'derived', category: 'course', label: 'InfiniBand & RDMA', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/infiniband/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 670 },
+        { id: 'ipv6', origin: 'derived', category: 'course', label: 'Advanced IPv6', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/ipv6/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 671 },
+        { id: 'mpls', origin: 'derived', category: 'course', label: 'MPLS & Service Provider Technologies', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/mpls/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 672 },
+        { id: 'netsec', origin: 'derived', category: 'course', label: 'Network Security Architecture', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/netsec/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 673 },
+        { id: 'optical', origin: 'derived', category: 'course', label: 'Optical Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/optical/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 674 },
+        { id: 'qos', origin: 'derived', category: 'course', label: 'QoS', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/qos/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 675 },
+        { id: 'routing', origin: 'derived', category: 'course', label: 'Advanced Routing', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/routing/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 676 },
+        { id: 'sdn', origin: 'derived', category: 'course', label: 'Software-Defined Networking', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/sdn/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 677 },
+        { id: 'sdwan', origin: 'derived', category: 'course', label: 'Advanced SD-WAN', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/sdwan/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 678 },
+        { id: 'wireless', origin: 'derived', category: 'course', label: 'Advanced Wireless', sublabel: 'The Backbone', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/backbone/wireless/index.html', parent: 'backbone', tenantAssignable: true, house: 'web', sortOrder: 679 },
+        { id: 'wifi-arsenal', origin: 'derived', category: 'course', label: 'WiFi Arsenal', sublabel: 'The Vault', icon: '/assets/images/icons/icon-spider.webp', hubHref: '/dark-arts/vault/wifi-arsenal/index.html', parent: 'vault', tenantAssignable: true, house: 'dark-arts', sortOrder: 680 },
+        { id: 'toolkit', origin: 'derived', category: 'course', label: 'The Signal Toolkit: Essential Software', sublabel: 'Signal', icon: '/assets/images/icons/icon-signal.webp', hubHref: '/signal/toolkit/index.html', parent: 'signal', tenantAssignable: true, house: 'forge', sortOrder: 681 },
+        { id: 'eye-cysa', origin: 'derived', category: 'cert-prep', catalogCode: 'CS0-003', label: 'CompTIA CySA+', sublabel: 'CS0-003', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/eye/cysa/index.html', tenantAssignable: true, house: 'eye', sortOrder: 690 },
+        { id: 'web-ccna', origin: 'derived', category: 'cert-prep', catalogCode: '200-301', label: 'Cisco CCNA', sublabel: '200-301', icon: '/assets/images/icons/icon-network.webp', hubHref: '/houses/web/ccna/index.html', tenantAssignable: true, house: 'web', sortOrder: 700 },
     ];
 
     function _filter(predicate) {
@@ -447,6 +469,15 @@
             var arr = filterFn ? _filter(filterFn) : HUBS.slice();
             return arr.sort(function (a, b) {
                 return (a.sortOrder || 999) - (b.sortOrder || 999);
+            });
+        },
+        // A house page's projection of its owned hubs (north-star step 1). Returns TOP-LEVEL
+        // hubs only: entries with a `parent` are container members and render inside their
+        // container's page, not as sibling cartridges ("Container grouping" ruling); entries
+        // with status 'workshop' are quarantined and render only behind the admin barricade.
+        byHouse: function (houseId) {
+            return HubRegistry.sorted(function (h) {
+                return h.house === houseId && !h.parent && h.status !== 'workshop';
             });
         },
         // ── Dynamic (Firestore-backed) hubs, task #225 ──────────────

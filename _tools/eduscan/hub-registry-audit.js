@@ -126,6 +126,28 @@ Object.keys(nameCount).filter((n) => nameCount[n].length > 1)
     if (!parentIssues) ok('parent integrity: ' + HubRegistry.all().filter((h) => h.parent).length + ' child hub(s), depth-1, no self/malformed refs');
 }
 
+// ── G. House assignment integrity: every static entry must carry a `house` from the 13 real
+//    houses (Frank's rule: a hub cannot enter the registry without a home -- north-star step 1,
+//    seeded 2026-07-28; assignments = URL derivation + the batch-1/2 rulings in
+//    _docs/architecture/unified-hub-registry.md). FAIL on missing/invalid so an unhoused hub can
+//    never ship; WARN when the hubHref lives under a DIFFERENT real house's directory than the
+//    assigned house (a deliberate override is legal, but the drift must stay visible).
+{
+    const REAL_HOUSES = new Set(['ai', 'cloud', 'code', 'dark-arts', 'divergent', 'eye', 'forge', 'key', 'matrix', 'observatory', 'script', 'shield', 'web']);
+    let houseIssues = 0, overrides = 0;
+    HubRegistry.all().forEach((h) => {
+        if (!h.house) { fail("hub '" + h.id + "' has no house (every hub needs a home)"); houseIssues++; return; }
+        if (!REAL_HOUSES.has(h.house)) { fail("hub '" + h.id + "' has invalid house '" + h.house + "' (not one of the 13 real houses)"); houseIssues++; return; }
+        const segs = (h.hubHref || '').split('/').filter(Boolean);
+        const hrefHouse = segs[0] === 'houses' ? segs[1] : segs[0];
+        if (REAL_HOUSES.has(hrefHouse) && hrefHouse !== h.house) {
+            warn("hub '" + h.id + "' is housed in '" + h.house + "' but lives under /" + (segs[0] === 'houses' ? 'houses/' : '') + hrefHouse + "/ (deliberate override or drift?)");
+            overrides++;
+        }
+    });
+    if (!houseIssues) ok('house assignment: ' + HubRegistry.all().length + '/' + HubRegistry.all().length + ' hubs housed in the 13-house whitelist' + (overrides ? ' (' + overrides + ' href-mismatch override(s) noted above)' : ''));
+}
+
 // ── E. House card lists (the 4th source): reconcile each house's config.paths cards against the
 //    registry BY LINK TARGET. Surfaces the registry<->house drift the registry/gallery/name three-way
 //    cannot see (house lists are hand-maintained, separate from HubRegistry). WARN-level: the drift is

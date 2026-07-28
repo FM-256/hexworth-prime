@@ -31,6 +31,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-037 -- 8 house pages render an EMPTY Courses grid: cartridge-fy shipped without the HubRegistry include  ·  P1  ·  fixed-not-deployed
+- **Found:** 2026-07-28 · by self (verified by Nancy) · during north-star step-1 build, tracing how the forge precedent loads HubRegistry
+- **Area:** _app/houses/{cloud,code,dark-arts,eye,forge,key,script,shield}/index.html -- `cardStyle: 'cartridge'` + registry-id string `paths`, but NO `<script src="../../components/HubRegistry.js">` on the page
+- **Symptom:** for every sorted student, the Learning Paths tab shows a "COURSES" heading over an empty grid (and House Content's "Course Hubs" section is likewise empty): `hrResolveCartridge`'s guard `(window.HubRegistry && HubRegistry.all) ? HubRegistry.all() : []` silently skips every string entry when the registry global is absent.
+- **Repro:** puppeteer against https://hexworth.com/houses/forge/ with `hexworth_house` pre-seeded (sorted user): `typeof window.HubRegistry === 'undefined'`, `document.querySelectorAll('.hr-cart').length === 0`, paths panel innerHTML 156 chars.
+- **Root cause:** ec74ee454 (cartridge-fy 8 house pages) converted `config.paths` to registry-id strings on exactly these 8 pages but never added the script include the new code path depends on; observatory (which had the include already) was the QC reference, so the gap wasn't caught. Same failure class as the plan's Concern 4: mechanism not traced end-to-end.
+- **Fix:** this commit -- one `<script src="../../components/HubRegistry.js"></script>` line per page, immediately before HouseRenderer.js (observatory's proven pattern). Verified locally: all 9 cartridge pages (8 + new ai) render with HubRegistry defined and correct cartridge counts (2x config length across the two tabs, by design).
+- **Verified:** local puppeteer render-verify 9/9 PASS; production re-verify pending deploy.
+- **Related:** north-star step 1; Nancy PROCEED on addendum 2026-07-28.
+
 ### BUG-036 — eye-osint-dashboard.html: unescaped HTML inside a code sample pollutes the live DOM  ·  P2  ·  open
 - **Found:** 2026-07-28 · by Nancy · during SEM-002 marathon review (misclassified as a heading-count issue until she traced it)
 - **Area:** _app/projects/eye-osint-dashboard.html:1306-1339+ — a Python triple-quoted Flask template shown as example code inside `<div class="cf-code">` is NOT entity-escaped
