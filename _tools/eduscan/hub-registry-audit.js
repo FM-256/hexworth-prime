@@ -182,21 +182,33 @@ try {
     const regByHref = {}, regById = {};
     HubRegistry.all().forEach((h) => { const n = normHref(h.hubHref, ''); if (n) regByHref[n] = h; regById[h.id] = h; });
     let total = 0, matched = 0, unmatched = 0, noHref = 0, brokenRef = 0; const surfaced = {};
+    const crossHoused = [];   // hub carded on a house page whose registry `house` is a DIFFERENT house
+    const noteCard = (hub, pageHouse) => {
+        surfaced[hub.id] = true;
+        // Observatory is EXEMPT: it is the ratified curated cross-house lens (unified-hub-registry.md,
+        // decisions LOCKED) -- carding other houses' hubs there is its purpose, not drift.
+        if (pageHouse === 'observatory') return;
+        if (hub.house && hub.house !== pageHouse) crossHoused.push(hub.id + ' on ' + pageHouse + ' (house: ' + hub.house + ')');
+    };
     Object.keys(fresh).forEach((hid) => fresh[hid].forEach((c) => {
         total++;
         if (c.registryRef) {   // a bare-string entry: a direct HubRegistry id reference (cannot drift by design)
-            if (regById[c.id]) { matched++; surfaced[c.id] = true; } else { brokenRef++; }
+            if (regById[c.id]) { matched++; noteCard(regById[c.id], hid); } else { brokenRef++; }
             return;
         }
         if (!c.href) { noHref++; return; }
         const m = regByHref[normHref(c.href, hid)];
-        if (m) { matched++; surfaced[m.id] = true; } else { unmatched++; }
+        if (m) { matched++; noteCard(m, hid); } else { unmatched++; }
     }));
     const notSurfaced = HubRegistry.all().filter((h) => !surfaced[h.id]).map((h) => h.id);
     ok('house cards: ' + total + ' across ' + Object.keys(fresh).length + ' houses (' + matched + ' matched, ' + unmatched + ' link elsewhere, ' + noHref + ' no-link)');
     if (unmatched) warn(unmatched + ' house card(s) link to a target not in HubRegistry');
     if (brokenRef) fail(brokenRef + ' house card(s) reference a HubRegistry id that does not exist');
     if (notSurfaced.length) warn(notSurfaced.length + ' registry hub(s) surfaced on no house page: [' + notSurfaced + ']');
+    // Cross-house carding: policy is LABEL, do not remove (Frank, 97a136266) -- a hub carded on a
+    // page outside its registry house is either an intentional cross-list or stale hand-list drift;
+    // either way it must stay visible to change management until ruled, never silently reconciled.
+    if (crossHoused.length) warn(crossHoused.length + ' hub(s) carded outside their registry house: [' + crossHoused.join('; ') + ']');
 } catch (e) {
     warn('house-card reconciliation skipped: ' + String(e.message || e).split('\n')[0]);
 }

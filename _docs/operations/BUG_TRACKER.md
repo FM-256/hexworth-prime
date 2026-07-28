@@ -31,6 +31,31 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-038 -- cartridge-fy orphaned 12 learning-path links across 6 houses (real paths unreachable)  ·  P2  ·  open
+- **Found:** 2026-07-28 · by self (completeness-checked by Nancy) · during Eye projection conversion, extending the AI-house near-miss to all cartridge-fied houses
+- **Area:** _app/houses/{cloud,code,eye,key,script,shield}/index.html vs _app/components/LearningPaths.js + handler-dashboard.js PATH_HOUSE_MAP
+- **Symptom:** ec74ee454 replaced object path-cards (which linked to path-view.html learning paths) with HubRegistry id strings (which link to hub pages). For 12 removed cards the underlying LearningPaths entries are REAL multi-module paths that now have ZERO UI entry points (grep-verified: no `path=<id>` links anywhere in _app). Students cannot reach them; any progress written under those path ids is stranded.
+- **Full orphan table (per-pair ruling needed: is the HUB or the PATH the canonical destination?):**
+  | house page | orphaned path id | path name | colliding hub card now shown |
+  |---|---|---|---|
+  | cloud | aws-ccp | AWS Cloud Practitioner | aws-ccp hub (same name) |
+  | cloud | azure-fundamentals | Azure Fundamentals | azure-fundamentals hub (same name) |
+  | code | devops-fundamentals | DevOps Fundamentals | devops-fundamentals hub (same name; also cross-housed, see audit WARN) |
+  | code | aws-developer | AWS Developer | aws-developer hub (same name; cross-housed) |
+  | eye | cysa-plus | CompTIA CySA+ (CS0-003) | eye-cysa hub (same cert) |
+  | eye | security-operations | Security Operations (SOC Analyst) | security-operations hub (SAME id and name) |
+  | key | cryptography-track | Cryptography Track | cryptography-track hub (same name) |
+  | key | security-plus-crypto | Security+ Cryptography | NONE (hub is workshopped; path unreachability here is probably CORRECT per quarantine intent, confirm on ruling) |
+  | script | comptia-linux | CompTIA Linux+ | comptia-linux hub (same name; cross-housed) |
+  | script | devops-fundamentals | (duplicate of code row) | devops-fundamentals hub |
+  | shield | cysa-plus | (duplicate of eye row) | eye-cysa hub carded on shield (cross-housed) |
+  | shield | casp-plus | CompTIA CASP+ | casp-plus hub (same name) |
+- **CySA tangle (must be ruled TOGETHER, not per-row):** LearningPaths has THREE CySA-adjacent ids: `cysa` (LearningPaths.js:3240) and `cysa-plus` (:4624) share the IDENTICAL `courseHref: 'houses/eye/cysa/index.html'` (one is likely a dead duplicate definition, not a distinct path); `eye-cysa` is the HubRegistry hub for that same page. Both `cysa` and `cysa-plus` are orphaned and both map to house eye in PATH_HOUSE_MAP. Ruling should pick ONE canonical CySA path id (or retire the paths in favor of the hub) and say what happens to progress under the losing id(s).
+- **Root cause:** ec74ee454 swapped card SHAPE (object with path-view link -> registry string with hub link) without checking whether the removed links were the only route to real LearningPaths content. Same commit-class as BUG-037.
+- **NOT auto-fixed because:** restoring the cards wholesale would render two near-identical cards per pair (path + hub, same name) to different destinations -- a UX defect; and hub-vs-path canonicality is an operator ruling. The AI house's 3 paths were restored in b92534ad7 because they had NO hub twins (zero collision); every row above except security-plus-crypto has a twin.
+- **Fix:** pending Frank's per-pair rulings; ships as its own change with the usual QC chain.
+- **Related:** BUG-037 (same origin commit), hub-registry-audit "carded outside their registry house" WARN (added with the Eye projection; overlaps 4 rows above).
+
 ### BUG-036 — eye-osint-dashboard.html: unescaped HTML inside a code sample pollutes the live DOM  ·  P2  ·  open
 - **Found:** 2026-07-28 · by Nancy · during SEM-002 marathon review (misclassified as a heading-count issue until she traced it)
 - **Area:** _app/projects/eye-osint-dashboard.html:1306-1339+ — a Python triple-quoted Flask template shown as example code inside `<div class="cf-code">` is NOT entity-escaped
