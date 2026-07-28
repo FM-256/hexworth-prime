@@ -31,6 +31,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-035 — PIS written final credited the PRACTICAL final's progress module  ·  P1  ·  fixed-not-deployed
+- **Found:** 2026-07-28 · by Nancy · during marathon catalog-declaration review (her rescan surfaced the CAT-007 dup that unraveled it)
+- **Area:** _app/houses/shield/infosec/exams/pis-final.exam.html:621 + ContentCatalog.js pis-final/pis-final-practical entries
+- **Symptom:** The written final called `ModuleProgress.completeQuiz('shield', 'pis-final', ...)` — but the hub's `data-module="pis-final"` card is the PRACTICAL (Patient Zero). Passing the written exam marked the practical complete; the written card (`pis-final-written`) never completed. Catalog compounded it: `pis-final` entry pointed at the written exam file while `pis-final-practical` (an id used by zero cards and zero progress writes) pointed at the practical.
+- **Fix:** exam file now completes `'pis-final-written'` (its own card id); catalog `pis-final` re-pointed to the practical lab (matching its hub card); duplicate `pis-final-practical` entry removed (grep-verified zero refs); `pis-final-written` declared with the correct exam href.
+- **CAVEAT (historical data):** students who passed the written final before this fix have `pis-final` (practical) marked complete and no `pis-final-written` record. Cannot distinguish them from genuine practical completions retroactively — historical completions left as-is; instructors should treat pre-2026-07-28 `pis-final` completions as ambiguous.
+- **Verified:** rescan pending in marathon batch; deploy pending.
+
 ### BUG-034 — path-view.html renders any learning path with zero access gating  ·  P2  ·  open
 - **Found:** 2026-07-28 · by Nancy · during workshop-quarantine review of security-plus-crypto
 - **Area:** _app/path-view.html — no AccessGuard reference anywhere in the file
