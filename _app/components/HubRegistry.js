@@ -295,7 +295,10 @@
         { id: 'security-operations', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'Security Operations',     sublabel: 'SOC Analyst', icon: '/assets/images/icons/icon-radar.webp', hubHref: '/houses/security-operations/index.html',  tenantAssignable: true, sortOrder: 270 },
         { id: 'devops-fundamentals', origin: 'derived',  category: 'cert-prep', catalogCode: '',        label: 'DevOps Fundamentals',     sublabel: 'DevOps',  icon: '/assets/images/icons/icon-gear.webp',     hubHref: '/houses/devops-fundamentals/index.html',  tenantAssignable: true, sortOrder: 280 },
         { id: 'cryptography-track', origin: 'derived',   category: 'cert-prep', catalogCode: '',        label: 'Cryptography Track',      sublabel: 'Cryptography', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/cryptography-track/index.html',   tenantAssignable: true, sortOrder: 290 },
-        { id: 'security-plus-crypto', origin: 'derived', category: 'cert-prep', catalogCode: '',        label: 'Security+ Cryptography',  sublabel: 'SY0-701 domain', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/security-plus-crypto/index.html', tenantAssignable: true, sortOrder: 300 },
+        // status:'workshop' = quarantined lifecycle state (Frank 2026-07-28): page is admin-gated,
+        // hidden from student surfaces (tenantAssignable:false is the hiding flag), listed on the
+        // Workshop shelf + Hub Health HUD Workshop section. house = where it returns when fixed.
+        { id: 'security-plus-crypto', origin: 'derived', category: 'cert-prep', catalogCode: '',        label: 'Security+ Cryptography',  sublabel: 'SY0-701 domain', icon: '/assets/images/icons/icon-key.webp', hubHref: '/houses/security-plus-crypto/index.html', tenantAssignable: false, status: 'workshop', house: 'key', sortOrder: 300 },
         // ── additional hubs derived from the inventory scan (2026-07-26). Real hub landing pages that
         //    existed but were unregistered. Container hubs = the parent only (their sub-tracks are modules,
         //    NOT registered). Covers pending -> icon-fallback in the catalog. ──

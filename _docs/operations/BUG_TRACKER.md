@@ -31,6 +31,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-034 — path-view.html renders any learning path with zero access gating  ·  P2  ·  open
+- **Found:** 2026-07-28 · by Nancy · during workshop-quarantine review of security-plus-crypto
+- **Area:** _app/path-view.html — no AccessGuard reference anywhere in the file
+- **Symptom:** `/path-view.html?path=<id>` renders the full module list of ANY LearningPaths path directly from the URL — no sorted gate, no tourist limits, and (until the workshop bundle ships) no way to quarantine a path from it. Unsorted visitors and old links reach path content that page-level gates elsewhere would block.
+- **Root cause:** page predates/skipped the AccessGuard convention; it renders LearningPaths.PATHS[lookupId] with no auth check (path-view.html:395).
+- **Fix:** PARTIAL in workshop bundle (workshop-status paths get an admin gate inside path-view; handler-dashboard Course Browser filters workshop paths at all 3 exposure points — Chris QC catch). The general no-gate-at-all exposure is NOT fixed there (scope) — needs its own ruling: add `AccessGuard.require('sorted')` like every course page, or deliberate decision that path browsing is public.
+- **RESIDUAL (recorded, by design):** `LearningPaths.PATHS` itself carries NO quarantine marker — every fix lives in downstream consumers (catalog, path-view, handler-dashboard, hub page). Any FUTURE code that reads LearningPaths.PATHS directly inherits the leak. Root fix = the unified-registry migration (consumers resolve through HubRegistry, which carries status) — see `_docs/architecture/unified-hub-registry.md`. Until then, any new LearningPaths consumer MUST apply the workshop-status filter.
+- **Related:** BUG-033 workshop-quarantine bundle (security-plus-crypto).
+
 ### BUG-032 — FEH dashboard cards linked to the Forensics Hub, not the FEH course  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-27 · by Chris + Nancy · in cartridge-fy / FEH-rename QC
 - **Area:** _app/tenant/{index,dashboard-clean-ops,dashboard-command-center,dashboard-enterprise,dashboard-tactical-hud}.html — 6 `feh` entries

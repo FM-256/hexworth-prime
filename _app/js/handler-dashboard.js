@@ -2509,7 +2509,6 @@
             'python-hub': 'script',
             'security-operations': 'eye',
             'security-plus': 'shield',
-            'security-plus-crypto': 'key',
             'signal-toolkit': 'signal',
             'wsa': 'cloud',
             'adv-linux': 'matrix'
@@ -2610,6 +2609,16 @@
             }
         }
 
+        // Workshop-status hubs (HubRegistry lifecycle state) are quarantined:
+        // never offer them in the assignment browser. Admins work on them via
+        // the Workshop shelf; assigning them to live classes is exactly what
+        // the quarantine exists to prevent.
+        function isWorkshopPath(key) {
+            const reg = (window.HubRegistry && HubRegistry.all) ? HubRegistry.all() : [];
+            const hub = reg.find(h => h && h.id === key);
+            return !!(hub && hub.status === 'workshop');
+        }
+
         function renderBrowserPaths() {
             const body = document.getElementById('cbBody');
             if (!body) return;
@@ -2617,8 +2626,9 @@
             const paths = typeof LearningPaths !== 'undefined' ? LearningPaths.PATHS : {};
             const houseKeys = Object.keys(HOUSE_META);
 
-            // Separate courses (non-house paths) from house paths
-            const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k));
+            // Separate courses (non-house paths) from house paths; quarantined
+            // (workshop-status) paths are excluded from the browser entirely.
+            const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k) && !isWorkshopPath(k));
 
             let html = '';
 
@@ -2687,8 +2697,9 @@
             const houseKeys = Object.keys(HOUSE_META);
 
             // If type filter is "course", show courses as path-level cards
+            // (workshop-status paths excluded, same as the Paths tab)
             if (filters.type === 'course') {
-                const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k));
+                const courseKeys = Object.keys(paths).filter(k => !houseKeys.includes(k) && !isWorkshopPath(k));
                 let filtered = courseKeys.map(key => ({
                     key,
                     data: paths[key],
@@ -2736,9 +2747,11 @@
             // Standard individual items view
             let allItems = [];
 
-            // Gather all individual modules from all paths
+            // Gather all individual modules from all paths (quarantined
+            // workshop-status paths contribute no items)
             Object.entries(paths).forEach(([pathKey, pathData]) => {
                 if (!pathData.modules) return;
+                if (isWorkshopPath(pathKey)) return;
                 const house = HOUSE_META[pathKey] ? pathKey : (PATH_HOUSE_MAP[pathKey] || pathKey);
 
                 pathData.modules.forEach(mod => {
