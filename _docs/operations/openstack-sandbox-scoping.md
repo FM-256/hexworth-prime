@@ -320,6 +320,11 @@ existing linux-sandbox lab regression-launched clean.
 ~45-50 concurrent m1.nano measured in Stage 1 — but Stage 2a students consume ZERO instances
 (read-only project; the demo instance is shared and pre-existing). The CLI lab's cost is bc1
 containers only. The graded-vs-free-play split of the 40 remains OPEN with Frank.
+**CAPACITY CAVEAT (Chris, blocking review): BUG-050 applies to `openstack-cli` identically to
+every lab in the shared pool** -- the lab-manager accepts anonymous Firebase tokens, and anon
+uids are free to re-mint, so the 2-per-user bound is not actually enforced against a determined
+anonymous visitor and the 40-pool is consumable without an account. The numbers above describe
+configured limits, not adversarial guarantees, until BUG-050 is ruled and fixed.
 
 **Maintenance policy update (Nancy):** term rebuilds restore from the POST-2a snapshot
 (`openstack-vm-stage2a-20260729.qcow2`), not the Stage-1 pristine one, or the demo project and
