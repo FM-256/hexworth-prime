@@ -23,18 +23,39 @@ const SandboxLauncher = (function() {
         idleTimeoutMinutes: 15,
     };
 
-    // Lab metadata for UI display
+    // Lab metadata for UI display.
+    // `browsable` is a REQUIRED, explicit, per-entry ruling: true = advertised on The Rig
+    // (/rig/) as a free-play launch card; false = course-internal, launchable only from the
+    // page that owns its scaffolding. The Rig's accessor is FAIL-CLOSED -- a missing key
+    // means the entry does not appear (and the hub-registry audit fails the build until the
+    // key is added), so a new environment can never leak onto the shelf by omission.
     const LAB_INFO = {
-        'do-100': { name: 'DevOps Foundation', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'do-101': { name: 'DevOps Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'do-102': { name: 'DevOps IDE', tier: 'ide', icon: '/assets/images/icons/icon-wrench.webp' },
-        'do-16':  { name: 'Git Fundamentals', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'arctic': { name: 'Arctic Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'db-sql': { name: 'PostgreSQL Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'linux-mastery': { name: 'Linux Mastery Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
-        'linux-sandbox': { name: 'Linux Practice Sandbox', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp' },
+        'do-100': { name: 'DevOps Foundation', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        'do-101': { name: 'DevOps Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        'do-102': { name: 'DevOps IDE', tier: 'ide', icon: '/assets/images/icons/icon-wrench.webp', browsable: true },
+        'do-16':  { name: 'Git Fundamentals', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        'arctic': { name: 'Arctic Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        'db-sql': { name: 'PostgreSQL Terminal', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        // FINAL EXAM environment (CTS4321C practical). Its stage panels, flag capture and
+        // grading live in ala-final.html, NOT in this launcher -- a bare launch card would
+        // hand out an ungraded shell into exam infrastructure. NEVER flip this to true.
+        'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: false },
+        'linux-mastery': { name: 'Linux Mastery Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        'linux-sandbox': { name: 'Linux Practice Sandbox', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
     };
+
+    /**
+     * The Rig's data source: only entries explicitly flagged browsable:true, as
+     * frozen copies. Strict equality (not truthiness) keeps the fail-closed
+     * contract: absent or malformed flags exclude the entry.
+     */
+    function getBrowsableLabs() {
+        const out = {};
+        for (const id of Object.keys(LAB_INFO)) {
+            if (LAB_INFO[id].browsable === true) out[id] = Object.freeze({ ...LAB_INFO[id] });
+        }
+        return out;
+    }
 
     // Active state
     let _activeSessions = {};   // labId → { sessionId, url, pollTimer }
@@ -524,6 +545,7 @@ const SandboxLauncher = (function() {
         listMissions,
         renderButton,
         getActiveSessions: () => ({ ..._activeSessions }),
+        getBrowsableLabs,
         CONFIG,
         LAB_INFO,
     };

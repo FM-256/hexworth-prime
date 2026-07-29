@@ -354,6 +354,10 @@
         // Observatory-vs-catalog reconciliation (2026-07-26): scheduled courses the Observatory teaches
         // that the page-scan missed (plainly-rendered, no hub-renderer signal). Real course pages.
         { id: 'projects',      origin: 'derived',       category: 'platform-hub', label: 'Projects Hub',        sublabel: 'Hands-On Projects', icon: '/assets/images/icons/icon-rocket.webp',  hubHref: '/projects/index.html',                        tenantAssignable: true, house: 'observatory', sortOrder: 510 },
+        // The Rig (2026-07-29, design: _docs/architecture/the-rig-sandbox-hub.md): consolidated sandbox
+        // front door; shelf renders from SandboxLauncher.getBrowsableLabs() (fail-closed browsable flags).
+        // tenantAssignable:false is DELIBERATE until the graded-vs-free-play capacity ruling lands.
+        { id: 'the-rig',       category: 'platform-hub', label: 'The Rig',            sublabel: 'Sandbox Bay',   icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/rig/index.html',                             tenantAssignable: false, house: 'observatory', sortOrder: 515 },
         { id: 'clh',           origin: 'derived',       category: 'course', label: 'Command Line Hacker',       sublabel: 'CLH',             icon: '/assets/images/icons/icon-terminal.webp', hubHref: '/houses/script/courses/clh/index.html',       tenantAssignable: true, house: 'script', sortOrder: 520 },
         { id: 'linux-admin',   origin: 'derived',       category: 'course', label: 'Linux Administration',      sublabel: 'Linux',           icon: '/assets/images/icons/icon-penguin.webp',  hubHref: '/houses/script/linux/index.html',             tenantAssignable: true, house: 'script', sortOrder: 530 },
         // Multi-list (LearningPaths) reconciliation (2026-07-26): tracks with real landing pages not yet registered.

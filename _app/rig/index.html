@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Rig // Sandbox Bay // Hexworth Prime</title>
+    <script src="/components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="/components/FirebaseAuth.js"></script>
+    <script src="/components/SandboxLauncher.js"></script>
+    <style>
+        :root {
+            --rig-bg: #070b14;
+            --rig-panel: #0d1424;
+            --rig-edge: #1c2a45;
+            --rig-text: #d6e2f5;
+            --rig-dim: #7f8fb0;
+            --rig-accent: #f0a13c;   /* gantry amber */
+            --rig-blue: #3b82f6;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--rig-bg);
+            color: var(--rig-text);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+        /* Never a narrow centered strip: content owns the screen. */
+        .wrap { max-width: 1600px; margin: 0 auto; padding: 28px 32px 64px; }
+        header.rig-head {
+            border-bottom: 1px solid var(--rig-edge);
+            padding-bottom: 18px;
+            margin-bottom: 8px;
+        }
+        .rig-head .kicker {
+            color: var(--rig-accent);
+            letter-spacing: 0.28em;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+        }
+        .rig-head h1 { font-size: 2rem; letter-spacing: 0.04em; margin-top: 4px; }
+        .rig-head .sub { color: var(--rig-dim); margin-top: 6px; max-width: 900px; }
+        .capacity {
+            display: flex; flex-wrap: wrap; gap: 12px 28px;
+            background: var(--rig-panel);
+            border: 1px solid var(--rig-edge);
+            border-left: 3px solid var(--rig-accent);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin: 18px 0 30px;
+            font-size: 0.85rem; color: var(--rig-dim);
+        }
+        .capacity b { color: var(--rig-text); font-weight: 600; }
+        h2.shelf {
+            font-size: 1.05rem; letter-spacing: 0.18em; text-transform: uppercase;
+            color: var(--rig-blue); margin: 34px 0 16px;
+        }
+        h2.shelf.arena { color: var(--rig-accent); }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 18px;
+        }
+        .card {
+            background: var(--rig-panel);
+            border: 1px solid var(--rig-edge);
+            border-radius: 10px;
+            padding: 18px;
+            display: flex; flex-direction: column; gap: 10px;
+            transition: border-color 0.15s ease, transform 0.15s ease;
+        }
+        .card:hover { border-color: var(--rig-blue); transform: translateY(-2px); }
+        .card .top { display: flex; align-items: center; gap: 12px; }
+        .card .top img { width: 30px; height: 30px; }
+        .card .name { font-weight: 600; font-size: 1.02rem; }
+        .card .tier {
+            margin-left: auto;
+            font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
+            color: var(--rig-dim);
+            border: 1px solid var(--rig-edge); border-radius: 999px;
+            padding: 3px 10px;
+        }
+        .card .launch-mount { margin-top: auto; }
+        .card.arena-card { border-left: 3px solid var(--rig-accent); }
+        .card.arena-card a.go {
+            display: inline-block; margin-top: auto;
+            color: var(--rig-accent); text-decoration: none; font-weight: 600;
+            border: 1px solid var(--rig-accent); border-radius: 6px;
+            padding: 8px 16px; text-align: center;
+        }
+        .card.arena-card a.go:hover { background: rgba(240, 161, 60, 0.12); }
+        .card .desc { color: var(--rig-dim); font-size: 0.86rem; line-height: 1.45; }
+        .empty-note { color: var(--rig-dim); padding: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header class="rig-head">
+            <div class="kicker">Hexworth Prime // Platform Hub</div>
+            <h1>THE RIG</h1>
+            <div class="sub">Sandbox Bay. Every live practice environment on the platform, one launchpad.
+                These are real containers on real infrastructure, not simulations. Launch, practice, tear down.</div>
+        </header>
+
+        <div class="capacity">
+            <span><b>2 containers</b> per operator</span>
+            <span><b>120 min</b> max lifetime, <b>15 min</b> idle timeout</span>
+            <span>Platform-wide pool is shared, <b>40 concurrent</b> total</span>
+            <span>Graded lab work has priority over free play</span>
+        </div>
+
+        <h2 class="shelf">Live Sandboxes</h2>
+        <div class="grid" id="sandbox-grid"></div>
+        <div class="empty-note" id="sandbox-empty" hidden>No sandboxes are currently advertised. Course-embedded launchers are unaffected.</div>
+
+        <h2 class="shelf arena">Arena Boxes</h2>
+        <div class="grid">
+            <div class="card arena-card">
+                <div class="top">
+                    <img src="/assets/images/icons/icon-swords.webp" alt="" onerror="this.style.display='none'">
+                    <span class="name">The Arena</span>
+                    <span class="tier">Graded</span>
+                </div>
+                <div class="desc">Attack and defend boxes with objectives, flags, and scoring. A different beast
+                    from free play: arena runs are graded challenges on their own engine.</div>
+                <a class="go" href="/arena/index.html">Enter the Arena</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Shelf 1 is a PROJECTION of SandboxLauncher's browsable registry (fail-closed:
+        // only entries explicitly flagged browsable:true appear -- design doc
+        // _docs/architecture/the-rig-sandbox-hub.md). Launch plumbing is 100% stock
+        // renderButton; this page adds zero launch logic of its own.
+        (function () {
+            var grid = document.getElementById('sandbox-grid');
+            var labs = SandboxLauncher.getBrowsableLabs();
+            var ids = Object.keys(labs);
+            if (!ids.length) {
+                document.getElementById('sandbox-empty').hidden = false;
+                return;
+            }
+            ids.forEach(function (id) {
+                var lab = labs[id];
+                var card = document.createElement('div');
+                card.className = 'card';
+                var top = document.createElement('div');
+                top.className = 'top';
+                var img = document.createElement('img');
+                img.src = lab.icon; img.alt = '';
+                img.onerror = function () { this.style.display = 'none'; };
+                var name = document.createElement('span');
+                name.className = 'name'; name.textContent = lab.name;
+                var tier = document.createElement('span');
+                tier.className = 'tier'; tier.textContent = lab.tier;
+                top.appendChild(img); top.appendChild(name); top.appendChild(tier);
+                var mount = document.createElement('div');
+                mount.className = 'launch-mount';
+                card.appendChild(top); card.appendChild(mount);
+                grid.appendChild(card);
+                SandboxLauncher.renderButton(mount, id);
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -61,6 +61,40 @@ if (!rewrites.some((r) => r.source === '/houses/hub/**' && r.destination === '/h
     ok('firebase.json hub rewrite present');
 }
 
+// ── E. Rig browsable contract: every LAB_INFO entry carries an EXPLICIT browsable ruling ──
+// The Rig (/rig/) renders sandbox cards from SandboxLauncher.getBrowsableLabs(), which is
+// fail-closed: entries without browsable:true never appear. That makes a MISSING key silently
+// invisible -- benign for students, but it means nobody made the ruling. Nancy's design
+// condition (the-rig-sandbox-hub.md): a missing key FAILS the build so every new sandbox entry
+// gets a deliberate advertised-vs-course-internal decision, and undefined-falsiness can never
+// stand in for one. cell-sigma (the CTS4321C final exam container) must stay browsable:false.
+(function auditRigBrowsable() {
+    let src;
+    try { src = fs.readFileSync(A('_app/components/SandboxLauncher.js'), 'utf8'); }
+    catch (e) { fail('SandboxLauncher.js unreadable: ' + e.message); return; }
+    const block = src.match(/const LAB_INFO = \{([\s\S]*?)\n    \};/);
+    if (!block) { fail('LAB_INFO block not found in SandboxLauncher.js (audit regex needs updating)'); return; }
+    const entries = block[1].match(/'[^']+':\s*\{[^}]*\}/g) || [];
+    if (!entries.length) { fail('LAB_INFO parsed to zero entries (audit regex needs updating)'); return; }
+    const unruled = [], ids = [];
+    for (const e of entries) {
+        const id = e.match(/^'([^']+)'/)[1];
+        ids.push(id);
+        if (!/browsable:\s*(true|false)/.test(e)) unruled.push(id);
+    }
+    if (unruled.length) {
+        fail('LAB_INFO entries with NO explicit browsable ruling: [' + unruled + '] -- add browsable:true|false deliberately');
+    } else {
+        ok('rig browsable contract: ' + ids.length + '/' + ids.length + ' LAB_INFO entries explicitly ruled');
+    }
+    const cs = entries.find((e) => e.indexOf("'cell-sigma'") === 0);
+    if (cs && !/browsable:\s*false/.test(cs)) {
+        fail('cell-sigma (FINAL EXAM container) is not browsable:false -- exam infrastructure must never be advertised on The Rig');
+    } else if (cs) {
+        ok('cell-sigma exam container locked browsable:false');
+    }
+})();
+
 // ── D. Three-way reconciliation: hubs-in-existence <-> hubs-in-gallery <-> hubs-by-name ──
 // (Frank's requirement) Ensures every hub gets a cover and the three sets never silently diverge or
 // duplicate. "Existence" = static HubRegistry ids + dynamic Firestore hubs. This SYNC section handles
