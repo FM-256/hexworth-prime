@@ -72,16 +72,60 @@ mapping; a provisioning script holds the pool.
   human-typeable secret -- strictly better for the CLI. But **Horizon login cannot consume an app
   credential**, so a typeable password is still required for the web console. **Rec: app creds for
   the CLI container + a rotated password for Horizon**, i.e. both, each where it fits.
-- **C. Pool size and quota per student.** Pool 30 (per the earlier ruling, with the standing
-  per-term roster check) and quota **2 instances / 2 cores / 1024MB RAM** -- which, at the
-  Stage-1-measured ~221MB per m1.nano, keeps the whole class inside the cloud's ~13GB even if
-  every student runs their cap. **Rec as stated; Frank confirms numbers.**
+- **C. Pool size and quota per student. CORRECTED 2026-07-29 (Nancy): my first numbers were
+  arithmetically FALSE by our own Stage 1 measurements.** I wrote pool 30 x 2 instances and
+  claimed it fit in ~13GB. It does not: 60 worst-case instances x ~235MB = ~14.1GB against
+  13,306MB available, and 60 also blows past the measured ~45-50 instance ceiling. With
+  `ram_allocation_ratio=1.0` pinned, the failure mode is Nova "No valid host found" -- which is
+  ALSO a seeded troubleshooting-lab scenario in this same course, so a capacity exhaustion would
+  be indistinguishable from an intentional lab failure. Corrected options:
+  - **REC: pool 30, quota 1 instance / 1 core / 512MB.** Worst case 30 instances ~7.05GB --
+    comfortably inside both limits, and one m1.nano is all the current labs need.
+  - Alternative if 2 instances is pedagogically required: pool 20 (40 x 235 = ~9.4GB), which
+    then contradicts the roster-driven pool-30 sizing.
+  - Either way, add a headroom guard so student launches refuse before the cloud reaches the
+    measured ceiling, rather than surfacing as a fake lab failure.
+  **Frank confirms; do not treat the original numbers as a live recommendation.**
 - **D. Term reset policy.** Delete-and-recreate student projects each term (clean slate, students
   lose old work) vs preserve. **Rec: delete-and-recreate**, announced to students, matching the
   VM's rebuild-per-term policy.
 - **E. Does the graded path depend on this?** Stage 3's graded challenges (`/check` running
   server-side `openstack ...` against the student's project) require per-student projects, so this
   bridge is the prerequisite for cloud labs ever being GRADED rather than explored.
+
+## Nancy PAUSE 2026-07-29 -- three gaps to close BEFORE Frank rules on the forks
+
+1. **Capacity math was false** -- corrected in Fork C above.
+2. **Rotation-on-teardown does not match the code that exists.** Verified in `server.js`:
+   `sessions` is an in-memory Map (line 128) with ZERO persistence -- a lab-manager restart forgets
+   every issued credential with no reconciliation path; Sablier's idle-stop deliberately PAUSES and
+   keeps the session (line 380 comment) so "idle" is NOT a rotation event today; and the only
+   delete path, `cleanupOrphans`, runs on a 10-minute interval keyed to `createdAt`, so even the
+   reap trigger lags up to 10 minutes and has no credential hook. **The doc's central safety claim
+   ("the old password is dead") therefore describes code that does not exist.** Stage 3 must
+   specify per-path behavior explicitly (which reaper calls rotate; whether idle-but-alive sessions
+   keep a live Horizon password; how a restart reconciles orphaned live credentials -- likely a
+   persisted issued-credential record, which also makes rotation auditable) and the "~40 lines"
+   estimate is wrong until it does.
+3. **Stage 3 IS the Horizon-widening event Stage 2b pre-committed to gating.** Stage 2b's record
+   says widening past Frank-only requires a mandatory fresh Nancy pass; per-student Horizon
+   credentials are exactly that. It must be presented to Frank as its own FORK, not inside this
+   doc's "settled" bucket. Added as **Fork F: authorize student Horizon access (requires its own
+   review pass), or ship Stage 3 CLI-only first and widen Horizon separately.** Rec: CLI-only
+   first -- it delivers persistent per-student cloud work with zero browser-typed credentials.
+4. **Fork A needs an auth answer, not a reuse claim.** "The bridge is proven" covers a dumb socat
+   forward; a password-minting claim service is new code with a new requirement. Under 2a's stated
+   trust model any tailnet peer could call an unauthenticated claim service and mint credentials
+   for any student's writable project. Fork A must specify what authenticates lab-manager to it
+   (rec: a shared secret in bc2's 0600 store + tailnet-only bind, both, not tailnet membership
+   alone).
+5. **BUG-050 fallback.** If Frank rules "accept anonymous as-is," the hard prerequisite has no
+   resolution and Stage 3 must NOT silently downgrade it. In that case the bridge re-scopes:
+   claims require a non-anonymous provider regardless of the platform-wide ruling (Stage 3 sets
+   its own floor), or Stage 3 waits.
+6. **Quota-restore honesty note:** no `demo-readonly` quota baseline was captured before my probe.
+   The restored 10/20/51200 matches Nova's stock default quota class, so it is very likely correct
+   -- but it is inferred from a known default, not verified against a recorded original.
 
 ## Dependencies and honest limits
 
