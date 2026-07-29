@@ -95,13 +95,27 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
     tonight on purpose** — flagged for a scoped decision.
   - Sweep caveat: the scan flags `CertPathRenderer.js:17`, which is now only the **explanatory comment**
     naming the old escape. A future rule must not re-report comments.
+- **CORRECTION 2026-07-29 -- the "~15 pictographic files" figure above was WRONG (a ~10x undercount).**
+  The first sweep counted only the `\u{1F...}` brace form. Re-measured with
+  `_tools/eduscan/bug048-classify.js`, which classifies ALL THREE escape forms (brace, surrogate-pair
+  `\uD8xx\uDCxx`, bare BMP) against the validator's own EXCLUDED_CHARS/EXCLUDED_CODEPOINTS sets
+  (emoji.js:26-48, 66-85) and its emoji ranges (line 22); output reproduced independently by Nancy:
+  **198 files / 1,523 true-pictographic occurrences**, plus 169 files / 307 excluded-typographic.
+  The surrogate-pair form alone covers ~120 `arena/boxes/*/config.js` files (136 configs exist),
+  invisible to both earlier greps. Two findings that shape the fix:
+  1. Those ~120 arena configs share a repeating ~8-icon vocabulary rendered by BoxEngine, so the
+     natural fix is an engine-level icon map + a scripted config sweep, not 198 hand edits.
+  2. The validator's own line contradicts the sweep prose above: U+26A0 (warning sign) and U+2699
+     (gear) are NOT in EXCLUDED_CODEPOINTS, so the validator counts them as real emoji while the
+     sweep filed them under typography. Reconciling that is part of the scope ruling.
+  No content file was touched in this pass. Scope remains a decision returned to Frank: taskboard #242.
 - **Consequence for verification:** "EduScan passed" is **not** evidence for this class of defect, in either
   direction. Fixing BUG-047 produced zero EduScan signal, so a visual render check was used instead.
 - **Fix:** not written. Needs a rule that decodes `\u{...}` / `\uXXXX` escapes in string literals before the
   emoji scan, independent of the property name.
 - **Related:** BUG-047
 
-### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  fixed-not-deployed (two residuals below)
+### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  deployed (two residuals below still open)
 - **Found:** 2026-07-28 · by Chris (blocking my BUG-043 half-B write-up) · verified independently by me
 - **Area:** functions/index.js:99-138 (`exports.completeGate`)
 - **Symptom:** the function writes `users/{uid}/gates/gate{N}` with `completed: true` for ANY signed-in
@@ -148,6 +162,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   student can still skip 6-8 by calling completeGate directly. Closing it needs real server-side
   validation of those puzzles: taskboard #237. Note these two residuals are DIFFERENT holes and
   neither is closed by the other.
+- **Deployed:** functions deploy 2026-07-28 20:43 EDT (gcloud completeGate updateTime 2026-07-29T00:43:36Z, 3 min 20 s after fix commit 177acbf3a at 20:40:16 EDT; working tree had no uncommitted functions changes). Fail-closed source confirmed shipped; behavior not re-exercised in production (forging a gate completion on prod to prove fail-closed would write junk to production state). The two residuals -- pre-existing forged progress unremediated, gates 6-8 still client self-attested (task #237) -- remain open.
 - **Related:** BUG-043 (blocked on this), taskboard #237.
 
 ### BUG-042 -- Dark Arts gates are unpassable for signed-out students, and the error blames the student  ·  P1  ·  partially-fixed (message), access policy open
@@ -202,16 +217,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Severity note:** this is a CTF-style teaching gate, not an assessment of record, so the impact is a student skipping content rather than grade fraud. Filed P1 anyway because the platform's own docs claim server-side authority that does not hold end to end.
 - **Related:** BUG-042 (same audit); operator sync build (the hydration pattern option B would follow).
 
-### BUG-040 -- BLACKSITE: sections 2-4 were unplayable; the terminal never rebound on tab switch  ·  P1  ·  fixed-not-deployed
+### BUG-040 -- BLACKSITE: sections 2-4 were unplayable; the terminal never rebound on tab switch  ·  P1  ·  deployed-verified
 - **Found:** 2026-07-28 · by self (played it as a student, puppeteer, against production) · Frank asked to verify the Grep & Pipe Mastery BLACKSITE levels are completable
 - **Area:** _app/components/BlacksiteTerminal.js loadModule() (~:280) + _app/components/CLHTerminal.js:3512 (constructor binds keydown directly to the input node)
 - **Symptom:** only TRACE was playable. Switching to DECODE / EXTRACT / DEFUSE rendered the new objectives but every command still executed against the PREVIOUS section's filesystem, so nothing could be completed. Live scores before the fix: TRACE 7/8, DECODE 0/8, EXTRACT 0/8, DEFUSE 0/6 (22 of 30 objectives unreachable). Visible tell: on DECODE, `grep "^2024" intercepted_codes.log` answered `No such file or directory` under the prompt `analyst@logserver:/var/log$` (TRACE's host), not DECODE's `intelserver`.
 - **Root cause:** loadModule dropped its reference to the old CLHTerminal and built a new one on the SAME input node, but CLHTerminal binds its keydown handler to that node and exposes no teardown (no destroy(), no removeEventListener anywhere in the 16k-line component). The stale listener fired first, ran the command against the old module, and cleared the input, so the new terminal only ever saw an empty string. Clinching detail: on EXTRACT, typing `wc -l` ticked exactly one objective -- the STALE TRACE instance completing its own `-l` objective, marked into the freshly rendered EXTRACT panel.
 - **Fix:** this commit -- loadModule replaces the input element with a clone before constructing the new terminal, detaching every stale listener at once. Scoped to BlacksiteTerminal because it is the only multi-instance consumer (91 files construct CLHTerminal; each creates exactly one per page). **Known gap, named not silent:** CLHTerminal still has no teardown by design; any FUTURE second multi-instance consumer will hit this same class and should get a real destroy() rather than repeating the clone-swap. The fix also depends on loadModule staying synchronous between the swap and the rebuild (noted in a code comment).
-- **Verified:** student playthrough (types each objective's taught command, answers all four CRITICAL DECISION modals correctly): 8/8 + 8/8 + 8/8 + 6/6 = 30/30, each section on its own host (logserver / intelserver / forensics / evidence), zero page errors. Production re-verify pending deploy.
+- **Verified:** student playthrough (types each objective's taught command, answers all four CRITICAL DECISION modals correctly): 8/8 + 8/8 + 8/8 + 6/6 = 30/30, each section on its own host (logserver / intelserver / forensics / evidence), zero page errors.
+- **Deployed + live-verified:** hosting deploy ~2026-07-29 00:35 EDT (live files md5-match commit f145fdd16). Live functional check 2026-07-29 ~10:45 EDT on production: sorted-user puppeteer opened the applet, INITIATE MISSION, switched to each previously-dead section (regex, pipes, boss), typed a command in each -- terminal produced output in all 3 (output length 0 -> 48/44/44), 0 page errors.
 - **Related:** BUG-041 (found in the same playthrough).
 
-### BUG-041 -- BLACKSITE: two objectives could not be completed with the command they teach  ·  P2  ·  fixed-not-deployed
+### BUG-041 -- BLACKSITE: two objectives could not be completed with the command they teach  ·  P2  ·  deployed
 - **Found:** 2026-07-28 · by self (TRACE-7) and Nancy (DECODE-2) · same playthrough / review
 - **Area:** _app/components/CLHConfig.js GPM-TRACE objective 7, GPM-DECODE objective 2
 - **Symptom:** TRACE-7 ("List all files mentioning the bomb threat") teaches `grep -rl "bomb" /var/log/` but checked `cmd.includes('-l')`, and the string `-rl` does not contain `-l`. DECODE-2 teaches `grep -Eo "[0-9]+\..."` but checked `lowerCmd.includes('-o')`, and `-Eo` lowercases to `-eo`. A student following the hint exactly could never tick either. Verified by running the real check functions against their own taught commands: 28 of 30 passed, these 2 failed.
@@ -219,6 +235,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix:** this commit -- shared `hasFlag(cmd, letter)` helper (whitespace tokenize, whole single-dash letter cluster) replaces the brittle substring tests on the pure single-flag checks in these modules (TRACE 1,2,3,4,5,7,8; DECODE 2,3). Phrase/pattern checks (`uniq -c`, `sort -rn`, `[0-9]`, `^`, `$`, the `-(A|B|C)\d` regex) are deliberately untouched: all pass their taught commands, so changing them is risk without a reproduced defect.
 - **Scope of the false-positive improvement (precise, per Nancy):** hasFlag closes the GLUED quoted-token case -- `grep "-c" file` used to tick the -c objective and no longer does. It does NOT close a free-standing flag-shaped word inside a quoted phrase (`grep "some -v text" file` still ticks, exactly as before). That case is unchanged, not fixed, and is not exploitable by accident here since no taught search term is a single-letter flag word.
 - **Verified:** all 30 objectives pass their taught commands; adversarial set passes (combined `-rl`/`-Eo`/`-ic` tick; `--long-format`, `-largefile.log`, quoted `"-l"`, and no-flag variants correctly rejected).
+- **Deployed:** same ~2026-07-29 00:35 EDT hosting deploy as BUG-040 (live files md5-match f145fdd16). Source confirmed live; the two taught-command checks were verified in the 30/30 pre-commit playthrough but not re-exercised on production.
 - **Related:** BUG-040.
 
 ### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  open

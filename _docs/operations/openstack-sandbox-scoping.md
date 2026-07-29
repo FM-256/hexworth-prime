@@ -271,21 +271,44 @@ in `SandboxLauncher.js:27-37`, and add catalog entries near `_app/components/Con
 
 ---
 
+## Adopted policies (2026-07-29)
+
+Adopted per Frank's directive to proceed with Nancy-approved recommendations (Nancy PROCEED on all
+four, 2026-07-29, with the conditions folded in below). Adoption is policy only: **no build starts
+without a separate explicit go.**
+
+1. **Flavor policy: CirrOS on `m1.nano` is the course standard.** The 35-55 concurrent figure is an
+   estimate, not a measurement; the original caveat carries forward verbatim: "the per-instance QEMU
+   overhead figures are an engineering estimate, not doc-backed — no authoritative OpenStack figure
+   for all-in-one idle consumption exists." **Measure real per-instance cost in Stage 1 before any
+   class-size promise is made.** Ubuntu `m1.small` (~5 concurrent) stays available for instructor
+   demos, never as the class default.
+2. **Maintenance model: rebuild the VM each term from a snapshot.** DevStack has no supported
+   in-place upgrade. Named default (Nancy condition: adoption without an owner is a policy that
+   quietly lapses; Frank may veto): owner = Frank as operator, executed by Claude in a pre-term
+   maintenance session; trigger = the week before each term's first class day; rebuild = restore
+   base-VM snapshot, run `stack.sh` from the pinned current release, re-seed the project pool,
+   smoke-boot one instance. Kolla-Ansible remains the documented fallback if this cadence proves
+   unacceptable in practice.
+3. **Egress policy: isolated fake-external provider network.** Student instances get zero real
+   internet exposure; routers / floating IPs / SSH are taught against the fake-external net. Real
+   tenant internet is declined (it would compound the still-open Linux-sandbox egress backlog item).
+4. **Identity bridge: fixed pre-provisioned project pool** (`student-01`..`student-30`, quotas
+   pre-set). Roster check (Nancy condition, measured 2026-07-29): prod Firestore has 7 classes and
+   190 users total; per-class membership is not modeled in Firestore (user docs carry no class
+   field), so no roster source contradicts a pool of 30 — but the check is weak by construction.
+   **Standing rule: confirm the actual enrolled headcount against the pool size before each term's
+   rebuild; if any class exceeds 30, resize the pool first** (pre-provisioning is scripted, so this
+   is cheap).
+
 ## Decisions still needed from Frank
 
 Blockers 1 and 2 from the original scoping are now **resolved by Stage 0** (bc2 has free NICs;
-nested virt is already on; bc2 is idle). What remains is policy, not engineering:
+nested virt is already on; bc2 is idle). Remaining:
 
-1. **Flavor policy.** CirrOS on `m1.nano` (35–55 concurrent) versus Ubuntu cloud images on
-   `m1.small` (~5 concurrent). The capacity story is entirely different. Recommend `m1.nano`.
-2. **Maintenance cadence / ownership.** DevStack installs from git and has **no supported in-place
-   upgrade path**; upstream ships every six months. The operating model is "rebuild the VM each term
-   from a snapshot." If unacceptable, the alternative is Kolla-Ansible (now viable — eno3/eno4 are
-   free) at higher RAM and complexity. This is a standing cost, and the item most likely to bite later.
-3. **Egress policy.** Recommend the isolated fake-external network. Real tenant internet would
-   compound an already-open backlog item and should be declined.
-4. **Identity bridge shape.** Fixed pool (recommended) versus on-demand creation.
-5. **Capacity contention.** bc1's 40-container pool already has a documented graded-vs-free-play
+1. **Green light to build Stage 1** (the KVM VM + DevStack install on bc2). Policies above are
+   adopted; the build itself was explicitly excluded from the 2026-07-29 authorization.
+2. **Capacity contention.** bc1's 40-container pool already has a documented graded-vs-free-play
    contention item. An OpenStack CLI lab adds load to that pool while the cloud has a separate,
    smaller instance ceiling on bc2. Both need explicit numbers before students arrive.
 
