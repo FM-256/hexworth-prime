@@ -317,6 +317,67 @@
             });
         });
 
+        // Mission finale. This used to be a native alert(): a grey OS dialog as the payoff
+        // for thirty objectives, in an applet where every other beat is themed. It also
+        // blocked automated QC, which is how it was noticed.
+        // Deliberately NOT CLHCompletionModal, the platform's other "mission complete" UI:
+        // its show() writes localStorage.hexworth_xp and calls FirestoreManager.addXP outside
+        // its CLH- gate, so reusing it would silently enrol this demo applet in the XP economy
+        // (Nancy). This applet has no XP wiring and this change adds none.
+        function showMissionFinale() {
+            if (document.getElementById('blacksiteFinale')) return;
+
+            // Captured for symmetry, but read the fallback comment below before "simplifying".
+            const priorFocus = document.activeElement;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'blacksite-finale-overlay';
+            overlay.id = 'blacksiteFinale';
+            overlay.setAttribute('role', 'dialog');
+            overlay.setAttribute('aria-modal', 'true');
+            overlay.setAttribute('aria-labelledby', 'blacksiteFinaleTitle');
+            overlay.innerHTML =
+                '<div class="blacksite-finale-content">' +
+                    '<div class="blacksite-finale-title" id="blacksiteFinaleTitle">MISSION COMPLETE</div>' +
+                    '<div class="blacksite-finale-body">All four sections cleared. The device is neutralised, ' +
+                        'the summit is secure, and every objective is logged against your record.<br>' +
+                        'TRACE, DECODE, EXTRACT, DEFUSE: thirty objectives, start to finish.</div>' +
+                    '<button type="button" class="blacksite-finale-dismiss" id="blacksiteFinaleDismiss">RETURN TO TERMINAL</button>' +
+                '</div>';
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => overlay.classList.add('active'));
+
+            const dismiss = overlay.querySelector('#blacksiteFinaleDismiss');
+            dismiss.focus();
+
+            function onKeydown(e) {
+                if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+                if (e.key === 'Tab') {
+                    // Only one focusable control in the dialog, so keep focus on it.
+                    e.preventDefault();
+                    dismiss.focus();
+                }
+            }
+
+            function close() {
+                document.removeEventListener('keydown', onKeydown, true);
+                overlay.remove();
+                // FALLBACK IS THE OPERATIVE PATH, not a rare backup: by the time the finale
+                // opens, the wire modal that held focus has already been removed from the DOM,
+                // so activeElement has reset to <body> (Nancy). Focus therefore lands on the
+                // active section tab almost every time. Do not delete this as dead code.
+                const activeTab = document.querySelector('.section-tab.active');
+                if (priorFocus && priorFocus !== document.body && document.contains(priorFocus)) {
+                    priorFocus.focus();
+                } else if (activeTab) {
+                    activeTab.focus();
+                }
+            }
+
+            dismiss.addEventListener('click', close);
+            document.addEventListener('keydown', onKeydown, true);
+        }
+
         // Start mission
         document.getElementById('start-btn').addEventListener('click', () => {
             missionStarted = true;
@@ -356,10 +417,7 @@
                             if (nextTab) nextTab.click();
                         }, 2000);
                     } else {
-                        // All complete!
-                        setTimeout(() => {
-                            alert('MISSION COMPLETE! All threats neutralized.');
-                        }, 1000);
+                        setTimeout(showMissionFinale, 1000);
                     }
                 },
                 onExplosion: (moduleId) => {
