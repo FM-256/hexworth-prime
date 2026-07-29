@@ -116,6 +116,22 @@ cloud is already installed; say so plainly rather than implying otherwise).
 | 6 | **Identity bridge shape.** Fixed pre-provisioned project pool (recommended) vs on-demand creation | |
 | 7 | **HouseRenderer dynamic-hub merge** (+117 lines, uncommitted). Descoped from this commit — it cannot be verified locally because it only acts when Firestore returns a dynamic hub | Needs a live-verified pass, not a claim |
 
+### The openstack hub had the *opposite* defect
+
+Worth knowing because it changes what "hexified" means. Once I measured the openstack hub properly
+(my first reading of "100% wide, fine" came from `.flux-overlay`, a decorative background layer,
+not from content) its four module cards were each **1880px wide, one per row** — a stack of
+full-width bars carrying a one-line title. That reads as "basic" for the same reason a narrow column
+does: the layout is not doing anything with the space. Fixed to 458px cards, 4 per row, zero dead
+space. While there I found a latent bug: the CSS styled `.module-info h3` but the markup uses `h2`,
+so the rule matched nothing and every module title fell back to the browser default — oversized,
+mis-coloured, wrapping to three lines.
+
+**Decision for you, not taken:** the openstack hub is **light-themed** (white background) while
+az-104, aws-ccp and the other cert hubs are **dark**. That is a visible identity split inside Cloud
+Master. Re-theming a whole page is not a layout fix and it is your call, so I left it and am flagging
+it.
+
 ### Housekeeping
 
 - Chris left eight scratch files in the repo root during his review (`check_grid_tmp.js`,
