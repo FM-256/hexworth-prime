@@ -1507,6 +1507,11 @@ const HouseRenderer = (function() {
     function hrResolveCartridge(entry) {
         if (typeof entry === 'string') {
             var reg = (window.HubRegistry && HubRegistry.all) ? HubRegistry.all() : [];
+            if (!reg.length && typeof console !== 'undefined' && console.warn) {
+                // Silent empty grids are how the cartridge-fy ship (BUG-037) blanked eight
+                // house pages for weeks. If the registry is missing, say so.
+                console.warn('[HouseRenderer] HubRegistry unavailable -- cartridge grids will render empty. Is components/HubRegistry.js loaded before HouseRenderer.js?');
+            }
             var h = null;
             for (var i = 0; i < reg.length; i++) { if (reg[i].id === entry) { h = reg[i]; break; } }
             if (!h) return null; // unknown registry id -> skip; the Hub Health audit surfaces the mismatch
@@ -1826,23 +1831,49 @@ const HouseRenderer = (function() {
     /**
      * Render the Explore All tab panel.
      *
-     * This tab has TWO distinct sections:
+     * This tab has TWO sections:
      *
-     *   1. SPECIAL FEATURES (below) — Curated highlight cards with rich descriptions,
-     *      colored names, and links to major platform experiences (Arena, Hive, Arctic,
-     *      Operator, etc.). These are hand-crafted promotional cards.
-     *      TO ADD A NEW FEATURE: Add an <a> element to the hr-feature-grid below.
+     *   1. SPECIAL FEATURES (below) -- hand-written cards for platform DESTINATIONS that
+     *      are not hubs: Arena, Hive, Arctic, Colosseum, Dispatch, Operator, Career,
+     *      Funding. They carry editorial descriptions the registry has no field for.
+     *      TO ADD A FEATURE: add an <a> to the hr-feature-grid below.
      *
-     *   2. PLATFORM HUBS (injected by ContentDiscovery.js) — Compact icon grid of ALL
-     *      cross-house content hubs. Appears below the search bar via renderPlatformHubs().
-     *      Data-driven from the PLATFORM_HUBS array in ContentDiscovery.js.
-     *      TO ADD A NEW HUB: Add an entry to PLATFORM_HUBS in ContentDiscovery.js.
+     *   2. HUBS -- a cross-house cartridge shelf. The CURATION is the EXPLORE_HUBS id
+     *      list; every name, link and cover comes from HubRegistry, so it cannot drift.
+     *      TO ADD A HUB: add its registry id to EXPLORE_HUBS.
      *
-     * Both sections are intentional — Special Features provides editorial curation
-     * with descriptions, while Platform Hubs provides quick-access navigation.
-     * They complement each other; do not remove one thinking it duplicates the other.
+     * HISTORY (2026-07-28): this used to be THREE overlapping lists -- 16 hand-written
+     * feature cards here, 8 of which were registry hubs, plus a 15-card PLATFORM_HUBS
+     * grid that ContentDiscovery injected into this same panel, plus the house's own
+     * projection. A comment here and in ContentDiscovery.js declared the two grids
+     * "complementary -- do not remove one thinking it duplicates the other". That was
+     * wrong in practice: both hand-lists had silently drifted off the registry, sending
+     * students to a legacy /houses/code/cortex/ and /houses/code/algorithms/ instead of
+     * the real hub pages. Hand-maintained copies of registry data are drift waiting to
+     * happen, which is the whole point of the registry. PLATFORM_HUBS is retired; hub
+     * cards live in EXPLORE_HUBS only. Do not reintroduce a second hub list.
      */
-    /** Render the Explore All tab with ContentDiscovery anchor */
+    // Cross-house hub shelf shown on every house's Explore All tab. Curated by hand
+    // (this list), rendered from the registry (everything else).
+    var EXPLORE_HUBS = ['forensics', 'bug-hunting', 'signal', 'cortex', 'code-armory',
+                        'algorithm-chamber', 'backbone', 'projects', 'devops'];
+
+    // Registry order keeps one less thing hand-maintained, and workshop-status hubs are
+    // dropped so a quarantined hub disappears from the shelf on its own. NOTE: this
+    // filtering is NOT inherited from hrResolveCartridge -- that resolves ids through
+    // HubRegistry.all(), which does no status filtering at all (only byHouse does).
+    function exploreHubIds() {
+        if (typeof HubRegistry === 'undefined' || !HubRegistry.all) return EXPLORE_HUBS;
+        var byId = {};
+        HubRegistry.all().forEach(function (h) { byId[h.id] = h; });
+        return EXPLORE_HUBS
+            .filter(function (id) { return !byId[id] || byId[id].status !== 'workshop'; })
+            .sort(function (a, b) {
+                return ((byId[a] && byId[a].sortOrder) || 999) - ((byId[b] && byId[b].sortOrder) || 999);
+            });
+    }
+
+    /** Render the Explore All tab: platform destinations + the registry hub shelf */
     function renderExplorePanel() {
         const panel = document.getElementById('hr-panel-explore');
         panel.innerHTML = `
@@ -1879,46 +1910,6 @@ const HouseRenderer = (function() {
                         <div class="hr-feature-name" style="color:#4ade80;">Operator</div>
                         <div class="hr-feature-desc">Grid-based terminal missions — recon, forensics, incident response, and privilege escalation</div>
                     </a>
-                    <a href="/signal/index.html" class="hr-feature-card feat-signal" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-antenna.webp" alt="Signal" onerror="this.onerror=null;this.src='/assets/images/icons/icon-signal.webp'"></div>
-                        <div class="hr-feature-name" style="color:#ff6b35;">The Signal</div>
-                        <div class="hr-feature-desc">Hardware projects — badge hacking, firmware ops, IoT security, and RF exploration</div>
-                    </a>
-                    <a href="/houses/code/devops/index.html" class="hr-feature-card feat-forge" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/categories/devops-automation.webp" alt="DevOps Forge" onerror="this.onerror=null;this.src='/assets/images/icons/icon-refresh.webp'"></div>
-                        <div class="hr-feature-name" style="color:#60a5fa;">The Forge</div>
-                        <div class="hr-feature-desc">DevOps hub — CI/CD pipelines, GitHub Actions, containers, and infrastructure as code</div>
-                    </a>
-                    <a href="/dark-arts/vault/bug-hunting/index.html" class="hr-feature-card feat-bughunt" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-spider.webp" alt="Bug Hunting" onerror="this.onerror=null;this.src='/assets/images/icons/icon-target.webp'"></div>
-                        <div class="hr-feature-name" style="color:#c084fc;">Bug Hunting Hub</div>
-                        <div class="hr-feature-desc">Security research — AI exploit lab, bug bounty simulation, vulnerability hunting</div>
-                    </a>
-                    <a href="/projects/index.html" class="hr-feature-card feat-projects" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-construction.webp" alt="Projects" onerror="this.onerror=null;this.src='/assets/images/icons/icon-tools.webp'"></div>
-                        <div class="hr-feature-name" style="color:#fbbf24;">Projects</div>
-                        <div class="hr-feature-desc">Build and ship real-world portfolio projects across cybersecurity domains</div>
-                    </a>
-                    <a href="/houses/code/armory/index.html" class="hr-feature-card feat-armory" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-swords.webp" alt="Code Armory" onerror="this.onerror=null;this.src='/assets/images/icons/icon-code.webp'"></div>
-                        <div class="hr-feature-name" style="color:#f59e0b;">Code Armory</div>
-                        <div class="hr-feature-desc">Programming languages hub — Python, JavaScript, C, Go, Rust, Bash, SQL, and more</div>
-                    </a>
-                    <a href="/houses/web/backbone/index.html" class="hr-feature-card feat-backbone" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-network.webp" alt="Backbone" onerror="this.onerror=null;this.src='/assets/images/icons/icon-globe.webp'"></div>
-                        <div class="hr-feature-name" style="color:#3b82f6;">The Backbone</div>
-                        <div class="hr-feature-desc">Advanced networking — BGP, MPLS, data center, SDN, wireless, and WAN technologies</div>
-                    </a>
-                    <a href="/houses/code/algorithms/index.html" class="hr-feature-card feat-algo" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-dna.webp" alt="Algorithms" onerror="this.onerror=null;this.src='/assets/images/icons/icon-lightning.webp'"></div>
-                        <div class="hr-feature-name" style="color:#10b981;">Algorithm Chamber</div>
-                        <div class="hr-feature-desc">Data structures, discrete math, algorithm design, and computational problem solving</div>
-                    </a>
-                    <a href="/houses/code/cortex/index.html" class="hr-feature-card feat-cortex" role="listitem">
-                        <div class="hr-feature-icon"><img src="/assets/images/icons/icon-brain.webp" alt="Cortex" onerror="this.onerror=null;this.src='/assets/images/icons/icon-robot.webp'"></div>
-                        <div class="hr-feature-name" style="color:#a855f7;">The Cortex</div>
-                        <div class="hr-feature-desc">AI and machine learning with a cybersecurity lens — foundations through deep learning</div>
-                    </a>
                     <a href="/career/index.html" class="hr-feature-card feat-career" role="listitem">
                         <div class="hr-feature-icon"><img src="/assets/images/icons/icon-rocket.webp" alt="Career" onerror="this.onerror=null;this.src='/assets/images/icons/icon-graduation.webp'"></div>
                         <div class="hr-feature-name" style="color:#ec4899;">Career Launchpad</div>
@@ -1931,6 +1922,7 @@ const HouseRenderer = (function() {
                     </a>
                 </div>
             </div>
+            <div class="hr-hub-section"><h3 class="hr-features-title">Hubs</h3>${hrCartridgeGrid(exploreHubIds())}</div>
             <div class="hr-explore-info">Search across all houses and content types</div>
             <div id="discoveryAnchor"></div>
         `;

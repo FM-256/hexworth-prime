@@ -235,6 +235,41 @@ curated cross-house lens by ruling):
   the shelf entry; the pattern is intentional and no filtering or removal is wanted.
   Hero cards remain hand-authored page content (they are NOT registry-driven).
 
+## Explore All is registry-driven too (2026-07-28)
+
+Frank: "the explore all hubs is still not shown as cartridge-fied" -- correct, and the tab
+was carrying THREE overlapping lists of the same hubs: HouseRenderer's 16 hand-written
+"Special Features" cards (8 of which were registry hubs), a separate 15-card PLATFORM_HUBS
+grid that ContentDiscovery injected into the SAME panel, and the house's own projection.
+Both hand-lists had drifted: their Cortex card pointed at a legacy /houses/code/cortex/ and
+Algorithm Chamber at /houses/code/algorithms/, neither of which is where those hubs live.
+
+- Special Features now holds ONLY the 8 platform destinations that are not hubs (Arena,
+  Hive, Arctic, Colosseum, Dispatch, Operator, Career, Funding) -- they carry editorial
+  descriptions the registry has no field for.
+- A "Hubs" cartridge shelf renders 9 hub ids from the registry (forensics, bug-hunting,
+  signal, cortex, code-armory, algorithm-chamber, backbone, projects, devops). The CURATION
+  is the id list; names, links and covers come from HubRegistry, so the drift cannot recur.
+  Workshop-status hubs are filtered at that call site -- note this is NOT inherited from
+  hrResolveCartridge, which resolves through HubRegistry.all() and does no status filtering
+  (only byHouse does).
+- PLATFORM_HUBS, renderPlatformHubs, its call site and its CSS are retired. A March 2026
+  comment in both files declared the two grids complementary and warned against removing
+  either; both comment blocks were rewritten rather than deleted, so the record explains why
+  that guidance was overridden instead of silently contradicting the code.
+- Verified on ALL 13 house pages: 8 feature cards + 9 hub cartridges with registry-correct
+  hrefs, no duplicate grid, discovery anchor intact, zero JS errors.
+  CORRECTION (Chris, blocking review): I first recorded here that Observatory "has no
+  Explore panel, curated lens, not a HouseRenderer tabbed page". That was wrong and is
+  retracted. observatory/index.html:1693 calls the same HouseRenderer.init() as every other
+  house, and renderPage builds the tab set unconditionally -- Observatory IS the 13th tabbed
+  page, just behind ObservatoryConsent.ensureConsent(), which a scripted run cannot satisfy
+  without Firebase auth. My harness reported "no panel" and I turned that into an
+  architectural claim instead of reading the page. Re-verified by driving the same init the
+  page uses: 8 features + the identical 9 registry cartridges, no duplicate grid, no errors.
+  (Observatory IS still a curated cross-house lens for its own COURSE shelf -- that ruling
+  stands and is separate from the shared Explore All tab.)
+
 ## Immediate context / where we are
 
 - The 8-house **cartridge-fy** SHIPPED (houses read hub cards from HubRegistry as
