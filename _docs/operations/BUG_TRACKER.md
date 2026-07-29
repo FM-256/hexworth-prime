@@ -223,10 +223,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   727 -> 768 (+41), mechanism2_learningPathModules 664 -> 623. Split, verified by diffing the
   reports: 32 are the eye-cysa chapter modules, which the canonical hub page DOES present -- a
   scanner blind spot, because that page is hand-authored, never matches HUB_SIGNATURE_RE, and uses
-  abbreviated data-module values (taskboard #238, with a fix direction). The other 9 are a TRUE
-  finding: shield-cve-lookup, shield-cysa-toolkit, cyberops-{attack-surface-vuln, cvss-terminology,
-  evidence-types, irp-elements, nist-800-86, risk-rating, soc-metrics} now sit in no curated
-  sequence, which is the honest cost of retiring the aggregate (taskboard #239). The content is
+  abbreviated data-module values (taskboard #238, with a fix direction). The other 9 looked like a TRUE finding and were reported that way; CORRECTED
+  2026-07-28 after Nancy pushed back: only TWO of them (shield-cve-lookup, shield-cysa-toolkit)
+  are genuinely uncurated. The other seven -- cyberops-{attack-surface-vuln, cvss-terminology,
+  evidence-types, irp-elements, nist-800-86, risk-rating, soc-metrics} -- are linked from the
+  hand-authored CyberOps weekly curriculum pages (week1/2/3/5 under
+  _app/houses/eye/applets/cyberops/), which the scanner cannot see for exactly the reason
+  taskboard #238 exists. So the honest cost of retiring the aggregate is 2 modules, not 9. The content is
   live and browsable either way.
 - **Root cause:** ec74ee454 swapped card SHAPE (object with path-view link -> registry string with hub link) without checking whether the removed links were the only route to real LearningPaths content. Same commit-class as BUG-037.
 - **NOT auto-fixed because:** restoring the cards wholesale would render two near-identical cards per pair (path + hub, same name) to different destinations -- a UX defect; and hub-vs-path canonicality is an operator ruling. The AI house's 3 paths were restored in b92534ad7 because they had NO hub twins (zero collision); every row above except security-plus-crypto has a twin.

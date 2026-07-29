@@ -26,7 +26,12 @@
 //
 //     NOT IN-HUB (does NOT make module non-orphan):
 //       - getHouseModules('X') runtime call (catalog dump, not curation)
-//       - Bespoke <a href="..."> link from any page (navigational, not curation)
+//       - Bespoke <a href="..."> link from a page in ANOTHER house (navigational,
+//          not curation). NOTE: a SAME-HOUSE course page that links a module's file
+//          DOES count as curation since 2026-07-28 -- see HUB SIGNAL #5. Hand-authored
+//          course pages (the CySA chapter course, the CyberOps week pages, PiVerse,
+//          ProtoCore) carry no renderer signature and use abbreviated data-module
+//          values, so signals 1-4 miss them and their live content reported orphaned.
 //       - ContentDiscovery search index (discovery, not curation)
 //
 // Output:
@@ -344,6 +349,60 @@ function main() {
         }
     }
 
+    // ── HUB SIGNAL #5: a course page that LINKS a module's file is curating it ──
+    // Hand-authored course pages (eye/cysa's 16-chapter course, the CyberOps week1-5
+    // curriculum, PiVerse, ProtoCore, network-plus...) present their modules as ordinary
+    // <a href> links. They carry no HouseRenderer/CertPathRenderer signature and their
+    // data-module values are abbreviated ("ch01"), so signals 1-4 all miss them and their
+    // content reported as orphaned -- content students can actually reach (taskboard #238).
+    //
+    // SAME-HOUSE IS A HARD CONSTRAINT, not a filter for today's corpus. Measured on this
+    // corpus only 1 of 205 rescues crossed houses (zero-to-python, genuine curation), so the
+    // constraint costs almost nothing now -- but without it a future "related content" widget
+    // or mega-menu could smuggle dozens of modules in with no curation intent, and it would
+    // land as a component change no reviewer would connect to this scanner (Nancy).
+    // A per-page link-count floor was considered and deliberately NOT added: a chapter list
+    // and a single deliberate link are both curation, and an arbitrary N would silently drop
+    // real single-link cases. Revisit only if a same-house directory dump ever appears.
+    const linkIds = new Set();
+    const linkSources = new Map();
+    {
+        const LINK_RE = /(?:href|data-href)\s*=\s*["']([^"'#?]+\.html)["']/g;
+        const linkedFiles = new Map();   // resolved absolute path -> [linking page rel paths]
+        for (const file of indexFiles) {
+            const html = fs.readFileSync(file, 'utf8');
+            const dir = path.dirname(file);
+            LINK_RE.lastIndex = 0;
+            let lm;
+            while ((lm = LINK_RE.exec(html)) !== null) {
+                // A root-relative href ("/houses/eye/labs/x.html") must resolve against the app
+                // root. path.join does NOT treat a leading slash as root -- join(dir, '/a/b')
+                // yields dir + '/a/b' -- so resolving these against the linking file's directory
+                // produced a path that could never match a catalog entry, silently leaving a
+                // genuinely curated module orphaned. No course page uses that form for its own
+                // chapters today, so this corrects a trap rather than today's numbers (Chris).
+                const href = lm[1];
+                const abs = href.charAt(0) === '/'
+                    ? path.normalize(path.join(ROOT_APP, href))
+                    : path.normalize(path.join(dir, href));
+                if (!linkedFiles.has(abs)) linkedFiles.set(abs, []);
+                const rel = relPath(file);
+                if (!linkedFiles.get(abs).includes(rel)) linkedFiles.get(abs).push(rel);
+            }
+        }
+        for (const m of catalog.MODULES) {
+            if (!m.id || !m.href || !m.house) continue;
+            const abs = path.normalize(path.join(ROOT_APP, 'houses', m.house, m.href));
+            const linkers = linkedFiles.get(abs);
+            if (!linkers) continue;
+            // same-house only: the linking page must live under this module's house
+            const sameHouse = linkers.filter(p => p.indexOf('houses/' + m.house + '/') === 0);
+            if (!sameHouse.length) continue;
+            linkIds.add(m.id);
+            linkSources.set(m.id, sameHouse);
+        }
+    }
+
     // ── For each catalog module, classify ──
     const catalogById = new Map();
     catalog.MODULES.forEach(m => { if (m.id) catalogById.set(m.id, m); });
@@ -367,7 +426,8 @@ function main() {
         const inMech2 = lpIds.has(id) || (stripped && lpIds.has(stripped)) || (desuffixed && lpIds.has(desuffixed)) || (strippedDesuffixed && lpIds.has(strippedDesuffixed));
         const inMech3 = engineIds.has(id) || (stripped && engineIds.has(stripped)) || (desuffixed && engineIds.has(desuffixed)) || (strippedDesuffixed && engineIds.has(strippedDesuffixed));
         const inMech4 = inlineIds.has(id) || (stripped && inlineIds.has(stripped)) || (desuffixed && inlineIds.has(desuffixed)) || (strippedDesuffixed && inlineIds.has(strippedDesuffixed));
-        const isInHub = inMech1 || inMech2 || inMech3 || inMech4;
+        const inMech5 = linkIds.has(id);   // exact id only: signal 5 matches by resolved FILE, not by id shape
+        const isInHub = inMech1 || inMech2 || inMech3 || inMech4 || inMech5;
 
         const record = {
             id, house,
@@ -379,7 +439,11 @@ function main() {
             tags: m.tags || [],
             autoGenerated: (m.icon === '/assets/images/icons/icon-folder.webp' && m.category === 'general'),
             inHub: isInHub,
-            mech: { hubCard: inMech1, learningPath: inMech2, dedicatedEngine: inMech3, inlineHubScript: inMech4 },
+            mech: { hubCard: inMech1, learningPath: inMech2, dedicatedEngine: inMech3, inlineHubScript: inMech4, coursePageLink: inMech5 },
+            // Provenance parity with the other signals: "why is this module in-hub" must be
+            // answerable from the report itself. The cyberops-week overlap that corrected
+            // taskboard #239 was only found by hand-grepping, because this did not exist.
+            linkedBy: inMech5 ? (linkSources.get(id) || []) : undefined,
             cluster: detectCluster(m),
         };
         if (isInHub) inHub.push(record); else orphans.push(record);
@@ -401,7 +465,7 @@ function main() {
 
     const report = {
         generated: new Date().toISOString(),
-        definition: 'orphan = catalog module NOT referenced via data-module, LearningPaths, or dedicated-engine *Data.js',
+        definition: 'orphan = catalog module NOT referenced via data-module, LearningPaths, dedicated-engine *Data.js, an inline hub script id, or a link from a same-house course page',
         rootPath: ROOT_APP,
         summary: {
             catalogTotal: catalog.MODULES.length,
@@ -414,6 +478,7 @@ function main() {
             mechanism2_learningPathModules: lpIds.size,
             mechanism3_engineModules: engineIds.size,
             mechanism4_inlineHubScriptIds: inlineIds.size,
+            mechanism5_coursePageLinks: linkIds.size,
         },
         byHouse,
     };
@@ -437,6 +502,7 @@ function main() {
     console.log('      LearningPath refs:     ' + s.mechanism2_learningPathModules + ' unique modules');
     console.log('      Dedicated-engine refs: ' + s.mechanism3_engineModules + ' unique modules');
     console.log('      Inline-hub script ids: ' + s.mechanism4_inlineHubScriptIds + ' unique slugs (filtered by catalog)');
+    console.log('      Course-page links:     ' + s.mechanism5_coursePageLinks + ' modules linked by a same-house course page');
     console.log('');
     console.log('  Per-house orphan map:');
     console.log('    ' + 'house'.padEnd(15) + 'orph'.padStart(6) + 'auto'.padStart(6) + 'curated'.padStart(8) + '  top clusters');
