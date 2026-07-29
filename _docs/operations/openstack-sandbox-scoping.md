@@ -250,11 +250,46 @@ on the Observatory consented surface) sits further from the IRB question than th
 **Stage 1 — instructor-only, zero student exposure.** DevStack 2026.1 in a 20GB KVM VM on bc2,
 reachable only over Tailscale. Frank drives Horizon and the CLI himself. Measure the actual idle
 control-plane RSS (the number that does not exist in the docs) and real per-instance overhead.
-Confirm it survives a reboot — **DevStack's reboot behavior is undocumented folklore, not a
-doc-backed claim.** Snapshot the working VM.
+Confirm it survives a **guest (VM) reboot — the bc2 host is never rebooted in Stage 1** (a host
+reboot would take down the jump-host and Prometheus roles and is out of scope; DevStack reboot
+folklore is about the guest anyway). **DevStack's reboot behavior is undocumented folklore, not a
+doc-backed claim.** Snapshot the working VM BEFORE the reboot test, so a reboot failure is
+restored-from-snapshot and documented, not re-stacked and papered over.
 
 This is the real decision point: Frank learns from direct experience whether OpenStack is a thing he
 wants to own, having spent nothing that cannot be deleted.
+
+### Stage 1 — EXECUTED 2026-07-29 (Nancy PROCEED, both netfilter gates green)
+
+Built: `openstack-stage1` KVM VM on bc2 (20GB RAM, 12 vCPUs pinned to NUMA node0
+cpuset 0,2..22 — bc2's nodes are interleaved, even CPUs = node0; topology archived beside the
+measurements), 200G thin qcow2 from SHA256-verified Noble cloud image, libvirt default NAT
+(192.168.122.62, unreachable off-host). DevStack `stable/2026.1`, `ram_allocation_ratio=1.0`
+pinned. `stack.sh` completed in 1,299s. Nested KVM confirmed in-guest (`/dev/kvm` present).
+
+Safety evidence (all archived in `bc2:~/openstack-stage1/`): five pre-install baselines
+(iptables/ip6tables/ip link/ss/topology) + post-libvirtd and post-first-boot diffs — every
+delta scoped to virbr0/LIBVIRT_* chains; fail2ban jail, sshd, node_exporter, Tailscale verified
+live at each gate. Admin password in `bc2:~/openstack-stage1/vm-credentials.txt` (0600, not in repo).
+
+**The two numbers the docs don't publish, now measured** (control plane settled, 19,998MB VM):
+
+| Measurement | Value |
+|---|---|
+| Idle control plane | **6,691MB used / 13,306MB available** (aggregate RSS 8.8GB incl shared; mysqld 794MB + 3 uwsgi ~200MB each on top) |
+| First m1.nano CirrOS instance | **+507MB** (includes one-time allocations) |
+| Instances 2-5, average | **+221MB each** (5 instances total: +1,390MB over idle) |
+| Realistic m1.nano ceiling in this VM | **~45-50** at ~250MB steady-state against 13.3GB available — consistent with the 35-55 estimate, now measurement-backed |
+
+**Reboot survival: PASSED** (guest reboot only, per policy). Snapshot taken BEFORE the test
+(`/var/lib/libvirt/images/openstack-stage1/snapshots/openstack-vm-stacked-20260729.qcow2`, 6.5GB
+sparse, `qemu-img check` clean). After clean shutdown + cold boot: all 20 `devstack@*` units
+active, compute services up, Horizon 302, and a fresh CirrOS instance reached ACTIVE — the
+folklore did not bite this all-in-one OVN config. The snapshot remains the reset primitive.
+
+**Instructor access (Frank):** `ssh -L 8080:192.168.122.62:80 bc2` then http://localhost:8080/dashboard —
+login `admin` / password from `bc2:~/openstack-stage1/vm-credentials.txt`. CLI: `ssh bc2` then
+`ssh -i ~/openstack-stage1/stage1_key stack@192.168.122.62`, `source ~/devstack/openrc admin admin`.
 
 **Stage 2 — student-visible, read-mostly.** Two surfaces: Horizon via a new bc2 cloudflared tunnel
 behind Cloudflare Access into a shared demo project with a read-only role; and a new `openstack-cli`
