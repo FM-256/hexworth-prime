@@ -367,6 +367,23 @@ Plan, with her conditions integrated:
    2a CLI lab regression-launched.
 6. Rollback: delete tunnel + DNS record + Access app; bc2 loses nothing else.
 
+**EXECUTED 2026-07-29 evening (machine-verifiable half):** tunnel `bc2-horizon`
+(32e96c00, created via bc1's origin cert -- the Access API token has no tunnel scope), cloudflared
+installed on bc2 as a systemd service (config at /etc/cloudflared/), DNS CNAME live, Access app
+e7a9dc29 with 8h sessions + auto-identity-redirect + frank-only email policy. VERIFIED: anonymous
+requests to /dashboard AND to the raw API path /identity/v3/auth/tokens both 302 to the Access
+login (Nancy's full-hostname-scope proof); tunnel survives cloudflared restart; listener diff vs
+the Stage-1 baseline shows exactly three named additions (2a socat bridge, cloudflared metrics on
+127.0.0.1:20241 loopback-only, libvirt dnsmasq) and nothing else; 2a CLI lab regression-launched
+clean. **HONEST DISCLOSURE: a propagation window of under a minute existed** between the DNS
+route going live and the Access app propagating, during which one anonymous /dashboard request
+reached Horizon's own login page. Lesson recorded: create the Access app BEFORE the DNS route on
+any future ingress. **REMAINING -- Frank-driven identity tests** (cannot be automated with his
+identity): his Access login end-to-end; student-view Horizon login showing demo-readonly
+read-only; the FIVE write surfaces each failing in the UI (instance launch, power actions,
+volume create, security-group rule, key pair); the Access-logout-vs-Horizon-session test.
+Results to be recorded here when he drives it.
+
 **Stage 2 — student-visible, read-mostly.** (original definition follows) Two surfaces: Horizon via a new bc2 cloudflared tunnel
 behind Cloudflare Access into a shared demo project with a read-only role; and a new `openstack-cli`
 lab in the bc1 lab-manager `LABS` registry (a ttyd container, exactly the `linux-sandbox` shape).
