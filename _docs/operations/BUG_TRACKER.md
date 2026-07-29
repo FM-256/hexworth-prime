@@ -31,6 +31,25 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  open
+- **Found:** 2026-07-28 · by Chris (blocking my BUG-043 half-B write-up) · verified independently by me
+- **Area:** functions/index.js:99-138 (`exports.completeGate`)
+- **Symptom:** the function writes `users/{uid}/gates/gate{N}` with `completed: true` for ANY signed-in
+  caller. Its only real check is that the previous gate's doc exists. The proof check is
+  `if (proof && gateNum <= 5)` -- so an empty/absent proof skips validation entirely, for every gate.
+  Gates 6-8 call it exactly that way by design (`proof: ''`), and nothing stops a console caller from
+  doing the same for gates 1-13 in ascending order, fabricating a complete, server-blessed vault
+  without solving anything. Because prerequisites are checked against the same forged docs, a simple
+  ascending loop satisfies them.
+- **Why it matters beyond the obvious:** this is the authority BUG-043's half B was going to rely on.
+  Hydrating gate state from the server does not close the vault bypass while the server will mint a
+  completion on request; it just moves the forgery from localStorage to Firestore.
+- **Fix direction (needs operator decision, not started):** require a real proof for every gate
+  (extend the existing generateGateProof path past gate 5), or give gates 6-8 a genuine server-side
+  validation of their multi-step work, and stop accepting empty proof. Then, and only then, make the
+  vault trust the server.
+- **Related:** BUG-043 (blocked on this), taskboard #237.
+
 ### BUG-042 -- Dark Arts gates are unpassable for signed-out students, and the error blames the student  ·  P1  ·  partially-fixed (message), access policy open
 - **Found:** 2026-07-28 · by user report (Frank: "users are reporting problems with Gate 5") · reproduced live
 - **Area:** _app/dark-arts/gate-cipher.js checkAnswerServer (~:53-85) + all five gate pages' identical `serverResult !== null ? serverResult : false` (gate-1.html:275, gate-2.html:279, gate-3.html:311, gate-4.html:519, gates/gate-5.html:439-441)
@@ -42,13 +61,44 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **STILL OPEN (operator ruling):** option (a) -- whether gate pages should require sign-in via AccessGuard so the situation cannot arise at all. The shipped message makes the blocker honest; it does not remove it.
 - **Related:** BUG-043 (same audit).
 
-### BUG-043 -- Gate answers are readable in dev tools, and the vault opens on client-side flags alone  ·  P1  ·  open
+### BUG-043 -- Gate answers are readable in dev tools, and the vault opens on client-side flags alone  ·  P1  ·  half A fixed, half B blocked on a structural gap
 - **Found:** 2026-07-28 · by user report (Frank: "they can access the solutions via dev tools (f12)") · both halves reproduced live
 - **Area:** _app/dark-arts/gate-cipher.js SETS (~:10-40); AccessGuard gate checks reading `localStorage.gate{N}_complete`
-- **Symptom A (answers in the client):** gate-cipher.js ships all four cipher sets to every visitor. Its own header claims "No plaintext answers exist in this file", which is false: `gate4: { code: '1973' }` is the literal Gate 4 answer for the active set, needing no decoding, and it is also half of Gate 5's synthesis input. Gates 1-3's hex/base64 are one command from plaintext ("beneath the code lies meaning", "shadows teach the patient mind", "hidden layers guard the path"). Anyone who opens Sources reads the month's solutions.
+- **Symptom A (answers in the client):** gate-cipher.js ships all four cipher sets to every visitor. Its own header claims "No plaintext answers exist in this file", which is false: `gate4: { code: '1973' }` is the literal Gate 4 answer for the active set, needing no decoding, and it is also half of Gate 5's synthesis input. Gates 1-3's hex/base64 are one command from plaintext ("beneath the code lies meaning", "shadows teach the patient mind", "hidden layers guard the path"). Anyone who opens Sources reads the month's solutions. PRECISION (Nancy): gate-5.html never reads `.gate4.code` -- it asks the student to retype the Gate 4 code and validates it server-side, so the leak hands over half of Gate 5's input by giving away Gate 4's answer, not through any code coupling between the files.
 - **Symptom B (progress is client-trusted):** setting `gate1..8_complete = 'true'` in the Application tab opens /dark-arts/vault/index.html at Master rank with no server check (verified live: full 8.5KB vault UI renders). Server-verified completions ARE written to users/{uid}/gates/{gateN} by validateGateAnswer, but nothing reads them back -- the client flag is the only thing consulted.
 - **Constraint to respect when fixing A:** Gate 4 synthesizes DTMF audio in the browser, so the tone sequence has to exist client-side in some form; the honest fixes are pre-rendered audio served as an asset, or per-user server-issued codes. Obfuscating the string in place is not a fix.
-- **Fix options (operator ruling needed):** A: pre-render Gate 4 audio (or server-issue the code) and ship only the puzzle inputs the gate genuinely needs; B: hydrate gate state from users/{uid}/gates on load and treat the server as authority (localStorage becomes a cache, not the credential), mirroring the operator mission_completions hydration shipped 2026-07-28. Both are real work; neither is started.
+- **HALF A FIXED (this commit):** Gate 4's tones are now a committed asset per cipher set
+  (_app/assets/audio/dark-arts/gate4-set{0..3}.wav, 35KB each, 8kHz mono PCM). gate-cipher.js
+  carries the audio URL instead of `code`, and gate-4.html plays the file rather than
+  synthesizing from the answer; DTMF_FREQS/playTone/initAudio/DTMF_CODE are gone. The
+  visualizer takes its duration from the decoded audio, so the page never learns the digit
+  count. The file's header claim ("No plaintext answers exist in this file") was false while
+  gate4 shipped a bare code and has been rewritten to say what actually ships and why.
+- **Verified (Half A):** the four WAVs were generated offline in node, then measured by
+  the scratchpad's measure_freqs.py -- a separate Python/scipy FFT that takes the strongest peak in
+  each band by unconstrained argmax (no DTMF table consulted during measurement) and only then
+  snaps the observed Hz to the PUBLISHED ITU-T Q.23 values. (An earlier prototype in the same
+  directory, verify-dtmf.py, DOES evaluate magnitude at the known frequencies; it is not what
+  produced this evidence. Chris independently re-verified with his own unconstrained-peak
+  script and matched within 1-2 Hz on all 16 digits.) -- all four decode to their intended codes
+  (0451/2600/1973/8139) with every tone within 8 Hz of standard. Browser check: the answer is
+  absent from gate-cipher.js source, from the page HTML, and from globals; the signal plays,
+  the visualizer animates, the button resets; gate branch suite still 15/15.
+  HONEST LIMIT: no human has listened to these files -- I cannot hear audio. A human listen
+  against the on-page frequency table is worth doing before students rely on it.
+- **HALF B NOT FIXED. CORRECTION (Chris, blocking review):** my first diagnosis here was WRONG
+  and is retracted. I wrote that gates 6-8 have no server completion path; they do --
+  gate-6.html:1292, gate-7.html:1301 and gate-8.html:1795 all call the `completeGate` Cloud
+  Function, which writes users/{uid}/gates/gate{N}. verifyGateAccess also loops i=1..gateNum
+  with no cutoff at 5, so it does not "hit a wall" past gate 5 either. The real problem is not
+  a missing server record; it is that the server record is not worth anything (see BUG-044).
+- **What Half B actually requires (new scope, operator decision):** BUG-044 first (make server
+  gate completion mean something), then extend the existing trust-then-verify mechanism
+  (AccessGuard._verifyGateAsync + verifyGateAccess, AccessGuard.js:137-186,
+  functions/index.js:145-165) to grant/revoke across gates 1-8 rather than building a second,
+  competing hydration path. Plus the still-open ruling on whether gate pages and the vault
+  should require sign-in -- without it a signed-out visitor keeps the localStorage bypass no
+  matter what the signed-in path enforces.
 - **Severity note:** this is a CTF-style teaching gate, not an assessment of record, so the impact is a student skipping content rather than grade fraud. Filed P1 anyway because the platform's own docs claim server-side authority that does not hold end to end.
 - **Related:** BUG-042 (same audit); operator sync build (the hydration pattern option B would follow).
 

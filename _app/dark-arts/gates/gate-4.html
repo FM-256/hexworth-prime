@@ -402,20 +402,15 @@
         // Students must listen to the tone sequence and decode it
         // using the DTMF frequency reference table
 
-        // DTMF frequencies (standard telephone tones)
-        const DTMF_FREQS = {
-            '1': [697, 1209], '2': [697, 1336], '3': [697, 1477],
-            '4': [770, 1209], '5': [770, 1336], '6': [770, 1477],
-            '7': [852, 1209], '8': [852, 1336], '9': [852, 1477],
-            '*': [941, 1209], '0': [941, 1336], '#': [941, 1477]
-        };
 
-        // Dynamic code from rotation cipher
-        const DTMF_CODE = GATE_CIPHER.getCurrentSet().gate4.code;
-        const TONE_DURATION = 400;  // ms per tone
-        const TONE_GAP = 150;       // ms between tones
+        // The tone sequence is a PRE-RENDERED asset, not synthesized here. Synthesizing it
+        // required the answer in the browser, which handed the code to anyone who opened
+        // Sources (BUG-043). The page now knows only where the sound lives; the answer
+        // exists solely in Firestore, checked by validateGateAnswer. The visualizer takes
+        // its duration from the decoded audio, so nothing here reveals the digit count.
+        const SIGNAL_URL = GATE_CIPHER.getCurrentSet().gate4.audio;
 
-        let audioContext = null;
+        let signalAudio = null;
         let isPlaying = false;
 
         // Create visualizer bars
@@ -427,36 +422,6 @@
         }
         const bars = document.querySelectorAll('.viz-bar');
 
-        function initAudio() {
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-        }
-
-        function playTone(digit, startTime) {
-            const freqs = DTMF_FREQS[digit];
-            if (!freqs) return;
-
-            const osc1 = audioContext.createOscillator();
-            const osc2 = audioContext.createOscillator();
-            const gain = audioContext.createGain();
-
-            osc1.type = 'sine';
-            osc2.type = 'sine';
-            osc1.frequency.value = freqs[0];
-            osc2.frequency.value = freqs[1];
-
-            gain.gain.value = 0.15;
-
-            osc1.connect(gain);
-            osc2.connect(gain);
-            gain.connect(audioContext.destination);
-
-            osc1.start(startTime);
-            osc2.start(startTime);
-            osc1.stop(startTime + TONE_DURATION / 1000);
-            osc2.stop(startTime + TONE_DURATION / 1000);
-        }
 
         function animateBars(duration) {
             const startTime = Date.now();
@@ -481,6 +446,12 @@
             animate();
         }
 
+        function releasePlayButton(playBtn) {
+            isPlaying = false;
+            playBtn.disabled = false;
+            playBtn.textContent = '[ PLAY SIGNAL ]';
+        }
+
         async function playSequence() {
             if (isPlaying) return;
             isPlaying = true;
@@ -489,27 +460,28 @@
             playBtn.disabled = true;
             playBtn.textContent = '[ PLAYING... ]';
 
-            initAudio();
-
-            // Resume audio context if suspended
-            if (audioContext.state === 'suspended') {
-                await audioContext.resume();
+            if (!signalAudio) {
+                signalAudio = new Audio(SIGNAL_URL);
+                signalAudio.preload = 'auto';
             }
 
-            const totalDuration = DTMF_CODE.length * (TONE_DURATION + TONE_GAP);
-            animateBars(totalDuration);
-
-            let currentTime = audioContext.currentTime + 0.1;
-            for (const digit of DTMF_CODE) {
-                playTone(digit, currentTime);
-                currentTime += (TONE_DURATION + TONE_GAP) / 1000;
+            try {
+                signalAudio.currentTime = 0;
+                await signalAudio.play();
+            } catch (e) {
+                // Autoplay blocked or the asset failed to load: never strand the button.
+                playBtn.textContent = '[ AUDIO UNAVAILABLE ]';
+                setTimeout(() => releasePlayButton(playBtn), 2000);
+                return;
             }
 
-            setTimeout(() => {
-                isPlaying = false;
-                playBtn.disabled = false;
-                playBtn.textContent = '[ PLAY SIGNAL ]';
-            }, totalDuration + 200);
+            // Duration comes from the decoded audio itself, so the visualizer never needs
+            // to know how many digits the sequence holds.
+            const known = isFinite(signalAudio.duration) && signalAudio.duration > 0;
+            animateBars(known ? signalAudio.duration * 1000 : 3000);
+
+            signalAudio.onended = () => releasePlayButton(playBtn);
+            signalAudio.onerror = () => releasePlayButton(playBtn);
         }
 
         // Event listeners

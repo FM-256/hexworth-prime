@@ -1,5 +1,10 @@
-// Gate Cipher — Monthly Rotation System for Five Gates CTF
-// No plaintext answers exist in this file. All answers are SHA-256 hashed.
+// Gate Cipher -- Monthly Rotation System for Five Gates CTF
+// Answers live server-side only (gate_registry in Firestore, checked by validateGateAnswer).
+// What ships here is PUZZLE INPUT: gates 1-3 carry the hex/base64 the student's task is to
+// decode, and gate 4 carries the URL of its pre-rendered tone file. Gate 4 previously shipped
+// its answer as a bare `code` string so the browser could synthesize the tones -- that handed
+// the answer to anyone who opened Sources (BUG-043), and is why the audio is a committed
+// asset now. Do not reintroduce an answer here to make something easier to render.
 // Rotation: new Date().getMonth() % 4 selects the active cipher set.
 
 const GATE_CIPHER = (() => {
@@ -13,28 +18,28 @@ const GATE_CIPHER = (() => {
             gate1: { hex: '74 68 65 20 77 6f 72 74 68 79 20 73 65 65 20 62 65 6e 65 61 74 68' },
             gate2: { base64: 'dHJ1dGggaGlkZXMgaW4gc2hhZG93' },
             gate3: { base64: 'c2lsZW5jZSBob2xkcyB0aGUgYW5zd2Vy' },
-            gate4: { code: '0451' }
+            gate4: { audio: '/assets/audio/dark-arts/gate4-set0.wav' }
         },
         // SET 1: Feb(1), Jun(5), Oct(9)
         {
             gate1: { hex: '6f 6e 6c 79 20 74 68 65 20 63 75 72 69 6f 75 73 20 66 69 6e 64 20 6c 69 67 68 74' },
             gate2: { base64: 'd2hhdCBpcyBjb25jZWFsZWQgcmV2ZWFscyBwdXJwb3Nl' },
             gate3: { base64: 'dGhlIHVuc2VlbiBzcGVha3Mgdm9sdW1lcw==' },
-            gate4: { code: '2600' }
+            gate4: { audio: '/assets/audio/dark-arts/gate4-set1.wav' }
         },
         // SET 2: Mar(2), Jul(6), Nov(10)
         {
             gate1: { hex: '62 65 6e 65 61 74 68 20 74 68 65 20 63 6f 64 65 20 6c 69 65 73 20 6d 65 61 6e 69 6e 67' },
             gate2: { base64: 'c2hhZG93cyB0ZWFjaCB0aGUgcGF0aWVudCBtaW5k' },
             gate3: { base64: 'aGlkZGVuIGxheWVycyBndWFyZCB0aGUgcGF0aA==' },
-            gate4: { code: '1973' }
+            gate4: { audio: '/assets/audio/dark-arts/gate4-set2.wav' }
         },
         // SET 3: Apr(3), Aug(7), Dec(11)
         {
             gate1: { hex: '77 69 73 64 6f 6d 20 72 65 77 61 72 64 73 20 74 68 65 20 70 65 72 73 69 73 74 65 6e 74' },
             gate2: { base64: 'ZGFya25lc3MgaWxsdW1pbmF0ZXMgdGhlIHdvcnRoeQ==' },
             gate3: { base64: 'dGhlIHF1aWV0IG9uZXMgc2VlIGV2ZXJ5dGhpbmc=' },
-            gate4: { code: '8139' }
+            gate4: { audio: '/assets/audio/dark-arts/gate4-set3.wav' }
         }
     ];
 
