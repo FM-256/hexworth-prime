@@ -31,6 +31,76 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-047 -- cert hub pages render in a 47% column with seven emoji  ·  P2  ·  fixed-not-deployed
+- **Found:** 2026-07-29 · by user (Frank, first-impression review of Cloud Master) · in the hexify marathon
+- **Area:** `_app/components/CertPathRenderer.js:184` (`.wrap{max-width:900px}`) and `:16-19` (`TYPE_ICONS`)
+- **Symptom:** "it looks bad! it looks basic, bad and silly images and emojis, the content is smooshed
+  into a thin 33% middle strip." Measured live at a 1920px viewport: content occupied 900px = **47%**
+  of the screen, with 9 emoji nodes rendered per page. Frank found it on Cloud Master, but the defect is
+  in a SHARED component serving **14 cert hub pages** (those calling `CertPathRenderer.init(`): aws-ccp,
+  aws-developer, azure-fundamentals, ccna, casp-plus, comptia-linux, comptia-network, cryptography-track,
+  cysa-plus, devops-fundamentals, aplus-core1, aplus-core2, security-operations, security-plus-crypto.
+  **Count correction (Chris):** I first said 15 and included `houses/eye/index.html`. That was a grep match
+  on a *comment* at `eye/index.html:128` referring to a different house; eye renders via HouseRenderer and
+  is NOT affected. Grep for the call, not the name.
+- **Repro:** open any of the 15 at 1920px. Content sits in a centred 900px column; each module row shows
+  an emoji glyph in its `.mtype` span.
+- **Root cause (two, independent):**
+  1. `.wrap{max-width:900px}` — a direct violation of the never-narrow-centered-layout hard rule.
+  2. `TYPE_ICONS` held seven real emoji written as `\u{1F4D6}`-style **escape sequences**. That escaping
+     is why they survived a no-emoji platform: EduScan's EMOJI-005 scans for actual glyphs (an escape is
+     ASCII text, not a glyph) and EMOJI-001/006 only inspect properties literally named `icon:`, while
+     these sat under keys named `presentation:`, `lab:`, `quiz:` and so on. **Neither rule could fire.**
+- **Fix:** `.wrap` 900px -> 1600px + 32px padding; `.mlist` converted from a single-column flex list to
+  `repeat(auto-fill,minmax(360px,1fr))`; the 7 emoji replaced with 7 visually distinct webp icons via a
+  new `typeIconHTML()`; `.mtype img` sized 18x18. Same container/grid fix applied to
+  `_app/houses/cloud/cloud-essentials/index.html` and `_app/houses/cloud/az-104/index.html` (both 1100px = 57%).
+  Nancy returned PAUSE on the first plan — a bare max-width bump would have stretched each row into dead
+  space because `.minfo{flex:1}` wraps an inline `.mtitle` with no width; the multi-column grid is her fix.
+- **Verified:** puppeteer at 1920/1366/1024. CertPathRenderer pages: 9 of the 14 render a path in the
+  harness — all show `.wrap` 1600px, 4/3/2 columns, 0 emoji, type icons rendering with 0 broken and 0
+  showing literal ".webp" text; first-row card heights uniform [82,82,82,82].
+- **Chris BLOCK, then fixed — the first fix recreated Frank's complaint.** Applying the same auto-fill grid
+  to `az-104` and `cloud-essentials` was wrong: **all 18 of az-104's content-grid blocks hold exactly ONE
+  card** (cloud-essentials' hold 2-3). `auto-fill` pre-allocates four tracks regardless, stranding a lone
+  card at the left with **~970px of dead space** beside it. `auto-fit` fails the other way, stretching one
+  card across the full container. Real fix: `.week-inner` became a flex-wrap row so the three subsections
+  (Presentation / Lab / Assessment) sit **side by side**, with full-width children opting out via
+  `flex-basis:100%`. Re-measured with accordions force-expanded: dead space **970px -> 22px** (the column
+  gap), 3 subsections per row at 1920 and 1366, 2 rows at 1024, cards 483px.
+- **My verification error, again (6th instance of the same pattern):** the screenshots I first submitted as
+  evidence showed the accordions **collapsed**, so the `.content-grid` cards were never rendered or visible.
+  My "79%/91%/88%" numbers measured `.container` width — a proxy — not the card grid the change targeted.
+  Measure the thing the change touches, in the state where it is visible.
+- **Open follow-up:** EduScan cannot detect this class (escaped emoji under non-`icon:` keys). Until a rule
+  exists, the platform can regress here silently. See BUG-048.
+- **Related:** BUG-048 · memory `feedback_never_narrow_centered_layout` · CLAUDE.md rule 2
+
+### BUG-048 -- EduScan cannot see emoji written as unicode escapes  ·  P3  ·  open
+- **Found:** 2026-07-29 · by Nancy (reviewing the BUG-047 fix plan) · confirmed by reading the validator
+- **Area:** `_tools/eduscan/validators/syntax/emoji.js`
+- **Symptom:** the platform's no-emoji rule is unenforceable against `'\u{1F4D6}'`-style literals. EMOJI-005
+  matches real glyph characters, so escape-sequence source text never trips it; EMOJI-001/006 only examine
+  properties literally named `icon:`. Seven emoji therefore shipped across 15 pages undetected (BUG-047).
+- **Scale (swept 2026-07-29, `_app` excluding vendor/_archive):** **455 escaped occurrences across 221
+  files.** Be precise about what that number is, because most of it is not the violation Frank complained about:
+  - **Pictographic emoji — the "silly images" class, ~15 files.** `components/ThreatAppletRenderer.js`
+    (18: 🛡⚡📖🔍🧠📋🔑📊🌍🔗🛠🎯), `houses/ai/games/ai-red-team-challenge.applet.html` (7),
+    `arena/tournament-podium.html` (🥇🥈🥉), `components/GlobalSearch.js` (🔍📁📄),
+    `hive/engine/MapRenderer.js` (🖥🔒📄), five `*-text-adventure-*.html` games (🔇🔊 mute toggles),
+    `houses/code/armory/rust/arm-rs-02-variables.module.html` (😀), and 11 `arena/boxes/*/config.js` (✅).
+  - **Typographic marks — the large majority.** ✓ ✗ ⚠ ★ ♥ ♡ ⚙ ⚑ used as UI glyphs (checkmarks in ~120
+    lab/module files, the ♡ favourite control on house pages, arena/game symbols). These are a style
+    question, not the same violation, and changing 221 files carries real regression risk. **Not fixed
+    tonight on purpose** — flagged for a scoped decision.
+  - Sweep caveat: the scan flags `CertPathRenderer.js:17`, which is now only the **explanatory comment**
+    naming the old escape. A future rule must not re-report comments.
+- **Consequence for verification:** "EduScan passed" is **not** evidence for this class of defect, in either
+  direction. Fixing BUG-047 produced zero EduScan signal, so a visual render check was used instead.
+- **Fix:** not written. Needs a rule that decodes `\u{...}` / `\uXXXX` escapes in string literals before the
+  emoji scan, independent of the property name.
+- **Related:** BUG-047
+
 ### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  fixed-not-deployed (two residuals below)
 - **Found:** 2026-07-28 · by Chris (blocking my BUG-043 half-B write-up) · verified independently by me
 - **Area:** functions/index.js:99-138 (`exports.completeGate`)

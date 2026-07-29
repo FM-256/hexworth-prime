@@ -13,10 +13,26 @@ const CertPathRenderer = (() => {
     let activeTab = 'modules';
     let exploreLoaded = false;
 
+    // Platform icons, not emoji (CLAUDE.md rule 2). These were previously seven real emoji
+    // written as \u{1F4D6}-style escapes, which is why they survived: EduScan's EMOJI-005 scans
+    // for actual glyphs and EMOJI-001/006 only inspect properties literally named `icon:`, so an
+    // escape sequence under a `presentation:` key was invisible to both. They rendered on all 15
+    // pages this component serves. Every type gets a VISUALLY DISTINCT icon -- the .mtype column
+    // exists to tell types apart, so reusing one file for two types would defeat it.
+    const ICON_DIR = '/assets/images/icons/';
     const TYPE_ICONS = {
-        presentation: '\u{1F4D6}', applet: '\u{1F527}', lab: '\u{1F9EA}',
-        quiz: '\u{1F4DD}', chapter: '\u{1F4D1}', tool: '\u{1F6E0}', module: '\u{1F4E6}'
+        presentation: 'icon-slides.webp',   // slide deck
+        applet:       'icon-gear.webp',     // interactive in-browser widget
+        lab:          'icon-flask.webp',    // hands-on lab
+        quiz:         'icon-quiz.webp',     // graded questions
+        chapter:      'icon-books.webp',    // reading
+        tool:         'icon-tools.webp',    // utility (toolbox: distinct from applet's single gear)
+        module:       'icon-package.webp'   // generic unit
     };
+    function typeIconHTML(type) {
+        const file = TYPE_ICONS[type] || TYPE_ICONS.module;
+        return '<img src="' + ICON_DIR + file + '" alt="" aria-hidden="true">';
+    }
 
     const DIFF = {
         beginner:     { color: '#22c55e', label: 'Beginner' },
@@ -181,7 +197,10 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 .pbadge-text{font-size:.7rem;letter-spacing:.2em;color:var(--pc);text-transform:uppercase}
 .cert-tag{padding:5px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:12px;font-size:.65rem;color:#8a8a8a;letter-spacing:.1em}
 
-.wrap{max-width:900px;margin:0 auto;padding:40px 24px;position:relative;z-index:10}
+/* Was max-width:900px -- a 47% column on a 1920px screen, the "thin middle strip" the operator
+   rejected and a direct violation of the never-narrow-centered-layout rule. 1600px with the
+   multi-column .mlist below fills the screen without letting text lines run unreadably long. */
+.wrap{max-width:1600px;margin:0 auto;padding:40px 32px;position:relative;z-index:10}
 .hero{text-align:center;padding:50px 20px 40px}
 .hero-icon{font-size:4rem;margin-bottom:20px;filter:drop-shadow(0 0 25px var(--pg))}
 .hero-h{font-size:2rem;font-weight:300;letter-spacing:.1em;color:#fff;margin-bottom:12px}
@@ -210,7 +229,14 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 
 .sec-lbl{font-size:.7rem;color:#808080;letter-spacing:.25em;text-transform:uppercase;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.05)}
 
-.mlist{display:flex;flex-direction:column;gap:6px;margin-bottom:40px}
+/* Responsive multi-column grid, NOT a single tall column. Widening .wrap alone would have
+   stretched each module row into a wide flex cell with a short title floating at its left and
+   dead space filling the rest -- trading a narrow-column defect for an empty-row one. This is
+   the same idiom ContentDiscovery.js and dashboard.html already use. auto-fill + minmax means
+   the column count follows the viewport: ~4 at 1920, 3 at 1440, 2 at 1024, 1 on mobile. */
+/* No align-items:start here on purpose -- the grid default (stretch) gives every card in a row
+   the same height, so a two-line title does not leave its neighbours short and the row ragged. */
+.mlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:10px;margin-bottom:40px}
 .mrow{display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.05);border-radius:8px;transition:all .2s}
 .mrow:hover{background:rgba(255,255,255,.04);border-color:var(--pb)}
 .mrow.completed{opacity:.55}
@@ -218,7 +244,10 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
 
 .mcb{width:18px;height:18px;accent-color:var(--pc);cursor:pointer;flex-shrink:0}
 .mnum{font-size:.65rem;color:#444;min-width:24px;text-align:center}
-.mtype{font-size:.9rem;min-width:24px;text-align:center}
+.mtype{font-size:.9rem;min-width:24px;text-align:center;flex-shrink:0}
+/* .mtype now holds a webp <img>, not an emoji glyph -- without explicit dimensions the icon
+   renders at its natural pixel size and blows the row apart. */
+.mtype img{width:18px;height:18px;vertical-align:middle;object-fit:contain;display:inline-block}
 .minfo{flex:1;min-width:0}
 .mtitle{font-size:.85rem;color:#ddd;text-decoration:none;transition:color .2s}
 .mtitle:hover{color:var(--pc)}
@@ -295,7 +324,7 @@ body::before{content:'';position:absolute;inset:0;background:radial-gradient(ell
     <div class="sec-lbl">Course Modules</div>
     <div class="mlist">
       ${pathData.modules.map((m, i) => {
-          const ic  = TYPE_ICONS[m.type] || TYPE_ICONS.module;
+          const ic  = typeIconHTML(m.type);
           const d   = DIFF[m.difficulty];
           const dc  = d ? d.color : '#888';
           const dl  = d ? d.label : '';
