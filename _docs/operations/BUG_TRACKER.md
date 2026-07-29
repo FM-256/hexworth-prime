@@ -159,7 +159,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix (when scheduled):** point bridge + backfill at the configs' underscored storageKeys (or read both, migrate-forward). NOT fixed by the 2026-07-28 operator sync build -- that build hydrates the OPERATOR HUB's own keys; this bug is in the PFI course-credit path and remains open. Also decide whether historical underscored completions should be backfilled into ModuleProgress at fix time.
 - **Related:** operator completion sync build 2026-07-28; BUG-037/BUG-038 (same hand-list drift family).
 
-### BUG-038 -- cartridge-fy orphaned 12 learning-path links across 6 houses (real paths unreachable)  ·  P2  ·  open
+### BUG-038 -- CySA path duplication (originally filed as 12 orphaned learning-path links)  ·  P2  ·  resolved (mostly not a bug; CySA half retired)
 - **Found:** 2026-07-28 · by self (completeness-checked by Nancy) · during Eye projection conversion, extending the AI-house near-miss to all cartridge-fied houses
 - **Area:** _app/houses/{cloud,code,eye,key,script,shield}/index.html vs _app/components/LearningPaths.js + handler-dashboard.js PATH_HOUSE_MAP
 - **Symptom:** ec74ee454 replaced object path-cards (which linked to path-view.html learning paths) with HubRegistry id strings (which link to hub pages). For 12 removed cards the underlying LearningPaths entries are REAL multi-module paths that now have ZERO UI entry points (grep-verified: no `path=<id>` links anywhere in _app). Students cannot reach them; any progress written under those path ids is stranded.
@@ -179,6 +179,46 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   | shield | cysa-plus | (duplicate of eye row) | eye-cysa hub carded on shield (cross-housed) |
   | shield | casp-plus | CompTIA CASP+ | casp-plus hub (same name) |
 - **CySA tangle (must be ruled TOGETHER, not per-row):** LearningPaths has THREE CySA-adjacent ids: `cysa` (LearningPaths.js:3240) and `cysa-plus` (:4624) share the IDENTICAL `courseHref: 'houses/eye/cysa/index.html'` (one is likely a dead duplicate definition, not a distinct path); `eye-cysa` is the HubRegistry hub for that same page. Both `cysa` and `cysa-plus` are orphaned and both map to house eye in PATH_HOUSE_MAP. Ruling should pick ONE canonical CySA path id (or retire the paths in favor of the hub) and say what happens to progress under the losing id(s).
+- **CORRECTION 2026-07-28 -- most of this entry was WRONG, and the correction is the finding.**
+  The table above has 12 rows / 10 unique path ids. Re-verified per row (does a hub page render
+  that path?): 9 of the 10 unique ids are NOT orphaned. Their "thin cert stub" hub pages are
+  literally `CertPathRenderer.init('<same-id>')` -- the hub cartridge students click RENDERS THE
+  PATH. Verified for aws-ccp, azure-fundamentals, devops-fundamentals, aws-developer,
+  security-operations, cryptography-track, security-plus-crypto, comptia-linux, casp-plus. I
+  filed those as orphans after judging the pages by file size (1KB) without reading what they do.
+- **The 10th (cysa-plus) was not collateral damage either -- it was a deliberate retirement.**
+  Commit 35fef0307 (2026-07-27, "promote 2 dedicated cert courses to canonical, retire 2 thin
+  stubs") removed cysa-plus from HubRegistry AND firestore.rules to hold 142/142 parity, and
+  meta-refreshed its page to the canonical 16-chapter course at /houses/eye/cysa/. My proposed
+  fix (resurface it as a card) would have reversed that ruling a day later. Caught by Nancy.
+- **CONTENT VERIFICATION (the operator asked: is it truly a duplicate, or is there anything to
+  save?):** `cysa` 32 modules -- 100% presented by the canonical hub page, ZERO unique content.
+  `cysa-plus` 21 modules -- shares ZERO modules with cysa (two different courses that happened to
+  share a name and courseHref); all 21 files remain reachable, 12 through other path definitions
+  and 9 through ContentCatalog house browsing. No content was at risk under either option; what
+  ended is an ordered sequence.
+- **RULING + RESOLUTION (operator: "retire both, archive first"):** both path definitions removed
+  from LearningPaths.js and their PATH_HOUSE_MAP entries from handler-dashboard.js, after being
+  archived verbatim with restore instructions to
+  `_archive/cysa-learning-paths-retired-2026-07-28/LearningPaths-cysa-blocks.js` (53 module hrefs
+  captured = 32 + 21). Note there was no prior convention for archiving a LearningPaths
+  retirement -- 35fef0307 archived nothing -- so this establishes the pattern rather than
+  following one.
+- **Deliberately NOT changed:** the 49 `paths: ['cysa']` tags in _app/config/content-registry.js.
+  That is a separate CERTIFICATION tag read only by terminal.html's cert filter (:1109-1110,
+  :1310), which never consults LearningPaths; `ContentRegistry.paths` (the map InstructorDashboard
+  reads) is a different top-level structure with no cysa key. Same for the cert ids in pulse.html,
+  cert-alignment.js, ForensicsEngine.js and dashboard.html -- all carry their own local data and
+  none call LearningPaths.
+- **MEASURED SIDE EFFECT (Nancy's condition, before/after run):** strict-orphan-scanner orphans
+  727 -> 768 (+41), mechanism2_learningPathModules 664 -> 623. Split, verified by diffing the
+  reports: 32 are the eye-cysa chapter modules, which the canonical hub page DOES present -- a
+  scanner blind spot, because that page is hand-authored, never matches HUB_SIGNATURE_RE, and uses
+  abbreviated data-module values (taskboard #238, with a fix direction). The other 9 are a TRUE
+  finding: shield-cve-lookup, shield-cysa-toolkit, cyberops-{attack-surface-vuln, cvss-terminology,
+  evidence-types, irp-elements, nist-800-86, risk-rating, soc-metrics} now sit in no curated
+  sequence, which is the honest cost of retiring the aggregate (taskboard #239). The content is
+  live and browsable either way.
 - **Root cause:** ec74ee454 swapped card SHAPE (object with path-view link -> registry string with hub link) without checking whether the removed links were the only route to real LearningPaths content. Same commit-class as BUG-037.
 - **NOT auto-fixed because:** restoring the cards wholesale would render two near-identical cards per pair (path + hub, same name) to different destinations -- a UX defect; and hub-vs-path canonicality is an operator ruling. The AI house's 3 paths were restored in b92534ad7 because they had NO hub twins (zero collision); every row above except security-plus-crypto has a twin.
 - **Fix:** pending Frank's per-pair rulings; ships as its own change with the usual QC chain.

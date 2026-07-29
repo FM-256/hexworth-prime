@@ -2496,8 +2496,6 @@
             'cryptography-track': 'key',
             'cse': 'cloud',
             'cyber-framework': 'shield',
-            'cysa': 'eye',
-            'cysa-plus': 'eye',
             'devops-fundamentals': 'cloud',
             'linux-admin': 'script',
             'linux-mastery': 'script',
