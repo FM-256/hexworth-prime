@@ -22,19 +22,43 @@ banks the platform serves.
 | Labs / games / engines | DO NOT CONVERT. Link-out now; LTI 1.3 launch + grade passback later | A lab is a live container + engine; "uploading" it is a lie. The link is the product |
 | Answer keys / solutions | NEVER exported | Policy line, non-negotiable |
 
+## Nancy design review 2026-07-29 -- PAUSE conditions, all folded in below
+
+Her seven conditions reshaped this doc: identity-binding is a hard requirement; codes are
+Firestore-record-backed, not stateless; the secret uses `defineSecret`; the server-validation gap
+is stated plainly instead of implied solved; a roster-only P0 is a real candidate pending ONE
+Frank answer; the keys policy is split into precise lines; and the toolchain gets `git add -f`
+(her audit also found `_tools/blackboard-export/` -- the builder behind the SHIPPED A+ final --
+was never git-tracked at all; fixed same day).
+
+**THE QUESTION THAT DECIDES P1's SHAPE (Frank):** does Blackboard Ultra's assignment need a
+student-submitted artifact for your gradebook/records workflow (or Keiser policy), or can you
+grade straight off an instructor-only roster grid with NO student paste step? If roster-only is
+acceptable, the entire completion-code subsystem (mint, display, transcribe, verify, revoke) is
+unnecessary complexity for P1 and rung 2 alone ships first. Codes only earn their keep if Bb
+must hold a per-student artifact.
+
 ## The labs problem, solved in three rungs
 
 Grounded in verified current state: `forge-dont-anger-the-printer.html` completes CLIENT-SIDE
 (ModuleProgress + addXP at :1966-1968, no server validation) -- there is nothing trustworthy to
 check today, hence screenshot forensics.
 
-1. **Completion codes (build first).** Server-validate the lab's victory (established
-   honest-completion pattern: operator missions, gates). On validated completion the server mints
-   a short signed code (HMAC over uid+labId+timestamp) the student pastes into the Bb assignment
-   instead of uploading a screenshot. Instructor-side verifier (admin console panel) validates a
-   pasted batch instantly. DESIGN CONSTRAINT (caught at scoping): `FLAG_SECRET`
-   (functions/index.js:35) is per-deploy random -- completion codes need a PERSISTENT secret
-   (Firestore-held or env) or every functions deploy invalidates outstanding codes.
+1. **Completion codes (IF Frank's answer above requires a student artifact).** On completion the
+   server writes a **Firestore record** (uid, labId, timestamp, status) and mints a short code
+   signed via **`defineSecret`** (the `SEXTANT_PEPPER` precedent in functions/index.js -- NOT a
+   Firestore-held secret, NOT the per-deploy-random `FLAG_SECRET`). Verification looks up the
+   RECORD (revocation = flip one record's status, the invite-code pattern at
+   functions/index.js:2392; never secret rotation, whose blast radius is every outstanding code).
+   **HARD REQUIREMENT (Nancy): the verifier's output displays the BOUND IDENTITY** (name / email /
+   studentId), never bare valid/invalid -- codes are plain text and students can share them; the
+   instructor cross-checks the shown identity against the submitting student, or the check is
+   theater. **HONEST SCOPE (Nancy): rung 1 proves IDENTITY + CLAIM, not honest play.** The
+   printer lab's win state is pure client JS; its `addXP` callable is a BUG-044-class rubber
+   stamp. True play-validation is per-lab engine work: start with labs that already produce a
+   server-checkable artifact (the `validateFlag` pattern, functions/index.js:198); client-only
+   arcade games need engine redesign to emit an artifact at all, priced separately. Codes still
+   beat screenshots, which prove neither identity nor play.
 2. **Roster panel (build with 1).** Completions are server-recorded per uid; user docs carry
    email + studentId. Instructor panel: class roster x lab x verified-completion timestamp. The
    student upload ritual disappears entirely; Frank reads the grid into the Bb gradebook.
@@ -79,7 +103,18 @@ Blackboard/
 
 ## Non-goals / policy
 
-No answer keys or solution docs in any export. No pretending interactive engines run inside an
-LMS. No second authoring surface: exports are generated, never hand-edited (hand-edit = drift).
-Export tooling is operator/instructor-facing only -- nothing student-visible ships in P1-P3
-except the completion-code display on lab victory screens.
+Keys policy, split precisely (Nancy: the old single line contradicted both existing practice and
+QTI mechanics):
+1. Solution DOCUMENTS and answer-key files never ship inside anything a STUDENT can access.
+2. QTI packages necessarily embed correct-answer fields -- that is the LMS's grading data,
+   delivered only into the instructor-controlled import. Permitted and unavoidable.
+3. The instructor shared folder (`~/hexworth-shared/Blackboard/`) carries keys BY DESIGN for
+   Frank's eyes; that is existing practice, not a violation.
+
+Also: rung 2's roster panel must read a NEW server-recorded completion event (admin-SDK-write-only,
+the gates-subcollection pattern) -- `labsCompleted`/`modulesCompleted` are in the CLIENT-writable
+whitelist (firestore.rules:34-36) and a roster built on them would be console-forgeable, worse
+than screenshots. No pretending interactive engines run inside an LMS. No second authoring
+surface: exports are generated, never hand-edited. Export tooling is operator/instructor-facing
+only. TOOLING NOTE: everything under `_tools/` requires `git add -f` (repo gitignore); the
+blackboard-export builder behind the shipped A+ final was untracked until Nancy's audit caught it.
