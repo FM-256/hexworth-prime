@@ -31,12 +31,37 @@ Frank answer; the keys policy is split into precise lines; and the toolchain get
 (her audit also found `_tools/blackboard-export/` -- the builder behind the SHIPPED A+ final --
 was never git-tracked at all; fixed same day).
 
-**THE QUESTION THAT DECIDES P1's SHAPE (Frank):** does Blackboard Ultra's assignment need a
-student-submitted artifact for your gradebook/records workflow (or Keiser policy), or can you
-grade straight off an instructor-only roster grid with NO student paste step? If roster-only is
-acceptable, the entire completion-code subsystem (mint, display, transcribe, verify, revoke) is
-unnecessary complexity for P1 and rung 2 alone ships first. Codes only earn their keep if Bb
-must hold a per-student artifact.
+**THE ARTIFACT-VS-ROSTER QUESTION — PARKED FOR DISCUSSION (Frank ruling 2026-07-29 evening:
+"we need to discuss it, document what we have so we can explore later").** Documented state for
+that discussion:
+- TODAY'S WORKFLOW: Bb assignment carries a lab URL; students upload screenshots; Frank
+  hand-checks each. Screenshots prove neither identity nor play and cost minutes per student.
+- WHAT EXISTS SERVER-SIDE: mission_completions (operator missions, server-validated),
+  validateFlag (arena/box artifacts), gate docs w/ provenance -- but `labsCompleted` /
+  `modulesCompleted` on user docs are CLIENT-writable (firestore.rules:34-36) and must never
+  feed grading.
+- THE TWO CANDIDATE SHAPES: (a) roster-only -- one admin-SDK-written completion event + an
+  instructor grid; zero student steps; simplest and safest; (b) completion codes -- adds a
+  student-pasted artifact INTO Bb (Firestore-record-backed, identity-bound verifier, defineSecret
+  signing) for workflows/policy that require per-student evidence living in the LMS.
+- OPEN FACTS TO ESTABLISH IN DISCUSSION: whether Keiser policy/accreditation requires student
+  work-product inside Bb; whether Frank's grading rhythm prefers reading a grid vs validating a
+  column; whether codes' anti-sharing depends on roster cross-check anyway (it does -- which
+  argues the grid is the primary surface either way).
+- P1 IS SCOPED FOR BOTH BRANCHES BELOW; the branch is chosen at that discussion, and either way
+  the server-recorded completion event is the shared foundation built first.
+
+**PHASE ORDER APPROVED (Frank, same ruling: "yes i want it, scope it out").** P1 detailed scope:
+
+## P1 build scope (approved to scope; build starts after the artifact-vs-roster discussion)
+
+| Increment | What | Notes |
+|---|---|---|
+| P1.1 Completion event | New callable `recordLabCompletion` writing `lab_completions/{uid}_{labId}` via admin SDK (uid from auth token, labId whitelisted, timestamp server-set, `source` field for the claiming surface); firestore.rules: client READ own, WRITE none | The shared foundation. BUG-044 lesson applies: this records an identity-bound CLAIM, stated as such |
+| P1.2 Lab wiring | Printer lab's victory path calls P1.1 (client-only game => claim-quality, disclosed); labs with real artifacts (validateFlag class) upgrade to validated-quality later, per-lab | First lab = Frank's actual Bb assignment |
+| P1.3 Roster grid | Instructor/admin panel: pick lab x class -> grid of roster (email/studentId from user docs) x completion timestamp + claim-vs-validated marker; CSV export for Bb gradebook paste | Kills screenshots on its own if roster branch wins |
+| P1.4 Codes (branch b only) | Firestore-record-backed, defineSecret-signed short code shown on victory; verifier panel shows BOUND IDENTITY + status; per-record revocation | Only if the discussion lands on artifact-required |
+| QC | Nancy per increment; Chris before Frank sees the panel; live verify incl a real roster read | Standard rhythm |
 
 ## The labs problem, solved in three rungs
 
