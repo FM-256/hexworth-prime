@@ -151,6 +151,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** all 30 objectives pass their taught commands; adversarial set passes (combined `-rl`/`-Eo`/`-ic` tick; `--long-format`, `-largefile.log`, quoted `"-l"`, and no-flag variants correctly rejected).
 - **Related:** BUG-040.
 
+### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  open
+- **Found:** 2026-07-28 · by Nancy · during the BUG-039 review · verified independently against both files
+- **Area:** _app/operator/engine/OperatorEngine.js:797 vs _app/components/ModuleProgress.js:533
+- **Symptom:** `fireCompletionHooks` calls `window.ModuleProgress.complete(config.id)` with ONE argument, but the function is `complete(houseId, moduleId, options = {})`. So every completed operator mission records `houseId = <mission id>` (e.g. 'js-01') and `moduleId = undefined`. There is no arguments-length overload to compensate. Course progress for operator missions therefore lands in a bucket named after the mission with no module, instead of the mission's house.
+- **Blast radius:** all 124 operator missions. Only 4 mission pages (the PFI ones) carry their own bridge, and those are separately broken by BUG-039; the other 120 rely solely on this call, so they have likely never credited course progress correctly.
+- **NOT the same bug as the hub display:** the Operator hub's own completion marks read the engine's localStorage completion keys, which are written correctly. This is the ModuleProgress/course-credit path only.
+- **Fix direction (not started):** pass both arguments -- the mission's house plus its module id. Needs a decision on what the module id should be for an operator mission (the config id? a catalog id?) and whether historical progress under the malformed bucket is worth migrating; do not guess.
+- **Related:** BUG-039 (the PFI-specific bridge), operator sync work 2026-07-28.
+
 ### BUG-039 -- PFI Operator bridge polls a key the engine never writes (dash vs underscore)  ·  P2  ·  open
 - **Found:** 2026-07-28 · by Nancy · during operator completion-fix review (her attack on "other hexworth_operator_ consumers")
 - **Area:** _app/operator/missions/pfi-op-0{1..4}.mission.html (~:52, `COMP_KEY = 'hexworth_operator_' + MISSION_ID` = dashed `hexworth_operator_pfi-op-01`) and _app/houses/code/python-for-it/index.html:2332-2340 (same dashed read) vs _app/operator/configs/pfi-op-0*.config.js (`storageKey: 'hexworth_operator_pfi_op_01'` = underscored, which is what OperatorEngine actually writes)
