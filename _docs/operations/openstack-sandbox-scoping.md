@@ -331,8 +331,41 @@ configured limits, not adversarial guarantees, until BUG-050 is ruled and fixed.
 reader credential silently vanish and the CLI lab breaks with auth failures. The Stage-1 snapshot
 is retained as the known-good pre-2a baseline.
 
-**Stage 2b — Horizon read-only via cloudflared + CF Access: NOT BUILT, separate review** (new
-public ingress; gets its own Nancy pass).
+### Stage 2b — PLAN (Frank "get it done" 2026-07-29; Nancy PAUSE conditions folded, awaiting her PROCEED)
+
+**CATEGORY CHANGE, named plainly (Nancy):** this is bc2's FIRST public ingress ever. The trust
+boundary moves from "closed tailnet -- network admission before any HTTP" to "internet-reachable
+identity wall at Cloudflare's edge." Not an incremental extension of 2a; reviewed as such.
+
+Plan, with her conditions integrated:
+1. Dedicated cloudflared tunnel ON BC2 (own credentials, not bc1's), hostname
+   **`bc2-horizon.hexworth.tech`** (host-prefixed per the bc1-* naming convention -- her catch;
+   grep-able ownership), routing to http://192.168.122.62:80. Outbound-only; zero listeners,
+   zero netfilter changes; Stage-1 artifact-diff standard applies.
+2. CF Access app scoped to the FULL HOSTNAME, all paths -- and PROVEN by curl against a
+   non-/dashboard API path (e.g. /identity/v3/auth/tokens) returning the Access challenge, not
+   just the /dashboard test. Access = the sole gate against internet noise; Horizon's login form
+   is only ever reachable by an Access-authenticated identity, which is what bounds the
+   no-rate-limit concern.
+3. Policy: FRANK-ONLY at launch. **Widening to any student group is a MANDATORY fresh Nancy
+   pass** (the shared-credential concern only becomes live at that point), stated here so it
+   cannot happen as a silent extension. Access session duration: 8h; and the verification tests
+   the CF-session/Horizon-session relationship explicitly (log out of Access, confirm whether the
+   in-browser Horizon/Django session survives; Horizon's keystone token expiry ~1h bounds the
+   residual; result recorded honestly either way).
+4. Credential: the `student-view` plaintext EXISTS in `bc2:~/openstack-stage1/vm-credentials.txt`
+   (0600) -- the no-echo bake kept it out of session transcripts, not out of existence. Frank
+   reads it from that file; no reset, CLI lab untouched. Browser-typed use is a REAL exposure
+   downgrade vs the baked CLI path (devtools/autofill/shoulder-surf) -- accepted for Frank-only,
+   and exactly why widening requires re-review.
+5. Verification (the claim, not a proxy -- her condition): anonymous -> Access challenge on
+   /dashboard AND on a raw API path; authorized -> Horizon login; student-view session exercised
+   against MULTIPLE write surfaces, not one create button: instance launch, instance power
+   actions, volume create, security-group rule add, key-pair create -- each must fail (Horizon's
+   policy layer is a separate code path from the API RBAC the 2a canary proved); unauthorized
+   identity blocked; bc2 listener/netfilter diff empty; tunnel survives cloudflared restart;
+   2a CLI lab regression-launched.
+6. Rollback: delete tunnel + DNS record + Access app; bc2 loses nothing else.
 
 **Stage 2 — student-visible, read-mostly.** (original definition follows) Two surfaces: Horizon via a new bc2 cloudflared tunnel
 behind Cloudflare Access into a shared demo project with a read-only role; and a new `openstack-cli`
