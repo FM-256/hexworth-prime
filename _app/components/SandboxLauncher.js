@@ -42,6 +42,10 @@ const SandboxLauncher = (function() {
         'cell-sigma': { name: 'Cell-Σ Commissioning (ALA Final)', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: false },
         'linux-mastery': { name: 'Linux Mastery Workbench', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
         'linux-sandbox': { name: 'Linux Practice Sandbox', tier: 'terminal', icon: '/assets/images/icons/icon-terminal.webp', browsable: true },
+        // DELIBERATELY browsable (the-rig doc, Nancy's build-time note 2): OpenStack Stage 2a's
+        // read-only CLI lab is The Rig's first automatic inheritance -- the visible path, chosen
+        // on purpose, not the fail-closed default.
+        'openstack-cli': { name: 'OpenStack CLI Lab', tier: 'terminal', icon: '/assets/images/icons/icon-cloud.webp', browsable: true },
     };
 
     /**

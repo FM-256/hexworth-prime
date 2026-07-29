@@ -291,7 +291,45 @@ folklore did not bite this all-in-one OVN config. The snapshot remains the reset
 login `admin` / password from `bc2:~/openstack-stage1/vm-credentials.txt`. CLI: `ssh bc2` then
 `ssh -i ~/openstack-stage1/stage1_key stack@192.168.122.62`, `source ~/devstack/openrc admin admin`.
 
-**Stage 2 — student-visible, read-mostly.** Two surfaces: Horizon via a new bc2 cloudflared tunnel
+### Stage 2a — EXECUTED 2026-07-29 (Nancy PROCEED after her leak-canary gate closed with transcript)
+
+Built and live on the infrastructure side; the repo half (hub launcher card + LAB_INFO) ships with
+the next hosting deploy. **STAGE-BOUNDARY RECONCILIATION (Nancy):** the original staging placed
+LAB_INFO/hub-card/catalog wiring in Stage 3; pulling the launcher wiring forward into 2a is a
+DELIBERATE call — a student-visible CLI lab is unreachable without its launcher, and Stage 2's own
+definition says student-visible. Stage 3 keeps quotas, the per-student project pool, and graded
+challenges.
+
+What exists: keystone project `demo-readonly` + user `student-view` with PROJECT-SCOPED `reader`
+only (assignment table shows System=empty; cross-project canary instance invisible;
+`--all-projects` and writes both 403 — transcript in session record). `canary-admin-project`
+instance KEPT DELIBERATELY as a standing regression trip-wire for future role changes.
+`openstack-api-bridge.service` on bc2: socat bound ONLY to the tailscale IP (100.125.36.2:8080 ->
+VM:80), Restart=always/RestartSec=3, zero iptables changes. **THE CREDENTIAL SCOPE IS THE SECURITY
+CONTROL, NOT THE NETWORK BIND** — every tailnet peer can reach the combined API/Horizon vhost; what
+they hold determines what they can do (Nancy's framing, verbatim, accepted risk: the tailnet peer
+set is our tagged servers + Frank's devices). `hexworth/openstack-cli` image on bc1 (LOCAL ONLY,
+never pushed): linux-sandbox pattern + python3-openstackclient + baked clouds.yaml with per-service
+endpoint overrides through the bridge; credential rotated NO-ECHO at bake time. lab-manager LABS +
+CHECKS entries live (server.js backup kept beside it); end-to-end verified: production API launch
+of the lab, in-container `openstack server list` returns real data, write 403, teardown clean,
+existing linux-sandbox lab regression-launched clean.
+
+**Capacity numbers (the doc demanded these before students arrive):** bc1 pool = 40 total, 2/user
+(live env, 2026-07-29), 5 containers running at wiring time = 35 headroom. bc2 cloud ceiling =
+~45-50 concurrent m1.nano measured in Stage 1 — but Stage 2a students consume ZERO instances
+(read-only project; the demo instance is shared and pre-existing). The CLI lab's cost is bc1
+containers only. The graded-vs-free-play split of the 40 remains OPEN with Frank.
+
+**Maintenance policy update (Nancy):** term rebuilds restore from the POST-2a snapshot
+(`openstack-vm-stage2a-20260729.qcow2`), not the Stage-1 pristine one, or the demo project and
+reader credential silently vanish and the CLI lab breaks with auth failures. The Stage-1 snapshot
+is retained as the known-good pre-2a baseline.
+
+**Stage 2b — Horizon read-only via cloudflared + CF Access: NOT BUILT, separate review** (new
+public ingress; gets its own Nancy pass).
+
+**Stage 2 — student-visible, read-mostly.** (original definition follows) Two surfaces: Horizon via a new bc2 cloudflared tunnel
 behind Cloudflare Access into a shared demo project with a read-only role; and a new `openstack-cli`
 lab in the bc1 lab-manager `LABS` registry (a ttyd container, exactly the `linux-sandbox` shape).
 Students run real `openstack server list`, `flavor list`, `network list` against a real cloud. Zero
