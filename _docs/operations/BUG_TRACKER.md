@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  open
+### BUG-044 -- completeGate rubber-stamps any gate for any signed-in user  ·  P1  ·  fixed-not-deployed (two residuals below)
 - **Found:** 2026-07-28 · by Chris (blocking my BUG-043 half-B write-up) · verified independently by me
 - **Area:** functions/index.js:99-138 (`exports.completeGate`)
 - **Symptom:** the function writes `users/{uid}/gates/gate{N}` with `completed: true` for ANY signed-in
@@ -44,10 +44,40 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Why it matters beyond the obvious:** this is the authority BUG-043's half B was going to rely on.
   Hydrating gate state from the server does not close the vault bypass while the server will mint a
   completion on request; it just moves the forgery from localStorage to Firestore.
-- **Fix direction (needs operator decision, not started):** require a real proof for every gate
-  (extend the existing generateGateProof path past gate 5), or give gates 6-8 a genuine server-side
-  validation of their multi-step work, and stop accepting empty proof. Then, and only then, make the
-  vault trust the server.
+- **FIXED (this commit):** completeGate now fails CLOSED. A `CLIENT_ATTESTED_GATES = [6,7,8]`
+  allowlist replaces the `gateNum <= 5` threshold; any gate not on the list must present a valid
+  proof, and none can be produced (generateGateProof HMACs with FLAG_SECRET, which is
+  crypto.randomBytes at module load, functions/index.js:35 -- unguessable and different every
+  deploy). So completeGate is closed for gates 1-5 and for any future gate number; the threshold
+  form would have failed OPEN for every gate above 5 ever added (Nancy). All three gate-doc writers
+  now stamp provenance: validateGateAnswer's two branches (the gate-5 hash-array branch and the
+  generic one) write `verified: true, source: 'server'`; completeGate writes
+  `verified: false, source: 'client-attested'` for 6-8, so a reader can finally tell a
+  server-validated completion from a student's own say-so.
+- **DROPPED from the plan (Nancy):** a prerequisite check requiring the previous gate to be
+  `verified !== false`. Every pre-existing doc has `verified` undefined, so it would have passed for
+  everything on day one, and once gates 1-5 cannot be forged there is no chain left for it to break.
+  Inert code that reads as hardening is worse than no code.
+- **Verified, and re-runnable:** `node _tools/security/verify-gate-completion.js` (6 checks, exit 0
+  = safe). It extracts the LIVE completeGate body out of functions/index.js and executes it over an
+  in-memory Firestore double, so it tests shipped code rather than a re-implementation: the ascending
+  console loop with empty proof writes ZERO docs and dies at gate 1 with permission-denied; gates 6-8
+  still complete once 1-5 exist as server-validated docs and are recorded client-attested; an
+  unlisted future gate is rejected; unauthenticated callers are refused. Proven to actually catch a
+  regression: restoring the old `if (proof && gateNum <= 5)` shape makes it fail with 8 forged docs.
+  (Nancy's ask -- a "Verified" line should point at something a reader can execute, not prose.)
+- **RESIDUAL 1 -- pre-existing forged progress is NOT remediated.** This fix is forward-only. Any
+  account that ran the loop before this deploy keeps every forged gate doc and all the access it
+  grants; verifyGateAccess (functions/index.js:145-165) and FirestoreManager._restoreGateProgress
+  (_app/components/FirestoreManager.js:109-144) both grant on `completed` alone and never consult
+  `verified`. Cleaning that up means auditing existing gate docs (now possible: legitimate future
+  ones carry provenance, but historical ones carry none, so age is the only discriminator) and
+  deciding whether to revoke -- an operator call, not started.
+- **RESIDUAL 2 -- gates 6-8 remain self-attested.** Their multi-step work is validated by
+  client-side predicates (gate-6.html:1166+, gate-7.html:1171, gate-8.html:1607+), so a signed-in
+  student can still skip 6-8 by calling completeGate directly. Closing it needs real server-side
+  validation of those puzzles: taskboard #237. Note these two residuals are DIFFERENT holes and
+  neither is closed by the other.
 - **Related:** BUG-043 (blocked on this), taskboard #237.
 
 ### BUG-042 -- Dark Arts gates are unpassable for signed-out students, and the error blames the student  ·  P1  ·  partially-fixed (message), access policy open

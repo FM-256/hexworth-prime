@@ -110,13 +110,28 @@ exports.completeGate = onCall(cfOptions, async (request) => {
 
     const uid = request.auth.uid;
 
-    // Gates 1-5: validated by validateGateAnswer (which writes completion directly)
-    // Gates 6-8: validated locally (complex multi-step), proof is optional
-    // For gates 1-5, this function is only called with proof from legacy code paths
-    if (proof && gateNum <= 5) {
+    // BUG-044: this used to check the proof only `if (proof && gateNum <= 5)`, so an EMPTY
+    // proof skipped validation for EVERY gate. Since prerequisites are checked against the
+    // caller's own docs, a signed-in caller could loop gateNumber 1,2,3... from the console
+    // and mint a fully server-blessed vault without solving anything.
+    //
+    // The allowlist below fails CLOSED: a gate not named here must present a valid proof.
+    // A threshold ("anything above 5 is fine") fails OPEN for every future gate number, which
+    // is exactly how this hole would come back.
+    //
+    // Gates 1-5 have a real validator: validateGateAnswer hashes the student's answer against
+    // gate_registry and writes the completion itself, so nothing legitimate calls this function
+    // for them (verified: the only callers in _app are gates 6-8, all with proof:''). And no
+    // caller can satisfy the proof anyway -- generateGateProof HMACs with FLAG_SECRET, which is
+    // crypto.randomBytes at module load (line 35), so it is unguessable AND changes per deploy.
+    // The practical effect is that completeGate is closed for every gate except 6-8.
+    const CLIENT_ATTESTED_GATES = [6, 7, 8];
+    const clientAttested = CLIENT_ATTESTED_GATES.includes(gateNum);
+    if (!clientAttested) {
         const expectedProof = generateGateProof(gateNum, uid);
-        if (proof !== expectedProof) {
-            throw new HttpsError('permission-denied', 'Invalid gate completion proof.');
+        if (!proof || proof !== expectedProof) {
+            throw new HttpsError('permission-denied',
+                'This gate cannot be completed through this endpoint. Submit your answer to be validated.');
         }
     }
 
@@ -128,11 +143,16 @@ exports.completeGate = onCall(cfOptions, async (request) => {
         }
     }
 
-    // Write verified completion
+    // Record the completion WITH ITS PROVENANCE. Gates 6-8 validate their multi-step work in
+    // the browser, so this is the student's own attestation, not a server verification -- and a
+    // reader that cannot tell the two apart is how the vault ended up trusting forged progress.
+    // Server-validated completions (validateGateAnswer) carry verified: true.
     await db.doc(`users/${uid}/gates/gate${gateNum}`).set({
         completed: true,
         completedAt: FieldValue.serverTimestamp(),
-        gateNumber: gateNum
+        gateNumber: gateNum,
+        verified: !clientAttested,
+        source: clientAttested ? 'client-attested' : 'server'
     });
 
     return { success: true, gate: gateNum };
@@ -635,7 +655,9 @@ exports.validateGateAnswer = onCall(cfOptions, async (request) => {
             await db.doc(`users/${uid}/gates/gate${gateNum}`).set({
                 completed: true,
                 completedAt: FieldValue.serverTimestamp(),
-                gateNumber: gateNum
+                gateNumber: gateNum,
+                verified: true,
+                source: 'server'
             });
         }
 
@@ -649,7 +671,9 @@ exports.validateGateAnswer = onCall(cfOptions, async (request) => {
         await db.doc(`users/${uid}/gates/gate${gateNum}`).set({
             completed: true,
             completedAt: FieldValue.serverTimestamp(),
-            gateNumber: gateNum
+            gateNumber: gateNum,
+            verified: true,
+            source: 'server'
         });
     }
 
