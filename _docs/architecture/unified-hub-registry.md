@@ -270,6 +270,56 @@ Algorithm Chamber at /houses/code/algorithms/, neither of which is where those h
   (Observatory IS still a curated cross-house lens for its own COURSE shelf -- that ruling
   stands and is separate from the shared Explore All tab.)
 
+## Cloud Master: distribution hubs and dynamic-hub placement (decided 2026-07-29)
+
+Frank found Cloud Master rendering at the TOP of the Observatory page, above the hero,
+instead of with the featured courses. Root cause was mine: the `<div data-hub-discovery>`
+mount point was placed as the last line of the static HTML, which is the bottom of a
+normal page -- but house pages are built at RUNTIME (HouseRenderer appends header at
+:1164, main at :1299, footer at :1305), so a static div already in the DOM precedes
+everything the renderer creates and lands at the top of the flow. Latent on all 12 files
+carrying the mount; visible only on Observatory because it is the only house with a
+dynamic hub today.
+
+RULINGS
+- **Cloud Master is a DISTRIBUTION hub.** Frank: "cloudmaster course will consist of
+  multi-cloud instruction. aws/azure/openstack as of now perhaps i will add another".
+  It appears in the Observatory and NOWHERE ELSE. Verified live that this already holds:
+  absent from the cloud house and the catalog, present on Observatory, with its six
+  children rendering inside its own hub page rather than beside it.
+- **Its content is SILOED, and the resulting duplication is accepted.** Frank: "i would
+  prefer to have the cloudmaster content siloed, even if the content appear to be dupped
+  at the cloud house". The Cloud house separately promotes AWS Cloud Practitioner and
+  Azure Fundamentals through hand-authored course cards, a cert badge, a start-here entry
+  and House Content module rows. That is a DECISION, not a defect -- do not "fix" it.
+- **Destination is the Courses shelf**, merged with the other cartridges rather than a
+  separate strip. Frank: "we want it in the featured area ... actually i want it in the
+  courses area that is live in the observatory". The tabs are the mechanism if a future
+  hub ever needs its own place.
+- **Observatory's curated shelf may carry a house-scoped DYNAMIC hub.** This does not
+  contradict the curated-lens ruling: curation still governs the hand-authored static
+  list, and a dynamic hub only ever surfaces in the house its `house` field names.
+
+MECHANISM (Option A, approved). The renderer sources the Courses shelf through
+`HubRegistry.allWithDynamic()` -- the existing tested merge (HubRegistry.js:509+, 14
+assertions in _tools/rules-test/hub-registry-e2e.test.js) -- scoped to the page's house,
+excluding workshop status and container children. HubDiscovery.js and its 12 mount points
+retire. Catalog gains dynamic hubs too, since a distribution hub invisible to catalog
+browsers defeats its purpose.
+
+WHY NOT the alternatives, recorded so they are not re-proposed:
+- Patching HubDiscovery's append target keeps a DUPLICATE Firestore query beside the
+  tested merge, keeps the markup duplication problem, and leaves the mount divs -- the
+  actual cause -- in place on 12 pages.
+- Adding `'cloud-master'` to Observatory's `paths` array LOOKS like a one-line fix and
+  silently does nothing: that list resolves through the STATIC registry
+  (`hrResolveCartridge` skips unknown ids), and Cloud Master is a Firestore hub. A change
+  that appears correct and renders nothing is worse than no change.
+
+KNOWN GAP AT TIME OF DECISION: no house merged dynamic hubs into its shelf at all -- the
+absence was systemic, not an Observatory wrinkle, so this fix makes every house able to
+surface admin-created hubs correctly.
+
 ## Immediate context / where we are
 
 - The 8-house **cartridge-fy** SHIPPED (houses read hub cards from HubRegistry as
