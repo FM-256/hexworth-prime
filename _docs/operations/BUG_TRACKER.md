@@ -31,14 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-049 -- HubDiscovery painted admin-hub content OUTSIDE the Observatory consent gate  ·  P1  ·  fixed-not-deployed
+### BUG-050 -- lab-manager accepts ANONYMOUS Firebase tokens: container slots consumable without an account  ·  P2  ·  open (ruling needed)
+- **Found:** 2026-07-29 · by self (The Rig post-deploy real-launch verification) · while proving the launch path end-to-end
+- **Area:** bc1 lab-manager auth (`hexworth-sandbox/lab-manager/server.js` token verification) + Firebase anonymous auth enabled platform-wide
+- **Symptom:** an anonymous Firebase user (one REST `accounts:signUp` call with the public web API key from an allowed referer -- no email, no password, no account) successfully launched a real `linux-sandbox` container (session 2EmWtuZ1wq3e, status running) and destroyed it. The lab-manager verifies token VALIDITY but not account substance, so the 40-slot pool is consumable by any visitor's browser session; FirebaseAuth attempts anonymous sign-in on page load, so effectively every visitor holds a launch-capable token. 2-per-user limits bind to the anon uid, which is free to re-mint.
+- **Repro:** signUp (anonymous) via identitytoolkit REST with Referer https://hexworth.com/ -> POST /api/sandbox/launch with the Bearer idToken -> sessionId issued, container runs.
+- **Why it may be intended:** frictionless practice was a design goal for the free-play sandbox; the browser UI still says "Sign in to launch." This may be accepted behavior, in which case record the acceptance -- but the capacity math (40 shared with the cell-sigma FINAL EXAM pool) makes unaccountable consumption a real exam-day risk.
+- **Fix candidates (ruling first, none applied):** (a) lab-manager rejects `firebase.sign_in_provider == 'anonymous'` tokens; (b) accept anon for free-play tiers but reserve headroom for graded labIds; (c) accept as-is, document. Pairs naturally with the OPEN capacity ruling (graded-vs-free-play split of the 40 pool).
+- **Housekeeping:** verification created one orphan anonymous auth user (uid 8ih2eUJyjeYABhJIsLZe3JaYbQR2) and zero surviving containers (destroy confirmed).
+- **Related:** The Rig ship (a58c55c7f), capacity ruling #3, sandbox egress backlog.
+
+### BUG-049 -- HubDiscovery painted admin-hub content OUTSIDE the Observatory consent gate  ·  P1  ·  deployed (leak closure live-verified)
 - **Found:** 2026-07-29 · by self (probing why anonymous harness runs saw a Cloud Master card while house panels were empty) · confirmed independently by Nancy · during the dynamic-hub placement fix
 - **Area:** the retired `_app/components/HubDiscovery.js` include pattern -- pre-fix `observatory/index.html:1799-1800` carried `<div data-hub-discovery>` + the script include as bare unconditional lines before `</body>`
 - **Symptom:** Observatory renders house content only inside `ObservatoryConsent.ensureConsent(function () { HouseRenderer.init(...) })` (observatory/index.html:1693-1694) -- but HubDiscovery ran ungated, so an unconsented (or anonymous) visitor saw the Cloud Master hub card on a research house whose entire design premise is consent-gated content. Research-integrity issue, not cosmetic: the consented/unconsented boundary leaked.
 - **Repro (pre-fix):** anonymous browser, load /houses/observatory/index.html -- house panels absent (gate holds) yet the Cloud Master card renders at top via the mount div.
 - **Root cause:** the mount div + script include lived in static HTML, outside every runtime gate; HubDiscovery had no knowledge of the consent system.
 - **Fix (uncommitted, riding the dynamic-hub placement change):** HubDiscovery include + mount removed from all 12 pages; dynamic hubs now render only via `mergeDynamicHubs()` inside HouseRenderer, which on Observatory runs inside the consent callback. Verified via stub harness (`.scratch_verify/hr-merge-2026-07-29/`, output saved): consented path renders the card exactly once in the Courses grid; ungated top render gone.
-- **Verified:** stub-harness PASS re-run from repo copy (stub-verify-output.txt); post-deploy live check pending.
+- **Verified:** stub-harness PASS re-run from repo copy (stub-verify-output.txt); LIVE post-deploy
+  2026-07-29 (commit 654bf2d10, deploy exit 0 all gates): anonymous visitor on production Observatory
+  sees ZERO Cloud Master links and ZERO mounts (leak closed), 4-house regression clean, security-plus
+  intact, HouseRenderer.js md5-matches HEAD. Consented-path render is stub-verified; a signed-in
+  consented eyeball of the Courses shelf (Frank has the account for it) is the last confirmation.
 - **Related:** BUG-047 arc (same session), unified-hub-registry.md "Cloud Master: distribution hubs and dynamic-hub placement".
 
 ### BUG-047 -- cert hub pages render in a 47% column with seven emoji  ·  P2  ·  deployed-verified
