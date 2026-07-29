@@ -1308,6 +1308,7 @@ const HouseRenderer = (function() {
         renderPathsPanel();
         renderContentPanel();
         renderExplorePanel();
+        mergeDynamicHubs();   // additive async pass; the sync render above is untouched
     }
 
     // ========================================
@@ -1517,7 +1518,10 @@ const HouseRenderer = (function() {
             if (!h) return null; // unknown registry id -> skip; the Hub Health audit surfaces the mismatch
             return { id: h.id, title: h.label, sub: h.sublabel, href: h.hubHref, cover: '/assets/images/covers/' + h.id + '.webp', icon: h.icon };
         }
-        return { id: entry.id, title: entry.name, sub: entry.cert, href: entry.href, cover: null, icon: entry.icon };
+        // Object form. `cover` is honored when the caller supplies one (dynamic hubs pass the
+        // conventional /assets/images/covers/<id>.webp path); callers that omit it keep the
+        // previous icon-only rendering, so this is additive.
+        return { id: entry.id, title: entry.name, sub: entry.cert, href: entry.href, cover: entry.cover || null, icon: entry.icon };
     }
     function hrCartridgeHTML(entry) {
         var c = hrResolveCartridge(entry);
@@ -1871,6 +1875,156 @@ const HouseRenderer = (function() {
             .sort(function (a, b) {
                 return ((byId[a] && byId[a].sortOrder) || 999) - ((byId[b] && byId[b].sortOrder) || 999);
             });
+    }
+
+    // ── Dynamic hubs: admin-created hubs merged into this house's Courses shelf ────────────────
+    // WHY THIS LIVES HERE: dynamic hubs used to be painted by HubDiscovery.js into a
+    // <div data-hub-discovery> that sat as the last line of each page's static HTML. Because
+    // these pages are BUILT AT RUNTIME (renderPage appends header/main/footer to body), that
+    // static div preceded everything the renderer creates and the hubs landed at the TOP of the
+    // page, above the hero. Sourcing them here instead puts them in the shelf with every other
+    // cartridge, and a hub can only ever appear in the house its `house` field names.
+    //
+    // Firestore is loaded ON DEMAND: house pages are static and carry no Firebase. We reuse
+    // ArenaFirebase rather than writing another copy of the app config (that object is already
+    // duplicated across 17+ files; a retyped apiKey fails silently). ArenaFirebase already
+    // lazy-imports the MODULAR SDK and exposes exactly the {db, firestore} shape
+    // HubRegistry.allWithDynamic expects.
+    var HUBS_CACHE_KEY = 'hubdisc_published_v1';   // shared with the retired HubDiscovery on purpose
+    var HUBS_CACHE_TTL = 120000;                    // 2 min
+
+    function readHubsCache() {
+        try {
+            var raw = sessionStorage.getItem(HUBS_CACHE_KEY);
+            if (!raw) { return null; }
+            var o = JSON.parse(raw);
+            if (!o || typeof o.t !== 'number' || (Date.now() - o.t) > HUBS_CACHE_TTL || !Array.isArray(o.hubs)) { return null; }
+            return o.hubs;
+        } catch (e) { return null; }
+    }
+    function writeHubsCache(hubs) {
+        try { sessionStorage.setItem(HUBS_CACHE_KEY, JSON.stringify({ t: Date.now(), hubs: hubs })); } catch (e) { /* quota/private mode */ }
+    }
+
+    function loadScriptOnce(src) {
+        return new Promise(function (res, rej) {
+            if (document.querySelector('script[src="' + src + '"]')) { return res(true); }
+            var el = document.createElement('script');
+            el.src = src;
+            el.onload = function () { res(true); };
+            el.onerror = function () { rej(new Error('load ' + src)); };
+            document.head.appendChild(el);
+        });
+    }
+
+    // Resolves {db, firestore} or null. A null from "no Firebase on this page" is normal and
+    // quiet; a null from a FAILED bootstrap attempt warns, because that is a page that should
+    // have shown dynamic hubs and will not.
+    function ensureFirestore() {
+        if (typeof ArenaFirebase !== 'undefined' && ArenaFirebase.db && window.firebaseFirestore) {
+            return Promise.resolve({ db: ArenaFirebase.db, firestore: window.firebaseFirestore });
+        }
+        return loadScriptOnce('/arena/firebase-init.js')
+            .then(function () {
+                if (typeof ArenaFirebase === 'undefined' || !ArenaFirebase.init) { throw new Error('ArenaFirebase unavailable'); }
+                return ArenaFirebase.init();
+            })
+            .then(function () {
+                if (!ArenaFirebase.db || !window.firebaseFirestore) { throw new Error('Firestore handle missing after init'); }
+                return { db: ArenaFirebase.db, firestore: window.firebaseFirestore };
+            })
+            .catch(function (e) {
+                if (typeof console !== 'undefined' && console.warn) {
+                    console.warn('[HouseRenderer] Firestore bootstrap failed -- admin-created hubs will not appear on this page: ' + (e && e.message ? e.message : e));
+                }
+                return null;
+            });
+    }
+
+    /** Merge admin-created hubs for this house into the Courses shelf, at their sortOrder position. */
+    function mergeDynamicHubs() {
+        if (typeof HubRegistry === 'undefined' || !HubRegistry.allWithDynamic) { return; }
+        var grid = document.querySelector('#hr-panel-paths .hr-cart-grid');
+        if (!grid) { return; }   // house without a cartridge shelf: nothing to merge into
+
+        var onHubs = function (hubs) {
+            var already = {};
+            (config.paths || []).forEach(function (p) { already[typeof p === 'string' ? p : (p && p.id)] = true; });
+            var mine = (hubs || []).filter(function (h) {
+                // FIELD-NAME TRAP: the 142 STATIC registry entries carry `house`, but the admin
+                // console writes `houseId` on every hub it creates (admin/console.html:4668).
+                // Reading only `house` matched zero dynamic hubs -- the merge ran, found nothing,
+                // and failed silently. Accept both.
+                var hid = h && (h.house || h.houseId);
+                return h && h.id && !already[h.id] &&
+                       hid === config.houseId &&             // a hub only surfaces in ITS house
+                       !h.parent &&                          // container members live inside their container
+                       h.status !== 'workshop';              // quarantined content stays hidden
+            });
+            if (!mine.length) { return; }
+            // sortOrder is a contract ("no implicit alphabetical", HubRegistry.js:32), so insert at
+            // position rather than appending -- a distribution hub should not be forced to the end.
+            // The grid is built 1:1 from config.paths in order (hrCartridgeGrid(config.paths)), so
+            // grid child i corresponds to config.paths[i]; resolve its order through the registry by
+            // id rather than matching rendered hrefs back to entries.
+            var orderAt = function (i) {
+                var p = (config.paths || [])[i];
+                var pid = (typeof p === 'string') ? p : (p && p.id);
+                if (!pid) { return 999; }
+                var ref = HubRegistry.all().filter(function (x) { return x.id === pid; })[0];
+                return ref ? (Number(ref.sortOrder) || 999) : 999;
+            };
+            // Track order alongside the DOM so inserts stay correct as the grid grows.
+            var orders = (config.paths || []).map(function (_, i) { return orderAt(i); });
+            mine.forEach(function (h) {
+                // Pass the OBJECT, not the id: a Firestore-only hub is by definition absent from
+                // the static registry, so the id path in hrResolveCartridge resolves to null and
+                // renders nothing at all. Map the registry field names onto the object shape.
+                var html = hrCartridgeHTML({
+                    id: h.id,
+                    name: h.label || h.id,
+                    cert: h.sublabel || '',
+                    href: h.hubHref || ('/houses/hub/' + h.id),
+                    icon: h.icon,
+                    cover: '/assets/images/covers/' + h.id + '.webp'   // onerror falls back to icon
+                });
+                if (!html) { return; }
+                var tmp = document.createElement('div');
+                tmp.innerHTML = html;
+                var node = tmp.firstElementChild;
+                if (!node) { return; }
+                var order = Number(h.sortOrder) || 999;
+                // FIRST-EXCEEDING insertion, not a global sort: config.paths is a CURATED order
+                // and is not sortOrder-monotonic (Observatory has wsa=125 before python-for-it=90),
+                // so this lands the hub before the first position whose order exceeds its own.
+                // Correct for gaps like 140 -> [200] -> 510; a future hub aimed at a
+                // non-monotonic stretch will land at the first plausible slot, not a "sorted" one.
+                var at = -1;
+                for (var i = 0; i < orders.length; i++) {
+                    if (orders[i] > order) { at = i; break; }
+                }
+                if (at >= 0 && grid.children[at]) {
+                    grid.insertBefore(node, grid.children[at]);
+                    orders.splice(at, 0, order);
+                } else {
+                    grid.appendChild(node);
+                    orders.push(order);
+                }
+            });
+        };
+
+        var cached = readHubsCache();
+        if (cached) { onHubs(cached.concat(HubRegistry.all())); return; }   // cache hit: no Firebase load
+        ensureFirestore().then(function (ctx) {
+            if (!ctx) { return; }
+            return HubRegistry.allWithDynamic({ db: ctx.db, firestore: ctx.firestore, isAdmin: false })
+                .then(function (merged) {
+                    var staticIds = {};
+                    HubRegistry.all().forEach(function (h) { staticIds[h.id] = true; });
+                    writeHubsCache(merged.filter(function (h) { return !staticIds[h.id]; }));
+                    onHubs(merged);
+                });
+        }).catch(function () { /* discovery must never break the house page */ });
     }
 
     /** Render the Explore All tab: platform destinations + the registry hub shelf */

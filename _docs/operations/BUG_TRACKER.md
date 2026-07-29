@@ -31,7 +31,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-047 -- cert hub pages render in a 47% column with seven emoji  ·  P2  ·  fixed-not-deployed
+### BUG-049 -- HubDiscovery painted admin-hub content OUTSIDE the Observatory consent gate  ·  P1  ·  fixed-not-deployed
+- **Found:** 2026-07-29 · by self (probing why anonymous harness runs saw a Cloud Master card while house panels were empty) · confirmed independently by Nancy · during the dynamic-hub placement fix
+- **Area:** the retired `_app/components/HubDiscovery.js` include pattern -- pre-fix `observatory/index.html:1799-1800` carried `<div data-hub-discovery>` + the script include as bare unconditional lines before `</body>`
+- **Symptom:** Observatory renders house content only inside `ObservatoryConsent.ensureConsent(function () { HouseRenderer.init(...) })` (observatory/index.html:1693-1694) -- but HubDiscovery ran ungated, so an unconsented (or anonymous) visitor saw the Cloud Master hub card on a research house whose entire design premise is consent-gated content. Research-integrity issue, not cosmetic: the consented/unconsented boundary leaked.
+- **Repro (pre-fix):** anonymous browser, load /houses/observatory/index.html -- house panels absent (gate holds) yet the Cloud Master card renders at top via the mount div.
+- **Root cause:** the mount div + script include lived in static HTML, outside every runtime gate; HubDiscovery had no knowledge of the consent system.
+- **Fix (uncommitted, riding the dynamic-hub placement change):** HubDiscovery include + mount removed from all 12 pages; dynamic hubs now render only via `mergeDynamicHubs()` inside HouseRenderer, which on Observatory runs inside the consent callback. Verified via stub harness (`.scratch_verify/hr-merge-2026-07-29/`, output saved): consented path renders the card exactly once in the Courses grid; ungated top render gone.
+- **Verified:** stub-harness PASS re-run from repo copy (stub-verify-output.txt); post-deploy live check pending.
+- **Related:** BUG-047 arc (same session), unified-hub-registry.md "Cloud Master: distribution hubs and dynamic-hub placement".
+
+### BUG-047 -- cert hub pages render in a 47% column with seven emoji  ·  P2  ·  deployed-verified
 - **Found:** 2026-07-29 · by user (Frank, first-impression review of Cloud Master) · in the hexify marathon
 - **Area:** `_app/components/CertPathRenderer.js:184` (`.wrap{max-width:900px}`) and `:16-19` (`TYPE_ICONS`)
 - **Symptom:** "it looks bad! it looks basic, bad and silly images and emojis, the content is smooshed
@@ -74,6 +84,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   Measure the thing the change touches, in the state where it is visible.
 - **Open follow-up:** EduScan cannot detect this class (escaped emoji under non-`icon:` keys). Until a rule
   exists, the platform can regress here silently. See BUG-048.
+- **Deployed + live-verified:** ./deploy.sh 2026-07-29 ~10:50 EDT, all gates green (Chris marker re-recorded
+  for HEAD 34bb56420 first; Nancy PROCEED with 3 conditions met). Live production measurements: CertPathRenderer.js +
+  az-104 + cloud-essentials md5-match the fix commit; puppeteer at 1920px on aws-ccp/azure-fundamentals/casp-plus =
+  wrap 1600px, 4 columns, all webp icons rendering, 0 emoji; az-104 with accordions force-expanded = 6/6 chapter rows
+  side-by-side, max dead space 22px; openstack hub 458px cards 4/row, h2 titles styled. The 5 pages the harness could
+  not render are structural: 4 are 0-second redirect stubs (ccna, cysa-plus, aplus-core1/2) and 1 is the admin-gated
+  workshop page (security-plus-crypto) -- live-confirmed the redirects fire and the gate blocks.
 - **Related:** BUG-048 · memory `feedback_never_narrow_centered_layout` · CLAUDE.md rule 2
 
 ### BUG-048 -- EduScan cannot see emoji written as unicode escapes  ·  P3  ·  open
