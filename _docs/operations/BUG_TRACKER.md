@@ -151,6 +151,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** all 30 objectives pass their taught commands; adversarial set passes (combined `-rl`/`-Eo`/`-ic` tick; `--long-format`, `-largefile.log`, quoted `"-l"`, and no-flag variants correctly rejected).
 - **Related:** BUG-040.
 
+### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  open
+- **Found:** 2026-07-28 · by Nancy · while reviewing the taskboard #234 metric fix · verified independently
+- **Area:** _app/houses/code/armory/index.html (missing card) and _app/houses/web/backbone/index.html:466 (card points elsewhere)
+- **Symptom:** two registry hubs carry `parent` but their container's page never links them, so students cannot reach them from anywhere:
+  - `python-graphics` (parent code-armory, /houses/code/armory/python-graphics/index.html, 13,576 bytes of real content). The Armory renders 17 cards including `python`, but zero reference python-graphics.
+  - `backbone-forensics` (parent backbone, /houses/web/backbone/forensics/index.html, 14,687 bytes). The Backbone page HAS a forensics card, but its href is `houses/eye/forensics/index.html` -- a different hub in a different house. Backbone's own forensics page is linked from nowhere.
+  Grep confirms neither path is referenced by any page; the only mentions are HubRegistry itself and an unrelated ForensicsData.js.
+- **How it hid:** I classified the audit's 70 "surfaced on no house page" hubs by checking whether each carried a `parent` field and concluded all 70 were explainable noise. Carrying a parent is NOT the same as being linked by that parent. Nancy caught it by opening the container pages and tracing hrefs. Any fix that treats "has a surfaced parent" as reachable would have permanently hidden these two.
+- **Fix direction (operator decision, not started):** (a) add a python-graphics card to the Armory; (b) for Backbone, decide whether its forensics card should point at its OWN forensics page or deliberately cross-link Eye's -- if the cross-link is intended, backbone-forensics is redundant and should be retired rather than surfaced. Both are content calls, not mechanical fixes.
+- **Related:** taskboard #234 (the metric fix, now correctly scoped), BUG-043's container-surfacing discussion.
+
 ### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  open
 - **Found:** 2026-07-28 · by Nancy · during the BUG-039 review · verified independently against both files
 - **Area:** _app/operator/engine/OperatorEngine.js:797 vs _app/components/ModuleProgress.js:533
