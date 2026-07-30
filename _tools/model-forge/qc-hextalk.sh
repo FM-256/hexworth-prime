@@ -151,28 +151,39 @@ import os, re
 page = open(os.environ['HEXTALK_LAB']).read()
 bad = []
 
-m = re.search(r"vocabulary\s+(\d+) characters", page)
-if not m: bad.append("cannot find the claimed vocabulary size")
+# Chris, 2026-07-30: v1 of these four regexes matched only the non-rendered DOCTRINE
+# COMMENT, not the instructions a student reads. He changed the rendered "10.75" to
+# "1.23" and this gate still passed. Same defect he found in the sibling's ceiling
+# check -- I applied the fix there and to the temperature table, and missed it here,
+# inside the gate written to close exactly this hole. Now every numeric claim is
+# checked against the RENDERED instruction strings only.
+rendered = "".join(re.findall(r"'((?:[^'\\]|\\.)*)'", "".join(
+    re.findall(r"instructions:(.*?)CEILING,", page, re.S))))
+if len(rendered) < 400:
+    bad.append(f"extracted instructions look wrong ({len(rendered)} chars)")
+
+m = re.search(r"evenly over all (\d+) characters", rendered)
+if not m: bad.append("rendered text does not state the vocabulary size")
 elif int(m.group(1)) != V: bad.append(f"page says vocabulary {m.group(1)}, measured {V}")
 
 pu, pb = perplexity(UNIFORM), perplexity(P)
-m = re.search(r"uniform \(untrained\) perplexity\s+([\d.]+)", page)
-if not m: bad.append("cannot find the claimed uniform perplexity")
+m = re.search(r"perplexity is <strong>exactly ([\d.]+)</strong>", rendered)
+if not m: bad.append("rendered text does not state the uniform perplexity")
 elif abs(float(m.group(1)) - pu) > 0.01: bad.append(f"page says uniform {m.group(1)}, measured {pu:.2f}")
 
-m = re.search(r"bigram perplexity \(add-1\)\s+([\d.]+)", page)
-if not m: bad.append("cannot find the claimed bigram perplexity")
+m = re.search(r"land near <strong>([\d.]+)</strong>", rendered)
+if not m: bad.append("rendered text does not state the bigram perplexity")
 elif abs(float(m.group(1)) - pb) > 0.05: bad.append(f"page says bigram {m.group(1)}, measured {pb:.2f}")
 
-m = re.search(r"improvement\s+([\d.]+)x", page)
-if not m: bad.append("cannot find the claimed improvement factor")
-elif abs(float(m.group(1)) - pu / pb) > 0.05: bad.append(f"page says {m.group(1)}x, measured {pu/pb:.2f}x")
+m = re.search(r"guesswork by about <strong>([\d.]+)x</strong>", rendered)
+if not m: bad.append("rendered text does not state the improvement factor")
+elif abs(float(m.group(1)) - pu / pb) > 0.06: bad.append(f"page says {m.group(1)}x, measured {pu/pb:.2f}x")
 
 # The temperature table the page renders to students, checked at its own stated temps.
 random.seed(4242)
 def share_at(t, trials=8):
     return sum(real_pair_share(generate(300, t)) for _ in range(trials)) / trials
-for temp, claim in re.findall(r"temp (\d+\.\d+) &rarr; ([\d.]+)% real pairs", page):
+for temp, claim in re.findall(r"temp (\d+\.\d+) &rarr; ([\d.]+)% real pairs", rendered):
     got = share_at(float(temp)) * 100
     if abs(got - float(claim)) > 6:
         bad.append(f"page says temp {temp} -> {claim}% real pairs, measured {got:.1f}%")
