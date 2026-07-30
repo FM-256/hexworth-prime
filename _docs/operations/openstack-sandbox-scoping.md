@@ -602,3 +602,38 @@ Stage 4 lab must state its own clean-start step covering EVERY resource type it 
 harness must exercise the second run starting from a COMPLETED first run -- a harness that
 cleans up on success can never see its own product's steady state unless you make it skip the
 teardown.
+
+### Stage 4 scoping finding (2026-07-30): NO DATA-PLANE REACHABILITY from lab containers
+
+Measured, not assumed, before designing lab 2. From a lab container on `sandbox-net`:
+
+| Target | Result |
+|---|---|
+| OpenStack API via the tailnet bridge (`100.125.36.2:8080`) | **REACHABLE** |
+| The VM's own interface (`192.168.122.62`) | unreachable |
+| Instance data plane / subnet gateway (`192.168.233.1`) | **unreachable** |
+
+The socat bridge forwards the API port only. Students can fully COMMAND the cloud but cannot
+reach the machines they build. Combined with the 1-instance quota (so there is no second VM to
+connect *from*), three of the eight designed labs cannot deliver their stated core experience:
+
+- **Security groups** — the whole point was "a dropdown builder cannot make a student feel a
+  connection time out." The timeout is not reachable, so that feeling is not deliverable today.
+- **Full launch chain** — ends in `ssh` to a floating IP. Not possible.
+- **Neutron self-service networking** — router + floating IP + SSH. Same.
+
+What IS fully buildable today (API-observable, no data plane needed): **quota exhaustion**,
+**seeded troubleshooting of API-visible failures** (stuck in BUILD, "No valid host found",
+volumes in the wrong state), **Keystone role behaviour**, and the Cinder lifecycle lab already
+shipped. Horizon-vs-CLI still waits on Stage 2b.
+
+**Options for restoring data-plane labs, none taken unilaterally (Frank/Nancy call):**
+1. Route `192.168.233.0/24` from bc1 to the VM. Cheapest technically, but it exposes student
+   instances to bc1's network and needs a fresh netfilter review under the Stage 1 standard.
+2. Give each student a second small instance to connect from. Blocked by the capacity math
+   Nancy already corrected: a second m1.nano per student is +5.8GB of quota-legal demand.
+3. Accept API-only labs for now and sequence the connectivity labs after a routing decision.
+   **Recommended**, because it keeps shipping without touching the netfilter boundary that
+   Stages 1-2 were careful to leave alone.
+
+Recorded so lab 2 is chosen on evidence rather than on the original list order.
