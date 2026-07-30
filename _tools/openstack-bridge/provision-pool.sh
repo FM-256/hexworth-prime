@@ -36,13 +36,30 @@ for i in $(seq -w 1 "$POOL"); do
   if ! V "openstack user show $U -f value -c id" >/dev/null 2>&1; then
     PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
     V "openstack user create --project $U --password '$PW' $U -f value -c id" >/dev/null
-    # store BEFORE role-add so a crash between the two never leaves an unrecorded live password
     grep -q "^${U}=" "$STORE" || echo "${U}=${PW}" >> "$STORE"
     echo "created user $U (password stored)"
+  elif ! grep -q "^${U}=" "$STORE"; then
+    # SELF-HEAL (Nancy 2026-07-30): user exists but the password never made it to the
+    # store (crash between create and echo). Without this branch the slot is bricked
+    # forever -- claim() returns POOL_PASSWORD_MISSING and nothing ever fixes it.
+    PW=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-24)
+    V "openstack user set --password '$PW' $U"
+    echo "${U}=${PW}" >> "$STORE"
+    echo "HEALED $U: password was unstored, reset + stored"
   fi
   V "openstack role add --project $U --user $U member" || true
-  # quota: 1 instance / 1 core / 512MB (worst case pool-wide ~7GB vs 13.3GB measured available)
-  V "openstack quota set --instances 1 --cores 1 --ram 512 $U"
+  # quota: 1 instance / 1 core / 128MB (m1.nano only; quota-legal worst case 3.8GB flavor-RAM)
+  V "openstack quota set --instances 1 --cores 1 --ram 128 $U"
 done
 
 echo "pool of $POOL provisioned; passwords in $STORE (0600)"
+
+# Term-reset hygiene (Nancy 2026-07-30): the claim service caches Keystone user ids for
+# the pool; after ANY delete+recreate pass those ids are stale and reconcile would sweep
+# ghosts forever. Restart it; if that fails, shout.
+if systemctl is-active --quiet openstack-bridge 2>/dev/null; then
+  sudo systemctl restart openstack-bridge && echo "openstack-bridge restarted (uid cache cleared)" \
+    || echo "WARNING: could not restart openstack-bridge -- restart it MANUALLY or reconcile will act on stale user ids"
+else
+  echo "NOTE: openstack-bridge not running here; if it runs elsewhere, restart it after this provision pass"
+fi

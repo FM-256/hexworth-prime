@@ -26,7 +26,9 @@ Endpoints (JSON; all require X-Bridge-Secret):
   GET  /slot/<uid>                        -> {slot} | 404       (Fork E read path)
   GET  /health                            -> {ok, free_ram_mb, slots_used}   (secret required)
 """
-import json, os, re, ssl, threading, time, urllib.request
+import json, os, re, socket, threading, time, urllib.error, urllib.request
+# Transport note (Nancy): the listener is deliberately plaintext HTTP. It binds the
+# tailnet IP only; WireGuard encrypts the path bc1<->bc2. No TLS is layered on top.
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import jwt  # PyJWT
@@ -111,6 +113,10 @@ def ks(method, path, token=None, body=None, auth=None):
             return r.status, (json.loads(raw) if raw else None), dict(r.headers)
     except urllib.error.HTTPError as e:
         return e.code, None, dict(e.headers or {})
+    except (urllib.error.URLError, socket.timeout, OSError):
+        # VM unreachable / DNS / timeout: a clean sentinel, never an unhandled throw
+        # in the request thread (Nancy concern 4).
+        return 599, None, {}
 
 
 def token_for(user, password, project):
@@ -192,19 +198,22 @@ def claim(uid):
         return 500, {'error': 'APP_CRED_CREATE_FAILED', 'status': st}
     ac = doc['application_credential']
     return 200, {'slot': slot, 'project': slot, 'cred_id': ac['id'],
-                 'cred_secret': ac['secret'], 'auth_url': KEYSTONE}
+                 'cred_secret': ac['secret']}
 
 
 _uid_cache = {}
+UID_CACHE_TTL = 600  # provision-pool.sh restarts this service on term reset, but a
+                     # missed restart must degrade to 10 minutes of staleness, not forever
 
 
 def _user_id(atok, name):
-    if name in _uid_cache:
-        return _uid_cache[name]
+    hit = _uid_cache.get(name)
+    if hit and time.time() < hit[1]:
+        return hit[0]
     st, doc, _ = ks('GET', f'/v3/users?name={name}', token=atok)
     uid = doc['users'][0]['id'] if st == 200 and doc.get('users') else None
     if uid:
-        _uid_cache[name] = uid
+        _uid_cache[name] = (uid, time.time() + UID_CACHE_TTL)
     return uid
 
 
@@ -286,7 +295,19 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quiet; systemd journal captures stderr anyway
         pass
 
+    def _safely(self, fn):
+        try:
+            fn()
+        except Exception as e:  # noqa: broad -- last-resort boundary per Nancy concern 4
+            try:
+                self._reply(502, {'error': 'BRIDGE_INTERNAL', 'detail': type(e).__name__})
+            except Exception:
+                pass
+
     def do_GET(self):
+        self._safely(self._get)
+
+    def _get(self):
         if not self._authed():
             return
         if self.path == '/health':
@@ -301,6 +322,9 @@ class Handler(BaseHTTPRequestHandler):
         self._reply(404, {'error': 'NOT_FOUND'})
 
     def do_POST(self):
+        self._safely(self._post)
+
+    def _post(self):
         if not self._authed():
             return
         b = self._body()
@@ -320,6 +344,9 @@ class Handler(BaseHTTPRequestHandler):
         self._reply(404, {'error': 'NOT_FOUND'})
 
     def do_DELETE(self):
+        self._safely(self._delete)
+
+    def _delete(self):
         if not self._authed():
             return
         if self.path == '/cred':
