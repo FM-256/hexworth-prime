@@ -39,7 +39,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix direction (not started):** add the ModuleProgress.js script tag (and its FirebaseAuth prerequisite, matching a working sibling like `crypto-01.mission.html`) to the 52 pages, then verify one js-* mission credits end-to-end. Mechanical but touches 52 files, so it wants a scripted edit + a render check on a sample, not hand editing.
 - **Related:** BUG-045 (this was found while fixing it; do NOT read BUG-045's fixed status as covering these 52).
 
-### BUG-050 -- lab-manager accepts ANONYMOUS Firebase tokens: container slots consumable without an account  ·  P2  ·  open (ruling needed)
+### BUG-050 -- lab-manager accepts ANONYMOUS Firebase tokens: container slots consumable without an account  ·  P2  ·  FIXED + live-verified 2026-07-30
 - **Found:** 2026-07-29 · by self (The Rig post-deploy real-launch verification) · while proving the launch path end-to-end
 - **Area:** bc1 lab-manager auth (`hexworth-sandbox/lab-manager/server.js` token verification) + Firebase anonymous auth enabled platform-wide
 - **Symptom:** an anonymous Firebase user (one REST `accounts:signUp` call with the public web API key from an allowed referer -- no email, no password, no account) successfully launched a real `linux-sandbox` container (session 2EmWtuZ1wq3e, status running) and destroyed it. The lab-manager verifies token VALIDITY but not account substance, so the 40-slot pool is consumable by any visitor's browser session; FirebaseAuth attempts anonymous sign-in on page load, so effectively every visitor holds a launch-capable token. 2-per-user limits bind to the anon uid, which is free to re-mint.
@@ -47,7 +47,39 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Why it may be intended:** frictionless practice was a design goal for the free-play sandbox; the browser UI still says "Sign in to launch." This may be accepted behavior, in which case record the acceptance -- but the capacity math (40 shared with the cell-sigma FINAL EXAM pool) makes unaccountable consumption a real exam-day risk.
 - **Fix candidates (ruling first, none applied):** (a) lab-manager rejects `firebase.sign_in_provider == 'anonymous'` tokens; (b) accept anon for free-play tiers but reserve headroom for graded labIds; (c) accept as-is, document. Pairs naturally with the OPEN capacity ruling (graded-vs-free-play split of the 40 pool).
 - **Housekeeping:** verification created one orphan anonymous auth user (uid 8ih2eUJyjeYABhJIsLZe3JaYbQR2) and zero surviving containers (destroy confirmed).
-- **Related:** The Rig ship (a58c55c7f), capacity ruling #3, sandbox egress backlog.
+- **FRANK'S RULING 2026-07-30:** "fix bug-050", clarified with "in order to join in the observatory
+  users need to sign in" -- platform participation requires a real account, so rejecting anonymous
+  launches is policy-consistent, not a new restriction.
+- **INVESTIGATION (the naive fix would have broken real students):** anonymous auth is a LEGITIMATE
+  platform flow, not just an attack path -- `signInAnonymously` backs `join/index.html` (Kahoot-style
+  room join) and lobby.html's **Guest enroll**. So "reject anonymous" needed checking, not assuming.
+  Second constraint found: bc1's lab-manager holds **no service-account credential by design**
+  (server.js comment: verifyIdToken needs only Google public certs), so it CANNOT read Firestore to
+  check enrollment. Third: `enrollInClass` creates `users/{uid}` but sets **no custom claim**, so
+  from the token alone a guest-enrolled student is indistinguishable from a script-minted one.
+  Therefore the token's `firebase.sign_in_provider` is the only honest discriminator available here.
+- **FIX (bc1 lab-manager `verifyAuth`, rebuilt + restarted 2026-07-30):** after `verifyIdToken`,
+  reject `sign_in_provider === 'anonymous'` with 401 + code `ANONYMOUS_NOT_ALLOWED` and an
+  actionable message ("Sign in with your Hexworth account to launch a sandbox"). Logs the rejected
+  uid. Keys on the TOKEN's provider, **not** on any user-doc field, so the 70 legacy profiles that
+  lack an `email` value are unaffected (measured: 190 users, 120 with email, 70 without).
+  server.js backup kept beside it (`.bak-bug050-20260730`).
+- **VERIFIED BOTH DIRECTIONS against production:** (1) an anonymous token minted via the public API
+  is now REFUSED (`ANONYMOUS_NOT_ALLOWED`) where it previously launched a real container; (2) a
+  NON-anonymous account (throwaway email/password, `sign_in_provider: password`, deleted afterwards)
+  still launches `openstack-cli` end to end and tears down clean. Anonymous blocked, real users
+  unaffected.
+- **KNOWN CONSEQUENCE, stated not hidden:** guest-enrolled students (lobby.html Guest enroll, which
+  signs in anonymously) cannot launch sandboxes until they sign in with a real account. That is what
+  the ruling requires; the 401 message tells them exactly what to do. If guest sandbox access is ever
+  wanted, the clean path is a custom claim set at enrollment (`enrolled: true`) that lab-manager can
+  accept alongside real providers -- noted, not built.
+- **CAPACITY EFFECT:** the 2-per-user cap and the 40-slot pool are now bound to accountable
+  identities, so the capacity numbers on The Rig and the openstack hub become enforced rather than
+  merely configured. The graded-vs-free-play split (Frank's open ruling) is now the only remaining
+  capacity item.
+- **Related:** The Rig ship (a58c55c7f), capacity ruling #3, sandbox egress backlog, Stage 3 identity
+  bridge (this was its hard prerequisite -- now cleared).
 
 ### BUG-049 -- HubDiscovery painted admin-hub content OUTSIDE the Observatory consent gate  ·  P1  ·  deployed (leak closure live-verified)
 - **Found:** 2026-07-29 · by self (probing why anonymous harness runs saw a Cloud Master card while house panels were empty) · confirmed independently by Nancy · during the dynamic-hub placement fix
