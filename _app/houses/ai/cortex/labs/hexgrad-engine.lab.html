@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexGrad: Build the Learning Engine - The Cortex - House of AI</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PythonSandbox.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a12; }
+        #sandbox-root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="sandbox-root"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   HexGrad — Gate 2 of the AI Model Forge. The first module of the build spine.
+
+   WHY THIS LAB EXISTS: The Cortex teaches ABOUT neural networks across 13 hubs,
+   but nothing in House of AI makes a learner BUILD one -- 13 things labelled
+   "lab" and zero execution engines (measured 2026-07-30). This is the first
+   real-engine AI lab, and it is deliberately the hardest thing to fake: a
+   learner cannot print their way to a working derivative.
+
+   GRADING TIER, STATED HONESTLY (doctrine from the OpenStack labs, same day):
+   PythonSandbox executes in the learner's browser, so every check here is
+   client-side and a determined learner could tamper with the runtime. What the
+   checks CAN do -- and do -- is make the obvious shortcuts fail:
+     - the verification block computes gradients from the learner's OWN engine
+       and compares them against finite differences of their OWN forward pass;
+     - the values are randomised per run, so a hardcoded number cannot pass;
+     - structural checks require real backward machinery, not a printed answer.
+   That is the ceiling of a browser-executed lab and the page says so rather
+   than claiming an integrity it cannot enforce. When server-side Python
+   execution exists, these checks move there unchanged.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Shared verification block appended to every challenge's starter. It exercises
+   the learner's engine against finite differences with RANDOM inputs, so the
+   only way to print PASS is to have actually built a working derivative. */
+var VERIFY = [
+    '',
+    '# ─────────────────────────────────────────────────────────────────────',
+    '# VERIFICATION BLOCK — do not delete. Values are random every run, so a',
+    '# hardcoded answer cannot pass. It compares YOUR gradients against finite',
+    '# differences of YOUR OWN forward pass.',
+    '# ─────────────────────────────────────────────────────────────────────',
+    'import random',
+    '',
+    'def _fd(f, x, h=1e-6):',
+    '    """Numerical derivative of f at x. The ground truth we check against."""',
+    '    return (f(x + h) - f(x - h)) / (2 * h)',
+    '',
+    'def verify(n=6):',
+    '    ok = 0',
+    '    for _ in range(n):',
+    '        a0 = round(random.uniform(-2.5, 2.5), 4)',
+    '        b0 = round(random.uniform(-2.5, 2.5), 4)',
+    '        # forward + backward through YOUR engine',
+    '        a = Value(a0); b = Value(b0)',
+    '        L = (a * b + a).tanh()',
+    '        L.backward()',
+    '        # same function, plain python, differentiated numerically',
+    '        f_a = lambda x: math.tanh(x * b0 + x)',
+    '        f_b = lambda x: math.tanh(a0 * x + a0)',
+    '        da, db = _fd(f_a, a0), _fd(f_b, b0)',
+    '        if abs(a.grad - da) < 1e-4 and abs(b.grad - db) < 1e-4:',
+    '            ok += 1',
+    '        else:',
+    '            print(f"  MISMATCH a={a0} b={b0} yours={a.grad:.6f},{b.grad:.6f} num={da:.6f},{db:.6f}")',
+    '    print(f"GRADCHECK {ok}/{n}")',
+    '    return ok == n',
+    '',
+    'verify()'
+].join('\n');
+
+/* A check that the learner actually built machinery rather than printing text. */
+function builtRealEngine(code) {
+    return /class\s+Value/.test(code)
+        && /_backward|def\s+backward/.test(code)
+        && /\.grad\s*\+=/.test(code);          /* accumulation, not assignment */
+}
+
+PythonSandbox.init({
+    containerId : 'sandbox-root',
+    title       : 'HexGrad — Build the Learning Engine',
+    moduleId    : 'hexgrad-engine',
+    houseId     : 'ai',
+    returnUrl   : '../index.html',
+
+    challenges: [
+
+        /* ── 1. The Value object: forward pass + the graph ──────────────── */
+        {
+            id          : 'hexgrad-value',
+            title       : 'The Value Object',
+            desc        : 'A number that remembers where it came from.',
+            difficulty  : 'easy',
+            xp          : 20,
+            parTime     : 420,
+            instructions:
+                '<strong>Every deep learning framework starts here.</strong><br><br>' +
+                'A neural network is a pile of arithmetic. To train it you must know how ' +
+                'changing any one number changes the final answer. That is impossible if a ' +
+                'number is just a number, so we build a number that <em>remembers its own ' +
+                'history</em>.<br><br>' +
+                'Build a <code>Value</code> class that stores:<br>' +
+                '&bull; <code>data</code> &mdash; the number itself<br>' +
+                '&bull; <code>grad</code> &mdash; the derivative, starting at 0.0<br>' +
+                '&bull; <code>_prev</code> &mdash; the Values it was built from<br>' +
+                '&bull; <code>_op</code> &mdash; the operation that made it<br><br>' +
+                'Implement <code>__add__</code> and <code>__mul__</code> so that each result ' +
+                'records its parents. Nothing differentiates yet &mdash; you are building the ' +
+                '<em>graph</em> that differentiation will later walk backwards.<br><br>' +
+                '<em>Run it and read the printed graph. That structure is the whole trick.</em>',
+            expected    : '',
+            starter     :
+                'import math\n\n' +
+                'class Value:\n' +
+                '    def __init__(self, data, _children=(), _op=""):\n' +
+                '        self.data = data\n' +
+                '        self.grad = 0.0\n' +
+                '        self._prev = set(_children)\n' +
+                '        self._op = _op\n\n' +
+                '    def __repr__(self):\n' +
+                '        return f"Value(data={self.data}, grad={self.grad})"\n\n' +
+                '    def __add__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        # TODO: return a Value whose data is the sum and whose\n' +
+                '        # _children are (self, other) and _op is "+"\n' +
+                '        pass\n\n' +
+                '    def __mul__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        # TODO: same idea, but multiply, and _op is "*"\n' +
+                '        pass\n\n\n' +
+                'a = Value(2.0)\n' +
+                'b = Value(-3.0)\n' +
+                'c = a * b + a\n' +
+                'print(c)\n' +
+                'print("op:", c._op, "| parents:", len(c._prev))\n',
+            hints       : [
+                'Return Value(self.data + other.data, (self, other), "+")',
+                'The _children tuple is what lets backward() find its way home later.',
+                'If c._prev is empty, you built a plain number and lost the history.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Value class is defined with data and grad',
+                  check: function(out, code) {
+                      return /class\s+Value/.test(code) && /self\.grad\s*=\s*0/.test(code);
+                  } },
+                { name : 'Arithmetic produces the right number',
+                  check: function(out) { return /-4\.0|-4\b/.test(out); } },
+                { name : 'The result records the operation that made it',
+                  check: function(out) { return /op:\s*\+/.test(out); } },
+                { name : 'The result records its parent Values (the graph exists)',
+                  check: function(out) { return /parents:\s*2/.test(out); } }
+            ]
+        },
+
+        /* ── 2. Local derivatives ───────────────────────────────────────── */
+        {
+            id          : 'hexgrad-local',
+            title       : 'Local Derivatives',
+            desc        : 'Teach each operation how it affects its inputs.',
+            difficulty  : 'medium',
+            xp          : 30,
+            parTime     : 600,
+            instructions:
+                '<strong>Each operation knows one small truth.</strong><br><br>' +
+                'Addition passes gradient through unchanged: if <code>c = a + b</code>, then ' +
+                'nudging <code>a</code> by a tiny amount moves <code>c</code> by exactly that ' +
+                'amount. So <code>a.grad += c.grad</code>.<br><br>' +
+                'Multiplication swaps: if <code>c = a * b</code>, nudging <code>a</code> moves ' +
+                '<code>c</code> by <code>b</code> times as much. So ' +
+                '<code>a.grad += b.data * c.grad</code>.<br><br>' +
+                'Give each operation a <code>_backward</code> function that applies its own ' +
+                'local rule. Add <code>tanh</code> too &mdash; its derivative is ' +
+                '<code>1 - tanh(x)&sup2;</code>.<br><br>' +
+                '<strong>Why <code>+=</code> and never <code>=</code>:</strong> a Value used ' +
+                'twice receives gradient from both paths. Assignment throws one away. This ' +
+                'single character is the most common bug in hand-built engines.',
+            expected    : '',
+            starter     :
+                'import math\n\n' +
+                'class Value:\n' +
+                '    def __init__(self, data, _children=(), _op=""):\n' +
+                '        self.data = data\n' +
+                '        self.grad = 0.0\n' +
+                '        self._backward = lambda: None\n' +
+                '        self._prev = set(_children)\n' +
+                '        self._op = _op\n\n' +
+                '    def __repr__(self):\n' +
+                '        return f"Value(data={self.data}, grad={self.grad})"\n\n' +
+                '    def __add__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        out = Value(self.data + other.data, (self, other), "+")\n' +
+                '        def _backward():\n' +
+                '            # TODO: addition passes gradient straight through to BOTH inputs\n' +
+                '            pass\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n' +
+                '    def __mul__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        out = Value(self.data * other.data, (self, other), "*")\n' +
+                '        def _backward():\n' +
+                '            # TODO: each input scales by the OTHER input\'s data\n' +
+                '            pass\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n' +
+                '    def tanh(self):\n' +
+                '        t = math.tanh(self.data)\n' +
+                '        out = Value(t, (self,), "tanh")\n' +
+                '        def _backward():\n' +
+                '            # TODO: derivative of tanh is (1 - t**2)\n' +
+                '            pass\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n\n' +
+                '# One manual step: set the output gradient, fire ONE local rule.\n' +
+                'a = Value(3.0)\n' +
+                'b = Value(4.0)\n' +
+                'c = a * b\n' +
+                'c.grad = 1.0\n' +
+                'c._backward()\n' +
+                'print("a.grad:", a.grad, "expect 4.0")\n' +
+                'print("b.grad:", b.grad, "expect 3.0")\n',
+            hints       : [
+                'Addition: self.grad += out.grad and other.grad += out.grad',
+                'Multiplication: self.grad += other.data * out.grad (and the mirror image)',
+                'tanh: self.grad += (1 - t**2) * out.grad -- t is already computed above'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Gradients ACCUMULATE with += (never plain =)',
+                  check: function(out, code) { return /\.grad\s*\+=/.test(code); } },
+                { name : 'Multiplication rule is correct: a.grad becomes 4.0',
+                  check: function(out) { return /a\.grad:\s*4\.0/.test(out); } },
+                { name : 'Multiplication rule is correct: b.grad becomes 3.0',
+                  check: function(out) { return /b\.grad:\s*3\.0/.test(out); } },
+                { name : 'tanh has a local derivative implemented',
+                  check: function(out, code) { return /1\s*-\s*t\s*\*\*\s*2|1\s*-\s*t\*t/.test(code); } }
+            ]
+        },
+
+        /* ── 3. Full reverse-mode backward ──────────────────────────────── */
+        {
+            id          : 'hexgrad-backward',
+            title       : 'Backward Through the Whole Graph',
+            desc        : 'Topological order, then one sweep. This is autograd.',
+            difficulty  : 'hard',
+            xp          : 45,
+            parTime     : 900,
+            instructions:
+                '<strong>Now connect the local truths into a global one.</strong><br><br>' +
+                'Firing <code>_backward</code> by hand does not scale. A real network has ' +
+                'thousands of nodes, and a node must not release its gradient until every ' +
+                'consumer downstream has contributed &mdash; otherwise it passes on a number ' +
+                'that is still incomplete.<br><br>' +
+                'That ordering constraint is exactly a <strong>topological sort</strong>. ' +
+                'Build the node list once, set the final output\'s gradient to ' +
+                '<code>1.0</code> (the derivative of anything with respect to itself), then ' +
+                'walk the list in reverse calling each <code>_backward</code>.<br><br>' +
+                'This is reverse-mode automatic differentiation. It is what PyTorch does, ' +
+                'and after this challenge you will have written it yourself.',
+            expected    : '',
+            starter     :
+                'import math\n\n' +
+                'class Value:\n' +
+                '    def __init__(self, data, _children=(), _op=""):\n' +
+                '        self.data = data\n' +
+                '        self.grad = 0.0\n' +
+                '        self._backward = lambda: None\n' +
+                '        self._prev = set(_children)\n' +
+                '        self._op = _op\n\n' +
+                '    def __repr__(self):\n' +
+                '        return f"Value(data={self.data}, grad={self.grad})"\n\n' +
+                '    def __add__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        out = Value(self.data + other.data, (self, other), "+")\n' +
+                '        def _backward():\n' +
+                '            self.grad += out.grad\n' +
+                '            other.grad += out.grad\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n' +
+                '    def __mul__(self, other):\n' +
+                '        other = other if isinstance(other, Value) else Value(other)\n' +
+                '        out = Value(self.data * other.data, (self, other), "*")\n' +
+                '        def _backward():\n' +
+                '            self.grad += other.data * out.grad\n' +
+                '            other.grad += self.data * out.grad\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n' +
+                '    def tanh(self):\n' +
+                '        t = math.tanh(self.data)\n' +
+                '        out = Value(t, (self,), "tanh")\n' +
+                '        def _backward():\n' +
+                '            self.grad += (1 - t**2) * out.grad\n' +
+                '        out._backward = _backward\n' +
+                '        return out\n\n' +
+                '    def backward(self):\n' +
+                '        topo = []\n' +
+                '        visited = set()\n' +
+                '        def build(v):\n' +
+                '            # TODO: depth-first. Visit every child BEFORE appending v.\n' +
+                '            pass\n' +
+                '        build(self)\n' +
+                '        # TODO: seed this node\'s gradient with 1.0\n' +
+                '        # TODO: walk reversed(topo) calling node._backward()\n' +
+                '\n\n' +
+                VERIFY + '\n',
+            hints       : [
+                'build(v): if v not in visited: visited.add(v); for c in v._prev: build(c); topo.append(v)',
+                'Appending AFTER the recursion is what makes the order topological.',
+                'self.grad = 1.0, then: for node in reversed(topo): node._backward()',
+                'GRADCHECK 6/6 means your gradients match calculus. Anything less means a rule is wrong.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'backward() builds a topological ordering',
+                  check: function(out, code) {
+                      return /topo\.append/.test(code) && /reversed\(topo\)/.test(code);
+                  } },
+                { name : 'Output gradient is seeded to 1.0',
+                  check: function(out, code) { return /self\.grad\s*=\s*1\.?0?/.test(code); } },
+                { name : 'Real backward machinery present (not printed output)',
+                  check: function(out, code) { return builtRealEngine(code); } },
+                { name : 'GRADCHECK passes 6/6 against randomised finite differences',
+                  check: function(out) { return /GRADCHECK\s+6\/6/.test(out); } }
+            ]
+        },
+
+        /* ── 4. The reuse bug: prove += was necessary ───────────────────── */
+        {
+            id          : 'hexgrad-reuse',
+            title       : 'The Node Used Twice',
+            desc        : 'Prove to yourself why accumulation is not optional.',
+            difficulty  : 'hard',
+            xp          : 40,
+            parTime     : 600,
+            instructions:
+                '<strong>A failure lab. Break it on purpose, then fix it.</strong><br><br>' +
+                'Consider <code>d = a * a</code>. The same node feeds the multiply twice. ' +
+                'Calculus says the derivative is <code>2a</code>. An engine that writes ' +
+                '<code>self.grad = ...</code> instead of <code>+=</code> will report ' +
+                '<code>a</code>, because the second contribution overwrites the first.<br><br>' +
+                'Your engine already uses <code>+=</code>. This challenge makes you ' +
+                '<em>demonstrate</em> that it matters, which is a different kind of knowing.<br><br>' +
+                'Build <code>e = a * a + a</code> and confirm the gradient is ' +
+                '<code>2a + 1</code>. The verification block then checks a random expression ' +
+                'the same way.<br><br>' +
+                '<em>This bug is silent. The network still trains, just wrongly and slowly. ' +
+                'That is why you find it here rather than in a model you cannot debug.</em>',
+            expected    : '',
+            starter     :
+                '# Paste YOUR completed Value class from the previous challenge below,\n' +
+                '# then complete the demonstration at the bottom.\n' +
+                'import math\n\n' +
+                '# ---- your engine here ----\n\n\n' +
+                '# ---- demonstration ----\n' +
+                '# a = Value(3.0)\n' +
+                '# e = a * a + a          # derivative should be 2a + 1 = 7.0\n' +
+                '# e.backward()\n' +
+                '# print("reuse grad:", a.grad, "expect 7.0")\n' +
+                '\n\n' +
+                VERIFY + '\n',
+            hints       : [
+                'Bring across the whole class, including backward() with the topological sort.',
+                'a * a: both operands are the SAME object, so both += land on one .grad.',
+                'If you see 3.0 or 4.0 instead of 7.0, an assignment is overwriting a contribution.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'A complete engine is present (class, backward, accumulation)',
+                  check: function(out, code) {
+                      return builtRealEngine(code) && /reversed\(topo\)/.test(code);
+                  } },
+                { name : 'Reused node accumulates correctly: 2a + 1 = 7.0',
+                  check: function(out) { return /reuse grad:\s*7\.0/.test(out); } },
+                { name : 'GRADCHECK passes 6/6 on randomised inputs',
+                  check: function(out) { return /GRADCHECK\s+6\/6/.test(out); } },
+                { name : 'No MISMATCH lines reported',
+                  check: function(out) { return !/MISMATCH/.test(out); } }
+            ]
+        }
+    ]
+});
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

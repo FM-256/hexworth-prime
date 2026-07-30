@@ -1999,6 +1999,11 @@ const ContentCatalog = (function() {
         { house: 'key', id: 'key-hashing-algorithms', title: 'Hashing Algorithms Lab: MD5 to SHA-512', description: 'Interactive hashing lab covering MD5, SHA-1, SHA-256, SHA-384, and SHA-512', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'labs/key-hashing-algorithms.lab.html', category: 'cryptography' },
 
         // ═══════════════════════════════════════════════════════════════════
+        // AI Model Forge, Gate 2 (2026-07-30): the FIRST real-engine lab in House of AI.
+        // The Cortex had 13 things labelled 'lab' and zero execution engines; this one
+        // runs the learner's own autograd engine against randomised finite differences.
+        { house: 'ai', id: 'hexgrad-engine', title: 'HexGrad: Build the Learning Engine', description: 'Build reverse-mode automatic differentiation from scratch: a Value that remembers its own history, local derivatives, topological backward, and the accumulation bug that silently breaks real networks', icon: '/assets/images/icons/icon-gear.webp', status: 'available', components: ['lab'], href: 'cortex/labs/hexgrad-engine.lab.html', tags: ['model-forge', 'autograd', 'from-scratch', 'real-engine'], category: 'cortex-build' },
+
         // HOUSE OF THE CLOUD - CAT-002 ADDITIONS (11)
         // ═══════════════════════════════════════════════════════════════════
         { house: 'cloud', id: 'cloud-openstack-advanced-lab', title: 'Lab: Advanced OpenStack Operations', description: 'Flavors, volumes, network topology, snapshots, and troubleshooting', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-advanced-ops.lab.html', category: 'openstack' },
