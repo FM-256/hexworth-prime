@@ -470,3 +470,37 @@ invocations in one 384MB container stall each other into multi-minute hangs ("Re
 connection" + silence) while raw curl stays instant; solo invocations complete in ~3s. Any lab or
 grader design that execs the CLI while a student is also running one shares that budget -- either
 raise the memory for write-mode labs or grade via raw REST calls (token + curl is ~40x lighter).
+
+---
+
+## AI Model Forge — raise a language model from first principles
+
+**Date Added:** July 30, 2026 (Frank brought an external proposal; scoped against real repo state)
+
+**Full scope doc:** `~/hexworth-shared/Planning/AI-Model-Forge/` (00-SCOPE-AND-PLACEMENT.md +
+01-SOURCE-PROPOSAL.md)
+
+**The idea:** a learner builds a language model from an empty computational graph -- autograd
+engine, neuron, network, tokenizer, attention, transformer, pretrain, instruct-tune, serve. The
+model is a persistent companion that grows with them, not a final project. "Learners do not
+simply call a model. They raise one."
+
+**The measured correction that matters:** the external analysis proposed a whole new AI *world*.
+Hexworth already has **The Cortex** -- 13 AI/ML course hubs, real built pages, 53 catalogued
+entries -- which already owns the theory (`cortex-math`, `cortex-foundations`, `transformers`,
+`nlp`, `mlops`). So this is not a new world and not a new house. It is a missing SPINE.
+
+**The gap worth building:** the AI house has **13 things labelled "lab" and ZERO execution
+engines** (`grep -rl SandboxLauncher _app/houses/ai/` = 0). That is the identical
+quizzes-in-disguise defect that started the whole OpenStack arc in House of the Cloud. Meanwhile
+`PythonSandbox.js` and `CodeRunner.js` already exist and are unused there.
+
+**Pros:** genuinely novel mechanic for the platform; the build spine grades cleanly (built
+artifacts are real state, unlike "explain" answers); Tier-0 CPU work needs no new hardware;
+reuses live Cortex theory instead of duplicating it; fixes AI's lab-authenticity problem.
+**Cons:** GPU tiers assume accelerators whose existence is NOT established anywhere findable --
+inventory first or repeat the OpenStack data-plane mistake; "Model Forge" name collides with
+Forge House; 72 modules is far too much to write before validating the format on one.
+
+**First move if pursued:** the autograd engine alone. Highest value, no GPU, runs in
+PythonSandbox, produces a verifiable artifact, and proves or kills the format cheaply.
