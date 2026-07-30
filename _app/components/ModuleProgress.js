@@ -533,6 +533,19 @@ const ModuleProgress = (function() {
     function complete(houseId, moduleId, options = {}) {
         const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0, type = 'presentation' } = options;
 
+        // FAIL LOUDLY, BEFORE ANY WRITE. Prospective guard only -- after BUG-045 there is
+        // exactly ZERO one-arg caller left in the repo (grepped), so this protects against a
+        // future regression, not a current fragility. It deliberately BAILS rather than
+        // substituting a placeholder: the BUG-045 shape wrote a bad bucket, synced an undefined
+        // moduleId to Firestore and bumped the counter BEFORE crashing at :604, and a guard that
+        // merely suppressed that crash would have made partial garbage permanent and silent.
+        // Refusing early keeps the bug visible to whoever introduced it and leaves state clean.
+        if (typeof houseId !== 'string' || !houseId || typeof moduleId !== 'string' || !moduleId) {
+            console.error('[ModuleProgress] complete(houseId, moduleId) requires both as non-empty strings; refused:',
+                { houseId: houseId, moduleId: moduleId });
+            return false;
+        }
+
         // Load current progress
         const progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}');
         progress[houseId] = progress[houseId] || {};
