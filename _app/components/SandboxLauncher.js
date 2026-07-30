@@ -114,6 +114,13 @@ const SandboxLauncher = (function() {
         // session, so /check grades the mission instead of free-play challenges.
         const body = { labId };
         if (typeof opts.mission === 'string' && opts.mission) body.mission = opts.mission;
+        // Capacity split (2026-07-30): several labs are reachable BOTH as coursework and as
+        // free-play browsing from The Rig, and the server cannot tell those apart from the
+        // labId. So the caller declares it: The Rig passes freePlay:true, which puts the
+        // launch under the free-play cap (12 of 40) instead of the coursework reserve.
+        // Course pages omit it and are never capped. A mission-driven launch is graded work
+        // regardless -- the server ignores this flag when a mission is present.
+        if (opts.freePlay === true) body.freePlay = true;
         const data = await apiCall('POST', '/launch', body);
 
         _activeSessions[labId] = {
@@ -327,7 +334,12 @@ const SandboxLauncher = (function() {
                 // returning the currently selected mission id (lets a picker rendered
                 // elsewhere on the page drive the same launch button).
                 const missionSel = typeof options.mission === 'function' ? options.mission() : options.mission;
-                const result = await launch(labId, missionSel ? { mission: missionSel } : {});
+                // options.freePlay is set by free-play front doors (The Rig) so the server
+                // charges the launch against the free-play cap rather than the coursework
+                // reserve. A selected mission always wins: that is graded work.
+                const launchOpts = missionSel ? { mission: missionSel } : {};
+                if (!missionSel && options.freePlay === true) launchOpts.freePlay = true;
+                const result = await launch(labId, launchOpts);
                 updateUI('running', `Connected — ${result.lab}`, result.url);
 
                 // Optional launch hook (e.g. Observatory usage telemetry). Best-effort:

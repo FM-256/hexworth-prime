@@ -31,6 +31,45 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### CAPACITY SPLIT -- 28 lab / 12 free-play enforced on the 40-slot pool  ·  config  ·  LIVE 2026-07-30
+- **Ruled by Frank 2026-07-30:** "12 graded free-play, 28 for the labs". Read as free-play capped
+  at 12 so lab/course work always has >=28 of the 40-slot pool; ambiguity flagged to him explicitly
+  (his phrasing inverted my earlier 12-graded/28-free-play proposal) with a one-word correction
+  offered. Proceeded on the reading that PROTECTS graded work, which is the point of the split.
+- **Why it matters:** before this, a busy evening of free-play could leave a class with nothing
+  during graded work, including the cell-sigma FINAL EXAM, which draws from the same pool.
+- **Semantics: RESERVE, not partition.** Free-play is capped at 12; lab work may still burst above
+  28 when free-play is idle rather than stranding reserved slots.
+- **NANCY CAUGHT A REAL HOLE (after my first version was already live):** I classified free-play as
+  just `linux-sandbox` + `openstack-cli` from each lab's internal comments, ignoring that The Rig
+  advertises NINE labs as one-click browsable (`browsable: true`) and that the-rig design doc had
+  already characterised the DevOps tiers, db-sql and arctic as legitimate free-play. So a student
+  could launch `do-102` (the heaviest tier) from The Rig purely to poke around, completely uncapped
+  -- the exact failure the feature exists to prevent, routed through a door I had not checked.
+- **The tension her catch exposed, and the fix:** those same labIds ALSO arrive from real coursework
+  (`script-db-*.lab.html` launches db-sql; `do-16-git-lab.html` launches do-16) and the server cannot
+  tell the two apart from the labId. Capping them unconditionally would break a class doing
+  coursework -- worse than the hole. So the CALLER declares context: The Rig (the free-play front
+  door) sends `freePlay: true`; course pages omit it and are never capped; a mission-driven launch is
+  graded work regardless. Containers are LABELLED `hexworth.freeplay` at create time so the counter
+  sees context-launched free-play too. Forgeable in principle, worthless in practice (forging gains a
+  slot only when practice is already full; MAX_PER_USER and MAX_TOTAL still bind).
+- **Also her catch: fail CLOSED, not open.** The free-play counter now treats a Docker API error as
+  "at cap". The outer `countRunningSandboxes` fails open correctly (failing closed there would lock
+  out exam students), but this inner guard only gates free-play, so failing closed costs graded work
+  nothing and keeps protection alive during exactly the load events when the pool is contended.
+- **VERIFIED against production (cap temporarily 1, then restored to 12):** always-free-play launch
+  fills the slot; `do-102` declared free-play REFUSED with `FREE_PLAY_CAPACITY`; the same `do-102`
+  from course context still launches; a mission-driven launch bypasses the cap; container carries
+  `hexworth.freeplay=true`; startup log reads "Free-play cap: 12 of 40 (labs keep 28+)". Test
+  containers and throwaway accounts cleaned up, pool back to 0.
+- **Files:** bc1 `lab-manager/server.js` (+ `docker-compose.yml` FREE_PLAY_CAP env, backups
+  `.bak-capsplit-20260730` / `.bak-capsplit2-20260730`); repo `_app/components/SandboxLauncher.js`
+  and `_app/rig/index.html` (client half, NOT yet deployed -- until it deploys, Rig launches of the
+  seven context-dependent labs remain uncapped; the two always-free-play labs are capped now).
+- **Related:** BUG-050 (accountability, fixed same night -- the caps now bind to real identities),
+  The Rig ship, Stage 3 identity bridge.
+
 ### BUG-051 -- 52 of 124 operator mission pages never load ModuleProgress.js, so completion credit silently no-ops  ·  P2  ·  open
 - **Found:** 2026-07-29 · by Nancy (third review pass on BUG-045) · count independently verified by me (124 missions, 72 load it, 52 do not)
 - **Area:** `_app/operator/missions/js-01..js-50.mission.html` + `python-01`/`python-02` (script tags); consumer is `OperatorEngine.js` `fireCompletionHooks`
