@@ -267,10 +267,29 @@ def seed(slot, scenario):
             return 200, {'seeded': False, 'reason': 'already present',
                          'volume_id': vols[0]['id'], 'server_id': srvs[0]['id']}
         # Refuse to seed over a student's own in-flight work rather than clobbering it.
+        # VOLUME BLIND SPOT fixed 2026-07-30 (Nancy): this checked only servers. The traced
+        # failure: a student deletes just the volume and keeps ghost-srv -> no 409 -> we
+        # create a NEW orphan-vol, then the server POST 500s on the 1-instance quota ->
+        # the fresh volume is never cleaned up -> the NEXT seed sees volume+server and takes
+        # the "already present" branch, handing back an id pair that was never attached.
+        # Check 10 then becomes a permanent freebie for that student. Check both resource
+        # types, and require them to be CONSISTENT before trusting an existing seed.
         others = [x for x in ((doc2 or {}).get('servers') or []) if x.get('name') != 'ghost-srv']
-        if others:
+        other_vols = [v for v in ((doc or {}).get('volumes') or []) if v.get('name') != 'orphan-vol']
+        if others or other_vols:
             return 409, {'error': 'PROJECT_NOT_EMPTY',
-                         'detail': 'delete your existing server before starting this lab'}
+                         'detail': 'delete your existing server and volumes before starting this lab'}
+        # Half-seeded debris (one resource without the other) is repaired, never reused:
+        # reusing it would hand back an unattached pair and give away a check.
+        if vols and not srvs:
+            for v in vols:
+                _os(utok, '/volume/v3', f"/volumes/{v['id']}", 'DELETE')
+            vols = []
+        if srvs and not vols:
+            for x in srvs:
+                _os(utok, '/compute/v2.1', f"/servers/{x['id']}", 'DELETE')
+            time.sleep(8)
+            srvs = []
         vol_id = vols[0]['id'] if vols else None
         if not vol_id:
             st, doc = _os(utok, '/volume/v3', '/volumes', 'POST',

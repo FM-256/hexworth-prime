@@ -813,3 +813,34 @@ student to deliberately poison their own shell profile -- no privilege escalatio
 deliberate; the only prize is a lab badge, and no data or other student is exposed. It is an integrity defect, not a safety one -- but it IS a defect in live
 content and must be fixed rather than tolerated. Lab 2 must NOT ship until grading moves
 server-side (Nancy: BLOCK).
+
+### Nancy re-review conditions (2026-07-30) -- disposition
+
+Re-verdict PROCEED-WITH-CONDITIONS (upgraded from BLOCK). She verified the fix structurally
+herself rather than trusting the report, and confirmed the "pass without doing the work" hole
+is closed. Dispositions:
+
+1. **"CHAINED" was an overstatement.** I described the harness ordering as chained when it was
+   a one-off `if` typed into a shell -- a habit, not a gate. Same pattern as the shim claim.
+   FIXED: `_tools/openstack-bridge/qc-lab.sh` now enforces it. Adversarial runs first; the
+   walkthrough runs only on a clean result, and refuses with "a lab that can be cheated does
+   not earn a completeness check." It also fails loudly on the inverse (unbeatable AND
+   uncompletable is worse than shipping nothing).
+2. **`PROJECT_NOT_EMPTY` volume blind spot** -- FIXED. The guard checked only servers, so her
+   traced path (student deletes only the volume, keeps ghost-srv -> seed creates a new volume
+   -> server POST 500s on quota -> orphan volume persists -> next seed takes the "already
+   present" branch and hands back an unattached pair, making check 10 a permanent freebie)
+   was real. The guard now checks both resource types, and half-seeded debris is REPAIRED
+   rather than reused, because reusing it gives away a check.
+3. **`/verify` is now real per-click load on bc2** (two OpenStack API calls per Check My Work,
+   where the old design was a local `docker exec`). Genuine new blast radius introduced BY the
+   fix. Decision logged, not silently accepted: no caching for now -- grading must reflect
+   live state and a cached pass is a wrong pass -- but rate-limiting is filed (#255) and
+   should land before a full class uses this simultaneously.
+4. **Independent re-run.** Both harnesses re-ran against the deployed server-side path
+   (adversarial 5/5 rejected, walkthrough 3/3 on both runs). Stated honestly: they were run by
+   the same party that wrote the fix. That is a real limit of self-verification and the reason
+   the harnesses are committed and the gate is scripted -- so the next person can reproduce it
+   without reproducing my care.
+5. #253 (drop NOPASSWD sudo) and #254 (dead id-12 copy) correctly triaged inert; deferred,
+   filed not hidden.
