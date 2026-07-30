@@ -802,7 +802,15 @@
             // mission ids collide with real content elsewhere (js-01..js-05 are Armory
             // challenge ids; crypto-01/02 are Arena box ids) -- namespacing now costs nothing
             // and stops 124 generic ids from poisoning that namespace later.
-            try { window.ModuleProgress.complete('operator', 'op-' + config.id); } catch (e) {}
+            // silent + no-return-to-dashboard is REQUIRED, not decorative (Chris caught this):
+            // Operator has its OWN completion UI (#mission-complete, z-index 8000). Left to its
+            // defaults, ModuleProgress paints a generic "Module Complete!" overlay at z-index
+            // 100000 that completely covers the mission's own reward card -- a regression that
+            // only became reachable once the throw above stopped aborting execution early.
+            try {
+                window.ModuleProgress.complete('operator', 'op-' + config.id,
+                    { silent: true, returnToDashboard: false });
+            } catch (e) {}
         }
 
         // Completion reward: award permanent tool if config specifies one
