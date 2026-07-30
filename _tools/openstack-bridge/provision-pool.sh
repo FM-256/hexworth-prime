@@ -48,8 +48,8 @@ for i in $(seq -w 1 "$POOL"); do
     echo "HEALED $U: password was unstored, reset + stored"
   fi
   V "openstack role add --project $U --user $U member" || true
-  # quota: 1 instance / 1 core / 128MB (m1.nano only; quota-legal worst case 3.8GB flavor-RAM)
-  V "openstack quota set --instances 1 --cores 1 --ram 128 $U"
+  # quota: 1 instance / 1 core / 192MB (m1.nano only; quota-legal worst case 5.8GB flavor-RAM)
+  V "openstack quota set --instances 1 --cores 1 --ram 192 $U"
 done
 
 echo "pool of $POOL provisioned; passwords in $STORE (0600)"

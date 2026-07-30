@@ -12,7 +12,7 @@ ask to its own future review (Nancy's rec, adopted).
 |---|---|
 | A (claim service) | ON bc2, tailnet-only bind + shared secret in bc2 0600 store mirrored in bc1 `.env`. **Plus Nancy's auth condition: bc1 forwards the student's Firebase ID TOKEN; bc2 verifies it against Google's public JWKS (aud = hexworth-prime) and enforces non-anonymous provider server-side.** Verification needs no Firebase credential. A leaked bc1 secret alone therefore mints nothing -- an attacker also needs a valid signed token for the target uid. |
 | B (credential type) | Application credentials ONLY, **restricted** (never `--unrestricted` -- Nancy concern 4: unrestricted creds can mint trusts/further creds, far wider than a 1-instance student needs). Created per session, deleted at teardown. No passwords exist in Stage 3 at all. |
-| C (pool/quota) | Pool 30, quota 1 instance / 1 core / 512MB (~7.05GB worst case). Headroom guard: claim service refuses new claims below a free-RAM floor so exhaustion reads "cloud is full", never a fake Nova "No valid host found". **Re-measure VM free RAM immediately before build (Nancy concern 6: the 13,306MB figure is a day old).** |
+| C (pool/quota) | Pool 30, quota 1 instance / 1 core / 192MB = m1.nano exactly (measured; ~5.8GB flavor-RAM worst case). Headroom guard: claim service refuses new claims below a free-RAM floor so exhaustion reads "cloud is full", never a fake Nova "No valid host found". **Re-measure VM free RAM immediately before build (Nancy concern 6: the 13,306MB figure is a day old).** |
 | D (term reset) | Delete-and-recreate projects each term, announced. |
 | E (graded path) | Resolved-by-design now, not later (Nancy concern 3): uid->project resolution for future grading goes through the claim service's read-only `GET /slot/<uid>` (same auth), whose truth is Keystone itself -- see mapping below. |
 | F (Horizon) | CLI-only first. Horizon widening is its own future Nancy pass + Frank ruling. FLAGGED for Frank: confirm CLI-only satisfies the original ask for now. |
@@ -46,12 +46,25 @@ authenticates AS the pool user using admin-set random passwords held only in bc2
 (`pool-credentials.env`); restricted is the API default (probe: `unrestricted=False`).
 
 **Nancy implementation review (PROCEED-WITH-CONDITIONS), all conditions applied:** quota
-512MB -> 128MB (30x512 of quota-legal demand exceeded the 13.3GB real capacity; 128MB = m1.nano
-exactly, 3.8GB flavor-RAM / ~7.5GB real worst case -- the boot-time headroom gap is closed by
+512MB -> 192MB (30x512 of quota-legal demand exceeded the 13.3GB real capacity; 192MB = m1.nano
+EXACTLY AS MEASURED on this DevStack -- `flavor show m1.nano` says ram=192, not the folklore 128;
+first deployed at 128 which blocked every m1.nano boot with a quota 403, corrected same hour;
+5.8GB flavor-RAM / ~7.5GB real worst case -- the boot-time headroom gap is closed by
 arithmetic, the per-claim guard stays as belt-and-suspenders); provisioner self-heals the
 user-exists-but-password-unstored strand; term reset restarts the service + uid cache TTLs 10min;
 ks() returns clean 599 on transport failure and handlers reply 502 rather than dropping sockets;
 claim response no longer carries the bc2-internal Keystone URL.
+
+**Public endpoint flip (found by e2e, fixed 2026-07-30):** `openstack server create` hung
+indefinitely from containers while every list worked. Debug trace: python-novaclient (which OSC
+uses for flavor/server-create calls) takes its endpoint from the TOKEN CATALOG, ignoring
+clouds.yaml `*_endpoint_override` -- and the catalog advertised `http://192.168.122.62/...`
+(VM-internal, unreachable from bc1). Correct-path fix, the same one a production cloud uses: the
+PUBLIC interface endpoints now advertise the reachable bridge address
+(`http://100.125.36.2:8080/...`, all 7 services; archive of prior URLs at
+`bc2:~/endpoint-archive/`). Verified in-VM admin flows still work (the VM reaches the bridge
+address in 9ms) and container creates reach Nova. Endpoint overrides remain in clouds.yaml as
+belt-and-suspenders but are no longer load-bearing.
 
 **Live state:** claim service active on bc2 (tailnet-only :9711, health ok), pool provisioned,
 bc1 lab-manager patched (9 anchored replacements, node --check PASS, targeted rebuild, 0 sessions

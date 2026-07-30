@@ -50,7 +50,14 @@ async function post(url, body, headers) {
 
   // 3. the WRITE: create an instance in the student's own project
   console.log('3. creating instance (the write that was impossible before Stage 3)...');
-  const img = dex(sid1, 'openstack image list -f value -c Name | head -1').trim();
+  // Retry the first CLI call: a cold 384MB container's first python-CLI invocation
+  // races ttyd startup and can return empty (seen live 2026-07-30, run 3).
+  let img = '';
+  for (let i = 0; i < 6 && !img; i++) {
+    img = dex(sid1, 'openstack image list -f value -c Name | head -1').trim();
+    if (!img) sh('sleep 10');
+  }
+  if (!img) fail('image list returned empty after 6 attempts');
   dex(sid1, `openstack server create --flavor m1.nano --image "${img}" --network shared e2e-proof`);
   // Poll rather than --wait: the FIRST boot on a cold compute node is the slowest path
   // (image fetch + qemu spinup) and blew a 120s exec timeout on the first run.
