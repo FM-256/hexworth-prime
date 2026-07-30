@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexMemory: The Thing That Forgets - The Cortex - House of AI</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PythonSandbox.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a12; }
+        #sandbox-root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="sandbox-root"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   HexMemory — Gate 6 of the AI Model Forge. Fifth module of the build spine.
+   Prerequisite: HexTalk (a model that generates text).
+   Spec: 01-SOURCE-PROPOSAL.md:37 -- "Representation and sequence learning
+   (RNN/LSTM, why attention emerged)".
+
+   WHY THIS GATE EXISTS HERE: Gate 5's bigram model can only see ONE character
+   back. Everything longer than that is invisible to it. This gate gives the
+   model a memory -- a hidden state carried forward through time -- and then
+   makes the learner measure that memory failing. The failure is the point:
+   it is the actual, historical reason attention was invented, and the learner
+   arrives at Gate 7 having watched it happen instead of being told.
+
+   THE CLAIM THIS GATE RESTS ON WAS MEASURED BEFORE THIS PAGE WAS WRITTEN.
+   "RNNs forget over long distances" is textbook conventional wisdom, and this
+   spine has now shipped three false claims that came from trusting exactly
+   that kind of statement (Gate 3, twice from received wisdom and once from
+   measuring a different function than the one students run). So it was
+   measured first, on the code that ships here:
+
+     recall accuracy vs distance, 24 independent seeds (chance = 25%, VOCAB=4)
+       distance 1 -> mean 94%   (range  71-100%)
+       distance 2 -> mean 77%   (range  29-96%)
+       distance 4 -> mean 57%   (range  25-88%)
+       distance 8 -> mean 32%   (range  12-58%)
+
+   CORRECTED BEFORE SHIPPING. The first version of this page carried 90/83/46/40
+   from a THREE-seed sample, plus a "distance 8 averaged 24%" figure taken from a
+   different 12-seed window. qc-hexmemory.sh caught it: at seed 1 -- the seed the
+   lab itself uses -- distance 8 scores 58%, which failed a check demanding <=50%.
+   A threshold picked from a convenient sample, failing on the shipped seed, is
+   exactly the Gate 3 defect. Re-measured over 24 seeds, the honest numbers are
+   above.
+
+   WHAT IS ACTUALLY TRUE: the decay is real and monotonic (94 -> 77 -> 57 -> 32),
+   and at distance 8 the mean sits barely above the 25% chance baseline. But the
+   VARIANCE IS HIGH -- individual seeds at distance 8 range from 12% to 58% -- so
+   a single run is not evidence, and the page must not claim the memory is simply
+   "gone". What is gradeable per-run is the COMPARISON: near beats far by a wide
+   margin on the same seed. That is what challenge 4 grades.
+
+   RUNTIME IS A DESIGN CONSTRAINT, not an afterthought. Measured in CPython:
+   0.6s at distance 1, 3.4s at distance 8 for a full train-and-score. Pyodide
+   is slower. VOCAB=4 and HID=8 are chosen to keep this tolerable in a browser.
+   Do NOT raise them without re-timing -- challenge 4 trains twice.
+
+   DOCTRINE (twelve review rounds across Gates 2-5 paid for every line of this):
+   - Every rendered number is verified by qc-hexmemory.sh against the shipped
+     code, parsed out of the RENDERED instruction strings -- never the comment
+     you are reading, which is not what a student sees.
+   - Every check has a not-found guard. A check that silently checks nothing
+     reads as coverage and is worse than no check.
+   - Stochastic checks have their false-fail rate MEASURED, not sampled once.
+   - No structural regex on student source. Functional checks only.
+   - No graded check may pass on the untouched starter.
+   - The ceiling is disclosed in RENDERED text, and rendered text never claims
+     a defense the grading model cannot enforce.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var CEILING =
+    '<br><br><span style="color:#a78bfa">How this lab is graded, plainly:</span> your code runs ' +
+    'in <em>your own browser</em>, so these checks are not tamper-proof and this lab does not ' +
+    'pretend otherwise. What they enforce is that shortcuts fail: your network is scored on ' +
+    'sequences it has never seen, drawn fresh every run, so a memorised answer will not pass ' +
+    'by accident. Deliberate tampering still works: we grade what your code prints, so anyone ' +
+    'determined to fake the output can. The check is here to keep you honest, not to police ' +
+    'you &mdash; and the only person a faked pass costs is you.';
+
+/* The autograd engine from Gate 2, unchanged. The whole point of the spine is that
+   each gate stands on the previous one rather than importing a library. */
+var ENGINE = [
+    '',
+    'import math, random',
+    '',
+    'class Value:',
+    '    def __init__(self, data, _children=()):',
+    '        self.data = data; self.grad = 0.0',
+    '        self._backward = lambda: None; self._prev = set(_children)',
+    '    def __repr__(self): return f"Value({self.data:.4f})"',
+    '    def __add__(self, other):',
+    '        other = other if isinstance(other, Value) else Value(other)',
+    '        out = Value(self.data + other.data, (self, other))',
+    '        def _backward():',
+    '            self.grad += out.grad; other.grad += out.grad',
+    '        out._backward = _backward; return out',
+    '    def __mul__(self, other):',
+    '        other = other if isinstance(other, Value) else Value(other)',
+    '        out = Value(self.data * other.data, (self, other))',
+    '        def _backward():',
+    '            self.grad += other.data * out.grad; other.grad += self.data * out.grad',
+    '        out._backward = _backward; return out',
+    '    def __pow__(self, k):',
+    '        out = Value(self.data ** k, (self,))',
+    '        def _backward(): self.grad += k * (self.data ** (k - 1)) * out.grad',
+    '        out._backward = _backward; return out',
+    '    def tanh(self):',
+    '        t = math.tanh(self.data)',
+    '        out = Value(t, (self,))',
+    '        def _backward(): self.grad += (1 - t * t) * out.grad',
+    '        out._backward = _backward; return out',
+    '    def __neg__(self): return self * -1',
+    '    def __sub__(self, other): return self + (-other)',
+    '    def __radd__(self, other): return self + other',
+    '    def __rmul__(self, other): return self * other',
+    '    def backward(self):',
+    '        topo, visited = [], set()',
+    '        def build(v):',
+    '            if v not in visited:',
+    '                visited.add(v)',
+    '                for c in v._prev: build(c)',
+    '                topo.append(v)',
+    '        build(self)',
+    '        self.grad = 1.0',
+    '        for node in reversed(topo): node._backward()',
+    '',
+    'VOCAB = 4     # four symbols. Small on purpose: this must train in a browser.',
+    'HID   = 8     # hidden units -- the entire memory of the network',
+    '',
+    'def onehot(i):',
+    '    return [Value(1.0 if j == i else 0.0) for j in range(VOCAB)]',
+    '',
+    'def make_example(distance, rnd):',
+    '    """[cue, filler, filler, ...] -- the target is always the FIRST symbol."""',
+    '    cue = rnd.randrange(VOCAB)',
+    '    return [cue] + [rnd.randrange(VOCAB) for _ in range(distance)], cue',
+    ''
+].join('\n');
+
+PythonSandbox.init({
+    containerId : 'sandbox-root',
+    title       : 'HexMemory — The Thing That Forgets',
+    moduleId    : 'hexmemory-rnn',
+    houseId     : 'ai',
+    returnUrl   : '../index.html',
+
+    challenges: [
+
+        /* ── 1. One step of memory ─────────────────────────────────────── */
+        {
+            id          : 'hexmemory-cell',
+            title       : 'One Step of Memory',
+            desc        : 'A neuron that can see what it just saw.',
+            difficulty  : 'medium',
+            xp          : 25,
+            parTime     : 480,
+            instructions:
+                'Gate 5\'s bigram model sees exactly one character back. Everything before ' +
+                'that may as well not exist. To do better, the network needs somewhere to ' +
+                '<em>put</em> what it has seen.<br><br>' +
+                'That place is the <strong>hidden state</strong>: a small vector, ' +
+                '<code>HID</code> numbers wide, that gets handed forward from one step to ' +
+                'the next. At each step the cell mixes two things &mdash; the symbol arriving ' +
+                'now, and the state carried in from before:<br><br>' +
+                '<code>h_new = tanh(Wxh &middot; x + Whh &middot; h_old + b)</code><br><br>' +
+                'That is the whole recurrent cell. <code>Wxh</code> decides how much the new ' +
+                'input matters, <code>Whh</code> decides how much of the past survives, and ' +
+                '<code>tanh</code> keeps it bounded so the state cannot explode as it is ' +
+                'passed along.<br><br>' +
+                'Build <code>step</code>. Given the current one-hot input and the previous ' +
+                'state, return the new state as a list of <code>HID</code> Values.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'rnd = random.Random(7)\n' +
+                'r = lambda: Value(rnd.uniform(-0.5, 0.5))\n' +
+                'Wxh = [[r() for _ in range(VOCAB)] for _ in range(HID)]\n' +
+                'Whh = [[r() for _ in range(HID)]   for _ in range(HID)]\n' +
+                'b   = [r() for _ in range(HID)]\n\n' +
+                '# TODO: one recurrent step. Mix the new input with the carried state.\n' +
+                'def step(x, h):\n' +
+                '    return None\n\n' +
+                'h0 = [Value(0.0) for _ in range(HID)]\n' +
+                'h1 = step(onehot(0), h0)\n' +
+                'if h1 is None:\n' +
+                '    print("step() not built yet -- mix the input with the state.")\n' +
+                'else:\n' +
+                '    print("state width ok:", len(h1) == HID)\n' +
+                '    print("bounded by tanh:", all(-1.0 <= v.data <= 1.0 for v in h1))\n' +
+                '    # The state must depend on the INPUT ...\n' +
+                '    other = step(onehot(1), h0)\n' +
+                '    print("input changes the state:", [v.data for v in h1] != [v.data for v in other])\n' +
+                '    # ... and on the PAST. Same input, different carried state.\n' +
+                '    h_alt = [Value(0.5) for _ in range(HID)]\n' +
+                '    carried = step(onehot(0), h_alt)\n' +
+                '    print("past changes the state:", [v.data for v in h1] != [v.data for v in carried])\n' +
+                '    # And it must stay differentiable -- Gate 2 has to reach through it.\n' +
+                '    h1[0].backward()\n' +
+                '    print("gradient reaches the weights:", any(w.grad != 0.0 for w in Wxh[0]))\n',
+            hints       : [
+                'For each unit i: start from b[i], add Wxh[i][j] * x[j] for every input j.',
+                'Then add Whh[i][j] * h[j] for every hidden unit j.',
+                'Finish with .tanh() and collect the results into a list of length HID.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'The state is HID units wide',
+                  check: function(out) { return /state width ok:\s*True/.test(out); } },
+                { name : 'tanh keeps the state from exploding',
+                  check: function(out) { return /bounded by tanh:\s*True/.test(out); } },
+                { name : 'The new input actually affects the state',
+                  check: function(out) { return /input changes the state:\s*True/.test(out); } },
+                { name : 'The carried past actually affects the state (this is the memory)',
+                  check: function(out) { return /past changes the state:\s*True/.test(out); } },
+                { name : 'Gradients still flow through the cell',
+                  check: function(out) { return /gradient reaches the weights:\s*True/.test(out); } }
+            ]
+        },
+
+        /* ── 2. Roll it through time ───────────────────────────────────── */
+        {
+            id          : 'hexmemory-unroll',
+            title       : 'Roll It Through Time',
+            desc        : 'One cell, applied over and over, is a network as deep as the sequence.',
+            difficulty  : 'medium',
+            xp          : 30,
+            parTime     : 480,
+            instructions:
+                'One step is not a memory. Run the <em>same</em> cell over every symbol in ' +
+                'a sequence, feeding each new state into the next step, and the final state ' +
+                'is a summary of everything the network saw.<br><br>' +
+                'Notice what this means: the same weights are reused at every step. A ' +
+                '10-symbol sequence is a 10-layer-deep network built from one small cell. ' +
+                'That reuse is what lets it handle sequences of any length &mdash; and, as ' +
+                'you will measure in challenge 4, it is also exactly what makes the memory ' +
+                'fade.<br><br>' +
+                'Build <code>forward</code>: start from a zero state, step through every ' +
+                'symbol, then project the final state to <code>VOCAB</code> scores with ' +
+                '<code>Why</code>. Those scores are the network\'s guess at the cue.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'rnd = random.Random(7)\n' +
+                'r = lambda: Value(rnd.uniform(-0.5, 0.5))\n' +
+                'Wxh = [[r() for _ in range(VOCAB)] for _ in range(HID)]\n' +
+                'Whh = [[r() for _ in range(HID)]   for _ in range(HID)]\n' +
+                'b   = [r() for _ in range(HID)]\n' +
+                'Why = [[r() for _ in range(HID)]   for _ in range(VOCAB)]\n\n' +
+                'def step(x, h):\n' +
+                '    out = []\n' +
+                '    for i in range(HID):\n' +
+                '        acc = b[i]\n' +
+                '        for j in range(VOCAB): acc = acc + Wxh[i][j] * x[j]\n' +
+                '        for j in range(HID):   acc = acc + Whh[i][j] * h[j]\n' +
+                '        out.append(acc.tanh())\n' +
+                '    return out\n\n' +
+                '# TODO: run `step` across the whole sequence, then project to VOCAB scores.\n' +
+                'def forward(seq):\n' +
+                '    return None\n\n' +
+                'probe = forward([0, 1, 2])\n' +
+                'if probe is None:\n' +
+                '    print("forward() not built yet -- roll the cell through the sequence.")\n' +
+                'else:\n' +
+                '    print("one score per symbol:", len(probe) == VOCAB)\n' +
+                '    # Order must matter. A summary that ignores order is not a memory.\n' +
+                '    a = [v.data for v in forward([0, 1, 2])]\n' +
+                '    b2 = [v.data for v in forward([2, 1, 0])]\n' +
+                '    print("order changes the answer:", a != b2)\n' +
+                '    # Any length must work -- that is what weight reuse buys.\n' +
+                '    print("handles any length:", len(forward([0])) == VOCAB and len(forward([0,1,2,3,0,1,2,3])) == VOCAB)\n' +
+                '    # Deterministic: same sequence, same answer.\n' +
+                '    print("same input same output:", a == [v.data for v in forward([0, 1, 2])])\n',
+            hints       : [
+                'h = [Value(0.0) for _ in range(HID)] then loop: h = step(onehot(tok), h)',
+                'After the loop, score k = sum of Why[k][i] * h[i] over every hidden unit i.',
+                'sum((...), Value(0.0)) gives the accumulator a Value to start from.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Returns one score per possible symbol',
+                  check: function(out) { return /one score per symbol:\s*True/.test(out); } },
+                { name : 'Order matters (a bag of symbols is not a memory)',
+                  check: function(out) { return /order changes the answer:\s*True/.test(out); } },
+                { name : 'The same weights handle any sequence length',
+                  check: function(out) { return /handles any length:\s*True/.test(out); } },
+                { name : 'The same sequence always gives the same answer',
+                  check: function(out) { return /same input same output:\s*True/.test(out); } }
+            ]
+        },
+
+        /* ── 3. Teach it to remember ───────────────────────────────────── */
+        {
+            id          : 'hexmemory-train',
+            title       : 'Teach It To Remember',
+            desc        : 'Train it on a task it can only solve by holding on to something.',
+            difficulty  : 'hard',
+            xp          : 40,
+            parTime     : 600,
+            instructions:
+                'Here is a task that cannot be faked. The sequence is a <strong>cue</strong> ' +
+                'followed by random filler, and the network must reproduce the cue. Nothing ' +
+                'in the filler helps. The only way to score above chance is to carry the cue ' +
+                'forward in the hidden state.<br><br>' +
+                'With four symbols, guessing scores <strong>25%</strong>. That is your ' +
+                'baseline, and it is what an untrained network gets.<br><br>' +
+                'Train with the loop from Gate 3 &mdash; forward, zero the gradients, ' +
+                'backward, nudge against the gradient &mdash; except now the backward pass ' +
+                'travels back through every step of the sequence. That is ' +
+                '<strong>backpropagation through time</strong>, and it is the same algorithm ' +
+                'you already built, applied to an unrolled loop.<br><br>' +
+                'At distance 1 a correct build typically reaches <strong>about 94%</strong> on ' +
+                'sequences it has never seen, up from roughly 25% before training. <em>This trains a real network in your ' +
+                'browser, so give it a few seconds.</em>' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'def build(seed):\n' +
+                '    rnd = random.Random(seed)\n' +
+                '    r = lambda: Value(rnd.uniform(-0.5, 0.5))\n' +
+                '    W = {"Wxh": [[r() for _ in range(VOCAB)] for _ in range(HID)],\n' +
+                '         "Whh": [[r() for _ in range(HID)]   for _ in range(HID)],\n' +
+                '         "b"  : [r() for _ in range(HID)],\n' +
+                '         "Why": [[r() for _ in range(HID)]   for _ in range(VOCAB)]}\n' +
+                '    return W, rnd\n\n' +
+                'def params(W):\n' +
+                '    return ([p for row in W["Wxh"] for p in row] + [p for row in W["Whh"] for p in row]\n' +
+                '            + W["b"] + [p for row in W["Why"] for p in row])\n\n' +
+                'def forward(W, seq):\n' +
+                '    h = [Value(0.0) for _ in range(HID)]\n' +
+                '    for tok in seq:\n' +
+                '        x = onehot(tok); nh = []\n' +
+                '        for i in range(HID):\n' +
+                '            acc = W["b"][i]\n' +
+                '            for j in range(VOCAB): acc = acc + W["Wxh"][i][j] * x[j]\n' +
+                '            for j in range(HID):   acc = acc + W["Whh"][i][j] * h[j]\n' +
+                '            nh.append(acc.tanh())\n' +
+                '        h = nh\n' +
+                '    return [sum((W["Why"][k][i] * h[i] for i in range(HID)), Value(0.0))\n' +
+                '            for k in range(VOCAB)]\n\n' +
+                '# TODO: train W on `train` for `steps`, learning rate `lr`.\n' +
+                '# Target: score +1 for the cue symbol, -1 for every other symbol.\n' +
+                'def train(W, train_set, steps=40, lr=0.3):\n' +
+                '    return None\n\n' +
+                'def accuracy(W, distance, rnd, n=24):\n' +
+                '    ok = 0\n' +
+                '    for _ in range(n):\n' +
+                '        seq, cue = make_example(distance, rnd)\n' +
+                '        out = forward(W, seq)\n' +
+                '        ok += (max(range(VOCAB), key=lambda k: out[k].data) == cue)\n' +
+                '    return ok / n\n\n' +
+                'W, rnd = build(1)\n' +
+                'examples = [make_example(1, rnd) for _ in range(12)]\n' +
+                'before = accuracy(W, 1, rnd)\n' +
+                'trained = train(W, examples)\n' +
+                'if trained is None:\n' +
+                '    print("train() not built yet -- run the loop from Gate 3.")\n' +
+                'else:\n' +
+                '    after = accuracy(W, 1, rnd)\n' +
+                '    print(f"chance is 25%. before training: {before:.0%}")\n' +
+                '    print(f"after training (unseen sequences): {after:.0%}")\n' +
+                '    # Paired against its OWN untrained score, so a lucky or unlucky\n' +
+                '    # initialisation cannot decide the verdict on its own.\n' +
+                '    print("learned to remember:", after >= before + 0.25)\n' +
+                '    print("beats chance clearly:", after > before)\n',
+            hints       : [
+                'Same four steps as Gate 3: build the loss, zero every p.grad, loss.backward(), then p.data -= lr * p.grad.',
+                'loss += (out[k] - (1.0 if k == cue else -1.0)) ** 2 for every k, over every example.',
+                'Divide the gradient by the number of examples so the step size does not depend on batch size. Return W.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Training improves accuracy on sequences it has never seen',
+                  check: function(out) { return /beats chance clearly:\s*True/.test(out); } },
+                { /* Paired, not absolute. An absolute 60% bar false-failed a CORRECT
+                     build 1 run in 12 when qc-hexmemory.sh measured it -- the same
+                     defect that cost HexNet two review rounds. Comparing a network to
+                     its own untrained score cancels the initialisation luck. */
+                  name : 'Training lifts accuracy at least 25 points over its own untrained score',
+                  check: function(out) { return /learned to remember:\s*True/.test(out); } }
+            ]
+        },
+
+        /* ── 4. Watch it forget ────────────────────────────────────────── */
+        {
+            id          : 'hexmemory-forget',
+            title       : 'Watch It Forget',
+            desc        : 'The same network, the same task, further apart. This is why attention exists.',
+            difficulty  : 'hard',
+            xp          : 50,
+            parTime     : 720,
+            instructions:
+                'Your network can remember one step back. Now move the cue further away and ' +
+                'measure what happens. Nothing else changes &mdash; same architecture, same ' +
+                'training, same number of steps. Only the distance.<br><br>' +
+                'Measured on this exact code before this page was written:<br>' +
+                '<code>distance 1 &rarr; 94% accuracy</code> &middot; ' +
+                '<code>distance 2 &rarr; 77% accuracy</code> &middot; ' +
+                '<code>distance 4 &rarr; 57% accuracy</code> &middot; ' +
+                '<code>distance 8 &rarr; 32% accuracy</code><br><br>' +
+                'Those are means over 24 independent runs. Look at the last one against a ' +
+                'chance baseline of <strong>25%</strong>: at distance 8 the network is barely ' +
+                'above guessing. The signal has to survive eight multiplications by ' +
+                '<code>Whh</code> and eight passes through <code>tanh</code>, and by the far ' +
+                'end there is almost nothing left of it to learn from.<br><br>' +
+                '<strong>One honest caveat, because your own run will show it.</strong> The ' +
+                'spread at distance 8 is wide &mdash; individual seeds land anywhere from ' +
+                '<strong>12% to 58%</strong>. So a single run is a demonstration, not proof, ' +
+                'and you may get a far score that looks better than the mean. What holds ' +
+                'run after run is the <em>comparison</em>: near beats far by a wide margin on ' +
+                'the same seed. That is what is graded below, and it is the honest form of ' +
+                'the claim.<br><br>' +
+                'This is not a bug in your code. It is the defining limitation of recurrent ' +
+                'networks, and it is the reason someone eventually asked: what if, instead of ' +
+                'squeezing the whole past through one small state, every step could just ' +
+                '<em>look directly</em> at every earlier step? That question is attention, ' +
+                'and it is Gate 7.<br><br>' +
+                '<em>This trains two networks. Give it a moment.</em>' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'def build(seed):\n' +
+                '    rnd = random.Random(seed)\n' +
+                '    r = lambda: Value(rnd.uniform(-0.5, 0.5))\n' +
+                '    W = {"Wxh": [[r() for _ in range(VOCAB)] for _ in range(HID)],\n' +
+                '         "Whh": [[r() for _ in range(HID)]   for _ in range(HID)],\n' +
+                '         "b"  : [r() for _ in range(HID)],\n' +
+                '         "Why": [[r() for _ in range(HID)]   for _ in range(VOCAB)]}\n' +
+                '    return W, rnd\n\n' +
+                'def params(W):\n' +
+                '    return ([p for row in W["Wxh"] for p in row] + [p for row in W["Whh"] for p in row]\n' +
+                '            + W["b"] + [p for row in W["Why"] for p in row])\n\n' +
+                'def forward(W, seq):\n' +
+                '    h = [Value(0.0) for _ in range(HID)]\n' +
+                '    for tok in seq:\n' +
+                '        x = onehot(tok); nh = []\n' +
+                '        for i in range(HID):\n' +
+                '            acc = W["b"][i]\n' +
+                '            for j in range(VOCAB): acc = acc + W["Wxh"][i][j] * x[j]\n' +
+                '            for j in range(HID):   acc = acc + W["Whh"][i][j] * h[j]\n' +
+                '            nh.append(acc.tanh())\n' +
+                '        h = nh\n' +
+                '    return [sum((W["Why"][k][i] * h[i] for i in range(HID)), Value(0.0))\n' +
+                '            for k in range(VOCAB)]\n\n' +
+                'def train(W, train_set, steps=40, lr=0.3):\n' +
+                '    for _ in range(steps):\n' +
+                '        loss = Value(0.0)\n' +
+                '        for seq, cue in train_set:\n' +
+                '            out = forward(W, seq)\n' +
+                '            for k in range(VOCAB):\n' +
+                '                loss = loss + (out[k] - (1.0 if k == cue else -1.0)) ** 2\n' +
+                '        for p in params(W): p.grad = 0.0\n' +
+                '        loss.backward()\n' +
+                '        for p in params(W): p.data -= lr * p.grad / len(train_set)\n' +
+                '    return W\n\n' +
+                'def accuracy(W, distance, rnd, n=24):\n' +
+                '    ok = 0\n' +
+                '    for _ in range(n):\n' +
+                '        seq, cue = make_example(distance, rnd)\n' +
+                '        out = forward(W, seq)\n' +
+                '        ok += (max(range(VOCAB), key=lambda k: out[k].data) == cue)\n' +
+                '    return ok / n\n\n' +
+                '# TODO: train a fresh network at `distance` and return its accuracy on\n' +
+                '# unseen sequences at that same distance.\n' +
+                'def score_at(distance, seed):\n' +
+                '    return None\n\n' +
+                'near = score_at(1, 1)\n' +
+                'if near is None:\n' +
+                '    print("score_at() not built yet -- train at a distance and score it.")\n' +
+                'else:\n' +
+                '    far = score_at(8, 1)\n' +
+                '    print(f"chance: 25%")\n' +
+                '    print(f"distance 1 (near): {near:.0%}")\n' +
+                '    print(f"distance 8 (far):  {far:.0%}")\n' +
+                '    print("near memory works:", near >= 0.6)\n' +
+                '    print("far memory is gone:", far < near - 0.25)\n' +
+                '    print("VERDICT:", "the state cannot carry it that far" if far < near - 0.25 else "no decay measured -- is the cue really that far back?")\n',
+            hints       : [
+                'W, rnd = build(seed); examples = [make_example(distance, rnd) for _ in range(12)]',
+                'train(W, examples) then return accuracy(W, distance, rnd).',
+                'Use the same seed for both distances so the comparison is about distance, not luck.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Near memory works (60%+ against 25% chance)',
+                  check: function(out) { return /near memory works:\s*True/.test(out); } },
+                { name : 'Far memory collapses by at least 25 points',
+                  check: function(out) { return /far memory is gone:\s*True/.test(out); } },
+                /* REMOVED before shipping: a check demanding distance-8 accuracy <= 50%.
+                   qc-hexmemory.sh failed it at seed 1 -- the seed this lab uses -- where
+                   distance 8 scores 58%. The threshold came from a 12-seed sample whose
+                   max happened to be 50%; across 24 seeds the range is 12-58%. It would
+                   have false-failed honest learners on the shipped seed. The margin check
+                   below carries the signal and is robust; an absolute threshold on a
+                   high-variance quantity is not. Same defect class as Gate 3's
+                   perfect-score rule. */
+                { name : 'The measurement, not an assertion, produced the verdict',
+                  check: function(out) { return /VERDICT:\s*the state cannot carry it that far/.test(out); } }
+            ]
+        }
+    ]
+});
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>
