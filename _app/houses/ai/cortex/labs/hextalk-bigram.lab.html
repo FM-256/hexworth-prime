@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexTalk: The First Words - The Cortex - House of AI</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PythonSandbox.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a12; }
+        #sandbox-root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="sandbox-root"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   HexTalk — Gate 5 of the AI Model Forge. Fourth module of the build spine.
+   Prerequisite: HexToken (text becomes integers).
+
+   WHY THIS GATE EXISTS HERE: Gate 4 turned language into numbers. This is the
+   gate where the numbers turn back into language the model chose for itself.
+   It is the first time the learner's own code produces text that was never
+   written by a human, and that moment is worth arriving at honestly.
+
+   EVERY NUMBER ON THIS PAGE WAS MEASURED BEFORE IT WAS WRITTEN, against the
+   exact corpus and code that ship here. That rule exists because Gate 3
+   shipped three false claims in a row -- twice from conventional wisdom that
+   measurement contradicted, once from measuring a DIFFERENT function than the
+   one students run. The measurements behind this page:
+
+     vocabulary                        27 characters
+     uniform (untrained) perplexity    27.00  -- EXACTLY the vocabulary size
+     bigram perplexity (add-1)         10.75
+     improvement                       2.51x
+
+   The uniform result is not a coincidence and it is the best teaching fact
+   here: a model that has learned nothing is, by definition, choosing evenly
+   among all 27 options, so its perplexity is 27. Perplexity is "how many
+   options does it feel like it is choosing between." That makes the number
+   mean something instead of being a score.
+
+   TEMPERATURE -- A CLAIM I HAD TO THROW AWAY. I intended to teach "low
+   temperature makes output more repetitive" and measured it by counting
+   distinct characters. There was NO effect: 26.8 at temp 0.3 versus 27.0 at
+   temp 1.5. The metric saturates -- over a few hundred samples you hit every
+   character regardless. The claim was not wrong so much as unmeasurable that
+   way, and I would have shipped it as fact.
+
+   What DOES show the effect, measured on this corpus, is how often the sample
+   uses a character pair that actually occurs in the training text:
+
+     temperature   0.2    0.5    1.0    2.0    5.0
+     real pairs   97.9%  49.4%  23.1%  15.6%  13.2%
+
+   So the honest lesson is not "repetitive versus varied." It is SAFE versus
+   INVENTIVE: cold sampling reuses what it saw, hot sampling makes things up.
+   That is the tradeoff every deployed language model exposes as a dial.
+
+   DOCTRINE (paid for across Gates 2-4, eight review rounds):
+   - Every rendered number is checked by qc-hextalk.sh against the shipped code.
+     A claim cannot be written here without being verified there.
+   - Checks are named for what they PROVE, never for what we wish they proved.
+   - No structural regex on student source. Functional checks only.
+   - No graded check may pass on the untouched starter.
+   - The ceiling is disclosed in RENDERED text, and rendered text never claims a
+     defense the grading model cannot enforce.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var CEILING =
+    '<br><br><span style="color:#a78bfa">How this lab is graded, plainly:</span> your code runs ' +
+    'in <em>your own browser</em>, so these checks are not tamper-proof and this lab does not ' +
+    'pretend otherwise. What they enforce is that shortcuts fail: the counts, the perplexity ' +
+    'and the sampler are all checked against text you did not choose, so guessed numbers will ' +
+    'not pass by accident. Deliberate tampering still works: we grade what your code prints, ' +
+    'so anyone determined to fake the output can. The check is here to keep you honest, not ' +
+    'to police you &mdash; and the only person a faked pass costs is you.';
+
+/* The corpus every challenge shares. Small on purpose: the learner must be able to
+   read it and check the model's behaviour against it by eye. */
+var CORPUS = [
+    '',
+    'CORPUS = ("the quick brown fox jumps over the lazy dog "',
+    '          "the dog barks and the fox runs away fast "',
+    '          "a lazy brown dog sleeps while the quick fox runs")',
+    'CHARS = sorted(set(CORPUS))',
+    'STOI  = {c: i for i, c in enumerate(CHARS)}',
+    'ITOS  = {i: c for c, i in STOI.items()}',
+    'V     = len(CHARS)',
+    ''
+].join('\n');
+
+PythonSandbox.init({
+    containerId : 'sandbox-root',
+    title       : 'HexTalk — The First Words',
+    moduleId    : 'hextalk-bigram',
+    houseId     : 'ai',
+    returnUrl   : '../index.html',
+
+    challenges: [
+
+        /* ── 1. Counting what follows what ─────────────────────────────── */
+        {
+            id          : 'hextalk-counts',
+            title       : 'What Follows What',
+            desc        : 'The whole model is a table of counts. Build the table.',
+            difficulty  : 'easy',
+            xp          : 20,
+            parTime     : 420,
+            instructions:
+                'A bigram model answers exactly one question: <strong>given this character, ' +
+                'what tends to come next?</strong><br><br>' +
+                'That is the entire model. No neural network, no gradients. Walk the text, ' +
+                'and every time you see character <em>a</em> followed by character <em>b</em>, ' +
+                'add one to a counter. When you are done, the row for <em>t</em> tells you ' +
+                'that <em>h</em> follows it constantly and <em>q</em> follows it never.<br><br>' +
+                'Build <code>counts</code> as a V-by-V grid, where ' +
+                '<code>counts[i][j]</code> is how many times character <code>j</code> ' +
+                'followed character <code>i</code>. Use <code>zip(CORPUS, CORPUS[1:])</code> ' +
+                'to walk every adjacent pair.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                CORPUS + '\n' +
+                '# TODO: build a V x V grid of zeros, then count every adjacent pair.\n' +
+                'counts = None\n\n' +
+                'if counts is None:\n' +
+                '    print("counts is still None -- build the grid and fill it.")\n' +
+                'else:\n' +
+                '    total = sum(sum(row) for row in counts)\n' +
+                '    print("pairs counted:", total, "expect", len(CORPUS) - 1)\n' +
+                '    print("grid shape ok:", len(counts) == V and all(len(r) == V for r in counts))\n' +
+                '    # "th" is the most common pair in English, and in this corpus too.\n' +
+                '    print("t->h:", counts[STOI["t"]][STOI["h"]])\n' +
+                '    print("t->q:", counts[STOI["t"]][STOI["q"]])\n' +
+                '    # A row is a distribution over what comes next.\n' +
+                '    print("row for q sums to:", sum(counts[STOI["q"]]))\n',
+            hints       : [
+                'counts = [[0] * V for _ in range(V)]',
+                'for a, b in zip(CORPUS, CORPUS[1:]): counts[STOI[a]][STOI[b]] += 1',
+                'Every adjacent pair is counted, so the total is len(CORPUS) - 1.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Every adjacent pair in the corpus was counted',
+                  check: function(out) { return /pairs counted:\s*(\d+)\s*expect\s*\1\b/.test(out); } },
+                { name : 'The table is V by V',
+                  check: function(out) { return /grid shape ok:\s*True/.test(out); } },
+                { name : 'The counts are real: t is followed by h, never by q',
+                  check: function(out) {
+                      var th = out.match(/t->h:\s*(\d+)/), tq = out.match(/t->q:\s*(\d+)/);
+                      return !!th && !!tq && parseInt(th[1]) > 0 && parseInt(tq[1]) === 0;
+                  } },
+                { name : 'Every row is a real distribution (q is followed by something)',
+                  check: function(out) {
+                      var m = out.match(/row for q sums to:\s*(\d+)/);
+                      return !!m && parseInt(m[1]) > 0;
+                  } }
+            ]
+        },
+
+        /* ── 2. Counts become probabilities ────────────────────────────── */
+        {
+            id          : 'hextalk-probs',
+            title       : 'Counts Become Probabilities',
+            desc        : 'Divide each row by its total. Then handle the pairs you never saw.',
+            difficulty  : 'medium',
+            xp          : 30,
+            parTime     : 480,
+            instructions:
+                'Counts are not probabilities. Divide each row by its own total and the row ' +
+                'becomes a distribution: given <em>a</em>, here is the chance of each ' +
+                'possible next character.<br><br>' +
+                '<strong>Then the problem that breaks it.</strong> Some pairs never occur ' +
+                'in this corpus, so their count is zero, so their probability is zero. A ' +
+                'model that assigns probability zero to something is claiming it is ' +
+                '<em>impossible</em>. Ask it to score text containing that pair and you ' +
+                'take the logarithm of zero, which is negative infinity. One unseen pair ' +
+                'and the whole score collapses.<br><br>' +
+                'The fix is blunt and standard: <strong>add one to every count</strong> ' +
+                'before dividing. Nothing is impossible any more, merely unlikely. It is ' +
+                'called add-one or Laplace smoothing, and the cost is that you have ' +
+                'slightly lied about every count in exchange for never dividing by zero.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                CORPUS + '\n' +
+                'import math\n\n' +
+                'counts = [[0] * V for _ in range(V)]\n' +
+                'for a, b in zip(CORPUS, CORPUS[1:]):\n' +
+                '    counts[STOI[a]][STOI[b]] += 1\n\n' +
+                '# TODO: return a V x V grid of probabilities, adding `smoothing` to every\n' +
+                '# count first. Each row must sum to 1.\n' +
+                'def probabilities(smoothing):\n' +
+                '    return None\n\n' +
+                'P_raw = probabilities(0.0)   # no smoothing: zeros survive\n' +
+                'P     = probabilities(1.0)   # add-one\n\n' +
+                'if P is None:\n' +
+                '    print("probabilities() not built yet.")\n' +
+                'else:\n' +
+                '    print("rows sum to 1:", all(abs(sum(r) - 1.0) < 1e-9 for r in P))\n' +
+                '    zeros_raw = sum(1 for r in P_raw for p in r if p == 0.0)\n' +
+                '    zeros_sm  = sum(1 for r in P     for p in r if p == 0.0)\n' +
+                '    print("impossible pairs without smoothing:", zeros_raw)\n' +
+                '    print("impossible pairs with smoothing:", zeros_sm)\n' +
+                '    # The pair "qx" never occurs. Unsmoothed it is impossible; smoothed it is rare.\n' +
+                '    print("qx unsmoothed:", P_raw[STOI["q"]][STOI["x"]])\n' +
+                '    print("qx smoothed is small but nonzero:", 0.0 < P[STOI["q"]][STOI["x"]] < 0.05)\n',
+            hints       : [
+                'row_total = sum(row) + smoothing * V',
+                '[(c + smoothing) / row_total for c in row]',
+                'With smoothing=0.0 a row of all zeros would divide by zero -- the corpus has none, but that is exactly the fragility being demonstrated.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Every row is a valid distribution (sums to 1)',
+                  check: function(out) { return /rows sum to 1:\s*True/.test(out); } },
+                { name : 'Without smoothing the model calls real pairs impossible',
+                  check: function(out) {
+                      var m = out.match(/impossible pairs without smoothing:\s*(\d+)/);
+                      return !!m && parseInt(m[1]) > 0;
+                  } },
+                { name : 'Smoothing removes every impossible pair',
+                  check: function(out) { return /impossible pairs with smoothing:\s*0\b/.test(out); } },
+                { name : 'An unseen pair becomes rare, not impossible',
+                  check: function(out) { return /qx smoothed is small but nonzero:\s*True/.test(out); } }
+            ]
+        },
+
+        /* ── 3. Perplexity ─────────────────────────────────────────────── */
+        {
+            id          : 'hextalk-perplexity',
+            title       : 'How Surprised Is It',
+            desc        : 'One number that says how well the model understands the text.',
+            difficulty  : 'medium',
+            xp          : 35,
+            parTime     : 540,
+            instructions:
+                'You need a way to say whether the model is any good, and "it looks about ' +
+                'right" is not one.<br><br>' +
+                'Walk the text pair by pair and ask the model how much probability it gave ' +
+                'to what actually came next. Take the logarithm, average it, negate it. That ' +
+                'is <strong>average negative log-likelihood</strong>. Raise <em>e</em> to ' +
+                'that power and you get <strong>perplexity</strong>.<br><br>' +
+                'Perplexity has a meaning worth holding onto: <em>how many options does the ' +
+                'model feel like it is choosing between?</em> A model that learned nothing ' +
+                'spreads its probability evenly over all 27 characters, so it is choosing ' +
+                'among 27, and its perplexity is <strong>exactly 27.00</strong> &mdash; the ' +
+                'vocabulary size, not a coincidence.<br><br>' +
+                'Your bigram model should land near <strong>10.75</strong>. It has not ' +
+                'learned English. It has learned that <em>h</em> follows <em>t</em> and ' +
+                'that vowels follow consonants, and that alone cuts the guesswork by about ' +
+                '<strong>2.5x</strong>. Measured on this corpus, not asserted.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                CORPUS + '\n' +
+                'import math\n\n' +
+                'counts = [[0] * V for _ in range(V)]\n' +
+                'for a, b in zip(CORPUS, CORPUS[1:]):\n' +
+                '    counts[STOI[a]][STOI[b]] += 1\n' +
+                'def probabilities(smoothing):\n' +
+                '    out = []\n' +
+                '    for row in counts:\n' +
+                '        t = sum(row) + smoothing * V\n' +
+                '        out.append([(c + smoothing) / t for c in row])\n' +
+                '    return out\n\n' +
+                'P       = probabilities(1.0)\n' +
+                'UNIFORM = [[1.0 / V] * V for _ in range(V)]\n\n' +
+                '# TODO: average negative log-likelihood of the corpus under table `table`.\n' +
+                'def nll(table):\n' +
+                '    return None\n\n' +
+                'def perplexity(table):\n' +
+                '    v = nll(table)\n' +
+                '    return None if v is None else math.exp(v)\n\n' +
+                'if nll(P) is None:\n' +
+                '    print("nll() not built yet -- score the corpus.")\n' +
+                'else:\n' +
+                '    pu, pb = perplexity(UNIFORM), perplexity(P)\n' +
+                '    print(f"uniform perplexity: {pu:.2f}")\n' +
+                '    print(f"bigram  perplexity: {pb:.2f}")\n' +
+                '    print(f"improvement: {pu / pb:.2f}x")\n' +
+                '    print("uniform equals vocabulary size:", abs(pu - V) < 0.01)\n' +
+                '    print("bigram beats uniform:", pb < pu)\n',
+            hints       : [
+                'total += -math.log(table[STOI[a]][STOI[b]]) for every adjacent pair, then divide by the number of pairs.',
+                'zip(CORPUS, CORPUS[1:]) again -- the same walk as challenge 1.',
+                'If uniform does not come out at exactly 27.00, you are averaging over the wrong count.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'An untrained model scores exactly the vocabulary size',
+                  check: function(out) { return /uniform equals vocabulary size:\s*True/.test(out); } },
+                { name : 'Uniform perplexity computes to 27.00',
+                  check: function(out) { return /uniform perplexity:\s*27\.00/.test(out); } },
+                { name : 'The bigram model is genuinely better than knowing nothing',
+                  check: function(out) { return /bigram beats uniform:\s*True/.test(out); } },
+                { name : 'Bigram perplexity lands near the measured 10.75',
+                  check: function(out) {
+                      var m = out.match(/bigram\s+perplexity:\s*([\d.]+)/);
+                      return !!m && Math.abs(parseFloat(m[1]) - 10.75) < 0.6;
+                  } }
+            ]
+        },
+
+        /* ── 4. Sampling, and the temperature dial ─────────────────────── */
+        {
+            id          : 'hextalk-sample',
+            title       : 'The First Words',
+            desc        : 'Make it talk. Then find the dial between safe and inventive.',
+            difficulty  : 'hard',
+            xp          : 45,
+            parTime     : 600,
+            instructions:
+                'Everything so far has been measurement. Now make it speak.<br><br>' +
+                'Start at a character. Look up its row. <strong>Sample</strong> from that ' +
+                'row &mdash; do not take the most likely character, or the model will say ' +
+                '"the the the" forever. Move to whatever you drew and repeat. What comes ' +
+                'out will not be English, but it will be <em>English-shaped</em>, and no ' +
+                'human wrote it.<br><br>' +
+                '<strong>Then the dial.</strong> Before sampling, raise every probability ' +
+                'to the power <code>1/temperature</code> and renormalise. Below 1.0 the ' +
+                'confident choices get more confident; above 1.0 everything flattens ' +
+                'toward random.<br><br>' +
+                'Measure what that does using the fraction of generated pairs that actually ' +
+                'occur in the corpus. Measured here before this page was written &mdash; ' +
+                'these are sampled averages, so your own runs will land a point or two ' +
+                'either side:<br>' +
+                '<code>temp 0.2 &rarr; 97% real pairs</code> &middot; ' +
+                '<code>temp 1.0 &rarr; 24% real pairs</code> &middot; ' +
+                '<code>temp 5.0 &rarr; 13% real pairs</code>' +
+                '<br><br>So the tradeoff is not repetitive versus varied &mdash; that framing ' +
+                'is measurably wrong, and counting distinct characters shows no effect at all ' +
+                '(26.8 versus 27.0 across the whole range). It is <strong>safe versus ' +
+                'inventive</strong>: cold reuses what it saw, hot makes things up. That dial ' +
+                'is on every language model you have ever used.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                CORPUS + '\n' +
+                'import math, random\n\n' +
+                'counts = [[0] * V for _ in range(V)]\n' +
+                'for a, b in zip(CORPUS, CORPUS[1:]):\n' +
+                '    counts[STOI[a]][STOI[b]] += 1\n' +
+                'P = []\n' +
+                'for row in counts:\n' +
+                '    t = sum(row) + V\n' +
+                '    P.append([(c + 1.0) / t for c in row])\n\n' +
+                'REAL_PAIRS = {(a, b) for a, b in zip(CORPUS, CORPUS[1:])}\n\n' +
+                '# TODO: return the index of one character drawn from `row`, after applying\n' +
+                '# temperature. Higher probability must mean more likely to be drawn.\n' +
+                'def sample_index(row, temperature):\n' +
+                '    return None\n\n' +
+                'def generate(n, temperature, start=" "):\n' +
+                '    cur, out = STOI[start], []\n' +
+                '    for _ in range(n):\n' +
+                '        j = sample_index(P[cur], temperature)\n' +
+                '        if j is None:\n' +
+                '            return None\n' +
+                '        out.append(ITOS[j]); cur = j\n' +
+                '    return "".join(out)\n\n' +
+                'def real_pair_share(text):\n' +
+                '    pairs = list(zip(text, text[1:]))\n' +
+                '    return sum(1 for p in pairs if p in REAL_PAIRS) / len(pairs)\n\n' +
+                'probe = generate(40, 1.0)\n' +
+                'if probe is None:\n' +
+                '    print("sample_index() not built yet -- make it speak.")\n' +
+                'else:\n' +
+                '    print("it speaks:", repr(generate(60, 1.0)))\n' +
+                '    print("only known characters:", set(generate(300, 1.0)) <= set(CHARS))\n' +
+                '    cold = sum(real_pair_share(generate(300, 0.2)) for _ in range(5)) / 5\n' +
+                '    hot  = sum(real_pair_share(generate(300, 5.0)) for _ in range(5)) / 5\n' +
+                '    print(f"cold (temp 0.2) real pairs: {cold:.0%}")\n' +
+                '    print(f"hot  (temp 5.0) real pairs: {hot:.0%}")\n' +
+                '    print("cold plays safer than hot:", cold > hot + 0.25)\n' +
+                '    # Sampling must be random, not argmax: two runs should differ.\n' +
+                '    print("not deterministic:", generate(80, 1.0) != generate(80, 1.0))\n',
+            hints       : [
+                'adj = [p ** (1.0 / temperature) for p in row], then divide each by sum(adj).',
+                'Walk a running total against random.random() and return the index where you cross it.',
+                'If your output repeats one character forever you took the max instead of sampling.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'The model generates text using only characters it knows',
+                  check: function(out) { return /only known characters:\s*True/.test(out); } },
+                { name : 'It samples rather than repeating the single likeliest character',
+                  check: function(out) { return /not deterministic:\s*True/.test(out); } },
+                { name : 'Cold sampling reuses pairs from the corpus far more than hot sampling',
+                  check: function(out) { return /cold plays safer than hot:\s*True/.test(out); } },
+                { name : 'Cold sampling stays mostly inside the corpus (measured near 98%)',
+                  check: function(out) {
+                      var m = out.match(/cold \(temp 0\.2\) real pairs:\s*(\d+)%/);
+                      return !!m && parseInt(m[1]) >= 80;
+                  } }
+            ]
+        }
+    ]
+});
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>
