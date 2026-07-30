@@ -23,6 +23,7 @@ Endpoints (JSON; all require X-Bridge-Secret):
   POST /claim      {uid, id_token}        -> {slot, project, cred_id, cred_secret, auth_url}
   DELETE /cred     {cred_id, slot}        -> {deleted: true}    (404 counts as deleted)
   POST /reconcile  {active: [cred_id,..]} -> {checked, deleted}
+  POST /seed       {slot, scenario}       -> {seeded, volume_id, server_id}   (Stage 4)
   GET  /slot/<uid>                        -> {slot} | 404       (Fork E read path)
   GET  /health                            -> {ok, free_ram_mb, slots_used}   (secret required)
 """
@@ -201,6 +202,112 @@ def claim(uid):
                  'cred_secret': ac['secret']}
 
 
+# ── Seed engine (Stage 4): create a genuinely broken state to REPAIR ────────────
+# Why this exists: a lab that asks a student to read an error cannot be graded -- the
+# cloud records nothing when it refuses you, so the only "evidence" is student-typed
+# output, which is forgeable (proven by adversarial-wall.js). Repair is different:
+# the repaired state IS real server-side state, so it is gradeable and unbeatable.
+# This is what makes troubleshooting and permissions labs possible at all.
+#
+# Seeding runs as the POOL USER (never admin), so a scenario can only ever create what
+# the student themselves could create -- a seed can never grant privilege or exceed quota.
+SCENARIOS = ('orphaned-volume',)
+
+
+def _os(utok, service, path, method='GET', body=None):
+    """Call a non-Keystone service with the student's own token via the bridge address."""
+    base = KEYSTONE.replace('/identity', '')
+    req = urllib.request.Request(f'{base}{service}{path}', method=method)
+    req.add_header('X-Auth-Token', utok)
+    req.add_header('Content-Type', 'application/json')
+    data = json.dumps(body).encode() if body is not None else None
+    try:
+        with urllib.request.urlopen(req, data=data, timeout=60) as r:
+            raw = r.read()
+            return r.status, (json.loads(raw) if raw else None)
+    except urllib.error.HTTPError as e:
+        try:
+            return e.code, json.loads(e.read())
+        except Exception:
+            return e.code, None
+    except (urllib.error.URLError, socket.timeout, OSError):
+        return 599, None
+
+
+def _user_token(slot):
+    pw = _read_env(POOL_STORE).get(slot)
+    if not pw:
+        return None
+    tok, _ = token_for(slot, pw, slot)
+    return tok
+
+
+def seed(slot, scenario):
+    """Idempotent: if the scenario's marker resources already exist, leave them alone."""
+    if not POOL_RE.match(slot or ''):
+        return 400, {'error': 'BAD_SLOT'}
+    if scenario not in SCENARIOS:
+        return 400, {'error': 'UNKNOWN_SCENARIO', 'known': list(SCENARIOS)}
+    utok = _user_token(slot)
+    if not utok:
+        return 500, {'error': 'POOL_USER_AUTH_FAILED', 'slot': slot}
+
+    if scenario == 'orphaned-volume':
+        # The situation: a volume holding "data" is attached to a server that is no longer
+        # wanted, and the 1-instance quota means that server blocks all new work. The student
+        # must reclaim the quota WITHOUT destroying the volume -- detach, delete the server,
+        # then attach the SAME volume to a server they build. The check verifies the volume's
+        # original id survived, which a student who deletes and recreates cannot fake.
+        st, doc = _os(utok, '/volume/v3', '/volumes/detail?name=orphan-vol')
+        vols = [v for v in ((doc or {}).get('volumes') or []) if v.get('name') == 'orphan-vol']
+        st2, doc2 = _os(utok, '/compute/v2.1', '/servers/detail')
+        srvs = [x for x in ((doc2 or {}).get('servers') or []) if x.get('name') == 'ghost-srv']
+        if vols and srvs:
+            return 200, {'seeded': False, 'reason': 'already present',
+                         'volume_id': vols[0]['id'], 'server_id': srvs[0]['id']}
+        # Refuse to seed over a student's own in-flight work rather than clobbering it.
+        others = [x for x in ((doc2 or {}).get('servers') or []) if x.get('name') != 'ghost-srv']
+        if others:
+            return 409, {'error': 'PROJECT_NOT_EMPTY',
+                         'detail': 'delete your existing server before starting this lab'}
+        vol_id = vols[0]['id'] if vols else None
+        if not vol_id:
+            st, doc = _os(utok, '/volume/v3', '/volumes', 'POST',
+                          {'volume': {'size': 1, 'name': 'orphan-vol',
+                                      'description': 'seeded lab data volume'}})
+            if st not in (200, 202):
+                return 500, {'error': 'SEED_VOLUME_FAILED', 'status': st}
+            vol_id = doc['volume']['id']
+        for _ in range(24):
+            st, doc = _os(utok, '/volume/v3', f'/volumes/{vol_id}')
+            if (doc or {}).get('volume', {}).get('status') == 'available':
+                break
+            time.sleep(5)
+        st, doc = _os(utok, '/compute/v2.1', '/images')
+        imgs = (doc or {}).get('images') or []
+        st, doc = _os(utok, '/compute/v2.1', '/flavors')
+        flav = [f for f in ((doc or {}).get('flavors') or []) if f.get('name') == 'm1.nano']
+        if not imgs or not flav:
+            return 500, {'error': 'SEED_NO_IMAGE_OR_FLAVOR'}
+        st, doc = _os(utok, '/compute/v2.1', '/servers', 'POST',
+                      {'server': {'name': 'ghost-srv', 'imageRef': imgs[0]['id'],
+                                  'flavorRef': flav[0]['id']}})
+        if st not in (200, 202):
+            return 500, {'error': 'SEED_SERVER_FAILED', 'status': st, 'detail': doc}
+        srv_id = doc['server']['id']
+        for _ in range(36):
+            st, doc = _os(utok, '/compute/v2.1', f'/servers/{srv_id}')
+            if (doc or {}).get('server', {}).get('status') in ('ACTIVE', 'ERROR'):
+                break
+            time.sleep(5)
+        st, _ = _os(utok, '/compute/v2.1', f'/servers/{srv_id}/os-volume_attachments',
+                    'POST', {'volumeAttachment': {'volumeId': vol_id}})
+        if st not in (200, 202):
+            return 500, {'error': 'SEED_ATTACH_FAILED', 'status': st}
+        return 200, {'seeded': True, 'volume_id': vol_id, 'server_id': srv_id}
+    return 400, {'error': 'UNKNOWN_SCENARIO'}
+
+
 _uid_cache = {}
 UID_CACHE_TTL = 600  # provision-pool.sh restarts this service on term reset, but a
                      # missed restart must degrade to 10 minutes of staleness, not forever
@@ -340,6 +447,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == '/reconcile':
             self._reply(*reconcile(b.get('active')))
+            return
+        if self.path == '/seed':
+            self._reply(*seed(b.get('slot'), b.get('scenario')))
             return
         self._reply(404, {'error': 'NOT_FOUND'})
 
