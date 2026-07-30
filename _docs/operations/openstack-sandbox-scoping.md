@@ -637,3 +637,40 @@ shipped. Horizon-vs-CLI still waits on Stage 2b.
    Stages 1-2 were careful to leave alone.
 
 Recorded so lab 2 is chosen on evidence rather than on the original list order.
+
+### Stage 4 lab-2 design finding: error-reading labs are not gradeable to our bar
+
+Lab 2 ("Read the Wall": quota exhaustion + the volume state machine) was scoped, its grader
+checks written and deployed, and BOTH harnesses written before the page -- applying the Lab 1
+doctrine from the start. Writing the adversarial harness first is what caught the problem, which
+is precisely why the doctrine exists.
+
+**The problem:** the cloud records nothing when it refuses you. A quota 403 and an in-use-volume
+400 leave no server-side trace. So the only evidence a student "hit the wall" is output they
+captured themselves, and grep-based evidence checks are forgeable with a plausible request id.
+The adversarial cheat (skip both walls, forge two evidence lines, boot the end-state instance
+directly) scores full marks. End-state checks cannot close this: there is no end state unique to
+having been refused.
+
+**Consequence, stated rather than papered over:** this lab cannot meet the standard Nancy set on
+Lab 1 ("a student who shortcuts CANNOT pass"). Shipping it graded would put a beatable lab next
+to an unbeatable one under the same badge.
+
+**Options (operator/Nancy call, taskboard #251):**
+1. Ship it **ungraded** as an exploration exercise, clearly labelled, with no checks and no
+   completion credit. Honest, cheap, still useful reading practice.
+2. Fold the error-reading into labs that ARE gradeable, as steps whose *resolution* is
+   real-state verifiable (e.g. the Cinder lab already makes students meet the in-use refusal
+   naturally when they try to delete before detaching).
+3. Build **seeded-failure** labs instead, where the lab-manager creates a genuinely broken state
+   in the student's project and the check verifies they REPAIRED it. Repair is real state, so it
+   is gradeable. This needs new cloud-seeding plumbing (the Linux missions have `runSeed`; the
+   cloud path has no equivalent) -- the largest of the three, and the only one that yields a
+   real graded troubleshooting lab.
+
+**Recommendation: 2 now, 3 as the real Stage 4 investment.** Option 3 is what turns "seeded
+troubleshooting" on the original eight-lab list into something that can actually be graded.
+
+Grader checks 7-9 are deployed on bc1 but NO page references them, so they are inert. Harnesses
+`walkthrough-wall.js` / `adversarial-wall.js` are committed as the executable record of this
+finding; if option 2 or 3 is chosen they are the starting point, not wasted work.

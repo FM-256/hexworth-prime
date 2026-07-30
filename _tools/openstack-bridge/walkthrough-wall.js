@@ -1,0 +1,116 @@
+#!/usr/bin/env node
+/*
+ * Lab 2 "Read the Wall" walkthrough QC. Runs ON bc1.
+ *
+ * Doctrine inherited from Lab 1, applied from the START this time:
+ *  - VERBATIM: every command below is a line from the page, and every wait corresponds to a
+ *    "# WAIT for:" the page shows. No poll the page does not instruct.
+ *  - TWO RUNS, no cleanup between: run 2 begins from what a real completed run leaves
+ *    behind (a phoenix instance), which is exactly the state that blocks a naive restart.
+ *  - A companion adversarial-wall.js proves the named cheats FAIL.
+ */
+const { execSync } = require('child_process');
+const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
+const BASE = 'http://localhost/api/sandbox';
+const sh = (c) => execSync(c, { encoding: 'utf8', timeout: 300000 });
+
+async function post(url, body, headers) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+  return { status: r.status, data: await r.json().catch(() => null) };
+}
+
+(async () => {
+  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
+  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    { email: `wall-qc-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`,
+      password: 'Wa' + Math.random().toString(36).slice(2, 6) + '9X', returnSecureToken: true },
+    { Referer: 'https://hexworth-prime.web.app/' });
+  if (su.status !== 200) fail(`signUp ${su.status}`);
+  const { idToken } = su.data;
+  const auth = { Authorization: `Bearer ${idToken}` };
+
+  const l = await post(`${BASE}/launch`, { labId: 'openstack-cli' }, auth);
+  if (l.status !== 200 || l.data.cloudMode !== 'personal') fail(`launch ${l.status} ${l.data && l.data.cloudMode}`);
+  const sid = l.data.sessionId, slot = l.data.cloudSlot;
+  const dex = (cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
+  console.log(`launched ${slot} (${sid})`);
+
+  let img = '';
+  for (let i = 0; i < 6 && !img; i++) { img = dex('openstack image list -f value -c Name | head -1').trim(); if (!img) sh('sleep 10'); }
+  if (!img) fail('image list empty');
+
+  async function runLab(pass) {
+    console.log(`===== RUN ${pass} =====`);
+
+    // Step 1 (page): clean start -- clear BOTH a leftover server and a leftover volume.
+    console.log('step 1: clean start');
+    const oldSrv = dex('openstack server list -f value -c ID').trim().split('\n').filter(Boolean)[0];
+    const oldVol = dex('openstack volume list -f value -c Name').includes('wall-vol');
+    if (oldSrv || oldVol) {
+      console.log(`  (prior-run state: server=${oldSrv || 'none'} wall-vol=${oldVol} -- clearing as the page instructs)`);
+      if (oldSrv && oldVol) {
+        try { dex(`openstack server remove volume ${oldSrv} wall-vol`); } catch (e) { /* not attached */ }
+        for (let i = 0; i < 12; i++) { if (dex('openstack volume show wall-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+      }
+      if (oldSrv) {
+        dex(`openstack server delete ${oldSrv}`);
+        for (let i = 0; i < 12; i++) { if (!dex('openstack server list -f value -c ID').trim()) break; sh('sleep 5'); }
+      }
+      if (oldVol) { dex('openstack volume delete wall-vol'); sh('sleep 5'); }
+    }
+
+    // Step 2 (page): build the situation that will hit the walls.
+    console.log('step 2: build wall-srv + wall-vol, attach');
+    dex(`openstack server create --flavor m1.nano --image "${img}" --network shared wall-srv`);
+    let st = '';
+    for (let i = 0; i < 30; i++) { st = dex('openstack server show wall-srv -f value -c status').trim(); if (st === 'ACTIVE' || st === 'ERROR') break; sh('sleep 10'); }
+    if (st !== 'ACTIVE') fail(`wall-srv ${st}`);
+    dex('openstack volume create --size 1 wall-vol');
+    for (let i = 0; i < 12; i++) { if (dex('openstack volume show wall-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+    dex('openstack server add volume wall-srv wall-vol');
+    for (let i = 0; i < 12; i++) { if (dex('openstack volume show wall-vol -f value -c status').trim() === 'in-use') break; sh('sleep 5'); }
+
+    // Step 3 (page): WALL ONE -- the quota refusal. The command is EXPECTED to fail;
+    // the page tells the student to capture it with 2>&1.
+    console.log('step 3: hit the quota wall, capture it');
+    dex(`mkdir -p ~/notes && openstack server create --flavor m1.nano --image "${img}" --network shared phoenix > ~/notes/quota-error.txt 2>&1 || true`);
+    const q = dex('cat ~/notes/quota-error.txt');
+    if (!/quota exceeded/i.test(q)) fail(`expected a quota refusal, got: ${q.slice(0, 200)}`);
+
+    // Step 4 (page): WALL TWO -- the volume state machine refusal.
+    console.log('step 4: hit the volume-state wall, capture it');
+    dex('openstack volume delete wall-vol > ~/notes/state-error.txt 2>&1 || true');
+    const v = dex('cat ~/notes/state-error.txt');
+    if (!/invalid volume|must be available/i.test(v)) fail(`expected an in-use refusal, got: ${v.slice(0, 200)}`);
+
+    // Step 5 (page): resolve BOTH walls.
+    console.log('step 5: resolve both walls');
+    dex('openstack server remove volume wall-srv wall-vol');
+    for (let i = 0; i < 12; i++) { if (dex('openstack volume show wall-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+    dex('openstack volume delete wall-vol');
+    dex('openstack server delete wall-srv');
+    for (let i = 0; i < 12; i++) { if (!dex('openstack server list -f value -c ID').trim()) break; sh('sleep 5'); }
+    dex(`openstack server create --flavor m1.nano --image "${img}" --network shared phoenix`);
+    st = '';
+    for (let i = 0; i < 30; i++) { st = dex('openstack server show phoenix -f value -c status').trim(); if (st === 'ACTIVE' || st === 'ERROR') break; sh('sleep 10'); }
+    if (st !== 'ACTIVE') fail(`phoenix ${st}`);
+
+    const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
+    const gr = await g.json();
+    const wall = (gr.results || []).filter((r) => r.id >= 7);
+    wall.forEach((r) => console.log(`  run${pass} check ${r.id}: ${r.pass ? 'PASS' : 'FAIL'} -- ${r.desc}`));
+    if (wall.length !== 3 || !wall.every((r) => r.pass)) fail(`run ${pass}: grader did not pass 3/3`);
+    console.log(`  RUN ${pass} PASS 3/3`);
+  }
+
+  await runLab(1);
+  // deliberately NO cleanup -- run 2 must start from a completed run's steady state
+  await runLab(2);
+
+  console.log('cleanup');
+  dex('openstack server delete phoenix');
+  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
+  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
+  console.log(`OPERATOR: null hexworth_uid on ${slot}`);
+  console.log('WALKTHROUGH PASS 3/3 on BOTH runs (fresh project AND returning student)');
+})().catch((e) => { console.error('WALKTHROUGH FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
