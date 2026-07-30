@@ -844,3 +844,9 @@ is closed. Dispositions:
    without reproducing my care.
 5. #253 (drop NOPASSWD sudo) and #254 (dead id-12 copy) correctly triaged inert; deferred,
    filed not hidden.
+
+**Guard fix VERIFIED against Nancy's traced path (2026-07-30).** Reproduced her exact sequence
+rather than reasoning about it: seeded student-29, deleted ONLY the volume while keeping
+ghost-srv, then re-seeded. Old behaviour would leave orphan debris and hand back an unattached
+pair (permanent free check 10). Observed now: re-seed returned a NEW server id, and the end
+state is exactly one server + one `orphan-vol` `in-use` -- debris repaired, pair consistent.
