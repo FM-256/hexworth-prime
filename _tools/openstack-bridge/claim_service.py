@@ -24,6 +24,7 @@ Endpoints (JSON; all require X-Bridge-Secret):
   DELETE /cred     {cred_id, slot}        -> {deleted: true}    (404 counts as deleted)
   POST /reconcile  {active: [cred_id,..]} -> {checked, deleted}
   POST /seed       {slot, scenario}       -> {seeded, volume_id, server_id}   (Stage 4)
+  POST /verify     {slot}                 -> {servers[], volumes[]}  SERVER-SIDE grading truth
   GET  /slot/<uid>                        -> {slot} | 404       (Fork E read path)
   GET  /health                            -> {ok, free_ram_mb, slots_used}   (secret required)
 """
@@ -359,6 +360,42 @@ def reconcile(active_ids):
     return 200, {'checked': checked, 'deleted': deleted}
 
 
+def verify(slot):
+    """Authoritative cloud state for a slot, read SERVER-SIDE.
+
+    Why this exists: cloud checks used to run `openstack ...` inside the student's own
+    container via docker exec. That container gives the student NOPASSWD sudo, so they can
+    replace the CLI with a shim that prints whatever the grader wants (verified live), and
+    even without sudo `bash -lc` sources their ~/.bashrc so PATH poisoning does the same.
+    Any check that asks the student's machine about the cloud is therefore forgeable.
+
+    The cloud itself is the source of truth and this service can reach it, so grading reads
+    from here. The container goes back to being the student's workspace, never the grader's
+    witness. (Container-side checks remain correct where the container filesystem IS the
+    subject -- linux-sandbox missions -- because there is no trusted value to forge there.)
+    """
+    if not POOL_RE.match(slot or ''):
+        return 400, {'error': 'BAD_SLOT'}
+    utok = _user_token(slot)
+    if not utok:
+        return 500, {'error': 'POOL_USER_AUTH_FAILED', 'slot': slot}
+    st, sdoc = _os(utok, '/compute/v2.1', '/servers/detail')
+    if st != 200:
+        return 502, {'error': 'COMPUTE_QUERY_FAILED', 'status': st}
+    st, vdoc = _os(utok, '/volume/v3', '/volumes/detail')
+    if st != 200:
+        return 502, {'error': 'VOLUME_QUERY_FAILED', 'status': st}
+    servers = [{'id': x.get('id'), 'name': x.get('name'), 'status': x.get('status'),
+                'created': x.get('created'),
+                'volumes': [a.get('id') for a in (x.get('os-extended-volumes:volumes_attached') or [])]}
+               for x in ((sdoc or {}).get('servers') or [])]
+    volumes = [{'id': v.get('id'), 'name': v.get('name'), 'status': v.get('status'),
+                'size': v.get('size'), 'created_at': v.get('created_at'),
+                'attached_to': [a.get('server_id') for a in (v.get('attachments') or [])]}
+               for v in ((vdoc or {}).get('volumes') or [])]
+    return 200, {'slot': slot, 'servers': servers, 'volumes': volumes}
+
+
 def slot_of(uid):
     atok = admin_token()
     if not atok:
@@ -450,6 +487,9 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == '/seed':
             self._reply(*seed(b.get('slot'), b.get('scenario')))
+            return
+        if self.path == '/verify':
+            self._reply(*verify(b.get('slot')))
             return
         self._reply(404, {'error': 'NOT_FOUND'})
 
