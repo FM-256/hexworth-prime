@@ -507,3 +507,67 @@ bc2 has real free NICs).
 - memory `feedback_labs_must_be_legit_engines` — why the quiz-shaped labs must be replaced
 - memory `project_sandbox_terminal_blindness_drhex` — the cross-origin grading constraint
 - memory `reference_cloudflare_account` — tunnel and DNS pattern
+
+---
+
+## Stage 4 build log
+
+### Lab 1 — Cinder volume lifecycle ("The Volume Outlives the Server"), built 2026-07-30
+
+First real-engine lab in House of the Cloud. Page:
+`_app/houses/cloud/openstack/labs/cloud-openstack-cinder-live.lab.html`. Grader: bc1
+`SANDBOX_CHALLENGES['openstack-cli']` ids 3-6 (2 live-cloud checks, 2 captured-evidence).
+QC harness: `_tools/openstack-bridge/walkthrough-cinder.js` performs the ENTIRE student
+journey with real credentials against the real cloud, then calls the real `/check` endpoint
+and requires 4/4 -- the walkthrough IS the QC, per `feedback_walkthrough_verbatim_qc`.
+
+**The harness earned its keep on first run.** It performed the lab correctly and check 6 still
+FAILED. Two stacked bugs, neither visible to inspection:
+1. The check grepped the volume JSON for `server_id` via nested `sh -c '...'` inside
+   execCheck's `bash -lc` -- the quoting did not survive.
+2. Rewriting it with shell parameter expansion (`${VC%%.*}`) broke `node --check`: inside a JS
+   template literal `${...}` is INTERPOLATION, not shell syntax.
+
+Fix: no JSON parsing and no `${...}` anywhere. The 1-instance quota means the single server in
+the project IS the attached one, so the check compares the volume's `created_at` against that
+server's `created` using `cut`/`tr`. Verified exit 0 against the exact live state that failed
+the first version, then the whole walkthrough re-run.
+
+**Rule reinforced for every remaining Stage 4 lab:** a grader command that is only
+syntax-checked is not verified. Run the walkthrough before the lab ships.
+
+**Nancy BLOCK on lab 1 (same night) -- the QC gap behind the QC gap.** The walkthrough passed
+4/4, so I brought it for review. Nancy found the lab was beatable by a **five-command shortcut**:
+create volume, create ONE server, attach, `echo in-use > attach-proof.txt`,
+`echo available > detach-proof.txt`. Never delete anything, never rebuild. Check 6 v2 only
+asserted "the currently-attached server postdates the volume", which the shortcut satisfies
+trivially -- and MORE easily on a return visit, because Stage 3 volumes persist and are older
+than everything.
+
+**Why the walkthrough could not catch it:** the honest path is a strict superset of the cheat
+path. Proving the honest path PASSES says nothing about whether a shortcut also passes. That is
+a permanent lesson for every remaining lab:
+
+> A walkthrough proves the lab is completable. It does NOT prove the lab is not beatable.
+> Both need their own harness: `walkthrough-*.js` (honest path must pass) and
+> `adversarial-*.js` (named cheats must fail).
+
+Check v3 closes it: evidence files must contain the volume's REAL id (so `echo` fails), and
+check 6 requires the volume to be attached to a server that is NOT the one recorded in
+attach-proof AND for that first server to no longer exist. Page copy was corrected in the same
+pass -- "Nothing is self-reported" was false given the evidence-file tier, and a promise that
+"the launcher will tell you which mode you got" had no implementation behind it (now implemented
+from the launch response's `cloudMode`).
+
+**Reconcile sweep PROVEN in production (2026-07-30).** Nancy's gap-2 concern (credentials
+orphaned when the in-memory session Map is lost) was closed by design with container labels +
+a reconcile sweep; tonight it was verified live. After several runs whose containers were removed
+with `docker rm -f` (bypassing the destroy hook entirely), the pool held 5 app credentials against
+1 live container. Driving `/reconcile` with the live containers' `hexworth.oscred` labels returned
+`{"checked": 4, "deleted": 3}` -- it reclaimed every stray and kept exactly the live one.
+
+**Operational note worth remembering:** the sweep runs on a 10-minute `setInterval`, and every
+`docker compose up -d lab-manager` restarts that timer. During a build session with frequent
+rebuilds the sweep may never fire, so strays accumulate until things settle. That is not a code
+defect, but it means "no reconcile log lines" during active development proves nothing about the
+mechanism -- drive the endpoint directly to verify it.
