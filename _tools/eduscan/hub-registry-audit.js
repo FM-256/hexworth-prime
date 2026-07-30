@@ -61,6 +61,71 @@ if (!rewrites.some((r) => r.source === '/houses/hub/**' && r.destination === '/h
     ok('firebase.json hub rewrite present');
 }
 
+// ── F. catalogCategories contract: every declared category must match live catalog content ──
+// Container hubs project their typed sections from ContentCatalog via each child's
+// catalogCategories (hub/index.html). The mapping is explicit because hub ids and catalog
+// categories only partially align (openstack->openstack but aws-ccp->aws, cloud-essentials->cse).
+// A typo'd or stale category value would make content silently vanish from the container hub --
+// exactly the drift class projections exist to kill -- so it FAILS the build here instead.
+(function auditCatalogCategories() {
+    let catalogSrc;
+    try { catalogSrc = fs.readFileSync(A('_app/components/ContentCatalog.js'), 'utf8'); }
+    catch (e) { fail('ContentCatalog.js unreadable: ' + e.message); return; }
+    const liveCats = new Set();
+    for (const m of catalogSrc.matchAll(/category:\s*'([^']+)'/g)) liveCats.add(m[1]);
+    // Semantic check, not just existence: every entry in a declared category must live
+    // under the declaring hub's own path (hubHref prefix after /houses/). Existence alone
+    // let cloud-essentials claim 'cse' (Cybersecurity Ethics, house divergent) on
+    // 2026-07-30 -- 27 ethics slides rendered on the Cloud Master shelf. Caught by
+    // render-verify; this makes the audit catch it instead.
+    // category may appear ANYWHERE in the entry (some entries carry keywords/tags after it --
+    // Nancy 2026-07-30 found 26 'career' entries the category-last regex silently missed).
+    const entryRe = /\{ house: '([^']+)',[^\n]*?href: '([^']+)',[^\n]*?category: '([^']+)'/g;
+    const byCat = {};
+    let captured = 0;
+    for (const m of catalogSrc.matchAll(entryRe)) {
+        captured++;
+        (byCat[m[3]] = byCat[m[3]] || []).push({ house: m[1], href: m[2] });
+    }
+    // Match-count sanity: every single-line catalog entry with a category field must be
+    // captured; a gap means the regex went stale and the foreign-content check is blind.
+    const withCategory = (catalogSrc.match(/^\s*\{ house: '[^']*'.*category: '/gm) || []).length;
+    if (captured < withCategory) {
+        fail('audit entryRe went stale: captured ' + captured + ' of ' + withCategory +
+             ' category-bearing catalog entries -- the foreign-content check is partially blind');
+    }
+    let declared = 0, bad = [], foreign = [];
+    HubRegistry.all().forEach((h) => {
+        if (!Array.isArray(h.catalogCategories)) return;
+        h.catalogCategories.forEach((c) => {
+            declared++;
+            if (!liveCats.has(c)) { bad.push(h.id + " -> '" + c + "'"); return; }
+            // catalogCrossHouse: explicit ruling that this hub's catalog content deliberately
+            // lives outside its own path (derived hubs whose content sits in a parent house,
+            // e.g. aws-ccp -> 'aws' under houses/cloud). Same doctrine as the Rig browsable
+            // flag: strict default, deliberate annotated exception, nothing silent.
+            if (h.catalogCrossHouse === true) return;
+            const under = (h.hubHref || '').replace(/^\/houses\//, '').replace(/\/index\.html$/, '');
+            const strays = (byCat[c] || []).filter((e) => {
+                const full = e.house + '/' + e.href;
+                return !full.startsWith(under);
+            });
+            if (strays.length) foreign.push(h.id + " -> '" + c + "' (" + strays.length + ' entries outside ' + under + ', e.g. ' + strays[0].house + '/' + strays[0].href.split('/')[0] + ')');
+        });
+    });
+    if (bad.length) fail('catalogCategories naming NO live catalog content (typo or stale): [' + bad.join(', ') + ']');
+    if (foreign.length) fail('catalogCategories claiming FOREIGN content (wrong course would render on the hub): [' + foreign.join('; ') + ']');
+    if (!bad.length && !foreign.length) ok('catalogCategories contract: ' + declared + ' mapping(s), all match live categories AND all entries live under their hub');
+    // Unmapped children of container hubs are reported, never silent: an honest-zero
+    // (no catalog content exists) and a forgotten mapping look identical otherwise.
+    const parents = {};
+    HubRegistry.all().forEach((h) => { if (h.parent) (parents[h.parent] = parents[h.parent] || []).push(h); });
+    Object.keys(parents).forEach((pid) => {
+        const unmapped = parents[pid].filter((h) => !Array.isArray(h.catalogCategories)).map((h) => h.id);
+        if (unmapped.length) warn("container '" + pid + "' children with no catalogCategories (verify honest-zero vs forgotten): [" + unmapped + ']');
+    });
+})();
+
 // ── E. Rig browsable contract: every LAB_INFO entry carries an EXPLICIT browsable ruling ──
 // The Rig (/rig/) renders sandbox cards from SandboxLauncher.getBrowsableLabs(), which is
 // fail-closed: entries without browsable:true never appear. That makes a MISSING key silently

@@ -95,6 +95,10 @@
     <!-- Static registry: container hubs render their member hubs (parent === this id)
          as a cartridge grid. Static data only; failure to load simply means no grid. -->
     <script src="/components/HubRegistry.js"></script>
+    <!-- ContentCatalog powers the container-hub content projection: typed sections are
+         PROJECTED from the catalog via each child's catalogCategories, never hand-listed
+         (hand-lists drift; projections cannot). -->
+    <script src="/components/ContentCatalog.js"></script>
 
     <script>
     (function () {
@@ -246,14 +250,55 @@
                 root.appendChild(ksec);
             }
 
-            // Typed content sections (the structured-but-empty skeleton)
+            // ── Content projection (2026-07-30, Frank: "lets fill it... thats the whole
+            // point"). A container hub's typed sections are PROJECTED from ContentCatalog
+            // via its children's catalogCategories (explicit per-child mapping in
+            // HubRegistry, audited by hub-registry-audit section F). Hand-lists drift;
+            // this cannot: new catalogued openstack content appears here with zero edits.
+            // Firestore-authored sections remain additive on top (admin curation wins the
+            // front of each list). Catalog fields are rendered through the SAME safe path
+            // as everything else (renderSection uses textContent + safeHref only).
+            var proj = { slides: [], labs: [], quizzes: [], exams: [], projects: [], games: [], other: [] };
+            var cats = {};
+            kids.forEach(function (h) {
+                (Array.isArray(h.catalogCategories) ? h.catalogCategories : []).forEach(function (c) { cats[c] = true; });
+            });
+            if (Object.keys(cats).length && window.ContentCatalog && Array.isArray(ContentCatalog.MODULES)) {
+                var BUCKET = { presentation: 'slides', lab: 'labs', quiz: 'quizzes', exam: 'exams',
+                               project: 'projects', game: 'games', review: 'games' };
+                ContentCatalog.MODULES.forEach(function (m) {
+                    if (!m || !cats[m.category] || m.status !== 'available') { return; }
+                    var comp = (Array.isArray(m.components) && m.components[0]) || '';
+                    var bucket = BUCKET[comp] || 'other';
+                    proj[bucket].push({
+                        title: m.title,
+                        desc: m.description,
+                        // catalog hrefs are house-relative; the projection absolutizes them
+                        href: (typeof m.house === 'string' && SLUG.test(m.house) && typeof m.href === 'string')
+                            ? '/houses/' + m.house + '/' + m.href : null,
+                    });
+                });
+            }
+            function merged(admin, projected) {
+                // De-dup by href (Nancy): an admin-curated Firestore item that is ALSO
+                // catalog content must not render twice. Curated copy wins the slot.
+                var a = Array.isArray(admin) ? admin : [];
+                var seen = {};
+                a.forEach(function (it) { if (it && typeof it.href === 'string') seen[it.href] = true; });
+                return a.concat(projected.filter(function (it) { return !(it.href && seen[it.href]); }));
+            }
+
+            // Typed content sections: admin-curated Firestore items first, projection after.
             var s = (data.sections && typeof data.sections === 'object') ? data.sections : {};
-            renderSection(root, 'Slides', s.slides);
-            renderSection(root, 'Labs', s.labs);
-            renderSection(root, 'Quizzes', s.quizzes);
-            renderSection(root, 'Exams', s.exams);
-            renderSection(root, 'Projects', s.projects);
-            renderSection(root, 'Games', s.games);
+            renderSection(root, 'Slides', merged(s.slides, proj.slides));
+            renderSection(root, 'Labs', merged(s.labs, proj.labs));
+            renderSection(root, 'Quizzes', merged(s.quizzes, proj.quizzes));
+            renderSection(root, 'Exams', merged(s.exams, proj.exams));
+            renderSection(root, 'Projects', merged(s.projects, proj.projects));
+            renderSection(root, 'Games', merged(s.games, proj.games));
+            // Anything the six buckets cannot honestly hold (applets, tools) gets its own
+            // shelf rather than being silently dropped or miscategorized.
+            if (proj.other.length) { renderSection(root, 'Applets & Tools', proj.other); }
 
             hide('loading');
             show('hub');
