@@ -55,14 +55,31 @@ m = re.search(r"if end < start \* ([\d.]+)", h)
 if not m:
     print("  FAIL: could not find the TRAINCHECK threshold in the code"); raise SystemExit(1)
 thresh = float(m.group(1))
-word = {0.5: "half", 0.25: "quarter"}.get(thresh)
-print(f"  TRAINCHECK gate is end < start * {thresh} -> prose must say '{word}'")
-if word is None:
-    print(f"  FAIL: threshold {thresh} has no expected prose word; update this gate"); raise SystemExit(1)
-wrong = [w for w in ("half", "quarter") if w != word and re.search(r"under (a )?%s of where it started" % w, h, re.I)]
-if wrong:
-    print(f"  FAIL: prose says '{wrong[0]}' but the gate is '{word}'"); raise SystemExit(1)
-print("  rendered threshold matches the code")
+
+# Chris, 2026-07-30: v1 of this gate only pattern-matched the literal words "half" and
+# "quarter", so he slipped "under 25% of where it started" past it -- wrong, and silent.
+# Now find EVERY phrase describing the bar and resolve each to a number, whatever form
+# it takes: a word, a percentage, or a fraction.
+WORDS = {"half": 0.5, "a half": 0.5, "quarter": 0.25, "a quarter": 0.25,
+         "a third": 1/3, "third": 1/3, "two thirds": 2/3, "three quarters": 0.75}
+phrases = re.findall(r"under\s+([^,<]{1,24}?)\s+of where it started", h, re.I)
+if not phrases:
+    print("  FAIL: no rendered description of the pass bar found at all"); raise SystemExit(1)
+for raw in phrases:
+    t = raw.strip().lower().rstrip(".")
+    pct  = re.fullmatch(r"(\d+(?:\.\d+)?)\s*%", t)
+    frac = re.fullmatch(r"(\d+)\s*/\s*(\d+)", t)
+    if   pct:        val = float(pct.group(1)) / 100
+    elif frac:       val = int(frac.group(1)) / int(frac.group(2))
+    elif t in WORDS: val = WORDS[t]
+    else:
+        print(f"  FAIL: cannot interpret the stated pass bar {raw.strip()!r};")
+        print( "        add it to WORDS or state the bar in a form this gate understands")
+        raise SystemExit(1)
+    if abs(val - thresh) > 1e-9:
+        print(f"  FAIL: page says {raw.strip()!r} (= {val:g}) but the gate is {thresh:g}")
+        raise SystemExit(1)
+print(f"  TRAINCHECK gate is end < start * {thresh:g}; all {len(phrases)} rendered description(s) agree")
 PY2
 
 echo "── [1/2] ADVERSARIAL: non-learning builds must FAIL ──"
