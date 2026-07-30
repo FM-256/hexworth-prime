@@ -146,9 +146,10 @@ if ! python3 "$W/flake_full.py"; then
 fi
 
 # Challenge 4's graded claim must actually hold: zeroing converges MORE OFTEN than
-# leaking. REGRESSION TEST for two real mistakes: v1 asserted "leaking is worse"
-# (failed on 18/20 seeds); v2 asserted zeroing scores a perfect 8/8 (failed in 12 of
-# 25 seed windows -- zeroing only converges ~92%). Both would have failed honest work.
+# leaking. REGRESSION TEST for three real mistakes: v1 asserted "leaking is worse"
+# (failed on 18/20 seeds); v2 asserted a perfect 8/8; v3 published 92%/54%/13% measured
+# against a harness with RANDOM xs/ys instead of the fixed dataset that ships. Truth,
+# measured on the real train(): zeroing converges 100%, leaking ~72%.
 cat > "$W/ch4.py" <<'PY'
 xs = [[2.0,3.0,-1.0],[3.0,-1.0,0.5],[0.5,1.0,1.0],[1.0,1.0,-1.0]]
 ys = [1.0,-1.0,-1.0,1.0]
@@ -163,30 +164,49 @@ def train(zero_grads, seed, steps=60, lr=0.1):
         for p in net.parameters(): p.data -= lr*p.grad
     return sum(((net(x)-y)**2 for x,y in zip(xs,ys)), Value(0.0)).data
 # Gate the rule the PAGE actually ships: 16 seeds, and zeroed > leaked.
-# Not a perfect zeroed score -- zeroing only converges ~92%, so demanding 16/16
-# would false-fail honest work (it failed in 12 of 25 measured windows).
+# A comparison, not a perfect score: the old rule's `leaked < 8` clause false-failed
+# whenever leaking got lucky on all 8 seeds (0.72^8 = 7.2%; measured 5/50 windows).
 z = sum(1 for s in range(16) if train(True, s) < 0.5)
 l = sum(1 for s in range(16) if train(False, s) < 0.5)
 print(f"  challenge 4 reliability: zeroed={z}/16 leaked={l}/16")
 
-# Chris, 2026-07-30: this gate checked the RULE but never the NARRATIVE NUMBERS, which
-# is how false figures reached students twice. The page tells students zeroing converges
-# every time and leaking ~72% with ~21% blow-ups. Recompute that here, from the SAME
-# train() the page ships, and fail if the rendered claim drifts from reality.
-N = 120
+# Chris + Nancy, 2026-07-30: this gate checked the RULE but never the NARRATIVE NUMBERS,
+# which is how false figures reached students twice.
+#
+# Nancy then broke the FIRST version of this gate: it compared computed values against
+# HAND-TYPED tolerance bands, never reading the page, so prose and script could drift
+# apart silently inside the band -- the exact failure mode it was meant to stop. It now
+# PARSES the literal figures out of the rendered instructions and compares digit for
+# digit, at whatever N the page itself claims. Edit the prose without re-measuring and
+# this fails.
+import re, os
+page = open(os.environ['HEXNET_LAB']).read()
+m = re.search(r"Over (\d+) seeds we measured it", page)
+if not m: print("  FAIL: cannot find the rendered claim to check"); raise SystemExit(1)
+N = int(m.group(1))
+claim_conv = re.search(r"leaking converged (\d+)% of the time", page)
+claim_blow = re.search(r"blew up in (\d+)% of runs", page)
+claim_perf = re.search(r"\((\d+)/(\d+)\) and never blew up", page)
+if not (claim_conv and claim_blow and claim_perf):
+    print("  FAIL: rendered claim does not match the expected shape"); raise SystemExit(1)
+
 zc = sum(1 for s in range(N) if train(True,  s) < 0.5)
 lc = sum(1 for s in range(N) if train(False, s) < 0.5)
 lb = sum(1 for s in range(N) if train(False, s) > 4.0)
-print(f"  page claims: zeroing converges every time, leaking ~72%, leaking blows up ~21%")
-print(f"  measured({N}): zeroing {zc}/{N} ({zc/N:.0%}), leaking {lc}/{N} ({lc/N:.0%}), leaking blow-ups {lb}/{N} ({lb/N:.0%})")
+say_conv, say_blow = int(claim_conv.group(1)), int(claim_blow.group(1))
+say_num, say_den = int(claim_perf.group(1)), int(claim_perf.group(2))
+got_conv, got_blow = round(100*lc/N), round(100*lb/N)
+print(f"  page says: zeroing {say_num}/{say_den} perfect, leaking {say_conv}% converged, {say_blow}% blew up (N={N})")
+print(f"  measured : zeroing {zc}/{N} perfect, leaking {got_conv}% converged, {got_blow}% blew up")
 bad = []
-if zc != N:                      bad.append(f"page says zeroing ALWAYS converges, measured {zc}/{N}")
-if not (0.60 <= lc/N <= 0.85):   bad.append(f"page says leaking ~72%, measured {lc/N:.0%}")
-if not (0.10 <= lb/N <= 0.32):   bad.append(f"page says leaking blows up ~21%, measured {lb/N:.0%}")
+if (say_num, say_den) != (N, N): bad.append(f"page cites {say_num}/{say_den} but claims N={N}")
+if zc != N:                      bad.append(f"page says zeroing NEVER fails, measured {zc}/{N}")
+if abs(got_conv - say_conv) > 2: bad.append(f"page says leaking {say_conv}%, measured {got_conv}%")
+if abs(got_blow - say_blow) > 2: bad.append(f"page says blow-ups {say_blow}%, measured {got_blow}%")
 if bad:
     for b in bad: print("  FAIL: " + b)
     raise SystemExit(1)
-print("  narrative numbers on the page match the shipped code")
+print("  rendered figures match the shipped code, digit for digit")
 if z > l:
     print("  challenge 4 graded rule (zeroed > leaked) HOLDS")
 else:
@@ -194,7 +214,7 @@ else:
     raise SystemExit(1)
 PY
 cat "$W/engine.py" "$W/net.py" "$W/ch4.py" > "$W/ch4_full.py"
-if ! python3 "$W/ch4_full.py"; then
+if ! HEXNET_LAB="$LAB" python3 "$W/ch4_full.py"; then
   echo "GATE FAILED: challenge 4's graded claim does not hold. Honest learners would fail it."
   rm -rf "$W"; exit 1
 fi
