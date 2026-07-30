@@ -45,6 +45,26 @@ class MLP:
     def parameters(self): return [p for l in self.layers for p in l.parameters()]
 PY
 
+# Nancy, 2026-07-30: a hint said "under a quarter" while the gate was 0.5 -- written when
+# the threshold really was 0.25, never updated, and it survived TWO review cycles because
+# nothing checked prose against code. Tie the rendered threshold to the actual one.
+python3 - "$LAB" <<'PY2' || { echo "GATE FAILED: rendered threshold contradicts the code."; rm -rf "$W"; exit 1; }
+import re, sys
+h = open(sys.argv[1]).read()
+m = re.search(r"if end < start \* ([\d.]+)", h)
+if not m:
+    print("  FAIL: could not find the TRAINCHECK threshold in the code"); raise SystemExit(1)
+thresh = float(m.group(1))
+word = {0.5: "half", 0.25: "quarter"}.get(thresh)
+print(f"  TRAINCHECK gate is end < start * {thresh} -> prose must say '{word}'")
+if word is None:
+    print(f"  FAIL: threshold {thresh} has no expected prose word; update this gate"); raise SystemExit(1)
+wrong = [w for w in ("half", "quarter") if w != word and re.search(r"under (a )?%s of where it started" % w, h, re.I)]
+if wrong:
+    print(f"  FAIL: prose says '{wrong[0]}' but the gate is '{word}'"); raise SystemExit(1)
+print("  rendered threshold matches the code")
+PY2
+
 echo "── [1/2] ADVERSARIAL: non-learning builds must FAIL ──"
 # Cheat A: a network that returns a constant -- structurally an MLP, learns nothing.
 cat > "$W/cheatA_net.py" <<'PY'
