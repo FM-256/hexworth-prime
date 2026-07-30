@@ -768,12 +768,25 @@ silently reintroduce it.
 Nancy's review found what the profile-poisoning fix did not cover, and it invalidates the whole
 grading approach for cloud labs -- including the SHIPPED Cinder lab.
 
-**Measured, live, in the shipped image:**
-- `student ALL=(ALL) NOPASSWD:ALL` is baked into `/etc/sudoers.d/student`. Confirmed:
-  `sudo -n true` -> `SUDO-ROOT-CONFIRMED`.
-- A root student can replace the CLI the grader calls. Confirmed: after
-  `sudo cp /usr/bin/openstack /usr/bin/openstack.real` and writing a shim,
-  `openstack volume show SOME-ID -f value -c status` returns `in-use` on demand.
+**CORRECTED 2026-07-30 -- I overstated this. Read the correction before the claim.**
+
+What I first wrote: that a student could `sudo` and replace `/usr/bin/openstack` with a shim,
+making every container-side cloud check forgeable. I "verified" it with a bare `docker run`
+against the image -- WITHOUT the security options lab-manager actually applies.
+
+In the DEPLOYED configuration that attack does not work. Launched sandboxes set
+`no-new-privileges:true` and `CapDrop: ALL`, and sudo is refused outright:
+`sudo: The "no new privileges" flag is set, which prevents sudo from running as root.`
+Measuring the image instead of the deployed container is the proxy-not-the-claim error, made
+while investigating an integrity finding -- exactly where it least belongs.
+
+**What IS real, proven in an actual launched container:**
+- `student ALL=(ALL) NOPASSWD:ALL` is baked into the image (true, but inert in production).
+- PROFILE POISONING needs no sudo at all: `execCheck` runs `bash -lc`, a LOGIN shell, which
+  sources student-owned `~/.bashrc` / `~/.profile`. `export SEED_VOL_ID=<mine>` forged every
+  seeded check -- demonstrated live by adversarial cheat D, twice.
+- PATH poisoning is the same class and equally sudo-free: `export PATH=~/bin:$PATH` plus a
+  `~/bin/openstack` shim, exported from the same profile files.
 
 **Why the earlier fix is not enough.** Server-side id substitution (`resolveSeedPlaceholders`)
 correctly defeats `.bashrc` env poisoning -- adversarial cheat D confirms it. But it only makes
@@ -781,8 +794,9 @@ the COMMAND trustworthy. The command still runs inside the student's container a
 the student controls. Even without sudo, `bash -lc` sources `~/.bashrc`, so PATH poisoning
 (`export PATH=~/bin:$PATH` plus `~/bin/openstack`) reaches the same result.
 
-**Therefore: every check that asks the student's container about CLOUD state is forgeable.**
-That includes the live Cinder lab (checks 3-6) and the read-only checks 1-2.
+**Therefore: every check that asks the student's container about CLOUD state is forgeable**
+-- via profile/PATH poisoning, which needs no privileges. That included the live Cinder lab
+(checks 3 and 6; 4/5 are evidence-tier by design) and the read-only checks 1-2.
 
 **The correct architecture: grade the cloud from the SERVER, not from the container.**
 The cloud is the source of truth and bc1 can already reach it through the bridge. Cloud checks
@@ -794,8 +808,8 @@ Container-side `execCheck` remains valid for labs whose subject IS the container
 filesystem (linux-sandbox, missions): there the student-controlled state is exactly what is
 being graded, so there is no trusted value to forge.
 
-**Live-risk assessment, stated plainly:** the Cinder lab remains deployed. Forging requires a
-student to deliberately shim a binary; the only prize is a lab badge, and no data or other
-student is exposed. It is an integrity defect, not a safety one -- but it IS a defect in live
+**Live-risk assessment, corrected:** the Cinder lab remains deployed. Forging required a
+student to deliberately poison their own shell profile -- no privilege escalation, but
+deliberate; the only prize is a lab badge, and no data or other student is exposed. It is an integrity defect, not a safety one -- but it IS a defect in live
 content and must be fixed rather than tolerated. Lab 2 must NOT ship until grading moves
 server-side (Nancy: BLOCK).
