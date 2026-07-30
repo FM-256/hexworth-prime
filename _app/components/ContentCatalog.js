@@ -2002,6 +2002,10 @@ const ContentCatalog = (function() {
         // HOUSE OF THE CLOUD - CAT-002 ADDITIONS (11)
         // ═══════════════════════════════════════════════════════════════════
         { house: 'cloud', id: 'cloud-openstack-advanced-lab', title: 'Lab: Advanced OpenStack Operations', description: 'Flavors, volumes, network topology, snapshots, and troubleshooting', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-advanced-ops.lab.html', category: 'openstack' },
+        // Stage 4 lab 1 (2026-07-30): the FIRST real-engine cloud lab -- live volume
+        // lifecycle on the student's personal OpenStack project, graded against real
+        // cloud state by the bc1 lab-manager (checks 3-6).
+        { house: 'cloud', id: 'cloud-openstack-cinder-live', title: 'Live Lab: The Volume Outlives the Server', description: 'Real Cinder block storage on your own cloud project: create, attach, destroy the server, prove the volume survived to serve another', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-cinder-live.lab.html', tags: ['live', 'cinder', 'openstack', 'real-engine'], category: 'openstack' },
         // Taskboard #246 (2026-07-30): this review game was linked from the hub and live but
         // had NO catalog entry, invisible to catalog browsers and content audits. Same
         // components:['review'] pattern as code-devops-comprehensive-review.

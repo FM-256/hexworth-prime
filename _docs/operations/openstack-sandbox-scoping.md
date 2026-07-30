@@ -571,3 +571,34 @@ with `docker rm -f` (bypassing the destroy hook entirely), the pool held 5 app c
 rebuilds the sweep may never fire, so strays accumulate until things settle. That is not a code
 defect, but it means "no reconcile log lines" during active development proves nothing about the
 mechanism -- drive the endpoint directly to verify it.
+
+**Chris BLOCK on lab 1 -- "verbatim" was not verbatim.** After Nancy's PROCEED, Chris found that
+`walkthrough-cinder.js` inserted a poll between `server remove volume` and the evidence capture
+that the PAGE never instructed. Detach is asynchronous (we had hit the resulting HTTP 400
+ourselves during cleanup), so an honest student typing the page's two lines back to back could
+capture a mid-`detaching` volume and fail check 5. The harness had been proving its own safer
+sequence, not the lab. Fixed by putting the wait ON the page (better teaching anyway: async
+operations are a real cloud lesson), making the harness cite each page line it executes, and
+making it FAIL LOUDLY if the page's stated wait ever proves insufficient.
+
+**Then the corrected harness immediately found a third defect neither reviewer had:** a returning
+student's `lab-vol` still exists (persistence is the headline feature), so re-running step 1
+creates a SECOND volume with the same name and every later `openstack volume show lab-vol` dies
+with "More than one volume exists with the name 'lab-vol'". This would have hit every student on
+their second visit. Step 1 now opens with a list-and-clear, framed as the lesson it actually is:
+real cloud resources outlive your session and cleanup is part of the job.
+
+**Chris found the deeper version of the same thing on the next pass:** a SUCCESSFUL run leaves
+the volume in-use AND the server still running, and with a 1-instance quota that leftover server
+blocks the next run's `server create` outright. My "second run" testing had never seen that
+state, because the harness tears down on success -- it had only ever met debris from runs that
+CRASHED before cleanup. Both halves fixed: the page's clean-start step now clears the leftover
+SERVER as well as the volume (and says why: "your quota allows one instance at a time"), and the
+harness now runs the entire lab TWICE with no cleanup in between, so run 2 starts from exactly
+what a real returning student faces.
+
+**Pattern worth carrying to labs 2-8:** persistence changes what "start of lab" means. Every
+Stage 4 lab must state its own clean-start step covering EVERY resource type it creates, and its
+harness must exercise the second run starting from a COMPLETED first run -- a harness that
+cleans up on success can never see its own product's steady state unless you make it skip the
+teardown.
