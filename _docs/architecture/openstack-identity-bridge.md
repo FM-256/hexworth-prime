@@ -1,6 +1,36 @@
 # OpenStack Stage 3 -- Identity Bridge (scope)
 
-**Status:** SCOPE -- awaiting Nancy design pass, then Frank ruling on the open forks.
+**Status:** DESIGN RESOLVED (marathon 2026-07-30) -- Nancy design pass PROCEED-WITH-CONDITIONS;
+conditions incorporated below. Build authorized under Frank's marathon directive ("we are building
+the labs based on openstack"). One item flagged for Frank's eventual sign-off, not blocking:
+Fork F ships CLI-only first, deferring the Horizon half of his original "how will students log in"
+ask to its own future review (Nancy's rec, adopted).
+
+## RESOLUTIONS (marathon 2026-07-30, Nancy design pass)
+
+| Fork | Resolution |
+|---|---|
+| A (claim service) | ON bc2, tailnet-only bind + shared secret in bc2 0600 store mirrored in bc1 `.env`. **Plus Nancy's auth condition: bc1 forwards the student's Firebase ID TOKEN; bc2 verifies it against Google's public JWKS (aud = hexworth-prime) and enforces non-anonymous provider server-side.** Verification needs no Firebase credential. A leaked bc1 secret alone therefore mints nothing -- an attacker also needs a valid signed token for the target uid. |
+| B (credential type) | Application credentials ONLY, **restricted** (never `--unrestricted` -- Nancy concern 4: unrestricted creds can mint trusts/further creds, far wider than a 1-instance student needs). Created per session, deleted at teardown. No passwords exist in Stage 3 at all. |
+| C (pool/quota) | Pool 30, quota 1 instance / 1 core / 512MB (~7.05GB worst case). Headroom guard: claim service refuses new claims below a free-RAM floor so exhaustion reads "cloud is full", never a fake Nova "No valid host found". **Re-measure VM free RAM immediately before build (Nancy concern 6: the 13,306MB figure is a day old).** |
+| D (term reset) | Delete-and-recreate projects each term, announced. |
+| E (graded path) | Resolved-by-design now, not later (Nancy concern 3): uid->project resolution for future grading goes through the claim service's read-only `GET /slot/<uid>` (same auth), whose truth is Keystone itself -- see mapping below. |
+| F (Horizon) | CLI-only first. Horizon widening is its own future Nancy pass + Frank ruling. FLAGGED for Frank: confirm CLI-only satisfies the original ask for now. |
+
+**Sticky mapping -- Nancy killed both my options and the kill produced the design:** the mapping
+lives in **Keystone project properties** (`openstack project set --property hexworth_uid=<uid>
+student-NN`). It is exactly as durable as the project it describes, wiped atomically by the same
+term reset (Fork D), recovered by `project list --long`, and needs no new storage, no backup story,
+no Firebase credential on bc2. Firestore was rejected for the real reason (an admin-SDK credential
+cannot be meaningfully scoped to one collection -- it would widen bc2's blast radius into the
+platform's data layer), local SQLite for Nancy's reason (unverified durability, silent Fork E
+dependency).
+
+**Preconditions to verify ON-BOX before build** (Nancy, all six): (1) server.js uid label +
+cleanupOrphans shape unchanged after today's two patches; (2) image's openstacksdk accepts
+`auth_type: v3applicationcredential`; (3) Keystone admin can list/delete OTHER users' app creds;
+(4) DELETE on a nonexistent app-cred ID is 404-tolerant for the reconciler; (5) claim service runs
+under systemd `Restart=always`; (6) re-measure VM free RAM.
 **Origin:** Frank 2026-07-29, after driving Stage 2b's Horizon login: *"how will the students log
 in? we need to automate that. generating temporary passwords... so that if they generate a cloud
 instance it lives with the openstack also."* Prereqs SHIPPED: Stage 1 (cloud), Stage 2a (read-only

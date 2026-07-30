@@ -201,6 +201,57 @@
         .field-guide__text span { color: var(--text-secondary); font-size: 0.86rem; line-height: 1.45; }
         .field-guide__links { display: flex; gap: 8px; flex-wrap: wrap; }
 
+        /* Lab monitor. The two graded checks live ONLY in the bc1 lab-manager
+           (SANDBOX_CHALLENGES['openstack-cli']), and the container motd says just
+           "save findings under ~/notes/" without naming either file -- so before this
+           panel existed the objectives were literally unguessable. Mirrors the Linux
+           sandbox pattern: objectives visible up front, grading reachable at the
+           terminal. Keep the required paths/strings in lockstep with server.js. */
+        .lab-monitor {
+            background: linear-gradient(180deg, rgba(14,165,233,0.07), rgba(8,15,30,0.5));
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--cloud-primary);
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin: 0 0 16px;
+        }
+        .lab-monitor__head {
+            display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+            margin-bottom: 4px;
+        }
+        .lab-monitor__head strong { color: var(--cloud-accent); letter-spacing: 0.04em; }
+        .lab-monitor__count { color: var(--text-secondary); font-size: 0.82rem; }
+        .lab-monitor__sub { color: var(--text-secondary); font-size: 0.85rem; line-height: 1.5; margin-bottom: 12px; }
+        .lab-monitor__list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+        .lab-monitor__list li {
+            display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+            padding: 10px 12px;
+            background: rgba(6, 11, 20, 0.55);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+        .lab-monitor__mark { width: 18px; height: 18px; }
+        /* Status is carried by an icon + text, never colour alone (a red/green-only
+           checklist is unreadable to colour-blind students). */
+        .lab-monitor__list li.pass { border-color: rgba(34, 197, 94, 0.45); }
+        .lab-monitor__list li.fail { border-color: rgba(14, 165, 233, 0.28); }
+        .lab-monitor__task { color: var(--text-primary); font-size: 0.9rem; line-height: 1.45; }
+        .lab-monitor__how { color: var(--text-secondary); font-size: 0.82rem; margin-top: 5px; }
+        .lab-monitor__how code {
+            background: rgba(14, 165, 233, 0.1);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.86em;
+            color: var(--cloud-accent);
+            white-space: nowrap;
+        }
+        .lab-monitor__state { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .lab-monitor__state.pass { color: var(--success); }
+        .lab-monitor__state.fail { color: var(--text-secondary); }
+        .lab-monitor__msg { color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px; }
+        .lab-monitor__msg.done { color: var(--success); font-weight: 600; }
+
         .module-links {
             display: flex;
             gap: 8px;
@@ -393,6 +444,35 @@
         infrastructure: a telescope, not a bulldozer. List anything, change nothing.</p>
         <p style="color: var(--text-secondary); font-size: 0.9rem; margin: 10px 0 15px;">
         Shared platform pool (40 concurrent, 2 per operator, 120 min); graded lab work has priority.</p>
+        <div class="lab-monitor" id="openstack-monitor">
+            <div class="lab-monitor__head">
+                <strong>Lab Objectives</strong>
+                <span class="lab-monitor__count" id="openstack-monitor-count">2 checks &middot; graded on the server</span>
+            </div>
+            <p class="lab-monitor__sub">Both checks read the real files in your container, so there is nothing to
+            self-report and nothing to fake. Launch the terminal, do the work, then press <strong>Check My
+            Work</strong> above the terminal.</p>
+            <ul class="lab-monitor__list" id="openstack-monitor-list">
+                <li class="fail" data-check="1">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">Save the cloud's server list to <code>~/notes/servers.txt</code>, and it must contain <code>demo-instance</code>.</div>
+                        <div class="lab-monitor__how">Try: <code>mkdir -p ~/notes &amp;&amp; openstack server list &gt; ~/notes/servers.txt</code></div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="2">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">Save the flavor list to <code>~/notes/flavors.txt</code>, and it must contain <code>m1.nano</code>.</div>
+                        <div class="lab-monitor__how">Try: <code>openstack flavor list &gt; ~/notes/flavors.txt</code></div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+            </ul>
+            <div class="lab-monitor__msg" id="openstack-monitor-msg"></div>
+        </div>
+
         <div id="openstack-cli-launcher"></div>
 
         <!-- Field guide: generated from _docs/handouts/openstack-cli-cheatsheet.md by
@@ -494,8 +574,137 @@
     <script>
         // Stage 2a: stock launcher plumbing only -- the same renderButton every
         // sandbox lab uses; this page adds zero launch logic of its own.
+        //
+        // 2026-07-30 lab monitor: extraActions mirror the Linux sandbox callsite
+        // (houses/observatory/index.html:1709) so the field guide and grading are reachable
+        // WITHOUT scrolling away from the terminal. Before this, the launcher had zero
+        // extraActions and the Field Guide card sat below the iframe -- off-screen the moment
+        // the terminal opened -- while the two graded checks were named nowhere on the page.
         if (typeof SandboxLauncher !== 'undefined') {
-            SandboxLauncher.renderButton(document.getElementById('openstack-cli-launcher'), 'openstack-cli');
+            // Repaint the objectives list from a server grade result. Server-controlled
+            // strings are never written as markup; only our own static copy is.
+            function paintMonitor(results) {
+                var list = document.getElementById('openstack-monitor-list');
+                if (!list) return 0;
+                var passed = 0;
+                Array.prototype.forEach.call(list.querySelectorAll('li[data-check]'), function (li) {
+                    var id = parseInt(li.getAttribute('data-check'), 10);
+                    // Number() coercion (Nancy 2026-07-30): server challenge ids are numeric today,
+                    // but a string-id refactor upstream would otherwise silently strand every
+                    // student at "Not yet" forever -- the harness-null-is-not-a-pass shape.
+                    var hit = (results || []).filter(function (r) { return r && Number(r.id) === id; })[0];
+                    var ok = !!(hit && hit.pass);
+                    if (ok) passed++;
+                    li.className = ok ? 'pass' : 'fail';
+                    var mark = li.querySelector('.lab-monitor__mark');
+                    if (mark) mark.src = ok
+                        ? '/assets/images/icons/icon-check.webp'
+                        : '/assets/images/icons/icon-checkbox.webp';
+                    var st = li.querySelector('[data-state]');
+                    if (st) {
+                        st.className = 'lab-monitor__state ' + (ok ? 'pass' : 'fail');
+                        st.textContent = ok ? 'Complete' : 'Not yet';
+                    }
+                });
+                return passed;
+            }
+
+            var checkBusy = false; // latch: rapid re-clicks race responses out of order (Nancy #4)
+            async function checkMyWork(ctx) {
+                var msg = document.getElementById('openstack-monitor-msg');
+                var sid = ctx && ctx.sessionId;
+                if (!msg) return;
+                // Reveal the terminal-adjacent panel on EVERY path, not just success (Nancy
+                // condition, mirroring gradeMissionCompact): the student is at the terminal,
+                // scrolled past the objectives card -- silence there is the exact failure
+                // this feature exists to fix.
+                if (ctx.panel) ctx.panel.style.display = '';
+                if (!sid) {
+                    msg.className = 'lab-monitor__msg';
+                    msg.textContent = 'Launch the terminal first, then check your work.';
+                    if (ctx.panel) ctx.panel.textContent = 'Launch the terminal first, then check your work.';
+                    return;
+                }
+                if (checkBusy) {
+                    // BOTH surfaces, like every other path (Chris block #1: the busy branch
+                    // wrote only to the panel, leaving the objectives card silent).
+                    msg.className = 'lab-monitor__msg';
+                    msg.textContent = 'Still checking your last request, one moment.';
+                    if (ctx.panel) ctx.panel.textContent = 'Still checking your last request, one moment.';
+                    return;
+                }
+                checkBusy = true;
+                msg.className = 'lab-monitor__msg';
+                msg.textContent = 'Reading the real files in your container...';
+                if (ctx.panel) ctx.panel.textContent = 'Reading the real files in your container...';
+                try {
+                    var r = await SandboxLauncher.checkPractice(sid);
+                    var results = (r && r.results) || [];
+                    var passed = paintMonitor(results);
+                    var total = results.length || 2;
+                    if (passed === total) {
+                        msg.className = 'lab-monitor__msg done';
+                        msg.textContent = passed + ' / ' + total + ' complete. Both files verified on the server.';
+                    } else {
+                        msg.className = 'lab-monitor__msg';
+                        msg.textContent = passed + ' / ' + total + ' complete. Run the command shown on each '
+                            + 'unfinished objective, then check again.';
+                    }
+                    // Mirror the grade into the launcher's own panel so the answer is visible
+                    // right at the terminal, not only up in the objectives card.
+                    if (ctx.panel) {
+                        ctx.panel.style.display = '';
+                        ctx.panel.textContent = passed + ' / ' + total + ' objectives complete'
+                            + (passed === total ? ' -- lab complete.' : ' -- details in Lab Objectives above.');
+                    }
+                } catch (e) {
+                    msg.className = 'lab-monitor__msg';
+                    msg.textContent = 'Could not check right now. Make sure your terminal is still running, then try again.';
+                    if (ctx.panel) ctx.panel.textContent = 'Could not check right now. Make sure your terminal is still running, then try again.';
+                } finally {
+                    checkBusy = false;
+                }
+            }
+
+            // Reset the objectives card to its ungraded state. Called on session end AND on
+            // fresh launch (Chris block #2): a completed card surviving a destroy would show
+            // green "Complete" against a brand-new container that has no ~/notes files yet --
+            // a grade that is not current server state. Mirrors observatory's onEnd retire
+            // pattern (observatory/index.html:1752).
+            function resetMonitor(note) {
+                var list = document.getElementById('openstack-monitor-list');
+                if (list) {
+                    Array.prototype.forEach.call(list.querySelectorAll('li[data-check]'), function (li) {
+                        li.className = 'fail';
+                        var mark = li.querySelector('.lab-monitor__mark');
+                        if (mark) mark.src = '/assets/images/icons/icon-checkbox.webp';
+                        var st = li.querySelector('[data-state]');
+                        if (st) { st.className = 'lab-monitor__state fail'; st.textContent = 'Not yet'; }
+                    });
+                }
+                var msg = document.getElementById('openstack-monitor-msg');
+                if (msg) { msg.className = 'lab-monitor__msg'; msg.textContent = note || ''; }
+            }
+
+            SandboxLauncher.renderButton(document.getElementById('openstack-cli-launcher'), 'openstack-cli', {
+                onLaunch: function () {
+                    resetMonitor('Fresh container started. Objectives reset; your files start empty.');
+                },
+                onEnd: function () {
+                    resetMonitor('Session ended. Launch again to keep working; objectives reset with the container.');
+                },
+                extraActions: [
+                    {
+                        label: 'Field Guide',
+                        visibleWhen: 'always',
+                        onClick: function () {
+                            // Named target: repeat clicks re-navigate ONE tab instead of stacking.
+                            window.open('handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide');
+                        }
+                    },
+                    { label: 'Check My Work', visibleWhen: 'running', onClick: checkMyWork }
+                ]
+            });
         }
     </script>
 </body>

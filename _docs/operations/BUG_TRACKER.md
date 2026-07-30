@@ -31,6 +31,31 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-052 — openstack-cli lab unpassable: grader checked a path the image does not have  ·  [P1]  ·  resolved
+- **Found:** 2026-07-30 · by user ("the openstack sandbox seems a lil confused") + self during monitor build
+- **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js` SANDBOX_CHALLENGES['openstack-cli'] (~line 208)
+- **Symptom:** a student who followed the container motd exactly ("Save findings under ~/notes/")
+  could NEVER pass either check — max score forever 0/2. The lab shipped 2026-07-29 unpassable.
+- **Repro:** in the container, `openstack server list > ~/notes/servers.txt` (per motd) → check →
+  FAIL, because the grader looked at `/home/student/work/notes/servers.txt`.
+- **Root cause:** the check `cmd`s used `${STU}/notes/...` where `STU='/home/student/work'` — the
+  LINUX-sandbox convention copy-pasted. The openstack-cli image has `HOME=/home/student`, no
+  `work/` dir at all, and pre-creates `/home/student/notes/`. The `desc` strings ("~/notes/...")
+  and motd were right; only the cmds were wrong. Grader-vs-instructions drift = exactly the
+  hint-vs-validator class from lm-34.
+- **Fix:** bc1 server.js — both cmds now check `/home/student/notes/...` (host copy edited with
+  archived backup `_archive/server.js.pre-openstack-notes-fix.*`, `node --check` PASS, targeted
+  `docker compose build lab-manager && up -d`; 0 active sessions at restart).
+- **Verified:** live 2026-07-30 ~05:50: health `{"status":"ok"}`; fresh container performing ONLY
+  the motd instructions then graded with the new cmds verbatim → CHECK 1 PASS, CHECK 2 PASS. Also
+  verified the targets exist as the real student credential (student-view @ demo-readonly):
+  `demo-instance` listed, `m1.nano` present.
+- **Related:** false alarm during the same session ("demo-instance does not exist") was a
+  wrong-project probe (`demo` vs `demo-readonly`) — the instance was always there. Client-side
+  companion: the hub page's new Lab Objectives monitor (uncommitted at fix time) names both
+  requirements, which is how the drift was caught. Add a lockstep note: page hints ↔ server cmds ↔
+  image motd must move together.
+
 ### CAPACITY SPLIT -- 28 lab / 12 free-play enforced on the 40-slot pool  ·  config  ·  LIVE 2026-07-30
 - **Ruled by Frank 2026-07-30:** "12 graded free-play, 28 for the labs". Read as free-play capped
   at 12 so lab/course work always has >=28 of the 40-slot pool; ambiguity flagged to him explicitly
