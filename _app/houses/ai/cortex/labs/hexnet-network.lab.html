@@ -99,14 +99,25 @@ var ENGINE = [
 ].join('\n');
 
 /* Functional gate: trains the learner's OWN network on a target drawn fresh each
-   run, so memorised weights cannot pass. Loss must actually fall. */
+   run, so memorised weights cannot pass. Loss must actually fall.
+
+   THESE NUMBERS ARE MEASURED, NOT CHOSEN (Chris, 2026-07-30). The first version
+   (steps=80, lr=0.05, threshold 0.25) failed a genuinely CORRECT build on 3.7% of
+   runs -- and told that learner "the network is not learning", which is a false
+   diagnosis of their own correct work. My QC ran it once and called that proof;
+   Chris ran it 300 times. Measured false-fail rate for a correct build over 300
+   trials per config: 80/0.05/0.25 -> 3.7%, 150/0.05/0.25 -> 2.0%, 150/0.1/0.25 ->
+   1.0%, 200/0.1/0.25 -> 0.3%, and 200/0.1/0.5 -> 0.0%. Shipping the last one.
+   A non-learning network is still rejected: its loss does not move, so it cannot
+   satisfy end < start * 0.5. qc-hexnet.sh now stress-tests this every run --
+   retuning it without re-running that stress test is how the flake comes back. */
 var TRAINCHECK = [
     '',
     '# ─────────────────────────────────────────────────────────────────────',
     '# TRAINING CHECK — the target is random every run. A network that does not',
     '# genuinely learn cannot pass this, and neither can memorised weights.',
     '# ─────────────────────────────────────────────────────────────────────',
-    'def traincheck(steps=80, lr=0.05):',
+    'def traincheck(steps=200, lr=0.1):',
     '    xs = [[random.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
     '    ys = [random.choice([-1.0, 1.0]) for _ in range(4)]',
     '    net = MLP(3, [4, 4, 1])',
@@ -122,10 +133,10 @@ var TRAINCHECK = [
     '            p.data -= lr * p.grad',
     '    end = total_loss().data',
     '    print(f"TRAINCHECK start={start:.4f} end={end:.4f} params={len(net.parameters())}")',
-    '    if end < start * 0.25:',
+    '    if end < start * 0.5:',
     '        print("TRAINCHECK PASS")',
     '    else:',
-    '        print("TRAINCHECK FAIL - the loss did not fall far enough. The network is not learning.")',
+    '        print("TRAINCHECK FAIL - the loss did not fall far enough. Check the four steps of your loop: forward, zero, backward, nudge AGAINST the gradient.")',
     '',
     'traincheck()'
 ].join('\n');
@@ -287,12 +298,13 @@ PythonSandbox.init({
                 { name : 'Network returns a single Value (not a list)',
                   check: function(out) { return /out:\s*Value\(/.test(out); } },
                 { name : 'MLP(3,[4,4,1]) has exactly 41 parameters',
-                  check: function(out) { return /params:\s*41\b/.test(out); } },
-                { name : 'Layers are composed, not hardcoded',
-                  check: function(out, code) {
-                      return /class\s+Layer/.test(code) && /class\s+MLP/.test(code)
-                          && /self\.neurons/.test(code);
-                  } }
+                  check: function(out) { return /params:\s*41\b/.test(out); } }
+                /* REMOVED (Chris, 2026-07-30): a structural check on `self.neurons` was a
+                   mandatory gate that added nothing -- the 41-parameter count and the
+                   single-Value output already fail any incorrectly composed network -- while
+                   it could reject a correct learner who names the attribute differently.
+                   The rule is: where a functional check exists, it wins outright. I stated
+                   that rule at the top of this file and then broke it here. */
             ]
         },
 
@@ -482,10 +494,10 @@ PythonSandbox.init({
             ],
             testInputs  : [],
             tests       : [
-                { name : 'Zeroing is conditional, so you can run it both ways',
-                  check: function(out, code) {
-                      return /if\s+zero_grads/.test(code) && /\.grad\s*=\s*0/.test(code);
-                  } },
+                /* REMOVED (Chris, 2026-07-30): requiring the literal `if zero_grads`
+                   rejected a correct learner who factors the zeroing into a helper, and
+                   added no detection -- an unconditional-zero build forces leaked=8/8 and
+                   fails VERDICT, a never-zero build fails zeroed=8/8. Functional wins. */
                 { /* Functional and measured to hold 12/12 trials: correct training converged
                      8/8 every time, leaking never beat 7/8. No structural regex ANDed in. */
                   name : 'Correct training converged from all 8 starting points',

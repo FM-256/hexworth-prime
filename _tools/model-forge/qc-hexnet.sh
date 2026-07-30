@@ -96,6 +96,35 @@ exec(open('$W/engine.py').read()); exec(open('$W/net.py').read())
 n = len(MLP(3,[4,4,1]).parameters())
 print(f'  param count MLP(3,[4,4,1]) = {n} (page claims 41)')
 raise SystemExit(0 if n == 41 else 1)" || { echo "GATE FAILED: the page's parameter count is wrong."; rm -rf "$W"; exit 1; }
+# TRAINCHECK must not be FLAKY. Chris found the original config failing a correct build
+# on 5.3% of runs while my gate ran it exactly once and called that proof. A gate that
+# intermittently fails honest learners is worse than no gate, so its false-fail rate is
+# now measured every time this script runs.
+cat > "$W/flake.py" <<'PY'
+def once(steps=200, lr=0.1, thresh=0.5):
+    xs = [[random.uniform(-1,1) for _ in range(3)] for _ in range(4)]
+    ys = [random.choice([-1.0,1.0]) for _ in range(4)]
+    net = MLP(3,[4,4,1])
+    def total(): return sum(((net(x)-y)**2 for x,y in zip(xs,ys)), Value(0.0))
+    start = total().data
+    for _ in range(steps):
+        loss = total()
+        for p in net.parameters(): p.grad = 0.0
+        loss.backward()
+        for p in net.parameters(): p.data -= lr*p.grad
+    return total().data < start*thresh
+random.seed(999)
+N = 60
+fails = sum(0 if once() else 1 for _ in range(N))
+print(f"  TRAINCHECK false-fail for a CORRECT build: {fails}/{N}")
+raise SystemExit(0 if fails == 0 else 1)
+PY
+cat "$W/engine.py" "$W/net.py" "$W/flake.py" > "$W/flake_full.py"
+if ! python3 "$W/flake_full.py"; then
+  echo "GATE FAILED: TRAINCHECK is flaky -- it would fail honest learners at random."
+  rm -rf "$W"; exit 1
+fi
+
 # Challenge 4's graded claim must actually hold: correct training converges 8/8 and
 # leaking training converges strictly less often. This is a REGRESSION TEST for a real
 # mistake -- the first version of challenge 4 asserted "leaking is worse", which failed
