@@ -183,12 +183,34 @@ elif abs(float(m.group(1)) - pu / pb) > 0.06: bad.append(f"page says {m.group(1)
 random.seed(4242)
 def share_at(t, trials=8):
     return sum(real_pair_share(generate(300, t)) for _ in range(trials)) / trials
-for temp, claim in re.findall(r"temp (\d+\.\d+) &rarr; ([\d.]+)% real pairs", rendered):
+# Nancy, 2026-07-30: this loop had NO "cannot find" guard, unlike the four checks
+# above. She reworded the rendered temperature lines away from the pattern and the
+# whole temperature verification silently disabled itself -- zero matches, no output,
+# clean exit 0. A check that quietly checks nothing is worse than no check, because
+# it reads as coverage. It now fails if the claims cannot be found.
+found = re.findall(r"temp (\d+\.\d+) &rarr; ([\d.]+)% real pairs", rendered)
+if len(found) < 3:
+    bad.append(f"expected 3 rendered temperature claims, found {len(found)} -- "
+               f"either the wording drifted or the check is no longer checking anything")
+for temp, claim in found:
     got = share_at(float(temp)) * 100
     if abs(got - float(claim)) > 6:
         bad.append(f"page says temp {temp} -> {claim}% real pairs, measured {got:.1f}%")
     else:
         print(f"  temp {temp}: page claims {claim}% real pairs, measured {got:.1f}%")
+
+# She also found that the dev-comment table states FIVE temperatures while only three
+# are rendered and checked, leaving 0.5 and 2.0 structurally unverifiable. The comment
+# is a record of measurement, so it gets held to the same standard as the page.
+rec = re.search(r"real pairs\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%", page)
+if not rec:
+    bad.append("the doctrine comment's temperature record is missing or reworded")
+else:
+    for temp, claim in zip([0.2, 0.5, 1.0, 2.0, 5.0], rec.groups()):
+        got = share_at(temp) * 100
+        if abs(got - float(claim)) > 6:
+            bad.append(f"comment records temp {temp} -> {claim}%, measured {got:.1f}%")
+    print(f"  doctrine comment's 5-temperature record verified against fresh execution")
 
 print(f"  vocabulary {V}; uniform {pu:.2f} (= vocab size); bigram {pb:.2f}; {pu/pb:.2f}x")
 if bad:
