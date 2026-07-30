@@ -674,3 +674,38 @@ troubleshooting" on the original eight-lab list into something that can actually
 Grader checks 7-9 are deployed on bc1 but NO page references them, so they are inert. Harnesses
 `walkthrough-wall.js` / `adversarial-wall.js` are committed as the executable record of this
 finding; if option 2 or 3 is chosen they are the starting point, not wasted work.
+
+### Seed engine SHIPPED 2026-07-30 -- and the design that makes repair-grading unbeatable
+
+`POST /seed {slot, scenario}` on the bc2 claim service, live and verified (seeded
+student-25 with real ids; re-seed correctly returned `seeded:false already present`;
+resulting state `ghost-srv ACTIVE` + `orphan-vol in-use`, quota fully consumed). Runs as the
+POOL USER, never admin, so a seed can only ever create what the student could create.
+
+**The remaining wiring, and the one decision that matters.** A repair check must prove the
+student SAVED the seeded resource rather than deleting it and making a same-named replacement.
+Comparing names cannot do that; comparing ids can -- but the check runs inside the container and
+does not know the seeded id.
+
+**Answer: pass the seeded id as a container ENV VAR at launch** (`SEED_VOL_ID=<uuid>`). A student
+cannot alter a running container's env, and `docker exec` inherits the container's config, so
+`execCheck` reads a value the student cannot forge. The repair check then becomes:
+
+    test "$(openstack volume show orphan-vol -f value -c id)" = "$SEED_VOL_ID" \
+      && volume is in-use \
+      && attached server is NOT ghost-srv \
+      && ghost-srv no longer exists
+
+Delete-and-recreate produces a different id and fails. That is a genuinely unbeatable
+troubleshooting check -- the thing lab 2 could not have.
+
+**Concrete remaining steps (mechanical, each needs its own QC):**
+1. Page passes `scenario` through `renderButton` -> `SandboxLauncher.launch` -> launch body.
+2. lab-manager: on a scenario launch, call `/seed`, then set `SEED_VOL_ID` in the container Env
+   (alongside the existing `hexworth.oscred` label pattern) before start.
+3. Grader checks 10-12 for the repair, using `$SEED_VOL_ID`.
+4. Page + BOTH harnesses (walkthrough honest path, adversarial: same-name recreate MUST fail).
+5. Nancy + Chris.
+
+Stopped here deliberately: the engine is proven and committed, and the rest is a client+server
+change that deserves a full QC pass rather than a rushed one at the end of a long session.
