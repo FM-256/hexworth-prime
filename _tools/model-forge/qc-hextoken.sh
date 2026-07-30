@@ -100,6 +100,18 @@ python3 - "$LAB" <<'PY2' || { echo "GATE FAILED: the page's honesty text drifted
 import re, sys
 page = open(sys.argv[1]).read()
 
+# Chris, 2026-07-30: v1 of this check grepped the WHOLE FILE, so the doctrine comment's
+# own "NOT tamper-proof" satisfied it even after the phrase was deleted from the text
+# students actually see -- a false PASS on the exact regression this phase exists to
+# catch. Extract the rendered CEILING string and check ONLY that. Same lesson this spine
+# keeps re-learning: check what ships, not a proxy for it.
+_m = re.search(r"var CEILING\s*=(.*?);\s*\n", page, re.S)
+if not _m:
+    print("  FAIL: cannot locate the CEILING string to check"); raise SystemExit(1)
+ceiling = "".join(re.findall(r"'((?:[^'\\]|\\.)*)'", _m.group(1)))
+if len(ceiling) < 80:
+    print(f"  FAIL: extracted CEILING looks wrong ({len(ceiling)} chars)"); raise SystemExit(1)
+
 # Grading matches stdout, so a literal print always satisfies an output check. Nancy
 # demonstrated it: five print statements passed all four challenges. That cannot be
 # fixed client-side, so this gate does not try. It enforces DISCLOSURE instead.
@@ -117,9 +129,10 @@ if bad:
 
 # CEILING must keep stating the real limit.
 needed = ["we grade what your code prints", "not tamper-proof"]
-missing = [n for n in needed if n.lower() not in page.lower()]
+missing = [n for n in needed if n.lower() not in ceiling.lower()]
 if missing:
-    print(f"  FAIL: CEILING no longer discloses the limit; missing {missing}"); raise SystemExit(1)
+    print(f"  FAIL: rendered CEILING no longer discloses the limit; missing {missing}")
+    raise SystemExit(1)
 print("  page discloses the ceiling honestly and claims no defense it cannot enforce")
 PY2
 
