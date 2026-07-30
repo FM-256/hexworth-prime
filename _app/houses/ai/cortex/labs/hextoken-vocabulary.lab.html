@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexToken: Language Becomes Numbers - The Cortex - House of AI</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PythonSandbox.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a12; }
+        #sandbox-root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="sandbox-root"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   HexToken — Gate 4 of the AI Model Forge. Third module of the build spine.
+   Prerequisite: HexNet (a network that learns from numbers).
+
+   WHY THIS GATE EXISTS HERE: after Gate 3 the learner has a network that eats
+   numbers and learns. Language is not numbers. Everything in Gates 5-8 depends
+   on a decision made here -- how text becomes integers -- and that decision has
+   consequences the learner can measure rather than be told.
+
+   DOCTRINE (inherited, applied from the start):
+   - Functional gates wherever possible; structural checks only where none exist.
+   - Every claim on the page is measured before it is written. Gate 3 taught this
+     the hard way: received wisdom failed on 18/20 seeds.
+   - Client-side ceiling stated in rendered instructions, not a comment.
+   - Round-trip and vocabulary checks use text randomised per run, so a
+     hardcoded mapping cannot pass.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var CEILING =
+    '<br><br><span style="color:#a78bfa">How this lab is graded, plainly:</span> your code runs ' +
+    'in <em>your own browser</em>, so these checks are not tamper-proof and this lab does not ' +
+    'pretend otherwise. What they enforce is that shortcuts fail: the round-trip check encodes ' +
+    'and decodes text generated fresh every run, so a hardcoded lookup table cannot pass it.';
+
+/* Functional gate: a tokenizer is correct iff decode(encode(s)) == s for text it
+   has never seen. Randomised each run so a memorised mapping cannot satisfy it. */
+var ROUNDTRIP = [
+    '',
+    '# ─────────────────────────────────────────────────────────────────────',
+    '# ROUND-TRIP CHECK — the test strings are built fresh every run from the',
+    '# characters your vocabulary actually contains. A tokenizer is correct if',
+    '# and only if decoding its own output returns the original text exactly.',
+    '# ─────────────────────────────────────────────────────────────────────',
+    'import random as _r',
+    '',
+    'def roundtrip(tok, n=8):',
+    '    alphabet = sorted(tok.stoi.keys())',
+    '    ok = 0',
+    '    for _ in range(n):',
+    '        s = "".join(_r.choice(alphabet) for _ in range(_r.randint(4, 24)))',
+    '        ids = tok.encode(s)',
+    '        back = tok.decode(ids)',
+    '        if back == s and all(isinstance(i, int) for i in ids) and len(ids) == len(s):',
+    '            ok += 1',
+    '        else:',
+    '            print(f"  BROKEN {s!r} -> {ids} -> {back!r}")',
+    '    print(f"ROUNDTRIP {ok}/{n} vocab={len(tok.stoi)}")',
+    '    if ok == n:',
+    '        print("ROUNDTRIP PASS")',
+    '    else:',
+    '        print("ROUNDTRIP FAIL - encode and decode are not inverses of each other.")',
+    ''
+].join('\n');
+
+PythonSandbox.init({
+    containerId : 'sandbox-root',
+    title       : 'HexToken — Language Becomes Numbers',
+    moduleId    : 'hextoken-vocabulary',
+    houseId     : 'ai',
+    returnUrl   : '../index.html',
+
+    challenges: [
+
+        /* ── 1. The vocabulary ─────────────────────────────────────────── */
+        {
+            id          : 'hextoken-vocab',
+            title       : 'The Vocabulary',
+            desc        : 'Every symbol the model can ever see or say.',
+            difficulty  : 'easy',
+            xp          : 25,
+            parTime     : 420,
+            instructions:
+                '<strong>Your network eats numbers. Language is not numbers.</strong><br><br>' +
+                'Bridging that is the entire job of a tokenizer, and the bridge starts with a ' +
+                'decision: what counts as one unit of text?<br><br>' +
+                'The simplest answer is one character. Collect every distinct character in your ' +
+                'corpus, sort them so the mapping is <em>deterministic</em>, and number them ' +
+                'from zero.<br><br>' +
+                'Sorting matters more than it looks. If the vocabulary order depended on the ' +
+                'order characters happened to appear, two runs over the same text could produce ' +
+                'different id assignments &mdash; and every trained weight would be attached to ' +
+                'the wrong symbol.<br><br>' +
+                'Build <code>stoi</code> (string to integer) and <code>itos</code> (its exact ' +
+                'inverse). This is the whole vocabulary: a pair of dictionaries that must never ' +
+                'disagree.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                'CORPUS = "the quick brown fox jumps over the lazy dog"\n\n' +
+                'class CharTokenizer:\n' +
+                '    def __init__(self, text):\n' +
+                '        # TODO: every DISTINCT character, in SORTED order\n' +
+                '        chars = []\n' +
+                '        # TODO: stoi maps character -> index, itos is the exact inverse\n' +
+                '        self.stoi = {}\n' +
+                '        self.itos = {}\n\n' +
+                '    def vocab_size(self):\n' +
+                '        return len(self.stoi)\n\n\n' +
+                'tok = CharTokenizer(CORPUS)\n' +
+                'if not tok.stoi:\n' +
+                '    print("stoi is empty -- build the sorted character list first.")\n' +
+                'else:\n' +
+                '    print("vocab size:", tok.vocab_size())\n' +
+                '    print("first five:", sorted(tok.stoi.items())[:5])\n' +
+                '    inverse_ok = all(tok.itos[i] == c for c, i in tok.stoi.items())\n' +
+                '    print("inverse consistent:", inverse_ok)\n' +
+                '    print("deterministic:", list(tok.stoi.keys()) == sorted(tok.stoi.keys()))\n',
+            hints       : [
+                'chars = sorted(set(text))',
+                'self.stoi = {c: i for i, c in enumerate(chars)}',
+                'self.itos = {i: c for c, i in self.stoi.items()}',
+                'The corpus has 27 distinct characters: 26 letters plus the space.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Vocabulary is built from distinct characters (27 here)',
+                  check: function(out) { return /vocab size:\s*27\b/.test(out); } },
+                { name : 'itos is the exact inverse of stoi',
+                  check: function(out) { return /inverse consistent:\s*True/.test(out); } },
+                { name : 'Ordering is deterministic (sorted, not first-seen)',
+                  check: function(out) { return /deterministic:\s*True/.test(out); } }
+            ]
+        },
+
+        /* ── 2. Encode and decode ──────────────────────────────────────── */
+        {
+            id          : 'hextoken-codec',
+            title       : 'Encode and Decode',
+            desc        : 'Text to ids and back, losslessly.',
+            difficulty  : 'medium',
+            xp          : 30,
+            parTime     : 480,
+            instructions:
+                '<strong>A tokenizer is only correct if it is reversible.</strong><br><br>' +
+                '<code>encode</code> turns text into a list of integers. <code>decode</code> ' +
+                'turns that list back into exactly the original text. If those two are not ' +
+                'perfect inverses, your model is training on one thing and speaking another, ' +
+                'and no amount of training will fix it.<br><br>' +
+                'That property has a name worth knowing: a <strong>round trip</strong>. It is ' +
+                'the single most useful test for any encoder you ever write, in any domain.<br><br>' +
+                'The check below builds random strings from your own vocabulary and requires ' +
+                '<code>decode(encode(s)) == s</code> every time. It also requires one id per ' +
+                'character, which is what makes this a <em>character</em> tokenizer rather than ' +
+                'something cleverer.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                'CORPUS = "the quick brown fox jumps over the lazy dog"\n\n' +
+                'class CharTokenizer:\n' +
+                '    def __init__(self, text):\n' +
+                '        chars = sorted(set(text))\n' +
+                '        self.stoi = {c: i for i, c in enumerate(chars)}\n' +
+                '        self.itos = {i: c for c, i in self.stoi.items()}\n\n' +
+                '    def vocab_size(self):\n' +
+                '        return len(self.stoi)\n\n' +
+                '    def encode(self, s):\n' +
+                '        # TODO: one integer per character\n' +
+                '        return []\n\n' +
+                '    def decode(self, ids):\n' +
+                '        # TODO: rebuild the exact original string\n' +
+                '        return ""\n\n\n' +
+                'tok = CharTokenizer(CORPUS)\n' +
+                'sample = "the lazy fox"\n' +
+                'ids = tok.encode(sample)\n' +
+                'print("ids:", ids)\n' +
+                'print("back:", repr(tok.decode(ids)))\n' +
+                'print("lossless:", tok.decode(ids) == sample)\n' +
+                '\n' +
+                ROUNDTRIP + '\n' +
+                'roundtrip(tok)\n',
+            hints       : [
+                'encode: return [self.stoi[c] for c in s]',
+                'decode: return "".join(self.itos[i] for i in ids)',
+                'If decode returns a list instead of a string, join it.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { /* Functional gate. No structural regex ANDed in: the round trip on
+                     randomised text is strictly stronger than any pattern match. */
+                  name : 'ROUNDTRIP passes on strings randomised this run',
+                  check: function(out) { return /ROUNDTRIP PASS/.test(out); } },
+                { name : 'A visible example round-trips losslessly',
+                  check: function(out) { return /lossless:\s*True/.test(out); } },
+                { name : 'One id per character (this is a character tokenizer)',
+                  check: function(out) { return /ROUNDTRIP\s+8\/8\s+vocab=27/.test(out); } }
+            ]
+        },
+
+        /* ── 3. Measure the cost of the choice ─────────────────────────── */
+        {
+            id          : 'hextoken-tradeoff',
+            title       : 'What the Choice Costs',
+            desc        : 'Characters or words? Measure it, do not guess.',
+            difficulty  : 'medium',
+            xp          : 35,
+            parTime     : 600,
+            instructions:
+                '<strong>Now measure what your decision bought and what it cost.</strong><br><br>' +
+                'A character tokenizer has a tiny vocabulary and can spell anything it has ever ' +
+                'seen a letter of &mdash; it never meets a word it cannot represent. The price ' +
+                'is length: every sequence is as long as the text itself, and since attention ' +
+                'cost grows with the square of sequence length, long sequences are expensive.' +
+                '<br><br>' +
+                'A word tokenizer produces short sequences, but its vocabulary explodes and any ' +
+                'word it never saw becomes an unknown token &mdash; information destroyed before ' +
+                'the model gets a chance.<br><br>' +
+                'Build both and print the numbers. Then look at the unknown-word rate on held-out ' +
+                'text, because that number is the one people forget until their model meets the ' +
+                'real world.<br><br>' +
+                '<em>Every tokenizer in production is an attempt to buy the word tokenizer\'s ' +
+                'short sequences without paying its unknown-word bill. That is what subword ' +
+                'methods are for, and now you know what problem they were invented to solve.</em>' +
+                CEILING,
+            expected    : '',
+            starter     :
+                'TRAIN = ("the quick brown fox jumps over the lazy dog "\n' +
+                '         "the dog barks and the fox runs away fast")\n' +
+                'HELDOUT = "a clever fox outwits the sleeping hound"\n\n' +
+                'class CharTokenizer:\n' +
+                '    def __init__(self, text):\n' +
+                '        chars = sorted(set(text))\n' +
+                '        self.stoi = {c: i for i, c in enumerate(chars)}\n' +
+                '        self.itos = {i: c for c, i in self.stoi.items()}\n' +
+                '    def encode(self, s): return [self.stoi[c] for c in s]\n' +
+                '    def decode(self, ids): return "".join(self.itos[i] for i in ids)\n\n' +
+                'class WordTokenizer:\n' +
+                '    def __init__(self, text):\n' +
+                '        # TODO: sorted distinct words, plus an "<unk>" entry for the unseen\n' +
+                '        words = []\n' +
+                '        self.stoi = {}\n' +
+                '        self.itos = {}\n' +
+                '    def encode(self, s):\n' +
+                '        # TODO: map each word; anything unknown becomes the <unk> id\n' +
+                '        return []\n' +
+                '    def decode(self, ids):\n' +
+                '        return " ".join(self.itos[i] for i in ids)\n\n\n' +
+                'ch = CharTokenizer(TRAIN)\n' +
+                'wd = WordTokenizer(TRAIN)\n' +
+                'if not wd.stoi:\n' +
+                '    print("WordTokenizer is empty -- build the word vocabulary first.")\n' +
+                'else:\n' +
+                '    c_ids = ch.encode(HELDOUT)\n' +
+                '    w_ids = wd.encode(HELDOUT)\n' +
+                '    unk_id = wd.stoi["<unk>"]\n' +
+                '    unk_rate = sum(1 for i in w_ids if i == unk_id) / len(w_ids)\n' +
+                '    print(f"char  vocab={len(ch.stoi):3d}  seq_len={len(c_ids):3d}")\n' +
+                '    print(f"word  vocab={len(wd.stoi):3d}  seq_len={len(w_ids):3d}")\n' +
+                '    print(f"word unknown-rate on held-out text: {unk_rate:.0%}")\n' +
+                '    print("char can spell anything:", ch.decode(ch.encode(HELDOUT)) == HELDOUT)\n' +
+                '    print("word lost information:", wd.decode(w_ids) != HELDOUT)\n',
+            hints       : [
+                'words = sorted(set(text.split())) then put "<unk>" in the mapping too.',
+                'self.stoi = {w: i for i, w in enumerate(words + ["<unk>"])}',
+                'encode: return [self.stoi.get(w, self.stoi["<unk>"]) for w in s.split()]',
+                'The held-out sentence uses several words the training text never contained.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Word tokenizer built with an <unk> entry',
+                  check: function(out) { return /word\s+vocab=\s*\d+/.test(out); } },
+                { name : 'Character sequences are much longer than word sequences',
+                  check: function(out) {
+                      var c = out.match(/char\s+vocab=\s*\d+\s+seq_len=\s*(\d+)/);
+                      var w = out.match(/word\s+vocab=\s*\d+\s+seq_len=\s*(\d+)/);
+                      return !!c && !!w && parseInt(c[1]) > parseInt(w[1]) * 3;
+                  } },
+                { name : 'You measured a real unknown-word rate on held-out text',
+                  check: function(out) {
+                      var m = out.match(/unknown-rate on held-out text:\s*(\d+)%/);
+                      return !!m && parseInt(m[1]) > 0;
+                  } },
+                { name : 'Characters lose nothing; words lose information',
+                  check: function(out) {
+                      return /char can spell anything:\s*True/.test(out)
+                          && /word lost information:\s*True/.test(out);
+                  } }
+            ]
+        },
+
+        /* ── 4. Failure lab: the silent vocabulary mismatch ─────────────── */
+        {
+            id          : 'hextoken-mismatch',
+            title       : 'The Vocabulary That Drifted',
+            desc        : 'Same text, different vocabulary. Nothing crashes.',
+            difficulty  : 'hard',
+            xp          : 40,
+            parTime     : 600,
+            instructions:
+                '<strong>A failure lab about the bug that ends careers quietly.</strong><br><br>' +
+                'A model is trained with one tokenizer and served with another. The vocabularies ' +
+                'differ by a single character &mdash; someone stripped punctuation from the ' +
+                'serving corpus, or added a token, or built the vocabulary in insertion order ' +
+                'instead of sorted order.<br><br>' +
+                'Nothing raises an exception. Every id is still a valid integer. Every lookup ' +
+                'still succeeds. The model simply receives symbols that mean something different ' +
+                'from what it was trained on, and produces confident nonsense.<br><br>' +
+                'Build two tokenizers from corpora differing by one character, encode the same ' +
+                'sentence with both, and prove the ids disagree while both remain individually ' +
+                'valid.<br><br>' +
+                '<strong>Then build the defence.</strong> A vocabulary fingerprint &mdash; a hash ' +
+                'of the sorted vocabulary &mdash; saved beside the model, and compared at load ' +
+                'time. Three lines that convert a silent catastrophe into a loud refusal. Real ' +
+                'model formats ship exactly this.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                'import hashlib\n\n' +
+                'class CharTokenizer:\n' +
+                '    def __init__(self, text):\n' +
+                '        chars = sorted(set(text))\n' +
+                '        self.stoi = {c: i for i, c in enumerate(chars)}\n' +
+                '        self.itos = {i: c for c, i in self.stoi.items()}\n' +
+                '    def encode(self, s): return [self.stoi[c] for c in s if c in self.stoi]\n' +
+                '    def decode(self, ids): return "".join(self.itos[i] for i in ids)\n' +
+                '\n' +
+                '    def fingerprint(self):\n' +
+                '        # TODO: a stable hash of the SORTED vocabulary.\n' +
+                '        # Same vocabulary must always give the same value; one extra\n' +
+                '        # character must change it.\n' +
+                '        return ""\n\n\n' +
+                'TRAINED_ON = "hello world"\n' +
+                'SERVED_ON  = "hello world!"        # one extra character crept in\n\n' +
+                'train_tok = CharTokenizer(TRAINED_ON)\n' +
+                'serve_tok = CharTokenizer(SERVED_ON)\n' +
+                'sentence  = "hello world"\n\n' +
+                'a = train_tok.encode(sentence)\n' +
+                'b = serve_tok.encode(sentence)\n' +
+                'print("trained ids:", a)\n' +
+                'print("served  ids:", b)\n' +
+                'print("ids agree:", a == b)\n' +
+                'print("both decode cleanly:", train_tok.decode(a) == sentence and serve_tok.decode(b) == sentence)\n' +
+                '\n' +
+                'fa, fb = train_tok.fingerprint(), serve_tok.fingerprint()\n' +
+                'if not fa:\n' +
+                '    print("fingerprint() not implemented yet -- build the guard.")\n' +
+                'else:\n' +
+                '    print("fingerprints differ:", fa != fb)\n' +
+                '    print("fingerprint is stable:", fa == CharTokenizer(TRAINED_ON).fingerprint())\n' +
+                '    print("GUARD:", "mismatch refused" if fa != fb else "mismatch went undetected")\n',
+            hints       : [
+                'return hashlib.sha256("".join(sorted(self.stoi)).encode()).hexdigest()[:16]',
+                'Hash the sorted vocabulary, never the dict -- dict ordering is not a contract.',
+                'Stable means: build the same tokenizer twice, get the same fingerprint.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'The two vocabularies really do produce different ids',
+                  check: function(out) { return /ids agree:\s*False/.test(out); } },
+                { name : 'Both tokenizers still decode cleanly (the bug is SILENT)',
+                  check: function(out) { return /both decode cleanly:\s*True/.test(out); } },
+                { name : 'Fingerprint detects the drift',
+                  check: function(out) { return /fingerprints differ:\s*True/.test(out); } },
+                { name : 'Fingerprint is stable across rebuilds (not random per run)',
+                  check: function(out) { return /fingerprint is stable:\s*True/.test(out); } },
+                { name : 'The guard would have refused the mismatch',
+                  check: function(out) { return /GUARD:\s*mismatch refused/.test(out); } }
+            ]
+        }
+    ]
+});
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

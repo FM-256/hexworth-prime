@@ -2018,6 +2018,9 @@ const ContentCatalog = (function() {
         // AI Model Forge, Gate 3 (2026-07-30): the learner's own engine becomes a network.
         { house: 'ai', id: 'hexnet-network', title: 'HexNet: Build a Neural Network', description: 'Turn your autograd engine into a real network: neurons, layers, an MLP, and a training loop whose loss you watch fall on a target randomised every run', icon: '/assets/images/icons/icon-gear.webp', status: 'available', components: ['lab'], href: 'cortex/labs/hexnet-network.lab.html', tags: ['model-forge', 'neural-network', 'from-scratch', 'real-engine'], category: 'cortex-build' },
 
+        // AI Model Forge, Gate 4 (2026-07-30): language becomes numbers.
+        { house: 'ai', id: 'hextoken-vocabulary', title: 'HexToken: Language Becomes Numbers', description: 'Build the bridge from text to tensors: a character vocabulary, a lossless encode/decode round trip, the measured cost of characters versus words, and the silent vocabulary-drift bug that produces confident nonsense', icon: '/assets/images/icons/icon-notepad.webp', status: 'available', components: ['lab'], href: 'cortex/labs/hextoken-vocabulary.lab.html', tags: ['model-forge', 'tokenizer', 'from-scratch', 'real-engine'], category: 'cortex-build' },
+
         // Taskboard #246 (2026-07-30): this review game was linked from the hub and live but
         // had NO catalog entry, invisible to catalog browsers and content audits. Same
         // components:['review'] pattern as code-devops-comprehensive-review.
