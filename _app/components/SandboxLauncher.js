@@ -121,6 +121,14 @@ const SandboxLauncher = (function() {
         // Course pages omit it and are never capped. A mission-driven launch is graded work
         // regardless -- the server ignores this flag when a mission is present.
         if (opts.freePlay === true) body.freePlay = true;
+        // Stage 4 seeded cloud labs: the page names a scenario, the lab-manager asks the bc2
+        // claim service to build that broken state in the student's OWN project, and injects
+        // the seeded resource id into the container env so the repair check can compare
+        // against an id the student cannot forge. Allowlist-shaped, like the lab ids: a
+        // scenario the server does not recognise is simply refused there.
+        if (typeof opts.scenario === 'string' && /^[a-z][a-z0-9-]{0,40}$/.test(opts.scenario)) {
+            body.scenario = opts.scenario;
+        }
         const data = await apiCall('POST', '/launch', body);
 
         _activeSessions[labId] = {
@@ -339,6 +347,8 @@ const SandboxLauncher = (function() {
                 // reserve. A selected mission always wins: that is graded work.
                 const launchOpts = missionSel ? { mission: missionSel } : {};
                 if (!missionSel && options.freePlay === true) launchOpts.freePlay = true;
+                // Seeded-scenario labs declare which broken state to build (Stage 4).
+                if (typeof options.scenario === 'string') launchOpts.scenario = options.scenario;
                 const result = await launch(labId, launchOpts);
                 updateUI('running', `Connected — ${result.lab}`, result.url);
 

@@ -709,3 +709,26 @@ troubleshooting check -- the thing lab 2 could not have.
 
 Stopped here deliberately: the engine is proven and committed, and the rest is a client+server
 change that deserves a full QC pass rather than a rushed one at the end of a long session.
+
+### Lab 2 (real): "Rescue the Data" -- seeded troubleshooting, built 2026-07-30
+
+The lab error-reading could not be. The student inherits a genuinely broken state in their own
+project (`ghost-srv` holding `orphan-vol`, quota fully consumed) and must reclaim the quota
+WITHOUT destroying the data: detach, delete, rebuild, re-attach the same volume.
+
+**Why it is gradeable when the error-reading version was not:** the checks compare against
+`SEED_VOL_ID` / `SEED_SRV_ID`, injected into the container env by lab-manager from the bc2 seed.
+A running container's env cannot be changed from inside and `docker exec` inherits it, so a
+student cannot forge the identity. Delete-the-volume-and-make-a-same-named-one is the obvious
+cheat and it fails check 12 by construction -- names match, identity does not.
+
+**Wiring:** page declares `scenario:'orphaned-volume'` -> `SandboxLauncher` (slug-validated)
+-> launch body -> lab-manager calls `POST /seed` on bc2 -> ids injected as container env.
+
+**Bug caught by running the adversarial harness FIRST (before the honest path, deliberately):**
+`bridgeCall` had a flat 15s timeout. A claim is a few fast API calls; a SEED boots a server and
+takes minutes. Every seed aborted silently and the launch continued WITHOUT env vars, which
+would have made checks 10-12 inert -- passing or failing for reasons unrelated to student work.
+Fixed with a per-call timeout (420s for seed) and, more importantly, made **fail-closed**: a
+seeded lab whose seed failed now refuses the launch (503 SEED_FAILED) instead of handing the
+student a world that was never built. Silent degradation is worse than refusal here.

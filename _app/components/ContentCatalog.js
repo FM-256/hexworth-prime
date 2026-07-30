@@ -2006,6 +2006,10 @@ const ContentCatalog = (function() {
         // lifecycle on the student's personal OpenStack project, graded against real
         // cloud state by the bc1 lab-manager (checks 3-6).
         { house: 'cloud', id: 'cloud-openstack-cinder-live', title: 'Live Lab: The Volume Outlives the Server', description: 'Real Cinder block storage on your own cloud project: create, attach, destroy the server, prove the volume survived to serve another', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-cinder-live.lab.html', tags: ['live', 'cinder', 'openstack', 'real-engine'], category: 'openstack' },
+        // Stage 4 lab 2 (2026-07-30): the SEEDED troubleshooting lab. Error-reading proved
+        // ungradeable (the cloud leaves no trace when it refuses you), so this grades a REPAIR
+        // instead -- real server-side state, compared against seeded ids the student cannot forge.
+        { house: 'cloud', id: 'cloud-openstack-rescue-live', title: 'Live Lab: Rescue the Data', description: 'Inherit a real broken cloud: a data volume trapped on an unwanted server with your quota fully consumed. Reclaim the quota without losing the data', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-rescue-live.lab.html', tags: ['live', 'troubleshooting', 'openstack', 'real-engine', 'seeded'], category: 'openstack' },
         // Taskboard #246 (2026-07-30): this review game was linked from the hub and live but
         // had NO catalog entry, invisible to catalog browsers and content audits. Same
         // components:['review'] pattern as code-devops-comprehensive-review.
