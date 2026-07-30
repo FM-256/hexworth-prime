@@ -77,6 +77,45 @@ async function post(url, body, headers) {
   console.log('  cheat D rejected: checks read the SERVER-held id, not the shell');
   dex('sed -i "/SEED_VOL_ID/d;/SEED_SRV_ID/d" ~/.bashrc ~/.profile');
 
+  // ── CHEAT E: TRY TO SHIM THE CLI AS ROOT ──
+  // CORRECTED 2026-07-30: this attack does NOT work in the deployed container. Launched
+  // sandboxes set no-new-privileges:true + CapDrop ALL, so sudo is refused even though the
+  // image carries NOPASSWD sudo. (I originally "verified" the shim with a bare docker run
+  // against the IMAGE, without production security options -- the proxy-not-the-claim error.)
+  //
+  // So this case now asserts TWO things:
+  //   1. the hardening still holds -- if sudo ever succeeds here, a config regression has
+  //      re-opened a real attack path and we want to know immediately;
+  //   2. grading is unaffected either way, because cloud checks read bc2, not the container.
+  console.log('cheat E: attempt a root CLI shim (expect: refused by no-new-privileges)');
+  let sudoWorked = true;
+  try {
+    dex('sudo -n cp /usr/bin/openstack /usr/bin/openstack.real');
+  } catch (e) {
+    sudoWorked = false;
+  }
+  if (sudoWorked) {
+    fail('CHEAT E: sudo SUCCEEDED in a launched container -- no-new-privileges has regressed; '
+       + 'the image grants NOPASSWD sudo and a student can now shim the CLI');
+  }
+  console.log('  sudo refused (no-new-privileges holds) -- container hardening intact');
+  // Belt and braces: prove grading ignores the student's PATH even without sudo, which is
+  // the sudo-free version of the same attack and DOES work at the shell level.
+  dex('mkdir -p ~/bin && printf "#!/bin/sh\necho in-use\n" > ~/bin/openstack && chmod +x ~/bin/openstack');
+  dex('echo "export PATH=$HOME/bin:$PATH" >> ~/.bashrc');
+  const pathLie = dex('bash -lc "openstack volume show anything -f value -c status"').trim();
+  console.log(`  student's PATH shim active: their CLI says "${pathLie}"`);
+  let rp = await grade();
+  rp.forEach((c) => console.log(`  check ${c.id}: ${c.pass ? 'PASS' : 'fail'}`));
+  if (rp.find((c) => c.id === 12 && c.pass)) {
+    fail('CHEAT E/PATH BEAT CHECK 12 -- a lying CLI on PATH forged a pass; grading is still container-side');
+  }
+  if (!rp.find((c) => c.id === 10 && c.pass)) {
+    fail('CHEAT E/PATH: check 10 broke under a PATH shim -- grading still depends on the container');
+  }
+  console.log('  PATH shim rejected: grading reads the CLOUD from the server, not the student CLI');
+  dex('sed -i "/HOME\/bin/d" ~/.bashrc; rm -rf ~/bin');
+
   // ── CHEAT C (cheapest): leave everything, change nothing ──
   console.log('cheat C: do nothing at all');
   let r = await grade();
@@ -121,5 +160,9 @@ async function post(url, body, headers) {
   await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
   await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
   console.log(`OPERATOR: null hexworth_uid on ${slot}`);
-  console.log('ADVERSARIAL PASS: same-name forgery and do-nothing both rejected');
+  // Keep this line honest about what actually ran: it described 3 cheats after the suite
+  // had grown to 5, and an under-selling summary is exactly what gets quoted later as the
+  // full scope of the testing.
+  console.log('ADVERSARIAL PASS: 5/5 rejected -- same-name forgery, do-nothing, .bashrc env '
+    + 'poisoning, root CLI shim (refused by no-new-privileges), and PATH shim');
 })().catch((e) => { console.error('ADVERSARIAL FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
