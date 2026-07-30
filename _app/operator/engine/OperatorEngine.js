@@ -794,7 +794,15 @@
         // ModuleProgress integration
         if (typeof window.ModuleProgress !== 'undefined' &&
             typeof window.ModuleProgress.complete === 'function') {
-            try { window.ModuleProgress.complete(config.id); } catch (e) {}
+            // BUG-045: this was `complete(config.id)` -- one arg against
+            // complete(houseId, moduleId, options), so moduleId was undefined and the
+            // function THREW at its prettyTitle line, silently (the catch below ate it)
+            // after already writing a bucket named after the mission. The `op-` prefix is
+            // deliberate: progress.completedModules is a GLOBAL unscoped namespace and bare
+            // mission ids collide with real content elsewhere (js-01..js-05 are Armory
+            // challenge ids; crypto-01/02 are Arena box ids) -- namespacing now costs nothing
+            // and stops 124 generic ids from poisoning that namespace later.
+            try { window.ModuleProgress.complete('operator', 'op-' + config.id); } catch (e) {}
         }
 
         // Completion reward: award permanent tool if config specifies one

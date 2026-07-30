@@ -31,6 +31,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-051 -- 52 of 124 operator mission pages never load ModuleProgress.js, so completion credit silently no-ops  ·  P2  ·  open
+- **Found:** 2026-07-29 · by Nancy (third review pass on BUG-045) · count independently verified by me (124 missions, 72 load it, 52 do not)
+- **Area:** `_app/operator/missions/js-01..js-50.mission.html` + `python-01`/`python-02` (script tags); consumer is `OperatorEngine.js` `fireCompletionHooks`
+- **Symptom:** `fireCompletionHooks` guards on `typeof window.ModuleProgress !== 'undefined'`. On these 52 pages the component is never loaded, so the entire progress hook no-ops -- argument count irrelevant. BUG-045's fix restores correct crediting for the 72 missions that DO load it; these 52 stay uncredited until their script tags are fixed.
+- **Repro:** `grep -l "ModuleProgress.js" _app/operator/missions/*.mission.html | wc -l` -> 72 of 124.
+- **Fix direction (not started):** add the ModuleProgress.js script tag (and its FirebaseAuth prerequisite, matching a working sibling like `crypto-01.mission.html`) to the 52 pages, then verify one js-* mission credits end-to-end. Mechanical but touches 52 files, so it wants a scripted edit + a render check on a sample, not hand editing.
+- **Related:** BUG-045 (this was found while fixing it; do NOT read BUG-045's fixed status as covering these 52).
+
 ### BUG-050 -- lab-manager accepts ANONYMOUS Firebase tokens: container slots consumable without an account  ·  P2  ·  open (ruling needed)
 - **Found:** 2026-07-29 · by self (The Rig post-deploy real-launch verification) · while proving the launch path end-to-end
 - **Area:** bc1 lab-manager auth (`hexworth-sandbox/lab-manager/server.js` token verification) + Firebase anonymous auth enabled platform-wide
@@ -280,10 +288,41 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix direction (operator decision, not started):** (a) add a python-graphics card to the Armory; (b) for Backbone, decide whether its forensics card should point at its OWN forensics page or deliberately cross-link Eye's -- if the cross-link is intended, backbone-forensics is redundant and should be retired rather than surfaced. Both are content calls, not mechanical fixes.
 - **Related:** taskboard #234 (the metric fix, now correctly scoped), BUG-043's container-surfacing discussion.
 
-### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  open
+### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  fixed-not-deployed (72 of 124 missions; see BUG-051 for the other 52)
 - **Found:** 2026-07-28 · by Nancy · during the BUG-039 review · verified independently against both files
 - **Area:** _app/operator/engine/OperatorEngine.js:797 vs _app/components/ModuleProgress.js:533
 - **Symptom:** `fireCompletionHooks` calls `window.ModuleProgress.complete(config.id)` with ONE argument, but the function is `complete(houseId, moduleId, options = {})`. So every completed operator mission records `houseId = <mission id>` (e.g. 'js-01') and `moduleId = undefined`. There is no arguments-length overload to compensate. Course progress for operator missions therefore lands in a bucket named after the mission with no module, instead of the mission's house.
+- **WORSE THAN FIRST DOCUMENTED (2026-07-29, proven statically + at runtime):** the call does not merely
+  mis-bucket, it **THROWS on every completion** and the exception is eaten by the call site's bare
+  `catch (e) {}`. `ModuleProgress.js:604` does `moduleId.replace(/-/g,' ')` unguarded -> TypeError on
+  undefined. Everything BEFORE the throw still fires with wrong keys (progress blob under
+  `progress[<mission-id>]`, `tryFirestoreSync` with an undefined moduleId, the cross-device profile
+  push, the completed-counter increment, and the completion overlay). Everything AFTER is skipped
+  every time: `queueActivityEvent('module_complete')` and the live ActivityFeed event -- **so operator
+  missions never appear in the dashboard activity feed** -- plus the navigation block and the
+  function's `return true`, so no caller can observe success.
+- **Production impact, MEASURED not assumed (read-only scan of all 190 user docs, 2026-07-29):**
+  **zero** mission-shaped `houseProgress` buckets and **zero** operator `*-undefined` entries in
+  `modulesCompleted`. The only `-undefined` residue platform-wide is a single
+  `shield-security-fundamentals-undefined` from a different, since-removed one-arg caller (unrelated
+  house). So there is NO migration/cleanup project here -- this note is the cleanup record.
+  **Mechanism honesty (Nancy's correction): I first attributed the clean result to `operator_keys`
+  being empty; that is WRONG** -- `operator_keys` feeds `validateMissionCompletion` (answer grading),
+  not the progress-sync path (`ensureFirestoreDeps`). What is verified: 52 of the 124 mission pages
+  never load ModuleProgress.js at all (BUG-051), so the hook could not fire there regardless; for the
+  other 72 the zero result rests on the empirical scan, with the remaining gate not traced. State it
+  as "measured zero, mechanism only partially understood" -- never as an `operator_keys` safety net.
+- **FIXED (this commit):** `complete('operator', 'op-' + config.id)`. Two deliberate choices:
+  `'operator'` as the house bucket (precedent: AchievementSystem.js:2519, FirestoreManager.js:1127;
+  no existing data to be inconsistent with, per the scan above), and the **`op-` prefix** because
+  `progress.completedModules` is a GLOBAL unscoped namespace where bare mission ids already collide
+  with live content -- `js-01`..`js-05` are Armory challenge ids and `crypto-01`/`crypto-02` are Arena
+  box ids (Nancy's catch). Namespacing costs nothing now and stops 124 generic ids from poisoning
+  that namespace before Armory/Arena ever wire into ModuleProgress.
+- **KNOWN AND STATED, not hidden:** `progress.houses['operator']` is **write-only on every current
+  UI** -- there is no `operator` HubRegistry entry, so no progress surface enumerates the bucket. It
+  records faithfully and displays nowhere until operator is surfaced (Frank informed as a fact, not a
+  blocked question). And this fix covers **72 of 124** missions; the other 52 are BUG-051.
 - **Blast radius:** all 124 operator missions. Only 4 mission pages (the PFI ones) carry their own bridge, and those are separately broken by BUG-039; the other 120 rely solely on this call, so they have likely never credited course progress correctly.
 - **NOT the same bug as the hub display:** the Operator hub's own completion marks read the engine's localStorage completion keys, which are written correctly. This is the ModuleProgress/course-credit path only.
 - **Fix direction (not started):** pass both arguments -- the mission's house plus its module id. Needs a decision on what the module id should be for an operator mission (the config id? a catalog id?) and whether historical progress under the malformed bucket is worth migrating; do not guess.
