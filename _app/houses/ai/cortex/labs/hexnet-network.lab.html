@@ -33,11 +33,19 @@
    WORSE, and measured it: that assertion failed on 18 of 20 seeds, and on the
    seed I had pinned, the leaking run converged BETTER (0.0000 vs 0.0189). On a
    small problem, accumulated gradients behave like a runaway learning rate --
-   sometimes faster, sometimes straight into tanh saturation. The claim that IS
-   reliably true, verified over 12 independent trials of 8 seeds: correct
-   training converged 8/8 EVERY trial, leaking training never beat 7/8. So the
-   graded claim is RELIABILITY, not damage -- and that is the better lesson,
-   because unpredictability is exactly why this bug survives in real code.
+   sometimes faster, sometimes straight into tanh saturation.
+
+   SECOND CORRECTION (Nancy, 2026-07-30). The replacement claim -- "zeroing
+   converges 8/8 every trial, leaking never beats 7/8" -- was ALSO cherry-picked.
+   Seeds 0-7 was one lucky window: that claim fails in 12 of 25 measured windows,
+   and widening the window makes it worse (24/25 at N=32), because it demands a
+   PERFECT score from zeroing. Measured over 120 independent seeds:
+     zeroing  converged 110/120 (92%), median loss 0.0082, diverged   0/120
+     leaking  converged  65/120 (54%), median loss 0.0000, diverged  16/120
+   Leaking is not slower -- its median is LOWER. It is UNSTABLE: it blows up 13%
+   of the time and zeroing never did. So the graded claim is a COMPARISON,
+   zeroed > leaked, which held in 20 of 20 windows. That is why zero_grad exists:
+   predictability, not speed -- and unpredictability is why the bug survives.
 
    DOCTRINE APPLIED FROM THE START (paid for by HexGrad's two review blocks):
    - Structural checks gate ONLY where no functional check exists. Where
@@ -116,10 +124,16 @@ var TRAINCHECK = [
     '# ─────────────────────────────────────────────────────────────────────',
     '# TRAINING CHECK — the target is random every run. A network that does not',
     '# genuinely learn cannot pass this, and neither can memorised weights.',
+    '#',
+    '# The draw uses its OWN entropy-seeded generator, never the shared `random`',
+    '# module. Challenge 4 calls random.seed() in a fixed order, which left the',
+    '# module RNG in a known state and made this check fully deterministic and',
+    '# therefore memorisable -- the exact opposite of what the header claims.',
     '# ─────────────────────────────────────────────────────────────────────',
+    '_tc_rng = random.Random()   # seeded from OS entropy, immune to random.seed()',
     'def traincheck(steps=200, lr=0.1):',
-    '    xs = [[random.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
-    '    ys = [random.choice([-1.0, 1.0]) for _ in range(4)]',
+    '    xs = [[_tc_rng.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
+    '    ys = [_tc_rng.choice([-1.0, 1.0]) for _ in range(4)]',
     '    net = MLP(3, [4, 4, 1])',
     '    def total_loss():',
     '        return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0))',
@@ -202,7 +216,16 @@ PythonSandbox.init({
                 'else:\n' +
                 '    print("output:", out)\n' +
                 '    print("params:", len(n.parameters()), "expect 4")\n' +
-                '    print("bounded:", -1.0 <= out.data <= 1.0)\n',
+                '    print("bounded:", -1.0 <= out.data <= 1.0)\n' +
+                '    # Two fresh neurons must not come out identical. Measured, not\n' +
+                '    # pattern-matched: passes for ANY real randomiser (uniform, gauss,\n' +
+                '    # random()*2-1) and fails for hardcoded weights even if the word\n' +
+                '    # "random" appears somewhere in the file.\n' +
+                '    a, b = Neuron(3), Neuron(3)\n' +
+                '    wa = [p.data for p in a.parameters()]\n' +
+                '    wb = [p.data for p in b.parameters()]\n' +
+                '    print("distinct:", wa != wb)\n' +
+                '    print("within_varies:", len(set(round(v, 9) for v in wa)) > 1)\n',
             hints       : [
                 'self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]',
                 'act = sum((wi * xi for wi, xi in zip(self.w, x)), self.b) then return act.tanh()',
@@ -216,11 +239,15 @@ PythonSandbox.init({
                   check: function(out) { return /params:\s*4\b/.test(out); } },
                 { name : 'Output is squashed into [-1, 1] by tanh',
                   check: function(out) { return /bounded:\s*True/.test(out); } },
-                { /* No functional gate exists yet at this stage, so a structural check IS
-                     the gate here -- permitted by the Model Forge rule precisely because
-                     there is nothing better available. */
+                { /* Functional, not structural. A previous version regex-matched
+                     "random.uniform" in the source: that FAILED an honest learner using
+                     random.gauss, and PASSED hardcoded identical weights carrying a dead
+                     random.uniform call. Two fresh neurons are now actually compared. */
                   name : 'Weights are randomised, not all identical',
-                  check: function(out, code) { return /random\.uniform/.test(code); } }
+                  check: function(out) {
+                      return /distinct:\s*True/.test(out)
+                          && /within_varies:\s*True/.test(out);
+                  } }
             ]
         },
 
@@ -431,8 +458,14 @@ PythonSandbox.init({
                 'and saturates every neuron at &plusmn;1, from which no gradient can rescue ' +
                 'it.<br><br>' +
                 'So you will not measure damage. You will measure <strong>reliability</strong>: ' +
-                'train from eight different starting points, both ways, and count how many ' +
+                'train from sixteen different starting points, both ways, and count how many ' +
                 'times each actually converges.<br><br>' +
+                'Over 120 seeds we measured it: zeroing converged 92% of the time and ' +
+                '<strong>never</strong> blew up; leaking converged 54% and blew up 13% of the ' +
+                'time. Leaking is not slower &mdash; its median loss is actually <em>lower</em>. ' +
+                'Accumulated gradients act like unintended momentum: sometimes it wins, ' +
+                'sometimes it saturates every tanh and the gradients die. You are not ' +
+                'expected to hit a perfect score. You are expected to beat the leaking run.<br><br>' +
                 '<em>This is why the bug survives in real codebases. It does not crash and it ' +
                 'does not consistently hurt &mdash; it just makes results irreproducible, and ' +
                 'people blame the seed.</em>' +
@@ -474,13 +507,19 @@ PythonSandbox.init({
                 '            p.data -= lr * p.grad\n' +
                 '    return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0)).data\n' +
                 '\n' +
-                '# Converged means the loss actually came down. Count it across 8 starts.\n' +
-                'zeroed = sum(1 for s in range(8) if train(True, s) < 0.5)\n' +
-                'leaked = sum(1 for s in range(8) if train(False, s) < 0.5)\n' +
-                'print(f"RELIABILITY zeroed={zeroed}/8 leaked={leaked}/8")\n' +
+                '# Converged means the loss actually came down. Count it across 16 starts.\n' +
+                '# 16, not 8: over 120 seeds zeroing converges ~92% and leaking ~54%, and\n' +
+                '# an 8-seed window was too narrow to separate those reliably.\n' +
+                'zeroed = sum(1 for s in range(16) if train(True, s) < 0.5)\n' +
+                'leaked = sum(1 for s in range(16) if train(False, s) < 0.5)\n' +
+                'print(f"RELIABILITY zeroed={zeroed}/16 leaked={leaked}/16")\n' +
                 'for s in range(3):\n' +
                 '    print(f"  seed {s}: zeroed {train(True, s):.4f}   leaked {train(False, s):.4f}")\n' +
-                'if zeroed == 8 and leaked < 8:\n' +
+                '# The rule is "zeroing converges MORE OFTEN", not "zeroing is perfect".\n' +
+                '# Zeroing itself only converges ~92% of the time, so demanding a perfect\n' +
+                '# score failed honest work in 12 of 25 measured seed windows. This\n' +
+                '# comparison held in 20 of 20.\n' +
+                'if zeroed > leaked:\n' +
                 '    print("VERDICT: zeroing makes training RELIABLE")\n' +
                 'else:\n' +
                 '    print("VERDICT: no reliability gap measured -- is the zeroing actually conditional?")\n' +
@@ -496,12 +535,12 @@ PythonSandbox.init({
             tests       : [
                 /* REMOVED (Chris, 2026-07-30): requiring the literal `if zero_grads`
                    rejected a correct learner who factors the zeroing into a helper, and
-                   added no detection -- an unconditional-zero build forces leaked=8/8 and
-                   fails VERDICT, a never-zero build fails zeroed=8/8. Functional wins. */
-                { /* Functional and measured to hold 12/12 trials: correct training converged
-                     8/8 every time, leaking never beat 7/8. No structural regex ANDed in. */
-                  name : 'Correct training converged from all 8 starting points',
-                  check: function(out) { return /RELIABILITY zeroed=8\/8/.test(out); } },
+                   added no detection -- an unconditional-zero build forces leaked==zeroed
+                   and fails VERDICT, a never-zero build does too. Functional wins. */
+                /* REMOVED (Nancy, 2026-07-30): a test for a PERFECT zeroed score. Zeroing
+                   converges ~92% of the time, not 100%, so that demand failed honest work
+                   in 12 of 25 seed windows. The VERDICT check below carries the signal,
+                   and it is a comparison, which held in 20 of 20 windows. */
                 { name : 'Gradient-leaking training was measurably less reliable',
                   check: function(out) { return /VERDICT: zeroing makes training RELIABLE/.test(out); } },
                 { name : 'TRAINCHECK still passes on a target randomised this run',
