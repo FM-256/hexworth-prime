@@ -277,7 +277,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Deployed:** same ~2026-07-29 00:35 EDT hosting deploy as BUG-040 (live files md5-match f145fdd16). Source confirmed live; the two taught-command checks were verified in the 30/30 pre-commit playthrough but not re-exercised on production.
 - **Related:** BUG-040.
 
-### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  open
+### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  fixed-not-deployed
 - **Found:** 2026-07-28 · by Nancy · while reviewing the taskboard #234 metric fix · verified independently
 - **Area:** _app/houses/code/armory/index.html (missing card) and _app/houses/web/backbone/index.html:466 (card points elsewhere)
 - **Symptom:** two registry hubs carry `parent` but their container's page never links them, so students cannot reach them from anywhere:
@@ -286,6 +286,20 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   Grep confirms neither path is referenced by any page; the only mentions are HubRegistry itself and an unrelated ForensicsData.js.
 - **How it hid:** I classified the audit's 70 "surfaced on no house page" hubs by checking whether each carried a `parent` field and concluded all 70 were explainable noise. Carrying a parent is NOT the same as being linked by that parent. Nancy caught it by opening the container pages and tracing hrefs. Any fix that treats "has a surfaced parent" as reachable would have permanently hidden these two.
 - **Fix direction (operator decision, not started):** (a) add a python-graphics card to the Armory; (b) for Backbone, decide whether its forensics card should point at its OWN forensics page or deliberately cross-link Eye's -- if the cross-link is intended, backbone-forensics is redundant and should be retired rather than surfaced. Both are content calls, not mechanical fixes.
+- **FIXED 2026-07-29 (Frank ruled: "it should point to its own forensics page"):**
+  - `backbone/index.html` AN-12 href `houses/eye/forensics/index.html` -> `forensics/index.html`
+    (relative, like every sibling card). Verified by CLICKING the card in a browser: lands on
+    /houses/web/backbone/forensics/index.html, title "Network Forensics Course | The Backbone",
+    0 page errors, and zero remaining cards point at eye/forensics.
+  - `code/armory/index.html` gains a `python-graphics` card (10 real modules: turtle -> pygame ->
+    capstone). **The QC hook caught my first attempt as INERT** -- `buildTrackSection` renders from
+    each TRACK's `languages` list, NOT from `LANGUAGES`, so a card in the array but absent from
+    every track renders nowhere while still inflating the stats and the progress denominator.
+    Corrected: added to the `all` track AND the thematic `scripting` track, and the hardcoded
+    "16 language tracks" description updated to 17. Verified in a browser: card renders on both
+    tabs, hero stats recompute to 17 languages / 172 modules / 6 tracks, 0 page errors.
+  - LESSON (same family as "measure the claim"): in this codebase a card living in a data array is
+    not a rendered card -- find the renderer's actual source list before claiming reachability.
 - **Related:** taskboard #234 (the metric fix, now correctly scoped), BUG-043's container-surfacing discussion.
 
 ### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  fixed-not-deployed (72 of 124 missions; see BUG-051 for the other 52)
