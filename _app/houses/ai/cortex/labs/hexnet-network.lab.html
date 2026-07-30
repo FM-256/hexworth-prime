@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HexNet: Build a Neural Network - The Cortex - House of AI</title>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/PythonSandbox.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a12; }
+        #sandbox-root { min-height: 100vh; }
+    </style>
+</head>
+<body>
+<div id="sandbox-root"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   HexNet — Gate 3 of the AI Model Forge. Second module of the build spine.
+   Prerequisite: HexGrad (the learner's own autograd engine).
+
+   THE ARC THIS LAB EXISTS TO CLOSE: HexGrad made the learner fight for `+=`,
+   because a node used twice must accumulate gradient from both paths. HexNet
+   shows the same `+=` becoming a liability once it is never reset between
+   training steps. Same operator, opposite lesson, one gate apart.
+
+   BUT NOT IN THE WAY I FIRST WROTE IT, and this is worth reading before editing
+   challenge 4. I originally asserted that leaking gradients makes training
+   WORSE, and measured it: that assertion failed on 18 of 20 seeds, and on the
+   seed I had pinned, the leaking run converged BETTER (0.0000 vs 0.0189). On a
+   small problem, accumulated gradients behave like a runaway learning rate --
+   sometimes faster, sometimes straight into tanh saturation. The claim that IS
+   reliably true, verified over 12 independent trials of 8 seeds: correct
+   training converged 8/8 EVERY trial, leaking training never beat 7/8. So the
+   graded claim is RELIABILITY, not damage -- and that is the better lesson,
+   because unpredictability is exactly why this bug survives in real code.
+
+   DOCTRINE APPLIED FROM THE START (paid for by HexGrad's two review blocks):
+   - Structural checks gate ONLY where no functional check exists. Where
+     TRAINCHECK runs, the functional result is the gate; no regex is ANDed in.
+   - Checks are named for what they can actually prove, not what we wish.
+   - The client-side ceiling is stated in RENDERED instructions, not a comment.
+   - Randomised targets every run, so memorised weights cannot pass.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* The engine the learner built in HexGrad, extended with the operators a network
+   needs (sub, pow, neg, and the reflected forms). Provided rather than re-typed:
+   this gate is about the NETWORK, and re-pasting is not a lesson. */
+var ENGINE = [
+    'import math, random',
+    '',
+    '# ── Your HexGrad engine, extended with the operators a network needs ──',
+    'class Value:',
+    '    def __init__(self, data, _children=(), _op=""):',
+    '        self.data = data; self.grad = 0.0',
+    '        self._backward = lambda: None',
+    '        self._prev = set(_children); self._op = _op',
+    '    def __repr__(self): return f"Value(data={self.data:.4f}, grad={self.grad:.4f})"',
+    '    def __add__(self, other):',
+    '        other = other if isinstance(other, Value) else Value(other)',
+    '        out = Value(self.data + other.data, (self, other), "+")',
+    '        def _b():',
+    '            self.grad += out.grad; other.grad += out.grad',
+    '        out._backward = _b; return out',
+    '    def __mul__(self, other):',
+    '        other = other if isinstance(other, Value) else Value(other)',
+    '        out = Value(self.data * other.data, (self, other), "*")',
+    '        def _b():',
+    '            self.grad += other.data * out.grad; other.grad += self.data * out.grad',
+    '        out._backward = _b; return out',
+    '    def __pow__(self, k):',
+    '        out = Value(self.data ** k, (self,), f"**{k}")',
+    '        def _b(): self.grad += k * (self.data ** (k - 1)) * out.grad',
+    '        out._backward = _b; return out',
+    '    def tanh(self):',
+    '        t = math.tanh(self.data)',
+    '        out = Value(t, (self,), "tanh")',
+    '        def _b(): self.grad += (1 - t * t) * out.grad',
+    '        out._backward = _b; return out',
+    '    def __neg__(self): return self * -1',
+    '    def __sub__(self, other): return self + (-other if isinstance(other, Value) else Value(-other))',
+    '    def __radd__(self, other): return self + other',
+    '    def __rmul__(self, other): return self * other',
+    '    def backward(self):',
+    '        topo, visited = [], set()',
+    '        def build(v):',
+    '            if v not in visited:',
+    '                visited.add(v)',
+    '                for c in v._prev: build(c)',
+    '                topo.append(v)',
+    '        build(self)',
+    '        self.grad = 1.0',
+    '        for node in reversed(topo): node._backward()',
+    ''
+].join('\n');
+
+/* Functional gate: trains the learner's OWN network on a target drawn fresh each
+   run, so memorised weights cannot pass. Loss must actually fall. */
+var TRAINCHECK = [
+    '',
+    '# ─────────────────────────────────────────────────────────────────────',
+    '# TRAINING CHECK — the target is random every run. A network that does not',
+    '# genuinely learn cannot pass this, and neither can memorised weights.',
+    '# ─────────────────────────────────────────────────────────────────────',
+    'def traincheck(steps=80, lr=0.05):',
+    '    xs = [[random.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
+    '    ys = [random.choice([-1.0, 1.0]) for _ in range(4)]',
+    '    net = MLP(3, [4, 4, 1])',
+    '    def total_loss():',
+    '        return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0))',
+    '    start = total_loss().data',
+    '    for _ in range(steps):',
+    '        loss = total_loss()',
+    '        for p in net.parameters():',
+    '            p.grad = 0.0',
+    '        loss.backward()',
+    '        for p in net.parameters():',
+    '            p.data -= lr * p.grad',
+    '    end = total_loss().data',
+    '    print(f"TRAINCHECK start={start:.4f} end={end:.4f} params={len(net.parameters())}")',
+    '    if end < start * 0.25:',
+    '        print("TRAINCHECK PASS")',
+    '    else:',
+    '        print("TRAINCHECK FAIL - the loss did not fall far enough. The network is not learning.")',
+    '',
+    'traincheck()'
+].join('\n');
+
+var CEILING =
+    '<br><br><span style="color:#a78bfa">How this lab is graded, plainly:</span> your code runs ' +
+    'in <em>your own browser</em>, so these checks are not tamper-proof and this lab does not ' +
+    'pretend otherwise. What they enforce is that shortcuts fail: the training check builds a ' +
+    'fresh random target every run, so a network that does not actually learn &mdash; and a set ' +
+    'of memorised weights &mdash; cannot pass it.';
+
+PythonSandbox.init({
+    containerId : 'sandbox-root',
+    title       : 'HexNet — Build a Neural Network',
+    moduleId    : 'hexnet-network',
+    houseId     : 'ai',
+    returnUrl   : '../index.html',
+
+    challenges: [
+
+        /* ── 1. The neuron ─────────────────────────────────────────────── */
+        {
+            id          : 'hexnet-neuron',
+            title       : 'The Neuron',
+            desc        : 'Weights, a bias, a squash. That is the entire object.',
+            difficulty  : 'easy',
+            xp          : 25,
+            parTime     : 480,
+            instructions:
+                '<strong>A neuron is smaller than its reputation.</strong><br><br>' +
+                'It holds one weight per input and one bias. Given inputs it computes ' +
+                '<code>w&middot;x + b</code>, then squashes the result through ' +
+                '<code>tanh</code> so the output stays bounded and the function stops being ' +
+                'a straight line.<br><br>' +
+                'That is all. Everything impressive that follows is this object, repeated.<br><br>' +
+                'The weights start <em>random</em>, and that matters: if every neuron in a ' +
+                'layer started identical they would receive identical gradients forever and ' +
+                'the layer would behave as a single neuron. Randomness is what lets them ' +
+                'specialise.<br><br>' +
+                'Build <code>Neuron</code> with <code>__call__</code> and ' +
+                '<code>parameters()</code>. Your engine from HexGrad is provided above &mdash; ' +
+                'every operation you use here already knows how to differentiate itself.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                '# ── Build this ──\n' +
+                'class Neuron:\n' +
+                '    def __init__(self, nin):\n' +
+                '        # TODO: one Value weight per input, uniform(-1, 1), plus one bias\n' +
+                '        self.w = []\n' +
+                '        self.b = Value(0.0)\n\n' +
+                '    def __call__(self, x):\n' +
+                '        # TODO: sum(wi * xi) + b, then .tanh()\n' +
+                '        return None\n\n' +
+                '    def parameters(self):\n' +
+                '        # TODO: every Value that training will nudge\n' +
+                '        return []\n\n\n' +
+                'n = Neuron(3)\n' +
+                'out = n([2.0, -1.0, 0.5])\n' +
+                'if out is None:\n' +
+                '    print("__call__ returned None -- build the weighted sum and tanh it.")\n' +
+                'else:\n' +
+                '    print("output:", out)\n' +
+                '    print("params:", len(n.parameters()), "expect 4")\n' +
+                '    print("bounded:", -1.0 <= out.data <= 1.0)\n',
+            hints       : [
+                'self.w = [Value(random.uniform(-1,1)) for _ in range(nin)]',
+                'act = sum((wi * xi for wi, xi in zip(self.w, x)), self.b) then return act.tanh()',
+                'parameters() returns self.w + [self.b] -- 3 weights plus 1 bias is 4.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Neuron produces a Value, not None',
+                  check: function(out) { return /output:\s*Value\(/.test(out); } },
+                { name : 'Three inputs means four parameters (3 weights + bias)',
+                  check: function(out) { return /params:\s*4\b/.test(out); } },
+                { name : 'Output is squashed into [-1, 1] by tanh',
+                  check: function(out) { return /bounded:\s*True/.test(out); } },
+                { /* No functional gate exists yet at this stage, so a structural check IS
+                     the gate here -- permitted by the Model Forge rule precisely because
+                     there is nothing better available. */
+                  name : 'Weights are randomised, not all identical',
+                  check: function(out, code) { return /random\.uniform/.test(code); } }
+            ]
+        },
+
+        /* ── 2. Layers and the MLP ─────────────────────────────────────── */
+        {
+            id          : 'hexnet-mlp',
+            title       : 'Layers and the Network',
+            desc        : 'Stack neurons sideways, then stack layers forwards.',
+            difficulty  : 'medium',
+            xp          : 30,
+            parTime     : 600,
+            instructions:
+                '<strong>Two kinds of stacking, and they do different jobs.</strong><br><br' +
+                '>A <code>Layer</code> is neurons side by side, all seeing the same input and ' +
+                'each producing one number. Width lets a layer notice several things at once.' +
+                '<br><br>' +
+                'An <code>MLP</code> is layers front to back, each one consuming the previous ' +
+                'layer\'s output. Depth lets the network build features out of features.<br><br>' +
+                'One detail that trips people: a layer of exactly one neuron should return a ' +
+                'single value rather than a one-item list, so the final output of a network ' +
+                'ending in <code>[..., 1]</code> is a scalar you can subtract a target from.' +
+                '<br><br>' +
+                '<code>MLP(3, [4, 4, 1])</code> means three inputs, two hidden layers of four, ' +
+                'and one output. Count the parameters yourself before you run it &mdash; ' +
+                'knowing where every number lives is the point of building this by hand.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'class Neuron:\n' +
+                '    def __init__(self, nin):\n' +
+                '        self.w = [Value(random.uniform(-1, 1)) for _ in range(nin)]\n' +
+                '        self.b = Value(random.uniform(-1, 1))\n' +
+                '    def __call__(self, x):\n' +
+                '        act = sum((wi * xi for wi, xi in zip(self.w, x)), self.b)\n' +
+                '        return act.tanh()\n' +
+                '    def parameters(self):\n' +
+                '        return self.w + [self.b]\n\n\n' +
+                '# ── Build these ──\n' +
+                'class Layer:\n' +
+                '    def __init__(self, nin, nout):\n' +
+                '        # TODO: nout neurons, each taking nin inputs\n' +
+                '        self.neurons = []\n' +
+                '    def __call__(self, x):\n' +
+                '        # TODO: run every neuron; return a single value if there is only one\n' +
+                '        return None\n' +
+                '    def parameters(self):\n' +
+                '        # TODO: every parameter of every neuron\n' +
+                '        return []\n\n' +
+                'class MLP:\n' +
+                '    def __init__(self, nin, nouts):\n' +
+                '        sz = [nin] + nouts\n' +
+                '        # TODO: one Layer per adjacent pair in sz\n' +
+                '        self.layers = []\n' +
+                '    def __call__(self, x):\n' +
+                '        # TODO: feed x through each layer in turn\n' +
+                '        return x\n' +
+                '    def parameters(self):\n' +
+                '        return [p for layer in self.layers for p in layer.parameters()]\n\n\n' +
+                'net = MLP(3, [4, 4, 1])\n' +
+                'y = net([1.0, -0.5, 0.25])\n' +
+                'if isinstance(y, list) or y is None:\n' +
+                '    print("expected a single Value out -- a 1-neuron layer should not return a list.")\n' +
+                'else:\n' +
+                '    print("out:", y)\n' +
+                '    print("params:", len(net.parameters()), "expect 41")\n',
+            hints       : [
+                'Layer: self.neurons = [Neuron(nin) for _ in range(nout)]',
+                'Layer.__call__: outs = [n(x) for n in self.neurons]; return outs[0] if len(outs)==1 else outs',
+                'MLP: self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]',
+                '41 = layer1 4*(3+1)=16, layer2 4*(4+1)=20, layer3 1*(4+1)=5.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Network returns a single Value (not a list)',
+                  check: function(out) { return /out:\s*Value\(/.test(out); } },
+                { name : 'MLP(3,[4,4,1]) has exactly 41 parameters',
+                  check: function(out) { return /params:\s*41\b/.test(out); } },
+                { name : 'Layers are composed, not hardcoded',
+                  check: function(out, code) {
+                      return /class\s+Layer/.test(code) && /class\s+MLP/.test(code)
+                          && /self\.neurons/.test(code);
+                  } }
+            ]
+        },
+
+        /* ── 3. The training loop ──────────────────────────────────────── */
+        {
+            id          : 'hexnet-train',
+            title       : 'Make It Learn',
+            desc        : 'Loss, backward, nudge. Repeat until the number falls.',
+            difficulty  : 'hard',
+            xp          : 45,
+            parTime     : 900,
+            instructions:
+                '<strong>Everything so far was setup. This is training.</strong><br><br>' +
+                'Four steps, repeated:<br>' +
+                '1. <strong>Forward</strong> &mdash; predict, and measure how wrong you are. ' +
+                'Squared error, <code>(pred - target)&sup2;</code>, punishes big misses harder ' +
+                'than small ones and is smooth enough to differentiate.<br>' +
+                '2. <strong>Zero</strong> &mdash; reset every parameter\'s gradient to 0.0.<br>' +
+                '3. <strong>Backward</strong> &mdash; your engine fills in every gradient.<br>' +
+                '4. <strong>Nudge</strong> &mdash; move each parameter a small step ' +
+                '<em>against</em> its gradient. The gradient points uphill; loss is what you ' +
+                'want downhill, so you subtract.<br><br>' +
+                'Step 2 will look pointless. It is not, and the next challenge is dedicated ' +
+                'to showing you why.<br><br>' +
+                'The training check builds a <strong>random target every run</strong>. There is ' +
+                'no set of weights you can write down that satisfies it &mdash; the network has ' +
+                'to actually learn.' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'class Neuron:\n' +
+                '    def __init__(self, nin):\n' +
+                '        self.w = [Value(random.uniform(-1, 1)) for _ in range(nin)]\n' +
+                '        self.b = Value(random.uniform(-1, 1))\n' +
+                '    def __call__(self, x):\n' +
+                '        return sum((wi * xi for wi, xi in zip(self.w, x)), self.b).tanh()\n' +
+                '    def parameters(self): return self.w + [self.b]\n\n' +
+                'class Layer:\n' +
+                '    def __init__(self, nin, nout): self.neurons = [Neuron(nin) for _ in range(nout)]\n' +
+                '    def __call__(self, x):\n' +
+                '        outs = [n(x) for n in self.neurons]\n' +
+                '        return outs[0] if len(outs) == 1 else outs\n' +
+                '    def parameters(self): return [p for n in self.neurons for p in n.parameters()]\n\n' +
+                'class MLP:\n' +
+                '    def __init__(self, nin, nouts):\n' +
+                '        sz = [nin] + nouts\n' +
+                '        self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]\n' +
+                '    def __call__(self, x):\n' +
+                '        for layer in self.layers: x = layer(x)\n' +
+                '        return x\n' +
+                '    def parameters(self): return [p for l in self.layers for p in l.parameters()]\n\n\n' +
+                '# ── Write the training loop yourself, then watch the loss fall ──\n' +
+                'xs = [[2.0, 3.0, -1.0], [3.0, -1.0, 0.5], [0.5, 1.0, 1.0], [1.0, 1.0, -1.0]]\n' +
+                'ys = [1.0, -1.0, -1.0, 1.0]\n' +
+                'net = MLP(3, [4, 4, 1])\n\n' +
+                'for step in range(60):\n' +
+                '    # 1. forward: squared error over the four examples\n' +
+                '    loss = sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0))\n' +
+                '    # 2. TODO: zero every parameter gradient\n' +
+                '    # 3. TODO: loss.backward()\n' +
+                '    # 4. TODO: nudge each parameter AGAINST its gradient (lr = 0.05)\n' +
+                '    if step % 20 == 0:\n' +
+                '        print(f"step {step:3d}  loss {loss.data:.4f}")\n' +
+                '\n' +
+                'print("final:", f"{loss.data:.4f}")\n' +
+                '\n' +
+                TRAINCHECK + '\n',
+            hints       : [
+                'Zero: for p in net.parameters(): p.grad = 0.0',
+                'Nudge: for p in net.parameters(): p.data -= 0.05 * p.grad',
+                'Subtract, do not add. Adding climbs the loss and your numbers will explode.',
+                'TRAINCHECK PASS needs the loss to fall to under a quarter of where it started.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { /* Functional gate. Deliberately NOT ANDed with any structural regex:
+                     a random target cannot be satisfied by a network that does not learn,
+                     which is strictly stronger than anything a pattern match could add. */
+                  name : 'TRAINCHECK passes on a target randomised this run',
+                  check: function(out) { return /TRAINCHECK PASS/.test(out); } },
+                { name : 'Your own loop drove the loss down as well',
+                  check: function(out) {
+                      var m = out.match(/final:\s*([\d.]+)/);
+                      return !!m && parseFloat(m[1]) < 1.0;
+                  } },
+                { name : 'Loss was printed as it fell (you watched it work)',
+                  check: function(out) { return /step\s+0\s+loss/.test(out); } }
+            ]
+        },
+
+        /* ── 4. The failure lab: reliability, not damage ────────────────
+           MEASURED BEFORE WRITING (and it contradicted what I first wrote):
+           omitting zero_grad does NOT reliably make this toy problem worse -- it
+           failed a "broken is worse" assertion on 18/20 seeds, and at the seed I
+           had pinned, the leaking run converged BETTER (0.0000 vs 0.0189). On a
+           small problem, accumulated gradients act like a runaway learning rate:
+           sometimes faster, sometimes straight into saturation.
+           What IS reliably true, verified over 12 independent trials of 8 seeds:
+           correct training converged 8/8 EVERY trial; leaking training never beat
+           7/8. So the honest lesson is UNRELIABILITY, and that is what is graded. */
+        {
+            id          : 'hexnet-zerograd',
+            title       : 'The Gradient That Never Left',
+            desc        : 'Delete one line. Training still works. That is the problem.',
+            difficulty  : 'hard',
+            xp          : 40,
+            parTime     : 600,
+            instructions:
+                '<strong>A failure lab, and a callback.</strong><br><br>' +
+                'In HexGrad you fought for <code>+=</code>: a node used twice must collect ' +
+                'gradient from every path, and assignment threw one contribution away.<br><br>' +
+                'That same <code>+=</code> is now a liability. Gradients accumulate ' +
+                '<em>within</em> a backward pass by design &mdash; but nothing clears them ' +
+                '<em>between</em> training steps. Skip the zeroing and step two inherits step ' +
+                'one\'s gradients, step three inherits both, and every update is effectively ' +
+                'taken with a learning rate that keeps growing.<br><br>' +
+                '<strong>Here is the part that makes this bug dangerous, and it is not what ' +
+                'you would guess.</strong> Run it once and the broken version may well beat ' +
+                'the correct one. A growing step size is not automatically bad &mdash; on an ' +
+                'easy problem it can reach the answer faster. The damage is not that it is ' +
+                'always worse. The damage is that it is <em>unpredictable</em>: on some ' +
+                'starting weights it converges quickly, on others it rockets past the minimum ' +
+                'and saturates every neuron at &plusmn;1, from which no gradient can rescue ' +
+                'it.<br><br>' +
+                'So you will not measure damage. You will measure <strong>reliability</strong>: ' +
+                'train from eight different starting points, both ways, and count how many ' +
+                'times each actually converges.<br><br>' +
+                '<em>This is why the bug survives in real codebases. It does not crash and it ' +
+                'does not consistently hurt &mdash; it just makes results irreproducible, and ' +
+                'people blame the seed.</em>' +
+                CEILING,
+            expected    : '',
+            starter     :
+                ENGINE + '\n' +
+                'class Neuron:\n' +
+                '    def __init__(self, nin):\n' +
+                '        self.w = [Value(random.uniform(-1, 1)) for _ in range(nin)]\n' +
+                '        self.b = Value(random.uniform(-1, 1))\n' +
+                '    def __call__(self, x):\n' +
+                '        return sum((wi * xi for wi, xi in zip(self.w, x)), self.b).tanh()\n' +
+                '    def parameters(self): return self.w + [self.b]\n\n' +
+                'class Layer:\n' +
+                '    def __init__(self, nin, nout): self.neurons = [Neuron(nin) for _ in range(nout)]\n' +
+                '    def __call__(self, x):\n' +
+                '        outs = [n(x) for n in self.neurons]\n' +
+                '        return outs[0] if len(outs) == 1 else outs\n' +
+                '    def parameters(self): return [p for n in self.neurons for p in n.parameters()]\n\n' +
+                'class MLP:\n' +
+                '    def __init__(self, nin, nouts):\n' +
+                '        sz = [nin] + nouts\n' +
+                '        self.layers = [Layer(sz[i], sz[i+1]) for i in range(len(nouts))]\n' +
+                '    def __call__(self, x):\n' +
+                '        for layer in self.layers: x = layer(x)\n' +
+                '        return x\n' +
+                '    def parameters(self): return [p for l in self.layers for p in l.parameters()]\n\n\n' +
+                'xs = [[2.0, 3.0, -1.0], [3.0, -1.0, 0.5], [0.5, 1.0, 1.0], [1.0, 1.0, -1.0]]\n' +
+                'ys = [1.0, -1.0, -1.0, 1.0]\n\n' +
+                'def train(zero_grads, seed, steps=60, lr=0.1):\n' +
+                '    random.seed(seed)                 # same start for both modes\n' +
+                '    net = MLP(3, [4, 4, 1])\n' +
+                '    for _ in range(steps):\n' +
+                '        loss = sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0))\n' +
+                '        # TODO: zero every parameter gradient, but ONLY when zero_grads is True\n' +
+                '        loss.backward()\n' +
+                '        for p in net.parameters():\n' +
+                '            p.data -= lr * p.grad\n' +
+                '    return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0)).data\n' +
+                '\n' +
+                '# Converged means the loss actually came down. Count it across 8 starts.\n' +
+                'zeroed = sum(1 for s in range(8) if train(True, s) < 0.5)\n' +
+                'leaked = sum(1 for s in range(8) if train(False, s) < 0.5)\n' +
+                'print(f"RELIABILITY zeroed={zeroed}/8 leaked={leaked}/8")\n' +
+                'for s in range(3):\n' +
+                '    print(f"  seed {s}: zeroed {train(True, s):.4f}   leaked {train(False, s):.4f}")\n' +
+                'if zeroed == 8 and leaked < 8:\n' +
+                '    print("VERDICT: zeroing makes training RELIABLE")\n' +
+                'else:\n' +
+                '    print("VERDICT: no reliability gap measured -- is the zeroing actually conditional?")\n' +
+                '\n' +
+                TRAINCHECK + '\n',
+            hints       : [
+                'Inside the loop: if zero_grads:\\n        for p in net.parameters(): p.grad = 0.0',
+                'Both modes share random.seed(seed), so any difference comes from the bug, not luck.',
+                'Look at the per-seed numbers: leaked is sometimes BETTER. That is the lesson, not a mistake.',
+                'A leaked run that lands near 8.0 has saturated every tanh -- the gradients died.'
+            ],
+            testInputs  : [],
+            tests       : [
+                { name : 'Zeroing is conditional, so you can run it both ways',
+                  check: function(out, code) {
+                      return /if\s+zero_grads/.test(code) && /\.grad\s*=\s*0/.test(code);
+                  } },
+                { /* Functional and measured to hold 12/12 trials: correct training converged
+                     8/8 every time, leaking never beat 7/8. No structural regex ANDed in. */
+                  name : 'Correct training converged from all 8 starting points',
+                  check: function(out) { return /RELIABILITY zeroed=8\/8/.test(out); } },
+                { name : 'Gradient-leaking training was measurably less reliable',
+                  check: function(out) { return /VERDICT: zeroing makes training RELIABLE/.test(out); } },
+                { name : 'TRAINCHECK still passes on a target randomised this run',
+                  check: function(out) { return /TRAINCHECK PASS/.test(out); } }
+            ]
+        }
+    ]
+});
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

@@ -2015,6 +2015,9 @@ const ContentCatalog = (function() {
         // ungradeable (the cloud leaves no trace when it refuses you), so this grades a REPAIR
         // instead -- real server-side state, compared against seeded ids the student cannot forge.
         { house: 'cloud', id: 'cloud-openstack-rescue-live', title: 'Live Lab: Rescue the Data', description: 'Inherit a real broken cloud: a data volume trapped on an unwanted server with your quota fully consumed. Reclaim the quota without losing the data', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-rescue-live.lab.html', tags: ['live', 'troubleshooting', 'openstack', 'real-engine', 'seeded'], category: 'openstack' },
+        // AI Model Forge, Gate 3 (2026-07-30): the learner's own engine becomes a network.
+        { house: 'ai', id: 'hexnet-network', title: 'HexNet: Build a Neural Network', description: 'Turn your autograd engine into a real network: neurons, layers, an MLP, and a training loop whose loss you watch fall on a target randomised every run', icon: '/assets/images/icons/icon-gear.webp', status: 'available', components: ['lab'], href: 'cortex/labs/hexnet-network.lab.html', tags: ['model-forge', 'neural-network', 'from-scratch', 'real-engine'], category: 'cortex-build' },
+
         // Taskboard #246 (2026-07-30): this review game was linked from the hub and live but
         // had NO catalog entry, invisible to catalog browsers and content audits. Same
         // components:['review'] pattern as code-devops-comprehensive-review.
