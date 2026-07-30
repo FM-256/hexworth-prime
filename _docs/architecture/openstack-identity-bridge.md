@@ -31,6 +31,33 @@ cleanupOrphans shape unchanged after today's two patches; (2) image's openstacks
 `auth_type: v3applicationcredential`; (3) Keystone admin can list/delete OTHER users' app creds;
 (4) DELETE on a nonexistent app-cred ID is 404-tolerant for the reconciler; (5) claim service runs
 under systemd `Restart=always`; (6) re-measure VM free RAM.
+
+## DEPLOYED 2026-07-30 (marathon)
+
+All six preconditions verified on-box before build (records in session transcript):
+P1 uid label `server.js:575` + cleanupOrphans 10-min interval intact; P2 sdk loads the
+`v3applicationcredential` plugin in the shipped image; P3/P4 proven at the REST layer --
+admin cross-user DELETE 204, repeat 404, list 200 (the CLI lacks `--user` on BOTH create and
+delete, so the service self-creates as the pool user and the reconciler deletes via REST);
+P5 systemd unit `Restart=always` installed; P6 re-measured 13,316MB available (matches baseline).
+
+**Design correction found by probe:** Keystone app creds are SELF-SERVICE. The claim service
+authenticates AS the pool user using admin-set random passwords held only in bc2's 0600 store
+(`pool-credentials.env`); restricted is the API default (probe: `unrestricted=False`).
+
+**Nancy implementation review (PROCEED-WITH-CONDITIONS), all conditions applied:** quota
+512MB -> 128MB (30x512 of quota-legal demand exceeded the 13.3GB real capacity; 128MB = m1.nano
+exactly, 3.8GB flavor-RAM / ~7.5GB real worst case -- the boot-time headroom gap is closed by
+arithmetic, the per-claim guard stays as belt-and-suspenders); provisioner self-heals the
+user-exists-but-password-unstored strand; term reset restarts the service + uid cache TTLs 10min;
+ks() returns clean 599 on transport failure and handlers reply 502 rather than dropping sockets;
+claim response no longer carries the bc2-internal Keystone URL.
+
+**Live state:** claim service active on bc2 (tailnet-only :9711, health ok), pool provisioned,
+bc1 lab-manager patched (9 anchored replacements, node --check PASS, targeted rebuild, 0 sessions
+disrupted). Launch response now carries `cloudMode: personal|read-only` + `cloudSlot`. Fallback
+on any bridge failure is the baked read-only clouds.yaml -- degraded to telescope mode, stated in
+the response, never silent, never broken.
 **Origin:** Frank 2026-07-29, after driving Stage 2b's Horizon login: *"how will the students log
 in? we need to automate that. generating temporary passwords... so that if they generate a cloud
 instance it lives with the openstack also."* Prereqs SHIPPED: Stage 1 (cloud), Stage 2a (read-only

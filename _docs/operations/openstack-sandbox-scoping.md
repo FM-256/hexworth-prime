@@ -399,6 +399,35 @@ in `SandboxLauncher.js:27-37`, and add catalog entries near `_app/components/Con
 
 ---
 
+### Stage 3 — EXECUTED 2026-07-30 (marathon; Nancy design pass + implementation review, conditions applied)
+
+The identity bridge is LIVE: pool of 30 (`student-01..30`, member role, quota 1 instance / 1 core /
+128MB = m1.nano exactly), claim service on bc2 (tailnet-only :9711, systemd Restart=always,
+shared-secret AND independently-verified Firebase ID token, anonymous rejected server-side),
+per-session RESTRICTED application credentials injected into the container's clouds.yaml, sticky
+uid->slot mapping in Keystone project properties, credential deletion on destroy/expiry/orphan +
+a 10-min reconcile sweep keyed to container labels. bc1 lab-manager patched (9 anchored
+replacements); launch responses carry `cloudMode: personal|read-only` + `cloudSlot`; any bridge
+failure degrades to the read-only telescope, stated, never silent. Full record:
+`_docs/architecture/openstack-identity-bridge.md` (DEPLOYED section). E2E: real password-provider
+test account -> personal claim -> `openstack server create` (the write that was impossible before)
+-> destroy -> relaunch -> same slot, instance survived; isolation (`--all-projects` refused).
+
+### Roadmap — Stages 4-5 (updated 2026-07-30; strategy: `_docs/architecture/cloud-master-strategy.md`)
+
+**Stage 4 — the eight real labs** (order fixed by the strategy doc, Cinder first): volume
+lifecycle, full launch chain, security groups, seeded-broken-state troubleshooting, Neutron
+self-service networking, Keystone reduced-privilege, quota exhaustion, Horizon-vs-CLI (this last
+gated on Stage 2b). Stage 3 unblocked 7 of 8; each ships as a real-engine lab with server-side
+checks in the bc1 grader, page objectives in lockstep with grader paths (the BUG-052 rule: page
+hints, server cmds, and image motd move together or not at all).
+
+**Stage 5 — graded track + COA lane.** Gate/box packaging and Dr. Hex tiered help AFTER the
+gates 6-8 server-grading hole closes; the COA objective map waits on a reachable official
+objectives source (the openstack.org requirements URL 404s -- recorded blocker) or OpenInfra
+contact. Multi-platform expansion (Kubernetes/Proxmox/VMware/Ceph) is a hardware-purchase
+decision, not a config decision; excluded from any near-term commitment.
+
 ## Adopted policies (2026-07-29)
 
 Adopted per Frank's directive to proceed with Nancy-approved recommendations (Nancy PROCEED on all
