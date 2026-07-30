@@ -732,3 +732,70 @@ would have made checks 10-12 inert -- passing or failing for reasons unrelated t
 Fixed with a per-call timeout (420s for seed) and, more importantly, made **fail-closed**: a
 seeded lab whose seed failed now refuses the launch (503 SEED_FAILED) instead of handing the
 student a world that was never built. Silent degradation is worse than refusal here.
+
+### CRITICAL: seeded-check forgery via shell profile, found and fixed 2026-07-30
+
+The seeded-lab design rested on one claim: a student cannot forge the seeded resource id,
+because it is injected as a container env var and `docker exec` inherits the container config.
+
+**The claim was FALSE.** `execCheck` runs `bash -lc` -- a LOGIN shell -- which sources
+`~/.bashrc` and `~/.profile`, both owned and writable by the student. Proven in a container:
+
+    echo 'export SEED_VOL_ID=ATTACKER-FORGED' >> ~/.bashrc
+    docker exec <c> bash -lc 'test "$SEED_VOL_ID" = "REAL-SEEDED-ID"'   -> CHECK-POISONED
+
+So a student could delete the seeded volume, create their own, export its id in `.bashrc`,
+and pass every seeded check. That would have made the entire gradeable-troubleshooting
+program worthless -- and it is exactly the failure the lab was invented to avoid.
+
+**Root fix, not a hardening patch.** Shell hardening (non-login shells, `BASH_ENV`, chown
+games) all leave the value reachable from student-controlled state. Instead the checks no
+longer read the container at all for trusted values: the SERVER substitutes seeded ids into
+the command string it builds, from the session record (`resolveSeedPlaceholders`, keyed on
+`{{SEED_VOL_ID}}` / `{{SEED_SRV_ID}}`). A placeholder with no recorded value, or one whose
+value is not a plain uuid, renders the command `false` -- so a mis-seeded session fails
+HONESTLY instead of passing vacuously.
+
+**Doctrine for every future seeded lab:** a check may read student-controlled state only to
+observe what the student DID. Any value the check TRUSTS must come from the server. The
+container environment is student-controlled state, whatever the Docker docs imply.
+
+`adversarial-rescue.js` now carries this as **cheat D** permanently, so no future change can
+silently reintroduce it.
+
+### CRITICAL #2: container-side grading of CLOUD state is fundamentally unsound
+
+Nancy's review found what the profile-poisoning fix did not cover, and it invalidates the whole
+grading approach for cloud labs -- including the SHIPPED Cinder lab.
+
+**Measured, live, in the shipped image:**
+- `student ALL=(ALL) NOPASSWD:ALL` is baked into `/etc/sudoers.d/student`. Confirmed:
+  `sudo -n true` -> `SUDO-ROOT-CONFIRMED`.
+- A root student can replace the CLI the grader calls. Confirmed: after
+  `sudo cp /usr/bin/openstack /usr/bin/openstack.real` and writing a shim,
+  `openstack volume show SOME-ID -f value -c status` returns `in-use` on demand.
+
+**Why the earlier fix is not enough.** Server-side id substitution (`resolveSeedPlaceholders`)
+correctly defeats `.bashrc` env poisoning -- adversarial cheat D confirms it. But it only makes
+the COMMAND trustworthy. The command still runs inside the student's container and calls a binary
+the student controls. Even without sudo, `bash -lc` sources `~/.bashrc`, so PATH poisoning
+(`export PATH=~/bin:$PATH` plus `~/bin/openstack`) reaches the same result.
+
+**Therefore: every check that asks the student's container about CLOUD state is forgeable.**
+That includes the live Cinder lab (checks 3-6) and the read-only checks 1-2.
+
+**The correct architecture: grade the cloud from the SERVER, not from the container.**
+The cloud is the source of truth and bc1 can already reach it through the bridge. Cloud checks
+should become a server-side query (a `/verify` endpoint on the bc2 claim service answering
+questions about a slot's real state, called by lab-manager) instead of a `docker exec`. The
+container stays what it should be: the student's workspace, never the grader's witness.
+
+Container-side `execCheck` remains valid for labs whose subject IS the container's own
+filesystem (linux-sandbox, missions): there the student-controlled state is exactly what is
+being graded, so there is no trusted value to forge.
+
+**Live-risk assessment, stated plainly:** the Cinder lab remains deployed. Forging requires a
+student to deliberately shim a binary; the only prize is a lab badge, and no data or other
+student is exposed. It is an integrity defect, not a safety one -- but it IS a defect in live
+content and must be fixed rather than tolerated. Lab 2 must NOT ship until grading moves
+server-side (Nancy: BLOCK).

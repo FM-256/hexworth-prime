@@ -52,7 +52,32 @@ async function post(url, body, headers) {
   let img = '';
   for (let i = 0; i < 6 && !img; i++) { img = dex('openstack image list -f value -c Name | head -1').trim(); if (!img) sh('sleep 10'); }
 
-  // ── CHEAT C first (cheapest): leave everything, change nothing ──
+  // ── CHEAT D: POISON THE SHELL (found 2026-07-30; the design's real weak point) ──
+  // execCheck runs `bash -lc`, a LOGIN shell, which sources student-writable ~/.bashrc and
+  // ~/.profile. If a check reads $SEED_VOL_ID from the container env, the student simply
+  // exports their own value and forges everything. This cheat MUST fail; if it ever passes,
+  // seeded labs are worthless. (The fix was to stop reading the env at all: the server now
+  // substitutes the id into the command from the session record.)
+  console.log('cheat D: poison ~/.bashrc and ~/.profile with a forged SEED_VOL_ID');
+  dex('echo "export SEED_VOL_ID=00000000-0000-0000-0000-000000000000" >> ~/.bashrc');
+  dex('echo "export SEED_SRV_ID=00000000-0000-0000-0000-000000000000" >> ~/.bashrc');
+  dex('echo "export SEED_VOL_ID=00000000-0000-0000-0000-000000000000" >> ~/.profile');
+  const poisoned = dex('bash -lc "echo $SEED_VOL_ID"').trim();
+  console.log(`  shell now reports SEED_VOL_ID=${poisoned} (poisoning itself succeeded, as expected)`);
+  let rd = await grade();
+  rd.forEach((c) => console.log(`  check ${c.id}: ${c.pass ? 'PASS' : 'fail'}`));
+  // check 10 SHOULD still pass: the real seeded volume genuinely still exists, and the
+  // server-substituted id is immune to the poisoning. 11/12 should still fail (nothing done).
+  if (!rd.find((c) => c.id === 10 && c.pass)) {
+    fail('CHEAT D: check 10 broke under shell poisoning -- substitution is not working');
+  }
+  if (rd.find((c) => c.id === 12 && c.pass)) {
+    fail('CHEAT D BEAT CHECK 12 -- shell poisoning forged a pass; seeded labs are unsafe');
+  }
+  console.log('  cheat D rejected: checks read the SERVER-held id, not the shell');
+  dex('sed -i "/SEED_VOL_ID/d;/SEED_SRV_ID/d" ~/.bashrc ~/.profile');
+
+  // ── CHEAT C (cheapest): leave everything, change nothing ──
   console.log('cheat C: do nothing at all');
   let r = await grade();
   r.forEach((c) => console.log(`  check ${c.id}: ${c.pass ? 'PASS' : 'fail'}`));
