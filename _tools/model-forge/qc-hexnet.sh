@@ -148,6 +148,25 @@ def train(zero_grads, seed, steps=60, lr=0.1):
 z = sum(1 for s in range(16) if train(True, s) < 0.5)
 l = sum(1 for s in range(16) if train(False, s) < 0.5)
 print(f"  challenge 4 reliability: zeroed={z}/16 leaked={l}/16")
+
+# Chris, 2026-07-30: this gate checked the RULE but never the NARRATIVE NUMBERS, which
+# is how false figures reached students twice. The page tells students zeroing converges
+# every time and leaking ~72% with ~21% blow-ups. Recompute that here, from the SAME
+# train() the page ships, and fail if the rendered claim drifts from reality.
+N = 120
+zc = sum(1 for s in range(N) if train(True,  s) < 0.5)
+lc = sum(1 for s in range(N) if train(False, s) < 0.5)
+lb = sum(1 for s in range(N) if train(False, s) > 4.0)
+print(f"  page claims: zeroing converges every time, leaking ~72%, leaking blows up ~21%")
+print(f"  measured({N}): zeroing {zc}/{N} ({zc/N:.0%}), leaking {lc}/{N} ({lc/N:.0%}), leaking blow-ups {lb}/{N} ({lb/N:.0%})")
+bad = []
+if zc != N:                      bad.append(f"page says zeroing ALWAYS converges, measured {zc}/{N}")
+if not (0.60 <= lc/N <= 0.85):   bad.append(f"page says leaking ~72%, measured {lc/N:.0%}")
+if not (0.10 <= lb/N <= 0.32):   bad.append(f"page says leaking blows up ~21%, measured {lb/N:.0%}")
+if bad:
+    for b in bad: print("  FAIL: " + b)
+    raise SystemExit(1)
+print("  narrative numbers on the page match the shipped code")
 if z > l:
     print("  challenge 4 graded rule (zeroed > leaked) HOLDS")
 else:

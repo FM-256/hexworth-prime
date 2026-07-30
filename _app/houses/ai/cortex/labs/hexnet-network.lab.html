@@ -35,17 +35,25 @@
    small problem, accumulated gradients behave like a runaway learning rate --
    sometimes faster, sometimes straight into tanh saturation.
 
-   SECOND CORRECTION (Nancy, 2026-07-30). The replacement claim -- "zeroing
-   converges 8/8 every trial, leaking never beats 7/8" -- was ALSO cherry-picked.
-   Seeds 0-7 was one lucky window: that claim fails in 12 of 25 measured windows,
-   and widening the window makes it worse (24/25 at N=32), because it demands a
-   PERFECT score from zeroing. Measured over 120 independent seeds:
-     zeroing  converged 110/120 (92%), median loss 0.0082, diverged   0/120
-     leaking  converged  65/120 (54%), median loss 0.0000, diverged  16/120
-   Leaking is not slower -- its median is LOWER. It is UNSTABLE: it blows up 13%
-   of the time and zeroing never did. So the graded claim is a COMPARISON,
-   zeroed > leaked, which held in 20 of 20 windows. That is why zero_grad exists:
-   predictability, not speed -- and unpredictability is why the bug survives.
+   SECOND CORRECTION (Nancy + Chris, 2026-07-30). Two errors, one mine at the
+   measuring instrument. The replacement claim ("zeroing converges 8/8 every
+   trial, leaking never beats 7/8") was rewritten using a harness that drew
+   RANDOM xs/ys inside train(), while this challenge ships a FIXED 4-point
+   dataset. That measured a harder problem than the one students run, so the
+   numbers first published here (92% / 54% / 13%) were real measurements OF THE
+   WRONG FUNCTION. Chris caught it by re-running the shipped code.
+
+   Measured with the EXACT shipped train() -- fixed xs/ys, 400 seeds:
+     zeroing  converged 400/400 (100%), median loss 0.0052, diverged   0/400
+     leaking  converged 288/400  (72%), median loss 0.0000, diverged  83/400
+   The lesson survives and is stronger: leaking is not slower -- its median is
+   LOWER -- it is UNSTABLE, blowing up 21% of the time where zeroing never did.
+
+   Why the rule is a COMPARISON (zeroed > leaked) over 16 seeds, correctly:
+   NOT because zeroing is imperfect -- it is perfect here. Because the old rule's
+   `leaked < 8` clause false-failed whenever leaking got lucky on all 8 seeds,
+   which at p=0.72 happens 7.2% of the time. Measured: the old 8-seed rule failed
+   5 of 50 windows (10%). At 16 seeds that drops to 0.5%; measured 0 of 25.
 
    DOCTRINE APPLIED FROM THE START (paid for by HexGrad's two review blocks):
    - Structural checks gate ONLY where no functional check exists. Where
@@ -103,6 +111,15 @@ var ENGINE = [
     '        build(self)',
     '        self.grad = 1.0',
     '        for node in reversed(topo): node._backward()',
+    '',
+    '',
+    '# Built HERE, in the engine block, which runs BEFORE any student code. Nancy',
+    '# defeated the previous version -- it called random.Random() after student code',
+    '# had run, so four lines reassigning random.Random handed TRAINCHECK a fake.',
+    '# Constructing the instance first means a later monkeypatch of the class has',
+    '# nothing left to hijack. This is a real barrier, not a tamper-proof one: the',
+    '# ceiling stated in the instructions still applies.',
+    '_TC_RNG = random.Random()',
     ''
 ].join('\n');
 
@@ -130,10 +147,10 @@ var TRAINCHECK = [
     '# module RNG in a known state and made this check fully deterministic and',
     '# therefore memorisable -- the exact opposite of what the header claims.',
     '# ─────────────────────────────────────────────────────────────────────',
-    '_tc_rng = random.Random()   # seeded from OS entropy, immune to random.seed()',
+    '# _TC_RNG was built in the engine block ABOVE, before student code ran.',
     'def traincheck(steps=200, lr=0.1):',
-    '    xs = [[_tc_rng.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
-    '    ys = [_tc_rng.choice([-1.0, 1.0]) for _ in range(4)]',
+    '    xs = [[_TC_RNG.uniform(-1, 1) for _ in range(3)] for _ in range(4)]',
+    '    ys = [_TC_RNG.choice([-1.0, 1.0]) for _ in range(4)]',
     '    net = MLP(3, [4, 4, 1])',
     '    def total_loss():',
     '        return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0))',
@@ -242,8 +259,11 @@ PythonSandbox.init({
                 { /* Functional, not structural. A previous version regex-matched
                      "random.uniform" in the source: that FAILED an honest learner using
                      random.gauss, and PASSED hardcoded identical weights carrying a dead
-                     random.uniform call. Two fresh neurons are now actually compared. */
-                  name : 'Weights are randomised, not all identical',
+                     random.uniform call. Two fresh neurons are now actually compared.
+                     NAMED FOR WHAT IT PROVES (Nancy, 2026-07-30): this measures VARIATION,
+                     not entropy. A counter-based deterministic scheme passes it. No
+                     client-side check can prove randomness, so the name no longer claims to. */
+                  name : 'Weights vary between neurons and within each neuron',
                   check: function(out) {
                       return /distinct:\s*True/.test(out)
                           && /within_varies:\s*True/.test(out);
@@ -357,7 +377,7 @@ PythonSandbox.init({
                 'Step 2 will look pointless. It is not, and the next challenge is dedicated ' +
                 'to showing you why.<br><br>' +
                 'The training check builds a <strong>random target every run</strong>. There is ' +
-                'no set of weights you can write down that satisfies it &mdash; the network has ' +
+                'no set of weights you can usefully write down in advance &mdash; the network has ' +
                 'to actually learn.' +
                 CEILING,
             expected    : '',
@@ -430,9 +450,13 @@ PythonSandbox.init({
            had pinned, the leaking run converged BETTER (0.0000 vs 0.0189). On a
            small problem, accumulated gradients act like a runaway learning rate:
            sometimes faster, sometimes straight into saturation.
-           What IS reliably true, verified over 12 independent trials of 8 seeds:
-           correct training converged 8/8 EVERY trial; leaking training never beat
-           7/8. So the honest lesson is UNRELIABILITY, and that is what is graded. */
+           CORRECTED (Chris + Nancy, 2026-07-30): the "8/8 every trial" claim that
+           replaced it was measured with a harness that drew RANDOM xs/ys, while this
+           challenge ships a FIXED dataset -- the right measurement of the wrong
+           function. Against the shipped train() over 400 seeds: zeroing converged
+           400/400 and never diverged; leaking converged 288/400 (72%) and diverged
+           83/400 (21%), with a LOWER median. The lesson is UNRELIABILITY, graded as
+           a comparison (zeroed > leaked) over 16 seeds. See the file header. */
         {
             id          : 'hexnet-zerograd',
             title       : 'The Gradient That Never Left',
@@ -460,12 +484,14 @@ PythonSandbox.init({
                 'So you will not measure damage. You will measure <strong>reliability</strong>: ' +
                 'train from sixteen different starting points, both ways, and count how many ' +
                 'times each actually converges.<br><br>' +
-                'Over 120 seeds we measured it: zeroing converged 92% of the time and ' +
-                '<strong>never</strong> blew up; leaking converged 54% and blew up 13% of the ' +
-                'time. Leaking is not slower &mdash; its median loss is actually <em>lower</em>. ' +
-                'Accumulated gradients act like unintended momentum: sometimes it wins, ' +
-                'sometimes it saturates every tanh and the gradients die. You are not ' +
-                'expected to hit a perfect score. You are expected to beat the leaking run.<br><br>' +
+                'Over 400 seeds we measured it: zeroing converged <strong>every single ' +
+                'time</strong> (400/400) and never blew up; leaking converged 72% of the time ' +
+                'and blew up in 21% of runs. But look closer &mdash; leaking is not ' +
+                '<em>slower</em>. Its median loss is actually <em>lower</em> than zeroing\'s. ' +
+                'Accumulated gradients act like unintended momentum: sometimes that wins, and ' +
+                'one run in five it saturates every tanh and the gradients die. ' +
+                'You are not asked to hit a perfect score. You are asked to beat the ' +
+                'leaking run.<br><br>' +
                 '<em>This is why the bug survives in real codebases. It does not crash and it ' +
                 'does not consistently hurt &mdash; it just makes results irreproducible, and ' +
                 'people blame the seed.</em>' +
@@ -508,17 +534,17 @@ PythonSandbox.init({
                 '    return sum(((net(x) - y) ** 2 for x, y in zip(xs, ys)), Value(0.0)).data\n' +
                 '\n' +
                 '# Converged means the loss actually came down. Count it across 16 starts.\n' +
-                '# 16, not 8: over 120 seeds zeroing converges ~92% and leaking ~54%, and\n' +
-                '# an 8-seed window was too narrow to separate those reliably.\n' +
+                '# 16, not 8: with 8 seeds, leaking gets lucky and converges on ALL of\n' +
+                '# them about 7% of the time, which would fail your correct answer.\n' +
+                '# 16 seeds drops that to under 1%.\n' +
                 'zeroed = sum(1 for s in range(16) if train(True, s) < 0.5)\n' +
                 'leaked = sum(1 for s in range(16) if train(False, s) < 0.5)\n' +
                 'print(f"RELIABILITY zeroed={zeroed}/16 leaked={leaked}/16")\n' +
                 'for s in range(3):\n' +
                 '    print(f"  seed {s}: zeroed {train(True, s):.4f}   leaked {train(False, s):.4f}")\n' +
                 '# The rule is "zeroing converges MORE OFTEN", not "zeroing is perfect".\n' +
-                '# Zeroing itself only converges ~92% of the time, so demanding a perfect\n' +
-                '# score failed honest work in 12 of 25 measured seed windows. This\n' +
-                '# comparison held in 20 of 20.\n' +
+                '# A comparison is safe even on a seed where zeroing happens to struggle,\n' +
+                '# because both runs share that seed. Measured: 0 failures in 25 windows.\n' +
                 'if zeroed > leaked:\n' +
                 '    print("VERDICT: zeroing makes training RELIABLE")\n' +
                 'else:\n' +
@@ -537,10 +563,11 @@ PythonSandbox.init({
                    rejected a correct learner who factors the zeroing into a helper, and
                    added no detection -- an unconditional-zero build forces leaked==zeroed
                    and fails VERDICT, a never-zero build does too. Functional wins. */
-                /* REMOVED (Nancy, 2026-07-30): a test for a PERFECT zeroed score. Zeroing
-                   converges ~92% of the time, not 100%, so that demand failed honest work
-                   in 12 of 25 seed windows. The VERDICT check below carries the signal,
-                   and it is a comparison, which held in 20 of 20 windows. */
+                /* REMOVED (Nancy + Chris, 2026-07-30): a test for a PERFECT zeroed score.
+                   Zeroing actually IS perfect here (400/400 measured), so this test was not
+                   itself the false-fail -- its partner clause `leaked < 8` was, firing 10%
+                   of the time when leaking got lucky on all 8 seeds. The VERDICT comparison
+                   below carries the whole signal over 16 seeds and measured 0 of 25. */
                 { name : 'Gradient-leaking training was measurably less reliable',
                   check: function(out) { return /VERDICT: zeroing makes training RELIABLE/.test(out); } },
                 { name : 'TRAINCHECK still passes on a target randomised this run',
