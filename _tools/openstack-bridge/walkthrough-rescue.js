@@ -42,8 +42,8 @@ async function post(url, body, headers) {
 
   // The seeded ids must be present in the container env -- that is what makes the checks
   // unforgeable. If they are missing the whole design is inert, so fail loudly.
-  const seedVol = dex('printenv SEED_VOL_ID').trim();
-  const seedSrv = dex('printenv SEED_SRV_ID').trim();
+  let seedVol = dex('printenv SEED_VOL_ID').trim();
+  let seedSrv = dex('printenv SEED_SRV_ID').trim();
   if (!seedVol || !seedSrv) fail(`seed ids missing from container env (vol=${seedVol} srv=${seedSrv})`);
   console.log(`  seed ids in env: vol=${seedVol.slice(0, 8)}... srv=${seedSrv.slice(0, 8)}...`);
 
@@ -72,14 +72,32 @@ async function post(url, body, headers) {
       if (l2.status !== 200 || l2.data.cloudMode !== 'personal') fail(`relaunch ${l2.status}`);
       sid = l2.data.sessionId;
       console.log(`  relaunched (${sid}), seeded=${l2.data.seeded}`);
-      const v2 = dex('printenv SEED_VOL_ID').trim();
-      if (!v2) fail('re-seed did not inject SEED_VOL_ID');
+      // Re-seed mints NEW ids; refresh them or cleanup will chase a deleted volume.
+      seedVol = dex('printenv SEED_VOL_ID').trim();
+      seedSrv = dex('printenv SEED_SRV_ID').trim();
+      if (!seedVol || !seedSrv) fail('re-seed did not inject SEED_VOL_ID/SEED_SRV_ID');
+      console.log(`  refreshed seed ids: vol=${seedVol.slice(0, 8)}... srv=${seedSrv.slice(0, 8)}...`);
     }
 
-    // Step 1 (page): survey.
+    // Step 1 (page): survey. RUN THE PAGE'S ACTUAL COMMANDS (Chris block 2026-07-30).
+    // This harness claimed "VERBATIM" while skipping straight to step 2, so the page's
+    // survey lines were never executed -- which is how `openstack quota show --default`
+    // survived. It shows the default quota CLASS (instances 10), not the project's real
+    // quota (1), so a student following the page saw the number that DISPROVES the lesson.
+    // Verbatim now means verbatim, and the quota value is asserted, not merely printed.
     console.log('step 1: survey');
     const before = dex('openstack server list -f value -c Name');
     if (!before.includes('ghost-srv')) fail(`expected ghost-srv in the project, got: ${before.trim()}`);
+    const volList = dex('openstack volume list -f value -c Name');
+    if (!volList.includes('orphan-vol')) fail(`expected orphan-vol in the project, got: ${volList.trim()}`);
+    const volShow = dex('openstack volume show orphan-vol -f value -c status').trim();
+    if (volShow !== 'in-use') fail(`step 1 expected orphan-vol in-use, got: ${volShow}`);
+    const quota = dex('openstack quota show -f value -c instances 2>/dev/null || openstack quota show | grep -E "^\\| instances"');
+    if (!/\b1\b/.test(quota)) {
+      fail(`step 1 quota command must show the PROJECT quota of 1 instance -- got: ${quota.trim()}. `
+         + `If this reads 10, the page is using --default (the default quota CLASS) again.`);
+    }
+    console.log(`  survey verified: ghost-srv + orphan-vol in-use, quota instances=1`);
 
     // Step 2 (page): the refusal that protects you.
     console.log('step 2: confirm the trap (delete refused while in-use)');
@@ -119,12 +137,23 @@ async function post(url, body, headers) {
   await runLab(2);
 
   console.log('cleanup');
-  const cur = dex('openstack server list -f value -c ID').trim().split('\n').filter(Boolean)[0];
-  if (cur) {
-    try { dex(`openstack server remove volume ${cur} ${seedVol}`); } catch (e) { /* ok */ }
-    for (let i = 0; i < 12; i++) { if (dex(`openstack volume show ${seedVol} -f value -c status`).trim() === 'available') break; sh('sleep 5'); }
-    dex(`openstack volume delete ${seedVol}`);
-    dex(`openstack server delete ${cur}`);
+  // Best-effort: teardown must never turn a PASSED run into a gate failure. Resources may
+  // already be gone; the verdict has been earned by this point and cleanup is hygiene.
+  try {
+    const cur = dex('openstack server list -f value -c ID').trim().split('\n').filter(Boolean)[0];
+    if (cur) {
+      try { dex(`openstack server remove volume ${cur} ${seedVol}`); } catch (e) { /* not attached */ }
+      for (let i = 0; i < 12; i++) {
+        let st2 = '';
+        try { st2 = dex(`openstack volume show ${seedVol} -f value -c status`).trim(); } catch (e) { break; }
+        if (st2 === 'available') break;
+        sh('sleep 5');
+      }
+      try { dex(`openstack volume delete ${seedVol}`); } catch (e) { /* already gone */ }
+      try { dex(`openstack server delete ${cur}`); } catch (e) { /* already gone */ }
+    }
+  } catch (e) {
+    console.log(`  (cleanup best-effort: ${e.message.split('\n')[0]})`);
   }
   await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
   await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
