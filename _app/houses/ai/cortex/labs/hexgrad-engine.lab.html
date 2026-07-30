@@ -80,11 +80,25 @@ var VERIFY = [
     'verify()'
 ].join('\n');
 
-/* A check that the learner actually built machinery rather than printing text. */
+/* Does the code contain real accumulation, in EITHER form a correct learner might write?
+   `self.grad += x` and `self.grad = self.grad + x` are identical; the first version of this
+   only matched the former and therefore FAILED an honest, fully-correct engine that scored
+   GRADCHECK 6/6 (Nancy reproduced it). That is the measure-a-proxy-not-the-claim failure:
+   the claim is "gradients accumulate", and += is only one spelling of it. */
+function accumulates(code) {
+    return /\.grad\s*\+=/.test(code)                       /* self.grad += x            */
+        || /\.grad\s*=\s*[^\n]*\.grad\s*\+/.test(code)      /* self.grad = self.grad + x */
+        || /\.grad\s*=\s*[^\n]*\+\s*[a-z_]*\.grad/.test(code); /* self.grad = x + self.grad */
+}
+
+/* Structural evidence that machinery exists rather than printed text. Used as a GATE only
+   where there is no functional check available (challenge 2). Where GRADCHECK runs, the
+   functional result is the gate and this is not ANDed in -- a structural regex that cannot
+   add cheat-detection power but can fail a correct answer is pure downside. */
 function builtRealEngine(code) {
     return /class\s+Value/.test(code)
         && /_backward|def\s+backward/.test(code)
-        && /\.grad\s*\+=/.test(code);          /* accumulation, not assignment */
+        && accumulates(code);
 }
 
 PythonSandbox.init({
@@ -118,7 +132,8 @@ PythonSandbox.init({
                 'Implement <code>__add__</code> and <code>__mul__</code> so that each result ' +
                 'records its parents. Nothing differentiates yet &mdash; you are building the ' +
                 '<em>graph</em> that differentiation will later walk backwards.<br><br>' +
-                '<em>Run it and read the printed graph. That structure is the whole trick.</em>',
+                '<em>Run it and read the printed graph. That structure is the whole trick.</em><br><br>' +
+                '<span style="color:#a78bfa">How this lab is graded, plainly:</span> your code runs in <em>your own browser</em>, so these checks are not tamper-proof and this lab does not pretend otherwise. What they do enforce is that shortcuts fail: later challenges compare your engine\'s gradients against calculus on values randomised every run, so a hardcoded answer cannot pass. The point is that you build the thing, and the check tells you honestly whether it works.',
             expected    : '',
             starter     :
                 'import math\n\n' +
@@ -141,9 +156,19 @@ PythonSandbox.init({
                 '        pass\n\n\n' +
                 'a = Value(2.0)\n' +
                 'b = Value(-3.0)\n' +
-                'c = a * b + a\n' +
-                'print(c)\n' +
-                'print("op:", c._op, "| parents:", len(c._prev))\n',
+                '\n' +
+                '# Guard so the FIRST run gives you a readable message rather than a\n' +
+                '# generic TypeError from the unfinished methods above.\n' +
+                'step = a * b\n' +
+                'if step is None:\n' +
+                '    print("__mul__ returned None -- it still says `pass`. Return a Value.")\n' +
+                'else:\n' +
+                '    c = step + a\n' +
+                '    if c is None:\n' +
+                '        print("__add__ returned None -- it still says `pass`. Return a Value.")\n' +
+                '    else:\n' +
+                '        print(c)\n' +
+                '        print("op:", c._op, "| parents:", len(c._prev))\n',
             hints       : [
                 'Return Value(self.data + other.data, (self, other), "+")',
                 'The _children tuple is what lets backward() find its way home later.',
@@ -185,7 +210,11 @@ PythonSandbox.init({
                 '<code>1 - tanh(x)&sup2;</code>.<br><br>' +
                 '<strong>Why <code>+=</code> and never <code>=</code>:</strong> a Value used ' +
                 'twice receives gradient from both paths. Assignment throws one away. This ' +
-                'single character is the most common bug in hand-built engines.',
+                'single character is the most common bug in hand-built engines.<br><br>' +
+                '<em>Note: nothing in this challenge can prove you got that right &mdash; only ' +
+                'one operation runs here, and on a single hop assignment and accumulation give ' +
+                'the same number. Challenge 3 builds a graph that reuses a node, and that is ' +
+                'where the difference becomes visible and gets checked.</em>',
             expected    : '',
             starter     :
                 'import math\n\n' +
@@ -237,8 +266,13 @@ PythonSandbox.init({
             ],
             testInputs  : [],
             tests       : [
-                { name : 'Gradients ACCUMULATE with += (never plain =)',
-                  check: function(out, code) { return /\.grad\s*\+=/.test(code); } },
+                { /* Honest naming (Chris): only __mul__ runs in this challenge's script, and
+                     with grad starting at 0.0 a single assignment is numerically identical to
+                     accumulation on one hop -- so this can only confirm the PATTERN is present.
+                     Accumulation is genuinely ENFORCED in challenges 3 and 4, where the graph
+                     reuses a node and GRADCHECK catches assignment (cheat B scores 0/6). */
+                  name : 'Accumulation pattern present (enforced for real in challenges 3-4)',
+                  check: function(out, code) { return accumulates(code); } },
                 { name : 'Multiplication rule is correct: a.grad becomes 4.0',
                   check: function(out) { return /a\.grad:\s*4\.0/.test(out); } },
                 { name : 'Multiplication rule is correct: b.grad becomes 3.0',
@@ -329,7 +363,12 @@ PythonSandbox.init({
                 { name : 'Output gradient is seeded to 1.0',
                   check: function(out, code) { return /self\.grad\s*=\s*1\.?0?/.test(code); } },
                 { name : 'Real backward machinery present (not printed output)',
-                  check: function(out, code) { return builtRealEngine(code); } },
+                  check: function(out, code) {
+                      /* Deliberately NOT ANDed with accumulation spelling: GRADCHECK below
+                         is the functional gate and already rejects a non-accumulating engine
+                         (cheat B scores 0/6). */
+                      return /class\s+Value/.test(code) && /_backward/.test(code);
+                  } },
                 { name : 'GRADCHECK passes 6/6 against randomised finite differences',
                   check: function(out) { return /GRADCHECK\s+6\/6/.test(out); } }
             ]
@@ -376,9 +415,12 @@ PythonSandbox.init({
             ],
             testInputs  : [],
             tests       : [
-                { name : 'A complete engine is present (class, backward, accumulation)',
+                { name : 'A complete engine is present (class, backward, topological sweep)',
                   check: function(out, code) {
-                      return builtRealEngine(code) && /reversed\(topo\)/.test(code);
+                      /* Accumulation is proven functionally by GRADCHECK + the 7.0 reuse
+                         result below, not by matching a particular spelling. */
+                      return /class\s+Value/.test(code) && /_backward/.test(code)
+                          && /reversed\(topo\)/.test(code);
                   } },
                 { name : 'Reused node accumulates correctly: 2a + 1 = 7.0',
                   check: function(out) { return /reuse grad:\s*7\.0/.test(out); } },
