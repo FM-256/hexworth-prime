@@ -433,3 +433,40 @@ Admins are comfortable paying SaaS vendors. They are not comfortable paying GitH
 ---
 
 *This document captures ideas during brainstorming. Move to sprint backlog when ready to implement.*
+
+---
+
+## Cloud Persistence as a Pedagogical Primitive (from Stage 3 build)
+
+**Date Added:** July 30, 2026 (marathon discovery, documented per Frank's idea-directory rule)
+
+**The discovery:** Stage 3 gave every student a personal OpenStack project whose instances
+SURVIVE the 120-minute container teardown. That makes the cloud the platform's FIRST persistent
+per-student environment: everything else (Linux sandbox, arena boxes) is scratch space that dies
+with the container.
+
+**Why it's different:** every existing lab teaches inside one sitting. A persistent world enables
+an assignment class we have never been able to run: multi-day operations. "Harden this instance
+by Friday." "Your volume from last week has a corrupted filesystem, recover it." "The instance
+you built in week 2 becomes the target you troubleshoot in week 5." That is how real
+infrastructure work feels: you inherit your own past decisions.
+
+**Pros:** genuinely novel for us; matches Frank's persistence ask verbatim; near-zero extra
+infra (already live); compounds with the eight designed labs; makes grading richer (the grader
+can inspect a world with HISTORY, not a fresh seed).
+**Cons:** state drift between students (helpers must handle "any valid state," not one seed);
+term-reset messaging matters (announced wipe); a broken world can strand a student (needs a
+self-service "reset my project" escape hatch -- NOT built); capacity is 1 instance/student, so
+multi-instance scenarios need a quota rethink.
+
+**Related mechanism worth reusing elsewhere:** sticky per-student resource claims stored as
+PROPERTIES on the resource itself (Keystone project properties beat both Firestore and SQLite in
+the Nancy review -- durability exactly matches the resource lifetime, atomic wipe on reset,
+recovery = list). Any future per-student durable-resource system (DB schemas? git repos? k8s
+namespaces someday) should consider the same pattern.
+
+**Second discovery, same build -- socat + 384MB CLI containers:** concurrent python openstack CLI
+invocations in one 384MB container stall each other into multi-minute hangs ("Resetting dropped
+connection" + silence) while raw curl stays instant; solo invocations complete in ~3s. Any lab or
+grader design that execs the CLI while a student is also running one shares that budget -- either
+raise the memory for write-mode labs or grade via raw REST calls (token + curl is ~40x lighter).
