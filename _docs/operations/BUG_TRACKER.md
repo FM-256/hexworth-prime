@@ -277,7 +277,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Deployed:** same ~2026-07-29 00:35 EDT hosting deploy as BUG-040 (live files md5-match f145fdd16). Source confirmed live; the two taught-command checks were verified in the 30/30 pre-commit playthrough but not re-exercised on production.
 - **Related:** BUG-040.
 
-### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  fixed-not-deployed
+### BUG-046 -- two container hubs are unreachable: their container never links them  ·  P2  ·  deployed-verified
 - **Found:** 2026-07-28 · by Nancy · while reviewing the taskboard #234 metric fix · verified independently
 - **Area:** _app/houses/code/armory/index.html (missing card) and _app/houses/web/backbone/index.html:466 (card points elsewhere)
 - **Symptom:** two registry hubs carry `parent` but their container's page never links them, so students cannot reach them from anywhere:
@@ -300,9 +300,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
     tabs, hero stats recompute to 17 languages / 172 modules / 6 tracks, 0 page errors.
   - LESSON (same family as "measure the claim"): in this codebase a card living in a data array is
     not a rendered card -- find the renderer's actual source list before claiming reachability.
+- **DEPLOYED + LIVE-VERIFIED 2026-07-29:** on hexworth.com the Armory shows python-graphics on both
+  tabs (2 links), hero stats read 17 / 172 / 6, and the card click-through returns 200 on the real
+  10-module hub; the Backbone forensics card click LANDS on /houses/web/backbone/forensics/ with
+  title "Network Forensics Course | The Backbone", and zero live `href:` values point at
+  eye/forensics (the only remaining occurrence of that string is the explanatory comment on the
+  fixed line -- my first live check flagged its own comment, a self-inflicted false positive).
 - **Related:** taskboard #234 (the metric fix, now correctly scoped), BUG-043's container-surfacing discussion.
 
-### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  fixed-not-deployed (72 of 124 missions; see BUG-051 for the other 52)
+### BUG-045 -- OperatorEngine credits course progress with one argument, so every mission writes the wrong bucket  ·  P1  ·  deployed-verified (72 of 124 missions; see BUG-051 for the other 52)
 - **Found:** 2026-07-28 · by Nancy · during the BUG-039 review · verified independently against both files
 - **Area:** _app/operator/engine/OperatorEngine.js:797 vs _app/components/ModuleProgress.js:533
 - **Symptom:** `fireCompletionHooks` calls `window.ModuleProgress.complete(config.id)` with ONE argument, but the function is `complete(houseId, moduleId, options = {})`. So every completed operator mission records `houseId = <mission id>` (e.g. 'js-01') and `moduleId = undefined`. There is no arguments-length overload to compensate. Course progress for operator missions therefore lands in a bucket named after the mission with no module, instead of the mission's house.
@@ -333,6 +339,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   with live content -- `js-01`..`js-05` are Armory challenge ids and `crypto-01`/`crypto-02` are Arena
   box ids (Nancy's catch). Namespacing costs nothing now and stops 124 generic ids from poisoning
   that namespace before Armory/Arena ever wire into ModuleProgress.
+- **CHRIS BLOCK, fixed before deploy (dffa92689):** stopping the throw made a previously
+  UNREACHABLE regression reachable -- with silent/returnToDashboard left at their defaults,
+  ModuleProgress painted its generic "Module Complete!" overlay at z-index 100000 directly over
+  Operator's own `#mission-complete` reward card (z-index 8000) on all 72 missions. He reproduced it
+  through the real checkObjectives -> finalizeCompletion path. My evidence (no throw, zero page
+  errors) was a proxy for "the write succeeds", not for "the completion experience works". Fix:
+  pass `{ silent: true, returnToDashboard: false }`. Re-verified by him on the fixed tree: no
+  `.mp-overlay` even after the delayed reveal, mission card intact and visible, progress recorded
+  with xp 100.
+- **DEPLOYED + LIVE-VERIFIED 2026-07-29 (deploy exit 0, all gates):** all five files md5-match HEAD
+  on hexworth.com; on production `crypto-01.mission.html` the guard refuses a bad call and writes
+  nothing, the correct call returns true and records `operator` / `op-crypto-01`, zero page errors.
 - **KNOWN AND STATED, not hidden:** `progress.houses['operator']` is **write-only on every current
   UI** -- there is no `operator` HubRegistry entry, so no progress surface enumerates the bucket. It
   records faithfully and displays nowhere until operator is surfaced (Frank informed as a fact, not a
