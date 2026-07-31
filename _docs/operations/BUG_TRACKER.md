@@ -36,7 +36,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 > persisted=true` on hexworth.com, `ModuleProgress` serves `_ensureFirestoreReady`, and
 > `LabStateSync` serves 0 occurrences of the old dead `window.FirebaseAuth` guard.
 
-### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  open
+### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · regression-checking the BUG-072 fix against completeQuiz
 - **Area:** `_app/components/ModuleProgress.js:1187` inside `showQuizNotification()`
 - **Symptom:** `Uncaught ReferenceError: showCompletionNotification is not defined`. Fires the
@@ -57,9 +57,24 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `{ silent, returnToDashboard, returnUrl, passingScore }` (`:704`). `showNotification` is not a
   real option and is silently ignored — so callers cannot currently suppress this path either.
   The 4 OpenStack quizzes shipped today pass it, as do others.
-- **Fix:** not yet. Extract the style injection out of `showCompletionOverlay` into its own
-  function and call that from both places; drop the stale `.module-complete-notification` remove.
-  Kept separate from the BUG-072 commit so each is reviewable on its own.
+- **Fix:** FIXED in 6d506eb09. Style injection extracted out of `showCompletionOverlay` into
+  `ensureProgressStyles()`, called from both places; stale selector dropped.
+- **Where the bad name came from (Nancy):** `showCompletionNotification` is not invented — it is
+  a real static method on the SIBLING file `_app/components/ProgressManager.js:1137`. This was
+  copy-paste drift: ModuleProgress was modelled on ProgressManager's pattern and the rename was
+  finished at one call site but not the other. The two files share no code; they only rhyme. Do
+  not assume otherwise when touching either.
+- **Blast radius, stated precisely:** `showCompletionOverlay` has exactly ONE direct caller
+  (`ModuleProgress.js:627`). It is reached by hundreds of modules only transitively, via the
+  public `complete()` API. My commit message said "used by hundreds of modules", which will
+  mislead anyone grepping for direct callers.
+- **Verified:** `_tools/eduscan/smoke/completequiz-notification-probe.js` — 6/6, asserting
+  completeQuiz RESOLVES, the stylesheet is actually injected, the notification renders, and
+  progress is still recorded. `--ablate` restores the pre-fix call and fails 3/6 with the exact
+  original ReferenceError. Nancy independently confirmed the ~130-line CSS extraction lost,
+  duplicated and reindented nothing, and that the notification's own classes
+  (`.quiz-notification`, `.qn-score`, `.qn-text`) are present in the shared stylesheet — so it
+  renders styled, not merely non-throwing.
 - **Related:** BUG-072.
 
 ### BUG-073 — 127 unlock() calls name an achievement id that does not exist  ·  [P1]  ·  open
