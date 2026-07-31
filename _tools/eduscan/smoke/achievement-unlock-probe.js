@@ -17,14 +17,22 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 
 // Bucket A from _tools/audit-achievement-fix-scope.js: guard was broken, id EXISTS.
 // These should now unlock for real.
+// ALL 13 — not a sample. Nancy caught this covering 7 and the commit claiming 13; the other 6
+// were asserted by pattern-match, which is the exact thing this harness exists to avoid.
 const SHOULD_UNLOCK = [
   ['/houses/cloud/games/cloud-aws-sts.html', 'game_awssts', 'cloud'],
   ['/houses/code/games/code-git-blame.html', 'game_gitblame', 'code'],
+  ['/houses/code/games/code-kill-nine.applet.html', 'game_kill9', 'code'],
   ['/houses/eye/games/eye-grep-noir.html', 'game_grep', 'eye'],
+  ['/houses/forge/games/forge-bit-dash.applet.html', 'game_bitdash', 'forge'],
   ['/houses/forge/games/forge-fsck.html', 'game_fsck', 'forge'],
   ['/houses/key/games/key-gpg-decrypt.html', 'game_gpg', 'key'],
+  ['/houses/script/games/script-shell-sprint.applet.html', 'game_shellsprint', 'script'],
   ['/houses/script/games/script-sudo-su.html', 'game_sudo', 'script'],
+  ['/houses/shield/games/shield-incident-response.html', 'game_incident', 'shield'],
+  ['/houses/shield/games/shield-threat-runner.applet.html', 'game_threatrunner', 'shield'],
   ['/houses/shield/games/shield-tor-darkweb.html', 'game_tor', 'shield'],
+  ['/houses/web/games/web-packet-run.applet.html', 'game_packetrun', 'web'],
 ];
 
 // Bucket B: guard was broken AND the id is undefined. The guard fix reaches unlock() now, but

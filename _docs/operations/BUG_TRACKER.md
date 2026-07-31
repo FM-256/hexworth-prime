@@ -125,7 +125,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   the always-false guard has been masking whether the rest of that path is sound.
 - **Related:** BUG-068, BUG-069, BUG-070.
 
-### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  open
+### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  guard fixed, sync unverified
 - **Found:** 2026-07-31 · by self · while sweeping for the `window.FirebaseAuth` trap that the
   render probe caught in InstantQuizGrader
 - **Area:** `_app/components/LabStateSync.js:45` (`_uid()`)
@@ -143,24 +143,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Measured, not inferred:** on a real page loading FirebaseAuth.js —
   `typeof FirebaseAuth = 'object'`, `typeof window.FirebaseAuth = 'undefined'`,
   `Object.prototype.hasOwnProperty.call(window,'FirebaseAuth') = false`.
-- **Fix:** not yet — out of scope of the authorized quiz task. One line: guard on the bare
-  identifier (`typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser`). Needs its own
-  verification that sync actually works once a uid resolves; the no-op has been masking whether
-  the rest of the path is sound, so a one-line fix must not be assumed sufficient.
+- **Fix:** GUARDS REPAIRED in d6bcd61bb — both `_uid()` (`:45`) and `_db()` (`:39`) now resolve
+  the bare identifier, so they can return a real uid/db instead of null unconditionally.
+  **Status stays `open` deliberately:** repairing the guard is necessary but not sufficient, and
+  nothing has yet proven that lab state actually round-trips between two devices. The dead guard
+  was masking whether the rest of that path works. Needs a two-device (or two-profile) sync test
+  before this can be called resolved.
 - **Also in the same file:** `LabStateSync.js:39` guards `window.FirestoreManager` the same
   way, so `_db()` returns null too — the component is broken twice over, independently.
 - **Related:** BUG-069, BUG-070, BUG-071. `_app/operator/index.html:1255` guards CORRECTLY and documents
   this exact trap ("same trap documented in TenantFilter.js") — so it is known, with victims.
   Memory: `project_cross_device_lab_state_sync.md` records this feature as SHIPPED.
 
-### BUG-069 — admin console records `createdBy: null` on every object it creates  ·  [P2]  ·  open
+### BUG-069 — admin console records `createdBy: null` on every object it creates  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · same sweep as BUG-068
 - **Area:** `_app/admin/console.html:4675`
 - **Symptom:** the `createdBy` audit field is always `null`, so admin-created objects carry no
   attribution even when a signed-in admin created them.
 - **Root cause:** same `window.FirebaseAuth` lexical-const trap as BUG-068 — the ternary's guard
   is always falsy, so it always takes the `: null` branch.
-- **Fix:** not yet — out of scope of the authorized quiz task.
+- **Fix:** FIXED in d6bcd61bb — the guard now resolves the bare identifier, so a signed-in
+  admin's uid is recorded instead of the ternary always falling through to `null`. Unlike
+  BUG-068 there is no further path to verify: the value either resolves or it does not.
+- **Verified:** `typeof FirebaseAuth` resolves on a real page (measured); the guard rewrite is
+  covered by the parse + render check in c1880ca80.
 - **Related:** BUG-068, BUG-070.
 
 ### BUG-070 — CORRECTED: A+ Core 1 `window.FirebaseAuth` guard is dead code, not a live defect  ·  [P3]  ·  open

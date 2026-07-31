@@ -8,6 +8,16 @@
 // commit would claim a fix that changed nothing for students — the silent-no-op failure mode.
 // This prints the intersection so the fix can be scoped honestly.
 //
+// READ THIS BEFORE TRUSTING A RUN — the buckets mean different things before and after the
+// BUG-071 guard fix (d6bcd61bb). `brokenGuard` is detected by grepping for
+// `window.AchievementManager`, which that commit removed. So:
+//   pre-fix  (worktree at d6bcd61bb^):  A=13  B=12  C=115  D=52
+//   post-fix (current tree):            A=0   B=0   C=127  D=65
+// Nothing regressed between those two runs. A folded into D (those 13 now work) and B folded
+// into C (those 12 are still blocked on BUG-073's undefined ids), because the guard they were
+// keyed on no longer exists. To recover the original split, run this in a worktree at
+// d6bcd61bb^. Flagged by Nancy, who noticed the numbers shift with no warning in the output.
+//
 // REPORT-ONLY.
 // usage: node _tools/audit-achievement-fix-scope.js
 const fs = require('fs');
