@@ -3,7 +3,15 @@
 // state that actually matters for this effect.
 const puppeteer=require('puppeteer');
 const BASE=process.env.BASE;
-const T=[['.sub','hub subtitle'],['.topbar a:last-child','topbar link'],['.section h2','section heading'],['h1','page title']];
+// Nancy: the previous list tested `.section h2` via querySelector -- the FIRST of EIGHT -- and
+// never scrolled, so 7 headings were never checked at all. That is the same scroll-blindness
+// that let the vanishing-sky bug through. It also omitted `.eyebrow`, which is CYAN (#22d3ee,
+// luminance ~0.53) and sits geometrically closest to the bloom core: bright-on-bright is a
+// riskier pairing than the near-white text that already passed. And only the LAST topbar link
+// was checked though both sit under the bloom.
+const T=[['.sub','hub subtitle'],['.topbar a:first-child','topbar link (left)'],
+         ['.topbar a:last-child','topbar link (right)'],['.eyebrow','eyebrow (cyan)'],
+         ['h1','page title'],['.section h2','ALL section headings']];
 function lum(c){const a=c.map(v=>{v/=255;return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);});return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];}
 function ratio(f,b){const L1=lum(f),L2=lum(b);return (Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05);}
 (async()=>{
@@ -19,6 +27,33 @@ function ratio(f,b){const L1=lum(f),L2=lum(b);return (Math.max(L1,L2)+0.05)/(Mat
  await new Promise(r=>setTimeout(r,400));
  let fail=0;
  for(const [sel,label] of T){
+   // For selectors with many matches, scroll each into view and test EVERY one.
+   const many = await p.$$(sel);
+   if (many.length > 1) {
+     let worstCr = 99, worstIdx = -1;
+     for (let i = 0; i < many.length; i++) {
+       await p.evaluate((s,ix)=>document.querySelectorAll(s)[ix].scrollIntoView({block:'center'}), sel, i);
+       await new Promise(r=>setTimeout(r,250));
+       const rr = await p.evaluate((s,ix)=>{const e=document.querySelectorAll(s)[ix];
+         const b=e.getBoundingClientRect(); const cs=getComputedStyle(e);
+         return {fg:cs.color.match(/\d+/g).slice(0,3).map(Number),x:Math.round(b.left),y:Math.round(b.top),w:Math.round(b.width),h:Math.round(b.height)};}, sel, i);
+       if(rr.y<0||rr.y>860) continue;
+       const sh=await p.screenshot({encoding:'base64',clip:{x:Math.max(0,rr.x),y:Math.max(0,rr.y),width:Math.max(8,Math.min(rr.w,420)),height:Math.max(8,Math.min(rr.h,40))}});
+       const bgc=await p.evaluate(async s=>{const i=new Image();i.src='data:image/png;base64,'+s;await i.decode();
+         const c=document.createElement('canvas');c.width=i.width;c.height=i.height;const g=c.getContext('2d');g.drawImage(i,0,0);
+         const d=g.getImageData(0,0,c.width,c.height).data; const L=[];
+         for(let k=0;k<d.length;k+=4)L.push([0.2126*d[k]+0.7152*d[k+1]+0.0722*d[k+2],d[k],d[k+1],d[k+2]]);
+         L.sort((a,b)=>a[0]-b[0]); const take=Math.max(1,Math.floor(L.length*0.10));
+         let rr2=0,gg=0,bb=0; for(let k=0;k<take;k++){rr2+=L[k][1];gg+=L[k][2];bb+=L[k][3];}
+         return [Math.round(rr2/take),Math.round(gg/take),Math.round(bb/take)];},sh);
+       const c2=ratio(rr.fg,bgc);
+       if(c2<worstCr){worstCr=c2;worstIdx=i;}
+     }
+     const ok2=worstCr>=4.5;
+     if(!ok2)fail++;
+     console.log(`  ${ok2?'PASS':'FAIL'}  ${label.padEnd(22)} WORST of ${many.length}: ${worstCr.toFixed(2)}:1 (index ${worstIdx})`);
+     continue;
+   }
    const r=await p.evaluate(s=>{const e=document.querySelector(s); if(!e) return null;
      const b=e.getBoundingClientRect(); const cs=getComputedStyle(e);
      return {fg:cs.color.match(/\d+/g).slice(0,3).map(Number),x:Math.round(b.left),y:Math.round(b.top),w:Math.round(b.width),h:Math.round(b.height)};},sel);
@@ -34,7 +69,7 @@ function ratio(f,b){const L1=lum(f),L2=lum(b);return (Math.max(L1,L2)+0.05)/(Mat
    const cr=ratio(r.fg,bg);
    const ok=cr>=4.5;
    if(!ok)fail++;
-   console.log(`  ${ok?'PASS':'FAIL'}  ${label.padEnd(16)} ${cr.toFixed(2)}:1 at PEAK flash  fg=rgb(${r.fg}) bg=rgb(${bg})`);
+   console.log(`  ${ok?'PASS':'FAIL'}  ${label.padEnd(22)} ${cr.toFixed(2)}:1 at PEAK flash  fg=rgb(${r.fg}) bg=rgb(${bg})`);
  }
  console.log(fail?`\n  ${fail} element(s) fail AA during a strike`:'\n  all sampled text holds AA even at peak flash');
  await b.close(); process.exit(fail?1:0);
