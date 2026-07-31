@@ -31,6 +31,44 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-075 — `tenant/instructor.html` strands a cold-entry instructor: zero navigation  ·  [P2]  ·  open
+- **Found:** 2026-07-31 · by Nancy · adjudicating NAV-001 findings for taskboard #228
+- **Area:** `_app/tenant/instructor.html` (0 anchors in source) + `_app/components/TenantShell.js:53`
+- **Symptom:** the page has NO navigation of its own. Its "Return to Hub" bar is injected by
+  TenantShell, which begins `if (!raw) return;` — it no-ops entirely when there is no tenant
+  context in sessionStorage/localStorage. So an instructor arriving cold (bookmark, shared link,
+  cleared storage, new device) lands on a full-page assignment manager with no way out but the
+  browser's back button, which is empty on a fresh tab.
+- **Why the normal flow hides it:** every inbound link comes from a tenant dashboard
+  (`dashboard-academy.html:339`, `dashboard-nightshift.html:348/364`, `dashboard-federal.html:299/316`,
+  `dashboard-clean-ops.html:714`), and those set tenant context first. Bookmarking "Manage
+  Assignments" is an entirely ordinary thing for an instructor to do.
+- **`TenantRouter.js` does not save it:** it is a passive URL helper with no redirect or guard for
+  missing tenant context (confirmed by grep — same `if (!raw) return;` shape, no
+  `window.location` enforcement).
+- **I had this wrong.** I classified it as a false positive on the reasoning "nav is JS-injected,
+  the static scanner just cannot see it." Nancy asked whether I had traced the inbound links and
+  confirmed context is ALWAYS pre-set. I had not. The exemption only holds on the happy path.
+- **Fix:** not yet. Options: an unconditional back-link in the page itself, or a TenantShell
+  fallback that renders a Hexworth-home link when there is no tenant context.
+- **Related:** BUG-076, taskboard #228.
+
+### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  open
+- **Found:** 2026-07-31 · by Nancy · same adjudication
+- **Area:** `_app/components/slides/admissions-2026.html`
+- **Symptom:** zero `href` in the entire file, and no exit affordance. Its two keydown handlers
+  are slide navigation (Arrow/PageDown/Space) and modal-close (Escape) — neither leaves the deck.
+- **Reached from:** `product-info.html:590` and `faq.html:744` ("Platform Presentation").
+- **Severity is P3, not higher, and the reason is measured:** neither link sets `target="_blank"`,
+  so the deck opens in the same tab and the browser back button works. A prospective viewer is
+  inconvenienced, not trapped. Had either link opened a new tab there would be no way back at all.
+- **I got this wrong too.** I speculated "decks have their own deck navigation" and filed it as a
+  by-design exemption. That was an assumption, not a measurement — Nancy grepped it and found
+  nothing. The lesson is the same one as [[feedback_measure_the_claim_not_a_proxy]]: I reasoned
+  from what a slide deck USUALLY has rather than from what this file contains.
+- **Fix:** not yet. A single "back to Hexworth" affordance in the deck chrome would close it.
+- **Related:** BUG-075, taskboard #228.
+
 > **DEPLOYED 2026-07-31 (second deploy)** — BUG-074 shipped after preview-lane verification on a
 > REAL quiz page, then confirmed on hexworth.com: `completeQuiz` resolves, the stylesheet goes
 > `false -> true`, the notification renders, zero ReferenceErrors. Chris noted this was the THIRD
