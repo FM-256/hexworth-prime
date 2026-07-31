@@ -244,32 +244,29 @@
            reaction: at that size no wing pose could register at all. */
         body.env-on .bird{ position:absolute; width:42px; height:42px; opacity:.72;
                            will-change:transform; pointer-events:none; }
-        body.env-on .bird svg{ width:100%; height:100%; display:block; }
-        body.env-on .bird path{ stroke:#0a1a26; stroke-width:2.0; fill:#0a1a26;
-                                stroke-linecap:round; stroke-linejoin:round; }
-        /* WINGBEAT -- two real poses, swapped.
-           The first attempt scaled the whole glyph on Y. That is not a flap: it squashes the
-           entire bird, body and both wings together, so it reads as the shape getting shorter.
-           Measured on production it WAS animating (scaleY oscillating 0.58-1.0) and still looked
-           like nothing was happening -- the operator spotted it immediately: "how are these
-           birds flying without flapping their wings".
-           Now there are two paths per bird, up-stroke and down-stroke, and exactly one is
-           visible at a time. steps(1) so it SNAPS between poses -- a cross-fade reads as a blur,
-           and real wingbeats are not smooth. Still opacity-only, so it stays on the same
-           compositor-cheap path as everything else on this page. */
-        body.env-on .bird .w-up,
-        body.env-on .bird .w-dn{ animation:birdBeat .62s steps(1) infinite; }
-        body.env-on .bird .w-dn{ animation-delay:.31s; }
-        @keyframes birdBeat{ 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
+        /* Frames are GENERATED sprites, not drawn paths. Hand-authored SVG chevrons could not
+           sit beside a photographic sky containing real bird silhouettes -- they read as crude
+           marks. These come from _tools/covers/gen_sprite.py (flux -> white-key -> alpha ->
+           trimmed), then normalised onto one 360x360 canvas at a common wingspan so only the
+           WINGS appear to move: the raw frames were 336x267 / 292x149 / 268x230 and swapping
+           those directly made the bird resize and jump on every beat. */
+        body.env-on .bird img{ position:absolute; inset:0; width:100%; height:100%;
+                               object-fit:contain; opacity:0; }
+        /* 3-frame wingbeat: up -> mid -> down -> mid. steps(1) so poses SNAP; a cross-fade
+           reads as motion blur and a wingbeat is not smooth. Each frame is visible for one
+           quarter of the cycle, offset by 25%. */
+        @keyframes birdF1{ 0%,24%{opacity:1;} 25%,100%{opacity:0;} }
+        @keyframes birdF2{ 0%,24%{opacity:0;} 25%,49%{opacity:1;} 50%,74%{opacity:0;} 75%,99%{opacity:1;} 100%{opacity:0;} }
+        @keyframes birdF3{ 0%,49%{opacity:0;} 50%,74%{opacity:1;} 75%,100%{opacity:0;} }
+        body.env-on .bird .f-up  { animation:birdF1 .68s steps(1) infinite; }
+        body.env-on .bird .f-mid { animation:birdF2 .68s steps(1) infinite; }
+        body.env-on .bird .f-down{ animation:birdF3 .68s steps(1) infinite; }
         /* Vary the beat so five birds never flap in lockstep -- that reads as one sprite. */
-        body.env-on .bird-2 .w-up, body.env-on .bird-2 .w-dn{ animation-duration:.74s; }
-        body.env-on .bird-3 .w-up, body.env-on .bird-3 .w-dn{ animation-duration:.55s; }
-        body.env-on .bird-4 .w-up, body.env-on .bird-4 .w-dn{ animation-duration:.68s; }
-        body.env-on .bird-5 .w-up, body.env-on .bird-5 .w-dn{ animation-duration:.81s; }
-        body.env-on .bird-2 .w-dn{ animation-delay:.37s; }
-        body.env-on .bird-3 .w-dn{ animation-delay:.275s; }
-        body.env-on .bird-4 .w-dn{ animation-delay:.34s; }
-        body.env-on .bird-5 .w-dn{ animation-delay:.405s; }
+        body.env-on .bird-2 img{ animation-duration:.82s; }
+        body.env-on .bird-3 img{ animation-duration:.59s; }
+        body.env-on .bird-4 img{ animation-duration:.74s; }
+        body.env-on .bird-5 img{ animation-duration:.91s; }
+
         /* Each bird crosses on its own duration/height so they never move as a rigid formation. */
         @keyframes birdCross{
             from{ transform:translate3d(-8vw, 0, 0); }
@@ -289,9 +286,11 @@
                still left the ambient drift running, which is the motion a reduced-motion user
                is actually asking not to see. They get a still scene, not a calmer one. */
             body.env-on .env-plane{ animation:none !important; }
-            body.env-on .bird, body.env-on .bird svg,
-            body.env-on .bird .w-up, body.env-on .bird .w-dn{ animation:none !important; }
-            body.env-on .bird{ display:none; }   /* a frozen bird mid-sky reads as a bug */
+            body.env-on .bird, body.env-on .bird img{ animation:none !important; }
+            /* Now that the sprite is a real silhouette, a still bird reads as a bird gliding
+               rather than as a broken glyph -- so show the glide frame instead of hiding it. */
+            body.env-on .bird .f-up, body.env-on .bird .f-down{ opacity:0 !important; }
+            body.env-on .bird .f-mid{ opacity:1 !important; }
             body.env-on .env-far{ transform:scale(1.20); }
             body.env-on .env-mid{ transform:scale(1.08); }
             body.env-on .env-near{ transform:scale(1.04); }
@@ -604,17 +603,11 @@
             for (var bi = 1; bi <= 5; bi++) {
                 var bird = document.createElement('span');
                 bird.className = 'bird bird-' + bi;
-                // Two wing poses. w-up = up-stroke (wings raised above the body),
-                // w-dn = down-stroke (wings swept below). CSS shows exactly one at a time.
-                // Filled silhouettes with a body, not an outlined squiggle -- the birds in the
-                // photograph are solid shapes with swept wings, and an open stroke next to them
-                // looked like a scribble.
-                bird.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-                    '<path class="w-up" d="M12 13 C 11 11, 10 8, 4 4 C 7 8, 9 11, 11.4 13.2 ' +
-                        'C 9 11, 7 8, 4 4 Z M12 13 C 13 11, 14 8, 20 4 C 17 8, 15 11, 12.6 13.2 Z"/>' +
-                    '<path class="w-dn" d="M12 11 C 11 12, 10 15, 4 18 C 7 14, 9 12, 11.4 10.8 Z ' +
-                        'M12 11 C 13 12, 14 15, 20 18 C 17 14, 15 12, 12.6 10.8 Z"/>' +
-                    '</svg>';
+                // Three generated sprite frames. CSS shows one at a time.
+                bird.innerHTML =
+                    '<img class="f-up"   src="/assets/images/sprites/bird-up.webp"   alt="" aria-hidden="true">' +
+                    '<img class="f-mid"  src="/assets/images/sprites/bird-mid.webp"  alt="" aria-hidden="true">' +
+                    '<img class="f-down" src="/assets/images/sprites/bird-down.webp" alt="" aria-hidden="true">';
                 flock.appendChild(bird);
             }
             // Anchor to the actual mid plane, NOT env.children[1]. Indexing a live children
