@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-057 — Dr. Hex's grade-for route ignores CLOUD_CHECKS: 16 checks invisible, `complete` lies  ·  [P1]  ·  open
+### BUG-057 — Dr. Hex's grade-for route ignores CLOUD_CHECKS: 16 checks invisible, `complete` lies  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by Nancy · reviewing the capstone check-27 redesign (found as a blocker, not the subject)
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js` `/api/sandbox/grade-for` (route at :1232); caller `functions/hex-ai-bridge.js` `sandbox_task_state`
 - **Symptom:** `grade-for` builds its result set from `SANDBOX_CHALLENGES[labId]` ONLY. It never
@@ -53,15 +53,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   student-facing `/check` route learned about it and this service-to-service route did not.
 - **Why it matters more than a wrong number:** a false "you are done" from the AI tutor is worse
   than a false fail from the page. The student stops working and believes they finished.
-- **Fix:** not yet. `grade-for` must resolve the slot and consult `CLOUD_CHECKS` the same way
-  `/check` does, or explicitly refuse to answer `complete` for lab ids that have cloud checks
-  rather than answering wrongly. Refusing is acceptable; answering wrongly is not.
+- **Fix:** `grade-for` now resolves the slot, calls `cloudState()`, and evaluates `CLOUD_CHECKS`
+  exactly as `/check` does — and it REFUSES to claim `complete` when any check could not be
+  graded (`complete: !ungraded && total > 0 && passed === total`, plus a
+  `reason: 'cloud_state_unavailable'`). Answering `complete: true` from the subset that happened
+  to run is the same failure the patch exists to remove. LIVE on bc1 (image rebuilt,
+  host/container sha verified equal).
 - **Blocks:** moving capstone check 27 from SANDBOX_CHALLENGES into CLOUD_CHECKS (BUG-055/056).
   That move is otherwise correct, but it would drop 27 out of Dr. Hex's view too, leaving the
   capstone's anti-cheat absent from exactly the channel a student asks "am I done?" through.
 - **Related:** BUG-055, BUG-056.
 
-### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  open
+### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · walkthrough half of the Project 1 QC gate
 - **Area:** bc1 `server.js` check id 27; `walkthrough-project.js:88`; page `cloud-openstack-project-iac.lab.html:224`
 - **Symptom:** A student who follows the page verbatim — builds, exports, destroys everything,
@@ -88,7 +91,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   still rejected.
 - **Related:** BUG-055 (same check, opposite direction: forgeable vs false-fail).
 
-### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  open
+### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · in the Cloud Master capstone (Project 1) adversarial review
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js`, `SANDBOX_CHALLENGES['openstack-cli']` check id 27
 - **Symptom:** Check 27 is the capstone's whole point — "you really REBUILT it, nothing live
@@ -112,9 +115,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   the next student to hold that slot; Firebase uid is never reused; (d) the lab-manager
   container had NO writable mount except `docker.sock`, so a `./lab-manager/data:/app/data`
   bind mount was added (anything written inside the image is lost on every rebuild).
-- **Blocks:** shipping the capstone. The lab is currently gate-green (all 4 named cheats
-  rejected, honest path under test) but green against the FORGEABLE version of 27, so the
-  gate result must NOT be read as "27 is sound".
+- **Fixed by:** commit `f19daa583`. The baseline is recorded BY THE GRADER via an explicit
+  `POST /api/sandbox/baseline/:sessionId`, keyed by Firebase uid, always overwriting, scoped
+  through a single owned-only projection to the names in the student's own `stack.json`.
+  Check 27 moved to `CLOUD_CHECKS` as `fn(state, seed, ctx)`.
+- **Verified:** `qc-lab.sh project` PASSED all three stages. Five cheats rejected (including a
+  new cheat E: no baseline ever recorded -> 27 fails closed); honest path 4/4 TWICE with run 2
+  starting from run 1's leftovers; coverage stage confirms 27 was observed PASS 2x and FAIL 5x,
+  so it genuinely discriminates rather than rejecting everyone.
+- **Deploy status:** the GRADER half is live on bc1. The PAGE half (the Record Baseline button)
+  is committed but NOT deployed to hexworth.com, so the live capstone page cannot yet record a
+  baseline. The page is unlinked — absent from the catalog and sitemap — so no student is
+  affected, but it must be deployed before the capstone is linked anywhere.
 - **Related:** BUG-054. See memory `project_marathon_backlog.md` 2026-07-31 entry for the
   rejected passive-observation alternative and why it was deferred.
 
