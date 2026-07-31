@@ -2194,7 +2194,26 @@ Change: 2025-12-27 09:00:00.000000000 +0000`;
             const path = _resolvePath(file);
             const node = state.fs[path];
 
-            if (!node || node.type === 'dir') continue;
+            // Report a missing file / directory like real grep does, and like _cat, _head and
+            // _tail already do here. This USED to `continue` silently, which meant
+            // `grep pattern /nope` produced no output and no error -- so any module whose
+            // completion guard is the common `ok = !output.includes('lt-error')` idiom credited
+            // a grep against a file that was never there. Same honesty class as the _cp
+            // missing-source fix; recorded as residual gap (1) in BUG_TRACKER's BUG-008 entry.
+            //
+            // Checked for false-FAIL regression before changing, because a new error where
+            // there was none is worse than the silent pass: every grep target across all
+            // LinuxTerminal-backed pages was resolved against the 39 default-filesystem entries,
+            // and ZERO absolute targets were missing on pages that seed no filesystem of their
+            // own. lm-13's /var/log/syslog is present in the default fs with content.
+            if (!node) {
+                results.push(`<span class="lt-error">grep: ${_escape(file)}: No such file or directory</span>`);
+                continue;
+            }
+            if (node.type === 'dir') {
+                results.push(`<span class="lt-error">grep: ${_escape(file)}: Is a directory</span>`);
+                continue;
+            }
             if (!node.content) continue;
 
             const lines = node.content.split('\n');
