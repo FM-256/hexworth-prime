@@ -364,6 +364,88 @@ function main() {
     // A per-page link-count floor was considered and deliberately NOT added: a chapter list
     // and a single deliberate link are both curation, and an arbitrary N would silently drop
     // real single-link cases. Revisit only if a same-house directory dump ever appears.
+    // ── Mechanism 6: JSON-manifest-driven pages ──
+    // Some course pages are not authored as HTML card lists at all -- they fetch a manifest from
+    // _app/data/*.json at runtime and BUILD their cards from it. Mechanisms 1-5 read HTML, so
+    // every module curated that way looked like an orphan. shield-cysa-toolkit sat in
+    // security-plus-manifest.json with a real SY0-701 Domain 4.0 position, rendered by a page
+    // linked from lobby.html, and was reported orphaned for weeks -- it survived TWO wrong scope
+    // corrections on taskboard #239 before Chris found the manifest.
+    //
+    // THE GUARD THAT MATTERS: only manifests some page ACTUALLY FETCHES count. _app/data/
+    // currently holds two retired manifests (_security-plus-removed-*.json, _security-plus-pis-
+    // removed-*.json) referenced by zero pages. Harvesting every JSON in the directory would
+    // mark deliberately-retired modules as curated -- a worse error than the one being fixed,
+    // and a silent one.
+    const manifestIds = new Set();
+    const manifestSources = new Map();
+    {
+        const dataDir = path.join(ROOT_APP, 'data');
+        let dataFiles = [];
+        try {
+            dataFiles = fs.readdirSync(dataDir).filter((f) => f.endsWith('.json'));
+        } catch (e) { dataFiles = []; }
+
+        // Which manifests are referenced by a real page? Search HTML/JS, excluding _app/data
+        // itself so a manifest naming a sibling cannot vouch for it.
+        const consumers = new Map();
+        const codeFiles = [];
+        (function collect(d) {
+            let entries;
+            try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { return; }
+            for (const e2 of entries) {
+                const full = path.join(d, e2.name);
+                if (e2.isDirectory()) {
+                    if (e2.name === '_archive' || e2.name === '_source' || e2.name === 'data') continue;
+                    collect(full);
+                } else if (/\.(html|js)$/.test(e2.name)) { codeFiles.push(full); }
+            }
+        })(ROOT_APP);
+        for (const cf of codeFiles) {
+            let src;
+            try { src = fs.readFileSync(cf, 'utf8'); } catch (e) { continue; }
+            for (const df of dataFiles) {
+                if (src.indexOf(df) !== -1) {
+                    if (!consumers.has(df)) consumers.set(df, []);
+                    consumers.get(df).push(relPath(cf));
+                }
+            }
+        }
+
+        // Harvest ids from LIVE manifests only, matching on catalog id or resolved href.
+        const byId = new Map(catalog.MODULES.filter((m) => m.id).map((m) => [m.id, m]));
+        // Report the accept/skip decision per manifest. This is the audit trail for the guard:
+        // without it, "the retired manifests were skipped" is an assertion nobody can check, and
+        // a future manifest silently gaining or losing a consumer would move the orphan count
+        // with no visible cause.
+        const manifestVerdicts = [];
+        for (const df of dataFiles) {
+            if (!consumers.has(df)) {
+                manifestVerdicts.push('    SKIP   ' + df + '  (no page fetches it -- cannot curate)');
+                continue;                                  // retired/unreferenced -> does not curate
+            }
+            let json;
+            try { json = JSON.parse(fs.readFileSync(path.join(dataDir, df), 'utf8')); } catch (e) { continue; }
+            const found = new Set();
+            (function scan(node) {
+                if (!node || typeof node !== 'object') return;
+                if (Array.isArray(node)) { node.forEach(scan); return; }
+                if (typeof node.id === 'string' && byId.has(node.id)) { found.add(node.id); }
+                Object.keys(node).forEach((k) => scan(node[k]));
+            })(json);
+            manifestVerdicts.push('    ACCEPT ' + df + '  -> ' + found.size + ' catalog id(s), fetched by ' + consumers.get(df).join(', '));
+            for (const id of found) {
+                manifestIds.add(id);
+                if (!manifestSources.has(id)) manifestSources.set(id, []);
+                manifestSources.get(id).push(df + ' (via ' + consumers.get(df).join(', ') + ')');
+            }
+        }
+        if (manifestVerdicts.length) {
+            console.log('\n  Mechanism 6 -- JSON manifests (a manifest only curates if a page fetches it):');
+            manifestVerdicts.sort().forEach((v) => console.log(v));
+        }
+    }
+
     const linkIds = new Set();
     const linkSources = new Map();
     {
@@ -427,7 +509,8 @@ function main() {
         const inMech3 = engineIds.has(id) || (stripped && engineIds.has(stripped)) || (desuffixed && engineIds.has(desuffixed)) || (strippedDesuffixed && engineIds.has(strippedDesuffixed));
         const inMech4 = inlineIds.has(id) || (stripped && inlineIds.has(stripped)) || (desuffixed && inlineIds.has(desuffixed)) || (strippedDesuffixed && inlineIds.has(strippedDesuffixed));
         const inMech5 = linkIds.has(id);   // exact id only: signal 5 matches by resolved FILE, not by id shape
-        const isInHub = inMech1 || inMech2 || inMech3 || inMech4 || inMech5;
+        const inMech6 = manifestIds.has(id);   // curated by a JSON manifest a live page fetches
+        const isInHub = inMech1 || inMech2 || inMech3 || inMech4 || inMech5 || inMech6;
 
         const record = {
             id, house,
@@ -439,7 +522,7 @@ function main() {
             tags: m.tags || [],
             autoGenerated: (m.icon === '/assets/images/icons/icon-folder.webp' && m.category === 'general'),
             inHub: isInHub,
-            mech: { hubCard: inMech1, learningPath: inMech2, dedicatedEngine: inMech3, inlineHubScript: inMech4, coursePageLink: inMech5 },
+            mech: { hubCard: inMech1, learningPath: inMech2, dedicatedEngine: inMech3, inlineHubScript: inMech4, coursePageLink: inMech5, dataManifest: inMech6 },
             // Provenance parity with the other signals: "why is this module in-hub" must be
             // answerable from the report itself. The cyberops-week overlap that corrected
             // taskboard #239 was only found by hand-grepping, because this did not exist.
@@ -479,6 +562,7 @@ function main() {
             mechanism3_engineModules: engineIds.size,
             mechanism4_inlineHubScriptIds: inlineIds.size,
             mechanism5_coursePageLinks: linkIds.size,
+            mechanism6_dataManifestIds: manifestIds.size,
         },
         byHouse,
     };
@@ -503,6 +587,7 @@ function main() {
     console.log('      Dedicated-engine refs: ' + s.mechanism3_engineModules + ' unique modules');
     console.log('      Inline-hub script ids: ' + s.mechanism4_inlineHubScriptIds + ' unique slugs (filtered by catalog)');
     console.log('      Course-page links:     ' + s.mechanism5_coursePageLinks + ' modules linked by a same-house course page');
+    console.log('      Data manifests:        ' + s.mechanism6_dataManifestIds + ' modules curated by a JSON manifest a live page fetches');
     console.log('');
     console.log('  Per-house orphan map:');
     console.log('    ' + 'house'.padEnd(15) + 'orph'.padStart(6) + 'auto'.padStart(6) + 'curated'.padStart(8) + '  top clusters');
