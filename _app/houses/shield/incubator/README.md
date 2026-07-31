@@ -11,7 +11,6 @@ Created: 2026-07-31 (Stragglers branch)
 | `linux-*` | 15 | Eligible — promote to dedicated hub |
 | `pbq-*` | 12 | Eligible — promote to dedicated hub |
 | `sp-*` | 9 | Need 1 more |
-| `pis-*` | 6 | Need 4 more |
 | `sy0-*` | 4 | Need 6 more |
 | `malware-*` | 3 | Need 7 more |
 | `cse-*` | 3 | Need 7 more |
@@ -79,6 +78,7 @@ Created: 2026-07-31 (Stragglers branch)
 | `exploit-*` | 1 | Need 9 more |
 | `dr-*` | 1 | Need 9 more |
 | `life-*` | 1 | Need 9 more |
+| `pis-*` | 0 | Need 10 more |
 
 ## Graduation history
 

@@ -250,7 +250,19 @@ function main() {
                 if (m && m.id && m.href) map.set(m.id, m.href);
             }
         } catch (e) {
-            console.warn('  [warn] ContentCatalog unavailable for href fallback: ' + e.message);
+            // HARD FAIL, deliberately. A swallowed exception here reintroduces exactly the
+            // shape of BUG-062: every carried-forward href would silently fall back to '' ->
+            // '#', producing dead cards behind a console warning that is trivial to miss in
+            // build output. That defect took a live-production audit to find. If the catalog
+            // cannot be read, stop -- do not emit pages built on a half-empty fallback.
+            console.error('  [FATAL] ContentCatalog could not be parsed: ' + e.message);
+            console.error('  Refusing to generate: carried-forward cards would silently become dead "#" links.');
+            process.exit(1);
+        }
+        if (map.size === 0) {
+            console.error('  [FATAL] ContentCatalog parsed but yielded ZERO id->href entries.');
+            console.error('  Refusing to generate: the href fallback would be inert (see BUG-062).');
+            process.exit(1);
         }
         return map;
     })();
@@ -273,6 +285,14 @@ function main() {
         // Find full module records for this cluster
         const items = (strict.byHouse[r.house] || {}).items || [];
         const matching = items.filter(it => {
+            // Never card an unpublished module. 45 catalog entries carry status 'coming-soon'
+            // (forge 24, shield 17, script 2, key 1, code 1) and EVERY ONE of them has an
+            // aspirational href that does not resolve on disk -- the files sit in _source/
+            // staging paths. Six of them (pis-05/07/09/10/13/14) landed on the shield incubator
+            // as real-looking links that 404 on click. A card that 404s is worse than an absent
+            // card: it reads as available content and wastes the student's trust. Caught by
+            // Nancy, who checked hrefs against the FILESYSTEM rather than just against '#'.
+            if (it.status === 'coming-soon') return false;
             let parts = it.id.split('-');
             if (parts[0] === r.house) parts = parts.slice(1);
             else if (r.house === 'dark-arts' && it.id.startsWith('dark-arts-')) parts = it.id.slice('dark-arts-'.length).split('-');
