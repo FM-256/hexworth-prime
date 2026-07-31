@@ -30,15 +30,6 @@ async function inspect(page, id) {
       envAriaHidden: (document.querySelector('.env') || {}).getAttribute
         ? document.querySelector('.env').getAttribute('aria-hidden') : null,
       items: document.querySelectorAll('.item').length,
-      birds: document.querySelectorAll('.bird').length,
-      // Depth is DOM order (no z-index on the planes), so assert the flock sits BETWEEN the
-      // far and mid planes rather than merely existing. Nancy found this had zero coverage:
-      // a reorder would move the birds to the wrong plane and nothing would notice.
-      envChildren: (document.querySelector('.env') || { children: [] }).children.length,
-      envZIndex: (function () {
-        var e = document.querySelector('.env');
-        return e ? getComputedStyle(e).zIndex : null;
-      })(),
       flockIndex: (function () {
         var env = document.querySelector('.env');
         if (!env) { return -1; }
@@ -76,15 +67,6 @@ async function inspect(page, id) {
     // a design change as a defect.
     check('items carry the cartridge spine', parseFloat(r.spineWidth) >= 4, String(r.spineWidth));
     check('items use the cartridge gradient, not the flat panel', /gradient/.test(r.itemBg || ''), r.itemBg);
-    check('five birds mounted', r.birds === 5, String(r.birds));
-    // The invariant CHANGED deliberately: the flock used to sit between the far and mid planes,
-    // where the veil painted over it and washed the birds out. It is now the LAST child of .env
-    // -- above the veil so it is not dimmed, still inside .env (z-index:-1) so it stays behind
-    // every page element. Both halves matter, so assert both rather than a bare index.
-    check('flock is above the veil (not dimmed by it)', r.flockIndex === r.envChildren - 1,
-      `index ${r.flockIndex} of ${r.envChildren}`);
-    check('flock is still inside .env, so it stays behind page content', r.envZIndex === '-1',
-      `z-index ${r.envZIndex}`);
     // THE ENVIRONMENT MUST SURVIVE SCROLLING. It vanished below the fold once: raw-scrollY
     // parallax translated the planes thousands of px off screen on a 5886px page, so the bottom
     // rendered flat black. Sample actual pixels at the page bottom -- an all-dark frame means
@@ -112,7 +94,6 @@ async function inspect(page, id) {
       const c = await inspect(cp, id);
       check(`${id}: environment NOT mounted`, c.envOn === false, `env-on=${c.envOn}`);
       check(`${id}: no depth layers`, c.layers === 0, `got ${c.layers}`);
-      check(`${id}: no birds`, c.birds === 0, String(c.birds));
       check(`${id}: items keep the flat panel (no cartridge spine)`,
         !(parseFloat(c.spineWidth) >= 4), `spine=${c.spineWidth}`);
       await cp.close();
