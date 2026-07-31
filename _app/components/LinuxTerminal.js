@@ -2831,9 +2831,23 @@ student   1234   890  0 09:30 pts/0    00:00:00 ps -ef`;
         for (const file of files) {
             const path = _resolvePath(file);
             const node = state.fs[path];
-            if (!node || !node.content) continue;
 
-            const content = node.content;
+            // Same honesty class as the _grep fix: this used to `continue` silently, so
+            // `wc /nope` produced no output and no error, and any module gating on
+            // `ok = !output.includes('lt-error')` credited a count of a file that was never
+            // there. _cat/_head/_tail/_grep all report this.
+            if (!node) {
+                results.push(`<span class="lt-error">wc: ${_escape(file)}: No such file or directory</span>`);
+                continue;
+            }
+            if (node.type === 'dir') {
+                results.push(`<span class="lt-error">wc: ${_escape(file)}: Is a directory</span>`);
+                continue;
+            }
+            // An EMPTY file was skipped too, because the old guard tested `!node.content`.
+            // Real wc prints "0 0 0 name" — silently printing nothing for a file that exists
+            // is a different wrong answer, not a smaller one.
+            const content = node.content || '';
             const lines = content.split('\n').length;
             const words = content.split(/\s+/).filter(w => w).length;
             const bytes = content.length;

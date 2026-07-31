@@ -19,6 +19,10 @@ const CASES = [
   { cmd: 'grep error /var/log/syslog', wantError: false, why: 'real file with content — must NOT error (false-FAIL guard)' },
   { cmd: 'grep error /var/log/nope.log', wantError: true,  why: 'missing file — must report No such file or directory' },
   { cmd: 'grep error /etc',             wantError: true,  why: 'directory — must report Is a directory' },
+  // wc had the identical silent-continue shape; same two directions asserted.
+  { cmd: 'wc -l /var/log/syslog',       wantError: false, why: 'wc on a real file — must NOT error (false-FAIL guard)' },
+  { cmd: 'wc -l /var/log/nope.log',     wantError: true,  why: 'wc on a missing file — must report No such file or directory' },
+  { cmd: 'wc -l /etc',                  wantError: true,  why: 'wc on a directory — must report Is a directory' },
 ];
 
 (async () => {
