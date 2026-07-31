@@ -5042,12 +5042,25 @@
                         hrows.push({ house: hid, name: name, id: c.id, status: status, regId: regId });
                     });
                 });
-                var regNotSurfaced = staticOk ? HubRegistry.all().filter(function (h) { return !surfaced[h.id]; }) : [];
+                // Container MEMBERS are surfaced by their container's own page, not by a house
+                // page, so counting them here produced a mostly-noise list (70 items, of which
+                // ~62 were fine by design). This HUD runs in the browser and cannot open the
+                // container's page to confirm the link actually exists, and "has a parent field"
+                // is NOT proof -- BUG-046 was two container members whose container linked them
+                // nowhere/wrongly, and a parent-field heuristic would have hidden both forever.
+                // So the browser reports what it can actually know: it separates them out and
+                // says they are unverified HERE, pointing at the CLI audit that does open the
+                // pages (_tools/eduscan/hub-registry-audit.js, which also fails on a link whose
+                // target file is missing). Same split as the CLI; neither claims more than it checked.
+                var notSurfacedAll = staticOk ? HubRegistry.all().filter(function (h) { return !surfaced[h.id]; }) : [];
+                var regNotSurfaced = notSurfacedAll.filter(function (h) { return !h.parent; });
+                var regContainerMembers = notSurfacedAll.filter(function (h) { return !!h.parent; });
                 houseStatsEl.innerHTML =
                     statCard(totalCards, 'House cards', '') +
                     statCard(matched, 'Matched to registry', staticOk ? 'success' : 'warning') +
                     statCard(unmatched, 'Link, not in registry', unmatched ? 'warning' : 'success') +
-                    statCard(staticOk ? regNotSurfaced.length : '?', 'Registry hubs on no house', (regNotSurfaced.length && staticOk) ? 'warning' : 'success');
+                    statCard(staticOk ? regNotSurfaced.length : '?', 'Registry hubs on no house', (regNotSurfaced.length && staticOk) ? 'warning' : 'success') +
+                    statCard(staticOk ? regContainerMembers.length : '?', 'Container members (verify via CLI)', '');
 
                 var parseWarn = hc.warnings && Object.keys(hc.warnings).length
                     ? '<div style="color:var(--ac-warning);font-size:0.8rem;margin-bottom:10px;">Parse warnings: ' + escHtml(JSON.stringify(hc.warnings)) + '</div>' : '';

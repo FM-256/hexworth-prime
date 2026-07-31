@@ -299,11 +299,89 @@ try {
         const m = regByHref[normHref(c.href, hid)];
         if (m) { matched++; noteCard(m, hid); } else { unmatched++; }
     }));
+    // ── Container members are surfaced by their CONTAINER, not by a house page ────────────
+    // A container member deliberately has no house-page card -- it renders inside its
+    // container's grid. Counting those as "surfaced on no house page" produced a 70-item
+    // warning that was mostly noise.
+    //
+    // The rule is NOT "it has a parent field, assume it is fine". Nancy proved that heuristic
+    // hides real breakage: python-graphics (the Armory cards it nowhere) and backbone-forensics
+    // (Backbone's card points at houses/eye/forensics) are genuinely unreachable and would have
+    // been silenced forever. So this OPENS THE CONTAINER'S PAGE and requires an actual link.
+    //
+    // Hrefs on container pages are RELATIVE ('foundations/index.html'), so they must be resolved
+    // against the container page's own directory. Matching absolute paths only is exactly the
+    // blind spot that produced false "MISSING" results when this was checked by hand.
+    const pageFileFor = (hub) => {
+        const href = (hub && hub.hubHref) || '';
+        if (!href || href.charAt(0) !== '/') return null;
+        const clean = href.split('#')[0].split('?')[0].replace(/\/+$/, '');
+        const cand = clean.endsWith('.html') ? clean : clean + '/index.html';
+        const abs = A('_app' + cand);
+        return fs.existsSync(abs) ? abs : null;
+    };
+    const linkCache = {};
+    const containerLinkSet = (hub) => {
+        if (linkCache[hub.id]) return linkCache[hub.id];
+        const set = new Set();
+        const file = pageFileFor(hub);
+        if (file) {
+            let html = '';
+            try { html = fs.readFileSync(file, 'utf8'); } catch (e) { html = ''; }
+            const dirAbs = '/' + path.relative(A('_app'), path.dirname(file)).split(path.sep).join('/');
+            // BOTH forms, deliberately: container pages card their children from an INLINE JS
+            // array using the property form (href: 'foundations/index.html'), not an HTML
+            // attribute. Matching only href="..." resolved 7 of 70 and left 63 false warnings.
+            const HREF_RE = /href\s*[:=]\s*["']([^"']+)["']/g;
+            let m;
+            while ((m = HREF_RE.exec(html)) !== null) {
+                const raw = m[1];
+                if (/^(https?:|mailto:|javascript:|#)/i.test(raw)) continue;
+                // normHref's second arg only helps '/houses/<house>/' shaped relatives; container
+                // pages sit at arbitrary depths, so resolve against the PAGE's directory instead.
+                const joined = raw.charAt(0) === '/' ? raw : (dirAbs + '/' + raw);
+                set.add(normHref(joined, ''));
+            }
+        }
+        linkCache[hub.id] = set;
+        return set;
+    };
+
+    let byContainer = 0;
+    const deadLinked = [];        // container links the child, but the child's page is missing
+    const dynamicParents = [];    // children whose container is not a STATIC registry hub
+    HubRegistry.all().forEach((h) => {
+        if (surfaced[h.id] || !h.parent) return;
+        const parent = regById[h.parent];
+        if (!parent) {
+            // e.g. cloud-master: a Firestore hub, absent from the static registry. Its existence
+            // cannot be asserted offline, so this stays UNVERIFIED rather than being claimed
+            // either way -- the same refusal Part C already makes about dynamic hubs.
+            dynamicParents.push(h.id + ' (container "' + h.parent + '" is not a static hub)');
+            return;
+        }
+        const target = normHref(h.hubHref, h.house || '');
+        // A link is not reachability if it points at nothing. BUG-046 was exactly this shape --
+        // a container carding a child at a path that did not resolve -- so require the child's
+        // own page to EXIST as well as be linked. Without this, "the container links it" would
+        // silently launder a 404 into a pass.
+        if (target && containerLinkSet(parent).has(target)) {
+            if (pageFileFor(h)) { surfaced[h.id] = 'container'; byContainer++; }
+            else { deadLinked.push(h.id + ' (container "' + h.parent + '" links it, but its page file does not exist)'); }
+        }
+    });
+
     const notSurfaced = HubRegistry.all().filter((h) => !surfaced[h.id]).map((h) => h.id);
     ok('house cards: ' + total + ' across ' + Object.keys(fresh).length + ' houses (' + matched + ' matched, ' + unmatched + ' link elsewhere, ' + noHref + ' no-link)');
     if (unmatched) warn(unmatched + ' house card(s) link to a target not in HubRegistry');
     if (brokenRef) fail(brokenRef + ' house card(s) reference a HubRegistry id that does not exist');
-    if (notSurfaced.length) warn(notSurfaced.length + ' registry hub(s) surfaced on no house page: [' + notSurfaced + ']');
+    if (byContainer) ok(byContainer + ' container member(s) surfaced by a verified link from their container page');
+    if (deadLinked.length) fail(deadLinked.length + ' container member(s) linked to a MISSING page: [' + deadLinked.join('; ') + ']');
+    if (dynamicParents.length) {
+        warn(dynamicParents.length + ' container member(s) UNVERIFIED offline -- their container is a dynamic (Firestore) hub: ['
+             + dynamicParents.join('; ') + ']');
+    }
+    if (notSurfaced.length) warn(notSurfaced.length + ' registry hub(s) surfaced on no house page and not linked by any container: [' + notSurfaced + ']');
     // Cross-house carding: policy is LABEL, do not remove (Frank, 97a136266) -- a hub carded on a
     // page outside its registry house is either an intentional cross-list or stale hand-list drift;
     // either way it must stay visible to change management until ruled, never silently reconciled.
