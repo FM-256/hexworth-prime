@@ -244,28 +244,25 @@
            reaction: at that size no wing pose could register at all. */
         body.env-on .bird{ position:absolute; width:42px; height:42px; opacity:.72;
                            will-change:transform; pointer-events:none; }
-        /* Frames are GENERATED sprites, not drawn paths. Hand-authored SVG chevrons could not
-           sit beside a photographic sky containing real bird silhouettes -- they read as crude
-           marks. These come from _tools/covers/gen_sprite.py (flux -> white-key -> alpha ->
-           trimmed), then normalised onto one 360x360 canvas at a common wingspan so only the
-           WINGS appear to move: the raw frames were 336x267 / 292x149 / 268x230 and swapping
-           those directly made the bird resize and jump on every beat. */
+        /* ONE sprite, GLIDING -- not a pose cycle.
+           The three frames were generated INDEPENDENTLY, so each came back with its own body
+           angle. Cycling them did not move the wings, it tumbled the whole bird: the operator's
+           verdict was "these look like they are crashing", and that is exactly what it was.
+           Making the wings flap from separate generations would need a real sprite SHEET (one
+           image, one bird, consistent body axis) -- independently generated frames cannot do it.
+           Soaring birds at altitude glide for long stretches, so a stable silhouette with a slow
+           bank is both truthful and the thing that actually reads at 42px. */
         body.env-on .bird img{ position:absolute; inset:0; width:100%; height:100%;
-                               object-fit:contain; opacity:0; }
-        /* 3-frame wingbeat: up -> mid -> down -> mid. steps(1) so poses SNAP; a cross-fade
-           reads as motion blur and a wingbeat is not smooth. Each frame is visible for one
-           quarter of the cycle, offset by 25%. */
-        @keyframes birdF1{ 0%,24%{opacity:1;} 25%,100%{opacity:0;} }
-        @keyframes birdF2{ 0%,24%{opacity:0;} 25%,49%{opacity:1;} 50%,74%{opacity:0;} 75%,99%{opacity:1;} 100%{opacity:0;} }
-        @keyframes birdF3{ 0%,49%{opacity:0;} 50%,74%{opacity:1;} 75%,100%{opacity:0;} }
-        body.env-on .bird .f-up  { animation:birdF1 .68s steps(1) infinite; }
-        body.env-on .bird .f-mid { animation:birdF2 .68s steps(1) infinite; }
-        body.env-on .bird .f-down{ animation:birdF3 .68s steps(1) infinite; }
-        /* Vary the beat so five birds never flap in lockstep -- that reads as one sprite. */
-        body.env-on .bird-2 img{ animation-duration:.82s; }
-        body.env-on .bird-3 img{ animation-duration:.59s; }
-        body.env-on .bird-4 img{ animation-duration:.74s; }
-        body.env-on .bird-5 img{ animation-duration:.91s; }
+                               object-fit:contain; }
+        body.env-on .bird .f-up, body.env-on .bird .f-down{ display:none; }
+        /* A slow bank, the way a soaring bird tips on a thermal. Rotation only -- no pose swap,
+           so the body axis never jumps. */
+        @keyframes birdBank{ from{ transform:rotate(-7deg); } to{ transform:rotate(7deg); } }
+        body.env-on .bird img{ animation:birdBank 9s ease-in-out infinite alternate; }
+        body.env-on .bird-2 img{ animation-duration:11s; }
+        body.env-on .bird-3 img{ animation-duration:7.5s; }
+        body.env-on .bird-4 img{ animation-duration:13s; }
+        body.env-on .bird-5 img{ animation-duration:8.5s; }
 
         /* Each bird crosses on its own duration/height so they never move as a rigid formation. */
         @keyframes birdCross{
@@ -289,7 +286,6 @@
             body.env-on .bird, body.env-on .bird img{ animation:none !important; }
             /* Now that the sprite is a real silhouette, a still bird reads as a bird gliding
                rather than as a broken glyph -- so show the glide frame instead of hiding it. */
-            body.env-on .bird .f-up, body.env-on .bird .f-down{ opacity:0 !important; }
             body.env-on .bird .f-mid{ opacity:1 !important; }
             body.env-on .env-far{ transform:scale(1.20); }
             body.env-on .env-mid{ transform:scale(1.08); }
@@ -636,10 +632,17 @@
             var px = 0, py = 0, sy = 0, queued = false;
             function apply() {
                 queued = false;
+                // Scroll contribution is a CAPPED FRACTION of one viewport, not raw pixels.
+                // Multiplying raw scrollY by the depth factor pushed the planes clean off screen
+                // on a long page: at 5000px down the mid plane translated +4200px and the sky
+                // simply disappeared below the fold -- the page bottom rendered flat black with
+                // no backdrop and no birds. The environment is fixed-position, so it must stay
+                // put no matter how far the document scrolls.
+                var svp = Math.max(-1, Math.min(1, sy / Math.max(1, window.innerHeight)));
                 for (var i = 0; i < layers.length; i++) {
                     layers[i].style.transform =
                         'scale(' + scale[i] + ') translate3d(' + (px * depth[i]) + 'px,' +
-                        ((py * depth[i]) + (sy * depth[i] * 0.06)) + 'px,0)';
+                        ((py * depth[i]) + (svp * depth[i] * 0.9)) + 'px,0)';
                 }
             }
             function queue() { if (!queued) { queued = true; window.requestAnimationFrame(apply); } }

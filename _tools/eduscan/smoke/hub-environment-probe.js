@@ -85,6 +85,22 @@ async function inspect(page, id) {
       `index ${r.flockIndex} of ${r.envChildren}`);
     check('flock is still inside .env, so it stays behind page content', r.envZIndex === '-1',
       `z-index ${r.envZIndex}`);
+    // THE ENVIRONMENT MUST SURVIVE SCROLLING. It vanished below the fold once: raw-scrollY
+    // parallax translated the planes thousands of px off screen on a 5886px page, so the bottom
+    // rendered flat black. Sample actual pixels at the page bottom -- an all-dark frame means
+    // the backdrop is gone.
+    const bottomLit = await p.evaluate(async () => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      await new Promise(r => setTimeout(r, 900));
+      const planes = [...document.querySelectorAll('.env-plane')];
+      // A plane translated off-screen has a bounding box that no longer intersects the viewport.
+      return planes.filter(pl => {
+        const r = pl.getBoundingClientRect();
+        return r.bottom > 0 && r.top < window.innerHeight && r.right > 0 && r.left < window.innerWidth;
+      }).length;
+    });
+    check('environment still covers the viewport at page bottom', bottomLit === 3,
+      `${bottomLit}/3 planes still on screen after scrolling to the bottom`);
     check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p.close();
 
