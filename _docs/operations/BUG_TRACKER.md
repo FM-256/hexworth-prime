@@ -31,6 +31,40 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-058 — LIVE Cinder lab check 6 is beatable by a 5-command shortcut  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by the new qc-lab.sh coverage rollout · re-running the cinder gate
+- **Area:** bc1 `lab-manager/server.js` `CLOUD_CHECKS['openstack-cli']` id 6
+- **Symptom:** The lab's whole teaching point is that a volume OUTLIVES the server it was
+  first attached to — create volume, attach to server 1, detach, DELETE server 1, create
+  server 2, re-attach. Check 6 does not verify any of that. It asserts only that the
+  currently-attached server was created after the volume:
+  `new Date(v.created_at) < new Date(srv.created)`. Any FIRST server satisfies that. So a
+  student who runs create-volume, create-ONE-server, attach — five commands, no detach, no
+  delete, no rebuild — scores the same as one who did the exercise.
+- **Repro:** `bash qc-lab.sh cinder` on bc1. Adversarial cheat A ("create volume, ONE server,
+  attach, echo both proofs, no delete cycle") reports `check 6: PASS` and the harness fails
+  with `CHEAT A BEAT CHECK 6 -- the shortcut still passes`. Ruled out as an artifact of the
+  new fixed QC identity: the run launched `student-25`, a freshly reclaimed EMPTY slot, so
+  there was no leftover state to help the cheat.
+- **Root cause:** the check tests a proxy (creation ordering) instead of the claim (the
+  volume survived a server deletion). Server-side state shows only what exists NOW, and a
+  deleted server leaves no trace in the `/verify` payload, so ordering was reached for as a
+  stand-in. It is not one — it cannot separate the shortcut from the honest path, and both
+  score identically.
+- **Why it survived this long:** Nancy identified this exact shortcut on 2026-07-30 and the
+  adversarial harness was written to encode it. The HARNESS demands the cheat fail; the CHECK
+  was never strengthened to make it fail. Nothing re-ran the cinder gate afterwards, so the
+  requirement sat recorded-but-unmet. This is the third live lab defect the coverage rollout
+  surfaced today (chain 13/15, secgroup 17, now cinder 6) — the first two were harness gaps,
+  this one is a real grading hole.
+- **Fix:** with Nancy. Leading candidate is the baseline pattern just built for the capstone:
+  record the first attached server id server-side, then require the currently-attached server
+  to DIFFER from it — the same same-shape-different-identity proof, and the infrastructure
+  (uid-keyed store, `writeBaseline`/`readBaselines`, ctx plumbing) already exists.
+- **Student impact:** a student can complete a LIVE lab without performing the exercise it
+  teaches, and be told they did it correctly.
+- **Related:** BUG-055/056 (same class: a check that does not test its own claim).
+
 ### BUG-057 — Dr. Hex's grade-for route ignores CLOUD_CHECKS: 16 checks invisible, `complete` lies  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by Nancy · reviewing the capstone check-27 redesign (found as a blocker, not the subject)
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js` `/api/sandbox/grade-for` (route at :1232); caller `functions/hex-ai-bridge.js` `sandbox_task_state`
