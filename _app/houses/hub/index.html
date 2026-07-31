@@ -233,15 +233,38 @@
            few (5) and small -- a flock would fight the reading column for attention, and every
            extra element is another composited layer on a student laptop.
            They sit BETWEEN the far and mid planes in z-order so they read as distant. */
-        body.env-on .bird{ position:absolute; width:26px; height:26px; opacity:.5;
+        /* Sized and weighted against the birds baked into the photo itself. At 26px / .38
+           opacity BEHIND the veil, mine read as a faint grey squiggle next to the crisp dark
+           silhouettes in the art -- which is what made "why aren't they flapping" the obvious
+           reaction: at that size no wing pose could register at all. */
+        body.env-on .bird{ position:absolute; width:42px; height:42px; opacity:.72;
                            will-change:transform; pointer-events:none; }
         body.env-on .bird svg{ width:100%; height:100%; display:block; }
-        body.env-on .bird path{ stroke:#0d2233; stroke-width:2.2; fill:none;
+        body.env-on .bird path{ stroke:#0a1a26; stroke-width:2.0; fill:#0a1a26;
                                 stroke-linecap:round; stroke-linejoin:round; }
-        /* Wingbeat: two path states swapped by scaling the glyph vertically. Cheaper than
-           animating the path data, and at this size the eye only reads "flapping". */
-        body.env-on .bird svg{ animation:birdFlap 1.1s ease-in-out infinite alternate; }
-        @keyframes birdFlap{ from{ transform:scaleY(1); } to{ transform:scaleY(.55); } }
+        /* WINGBEAT -- two real poses, swapped.
+           The first attempt scaled the whole glyph on Y. That is not a flap: it squashes the
+           entire bird, body and both wings together, so it reads as the shape getting shorter.
+           Measured on production it WAS animating (scaleY oscillating 0.58-1.0) and still looked
+           like nothing was happening -- the operator spotted it immediately: "how are these
+           birds flying without flapping their wings".
+           Now there are two paths per bird, up-stroke and down-stroke, and exactly one is
+           visible at a time. steps(1) so it SNAPS between poses -- a cross-fade reads as a blur,
+           and real wingbeats are not smooth. Still opacity-only, so it stays on the same
+           compositor-cheap path as everything else on this page. */
+        body.env-on .bird .w-up,
+        body.env-on .bird .w-dn{ animation:birdBeat .62s steps(1) infinite; }
+        body.env-on .bird .w-dn{ animation-delay:.31s; }
+        @keyframes birdBeat{ 0%,49%{ opacity:1; } 50%,100%{ opacity:0; } }
+        /* Vary the beat so five birds never flap in lockstep -- that reads as one sprite. */
+        body.env-on .bird-2 .w-up, body.env-on .bird-2 .w-dn{ animation-duration:.74s; }
+        body.env-on .bird-3 .w-up, body.env-on .bird-3 .w-dn{ animation-duration:.55s; }
+        body.env-on .bird-4 .w-up, body.env-on .bird-4 .w-dn{ animation-duration:.68s; }
+        body.env-on .bird-5 .w-up, body.env-on .bird-5 .w-dn{ animation-duration:.81s; }
+        body.env-on .bird-2 .w-dn{ animation-delay:.37s; }
+        body.env-on .bird-3 .w-dn{ animation-delay:.275s; }
+        body.env-on .bird-4 .w-dn{ animation-delay:.34s; }
+        body.env-on .bird-5 .w-dn{ animation-delay:.405s; }
         /* Each bird crosses on its own duration/height so they never move as a rigid formation. */
         @keyframes birdCross{
             from{ transform:translate3d(-8vw, 0, 0); }
@@ -249,10 +272,10 @@
         }
         body.env-on .bird{ animation:birdCross linear infinite; }
         body.env-on .bird-1{ top:16%; animation-duration:54s; animation-delay:  0s; transform:scale(1.00); }
-        body.env-on .bird-2{ top:21%; animation-duration:67s; animation-delay: -9s; opacity:.38; }
-        body.env-on .bird-3{ top:12%; animation-duration:78s; animation-delay:-31s; opacity:.30; }
-        body.env-on .bird-4{ top:26%; animation-duration:61s; animation-delay:-46s; opacity:.44; }
-        body.env-on .bird-5{ top:19%; animation-duration:88s; animation-delay:-22s; opacity:.26; }
+        body.env-on .bird-2{ top:21%; animation-duration:67s; animation-delay: -9s; opacity:.62; transform:scale(.82); }
+        body.env-on .bird-3{ top:12%; animation-duration:78s; animation-delay:-31s; opacity:.5;  transform:scale(.66); }
+        body.env-on .bird-4{ top:26%; animation-duration:61s; animation-delay:-46s; opacity:.68; transform:scale(.9); }
+        body.env-on .bird-5{ top:19%; animation-duration:88s; animation-delay:-22s; opacity:.44; transform:scale(.58); }
 
         /* Motion is decoration here; the page must be complete without it. */
         @media (prefers-reduced-motion: reduce){
@@ -261,7 +284,8 @@
                still left the ambient drift running, which is the motion a reduced-motion user
                is actually asking not to see. They get a still scene, not a calmer one. */
             body.env-on .env-plane{ animation:none !important; }
-            body.env-on .bird, body.env-on .bird svg{ animation:none !important; }
+            body.env-on .bird, body.env-on .bird svg,
+            body.env-on .bird .w-up, body.env-on .bird .w-dn{ animation:none !important; }
             body.env-on .bird{ display:none; }   /* a frozen bird mid-sky reads as a bug */
             body.env-on .env-far{ transform:scale(1.20); }
             body.env-on .env-mid{ transform:scale(1.08); }
@@ -575,8 +599,17 @@
             for (var bi = 1; bi <= 5; bi++) {
                 var bird = document.createElement('span');
                 bird.className = 'bird bird-' + bi;
+                // Two wing poses. w-up = up-stroke (wings raised above the body),
+                // w-dn = down-stroke (wings swept below). CSS shows exactly one at a time.
+                // Filled silhouettes with a body, not an outlined squiggle -- the birds in the
+                // photograph are solid shapes with swept wings, and an open stroke next to them
+                // looked like a scribble.
                 bird.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' +
-                    '<path d="M2 13 C 6 7, 9 7, 12 12 C 15 7, 18 7, 22 13"/></svg>';
+                    '<path class="w-up" d="M12 13 C 11 11, 10 8, 4 4 C 7 8, 9 11, 11.4 13.2 ' +
+                        'C 9 11, 7 8, 4 4 Z M12 13 C 13 11, 14 8, 20 4 C 17 8, 15 11, 12.6 13.2 Z"/>' +
+                    '<path class="w-dn" d="M12 11 C 11 12, 10 15, 4 18 C 7 14, 9 12, 11.4 10.8 Z ' +
+                        'M12 11 C 13 12, 14 15, 20 18 C 17 14, 15 12, 12.6 10.8 Z"/>' +
+                    '</svg>';
                 flock.appendChild(bird);
             }
             // Anchor to the actual mid plane, NOT env.children[1]. Indexing a live children
@@ -584,11 +617,13 @@
             // a few lines above: reorder that array for any reason and the flock silently moves
             // to the wrong plane with nothing to catch it. Stacking here is pure DOM order --
             // there is no z-index on the planes -- so this is the whole mechanism. (Nancy)
-            env.insertBefore(flock, layers[1] || null);
-
             var veil = document.createElement('div');
             veil.className = 'env-veil';
             env.appendChild(veil);
+            // Flock goes AFTER the veil. Between the planes it was being darkened by the veil on
+            // top of its own opacity, which is half of why it read as a smudge. It still sits
+            // behind every page element because .env is z-index:-1 -- the depth that matters.
+            env.appendChild(flock);
             document.body.appendChild(env);
             document.body.classList.add('env-on');
 

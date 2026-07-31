@@ -34,6 +34,11 @@ async function inspect(page, id) {
       // Depth is DOM order (no z-index on the planes), so assert the flock sits BETWEEN the
       // far and mid planes rather than merely existing. Nancy found this had zero coverage:
       // a reorder would move the birds to the wrong plane and nothing would notice.
+      envChildren: (document.querySelector('.env') || { children: [] }).children.length,
+      envZIndex: (function () {
+        var e = document.querySelector('.env');
+        return e ? getComputedStyle(e).zIndex : null;
+      })(),
       flockIndex: (function () {
         var env = document.querySelector('.env');
         if (!env) { return -1; }
@@ -72,8 +77,14 @@ async function inspect(page, id) {
     check('items carry the cartridge spine', parseFloat(r.spineWidth) >= 4, String(r.spineWidth));
     check('items use the cartridge gradient, not the flat panel', /gradient/.test(r.itemBg || ''), r.itemBg);
     check('five birds mounted', r.birds === 5, String(r.birds));
-    check('flock sits between the far and mid planes (depth is DOM order)', r.flockIndex === 1,
-      `index ${r.flockIndex}`);
+    // The invariant CHANGED deliberately: the flock used to sit between the far and mid planes,
+    // where the veil painted over it and washed the birds out. It is now the LAST child of .env
+    // -- above the veil so it is not dimmed, still inside .env (z-index:-1) so it stays behind
+    // every page element. Both halves matter, so assert both rather than a bare index.
+    check('flock is above the veil (not dimmed by it)', r.flockIndex === r.envChildren - 1,
+      `index ${r.flockIndex} of ${r.envChildren}`);
+    check('flock is still inside .env, so it stays behind page content', r.envZIndex === '-1',
+      `z-index ${r.envZIndex}`);
     check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p.close();
 
