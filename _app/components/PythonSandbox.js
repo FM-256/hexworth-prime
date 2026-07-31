@@ -1202,9 +1202,40 @@ window.PythonSandbox = (function() {
                 return { name: test.name || 'Test', passed: false, reason: 'Code threw an error.' };
             }
             try {
-                // Pass both output and source code so tests can validate
-                // either program output OR code structure (e.g. "uses def", "uses strip()")
-                const passed = test.check(stdoutStr, code);
+                // Pass output, source, and a live PROBE into the student's namespace.
+                //
+                // WHY THE PROBE EXISTS: matching stdout means print("...PASS") satisfies
+                // any check, so no lab in the spine could enforce anything against a
+                // determined student -- every lab has to DISCLOSE that ceiling instead.
+                // A probe closes it for checks that opt in: the grader calls the
+                // student's own function with values chosen AT GRADE TIME, so there is
+                // nothing to precompute and nothing to print.
+                //
+                // Backward compatible on purpose: existing checks declare (out, code) and
+                // simply ignore a third argument, so every current lab is unaffected.
+                const probe = {
+                    // Call a student function with grader-chosen args; returns a JS value.
+                    // Returns PROBE_MISSING if they never defined it, PROBE_ERROR if it threw.
+                    call: function (fnName, args) {
+                        try {
+                            const fn = _state.pyodide.globals.get(fnName);
+                            if (!fn) return 'PROBE_MISSING';
+                            const out = fn(...(args || []));
+                            return (out && typeof out.toJs === 'function') ? out.toJs() : out;
+                        } catch (e) { return 'PROBE_ERROR'; }
+                    },
+                    // Evaluate an expression in the student's live namespace.
+                    eval: function (expr) {
+                        try {
+                            const r = _state.pyodide.runPython(expr);
+                            return (r && typeof r.toJs === 'function') ? r.toJs() : r;
+                        } catch (e) { return 'PROBE_ERROR'; }
+                    },
+                    defined: function (name) {
+                        try { return !!_state.pyodide.globals.get(name); } catch (e) { return false; }
+                    }
+                };
+                const passed = test.check(stdoutStr, code, probe);
                 return { name: test.name || 'Test', passed: Boolean(passed), reason: '' };
             } catch (testErr) {
                 return { name: test.name || 'Test', passed: false, reason: 'Test threw: ' + testErr.message };
