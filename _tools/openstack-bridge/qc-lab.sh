@@ -68,12 +68,14 @@ if [ "${PIPESTATUS[0]}" -ne 0 ]; then
 fi
 
 echo ""
+COV_RAN=0
 if [ -z "$IDS" ]; then
   echo "═══ [3/3] COVERAGE -- SKIPPED: '$LAB' harnesses do not emit COVERAGE lines yet ═══"
   echo "    Stages 1-2 passed. This lab is NOT coverage-gated, so a check that rejects"
   echo "    everything or accepts everything would still get through. Add the emit loop"
   echo "    (see adversarial-project.js) and an IDS entry above to close that."
 else
+  COV_RAN=1
   echo "═══ [3/3] COVERAGE -- every check must be seen BOTH passing and failing ═══"
   cov_fail=0
   for id in $IDS; do
@@ -104,4 +106,12 @@ else
 fi
 
 echo ""
-echo "═══ QC GATE PASSED for '$LAB': cheats rejected, honest path passes, checks discriminate ═══"
+# Say only what was actually proven. Claiming "checks discriminate" on a run where the
+# coverage stage never executed is the same overclaim this stage was added to catch --
+# and it printed exactly that on the first neutron run, which is how it was noticed.
+if [ "$COV_RAN" -eq 1 ]; then
+  echo "═══ QC GATE PASSED for '$LAB': cheats rejected, honest path passes, checks discriminate ═══"
+else
+  echo "═══ QC GATE PASSED for '$LAB': cheats rejected, honest path passes ═══"
+  echo "    NOT proven: that each check discriminates. Coverage was skipped for this lab."
+fi
