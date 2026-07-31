@@ -429,7 +429,28 @@ def verify(slot):
                 'size': v.get('size'), 'created_at': v.get('created_at'),
                 'attached_to': [a.get('server_id') for a in (v.get('attachments') or [])]}
                for v in ((vdoc or {}).get('volumes') or [])]
-    return 200, {'slot': slot, 'servers': servers, 'volumes': volumes}
+    # Security groups + their rules, added 2026-07-31 to unblock Stage 4 lab 3.
+    # Same shape discipline as servers: flatten to plain fields so a grader never has to
+    # know Neutron's nesting. Each group carries its rules already decoded, and each
+    # server carries the group NAMES attached to it, so "is this group actually applied
+    # to a machine" is answerable without a second round trip.
+    st3, gdoc = _os(utok, '/networking', '/v2.0/security-groups')
+    groups = [{'id': g.get('id'), 'name': g.get('name'),
+               'rules': [{'direction': r.get('direction'),
+                          'protocol': r.get('protocol'),
+                          'port_min': r.get('port_range_min'),
+                          'port_max': r.get('port_range_max'),
+                          'remote_ip': r.get('remote_ip_prefix'),
+                          'remote_group': r.get('remote_group_id')}
+                         for r in (g.get('security_group_rules') or [])]}
+              for g in ((gdoc or {}).get('security_groups') or [])]
+    # Which groups are actually ON a server -- membership is what makes a rule real.
+    for srv in servers:
+        raw = next((x for x in ((sdoc or {}).get('servers') or []) if x.get('id') == srv['id']), {})
+        srv['security_groups'] = [sg.get('name') for sg in (raw.get('security_groups') or [])]
+
+    return 200, {'slot': slot, 'servers': servers, 'volumes': volumes,
+                 'security_groups': groups}
 
 
 def slot_of(uid):
