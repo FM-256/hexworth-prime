@@ -449,8 +449,41 @@ def verify(slot):
         raw = next((x for x in ((sdoc or {}).get('servers') or []) if x.get('id') == srv['id']), {})
         srv['security_groups'] = [sg.get('name') for sg in (raw.get('security_groups') or [])]
 
+    # Networks + subnets + routers, added 2026-07-31 for Stage 4 lab 5 (self-service
+    # networking). Same flattening discipline as servers and security groups: a grader
+    # should never have to know Neutron's nesting. `owned` distinguishes a network the
+    # STUDENT built from the shared ones the cloud already provides -- that distinction
+    # IS the lab.
+    st4, ndoc = _os(utok, '/networking', '/v2.0/networks')
+    st5, sdoc2 = _os(utok, '/networking', '/v2.0/subnets')
+    st6, rdoc = _os(utok, '/networking', '/v2.0/routers')
+    subs = {x.get('id'): x for x in ((sdoc2 or {}).get('subnets') or [])}
+    networks = [{'id': n.get('id'), 'name': n.get('name'),
+                 'shared': bool(n.get('shared')),
+                 'external': bool(n.get('router:external')),
+                 # "Theirs" = neither shared NOR external. Verified against live data:
+                 # `public` is NOT flagged shared, yet Neutron shows it to every project
+                 # because it is external -- so "not shared" alone wrongly counted the
+                 # admin's external network as the student's own. Caught before any lab
+                 # check was written against this field.
+                 'owned': not bool(n.get('shared')) and not bool(n.get('router:external')),
+                 'status': n.get('status'),
+                 'subnets': [{'id': sid,
+                              'name': (subs.get(sid) or {}).get('name'),
+                              'cidr': (subs.get(sid) or {}).get('cidr'),
+                              'gateway': (subs.get(sid) or {}).get('gateway_ip'),
+                              'dhcp': bool((subs.get(sid) or {}).get('enable_dhcp'))}
+                             for sid in (n.get('subnets') or [])]}
+                for n in ((ndoc or {}).get('networks') or [])]
+    routers = [{'id': r.get('id'), 'name': r.get('name'), 'status': r.get('status'),
+                'owned': True,   # routers are only visible within the student's project
+                # An external gateway is what makes a private network reachable outward.
+                'external_gateway': bool((r.get('external_gateway_info') or {}).get('network_id')),
+                'external_network': ((r.get('external_gateway_info') or {}).get('network_id'))}
+               for r in ((rdoc or {}).get('routers') or [])]
+
     return 200, {'slot': slot, 'servers': servers, 'volumes': volumes,
-                 'security_groups': groups}
+                 'security_groups': groups, 'networks': networks, 'routers': routers}
 
 
 def slot_of(uid):
