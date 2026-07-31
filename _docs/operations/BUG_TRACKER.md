@@ -31,6 +31,35 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-067 — 2 LIVE quizzes are passable by clicking option B on every question  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · while extracting answer keys to remediate BUG-065
+- **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,install,operation,projects}-quiz.quiz.html`
+- **Symptom:** the answer keys are severely skewed AND the options never shuffle (0
+  shuffle/random references in all four; rendered in fixed order by `q.opts.forEach((opt, i) =>`).
+  Measured distribution across 60 questions:
+
+      quiz         opt0 opt1 opt2 opt3    always-pick-B
+      intro          0    7    7    1          47%
+      install        0   12    3    0          80%   <- PASSES (threshold 70%)
+      operation      1   12    2    0          80%   <- PASSES
+      projects       0    9    6    0          60%
+
+  **Option 0 is the answer ONCE in 60 questions. Option 3 is the answer once.** A student who
+  selects the second option every time passes install and operation without reading anything.
+- **Why this is separate from BUG-065:** moving grading server-side does NOT fix it. Always-B
+  still passes. The two defects are independent and a fix for one is not a fix for the other.
+- **Violates** `feedback_assessment_testing_standard` (no test-wiseness).
+- **Fix direction (with Nancy):** shuffle options at render and submit the ORIGINAL index. That
+  defeats the pattern without rewriting any question content or reordering the stored key — a
+  mechanism change, not a content change. Precedent: QuizEngine's QC-8 already render-shuffles
+  options every attempt; these four use a custom inline engine that never got it.
+  The alternative — rewriting questions so the key is genuinely distributed — is better
+  assessment design but edits what students read, so it is not something to do unilaterally.
+- **RISK TO MANAGE ON THE FIX:** if display order and submitted index desynchronise, EVERY
+  student is graded wrong — far worse than the current defect. Any implementation needs a
+  harness proving display/submit stay in step across a shuffled render.
+- **Related:** BUG-065 (same four files, independent defect).
+
 ### BUG-066 — the OpenStack slot pool still leaks; my "fixed identity" fix only slowed it  ·  [P2]  ·  open
 - **Found:** 2026-07-31 · by self · correcting a claim I made earlier the same day
 - **Area:** `_tools/openstack-bridge/*.js` QC identities; bridge slot binding on bc2
