@@ -31,6 +31,51 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · while sweeping for the `window.FirebaseAuth` trap that the
+  render probe caught in InstantQuizGrader
+- **Area:** `_app/components/LabStateSync.js:45` (`_uid()`)
+- **Symptom:** every pull, push and delete silently no-ops. Lab state never leaves the device and
+  never arrives on a second device. Fails **silently** — `_attemptPull` returns the string
+  `'skip'`, which reads like a legitimate "nothing to do" outcome, so nothing surfaces an error.
+- **Repro:** load any page using LabStateSync while signed in; `_uid()` returns null, so
+  `_attemptPull` (:72), `_pushKey` (:103) and the delete path (:205) all bail at
+  `if (!db || !uid || ...)`.
+- **Root cause:** `_uid()` guards on `window.FirebaseAuth`. `FirebaseAuth.js:9` declares
+  `const FirebaseAuth = (function(){...})()` at classic-script top level. A top-level `const`
+  creates a binding in the global LEXICAL environment and does NOT become a property of
+  `window` — so `window.FirebaseAuth` is `undefined` even though the bare identifier works.
+  The `&&` short-circuits and `_uid()` returns null unconditionally.
+- **Measured, not inferred:** on a real page loading FirebaseAuth.js —
+  `typeof FirebaseAuth = 'object'`, `typeof window.FirebaseAuth = 'undefined'`,
+  `Object.prototype.hasOwnProperty.call(window,'FirebaseAuth') = false`.
+- **Fix:** not yet — out of scope of the authorized quiz task. One line: guard on the bare
+  identifier (`typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser`). Needs its own
+  verification that sync actually works once a uid resolves; the no-op has been masking whether
+  the rest of the path is sound, so a one-line fix must not be assumed sufficient.
+- **Related:** BUG-069, BUG-070. `_app/operator/index.html:1255` guards CORRECTLY and documents
+  this exact trap ("same trap documented in TenantFilter.js") — so it is known, with victims.
+  Memory: `project_cross_device_lab_state_sync.md` records this feature as SHIPPED.
+
+### BUG-069 — admin console records `createdBy: null` on every object it creates  ·  [P2]  ·  open
+- **Found:** 2026-07-31 · by self · same sweep as BUG-068
+- **Area:** `_app/admin/console.html:4675`
+- **Symptom:** the `createdBy` audit field is always `null`, so admin-created objects carry no
+  attribution even when a signed-in admin created them.
+- **Root cause:** same `window.FirebaseAuth` lexical-const trap as BUG-068 — the ternary's guard
+  is always falsy, so it always takes the `: null` branch.
+- **Fix:** not yet — out of scope of the authorized quiz task.
+- **Related:** BUG-068, BUG-070.
+
+### BUG-070 — A+ Core 1 applet treats every signed-in student as signed out  ·  [P2]  ·  open
+- **Found:** 2026-07-31 · by self · same sweep as BUG-068
+- **Area:** `_app/houses/forge/applets/comptia-aplus/core-1/index.html:1168`
+- **Symptom:** `signedIn` is computed as `!!(window.FirebaseAuth && ...)` and is therefore always
+  `false`, regardless of actual auth state.
+- **Root cause:** same lexical-const trap as BUG-068.
+- **Fix:** not yet — out of scope of the authorized quiz task.
+- **Related:** BUG-068, BUG-069.
+
 ### BUG-067 — 2 LIVE quizzes are passable by clicking option B on every question  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · while extracting answer keys to remediate BUG-065
 - **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,install,operation,projects}-quiz.quiz.html`
