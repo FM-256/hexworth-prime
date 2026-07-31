@@ -43,6 +43,7 @@ async function inspect(page, id) {
   try {
     console.log(`\n=== PILOT: ${PILOT} ===`);
     let p = await browser.newPage();
+  await p.setCacheEnabled(false);   // preview redeploys serve max-age=3600; never measure a stale build
     const errs = [];
     p.on('pageerror', (e) => errs.push(e.message));
     const r = await inspect(p, PILOT);
@@ -61,6 +62,7 @@ async function inspect(page, id) {
     for (const id of CONTROLS) {
       console.log(`\n=== CONTROL (must be UNCHANGED): ${id} ===`);
       const cp = await browser.newPage();
+  await cp.setCacheEnabled(false);   // preview redeploys serve max-age=3600; never measure a stale build
       const c = await inspect(cp, id);
       check(`${id}: environment NOT mounted`, c.envOn === false, `env-on=${c.envOn}`);
       check(`${id}: no depth layers`, c.layers === 0, `got ${c.layers}`);

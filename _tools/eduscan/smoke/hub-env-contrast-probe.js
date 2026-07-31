@@ -39,6 +39,7 @@ function check(l, ok, d) { if (ok) { pass++; console.log(`  PASS  ${l}`); } else
   const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
   try {
     const page = await browser.newPage();
+  await page.setCacheEnabled(false);   // preview redeploys serve max-age=3600; never measure a stale build
     await page.setViewport({ width: 1440, height: 900 });
     await page.evaluateOnNewDocument(() => { localStorage.setItem('hexworth_house', 'cloud'); });
     await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 40000 });
