@@ -31,6 +31,32 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-063 — 35 clickable cards on LIVE course hubs 404 in production  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · widening Nancy's 6-card `coming-soon` finding from BUG-062
+- **Area:** `_app/houses/forge/intro-computers/index.html` (23), `_app/houses/shield/isc2-cc/index.html` (11), `_app/houses/shield/security-plus/index.html` (1)
+- **Symptom, measured against PRODUCTION:** these hub pages return HTTP 200 and present normal
+  `<a class="content-card" data-module="...">` cards. Clicking them 404s. Verified live:
+  `https://hexworth.com/houses/shield/isc2-cc/index.html` -> 200, while
+  `/houses/shield/infosec/pis-01.html`, `pis-08.html`, `pis-15.html` all -> **404**.
+- **Root cause:** the target content exists only in an unpublished `_source/` staging directory
+  (`_app/houses/shield/infosec/_source/pis-01.html` etc.). The catalog knows: all 45 affected
+  entries carry `status: 'coming-soon'`. The hub pages are HAND-AUTHORED and link them anyway,
+  with no visual distinction from a working card.
+- **Scope:** 45 catalog entries are `coming-soon` with non-resolving hrefs (forge 24, shield 17,
+  script 2, key 1, code 1). 35 of them are currently carded as live links on the three pages
+  above; the rest are not yet surfaced anywhere.
+- **Student impact:** a student browsing a course hub clicks what looks like the next lesson and
+  gets a 404. It reads as a broken platform rather than as unreleased content, and it spends
+  trust before failing — which is why an absent card would be better than this one.
+- **Fix direction (not yet implemented, needs review):** render `coming-soon` entries as
+  non-clickable cards with an explicit badge rather than as `<a href>`. The catalog already
+  carries the status, so the honest state is available without new data. Alternatives are
+  removing the cards (hides the roadmap from students) or publishing from `_source` (a content
+  decision, not a bug fix).
+- **Related:** BUG-062. Found because Nancy insisted hrefs be checked against the FILESYSTEM
+  rather than against `#` — the same 6 cards she caught in the incubator turned out to be a
+  narrow slice of a 35-card live problem.
+
 ### BUG-062 — LIVE shield incubator: 108 of 111 cards are dead `#` links  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · reviewing an unrelated incubator regen (taskboard #240)
 - **Area:** `_tools/eduscan/incubator-generator.js` additive-merge block; output pages `_app/houses/*/incubator/index.html`
