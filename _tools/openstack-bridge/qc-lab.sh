@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lab QC gate. Runs ON bc1.  Usage:  bash qc-lab.sh rescue|cinder
+# Lab QC gate. Runs ON bc1.  Usage:  bash qc-lab.sh rescue|cinder|chain
 #
 # Why this file exists: I described the harnesses as "chained" when the ordering was really
 # a one-off `if` typed into a shell -- a procedural habit, not a gate (Nancy, 2026-07-30).
@@ -12,15 +12,20 @@
 set -u
 LAB="${1:-}"
 case "$LAB" in
-  rescue|cinder) ;;
-  *) echo "usage: bash qc-lab.sh rescue|cinder" >&2; exit 2 ;;
+  rescue|cinder|chain) ;;
+  *) echo "usage: bash qc-lab.sh rescue|cinder|chain" >&2; exit 2 ;;
 esac
 cd "$(dirname "$0")" 2>/dev/null || cd ~/hexworth-sandbox
 
 ADV="adversarial-${LAB}.js"
 WALK="walkthrough-${LAB}.js"
 for f in "$ADV" "$WALK"; do
-  [ -f "$f" ] || { echo "MISSING harness: $f" >&2; exit 2; }
+  [ -f "$f" ] || {
+    echo "MISSING harness: $f" >&2
+    echo "The lab is NOT gated. Do not deploy it. Write the harness first -- verbatim," >&2
+    echo "every command lifted from the page, every wait matching a page '# WAIT for:'." >&2
+    exit 2
+  }
 done
 
 echo "═══ [1/2] ADVERSARIAL ($ADV) -- named cheats must FAIL ═══"
