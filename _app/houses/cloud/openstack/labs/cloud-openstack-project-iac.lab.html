@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/SandboxLauncher.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capstone Project: The Environment Is Data - OpenStack - House of the Cloud</title>
+    <style>
+        :root {
+            --cloud-primary: #0ea5e9; --cloud-secondary: #38bdf8; --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e; --text-primary: #e0f2fe; --text-secondary: #7dafd4;
+            --bg-main: #060b14; --bg-card: #080f1e;
+            --border-color: rgba(14, 165, 233, 0.14); --success: #22c55e; --warn: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, #071a2b 100%);
+            color: var(--text-primary); line-height: 1.6; min-height: 100vh; padding: 20px;
+        }
+        .wrap { max-width: 1600px; margin: 0 auto; }
+        .header {
+            padding: 30px 34px; border-radius: 14px; margin-bottom: 22px;
+            background: linear-gradient(135deg, #7f1d1d 0%, var(--cloud-primary) 100%);
+        }
+        .header .crumb a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.85rem; }
+        .header h1 { font-size: 1.9rem; margin-top: 8px; }
+        .header .sub { opacity: 0.95; margin-top: 6px; max-width: 1000px; }
+        /* FULL-WIDTH BANNER LAYOUT (operator trial, 2026-07-31). The two-column split
+           made the page an open book, and it was also the source of the overlap bug --
+           .cmd blocks fought the adjacent column for width. One column means nothing to
+           overflow INTO, so the fix is structural rather than a min-width patch. Every
+           section is now the same full-bleed width as the three header banners. */
+        .cols { display: block; }
+        .cols > div { display: block; }
+        /* OVERLAP FIX (operator reported it live on the rescue lab): a grid item defaults
+           to min-width:auto, so it refuses to shrink below its widest child. The .cmd
+           blocks are wider than the left column, so instead of scrolling they EXPANDED
+           the column and ran underneath the Lab Objectives panel -- command text and
+           objective text drawn on top of each other. .cmd already had overflow-x:auto;
+           it could never take effect until the track was allowed to shrink. */
+        .cols > *, .step > * { min-width: 0; }
+        .cmd { max-width: 100%; }
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 22px 24px; margin-bottom: 20px;
+        }
+        .card h2 { color: var(--cloud-accent); font-size: 1.05rem; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .card p { color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 10px; }
+        .card p strong { color: var(--text-primary); }
+        code {
+            background: rgba(14, 165, 233, 0.1); border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1px 6px; font-size: 0.86em; color: var(--cloud-accent);
+            /* Multi-word inline code (`az vm disk detach`) was splitting across a line
+               break, leaving half the phrase on each line with its own border and
+               background -- it reads as overlapping, broken text. Operator spotted it on
+               the live rescue lab. nowrap keeps a command intact; inline-block stops the
+               border rendering as two ragged halves if it ever must wrap. */
+            white-space: nowrap; display: inline-block; max-width: 100%;
+        }
+        .brief {
+            border-left: 3px solid var(--danger); background: rgba(239, 68, 68, 0.07);
+            border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 0.9rem;
+        }
+        .brief strong { color: #fca5a5; }
+        .mode-note {
+            border-left: 3px solid var(--warn); background: rgba(245, 158, 11, 0.07);
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 0.88rem;
+        }
+        .mode-note strong { color: var(--warn); }
+        .lab-monitor { border: 1px solid var(--border-color); border-left: 3px solid var(--cloud-primary);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(14,165,233,0.07), rgba(8,15,30,0.5));
+            padding: 16px 18px; margin-bottom: 16px; }
+        .lab-monitor__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+        .lab-monitor__head strong { color: var(--cloud-accent); letter-spacing: 0.04em; }
+        .lab-monitor__count { color: var(--text-secondary); font-size: 0.82rem; }
+        .lab-monitor__sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px; }
+        .lab-monitor__list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .lab-monitor__list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+            padding: 10px 12px; background: rgba(6, 11, 20, 0.55);
+            border: 1px solid var(--border-color); border-radius: 8px; }
+        .lab-monitor__mark { width: 18px; height: 18px; }
+        .lab-monitor__list li.pass { border-color: rgba(34, 197, 94, 0.45); }
+        .lab-monitor__task { color: var(--text-primary); font-size: 0.9rem; }
+        .lab-monitor__state { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .lab-monitor__state.pass { color: var(--success); }
+        .lab-monitor__state.fail { color: var(--text-secondary); }
+        .lab-monitor__msg { color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px; }
+        .lab-monitor__msg.done { color: var(--success); font-weight: 600; }
+        .steps { counter-reset: step; }
+        .step { display: grid; grid-template-columns: 40px 1fr; gap: 12px; margin-bottom: 16px; }
+        .step::before {
+            counter-increment: step; content: counter(step);
+            width: 32px; height: 32px; border-radius: 50%; background: var(--cloud-dark);
+            display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;
+        }
+        .step h3 { font-size: 0.98rem; color: var(--text-primary); margin-bottom: 4px; }
+        .step p { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 6px; }
+        .cmd { background: rgba(6, 11, 20, 0.7); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px 14px; margin: 6px 0;
+            font-family: 'Consolas', monospace; font-size: 0.84rem; color: var(--cloud-accent);
+            overflow-x: auto; white-space: pre; }
+        .footer { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 0.9rem; }
+        .footer a { color: var(--cloud-accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="header">
+        <div class="crumb"><a href="../index.html">&larr; OpenStack Cloud Platform</a></div>
+        <h1>Capstone Project: The Environment Is Data</h1>
+        <div class="sub">Everything you have built so far, you built by hand. That does not scale and
+        it does not survive. The real promise of cloud is that an environment is not a place you
+        maintain &mdash; it is a document you can hand to someone, or to a different provider, and
+        get the same thing back. You will prove that the only way it can be proven: describe your
+        stack as data, destroy every piece of it, and rebuild it from the description alone.</div>
+    </header>
+
+    <div class="brief">
+        <strong>This is a project, not a lab.</strong> There is no command list to follow. You are given
+        the goal, the schema and the checks; how you get there is yours. Expect it to take more than one
+        session &mdash; your cloud project persists, so you can stop and come back.
+    </div>
+
+    <div class="mode-note"><strong>Read this before you destroy anything.</strong> You will genuinely
+    delete your own resources. That is the point, and it is not reversible. Export first, verify the
+    export, and only then tear down. If your manifest is wrong, you rebuild by hand and start over.
+    </div>
+
+    <div class="cols">
+    <div>
+        <div class="lab-monitor" id="rescue-monitor">
+            <div class="lab-monitor__head">
+                <strong>Project Objectives</strong>
+                <span class="lab-monitor__count">4 checks &middot; two read your files, two read the live cloud</span>
+            </div>
+            <p class="lab-monitor__sub">25 and 28 read files in your container; 26 and 27 read the real
+            cloud through your own credential, and 27 also compares it against the baseline the grader
+            recorded for you. That split is deliberate &mdash; a faked manifest with no stack behind it
+            fails 26, and a stack you never destroyed fails 27. Note where 27 lives: if it graded a file
+            you could edit, it would not be evidence of anything.</p>
+            <ul class="lab-monitor__list" id="rescue-monitor-list">
+                <li class="fail" data-check="25">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task"><code>~/project/stack.json</code> is valid JSON describing <strong>intent</strong>: size classes, no flavor names, no UUIDs anywhere.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="26">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">The stack your manifest declares <strong>actually exists</strong> in the live cloud &mdash; your own network, with a subnet, carrying a running server.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="27">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">You really rebuilt it: <strong>nothing live carries an ID</strong> from the baseline the grader recorded before your teardown.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="28">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">Your applier is <strong>idempotent</strong> &mdash; <code>~/project/apply-twice.txt</code> shows a second run that changed nothing.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+            </ul>
+            <div class="lab-monitor__msg" id="rescue-monitor-msg"></div>
+        </div>
+
+        <div class="card">
+            <h2>Live Cloud Terminal</h2>
+            <div id="rescue-launcher"></div>
+        </div>
+
+        <div class="card">
+            <h2>The Work</h2>
+            <div class="steps">
+                <div class="step"><div>
+                    <h3>Write down what "the same environment" means</h3>
+                    <p>Before any code: decide what actually has to be true for a rebuilt stack to
+                    count as the same one. Not the same IDs &mdash; those change. Not the same
+                    addresses &mdash; those change too. What survives is <em>shape</em>: how many
+                    networks, what address ranges, what is allowed in, what runs where.</p>
+                    <p>Your manifest stores <strong>intent</strong>, never state. Two rules make it
+                    portable, and check 25 enforces both:</p>
+                    <div class="cmd">"size": "small"        # NOT "flavor": "m1.nano"
+"image": "cirros"      # NOT an image UUID
+
+# A UUID anywhere in stack.json fails the check. A UUID is this
+# deployment's identity -- it cannot survive a rebuild, and it
+# means nothing on another provider.</div>
+                    <p>That distinction is why this transfers. <code>m1.nano</code> is an OpenStack
+                    fact. <em>Small</em> is a fact about your architecture, and it is still true on
+                    AWS, on Azure, and on a rack in your basement.</p>
+                </div></div>
+
+                <div class="step"><div>
+                    <h3>Export: turn the live cloud into a document</h3>
+                    <p>Read your project and emit the manifest. Everything you need is already
+                    installed: <code>openstack</code> speaks JSON, and <code>python3</code> and
+                    <code>jq</code> do the rest.</p>
+                    <div class="cmd">mkdir -p ~/project
+openstack network list -f json
+openstack subnet list -f json
+openstack security group rule list -f json
+openstack server list -f json
+
+# map those into the schema, dropping every id and translating
+# flavor -> size class on the way out</div>
+                    <p>Now record your <strong>baseline</strong>. You do not write it &mdash; the
+                    grader does. Press <strong>Record Baseline</strong> and it reads the live IDs
+                    of the resources your manifest names and keeps them server-side, somewhere
+                    your account cannot reach.</p>
+                    <p>That asymmetry is the entire point. If you wrote the file yourself,
+                    &ldquo;I destroyed it and built it again&rdquo; would be a <em>claim</em>. Because
+                    the grader took the IDs before the teardown and compares them to what is
+                    standing afterwards, it is <em>evidence</em>. You cannot fake having destroyed
+                    something when the proof was never in your hands.</p>
+                    <p><strong>Record the baseline before you destroy anything.</strong> Taken
+                    afterwards it proves nothing, and taken before the stack is finished it records
+                    a stack that is not the one your manifest describes.</p>
+                </div></div>
+
+                <div class="step"><div>
+                    <h3>Destroy it</h3>
+                    <p>All of it. Servers, volumes, security groups, router, subnet, network. Order
+                    matters and you already learned it the hard way: a router with an interface
+                    refuses to delete, and a network holding a router port refuses too.</p>
+                    <div class="cmd">openstack server list        # empty when you are done
+openstack network list       # only the shared ones the cloud provides
+openstack router list        # empty</div>
+                    <p>If this makes you uncomfortable, that is the correct reaction &mdash; and it
+                    is exactly the feeling reproducibility is meant to remove.</p>
+                </div></div>
+
+                <div class="step"><div>
+                    <h3>Rebuild from the document alone</h3>
+                    <p>Write an applier that reads <code>stack.json</code> and creates what it
+                    describes. Roughly forty lines of Python. You cannot consult the old
+                    environment &mdash; it does not exist any more. The manifest is the only thing
+                    that survived, which is the entire point.</p>
+                    <div class="cmd">python3 ~/project/apply.py ~/project/stack.json</div>
+                    <p>Then run it <strong>again</strong>, and make the second run a no-op. An
+                    applier that creates a duplicate network every time has not understood the job.
+                    Capture both runs so check 28 can see it:</p>
+                    <div class="cmd">{ echo "RUN 1"; python3 ~/project/apply.py ~/project/stack.json; \
+  echo "RUN 2"; python3 ~/project/apply.py ~/project/stack.json; } &gt; ~/project/apply-twice.txt 2&gt;&amp;1
+
+# RUN 2 must report: no changes / nothing to do / unchanged</div>
+                    <p>Then press <strong>Check My Work</strong>.</p>
+                </div></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Why this transfers</h2>
+            <p>Every provider has a different API and the same four ideas: a private network, a way
+            out of it, rules about what may enter, and machines that run somewhere. Your manifest
+            describes those four ideas. Porting it is not rewriting it &mdash; it is writing a new
+            <em>adapter</em> underneath it, and that is a smaller job than it sounds because the
+            thinking is already done.</p>
+            <p>The honest limit, stated plainly: your <code>stack.json</code> will not run unchanged
+            on AWS. Anyone who tells you a single file deploys anywhere is selling something. What
+            ports is the <em>intent</em>; the adapter is per-provider, always. Project 3 makes you
+            write the mapping for a second provider, and you will find the manifest barely changes
+            while the adapter changes completely &mdash; which is exactly the right shape.</p>
+            <p>Why this is the capstone and not another lab: everything before it taught you to
+            build one thing correctly. This teaches you that a thing you cannot rebuild is a thing
+            you do not really own.</p>
+        </div>
+    </div>
+    </div>
+
+    <footer class="footer">
+        <p>House of the Cloud - OpenStack | <a href="../index.html">&larr; Back to the OpenStack hub</a></p>
+    </footer>
+</div>
+
+<script>
+    // Monitor wiring: same reviewed pattern as the Cinder lab (all outcome paths write to
+    // BOTH surfaces; onLaunch/onEnd reset so a stale grade cannot survive a new session).
+    // NO scenario is declared: a project must not seed a broken state. The student's own
+    // stack from labs 1-5 is the starting point, and their cloud project persists between
+    // sessions so they can stop and resume mid-project.
+    // (Cloned from the rescue lab, which DID ask the seed engine for 'orphaned-volume'.)
+    // to build that state in the student's own project and injects the seeded ids into the
+    // container env, which the checks compare against.
+    if (typeof SandboxLauncher !== 'undefined') {
+        function paintMonitor(results) {
+            var list = document.getElementById('rescue-monitor-list');
+            if (!list) return 0;
+            var passed = 0;
+            Array.prototype.forEach.call(list.querySelectorAll('li[data-check]'), function (li) {
+                var id = parseInt(li.getAttribute('data-check'), 10);
+                var hit = (results || []).filter(function (r) { return r && Number(r.id) === id; })[0];
+                var ok = !!(hit && hit.pass);
+                if (ok) passed++;
+                li.className = ok ? 'pass' : 'fail';
+                var mark = li.querySelector('.lab-monitor__mark');
+                if (mark) mark.src = ok ? '/assets/images/icons/icon-check.webp'
+                                        : '/assets/images/icons/icon-checkbox.webp';
+                var st = li.querySelector('[data-state]');
+                if (st) { st.className = 'lab-monitor__state ' + (ok ? 'pass' : 'fail'); st.textContent = ok ? 'Complete' : 'Not yet'; }
+            });
+            return passed;
+        }
+        function resetMonitor(note) {
+            paintMonitor([]);
+            var msg = document.getElementById('rescue-monitor-msg');
+            if (msg) { msg.className = 'lab-monitor__msg'; msg.textContent = note || ''; }
+        }
+        // Step 2's explicit baseline capture. The grader reads the live IDs of the resources
+        // the student's manifest names and stores them server-side; nothing here is trusted from
+        // the container. Soft failures come back as HTTP 200 with ok:false, so read `ok` rather
+        // than relying on a throw.
+        var baselineBusy = false;
+        async function recordBaseline(ctx) {
+            var msg = document.getElementById('rescue-monitor-msg');
+            if (!msg) return;
+            if (ctx.panel) ctx.panel.style.display = '';
+            var both = function (cls, text) {
+                msg.className = cls; msg.textContent = text;
+                if (ctx.panel) ctx.panel.textContent = text;
+            };
+            if (!ctx.sessionId) { both('lab-monitor__msg', 'Launch the terminal first, then record your baseline.'); return; }
+            if (baselineBusy) { both('lab-monitor__msg', 'Still recording, one moment.'); return; }
+            baselineBusy = true;
+            both('lab-monitor__msg', 'Reading the live cloud and recording your baseline...');
+            try {
+                var r = await SandboxLauncher.recordBaseline(ctx.sessionId);
+                if (r && r.ok && r.recorded) {
+                    both('lab-monitor__msg done', 'Baseline recorded: ' + r.recorded.networks +
+                        ' network(s) and ' + r.recorded.servers + ' server(s). Now destroy all of it.');
+                } else {
+                    both('lab-monitor__msg', (r && r.error) || 'Could not record a baseline just now.');
+                }
+            } catch (e) {
+                both('lab-monitor__msg', 'Could not record right now. Make sure your terminal is still running, then try again.');
+            } finally {
+                baselineBusy = false;
+            }
+        }
+
+        var checkBusy = false;
+        async function checkMyWork(ctx) {
+            var msg = document.getElementById('rescue-monitor-msg');
+            if (!msg) return;
+            if (ctx.panel) ctx.panel.style.display = '';
+            var both = function (cls, text) {
+                msg.className = cls; msg.textContent = text;
+                if (ctx.panel) ctx.panel.textContent = text;
+            };
+            if (!ctx.sessionId) { both('lab-monitor__msg', 'Launch the terminal first, then check your work.'); return; }
+            if (checkBusy) { both('lab-monitor__msg', 'Still checking your last request, one moment.'); return; }
+            checkBusy = true;
+            both('lab-monitor__msg', 'Reading the live cloud...');
+            try {
+                var r = await SandboxLauncher.checkPractice(ctx.sessionId);
+                var passed = paintMonitor((r && r.results) || []);
+                if (passed === 4) {
+                    both('lab-monitor__msg done', '4 / 4 complete. You destroyed it and rebuilt it from the document alone -- same shape, different identity.');
+                } else {
+                    both('lab-monitor__msg', passed + ' / 4 complete. Work the unfinished step, then check again.');
+                }
+            } catch (e) {
+                both('lab-monitor__msg', 'Could not check right now. Make sure your terminal is still running, then try again.');
+            } finally {
+                checkBusy = false;
+            }
+        }
+        SandboxLauncher.renderButton(document.getElementById('rescue-launcher'), 'openstack-cli', {
+            scenario: null,
+            onLaunch: function (labId, result) {
+                var mode = result && result.cloudMode;
+                if (mode !== 'personal') {
+                    resetMonitor('Read-only mode: a personal project was not available this time, so the broken state could not be built and this lab cannot be completed in this session. Try again later.');
+                    return;
+                }
+                resetMonitor((result && result.seeded === false)
+                    ? 'Your cloud project persists. Whatever you built or destroyed last session is exactly as you left it -- continue from there.'
+                    : 'Your project is ready (' + (result.cloudSlot || 'your project') + '). Start with Step 1: build the stack you are going to describe.');
+            },
+            onEnd: function () {
+                resetMonitor('Session ended. Your cloud resources and your recorded baseline both persist; relaunch to pick up where you left off.');
+            },
+            extraActions: [
+                {
+                    label: 'Field Guide', visibleWhen: 'always',
+                    onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
+                },
+                { label: 'Record Baseline', visibleWhen: 'running', onClick: recordBaseline },
+                { label: 'Check My Work', visibleWhen: 'running', onClick: checkMyWork }
+            ]
+        });
+    }
+</script>
+</body>
+</html>

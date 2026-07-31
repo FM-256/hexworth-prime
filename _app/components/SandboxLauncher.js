@@ -179,6 +179,15 @@ const SandboxLauncher = (function() {
         return apiCall('GET', `/check/${sessionId}?mission=`);
     }
 
+    // Cloud Master capstone only: records the student's pre-destroy baseline SERVER-SIDE,
+    // as an explicit action they take rather than something the grader infers while marking.
+    // Returns { ok: true, recorded: {networks, servers} } or { ok: false, reason, error } —
+    // the soft failures (no manifest, stack not live) come back as 200 with ok:false, so read
+    // `ok`, do not rely on this throwing.
+    async function recordBaseline(sessionId) {
+        return apiCall('POST', `/baseline/${sessionId}`);
+    }
+
     // Mission grading (Linux Command Mastery): rich per-task results
     // { ok, mission, results[{id,brief,tier,bonus,hidden,pass,feedback[]}],
     //   passed, total, badgeEligible, badge }. Badge award itself is SERVER-side
@@ -568,6 +577,7 @@ const SandboxLauncher = (function() {
         list,
         checkPractice,
         checkMission,
+        recordBaseline,
         listMissions,
         renderButton,
         getActiveSessions: () => ({ ..._activeSessions }),
