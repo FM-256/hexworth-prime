@@ -31,6 +31,35 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-065 — 4 LIVE OpenStack quizzes ship their answer keys in the page source  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · re-measuring the 3-month-old QC-57 critical finding
+- **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,projects,operation,install}-quiz.quiz.html`
+- **Symptom, measured against PRODUCTION:** each returns HTTP 200 with **15 answer-key fields
+  visible in the served HTML** (`correct: 1`, `correct: 2`, ... on each question object). A
+  student can View Source and read every answer, or submit anything and have the client call it
+  a pass. None of the four contains `gradeQuiz`, `serverGrading`, `quizId` or any Cloud Function
+  call — grading is entirely client-side.
+- **Violates** the standing cert-hub mandate that graded assessments are server-graded
+  (`feedback_cert_hubs_server_graded`), and CLAUDE.md rule 9's server-graded exam bridge.
+- **CONTEXT — QC-57 is mostly FIXED, this is the residue.** The Nexus critical finding QC-57
+  (detected 2026-05-08) reported **95** client-graded quizzes across 15 tracks. Re-measured
+  today: of 496 quiz files, **488 are server-graded** and only **4** are client-graded. So the
+  platform-wide violation was substantially remediated; what remains is this one track. QC-57's
+  headline number is stale and should not be quoted as current.
+- **Detector note (this bit me):** matching `correct:` naively also matches PROSE — one of these
+  files has a comment reading "correct: field added to each question", which is what my sample
+  output displayed first and made the finding look like a false positive. The classification was
+  right; the sample was misleading. Confirm on the question objects (`correct: <digit>` inside a
+  question literal), not on the first regex hit.
+- **Fix:** move the four to the server-graded bridge — seed `quiz_keys/{quizId}` and grade via
+  `gradeQuiz`, per CLAUDE.md rule 9 (`cd functions && node verify-quiz-keys.js <quizId>` must
+  report `Verification PASSED` before deploy, or students get 0/N).
+- **NOT investigated:** 4 further quizzes match neither signal
+  (`web/quizzes/web-networking-ch7-10`, `-ch7-20`, `-final-review`, `web/network-plus/quizzes/ch7-20`).
+  They advertise "Auto-scored" with a Grade button but use neither an obvious answer-key field
+  nor the server bridge. Mechanism unknown; claiming nothing about them.
+- **Related:** QC-57 (Nexus critical, stale headline), CLAUDE.md rule 9.
+
 ### BUG-064 — platform-wide broken-link sweep: 13 dead student-facing links, 2 fixed  ·  [P2]  ·  partially-fixed
 - **Found:** 2026-07-31 · by self · extending the BUG-063 dead-card check to ALL 5,220 `_app` pages, not just hub index files
 - **Method:** resolved every static `<a href>` against the filesystem, excluding `_source`, `_archive`,
