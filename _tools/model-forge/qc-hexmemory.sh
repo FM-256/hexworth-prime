@@ -54,7 +54,7 @@ def forward(W, seq):
     return [sum((W["Why"][k][i] * h[i] for i in range(HID)), Value(0.0))
             for k in range(VOCAB)]
 
-def train(W, train_set, steps=40, lr=0.3):
+def train(W, train_set, steps=40, lr=0.3, clip=5.0):
     for _ in range(steps):
         loss = Value(0.0)
         for seq, cue in train_set:
@@ -63,7 +63,9 @@ def train(W, train_set, steps=40, lr=0.3):
                 loss = loss + (out[k] - (1.0 if k == cue else -1.0)) ** 2
         for p in params(W): p.grad = 0.0
         loss.backward()
-        for p in params(W): p.data -= lr * p.grad / len(train_set)
+        n = sum(p.grad * p.grad for p in params(W)) ** 0.5
+        scale = (clip / n) if n > clip else 1.0
+        for p in params(W): p.data -= lr * (p.grad * scale) / len(train_set)
     return W
 
 def accuracy(W, distance, rnd, n=24):
@@ -158,12 +160,29 @@ near = [score_at(1, s) for s in range(200, 200 + N)]
 far  = [score_at(8, s) for s in range(200, 200 + N)]
 pairs = [paired_at(1, s) for s in range(200, 200 + N)]
 a = sum(1 for b, af in pairs if not (af >= b + 0.25))
+# Nancy, 2026-07-31: the "memorised not forgot" check shipped WITHOUT a false-fail sweep,
+# violating this file's own header rule, and measured 23.3% on honest builds. Swept now.
+def _loss_acc(seed):
+    W, rnd = build(seed)
+    ex = [make_example(8, rnd) for _ in range(12)]
+    train(W, ex)
+    l = sum(sum((forward(W,sq)[k].data-(1.0 if k==c else -1.0))**2 for k in range(VOCAB)) for sq,c in ex)/len(ex)
+    return l, accuracy(W, 8, rnd)
+_la = [_loss_acc(s) for s in range(400, 400 + N)]
+d = sum(1 for l, ac in _la if not (l < 2.5 and ac < 0.6))
+print(f"  false-fail 'memorised not forgot'          on a CORRECT build: {d}/{N}")
+import math as _m
+_exp = sum(1 for l, _ in _la if not (_m.isfinite(l) and l < 100))
+print(f"  training explosions (BUG-053, clipping on): {_exp}/{N}")
+if _exp: 
+    print("  FAIL: clipping is not holding -- BUG-053 has regressed")
+    raise SystemExit(1)
 b = sum(1 for n, f in zip(near, far) if not ((n - f) >= 0.20 - 1e-9))
 c = 0   # the absolute far-accuracy bar was removed; nothing to false-fail
 print(f"  false-fail 'learned to remember' (paired) on a CORRECT build: {a}/{N}")
 print(f"  false-fail 'far memory is gone' on a CORRECT build: {b}/{N}")
 print(f"  near mean {sum(near)/N:.0%}, far mean {sum(far)/N:.0%}, min margin {min(n-f for n,f in zip(near,far)):+.0%}")
-raise SystemExit(0 if a == 0 and b == 0 and c == 0 else 1)
+raise SystemExit(0 if a == 0 and b == 0 and c == 0 and d <= 2 else 1)
 PY
 python3 "$W/f.py" || { echo "GATE FAILED: a graded check is flaky -- it would fail honest learners at random."; rm -rf "$W"; exit 1; }
 

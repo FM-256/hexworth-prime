@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-053 — HexMemory RNN training can EXPLODE (loss > 10^200), invisible to QC  ·  [P2]  ·  open
+### BUG-053 — HexMemory RNN training can EXPLODE (loss > 10^200), invisible to QC  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · in Gate 6 mechanism investigation
 - **Area:** `_app/houses/ai/cortex/labs/hexmemory-rnn.lab.html` challenge 4 (train loop, lr=0.3, full-batch, no clipping); `_tools/model-forge/qc-hexmemory.sh`
 - **Symptom:** At distance 8, a real fraction of seeds do not converge — training loss explodes,
@@ -49,8 +49,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `train_loss`, so the gate passes green while this sits unaddressed.
 - **Risk:** CPython produces a huge float; Pyodide/WASM float handling may differ and produce
   `inf`/`OverflowError` instead. Unverified in-browser.
-- **Fix:** not yet. Candidates: gradient clipping in the shipped train loop, a lower lr, or
-  surfacing train_loss to the student so the behaviour is legible rather than mysterious.
+- **Fix:** gradient clipping (norm, clip=5.0) in the shipped challenge-4 train loop, plus
+  train_loss surfaced to the student. MEASURED over 60 seeds at distance 8:
+  explosions 15/60 (25%) BEFORE -> 0/60 AFTER; max finite loss 8.21 -> 1.93. The lesson
+  survives: mean accuracy 32% vs 25% chance, so memorising still happens.
+  This also rescued a check: "memorised not forgot" false-failed 23-42% of honest builds
+  because the explosions were the floor -- no threshold could fix it. With clipping plus a
+  swept threshold (2.5, not the single-seed 1.0), it measures 0/12.
+  qc-hexmemory.sh now mirrors the clipping in its reference build and HARD-FAILS if any
+  explosion reappears, so this cannot silently regress.
 - **Related:** Gate 6 mechanism rewrite (Nancy PAUSE, same investigation). Gate 6 is NOT deployed.
 
 ### BUG-052 — openstack-cli lab unpassable: grader checked a path the image does not have  ·  [P1]  ·  resolved
