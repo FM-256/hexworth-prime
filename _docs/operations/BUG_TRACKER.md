@@ -132,7 +132,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   guard had been masking whether the unlock path worked at all.
 - **Related:** BUG-068, BUG-069, BUG-070.
 
-### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  guard fixed, sync unverified
+### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · while sweeping for the `window.FirebaseAuth` trap that the
   render probe caught in InstantQuizGrader
 - **Area:** `_app/components/LabStateSync.js:45` (`_uid()`)
@@ -152,10 +152,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `Object.prototype.hasOwnProperty.call(window,'FirebaseAuth') = false`.
 - **Fix:** GUARDS REPAIRED in d6bcd61bb — both `_uid()` (`:45`) and `_db()` (`:39`) now resolve
   the bare identifier, so they can return a real uid/db instead of null unconditionally.
-  **Status stays `open` deliberately:** repairing the guard is necessary but not sufficient, and
-  nothing has yet proven that lab state actually round-trips between two devices. The dead guard
-  was masking whether the rest of that path works. Needs a two-device (or two-profile) sync test
-  before this can be called resolved.
+- **Verified:** `_tools/eduscan/smoke/labstatesync-roundtrip-probe.js` (dd6033d19) — 12/12
+  against an in-memory Firestore. Device A pushes, device B (empty local, same account) pulls
+  back EXACTLY what A pushed; the counter travels with it; a behind device does not clobber a
+  newer cloud and adopts it instead; unparseable and oversized state are never pushed;
+  deleteCloud removes the doc. Ablation-proven: `--ablate` restores the pre-fix dead guards and
+  6 assertions fail, including the round trip.
+- **Known limit of that evidence:** it is a same-session SIMULATED two-device round trip against
+  a fake Firestore. It proves the module's own logic, NOT real Firestore rules, real latency, or
+  a genuine second physical device. Chris blocked the deploy until this existed, on the grounds
+  that a design read is a proxy and this feature was already marked SHIPPED once when it had
+  never worked.
 - **Also in the same file:** `LabStateSync.js:39` guards `window.FirestoreManager` the same
   way, so `_db()` returns null too — the component is broken twice over, independently.
 - **Related:** BUG-069, BUG-070, BUG-071. `_app/operator/index.html:1255` guards CORRECTLY and documents
