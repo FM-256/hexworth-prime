@@ -62,6 +62,16 @@ BACKDROPS = {
         "an endless luminous cloudscape at high altitude, colossal glowing circular platforms "
         "resting on the cloud tops at different distances, soft beams of light rising between "
         "them, a vast cloud horizon receding into atmospheric haze"),
+    # Richer, more photographic treatment of the same world. The first pass read as a flat
+    # illustration; this one asks for real sky physics -- sun position, god rays, cloud density
+    # variation, layered strata at different altitudes -- so the parallax planes have genuinely
+    # different content to separate rather than three copies of one flat image.
+    'cloud-master-v2': ('cloud',
+        "a breathtaking photographic aerial view above a dense sea of clouds at golden altitude, "
+        "towering cumulus formations catching rim light, distant cloud banks in layered strata "
+        "receding to a curved horizon, volumetric god rays breaking through gaps, faint glowing "
+        "circular platforms half-hidden in the cloud tops far below, birds gliding as tiny distant "
+        "silhouettes, rich atmospheric depth, photorealistic sky, cinematic"),
 }
 
 

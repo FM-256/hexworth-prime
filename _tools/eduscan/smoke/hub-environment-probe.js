@@ -53,7 +53,10 @@ async function inspect(page, id) {
     check('three depth layers present', r.layers === 3, `got ${r.layers}`);
     check('legibility veil present', r.veil === true);
     check('environment is decorative, not announced', r.envAriaHidden === 'true', String(r.envAriaHidden));
-    check('items carry the cartridge spine', r.spineWidth === '5px', String(r.spineWidth));
+    // Assert the spine EXISTS, not an exact width. The first version pinned '5px' and failed
+    // the moment cartridgification widened it to 12px with grip ridges -- a stale test reporting
+    // a design change as a defect.
+    check('items carry the cartridge spine', parseFloat(r.spineWidth) >= 4, String(r.spineWidth));
     check('items use the cartridge gradient, not the flat panel', /gradient/.test(r.itemBg || ''), r.itemBg);
     check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p.close();
@@ -67,7 +70,7 @@ async function inspect(page, id) {
       check(`${id}: environment NOT mounted`, c.envOn === false, `env-on=${c.envOn}`);
       check(`${id}: no depth layers`, c.layers === 0, `got ${c.layers}`);
       check(`${id}: items keep the flat panel (no cartridge spine)`,
-        c.spineWidth !== '5px', `spine=${c.spineWidth}`);
+        !(parseFloat(c.spineWidth) >= 4), `spine=${c.spineWidth}`);
       await cp.close();
     }
   } finally { await browser.close().catch(() => {}); }
