@@ -76,8 +76,14 @@ const FirebaseAuth = (function () {
 `;
 
 // ModuleProgress is likewise a top-level const in its own file and would try to reach Firestore.
+// Counts calls rather than swallowing them — an assertion that "progress was not awarded" is
+// worthless against a no-op stub that could never have recorded anything either way.
 const MODULE_PROGRESS_STUB = `
-const ModuleProgress = { completeQuiz: function () {}, complete: function () {} };
+window.__progressCalls = 0;
+const ModuleProgress = {
+    completeQuiz: function () { window.__progressCalls++; },
+    complete:     function () { window.__progressCalls++; }
+};
 `;
 
 // ORIGINAL option order per question — what the answer-key indices point into. The page ships
@@ -277,6 +283,10 @@ function check(label, ok, detail) {
     page.on('pageerror', (e) => errors.push(e.message));
 
     await page.evaluateOnNewDocument((k) => {
+      // Same origin as the main loop, so this quiz's score from that run is still in
+      // localStorage. Clear it, or "no score was persisted" passes/fails on stale state rather
+      // than on what this run did.
+      localStorage.clear();
       localStorage.setItem('hexworth_house', 'cloud');
       window.__KEY = k; window.__calls = []; window.__signedIn = true;
       window.__failGrade = true;          // question 1 cannot be graded
@@ -320,8 +330,16 @@ function check(label, ok, detail) {
     check('skip label + flag cleared on the next question (no leak)',
       !labelReset.skipFlag && !/without grading/i.test(labelReset.label), `"${labelReset.label}"`);
 
+    // Answer the remaining 14 CORRECTLY. That makes the score arithmetic unambiguous: 14 of 14
+    // graded == 100%. If the skipped question were silently folded into the denominator it would
+    // read 93% instead, and a lower pass threshold would hide it. Asserting on the number is the
+    // whole point — Chris caught this probe asserting only on the message wording.
     for (let qi = 1; qi < key.answers.length; qi++) {
-      await page.evaluate(() => document.querySelectorAll('.option')[0].click());
+      const correctRow = await page.evaluate((want) => {
+        const opts = [...document.querySelectorAll('.option')].map((o) => o.querySelectorAll('span')[1].textContent);
+        return opts.indexOf(want);
+      }, ORIGINALS[quizId][qi][key.answers[qi]]);
+      await page.evaluate((i) => document.querySelectorAll('.option')[i].click(), correctRow);
       await page.evaluate(() => submitAnswer());
       await new Promise((r) => setTimeout(r, 100));
       await page.evaluate(() => nextQuestion());
@@ -334,12 +352,34 @@ function check(label, ok, detail) {
       msg: document.getElementById('resultMsg').textContent,
       reviewCount: document.querySelectorAll('.review-item').length,
       notGraded: document.getElementById('reviewWrap').textContent.includes('Not graded'),
+      pct: document.getElementById('scorePct').textContent,
+      statCorrect: document.getElementById('statCorrect').textContent,
+      statWrong: document.getElementById('statWrong').textContent,
+      fullCalls: window.__calls.filter((c) => !c.payload.partial).length,
+      progressRecorded: window.__progressCalls || 0,
+      storedScore: localStorage.getItem('hexworth_openstack_lesson1_quiz_score'),
+      ungradedStyledWrong: [...document.querySelectorAll('.review-item')]
+        .some((d) => d.textContent.includes('Not graded') && d.classList.contains('incorrect')),
     }));
     check('student reaches the results screen despite the outage', res.shown);
-    check('results state plainly that a question was not graded',
-      /could not be graded/i.test(res.msg) && /not counted as correct/i.test(res.msg), res.msg.slice(0, 90));
+    check('results state plainly that the attempt was not recorded',
+      /not been recorded/i.test(res.msg) && /does not count toward your progress/i.test(res.msg), res.msg.slice(0, 90));
     check('review marks the ungraded question, all 15 listed',
       res.notGraded && res.reviewCount === 15, `notGraded=${res.notGraded} count=${res.reviewCount}`);
+
+    // ── THE ASSERTIONS CHRIS FOUND MISSING: check the NUMBER, not the wording ──
+    check('ungraded question is NOT folded into the denominator (14/14 graded = 100%)',
+      res.pct === '100%', `scorePct=${res.pct} (93% would mean it was counted as wrong)`);
+    check('ungraded question is not counted as wrong in the stats',
+      res.statCorrect === '14' && res.statWrong === '0',
+      `correct=${res.statCorrect} wrong=${res.statWrong}`);
+    check('ungraded question is not styled as an incorrect answer', !res.ungradedStyledWrong);
+    check('incomplete attempt is never submitted for recording', res.fullCalls === 0,
+      `${res.fullCalls} full submission(s)`);
+    check('incomplete attempt does not award module progress', res.progressRecorded === 0,
+      `${res.progressRecorded} progress call(s)`);
+    check('incomplete attempt does not persist a score to localStorage',
+      res.storedScore === null, `stored=${res.storedScore}`);
     check('no page errors during the outage path', errors.length === 0, errors.slice(0, 2).join(' | '));
     await page.close();
   }

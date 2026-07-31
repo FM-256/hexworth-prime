@@ -238,22 +238,36 @@ function newLogic(vals) {
             const rs = document.getElementById('resultsScreen');
             rs.classList.add('show');
 
-            // Final full submission. This is the call that records the attempt in quiz_attempts;
-            // the per-question calls are partial and deliberately do not. Prefer the server's
-            // percentage over the running tally — same source of truth the transcript will show.
-            let pct = Math.round((score / questions.length) * 100);
-            try {
-                const res = await grader.gradeAll(picks);
-                if (res && typeof res.percentage === 'number') pct = res.percentage;
-            } catch (e) { /* keep the tally, which came from server verdicts anyway */ }
-            const passed = pct >= PASS_PCT;
+            // An INCOMPLETE run is never scored or recorded.
+            //
+            // gradeQuiz always computes total = answerKey.length (all 15). A question the
+            // service could not grade is simply absent from the answers object, so the server
+            // scores it isCorrect:false and it drags the percentage down exactly as if the
+            // student had got it wrong — which could tip a pass into a fail. Submitting anyway
+            // and calling the result "not counted" would be a lie told by the score itself.
+            //
+            // So: if anything went ungraded, do not submit, do not record an attempt, do not
+            // award progress. Show the student what they got on the questions that WERE graded,
+            // say plainly that it is not a recorded score, and let them retake.
+            const graded = questions.length - ungraded.length;
+            const incomplete = ungraded.length > 0;
+            let pct = graded > 0 ? Math.round((score / graded) * 100) : 0;
+            if (!incomplete) {
+                try {
+                    const res = await grader.gradeAll(picks);
+                    if (res && typeof res.percentage === 'number') pct = res.percentage;
+                } catch (e) { /* keep the tally, which came from server verdicts anyway */ }
+            }
+            const passed = !incomplete && pct >= PASS_PCT;
 
             // Score ring (CSS conic gradient needs the percentage as a custom property)
             const ring = document.getElementById('scoreRing');
             ring.style.setProperty('--pct', pct + '%');
             document.getElementById('scorePct').textContent  = pct + '%';
             document.getElementById('statCorrect').textContent = score;
-            document.getElementById('statWrong').textContent   = questions.length - score;
+            // Wrong means answered-and-wrong. An ungraded question is neither correct nor wrong,
+            // so it must not inflate this count.
+            document.getElementById('statWrong').textContent   = graded - score;
             document.getElementById('statPct').textContent     = pct + '%';
 
             const badge = document.getElementById('passBadge');
@@ -264,8 +278,8 @@ function newLogic(vals) {
             const msgKey = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
             // Say plainly when part of the quiz could not be graded, rather than presenting a
             // score that quietly treats unreachable-server questions as wrong answers.
-            document.getElementById('resultMsg').textContent = ungraded.length
-                ? \`\${ungraded.length} question\${ungraded.length > 1 ? 's' : ''} (\${ungraded.join(', ')}) could not be graded because the grading service was unreachable, and \${ungraded.length > 1 ? 'they are' : 'it is'} not counted as correct. Your score reflects only the questions that were graded. Retake the quiz when your connection is stable.\`
+            document.getElementById('resultMsg').textContent = incomplete
+                ? \`This attempt is incomplete and has NOT been recorded. Question\${ungraded.length > 1 ? 's' : ''} \${ungraded.join(', ')} could not be graded because the grading service was unreachable. The figure below is only how you did on the \${graded} question\${graded === 1 ? '' : 's'} that were graded — it is not a quiz score and it does not count toward your progress. Retake the quiz when your connection is stable.\`
                 : msgs[msgKey];
 
             // Build review list. Texts come from the display order the student saw, with the
@@ -274,7 +288,9 @@ function newLogic(vals) {
             rw.innerHTML = '';
             answered.forEach((a, i) => {
                 const d = document.createElement('div');
-                d.className = \`review-item \${a.isOk ? 'correct' : 'incorrect'}\`;
+                // An ungraded question gets neither the green nor the red treatment — styling it
+                // 'incorrect' would tell the student they got it wrong, which is not known.
+                d.className = 'review-item' + (a.notGraded ? '' : (a.isOk ? ' correct' : ' incorrect'));
                 d.innerHTML = \`
                     <div class="review-q"><strong>Q\${i + 1}:</strong> \${a.q}</div>
                     <div class="review-a">
@@ -285,15 +301,20 @@ function newLogic(vals) {
                 rw.appendChild(d);
             });
 
-            // Persist score to localStorage
+            // Persist score to localStorage — but not for an incomplete run, or the hub would
+            // read back a score the student was just told does not count.
             try {
-                localStorage.setItem(STORE_KEY + '_score',   pct);
-                localStorage.setItem(STORE_KEY + '_answers', JSON.stringify(answered));
-                localStorage.setItem(STORE_KEY + '_passed',  passed ? '1' : '0');
+                if (!incomplete) {
+                    localStorage.setItem(STORE_KEY + '_score',   pct);
+                    localStorage.setItem(STORE_KEY + '_answers', JSON.stringify(answered));
+                    localStorage.setItem(STORE_KEY + '_passed',  passed ? '1' : '0');
+                }
             } catch(e) { /* storage unavailable */ }
 
-            // Notify progress system if available
-            if (typeof ModuleProgress !== 'undefined') {
+            // Notify progress system if available — but NEVER for an incomplete run. pct is
+            // computed over graded questions only, so recording it would credit a student with
+            // a score they did not complete (13 of 13 graded reads as 100%).
+            if (!incomplete && typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.completeQuiz('cloud', '${vals.mpId}', pct, {
                     maxScore: 100,
                     showNotification: true
