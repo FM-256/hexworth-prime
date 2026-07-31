@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lab QC gate. Runs ON bc1.  Usage:  bash qc-lab.sh rescue|cinder|chain|secgroup|secgroup
+# Lab QC gate. Runs ON bc1.  Usage:  bash qc-lab.sh rescue|cinder|chain|secgroup|neutron|secgroup
 #
 # Why this file exists: I described the harnesses as "chained" when the ordering was really
 # a one-off `if` typed into a shell -- a procedural habit, not a gate (Nancy, 2026-07-30).
@@ -12,8 +12,8 @@
 set -u
 LAB="${1:-}"
 case "$LAB" in
-  rescue|cinder|chain|secgroup) ;;
-  *) echo "usage: bash qc-lab.sh rescue|cinder|chain|secgroup|secgroup" >&2; exit 2 ;;
+  rescue|cinder|chain|secgroup|neutron) ;;
+  *) echo "usage: bash qc-lab.sh rescue|cinder|chain|secgroup|neutron|secgroup" >&2; exit 2 ;;
 esac
 cd "$(dirname "$0")" 2>/dev/null || cd ~/hexworth-sandbox
 
