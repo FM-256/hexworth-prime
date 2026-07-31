@@ -66,14 +66,31 @@ OUT=$(python3 "$W/r.py" 2>&1); echo "$OUT" | sed 's/^/  /'
 echo "$OUT" | grep -q "ROUNDTRIP PASS" || { echo "GATE FAILED: correct codec does not pass."; rm -rf "$W"; exit 1; }
 
 echo "── [3/4] EVERY NUMBER THE PAGE CLAIMS ──"
-python3 - <<'PY' || { echo "GATE FAILED: a number asserted on the page is wrong."; exit 1; }
-CORPUS = "the quick brown fox jumps over the lazy dog"
+# Chris flagged that this phase HAND-DUPLICATED the corpus literals instead of extracting
+# them, so a page edit could drift past the gate unnoticed. Same latent defect the sibling
+# gate already fixed. Now pulled straight out of the page's starter strings.
+HEXTOKEN_LAB="$LAB" python3 - <<'PY' || { echo "GATE FAILED: a number asserted on the page is wrong."; exit 1; }
+import os, re
+page = open(os.environ['HEXTOKEN_LAB']).read()
+
+def literal(name):
+    """Lift `name = "..."` (optionally parenthesised, multi-part) out of the starter strings."""
+    m = re.search(r"'" + name + r" = \((.*?)\)\\n", page, re.S) or \
+        re.search(r"'" + name + r' = ("(?:[^"\\]|\\.)*")', page)
+    if not m:
+        print(f"  FAIL: cannot find {name} in the page -- this check is no longer checking anything")
+        raise SystemExit(1)
+    parts = re.findall(r'"((?:[^"\\]|\\.)*)"', m.group(1))
+    if not parts:
+        print(f"  FAIL: found {name} but could not read its value"); raise SystemExit(1)
+    return "".join(parts)
+
+CORPUS = literal("CORPUS")
 v = len(sorted(set(CORPUS)))
 print(f"  page claims vocab 27 -> actual {v}")
 assert v == 27, v
-TRAIN = ("the quick brown fox jumps over the lazy dog "
-         "the dog barks and the fox runs away fast")
-HELDOUT = "a clever fox outwits the sleeping hound"
+TRAIN = literal("TRAIN")
+HELDOUT = literal("HELDOUT")
 words = sorted(set(TRAIN.split()))
 stoi = {w: i for i, w in enumerate(words + ["<unk>"])}
 w_ids = [stoi.get(w, stoi["<unk>"]) for w in HELDOUT.split()]
