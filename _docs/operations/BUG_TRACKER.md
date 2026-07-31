@@ -60,7 +60,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-063. Both found by resolving hrefs against the filesystem rather than trusting
   that a non-empty href means a reachable page.
 
-### BUG-063 — 35 clickable cards on LIVE course hubs 404 in production  ·  [P1]  ·  open
+### BUG-063 — 1 unguarded card 404s; 34 were already gated (ORIGINAL CLAIM WAS 34x OVERSTATED)  ·  [P2]  ·  open
 - **Found:** 2026-07-31 · by self · widening Nancy's 6-card `coming-soon` finding from BUG-062
 - **Area:** `_app/houses/forge/intro-computers/index.html` (23), `_app/houses/shield/isc2-cc/index.html` (11), `_app/houses/shield/security-plus/index.html` (1)
 - **Symptom, measured against PRODUCTION:** these hub pages return HTTP 200 and present normal
@@ -82,6 +82,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   carries the status, so the honest state is available without new data. Alternatives are
   removing the cards (hides the roadmap from students) or publishing from `_source` (a content
   decision, not a bug fix).
+- **CORRECTION 2026-07-31 (Chris, and he is right).** The headline claim above — "35 clickable
+  cards ... clicking them 404s" — is FALSE for 34 of the 35. Production already carries a
+  click-intercept gate, `<!-- Coming-soon gate for not-yet-built PIS modules (BUG-012) -->`
+  (commit 11505fc62), in BOTH isc2-cc and forge/intro-computers, whose COMING_SOON href list
+  matches those 34 cards exactly. Chris ran a real click test on live production: the click is
+  intercepted, an alert reads "This module is coming soon.", and the URL does not change.
+  **What I actually measured was the href TARGET's HTTP status (404, genuinely true) and then
+  asserted that clicking produces a 404 — which I never tested.** That is measuring a proxy and
+  reporting it as the claim, the failure mode already recorded in memory as
+  `feedback_measure_the_claim_not_a_proxy`. The commit message even said "measured against
+  production, not inferred"; the target status was measured, the CLICK was inferred.
+- **TRUE remaining scope:** exactly ONE genuinely unguarded card, on
+  `_app/houses/shield/security-plus/index.html` (0 gate markers, vs 6 in isc2-cc and 5 in
+  intro-computers). Plus two real secondary defects Chris confirmed:
+  (a) **progress denominators count unreachable content** — isc2-cc's `d1` array includes all 5
+  gated `pis-*` ids inside a 17-item denominator, and intro-computers' `wk1` includes 4 of 6, so
+  "0 / 17" and "0 / 6" are targets a student can never reach. This is the exact risk I flagged as
+  unverified and did not check; Chris verified it and it is real.
+  (b) **bypass paths** — the BUG-012 gate intercepts left-clicks on `a.content-card` only, so
+  middle-click / ctrl-click / open-in-new-tab still navigate to a 404.
+- **My attempted fix was REVERTED** (restored byte-identical from
+  `_archive/coming-soon-cards-pre-fix-2026-07-31/`, verified empty diff against 741c6bd87~1). It
+  converted the cards to `<div>`, which silently broke the BUG-012 gate's own selector
+  (`a.content-card[href=...]` — the gate's comment warns of this coupling explicitly), leaving
+  ~50 lines of inert CSS+JS per file. It was also an ACCESSIBILITY REGRESSION: a bare `<div>`
+  with no tabindex is not in the tab order, so `aria-disabled` was inert and keyboard users who
+  previously reached the card and heard the alert would silently tab past it.
 - **Related:** BUG-062. Found because Nancy insisted hrefs be checked against the FILESYSTEM
   rather than against `#` — the same 6 cards she caught in the incubator turned out to be a
   narrow slice of a 35-card live problem.
