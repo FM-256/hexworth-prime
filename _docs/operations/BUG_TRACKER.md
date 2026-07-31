@@ -31,6 +31,36 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-057 — Dr. Hex's grade-for route ignores CLOUD_CHECKS: 16 checks invisible, `complete` lies  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by Nancy · reviewing the capstone check-27 redesign (found as a blocker, not the subject)
+- **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js` `/api/sandbox/grade-for` (route at :1232); caller `functions/hex-ai-bridge.js` `sandbox_task_state`
+- **Symptom:** `grade-for` builds its result set from `SANDBOX_CHALLENGES[labId]` ONLY. It never
+  reads `CLOUD_CHECKS` and never calls `cloudState()`. So every server-side cloud check is
+  absent from what Dr. Hex sees, and `complete: passed === challenges.length` is computed over
+  a set that excludes them — it can report `complete: true` for work the student has not done.
+- **Scope (measured, not estimated):** for `labId='openstack-cli'` there are 16 cloud-only ids
+  invisible to this route — 6,10,11,13,14,15,16,17,18,19,20,21,22,23,24,26. ALL FIVE live
+  OpenStack Stage 4 labs grade on ids in 13-24, so Dr. Hex currently sees NONE of their real
+  checks. It answers instead with the 12 in-container ids (1,2,3,4,5,7,8,9,12,25,27,28), which
+  belong to the original openstack-cli notes lab and the capstone — unrelated to the lab the
+  student is actually in. All OpenStack labs share the single `labId` `openstack-cli`, which is
+  what makes the mismatch total rather than partial.
+- **Repro:** call `sandbox_task_state` with `lab_id='openstack-cli'` while a student is working
+  any Stage 4 lab. Compare the returned `results` ids against that lab's actual checks. The
+  regex on `lab_id` (`^[a-z][a-z0-9-]{0,40}$`) does not constrain it to `linux-sandbox`; that is
+  only the default, so this path is reachable.
+- **Root cause:** the route predates CLOUD_CHECKS. When server-side cloud grading was added, the
+  student-facing `/check` route learned about it and this service-to-service route did not.
+- **Why it matters more than a wrong number:** a false "you are done" from the AI tutor is worse
+  than a false fail from the page. The student stops working and believes they finished.
+- **Fix:** not yet. `grade-for` must resolve the slot and consult `CLOUD_CHECKS` the same way
+  `/check` does, or explicitly refuse to answer `complete` for lab ids that have cloud checks
+  rather than answering wrongly. Refusing is acceptable; answering wrongly is not.
+- **Blocks:** moving capstone check 27 from SANDBOX_CHALLENGES into CLOUD_CHECKS (BUG-055/056).
+  That move is otherwise correct, but it would drop 27 out of Dr. Hex's view too, leaving the
+  capstone's anti-cheat absent from exactly the channel a student asks "am I done?" through.
+- **Related:** BUG-055, BUG-056.
+
 ### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · walkthrough half of the Project 1 QC gate
 - **Area:** bc1 `server.js` check id 27; `walkthrough-project.js:88`; page `cloud-openstack-project-iac.lab.html:224`

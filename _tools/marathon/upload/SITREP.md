@@ -25,24 +25,39 @@ ADVERSARIAL PASSES: all 4 named cheats rejected by their target checks, with the
 diag-free harness against a container whose server.js sha MATCHES the host. Walkthrough
 (honest path, twice, no cleanup between) running now.
 
-Two things must land before this ships:
-1. **Check 27 is still forgeable** (Nancy). It reads `~/project/before-ids.json`, which the
-   STUDENT writes — write the post-rebuild ids in and 27 passes with nothing ever destroyed.
-   Fix in review: grader snapshots the pre-destroy ids server-side. Consequences found by
-   reading the source: 27 must MOVE from SANDBOX_CHALLENGES (`cmd:`, runs in the student
-   container, cannot see a server store) into CLOUD_CHECKS (`fn:`); `fn(state, seed)` needs a
-   third `ctx` arg; the key CANNOT be slot or project id because the 30-slot pool is
-   RECLAIMED and reassigned, so a stale snapshot would be inherited by the next student —
-   Firebase uid is never reused. Page also needs a mid-lab checkpoint (see below).
-2. **Registering the capstone** into Firestore `hubRegistry/cloud-master` `sections.projects`
-   is a PRODUCTION FIRESTORE WRITE and needs explicit operator authorization for that
-   specific operation. Not done, not authorized.
+**CHECK 27 WAS WRONG IN BOTH DIRECTIONS AT ONCE — redesigned, gate running.**
+It read `~/project/before-ids.json`, a file the STUDENT writes, so it was forgeable (BUG-055);
+and because the export recorded SHARED networks the student cannot delete, its disjoint-set
+assertion could never hold, so it also failed 100% of honest attempts (BUG-056). The
+adversarial half reported "cheat D rejected by 27" and that proved nothing — a check that
+rejects everyone rejects cheats too.
 
-Capture rule under review: snapshot on the FIRST check run where 26 is true; never overwrite.
-That only works if the page tells the student to press Check My Work AFTER building and
-BEFORE destroying — today it says it once, at the very end. So the page needs a new
-intermediate checkpoint step. (An earlier note of mine claimed this design removed the
-observation-window problem; it does not, it converts it into a content requirement.)
+REDESIGN BUILT (Nancy PROCEED after two BLOCK rounds; all live on bc1, sha-verified):
+- Baseline is recorded BY THE GRADER via an explicit `POST /api/sandbox/baseline/:sessionId`
+  that the student triggers with a new **Record Baseline** button. Not inferred from grading.
+- Keyed by **Firebase uid** — never slot/project id (the 30-slot pool is reclaimed and
+  reassigned, so those would hand a stale baseline to the next student in that slot).
+- **ALWAYS overwrites.** A write-once guard would permanently disable 27 after the first run
+  (an old baseline is trivially disjoint from today's ids) — worse than the forgeable version.
+- ONE `capstoneIds()` projection used by BOTH capture and compare, owned-only AND scoped to
+  the names in the student's own `stack.json` — otherwise leftover Lab 1-5 resources in the
+  same persistent project get captured and 27 passes for unrelated reasons, free.
+- 27 moved to CLOUD_CHECKS as `fn(state, seed, ctx)`; `ctx` is built at the call site so the
+  capture never depends on array position (CLOUD_CHECKS is NOT id-sorted and gets reordered).
+- **BUG-057 fixed in the same change** (Nancy made it a precondition): `grade-for` — Dr. Hex's
+  channel — consulted only SANDBOX_CHALLENGES, making **16** cloud checks invisible and letting
+  it report `complete: true` for work never done. All five live labs grade on ids 13-24, so
+  Dr. Hex saw NONE of their real checks. It now reads CLOUD_CHECKS and REFUSES to claim
+  `complete` when any check could not be graded.
+- `qc-lab.sh` gained **stage 3 COVERAGE**: every check id must be observed BOTH passing and
+  failing in a run, so "the cheat was rejected" can never again be mistaken for a working check.
+
+STILL OPEN before ship:
+1. Gate must go green all three stages (running).
+2. **Registering the capstone** into Firestore `hubRegistry/cloud-master` `sections.projects`
+   is a PRODUCTION FIRESTORE WRITE needing explicit operator authorization. Not done.
+3. The page is LIVE but UNDISCOVERABLE (deploy.sh ships all of `_app/` regardless of git) —
+   not in the catalog, not in the sitemap, unlinked. Fix before it is ever linked.
 
 ## Stage 4 lab board — Next after the capstone: Lab 6 (Keystone reduced-privilege).
 
