@@ -121,8 +121,17 @@ class NavigationValidator {
             return [];
         }
 
-        // Pattern 8: JS engines that render their own navigation (OperatorEngine, SignalEngine, BoxEngine)
-        if (/OperatorEngine\.js|SignalEngine\.renderProject|BoxEngine\.js/i.test(content)) {
+        // Pattern 8: JS engines that render their own navigation (OperatorEngine, SignalEngine,
+        // BoxEngine, OpenWorldEngine).
+        // OpenWorldEngine was missing from this list even though its buildNav()
+        // (arena/engine/OpenWorldEngine.js:654-692) injects a <nav> with
+        // <a href="${base}index.html" class="ow-nav-brand"> back to the box hub -- structurally
+        // the same thing the other three do. Its absence made arena box pages (siem.html,
+        // workstation.html) look like dead ends with no way out. They are not; the nav is simply
+        // built at runtime where a static scan cannot see it. Found while adjudicating #228:
+        // the tempting alternative was a blanket "arena content is immersive, skip it" carve-out,
+        // which would ALSO have hidden future arena pages that genuinely have no navigation.
+        if (/OperatorEngine\.js|SignalEngine\.renderProject|BoxEngine\.js|OpenWorldEngine\.js/i.test(content)) {
             return [];
         }
 

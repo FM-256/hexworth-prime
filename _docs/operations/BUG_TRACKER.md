@@ -60,8 +60,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   are slide navigation (Arrow/PageDown/Space) and modal-close (Escape) — neither leaves the deck.
 - **Reached from:** `product-info.html:590` and `faq.html:744` ("Platform Presentation").
 - **Severity is P3, not higher, and the reason is measured:** neither link sets `target="_blank"`,
-  so the deck opens in the same tab and the browser back button works. A prospective viewer is
-  inconvenienced, not trapped. Had either link opened a new tab there would be no way back at all.
+  so a default click opens the deck in the same tab and the browser back button works. A
+  prospective viewer is inconvenienced, not trapped.
+- **CAVEAT on that reasoning (Nancy):** `target` only governs the DEFAULT click. Middle-click,
+  Ctrl/Cmd-click and "Open link in new tab" from the context menu all open a new tab regardless,
+  and those are completely ordinary ways to open something labelled "Platform Presentation" from
+  a marketing page. In that case there is no back entry and no in-page exit — the viewer really
+  is stuck with only the tab close button. This does not move it to P2 on its own, but do not
+  read "browser-back works" as a guarantee; it holds for one of several normal click paths.
 - **I got this wrong too.** I speculated "decks have their own deck navigation" and filed it as a
   by-design exemption. That was an assumption, not a measurement — Nancy grepped it and found
   nothing. The lesson is the same one as [[feedback_measure_the_claim_not_a_proxy]]: I reasoned
