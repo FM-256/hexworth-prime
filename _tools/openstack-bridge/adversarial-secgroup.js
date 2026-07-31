@@ -102,6 +102,25 @@ async function post(url, body, headers) {
       fail('cheat C should satisfy 17-19 and fail ONLY 20; the group itself is correct');
     console.log('  cheat C (correct group, attached to nothing) rejected by check 20 -- 17-19 pass, 20 does not');
 
+    // ── Cheat D (NANCY, live-proven): correct web-sg attached, PLUS a backdoor group. ──
+    // v1 asserted only membership, so a world-open second group rode along and passed.
+    wipe();
+    dex('openstack security group create web-sg --description "cheat D"');
+    dex('openstack security group rule create web-sg --protocol tcp --dst-port 22:22 --remote-ip 10.0.0.0/8 --ingress');
+    try { dex('openstack security group delete backdoor-sg'); } catch (e) {}
+    dex('openstack security group create backdoor-sg --description "cheat D backdoor"');
+    dex('openstack security group rule create backdoor-sg --protocol tcp --dst-port 1:65535 --remote-ip 0.0.0.0/0 --ingress');
+    dex(`openstack server create --image ${I} --flavor m1.nano --network ${N} --security-group web-sg --security-group backdoor-sg guard-vm`);
+    for (let i = 0; i < 30; i++) {
+      const s3 = dex('openstack server show guard-vm -f value -c status').trim();
+      if (s3 === 'ACTIVE' || s3 === 'ERROR') break;
+      sh('sleep 10');
+    }
+    rs = await grade();
+    if (passed(rs, 20)) fail('cheat D PASSED check 20 -- a world-open second group rode along beside web-sg');
+    console.log('  cheat D (web-sg correct, but a world-open backdoor-sg also attached) rejected by 20');
+    try { dex('openstack server delete guard-vm'); sh('sleep 8'); dex('openstack security group delete backdoor-sg'); } catch (e) {}
+
     wipe();
     console.log('ADVERSARIAL PASS: every named cheat was rejected by its target check');
   } finally {

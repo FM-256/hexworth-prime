@@ -475,15 +475,59 @@ def verify(slot):
                               'dhcp': bool((subs.get(sid) or {}).get('enable_dhcp'))}
                              for sid in (n.get('subnets') or [])]}
                 for n in ((ndoc or {}).get('networks') or [])]
+    # Router INTERFACES, added 2026-07-31 after Nancy proved lab 5 could be passed 4/4
+    # with the router never connected to the student's subnet -- an honest student who
+    # skips one line got told they had "a way out" when they had none. An external
+    # gateway alone is not connectivity; the router must also hold an interface ON the
+    # subnet. Ports carry that, so map router -> subnet ids it actually terminates.
+    st7, pdoc = _os(utok, '/networking', '/v2.0/ports')
+    _rif = {}
+    for prt in ((pdoc or {}).get('ports') or []):
+        if str(prt.get('device_owner') or '').startswith('network:router_interface'):
+            _rif.setdefault(prt.get('device_id'), []).extend(
+                [f.get('subnet_id') for f in (prt.get('fixed_ips') or []) if f.get('subnet_id')])
     routers = [{'id': r.get('id'), 'name': r.get('name'), 'status': r.get('status'),
+                'interface_subnets': _rif.get(r.get('id'), []),
                 'owned': True,   # routers are only visible within the student's project
                 # An external gateway is what makes a private network reachable outward.
                 'external_gateway': bool((r.get('external_gateway_info') or {}).get('network_id')),
                 'external_network': ((r.get('external_gateway_info') or {}).get('network_id'))}
                for r in ((rdoc or {}).get('routers') or [])]
 
+    # Identity, added 2026-07-31 for Stage 4 lab 6 (Keystone reduced-privilege).
+    # An application credential can be RESTRICTED to a subset of the creating user's roles;
+    # that restriction is the whole lesson, so roles are flattened to plain names and
+    # `unrestricted` is surfaced explicitly. Keystone needs the user id, which the token
+    # response carries -- _user_token returns only the token string, so ask Keystone who
+    # this token belongs to rather than guessing.
+    app_creds = []
+    who_st, who, _hdrs = ks('GET', '/v3/auth/tokens', token=utok, body=None)
+    uid = None
+    if who_st == 200 and who:
+        uid = (((who.get('token') or {}).get('user')) or {}).get('id')
+    else:
+        # Keystone validates a token via X-Subject-Token; fall back to that shape.
+        try:
+            req = urllib.request.Request(KEYSTONE + '/v3/auth/tokens', method='GET')
+            req.add_header('X-Auth-Token', utok)
+            req.add_header('X-Subject-Token', utok)
+            with urllib.request.urlopen(req, timeout=20) as r:
+                doc = json.loads(r.read() or b'{}')
+                uid = (((doc.get('token') or {}).get('user')) or {}).get('id')
+        except Exception:
+            uid = None
+    if uid:
+        ac_st, ac, _h2 = ks('GET', f'/v3/users/{uid}/application_credentials', token=utok)
+        if ac_st == 200 and ac:
+            app_creds = [{'id': c.get('id'), 'name': c.get('name'),
+                          'unrestricted': bool(c.get('unrestricted')),
+                          'roles': sorted([(r.get('name') or '') for r in (c.get('roles') or [])]),
+                          'expires_at': c.get('expires_at')}
+                         for c in (ac.get('application_credentials') or [])]
+
     return 200, {'slot': slot, 'servers': servers, 'volumes': volumes,
-                 'security_groups': groups, 'networks': networks, 'routers': routers}
+                 'security_groups': groups, 'networks': networks, 'routers': routers,
+                 'app_creds': app_creds}
 
 
 def slot_of(uid):

@@ -105,6 +105,27 @@ async function post(url, body, headers) {
       fail('cheat C should satisfy 21 and 22 and fail ONLY 23; the network itself is correct');
     console.log('  cheat C (own network, router with no external gateway) rejected by 23 -- 21,22 pass');
 
+    // ── Cheat D (NANCY, live-proven): everything EXCEPT `router add subnet`. ──
+    // This is not a cheat, it is a student skipping one line of four. v1 passed it 4/4
+    // and told them they had "a way out" while `port list --router` was empty.
+    wipe();
+    dex('openstack network create lab5-net');
+    dex('openstack subnet create lab5-subnet --network lab5-net --subnet-range 10.55.0.0/24');
+    dex('openstack router create lab5-router');
+    dex('openstack router set lab5-router --external-gateway public');
+    // deliberately NOT: openstack router add subnet lab5-router lab5-subnet
+    dex(`openstack server create --image ${I} --flavor m1.nano --network lab5-net lab5-vm`);
+    for (let i = 0; i < 30; i++) {
+      const s2 = dex('openstack server show lab5-vm -f value -c status').trim();
+      if (s2 === 'ACTIVE' || s2 === 'ERROR') break;
+      sh('sleep 10');
+    }
+    rs = await grade();
+    if (passed(rs, 23)) fail('cheat D PASSED check 23 -- router never wired to the subnet counted as a way out');
+    if (!passed(rs, 21) || !passed(rs, 22))
+      fail('cheat D should satisfy 21 and 22 and fail ONLY 23 -- the network itself is correct');
+    console.log('  cheat D (gateway set but router NEVER added to the subnet) rejected by 23 -- 21,22 pass');
+
     wipe();
     console.log('ADVERSARIAL PASS: every named cheat was rejected by its target check');
   } finally {
