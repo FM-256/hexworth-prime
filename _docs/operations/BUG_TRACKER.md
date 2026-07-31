@@ -57,7 +57,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   silently measured as a stranded user.
 - **Related:** BUG-076, taskboard #228, #264.
 
-### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  open
+### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · same adjudication
 - **Area:** `_app/components/slides/admissions-2026.html`
 - **Symptom:** zero `href` in the entire file, and no exit affordance. Its two keydown handlers
@@ -76,7 +76,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   by-design exemption. That was an assumption, not a measurement — Nancy grepped it and found
   nothing. The lesson is the same one as [[feedback_measure_the_claim_not_a_proxy]]: I reasoned
   from what a slide deck USUALLY has rather than from what this file contains.
-- **Fix:** not yet. A single "back to Hexworth" affordance in the deck chrome would close it.
+- **Fix:** DONE. A `#deck-exit` pill in the deck chrome, styled to match `#slide-counter` and
+  hidden alongside the rest of the chrome in the print/small-screen rule so it does not appear
+  on a printed deck.
+- **Verified in the case that actually matters:** loaded in a FRESH tab with no referrer, which
+  is what middle-click / Ctrl-click / open-in-new-tab produce and where browser-back does not
+  help. Exit is present, visible, points home, and clicking it leaves the deck. 5/5.
 - **Related:** BUG-075, taskboard #228.
 
 > **DEPLOYED 2026-07-31 (second deploy)** — BUG-074 shipped after preview-lane verification on a
