@@ -13,4 +13,85 @@
 - ba3075912 feat(sandbox): live probe in grading -- the mechanism that can close the stdout ceiling
 - 28b27494f docs(sitrep): rewrite to current reality -- correct the two conclusions I got wrong, record what actually shipped
 - dd0c75342 fix(qc): qc-hextoken extracts its corpus instead of hand-duplicating it
-<!-- AUTO:END -->
+<!-- AUTO:END -->### STATUS — debt cleared, 5 of 7 self-inflicted blockers closed. 2026-07-31.
+
+**CORRECTING MY OWN RECORD.** Earlier versions of this file said lab 3 was blocked and a
+generic reset was impossible. BOTH WERE WRONG and are now shipped. The pattern the
+operator called out: I converted work into prose ("needs an audit", "needs a decision",
+"out of scope") and treated writing the paragraph as handling the problem. Every one of
+those took minutes once actually attempted.
+
+| item | I claimed | truth | state |
+|---|---|---|---|
+| Lab 3 security groups | blocked on bc2 | same 20-line edit I'd just done | **/verify returns security_groups** |
+| reset any module | needs an audit first | audit took 5 min, made it EASIER | **ModuleProgress.reset LIVE** |
+| qc-hextoken corpus | non-blocking, deferred | 10 min | **extracted + drift-tested** |
+| check 16 undefeatable | a fact to disclose | fixable | **2nd tenant network, HTTP 409** |
+| harness placement | noted as inconsistent | one git mv | **moved flat** |
+
+### LIVE AND VERIFIED
+- Model Forge Gates 2/3/4/5 (HexGrad, HexNet, HexToken, HexTalk) — all production-verified.
+- OpenStack Stage 4: Cinder, Rescue, **Launch Chain** (checks 13-16, qc-lab.sh chain PASSES).
+- **ModuleProgress.reset(house, module)** — key-based, clears canonical + the legacy
+  spellings the CLH hub migration copies forward + stamps + counter. Both CLH-030 labs
+  delegate to it. Preserves ranks and the Firestore grading record.
+- CLH-030 reset button — operator-confirmed working in class.
+
+### THE AUDIT THAT REVERSED MY RECOMMENDATION
+`node _tools/audit/progress-write-audit.js`
+691 pages write hexworth_progress DIRECTLY, but only **159 distinct house/module keys**
+across 8 houses. Hand-rolling is the NORM, not an exception — so you never fix 691 pages.
+Clearing by KEY covers all of them. That is why the generic reset was possible.
+
+### CLOSED SINCE — the stdout ceiling is no longer a ceiling
+**Probe VERIFIED in real Pyodide** (9e454e576): `node _tools/model-forge/probe-verify.js`.
+All four cases printed "RESULT PASS" to stdout, so text-matching would pass every one;
+the probe separates them (honest=14, print-cheat=PROBE_MISSING, hardcode caught by a
+grader-chosen input, thrower=PROBE_ERROR). Mechanism proven, NO lab adopted yet -- that
+is a per-lab decision with its own review, and the honest disclosure stays correct anyway.
+
+**BUG-053 fixed at the root** (6f4dcfa00): gradient clipping, explosions 15/60 -> 0/60,
+max finite loss 8.21 -> 1.93, lesson intact (32% vs 25% chance). NOT DEPLOYED -- Nancy
+re-reviewing. She caught that I added a check without sweeping it (23.3% false-fail on
+150 seeds), which is this file's own header rule, broken by me while fixing another
+instance of it. Widening could not fix it; the explosions were the floor.
+
+### OPEN — genuinely operator decisions, bring OPTIONS not names
+2. **31 standalone CLH labs have no Observatory telemetry** (0 of 31; 30 of 31 carry the
+   same cache-buster, so they are internally consistent). May be deliberate — course
+   modules are the graded path, standalones are practice. Confirm intent before wiring.
+3. Stage 3 leftovers: #250 routing, #253 NOPASSWD sudo, #255 /verify rate-limit.
+
+### IN FLIGHT
+**Nancy, Gate 6 mechanism.** Does distance-8 recall fail from vanishing gradients (what
+the page teaches) or from overfitting a 12-example set? Partial data favours OVERFITTING:
+n_train=48 gives 55%/33% vs ~26% at n_train=12 — more data closes the gap, which gradient
+starvation would not. Confirming with more seeds. Gate 6 stays UNDEPLOYED until settled;
+if overfitting wins, challenge 4 gets rewritten to teach that, which is still a true
+reason attention helps.
+
+### NEXT
+Lab 3 (security groups) is buildable now: page with data-check ids **17+**, CLOUD_CHECKS
+on bc1, gate with `qc-lab.sh` (add a `secgroup` mode + two harnesses, model on
+adversarial-chain.js / walkthrough-chain.js, both now tracked in-repo).
+
+### HARD-WON OPERATIONAL FACTS
+- bc1 lab-manager server.js is **BAKED INTO THE DOCKER IMAGE**, not mounted. Host edits do
+  nothing; systemctl/pm2 are no-ops. Deploy: `docker compose build lab-manager && docker
+  compose up -d lab-manager`, then verify INSIDE the container.
+- bc2 bridge unit is **openstack-bridge.service**. Nova needs
+  `X-OpenStack-Nova-API-Version: 2.47` or flavor comes back nameless.
+- Per-student RAM quota **192MB** — anything above m1.nano is refused at create time.
+- DevStack is rebuilt from snapshot each term: **re-run ensure-second-network.sh** or lab 2
+  silently regresses to an undefeatable check 16.
+- Poison-test every gate and CONFIRM THE POISON LANDED first; strings span JS concat breaks
+  and a naive sed silently no-ops. `grep -m1` has twice made me read the wrong line.
+
+
+### SITREP HAZARD, learned 2026-07-31
+The Stop hook regenerates the AUTO block and CAN WIPE the manual body (it did: 76 lines
+-> 16). Worse, a python edit that threw "substring not found" still produced a commit,
+so the message claimed an update that never happened. Before committing SITREP:
+  grep -c "### STATUS" _tools/marathon/upload/SITREP.md   # 0 means the body is gone
+Recover with: git show <last-good>:_tools/marathon/upload/SITREP.md
+
