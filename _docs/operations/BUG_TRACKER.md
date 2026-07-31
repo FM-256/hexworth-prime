@@ -31,6 +31,32 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · regression-checking the BUG-072 fix against completeQuiz
+- **Area:** `_app/components/ModuleProgress.js:1187` inside `showQuizNotification()`
+- **Symptom:** `Uncaught ReferenceError: showCompletionNotification is not defined`. Fires the
+  first time a quiz notification renders on a page (i.e. when `#module-progress-styles` has not
+  been injected yet), which is the normal case for a quiz page.
+- **What the student loses:** the score IS saved and the Firestore sync IS started — those happen
+  at `:732` and `:736`, before the throw at `:763`. What is skipped is everything after: the
+  dashboard activity-feed event, and the **return-to-destination navigation**, so a student who
+  passes is not taken back to their hub. The caller's promise also rejects.
+- **Root cause:** two renames that never propagated. `showCompletionNotification` does not exist
+  anywhere in the file — the style injection now lives in `showCompletionOverlay` (`:972`). The
+  very next line's cleanup selector `.module-complete-notification` is stale too; the overlay's
+  actual class is `.mp-overlay`.
+- **Pre-existing, not from today's work:** the identical call is present in the pre-fix file, and
+  `git log -S` dates it to `be2a4cbb8` "Achievement Integration: ModuleProgress component". My
+  BUG-072 commit (487c58229) does not touch it — verified, 0 matches in that diff.
+- **Also noted:** callers pass `{ showNotification: true }`, but `completeQuiz` destructures
+  `{ silent, returnToDashboard, returnUrl, passingScore }` (`:704`). `showNotification` is not a
+  real option and is silently ignored — so callers cannot currently suppress this path either.
+  The 4 OpenStack quizzes shipped today pass it, as do others.
+- **Fix:** not yet. Extract the style injection out of `showCompletionOverlay` into its own
+  function and call that from both places; drop the stale `.module-complete-notification` remove.
+  Kept separate from the BUG-072 commit so each is reviewable on its own.
+- **Related:** BUG-072.
+
 ### BUG-073 — 127 unlock() calls name an achievement id that does not exist  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · while scoping the BUG-071 guard fix
 - **Area:** 127 `AchievementManager.unlock('<id>')` sites across games, labs, presentations and
