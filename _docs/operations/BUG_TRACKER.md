@@ -31,27 +31,31 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-075 — `tenant/instructor.html` strands a cold-entry instructor: zero navigation  ·  [P2]  ·  open
-- **Found:** 2026-07-31 · by Nancy · adjudicating NAV-001 findings for taskboard #228
-- **Area:** `_app/tenant/instructor.html` (0 anchors in source) + `_app/components/TenantShell.js:53`
-- **Symptom:** the page has NO navigation of its own. Its "Return to Hub" bar is injected by
-  TenantShell, which begins `if (!raw) return;` — it no-ops entirely when there is no tenant
-  context in sessionStorage/localStorage. So an instructor arriving cold (bookmark, shared link,
-  cleared storage, new device) lands on a full-page assignment manager with no way out but the
-  browser's back button, which is empty on a fresh tab.
-- **Why the normal flow hides it:** every inbound link comes from a tenant dashboard
-  (`dashboard-academy.html:339`, `dashboard-nightshift.html:348/364`, `dashboard-federal.html:299/316`,
-  `dashboard-clean-ops.html:714`), and those set tenant context first. Bookmarking "Manage
-  Assignments" is an entirely ordinary thing for an instructor to do.
-- **`TenantRouter.js` does not save it:** it is a passive URL helper with no redirect or guard for
-  missing tenant context (confirmed by grep — same `if (!raw) return;` shape, no
-  `window.location` enforcement).
-- **I had this wrong.** I classified it as a false positive on the reasoning "nav is JS-injected,
-  the static scanner just cannot see it." Nancy asked whether I had traced the inbound links and
-  confirmed context is ALWAYS pre-set. I had not. The exemption only holds on the happy path.
-- **Fix:** not yet. Options: an unconditional back-link in the page itself, or a TenantShell
-  fallback that renders a Hexworth-home link when there is no tenant context.
-- **Related:** BUG-076, taskboard #228.
+### BUG-075 — CORRECTED: `tenant/instructor.html` boot-failure screen has no exit  ·  [P3]  ·  fixed-not-deployed
+- **Found:** 2026-07-31 · by Nancy · adjudicating NAV-001 for taskboard #228
+- **Area:** `_app/tenant/instructor.html` — the `catch` block of the boot routine (~:1947)
+- **ROOT CAUSE, corrected.** My first entry blamed `TenantShell.js:53` no-opping without tenant
+  context. That is real but is NOT the mechanism. The actual trap: on boot failure the catch
+  block sets "Initialization failed", shows the error, and **never reveals the app element** —
+  so the header, and the `Dashboard` button that is the page's only other navigation, is never
+  displayed. The user sits on a full-screen loader with a spinner still turning.
+  (The page DOES have navigation I originally missed: a `Dashboard` button, not an anchor, which
+  is why a `<a` grep returned zero. It even has a sensible fallback,
+  `/tenant/index.html?slug=` — but it is unreachable on the failure path.)
+- **REACHABILITY IS NOT PROVEN, and that is why this is P3 not P2.** An unauthenticated cold
+  visitor is redirected to `/login.html` and is never stranded — measured. Reaching the dead
+  loader requires being SIGNED IN with no tenant context (cleared storage, new device, an
+  instructor's bookmark). I could not drive that state in a probe, so I have not demonstrated a
+  real user hits it. Do not treat this as a confirmed live trap; treat it as a failure path that
+  had no exit.
+- **Fix:** an escape hatch in the loader, hidden until boot fails, plus the spinner is stopped so
+  the screen stops implying work is still in progress. Additive and harmless regardless of
+  whether the state is reachable — a failed screen should always offer a way out.
+- **Probe:** `_tools/eduscan/smoke/instructor-boot-failure-probe.js`. It refuses to assert when
+  it has been redirected elsewhere or when the app booted normally, exiting 2 instead of
+  reporting a pass — which is how the unauthenticated redirect was discovered rather than being
+  silently measured as a stranded user.
+- **Related:** BUG-076, taskboard #228, #264.
 
 ### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  open
 - **Found:** 2026-07-31 · by Nancy · same adjudication
