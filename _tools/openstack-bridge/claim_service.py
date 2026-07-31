@@ -221,6 +221,13 @@ def _os(utok, service, path, method='GET', body=None):
     req = urllib.request.Request(f'{base}{service}{path}', method=method)
     req.add_header('X-Auth-Token', utok)
     req.add_header('Content-Type', 'application/json')
+    # Nova's DEFAULT microversion (2.1) returns flavor as {id, links} with no name, so
+    # flavor_name came back empty and lab 2's check 15 could never pass. 2.47+ embeds the
+    # flavor, including original_name. Sent only for compute; other services ignore it.
+    # Measured 2026-07-31 -- this was found by qc-lab.sh failing the honest path, not by
+    # reading docs.
+    if service.startswith('/compute'):
+        req.add_header('X-OpenStack-Nova-API-Version', '2.47')
     data = json.dumps(body).encode() if body is not None else None
     try:
         with urllib.request.urlopen(req, data=data, timeout=60) as r:
@@ -404,8 +411,18 @@ def verify(slot):
     st, vdoc = _os(utok, '/volume/v3', '/volumes/detail')
     if st != 200:
         return 502, {'error': 'VOLUME_QUERY_FAILED', 'status': st}
+    # flavor + addresses added 2026-07-31 for Stage 4 lab 2 (launch chain). The lab's
+    # checks 15/16 grade "right size" and "network attached"; without these two fields
+    # they could never pass and the lab was uncompletable -- caught by qc-lab.sh before
+    # it shipped. Both are flattened to plain, stable shapes so a grader never has to
+    # know Nova microversion quirks: flavor_name is the human name, addresses is the
+    # list of network names that actually carry an address.
     servers = [{'id': x.get('id'), 'name': x.get('name'), 'status': x.get('status'),
                 'created': x.get('created'),
+                'flavor_name': ((x.get('flavor') or {}).get('original_name')
+                                or (x.get('flavor') or {}).get('name') or ''),
+                'addresses': [n for n, lst in ((x.get('addresses') or {}).items())
+                              if isinstance(lst, list) and lst],
                 'volumes': [a.get('id') for a in (x.get('os-extended-volumes:volumes_attached') or [])]}
                for x in ((sdoc or {}).get('servers') or [])]
     volumes = [{'id': v.get('id'), 'name': v.get('name'), 'status': v.get('status'),
