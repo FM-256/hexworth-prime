@@ -14,6 +14,17 @@ const srv = http.createServer((req,res)=>{
   await new Promise(r => srv.listen(8791, r));
   const b = await puppeteer.launch({ headless:'new', args:['--no-sandbox','--disable-dev-shm-usage'] });
   const pg = await b.newPage();
+  // OFFLINE=1 blocks Firestore/Firebase network so the DEGRADED path is actually exercised.
+  // Without this the local probe silently reaches REAL Firestore -- which is how an earlier
+  // run was mistaken for "Firestore unavailable" when the merge had in fact succeeded.
+  if (process.env.OFFLINE) {
+    await pg.setRequestInterception(true);
+    pg.on('request', r => {
+      const u = r.url();
+      if (/firestore|firebaseio|googleapis|gstatic|firebaseapp/.test(u)) { return r.abort(); }
+      r.continue();
+    });
+  }
   const errs = [];
   pg.on('pageerror', e => errs.push('PAGEERROR: ' + e.message));
   pg.on('console', m => { if (m.type()==='error') errs.push('CONSOLE: ' + m.text().slice(0,140)); });
@@ -41,6 +52,7 @@ const srv = http.createServer((req,res)=>{
     const leaked = kids.filter(k => hrefs.some(h => h.indexOf('/' + k + '/') !== -1 || h.replace(/\/$/, '').endsWith('/' + k)));
     return { registry: all.length, children: kids.length, leaked: leaked.slice(0, 8) };
   });
+  if (process.env.DUMPLOCAL) { require('fs').writeFileSync('/tmp/local-cards.json', JSON.stringify(out.hrefs)); console.log('dumped ' + out.hrefs.length + ' local hrefs'); }
   delete out.hrefs;
   console.log(JSON.stringify(out, null, 2));
   console.log('registry entries:', audit.registry, '| entries with a parent:', audit.children);
