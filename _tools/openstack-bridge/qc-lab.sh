@@ -30,8 +30,13 @@ cd "$(dirname "$0")" 2>/dev/null || cd ~/hexworth-sandbox
 # The grader check ids each lab owns. Only labs whose harnesses emit COVERAGE lines can be
 # coverage-gated; the rest run stages 1-2 and say so rather than claiming a check they skipped.
 case "$LAB" in
-  project) IDS="25 26 27 28" ;;
-  *)       IDS="" ;;
+  project)  IDS="25 26 27 28" ;;
+  neutron)  IDS="21 22 23 24" ;;
+  secgroup) IDS="17 18 19 20" ;;
+  chain)    IDS="13 14 15 16" ;;
+  cinder)   IDS="3 4 5 6"     ;;
+  rescue)   IDS="10 11 12"    ;;
+  *)        IDS=""            ;;
 esac
 
 ADV="adversarial-${LAB}.js"
