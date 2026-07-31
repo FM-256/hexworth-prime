@@ -31,12 +31,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+> **DEPLOYED 2026-07-31 (second deploy)** — BUG-074 shipped after preview-lane verification on a
+> REAL quiz page, then confirmed on hexworth.com: `completeQuiz` resolves, the stylesheet goes
+> `false -> true`, the notification renders, zero ReferenceErrors. Chris noted this was the THIRD
+> same-day touch to `ModuleProgress.js` — if a fourth is proposed, re-run the diff-hunk isolation
+> check rather than assuming the small-blast-radius pattern still holds.
+>
 > **DEPLOYED 2026-07-31** — BUG-068/069/071/072 shipped via `./deploy.sh` after preview-lane
 > verification, and were confirmed on production: 4 sampled games show `guard=true unlocked=true
 > persisted=true` on hexworth.com, `ModuleProgress` serves `_ensureFirestoreReady`, and
 > `LabStateSync` serves 0 occurrences of the old dead `window.FirebaseAuth` guard.
 
-### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  fixed-not-deployed
+### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · regression-checking the BUG-072 fix against completeQuiz
 - **Area:** `_app/components/ModuleProgress.js:1187` inside `showQuizNotification()`
 - **Symptom:** `Uncaught ReferenceError: showCompletionNotification is not defined`. Fires the
