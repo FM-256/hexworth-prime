@@ -270,6 +270,26 @@ openstack volume show orphan-vol -f value -c status    # WAIT for: in-use</div>
             var msg = document.getElementById('rescue-monitor-msg');
             if (msg) { msg.className = 'lab-monitor__msg'; msg.textContent = note || ''; }
         }
+        // BUG-054: this lab loaded ModuleProgress.js and never called it, so finishing it
+        // awarded nothing -- no XP, no progress, no dashboard credit. Three deliberate choices:
+        //   returnToDashboard:false -- the student is mid-session with a LIVE cloud container.
+        //     Navigating them away on completion would end the thing they are working in.
+        //   awarded guard -- complete() bumps a lifetime counter, so re-clicking Check My Work
+        //     would inflate it. Award once per page load.
+        //   never revoked -- a later check that fails must NOT take credit back. These labs
+        //     re-derive from live cloud state, and the capstone REQUIRES destroying resources.
+        //     Credit is for having done it, not for the resources still existing.
+        var awarded = false;
+        function awardOnce(moduleId) {
+            if (awarded) return;
+            awarded = true;
+            try {
+                if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+                    ModuleProgress.complete('cloud', moduleId, { returnToDashboard: false, type: 'lab' });
+                }
+            } catch (e) { /* never let an award failure break the lab UI */ }
+        }
+
         var checkBusy = false;
         async function checkMyWork(ctx) {
             var msg = document.getElementById('rescue-monitor-msg');
@@ -288,6 +308,7 @@ openstack volume show orphan-vol -f value -c status    # WAIT for: in-use</div>
                 var passed = paintMonitor((r && r.results) || []);
                 if (passed === 3) {
                     both('lab-monitor__msg done', '3 / 3 complete. The data survived and the quota is yours again.');
+                    awardOnce('cloud-openstack-rescue-live');
                 } else {
                     both('lab-monitor__msg', passed + ' / 3 complete. Work the unfinished step, then check again.');
                 }
