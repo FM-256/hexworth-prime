@@ -218,7 +218,7 @@
   }
 
   function _tryAchievements(entry) {
-    var reg = window.AchievementRegistry;
+    var reg = (typeof AchievementRegistry !== 'undefined' && AchievementRegistry);
     if (!reg || typeof reg.unlock !== 'function') return;
 
     try {

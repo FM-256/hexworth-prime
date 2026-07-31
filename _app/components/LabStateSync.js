@@ -36,13 +36,13 @@
 
     // Live Firestore db handle (reuses FirestoreManager's — null until FirestoreManager.init ran).
     function _db() {
-        try { return (window.FirestoreManager && FirestoreManager.getDb && FirestoreManager.getDb()) || null; }
+        try { return ((typeof FirestoreManager !== 'undefined' && FirestoreManager) && FirestoreManager.getDb && FirestoreManager.getDb()) || null; }
         catch (e) { return null; }
     }
 
     // Current signed-in uid, or null.
     function _uid() {
-        try { const u = window.FirebaseAuth && FirebaseAuth.getUser && FirebaseAuth.getUser(); return (u && u.uid) || null; }
+        try { const u = (typeof FirebaseAuth !== 'undefined' && FirebaseAuth) && FirebaseAuth.getUser && FirebaseAuth.getUser(); return (u && u.uid) || null; }
         catch (e) { return null; }
     }
 
