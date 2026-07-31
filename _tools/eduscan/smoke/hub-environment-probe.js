@@ -30,6 +30,19 @@ async function inspect(page, id) {
       envAriaHidden: (document.querySelector('.env') || {}).getAttribute
         ? document.querySelector('.env').getAttribute('aria-hidden') : null,
       items: document.querySelectorAll('.item').length,
+      birds: document.querySelectorAll('.bird').length,
+      // Depth is DOM order (no z-index on the planes), so assert the flock sits BETWEEN the
+      // far and mid planes rather than merely existing. Nancy found this had zero coverage:
+      // a reorder would move the birds to the wrong plane and nothing would notice.
+      flockIndex: (function () {
+        var env = document.querySelector('.env');
+        if (!env) { return -1; }
+        var kids = [].slice.call(env.children);
+        for (var i = 0; i < kids.length; i++) {
+          if (kids[i].querySelector && kids[i].querySelector('.bird')) { return i; }
+        }
+        return -1;
+      })(),
       kids: document.querySelectorAll('.kid-card').length,
       spineWidth: spine ? spine.width : null,
       itemBg: item ? getComputedStyle(item).backgroundImage.slice(0, 30) : null,
@@ -58,6 +71,9 @@ async function inspect(page, id) {
     // a design change as a defect.
     check('items carry the cartridge spine', parseFloat(r.spineWidth) >= 4, String(r.spineWidth));
     check('items use the cartridge gradient, not the flat panel', /gradient/.test(r.itemBg || ''), r.itemBg);
+    check('five birds mounted', r.birds === 5, String(r.birds));
+    check('flock sits between the far and mid planes (depth is DOM order)', r.flockIndex === 1,
+      `index ${r.flockIndex}`);
     check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p.close();
 
@@ -69,6 +85,7 @@ async function inspect(page, id) {
       const c = await inspect(cp, id);
       check(`${id}: environment NOT mounted`, c.envOn === false, `env-on=${c.envOn}`);
       check(`${id}: no depth layers`, c.layers === 0, `got ${c.layers}`);
+      check(`${id}: no birds`, c.birds === 0, String(c.birds));
       check(`${id}: items keep the flat panel (no cartridge spine)`,
         !(parseFloat(c.spineWidth) >= 4), `spine=${c.spineWidth}`);
       await cp.close();
