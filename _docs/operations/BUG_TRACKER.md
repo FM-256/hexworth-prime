@@ -31,6 +31,27 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · surfaced by the zero-stub live e2e for the quiz fix, which
+  caught it as a page error on production the moment a real student signs in
+- **Area:** `_app/components/ModuleProgress.js:1671-1674`
+- **Symptom:** `Uncaught ReferenceError: firestoreSyncReady is not defined` fires on auth-state
+  change, so `FirestoreManager.syncBidirectional(uid)` never runs — the cloud pull on sign-in is
+  dead. Silent to the student; only visible in the console.
+- **Root cause:** `let firestoreSyncReady` is declared at `:58`, inside the IIFE that spans
+  `:45`–`:1482`. It is READ at `:1671`, which sits inside a **different** IIFE
+  (`reconcileProgressBootstrap`, `:1501`–`:1686`) that cannot see that binding. Guaranteed to
+  throw whenever that path runs, on any page — nothing page-specific about it.
+- **Not caused by the quiz work:** none of the quiz commits (3527d7588, 99ee8c2be, f3af5978f)
+  touch ModuleProgress.js, and the defect is a static scope error visible by reading the file.
+- **Repro:** sign in on any page that loads ModuleProgress.js. Does NOT reproduce on a signed-out
+  page load, which is why it has gone unnoticed — the path only runs on auth-state change.
+- **Fix:** not yet — out of scope of the authorized quiz task. The declaration needs hoisting to
+  a scope both IIFEs share (or the second IIFE needs its own memo). Whatever the fix, it must
+  come with a check that syncBidirectional then actually runs, since the throw has been masking
+  whether the rest of that path works at all.
+- **Related:** BUG-068 (also silently disables cloud sync, different mechanism).
+
 ### BUG-071 — 31 games never award their achievement; 2 Linux labs never record completion  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · same `window.X` lexical-const sweep as BUG-068
 - **Area:** 31 sites guarding `if (window.AchievementManager) AchievementManager.unlock(...)`,
