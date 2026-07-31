@@ -80,7 +80,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   achievement and what they are worth.
 - **Related:** BUG-071 (the dead guard, fixed), BUG-068, BUG-072.
 
-### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  open
+### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · surfaced by the zero-stub live e2e for the quiz fix, which
   caught it as a page error on production the moment a real student signs in
 - **Area:** `_app/components/ModuleProgress.js:1671-1674`
@@ -95,10 +95,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   touch ModuleProgress.js, and the defect is a static scope error visible by reading the file.
 - **Repro:** sign in on any page that loads ModuleProgress.js. Does NOT reproduce on a signed-out
   page load, which is why it has gone unnoticed — the path only runs on auth-state change.
-- **Fix:** not yet — out of scope of the authorized quiz task. The declaration needs hoisting to
-  a scope both IIFEs share (or the second IIFE needs its own memo). Whatever the fix, it must
-  come with a check that syncBidirectional then actually runs, since the throw has been masking
-  whether the rest of that path works at all.
+- **Fix:** FIXED in 487c58229. Both scopes now share ONE memoized promise via an exported
+  `_ensureFirestoreReady`; two independent memos would have loaded the Firebase deps twice.
+  `tryFirestoreSync` goes through it too.
+- **Verified:** `_tools/eduscan/smoke/moduleprogress-cloudpull-probe.js` asserts
+  `syncBidirectional` is ACTUALLY CALLED with the right uid — 4/4 — because "no ReferenceError"
+  was never the claim worth checking; the throw had been masking whether that path ran at all.
+  Run with `--ablate` it re-injects the pre-fix cross-scope references, reproduces the exact
+  original error, and fails 3 of 4, so the probe is proven able to fail. Nancy reproduced both
+  runs independently.
 - **Related:** BUG-068 (also silently disables cloud sync, different mechanism).
 
 ### BUG-071 — dead `window.X` guards: 38 sites repaired, 13 games now genuinely award  ·  [P1]  ·  fixed-not-deployed
@@ -119,10 +124,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   described the breakage correctly but implied a fix scope 2.4x larger than the truth.
 - **Verified:** `_tools/eduscan/smoke/achievement-unlock-probe.js` boots each real game page,
   asserts the fixed guard passes, calls unlock, and asserts the achievement is PERSISTED —
-  and separately asserts the bad-id games still refuse. 34/34.
-- **Fix:** not yet — out of scope of the authorized quiz task. Mechanically it is a guard swap to
-  the bare identifier, but it should ship with a check that unlocking then actually works, since
-  the always-false guard has been masking whether the rest of that path is sound.
+  and separately asserts the bad-id games still refuse. **58/58, covering all 13** of the
+  genuinely-fixed games. It first covered only 7 while the commit claimed 13; Nancy caught the
+  other 6 being asserted by pattern-match, which is the exact thing the harness exists to prevent.
+- **Fix:** FIXED in d6bcd61bb (probe extended in 0b745d089). Guards now resolve the bare
+  identifier at all 38 sites. Shipped WITH the check it needed, not just the swap: the always-false
+  guard had been masking whether the unlock path worked at all.
 - **Related:** BUG-068, BUG-069, BUG-070.
 
 ### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  guard fixed, sync unverified
@@ -183,7 +190,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   (`_tools/audit-lexical-window-guards.js`) now classifies this as a DEAD reference.
 - **Related:** BUG-068, BUG-071.
 
-### BUG-067 — 2 LIVE quizzes are passable by clicking option B on every question  ·  [P1]  ·  open
+### BUG-067 — LIVE quizzes passable by clicking option B on every question  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · while extracting answer keys to remediate BUG-065
 - **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,install,operation,projects}-quiz.quiz.html`
 - **Symptom:** the answer keys are severely skewed AND the options never shuffle (0
@@ -237,7 +244,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   report-only tooling is built (`--check-uids`); nothing is deleted.
 - **Related:** BUG-062-era gate work; `reclaim-idle-slots.py`.
 
-### BUG-065 — 4 LIVE OpenStack quizzes ship their answer keys in the page source  ·  [P1]  ·  open
+### BUG-065 — 4 LIVE OpenStack quizzes ship their answer keys in the page source  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · re-measuring the 3-month-old QC-57 critical finding
 - **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,projects,operation,install}-quiz.quiz.html`
 - **Symptom, measured against PRODUCTION:** each returns HTTP 200 with **15 answer-key fields
@@ -257,9 +264,25 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   output displayed first and made the finding look like a false positive. The classification was
   right; the sample was misleading. Confirm on the question objects (`correct: <digit>` inside a
   question literal), not on the first regex hit.
-- **Fix:** move the four to the server-graded bridge — seed `quiz_keys/{quizId}` and grade via
-  `gradeQuiz`, per CLAUDE.md rule 9 (`cd functions && node verify-quiz-keys.js <quizId>` must
-  report `Verification PASSED` before deploy, or students get 0/N).
+- **Fix:** SHIPPED AND LIVE 2026-07-31 (3527d7588, 99ee8c2be, f3af5978f, deployed via ./deploy.sh).
+  Pages now hold `{q, opts}` only — verified by PARSING the arrays, not grepping. Grading moved to
+  gradeQuiz's `partial: true` mode so instant per-question feedback survives, and
+  `InstantQuizGrader` shuffles options per student and owns the display<->original remap.
+  `quiz_keys` seeded with `revealToAll: true` (registry 615 -> 619).
+- **Verified on production:** `verify-quiz-keys.js` PASSED x4 (rule 9) · server contract probe
+  **33/33**, where the SAME command returned NOT_FOUND x4 before the seed — that failure is what
+  makes the pass evidence · zero-stub live e2e on hexworth.com with a real account **12/12** ·
+  render probe 49/49 incl. an offline scenario, and under ABLATE=1 it fails exactly the remap and
+  denominator assertions and nothing else.
+- **Two defects the gates caught in the fix itself:** the render probe found that
+  `window.FirebaseAuth` is undefined (FirebaseAuth is a top-level const), which would have shown
+  "Could not verify" on all 15 questions, silently. Chris found that an ungraded question still
+  dragged the score down while the UI promised otherwise — an incomplete run is now never scored,
+  recorded, or credited.
+- **Operator decision recorded:** sign-in is now required on these 4 quizzes; chosen from an
+  explicit 3-way option set and written into
+  `_docs/operations/instant-quiz-grader-design-2026-07-31.md`, not left in chat.
+- **Related:** BUG-067 (same fix — the per-student shuffle), CLAUDE.md rule 9.
 - **NOT investigated:** 4 further quizzes match neither signal
   (`web/quizzes/web-networking-ch7-10`, `-ch7-20`, `-final-review`, `web/network-plus/quizzes/ch7-20`).
   They advertise "Auto-scored" with a Grade button but use neither an obvious answer-key field
