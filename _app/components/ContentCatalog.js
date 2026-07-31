@@ -2011,6 +2011,8 @@ const ContentCatalog = (function() {
         // lifecycle on the student's personal OpenStack project, graded against real
         // cloud state by the bc1 lab-manager (checks 3-6).
         { house: 'cloud', id: 'cloud-openstack-cinder-live', title: 'Live Lab: The Volume Outlives the Server', description: 'Real Cinder block storage on your own cloud project: create, attach, destroy the server, prove the volume survived to serve another', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-cinder-live.lab.html', tags: ['live', 'cinder', 'openstack', 'real-engine'], category: 'openstack' },
+        // OpenStack Stage 4, Lab 2 (2026-07-31): the full launch chain, server-graded ids 13-16.
+        { house: 'cloud', id: 'cloud-openstack-launch-chain', title: 'Live Lab: The Full Launch Chain', description: 'Drive a real server launch link by link on live OpenStack: pick a real image, size it with a flavor, attach a network, then prove it reached ACTIVE with an address -- because a machine that exists but does not run is the most common way a first cloud deployment fails', icon: '/assets/images/icons/icon-cloud.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-launch-chain-live.lab.html', tags: ['openstack', 'live-cloud', 'server-graded', 'real-engine'], category: 'openstack' },
         // Stage 4 lab 2 (2026-07-30): the SEEDED troubleshooting lab. Error-reading proved
         // ungradeable (the cloud leaves no trace when it refuses you), so this grades a REPAIR
         // instead -- real server-side state, compared against seeded ids the student cannot forge.
