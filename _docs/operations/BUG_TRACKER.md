@@ -108,6 +108,24 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   (uid-keyed store, `writeBaseline`/`readBaselines`, ctx plumbing) already exists.
 - **Student impact:** a student can complete a LIVE lab without performing the exercise it
   teaches, and be told they did it correctly.
+- **AMENDMENT 2026-07-31 — checks 4 and 5 are ALSO forgeable, and the comment lies.** Verified
+  directly in the `openstack-cli` block (NOT the linux-sandbox ids 4/5, which collide — the same
+  id-collision trap already documented in the SITREP):
+      id 4: `VID=$(openstack volume show lab-vol -f value -c id) && grep -q "$VID" attach-proof.txt && grep -q "in-use" attach-proof.txt`
+      id 5: same shape against detach-proof.txt and "available"
+  Both are substring greps against files the STUDENT writes. The volume UUID is trivially
+  readable by the student who just created it, so both files can be hand-written with `echo`
+  without a server ever existing. They were intended as the barrier that made forging the
+  evidence hard; they are not one. Check 6's requirement that the volume be CURRENTLY attached
+  to a live server is the only thing forcing a real attach to happen at all — accidental cover,
+  not a designed control.
+- **AMENDMENT — comment-vs-code drift.** The block comment above these checks, dated
+  "v3 2026-07-30 (Nancy BLOCK)", states that check 6 "requires the volume to be attached to a
+  server that is NOT the one named in attach-proof, AND that older server to be GONE". Check 6
+  does none of that; it compares creation timestamps. The comment has claimed this since it was
+  written and the code has never matched. The LIVE PAGE makes the same promise to students. So
+  the lab tells students a true-sounding thing about a check that does not do it — which is
+  exactly how this defect stayed invisible for a day.
 - **Related:** BUG-055/056 (same class: a check that does not test its own claim).
 
 ### BUG-057 — Dr. Hex's grade-for route ignores CLOUD_CHECKS: 16 checks invisible, `complete` lies  ·  [P1]  ·  resolved
