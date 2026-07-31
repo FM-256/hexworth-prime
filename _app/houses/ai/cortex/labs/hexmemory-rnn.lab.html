@@ -53,6 +53,23 @@
    exactly the Gate 3 defect. Re-measured over 24 seeds, the honest numbers are
    above.
 
+   THIRD CORRECTION (Nancy, 2026-07-31) -- THE MECHANISM WAS WRONG. The page taught
+   "the gradient dies over eight steps, so there is nothing left to learn from". Nancy
+   instrumented the SHIPPED forward()/train() and measured three things:
+     (a) gradient at the cue / gradient at the final step, 15 seeds per distance:
+         d1 0.668 | d2 0.431 | d4 0.206 | d8 0.076  -- real, monotonic, ~9x attenuation.
+         So the vanishing STRUCTURE genuinely exists.
+     (b) but training loss at distance 8 still falls to 0.0005-0.004 while held-out
+         accuracy stays at chance for 200 steps. There is plenty of gradient. The failure
+         is OVERFITTING 12 examples, not gradient starvation. "Almost nothing left to
+         learn from" is empirically FALSE.
+     (c) and some seeds EXPLODE instead -- loss ~1e212 by step 199. Opposite failure,
+         same root cause (repeated multiplication by Whh). Logged as BUG-053.
+   All three trace to one thing: the whole past squeezed through one small repeatedly
+   multiplied state. That is the honest reason attention exists -- it removes the
+   bottleneck rather than widening it. The page now teaches that, and shows the student
+   their own train_loss, which is the number that makes it legible.
+
    WHAT IS ACTUALLY TRUE: the decay is real and monotonic (94 -> 77 -> 57 -> 32),
    and at distance 8 the mean sits barely above the 25% chance baseline. But the
    VARIANCE IS HIGH -- individual seeds at distance 8 range from 12% to 58% -- so
@@ -412,9 +429,31 @@ PythonSandbox.init({
                 '<code>distance 8 &rarr; 32% accuracy</code><br><br>' +
                 'Those are means over 24 independent runs. Look at the last one against a ' +
                 'chance baseline of <strong>25%</strong>: at distance 8 the network is barely ' +
-                'above guessing. The signal has to survive eight multiplications by ' +
-                '<code>Whh</code> and eight passes through <code>tanh</code>, and by the far ' +
-                'end there is almost nothing left of it to learn from.<br><br>' +
+                'above guessing.<br><br>' +
+                '<strong>Now the part most explanations get wrong, including the first version ' +
+                'of this page.</strong> The obvious story is "the gradient dies over eight steps, ' +
+                'so there is nothing left to learn from." The first half is true and measurable: ' +
+                'the gradient reaching the cue is about <code>0.67</code> of the final-step ' +
+                'gradient at distance 1, and only <code>0.08</code> at distance 8 &mdash; roughly ' +
+                'a ninefold attenuation. But the second half is false, and your own run will show ' +
+                'it: <strong>the training loss still falls to near zero.</strong> There is plenty ' +
+                'of gradient. The network learns its twelve training sequences almost perfectly ' +
+                'and then scores at chance on new ones.<br><br>' +
+                'That is not forgetting. That is <strong>memorising</strong>. With twelve examples ' +
+                'at distance 8, nothing pressures the network to discover the rule "copy the ' +
+                'symbol from the start" when it can simply learn those twelve answers. Give the ' +
+                'identical network more data and it starts to generalise: in a separate experiment ' +
+                '(trained to convergence rather than the fixed 40 steps you run here) going from ' +
+                '12 to 48 examples lifted held-out accuracy from about 26% to a mean of 37%, with ' +
+                'the best seed reaching 55%.<br><br>' +
+                '<strong>So why does attention exist?</strong> Not because a number gets small. ' +
+                'Because everything the network knows about the past has to be squeezed through ' +
+                'one small state that gets multiplied by the same matrix at every step &mdash; and ' +
+                'that compression breaks in three different ways at once: the gradient thins out, ' +
+                'twelve examples memorise instead of generalising, and on some seeds the whole ' +
+                'thing goes numerically unstable and the loss explodes. Attention removes the ' +
+                'bottleneck rather than widening it: every step gets to look <em>directly</em> at ' +
+                'every earlier step, so nothing has to survive the squeeze at all.<br><br>' +
                 '<strong>One honest caveat, because your own run will show it.</strong> The ' +
                 'spread at distance 8 is wide &mdash; individual seeds land anywhere from ' +
                 '<strong>12% to 58%</strong>. So a single run is a demonstration, not proof, ' +
@@ -477,6 +516,19 @@ PythonSandbox.init({
                 '# unseen sequences at that same distance.\n' +
                 'def score_at(distance, seed):\n' +
                 '    return None\n\n' +
+                '# Returns (accuracy, final_training_loss). The loss is the number that makes\n' +
+                '# the lesson legible: watch it fall to near zero at distance 8 while accuracy\n' +
+                '# stays at chance. That is memorising, not forgetting.\n' +
+                'def score_and_loss(distance, seed):\n' +
+                '    W, rnd = build(seed)\n' +
+                '    ex = [make_example(distance, rnd) for _ in range(12)]\n' +
+                '    train(W, ex)\n' +
+                '    loss = 0.0\n' +
+                '    for seq, cue in ex:\n' +
+                '        out = forward(W, seq)\n' +
+                '        for k in range(VOCAB):\n' +
+                '            loss += (out[k].data - (1.0 if k == cue else -1.0)) ** 2\n' +
+                '    return accuracy(W, distance, rnd), loss / len(ex)\n\n' +
                 'near = score_at(1, 1)\n' +
                 'if near is None:\n' +
                 '    print("score_at() not built yet -- train at a distance and score it.")\n' +
@@ -485,9 +537,15 @@ PythonSandbox.init({
                 '    print(f"chance: 25%")\n' +
                 '    print(f"distance 1 (near): {near:.0%}")\n' +
                 '    print(f"distance 8 (far):  {far:.0%}")\n' +
+                '    acc8, loss8 = score_and_loss(8, 1)\n' +
+                '    print(f"distance 8 training loss: {loss8:.4f}   held-out accuracy: {acc8:.0%}")\n' +
+                '    print("memorised not forgot:", loss8 < 1.0 and acc8 < 0.6)\n' +
                 '    print("near memory works:", near >= 0.6)\n' +
-                '    print("far memory is gone:", far < near - 0.25)\n' +
-                '    print("VERDICT:", "the state cannot carry it that far" if far < near - 0.25 else "no decay measured -- is the cue really that far back?")\n',
+                '    # Inclusive, and with a tolerance: accuracy is measured on 24 examples so\n' +
+                '    # it moves in ~4.2-point steps, and a margin landing EXACTLY on the bar was\n' +
+                '    # failing correct work about 1 run in 12.\n' +
+                '    print("far memory is gone:", (near - far) >= 0.20 - 1e-9)\n' +
+                '    print("VERDICT:", "the state cannot carry it that far" if (near - far) >= 0.20 - 1e-9 else "no decay measured -- is the cue really that far back?")\n',
             hints       : [
                 'W, rnd = build(seed); examples = [make_example(distance, rnd) for _ in range(12)]',
                 'train(W, examples) then return accuracy(W, distance, rnd).',
@@ -497,6 +555,11 @@ PythonSandbox.init({
             tests       : [
                 { name : 'Near memory works (60%+ against 25% chance)',
                   check: function(out) { return /near memory works:\s*True/.test(out); } },
+                { /* The lesson Nancy's measurement actually established: the network FITS its
+                     training data at distance 8 (loss near zero) while generalising at chance.
+                     Grading this makes the student produce the evidence, not just read it. */
+                  name : 'Distance 8 memorises rather than forgets: training loss near zero, accuracy at chance',
+                  check: function(out) { return /memorised not forgot:\s*True/.test(out); } },
                 { name : 'Far memory collapses by at least 25 points',
                   check: function(out) { return /far memory is gone:\s*True/.test(out); } },
                 /* REMOVED before shipping: a check demanding distance-8 accuracy <= 50%.

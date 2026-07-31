@@ -126,10 +126,25 @@ echo "  cheat B (untrained network, acc $BA) sits at chance as it must"
 echo "── [2/4] WALKTHROUGH: the correct build must PASS ──"
 cat "$W/engine.py" "$W/ref.py" > "$W/w.py"
 cat >> "$W/w.py" <<'PY'
+# Nancy, 2026-07-31: this gate only ever inspected ACCURACY, so it passed green while
+# training silently exploded to ~1e212 on some seeds (BUG-053). A loss that is not a
+# finite, sane number means the lab is showing students an absurdity it has no account
+# for -- gate on it.
+import math
+_W, _rnd = build(1)
+_ex = [make_example(8, _rnd) for _ in range(12)]
+train(_W, _ex)
+_loss = sum(sum((forward(_W, sq)[k].data - (1.0 if k == c else -1.0)) ** 2
+                for k in range(VOCAB)) for sq, c in _ex) / len(_ex)
+print(f"  distance-8 training loss: {_loss:.4f}")
+if not math.isfinite(_loss) or _loss > 100:
+    print(f"  FAIL: training exploded (loss {_loss}) -- see BUG-053")
+    raise SystemExit(1)
+
 n1, n8 = score_at(1, 1), score_at(8, 1)
 print(f"  distance 1: {n1:.0%}   distance 8: {n8:.0%}   (chance 25%)")
 assert n1 >= 0.6,        f"near memory failed the shipped bar: {n1}"
-assert n8 < n1 - 0.25,   f"no decay measured: near {n1} far {n8}"
+assert (n1 - n8) >= 0.20 - 1e-9, f"no decay measured: near {n1} far {n8}"
 # No absolute ceiling on n8: across 24 seeds distance 8 ranges 12-58%, so any fixed
 # bar false-fails somewhere. The MARGIN is the robust signal and is asserted above.
 PY
@@ -143,7 +158,7 @@ near = [score_at(1, s) for s in range(200, 200 + N)]
 far  = [score_at(8, s) for s in range(200, 200 + N)]
 pairs = [paired_at(1, s) for s in range(200, 200 + N)]
 a = sum(1 for b, af in pairs if not (af >= b + 0.25))
-b = sum(1 for n, f in zip(near, far) if not (f < n - 0.25))
+b = sum(1 for n, f in zip(near, far) if not ((n - f) >= 0.20 - 1e-9))
 c = 0   # the absolute far-accuracy bar was removed; nothing to false-fail
 print(f"  false-fail 'learned to remember' (paired) on a CORRECT build: {a}/{N}")
 print(f"  false-fail 'far memory is gone' on a CORRECT build: {b}/{N}")

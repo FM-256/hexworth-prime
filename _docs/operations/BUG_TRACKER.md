@@ -31,6 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-053 — HexMemory RNN training can EXPLODE (loss > 10^200), invisible to QC  ·  [P2]  ·  open
+- **Found:** 2026-07-31 · by Nancy · in Gate 6 mechanism investigation
+- **Area:** `_app/houses/ai/cortex/labs/hexmemory-rnn.lab.html` challenge 4 (train loop, lr=0.3, full-batch, no clipping); `_tools/model-forge/qc-hexmemory.sh`
+- **Symptom:** At distance 8, a real fraction of seeds do not converge — training loss explodes,
+  reaching ~1e212 by step 199 (seed 0 measured; values of 1e21-1e212 observed across configs,
+  INCLUDING at the shipped n_train=12). Final accuracy still lands in the chance band, so the
+  student sees a "normal" wrong answer with no account for the absurd number if they print
+  their own loss while experimenting.
+- **Repro:** shipped challenge-4 train() at distance 8, seed 0, steps>=200. Also reproduces
+  while growing n_train (200 diverged in 3 of 3 sampled configurations).
+- **Root cause:** Exploding gradients — the other half of Pascanu et al.'s vanishing/exploding
+  problem. Same cause as the decay the lab teaches (repeated multiplication by Whh); which
+  failure you get depends on the spectral radius. lr=0.3 full-batch with no gradient clipping
+  makes it reachable.
+- **Why QC misses it:** `qc-hexmemory.sh` only inspects final accuracy and margins, never
+  `train_loss`, so the gate passes green while this sits unaddressed.
+- **Risk:** CPython produces a huge float; Pyodide/WASM float handling may differ and produce
+  `inf`/`OverflowError` instead. Unverified in-browser.
+- **Fix:** not yet. Candidates: gradient clipping in the shipped train loop, a lower lr, or
+  surfacing train_loss to the student so the behaviour is legible rather than mysterious.
+- **Related:** Gate 6 mechanism rewrite (Nancy PAUSE, same investigation). Gate 6 is NOT deployed.
+
 ### BUG-052 — openstack-cli lab unpassable: grader checked a path the image does not have  ·  [P1]  ·  resolved
 - **Found:** 2026-07-30 · by user ("the openstack sandbox seems a lil confused") + self during monitor build
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js` SANDBOX_CHALLENGES['openstack-cli'] (~line 208)
