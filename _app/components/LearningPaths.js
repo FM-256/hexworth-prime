@@ -5644,6 +5644,24 @@ class LearningPaths {
                     duration: '45 min',
                     href: 'houses/eye/labs/eye-hunting.lab.html',
                     prerequisites: ['eye-hunting-quiz']
+                },
+
+                // Reference — not a tier step. Usable at any point in the path, so it carries no
+                // prerequisites. Added because the content registry ALREADY declares this module
+                // as belonging here (`paths: ['security-plus', 'security-operations']`,
+                // content-registry.js:5222) while this array never listed it — so it was
+                // reachable only by browsing the house, which the strict-orphan scanner rightly
+                // does not count as curation. Retiring the cysa-plus path (BUG-038) is what left
+                // it stranded. This reconciles a declared placement; it is not a new curriculum
+                // decision.
+                {
+                    id: 'shield-cysa-toolkit',
+                    title: 'CySA+ v3 Analyst Toolkit',
+                    type: 'applet',
+                    difficulty: 'intermediate',
+                    duration: '25 min',
+                    href: 'houses/shield/applets/operations/shield-cysa-analyst-toolkit.applet.html',
+                    prerequisites: []
                 }
             ]
         },
