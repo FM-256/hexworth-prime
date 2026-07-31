@@ -31,6 +31,51 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-060 — relaunching a running session drops cloudMode: every returning student told the lab is unusable  ·  [P1]  ·  fixed-not-deployed
+- **Found:** 2026-07-31 · by self · while re-running the rescue gate under a fixed QC identity
+- **Area:** bc1 `lab-manager/server.js` launch route, both resume branches (`status: 'running'` and `status: 'restarted'`)
+- **Symptom:** The launch route attaches `cloudMode`/`cloudSlot` only on the FRESH-create path.
+  Both resume branches returned a payload without them. All six OpenStack lab pages gate on
+  `result.cloudMode !== 'personal'` and, on mismatch, render "Read-only mode ... this lab cannot
+  be completed in this session". So a returning student who relaunches while their container is
+  still running is told their lab is unusable — while their personal project sits there working.
+  The branch that exists specifically to serve returning students was the one that broke them.
+- **Repro:** launch openstack-cli, then launch again without destroying. Measured response:
+  `{"sessionId","url","status","lab"}` — no `cloudMode`, no `cloudSlot`, no `ready`.
+- **Root cause:** the cloud fields were added to the create path only; the two resume returns
+  predate them and were never revisited.
+- **Why it hid:** every QC harness signed up a NEW random user per run, so the resume path was
+  never exercised by QC — only real returning students hit it. It surfaced the moment the
+  harnesses were given fixed identities.
+- **Fix:** both resume branches now include `cloudMode`/`cloudSlot`, derived from the session's
+  stored credential (`existing.osCred`) rather than re-claiming, so resume never consumes a pool
+  slot. LIVE on bc1 (rebuilt, host/container sha verified equal).
+- **Deploy status:** grader-side only; no page change needed.
+
+### BUG-059 — the LIVE Rescue lab could not be launched at all: seeding failed for every student  ·  [P1]  ·  fixed-not-deployed
+- **Found:** 2026-07-31 · by self · re-running the rescue gate during the coverage rollout
+- **Area:** bc2 `~/openstack-stage1/claim_service.py`, `orphaned-volume` seed path
+- **Symptom:** Every launch of the Rescue lab returned 503 `SEED_FAILED` — "Could not build this
+  lab environment right now." The lab was completely unusable for every student, not degraded.
+- **TWO independent causes, both measured:**
+  1. `SEED_NO_IMAGE_OR_FLAVOR` — the seed listed images via `/compute/v2.1/images`, Nova's image
+     PROXY api, which has been REMOVED from modern Nova. Probed directly on this cloud:
+     `/compute/v2.1/images` -> **HTTP 404**, while Glance `/image/v2/images` -> HTTP 200 with
+     `cirros-0.6.3-x86_64-disk`. So `imgs` was always empty. Fixed by reading Glance; its entries
+     carry the same `id` the server create already used.
+  2. `SEED_SERVER_FAILED` — with the image found, the create still failed because it named no
+     network. TWO shared networks exist on this cloud (the second was added deliberately so lab 2
+     could teach that `--network` is mandatory), and Nova refuses an ambiguous create. The seed
+     had never specified one, so adding that second network silently broke this lab. Fixed by
+     selecting a network explicitly (prefer `shared`, else any shared, else first) and passing
+     `networks: [{uuid}]`.
+- **Verified:** bridge log now reports `[seed] orphaned-volume -> student-04 (seeded=true)`.
+- **Lesson:** a change made for one lab (the second shared network) broke a different, already
+  shipped lab, and nothing caught it because nothing re-ran the rescue gate afterward. The same
+  shape as BUG-058. Re-running EVERY lab's gate after any shared-infrastructure change is the
+  control that was missing.
+- **Related:** BUG-058, BUG-060.
+
 ### BUG-058 — LIVE Cinder lab check 6 is beatable by a 5-command shortcut  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by the new qc-lab.sh coverage rollout · re-running the cinder gate
 - **Area:** bc1 `lab-manager/server.js` `CLOUD_CHECKS['openstack-cli']` id 6

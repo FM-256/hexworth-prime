@@ -310,15 +310,34 @@ def seed(slot, scenario):
             if (doc or {}).get('volume', {}).get('status') == 'available':
                 break
             time.sleep(5)
-        st, doc = _os(utok, '/compute/v2.1', '/images')
+        # Glance, NOT the Nova image proxy. `/compute/v2.1/images` was Nova's proxy to
+        # Glance and has been REMOVED from modern Nova -- measured on this cloud it returns
+        # HTTP 404, so `imgs` came back empty and every seed died with
+        # SEED_NO_IMAGE_OR_FLAVOR, making the Rescue lab unlaunchable for every student.
+        # Glance `/image/v2/images` returns HTTP 200 with cirros-0.6.3-x86_64-disk, and its
+        # entries carry the same 'id' field the server create below already uses.
+        st, doc = _os(utok, '/image/v2', '/images')
         imgs = (doc or {}).get('images') or []
         st, doc = _os(utok, '/compute/v2.1', '/flavors')
         flav = [f for f in ((doc or {}).get('flavors') or []) if f.get('name') == 'm1.nano']
         if not imgs or not flav:
             return 500, {'error': 'SEED_NO_IMAGE_OR_FLAVOR'}
+        # A network MUST be named explicitly. Two shared networks exist on this cloud (the
+        # second was added so lab 2 could teach that --network is mandatory), and Nova
+        # refuses a create that does not say which one to use. The seed never specified one,
+        # so once the second network appeared this create started failing and took the whole
+        # Rescue lab down -- every student got "Could not build this lab environment".
+        st, doc = _os(utok, '/networking', '/v2.0/networks')
+        nets = (doc or {}).get('networks') or []
+        pick = (next((n for n in nets if n.get('name') == 'shared'), None)
+                or next((n for n in nets if n.get('shared')), None)
+                or (nets[0] if nets else None))
+        if not pick:
+            return 500, {'error': 'SEED_NO_NETWORK'}
         st, doc = _os(utok, '/compute/v2.1', '/servers', 'POST',
                       {'server': {'name': 'ghost-srv', 'imageRef': imgs[0]['id'],
-                                  'flavorRef': flav[0]['id']}})
+                                  'flavorRef': flav[0]['id'],
+                                  'networks': [{'uuid': pick['id']}]}})
         if st not in (200, 202):
             return 500, {'error': 'SEED_SERVER_FAILED', 'status': st, 'detail': doc}
         srv_id = doc['server']['id']

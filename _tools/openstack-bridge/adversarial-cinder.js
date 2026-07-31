@@ -75,7 +75,12 @@ async function post(url, body, headers) {
     const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
     const gr = await g.json();
     emitCoverage(gr.results || []);
-    return (gr.results || []).filter((r) => r.id >= 3);
+    // Scoped to THIS lab's ids explicitly. It used to be `r.id >= 3`, an open-ended
+    // range -- but every OpenStack lab shares the single labId 'openstack-cli', so as
+    // later labs added checks the range quietly swept them in and the pass count could
+    // never be reached. Latent since the first lab was added; it only became visible when
+    // the capstone's 25-28 pushed the total high enough to notice.
+    return (gr.results || []).filter((r) => [3, 4, 5, 6].includes(Number(r.id)));
   };
 
   // ── CHEAT A: five-command shortcut with echoed evidence ──

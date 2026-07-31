@@ -138,7 +138,12 @@ async function post(url, body, headers) {
     const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
     const gr = await g.json();
     emitCoverage(gr.results || []);
-    const cinder = (gr.results || []).filter((r) => r.id >= 3);
+    // Scoped to THIS lab's ids explicitly. It used to be `r.id >= 3`, an open-ended
+    // range -- but every OpenStack lab shares the single labId 'openstack-cli', so as
+    // later labs added checks the range quietly swept them in and the pass count could
+    // never be reached. Latent since the first lab was added; it only became visible when
+    // the capstone's 25-28 pushed the total high enough to notice.
+    const cinder = (gr.results || []).filter((r) => [3, 4, 5, 6].includes(Number(r.id)));
     cinder.forEach((r) => console.log(`  run${pass} check ${r.id}: ${r.pass ? 'PASS' : 'FAIL'} -- ${r.desc}`));
     if (cinder.length !== 4 || !cinder.every((r) => r.pass)) fail(`run ${pass}: grader did not pass 4/4`);
     console.log(`  RUN ${pass} PASS 4/4`);
