@@ -34,30 +34,70 @@ function check(l, ok, d) {
   else { fail++; console.log(`  FAIL  ${l}${d ? ': ' + d : ''}`); }
 }
 
-// WCAG relative luminance of the bloom-core region, from a real screenshot.
-async function coreLuma(page, pinAlpha) {
-  await page.evaluate((v) => {
-    const b = document.querySelector('.bolt');
-    if (b) { b.style.animation = 'none'; b.style.opacity = String(v); }
-  }, pinAlpha);
-  await new Promise((r) => setTimeout(r, 250));
-  const vp = page.viewport();
-  const shot = await page.screenshot({ encoding: 'base64', clip: {
-    x: Math.round(vp.width * 0.22) - 20, y: Math.round(vp.height * 0.24) - 20, width: 40, height: 40 } });
-  return page.evaluate(async (b64) => {
-    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
-    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
-    const d = g.getImageData(0, 0, c.width, c.height).data;
-    let sum = 0, n = 0;
-    for (let i = 0; i < d.length; i += 4) {
-      const f = [d[i], d[i + 1], d[i + 2]].map((v) => {
-        v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-      });
-      sum += 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2]; n++;
+// WCAG relative luminance across the WHOLE viewport, from a real screenshot.
+//
+// It scans every block rather than sampling the CSS gradient's declared centre. Chris caught the
+// earlier version doing exactly that: it sampled a fixed 40x40 window at 22%/24% -- where the
+// gradient's ALPHA peaks -- and reported delta 0.0199. A full-viewport scan finds the true worst
+// case is ~0.076 at x=13%, nearly 4x higher and in a different place.
+//
+// The reason the two do not coincide is worth stating, because it is the whole trap:
+//     delta(x,y) = alpha(x,y) x (flash_colour - background(x,y))
+// The backdrop is a PHOTOGRAPH with spatial luminance variation, so the point of maximum visible
+// contrast is where alpha is still high AND the underlying cloud is dark -- not where alpha
+// peaks. Assuming those are the same point is a spatial version of the same
+// measure-a-proxy-instead-of-the-claim error that produced the wrong flash count.
+//
+// Block-averaged 10x10 so a single noisy pixel or PNG encoding artefact cannot set the headline.
+async function worstLumaDelta(page, peakAlpha) {
+  async function frame(alpha) {
+    await page.evaluate((v) => {
+      // Freeze everything else so the ONLY variable between the two frames is the bolt.
+      document.querySelectorAll('.env-plane').forEach((e) => { e.style.animationPlayState = 'paused'; });
+      const b = document.querySelector('.bolt');
+      if (b) { b.style.animation = 'none'; b.style.opacity = String(v); }
+    }, alpha);
+    await new Promise((r) => setTimeout(r, 300));
+    return page.screenshot({ encoding: 'base64' });
+  }
+  const restShot = await frame(0);
+  const peakShot = await frame(peakAlpha);
+  return page.evaluate(async (a, b) => {
+    async function lumaGrid(b64) {
+      const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      const BS = 10, cols = Math.floor(c.width / BS), rows = Math.floor(c.height / BS);
+      const grid = [];
+      for (let by = 0; by < rows; by++) {
+        for (let bx = 0; bx < cols; bx++) {
+          let sum = 0, n = 0;
+          for (let y = by * BS; y < (by + 1) * BS; y++) {
+            for (let x = bx * BS; x < (bx + 1) * BS; x++) {
+              const i = (y * c.width + x) * 4;
+              const f = [d[i], d[i + 1], d[i + 2]].map((v) => {
+                v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+              });
+              sum += 0.2126 * f[0] + 0.7152 * f[1] + 0.0722 * f[2]; n++;
+            }
+          }
+          grid.push({ x: bx * BS, y: by * BS, l: sum / n });
+        }
+      }
+      return { grid, w: c.width, h: c.height };
     }
-    return sum / n;
-  }, shot);
+    const R = await lumaGrid(a), P = await lumaGrid(b);
+    let worst = { delta: -1 };
+    for (let i = 0; i < R.grid.length; i++) {
+      const delta = P.grid[i].l - R.grid[i].l;
+      if (delta > worst.delta) {
+        worst = { delta, rest: R.grid[i].l, peak: P.grid[i].l,
+                  xPct: +(100 * R.grid[i].x / R.w).toFixed(1), yPct: +(100 * R.grid[i].y / R.h).toFixed(1) };
+      }
+    }
+    return worst;
+  }, restShot, peakShot);
 }
 
 (async () => {
@@ -117,10 +157,11 @@ async function coreLuma(page, pinAlpha) {
       `worst window had ${worst}`);
 
     // ── MAGNITUDE: rendered pixels, hard pass/fail ──
-    const restL = await coreLuma(page, 0);
-    const peakL = await coreLuma(page, peakAlpha);
-    const delta = peakL - restL;
-    console.log(`  bloom core RENDERED luminance: rest ${restL.toFixed(4)} -> peak ${peakL.toFixed(4)} (delta ${delta.toFixed(4)})`);
+    const w = await worstLumaDelta(page, peakAlpha);
+    const restL = w.rest, delta = w.delta;
+    console.log(`  WORST-CASE rendered luminance across the whole viewport:`);
+    console.log(`    at ${w.xPct}% / ${w.yPct}%:  rest ${w.rest.toFixed(4)} -> peak ${w.peak.toFixed(4)}  (delta ${delta.toFixed(4)})`);
+    console.log(`    margin to the WCAG 0.10 general-flash threshold: ${(100 * (0.10 - delta) / 0.10).toFixed(0)}%`);
     // WCAG general flash: opposing changes >= 0.10 relative luminance AND darker state < 0.80.
     // Staying UNDER that threshold means 2.3.1 does not classify this as a flash at all, which
     // is a stronger result than merely counting few flashes.
