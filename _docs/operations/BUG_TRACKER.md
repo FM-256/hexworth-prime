@@ -31,6 +31,35 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-064 — platform-wide broken-link sweep: 13 dead student-facing links, 2 fixed  ·  [P2]  ·  partially-fixed
+- **Found:** 2026-07-31 · by self · extending the BUG-063 dead-card check to ALL 5,220 `_app` pages, not just hub index files
+- **Method:** resolved every static `<a href>` against the filesystem, excluding `_source`, `_archive`,
+  `node_modules` and `.bak`. Raw output was 115 "broken" targets across 93 pages — but most were
+  FALSE POSITIVES: JS template literals (`${mod.lab}`, `' + href + '`) captured as if they were
+  hrefs. After filtering those, **15 real broken static links across 12 pages**, of which 3 were
+  still dynamic in a no-space form (`'+p.href+'`) — so **13 genuinely broken**.
+- **All confirmed 404 against production**, not inferred.
+- **FIXED (2)** — the only unambiguous ones. `eye-firewall-operations.applet.html` and
+  `eye-intrusion-elements.applet.html` linked to shield applet DIRECTORIES
+  (`.../network/firewalls/`, `.../network/ids_ips/`) which contain no index.html. The directories
+  and their applet files exist and are live (both HTTP 200); the links simply pointed one level
+  short. Repointed at `shield-firewalls.applet.html` / `shield-ids-ips.applet.html`.
+- **NOT FIXED — these reference content that does not exist anywhere, so relinking is impossible
+  and the right answer is a content decision, not a link edit:**
+  - `_app/projects/divergent-field-terminal.html` -> 3 links into `/divergent/districts/{embedded,
+    networking,wireless}/`. **There is no `_app/divergent` tree at all** — only key/, arctic/ and
+    shield/ have districts. Either the tree was removed or never built.
+  - `pfi-w4-gui.presentation.html` and `pfi-w4-gui-classroom.presentation.html` -> both link
+    `../quizzes/pfi-w4-gui.quiz.html`, which does not exist (only draft skill-map YAML).
+  - `_app/houses/code/incubator/index.html` -> `/houses/code/games/pod-crossing.html`, absent.
+  - `_app/admin/sextant-cohorts.html` and `dr-hex-quality.html` -> `/admin/`, which has no
+    index.html. Internal tooling, not student-facing.
+- **Student impact:** the divergent, pfi-w4 quiz and pod-crossing links are on student-facing
+  pages and 404 on click. Lower volume than BUG-063 but the same failure: a link that looks
+  available and is not.
+- **Related:** BUG-063. Both found by resolving hrefs against the filesystem rather than trusting
+  that a non-empty href means a reachable page.
+
 ### BUG-063 — 35 clickable cards on LIVE course hubs 404 in production  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · widening Nancy's 6-card `coming-soon` finding from BUG-062
 - **Area:** `_app/houses/forge/intro-computers/index.html` (23), `_app/houses/shield/isc2-cc/index.html` (11), `_app/houses/shield/security-plus/index.html` (1)
