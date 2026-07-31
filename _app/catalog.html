@@ -113,13 +113,26 @@
         // becomes dynamic (e.g. admin-authored allWithDynamic hubs).
         function safeHref(v) { return (typeof v === 'string' && /^\/(?!\/)[A-Za-z0-9/_.?=&%-]*$/.test(v)) ? v : null; }
 
-        // Source list, with two guards applied before render:
+        // Source list, with three guards applied before render:
         //  - tenantAssignable !== false: keep internal/non-catalog hubs off this public browse page.
-        //  - TenantFilter.filterHubs: a white-label tenant sees only its licensed hubs (direct users
-        //    are unaffected; filterHubs returns everything when no tenant context is present).
-        var source = (window.HubRegistry ? HubRegistry.sorted() : []).filter(function (h) {
-            return h && h.tenantAssignable !== false && h.status !== 'workshop';
-        });
+        //  - status !== 'workshop': quarantined content stays hidden.
+        //  - !h.parent: container MEMBERS render inside their container, never beside it. This is
+        //    the same predicate byHouse(), Explore All and HouseRenderer.mergeDynamicHubs already
+        //    use; catalog was the last surface still rendering children flat (taskboard #232).
+        //    Measured before the fix: 141 of 143 entries rendered, 69 of them children -- half the
+        //    public catalog was duplicate cards for navigation that already exists one click away
+        //    inside the container. All 69 were verified reachable from their container's own page
+        //    before this filter was added; nothing here is the sole path to any hub.
+        //
+        //  ORDERING IS LOAD-BEARING: this filter MUST ship together with the dynamic-hub merge
+        //  below, never ahead of it. cloud-master is a Firestore hub with 6 children and no static
+        //  registry entry, so filtering children while catalog still had no Firestore wiring would
+        //  have removed those 6 cards with NO container card left to reach them from -- a worse
+        //  regression than the duplication it fixes (taskboard #243).
+        function topLevelPublic(h) {
+            return h && h.tenantAssignable !== false && h.status !== 'workshop' && !h.parent;
+        }
+        var source = (window.HubRegistry ? HubRegistry.sorted() : []).filter(topLevelPublic);
         if (window.TenantFilter && TenantFilter.filterHubs) { source = TenantFilter.filterHubs(source); }
         var hubs = source.map(function (h) {
             return { hub: h, house: houseOf(h), color: '' };
@@ -172,6 +185,8 @@
         // Two filter dimensions: category (cert-prep / course / platform-hub) and house. A card shows
         // only if it matches BOTH active filters. The category bar is the organizing label Frank added.
         var activeHouse = 'all', activeCat = 'all';
+        var rendered = {};                       // hub ids already on screen, so the merge only ADDS
+        hubs.forEach(function (e) { if (e.hub && e.hub.id) { rendered[e.hub.id] = true; } });
         function applyFilter() {
             var shown = 0;
             grid.querySelectorAll('.cart').forEach(function (c) {
@@ -181,24 +196,132 @@
             });
             document.getElementById('empty').style.display = shown ? 'none' : 'block';
         }
-        function buildBar(el, values, onPick) {
-            var all = document.createElement('button'); all.className = 'filter-btn active';
+        // Buttons are REBUILT when admin-created hubs arrive (they can introduce a house or
+        // category the static registry never had), but the click listener is bound ONCE. Binding
+        // it inside the fill would add a second handler on every refill, and each handler calls
+        // onPick+applyFilter, so the bar would fire N times per click.
+        function fillBar(el, values, active) {
+            el.textContent = '';
+            var all = document.createElement('button');
+            all.className = 'filter-btn' + (active === 'all' ? ' active' : '');
             all.textContent = 'All'; all.dataset.val = 'all'; el.appendChild(all);
             values.forEach(function (v) {
-                var b = document.createElement('button'); b.className = 'filter-btn';
+                var b = document.createElement('button');
+                b.className = 'filter-btn' + (active === v ? ' active' : '');
                 b.dataset.val = v; b.textContent = v; el.appendChild(b);
             });
+        }
+        function bindBar(el, onPick) {
             el.addEventListener('click', function (ev) {
                 var btn = ev.target.closest('.filter-btn'); if (!btn) { return; }
                 el.querySelectorAll('.filter-btn').forEach(function (x) { x.classList.toggle('active', x === btn); });
                 onPick(btn.dataset.val); applyFilter();
             });
         }
+        function buildBar(el, values, onPick) { fillBar(el, values, 'all'); bindBar(el, onPick); }
         // Category order: cert-prep, course, platform-hub, then any others.
         var CAT_ORDER = ['cert-prep', 'course', 'platform-hub'];
-        cats.sort(function (a, b) { var ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+        function sortCats() {
+            cats.sort(function (a, b) { var ia = CAT_ORDER.indexOf(a), ib = CAT_ORDER.indexOf(b); return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib); });
+        }
+        sortCats();
         buildBar(document.getElementById('catfilters'), cats, function (v) { activeCat = v; });
         buildBar(document.getElementById('filters'), houses.slice().sort(), function (v) { activeHouse = v; });
+        function refreshBars() {
+            sortCats();
+            fillBar(document.getElementById('catfilters'), cats, activeCat);
+            fillBar(document.getElementById('filters'), houses.slice().sort(), activeHouse);
+        }
+
+        // ── Admin-created (Firestore) hubs ────────────────────────────────────────────────
+        // The static catalog is ALREADY on screen at this point; this only ever appends. Every
+        // failure path resolves quietly, so a slow, blocked or absent Firestore degrades this to
+        // the static catalog instead of blanking a public page.
+        //
+        // This is the other half of the container-grouping fix. The `!h.parent` filter above
+        // hides container members, which is right for the 8 static families whose container is
+        // itself a catalog card -- but cloud-master is a Firestore-only hub with 6 children and
+        // no static entry, so without this merge those 6 would vanish with nothing to reach them
+        // from (taskboard #243). Filter and merge belong in the same change.
+        //
+        // Cache key and TTL are deliberately shared with HouseRenderer's own merge so the two
+        // surfaces reuse one fetch rather than each paying for Firestore.
+        var HUBS_CACHE_KEY = 'hubdisc_published_v1', HUBS_CACHE_TTL = 120000;
+        function readHubsCache() {
+            try {
+                var o = JSON.parse(sessionStorage.getItem(HUBS_CACHE_KEY) || 'null');
+                if (!o || typeof o.t !== 'number' || (Date.now() - o.t) > HUBS_CACHE_TTL || !Array.isArray(o.hubs)) { return null; }
+                return o.hubs;
+            } catch (e) { return null; }
+        }
+        function writeHubsCache(list) {
+            try { sessionStorage.setItem(HUBS_CACHE_KEY, JSON.stringify({ t: Date.now(), hubs: list })); } catch (e) { /* quota / private mode */ }
+        }
+        function loadScriptOnce(src) {
+            return new Promise(function (res, rej) {
+                if (document.querySelector('script[src="' + src + '"]')) { return res(); }
+                var s = document.createElement('script');
+                s.src = src; s.onload = function () { res(); }; s.onerror = function () { rej(new Error('load failed: ' + src)); };
+                document.head.appendChild(s);
+            });
+        }
+        // Reuses ArenaFirebase rather than retyping the app config: that object is duplicated
+        // across many files already, and a retyped apiKey fails silently. It lazy-imports the
+        // MODULAR SDK and exposes exactly the {db, firestore} shape allWithDynamic expects.
+        function ensureFirestore() {
+            if (typeof ArenaFirebase !== 'undefined' && ArenaFirebase.db && window.firebaseFirestore) {
+                return Promise.resolve({ db: ArenaFirebase.db, firestore: window.firebaseFirestore });
+            }
+            return loadScriptOnce('/arena/firebase-init.js')
+                .then(function () {
+                    if (typeof ArenaFirebase === 'undefined' || !ArenaFirebase.init) { throw new Error('ArenaFirebase unavailable'); }
+                    return ArenaFirebase.init();
+                })
+                .then(function () {
+                    if (!ArenaFirebase.db || !window.firebaseFirestore) { throw new Error('Firestore handle missing after init'); }
+                    return { db: ArenaFirebase.db, firestore: window.firebaseFirestore };
+                });
+        }
+        function appendDynamic(list) {
+            var add = (list || []).filter(function (h) {
+                return h && h.id && !rendered[h.id] && topLevelPublic(h);
+            });
+            if (window.TenantFilter && TenantFilter.filterHubs) { add = TenantFilter.filterHubs(add); }
+            var appended = 0;
+            add.forEach(function (h) {
+                // A Firestore hub often carries no hubHref; its canonical route is /houses/hub/<id>.
+                // Normalise onto the shape buildCard/houseOf expect rather than special-casing them.
+                var norm = {
+                    id: h.id, label: h.label || h.id, sublabel: h.sublabel || '',
+                    icon: h.icon, category: h.category,
+                    hubHref: h.hubHref || ('/houses/hub/' + h.id)
+                };
+                if (!safeHref(norm.hubHref)) { return; }
+                var c = buildCard({ hub: norm, house: houseOf(norm), color: '' });
+                if (c) { grid.appendChild(c); rendered[h.id] = true; appended++; }
+            });
+            // buildCard pushes into houses/cats as a side effect, so the bars can be stale now.
+            if (appended) { refreshBars(); applyFilter(); }
+        }
+
+        var cachedHubs = readHubsCache();
+        if (cachedHubs) {
+            appendDynamic(cachedHubs);                     // cache hit: no Firebase load at all
+        } else {
+            ensureFirestore().then(function (ctx) {
+                return HubRegistry.allWithDynamic({ db: ctx.db, firestore: ctx.firestore, isAdmin: false })
+                    .then(function (merged) {
+                        var staticIds = {};
+                        HubRegistry.all().forEach(function (h) { staticIds[h.id] = true; });
+                        var dynamicOnly = merged.filter(function (h) { return !staticIds[h.id]; });
+                        writeHubsCache(dynamicOnly);
+                        appendDynamic(dynamicOnly);
+                    });
+            }).catch(function (e) {
+                // A public browse page must never break because discovery failed.
+                if (console && console.warn) { console.warn('[catalog] admin-created hubs unavailable: ' + (e && e.message ? e.message : e)); }
+            });
+        }
     })();
     </script>
 </body>
