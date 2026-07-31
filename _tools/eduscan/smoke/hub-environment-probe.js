@@ -30,15 +30,9 @@ async function inspect(page, id) {
       envAriaHidden: (document.querySelector('.env') || {}).getAttribute
         ? document.querySelector('.env').getAttribute('aria-hidden') : null,
       items: document.querySelectorAll('.item').length,
-      flockIndex: (function () {
-        var env = document.querySelector('.env');
-        if (!env) { return -1; }
-        var kids = [].slice.call(env.children);
-        for (var i = 0; i < kids.length; i++) {
-          if (kids[i].querySelector && kids[i].querySelector('.bird')) { return i; }
-        }
-        return -1;
-      })(),
+      // The storm cell replaced the flock. Exactly one: independent cells drift into phase and
+      // can stack past the WCAG flash limit (see storm-safety-probe.js).
+      bolts: document.querySelectorAll('.bolt').length,
       kids: document.querySelectorAll('.kid-card').length,
       spineWidth: spine ? spine.width : null,
       itemBg: item ? getComputedStyle(item).backgroundImage.slice(0, 30) : null,
@@ -83,6 +77,7 @@ async function inspect(page, id) {
     });
     check('environment still covers the viewport at page bottom', bottomLit === 3,
       `${bottomLit}/3 planes still on screen after scrolling to the bottom`);
+    check('exactly one storm cell', r.bolts === 1, String(r.bolts));
     check('no page errors', errs.length === 0, errs.slice(0, 2).join(' | '));
     await p.close();
 
@@ -94,6 +89,7 @@ async function inspect(page, id) {
       const c = await inspect(cp, id);
       check(`${id}: environment NOT mounted`, c.envOn === false, `env-on=${c.envOn}`);
       check(`${id}: no depth layers`, c.layers === 0, `got ${c.layers}`);
+      check(`${id}: no storm cell`, c.bolts === 0, String(c.bolts));
       check(`${id}: items keep the flat panel (no cartridge spine)`,
         !(parseFloat(c.spineWidth) >= 4), `spine=${c.spineWidth}`);
       await cp.close();
