@@ -31,6 +31,31 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-066 — the OpenStack slot pool still leaks; my "fixed identity" fix only slowed it  ·  [P2]  ·  open
+- **Found:** 2026-07-31 · by self · correcting a claim I made earlier the same day
+- **Area:** `_tools/openstack-bridge/*.js` QC identities; bridge slot binding on bc2
+- **THE CLAIM I MADE AND WHY IT IS WRONG:** every harness used to sign up a RANDOM Firebase user
+  per run, and the bridge binds a pool slot to a uid PERMANENTLY, so each gate run consumed one
+  of 30 slots forever. I gave all twelve harnesses FIXED identities and stated, in commit
+  messages and the SITREP, that "QC costs a constant number of slots instead of growing
+  forever." **That is false.** Firebase purges `@hexworth-smoke.local` accounts: measured today,
+  only **3 of the 12** fixed accounts still existed. A purged account is recreated on the next
+  run with a NEW uid, which binds a NEW slot. The leak is slowed, not stopped.
+- **Evidence:** pool is 30 slots / 27 bound / 3 free. Of the 27 bound, only **2** map to a QC
+  identity that still exists. The other 25 are bound to uids Firebase no longer has.
+- **THE SAFE DISCRIMINATOR (this is the useful part):** a slot bound to a uid that NO LONGER
+  EXISTS in Firebase Auth cannot belong to a live student. That is a fact about account
+  existence, not a guess from resource names — and names cannot decide it, because a real
+  student following these labs is instructed to create servers with exactly the names my
+  harnesses use (`chain-vm`, `guard-vm`, `lab5-vm`, `proj-vm`).
+- **Fix options:** (a) reclaim dead-uid slots on a schedule, using the discriminator above;
+  (b) add a bridge `/release` endpoint the harness calls on teardown so QC returns its slot;
+  (c) stop the purge by using accounts that are not `@hexworth-smoke.local`. (a) and (b) are
+  complementary — (b) prevents the leak, (a) cleans what already leaked.
+- **NOT ACTIONED:** reclaiming touches shared cloud state and is an operator decision. The
+  report-only tooling is built (`--check-uids`); nothing is deleted.
+- **Related:** BUG-062-era gate work; `reclaim-idle-slots.py`.
+
 ### BUG-065 — 4 LIVE OpenStack quizzes ship their answer keys in the page source  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · re-measuring the 3-month-old QC-57 critical finding
 - **Area:** `_app/houses/cloud/openstack/quizzes/cloud-openstack-{intro,projects,operation,install}-quiz.quiz.html`
