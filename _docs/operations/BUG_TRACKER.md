@@ -31,6 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-054 — all 5 live OpenStack labs award NOTHING on completion  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · while tracing a Nancy concern on the capstone project
+- **Area:** `_app/houses/cloud/openstack/labs/cloud-openstack-{cinder,rescue,launch-chain,secgroup,neutron}-live.lab.html`
+- **Symptom:** A student completes a lab 4/4 and gets a congratulation string. That is all.
+  No XP, no module progress, no dashboard credit, nothing persisted anywhere. Every one of
+  the five files loads `components/ModuleProgress.js` and never calls it — the only match in
+  each file is the `<script src>` tag.
+- **Compounding:** the objectives panel re-derives from LIVE cloud state on every visit, and
+  nothing is cached. So once the student cleans up their resources (which several labs
+  explicitly instruct, and the capstone REQUIRES), the lab reads incomplete again — forever.
+  Their work is unrecoverable because it was never recorded in the first place.
+- **Repro:** open any of the five, reach 4/4, reload. Objectives reset to "Not yet"; no
+  progress recorded on the dashboard.
+- **Root cause:** the pattern was cloned from the Cinder lab, which never had a completion
+  call. Each new lab inherited the omission, so the gap scaled with the series.
+- **Fix:** not yet. Needs the correct houseId/moduleId per lab (do NOT guess — the catalog
+  ids are `cloud-openstack-*`) and a `ModuleProgress.complete` call on the all-checks-pass
+  branch, plus a decision on whether a later re-check that fails should REVOKE completion
+  (it must not — that is the trap that makes the capstone's destroy step dangerous).
+- **Related:** BUG-053. Blocks the Cloud Master capstone from being safe to ship, since that
+  project requires students to destroy the resources their earlier lab credit depends on.
+
 ### BUG-053 — HexMemory RNN training can EXPLODE (loss > 10^200), invisible to QC  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · in Gate 6 mechanism investigation
 - **Area:** `_app/houses/ai/cortex/labs/hexmemory-rnn.lab.html` challenge 4 (train loop, lr=0.3, full-batch, no clipping); `_tools/model-forge/qc-hexmemory.sh`
