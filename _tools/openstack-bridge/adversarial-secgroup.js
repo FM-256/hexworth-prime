@@ -106,10 +106,23 @@ async function post(url, body, headers) {
   const I = JSON.stringify(img).slice(1, -1), N = JSON.stringify(net).slice(1, -1);
 
   try {
+    // ── Cheat Z (the emptiest cheat there is): submit nothing and see what scores. ──
+    // Added 2026-07-31 after qc-lab.sh stage 3 reported check 17 as "PASS 6x, FAIL 0x --
+    // may accept EVERYTHING". Check 17 is written correctly, but every cheat below creates
+    // web-sg as its first act, so nothing in the run ever demonstrated that 17 can refuse
+    // anything. An empty project is the state that legitimately fails all four, and the
+    // assertion is worth making on its own: a student who has done nothing scores nothing.
+    wipe();
+    let rs = await grade();
+    for (const id of [17, 18, 19, 20]) {
+      if (passed(rs, id)) fail(`cheat Z PASSED check ${id} -- an EMPTY project scored a point`);
+    }
+    console.log('  cheat Z (nothing built at all) rejected by all four checks');
+
     // ── Cheat A: the group exists but carries no rule. Opens nothing. ──
     wipe();
     dex('openstack security group create web-sg --description "cheat A"');
-    let rs = await grade();
+    rs = await grade();
     if (passed(rs, 18)) fail('cheat A PASSED check 18 -- a group with no rule counted as opening a port');
     console.log('  cheat A (group created, no rule) rejected by check 18');
 
