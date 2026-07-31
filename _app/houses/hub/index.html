@@ -87,17 +87,25 @@
         body.env-on .env-layer{ position:absolute; inset:-14%; will-change:transform;
                     transition:transform .5s cubic-bezier(.22,.61,.36,1); }
         body.env-on .env-plane{ position:absolute; inset:0; background-position:center; background-size:cover;
-                    background-repeat:no-repeat; will-change:transform, opacity; }
+                    background-repeat:no-repeat; will-change:transform; }
         /* DEPTH OF FIELD -- the fix for "the focus is off".
            The previous pass blurred all three planes (20/7/2px), so nothing was ever sharp and
            the scene read as mush rather than depth. A real lens puts ONE plane in focus and
            throws the rest out. Mid is the subject (the lit pedestals) and is fully sharp; far is
            background bokeh; near is an out-of-focus foreground that the eye reads as "in front
-           of me". Sharpness is what creates the depth cue, not blur quantity. */
-        body.env-on .env-far{ filter:blur(28px) saturate(1.35) brightness(.95); opacity:1; }
+           of me". Sharpness is what creates the depth cue, not blur quantity.
+
+           THE BLUR IS BAKED INTO THE IMAGES, not applied with filter:blur(). A CSS blur on a
+           ~1900x1200 animated plane is re-rasterised every frame: measured at a flat ~83ms per
+           frame (12fps on a 6x-throttled CPU) no matter what else was optimised -- median, p95
+           and worst were all identical, which is the signature of a fixed per-frame cost rather
+           than occasional jank. Pre-blurred bitmaps are just textures to translate. The blurred
+           planes are downscaled too (far 0.5x, near 0.75x): nothing is visible through a 26px
+           blur, and a smaller texture is less to composite. */
+        body.env-on .env-far{ opacity:1; }                                     /* art is pre-blurred */
         body.env-on .env-mid{ filter:none; opacity:.72;                       /* FOCAL PLANE -- sharp */
                   animation:envDriftMid 34s ease-in-out infinite alternate; }
-        body.env-on .env-near{ filter:blur(13px) saturate(1.1); opacity:.42;  /* foreground, out of focus */
+        body.env-on .env-near{ opacity:.42;                 /* foreground; art is pre-blurred */
                    animation:envDriftNear 26s ease-in-out infinite alternate;
                    -webkit-mask-image:linear-gradient(to top, #000 0 26%, transparent 62%);
                            mask-image:linear-gradient(to top, #000 0 26%, transparent 62%); }
@@ -107,17 +115,23 @@
            the pointer/scroll parallax rides on top via the outer .env-layer. Each plane has a
            different duration and direction so they never resynchronise into a single sliding
            image. Durations are long and eased -- this is weather, not an animation. */
+        /* TRANSLATE ONLY -- measured, not stylistic. Animating scale on a plane carrying a
+           28px blur forces the browser to re-rasterise the entire layer every frame: the first
+           version ran at 11.8fps with 69 dropped frames in 6s on a 6x-throttled CPU, against
+           60fps on a hub without the environment. Translate is a compositor transform and is
+           nearly free. The scale here also COMPOUNDED with the JS scale on the outer element,
+           so every plane was being scaled twice. */
         @keyframes envDriftFar {
-            from{ transform:scale(1.20) translate3d(-1.2%, 0.6%, 0); }
-            to  { transform:scale(1.26) translate3d( 1.2%,-0.8%, 0); }
+            from{ transform:translate3d(-1.2%, 0.6%, 0); }
+            to  { transform:translate3d( 1.2%,-0.8%, 0); }
         }
         @keyframes envDriftMid {
-            from{ transform:scale(1.08) translate3d( 1.6%, 0.4%, 0); }
-            to  { transform:scale(1.13) translate3d(-1.6%,-1.0%, 0); }
+            from{ transform:translate3d( 1.6%, 0.4%, 0); }
+            to  { transform:translate3d(-1.6%,-1.0%, 0); }
         }
         @keyframes envDriftNear {
-            from{ transform:scale(1.04) translate3d(-2.4%, 1.0%, 0); }
-            to  { transform:scale(1.09) translate3d( 2.4%,-0.6%, 0); }
+            from{ transform:translate3d(-2.4%, 1.0%, 0); }
+            to  { transform:translate3d( 2.4%,-0.6%, 0); }
         }
         /* The glow breathing on its own cycle, so the light source feels alive rather than
            the whole frame pulsing in lockstep. */
@@ -155,7 +169,6 @@
             background:linear-gradient(160deg, rgba(28,36,54,.92), rgba(16,20,32,.92));
             border:1px solid rgba(255,255,255,.10);
             box-shadow:0 1px 0 rgba(255,255,255,.07) inset, 0 10px 22px -12px rgba(0,0,0,.9);
-            backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
             transition:transform .18s cubic-bezier(.22,.61,.36,1), border-color .18s, box-shadow .18s;
         }
         /* The spine: the strip that makes it read as a cartridge rather than a panel. */
@@ -181,8 +194,8 @@
         body.env-on .hub-icon{ border-color:rgba(255,255,255,.16); background:rgba(16,20,32,.72); }
         body.env-on .path{ border-color:rgba(255,255,255,.12); }
         body.env-on .path .steps span{ border-color:rgba(255,255,255,.16); }
-        body.env-on .kid-card{ background:rgba(16,20,32,.72); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-        body.env-on .path{ backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+        body.env-on .kid-card{ background:rgba(16,20,32,.86); }
+
 
         /* Motion is decoration here; the page must be complete without it. */
         @media (prefers-reduced-motion: reduce){
@@ -482,12 +495,16 @@
             // On a single element the running animation wins the transform property and the
             // parallax silently stops working. That is why the scene only moved on pointer
             // move before the drift existed, and why merging them would kill the parallax now.
+            // Each plane gets its OWN pre-blurred file; only the focal mid plane uses the sharp
+            // original. `art` is the base path, e.g. /assets/images/backdrops/cloud-master.webp
+            var base = art.replace(/\.webp$/, '');
+            var planeArt = { 'env-far': base + '-far.webp', 'env-mid': art, 'env-near': base + '-near.webp' };
             var layers = ['env-far', 'env-mid', 'env-near'].map(function (cls) {
                 var outer = document.createElement('div');
                 outer.className = 'env-layer';
                 var plane = document.createElement('div');
                 plane.className = 'env-plane ' + cls;
-                plane.style.backgroundImage = 'url("' + art + '")';
+                plane.style.backgroundImage = 'url("' + planeArt[cls] + '")';
                 outer.appendChild(plane);
                 env.appendChild(outer);
                 return outer;
