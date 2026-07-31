@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/SandboxLauncher.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Lab: The Rule That Guards Nothing - OpenStack - House of the Cloud</title>
+    <style>
+        /* Dark family, openstack sky-blue accent (matches the hub re-theme). */
+        :root {
+            --cloud-primary: #0ea5e9; --cloud-secondary: #38bdf8; --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e; --text-primary: #e0f2fe; --text-secondary: #7dafd4;
+            --bg-main: #060b14; --bg-card: #080f1e;
+            --border-color: rgba(14, 165, 233, 0.14); --success: #22c55e; --warn: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, #071a2b 100%);
+            color: var(--text-primary); line-height: 1.6; min-height: 100vh; padding: 20px;
+        }
+        /* Content owns the screen. */
+        .wrap { max-width: 1600px; margin: 0 auto; }
+        .header {
+            padding: 30px 34px; border-radius: 14px; margin-bottom: 22px;
+            background: linear-gradient(135deg, var(--cloud-dark) 0%, var(--cloud-primary) 100%);
+        }
+        .header .crumb a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.85rem; }
+        .header h1 { font-size: 1.9rem; margin-top: 8px; }
+        .header .sub { opacity: 0.95; margin-top: 6px; max-width: 1000px; }
+        .cols { display: grid; grid-template-columns: minmax(420px, 1fr) minmax(520px, 1.2fr); gap: 20px; align-items: start; }
+        @media (max-width: 1100px) { .cols { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 22px 24px; margin-bottom: 20px;
+        }
+        .card h2 { color: var(--cloud-accent); font-size: 1.05rem; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .card p { color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 10px; }
+        .card p strong { color: var(--text-primary); }
+        code, .cmd code {
+            background: rgba(14, 165, 233, 0.1); border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1px 6px; font-size: 0.86em; color: var(--cloud-accent);
+        }
+        .mode-note {
+            border-left: 3px solid var(--warn); background: rgba(245, 158, 11, 0.07);
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 0.88rem;
+        }
+        .mode-note strong { color: var(--warn); }
+        /* Objective cards: same monitor pattern as the hub page, checks 3-6. */
+        .lab-monitor { border-left: 3px solid var(--cloud-primary); border-radius: 10px;
+            border: 1px solid var(--border-color); border-left-width: 3px;
+            background: linear-gradient(180deg, rgba(14,165,233,0.07), rgba(8,15,30,0.5));
+            padding: 16px 18px; margin-bottom: 16px; }
+        .lab-monitor__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+        .lab-monitor__head strong { color: var(--cloud-accent); letter-spacing: 0.04em; }
+        .lab-monitor__count { color: var(--text-secondary); font-size: 0.82rem; }
+        .lab-monitor__sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px; }
+        .lab-monitor__list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .lab-monitor__list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+            padding: 10px 12px; background: rgba(6, 11, 20, 0.55);
+            border: 1px solid var(--border-color); border-radius: 8px; }
+        .lab-monitor__mark { width: 18px; height: 18px; }
+        .lab-monitor__list li.pass { border-color: rgba(34, 197, 94, 0.45); }
+        .lab-monitor__task { color: var(--text-primary); font-size: 0.9rem; }
+        .lab-monitor__how { color: var(--text-secondary); font-size: 0.82rem; margin-top: 5px; }
+        .lab-monitor__how code { white-space: pre-wrap; word-break: break-all; }
+        .lab-monitor__state { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .lab-monitor__state.pass { color: var(--success); }
+        .lab-monitor__state.fail { color: var(--text-secondary); }
+        .lab-monitor__msg { color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px; }
+        .lab-monitor__msg.done { color: var(--success); font-weight: 600; }
+        .steps { counter-reset: step; }
+        .step { display: grid; grid-template-columns: 40px 1fr; gap: 12px; margin-bottom: 16px; }
+        .step::before {
+            counter-increment: step; content: counter(step);
+            width: 32px; height: 32px; border-radius: 50%; background: var(--cloud-dark);
+            display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;
+        }
+        .step h3 { font-size: 0.98rem; color: var(--text-primary); margin-bottom: 4px; }
+        .step p { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 6px; }
+        .cmd { background: rgba(6, 11, 20, 0.7); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px 14px; margin: 6px 0;
+            font-family: 'Consolas', monospace; font-size: 0.84rem; color: var(--cloud-accent);
+            overflow-x: auto; white-space: pre; }
+        .footer { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 0.9rem; }
+        .footer a { color: var(--cloud-accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="header">
+        <div class="crumb"><a href="../index.html">&larr; OpenStack Cloud Platform</a></div>
+        <h1>Live Lab: The Rule That Guards Nothing</h1>
+        <div class="sub">A firewall rule you wrote, saved, and never attached to anything protects
+        exactly nothing &mdash; and it looks identical to one that works. You will build a security
+        group, open one specific port to one specific source, and then prove it is actually on a
+        running machine. The last step is the one real deployments skip.</div>
+    </header>
+
+    <div class="mode-note"><strong>Personal cloud required.</strong> This lab creates real resources,
+    so it needs your own cloud project. Sign in and launch below: the launcher will tell you which
+    mode you got. If it says read-only, a personal project was not available this time (the cloud may be full, or the credential service may be briefly unreachable); try again later. Session limits
+    still apply (120 minutes), but everything you build here <strong>lives in the cloud and will be
+    waiting</strong> when you relaunch.</div>
+
+    <div class="cols">
+    <div>
+        <div class="card">
+            <h2>Mission Steps</h2>
+            <div class="steps">
+                <div class="step"><div>
+                    <h3>See what you already have</h3>
+                    <p>Every project starts with a <code>default</code> group. Look at it before
+                    adding anything &mdash; most of what people think they configured is already
+                    there, or already wide open.</p>
+                    <div class="cmd">openstack security group list
+openstack security group rule list default</div>
+                    <p>Notice that the default rules mostly have no protocol and no ports listed.
+                    A blank protocol means <em>all</em> protocols, not none.</p>
+                </div></div>
+                <div class="step"><div>
+                    <h3>Start clean, then create the group</h3>
+                    <div class="cmd">openstack security group list -f value -c Name    # is web-sg already there?
+openstack security group delete web-sg              # only if it is
+openstack security group create web-sg --description "lab 3"</div>
+                </div></div>
+                <div class="step"><div>
+                    <h3>Open one port, to one source</h3>
+                    <p>The lazy version is <code>--remote-ip 0.0.0.0/0</code>, which opens the port
+                    to the entire internet. It works, it is what most tutorials show, and it is the
+                    single most common cloud misconfiguration there is. Scope it instead.</p>
+                    <div class="cmd">openstack security group rule create web-sg \
+  --protocol tcp --dst-port 22:22 \
+  --remote-ip 10.0.0.0/8 \
+  --ingress</div>
+                    <p>Check what you actually created &mdash; the ports and the source both matter:</p>
+                    <div class="cmd">openstack security group rule list web-sg</div>
+                </div></div>
+                <div class="step"><div>
+                    <h3>Attach it, or it guards nothing</h3>
+                    <p>This is the whole lab. A group with perfect rules that is not on any machine
+                    is indistinguishable, from the outside, from no security at all.</p>
+                    <div class="cmd">openstack server create \
+  --image &lt;IMAGE-NAME&gt; --flavor m1.nano --network &lt;NETWORK-NAME&gt; \
+  --security-group web-sg guard-vm
+openstack server show guard-vm -f value -c status            # WAIT for: ACTIVE
+openstack server show guard-vm -f value -c security_groups   # web-sg must appear</div>
+                    <p>If you already have a server, you can attach instead of rebuilding:
+                    <code>openstack server add security group &lt;SERVER&gt; web-sg</code>.</p>
+                </div></div>
+            </div>
+
+            <div class="lab-monitor__head">
+                <strong>Lab Objectives</strong>
+                <span class="lab-monitor__count">4 checks &middot; graded against the live cloud</span>
+            </div>
+            <p class="lab-monitor__sub">Read from your own cloud project through your own
+            credential. The last check is the one that matters: it reads which groups are
+            attached to a running server, not which groups exist.</p>
+            <ul class="lab-monitor__list" id="chain-monitor-list">
+                <li class="fail" data-check="17">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">A security group named <code>web-sg</code> exists, separate from <code>default</code>.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="18">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task"><code>web-sg</code> has an <strong>ingress</strong> rule for TCP port 22 &mdash; one specific port, not a range.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="19">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task">That rule is <strong>scoped to a source</strong>, not left open to <code>0.0.0.0/0</code>.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+                <li class="fail" data-check="20">
+                    <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
+                    <div>
+                        <div class="lab-monitor__task"><code>web-sg</code> is <strong>attached to a running server</strong>. This is the step that makes the rule real.</div>
+                        <div class="lab-monitor__state fail" data-state>Not yet</div>
+                    </div>
+                </li>
+            </ul>
+            <div class="lab-monitor__msg" id="chain-monitor-msg"></div>
+        </div>
+
+        <div class="card">
+            <h2>Live Cloud Terminal</h2>
+            <div id="chain-launcher"></div>
+        </div>
+    </div>
+    </div>
+
+    <footer class="footer">
+        <p>House of the Cloud - OpenStack | <a href="../index.html">&larr; Back to the OpenStack hub</a></p>
+    </footer>
+</div>
+
+<script>
+    // Same monitor wiring as the hub page (Nancy/Chris-reviewed pattern 2026-07-30):
+    // paintMonitor filters by data-check id, so this page shows only the launch-chain
+    // checks (17-20) out of the shared openstack-cli grader result. All outcome paths write to
+    // BOTH the objectives card and the terminal-adjacent panel; onLaunch/onEnd reset
+    // so a stale grade never survives into a fresh session.
+    if (typeof SandboxLauncher !== 'undefined') {
+        function paintMonitor(results) {
+            var list = document.getElementById('chain-monitor-list');
+            if (!list) return 0;
+            var passed = 0;
+            Array.prototype.forEach.call(list.querySelectorAll('li[data-check]'), function (li) {
+                var id = parseInt(li.getAttribute('data-check'), 10);
+                var hit = (results || []).filter(function (r) { return r && Number(r.id) === id; })[0];
+                var ok = !!(hit && hit.pass);
+                if (ok) passed++;
+                li.className = ok ? 'pass' : 'fail';
+                var mark = li.querySelector('.lab-monitor__mark');
+                if (mark) mark.src = ok ? '/assets/images/icons/icon-check.webp'
+                                        : '/assets/images/icons/icon-checkbox.webp';
+                var st = li.querySelector('[data-state]');
+                if (st) { st.className = 'lab-monitor__state ' + (ok ? 'pass' : 'fail'); st.textContent = ok ? 'Complete' : 'Not yet'; }
+            });
+            return passed;
+        }
+        function resetMonitor(note) {
+            paintMonitor([]);
+            var msg = document.getElementById('chain-monitor-msg');
+            if (msg) { msg.className = 'lab-monitor__msg'; msg.textContent = note || ''; }
+        }
+        var checkBusy = false;
+        async function checkMyWork(ctx) {
+            var msg = document.getElementById('chain-monitor-msg');
+            if (!msg) return;
+            if (ctx.panel) ctx.panel.style.display = '';
+            var both = function (cls, text) {
+                msg.className = cls; msg.textContent = text;
+                if (ctx.panel) ctx.panel.textContent = text;
+            };
+            if (!ctx.sessionId) { both('lab-monitor__msg', 'Launch the terminal first, then check your work.'); return; }
+            if (checkBusy) { both('lab-monitor__msg', 'Still checking your last request, one moment.'); return; }
+            checkBusy = true;
+            both('lab-monitor__msg', 'Reading the live cloud...');
+            try {
+                var r = await SandboxLauncher.checkPractice(ctx.sessionId);
+                var results = (r && r.results) || [];
+                var passed = paintMonitor(results);
+                if (passed === 4) {
+                    both('lab-monitor__msg done', '4 / 4 complete. The rule exists, it is scoped, and it is actually attached. Lab complete.');
+                } else {
+                    both('lab-monitor__msg', passed + ' / 4 complete. Work the unfinished step, then check again.');
+                }
+            } catch (e) {
+                both('lab-monitor__msg', 'Could not check right now. Make sure your terminal is still running, then try again.');
+            } finally {
+                checkBusy = false;
+            }
+        }
+        SandboxLauncher.renderButton(document.getElementById('chain-launcher'), 'openstack-cli', {
+            onLaunch: function (labId, result) {
+                // Nancy: the page PROMISED "the launcher will tell you which mode you got"
+                // and nothing implemented it. renderButton passes the launch response here,
+                // which carries cloudMode/cloudSlot from the Stage 3 bridge.
+                var mode = result && result.cloudMode;
+                resetMonitor(mode === 'personal'
+                    ? 'Personal cloud ready (project ' + (result.cloudSlot || 'assigned') + '). Your resources persist between sessions; re-check to see current state.'
+                    : mode === 'read-only'
+                        ? 'Read-only mode: the cloud had no personal project free, so this lab cannot be completed in this session. Everything is still explorable. Try again later.'
+                        : 'Terminal started. Re-check to see current state.');
+            },
+            onEnd: function () { resetMonitor('Session ended. Your security group and server are still in the cloud; relaunch to continue.'); },
+            extraActions: [
+                {
+                    label: 'Field Guide', visibleWhen: 'always',
+                    onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
+                },
+                { label: 'Check My Work', visibleWhen: 'running', onClick: checkMyWork }
+            ]
+        });
+    }
+</script>
+</body>
+</html>
