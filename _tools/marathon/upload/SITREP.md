@@ -70,10 +70,24 @@ starvation would not. Confirming with more seeds. Gate 6 stays UNDEPLOYED until 
 if overfitting wins, challenge 4 gets rewritten to teach that, which is still a true
 reason attention helps.
 
-### NEXT
-Lab 3 (security groups) is buildable now: page with data-check ids **17+**, CLOUD_CHECKS
-on bc1, gate with `qc-lab.sh` (add a `secgroup` mode + two harnesses, model on
-adversarial-chain.js / walkthrough-chain.js, both now tracked in-repo).
+### NEXT — Lab 3, and the payload shape is ALREADY VERIFIED
+Page with data-check ids **17+**, CLOUD_CHECKS on bc1, gate with `qc-lab.sh` (add a
+`secgroup` mode + two harnesses, model on adversarial-chain.js / walkthrough-chain.js,
+both tracked in-repo).
+
+VERIFIED against a REAL server (student-07) before any check gets written -- this is the
+step I skipped on lab 2, which cost a round of "checks against fields the bridge never
+sent" and a lab nobody could complete:
+```
+server keys     : addresses, created, flavor_name, id, name, security_groups, status, volumes
+security_groups : ['default']          <- per-server membership DOES populate
+group[0]        : name='default', rules=4
+rule[0]         : {'direction':'egress','protocol':None,'port_min':None,'port_max':None,
+                   'remote_ip':None,'remote_group':None}
+```
+**TRAP THE DATA ALREADY REVEALS:** protocol / ports / remote_ip come back `None` on the
+default egress rule. A check that assumes every rule carries a protocol will silently
+false-negative. Handle None explicitly.
 
 ### HARD-WON OPERATIONAL FACTS
 - bc1 lab-manager server.js is **BAKED INTO THE DOCKER IMAGE**, not mounted. Host edits do
