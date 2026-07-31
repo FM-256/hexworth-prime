@@ -18,6 +18,18 @@
 const { execSync } = require('child_process');
 const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
 const BASE = 'http://localhost/api/sandbox';
+
+// Coverage trace consumed by qc-lab.sh stage 3. Emits EVERY id the grader returned rather
+// than a hardcoded list, so a harness can never silently disagree with the gate about which
+// checks a lab owns -- the gate's IDS list decides what is actually enforced.
+// Exists because check 27 shipped rejecting EVERYONE while the adversarial harness happily
+// reported "the cheat was rejected". A check only seen failing is not a working check.
+function emitCoverage(results) {
+  for (const r of (results || [])) {
+    if (r && r.id !== undefined) console.log(`COVERAGE ${r.id} ${r.pass ? 'PASS' : 'FAIL'}`);
+  }
+}
+
 const sh = (c) => execSync(c, { encoding: 'utf8', timeout: 300000 });
 
 async function post(url, body, headers) {
@@ -27,10 +39,26 @@ async function post(url, body, headers) {
 
 (async () => {
   const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
-  const email = `sg-qc-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`;
-  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
-    { email, password: 'Cq' + Math.random().toString(36).slice(2, 6) + '9X', returnSecureToken: true },
+  // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
+  // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
+  // sticky mapping. So every gate run consumed another of the 30 slots and never gave it
+  // back; repeated runs walked the pool to exhaustion and launches started returning 503,
+  // which is what real students would have hit. A fixed identity binds exactly ONE slot and
+  // every later run reuses it, so QC costs a constant 12 slots instead of growing forever.
+  const email = 'sg-walk-qc@hexworth-smoke.local';
+  // Firebase policy on this project caps passwords at 10 characters -- a longer one
+  // fails signUp with PASSWORD_DOES_NOT_MEET_REQUIREMENTS and then signIn cannot work
+  // either, because the account was never created.
+  const password = 'QcSgW9x';
+  let su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    { email, password, returnSecureToken: true },
     { Referer: 'https://hexworth-prime.web.app/' });
+  if (su.status !== 200) {
+    // EMAIL_EXISTS is the NORMAL path after the first ever run -- sign in instead.
+    su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
+      { email, password, returnSecureToken: true },
+      { Referer: 'https://hexworth-prime.web.app/' });
+  }
   if (su.status !== 200 || !su.data || !su.data.idToken) fail('could not create the QC user');
   const idToken = su.data.idToken;
   const auth = { Authorization: `Bearer ${idToken}` };
@@ -89,6 +117,7 @@ async function post(url, body, headers) {
     const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
     const gr = await g.json();
     const results = (gr && gr.results) || [];
+    emitCoverage(results);
     const want = [17, 18, 19, 20];
     const missed = want.filter(id => !results.some(r => Number(r.id) === id && r.pass));
     console.log(`run ${pass}: ` + want.map(id => {

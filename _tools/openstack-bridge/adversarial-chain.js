@@ -16,6 +16,18 @@
 const { execSync } = require('child_process');
 const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
 const BASE = 'http://localhost/api/sandbox';
+
+// Coverage trace consumed by qc-lab.sh stage 3. Emits EVERY id the grader returned rather
+// than a hardcoded list, so a harness can never silently disagree with the gate about which
+// checks a lab owns -- the gate's IDS list decides what is actually enforced.
+// Exists because check 27 shipped rejecting EVERYONE while the adversarial harness happily
+// reported "the cheat was rejected". A check only seen failing is not a working check.
+function emitCoverage(results) {
+  for (const r of (results || [])) {
+    if (r && r.id !== undefined) console.log(`COVERAGE ${r.id} ${r.pass ? 'PASS' : 'FAIL'}`);
+  }
+}
+
 const sh = (c) => execSync(c, { encoding: 'utf8', timeout: 300000 });
 
 async function post(url, body, headers) {
@@ -25,10 +37,26 @@ async function post(url, body, headers) {
 
 (async () => {
   const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); process.exit(1); };
-  const email = `chain-adv-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`;
-  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
-    { email, password: 'Cq' + Math.random().toString(36).slice(2, 6) + '9X', returnSecureToken: true },
+  // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
+  // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
+  // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
+  // Repeated runs walked the pool to exhaustion and launches began returning 503, which is
+  // exactly what a real student would have hit. A fixed identity binds ONE slot and every
+  // later run reuses it, so QC costs a constant number of slots instead of growing forever.
+  const email = 'chain-adv-qc@hexworth-smoke.local';
+  // Firebase policy on this project caps passwords at 10 characters -- a longer one
+  // fails signUp with PASSWORD_DOES_NOT_MEET_REQUIREMENTS and then signIn cannot work
+  // either, because the account was never created.
+  const password = 'QcChA9x';
+  let su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    { email, password, returnSecureToken: true },
     { Referer: 'https://hexworth-prime.web.app/' });
+  if (su.status !== 200) {
+    // EMAIL_EXISTS is the NORMAL path after the first ever run -- sign in instead.
+    su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
+      { email, password, returnSecureToken: true },
+      { Referer: 'https://hexworth-prime.web.app/' });
+  }
   if (su.status !== 200 || !su.data || !su.data.idToken) fail('could not create the QC user');
   const idToken = su.data.idToken;
   const auth = { Authorization: `Bearer ${idToken}` };
@@ -42,7 +70,9 @@ async function post(url, body, headers) {
   const grade = async () => {
     const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
     const gr = await g.json();
-    return (gr && gr.results) || [];
+    const rs = (gr && gr.results) || [];
+    emitCoverage(rs);
+    return rs;
   };
   const passed = (rs, id) => rs.some((r) => Number(r.id) === id && r.pass);
   const wipe = () => {
@@ -72,10 +102,26 @@ async function post(url, body, headers) {
   const I = JSON.stringify(img).slice(1, -1), N = JSON.stringify(net).slice(1, -1);
 
   try {
+    // ── Cheat Z (the emptiest cheat there is): submit nothing and see what scores. ──
+    // Added 2026-07-31 after qc-lab.sh stage 3 reported checks 13 and 15 as
+    // "PASS 3x, FAIL 0x -- may accept EVERYTHING". Both checks are written correctly, but
+    // EVERY cheat below happens to leave chain-vm standing on m1.nano, so nothing in the
+    // run ever demonstrated that 13 or 15 can refuse anything. Cheat B is supposed to be
+    // check 15's negative case, but the 192MB per-student RAM quota rejects a bigger flavor
+    // at CREATE time, so the server never exists to be graded and 15 is never exercised.
+    // An empty project is the one state that legitimately fails all four, and asserting it
+    // is worth doing on its own: a student who has done nothing must score nothing.
+    wipe();
+    let rs = await grade();
+    for (const id of [13, 14, 15, 16]) {
+      if (passed(rs, id)) fail(`cheat Z PASSED check ${id} -- an EMPTY project scored a point`);
+    }
+    console.log('  cheat Z (nothing built at all) rejected by all four checks');
+
     // ── Cheat A: create, never wait. Status is BUILD, not ACTIVE. ──
     wipe();
     dex(`openstack server create --image ${I} --flavor m1.nano --network ${N} chain-vm`);
-    let rs = await grade();
+    rs = await grade();
     if (passed(rs, 14)) fail('cheat A PASSED check 14 -- a server still in BUILD counted as booted');
     console.log('  cheat A (created but never waited for ACTIVE) rejected by check 14');
 
