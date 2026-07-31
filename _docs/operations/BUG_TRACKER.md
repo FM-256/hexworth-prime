@@ -31,6 +31,29 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-073 — 127 unlock() calls name an achievement id that does not exist  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · while scoping the BUG-071 guard fix
+- **Area:** 127 `AchievementManager.unlock('<id>')` sites across games, labs, presentations and
+  dark-arts vault content. Full list: `node _tools/audit-achievement-unlock-ids.js`.
+- **Symptom:** the student completes the thing, `unlock()` runs, and it returns false with a
+  `console.warn('Achievement not found')`. No achievement, no points, no notification.
+- **Root cause:** `unlock()` looks the id up in AchievementManager's own `achievements` array
+  (116 defined ids) and refuses anything absent. These 127 call sites pass ids that were never
+  added to it. `AchievementRegistry` does not supply them either — it defines 14 of its own and
+  AchievementManager never merges from it, it only syncs unlocks outward. Verified: neither file
+  contains `ai_exploiter` or `shield_contra_complete`.
+- **Split (measured, `node _tools/audit-achievement-fix-scope.js`):**
+  - 12 sites ALSO had the BUG-071 dead guard — fixed in d6bcd61bb, so unlock() is now reached
+    and visibly refuses instead of being silently skipped. Still broken for the student.
+  - 115 sites had a working guard all along and have been silently failing on their own.
+  - 72 sites platform-wide DO name a defined id and work.
+- **Why this is not a quick fix:** it needs 127 achievement definitions — id, title, description,
+  points, icon, category. That is curriculum/design work with a points-economy impact, not a
+  mechanical edit. Inventing 127 achievements unilaterally would be a content decision.
+- **Fix:** not yet. Needs an operator/curriculum call on which of the 127 deserve a real
+  achievement and what they are worth.
+- **Related:** BUG-071 (the dead guard, fixed), BUG-068, BUG-072.
+
 ### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · surfaced by the zero-stub live e2e for the quiz fix, which
   caught it as a page error on production the moment a real student signs in
@@ -52,7 +75,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   whether the rest of that path works at all.
 - **Related:** BUG-068 (also silently disables cloud sync, different mechanism).
 
-### BUG-071 — 31 games never award their achievement; 2 Linux labs never record completion  ·  [P1]  ·  open
+### BUG-071 — dead `window.X` guards: 38 sites repaired, 13 games now genuinely award  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · same `window.X` lexical-const sweep as BUG-068
 - **Area:** 31 sites guarding `if (window.AchievementManager) AchievementManager.unlock(...)`,
   2 guarding `if (window.GameTracker) GameTracker.record(...)`, 2 for `AchievementRegistry`.
@@ -64,8 +87,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `typeof window.AchievementManager = 'undefined'`, so the guard is always false.
 - **Root cause:** same lexical-const trap as BUG-068 — `const AchievementManager = ...` at
   classic-script top level never becomes a window property.
-- **Scope note:** 31 sites found by static audit; ONE verified in-browser. The remaining 30 share
-  the identical guard form and component, but each page has not been individually booted.
+- **CORRECTED SCOPE:** the guard was dead at 38 sites and all 38 are repaired (d6bcd61bb), but
+  only **13** of them name an achievement id that exists — those are the games that now
+  genuinely award. The other 12 need BUG-073 resolved first. My original "31 games" headline
+  described the breakage correctly but implied a fix scope 2.4x larger than the truth.
+- **Verified:** `_tools/eduscan/smoke/achievement-unlock-probe.js` boots each real game page,
+  asserts the fixed guard passes, calls unlock, and asserts the achievement is PERSISTED —
+  and separately asserts the bad-id games still refuse. 34/34.
 - **Fix:** not yet — out of scope of the authorized quiz task. Mechanically it is a guard swap to
   the bare identifier, but it should ship with a check that unlocking then actually works, since
   the always-false guard has been masking whether the rest of that path is sound.
