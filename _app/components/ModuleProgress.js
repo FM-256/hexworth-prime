@@ -948,29 +948,17 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Show the completion overlay — a modal with navigation choices.
+     * Inject the shared progress stylesheet exactly once.
      *
-     * Displays a centered card with up to 4 buttons:
-     *   1. "Next: [Module Name]" — only if a next link was found in the page nav
-     *   2. "Stay & Explore" — dismisses the overlay, keeps the student on the page
-     *   3. "Course Home" — only if an index.html link was found on the page
-     *   4. "Dashboard" — suppressed inside course hubs (hub isolation pattern)
-     *
-     * Injects its own CSS on first call (styles are shared with quiz notification).
-     * The overlay is a fixed-position backdrop with blur effect.
-     *
-     * @param {string} houseId - House slug (used for context, not displayed)
-     * @param {string} moduleId - Module slug (used for context, not displayed)
-     * @param {string} [returnUrl] - The module-provided next target. Used ONLY as a fallback for
-     *   the Next button when the footer scrape finds no "Next"-labeled link AND returnUrl is a bare
-     *   same-directory content file. NOTE: returnUrl semantically means "return to" and is used
-     *   across houses for hub/dashboard/capstone-return too; the same-dir-content-file guard below
-     *   deliberately excludes those so a "return" target is never mislabeled a forward step.
-     * @sideeffect Injects <style id="module-progress-styles"> into <head>
-     * @sideeffect Appends overlay div to document.body
+     * Extracted so BOTH the completion overlay and the quiz notification can reach it.
+     * showQuizNotification used to call `showCompletionNotification('', '')` here, a
+     * function that does not exist anywhere in this file, so completeQuiz() threw a
+     * ReferenceError on the first notification of every quiz page (BUG-074). The score and
+     * the Firestore sync survived because they happen earlier, but the activity-feed event
+     * and the return-to-destination navigation were skipped -- a passing student was never
+     * sent back to their hub.
      */
-    function showCompletionOverlay(houseId, moduleId, returnUrl) {
-        // Inject styles if not present
+    function ensureProgressStyles() {
         if (!document.getElementById('module-progress-styles')) {
             const styles = document.createElement('style');
             styles.id = 'module-progress-styles';
@@ -1102,6 +1090,32 @@ const ModuleProgress = (function() {
             `;
             document.head.appendChild(styles);
         }
+    }
+
+    /**
+     * Show the completion overlay — a modal with navigation choices.
+     *
+     * Displays a centered card with up to 4 buttons:
+     *   1. "Next: [Module Name]" — only if a next link was found in the page nav
+     *   2. "Stay & Explore" — dismisses the overlay, keeps the student on the page
+     *   3. "Course Home" — only if an index.html link was found on the page
+     *   4. "Dashboard" — suppressed inside course hubs (hub isolation pattern)
+     *
+     * Injects its own CSS on first call (styles are shared with quiz notification).
+     * The overlay is a fixed-position backdrop with blur effect.
+     *
+     * @param {string} houseId - House slug (used for context, not displayed)
+     * @param {string} moduleId - Module slug (used for context, not displayed)
+     * @param {string} [returnUrl] - The module-provided next target. Used ONLY as a fallback for
+     *   the Next button when the footer scrape finds no "Next"-labeled link AND returnUrl is a bare
+     *   same-directory content file. NOTE: returnUrl semantically means "return to" and is used
+     *   across houses for hub/dashboard/capstone-return too; the same-dir-content-file guard below
+     *   deliberately excludes those so a "return" target is never mislabeled a forward step.
+     * @sideeffect Injects <style id="module-progress-styles"> into <head>
+     * @sideeffect Appends overlay div to document.body
+     */
+    function showCompletionOverlay(houseId, moduleId, returnUrl) {
+        ensureProgressStyles();
 
         // Detect available navigation from the page's own nav footer
         const nav = detectNavLinks();
@@ -1182,11 +1196,12 @@ const ModuleProgress = (function() {
             <div class="qn-text">${passed ? 'Quiz Passed!' : 'Try Again'}</div>
         `;
 
-        // Ensure styles are loaded (reuses the same stylesheet as completion overlay)
-        if (!document.getElementById('module-progress-styles')) {
-            showCompletionNotification('', ''); // Load styles
-            document.querySelector('.module-complete-notification')?.remove();
-        }
+        // Ensure styles are loaded (reuses the same stylesheet as completion overlay).
+        // This used to call showCompletionNotification('', ''), which does not exist anywhere in
+        // this file, and then remove '.module-complete-notification', which is not the overlay's
+        // class either (it is .mp-overlay). Two renames that never propagated, leaving a
+        // guaranteed ReferenceError on the first quiz notification of every page. See BUG-074.
+        ensureProgressStyles();
 
         document.body.appendChild(notification);
 
