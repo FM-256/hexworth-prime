@@ -31,6 +31,25 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-071 — 31 games never award their achievement; 2 Linux labs never record completion  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · same `window.X` lexical-const sweep as BUG-068
+- **Area:** 31 sites guarding `if (window.AchievementManager) AchievementManager.unlock(...)`,
+  2 guarding `if (window.GameTracker) GameTracker.record(...)`, 2 for `AchievementRegistry`.
+  Full list: `node _tools/audit-lexical-window-guards.js`.
+- **Symptom:** a student finishes the game, and the achievement never unlocks — silently. The
+  unlock call sits inside a guard that can never be true.
+- **Measured in a real browser**, not inferred, on `key-cipher-bubbles.applet.html`:
+  `typeof AchievementManager = 'object'` (it IS loaded and working) but
+  `typeof window.AchievementManager = 'undefined'`, so the guard is always false.
+- **Root cause:** same lexical-const trap as BUG-068 — `const AchievementManager = ...` at
+  classic-script top level never becomes a window property.
+- **Scope note:** 31 sites found by static audit; ONE verified in-browser. The remaining 30 share
+  the identical guard form and component, but each page has not been individually booted.
+- **Fix:** not yet — out of scope of the authorized quiz task. Mechanically it is a guard swap to
+  the bare identifier, but it should ship with a check that unlocking then actually works, since
+  the always-false guard has been masking whether the rest of that path is sound.
+- **Related:** BUG-068, BUG-069, BUG-070.
+
 ### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · while sweeping for the `window.FirebaseAuth` trap that the
   render probe caught in InstantQuizGrader
@@ -53,7 +72,9 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   identifier (`typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser`). Needs its own
   verification that sync actually works once a uid resolves; the no-op has been masking whether
   the rest of the path is sound, so a one-line fix must not be assumed sufficient.
-- **Related:** BUG-069, BUG-070. `_app/operator/index.html:1255` guards CORRECTLY and documents
+- **Also in the same file:** `LabStateSync.js:39` guards `window.FirestoreManager` the same
+  way, so `_db()` returns null too — the component is broken twice over, independently.
+- **Related:** BUG-069, BUG-070, BUG-071. `_app/operator/index.html:1255` guards CORRECTLY and documents
   this exact trap ("same trap documented in TenantFilter.js") — so it is known, with victims.
   Memory: `project_cross_device_lab_state_sync.md` records this feature as SHIPPED.
 
@@ -67,14 +88,19 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix:** not yet — out of scope of the authorized quiz task.
 - **Related:** BUG-068, BUG-070.
 
-### BUG-070 — A+ Core 1 applet treats every signed-in student as signed out  ·  [P2]  ·  open
-- **Found:** 2026-07-31 · by self · same sweep as BUG-068
+### BUG-070 — CORRECTED: A+ Core 1 `window.FirebaseAuth` guard is dead code, not a live defect  ·  [P3]  ·  open
+- **Found:** 2026-07-31 · by self · **corrected by self the same session**
 - **Area:** `_app/houses/forge/applets/comptia-aplus/core-1/index.html:1168`
-- **Symptom:** `signedIn` is computed as `!!(window.FirebaseAuth && ...)` and is therefore always
-  `false`, regardless of actual auth state.
-- **Root cause:** same lexical-const trap as BUG-068.
-- **Fix:** not yet — out of scope of the authorized quiz task.
-- **Related:** BUG-068, BUG-069.
+- **What I first claimed:** that this treats every signed-in student as signed out (P2).
+- **What is actually true:** the page never loads `FirebaseAuth.js` at all (0 script includes),
+  and the surrounding block builds a debug string dump, not student-facing logic. So `signedIn`
+  would be false there even with a correct guard. It is wrong code, but nothing student-facing
+  depends on it. Downgraded P2 -> P3.
+- **Why I got it wrong:** I grepped for the broken pattern and reported severity without checking
+  whether the component was loaded on that page. The pattern matched; the impact did not follow.
+  Same class of error as overstating BUG-063 by 34x. The corrected audit
+  (`_tools/audit-lexical-window-guards.js`) now classifies this as a DEAD reference.
+- **Related:** BUG-068, BUG-071.
 
 ### BUG-067 — 2 LIVE quizzes are passable by clicking option B on every question  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · while extracting answer keys to remediate BUG-065

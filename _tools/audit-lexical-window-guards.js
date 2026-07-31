@@ -55,8 +55,21 @@ for (const file of walk(APP)) {
       const after = src.slice(m.index + m[0].length, m.index + m[0].length + 4);
       if (/^\s*=[^=]/.test(after)) continue;
       const line = src.slice(0, m.index).split('\n').length;
-      // Is the component actually loaded here? Either script-included, or defined in-file.
-      const loaded = new RegExp(`components/${name}\\.js|const ${name} = `).test(src);
+
+      // Skip COMMENTS. Two of this audit's first three "FirebaseAuth" hits were prose in
+      // comments describing the trap — including the one file that guards CORRECTLY. A detector
+      // that counts its own documentation as a defect inflates the number it exists to report.
+      const lineText = src.split('\n')[line - 1] || '';
+      const beforeOnLine = lineText.slice(0, lineText.indexOf(`window.${name}`));
+      if (/^\s*(\/\/|\*|\/\*)/.test(lineText) || beforeOnLine.includes('//')) continue;
+
+      // Is the component actually loaded where this runs? A page must script-include it. But a
+      // COMPONENT referencing another component is loaded by whatever page pulls them both in —
+      // the script tag is never in the component's own file. Classifying those by the in-file
+      // heuristic marked LabStateSync.js (BUG-068, the most serious instance) as dead code.
+      const isComponent = path.dirname(file) === COMPONENTS;
+      const loaded = isComponent
+        || new RegExp(`components/${name}\\.js|const ${name} = `).test(src);
       const rec = findings[name] || (findings[name] = { live: [], dead: [] });
       (loaded ? rec.live : rec.dead).push(`${rel}:${line}`);
       if (loaded) liveSites++; else deadSites++;
