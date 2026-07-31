@@ -608,6 +608,7 @@
     <script src="../../../../../../components/CLHTerminal.js"></script>
     <script src="../../../../../../components/CLHCompletionModal.js"></script>
     <script src="../../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../../components/ModuleProgress.js"></script>
     <script>
         const MODULE_ID = 'CLH-030', config = CLHConfig.getModule(MODULE_ID);
         let insightAttempts = 0;
@@ -741,37 +742,20 @@
         }
 
         // Reset local completion so the mission can be re-run (classroom demos, retakes).
-        // Mirrors saveProgress() key for key, AND clears the legacy keys the CLH hub's
-        // migration shim copies forward. That shim (courses/clh/index.html) states
-        // "Never deletes old keys -- only copies forward", so leaving EITHER legacy key
-        // behind makes the hub resurrect clh-030 as completed on the next visit. That
-        // is exactly what happened on the first version of this button.
-        // NOT cleared: 'cli-ghost-rank' (earned across all 30, not this one) and
-        // Firestore (one-way sync up; the instructor grading record survives).
+        // Delegates to ModuleProgress.reset, which clears the canonical key AND the legacy
+        // spellings the CLH hub migration copies forward -- leaving either behind makes the
+        // hub resurrect this module as completed on the next visit, which is exactly what
+        // shipped in the first version of this button.
+        // Rank and the Firestore grading record are deliberately untouched.
         function resetProgress() {
             if (!confirm('Reset CLH-030 on THIS browser?\n\n' +
                          'The mission replays from step 1. Your CLI Ghost rank and the ' +
                          'instructor record are kept.')) return;
-
-            const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-            const had = !!(p.script && p.script['clh-030']);
-            if (p.script) {
-                delete p.script['clh-030'];               // canonical, read by the hub
-                delete p.script['script-clh-030-intro'];  // legacy: hub copies this forward
-                delete p.script['script-clh-030-lab'];    // legacy: hub copies this forward
+            if (typeof ModuleProgress === 'undefined' || !ModuleProgress.reset) {
+                alert('Reset is unavailable on this page. Tell the instructor.');
+                return;
             }
-            localStorage.setItem('hexworth_progress', JSON.stringify(p));
-
-            const S = 'hexworth_completion_stamps';
-            const stamps = JSON.parse(localStorage.getItem(S) || '{}');
-            delete stamps['script-script-clh-030-intro'];
-            delete stamps['script-clh-030'];
-            localStorage.setItem(S, JSON.stringify(stamps));
-
-            const C = 'hexworth_modules_completed';
-            const n = parseInt(localStorage.getItem(C) || '0', 10);
-            if (had && n > 0) localStorage.setItem(C, String(n - 1));
-
+            ModuleProgress.reset('script', 'clh-030');
             location.reload();
         }
 

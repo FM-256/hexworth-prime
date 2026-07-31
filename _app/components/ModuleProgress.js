@@ -1397,8 +1397,78 @@ const ModuleProgress = (function() {
         }
     }
 
+    /**
+     * Clear local completion for one module so it can be run again (classroom demos,
+     * retakes, instructor walkthroughs).
+     *
+     * WHY THIS IS KEY-BASED AND NOT PAGE-BASED: 691 pages write hexworth_progress
+     * directly instead of calling complete(), so a reset that trusted each page's
+     * contract would silently miss most of the platform (audit:
+     * _tools/audit/progress-write-audit.js). But those 691 pages write only 159
+     * distinct house/module keys into ONE blob, so clearing by key covers all of them.
+     *
+     * THE LEGACY VARIANTS ARE NOT OPTIONAL. The CLH course hub copies old keys forward
+     * into the canonical one and its own comment says "Never deletes old keys -- only
+     * copies forward". Clear the canonical key alone and the next hub visit RESURRECTS
+     * the completion. That regression shipped once already on CLH-030.
+     *
+     * Deliberately does NOT touch Firestore: progress syncs one way UP for the
+     * instructor dashboard and is never read back, so the grading record survives and a
+     * student cannot destroy it locally.
+     *
+     * @param {string} houseId  e.g. 'script'
+     * @param {string} moduleId canonical key, e.g. 'clh-030'
+     * @param {Object} [opts]   {alsoClear: ['extra-key']} for ranks/achievements the
+     *                          caller explicitly wants gone. Empty by default: a rank
+     *                          earned across many modules is not this module's to erase.
+     * @returns {Object} {cleared, keys, stamps} -- what was actually removed
+     */
+    function reset(houseId, moduleId, opts) {
+        opts = opts || {};
+        const removed = { cleared: false, keys: [], stamps: [] };
+        if (!houseId || !moduleId) return removed;
+
+        // Canonical + the legacy spellings the hub migration copies forward.
+        const candidates = [moduleId,
+                            'script-' + moduleId + '-intro',
+                            'script-' + moduleId + '-lab',
+                            houseId + '-' + moduleId + '-intro',
+                            houseId + '-' + moduleId + '-lab'
+                           ].concat(opts.alsoClear || []);
+
+        let progress = {};
+        try { progress = JSON.parse(localStorage.getItem(PROGRESS_KEY) || '{}'); } catch (_) { progress = {}; }
+        const house = progress[houseId] || {};
+        const wasComplete = !!(house[moduleId] && house[moduleId].completed);
+        candidates.forEach(function (k) {
+            if (Object.prototype.hasOwnProperty.call(house, k)) { delete house[k]; removed.keys.push(k); }
+        });
+        progress[houseId] = house;
+        try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (_) {}
+
+        // Stamps are keyed houseId + '-' + whatever module id was passed to complete(),
+        // so every candidate needs its stamp cleared too, not just the canonical one.
+        let stamps = {};
+        try { stamps = JSON.parse(localStorage.getItem('hexworth_completion_stamps') || '{}'); } catch (_) { stamps = {}; }
+        candidates.forEach(function (k) {
+            const sid = houseId + '-' + k;
+            if (Object.prototype.hasOwnProperty.call(stamps, sid)) { delete stamps[sid]; removed.stamps.push(sid); }
+        });
+        try { localStorage.setItem('hexworth_completion_stamps', JSON.stringify(stamps)); } catch (_) {}
+
+        // The lifetime counter only ever increments, so undo exactly one -- and only if
+        // this module really was complete, or repeated resets would drive it negative.
+        if (wasComplete) {
+            const n = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
+            if (n > 0) localStorage.setItem(MODULES_COMPLETED_KEY, String(n - 1));
+        }
+        removed.cleared = wasComplete || removed.keys.length > 0;
+        return removed;
+    }
+
     return {
         complete,
+        reset,
         completeQuiz,
         getStats,
         getModuleProgress,
