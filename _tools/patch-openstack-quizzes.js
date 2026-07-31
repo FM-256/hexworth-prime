@@ -60,6 +60,11 @@ function newLogic(vals) {
         let shown      = [];      // options of the current question, in display order
         let grader     = null;
         let grading    = false;   // a verdict is in flight; ignore clicks until it lands
+        let failStreak = 0;       // consecutive grading failures on the CURRENT question
+        let ungraded   = [];      // question numbers the server never managed to grade
+        // Matches the button's markup label. Set via textContent, so the arrow is the decoded
+        // character, not the &rarr; entity — textContent does not decode entities.
+        const NEXT_LABEL = 'Next Question \\u2192';
         const PASS_PCT  = ${vals.passPct};
         const STORE_KEY = ${vals.storeKey};
         const QUIZ_ID   = '${vals.id}';
@@ -78,6 +83,8 @@ function newLogic(vals) {
             answered = [];
             picks    = [];
             grading  = false;
+            failStreak = 0;
+            ungraded   = [];
             grader   = InstantQuizGrader.create({ quizId: QUIZ_ID, questions: questions });
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('quizScreen').style.display  = 'block';
@@ -113,8 +120,15 @@ function newLogic(vals) {
             fb.className = 'feedback';
             document.getElementById('submitBtn').disabled      = true;
             document.getElementById('submitBtn').style.display = 'inline-block';
-            document.getElementById('nextBtn').style.display   = 'none';
-            selected = null;
+            // Reset the Next button's LABEL and skip flag too, not just its visibility — the
+            // skip affordance below relabels it, and a stale label would leak onto every later
+            // question and mislabel a normal Next as an ungraded skip.
+            const nb = document.getElementById('nextBtn');
+            nb.style.display = 'none';
+            nb.textContent   = NEXT_LABEL;
+            delete nb.dataset.skip;
+            selected   = null;
+            failStreak = 0;
         }
 
         function selectOpt(idx) {
@@ -150,14 +164,29 @@ function newLogic(vals) {
             if (!v) {
                 // Honest failure. Do NOT score an answer we could not verify — a silent miscount
                 // is worse than an error message. Unlock and let the student submit again.
+                //
+                // After two failed attempts, offer a way FORWARD. Retry-only would strand a
+                // student behind a dead network on question 3 with no path to the end — a way to
+                // make the quiz un-completable that did not exist when grading was local. The
+                // skipped question is recorded as ungraded and surfaced on the results screen,
+                // never quietly folded into the score.
+                failStreak++;
                 opts.forEach(o => o.classList.remove('disabled'));
                 submitBtn.disabled = false;
                 fb.className = 'feedback show incorrect';
                 document.getElementById('fbTitle').textContent = 'Could not verify your answer';
-                document.getElementById('fbBody').textContent  =
-                    'This answer was not graded, so it has not been counted either way. Check your connection and press Submit again.';
+                document.getElementById('fbBody').textContent  = failStreak >= 2
+                    ? 'Still cannot reach the grading service. This answer has not been counted either way. Press Submit to try again, or continue — the question will be reported as not graded.'
+                    : 'This answer was not graded, so it has not been counted either way. Check your connection and press Submit again.';
+                if (failStreak >= 2) {
+                    const nb = document.getElementById('nextBtn');
+                    nb.style.display = 'inline-block';
+                    nb.textContent = 'Continue without grading this question';
+                    nb.dataset.skip = '1';
+                }
                 return;
             }
+            failStreak = 0;
 
             if (v.correct) score++;
             if (v.correctDisplayIndex >= 0) opts[v.correctDisplayIndex].classList.add('correct');
@@ -181,6 +210,20 @@ function newLogic(vals) {
         }
 
         function nextQuestion() {
+            // Arriving here with the skip flag means the grading service never answered for this
+            // question. Record it as UNGRADED and show it as such in the review — it is not a
+            // wrong answer, and pretending otherwise would misreport the student's work.
+            const nb = document.getElementById('nextBtn');
+            if (nb.dataset.skip) {
+                ungraded.push(currentQ + 1);
+                answered.push({
+                    q:        questions[currentQ].q,
+                    yours:    selected !== null ? shown[selected] : '(no answer submitted)',
+                    correct:  '',
+                    isOk:     false,
+                    notGraded: true
+                });
+            }
             selected = null;
             currentQ++;
             if (currentQ < questions.length) {
@@ -219,7 +262,11 @@ function newLogic(vals) {
 
             const msgs = ${vals.msgs};
             const msgKey = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
-            document.getElementById('resultMsg').textContent = msgs[msgKey];
+            // Say plainly when part of the quiz could not be graded, rather than presenting a
+            // score that quietly treats unreachable-server questions as wrong answers.
+            document.getElementById('resultMsg').textContent = ungraded.length
+                ? \`\${ungraded.length} question\${ungraded.length > 1 ? 's' : ''} (\${ungraded.join(', ')}) could not be graded because the grading service was unreachable, and \${ungraded.length > 1 ? 'they are' : 'it is'} not counted as correct. Your score reflects only the questions that were graded. Retake the quiz when your connection is stable.\`
+                : msgs[msgKey];
 
             // Build review list. Texts come from the display order the student saw, with the
             // correct option mapped back through the permutation by the grader.
@@ -232,6 +279,7 @@ function newLogic(vals) {
                     <div class="review-q"><strong>Q\${i + 1}:</strong> \${a.q}</div>
                     <div class="review-a">
                         <strong>Your answer:</strong> \${a.yours}<br>
+                        \${a.notGraded ? '<strong>Not graded</strong> — the grading service was unreachable for this question.' : ''}
                         \${!a.isOk && a.correct ? \`<strong>Correct answer:</strong> \${a.correct}\` : ''}
                     </div>\`;
                 rw.appendChild(d);

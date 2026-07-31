@@ -33,6 +33,25 @@
 (function (root) {
     'use strict';
 
+    /**
+     * Resolve the FirebaseAuth singleton.
+     *
+     * FirebaseAuth.js:9 declares `const FirebaseAuth = (function(){...})()` at the top level of
+     * a classic script. A top-level `const` creates a binding in the global LEXICAL environment
+     * and does NOT become a property of window — so `window.FirebaseAuth` is undefined in
+     * production even though the bare identifier resolves fine. Reading it off `root` made every
+     * gradeOne() throw, get swallowed by its own .catch, and render "Could not verify" on all 15
+     * questions. Caught by the render probe, which is why it drives the real page.
+     *
+     * The bare identifier is resolved through the IIFE's scope chain. window is a fallback so a
+     * test can inject a stub when no real one is loaded.
+     */
+    function fbAuth() {
+        if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth) return FirebaseAuth;
+        if (root && root.FirebaseAuth) return root.FirebaseAuth;
+        throw new Error('InstantQuizGrader: FirebaseAuth is not loaded on this page');
+    }
+
     function shuffledPermutation(n) {
         // Fisher-Yates over indices. Same algorithm as InlineQuizShuffler (which is
         // Nancy-reviewed with a 1000-trial distribution test); copied rather than imported,
@@ -94,7 +113,7 @@
                 var answers = {};
                 answers[String(qIndex)] = this.toOriginal(qIndex, displayIndex);
                 var self = this;
-                return root.FirebaseAuth.callFunction('gradeQuiz', { quizId: quizId, answers: answers, partial: true })
+                return fbAuth().callFunction('gradeQuiz', { quizId: quizId, answers: answers, partial: true })
                     .then(function (res) {
                         var data = (res && res.data) ? res.data : res;
                         var r = (data && data.results) ? data.results[qIndex] : null;
@@ -116,7 +135,7 @@
                     if (displayAnswers[i] === undefined || displayAnswers[i] === null) continue;
                     answers[String(i)] = this.toOriginal(i, displayAnswers[i]);
                 }
-                return root.FirebaseAuth.callFunction('gradeQuiz', { quizId: quizId, answers: answers })
+                return fbAuth().callFunction('gradeQuiz', { quizId: quizId, answers: answers })
                     .then(function (res) { return (res && res.data) ? res.data : res; });
             }
         };

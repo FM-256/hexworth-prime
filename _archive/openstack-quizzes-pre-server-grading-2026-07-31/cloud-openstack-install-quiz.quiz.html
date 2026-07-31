@@ -8,8 +8,6 @@
     <!-- Achievement & Progress Integration -->
     <script src="../../../../components/AchievementManager.js"></script>
     <script src="../../../../components/ModuleProgress.js"></script>
-    <script src="../../../../components/FirebaseAuth.js"></script>
-    <script src="../../../../components/InstantQuizGrader.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenStack Installation Quiz - Hexworth Prime</title>
     <style>
@@ -414,12 +412,6 @@
                     </ul>
                 </div>
                 <button class="btn btn-primary" onclick="startQuiz()">Begin Quiz</button>
-                <div id="signInNotice" style="display:none;margin-top:18px;padding:16px 20px;border-radius:10px;background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.35);color:#fca5a5;line-height:1.6;">
-                    <strong>Sign in to take this quiz.</strong><br>
-                    Answers are checked on the server so the key is never exposed in this page. That
-                    requires a signed-in account, and it is also what lets your score count toward
-                    your progress. Sign in, then press Begin Quiz again.
-                </div>
             </div>
 
             <!-- ══ QUIZ SCREEN ══ -->
@@ -496,10 +488,8 @@
     </div>
 
     <script>
-        // ── Question bank ──
-        // Question text and options ONLY. The correct answers and explanations are held in
-        // Firestore quiz_keys/cloud-openstack-install-quiz and returned by gradeQuiz after each
-        // submission — they are deliberately absent from this page (BUG-065).
+        // ── Question bank: OpenStack Installation ──
+        // correct: field added to each question — was missing, causing q.correct grading to fail
         const questions = [
             {
                 q: "Which OpenStack installation method is best suited for a single developer who wants a quick, disposable environment for learning and testing on a single machine?",
@@ -508,7 +498,7 @@
                     "DevStack — an automated script that deploys a full OpenStack in minutes on a single node",
                     "TripleO (OpenStack on OpenStack) — deploying the undercloud first",
                     "Canonical Charmed OpenStack with Juju operators"
-                ]
+                ],explanation: "DevStack is the standard tool for developer testing — it runs as a single bash script (stack.sh) and deploys a complete OpenStack environment (Keystone, Glance, Nova, Neutron, Horizon, etc.) on one machine in 15–30 minutes. It is NOT recommended for production. Manual installation gives full understanding of each component; large-scale tools like Juju or Kolla-Ansible are for production multi-node deployments.",correct: 1
             },
             {
                 q: "On Ubuntu, which file is edited to assign a static IP address to the management interface of an OpenStack node?",
@@ -517,7 +507,7 @@
                     "/etc/network/interfaces (traditional Debian/Ubuntu network configuration)",
                     "/etc/systemd/network/10-static.network (systemd-networkd only)",
                     "/etc/resolv.conf (DNS resolver configuration)"
-                ]
+                ],explanation: "On Ubuntu (Debian family), static IP addresses for network interfaces are configured in /etc/network/interfaces. The file uses stanzas like 'iface eth0 inet static' followed by address, netmask, gateway, and dns-nameservers. On Red Hat/CentOS systems, the equivalent is /etc/sysconfig/network-scripts/ifcfg-{interface}. /etc/resolv.conf controls DNS resolver settings only, not interface addressing.",correct: 1
             },
             {
                 q: "The /etc/hosts file is modified during OpenStack installation. What is the purpose of this modification?",
@@ -526,7 +516,7 @@
                     "To map hostnames (like 'controller' and 'compute1') to their management IP addresses for inter-node resolution",
                     "To define firewall rules between the management and provider networks",
                     "To register OpenStack service endpoints with the Keystone catalog"
-                ]
+                ],explanation: "OpenStack services reference other nodes by hostname. /etc/hosts provides hostname-to-IP resolution without requiring a DNS server — critical in lab environments. Entries like '10.0.0.11 controller' and '10.0.0.31 compute1' let services on each node resolve peer hostnames reliably. Without this, inter-service API calls fail with hostname resolution errors.",correct: 1
             },
             {
                 q: "Which NTP daemon is recommended by the OpenStack installation guide for clock synchronization on modern Linux systems?",
@@ -535,7 +525,7 @@
                     "systemd-timesyncd — the lightweight systemd time sync service",
                     "Chrony — a modern, accurate NTP implementation recommended for OpenStack",
                     "OpenNTPD — the portable OpenBSD NTP implementation"
-                ]
+                ],explanation: "The OpenStack installation guide recommends Chrony (package: chrony) for NTP. Chrony handles clock drift better than ntpd, especially on VMs where the clock can jump significantly. The controller node is configured to sync from an external NTP source; all other nodes (compute, storage) sync from the controller node using its management IP address.",correct: 2
             },
             {
                 q: "What is the correct sequence for configuring MariaDB for OpenStack on the controller node?",
@@ -544,7 +534,7 @@
                     "Install MariaDB, immediately configure all service databases, then run nova-manage db sync",
                     "Install MariaDB, configure /etc/mysql/mariadb.conf.d/99-openstack.cnf with bind-address and character set settings, run mysql_secure_installation, then create individual databases per service",
                     "Install MariaDB as part of the Keystone installation — MariaDB configuration is automated"
-                ]
+                ],explanation: "The correct order: (1) Install MariaDB server, (2) Create /etc/mysql/mariadb.conf.d/99-openstack.cnf setting bind-address to the management IP, and setting default-storage-engine=innodb, innodb_file_per_table=on, and character-set-server=utf8, (3) Restart MariaDB, (4) Run mysql_secure_installation to set root password and remove anonymous users, (5) Create individual databases (keystone, glance, nova, nova_api, neutron, etc.) as each service is installed.",correct: 2
             },
             {
                 q: "After installing the OpenStack client package, what is the recommended way to set environment variables so you can run CLI commands as the admin user?",
@@ -553,7 +543,7 @@
                     "Run 'source admin-openrc' to load the admin credentials file containing OS_USERNAME, OS_PASSWORD, OS_AUTH_URL, and related environment variables",
                     "Run 'openstack login --user admin' and enter credentials interactively",
                     "Set credentials inside nova.conf under the [DEFAULT] section"
-                ]
+                ],explanation: "The admin-openrc file contains shell export statements: OS_PROJECT_DOMAIN_NAME, OS_USER_DOMAIN_NAME, OS_PROJECT_NAME, OS_USERNAME, OS_PASSWORD, OS_AUTH_URL, OS_IDENTITY_API_VERSION, and OS_IMAGE_API_VERSION. Running 'source admin-openrc' (or '. admin-openrc') loads these into the current shell session so subsequent openstack CLI commands automatically authenticate as admin without requiring --os-username/--os-password flags on every command.",correct: 1
             },
             {
                 q: "RabbitMQ is the OpenStack message queue. What user and credential must be created in RabbitMQ specifically for OpenStack services?",
@@ -562,7 +552,7 @@
                     "An 'openstack' user must be created with a secure password and granted full configuration, write, and read permissions on all vhosts",
                     "Each OpenStack service (nova, neutron, glance, etc.) needs its own separate RabbitMQ user",
                     "RabbitMQ authentication is disabled by default in OpenStack deployments for performance"
-                ]
+                ],explanation: "The OpenStack installation guide creates a single 'openstack' RabbitMQ user: 'rabbitmqctl add_user openstack RABBIT_PASS' followed by 'rabbitmqctl set_permissions openstack .* .* .*' which grants configure, write, and read permissions. The default 'guest' user is disabled for remote access in modern RabbitMQ versions for security reasons. All OpenStack services then use the same 'openstack' RabbitMQ user credentials in their respective configuration files.",correct: 1
             },
             {
                 q: "What role does Memcached play in the OpenStack Keystone installation, and which service uses it?",
@@ -571,7 +561,7 @@
                     "Memcached caches Keystone authentication tokens so token validation requests don't hit the database on every API call",
                     "Memcached is used by Nova to cache hypervisor host state between scheduling decisions",
                     "Memcached provides session storage for the Horizon dashboard's user sessions"
-                ]
+                ],explanation: "Memcached is used by Keystone as a token cache. Without caching, every API call would require Keystone to query the MariaDB database to validate the token — under load this creates significant database pressure. With Memcached, validated tokens are cached in memory so repeated requests by the same token within its TTL are resolved from cache. Horizon also uses Django's session framework which can be backed by Memcached, but Keystone token caching is the primary OpenStack use case.",correct: 1
             },
             {
                 q: "During Keystone installation, what is the 'keystone-manage bootstrap' command used for?",
@@ -580,7 +570,7 @@
                     "It creates the initial admin user, admin project, service project, roles, and registers the Keystone endpoint in its own service catalog",
                     "It generates the Fernet encryption keys used for token signing",
                     "It creates a default domain and populates it with example tenants for testing"
-                ]
+                ],explanation: "After populating the Keystone database with 'keystone-manage db_sync' and creating Fernet keys, 'keystone-manage bootstrap' is run to create the bootstrap objects: the default domain, the 'admin' project, the 'admin' user, the 'admin' and 'member' roles, and the Keystone service and endpoint entries in the service catalog. Without bootstrap, there is no admin account to use and no service endpoint registered, making all subsequent CLI operations impossible.",correct: 1
             },
             {
                 q: "Keystone uses Fernet tokens by default. What is the primary advantage of Fernet tokens over the older UUID token format?",
@@ -589,7 +579,7 @@
                     "Fernet tokens are cryptographically signed bearer tokens that do not require database lookups to validate — Keystone can validate them locally using its key repository",
                     "Fernet tokens are larger than UUID tokens, allowing more user attributes to be stored inside them",
                     "Fernet tokens support SAML federation while UUID tokens do not"
-                ]
+                ],explanation: "UUID tokens required a database lookup on every validation — Keystone had to query the token table to confirm the UUID was valid and not revoked. Fernet tokens are self-contained: they encrypt the token payload (user, project, roles, expiry) using AES-128 in CBC mode with HMAC verification. Keystone validates them locally by decrypting with its Fernet key repository — no database call needed. This dramatically reduces database load in busy deployments.",correct: 1
             },
             {
                 q: "After installing Glance, you upload the CirrOS test image. Which openstack CLI command correctly uploads the image?",
@@ -598,7 +588,7 @@
                     "openstack image create 'cirros' --file cirros-0.5.1-x86_64-disk.img --disk-format qcow2 --container-format bare --public",
                     "glance image-upload --name cirros --format qcow2 cirros.img",
                     "nova image-create --format qcow2 --public cirros cirros.img"
-                ]
+                ],explanation: "The current openstack client command for image upload is: 'openstack image create' with --file (path to image), --disk-format qcow2 (CirrOS uses QCOW2 format), --container-format bare (no container wrapper like AKI/AMI), and --public (available to all projects). The legacy 'glance image-upload' command still works but is deprecated. 'nova image-create' is for snapshotting running instances, not uploading new images.",correct: 1
             },
             {
                 q: "Nova requires components on both the controller node and compute nodes. Which Nova component runs specifically on compute nodes and is responsible for actually managing hypervisor VMs?",
@@ -607,7 +597,7 @@
                     "nova-scheduler — the component that selects which compute host should run each new VM",
                     "nova-compute — the service that runs on hypervisor hosts and interfaces with the libvirt driver to manage VMs",
                     "nova-conductor — the component that mediates database access for compute nodes"
-                ]
+                ],explanation: "nova-compute is the per-hypervisor worker service. It receives work orders from RabbitMQ (placed there by nova-conductor/nova-scheduler) and translates them into hypervisor API calls via the compute driver (libvirt for KVM). nova-api runs on the controller, nova-scheduler selects the target host, and nova-conductor handles database operations on behalf of compute nodes (so compute nodes never directly access the database — a security feature).",correct: 2
             },
             {
                 q: "Neutron's ML2 (Modular Layer 2) plugin is the standard networking plugin. What does the ML2 type driver and mechanism driver architecture enable?",
@@ -616,7 +606,7 @@
                     "ML2 separates the 'type' of network (VXLAN, VLAN, flat, GRE) from the 'mechanism' for implementing it (Linux Bridge, OVS, SR-IOV), allowing flexible combinations",
                     "ML2 enforces mandatory VLAN tagging on all tenant networks regardless of operator preference",
                     "ML2 is a security plugin that enforces IPsec encryption on all inter-tenant network traffic"
-                ]
+                ],explanation: "ML2's two-axis plugin model separates concerns: Type Drivers define what kind of network segmentation to use (flat, VLAN, VXLAN, GRE), while Mechanism Drivers define how to implement that segmentation on the physical or virtual infrastructure (Linux Bridge agent, Open vSwitch agent, Cisco Nexus, Arista, etc.). An operator can run VXLAN overlays (type) implemented by Open vSwitch (mechanism) on some nodes and flat networks (type) with Linux Bridge (mechanism) on others within the same cloud.",correct: 1
             },
             {
                 q: "During Neutron installation on the compute node, the Linux Bridge agent is configured. What is the primary function of the Linux Bridge agent on a compute node?",
@@ -625,7 +615,7 @@
                     "The Linux Bridge agent connects virtual machine tap interfaces to the correct network segments (VLANs or VXLAN tunnels) using the kernel's bridge subsystem",
                     "The Linux Bridge agent replaces the need for a Neutron controller on the compute node",
                     "The Linux Bridge agent provides DHCP services to instances on the compute node"
-                ]
+                ],explanation: "The Linux Bridge agent on each compute node uses the Linux kernel's bridge module (brctl) to create virtual switches that connect instance tap interfaces to provider or overlay network interfaces. For VXLAN networks, it creates VXLAN tunnel endpoints (VTEPs) and associates them with the bridge. The agent runs on every compute node and communicates with the Neutron server on the controller via RabbitMQ. DHCP is handled by neutron-dhcp-agent, and L3 routing by neutron-l3-agent (both typically on the controller or a network node).",correct: 1
             },
             {
                 q: "The Neutron configuration file on the controller requires a metadata secret. What is the purpose of the metadata secret shared between Neutron and Nova?",
@@ -634,52 +624,20 @@
                     "It authenticates requests between the nova-metadata service and the neutron-metadata-proxy, preventing unauthorized instances from querying instance metadata",
                     "It is used to sign Fernet tokens issued by Keystone for Nova service accounts",
                     "It protects the RabbitMQ vhost from unauthorized connections by Neutron agents"
-                ]
+                ],explanation: "When an instance queries the instance metadata service (169.254.169.254), the request is intercepted by the neutron-metadata-proxy running on the network node. The proxy adds headers identifying the instance and forwards the request to nova-metadata. The metadata_secret (configured identically in neutron.conf and nova.conf) is used as a shared secret to sign these proxied requests via HMAC — so nova-metadata can verify the request legitimately came from the neutron-metadata-proxy and not from a spoofed source.",correct: 1
             }
         ];
 
         // ── State ──
-        // The answer key is NOT in this page. It lives in Firestore quiz_keys/cloud-openstack-install-quiz and is
-        // checked by the gradeQuiz Cloud Function (BUG-065 — this quiz used to ship its own key
-        // in page source). Option order is shuffled per student (BUG-067 — the order was fixed,
-        // so clicking B every time passed). InstantQuizGrader owns the display<->original remap;
-        // if that remap is ever wrong, every student is graded wrong, so it has its own harness:
-        // _tools/instant-quiz-grader-test.js. Design note:
-        // _docs/operations/instant-quiz-grader-design-2026-07-31.md
         let currentQ   = 0;
-        let score      = 0;
-        let selected   = null;    // DISPLAY index of the student's pick — never an original index
-        let answered   = [];
-        let picks      = [];      // display index per question, for the final full submission
-        let shown      = [];      // options of the current question, in display order
-        let grader     = null;
-        let grading    = false;   // a verdict is in flight; ignore clicks until it lands
-        let failStreak = 0;       // consecutive grading failures on the CURRENT question
-        let ungraded   = [];      // question numbers the server never managed to grade
-        // Matches the button's markup label. Set via textContent, so the arrow is the decoded
-        // character, not the &rarr; entity — textContent does not decode entities.
-        const NEXT_LABEL = 'Next Question \u2192';
+        let score       = 0;
+        let selected    = null;
+        let answered    = [];
         const PASS_PCT  = 70;
         const STORE_KEY = 'hexworth_openstack_lesson3_quiz';
-        const QUIZ_ID   = 'cloud-openstack-install-quiz';
 
-        async function startQuiz() {
-            // gradeQuiz rejects an unauthenticated caller. Check BEFORE question 1 — otherwise a
-            // signed-out student answers all 15 and every one comes back unverifiable.
-            let user = null;
-            try { user = await FirebaseAuth.waitForAuth(); } catch (e) { user = null; }
-            if (!user) { document.getElementById('signInNotice').style.display = 'block'; return; }
-            document.getElementById('signInNotice').style.display = 'none';
-
-            currentQ = 0;
-            score    = 0;
-            selected = null;
-            answered = [];
-            picks    = [];
-            grading  = false;
-            failStreak = 0;
-            ungraded   = [];
-            grader   = InstantQuizGrader.create({ quizId: QUIZ_ID, questions: questions });
+        function startQuiz() {
+            currentQ = 0; score = 0; selected = null; answered = [];
             document.getElementById('startScreen').style.display = 'none';
             document.getElementById('quizScreen').style.display  = 'block';
             renderQuestion();
@@ -692,16 +650,12 @@
             document.getElementById('qScore').textContent       = `Score: ${score}`;
             document.getElementById('questionText').textContent = q.q;
 
-            // Progress fill
             const pct = ((currentQ + 1) / questions.length) * 100;
             document.getElementById('progressFill').style.width = pct + '%';
 
-            // Build options IN DISPLAY ORDER. Everything below indexes the shuffled order; the
-            // original order only ever exists inside the grader.
-            shown = grader.displayOptions(currentQ);
             const wrap = document.getElementById('optionsWrap');
             wrap.innerHTML = '';
-            shown.forEach((opt, i) => {
+            q.opts.forEach((opt, i) => {
                 const div = document.createElement('div');
                 div.className = 'option';
                 div.innerHTML = `<span class="opt-label">${String.fromCharCode(65 + i)}.</span><span>${opt}</span>`;
@@ -709,143 +663,59 @@
                 wrap.appendChild(div);
             });
 
-            // Reset feedback and buttons
             const fb = document.getElementById('feedback');
             fb.className = 'feedback';
             document.getElementById('submitBtn').disabled      = true;
             document.getElementById('submitBtn').style.display = 'inline-block';
-            // Reset the Next button's LABEL and skip flag too, not just its visibility — the
-            // skip affordance below relabels it, and a stale label would leak onto every later
-            // question and mislabel a normal Next as an ungraded skip.
-            const nb = document.getElementById('nextBtn');
-            nb.style.display = 'none';
-            nb.textContent   = NEXT_LABEL;
-            delete nb.dataset.skip;
-            selected   = null;
-            failStreak = 0;
+            document.getElementById('nextBtn').style.display   = 'none';
+            selected = null;
         }
 
         function selectOpt(idx) {
-            // Prevent changing answer after submission, or while a verdict is in flight —
-            // otherwise the answer that comes back gets applied to a different option.
-            if (grading) return;
             if (document.getElementById('submitBtn').style.display === 'none') return;
-            const opts = document.querySelectorAll('.option');
-            opts.forEach(o => o.classList.remove('selected'));
-            opts[idx].classList.add('selected');
+            document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll('.option')[idx].classList.add('selected');
             selected = idx;
             document.getElementById('submitBtn').disabled = false;
         }
 
-        async function submitAnswer() {
-            if (selected === null || grading) return;
+        function submitAnswer() {
+            if (selected === null) return;
             const q    = questions[currentQ];
             const opts = document.querySelectorAll('.option');
-            const submitBtn = document.getElementById('submitBtn');
-            const fb   = document.getElementById('feedback');
+            const isOk = selected === q.correct;
 
-            // Grading is a network round trip. Lock input and say so.
-            grading = true;
             opts.forEach(o => o.classList.add('disabled'));
-            submitBtn.disabled = true;
-            fb.className = 'feedback show';
-            document.getElementById('fbTitle').textContent = 'Checking your answer\u2026';
-            document.getElementById('fbBody').textContent  = '';
+            opts[q.correct].classList.add('correct');
+            if (!isOk) opts[selected].classList.add('incorrect');
+            if (isOk) score++;
 
-            const v = await grader.gradeOne(currentQ, selected);
-            grading = false;
+            const fb = document.getElementById('feedback');
+            fb.className = `feedback show ${isOk ? 'correct' : 'incorrect'}`;
+            document.getElementById('fbTitle').textContent = isOk ? 'Correct!' : 'Incorrect';
+            document.getElementById('fbBody').textContent  = q.explanation;
 
-            if (!v) {
-                // Honest failure. Do NOT score an answer we could not verify — a silent miscount
-                // is worse than an error message. Unlock and let the student submit again.
-                //
-                // After two failed attempts, offer a way FORWARD. Retry-only would strand a
-                // student behind a dead network on question 3 with no path to the end — a way to
-                // make the quiz un-completable that did not exist when grading was local. The
-                // skipped question is recorded as ungraded and surfaced on the results screen,
-                // never quietly folded into the score.
-                failStreak++;
-                opts.forEach(o => o.classList.remove('disabled'));
-                submitBtn.disabled = false;
-                fb.className = 'feedback show incorrect';
-                document.getElementById('fbTitle').textContent = 'Could not verify your answer';
-                document.getElementById('fbBody').textContent  = failStreak >= 2
-                    ? 'Still cannot reach the grading service. This answer has not been counted either way. Press Submit to try again, or continue — the question will be reported as not graded.'
-                    : 'This answer was not graded, so it has not been counted either way. Check your connection and press Submit again.';
-                if (failStreak >= 2) {
-                    const nb = document.getElementById('nextBtn');
-                    nb.style.display = 'inline-block';
-                    nb.textContent = 'Continue without grading this question';
-                    nb.dataset.skip = '1';
-                }
-                return;
-            }
-            failStreak = 0;
+            answered.push({ q: q.q, yours: q.opts[selected], correct: q.opts[q.correct], isOk });
 
-            if (v.correct) score++;
-            if (v.correctDisplayIndex >= 0) opts[v.correctDisplayIndex].classList.add('correct');
-            if (!v.correct) opts[selected].classList.add('incorrect');
-
-            fb.className = `feedback show ${v.correct ? 'correct' : 'incorrect'}`;
-            document.getElementById('fbTitle').textContent = v.correct ? 'Correct!' : 'Incorrect';
-            document.getElementById('fbBody').textContent  = v.explanation || '';
-
-            // Record in DISPLAY terms — what the student actually saw on screen.
-            picks[currentQ] = selected;
-            answered.push({
-                q:       q.q,
-                yours:   shown[selected],
-                correct: v.correctDisplayIndex >= 0 ? shown[v.correctDisplayIndex] : '',
-                isOk:    v.correct
-            });
-
-            submitBtn.style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
             document.getElementById('nextBtn').style.display   = 'inline-block';
         }
 
         function nextQuestion() {
-            // Arriving here with the skip flag means the grading service never answered for this
-            // question. Record it as UNGRADED and show it as such in the review — it is not a
-            // wrong answer, and pretending otherwise would misreport the student's work.
-            const nb = document.getElementById('nextBtn');
-            if (nb.dataset.skip) {
-                ungraded.push(currentQ + 1);
-                answered.push({
-                    q:        questions[currentQ].q,
-                    yours:    selected !== null ? shown[selected] : '(no answer submitted)',
-                    correct:  '',
-                    isOk:     false,
-                    notGraded: true
-                });
-            }
             selected = null;
             currentQ++;
-            if (currentQ < questions.length) {
-                renderQuestion();
-            } else {
-                showResults();
-            }
+            if (currentQ < questions.length) { renderQuestion(); } else { showResults(); }
         }
 
-        async function showResults() {
+        function showResults() {
             document.getElementById('quizScreen').style.display = 'none';
-            const rs = document.getElementById('resultsScreen');
-            rs.classList.add('show');
+            document.getElementById('resultsScreen').classList.add('show');
 
-            // Final full submission. This is the call that records the attempt in quiz_attempts;
-            // the per-question calls are partial and deliberately do not. Prefer the server's
-            // percentage over the running tally — same source of truth the transcript will show.
-            let pct = Math.round((score / questions.length) * 100);
-            try {
-                const res = await grader.gradeAll(picks);
-                if (res && typeof res.percentage === 'number') pct = res.percentage;
-            } catch (e) { /* keep the tally, which came from server verdicts anyway */ }
+            const pct    = Math.round((score / questions.length) * 100);
             const passed = pct >= PASS_PCT;
 
-            // Score ring (CSS conic gradient needs the percentage as a custom property)
-            const ring = document.getElementById('scoreRing');
-            ring.style.setProperty('--pct', pct + '%');
-            document.getElementById('scorePct').textContent  = pct + '%';
+            document.getElementById('scoreRing').style.setProperty('--pct', pct + '%');
+            document.getElementById('scorePct').textContent    = pct + '%';
             document.getElementById('statCorrect').textContent = score;
             document.getElementById('statWrong').textContent   = questions.length - score;
             document.getElementById('statPct').textContent     = pct + '%';
@@ -854,21 +724,15 @@
             badge.textContent = passed ? 'PASSED' : 'NOT PASSED';
             badge.className   = `pass-badge ${passed ? 'pass' : 'fail'}`;
 
-            const msgs = {
+            const msgMap = {
                 perfect: 'Flawless installation knowledge. You could deploy this from memory.',
                 high:    'Strong work. You are ready to tackle a real OpenStack installation.',
                 pass:    'Solid. Review the commands you missed before starting the lab.',
                 fail:    'Revisit the installation guide section and try again. Focus on service order and config files.'
             };
-            const msgKey = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
-            // Say plainly when part of the quiz could not be graded, rather than presenting a
-            // score that quietly treats unreachable-server questions as wrong answers.
-            document.getElementById('resultMsg').textContent = ungraded.length
-                ? `${ungraded.length} question${ungraded.length > 1 ? 's' : ''} (${ungraded.join(', ')}) could not be graded because the grading service was unreachable, and ${ungraded.length > 1 ? 'they are' : 'it is'} not counted as correct. Your score reflects only the questions that were graded. Retake the quiz when your connection is stable.`
-                : msgs[msgKey];
+            const key = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
+            document.getElementById('resultMsg').textContent = msgMap[key];
 
-            // Build review list. Texts come from the display order the student saw, with the
-            // correct option mapped back through the permutation by the grader.
             const rw = document.getElementById('reviewWrap');
             rw.innerHTML = '';
             answered.forEach((a, i) => {
@@ -878,20 +742,17 @@
                     <div class="review-q"><strong>Q${i + 1}:</strong> ${a.q}</div>
                     <div class="review-a">
                         <strong>Your answer:</strong> ${a.yours}<br>
-                        ${a.notGraded ? '<strong>Not graded</strong> — the grading service was unreachable for this question.' : ''}
-                        ${!a.isOk && a.correct ? `<strong>Correct answer:</strong> ${a.correct}` : ''}
+                        ${!a.isOk ? `<strong>Correct answer:</strong> ${a.correct}` : ''}
                     </div>`;
                 rw.appendChild(d);
             });
 
-            // Persist score to localStorage
             try {
                 localStorage.setItem(STORE_KEY + '_score',   pct);
                 localStorage.setItem(STORE_KEY + '_answers', JSON.stringify(answered));
                 localStorage.setItem(STORE_KEY + '_passed',  passed ? '1' : '0');
-            } catch(e) { /* storage unavailable */ }
+            } catch(e) {}
 
-            // Notify progress system if available
             if (typeof ModuleProgress !== 'undefined') {
                 ModuleProgress.completeQuiz('cloud', 'openstack-install-quiz', pct, {
                     maxScore: 100,

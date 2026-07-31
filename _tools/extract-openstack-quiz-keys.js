@@ -56,7 +56,13 @@ for (const q of QUIZZES) {
   });
   if (bad.length) { console.error(`${q.id} PROBLEMS:\n   ` + bad.join('\n   ')); problems++; }
 
-  out[q.id] = { answers, explanations, passingScore: 70, questionCount: arr.length };
+  // revealToAll is REQUIRED, not optional polish. gradeQuiz gates correctAnswer/explanation
+  // behind `passed || revealToAll || revealForReview` (functions/index.js:1764). A partial
+  // call submits 1 of 15, scores ~7%, so `passed` is never true, and revealForReview is
+  // !isPartial-guarded. Without this flag the per-question feedback box renders EMPTY every
+  // time — the quiz would look fine and be silently broken. These are formative module
+  // quizzes, which is exactly the case that comment says revealToAll exists for.
+  out[q.id] = { answers, explanations, passingScore: 70, questionCount: arr.length, revealToAll: true };
   console.error(`${q.id}: ${arr.length} questions, answers=[${answers.join(',')}]`);
 }
 
