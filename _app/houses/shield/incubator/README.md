@@ -1,14 +1,19 @@
 # Shield Incubator — Graduation Log
 
-Created: 2026-05-01 (Stragglers branch)
+Created: 2026-07-31 (Stragglers branch)
 
 ## Initial population
 
 | Sub-cluster | Modules | Graduation target |
 |---|---:|---|
-| `threat-*` | 17 | Eligible — promote to dedicated hub |
+| `threat-*` | 30 | Eligible — promote to dedicated hub |
+| `crypto-*` | 20 | Eligible — promote to dedicated hub |
 | `linux-*` | 15 | Eligible — promote to dedicated hub |
-| `crypto-*` | 15 | Eligible — promote to dedicated hub |
+| `pbq-*` | 12 | Eligible — promote to dedicated hub |
+| `sp-*` | 9 | Need 1 more |
+| `pis-*` | 6 | Need 4 more |
+| `sy0-*` | 4 | Need 6 more |
+| `malware-*` | 3 | Need 7 more |
 | `cse-*` | 3 | Need 7 more |
 | `hash-*` | 3 | Need 7 more |
 | `social-*` | 2 | Need 8 more |
@@ -16,7 +21,18 @@ Created: 2026-05-01 (Stragglers branch)
 | `stego-*` | 2 | Need 8 more |
 | `hashing-*` | 2 | Need 8 more |
 | `data-*` | 2 | Need 8 more |
-| `malware-*` | 2 | Need 8 more |
+| `cryptomatch-*` | 1 | Need 9 more |
+| `hangman-*` | 1 | Need 9 more |
+| `crime-*` | 1 | Need 9 more |
+| `secure-*` | 1 | Need 9 more |
+| `cve-*` | 1 | Need 9 more |
+| `pentest-*` | 1 | Need 9 more |
+| `cookies-*` | 1 | Need 9 more |
+| `cyberscramble-*` | 1 | Need 9 more |
+| `ethical-*` | 1 | Need 9 more |
+| `hatmatch-*` | 1 | Need 9 more |
+| `laws-*` | 1 | Need 9 more |
+| `presentations-*` | 1 | Need 9 more |
 | `security-*` | 1 | Need 9 more |
 | `aaa-*` | 1 | Need 9 more |
 | `access-*` | 1 | Need 9 more |

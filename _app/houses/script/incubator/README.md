@@ -1,6 +1,6 @@
 # Script Incubator — Graduation Log
 
-Created: 2026-05-01 (Stragglers branch)
+Created: 2026-07-31 (Stragglers branch)
 
 ## Initial population
 
@@ -10,6 +10,7 @@ Created: 2026-05-01 (Stragglers branch)
 | `intro-*` | 30 | Eligible — promote to dedicated hub |
 | `quiz-*` | 30 | Eligible — promote to dedicated hub |
 | `python-*` | 9 | Need 1 more |
+| `exams-*` | 8 | Need 2 more |
 | `windows-*` | 3 | Need 7 more |
 | `process-*` | 3 | Need 7 more |
 | `anonymity-*` | 3 | Need 7 more |
@@ -20,6 +21,7 @@ Created: 2026-05-01 (Stragglers branch)
 | `permission-*` | 2 | Need 8 more |
 | `sudo-*` | 2 | Need 8 more |
 | `ssh-*` | 2 | Need 8 more |
+| `zero-*` | 1 | Need 9 more |
 | `log-*` | 1 | Need 9 more |
 | `command-*` | 1 | Need 9 more |
 | `macos-*` | 1 | Need 9 more |

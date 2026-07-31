@@ -1,14 +1,16 @@
 # Dark Arts Incubator — Graduation Log
 
-Created: 2026-05-01 (Stragglers branch)
+Created: 2026-07-31 (Stragglers branch)
 
 ## Initial population
 
 | Sub-cluster | Modules | Graduation target |
 |---|---:|---|
+| `vault-*` | 30 | Eligible — promote to dedicated hub |
 | `malware-*` | 2 | Need 8 more |
 | `nmap-*` | 2 | Need 8 more |
 | `network-*` | 2 | Need 8 more |
+| `wifi-*` | 1 | Need 9 more |
 | `cyberops-*` | 1 | Need 9 more |
 | `five-*` | 1 | Need 9 more |
 | `the-*` | 1 | Need 9 more |

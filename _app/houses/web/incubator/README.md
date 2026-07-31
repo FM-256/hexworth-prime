@@ -1,11 +1,12 @@
 # Web Incubator — Graduation Log
 
-Created: 2026-05-01 (Stragglers branch)
+Created: 2026-07-31 (Stragglers branch)
 
 ## Initial population
 
 | Sub-cluster | Modules | Graduation target |
 |---|---:|---|
+| `labs-*` | 5 | Need 5 more |
 | `network-*` | 5 | Need 5 more |
 | `packet-*` | 5 | Need 5 more |
 | `wireless-*` | 3 | Need 7 more |

@@ -1,6 +1,6 @@
 # Cloud Incubator — Graduation Log
 
-Created: 2026-05-01 (Stragglers branch)
+Created: 2026-07-31 (Stragglers branch)
 
 ## Initial population
 
@@ -8,7 +8,12 @@ Created: 2026-05-01 (Stragglers branch)
 |---|---:|---|
 | `dont-*` | 4 | Need 6 more |
 | `cloud-*` | 4 | Need 6 more |
+| `iam-*` | 2 | Need 8 more |
 | `architecture-*` | 2 | Need 8 more |
+| `storage-*` | 1 | Need 9 more |
+| `database-*` | 1 | Need 9 more |
+| `networking-*` | 1 | Need 9 more |
+| `fundamentals-*` | 1 | Need 9 more |
 | `support-*` | 1 | Need 9 more |
 | `regions-*` | 1 | Need 9 more |
 | `ec2-*` | 1 | Need 9 more |
@@ -18,7 +23,6 @@ Created: 2026-05-01 (Stragglers branch)
 | `presentation-*` | 1 | Need 9 more |
 | `comparison-*` | 1 | Need 9 more |
 | `security-*` | 1 | Need 9 more |
-| `iam-*` | 1 | Need 9 more |
 | `ad-*` | 1 | Need 9 more |
 | `whoami-*` | 1 | Need 9 more |
 | `destroyer-*` | 1 | Need 9 more |

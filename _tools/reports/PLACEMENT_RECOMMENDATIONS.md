@@ -1,18 +1,18 @@
 # Placement Recommendations — Phase 3 + 4
 
-**Generated:** 2026-07-29T03:30:49.376Z
+**Generated:** 2026-07-31T11:22:44.403Z
 
 ## Summary
 
 | Metric | Count |
 |---|---:|
-| Total cluster recommendations | 56 |
-| → To existing hub | 11 clusters / **402 modules** |
+| Total cluster recommendations | 49 |
+| → To existing hub | 11 clusters / **399 modules** |
 | → To proposed new hub | 1 / **1** |
-| → To incubation hub | 36 / **129** |
+| → To incubation hub | 29 / **112** |
 | → CLEANUP (dedupe / roll-up) | 0 / **0** |
 | Unmatched (need manual review) | 8 |
-| **Total modules covered** | **564** |
+| **Total modules covered** | **544** |
 
 ## Recommendation Types
 
@@ -24,37 +24,23 @@
 ## Per-House Placement Plan
 
 
-### `cloud` (14 orphan modules)
+### `cloud` (10 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
-| ✓ `aws-*` | 8 | 8/0 | AWS | `houses/aws-ccp/index.html` | learning-path | AWS topics — assign to AWS CCP hub (most general) |
+| ✓ `aws-*` | 5 | 5/0 | AWS | `houses/aws-ccp/index.html` | learning-path | AWS topics — assign to AWS CCP hub (most general) |
 | 🥚 `iam-*` | 1 | 1/0 | AWS | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
 | 🥚 `storage-*` | 1 | 1/0 | AWS | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
 | 🥚 `database-*` | 1 | 1/0 | AWS | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
 | 🥚 `networking-*` | 1 | 1/0 | Networking | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
 | 🥚 `fundamentals-*` | 1 | 1/0 | Cloud | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
-| 🥚 `careers-*` | 1 | 1/0 | Cloud | `NEW (incubation): houses/cloud/incubator/index.html` | inline-id | Catch-all incubation hub for cloud orphans |
 
-### `dark-arts` (32 orphan modules)
+### `dark-arts` (31 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
 | 🥚 `vault-*` | 30 | 30/0 | Cloud | `NEW (incubation): houses/dark-arts/incubator/index.html` | inline-id | Catch-all incubation hub for dark-arts orphans |
 | 🥚 `wifi-*` | 1 | 1/0 | — | `NEW (incubation): houses/dark-arts/incubator/index.html` | inline-id | Catch-all incubation hub for dark-arts orphans |
-| 🥚 `careers-*` | 1 | 1/0 | — | `NEW (incubation): houses/dark-arts/incubator/index.html` | inline-id | Catch-all incubation hub for dark-arts orphans |
-
-### `eye` (1 orphan modules)
-
-| Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
-|---|---:|---|---|---|---|---|
-| 🥚 `careers-*` | 1 | 1/0 | Digital Forensics | `NEW (incubation): houses/eye/incubator/index.html` | inline-id | Catch-all incubation hub for eye orphans |
-
-### `forge` (1 orphan modules)
-
-| Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
-|---|---:|---|---|---|---|---|
-| 🥚 `careers-*` | 1 | 1/0 | — | `NEW (incubation): houses/forge/incubator/index.html` | inline-id | Catch-all incubation hub for forge orphans |
 
 ### `matrix` (367 orphan modules)
 
@@ -77,15 +63,14 @@
 | ⚠️ `internships-*` | 1 | 1/0 | — | `*UNMATCHED*` | ? | No rule matched — manual review |
 | ⚠️ `job-*` | 1 | 1/0 | — | `*UNMATCHED*` | ? | No rule matched — manual review |
 
-### `script` (10 orphan modules)
+### `script` (9 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
 | 🥚 `exams-*` | 8 | 8/0 | — | `NEW (incubation): houses/script/incubator/index.html` | inline-id | Catch-all incubation hub for script orphans without strong cluster signal |
 | 🥚 `zero-*` | 1 | 1/0 | Python Programming | `NEW (incubation): houses/script/incubator/index.html` | inline-id | Catch-all incubation hub for script orphans without strong cluster signal |
-| 🥚 `linux-*` | 1 | 1/0 | Linux | `NEW (incubation): houses/script/incubator/index.html` | inline-id | Catch-all incubation hub for script orphans without strong cluster signal |
 
-### `shield` (83 orphan modules)
+### `shield` (82 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
@@ -111,7 +96,6 @@
 | 🥚 `ethical-*` | 1 | 1/0 | Shield (Security) | `NEW (incubation): houses/shield/incubator/index.html` | inline-id | Catch-all incubation hub for shield orphans |
 | 🥚 `hatmatch-*` | 1 | 1/0 | Shield (Security) | `NEW (incubation): houses/shield/incubator/index.html` | inline-id | Catch-all incubation hub for shield orphans |
 | 🥚 `laws-*` | 1 | 1/0 | Shield (Security) | `NEW (incubation): houses/shield/incubator/index.html` | inline-id | Catch-all incubation hub for shield orphans |
-| 🥚 `careers-*` | 1 | 1/0 | Shield (Security) | `NEW (incubation): houses/shield/incubator/index.html` | inline-id | Catch-all incubation hub for shield orphans |
 | 🥚 `presentations-*` | 1 | 1/0 | Shield (Security) | `NEW (incubation): houses/shield/incubator/index.html` | inline-id | Catch-all incubation hub for shield orphans |
 
 ### `signal` (23 orphan modules)
@@ -121,13 +105,12 @@
 | ⚠️ `toolkit-*` | 22 | 22/0 | — | `*UNMATCHED*` | ? | No rule matched — manual review |
 | ⚠️ `careers-*` | 1 | 1/0 | — | `*UNMATCHED*` | ? | No rule matched — manual review |
 
-### `web` (24 orphan modules)
+### `web` (13 orphan modules)
 
 | Cluster prefix | Count | True / Sub | Cluster signal | → Target | Mechanism | Notes |
 |---|---:|---|---|---|---|---|
-| 🥚 `labs-*` | 15 | 15/0 | Networking | `NEW (incubation): houses/web/incubator/index.html` | inline-id | Catch-all incubation hub for web orphans |
 | ✓ `network-*` | 7 | 7/0 | CompTIA Network+ | `houses/comptia-network/index.html` | learning-path | Existing Net+ cert hub |
-| 🥚 `careers-*` | 1 | 1/0 | Networking | `NEW (incubation): houses/web/incubator/index.html` | inline-id | Catch-all incubation hub for web orphans |
+| 🥚 `labs-*` | 5 | 5/0 | — | `NEW (incubation): houses/web/incubator/index.html` | inline-id | Catch-all incubation hub for web orphans |
 | ✓ `exams-*` | 1 | 1/0 | CompTIA Network+ | `houses/comptia-network/index.html` | learning-path | Existing Net+ cert hub |
 
 ## Tag Legend
