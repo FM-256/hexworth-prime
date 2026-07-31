@@ -142,7 +142,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   rather than against `#` — the same 6 cards she caught in the incubator turned out to be a
   narrow slice of a 35-card live problem.
 
-### BUG-062 — LIVE shield incubator: 108 of 111 cards are dead `#` links  ·  [P1]  ·  fixed-not-deployed
+### BUG-062 — LIVE shield incubator: 108 of 111 cards are dead `#` links  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by Nancy · reviewing an unrelated incubator regen (taskboard #240)
 - **Area:** `_tools/eduscan/incubator-generator.js` additive-merge block; output pages `_app/houses/*/incubator/index.html`
 - **Symptom, measured against PRODUCTION:** `https://hexworth.com/houses/shield/incubator/index.html`
@@ -167,9 +167,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   dark-arts 45/45 -> 76/76, script 148/148 -> 157/157, web 69/69 -> 74/74, and shield
   **3/111 -> 173/173**. The ContentCatalog fallback repairs the 108 links that prior runs had
   already broken, so this is a repair, not merely a stop-loss.
+- **DEPLOYED + VERIFIED 2026-07-31** (deploy.sh full gated run, Chris PASS recorded against
+  e608ebd47). Measured on production after the deploy: the shield incubator now serves
+  **167 real hrefs of 167 cards, 0 dead** (was 3 of 111). `is-it-live.sh` reports local ==
+  production for every checked file.
 - **Related:** taskboard #240.
 
-### BUG-061 — ArenaFirebase anonymous sign-in threw on EVERY standalone page  ·  [P2]  ·  fixed-not-deployed
+### BUG-061 — ArenaFirebase anonymous sign-in threw on EVERY standalone page  ·  [P2]  ·  resolved
 - **Found:** 2026-07-31 · by Chris · flagged as a non-blocking aside while gating the catalog change
 - **Area:** `_app/arena/firebase-init.js` `_ensureSignedIn` (:178) and its call site (:146)
 - **Symptom:** Console showed `[ArenaFirebase] Initialization failed: ReferenceError:
@@ -196,7 +200,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   why the catalog merge verified correctly anyway.
 - **Related:** surfaced during the BUG-232/243 catalog work.
 
-### BUG-060 — relaunching a running session drops cloudMode: every returning student told the lab is unusable  ·  [P1]  ·  fixed-not-deployed
+### BUG-060 — relaunching a running session drops cloudMode: every returning student told the lab is unusable  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · while re-running the rescue gate under a fixed QC identity
 - **Area:** bc1 `lab-manager/server.js` launch route, both resume branches (`status: 'running'` and `status: 'restarted'`)
 - **Symptom:** The launch route attaches `cloudMode`/`cloudSlot` only on the FRESH-create path.
@@ -217,7 +221,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   slot. LIVE on bc1 (rebuilt, host/container sha verified equal).
 - **Deploy status:** grader-side only; no page change needed.
 
-### BUG-059 — the LIVE Rescue lab could not be launched at all: seeding failed for every student  ·  [P1]  ·  fixed-not-deployed
+### BUG-059 — the LIVE Rescue lab could not be launched at all: seeding failed for every student  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · re-running the rescue gate during the coverage rollout
 - **Area:** bc2 `~/openstack-stage1/claim_service.py`, `orphaned-volume` seed path
 - **Symptom:** Every launch of the Rescue lab returned 503 `SEED_FAILED` — "Could not build this
@@ -326,7 +330,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   capstone's anti-cheat absent from exactly the channel a student asks "am I done?" through.
 - **Related:** BUG-055, BUG-056.
 
-### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  fixed-not-deployed
+### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · walkthrough half of the Project 1 QC gate
 - **Area:** bc1 `server.js` check id 27; `walkthrough-project.js:88`; page `cloud-openstack-project-iac.lab.html:224`
 - **Symptom:** A student who follows the page verbatim — builds, exports, destroys everything,
@@ -353,7 +357,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   still rejected.
 - **Related:** BUG-055 (same check, opposite direction: forgeable vs false-fail).
 
-### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  fixed-not-deployed
+### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by Nancy · in the Cloud Master capstone (Project 1) adversarial review
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js`, `SANDBOX_CHALLENGES['openstack-cli']` check id 27
 - **Symptom:** Check 27 is the capstone's whole point — "you really REBUILT it, nothing live
