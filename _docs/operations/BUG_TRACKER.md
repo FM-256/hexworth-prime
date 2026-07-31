@@ -31,6 +31,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-056 — capstone check 27 also FAILS the honest path: it rejects everyone  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by self · walkthrough half of the Project 1 QC gate
+- **Area:** bc1 `server.js` check id 27; `walkthrough-project.js:88`; page `cloud-openstack-project-iac.lab.html:224`
+- **Symptom:** A student who follows the page verbatim — builds, exports, destroys everything,
+  rebuilds from the manifest — still fails check 27. The gate result was
+  `run 1: 25=PASS 26=PASS 27=fail 28=PASS`. The lab is UNCOMPLETABLE as written.
+- **Repro:** run `bash qc-lab.sh project` on bc1. Adversarial passes; walkthrough run 1 fails 27.
+- **Root cause:** the export records ids with `openstack network list -f value -c ID`, which
+  returns every network VISIBLE to the student, including the SHARED networks the cloud
+  provides. The student cannot delete a shared network, so its id is in `before-ids.json` AND
+  still live after the destroy. Check 27 asserts `not (live & old)`; that intersection always
+  contains the shared network id, so 27 fails for everyone. Not hypothetical: the harness picks
+  `network list -c Name | head -1` and the run log printed `network=shared`. Check 26 already
+  had to filter `n.owned === true` for precisely this reason.
+- **Why the adversarial gate missed it:** the adversarial harness only asserts that cheat D is
+  REJECTED by 27. A check that rejects everything satisfies that assertion. Nothing asserted
+  that 27 must PASS for a should-pass case — the exact gap the standing rule warns about
+  ("adversarial cheats must assert what should still PASS as well as what must fail"). The
+  walkthrough is what caught it. This is why the gate runs both and why adversarial-alone is
+  never sufficient evidence.
+- **Fix:** subsumed by the BUG-055 redesign — the server-side snapshot records only resources
+  with `owned === true`, which the in-container `openstack network list` cannot distinguish
+  without extra flags, so moving the capture server-side fixes the false-fail and the forgery
+  together. Must be verified against BOTH: an honest walkthrough PASSES 27, and cheat D is
+  still rejected.
+- **Related:** BUG-055 (same check, opposite direction: forgeable vs false-fail).
+
 ### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by Nancy · in the Cloud Master capstone (Project 1) adversarial review
 - **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js`, `SANDBOX_CHALLENGES['openstack-cli']` check id 27
