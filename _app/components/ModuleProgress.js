@@ -92,6 +92,26 @@ const ModuleProgress = (function() {
      * @returns {Promise<boolean>} true if ProgressManager.syncToFirestore is available
      * @sideeffect Injects up to 5 <script> tags into <head>
      */
+    /**
+     * The ONE memoized "Firestore deps are loaded" promise.
+     *
+     * Exists because two separate places need it and one of them lives in a DIFFERENT top-level
+     * IIFE (reconcileProgressBootstrap, further down this file). That IIFE cannot see
+     * `firestoreSyncReady` or `ensureFirestoreDeps` — they are locals of this one — so it was
+     * throwing `ReferenceError: firestoreSyncReady is not defined` on every auth-state change,
+     * silently killing the cloud pull on sign-in (BUG-072). It reaches this via the exported
+     * `_ensureFirestoreReady` instead.
+     *
+     * Sharing the single memo also matters: two independent caches would load the Firebase
+     * deps twice.
+     */
+    function ensureFirestoreReady() {
+        if (!firestoreSyncReady) {
+            firestoreSyncReady = ensureFirestoreDeps().catch(() => false);
+        }
+        return firestoreSyncReady;
+    }
+
     async function ensureFirestoreDeps() {
         // Short-circuit if ProgressManager is already loaded from another path
         if (typeof ProgressManager !== 'undefined' && ProgressManager.syncToFirestore) {
@@ -283,12 +303,8 @@ const ModuleProgress = (function() {
      * @sideeffect May inject Firebase scripts; writes to Firestore
      */
     function tryFirestoreSync(moduleId, houseId, moduleType, metadata) {
-        if (!firestoreSyncReady) {
-            firestoreSyncReady = ensureFirestoreDeps().catch(() => false);
-        }
-
         // Return a promise so callers can wait for sync before redirecting
-        return firestoreSyncReady.then(ready => {
+        return ensureFirestoreReady().then(ready => {
             if (!ready) {
                 console.warn('[ModuleProgress] Firestore deps not available, sync skipped');
                 return;
@@ -1477,7 +1493,10 @@ const ModuleProgress = (function() {
         trackVisit,
         migrateLegacyKey,
         copyLegacyKey,
-        _goToDashboard: navigateToDashboard  // Exposed for onclick in overlay HTML
+        _goToDashboard: navigateToDashboard,  // Exposed for onclick in overlay HTML
+        // Exposed for the reconcileProgressBootstrap IIFE below, which is a separate top-level
+        // scope and cannot see this one's locals. See BUG-072.
+        _ensureFirestoreReady: ensureFirestoreReady
     };
 })();
 
@@ -1668,10 +1687,12 @@ if (typeof window !== 'undefined') {
             // on first call. If deps were already loaded (typical for hubs
             // that loaded ModuleProgress.js synchronously), the promise
             // resolves immediately.
-            if (!firestoreSyncReady) {
-                firestoreSyncReady = ensureFirestoreDeps().catch(function () { return false; });
-            }
-            firestoreSyncReady.then(function () {
+            // Reach the memo through the public API: `firestoreSyncReady` and
+            // `ensureFirestoreDeps` are locals of the ModuleProgress IIFE and are NOT in scope
+            // here. Referencing them directly threw on every sign-in, and because the throw
+            // landed AFTER the debounce write above, the 60s per-uid gate then suppressed the
+            // retry too (BUG-072). window.ModuleProgress is assigned before this IIFE runs.
+            ModuleProgress._ensureFirestoreReady().then(function () {
                 if (typeof FirestoreManager !== 'undefined' &&
                     FirestoreManager.syncBidirectional) {
                     FirestoreManager.syncBidirectional(u.uid).catch(function () {
