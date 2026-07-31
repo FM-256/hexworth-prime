@@ -86,6 +86,51 @@ The ablation is not optional. Earlier the same day, a grep-honesty harness repor
 against a deliberately broken engine because it was asserting on the wrong text. A harness that
 cannot fail converts an untested change into a "verified" one.
 
+## OPERATOR DECISION — sign-in is now required on these 4 quizzes
+
+**Decided 2026-07-31 by the operator, in chat, on an explicit three-way choice.**
+
+Server-side grading cannot work without auth: `gradeQuiz` throws `unauthenticated` with no
+`request.auth` (`functions/index.js:1640-1643`). These 4 pages were previously reachable by
+anyone merely "sorted" — `AccessGuard`'s `sorted` level is satisfied by `isSorted()` or
+`isTourist()`, both localStorage-only, with no Firebase account. So closing the key leak
+necessarily locks that population out. The size of it is **unmeasurable**: the old quizzes never
+wrote to Firestore, so no attempt log exists to count against. Nancy raised this and asked for
+a number or an operator sign-off; no number can exist, so it went to the operator.
+
+The three options put forward, and the outcome:
+
+| Option | Outcome |
+|---|---|
+| **Ship with the sign-in gate** | **CHOSEN.** Blocked students get a clear up-front panel before spending an attempt. |
+| Ship with no gate | Same lockout, unannounced — 15 silent "could not verify" results. Matches `cr-w1-osi.quiz.html`, which additionally marks the student's picks red as if wrong. |
+| Don't ship | Key stays readable via Ctrl-U; install quiz stays passable by always clicking B (12 of 15 answers are index 1). |
+
+Supporting precedent, surfaced by Chris: **BUG-050** (fixed 2026-07-30) — Frank ruled that
+anonymous Firebase identity does not count as a real account for platform participation, and
+lab-manager was hardened to reject anonymous tokens on that reasoning. Also, 6 of the 9 OpenStack
+labs already require sign-in ("Personal cloud required... Sign in and launch below",
+`cloud-openstack-neutron-live.lab.html:128-129`), and a signed-out student's quiz completion
+never persisted anyway — `ProgressManager.syncToFirestore` returns early when unauthenticated.
+
+## An incomplete run is never scored and never recorded
+
+Found by Chris after the first implementation shipped a subtler unfairness than the one it fixed.
+
+`gradeQuiz` always computes `total = answerKey.length`. A question the grading service could not
+reach is simply absent from the `answers` object, so the server scores it `isCorrect: false` and
+it lowers the percentage **exactly as if the student had answered wrong** — enough to tip a pass
+into a fail. The UI was simultaneously telling the student it was "not counted as correct."
+
+So: if any question goes ungraded, the quiz does not submit, does not record a `quiz_attempts`
+row, does not award `ModuleProgress`, and does not persist a score. The student is shown how they
+did on the questions that *were* graded, told plainly that it is not a quiz score and does not
+count, and asked to retake.
+
+`functions/index.js` was deliberately NOT changed. Adjusting `total` there would alter grading
+semantics for all 615 seeded quizzes to solve a 4-quiz problem; refusing to submit an incomplete
+attempt achieves the same honesty with no blast radius.
+
 ## Not yet done
 
 The four pages still need `submitAnswer()`/`showResults()` rewritten to consume an async verdict
