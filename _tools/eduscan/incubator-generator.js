@@ -220,6 +220,48 @@ ${moduleIdsJs}
 }
 
 function main() {
+    // ── href resolution for CARRIED-FORWARD modules ──────────────────────────────────
+    // The additive merge below re-parses the previous file's INCUBATOR_MODULES array, which
+    // carries id/subcluster/title and NOTHING ELSE. It used to push `href: ''`, and the card
+    // template renders `href="${m.href || '#'}"` -- so every carried-forward card silently
+    // became a DEAD "#" anchor. Nancy measured the damage: cloud 28 real hrefs -> 6,
+    // script 149 -> 10, web 70 -> 6. Worse, it compounds: a module carried forward twice was
+    // already dead before the second run, which is why shield was sitting at 4 real of 112
+    // BEFORE this fix existed. Every previous regen degraded the pages a little more.
+    //
+    // It hid because the obvious safety metric -- "no module ids were lost" -- is true the
+    // whole time. It counts whether a card is PRESENT, not whether it goes anywhere, and a
+    // "#" anchor renders pixel-identical to a working one, so a visual/overlap check cannot
+    // see it either.
+    //
+    // Fixed by resolving the href from two authoritative sources instead of dropping it:
+    // the PREVIOUS file's own rendered anchors (what actually worked last time), falling back
+    // to ContentCatalog (where the module genuinely lives). Carried-forward modules are by
+    // definition no longer orphans, so the strict-orphan map cannot supply this.
+    const catalogHrefById = (() => {
+        const map = new Map();
+        try {
+            const vm = require('vm');
+            const code = fs.readFileSync(path.resolve(ROOT_APP, 'components/ContentCatalog.js'), 'utf8');
+            const ctx = vm.createContext({ window: {}, console });
+            vm.runInContext(code, ctx);
+            const cat = ctx.window.ContentCatalog || ctx.window;
+            for (const m of (cat.MODULES || [])) {
+                if (m && m.id && m.href) map.set(m.id, m.href);
+            }
+        } catch (e) {
+            console.warn('  [warn] ContentCatalog unavailable for href fallback: ' + e.message);
+        }
+        return map;
+    })();
+    const resolveHref = (id, prevHrefById, house) => {
+        const prev = prevHrefById.get(id);
+        if (prev && prev !== '#') return prev;
+        const cat = catalogHrefById.get(id);
+        if (!cat) return '';
+        return cat.startsWith('/') ? cat : '/' + path.posix.join('houses', house, cat);
+    };
+
     const placement = JSON.parse(fs.readFileSync(PLACEMENT_PATH, 'utf8'));
     const strict = JSON.parse(fs.readFileSync(STRICT_PATH, 'utf8'));
 
@@ -263,6 +305,11 @@ function main() {
         // generator would overwrite the file with empty content.
         if (fs.existsSync(file)) {
             const prev = fs.readFileSync(file, 'utf8');
+            // What each card ACTUALLY linked to last time, straight off the rendered anchors.
+            const prevHrefById = new Map();
+            const aRe = /<a[^>]*href="([^"]*)"[^>]*data-module="([^"]*)"/g;
+            let am;
+            while ((am = aRe.exec(prev)) !== null) { prevHrefById.set(am[2], am[1]); }
             // Parse existing INCUBATOR_MODULES — match objects: { id: '...', subcluster: '...', title: ... }
             const objRe = /\{\s*id:\s*['"]([^'"]+)['"]\s*,\s*subcluster:\s*['"]([^'"]+)['"]\s*,\s*title:\s*([^}]+?)\s*\}/g;
             const existingIds = new Set(data.allModules.map(m => m.id));
@@ -280,7 +327,7 @@ function main() {
                     existingClustersByPrefix.set(subcluster, c);
                 }
                 existingClustersByPrefix.get(subcluster).modules.push({
-                    id, title, description: '', href: '',
+                    id, title, description: '', href: resolveHref(id, prevHrefById, house),
                 });
             }
         }

@@ -31,6 +31,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-062 — LIVE shield incubator: 108 of 111 cards are dead `#` links  ·  [P1]  ·  fixed-not-deployed
+- **Found:** 2026-07-31 · by Nancy · reviewing an unrelated incubator regen (taskboard #240)
+- **Area:** `_tools/eduscan/incubator-generator.js` additive-merge block; output pages `_app/houses/*/incubator/index.html`
+- **Symptom, measured against PRODUCTION:** `https://hexworth.com/houses/shield/incubator/index.html`
+  serves **3 real hrefs out of 111 cards — 108 dead**. 97% of that page does nothing when a
+  student clicks it. cloud (27/27) and script (148/148) are currently intact.
+- **Root cause:** the generator's additive merge re-parses the previous file's
+  `INCUBATOR_MODULES` array, which carries `{id, subcluster, title}` and nothing else, then
+  pushed `href: ''`. The card template renders `href="${m.href || '#'}"`, so every
+  CARRIED-FORWARD card became a dead anchor. It COMPOUNDS: a module carried forward twice was
+  already dead on the second pass, so each regen cycle degraded the page further. That is how
+  shield reached 108 dead without anyone touching it deliberately.
+- **Why it was invisible:** the safety metric in use was "no module ids were lost", which stays
+  true throughout — it counts whether a card is PRESENT, not whether it goes anywhere. A `#`
+  anchor also renders pixel-identical to a working one, so a layout/overlap render check cannot
+  detect it. I ran both of those checks on my own regen and both passed while the page was being
+  gutted; Nancy caught it by diffing REAL-href counts, which is the metric that could have failed.
+- **Fix:** carried-forward modules now resolve their href from two authoritative sources instead
+  of dropping it — the previous file's own rendered anchors (what actually worked last run),
+  falling back to ContentCatalog (where the module genuinely lives). The strict-orphan map cannot
+  supply this, because a carried-forward module is by definition no longer an orphan.
+- **Verified:** regenerated all five from the archived pre-regen state — cloud 27/27 -> 32/32,
+  dark-arts 45/45 -> 76/76, script 148/148 -> 157/157, web 69/69 -> 74/74, and shield
+  **3/111 -> 173/173**. The ContentCatalog fallback repairs the 108 links that prior runs had
+  already broken, so this is a repair, not merely a stop-loss.
+- **Related:** taskboard #240.
+
 ### BUG-061 — ArenaFirebase anonymous sign-in threw on EVERY standalone page  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Chris · flagged as a non-blocking aside while gating the catalog change
 - **Area:** `_app/arena/firebase-init.js` `_ensureSignedIn` (:178) and its call site (:146)
