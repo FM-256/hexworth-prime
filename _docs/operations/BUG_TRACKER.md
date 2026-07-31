@@ -31,7 +31,37 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-054 — all 5 live OpenStack labs award NOTHING on completion  ·  [P1]  ·  open
+### BUG-055 — capstone check 27 is forgeable: the anti-cheat trusts a student-written file  ·  [P1]  ·  open
+- **Found:** 2026-07-31 · by Nancy · in the Cloud Master capstone (Project 1) adversarial review
+- **Area:** bc1 `~/hexworth-sandbox/lab-manager/server.js`, `SANDBOX_CHALLENGES['openstack-cli']` check id 27
+- **Symptom:** Check 27 is the capstone's whole point — "you really REBUILT it, nothing live
+  carries an id from your pre-destroy export". It reads `/home/student/project/before-ids.json`
+  and compares those ids to live cloud ids. That file is written BY THE STUDENT, inside their
+  own container, and is writable by them at any time.
+- **Repro:** build the stack and never destroy anything, then write ids into
+  `~/project/before-ids.json` that are not live (random UUIDs suffice). 27 asserts that
+  `live & old` is empty, so a file naming ids that were never real passes trivially. The
+  student never destroys or rebuilds anything.
+- **Root cause:** the check treats student-authored evidence as authoritative. The live half
+  of the comparison cannot be forged; the recorded half is entirely under student control,
+  and a comparison is only as trustworthy as its weaker side.
+- **Fix:** in review with Nancy. Direction: the grader records the pre-destroy ids itself,
+  server-side, in a store the student's restricted app credential cannot reach. Known
+  consequences from reading the source: (a) 27 must MOVE from `SANDBOX_CHALLENGES` (`cmd:`,
+  executed inside the student container, so it cannot read a server-side store) into
+  `CLOUD_CHECKS` (`fn:`); (b) `fn` is invoked only as `fn(state, seed)` at server.js:1224 and
+  needs a third `ctx` argument; (c) the store CANNOT be keyed by slot or OpenStack project id
+  — the 30-slot pool is reclaimed and reassigned, so a stale snapshot would be inherited by
+  the next student to hold that slot; Firebase uid is never reused; (d) the lab-manager
+  container had NO writable mount except `docker.sock`, so a `./lab-manager/data:/app/data`
+  bind mount was added (anything written inside the image is lost on every rebuild).
+- **Blocks:** shipping the capstone. The lab is currently gate-green (all 4 named cheats
+  rejected, honest path under test) but green against the FORGEABLE version of 27, so the
+  gate result must NOT be read as "27 is sound".
+- **Related:** BUG-054. See memory `project_marathon_backlog.md` 2026-07-31 entry for the
+  rejected passive-observation alternative and why it was deferred.
+
+### BUG-054 — all 5 live OpenStack labs award NOTHING on completion  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · while tracing a Nancy concern on the capstone project
 - **Area:** `_app/houses/cloud/openstack/labs/cloud-openstack-{cinder,rescue,launch-chain,secgroup,neutron}-live.lab.html`
 - **Symptom:** A student completes a lab 4/4 and gets a congratulation string. That is all.
@@ -46,12 +76,19 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   progress recorded on the dashboard.
 - **Root cause:** the pattern was cloned from the Cinder lab, which never had a completion
   call. Each new lab inherited the omission, so the gap scaled with the series.
-- **Fix:** not yet. Needs the correct houseId/moduleId per lab (do NOT guess — the catalog
-  ids are `cloud-openstack-*`) and a `ModuleProgress.complete` call on the all-checks-pass
-  branch, plus a decision on whether a later re-check that fails should REVOKE completion
-  (it must not — that is the trap that makes the capstone's destroy step dangerous).
-- **Related:** BUG-053. Blocks the Cloud Master capstone from being safe to ship, since that
-  project requires students to destroy the resources their earlier lab credit depends on.
+- **Fix:** commit `ee9ee8105` — an `awardOnce(moduleId)` helper in each of the five files,
+  called on the all-checks-pass branch. Module ids taken from ContentCatalog BY HAND, not
+  from the file stem: 3 of the 5 do not match (`cloud-openstack-cinder-live`,
+  `cloud-openstack-rescue-live`, `cloud-openstack-launch-chain`, `cloud-openstack-secgroup`,
+  `cloud-openstack-neutron`). Rescue gates on `passed === 3`, the other four on `=== 4`.
+  A module-scoped `awarded` latch makes the award idempotent, and the call is wrapped in
+  try/catch so an award failure can never break the lab UI. Deliberately ONE-WAY: a later
+  re-check that fails does NOT revoke completion — that was the trap that would have made
+  the capstone's mandatory destroy step delete the student's own credit.
+- **Verified:** deployed and confirmed live on all five (`complete() present live: 2` in each;
+  `_tools/deploy/is-it-live.sh` reports local == production for all five files).
+- **Related:** BUG-053, BUG-055. Was blocking the Cloud Master capstone, which requires
+  students to destroy the resources their earlier lab credit depended on.
 
 ### BUG-053 — HexMemory RNN training can EXPLODE (loss > 10^200), invisible to QC  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by Nancy · in Gate 6 mechanism investigation
