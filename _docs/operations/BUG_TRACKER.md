@@ -31,6 +31,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-061 — ArenaFirebase anonymous sign-in threw on EVERY standalone page  ·  [P2]  ·  fixed-not-deployed
+- **Found:** 2026-07-31 · by Chris · flagged as a non-blocking aside while gating the catalog change
+- **Area:** `_app/arena/firebase-init.js` `_ensureSignedIn` (:178) and its call site (:146)
+- **Symptom:** Console showed `[ArenaFirebase] Initialization failed: ReferenceError:
+  onAuthStateChanged is not defined` on pages that otherwise worked. `_ensureSignedIn` took
+  `authInstance` and `signInAnonymouslyFn` as parameters but referenced bare
+  `onAuthStateChanged`, which is destructured from `window.firebaseAuth` inside `init()` — a
+  DIFFERENT function. So the standalone sign-in path threw every time it ran.
+- **Why it looked cosmetic (and therefore survived):** callers wrap `ArenaFirebase.init()` in a
+  catch by design, so the throw degraded silently to "no anonymous UID" instead of breaking a
+  page outright. It reads as console noise on a page that clearly works.
+- **Scope:** every page loading ArenaFirebase — `catalog.html`, `admin/observatory.html`,
+  `join/index.html`, and several dark-arts / security-plus lab pages. Anything relying on an
+  anonymous UID for Firestore rules was running without one.
+- **Corroboration the fix is right:** `_app/houses/shield/infosec/exams/kahoot-firebase.js:139`
+  has the SAME helper already written correctly, taking `onAuthStateChanged` as a parameter.
+  Arena's copy simply never received that fix; this brings them into line rather than inventing
+  a new shape. `_ensureSignedIn` is module-private, so there are no other callers to break.
+- **Fix:** pass `onAuthStateChanged` in alongside `signInAnonymouslyFn`.
+- **Verified:** on a real preview-channel deploy the ReferenceError is gone. What remains is
+  `auth/requests-from-referer-<preview-domain>-are-blocked`, which is the API key's referrer
+  allowlist rejecting the ephemeral preview domain — an artifact of preview testing, not a
+  defect. NOTE FOR FUTURE PREVIEW TESTING: Firebase Auth will not work on a preview channel
+  unless that domain is allowlisted; Firestore reads of published docs still succeed, which is
+  why the catalog merge verified correctly anyway.
+- **Related:** surfaced during the BUG-232/243 catalog work.
+
 ### BUG-060 — relaunching a running session drops cloudMode: every returning student told the lab is unusable  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-07-31 · by self · while re-running the rescue gate under a fixed QC identity
 - **Area:** bc1 `lab-manager/server.js` launch route, both resume branches (`status: 'running'` and `status: 'restarted'`)

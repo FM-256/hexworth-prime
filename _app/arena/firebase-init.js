@@ -143,7 +143,7 @@ const ArenaFirebase = (function() {
             // 4. Ensure the user is signed in (anonymous is sufficient for arena).
             //    FirebaseAuth.js handles full Google auth on box pages; we just
             //    need any UID so Firestore rules can apply.
-            await _ensureSignedIn(_auth, signInAnonymously);
+            await _ensureSignedIn(_auth, signInAnonymously, onAuthStateChanged);
 
             // 5. Verify the Firestore connection with a lightweight ping
             await _verifyFirestore(_db);
@@ -175,7 +175,13 @@ const ArenaFirebase = (function() {
      * @param {object} authInstance
      * @param {function} signInAnonymously - Firebase signInAnonymously fn
      */
-    async function _ensureSignedIn(authInstance, signInAnonymouslyFn) {
+    // onAuthStateChanged is PASSED IN, like signInAnonymouslyFn beside it. It used to be
+    // referenced as a free variable here while being destructured from window.firebaseAuth
+    // inside init() -- a different function -- so this threw
+    // "ReferenceError: onAuthStateChanged is not defined" every time the standalone path ran.
+    // The error was visible in the console on pages that otherwise worked, because callers
+    // catch init failures, which is exactly what made it survive: it looked cosmetic.
+    async function _ensureSignedIn(authInstance, signInAnonymouslyFn, onAuthStateChanged) {
         // If FirebaseAuth is present and already tracking auth state,
         // defer to it rather than calling signInAnonymously ourselves.
         if (typeof FirebaseAuth !== 'undefined') {
