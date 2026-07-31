@@ -93,15 +93,44 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   reporting it as the claim, the failure mode already recorded in memory as
   `feedback_measure_the_claim_not_a_proxy`. The commit message even said "measured against
   production, not inferred"; the target status was measured, the CLICK was inferred.
-- **TRUE remaining scope:** exactly ONE genuinely unguarded card, on
-  `_app/houses/shield/security-plus/index.html` (0 gate markers, vs 6 in isc2-cc and 5 in
-  intro-computers). Plus two real secondary defects Chris confirmed:
+- **CORRECTION 2 (2026-07-31) — the "ONE unguarded card" was ALSO wrong. It is ZERO.**
+  An earlier version of this entry said security-plus had exactly one genuinely unguarded card.
+  It does not. My static regex false-positived on a JS template (`' + esc(item.id) + '`) because
+  that page builds its cards AT RUNTIME. I rendered the live page and HEAD-checked all 119
+  rendered card hrefs: **every one returns HTTP 200**. Chris independently reproduced this (120
+  hrefs, 0 non-200). So the card-404 half of this bug is entirely empty — first claimed as 35,
+  then re-scoped to 1, actually 0.
+- **TRUE remaining scope, and the part that WAS real:**
   (a) **progress denominators count unreachable content** — isc2-cc's `d1` array includes all 5
   gated `pis-*` ids inside a 17-item denominator, and intro-computers' `wk1` includes 4 of 6, so
   "0 / 17" and "0 / 6" are targets a student can never reach. This is the exact risk I flagged as
   unverified and did not check; Chris verified it and it is real.
   (b) **bypass paths** — the BUG-012 gate intercepts left-clicks on `a.content-card` only, so
   middle-click / ctrl-click / open-in-new-tab still navigate to a 404.
+- **FIXED (commit `c971af029`), measured on a real preview deploy:**
+      isc2-cc          "0 of 58" -> "0 of 47"   (11 gated ids excluded)
+      intro-computers  "0 of 26" -> "0 of 3"    (23 gated ids excluded)
+  Both pages now hoist ONE coming-soon list shared by the click gate and the counter, so the two
+  cannot drift. Gated cards still RENDER — the roadmap stays visible, they just stop inflating a
+  total the student cannot reach.
+- **A silent no-op along the way, worth recording:** my first filter derived gated ids by
+  string-munging href basenames. It worked on isc2-cc by luck and matched NOTHING on
+  intro-computers, whose arrays use `fb-w1-fundamentals-lab` while the basename gives
+  `fb-w1-fundamentals.lab`. Denominators came back unchanged at 0/26 and it looked like a pass.
+  Now derived from the DOM, which carries href and data-module on the same card and is
+  authoritative regardless of naming convention.
+- **Probe reliability (Chris):** `card-click-probe.js` was non-deterministic on larger pages —
+  he measured 11/6, then 21 silent, then 10/2 on isc2-cc with no code change. Cause: the probe
+  reloads the page after a card navigates, and the reload returns COLLAPSED, so every later card
+  was unclickable and scored "blocked silently". Fixed by re-expanding after every reload. Now
+  stable across 3 consecutive runs: gatedWithDialog = 11, 11, 11 (exactly the 11 gated entries).
+  Residual variance remains in the raw navigation count (44/47/47) from reload timing — stated
+  rather than hidden.
+- **Also found:** `forge/intro-computers` is ~88% UNBUILT — only 3 of 26 items exist. Two
+  independent measurements agree (23 gated ids excluded from the denominator; click probe finds
+  23 gated / 3 navigable). It is live and reachable as a beginner course. Chris ruled the bare
+  "0 of 3" is honest about the denominator but dishonest by omission about scope, and wants the
+  built-vs-planned count made visible. Not yet implemented.
 - **My attempted fix was REVERTED** (restored byte-identical from
   `_archive/coming-soon-cards-pre-fix-2026-07-31/`, verified empty diff against 741c6bd87~1). It
   converted the cards to `<div>`, which silently broke the BUG-012 gate's own selector

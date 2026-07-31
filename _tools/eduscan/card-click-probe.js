@@ -27,14 +27,25 @@ if (!URL) { console.error('usage: node card-click-probe.js <url> [selector]'); p
   await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
   await new Promise(r => setTimeout(r, 2000));
   // Expand accordions; cards hidden in collapsed sections cannot be clicked.
-  await p.evaluate(() => {
-    document.querySelectorAll('details').forEach(d => { d.open = true; });
-    if (typeof window.toggleDomain === 'function') {
-      document.querySelectorAll('[onclick^="toggleDomain"]').forEach(el => { try { el.click(); } catch (e) {} });
-    }
-    document.querySelectorAll('[class*="domain-content"],[class*="accordion"],[class*="panel"],[class*="week"]').forEach(el => el.classList.add('open'));
-  });
-  await new Promise(r => setTimeout(r, 700));
+  //
+  // THIS MUST RUN AFTER EVERY RELOAD, not just the first. The probe reloads the page each
+  // time a card navigates, and the reload comes back COLLAPSED -- so every card after the
+  // first navigation was unclickable and recorded as "blocked silently". That made results
+  // non-deterministic run to run (Chris measured 11/6, then 21 silent, then 10/2 on the same
+  // page with no code change) and it got worse the more cards navigated. A 26-card page was
+  // stable; a 58-card page with 46 navigations was not. The tool built to stop unverified
+  // click claims was itself unreliable at exactly the size where the original mistake happened.
+  const expand = async () => {
+    await p.evaluate(() => {
+      document.querySelectorAll('details').forEach(d => { d.open = true; });
+      if (typeof window.toggleDomain === 'function') {
+        document.querySelectorAll('[onclick^="toggleDomain"]').forEach(el => { try { el.click(); } catch (e) {} });
+      }
+      document.querySelectorAll('[class*="domain-content"],[class*="accordion"],[class*="panel"],[class*="week"]').forEach(el => el.classList.add('open'));
+    });
+    await new Promise(r => setTimeout(r, 700));
+  };
+  await expand();
 
   const hrefs = await p.evaluate((s) => [...document.querySelectorAll(s)].map(a => a.getAttribute('href')), SEL);
   if (process.env.DUMPHREFS) {
@@ -61,10 +72,14 @@ if (!URL) { console.error('usage: node card-click-probe.js <url> [selector]'); p
         if (el) el.click();
       }, SEL, href);
     } catch (e) { /* context destroyed == navigation happened */ }
-    await new Promise(r => setTimeout(r, 350));
+    await new Promise(r => setTimeout(r, 600));   // dialogs need time to fire before we judge
     const navigated = p.url() !== start;
     p.off('dialog', onDialog);
-    if (navigated) { await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 }); await new Promise(r => setTimeout(r, 900)); }
+    if (navigated) {
+      await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 45000 });
+      await new Promise(r => setTimeout(r, 900));
+      await expand();   // the reload comes back collapsed -- see the note above
+    }
     results.push({ href, navigated, dialog });
   }
   const gated = results.filter(r => !r.navigated && r.dialog);
