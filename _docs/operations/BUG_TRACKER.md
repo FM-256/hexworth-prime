@@ -31,6 +31,11 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+> **DEPLOYED 2026-07-31** — BUG-068/069/071/072 shipped via `./deploy.sh` after preview-lane
+> verification, and were confirmed on production: 4 sampled games show `guard=true unlocked=true
+> persisted=true` on hexworth.com, `ModuleProgress` serves `_ensureFirestoreReady`, and
+> `LabStateSync` serves 0 occurrences of the old dead `window.FirebaseAuth` guard.
+
 ### BUG-074 — `ModuleProgress.completeQuiz()` throws on the first quiz notification  ·  [P1]  ·  open
 - **Found:** 2026-07-31 · by self · regression-checking the BUG-072 fix against completeQuiz
 - **Area:** `_app/components/ModuleProgress.js:1187` inside `showQuizNotification()`
@@ -80,7 +85,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   achievement and what they are worth.
 - **Related:** BUG-071 (the dead guard, fixed), BUG-068, BUG-072.
 
-### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  fixed-not-deployed
+### BUG-072 — ModuleProgress cloud-pull throws on every sign-in (variable out of scope)  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · surfaced by the zero-stub live e2e for the quiz fix, which
   caught it as a page error on production the moment a real student signs in
 - **Area:** `_app/components/ModuleProgress.js:1671-1674`
@@ -106,7 +111,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   runs independently.
 - **Related:** BUG-068 (also silently disables cloud sync, different mechanism).
 
-### BUG-071 — dead `window.X` guards: 38 sites repaired, 13 games now genuinely award  ·  [P1]  ·  fixed-not-deployed
+### BUG-071 — dead `window.X` guards: 38 sites repaired, 13 games now genuinely award  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · same `window.X` lexical-const sweep as BUG-068
 - **Area:** 31 sites guarding `if (window.AchievementManager) AchievementManager.unlock(...)`,
   2 guarding `if (window.GameTracker) GameTracker.record(...)`, 2 for `AchievementRegistry`.
@@ -132,7 +137,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   guard had been masking whether the unlock path worked at all.
 - **Related:** BUG-068, BUG-069, BUG-070.
 
-### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  fixed-not-deployed
+### BUG-068 — cross-device lab-state sync has never synced anything, for anyone  ·  [P1]  ·  resolved
 - **Found:** 2026-07-31 · by self · while sweeping for the `window.FirebaseAuth` trap that the
   render probe caught in InstantQuizGrader
 - **Area:** `_app/components/LabStateSync.js:45` (`_uid()`)
@@ -169,7 +174,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   this exact trap ("same trap documented in TenantFilter.js") — so it is known, with victims.
   Memory: `project_cross_device_lab_state_sync.md` records this feature as SHIPPED.
 
-### BUG-069 — admin console records `createdBy: null` on every object it creates  ·  [P2]  ·  fixed-not-deployed
+### BUG-069 — admin console records `createdBy: null` on every object it creates  ·  [P2]  ·  resolved
 - **Found:** 2026-07-31 · by self · same sweep as BUG-068
 - **Area:** `_app/admin/console.html:4675`
 - **Symptom:** the `createdBy` audit field is always `null`, so admin-created objects carry no
