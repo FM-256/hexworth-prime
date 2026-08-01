@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-079 — the Cloud Master hub lists 95 pieces of content and 3 of its 11 courses  ·  [P2]  ·  open
+### BUG-079 — 6 of 12 Cloud Master course hubs were missing their `parent`, so half the catalogue was unreachable  ·  [P2]  ·  fixed, awaiting deploy
 - **Found:** 2026-08-01 · by self · taskboard #241 (Frank: "verify and fix the organization and
   structure of the cloudmaster content. it needs a legit qc/qa")
 - **Area:** `hubRegistry/cloud-master` (Firestore) + `_app/houses/hub/index.html` projection
@@ -52,12 +52,33 @@ Reachable: `az-104`, `cloud-essentials`, `openstack`.
 NOT linked from the hub: `api`, `az-900`, `clf-c02`, `cse`, `ms-102`, `ms-900`, `pl-300`,
 `server-plus` — including every Microsoft cert path and the AWS practitioner path.
 
-**Root cause.** The hub renders a `Hubs` section from `hubRegistry` docs whose `parent` is this hub
-(`_app/houses/hub/index.html:452`). **The entire `hubRegistry` collection contains exactly ONE
-document** — `cloud-master` itself, `parent: null`. No child hubs have ever been created, so the
-section renders 0 and the eleven courses are invisible as courses. Everything else on the page comes
-from the catalog projection, which buckets by TYPE (lab/quiz/slide), not by course — so the content
-arrives without its curriculum.
+**CORRECTION TO MY OWN FIRST REPORT.** I originally logged this as "Hubs section = 0, the entire
+hubRegistry collection holds one document". **Both halves were wrong**, and the contradiction was
+sitting in my own data: the same run reported 3 of 11 courses REACHABLE, which is impossible if
+nothing renders. My section counter looked for `.item`; child hubs render as `.kid-card` in a
+`.kids-grid`, so it counted 0 where there were 6. And children come from the STATIC
+`_app/components/HubRegistry.js`, not from the Firestore `hubRegistry` collection I inspected --
+`_app/houses/hub/index.html:451` reads `window.HubRegistry.all()`, and the comment two lines above
+says so plainly ("Static registry only: dynamic hubs cannot carry parent yet").
+
+**The real root cause.** Six entries existed in the static registry with correct `hubHref` values and
+**no `parent` field at all**, so they were never candidates for the Hubs shelf: `api`, `cse`,
+`ms-102`, `ms-900`, `pl-300`, `server-plus`. Six others were correctly parented and rendering the
+whole time.
+
+**Fix (Frank: "fix the navigation, all 11 should be reachable"):** added `parent: 'cloud-master'` to
+those six. Verified by loading the real component and asking it the same question the hub asks:
+**12 children, 0 with a missing target file**, covering all 11 course directories (`az-900` and
+`clf-c02` are served by the dedicated `azure-fundamentals` and `aws-ccp` hub pages).
+
+`sortOrder` deliberately untouched on every entry. The existing values interleave the new arrivals
+sensibly enough, and re-sequencing a multi-cloud learning progression is a curriculum decision that
+was not asked for.
+
+**Still open and NOT fixed by this:** the 95 content items remain bucketed by TYPE, not by course, so
+a student still sees 27 quizzes without knowing which course each belongs to. Whether the flat
+type-shelves should survive now that all 12 courses are reachable is the curriculum question left
+on the table.
 
 **All eleven course index pages are real**, 5.5KB to 78KB, hand-authored. I checked the two that
 looked like stubs (`server-plus`: 22 links / 1 file; `cse`: 28 links / 2 files) and their links all
