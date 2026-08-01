@@ -405,6 +405,38 @@ of Cloud Master, in what order, and whether the flat type-shelves should stay on
 reachable. Registering eleven child hubs would also change what every shelf shows.
 
 
+**2026-08-01 — THE FIX I PLANNED WOULD HAVE INVERTED THE GRADING. Do not apply the BUG-008 gate to
+arm-bash 04/05/06/10.**
+
+I found that BUG-008 (2026-07-22, `8a505c12a`) already shipped an honesty gate to arm-bash
+01/02/03/07/08/09 — `credit only when !output.includes('lt-error')` — and concluded the four modules
+I broke today were simply the ones it missed. They were not missed. `arm-bash-01-intro` carries an
+explicit PIN naming them: *"the engine does not execute a created script … gating this on `ok` would
+make the task unreachable … pending the script-execution reframe with modules 04/05/06/10."*
+
+Measured what `onCommand` actually receives as `output`:
+
+| input | `lt-error`? |
+|---|---|
+| `for i in 1 2 3; do echo $i; done` (CORRECT) | **true** |
+| `echo "for in do done while"` (CHEAT) | **false** |
+
+The engine has no parser for loops, functions or arrays, so a correct answer returns
+`for: command not found` **wrapped in `lt-error`**, while an `echo` of the keywords runs cleanly.
+Applying the gate would therefore **block honest students and pass the cheat** — strictly worse than
+the current false-positive-only state. The pin was right.
+
+I nearly shipped it because my first probe read the terminal's HTML slice rather than the `output`
+argument the grader is handed, and reported "ran clean" for both. Seventeenth wrong-surface reading
+today, and the only one that would have actively harmed students rather than merely misinformed me.
+
+**CONSEQUENCE FOR THE DECISION.** These four cannot be verified without a real bash interpreter —
+there is no cheaper gate. Chris's recommendation stands as the correct path and does not depend on
+the interpreter question: **stop the unverifiable tasks from firing `ModuleProgress.complete`**, so
+the false instructor-visible gradebook write stops, and mark those tasks ungraded/practice on the
+page. A page label alone does not fix it (his words: "an honest confession next to an unfixed lie") —
+the write is the harm.
+
 ### BUG-078 — Armory terminal modules can be completed by typing one line that runs nothing  ·  [P1]  ·  open
 - **Found:** 2026-08-01 · by self · taskboard #103 grading-honesty sweep
 - **Area:** `_app/houses/code/armory/{bash,sql}/*.module.html` (20 modules with an `onCommand` grader)
