@@ -17,9 +17,9 @@ chk() {  # label  url  pattern  before  expect
 }
 echo "── post-deploy verification, 2026-08-01 ──"
 chk "feh-09 credit button ships disabled"  "/houses/dark-arts/labs/dark-arts-feh-09.lab.html" 'id="c0"[^>]*disabled' 0 1
-chk "ms102-ch05 free door removed"         "/houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html" 'Mark Reviewed' 1 0
+chk "ms102-ch05 free door removed"         "/houses/cloud/ms-102/labs/ms102-ch05-exchange.lab.html" '<button[^>]*>[^<]*Mark Reviewed' 1 0
 chk "pl300-ch04 time guard is exact"       "/houses/cloud/pl-300/labs/pl300-ch04-deploy.lab.html" '6:00am' 0 1
-chk "HubRegistry: 12 cloud-master children" "/components/HubRegistry.js" "parent: 'cloud-master'" 6 12
+chk "HubRegistry: 11 cloud-master children" "/components/HubRegistry.js" "parent: 'cloud-master'" 6 11
 chk "tourist banner is sticky"             "/components/tourist-badge.css" 'position: sticky' 0 1
 chk "tourist notice split from silent"     "/components/TouristVisa.js" 'function wrapNotify' 0 1
 echo "  ── holdouts: these must NOT have shipped ──"

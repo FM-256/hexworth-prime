@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-079 — 6 of 12 Cloud Master course hubs were missing their `parent`, so half the catalogue was unreachable  ·  [P2]  ·  fixed, awaiting deploy
+### BUG-079 — 6 of 12 Cloud Master course hubs were missing their `parent`, so half the catalogue was unreachable  ·  [P2]  ·  DEPLOYED 2026-08-01, 10 of 11 live
 - **Found:** 2026-08-01 · by self · taskboard #241 (Frank: "verify and fix the organization and
   structure of the cloudmaster content. it needs a legit qc/qa")
 - **Area:** `hubRegistry/cloud-master` (Firestore) + `_app/houses/hub/index.html` projection
@@ -74,6 +74,20 @@ those six. Verified by loading the real component and asking it the same questio
 `sortOrder` deliberately untouched on every entry. The existing values interleave the new arrivals
 sensibly enough, and re-sequencing a multi-cloud learning progression is a curriculum decision that
 was not asked for.
+
+**DEPLOYED AND VERIFIED LIVE 2026-08-01.** 11 child hub cards render on hexworth.com; **10 of the 11
+course directories are reachable**, up from 3.
+
+**`api` had to be pulled back out, and the deploy gate is what caught it.** I parented all six
+without checking whether any was already a container. `api` has SEVEN children of its own
+(`api-auth`, `cloud-patterns`, `api-design`, `event-driven`, `owasp`, `pentest`, `rate-limiting`),
+so `hub-registry-audit` failed with "hub 'api' is both a parent and a child (nesting is capped at
+depth 1)". The rule was written three lines above the filter I had copied for my own verification
+(`hub/index.html:447-449`) -- I verified the filter and ignored the sentence beside it.
+
+**API Security therefore remains unreachable** from the hub, and the audit independently reports it
+"surfaced on no house page and not linked by any container". It needs a container-appropriate route
+rather than a `parent` field. That is the one piece of "all 11" still outstanding.
 
 **Still open and NOT fixed by this:** the 95 content items remain bucketed by TYPE, not by course, so
 a student still sees 27 quizzes without knowing which course each belongs to. Whether the flat
