@@ -39,4 +39,16 @@ if ! echo "$OUT" | grep -q "GRADCHECK 6/6"; then
   echo "GATE FAILED: a correct engine does not pass. The lab is uncompletable."; rm -rf "$W"; exit 1
 fi
 rm -rf "$W"
-echo "── HEXGRAD QC PASSED: shortcuts rejected AND the correct build passes ──"
+
+# [3/3] THE JAVASCRIPT HALF. Steps 1 and 2 above extract and run the page's PYTHON verification
+# block. accumulates() and builtRealEngine() are JAVASCRIPT, living in the challenge tests[] arrays,
+# and nothing here touched them -- so this gate could print PASSED with the JS grading broken.
+# Nancy raised that as taskboard #256, and it is not hypothetical: the FIRST accumulates() matched
+# only `.grad +=` and therefore FAILED an honest engine that wrote `self.grad = self.grad + x` and
+# scored GRADCHECK 6/6. A false negative blocks a learner who did everything right.
+echo "── [3/3] JS GRADING: honest spellings credited, shortcuts rejected ──"
+if ! node "$ROOT/_tools/model-forge/qc-js-checks.js" "$LAB"; then
+  echo "GATE FAILED: the lab's JavaScript grading regressed."; exit 1
+fi
+
+echo "── HEXGRAD QC PASSED: shortcuts rejected, the correct build passes, JS grading intact ──"
