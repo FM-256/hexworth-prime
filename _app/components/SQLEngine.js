@@ -44,16 +44,16 @@
             // password_hash holds bcrypt-style hashes (never plaintext) — the "sensitive column" the
             // SQLi UNION lesson (arm-sql-09) exfiltrates, teaching that even hashes leak via injection.
             users: {
-                columns: ['user_id', 'username', 'email', 'role', 'department', 'created_at', 'is_active', 'password_hash'],
+                columns: ['user_id', 'username', 'email', 'role', 'department', 'created_at', 'is_active', 'password_hash', 'last_login'],
                 rows: [
-                    [1, 'jcarter',  'jcarter@hexcorp.io',  'admin',   'IT Security', '2024-01-15 09:00:00', 1, '$2b$12$K1x9aQ7uZ3rN.oP2sVfLeuJh0bYcW4dRtGmXn6qE8sA1vB3wC5yD6'],
-                    [2, 'mzhang',   'mzhang@hexcorp.io',   'analyst', 'SOC',         '2024-02-20 14:30:00', 1, '$2b$12$L2y8bR6vA4sO.pQ3tWgMfvKi1cZdX5eSuHnYo7rF9tB2wC4xD6zE7'],
-                    [3, 'tknight',  'tknight@hexcorp.io',  'admin',   'Network Ops', '2024-03-10 08:15:00', 1, '$2b$12$M3z7cS5wB5tP.qR4uXhNgwLj2dAeY6fTvIoZp8sG0uC3xD5yE7aF8'],
-                    [4, 'srojas',   'srojas@hexcorp.io',   'viewer',  'Help Desk',   '2024-04-05 11:45:00', 0, '$2b$12$N4a6dT4xC6uQ.rS5vYiOhxMk3eBfZ7gUwJp1qtH1vD4yE6zF8bG9'],
-                    [5, 'dchen',    'dchen@hexcorp.io',    'analyst', 'SOC',         '2024-05-12 16:00:00', 1, '$2b$12$O5b5eU3yD7vR.sT6wZjPiyNl4fCg08hVxKq2ruI2wE5zF7aG9cH0'],
-                    [6, 'apatel',   'apatel@hexcorp.io',   'viewer',  'Compliance',  '2024-06-01 10:30:00', 1, '$2b$12$P6c4fV2zE8wS.tU7xAkQjzOm5gDh19iWyLr3svJ3xF6aG8bH0dI1'],
-                    [7, 'rwilson',  'rwilson@hexcorp.io',  'admin',   'IT Security', '2024-07-18 07:00:00', 1, '$2b$12$Q7d3gW1aF9xT.uV8yBlRk0Pn6hEi20jXzMs4twK4yG7bH9cI1eJ2'],
-                    [8, 'lnguyen',  'lnguyen@hexcorp.io',  'analyst', 'Forensics',   '2024-08-22 13:15:00', 0, '$2b$12$R8e2hX0bG0yU.vW9zCmSl1Qo7iFj31kYaNt5uxL5zH8cI0dJ2fK3']
+                    [1, 'jcarter',  'jcarter@hexcorp.io',  'admin',   'IT Security', '2024-01-15 09:00:00', 1, '$2b$12$K1x9aQ7uZ3rN.oP2sVfLeuJh0bYcW4dRtGmXn6qE8sA1vB3wC5yD6', '2024-09-01 12:30:00'],
+                    [2, 'mzhang',   'mzhang@hexcorp.io',   'analyst', 'SOC',         '2024-02-20 14:30:00', 1, '$2b$12$L2y8bR6vA4sO.pQ3tWgMfvKi1cZdX5eSuHnYo7rF9tB2wC4xD6zE7', '2024-09-01 08:15:01'],
+                    [3, 'tknight',  'tknight@hexcorp.io',  'admin',   'Network Ops', '2024-03-10 08:15:00', 1, '$2b$12$M3z7cS5wB5tP.qR4uXhNgwLj2dAeY6fTvIoZp8sG0uC3xD5yE7aF8', '2024-09-01 13:45:22'],
+                    [4, 'srojas',   'srojas@hexcorp.io',   'viewer',  'Help Desk',   '2024-04-05 11:45:00', 0, '$2b$12$N4a6dT4xC6uQ.rS5vYiOhxMk3eBfZ7gUwJp1qtH1vD4yE6zF8bG9', null],
+                    [5, 'dchen',    'dchen@hexcorp.io',    'analyst', 'SOC',         '2024-05-12 16:00:00', 1, '$2b$12$O5b5eU3yD7vR.sT6wZjPiyNl4fCg08hVxKq2ruI2wE5zF7aG9cH0', '2024-09-02 07:30:15'],
+                    [6, 'apatel',   'apatel@hexcorp.io',   'viewer',  'Compliance',  '2024-06-01 10:30:00', 1, '$2b$12$P6c4fV2zE8wS.tU7xAkQjzOm5gDh19iWyLr3svJ3xF6aG8bH0dI1', '2024-09-02 09:12:44'],
+                    [7, 'rwilson',  'rwilson@hexcorp.io',  'admin',   'IT Security', '2024-07-18 07:00:00', 1, '$2b$12$Q7d3gW1aF9xT.uV8yBlRk0Pn6hEi20jXzMs4twK4yG7bH9cI1eJ2', '2024-09-02 11:05:09'],
+                    [8, 'lnguyen',  'lnguyen@hexcorp.io',  'analyst', 'Forensics',   '2024-08-22 13:15:00', 0, '$2b$12$R8e2hX0bG0yU.vW9zCmSl1Qo7iFj31kYaNt5uxL5zH8cI0dJ2fK3', null]
                 ]
             },
             login_logs: {
