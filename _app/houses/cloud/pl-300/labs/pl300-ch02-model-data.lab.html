@@ -402,7 +402,22 @@
            closing it, and the commit claimed "Channel is now actually required" -- untrue.
            expr is lowercased upstream, so this matches FactSales[Channel] in any casing, and
            accepts the operator variants a correct answer might use (=, <>). */
-        } else if (expr.startsWith('calculate') && expr.includes('sum(factsales[totalamount]') && expr.includes('factsales[channel]')) {
+        /* STRUCTURAL, not substring-containment. Four versions of this check, each closing the
+           decoy it was shown and leaving the class open:
+             v1  (includes('channel') || includes('factsales'))  tautology -- the OR could never be false
+             v2  includes('channel')                             FactSales[Region]="channel" passed
+             v3  includes('factsales[channel]')                  three more passed, found by Nancy:
+                   CALCULATE(SUM(...), FactSales[Channel])            bare column, no operator, invalid DAX
+                   CALCULATEBLAH(sum(...), "factsales[channel]")      startsWith matched the wrong function
+                   CALCULATE(SUM(...), "factsales[channel]")          the column name inside a quoted literal
+           The root cause was never which substring to require. includes() cannot tell "used as a
+           filter argument" from "token present somewhere in the string", so every fix narrowed the
+           opening instead of closing it.
+           This requires the SHAPE: the function is calculate( exactly, and the channel column is
+           followed by a comparison operator -- which is what makes it a filter rather than a
+           mention. A quoted literal cannot satisfy it because the operator must follow the bracket. */
+        } else if (/^calculate\s*\(/.test(expr) && expr.includes('sum(factsales[totalamount]')
+                   && /factsales\[channel\]\s*(=|<>|<|>|>=|<=)/.test(expr)) {
             result = '$ 1,843,201.75'; if (!completedTasks.has(7)) markDone(7);
         } else if (expr.startsWith('countrows(factsales')) {
             result = '60,398'; if (!completedTasks.has(8)) markDone(8);
