@@ -51,6 +51,23 @@ Three defects in the DESTINATION the new house card points at. All three were in
    directory listing, no hero, no ModuleProgress/AchievementManager wiring. The sibling it now sits
    beside on the house page, `cse/index.html`, is 567 lines with full hero and progress wiring.
 
+4. **"API Security Track" back-link goes to the wrong page in 2 of 8 sub-hubs.** `pentest/index.html:207`
+   and `capstone/index.html:193` both render a link labelled `< API Security Track` pointing at
+   `../cloud-api-002.presentation.html`, which is titled **"API-2: Authentication & Authorization"** --
+   a legacy single-page lesson on a different subject, not the track index. Correct target is
+   `../index.html`. The other six sub-hubs have no track link at all, so this is not a shared-template
+   error to fix in one place. Found 2026-08-01 while auditing what the new house card exposes.
+
+   **`pentest/` and `capstone/` are the odd pair throughout this course**, which is the more useful
+   observation: they are the only two with this broken back-link, the only two that read completion
+   from NEITHER `hp_module_` NOR `ModuleProgress` (so their progress state is still unexamined), and
+   `capstone/` is the one missing from `HubRegistry.js`. That clustering suggests both were built
+   from an older template than the other six. Worth fixing as a pair rather than as four separate
+   defects.
+
+   NOT FIXED YET, deliberately: found while a Chris gate was in flight on this exact tree, and editing
+   `_app` mid-gate makes the verdict cover a tree that no longer exists.
+
 **FIXED SEPARATELY AND ALREADY VERIFIED (was Chris's finding 1, the one with real student impact):**
 `auth/index.html` and `owasp/index.html` read completion from `localStorage['hp_module_' + id]`, a
 key **nothing on the platform writes** — grepped: 2 files read it, 0 write it. The module pages write
