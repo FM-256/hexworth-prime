@@ -519,20 +519,37 @@
             // Typed content sections: admin-curated Firestore items first, projection after.
             var s = (data.sections && typeof data.sections === 'object') ? data.sections : {};
 
-            // CURATED HREFS ACROSS EVERY SECTION, collected BEFORE any rendering.
+            // ONE HREF, ONE CARD -- across every section on the hub, from either source.
             //
             // The previous merged() de-duplicated within a single section only, so the same file
-            // could render twice on one hub whenever the two sources disagreed about its bucket.
-            // Measured on production 2026-08-01: the OpenStack capstone appeared under BOTH
-            // "Labs" and "Projects" with different authored copy -- the catalog entry carries
+            // could render twice whenever the two sources disagreed about its bucket. Measured on
+            // production 2026-07-31: the OpenStack capstone appeared under BOTH "Labs" and
+            // "Projects" with different authored copy -- its catalog entry carries
             // components:['lab'] so the projection filed it under Labs, while an admin had
             // curated it into sections.projects. Neither call to merged() could see the other.
             //
-            // Curated wins GLOBALLY, not just within its own section: a human deliberately chose
-            // that shelf and wrote that copy, so the automatic projection yields to it wherever
-            // it landed. Same principle as the existing within-section rule, applied across the
-            // whole page -- and the same defect class Chris blocked on 2026-07-30, that a shelf
-            // listing one file twice reads as a data leak rather than a curriculum.
+            // WHY CURATED WINS, structurally rather than by taste (Nancy). The projection cannot
+            // produce a cross-section collision on its own: projSeen above is global across the
+            // whole projection pass, and BUCKET[comp] is single-valued, so one catalog module
+            // reaches exactly one shelf. A cross-section collision can therefore ONLY arise
+            // because an admin curated that href into a DIFFERENT bucket than the catalog's
+            // default -- which is a deliberate act of curation, and the thing to preserve.
+            // (Confirmed for the capstone: functions/register-capstone-project.js exists
+            // precisely to lift it out of Labs, where components:['lab'] would otherwise bury it.)
+            //
+            // CURATED-VS-CURATED IS ALSO COVERED, not just curated-vs-projected. An admin doc
+            // listing one href in two typed arrays -- an ordinary copy-paste curation slip -- used
+            // to render both. The first occurrence in section order wins and later ones drop, so
+            // the invariant this block is named for actually holds for every pair of sources.
+            //
+            // Dedup is exact string equality on href, with no normalization. That is honest about
+            // what it is: a trailing slash or a relative-vs-absolute spelling would silently fail
+            // to match and the duplicate would return. It holds today because there is exactly
+            // ONE write path into sections.* (functions/register-capstone-project.js, hand-written
+            // against this renderer) -- admin/console.html creates hubs with empty typed arrays
+            // and no UI writes into them. So this is safe-by-current-population, NOT safe-by-
+            // design. A second write path is the thing that breaks it, and
+            // _tools/eduscan/smoke/hub-dedup-probe.js is the regression net for exactly that.
             var curatedHref = {};
             ['slides', 'labs', 'quizzes', 'exams', 'projects', 'games'].forEach(function (k) {
                 var arr = Array.isArray(s[k]) ? s[k] : [];
@@ -541,12 +558,20 @@
                 });
             });
 
+            // Every href already placed on the page, curated or projected, in render order.
+            var placedHref = {};
             function merged(admin, projected) {
-                // Curated items render first and always. A projected item is dropped if ANY
-                // curated item anywhere on this hub already claims its href.
                 var a = Array.isArray(admin) ? admin : [];
                 var p = Array.isArray(projected) ? projected : [];
-                return a.concat(p.filter(function (it) { return !(it.href && curatedHref[it.href]); }));
+                // Curated first: it keeps its slot unless an EARLIER section already showed it.
+                var out = a.filter(function (it) { return !(it && it.href && placedHref[it.href]); });
+                // Then projection, minus anything any curated item anywhere claims, and minus
+                // anything already placed.
+                out = out.concat(p.filter(function (it) {
+                    return !(it.href && (curatedHref[it.href] || placedHref[it.href]));
+                }));
+                out.forEach(function (it) { if (it && typeof it.href === 'string') { placedHref[it.href] = true; } });
+                return out;
             }
             renderSection(root, 'Slides', merged(s.slides, proj.slides));
             renderSection(root, 'Labs', merged(s.labs, proj.labs));
