@@ -31,8 +31,26 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P3]  ·  open
-> **SEVERITY CORRECTED DOWN FROM P1, 2026-08-01.** I filed this as P1 on evidence my own
+### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  open
+> **SEVERITY: P1 -> P3 -> P2. Nancy rejected my P3 and she is right.** My P3 rested on one
+> sentence — "needs a specific sequence rather than a live free pass" — and that sentence is
+> wrong on my own evidence. The trigger is *come back later and don't re-record*, which is the
+> DEFAULT shape of a second attempt, not a constructed exploit. It happened to my own QC
+> identity by accident inside a single evening: a baseline written at 18:46 was still trusted
+> 5.5 hours later by a different session. Her other three points stand too — per taskboard #269
+> checks 25 and 28 are already known-forgeable and 26 only proves a stack EXISTS, so 27 is the
+> last structural backstop and it is the holed one; it compounds with #275 (a student who passes
+> without destroying leaves resources a broken reclaim path cannot recover, on a pool at 1 free
+> slot); and it is live-exposed today. She also named the bias directly: swinging a self-filed
+> P1 to P3 in the same sitting I was embarrassed about the false P1 pulls toward overcorrecting
+> downward to look even-handed. Recorded because the pull was real.
+>
+> **Population check (Nancy, from a live Firebase Auth export of 2,280 users): all four current
+> baseline entries resolve to `@hexworth-smoke.local` QC accounts. Zero real students are in the
+> exploitable state right now.** That is a reprieve on blast radius, not a fix, and explicitly
+> must NOT be reused later as grounds for a further downgrade.
+>
+> **WHAT WAS ACTUALLY WRONG IN THE ORIGINAL FILING, 2026-08-01.** I filed P1 on evidence my own
 > tooling manufactured. A clean re-run, after fixing the harness and clearing the QC debris,
 > **passes the full gate**:
 > ```
