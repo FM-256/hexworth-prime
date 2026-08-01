@@ -302,9 +302,32 @@ a{color:inherit;text-decoration:none}
     'use strict';
 
     // ---- Progress ----
-    const STORAGE_KEY = 'hexworth_armory_progress';
+    // BUG-084: this used to read 'hexworth_armory_progress', a key NOTHING in the platform ever
+    // wrote -- it occurred exactly once in all of _app, here. The progress bar could never fill,
+    // however much a student completed. Modules record through ModuleProgress.complete('code', id),
+    // which lands in hexworth_progress.code[<moduleId>] = { completed: true, ... }.
+    // Single source of truth: read that, rather than teaching modules to write a second key.
     let progress = {};
-    try { progress = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { progress = {}; }
+    try { progress = (JSON.parse(localStorage.getItem('hexworth_progress') || '{}').code) || {}; }
+    catch(e) { progress = {}; }
+
+    // Module ids are arm-<abbrev>-NN-..., and the abbreviation is NOT the directory name
+    // (python -> arm-py, javascript -> arm-js, assembly -> arm-asm). Mapped explicitly rather than
+    // derived, because a wrong guess here silently reports zero instead of failing.
+    const MODULE_PREFIX = {
+        python: 'arm-py', javascript: 'arm-js', c: 'arm-c', bash: 'arm-bash', sql: 'arm-sql',
+        powershell: 'arm-ps', go: 'arm-go', java: 'arm-java', csharp: 'arm-cs', php: 'arm-php',
+        ruby: 'arm-rb', 'swift-kotlin': 'arm-sk', cpp: 'arm-cpp', rust: 'arm-rs',
+        assembly: 'arm-asm', 'lua-perl-r': 'arm-lpr'
+    };
+    // The trailing '-' is load-bearing: without it 'arm-c' also matches arm-cpp-* and arm-cs-*.
+    function completedIn(langId) {
+        const pre = MODULE_PREFIX[langId];
+        if (!pre) return 0;
+        return Object.keys(progress).filter(function(k) {
+            return k.indexOf(pre + '-') === 0 && progress[k] && progress[k].completed;
+        }).length;
+    }
 
     // ---- Language Data ----
     const LANGUAGES = [
@@ -653,14 +676,13 @@ a{color:inherit;text-decoration:none}
     // ---- Utility ----
     function getLang(id) { return LANGUAGES.find(l => l.id === id); }
     function getTotalModules() { return LANGUAGES.reduce((s, l) => s + l.modules, 0); }
-    function getCompletedCount() { return Object.keys(progress).filter(k => progress[k]).length; }
+    function getCompletedCount() {
+        return LANGUAGES.reduce(function(sum, l) { return sum + Math.min(completedIn(l.id), l.modules); }, 0);
+    }
     function getLangProgress(langId) {
         const lang = getLang(langId);
         if (!lang) return { completed: 0, total: 0, pct: 0 };
-        let completed = 0;
-        for (let i = 1; i <= lang.modules; i++) {
-            if (progress[langId + '-m' + i]) completed++;
-        }
+        const completed = Math.min(completedIn(langId), lang.modules);
         return { completed, total: lang.modules, pct: lang.modules > 0 ? Math.round((completed / lang.modules) * 100) : 0 };
     }
 
