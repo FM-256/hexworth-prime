@@ -31,10 +31,10 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-082 — 85 games/labs never sync XP to the server: a guard reads a key nothing writes  ·  [P2]  ·  open
+### BUG-082 — 97 games/labs never sync XP to the server: a guard reads a key nothing writes  ·  [P2]  ·  open
 - **Found:** 2026-08-01 · by self · platform sweep generalising the API Security `hp_module_` bug
 - **Area:** 97 files reading `localStorage.getItem('hexworth_uid')`, 100 read sites
-- **Student impact:** local XP is correct, but these 85 pages never write XP to Firestore. Cross-device
+- **Student impact:** local XP is correct, but these 97 pages never write XP to Firestore. Cross-device
   XP, instructor-visible XP and any Firestore-backed leaderboard silently miss all of it.
 
 **The mechanism, and the fix is smaller than the bug.** The pattern across all of them:
