@@ -15,10 +15,19 @@
 // own rules warn about. The only actual evidence was a manual anchor count run once by hand.
 // This makes that check durable, and it is the regression net named in the renderer's comment.
 //
-// It matters because dedup is exact string equality on href with no normalization: a trailing
-// slash, a case change, or a relative-vs-absolute spelling from some future second writer into
-// sections.* would silently stop matching and the duplicate would come back with no error, no
-// log, and nothing else asserting otherwise.
+// IT MUST NORMALISE THE SAME WAY THE RENDERER DOES, or it is not a backstop at all. An earlier
+// version of this file bucketed on the raw getAttribute('href'), while claiming in this very
+// comment to be "the regression net" for normalization drift. Chris disproved that by building
+// the fixture -- one href plain, one with a trailing slash, in two sections -- and running this
+// probe's own evaluate body against it: dupes:[] , a clean pass on a page that renders the same
+// content twice. A backstop that shares the exact bug it is backstopping is decoration.
+//
+// normHref() below mirrors the renderer's function of the same name (strip hash and query,
+// collapse repeated slashes, drop a trailing slash). Keep the two in step: if one gains a rule
+// the other must too, or this file silently stops covering what it says it covers.
+//
+// STILL NOT COVERED, said plainly rather than implied: a genuinely relative href cannot be
+// resolved without its base, so '../labs/x.html' will not match '/houses/cloud/labs/x.html'.
 //
 // usage:  BASE=https://hexworth.com node _tools/eduscan/smoke/hub-dedup-probe.js [hubId ...]
 // default hub set is every hub this probe knows about; pass ids to narrow it.
@@ -55,11 +64,23 @@ if (!BASE) {
           }
           return '(no section)';
         }
+        // Mirrors normHref() in _app/houses/hub/index.html. Bucketing on the RAW attribute is
+        // what let a trailing-slash duplicate through while this file claimed to catch it.
+        function normHref(h) {
+          if (typeof h !== 'string') { return null; }
+          let v = h.trim().split('#')[0].split('?')[0];
+          if (!v) { return null; }
+          v = v.replace(/\/{2,}/g, '/');
+          if (v.length > 1 && v.charAt(v.length - 1) === '/') { v = v.slice(0, -1); }
+          return v;
+        }
         const byHref = {};
         [...document.querySelectorAll('a[href]')].forEach((a) => {
-          const h = a.getAttribute('href');
+          const raw = a.getAttribute('href');
           // Only content links: in-page anchors and the topbar are not shelf cards.
-          if (!h || h.charAt(0) === '#' || !/\/houses\//.test(h)) { return; }
+          if (!raw || raw.charAt(0) === '#' || !/\/houses\//.test(raw)) { return; }
+          const h = normHref(raw);
+          if (!h) { return; }
           if (!byHref[h]) { byHref[h] = []; }
           byHref[h].push(sectionOf(a));
         });

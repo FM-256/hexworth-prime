@@ -538,23 +538,44 @@
             // precisely to lift it out of Labs, where components:['lab'] would otherwise bury it.)
             //
             // CURATED-VS-CURATED IS ALSO COVERED, not just curated-vs-projected. An admin doc
-            // listing one href in two typed arrays -- an ordinary copy-paste curation slip -- used
-            // to render both. The first occurrence in section order wins and later ones drop, so
-            // the invariant this block is named for actually holds for every pair of sources.
+            // listing one href in two DIFFERENT typed arrays -- an ordinary copy-paste curation
+            // slip -- used to render both. First occurrence in section order wins.
+            // KNOWN GAP, stated rather than implied: the same href repeated INSIDE one array
+            // still renders twice, because placedHref is only written after both filters run for
+            // that section. Pre-existing, narrow, and not silent --
+            // _tools/eduscan/smoke/hub-dedup-probe.js is a whole-page check and fails on it,
+            // reporting that duplicate with sections ["Labs","Labs"] in its dupes entry.
             //
-            // Dedup is exact string equality on href, with no normalization. That is honest about
-            // what it is: a trailing slash or a relative-vs-absolute spelling would silently fail
-            // to match and the duplicate would return. It holds today because there is exactly
-            // ONE write path into sections.* (functions/register-capstone-project.js, hand-written
-            // against this renderer) -- admin/console.html creates hubs with empty typed arrays
-            // and no UI writes into them. So this is safe-by-current-population, NOT safe-by-
-            // design. A second write path is the thing that breaks it, and
-            // _tools/eduscan/smoke/hub-dedup-probe.js is the regression net for exactly that.
+            // MATCHING IS NORMALISED, not raw string equality. Chris disproved the earlier
+            // version of this comment by building the fixture: one href plain and one with a
+            // trailing slash, in two sections, produced dupes:[] -- the "regression net" claimed
+            // here did not exist, because the probe compared raw strings exactly like this code
+            // did. normHref() below strips the query and hash, collapses repeated slashes, and
+            // drops a trailing slash, so those spellings now collide as they should. The probe
+            // applies the SAME normalisation, so the backstop actually covers what it claims.
+            //
+            // Still not safe-by-design against every spelling: a genuinely relative href cannot
+            // be resolved without knowing its base, so a curated '../labs/x.html' will not match
+            // a projected '/houses/cloud/labs/x.html'. That is a real remaining hole and the
+            // reason it is tolerable is population, not construction -- there is exactly ONE
+            // write path into sections.* today (functions/register-capstone-project.js,
+            // hand-written against this renderer), and admin/console.html creates hubs with
+            // empty typed arrays that no UI writes into.
+            function normHref(h) {
+                if (typeof h !== 'string') { return null; }
+                var v = h.trim().split('#')[0].split('?')[0];
+                if (!v) { return null; }
+                v = v.replace(/\/{2,}/g, '/');
+                if (v.length > 1 && v.charAt(v.length - 1) === '/') { v = v.slice(0, -1); }
+                return v;
+            }
+
             var curatedHref = {};
             ['slides', 'labs', 'quizzes', 'exams', 'projects', 'games'].forEach(function (k) {
                 var arr = Array.isArray(s[k]) ? s[k] : [];
                 arr.forEach(function (it) {
-                    if (it && typeof it.href === 'string') { curatedHref[it.href] = true; }
+                    var n = it && normHref(it.href);
+                    if (n) { curatedHref[n] = true; }
                 });
             });
 
@@ -564,13 +585,20 @@
                 var a = Array.isArray(admin) ? admin : [];
                 var p = Array.isArray(projected) ? projected : [];
                 // Curated first: it keeps its slot unless an EARLIER section already showed it.
-                var out = a.filter(function (it) { return !(it && it.href && placedHref[it.href]); });
+                var out = a.filter(function (it) {
+                    var n = it && normHref(it.href);
+                    return !(n && placedHref[n]);
+                });
                 // Then projection, minus anything any curated item anywhere claims, and minus
                 // anything already placed.
                 out = out.concat(p.filter(function (it) {
-                    return !(it.href && (curatedHref[it.href] || placedHref[it.href]));
+                    var n = it && normHref(it.href);
+                    return !(n && (curatedHref[n] || placedHref[n]));
                 }));
-                out.forEach(function (it) { if (it && typeof it.href === 'string') { placedHref[it.href] = true; } });
+                out.forEach(function (it) {
+                    var n = it && normHref(it.href);
+                    if (n) { placedHref[n] = true; }
+                });
                 return out;
             }
             renderSection(root, 'Slides', merged(s.slides, proj.slides));
