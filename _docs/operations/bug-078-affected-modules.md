@@ -28,15 +28,24 @@ keywords alone, so preserving the keyword and corrupting only the operands passe
 **Modules where class B yields a full completion and a class-progress write** — measured against two
 independent adversaries:
 
-| module | status |
-|---|---|
-| `arm-sql-02-select` | **still completable on garbage** |
-| `arm-sql-03-filtering` | **still completable on garbage** |
-| `arm-sql-04-joins` | **still completable on garbage, from a single line** |
-| `arm-sql-05-aggregation` | partially hardened; 3 of 5 chips still award on garbage |
-| `arm-sql-06-subqueries` | **still completable on garbage** |
-| `arm-sql-09-security` | **still completable on garbage** |
-| `arm-sql-10-practical` | partially hardened; 4 of 5 chips still award on garbage |
+| module | status | verified by |
+|---|---|---|
+| `arm-sql-04-joins` | closed | `07557ed99` — a join must relate two tables |
+| `arm-sql-06-subqueries` | closed | `9329f5519` — ordered alias validation |
+| `arm-sql-09-security` | closed | `9329f5519` |
+| `arm-sql-10-practical` | closed | `9329f5519` |
+| `arm-sql-05-aggregation` | closed (no full completion, no write) | `51d9cc82b` |
+| `arm-sql-02-select` | **STILL OPEN** | — |
+| `arm-sql-03-filtering` | **STILL OPEN** | — |
+
+Status is whatever `_tools/eduscan/armsql-negative-fixtures.js` reports, not what this file asserts.
+Current run: **2 of 7 still completable on meaningless input.** Honest completion is unchanged at
+8/10 throughout.
+
+`arm-sql-02` and `arm-sql-03` remain open on one root cause: each grader computes a single
+statement-level boolean and uses it for every task chip, so one real predicate authorises the fake
+operators sitting beside it in the same command. Fixing that means evaluating each operator in
+isolation and requiring **it** to change the result — not yet done, and not claimed.
 
 > **RETRACTION, 2026-08-01.** I marked all seven FIXED after two independent harnesses each returned
 > zero. Chris wrote a third adversary and broke six of them, each with a gradebook write. Both of my
