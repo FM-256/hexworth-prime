@@ -160,8 +160,20 @@ const ProjectsData = {
         { id: 'starter-first-tool',      house: 'ai',         title: 'My First Tool',        description: 'Turn an agent from a talker into a doer — build one tool it can call and grow it across an adaptive Level 1-5 path: call a built-in action, wrap your own flow, input/output schemas, auth and guardrails, errors/retries/observability. The bridge between My First Agent and My First Workflow.', difficulty: 'recruit', minutes: 30, xp: 250, phases: 5, technologies: ['Microsoft Copilot Studio', 'Power Automate'], skills: ['function calling', 'custom connectors', 'API integration', 'auth and secrets'], prerequisites: ['starter-first-workflow'], careerRoles: ['ai-engineer'] },
 
         // ── OpenStack Cloud Master series (2026-07-31) — the three build on each other.
-        // P1 is gated live on bc1 (CLOUD_CHECKS 25-28); P2 and P3 are designed, not built.
+        // P2 and P3 are designed, not built.
         // Design: _docs/architecture/cloud-master-project-manifest.md
+        //
+        // P1's grading is MIXED TIER, corrected 2026-08-01 by reading bc1 server.js directly.
+        // The previous comment here said "gated live on bc1 (CLOUD_CHECKS 25-28)", which is
+        // false for half of them and is the kind of confident-but-stale claim that has already
+        // misled one reviewer on this file (see the cinder warning in bc1 server.js):
+        //   26  CLOUD_CHECKS fn  server-side, reads the real cloud       NOT forgeable
+        //   27  CLOUD_CHECKS fn  server-side baseline id comparison      NOT forgeable
+        //   25  SANDBOX_CHALLENGES cmd  runs in the student's container  forgeable alone
+        //   28  SANDBOX_CHALLENGES cmd  greps a file the student writes  forgeable alone
+        // The design holds because the two unforgeable checks carry the thesis: faking the
+        // manifest without building the stack fails 26, and building without ever destroying
+        // fails 27. But do not describe this lab as fully server-graded — it is not.
         { id: 'cloud-openstack-iac-codify', house: 'cloud', title: 'The Environment Is Data', description: 'The Cloud Master capstone — describe the stack you built by hand as a provider-neutral manifest, DESTROY every piece of it, then rebuild it from the description alone. The grader proves you really rebuilt it: the live resources must carry different IDs than the ones you recorded before the teardown. Same shape, different identity.', difficulty: 'operator', minutes: 120, xp: 1000, phases: 4, technologies: ['OpenStack', 'Python', 'jq'], skills: ['infrastructure as code', 'reproducibility', 'idempotency', 'declarative modelling'], prerequisites: [], careerRoles: ['cloud-engineer', 'devops-engineer'], hasPage: false },
         { id: 'cloud-openstack-iac-harden', house: 'cloud', title: 'Survive the Drift', description: 'Take the applier you wrote and make it hold a line. Run it twice and nothing changes; break a resource by hand and it puts the environment back. This is the difference between a script that builds once and a system that keeps something true.', difficulty: 'operator', minutes: 90, xp: 1000, phases: 4, technologies: ['OpenStack', 'Python'], skills: ['idempotency', 'drift detection', 'reconciliation'], prerequisites: ['cloud-openstack-iac-codify'], careerRoles: ['cloud-engineer', 'devops-engineer'], hasPage: false },
         { id: 'cloud-openstack-iac-translate', house: 'cloud', title: 'Same Intent, Different Cloud', description: 'Your manifest describes intent, not API calls — so port it. Write the mapping from your size classes and network shapes onto a second provider primitives, and a dry-run adapter that proves the mapping holds. You will find the manifest barely changes while the adapter changes completely, which is exactly the right shape. This is where Terraform arrives, as the industry version of the applier you already built.', difficulty: 'expert', minutes: 120, xp: 2000, phases: 4, technologies: ['OpenStack', 'Terraform', 'Python'], skills: ['multi-cloud', 'abstraction', 'provider adapters', 'infrastructure as code'], prerequisites: ['cloud-openstack-iac-harden'], careerRoles: ['cloud-engineer', 'cloud-architect', 'devops-engineer'], hasPage: false },
