@@ -306,10 +306,26 @@
                 var ran = __out.includes('sql-result');
                 var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (ok && (lower.includes('inner join'))) completeTask('inner-join');
-                if (ok && (lower.includes('left join'))) completeTask('left-join');
-                if (ok && (/from\s+\w+\s+[a-z]\s/i.test(lower) || /join\s+\w+\s+[a-z]\s+on/i.test(lower))) completeTask('alias');
-                if (ok && ((lower.match(/join/g) || []).length >= 2)) completeTask('multi-join');
+
+                // BUG-078 class B. `ok` is not enough: a join whose ON clause names columns that do
+                // not exist does not error -- the engine treats an unevaluable condition as true --
+                // so it "ran" and "did not fail" while matching nothing. Measured 2026-08-01:
+                //   honest INNER/LEFT/multi        12 / 12 / 19 rows returned
+                //   ON u.zz1 = l.zz2 (one line)     0 rows, yet scored 4/4 and wrote the gradebook
+                //   ON 1=1                          0 rows
+                // A join that produced no rows did not demonstrate a join. The renderer already
+                // prints "N rows returned" in the payload, so this needs no engine change -- which
+                // matters, because the engine-level fix breaks the alias/subquery/CTE paths.
+                // RESIDUAL, disclosed rather than assumed away: `ON u.user_id = u.user_id` returns
+                // 12 rows and still passes. It requires reading the real schema first, so it is a
+                // strictly weaker cheat than the one-liner this closes.
+                var __m = __out.match(/(\d+) rows? returned/);
+                var produced = ok && __m && parseInt(__m[1], 10) > 0;
+
+                if (produced && (lower.includes('inner join'))) completeTask('inner-join');
+                if (produced && (lower.includes('left join'))) completeTask('left-join');
+                if (produced && (/from\s+\w+\s+[a-z]\s/i.test(lower) || /join\s+\w+\s+[a-z]\s+on/i.test(lower))) completeTask('alias');
+                if (produced && ((lower.match(/join/g) || []).length >= 2)) completeTask('multi-join');
             }
         }));
 
