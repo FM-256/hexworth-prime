@@ -437,6 +437,32 @@ the false instructor-visible gradebook write stops, and mark those tasks ungrade
 page. A page label alone does not fix it (his words: "an honest confession next to an unfixed lie") —
 the write is the harm.
 
+**CHRIS BLOCK 2026-08-01 — my "cheat blocked" claim for arm-sql OVERSTATED the fix. Verified.**
+The `ran && !error` gate closes the echo/comment class (arm-sql-09's `#` comment now credits 0/5).
+It does NOT close the mechanism Nancy named in her PAUSE and I failed to re-test:
+`_evalSingleCondition` ends `// Cannot evaluate -- pass through (treat as true...)`, so an
+unparseable WHERE returns every row without erroring. Reproduced on the shipped code:
+    arm-sql-03  `SELECT * FROM users WHERE garbagecolumn zzz nonsense AND alsobogus` -> chips 1/5
+    arm-sql-02  `SELECT * FROM users WHERE totalnonsense qqq`                        -> chips 2/5
+The statement genuinely RAN and genuinely did not ERROR, so no `ran && !error` gate can catch it.
+My two fixtures (an INSERT and a bare `SELECT *`) never exercised a WHERE clause, so I assumed this
+closed rather than verified it closed.
+
+**AND THE OBVIOUS FIX IS UNSAFE — measured before attempting it.** Making the fallback error would
+also break legitimate forms, because the evaluator fails open on more than garbage. Row counts
+against an 8-row table:
+    equality 3 · not-equal 5 · numeric > 6 · AND 3 · OR 6 · LIKE 1 · IS NULL 0   <- parse correctly
+    **BETWEEN 1 AND 3 -> 8 rows**                                                <- FAILS OPEN
+`between-op` is one of arm-sql-03's own graded tasks, so erroring on unparseable conditions would
+block a student using a construct the module explicitly teaches. That is the same
+block-the-honest-student inversion that killed the bash approach, caught here before shipping.
+
+**RESIDUAL GAP, DISCLOSED BY NAME** per Nancy's standard: on `arm-sql-02` and `arm-sql-03` (and
+likely 04/05/06, all of which gate on substring matches over a WHERE-bearing statement), a
+syntactically-shaped statement with an unparseable WHERE still credits its task. Closing it requires
+teaching `_evalSingleCondition` the forms it currently cannot parse (BETWEEN first), THEN erroring
+on the remainder -- engine feature work, not a gate change. Tracked, not silently shipped.
+
 **FIXED 2026-08-01 — both halves, plus the record decision Nancy forced.**
 - bash 04/05/06/10 no longer write to the class-progress record (`a37e1003f`). The engine cannot
   execute loops/functions/arrays, so those tasks are unverifiable and the pages now say so.
