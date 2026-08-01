@@ -567,8 +567,51 @@ function main() {
         byHouse,
     };
 
+    // ── What CHANGED since the last run ──────────────────────────────────────────────
+    // WHY THIS EXISTS. On 2026-08-01 the Stage 4 OpenStack capstone -- a finished page with
+    // both QC harnesses and a coverage-gated grader -- sat in this report as an orphan and
+    // nobody noticed, because a new orphan looks exactly like the 419 already there. The
+    // per-house table below prints only the top three CLUSTERS, so an id never appears in
+    // stdout at all; grepping the console for one returns nothing even when the scan caught
+    // it. That is what a report nobody reads looks like.
+    //
+    // A steady total is not the same as no change: one module becoming reachable while
+    // another is orphaned nets to zero and hides both. So diff the ID SETS, not the counts.
+    // Read the PREVIOUS report before it is overwritten.
+    let prevIds = null;
+    try {
+        const prev = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8'));
+        prevIds = new Set(Object.values(prev.byHouse || {}).flatMap((h) => (h.items || []).map((i) => i.id)));
+    } catch (e) { prevIds = null; }   // first run, or unreadable: no baseline to diff against
+
+    const nowItems = Object.values(byHouse).flatMap((h) => h.items || []);
+    const nowIds = new Set(nowItems.map((i) => i.id));
+    const appeared = prevIds ? nowItems.filter((i) => !prevIds.has(i.id)) : [];
+    const resolved = prevIds ? [...prevIds].filter((id) => !nowIds.has(id)) : [];
+
     fs.mkdirSync(path.dirname(OUTPUT_PATH), { recursive: true });
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(report, null, 2));
+
+    if (prevIds === null) {
+        console.log('\n  CHANGES SINCE LAST RUN: no previous report to compare against (baseline established).');
+    } else if (!appeared.length && !resolved.length) {
+        console.log('\n  CHANGES SINCE LAST RUN: none. Same ' + nowIds.size + ' orphan ids as the previous scan.');
+    } else {
+        console.log('\n  ══ CHANGES SINCE LAST RUN ══');
+        if (appeared.length) {
+            console.log('  NEWLY ORPHANED (' + appeared.length + ') -- content that is now unreachable by any curated signal:');
+            for (const i of appeared) {
+                console.log('    + ' + i.id + '  [' + i.house + ']  ' + (i.title || ''));
+                if (i.href) console.log('        ' + i.href);
+            }
+            console.log('  Before acting: an orphan here is a CURATION finding, not proof students cannot');
+            console.log('  reach it. Confirm with: BASE=https://hexworth.com node _tools/eduscan/smoke/reachability-walk.js <hub> <id>');
+        }
+        if (resolved.length) {
+            console.log('  NO LONGER ORPHANED (' + resolved.length + '):');
+            for (const id of resolved) console.log('    - ' + id);
+        }
+    }
 
     // ── stdout summary ──
     const s = report.summary;
