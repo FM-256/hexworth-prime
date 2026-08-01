@@ -374,16 +374,25 @@
                     var m, re;
                     re = /\b(?:FROM|JOIN)\s+[a-z_]\w*\s+(?!ON\b|WHERE\b|INNER\b|LEFT\b|RIGHT\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|UNION\b)([a-z_]\w*)/gi;
                     while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
-                    re = /\bAS\s+([a-z_]\w*)/gi;
-                    while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
                     re = /\bWITH\s+([a-z_]\w*)\s+AS\b/gi;
                     while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
                     re = /,\s*([a-z_]\w*)\s+AS\s*\(/gi;
                     while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
 
-                    re = /\b([a-z_]\w*)\b/gi;
-                    while ((m = re.exec(s)) !== null) {
-                        if (!known[m[1].toLowerCase()]) return false;
+
+
+                    // Single LEFT-TO-RIGHT pass. An alias is usable only AFTER the point it is
+                    // defined, so `zz1 AS zz1` no longer vouches for itself: the leading `zz1` is
+                    // validated before the alias is registered. Stripping the `AS` token first was
+                    // not enough -- the registered name is the SAME token, so it still authorised
+                    // the expression. (Chris 2026-08-01, then my own first fix for it.)
+                    // A later reference (`COUNT(*) AS c ... HAVING c > 1`) still resolves, because
+                    // by then the definition has been passed.
+                    var scan = /\bAS\s+([a-z_]\w*)|\b([a-z_]\w*)\b/gi;
+                    var tok;
+                    while ((tok = scan.exec(s)) !== null) {
+                        if (tok[1]) { known[tok[1].toLowerCase()] = true; continue; }   // definition
+                        if (!known[tok[2].toLowerCase()]) return false;                 // use
                     }
                     return true;
                 }
