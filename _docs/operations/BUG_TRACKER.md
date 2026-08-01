@@ -85,6 +85,24 @@ reliable enough to gate on by itself.
 smoke output above the summary line, so which of the ten checks failed is unknown and unrecoverable.
 Capture full deploy output to a file next time and tail the file, rather than tailing the pipe.
 
+**api-capstone registration is now VERIFIED, not merely audited.** I had recorded
+`hub-registry-rules.test.js` as unrunnable (`ECONNREFUSED` on 127.0.0.1:8181) and Chris rightly said
+not to ship on that. **The blocker was my invocation, not the environment.** The test documents its
+own runner in its header -- `firebase emulators:exec --only firestore --project=demo-hexworth ...` --
+and `emulators:exec` starts the emulator, runs the command and shuts it down. I ran the test bare, so
+the port genuinely was closed, and I wrote that up as an environment gap.
+
+Run correctly: **21 passed, 0 failed**, including the drift assertion (lines 37-43) that compares the
+`firestore.rules` reserved-id set against `HubRegistry.all()` -- the exact parity that blocked a
+hosting deploy earlier today.
+
+Mutation-tested, because a gate that cannot fail proves nothing: removing `api-capstone` from the
+rules list only produced `FAIL drift: rules reserved set (143) == HubRegistry ids (144);
+missing=[api-capstone]`, 20 passed / 1 failed. Restored via git, byte-verified against a pre-mutation
+copy, suite green again and `firestore.rules` clean.
+
+Still needs shipping as a PAIR via `_tools/eduscan/smoke/deploy.sh --only firestore:rules,firestore:indexes`.
+
 **FIXED SEPARATELY AND ALREADY VERIFIED (was Chris's finding 1, the one with real student impact):**
 `auth/index.html` and `owasp/index.html` read completion from `localStorage['hp_module_' + id]`, a
 key **nothing on the platform writes** — grepped: 2 files read it, 0 write it. The module pages write
