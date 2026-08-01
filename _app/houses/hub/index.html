@@ -516,17 +516,38 @@
                     proj[bucket].push({ title: m.title, desc: m.description, href: href });
                 });
             }
-            function merged(admin, projected) {
-                // De-dup by href (Nancy): an admin-curated Firestore item that is ALSO
-                // catalog content must not render twice. Curated copy wins the slot.
-                var a = Array.isArray(admin) ? admin : [];
-                var seen = {};
-                a.forEach(function (it) { if (it && typeof it.href === 'string') seen[it.href] = true; });
-                return a.concat(projected.filter(function (it) { return !(it.href && seen[it.href]); }));
-            }
-
             // Typed content sections: admin-curated Firestore items first, projection after.
             var s = (data.sections && typeof data.sections === 'object') ? data.sections : {};
+
+            // CURATED HREFS ACROSS EVERY SECTION, collected BEFORE any rendering.
+            //
+            // The previous merged() de-duplicated within a single section only, so the same file
+            // could render twice on one hub whenever the two sources disagreed about its bucket.
+            // Measured on production 2026-08-01: the OpenStack capstone appeared under BOTH
+            // "Labs" and "Projects" with different authored copy -- the catalog entry carries
+            // components:['lab'] so the projection filed it under Labs, while an admin had
+            // curated it into sections.projects. Neither call to merged() could see the other.
+            //
+            // Curated wins GLOBALLY, not just within its own section: a human deliberately chose
+            // that shelf and wrote that copy, so the automatic projection yields to it wherever
+            // it landed. Same principle as the existing within-section rule, applied across the
+            // whole page -- and the same defect class Chris blocked on 2026-07-30, that a shelf
+            // listing one file twice reads as a data leak rather than a curriculum.
+            var curatedHref = {};
+            ['slides', 'labs', 'quizzes', 'exams', 'projects', 'games'].forEach(function (k) {
+                var arr = Array.isArray(s[k]) ? s[k] : [];
+                arr.forEach(function (it) {
+                    if (it && typeof it.href === 'string') { curatedHref[it.href] = true; }
+                });
+            });
+
+            function merged(admin, projected) {
+                // Curated items render first and always. A projected item is dropped if ANY
+                // curated item anywhere on this hub already claims its href.
+                var a = Array.isArray(admin) ? admin : [];
+                var p = Array.isArray(projected) ? projected : [];
+                return a.concat(p.filter(function (it) { return !(it.href && curatedHref[it.href]); }));
+            }
             renderSection(root, 'Slides', merged(s.slides, proj.slides));
             renderSection(root, 'Labs', merged(s.labs, proj.labs));
             renderSection(root, 'Quizzes', merged(s.quizzes, proj.quizzes));
@@ -535,7 +556,11 @@
             renderSection(root, 'Games', merged(s.games, proj.games));
             // Anything the six buckets cannot honestly hold (applets, tools) gets its own
             // shelf rather than being silently dropped or miscategorized.
-            if (proj.other.length) { renderSection(root, 'Applets & Tools', proj.other); }
+            // Routed through merged() too, so a curated item that landed in a typed section
+            // cannot ALSO reappear here. This shelf renders projection only, but it is still
+            // projection and the global curated-wins rule applies to it identically.
+            var other = merged(null, proj.other);
+            if (other.length) { renderSection(root, 'Applets & Tools', other); }
 
             hide('loading');
             show('hub');
