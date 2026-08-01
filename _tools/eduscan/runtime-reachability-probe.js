@@ -50,23 +50,58 @@ function norm(h) {
     await p.evaluateOnNewDocument(h => {
       try { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('hexworth_house', h); } catch (e) {}
     }, house);
+    // DEPTH-2 CRAWL, not a single page load. v1 loaded only /houses/<house>/index.html and cleared
+    // almost nothing -- house index pages are shallow landing pages (33-37 anchors) that link to
+    // SUB-hubs, so "not on the house index" is the same thing the static audit already said and
+    // proves nothing new. reachability-walk.js asks the right question but one target at a time with
+    // a depth-2 BFS each, which is 550 crawls. Crawling once per house and harvesting every anchor
+    // seen answers every candidate for that house in one pass: 13 crawls instead of 550.
     let rendered = null;
+    const seen = new Set();
+    const collected = new Set();
+    let frontier = [hub];
     try {
-      const resp = await p.goto(BASE + hub, { waitUntil: 'networkidle0', timeout: 25000 });
-      if (resp && resp.status() < 400) {
-        await new Promise(r => setTimeout(r, 900));   // let catalog projection paint
-        rendered = await p.evaluate(() => [...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href')));
+      for (let depth = 0; depth <= 2; depth++) {
+        const next = [];
+        for (const path of frontier) {
+          if (seen.has(path) || seen.size > 60) continue;   // cap: a runaway crawl is not a measurement
+          seen.add(path);
+          let hrefs = [];
+          try {
+            const resp = await p.goto(BASE + path, { waitUntil: 'domcontentloaded', timeout: 20000 });
+            if (!resp || resp.status() >= 400) continue;
+            await new Promise(r => setTimeout(r, 1200));    // catalog projection paints after DOM ready
+            hrefs = await p.evaluate(() => [...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href')));
+          } catch (e) { continue; }
+          for (const h of hrefs) {
+            if (!h || /^(javascript:|mailto:|#)/.test(h)) continue;
+            const abs = h.startsWith('/') ? h : ('/' + path.split('/').slice(1, -1).join('/') + '/' + h);
+            const n = norm(abs);
+            collected.add(n);
+            // only follow same-origin html deeper
+            if (depth < 2 && /\.html?$/.test(n) && n.startsWith('/houses/')) next.push(n);
+          }
+        }
+        frontier = next;
       }
+      rendered = collected.size ? [...collected] : null;
     } catch (e) { rendered = null; }
-    await p.close();
-    if (rendered === null) { rows.push({ house, hub, total: cands.length, hit: null }); continue; }
+    if (rendered === null) {
+      rows.push({ house, hub, total: cands.length, hit: null });
+      console.log(`  [${rows.length}/${byHouse.size}] ${house.padEnd(12)} HUB DID NOT LOAD -- unmeasured, NOT clean`);
+      continue;
+    }
     const set = new Set(rendered.map(norm));
     let hit = 0;
     for (const c of cands) {
       const abs = norm('/houses/' + house + '/' + c.href);
       if (set.has(abs) || set.has(norm(c.href))) hit++;
     }
-    rows.push({ house, hub, total: cands.length, hit, anchors: rendered.length });
+    rows.push({ house, hub, total: cands.length, hit, anchors: rendered.length, pages: seen.size });
+    // Stream per house. Buffering everything until the end made three separate long runs look
+    // identical to a hung process -- I checked an empty output file twice and could not tell
+    // "still working" from "died". Progress you cannot observe is progress you re-run.
+    console.log(`  [${rows.length}/${byHouse.size}] ${house.padEnd(12)} ${String(hit).padStart(4)}/${String(cands.length).padStart(4)} reachable within 2 clicks (${seen.size} pages, ${rendered.length} distinct links)`);
   }
   await b.close();
 
