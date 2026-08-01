@@ -31,6 +31,50 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-082 — 85 games/labs never sync XP to the server: a guard reads a key nothing writes  ·  [P2]  ·  open
+- **Found:** 2026-08-01 · by self · platform sweep generalising the API Security `hp_module_` bug
+- **Area:** 97 files reading `localStorage.getItem('hexworth_uid')`, 100 read sites
+- **Student impact:** local XP is correct, but these 85 pages never write XP to Firestore. Cross-device
+  XP, instructor-visible XP and any Firestore-backed leaderboard silently miss all of it.
+
+**The mechanism, and the fix is smaller than the bug.** The pattern across all of them:
+```js
+if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+    const uid = localStorage.getItem('hexworth_uid');
+    if (uid) FirestoreManager.addXP(uid, 50, 'Cipher Cracker Complete');
+}
+```
+**`hexworth_uid` is never written anywhere** — 0 `setItem` sites across `_app`, `functions` and
+`_tools`. So `uid` is always null and the call never fires.
+
+And the guard is not merely broken, it is **unnecessary**. `FirestoreManager.addXP(uid, amount, reason)`
+(`_app/components/FirestoreManager.js:474`) **never reads `uid`**. It checks
+`FirebaseAuth.isSignedIn()` and calls the Cloud Function with `{amount, reason}` only; the CF derives
+the user from the auth context. The parameter is vestigial. So the fix is to DELETE the dead guard,
+not to start writing `hexworth_uid`.
+
+**Scope measured precisely, because the careless reading is much worse than the truth:**
+
+| | |
+|---|---|
+| files reading `hexworth_uid` | 97 |
+| of those, have another working XP/progress path | 12 |
+| **only the dead path** | **85** |
+| of those 85, still award LOCAL `hexworth_xp` | **85** |
+| award nothing at all | **0** |
+
+So this is NOT "85 games award nothing". Local XP works everywhere; only the server sync is dead.
+
+**Distinct from [[reference_lexical_const_window_guard_trap]]**, which was `if (window.X)` failing
+because components are top-level `const`. Same family — a well-formed guard that can never be true —
+but a different cause and a different set of files.
+
+**Not fixed.** 85 files is a mechanical change wide enough to need a reviewed approach rather than a
+sweep by hand. Found by `_tools/eduscan/dead-progress-key-audit.js`, which was validated against two
+fixtures first: `hexworth_progress` (read AND written) must not be reported and is not;
+`hexworth_uid` (read, never written) must be and is.
+
+
 ### BUG-081 — API Security landing page: duplicate content, an unregistered module, below-bar hub  ·  [P3]  ·  open
 - **Found:** 2026-08-01 · by Chris, gating the API Security card · taskboard #241
 - **Area:** `_app/houses/cloud/api/index.html`, `_app/components/HubRegistry.js`
