@@ -5,9 +5,9 @@ typing a single line that did no work. Those completions were written to the ins
 class-progress record. **Completions on the modules below, recorded on or before 2026-08-01, cannot
 be distinguished from genuine ones and should not be treated as evidence of competence.**
 
-**Class A is closed. Class B is NOT closed.** An earlier version of this file said all seven modules
-were fixed. That was wrong, and it is the second time this document has overstated safety. Treat any
-arm-sql completion, of any date, as not by itself evidence of competence.
+**Class A is closed. Class B is OPEN — 6 of 7 modules, measured 2026-08-01.** This file has now
+overstated safety three times. Treat any arm-sql completion, of any date, as not by itself evidence
+of competence.
 
 > An earlier version of this document said "the defect is now fixed" and "completions recorded after
 > the fix are sound." Both statements were wrong for the arm-sql modules and are corrected below. A
@@ -19,7 +19,7 @@ arm-sql completion, of any date, as not by itself evidence of competence.
 | class | what it is | status |
 |---|---|---|
 | **A — the command never ran** | `echo`, or a `#` comment, containing the graded keywords | **CLOSED.** Credit now requires the input to have been dispatched as SQL *and* to have returned without an engine error. An `echo` is neither. |
-| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is garbage | **CLOSED — all 7 modules.** The statement genuinely runs and genuinely does not error, so the class-A gate could not see it; these modules now grade what the statement produced or named. Per-module status and commits below. |
+| **B — the command ran but meant nothing** | real SQL whose operands name nothing | **OPEN — 6 of 7 modules.** Four rounds of fixes, each closing the specific string a reviewer supplied rather than the class it belonged to. Status is whatever the fixture suite reports; see below. |
 
 Class B exists because `SQLEngine._evalSingleCondition` fails *open*: a condition it cannot parse is
 treated as true, so the query returns every row and reports success. The task graders match on SQL
@@ -28,24 +28,44 @@ keywords alone, so preserving the keyword and corrupting only the operands passe
 **Modules where class B yields a full completion and a class-progress write** — measured against two
 independent adversaries:
 
-| module | status | verified by |
+| module | status (measured 2026-08-01, 4th adversary) |
+|---|---|
+| `arm-sql-03-filtering` | **OPEN** — 5/5 + write |
+| `arm-sql-04-joins` | **OPEN** — 4/4 + write, two ways |
+| `arm-sql-05-aggregation` | **OPEN** — 5/5 + write |
+| `arm-sql-06-subqueries` | **OPEN** — 4/4 + write |
+| `arm-sql-09-security` | **OPEN** — 5/5 + write |
+| `arm-sql-10-practical` | **OPEN** — 5/5 + write |
+| `arm-sql-02-select` | leaks 2/5 chips on non-existent columns; no full completion |
+
+**Do not read a "closed" line in this file again without re-running the suite.** Three times now a
+status here has outlived the measurement behind it.
+
+### Why four rounds of fixes did not close it
+
+Each round closed the exact input a reviewer handed over, not the defect class:
+
+| round | fix | how it was beaten |
 |---|---|---|
-| `arm-sql-04-joins` | closed | `07557ed99` — a join must relate two tables |
-| `arm-sql-06-subqueries` | closed | `9329f5519` — ordered alias validation |
-| `arm-sql-09-security` | closed | `9329f5519` |
-| `arm-sql-10-practical` | closed | `9329f5519` |
-| `arm-sql-05-aggregation` | closed (no full completion, no write) | `51d9cc82b` |
-| `arm-sql-02-select` | **STILL OPEN** | — |
-| `arm-sql-03-filtering` | **STILL OPEN** | — |
+| 1 | `ran && !error` | a garbage predicate runs and does not error |
+| 2 | result-shape checks per task | one real predicate authorised the fakes beside it |
+| 3 | per-conjunct isolation | wrap the fakes in parentheses — the splitter only breaks at depth 0 |
+| 3 | alias may not authorise itself (`AS`) | `FROM users zz1` registers the alias one function above the fix |
+| 3 | join qualifiers must differ | never checked that a qualifier *exists*; `u.x = zz.x` passes |
 
-Status is whatever `_tools/eduscan/armsql-negative-fixtures.js` reports, not what this file asserts.
-Current run: **2 of 7 still completable on meaningless input.** Honest completion is unchanged at
-8/10 throughout.
+Two further holes were never touched because no fixture reached them: `arm-sql-05`'s `meaningful()`
+is still a row-level `some()`, and `arm-sql-02`'s column check skips any token containing `(`, so
+`COUNT(zz9)` passes.
 
-`arm-sql-02` and `arm-sql-03` remain open on one root cause: each grader computes a single
-statement-level boolean and uses it for every task chip, so one real predicate authorises the fake
-operators sitting beside it in the same command. Fixing that means evaluating each operator in
-isolation and requiring **it** to change the result — not yet done, and not claimed.
+**The fixture suite was also certifying leaks.** It scored a module complete only on
+`wrote || chips === total`, so a module leaking unearned chips printed `closed`. Class B is
+*unearned credit*, not *full completion*.
+
+The real fix is a **generative** adversary that mutates operands into non-schema tokens across every
+structural position — inside parentheses, in a table-alias slot, in an `ON` qualifier, inside a
+function call — and asserts no chip lights. A fixed list of strings cannot generalise past the
+strings someone happened to supply, which is exactly how three hand-written corpora returned zero on
+modules a fourth broke in one pass.
 
 > **RETRACTION, 2026-08-01.** I marked all seven FIXED after two independent harnesses each returned
 > zero. Chris wrote a third adversary and broke six of them, each with a gradebook write. Both of my

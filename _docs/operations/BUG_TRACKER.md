@@ -703,12 +703,32 @@ so preserving the keyword and corrupting only the operands completes the module.
 - I then marked all 7 **FIXED**. RETRACTED -- Chris broke six of them with a third adversary, each
   with a gradebook write. Both of my harnesses were structurally unable to find those paths.
 
-**Class B is OPEN.** Three root causes, all live: a statement-level boolean carries per-task chips
-(one real predicate authorises four fake operators); `AS <name>` whitelists the identifier it
-aliases, so `zz1 AS zz1` self-authorises; and `arm-sql-04` requires only rows > 0, so
-`ON u.user_id = u.user_id` still completes it in one line.
+**Class B is OPEN -- 6 of 7 modules, measured 2026-08-01 with a fourth adversary.** Four rounds of
+fixes have not closed it, and the reason is a pattern in how I fixed it, not in any one check:
+**each round closed the exact input the reviewer supplied rather than the class it belonged to.**
 
-Permanent regression fixtures: `_tools/eduscan/armsql-negative-fixtures.js`.
+| round | fix | how it was beaten |
+|---|---|---|
+| 1 | `ran && !error` | a garbage predicate runs and does not error |
+| 2 | per-task result-shape checks | one real predicate authorised the fakes beside it |
+| 3 | per-conjunct isolation | wrap the fakes in parentheses; the splitter only breaks at depth 0 |
+| 3 | `AS <name>` may not self-authorise | `FROM users zz1` registers the alias one function ABOVE the fix |
+| 3 | join qualifiers must differ | never checked a qualifier EXISTS; `u.x = zz.x` passes |
+
+Never touched because no fixture reached them: `arm-sql-05`'s `meaningful()` is still a row-level
+`some()`; `arm-sql-02`'s column check skips any token containing `(`, so `COUNT(zz9)` passes.
+
+**The fixture suite was itself certifying leaks**: it scored completion as
+`wrote || chips === total`, so a module leaking unearned chips printed `closed`. Class B is
+*unearned credit*, not *full completion*.
+
+What is actually required: a GENERATIVE adversary that mutates operands into non-schema tokens
+across every structural position (inside parens, table-alias slot, ON qualifier, inside a function
+call) and asserts that no chip lights. Three hand-written corpora each returned zero on modules a
+fourth adversary broke in a single pass; a fixed string list cannot generalise past the strings
+someone happened to supply.
+
+Fixtures (necessary, not sufficient): `_tools/eduscan/armsql-negative-fixtures.js`.
 
 **The root-cause fix is measured and NOT shipped, on purpose.** Rejecting unknown columns instead
 of passing through closes it completely (4 FULL -> 0) but drops honest completion **8/10 -> 2/10**,
