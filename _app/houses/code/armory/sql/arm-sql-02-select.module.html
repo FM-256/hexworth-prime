@@ -331,11 +331,56 @@
                 var ran = __out.includes('sql-result');
                 var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (ok && (lower.includes('select') && lower.includes('*') && lower.includes('from'))) completeTask('select-all');
-                if (ok && (lower.includes('select') && !lower.includes('*') && lower.includes('from') && lower.includes(','))) completeTask('select-cols');
-                if (ok && (lower.includes('where'))) completeTask('where-clause');
-                if (ok && (lower.includes('order by'))) completeTask('order-by');
-                if (ok && (lower.includes('distinct'))) completeTask('distinct');
+
+                // BUG-078 class B. Keyword-only checks credited statements that named columns which
+                // do not exist: the engine resolves an unknown column to null and an unparseable
+                // predicate to true, so nothing errors. Measured 2026-08-01:
+                //   SELECT username, role  -> real names   vs  SELECT zz1, zz2      -> all null
+                //   WHERE role = 'admin'   -> 3 of 8       vs  WHERE zz1 = zz2      -> 0
+                //                                          vs  WHERE zz1 zz2 zz3    -> 8 of 8
+                //   DISTINCT role          -> 3 real values vs DISTINCT zz1         -> one null
+                //   ORDER BY username      -> reordered    vs  ORDER BY zz1         -> untouched
+                // Each task is now checked against what it actually produced. No engine change.
+                var __m = __out.match(/(\d+) rows? returned/);
+                var __n = __m ? parseInt(__m[1], 10) : null;
+                var __t = lower.match(/from\s+([a-z_][a-z0-9_]*)/);
+
+                // exec() reports failure as { type:'error', html } -- there is no `.error` property,
+                // so testing `!r.error` would be a guard that can never be false.
+                function q(sql) {
+                    try { var r = SQLEngine.exec(sql); return (r && r.type !== 'error') ? r : null; }
+                    catch (e) { return null; }
+                }
+                var __base = (ok && __t) ? q('SELECT * FROM ' + __t[1] + ';') : null;
+                var __self = (ok && /^\s*select\b/i.test(cmdLine)) ? q(cmdLine) : null;
+
+                // At least one cell that resolved to a real value -- an unknown column yields null.
+                function resolved() {
+                    if (!__self || !__self.rows || !__self.rows.length) return false;
+                    return __self.rows.some(function (row) {
+                        return row.some(function (c) { return c !== null && c !== undefined && String(c) !== ''; });
+                    });
+                }
+                // A WHERE that kept everything, or nothing, did not select a subset.
+                function narrowed() {
+                    if (__n === null || !__base || !__base.rows) return false;
+                    return __n > 0 && __n < __base.rows.length;
+                }
+                // The ORDER BY column must be a real column. Checked by NAME rather than by whether
+                // the order changed: `ORDER BY user_id` is already in that order, and denying credit
+                // for it would fail a student doing exactly the assigned task.
+                function orderedByRealColumn() {
+                    if (!__base || !__base.columns) return false;
+                    var m = lower.match(/order\s+by\s+([a-z_][a-z0-9_]*)/);
+                    if (!m) return false;
+                    return __base.columns.some(function (c) { return String(c).toLowerCase() === m[1]; });
+                }
+
+                if (ok && resolved() && (lower.includes('select') && lower.includes('*') && lower.includes('from'))) completeTask('select-all');
+                if (ok && resolved() && (lower.includes('select') && !lower.includes('*') && lower.includes('from') && lower.includes(','))) completeTask('select-cols');
+                if (ok && narrowed() && (lower.includes('where'))) completeTask('where-clause');
+                if (ok && orderedByRealColumn() && (lower.includes('order by'))) completeTask('order-by');
+                if (ok && resolved() && (lower.includes('distinct'))) completeTask('distinct');
             }
         }));
 
