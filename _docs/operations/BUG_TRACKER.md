@@ -31,6 +31,37 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-077 — capstone check 27 can be passed WITHOUT destroying anything, via a stale baseline  ·  [P1]  ·  open
+- **Found:** 2026-08-01 · by the `qc-lab.sh project` adversarial harness (cheat E), after Nancy
+  PAUSED a change that would have made this lab reachable from the OpenStack hub.
+- **Area:** bc1 `lab-manager/server.js` — `BASELINE_FILE = /app/data/capstone-baselines.json`
+  (:414), read at :1368 and :1535 as `readBaselines()[session.uid]`, consumed by CLOUD_CHECKS
+  check 27 (:375).
+- **Gate output:**
+  `ADVERSARIAL FAIL: cheat E PASSED check 27 -- no baseline was ever recorded, so nothing was proven`
+  `GATE FAILED: adversarial harness did not pass. The walkthrough was NOT run.`
+- **Mechanism, verified by reading the store on bc1.** Baselines are keyed by **uid only** and
+  persist indefinitely — the file currently holds entries for multiple uids with `at` timestamps
+  and a `slot`. Check 27 asks "does anything live carry an id from the pre-destroy baseline?" but
+  it never asks **which attempt that baseline belongs to**. So a student who recorded a baseline
+  in ANY earlier session can, on a later attempt, build a completely fresh stack and pass 27
+  without ever tearing anything down: the new ids trivially differ from the old ones.
+- **Why this matters more than a harness artifact.** Check 27 IS the lab's thesis — "same shape,
+  different identity" — and it is the only unforgeable proof that a teardown happened. 25 and 28
+  are container-side and forgeable in isolation; 26 only proves a stack exists. With 27 bypassed
+  the capstone grades a student who never destroyed anything as having rebuilt from scratch.
+- **This is taskboard #249's class exactly** — persistence changes what "start of lab" means, and
+  the harness caught what page review could not. Note the harness comment's own words: *"once one
+  exists for this uid there is no way back to the 'never recorded' state within a single run."*
+- **Fix direction (not yet built):** scope the baseline to the ATTEMPT, not the uid. Either stamp
+  it with the session id and have 27 reject a baseline from a different session, or clear the
+  uid's baseline when a new capstone session starts. Do NOT simply delete the file — that makes
+  the current run pass while leaving the hole open for the next returning student.
+- **Containment:** the hub link that would expose this is committed (`1d5a63b1d`) and
+  **deliberately NOT deployed**. Production still has no route to this lab.
+- **Related:** taskboard #249, #252, #269; BUG-058 (same file, a stale comment there already
+  misled a reviewer once).
+
 ### BUG-075 — CORRECTED: `tenant/instructor.html` boot-failure screen has no exit  ·  [P3]  ·  deployed-verified 2026-08-01
 - **Found:** 2026-07-31 · by Nancy · adjudicating NAV-001 for taskboard #228
 - **Area:** `_app/tenant/instructor.html` — the `catch` block of the boot routine (~:1947)
