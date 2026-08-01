@@ -25,9 +25,14 @@ done
 A=_archive/deploy-holdout-$(git log -1 --format=%cd --date=format:%Y-%m-%d)
 mkdir -p "$A"
 
+# Archive names are the FULL PATH with / -> _, not basename. First run held two files both named
+# index.html; the second cp clobbered the first, so BOTH post-restore comparisons ran against the
+# survivor and reported "RESTORE MISMATCH" on a restore that had actually succeeded (git diff was
+# empty, markers were back, _app was clean). A safety check that cries wolf gets ignored, which is
+# worse than not having it.
 echo "── [1/4] archiving current versions ──"
 for h in "${HOLD[@]}"; do
-  p="${h#*:}"; b=$(basename "$p")
+  p="${h#*:}"; b=$(printf '%s' "$p" | tr '/' '_')
   cp "$p" "$A/$b.held" || exit 1
   cmp -s "$p" "$A/$b.held" || { echo "  ARCHIVE VERIFY FAILED for $p -- aborting"; exit 1; }
   echo "  archived+verified  $p"
@@ -49,7 +54,7 @@ rc=$?
 echo "── [4/4] restoring holdouts from git (runs even if the deploy failed) ──"
 fail=0
 for h in "${HOLD[@]}"; do
-  p="${h#*:}"; b=$(basename "$p")
+  p="${h#*:}"; b=$(printf '%s' "$p" | tr '/' '_')
   git checkout HEAD -- "$p" || { echo "  RESTORE FAILED $p"; fail=1; continue; }
   cmp -s "$p" "$A/$b.held" && echo "  restored+verified  $p" \
     || { echo "  RESTORE MISMATCH $p vs $A/$b.held"; fail=1; }
