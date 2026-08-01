@@ -28,6 +28,13 @@ const BASE = process.env.BASE;
 const START = process.argv[2];
 const TARGET = process.argv[3];
 const MAX_DEPTH = Number(process.argv[4] || 2);
+// A depth-2 walk from a house hub visits 30+ pages, each with a navigation and a settle wait --
+// roughly two minutes per target. That is fine for confirming ONE finding and hopeless for
+// triaging the 551 candidates catalog-reachability-audit.js produces, which is what this was
+// immediately needed for. Both bounds are therefore tunable, and the run reports when it stopped
+// early rather than letting "NOT REACHABLE" quietly mean "I ran out of budget".
+const MAX_PAGES = Number(process.env.MAX_PAGES || 60);
+const SETTLE = Number(process.env.SETTLE_MS || 1200);   // time for runtime-built cards to render
 
 if (!BASE || !START || !TARGET) {
   console.error('usage: BASE=https://... node reachability-walk.js <startPath> <targetSubstring> [depth]');
@@ -47,7 +54,7 @@ if (!BASE || !START || !TARGET) {
 
   async function anchorsOn(url) {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
-    await new Promise((r) => setTimeout(r, 1200));   // let runtime-built cards render
+    await new Promise((r) => setTimeout(r, SETTLE));   // let runtime-built cards render
     return page.evaluate(() => [...document.querySelectorAll('a[href]')]
       .map((a) => ({ href: a.href, text: (a.textContent || '').trim().slice(0, 60) }))
       .filter((a) => a.href.startsWith(location.origin)));
@@ -59,7 +66,7 @@ if (!BASE || !START || !TARGET) {
   for (let depth = 0; depth <= MAX_DEPTH && !found; depth++) {
     const next = [];
     for (const node of frontier) {
-      if (seen.has(node.url) || found) { continue; }
+      if (seen.has(node.url) || found || seen.size >= MAX_PAGES) { continue; }
       seen.add(node.url);
       let links = [];
       try { links = await anchorsOn(node.url); } catch (e) { continue; }
@@ -83,8 +90,12 @@ if (!BASE || !START || !TARGET) {
     console.log(`\n  '${TARGET}' is NOT unreachable. If the scanner calls it an orphan, that is a`);
     console.log('  curation-signal finding, not a "students cannot get there" finding.');
   } else {
+    const capped = seen.size >= MAX_PAGES;
     console.log(`  NOT REACHABLE from ${START} within ${MAX_DEPTH} click(s).`);
-    console.log(`  Pages visited: ${seen.size}. This is a real dead end for a student starting there.`);
+    console.log(`  Pages visited: ${seen.size}${capped ? ' (HIT THE ' + MAX_PAGES + '-PAGE CAP)' : ''}.`);
+    console.log(capped
+      ? '  INCONCLUSIVE, not a dead end: the crawl was truncated. Raise MAX_PAGES before concluding.'
+      : '  This is a real dead end for a student starting there.');
   }
   process.exit(found ? 0 : 1);
 })().catch((e) => { console.error('WALK ERROR: ' + e.message); process.exit(1); });
