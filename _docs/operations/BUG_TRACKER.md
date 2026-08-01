@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-075 — CORRECTED: `tenant/instructor.html` boot-failure screen has no exit  ·  [P3]  ·  fixed-not-deployed
+### BUG-075 — CORRECTED: `tenant/instructor.html` boot-failure screen has no exit  ·  [P3]  ·  deployed-verified 2026-08-01
 - **Found:** 2026-07-31 · by Nancy · adjudicating NAV-001 for taskboard #228
 - **Area:** `_app/tenant/instructor.html` — the `catch` block of the boot routine (~:1947)
 - **ROOT CAUSE, corrected.** My first entry blamed `TenantShell.js:53` no-opping without tenant
@@ -55,9 +55,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   it has been redirected elsewhere or when the app booted normally, exiting 2 instead of
   reporting a pass — which is how the unauthenticated redirect was discovered rather than being
   silently measured as a stranded user.
+- **DEPLOYED 2026-08-01** (commit ee1c8c3d0, shipped in the 4abd487a3 deploy). Live evidence:
+  `curl -s https://hexworth.com/tenant/instructor.html | grep -c 'loader-exit'` returns 2.
+  Note for anyone re-checking: greps for `Return to` or `href="/houses` return ZERO on this page
+  and that is NOT a regression — the exit is `<a id="loader-exit" href="/">` at :1229, revealed
+  by the catch block at :1966. I wasted a check guessing the selector instead of reading the fix.
 - **Related:** BUG-076, taskboard #228, #264.
 
-### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  fixed-not-deployed
+### BUG-076 — the admissions slide deck has no in-page exit  ·  [P3]  ·  deployed-verified 2026-08-01
 - **Found:** 2026-07-31 · by Nancy · same adjudication
 - **Area:** `_app/components/slides/admissions-2026.html`
 - **Symptom:** zero `href` in the entire file, and no exit affordance. Its two keydown handlers
