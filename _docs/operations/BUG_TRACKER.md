@@ -70,6 +70,36 @@ and 0 `addXP` calls still guarded by `if (uid)`.
 `98acb1f7d` 95 standalone pages · `8ee20cf80` CLHCompletionModal.js alone (91 consumers) ·
 `9c88965a6` the `.catch()` shape, hand-fixed.
 
+**CHRIS BLOCKED ON THE REPLAY RISK AND WAS RIGHT — now closed server-side.** He independently
+confirmed that every one of the 97 sites is protected only by a devtools-clearable localStorage
+boolean, against an `addXP` CF with no dedup and no per-user rate limit. Un-gating turned a benign
+no-op into a replayable write to `users/{uid}.xpHistory` — the exact signal instructors and
+leaderboards are meant to trust.
+
+`exports.addXP` now enforces **once per reason, server-side**, inside a transaction.
+
+This does NOT invent policy. Every client call site already gates on an "already awarded" flag, so
+one-award-per-reason has always been the intent; it was simply enforced somewhere a student can
+reach. Measured before writing the guard: of 98 call sites, **89 pass a static reason** and the 9
+dynamic ones vary by SCENARIO or MODULE (`'STRIDE Threat Modeler - ' + scenario`,
+`moduleId + ' completed'`), never per attempt — so distinct work still earns distinct XP.
+
+`arrayUnion` could not do this on its own: the entry carries a timestamp, so every append is a
+unique object and union never collapses them. A transaction rather than read-then-write, so two
+rapid clicks cannot both read "absent" and both append.
+
+Proven against the Firestore emulator with two fixtures, because a guard that blocks everything
+would pass a "does it dedup" test while breaking the feature:
+    first award (new reason)    -> added 50
+    replay (same reason)        -> added 0, deduped
+    different work (new reason) -> added 35
+    xpHistory 2 entries, total 85
+Gate: `_tools/rules-test/addxp-dedup.test.js`
+
+**Still client-side only for the LOCAL `hexworth_xp` number** — clearing localStorage still lets a
+student inflate the number on their own screen. That was always true and is not what instructors or
+leaderboards read.
+
 **REPLAY EXPOSURE, checked because un-gating makes ~99 previously-inert calls live.** Every one of
 the 97 sits behind a client-side once-only award guard, so a student replaying a game does not
 re-award. It took FOUR naming conventions to establish that, and my first three greps each reported

@@ -705,16 +705,43 @@ exports.addXP = onCall(cfOptions, async (request) => {
     const uid = request.auth.uid;
     const userRef = db.doc(`users/${uid}`);
 
-    await userRef.update({
-        xpHistory: FieldValue.arrayUnion({
-            amount: numAmount,
-            reason,
-            timestamp: new Date().toISOString()
-        }),
-        updatedAt: FieldValue.serverTimestamp()
+    // ONCE PER REASON, ENFORCED SERVER-SIDE (BUG-082).
+    //
+    // Every client call site already gates on a localStorage "already awarded" flag, so the
+    // INTENDED policy has always been one award per distinct reason. That guard is
+    // devtools-clearable, and until 2026-08-01 it did not matter because a dead `hexworth_uid`
+    // check meant these calls never reached the server at all. Un-gating them made ~99 call sites
+    // live, at which point the only thing standing between a student and arbitrary XP was a
+    // localStorage boolean. Chris blocked the fix on exactly that.
+    //
+    // This does NOT invent policy -- it moves the policy the clients already enforce to where a
+    // student cannot reach it. Measured before writing: of 98 call sites, 89 pass a static reason
+    // and the 9 dynamic ones vary by SCENARIO or MODULE ("STRIDE Threat Modeler - " + scenario,
+    // moduleId + " completed"), never per attempt. So distinct work still earns distinct XP.
+    //
+    // arrayUnion alone cannot do this: the entry carries a timestamp, so every append is a unique
+    // object and union never collapses them.
+    //
+    // Transaction, not read-then-write: two rapid clicks would otherwise both read "absent" and
+    // both append.
+    const result = await db.runTransaction(async (tx) => {
+        const snap = await tx.get(userRef);
+        const history = (snap.exists && snap.data().xpHistory) || [];
+        if (history.some((e) => e && e.reason === reason)) {
+            return { success: true, added: 0, deduped: true };
+        }
+        tx.update(userRef, {
+            xpHistory: FieldValue.arrayUnion({
+                amount: numAmount,
+                reason,
+                timestamp: new Date().toISOString()
+            }),
+            updatedAt: FieldValue.serverTimestamp()
+        });
+        return { success: true, added: numAmount };
     });
 
-    return { success: true, added: numAmount };
+    return result;
 });
 
 /**
