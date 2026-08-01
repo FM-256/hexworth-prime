@@ -68,6 +68,23 @@ Three defects in the DESTINATION the new house card points at. All three were in
    NOT FIXED YET, deliberately: found while a Chris gate was in flight on this exact tree, and editing
    `_app` mid-gate makes the verdict cover a tree that no longer exists.
 
+**SHIPPED 2026-08-01.** The four back-link fixes are live and verified: 11 of 11 checks green
+(each of the four sub-hubs lost its link to the legacy Auth lesson and gained one to the track
+index), with all three holdouts confirmed absent from production.
+
+**Post-verify flagged a divergence on that deploy and it did NOT reproduce.** The lab content-leak
+browser smoke reported `9 PASS / 1 FAIL` immediately after the deploy shipped, so `post-verify`
+exited 2 and skipped the Confluence regen. Re-ran `_tools/smoke-lab-content-leaks.js` three times
+against production: **10/0, 10/0, 10/0**. Two readings are consistent with that and I cannot
+separate them from here: a genuine flake, or CDN propagation serving a stale page to the check that
+ran seconds after the upload. I am NOT recording it as "fixed" -- nothing was changed. It is
+recorded as unreproduced, with the caveat that a single post-deploy smoke run is evidently not
+reliable enough to gate on by itself.
+
+**I lost the failure detail to my own truncation.** The deploy ran through `tail -26`, which cut the
+smoke output above the summary line, so which of the ten checks failed is unknown and unrecoverable.
+Capture full deploy output to a file next time and tail the file, rather than tailing the pipe.
+
 **FIXED SEPARATELY AND ALREADY VERIFIED (was Chris's finding 1, the one with real student impact):**
 `auth/index.html` and `owasp/index.html` read completion from `localStorage['hp_module_' + id]`, a
 key **nothing on the platform writes** — grepped: 2 files read it, 0 write it. The module pages write
