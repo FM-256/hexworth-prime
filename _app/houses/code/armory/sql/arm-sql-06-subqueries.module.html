@@ -170,12 +170,12 @@
                 <p class="content-text">Instead of hard-coding a value list, use a subquery to generate it dynamically. This is how you build queries that adapt to changing data.</p>
 
                 <div class="command-card code-block" data-runnable="sql" data-lang="sql">
-                    <div class="command-name">SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'FAILED');</div>
+                    <div class="command-name">SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'failed');</div>
                     <div class="command-desc">Find all user details for anyone who has ever had a failed login. The subquery finds the user IDs; the outer query fetches their profiles.</div>
-                    <pre style="display:none">SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'FAILED');</pre>
+                    <pre style="display:none">SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'failed');</pre>
                     <div class="command-output">
                         <div><span class="prompt">sql&gt;</span> SELECT * FROM users WHERE user_id IN</div>
-                        <div><span class="prompt">   &gt;</span> (SELECT DISTINCT user_id FROM login_logs WHERE status = 'FAILED');</div>
+                        <div><span class="prompt">   &gt;</span> (SELECT DISTINCT user_id FROM login_logs WHERE status = 'failed');</div>
                         <div><span class="output">1|admin|admin@hexworth.io|admin|1</span></div>
                         <div><span class="output">4|hacker|pwned@evil.com|user|0</span></div>
                     </div>
@@ -220,9 +220,9 @@
                 </div>
 
                 <div class="command-card code-block" data-runnable="sql" data-lang="sql">
-                    <div class="command-name">WITH failed_logins AS (SELECT user_id, COUNT(*) AS fails FROM login_logs WHERE status = 'FAILED' GROUP BY user_id HAVING fails > 5) SELECT u.username, f.fails FROM users u INNER JOIN failed_logins f ON u.user_id = f.user_id ORDER BY f.fails DESC;</div>
+                    <div class="command-name">WITH failed_logins AS (SELECT user_id, COUNT(*) AS fails FROM login_logs WHERE status = 'failed' GROUP BY user_id HAVING fails > 5) SELECT u.username, f.fails FROM users u INNER JOIN failed_logins f ON u.user_id = f.user_id ORDER BY f.fails DESC;</div>
                     <div class="command-desc">Step 1: CTE finds users with more than 5 failures. Step 2: Main query joins with users table for names. Much cleaner than a nested subquery.</div>
-                    <pre style="display:none">WITH failed_logins AS (SELECT user_id, COUNT(*) AS fails FROM login_logs WHERE status = 'FAILED' GROUP BY user_id HAVING fails > 5) SELECT u.username, f.fails FROM users u INNER JOIN failed_logins f ON u.user_id = f.user_id ORDER BY f.fails DESC;</pre>
+                    <pre style="display:none">WITH failed_logins AS (SELECT user_id, COUNT(*) AS fails FROM login_logs WHERE status = 'failed' GROUP BY user_id HAVING fails > 5) SELECT u.username, f.fails FROM users u INNER JOIN failed_logins f ON u.user_id = f.user_id ORDER BY f.fails DESC;</pre>
                     <div class="command-output">
                         <div><span class="prompt">sql&gt;</span> WITH failed_logins AS (...)</div>
                         <div><span class="prompt">   &gt;</span> SELECT u.username, f.fails FROM users u INNER JOIN failed_logins f ...;</div>
@@ -296,10 +296,56 @@
                 var ran = __out.includes('sql-result');
                 var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (ok && (/\(select\s/.test(lower) && !lower.includes(' in ') && !lower.includes('exists'))) completeTask('scalar-sub');
-                if (ok && (lower.includes(' in ') && lower.includes('(select'))) completeTask('in-sub');
-                if (ok && (lower.includes('exists'))) completeTask('exists-sub');
-                if (ok && (lower.includes('with ') && lower.includes(' as '))) completeTask('cte');
+
+                // BUG-078 class B. Row count cannot separate honest from garbage in THIS module:
+                // measured 2026-08-01, the engine's EXISTS is simplified and returns every row for
+                // both an honest and a garbage subquery (8 of 8 either way), and the scalar-subquery
+                // example compares a text timestamp against arithmetic that yields NaN, so it also
+                // passes everything. Result-shape checks work for 02/03/04/05; they do not work here.
+                //
+                // So gate on the one thing the cheat cannot fake: every column it NAMES must exist.
+                // This is a grader-side check -- the engine still resolves unknown columns to null
+                // exactly as before, so no query output changes and none of the alias/subquery/CTE
+                // breakage from the engine-level fix applies. Column and table names are read from
+                // the live schema rather than hardcoded, so they cannot drift from the seed.
+                function namesRealColumns(sql) {
+                    var db;
+                    try { db = SQLEngine.getDB(); } catch (e) { return false; }
+                    if (!db) return false;
+                    var known = {};
+                    Object.keys(db).forEach(function (t) {
+                        known[t.toLowerCase()] = true;
+                        (db[t].columns || []).forEach(function (c) { known[String(c).toLowerCase()] = true; });
+                    });
+                    var KW = ('select from where and or not in between like is null as on join inner left ' +
+                        'right outer group by having order limit distinct count sum avg min max union all ' +
+                        'insert into values update set delete create table drop alter add primary key foreign ' +
+                        'references unique default int text real blob varchar exists case when then else end ' +
+                        'asc desc grant revoke to with true false').split(' ');
+                    KW.forEach(function (k) { known[k] = true; });
+
+                    var s = sql.replace(/'[^']*'/g, "''");        // literals are not identifiers
+                    // aliases and CTE names are legitimate identifiers the schema does not contain
+                    var re1 = /\b(?:FROM|JOIN)\s+[a-z_]\w*\s+(?!ON\b|WHERE\b|INNER\b|LEFT\b|RIGHT\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|UNION\b)([a-z_]\w*)/gi;
+                    var m;
+                    while ((m = re1.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+                    var re2 = /\bAS\s+([a-z_]\w*)/gi;
+                    while ((m = re2.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+                    var re3 = /\bWITH\s+([a-z_]\w*)\s+AS\b/gi;
+                    while ((m = re3.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+
+                    var re4 = /\b([a-z_]\w*)\b/gi;
+                    while ((m = re4.exec(s)) !== null) {
+                        if (!known[m[1].toLowerCase()]) return false;
+                    }
+                    return true;
+                }
+                var real = ok && namesRealColumns(cmdLine);
+
+                if (real && (/\(select\s/.test(lower) && !lower.includes(' in ') && !lower.includes('exists'))) completeTask('scalar-sub');
+                if (real && (lower.includes(' in ') && lower.includes('(select'))) completeTask('in-sub');
+                if (real && (lower.includes('exists'))) completeTask('exists-sub');
+                if (real && (lower.includes('with ') && lower.includes(' as '))) completeTask('cte');
             }
         }));
         var MODULE_ID = 'arm-sql-06-subqueries';
@@ -307,9 +353,9 @@
         var TASK_ORDER = ['scalar-sub', 'in-sub', 'exists-sub', 'cte'];
         var TASK_INSTRUCTIONS = {
             'scalar-sub': { number: 1, title: 'Write a Scalar Subquery', description: 'Use a subquery that returns a single value in your WHERE clause.', command: "SELECT * FROM login_logs WHERE timestamp > (SELECT MAX(timestamp) - 3600 FROM login_logs);", expect: 'Subquery provides a dynamic comparison value' },
-            'in-sub': { number: 2, title: 'Use IN with a Subquery', description: 'Use IN with a subquery to generate a dynamic value list.', command: "SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'FAILED');", expect: 'Returns rows matching the subquery results' },
-            'exists-sub': { number: 3, title: 'Use EXISTS', description: 'Write a correlated subquery with EXISTS to test for matching rows.', command: "SELECT u.username FROM users u WHERE EXISTS (SELECT 1 FROM login_logs l WHERE l.user_id = u.user_id AND l.status = 'FAILED');", expect: 'Returns users with at least one matching record' },
-            'cte': { number: 4, title: 'Write a CTE', description: 'Use WITH ... AS to define a Common Table Expression.', command: "WITH fails AS (SELECT user_id, COUNT(*) AS c FROM login_logs WHERE status = 'FAILED' GROUP BY user_id) SELECT * FROM fails;", expect: 'CTE result is used like a temporary table' }
+            'in-sub': { number: 2, title: 'Use IN with a Subquery', description: 'Use IN with a subquery to generate a dynamic value list.', command: "SELECT * FROM users WHERE user_id IN (SELECT DISTINCT user_id FROM login_logs WHERE status = 'failed');", expect: 'Returns rows matching the subquery results' },
+            'exists-sub': { number: 3, title: 'Use EXISTS', description: 'Write a correlated subquery with EXISTS to test for matching rows.', command: "SELECT u.username FROM users u WHERE EXISTS (SELECT 1 FROM login_logs l WHERE l.user_id = u.user_id AND l.status = 'failed');", expect: 'Returns users with at least one matching record' },
+            'cte': { number: 4, title: 'Write a CTE', description: 'Use WITH ... AS to define a Common Table Expression.', command: "WITH fails AS (SELECT user_id, COUNT(*) AS c FROM login_logs WHERE status = 'failed' GROUP BY user_id) SELECT * FROM fails;", expect: 'CTE result is used like a temporary table' }
         };
         function showTaskInstruction(taskId) {
             var info = TASK_INSTRUCTIONS[taskId]; if (!info) return;
