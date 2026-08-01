@@ -31,6 +31,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-083 — 30 real student UIDs sat in an untracked-but-committable file  ·  [P2]  ·  fixed
+- **Found:** 2026-08-01 · by self · noticed while listing pending work, not by any scanner
+- **Area:** `functions/uids.json`
+
+`functions/uids.json` maps **30 real Firebase UIDs to OpenStack project ids**, produced while
+auditing the slot pool. It was untracked — but `git check-ignore` matched **nothing**, so a stray
+`git add functions/` or `git add -A` would have committed real student identifiers into a repo whose
+history is not rewritable in practice.
+
+**Never actually committed** — verified, not assumed: `git log --all -- functions/uids.json` returns
+**0 commits**, and a probe UID from the file appears in **no tracked file**. So this is a closed
+exposure, not a breach.
+
+**Fixed without deleting anything**, per the standing rule: archived byte-verified to
+`_archive/sensitive-untracked-2026-08-01/uids.json`, then `.gitignore` rules added for
+`functions/uids.json`, `functions/*-uids.json` and `functions/.scratch_verify/`. Confirmed both
+locations are now ignored — the archive sits under `_archive/`, which `.gitignore:4` already covers,
+so archiving did not simply move the exposure.
+
+**The other 17 untracked files in `functions/` were scanned and are clean** — 0 UID-shaped strings,
+0 secret-shaped words, 0 email addresses across all of them. Only `uids.json` carried identifiers.
+
+**Worth noting about how this was found:** no tool surfaced it. It came up because I listed pending
+work and looked at what the untracked files actually were. A scanner that only reads TRACKED files
+cannot see this class at all.
+
+
 ### BUG-082 — 97 games/labs never sync XP to the server: a guard reads a key nothing writes  ·  [P2]  ·  open
 - **Found:** 2026-08-01 · by self · platform sweep generalising the API Security `hp_module_` bug
 - **Area:** 97 files reading `localStorage.getItem('hexworth_uid')`, 100 read sites
