@@ -239,7 +239,33 @@ const TouristVisa = (function () {
         if (_interceptsInstalled) return;
         _interceptsInstalled = true;
 
-        function wrapIfExists(obj, methodName, label) {
+        // Turn the sticky tourist banner into a TRANSACTIONAL message. Reusing the existing overlay
+        // is deliberate: the alternative was a new notice element, which needs a DOM target, and
+        // there is no universal results container -- resultsCard covers 103 files but result (16),
+        // resultsScreen (6), resultMsg (4), resultsPanel (3) and resultsArea (1) are also in use, so
+        // a container-keyed injector would silently no-op on ~19 files. The overlay already injects
+        // on exactly the pages that matter and is already pinned, so there is no new element, no
+        // stacking decision and no coverage gap.
+        function announceBlocked(message) {
+            var el = document.getElementById('tourist-overlay-banner');
+            if (!el) { injectOverlay(); el = document.getElementById('tourist-overlay-banner'); }
+            if (!el) return;                       // no surface: stay silent rather than throw
+            var txt = el.querySelector('.tourist-overlay__text');
+            if (!txt) return;
+            txt.innerHTML = message +
+                ' <a href="javascript:void(0)" onclick="TouristVisa.goToSorting()" class="tourist-overlay__link">Take the Sorting Quiz</a>.';
+            el.classList.add('tourist-overlay--blocked');
+        }
+
+        // TWO WRAPPERS, NOT ONE WITH A FLAG. installBlockers() used to route all four methods through
+        // a single wrapper, which is why attaching a visible notice to it would have been a
+        // regression rather than a fix: AchievementManager.checkImplicitAchievements() runs on EVERY
+        // page load and calls unlock('night_owl'), unlock('early_bird') and the streak unlocks with
+        // no user gesture at all. A tourist would get "not saved" for opening a page after dark.
+        // Splitting the two groups is what makes the notice truthful -- it fires only on a completion
+        // the student actually earned. The silent wrapper below must stay behaviourally identical to
+        // what shipped; the only difference between the two is the announceBlocked call.
+        function wrapSilent(obj, methodName, label) {
             if (!obj || typeof obj[methodName] !== 'function') return;
             var original = obj[methodName];
             // Idempotency: tryInstall() runs up to 3x per page (immediate + DOMContentLoaded +
@@ -265,15 +291,43 @@ const TouristVisa = (function () {
             obj[methodName] = wrapped;
         }
 
+        // Identical to wrapSilent EXCEPT that it also tells the student. Kept as a separate function
+        // rather than a flag on wrapSilent so that the silent path cannot acquire a notice by a
+        // default landing the wrong way -- the "fix reopens the bug" shape, where one function serves
+        // four call sites and one of them silently inherits the wrong branch.
+        function wrapNotify(obj, methodName, label, message) {
+            if (!obj || typeof obj[methodName] !== 'function') return;
+            var original = obj[methodName];
+            if (original.__touristWrapped) return;
+            var wrapped = function () {
+                if (isActive()) {
+                    console.log('[TouristVisa] Blocked ' + label + ' — tourist mode');
+                    try { announceBlocked(message); } catch (e) {}   // a notice must never break the block
+                    return false;
+                }
+                return original.apply(obj, arguments);
+            };
+            wrapped.__touristWrapped = true;
+            obj[methodName] = wrapped;
+        }
+
         // Defer until the globals are defined (they load after AccessGuard)
         function tryInstall() {
             if (typeof ModuleProgress !== 'undefined') {
-                wrapIfExists(ModuleProgress, 'complete', 'ModuleProgress.complete');
-                wrapIfExists(ModuleProgress, 'completeQuiz', 'ModuleProgress.completeQuiz');
+                // These two are reached only by a completion the student actually performed, so the
+                // notice is truthful here and nowhere else.
+                wrapNotify(ModuleProgress, 'complete', 'ModuleProgress.complete',
+                    'Not saved -- you\'re in Tourist Mode.');
+                wrapNotify(ModuleProgress, 'completeQuiz', 'ModuleProgress.completeQuiz',
+                    'Score not saved -- you\'re in Tourist Mode.');
             }
             if (typeof AchievementManager !== 'undefined') {
-                wrapIfExists(AchievementManager, 'unlock', 'AchievementManager.unlock');
-                wrapIfExists(AchievementManager, 'check', 'AchievementManager.check');
+                // SILENT, EXACTLY AS SHIPPED. checkImplicitAchievements() runs on every page load and
+                // calls unlock('night_owl') / unlock('early_bird') / the streak unlocks with no user
+                // gesture, so a notice here would fire for opening a page after dark. Do not "improve"
+                // these to wrapNotify.
+                wrapSilent(AchievementManager, 'unlock', 'AchievementManager.unlock');
+                wrapSilent(AchievementManager, 'check', 'AchievementManager.check');
             }
         }
 
