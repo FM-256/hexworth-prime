@@ -322,10 +322,32 @@
                 var __m = __out.match(/(\d+) rows? returned/);
                 var produced = ok && __m && parseInt(__m[1], 10) > 0;
 
-                if (produced && (lower.includes('inner join'))) completeTask('inner-join');
-                if (produced && (lower.includes('left join'))) completeTask('left-join');
-                if (produced && (/from\s+\w+\s+[a-z]\s/i.test(lower) || /join\s+\w+\s+[a-z]\s+on/i.test(lower))) completeTask('alias');
-                if (produced && ((lower.match(/join/g) || []).length >= 2)) completeTask('multi-join');
+                // `rows > 0` alone is NOT enough, and my earlier disclosure of this as a "weaker"
+                // residual was wrong: `ON u.user_id = u.user_id` returns the same 12 rows as the
+                // honest join and completed the whole module in ONE line (Chris, 2026-08-01).
+                // Row count cannot see it -- both sides are the identical real column, so nothing
+                // about the RESULT differs. A join has to relate two tables, so check the ON clause
+                // structurally: each side must be a qualified column, and the two qualifiers must
+                // differ. That rejects `u.x = u.x` and `ON 1=1` while accepting any genuine join.
+                function joinsRelateTwoTables() {
+                    var ons = cmdLine.match(/\bON\s+[^\s]+\s*=\s*[^\s;]+/gi);
+                    if (!ons || !ons.length) return false;
+                    for (var i = 0; i < ons.length; i++) {
+                        var sides = ons[i].replace(/^ON\s+/i, '').split('=');
+                        if (sides.length !== 2) return false;
+                        var a = sides[0].trim(), b = sides[1].trim();
+                        if (a.indexOf('.') === -1 || b.indexOf('.') === -1) return false;   // ON 1=1
+                        var qa = a.split('.')[0].toLowerCase(), qb = b.split('.')[0].toLowerCase();
+                        if (qa === qb) return false;                                        // u.x = u.x
+                    }
+                    return true;
+                }
+                var joined = produced && joinsRelateTwoTables();
+
+                if (joined && (lower.includes('inner join'))) completeTask('inner-join');
+                if (joined && (lower.includes('left join'))) completeTask('left-join');
+                if (joined && (/from\s+\w+\s+[a-z]\s/i.test(lower) || /join\s+\w+\s+[a-z]\s+on/i.test(lower))) completeTask('alias');
+                if (joined && ((lower.match(/join/g) || []).length >= 2)) completeTask('multi-join');
             }
         }));
 
