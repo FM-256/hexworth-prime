@@ -319,12 +319,23 @@
             startDir: '/home/analyst',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // BUG-078 honesty gate. TWO conditions, because either alone is defeatable:
+                //   ran  -- SQLEngine.wrap only hands us result.html when _isSQLCommand(cmdLine) is
+                //           true, and that html carries class "sql-result". Without this check,
+                //           `echo "insert into update delete from begin rollback"` runs cleanly in
+                //           the Linux terminal and credits every task. MEASURED 2026-08-01.
+                //   ok   -- SQLEngine renders query errors in #f87171, so a query that RAN but
+                //           FAILED must not earn credit either.
+                // The held armsql-honesty-wip branch had `ok` only; the echo cheat survives that.
+                var __out = String(output || '');
+                var ran = __out.includes('sql-result');
+                var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (lower.includes('select') && lower.includes('*') && lower.includes('from')) completeTask('select-all');
-                if (lower.includes('select') && !lower.includes('*') && lower.includes('from') && lower.includes(',')) completeTask('select-cols');
-                if (lower.includes('where')) completeTask('where-clause');
-                if (lower.includes('order by')) completeTask('order-by');
-                if (lower.includes('distinct')) completeTask('distinct');
+                if (ok && (lower.includes('select') && lower.includes('*') && lower.includes('from'))) completeTask('select-all');
+                if (ok && (lower.includes('select') && !lower.includes('*') && lower.includes('from') && lower.includes(','))) completeTask('select-cols');
+                if (ok && (lower.includes('where'))) completeTask('where-clause');
+                if (ok && (lower.includes('order by'))) completeTask('order-by');
+                if (ok && (lower.includes('distinct'))) completeTask('distinct');
             }
         }));
 

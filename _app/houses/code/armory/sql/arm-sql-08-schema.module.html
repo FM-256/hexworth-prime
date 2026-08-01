@@ -296,11 +296,22 @@
         LinuxTerminal.init('SQL-08', '#terminal', SQLEngine.wrap({
             user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // BUG-078 honesty gate. TWO conditions, because either alone is defeatable:
+                //   ran  -- SQLEngine.wrap only hands us result.html when _isSQLCommand(cmdLine) is
+                //           true, and that html carries class "sql-result". Without this check,
+                //           `echo "insert into update delete from begin rollback"` runs cleanly in
+                //           the Linux terminal and credits every task. MEASURED 2026-08-01.
+                //   ok   -- SQLEngine renders query errors in #f87171, so a query that RAN but
+                //           FAILED must not earn credit either.
+                // The held armsql-honesty-wip branch had `ok` only; the echo cheat survives that.
+                var __out = String(output || '');
+                var ran = __out.includes('sql-result');
+                var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (lower.includes('create table')) completeTask('create-table');
-                if (lower.includes('primary key') || lower.includes('foreign key') || lower.includes('not null') || lower.includes('unique') || lower.includes('check(')) completeTask('constraint');
-                if (lower.includes('create index')) completeTask('index-create');
-                if (lower.includes('alter table')) completeTask('alter-table');
+                if (ok && (lower.includes('create table'))) completeTask('create-table');
+                if (ok && (lower.includes('primary key') || lower.includes('foreign key') || lower.includes('not null') || lower.includes('unique') || lower.includes('check('))) completeTask('constraint');
+                if (ok && (lower.includes('create index'))) completeTask('index-create');
+                if (ok && (lower.includes('alter table'))) completeTask('alter-table');
             }
         }));
         var MODULE_ID = 'arm-sql-08-schema';

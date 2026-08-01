@@ -41,17 +41,19 @@
 
     function _seedDatabase() {
         DB = {
+            // password_hash holds bcrypt-style hashes (never plaintext) — the "sensitive column" the
+            // SQLi UNION lesson (arm-sql-09) exfiltrates, teaching that even hashes leak via injection.
             users: {
-                columns: ['user_id', 'username', 'email', 'role', 'department', 'created_at', 'is_active'],
+                columns: ['user_id', 'username', 'email', 'role', 'department', 'created_at', 'is_active', 'password_hash'],
                 rows: [
-                    [1, 'jcarter',  'jcarter@hexcorp.io',  'admin',   'IT Security', '2024-01-15 09:00:00', 1],
-                    [2, 'mzhang',   'mzhang@hexcorp.io',   'analyst', 'SOC',         '2024-02-20 14:30:00', 1],
-                    [3, 'tknight',  'tknight@hexcorp.io',  'admin',   'Network Ops', '2024-03-10 08:15:00', 1],
-                    [4, 'srojas',   'srojas@hexcorp.io',   'viewer',  'Help Desk',   '2024-04-05 11:45:00', 0],
-                    [5, 'dchen',    'dchen@hexcorp.io',    'analyst', 'SOC',         '2024-05-12 16:00:00', 1],
-                    [6, 'apatel',   'apatel@hexcorp.io',   'viewer',  'Compliance',  '2024-06-01 10:30:00', 1],
-                    [7, 'rwilson',  'rwilson@hexcorp.io',  'admin',   'IT Security', '2024-07-18 07:00:00', 1],
-                    [8, 'lnguyen',  'lnguyen@hexcorp.io',  'analyst', 'Forensics',   '2024-08-22 13:15:00', 0]
+                    [1, 'jcarter',  'jcarter@hexcorp.io',  'admin',   'IT Security', '2024-01-15 09:00:00', 1, '$2b$12$K1x9aQ7uZ3rN.oP2sVfLeuJh0bYcW4dRtGmXn6qE8sA1vB3wC5yD6'],
+                    [2, 'mzhang',   'mzhang@hexcorp.io',   'analyst', 'SOC',         '2024-02-20 14:30:00', 1, '$2b$12$L2y8bR6vA4sO.pQ3tWgMfvKi1cZdX5eSuHnYo7rF9tB2wC4xD6zE7'],
+                    [3, 'tknight',  'tknight@hexcorp.io',  'admin',   'Network Ops', '2024-03-10 08:15:00', 1, '$2b$12$M3z7cS5wB5tP.qR4uXhNgwLj2dAeY6fTvIoZp8sG0uC3xD5yE7aF8'],
+                    [4, 'srojas',   'srojas@hexcorp.io',   'viewer',  'Help Desk',   '2024-04-05 11:45:00', 0, '$2b$12$N4a6dT4xC6uQ.rS5vYiOhxMk3eBfZ7gUwJp1qtH1vD4yE6zF8bG9'],
+                    [5, 'dchen',    'dchen@hexcorp.io',    'analyst', 'SOC',         '2024-05-12 16:00:00', 1, '$2b$12$O5b5eU3yD7vR.sT6wZjPiyNl4fCg08hVxKq2ruI2wE5zF7aG9cH0'],
+                    [6, 'apatel',   'apatel@hexcorp.io',   'viewer',  'Compliance',  '2024-06-01 10:30:00', 1, '$2b$12$P6c4fV2zE8wS.tU7xAkQjzOm5gDh19iWyLr3svJ3xF6aG8bH0dI1'],
+                    [7, 'rwilson',  'rwilson@hexcorp.io',  'admin',   'IT Security', '2024-07-18 07:00:00', 1, '$2b$12$Q7d3gW1aF9xT.uV8yBlRk0Pn6hEi20jXzMs4twK4yG7bH9cI1eJ2'],
+                    [8, 'lnguyen',  'lnguyen@hexcorp.io',  'analyst', 'Forensics',   '2024-08-22 13:15:00', 0, '$2b$12$R8e2hX0bG0yU.vW9zCmSl1Qo7iFj31kYaNt5uxL5zH8cI0dJ2fK3']
                 ]
             },
             login_logs: {
@@ -87,6 +89,26 @@
                     [11, 7, 'full_access',        '2024-07-18'],
                     [12, 7, 'firewall_admin',     '2024-07-18']
                 ]
+            },
+            // Network flow records for the traffic-analysis (arm-sql-05 SUM) and data-exfil-hunt
+            // (arm-sql-10) lessons. The standout exfil signal is the compromised host 192.168.1.99
+            // (the incident IP the module content references) pushing data to external destinations.
+            // Its three outbound flows sum to exactly 15,728,640 bytes (8388608 + 4194304 + 3145728) —
+            // the value the arm-sql-05 worked-example's SUM(...) WHERE source_ip='192.168.1.99' prints.
+            network_logs: {
+                columns: ['flow_id', 'timestamp', 'source_ip', 'dest_ip', 'bytes_transferred', 'protocol'],
+                rows: [
+                    [1,  '2024-09-01 08:20:00', '10.0.1.15',    '10.0.1.5',      4200,    'HTTPS'],
+                    [2,  '2024-09-01 09:05:00', '10.0.2.44',    '10.0.1.5',      15800,   'HTTPS'],
+                    [3,  '2024-09-01 10:30:00', '10.0.3.10',    '10.0.1.5',      8300,    'HTTPS'],
+                    [4,  '2024-09-02 02:15:00', '192.168.1.99', '203.0.113.77',  8388608, 'HTTPS'],
+                    [5,  '2024-09-02 02:47:00', '192.168.1.99', '203.0.113.77',  4194304, 'HTTPS'],
+                    [6,  '2024-09-02 03:10:00', '192.168.1.99', '198.51.100.9',  3145728, 'DNS'],
+                    [7,  '2024-09-02 08:00:00', '10.0.4.20',    '10.0.1.5',      6100,    'HTTP'],
+                    [8,  '2024-09-02 11:22:00', '10.0.1.22',    '10.0.1.5',      12400,   'HTTPS'],
+                    [9,  '2024-09-03 09:40:00', '10.0.5.33',    '10.0.1.5',      5200,    'HTTPS'],
+                    [10, '2024-09-03 14:10:00', '10.0.1.15',    '10.0.1.5',      3900,    'HTTPS']
+                ]
             }
         };
 
@@ -103,13 +125,14 @@
     var SCHEMA_SQL = {
         users: [
             'CREATE TABLE users (',
-            '  user_id    INTEGER PRIMARY KEY,',
-            '  username   TEXT NOT NULL,',
-            '  email      TEXT NOT NULL,',
-            '  role       TEXT NOT NULL,',
-            '  department TEXT,',
-            '  created_at TEXT,',
-            '  is_active  INTEGER DEFAULT 1',
+            '  user_id       INTEGER PRIMARY KEY,',
+            '  username      TEXT NOT NULL,',
+            '  email         TEXT NOT NULL,',
+            '  role          TEXT NOT NULL,',
+            '  department    TEXT,',
+            '  created_at    TEXT,',
+            '  is_active     INTEGER DEFAULT 1,',
+            '  password_hash TEXT',
             ');'
         ].join('\n'),
         login_logs: [
@@ -128,6 +151,16 @@
             '  permission TEXT NOT NULL,',
             '  granted_at TEXT',
             ');'
+        ].join('\n'),
+        network_logs: [
+            'CREATE TABLE network_logs (',
+            '  flow_id           INTEGER PRIMARY KEY,',
+            '  timestamp         TEXT,',
+            '  source_ip         TEXT,',
+            '  dest_ip           TEXT,',
+            '  bytes_transferred INTEGER,',
+            '  protocol          TEXT',
+            ');'
         ].join('\n')
     };
 
@@ -135,7 +168,7 @@
     // SQL KEYWORD DETECTION — determines if a raw terminal command line is SQL
     // =========================================================================
 
-    var SQL_LEAD_WORDS = /^\s*(select|insert|update|delete|create|drop|alter|with|begin|commit|rollback|explain|pragma)\s/i;
+    var SQL_LEAD_WORDS = /^\s*(select|insert|update|delete|create|drop|alter|with|begin|commit|rollback|explain|pragma|grant|revoke)\s/i;
     var DOT_COMMANDS   = /^\s*\.(tables|schema|help|dump|mode|headers|quit|exit)/i;
 
     function _isSQLCommand(cmdLine) {
@@ -402,8 +435,19 @@
 
         if (fn === 'SUM') return nums.reduce(function(a, b) { return a + b; }, 0);
         if (fn === 'AVG') return nums.length ? (nums.reduce(function(a, b) { return a + b; }, 0) / nums.length) : null;
-        if (fn === 'MIN') return nums.length ? Math.min.apply(null, nums) : null;
-        if (fn === 'MAX') return nums.length ? Math.max.apply(null, nums) : null;
+        // MIN/MAX must work on TEXT too (e.g. MIN(timestamp) to find first/last occurrence — a core
+        // lesson). Numeric-only min/max returned 0 for string columns. Compare numerically when every
+        // value is numeric, else lexicographically (ISO timestamps sort chronologically as strings).
+        if (fn === 'MIN' || fn === 'MAX') {
+            var vals = rows.map(function(r) { return _colValue(r, columns, col); })
+                           .filter(function(v) { return v !== null && v !== undefined && v !== ''; });
+            if (!vals.length) return null;
+            var allNum = vals.every(function(v) { return !isNaN(Number(v)); });
+            var sorted = vals.slice().sort(allNum
+                ? function(a, b) { return Number(a) - Number(b); }
+                : function(a, b) { return String(a) < String(b) ? -1 : (String(a) > String(b) ? 1 : 0); });
+            return fn === 'MIN' ? sorted[0] : sorted[sorted.length - 1];
+        }
         return null;
     }
 
@@ -940,6 +984,11 @@
             return newRow;
         });
 
+        // Honesty (BUG-008): a WHERE that matched nothing changed nothing — render it as a gradeable
+        // failure (error color) so a no-op UPDATE can't earn task credit for doing nothing.
+        if (whereClause && updateCount === 0) {
+            return _renderError('UPDATE matched 0 rows — no row satisfied the WHERE clause');
+        }
         return _renderOk(updateCount + ' row(s) updated in ' + tn);
     }
 
@@ -962,7 +1011,28 @@
         }
 
         var deleted = originalCount - tbl.rows.length;
+        // Honesty (BUG-008): a WHERE that matched nothing deleted nothing — render it as a gradeable
+        // failure so a no-op DELETE can't earn task credit for doing nothing.
+        if (whereClause && deleted === 0) {
+            return _renderError('DELETE matched 0 rows — no row satisfied the WHERE clause');
+        }
         return _renderOk(deleted + ' row(s) deleted from ' + tn);
+    }
+
+    // GRANT <priv[,priv]> ON <object> TO <grantee> — access control is SIMULATED (this teaching engine
+    // has no auth layer), but a WELL-FORMED statement succeeds and a malformed one errors, so the
+    // honesty gate credits a real GRANT and rejects a bare `grant` keyword. (BUG-008)
+    function _execGrant(sql) {
+        var m = sql.match(/^GRANT\s+(.+?)\s+ON\s+([\w.*]+)\s+TO\s+(.+?);?$/i);
+        if (!m) return _renderError('Malformed GRANT statement (expected: GRANT <priv> ON <object> TO <grantee>)');
+        return _renderOk('privilege(s) ' + m[1].trim() + ' granted on ' + m[2].trim() + ' to ' + m[3].trim() + ' (simulated)');
+    }
+
+    // REVOKE <priv[,priv]> ON <object> FROM <grantee> — simulated, same well-formed/malformed contract.
+    function _execRevoke(sql) {
+        var m = sql.match(/^REVOKE\s+(.+?)\s+ON\s+([\w.*]+)\s+FROM\s+(.+?);?$/i);
+        if (!m) return _renderError('Malformed REVOKE statement (expected: REVOKE <priv> ON <object> FROM <grantee>)');
+        return _renderOk('privilege(s) ' + m[1].trim() + ' revoked on ' + m[2].trim() + ' from ' + m[3].trim() + ' (simulated)');
     }
 
     function _execCreate(sql) {
@@ -1122,19 +1192,28 @@
     // =========================================================================
 
     function _parseValueList(str) {
-        // Split comma-separated values respecting quoted strings
+        // Split comma-separated values respecting quoted strings. A quoted value's content is
+        // accumulated into `current` (quote chars stripped) and pushed at the next comma or end —
+        // NOT on the closing quote. The old code pushed on quote-close AND again on the following
+        // comma, injecting a spurious empty value between every quoted item (so `'a','b',1` parsed
+        // as 5 values, not 3) — a false "Column count mismatch" that broke every INSERT of quoted
+        // strings. `sawValue` distinguishes a real (possibly empty-quoted) segment from no segment.
         var vals = [];
         var current = '';
         var inQuote = false;
         var quoteChar = '';
+        var sawValue = false;
         for (var i = 0; i < str.length; i++) {
             var ch = str[i];
-            if (!inQuote && (ch === "'" || ch === '"')) { inQuote = true; quoteChar = ch; continue; }
-            if (inQuote && ch === quoteChar) { inQuote = false; vals.push(current); current = ''; continue; }
-            if (!inQuote && ch === ',') { vals.push(current.trim()); current = ''; continue; }
-            current += ch;
+            if (!inQuote && (ch === "'" || ch === '"')) { inQuote = true; quoteChar = ch; sawValue = true; continue; }
+            if (inQuote && ch === quoteChar) {
+                if (str[i + 1] === quoteChar) { current += quoteChar; i++; continue; }   // SQL '' escape -> literal quote
+                inQuote = false; continue;
+            }
+            if (!inQuote && ch === ',') { vals.push(current.trim()); current = ''; sawValue = false; continue; }
+            current += ch; sawValue = true;
         }
-        if (current.trim() !== '') vals.push(current.trim());
+        if (sawValue) vals.push(current.trim());   // don't emit a spurious value after a trailing comma
         return vals.map(function(v) {
             v = v.trim();
             if (!isNaN(v) && v !== '') return Number(v);
@@ -1289,6 +1368,11 @@
         if (/^insert\s+into/i.test(lo))  return _execInsert(norm);
         if (/^update\s+\w+\s+set/i.test(lo)) return _execUpdate(norm);
         if (/^delete\s+from/i.test(lo))  return _execDelete(norm);
+
+        // DCL (access control) — simulated: a well-formed statement succeeds, a malformed one errors,
+        // so the honesty gate can tell a real GRANT/REVOKE from a bare keyword.
+        if (/^grant\s/i.test(lo))  return _execGrant(norm);
+        if (/^revoke\s/i.test(lo)) return _execRevoke(norm);
 
         // SELECT (including CTE WITH ... AS)
         if (/^(select|with)\s/i.test(lo)) return _execSelect(norm);

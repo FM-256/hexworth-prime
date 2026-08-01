@@ -335,12 +335,23 @@
         LinuxTerminal.init('SQL-09', '#terminal', SQLEngine.wrap({
             user: 'analyst', hostname: 'sql-lab', startDir: '/home/analyst', height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // BUG-078 honesty gate. TWO conditions, because either alone is defeatable:
+                //   ran  -- SQLEngine.wrap only hands us result.html when _isSQLCommand(cmdLine) is
+                //           true, and that html carries class "sql-result". Without this check,
+                //           `echo "insert into update delete from begin rollback"` runs cleanly in
+                //           the Linux terminal and credits every task. MEASURED 2026-08-01.
+                //   ok   -- SQLEngine renders query errors in #f87171, so a query that RAN but
+                //           FAILED must not earn credit either.
+                // The held armsql-honesty-wip branch had `ok` only; the echo cheat survives that.
+                var __out = String(output || '');
+                var ran = __out.includes('sql-result');
+                var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (lower.includes("' or") || lower.includes("'--") || lower.includes("' --") || lower.includes("1=1")) completeTask('sqli-basic');
-                if (lower.includes('union') && lower.includes('select')) completeTask('sqli-union');
-                if (lower.includes('?') || lower.includes(':id') || lower.includes('prepare')) completeTask('param-query');
-                if (lower.includes('grant')) completeTask('grant-cmd');
-                if (lower.includes('revoke')) completeTask('revoke-cmd');
+                if (ok && (lower.includes("' or") || lower.includes("'--") || lower.includes("' --") || lower.includes("1=1"))) completeTask('sqli-basic');
+                if (ok && (lower.includes('union') && lower.includes('select'))) completeTask('sqli-union');
+                if (ok && (lower.includes('?') || lower.includes(':id') || lower.includes('prepare'))) completeTask('param-query');
+                if (ok && (lower.includes('grant'))) completeTask('grant-cmd');
+                if (ok && (lower.includes('revoke'))) completeTask('revoke-cmd');
             }
         }));
         var MODULE_ID = 'arm-sql-09-security';

@@ -326,11 +326,22 @@
             startDir: '/home/analyst',
             height: '100%',
             onCommand: function(cmdLine, output, cmd, args) {
+                // BUG-078 honesty gate. TWO conditions, because either alone is defeatable:
+                //   ran  -- SQLEngine.wrap only hands us result.html when _isSQLCommand(cmdLine) is
+                //           true, and that html carries class "sql-result". Without this check,
+                //           `echo "insert into update delete from begin rollback"` runs cleanly in
+                //           the Linux terminal and credits every task. MEASURED 2026-08-01.
+                //   ok   -- SQLEngine renders query errors in #f87171, so a query that RAN but
+                //           FAILED must not earn credit either.
+                // The held armsql-honesty-wip branch had `ok` only; the echo cheat survives that.
+                var __out = String(output || '');
+                var ran = __out.includes('sql-result');
+                var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (lower.includes('select') && lower.includes('sqlite_version')) completeTask('select-version');
-                if (lower.includes('select') && (lower.includes("datetime('now')") || lower.includes('datetime("now")'))) completeTask('select-now');
-                if (lower.includes('select') && /\d\s*[\+\-\*\/]\s*\d/.test(lower)) completeTask('select-calc');
-                if (lower.includes('sqlite_master') || lower.includes('show tables') || lower.includes('.tables')) completeTask('show-tables');
+                if (ok && (lower.includes('select') && lower.includes('sqlite_version'))) completeTask('select-version');
+                if (ok && (lower.includes('select') && (lower.includes("datetime('now')") || lower.includes('datetime("now")')))) completeTask('select-now');
+                if (ok && (lower.includes('select') && /\d\s*[\+\-\*\/]\s*\d/.test(lower))) completeTask('select-calc');
+                if (ok && (lower.includes('sqlite_master') || lower.includes('show tables') || lower.includes('.tables'))) completeTask('show-tables');
             }
         }));
 
