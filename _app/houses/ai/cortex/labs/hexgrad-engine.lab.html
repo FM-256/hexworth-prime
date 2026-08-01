@@ -86,9 +86,15 @@ var VERIFY = [
    GRADCHECK 6/6 (Nancy reproduced it). That is the measure-a-proxy-not-the-claim failure:
    the claim is "gradients accumulate", and += is only one spelling of it. */
 function accumulates(code) {
-    return /\.grad\s*\+=/.test(code)                       /* self.grad += x            */
-        || /\.grad\s*=\s*[^\n]*\.grad\s*\+/.test(code)      /* self.grad = self.grad + x */
-        || /\.grad\s*=\s*[^\n]*\+\s*[a-z_]*\.grad/.test(code); /* self.grad = x + self.grad */
+    /* The same object must appear on BOTH sides. Without the backreference, patterns 2 and 3
+       matched `self.grad = other.grad + 0` -- assigning from an UNRELATED Value's grad, which is
+       not accumulation at all. Nancy, task #257. Fixtured before changing: `self.grad += x`,
+       `self.grad = self.grad + x`, `self.grad = x + self.grad` and `node.a.grad = node.a.grad + 1`
+       must all still match; `self.grad = other.grad + 0`, `self.grad = out.grad` and
+       `self.grad = 0 + other.grad` must not. */
+    return /\.grad\s*\+=/.test(code)                                        /* self.grad += x            */
+        || /(\b[A-Za-z_][\w.]*)\.grad\s*=\s*[^\n]*\b\1\.grad\s*\+/.test(code)   /* self.grad = self.grad + x */
+        || /(\b[A-Za-z_][\w.]*)\.grad\s*=\s*[^\n]*\+\s*\b\1\.grad/.test(code);  /* self.grad = x + self.grad */
 }
 
 /* Structural evidence that machinery exists rather than printed text. Used as a GATE only
