@@ -357,11 +357,52 @@
                 var ran = __out.includes('sql-result');
                 var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (ok && (lower.includes('order by') && lower.includes('timestamp') && lower.includes('ip_address'))) completeTask('timeline');
-                if (ok && (lower.includes('count(') && lower.includes('group by') && (lower.includes('failed') || lower.includes('status')))) completeTask('brute-detect');
-                if (ok && (lower.includes('permission') && lower.includes('join'))) completeTask('priv-audit');
-                if (ok && (lower.includes('bytes') || lower.includes('network_logs') || lower.includes('sum('))) completeTask('data-exfil');
-                if (ok && (lower.includes('with') && lower.includes('as') && (lower.match(/,/g) || []).length >= 1)) completeTask('report');
+
+                // BUG-078 class B. Keyword-only checks credited statements naming columns that do
+                // not exist -- the engine resolves an unknown column to null and an unparseable
+                // predicate to true, so nothing errors. Gate on what a cheat cannot fake: every
+                // identifier the statement names must be a real table, column, alias or keyword.
+                // Grader-side only -- the engine is untouched, so no query output changes.
+                // Schema is read live via SQLEngine.getDB(), so it cannot drift from the seed.
+                function namesRealColumns(sql) {
+                    var db;
+                    try { db = SQLEngine.getDB(); } catch (e) { return false; }
+                    if (!db) return false;
+                    var known = {};
+                    Object.keys(db).forEach(function (t) {
+                        known[t.toLowerCase()] = true;
+                        (db[t].columns || []).forEach(function (c) { known[String(c).toLowerCase()] = true; });
+                    });
+                    ('select from where and or not in between like is null as on join inner left right ' +
+                     'outer group by having order limit distinct count sum avg min max union all insert ' +
+                     'into values update set delete create table drop alter add primary key foreign ' +
+                     'references unique default int text real blob varchar exists case when then else end ' +
+                     'asc desc grant revoke to with true false prepare execute using localhost').split(' ')
+                        .forEach(function (k) { known[k] = true; });
+
+                    var s = sql.replace(/'[^']*'/g, "''");   // literals are not identifiers
+                    var m, re;
+                    re = /\b(?:FROM|JOIN)\s+[a-z_]\w*\s+(?!ON\b|WHERE\b|INNER\b|LEFT\b|RIGHT\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|UNION\b)([a-z_]\w*)/gi;
+                    while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+                    re = /\bAS\s+([a-z_]\w*)/gi;
+                    while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+                    re = /\bWITH\s+([a-z_]\w*)\s+AS\b/gi;
+                    while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+                    re = /,\s*([a-z_]\w*)\s+AS\s*\(/gi;
+                    while ((m = re.exec(s)) !== null) known[m[1].toLowerCase()] = true;
+
+                    re = /\b([a-z_]\w*)\b/gi;
+                    while ((m = re.exec(s)) !== null) {
+                        if (!known[m[1].toLowerCase()]) return false;
+                    }
+                    return true;
+                }
+                var real = ok && namesRealColumns(cmdLine);
+                if (real && (lower.includes('order by') && lower.includes('timestamp') && lower.includes('ip_address'))) completeTask('timeline');
+                if (real && (lower.includes('count(') && lower.includes('group by') && (lower.includes('failed') || lower.includes('status')))) completeTask('brute-detect');
+                if (real && (lower.includes('permission') && lower.includes('join'))) completeTask('priv-audit');
+                if (real && (lower.includes('bytes') || lower.includes('network_logs') || lower.includes('sum('))) completeTask('data-exfil');
+                if (real && (lower.includes('with') && lower.includes('as') && (lower.match(/,/g) || []).length >= 1)) completeTask('report');
             }
         }));
         var MODULE_ID = 'arm-sql-10-practical';
