@@ -378,6 +378,20 @@
     }
 
     /* ---- DAX evaluation ---- */
+    /* Strip the CONTENTS of quoted strings before any structural test.
+       Regex has no concept of "inside a quote", so /factsales\[channel\]\s*=/ matched
+       CALCULATE(SUM(FactSales[TotalAmount]), "factsales[channel]=x") -- a quoted literal carrying
+       the column AND an operator. Nancy reproduced it against my commit that claimed, in these
+       words, "a quoted literal cannot satisfy it because the operator must follow the bracket".
+       That claim was false. Emptying the quotes first makes it true: only real code can match. */
+    function codeOnly(e) {
+        return String(e == null ? '' : e)
+            .replace(/\/\*[\s\S]*?\*\//g, ' ')   /* block comments -- a channel+operator hid in one */
+            .replace(/\/\/[^\n]*/g, ' ')            /* line comments, same reason */
+            .replace(/"[^"]*"/g, '""')
+            .replace(/'[^']*'/g, "''");
+    }
+
     window.evaluateDax = function() {
         const raw = document.getElementById('daxInput').value.trim();
         if (!raw) { showFeedback('err', 'Enter a DAX expression.'); return; }
@@ -416,8 +430,8 @@
            This requires the SHAPE: the function is calculate( exactly, and the channel column is
            followed by a comparison operator -- which is what makes it a filter rather than a
            mention. A quoted literal cannot satisfy it because the operator must follow the bracket. */
-        } else if (/^calculate\s*\(/.test(expr) && expr.includes('sum(factsales[totalamount]')
-                   && /factsales\[channel\]\s*(=|<>|<|>|>=|<=)/.test(expr)) {
+        } else if (/^calculate\s*\(/.test(codeOnly(expr)) && codeOnly(expr).includes('sum(factsales[totalamount]')
+                   && /factsales\[channel\]\s*(=|<>|<|>|>=|<=)/.test(codeOnly(expr))) {
             result = '$ 1,843,201.75'; if (!completedTasks.has(7)) markDone(7);
         } else if (expr.startsWith('countrows(factsales')) {
             result = '60,398'; if (!completedTasks.has(8)) markDone(8);
