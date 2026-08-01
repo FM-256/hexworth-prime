@@ -134,11 +134,11 @@ The 8 confirmed: `arm-bash-05-loops`, `arm-bash-06-functions`, `arm-bash-10-adva
 own brace matcher counted the `{` inside the literal `'() {'`. Fixed with a quote-aware scanner
 (9a3bdea99); it is a 4/4-from-one-line module that my tooling's failure was concealing.
 
-**TWO LIMITS ON THIS SWEEP, stated because a hidden one is worse than no sweep.** (1) It ran against
-the pre-scanner build, so pages whose graders contain a brace inside a string may be under-measured;
-the 66 UNVERIFIED need a re-run. (2) UNVERIFIED IS NOT CLEAN -- 28 pages never loaded (likely house
-or guard mismatch) and 21 use a completion mechanism this harness does not read. Neither has been
-cleared.
+**LIMIT ON THIS SWEEP, stated because a hidden one is worse than no sweep. UNVERIFIED IS NOT CLEAN**
+-- 28 pages never loaded and 21 use a completion mechanism this harness does not read. (The earlier
+note here said the 66 still needed a re-run against the fixed scanner. That re-run HAS since run --
+see the root-cause section below -- and this stale sentence misled Nancy into filing it as an open
+gap. Superseded claims must be retired, not just appended to.)
 
 **ROOT CAUSE, and the platform already contains the fix.** Chasing why script/shield produced ZERO
 confirmed completions turned up the real architecture story.
@@ -169,6 +169,43 @@ does so when `_isSQLCommand(cmdLine)` is true, so an `echo` can never reach that
 - 17 NOCHEAT -- no extractable grader literals.
 A re-run of all 66 against the fixed scanner build produced ZERO new completions, so the brace bug was
 not suppressing findings here.
+
+**NANCY [PAUSE] 2026-08-01 -- BOTH of my proposed fixes are false as stated. Verified in source.**
+
+*(a) "Award from the execution path" does not transfer to the 3 bash modules.* The 35 `_checkObjective`
+call sites are one per single BUILTIN (`cd`, `ls`, `grep`, `chmod`...). `arm-bash-05/06/10` grade on
+`for...in...do...done`, `name() { }`, `ARR=(...)`, `declare -A`, `trap`, `set -x`, `getopts` --
+constructs `LinuxTerminal` has NO parser for at all. There is no execution path to hook. Adopting the
+pattern here means writing a bash control-flow and function interpreter inside a component **179 pages
+depend on**. That is an architecture decision, not a bug fix, and it is not mine to make.
+
+*(b) "Gate on `output`" is a could-never-fail guard, and the engine's own source proves it.*
+`SQLEngine.js` `_evalSingleCondition` ends:
+    // Cannot evaluate -- pass through (treat as true so query doesn't silently drop rows)
+    return true;
+Any WHERE clause its regexes cannot parse returns the **full table**, shape-identical to a correct
+filter. `_execInsert`/`_execUpdate`/`_execAlter` do no semantic validation, so a column-count-matching
+INSERT of nonsense renders "1 row inserted". "A real result was produced" is provably NOT "the correct
+query was run". This is the exact pl300-ch02 shape I was warned about and walked into anyway.
+
+*(c) `arm-sql-09-security` breaks the premise outright.* `SQL_LEAD_WORDS` is
+`select|insert|update|delete|create|drop|alter|with|begin|commit|rollback|explain|pragma` -- **`grant`
+and `revoke` are absent**, and `_dispatch` has no handler for them, so `_isSQLCommand()` is false and
+there is NO output to gate on, ever, for 2 of its 5 tasks. The `sqli-basic`/`sqli-union` tasks are
+conceptual: no simulated vulnerability exists, so an injection payload and any ordinary WHERE that
+returns rows are identical in `output`. 4 of 5 tasks on the module this bug calls "the sharpest case"
+must stay input-based -- which is acceptable ONLY if named explicitly on the page, not left silent.
+
+*(d) Blast radius is wider than my stated scope.* Discriminating `order-by` from `distinct` needs the
+structured `{type, columns, rows}` object, not the `result.html` string `wrap()` currently forwards --
+so `SQLEngine.wrap`'s signature would change. **11 files call it**, including `arm-sql-01/02/04/06/10`
+which are outside the 8-module scope and declare the identical handler signature. They would silently
+start receiving different data in argument slot 2.
+
+**CONCLUSION: there is no single fix.** Re-scope PER MODULE, not per language. `03`/`05`/`07` and part
+of `08` are CRUD-shaped and can be genuinely output-gated IF the content check is specific enough to
+survive (b). `09` cannot be, and needs its input-based tasks disclosed by name. The 3 bash modules are
+blocked on an operator ruling: **is a real bash interpreter in scope?** No code written.
 
 **STILL OPEN, and it is a DATA question no option addressed** (Nancy's third concern): students who
 already triggered a false completion have that write in production Firestore now, and completion is
