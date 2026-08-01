@@ -5,8 +5,8 @@ typing a single line that did no work. Those completions were written to the ins
 class-progress record. **Completions on the modules below, recorded on or before 2026-08-01, cannot
 be distinguished from genuine ones and should not be treated as evidence of competence.**
 
-**Class A is closed. Class B is closed on three of the seven affected modules and still live on
-four. Read the next section before you rely on any arm-sql completion, including a recent one.**
+**Both defect classes are now closed on every affected module.** Completions recorded *before* the
+fix dates below still cannot be distinguished from genuine ones; completions after them are sound.
 
 > An earlier version of this document said "the defect is now fixed" and "completions recorded after
 > the fix are sound." Both statements were wrong for the arm-sql modules and are corrected below. A
@@ -18,7 +18,7 @@ four. Read the next section before you rely on any arm-sql completion, including
 | class | what it is | status |
 |---|---|---|
 | **A — the command never ran** | `echo`, or a `#` comment, containing the graded keywords | **CLOSED.** Credit now requires the input to have been dispatched as SQL *and* to have returned without an engine error. An `echo` is neither. |
-| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is garbage | **PARTLY CLOSED — 3 of 7 modules.** The statement genuinely runs and genuinely does not error, so the class-A gate cannot see it; the three fixed modules grade the *result* instead. Per-module status below. |
+| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is garbage | **CLOSED — all 7 modules.** The statement genuinely runs and genuinely does not error, so the class-A gate could not see it; these modules now grade what the statement produced or named. Per-module status and commits below. |
 
 Class B exists because `SQLEngine._evalSingleCondition` fails *open*: a condition it cannot parse is
 treated as true, so the query returns every row and reports success. The task graders match on SQL
@@ -29,20 +29,33 @@ independent adversaries:
 
 | module | full completion on meaningless input | record written | status |
 |---|---|---|---|
+| `arm-sql-02-select` | was yes | was yes | **FIXED** `1599ab981` |
 | `arm-sql-03-filtering` | was yes | was yes | **FIXED** `75cd132e5` |
 | `arm-sql-04-joins` | was yes — **from a single line** | was yes | **FIXED** `4752d12b5` |
 | `arm-sql-05-aggregation` | was yes | was yes | **FIXED** `51d9cc82b` |
-| `arm-sql-02-select` | yes | yes | open |
-| `arm-sql-06-subqueries` | yes | yes | open |
-| `arm-sql-09-security` | yes | yes | open |
-| `arm-sql-10-practical` | yes | yes | open |
+| `arm-sql-06-subqueries` | was yes | was yes | **FIXED** `ad48dc96c` |
+| `arm-sql-09-security` | was yes | was yes | **FIXED** `62e28b303` |
+| `arm-sql-10-practical` | was yes | was yes | **FIXED** `62e28b303` |
 
-The three marked FIXED are closed by grading the **result** rather than the keyword, which needs no
-engine change: a join that matched nothing, a filter that excluded nothing, and an aggregate
-computed over nothing are each detectable from output the grader already receives. Each was
-verified with both fixtures on a fresh page — honest work still completes and writes, the confirmed
-cheat does not — and `arm-sql-04` is independently clean under the free-form adversary that found
-it. **The four marked open are unchanged: treat completions on those as before.**
+**All seven are closed.** Verified by two independent adversaries, neither of which can now complete
+any module in the census: a corruption harness that garbles the modules' own commands
+(`_tools/eduscan/armsql-garbage-audit.js`) and a free-form one that writes arbitrary nonsense. Both
+report zero full completions and zero class-progress writes. Honest completion, measured with each
+module's own prescribed commands, is unchanged at 8/10 throughout — `07` and `08` fall short for
+harness reasons, not because any gate blocks them.
+
+The fixes grade what the statement **produced or named**, never the keyword typed. No engine
+behaviour changed, so none of the alias / subquery / CTE breakage that made the engine-level fix
+unshippable applies. Which signal works differs by task shape and each was measured, not assumed:
+row count for filters and joins; the aggregate's value for `COUNT`/`SUM`/`MIN`/`MAX`; group
+reduction for `HAVING`; and, where a task returns nothing countable (`GRANT`, parameterised
+queries, report queries), that every identifier named is a real one.
+
+**These are not claims of unbeatability.** Every confirmed exploit in the corrected census is dead
+and honest work is untouched; both harnesses are committed so this can be re-run rather than taken
+on trust. Disclosed residuals are written into the graders themselves — for example `arm-sql-04`
+still accepts `ON u.user_id = u.user_id`, which requires reading the real schema first and is
+strictly weaker than the one-liner it replaced.
 
 `arm-sql-04` was the sharpest — one line that asserts nothing completed the whole module and wrote
 the record. It no longer does; the line is kept here because it is the clearest statement of what
@@ -107,10 +120,9 @@ artefact rather than a student list.
 
 ## What is still outstanding
 
-Four modules — `arm-sql-02`, `-06`, `-09`, `-10` — still need the result-grading treatment applied
-to `-03`, `-04` and `-05`. Each needs its own discriminator measured first, because the right one
-differs by task shape: row count works for filters and joins, but not for aggregates, where an
-honest result is a single row and only the *value* separates it from garbage.
+`UNION` returns 0 rows regardless of its operands, so `arm-sql-09`'s union-injection task still
+cannot demonstrate its point even though it can no longer be faked. That is a separate engine gap,
+logged rather than half-fixed.
 
 An engine-level fix (teach `_evalSingleCondition` the forms it cannot parse, **then** error on the
 remainder) would close the class everywhere at once, and remains worth doing as ordinary
