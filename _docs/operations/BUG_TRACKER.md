@@ -655,6 +655,45 @@ sticky. Fixing the grader does nothing to existing records. Whether they are lef
 re-audited is an operator call, and answering it requires querying production -- which I am not
 doing.
 
+---
+
+**TWO CLASSES, ONLY ONE CLOSED — measured 2026-08-01 after Chris BLOCKED my "fixed" claim.**
+
+| class | what it is | status |
+|---|---|---|
+| A — the command never ran | `echo`, or a `#` comment, carrying the graded keywords | CLOSED by `2c59d10ef`: credit needs the input dispatched as SQL AND returning without an engine error |
+| B — the command ran but meant nothing | real SQL whose predicate is garbage | **OPEN** |
+
+Class B survives the class-A gate by construction: the statement genuinely runs and genuinely does
+not error, because `_evalSingleCondition` ends "Cannot evaluate -- pass through (treat as true)".
+The task graders match on SQL keywords alone (`arm-sql-03` line 344: `lower.includes('between')`),
+so preserving the keyword and corrupting only the operands completes the module.
+
+Harness `_tools/eduscan/armsql-garbage-audit.js` (corrupts operands, preserves keywords and table
+names -- a cheat would know the table). **4 of 10 reach FULL completion and fire the gradebook
+write: `arm-sql-02`, `arm-sql-03`, `arm-sql-05`, `arm-sql-09`.** The other 6 reach 1-3 tasks and do
+not write. Lower bound: commands with no predicate to corrupt were left intact.
+
+**The root-cause fix is measured and NOT shipped, on purpose.** Rejecting unknown columns instead
+of passing through closes it completely (4 FULL -> 0) but drops honest completion **8/10 -> 2/10**,
+because the JOIN-alias, subquery-substitution and CTE paths -- and several modules' own column
+references -- currently *depend* on fail-open. Shipping it would repeat the bash-gate inversion:
+block the student doing the assigned work while the cheat walks. Preserved at
+`_tools/sql-engine-strict-wip.js`. The narrow variant (fail closed only on unparseable) was also
+measured: closes **nothing** (4 FULL unchanged) and still costs an honest module.
+
+Blockers the strict variant must clear first, each traced to a real command:
+- JOIN alias columns (`l.status`) do not resolve after the join
+- subquery substitution yields `IN ()`
+- the CTE cross-join path (`arm-sql-10`)
+- content: `arm-sql-03` queries `last_login`/`active`, `arm-sql-09` queries `id`/`password`,
+  `arm-sql-05` queries `username` in `login_logs` -- **none of those columns exist in the seed.**
+  Fail-open had been hiding every one of them.
+
+Fixed in `cc045eae0` on the way through: `BETWEEN` was never parsed at all, because the AND/OR
+tokenizer split it on its own `AND`. A construct `arm-sql-03` teaches AND grades returned every row
+and awarded the chip. Also corrected that module's fabricated sample output.
+
 
 ### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  open
 > **SEVERITY: P1 -> P3 -> P2. Nancy rejected my P3 and she is right.** My P3 rested on one
