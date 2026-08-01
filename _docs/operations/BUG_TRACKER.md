@@ -437,6 +437,16 @@ the false instructor-visible gradebook write stops, and mark those tasks ungrade
 page. A page label alone does not fix it (his words: "an honest confession next to an unfixed lie") —
 the write is the harm.
 
+**FIXED 2026-08-01 — both halves, plus the record decision Nancy forced.**
+- bash 04/05/06/10 no longer write to the class-progress record (`a37e1003f`). The engine cannot
+  execute loops/functions/arrays, so those tasks are unverifiable and the pages now say so.
+- all 10 arm-sql modules gated on `ran && !error` (`2c59d10ef`), reusing the held branch's engine
+  fixes and adding the dispatch check the branch's own gate was missing.
+- **Affected-module list published** at `_docs/operations/bug-078-affected-modules.md`. Nancy
+  rejected my lean of "leave it": flagging the 8 known ids needs no gated production query and no
+  destruction, and I had been applying caution meant for *deleting records* to a choice between
+  *leaving* and *flagging*. Clearing records stays open, unauthorised, and archive-first.
+
 ### BUG-078 — Armory terminal modules can be completed by typing one line that runs nothing  ·  [P1]  ·  open
 - **Found:** 2026-08-01 · by self · taskboard #103 grading-honesty sweep
 - **Area:** `_app/houses/code/armory/{bash,sql}/*.module.html` (20 modules with an `onCommand` grader)
