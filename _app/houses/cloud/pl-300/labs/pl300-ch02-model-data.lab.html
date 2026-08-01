@@ -378,18 +378,47 @@
     }
 
     /* ---- DAX evaluation ---- */
-    /* Strip the CONTENTS of quoted strings before any structural test.
-       Regex has no concept of "inside a quote", so /factsales\[channel\]\s*=/ matched
-       CALCULATE(SUM(FactSales[TotalAmount]), "factsales[channel]=x") -- a quoted literal carrying
-       the column AND an operator. Nancy reproduced it against my commit that claimed, in these
-       words, "a quoted literal cannot satisfy it because the operator must follow the bracket".
-       That claim was false. Emptying the quotes first makes it true: only real code can match. */
+    /* Return only the CODE of an expression: a single left-to-right scan that drops anything
+       inside a quoted string or a comment.
+       WHY A SCANNER AND NOT A REGEX. Five earlier versions of the task-7 check were regex
+       refinements, and each closed the decoy it was shown. v5 moved the regex from the matcher to
+       a sanitizer and inherited exactly the same blind spot -- Nancy broke it two ways:
+         unterminated comment   -- an opening block-comment delimiter with no closing one. The
+                                   old regex REQUIRED a closing delimiter to match at all, so with
+                                   none present it stripped nothing and the decoy survived.
+         adjacent-quote smuggle -- four quote characters around real text. The old quote regex
+                                   greedily paired them as two EMPTY matches and left the middle
+                                   completely unstripped.
+       Both exist because a regex has no notion of "am I currently inside a string". A scanner
+       does: an unterminated comment consumes to end of input, and quote state toggles rather than
+       pairing, so neither shape can smuggle anything through. Closed by construction rather than
+       by anticipating the next spelling. */
     function codeOnly(e) {
-        return String(e == null ? '' : e)
-            .replace(/\/\*[\s\S]*?\*\//g, ' ')   /* block comments -- a channel+operator hid in one */
-            .replace(/\/\/[^\n]*/g, ' ')            /* line comments, same reason */
-            .replace(/"[^"]*"/g, '""')
-            .replace(/'[^']*'/g, "''");
+        var src = String(e == null ? '' : e);
+        var out = '';
+        var i = 0, n = src.length;
+        var quote = null;            /* the open quote character, or null */
+        var block = false, line = false;
+        while (i < n) {
+            var c = src.charAt(i), d = src.charAt(i + 1);
+            if (block) {                                   /* inside a block comment */
+                if (c === '*' && d === '/') { block = false; i += 2; continue; }
+                i++; continue;                             /* unterminated: consumes to the end */
+            }
+            if (line) {                                    /* inside // ... newline */
+                if (c === '\n') { line = false; out += c; }
+                i++; continue;
+            }
+            if (quote) {                                   /* inside a string */
+                if (c === quote) { quote = null; }         /* toggles -- never pairs */
+                i++; continue;
+            }
+            if (c === '/' && d === '*') { block = true; i += 2; continue; }
+            if (c === '/' && d === '/') { line = true; i += 2; continue; }
+            if (c === '"' || c === "'") { quote = c; i++; continue; }
+            out += c; i++;
+        }
+        return out;
     }
 
     window.evaluateDax = function() {
