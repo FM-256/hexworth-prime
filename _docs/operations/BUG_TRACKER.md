@@ -31,6 +31,44 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-079 — the Cloud Master hub lists 95 pieces of content and 3 of its 11 courses  ·  [P2]  ·  open
+- **Found:** 2026-08-01 · by self · taskboard #241 (Frank: "verify and fix the organization and
+  structure of the cloudmaster content. it needs a legit qc/qa")
+- **Area:** `hubRegistry/cloud-master` (Firestore) + `_app/houses/hub/index.html` projection
+- **Student impact:** a student on the flagship multi-cloud hub sees 27 quizzes, 27 labs and 23
+  slide decks in undifferentiated shelves, with no way to tell which course any of them belongs to,
+  and cannot navigate to 8 of the 11 course pages that would sequence them.
+
+**Measured on production, not inferred.**
+
+| | |
+|---|---|
+| anchors rendered on the hub | 100 |
+| `Hubs` section | **0** |
+| course index pages reachable | **3 of 11** |
+| content items rendered flat | 95 (23 slides, 27 labs, 27 quizzes, 2 exams, 3 projects, 1 game, 12 tools) |
+
+Reachable: `az-104`, `cloud-essentials`, `openstack`.
+NOT linked from the hub: `api`, `az-900`, `clf-c02`, `cse`, `ms-102`, `ms-900`, `pl-300`,
+`server-plus` — including every Microsoft cert path and the AWS practitioner path.
+
+**Root cause.** The hub renders a `Hubs` section from `hubRegistry` docs whose `parent` is this hub
+(`_app/houses/hub/index.html:452`). **The entire `hubRegistry` collection contains exactly ONE
+document** — `cloud-master` itself, `parent: null`. No child hubs have ever been created, so the
+section renders 0 and the eleven courses are invisible as courses. Everything else on the page comes
+from the catalog projection, which buckets by TYPE (lab/quiz/slide), not by course — so the content
+arrives without its curriculum.
+
+**All eleven course index pages are real**, 5.5KB to 78KB, hand-authored. I checked the two that
+looked like stubs (`server-plus`: 22 links / 1 file; `cse`: 28 links / 2 files) and their links all
+resolve — they are thin indexes over content held in the shared cloud directories, which is a
+legitimate pattern, not a defect. The content exists; the navigation does not.
+
+**Not yet fixed.** The repair is a curriculum decision, not an edit: which of the eleven are children
+of Cloud Master, in what order, and whether the flat type-shelves should stay once courses are
+reachable. Registering eleven child hubs would also change what every shelf shows.
+
+
 ### BUG-078 — Armory terminal modules can be completed by typing one line that runs nothing  ·  [P1]  ·  open
 - **Found:** 2026-08-01 · by self · taskboard #103 grading-honesty sweep
 - **Area:** `_app/houses/code/armory/{bash,sql}/*.module.html` (20 modules with an `onCommand` grader)
