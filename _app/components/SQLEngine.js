@@ -187,7 +187,23 @@
     // =========================================================================
 
     function _normalise(sql) {
-        return sql.replace(/\s+/g, ' ').replace(/;+\s*$/, '').trim();
+        return _stripLineComment(sql).replace(/\s+/g, ' ').replace(/;+\s*$/, '').trim();
+    }
+
+    // Remove a `--` comment and everything after it, but only OUTSIDE string literals.
+    // arm-sql-09 teaches the classic auth bypass `WHERE username = '' OR '1'='1' --`, whose entire
+    // mechanism is that `--` comments out the rest of the query. Without this the trailing text
+    // stayed in the predicate, the comparison against `1' --` failed, and the injection returned
+    // 0 rows -- the module demonstrated the opposite of the point it was making. Measured 2026-08-01.
+    // Quote-aware because a literal may legitimately contain `--` (e.g. a hyphenated string).
+    function _stripLineComment(sql) {
+        var inStr = false;
+        for (var i = 0; i < sql.length; i++) {
+            var ch = sql[i];
+            if (ch === "'") { inStr = !inStr; continue; }
+            if (!inStr && ch === '-' && sql[i + 1] === '-') return sql.slice(0, i);
+        }
+        return sql;
     }
 
     // =========================================================================
@@ -354,7 +370,21 @@
         // Standard comparison: col OP value
         var cmpMatch = expr.match(/^(\S+)\s*(!=|<>|>=|<=|>|<|=)\s*(.+)$/i);
         if (cmpMatch) {
-            var leftRaw = _colValue(row, columns, cmpMatch[1]);
+            // The LEFT side is not always a column. arm-sql-09 teaches the classic auth bypass
+            //     WHERE username = '' OR '1'='1' --
+            // where `'1'` sits in the left-hand slot. Passing it to _colValue looked for a column
+            // named `'1'`, found none, and returned null -- so `'1'='1'` was FALSE and the injection
+            // returned 0 rows. The module's whole point is that it returns every row; the lesson
+            // demonstrated the opposite of what it claims. Measured 2026-08-01.
+            var leftTok = cmpMatch[1].trim();
+            var leftRaw;
+            if (/^'.*'$/.test(leftTok)) {
+                leftRaw = leftTok.slice(1, -1);          // quoted literal, not a column
+            } else if (leftTok !== '' && !isNaN(Number(leftTok))) {
+                leftRaw = Number(leftTok);               // numeric literal, e.g. 1=1
+            } else {
+                leftRaw = _colValue(row, columns, leftTok);
+            }
             var op      = cmpMatch[2];
             var rightRaw = cmpMatch[3].trim();
 
