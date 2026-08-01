@@ -107,6 +107,39 @@ the **`syncClassProgress` Cloud Function** with `moduleId`, `tenantSlug` and `cl
 looks up `enrollments/{uid}`. A false completion therefore lands in a Firestore class-progress
 record an instructor sees. Relabelling the page does not fix that.
 
+**BROWSER-CONFIRMED SWEEP, 2026-08-01 -- the number Nancy said had to be earned.** She refused to let
+the static tool's "19/20 award 2+, 7 award all" drive a design choice, on the grounds that that tool
+class had already been wrong twice the same night. Correct call. All 113 output-ignoring pages were
+re-run in a real browser (`_tools/eduscan/terminal-grader-cheat-e2e.js`): per page, harvest the
+literals its own grader tests, build ONE `echo "..."` line, load over http as a sorted student, wrap
+`completeTask` and `ModuleProgress.complete` to RECORD, type the line.
+
+| verdict | n | meaning |
+|---|---|---|
+| **COMPLETED** | **8** | one typed line fired `ModuleProgress.complete` |
+| PARTIAL | 6 | one line granted 2+ tasks, not the module |
+| held | 33 | one line granted at most one task |
+| UNVERIFIED | 66 | 28 did not boot, 21 no completion signal this harness reads, 17 no extractable literals |
+
+**All 14 COMPLETED and PARTIAL are in `houses/code/armory`.** The script, shield and dark-arts
+clusters produced ZERO confirmed completions. So the defect is currently proven in Armory only, and
+the earlier framing of this as a 113-page defect was wrong -- 113 is the population that shares the
+risky PATTERN, not the count of broken pages.
+
+The 8 confirmed: `arm-bash-05-loops`, `arm-bash-06-functions`, `arm-bash-10-advanced`,
+`arm-sql-03-filtering`, `arm-sql-05-aggregation`, `arm-sql-07-crud`, `arm-sql-08-schema`,
+`arm-sql-09-security`.
+
+`arm-bash-06-functions` is worth calling out: the static tool had reported it UNEVALUATED because my
+own brace matcher counted the `{` inside the literal `'() {'`. Fixed with a quote-aware scanner
+(9a3bdea99); it is a 4/4-from-one-line module that my tooling's failure was concealing.
+
+**TWO LIMITS ON THIS SWEEP, stated because a hidden one is worse than no sweep.** (1) It ran against
+the pre-scanner build, so pages whose graders contain a brace inside a string may be under-measured;
+the 66 UNVERIFIED need a re-run. (2) UNVERIFIED IS NOT CLEAN -- 28 pages never loaded (likely house
+or guard mismatch) and 21 use a completion mechanism this harness does not read. Neither has been
+cleared.
+
 **STILL OPEN, and it is a DATA question no option addressed** (Nancy's third concern): students who
 already triggered a false completion have that write in production Firestore now, and completion is
 sticky. Fixing the grader does nothing to existing records. Whether they are left, flagged, or
