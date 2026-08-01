@@ -70,6 +70,21 @@ for (const f of files) {
   // somewhere this scan cannot see" from "genuinely never granted".
   const dynamic = /markDone\s*\(\s*[A-Za-z_$]/.test(code);
 
+  // DOES THIS LAB EVEN USE markDone? Not all do. forge-admin-tools.lab.html completes via
+  // completeTask(currentTask) with data-task attributes, and this scan -- which hardcoded
+  // markDone as THE grant mechanism -- reported all four of its tasks as "NO GRANT SITE AT ALL,
+  // genuinely suspicious". That was the tool inventing a defect out of its own blind spot, the
+  // same failure it exists to catch. If no markDone appears anywhere, say the mechanism is
+  // unrecognised instead of accusing the file.
+  const OTHER_MECHANISMS = ['completeTask', 'completeChallenge', 'togglePhase', 'advance', 'markComplete'];
+  const usesMarkDone = /markDone\s*\(/.test(code);
+  if (!usesMarkDone) {
+    const found = OTHER_MECHANISMS.filter((k) => new RegExp(k + '\\s*\\(').test(code));
+    console.log(`  no markDone() in this file -- completion mechanism is ${found.length ? found.join('/') : 'UNRECOGNISED'}.`);
+    console.log('  This scan only understands markDone. Read it by hand rather than trusting a clean result here.');
+    continue;
+  }
+
   // Every grant site, with the function that encloses it.
   const grants = {};
   const re = /markDone\s*\(\s*(\d+)/g;
