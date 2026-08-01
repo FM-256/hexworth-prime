@@ -38,12 +38,39 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 Three defects in the DESTINATION the new house card points at. All three were invisible while
 `api/index.html` was unreachable; the card makes them student-facing for the first time.
 
-1. **Duplicate content, two formats, no canonical signal.** The landing page lists 14 items: the 8
+1. **Duplicate content, two formats, no canonical signal.** MEASURED PRECISELY 2026-08-01, and the
+   mapping is exact rather than approximate: **all six** legacy files have a module-directory twin,
+   matched by their own `API-N` titles.
+
+   | legacy file | API-N | module twin |
+   |---|---|---|
+   | `cloud-api-002.presentation.html` | API-2 | `auth/` |
+   | `cloud-api-003.presentation.html` | API-3 | `design/` |
+   | `cloud-api-004.presentation.html` | API-4 | `rate-limiting/` |
+   | `cloud-api-005.presentation.html` | API-5 | `owasp/` |
+   | `cloud-api-006.lab.html` | API-6 | `pentest/` |
+   | `cloud-api-007.presentation.html` | API-7 | `cloud-patterns/` |
+
+   Two module dirs have NO legacy twin: `event-driven/` (API-8) and `capstone/` (API-9). So the
+   module directories are the EXPANDED SUCCESSORS of the numbered legacy lessons -- each legacy
+   single page (85-127KB) became a 10-file directory -- and the series was then extended with API-8
+   and API-9 that exist only in the new form. That is a much stronger signal than "six lessons look
+   duplicated": the legacy set is superseded and incomplete.
+
+   Still an operator call (retire / redirect / keep both), but the evidence now points one way.
+
+   NOTE ON MY OWN MEASUREMENT: I first reported five legacy files, not six. My glob was
+   `cloud-api-*.presentation.html` and `cloud-api-006` is a `.lab.html`. Sixth time today a check of
+   mine keyed on the wrong surface. Chris's original count of six was right.
+
+   ORIGINAL FINDING BELOW. The landing page lists 14 items: the 8
    new module directories AND 6 legacy single-page lessons (`cloud-api-002` … `cloud-api-007`)
    covering the SAME subjects. `cloud-api-002.presentation.html` is titled "API-2: Authentication &
    Authorization" — the same topic as the new `auth/` directory, as an older separate file. A
    student sees six subjects offered twice with nothing indicating which is current.
-2. **`capstone/` is not in `HubRegistry.js`.** The registered children of `api` are exactly seven
+2. **`capstone/` is not in `HubRegistry.js`.** ✅ **FIXED AND SHIPPED 2026-08-01** — registered as
+   `api-capstone` with the matching `firestore.rules` reserved id, deployed as a gated pair.
+   ORIGINAL FINDING BELOW. The registered children of `api` are exactly seven
    (`api-auth`, `cloud-patterns`, `api-design`, `event-driven`, `owasp`, `pentest`,
    `rate-limiting`). `capstone/` holds 11 real files and is absent, so the catalog machinery does
    not know about a section the card advertises.

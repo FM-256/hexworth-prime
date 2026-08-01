@@ -18,7 +18,11 @@ done
 echo "  ── holdouts must NOT have shipped ──"
 chk "HOLDOUT incubator card absent"     "/houses/cloud/incubator/index.html" 'cloud-practitioner-final' 0 0
 chk "HOLDOUT openstack capstone absent" "/houses/cloud/openstack/index.html" 'project-iac' 0 0
-chk "HOLDOUT api-capstone NOT in registry" "/components/HubRegistry.js" "'api-capstone'" 0 0
+# api-capstone was a HOLDOUT when this verifier was written and has since shipped deliberately
+# (rules + registry pair, 2026-08-01). The assertion is inverted rather than deleted so the
+# line still proves something: it must now be PRESENT. A stale expectation reporting FAIL on
+# correct state is how a verifier stops being read.
+chk "api-capstone now SHIPPED (was a holdout)" "/components/HubRegistry.js" "'api-capstone'" 0 1
 echo ""
 echo "  $pass passed, $fail failed."
 [ "$fail" -eq 0 ] || exit 1
