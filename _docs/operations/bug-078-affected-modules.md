@@ -27,15 +27,22 @@ keywords alone, so preserving the keyword and corrupting only the operands passe
 **Modules where class B yields a full completion and a class-progress write** — measured against two
 independent adversaries:
 
-| module | full completion on meaningless input | record written |
-|---|---|---|
-| `arm-sql-02-select` | yes | yes |
-| `arm-sql-03-filtering` | yes | yes |
-| `arm-sql-04-joins` | yes — **from a single line** | yes |
-| `arm-sql-05-aggregation` | yes | yes |
-| `arm-sql-06-subqueries` | yes | yes |
-| `arm-sql-09-security` | yes | yes |
-| `arm-sql-10-practical` | yes | yes |
+| module | full completion on meaningless input | record written | status |
+|---|---|---|---|
+| `arm-sql-03-filtering` | was yes | was yes | **FIXED** `75cd132e5` |
+| `arm-sql-04-joins` | was yes — **from a single line** | was yes | **FIXED** `4752d12b5` |
+| `arm-sql-05-aggregation` | was yes | was yes | **FIXED** `51d9cc82b` |
+| `arm-sql-02-select` | yes | yes | open |
+| `arm-sql-06-subqueries` | yes | yes | open |
+| `arm-sql-09-security` | yes | yes | open |
+| `arm-sql-10-practical` | yes | yes | open |
+
+The three marked FIXED are closed by grading the **result** rather than the keyword, which needs no
+engine change: a join that matched nothing, a filter that excluded nothing, and an aggregate
+computed over nothing are each detectable from output the grader already receives. Each was
+verified with both fixtures on a fresh page — honest work still completes and writes, the confirmed
+cheat does not — and `arm-sql-04` is independently clean under the free-form adversary that found
+it. **The four marked open are unchanged: treat completions on those as before.**
 
 `arm-sql-04` is the sharpest: one line that asserts nothing completes the whole module and writes
 the record.
