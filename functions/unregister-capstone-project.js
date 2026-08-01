@@ -56,8 +56,34 @@ const db = admin.firestore();
     console.log('\nNOT PRESENT -- this href is not in sections.projects. Nothing to do.');
     process.exit(0);
   }
-  console.log(`\nwould remove ${current.length - next.length} entry(s) matching:\n  ${HREF}`);
+  const removed = current.filter((it) => it && it.href === HREF);
+  console.log(`\nwould remove ${removed.length} entry(s) matching:\n  ${HREF}`);
   console.log(`projects (next): ${next.length}`);
+
+  // WE DO NOT DESTROY -- ARCHIVE FIRST. Operator rule. A Firestore array element has no
+  // recycle bin: once the merge-write lands, the authored title/description are gone and the
+  // only way back is retyping them from memory. So the exact entries are written to disk and
+  // read back BEFORE anything is removed, and a failure to archive aborts the removal.
+  const fs = require('fs');
+  const path = require('path');
+  const dir = path.resolve(__dirname, '../_archive/firestore-hubregistry');
+  const out = path.join(dir, 'cloud-master.sections.projects.removed.json');
+  const payload = {
+    archivedFrom: 'hubRegistry/cloud-master -> sections.projects',
+    reason: 'capstone is a LAB (labs/ dir, .lab.html, components:[lab]); the Projects shelf was '
+          + 'being used as a featured mechanism, not a type. Removed so it renders once, under Labs.',
+    restoreWith: 'node functions/register-capstone-project.js --apply',
+    entriesRemoved: removed,
+    sectionsProjectsBefore: current,
+    sectionsProjectsAfter: next,
+  };
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(payload, null, 2));
+  const readBack = JSON.parse(fs.readFileSync(out, 'utf8'));
+  if (!Array.isArray(readBack.entriesRemoved) || readBack.entriesRemoved.length !== removed.length) {
+    console.error('ARCHIVE VERIFY FAILED -- nothing removed.'); process.exit(1);
+  }
+  console.log(`\nARCHIVED to ${path.relative(process.cwd(), out)} (${removed.length} entry(s), read back and verified)`);
 
   if (!APPLY) { console.log('\nDRY RUN -- pass --apply to write. Requires operator authorization.'); process.exit(0); }
 
