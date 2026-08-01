@@ -31,7 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-077 — capstone check 27 can be passed WITHOUT destroying anything, via a stale baseline  ·  [P1]  ·  open
+### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P3]  ·  open
+> **SEVERITY CORRECTED DOWN FROM P1, 2026-08-01.** I filed this as P1 on evidence my own
+> tooling manufactured. A clean re-run, after fixing the harness and clearing the QC debris,
+> **passes the full gate**:
+> ```
+> ADVERSARIAL PASS: every named cheat was rejected by its target check
+> WALKTHROUGH PASS: 4/4 twice, second run started from the first run's leftovers
+> check 25: PASS 5x/FAIL 2x   26: PASS 4x/FAIL 3x   27: PASS 2x/FAIL 5x   28: PASS 2x/FAIL 5x
+> QC GATE PASSED for 'project': cheats rejected, honest path passes, checks discriminate
+> ```
+> Cheat E — "a real stack, a real manifest, but the baseline was NEVER recorded" — is now
+> **correctly rejected by 27**. The guard at server.js:379 (`if (!b || !b.ids || !b.names)
+> return false`) does fail closed. The original failure was 27 reading a baseline left behind
+> 5.5 hours earlier by a crashed harness run, not a defect in 27's empty case.
+> Log: bc1 `/home/eq1/qc-project-clean-2026-08-01.log`.
+>
+> **What survives, and it is still real:** the baseline is keyed by uid with no attempt scope,
+> so a student who records one in attempt 1 and then, in a LATER attempt, builds a fresh stack
+> without re-recording will pass "you really rebuilt it" without tearing anything down — their
+> new ids are disjoint from the old baseline for free. No cheat covers that path, so the green
+> gate above does not clear it. It needs a specific sequence rather than being a live free pass,
+> hence P3 not P1.
 - **Found:** 2026-08-01 · by the `qc-lab.sh project` adversarial harness (cheat E), after Nancy
   PAUSED a change that would have made this lab reachable from the OpenStack hub.
 - **Area:** bc1 `lab-manager/server.js` — `BASELINE_FILE = /app/data/capstone-baselines.json`
