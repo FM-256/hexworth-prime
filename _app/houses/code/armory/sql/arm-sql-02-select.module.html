@@ -355,11 +355,25 @@
                 var __self = (ok && /^\s*select\b/i.test(cmdLine)) ? q(cmdLine) : null;
 
                 // At least one cell that resolved to a real value -- an unknown column yields null.
+                // Chris root cause 1: this was a row-level some(), so ONE real column vouched for
+                // every fake one beside it -- `SELECT DISTINCT zz1, zz2, username FROM users` scored
+                // both select-cols and distinct. EVERY column named must be real.
                 function resolved() {
                     if (!__self || !__self.rows || !__self.rows.length) return false;
-                    return __self.rows.some(function (row) {
-                        return row.some(function (c) { return c !== null && c !== undefined && String(c) !== ''; });
-                    });
+                    if (!__base || !__base.columns) return false;
+                    var real = {};
+                    __base.columns.forEach(function (c) { real[String(c).toLowerCase()] = true; });
+                    var sel = cmdLine.replace(/^\s*SELECT\s+(DISTINCT\s+)?/i, '')
+                                     .replace(/\s+FROM\s+[\s\S]*$/i, '');
+                    var names = sel.split(',').map(function (x) { return x.trim(); });
+                    for (var i = 0; i < names.length; i++) {
+                        var n = names[i];
+                        if (n === '*' || n === '') continue;                       // wildcard is fine
+                        n = n.replace(/\s+AS\s+[a-z_]\w*$/i, '').split('.').pop().trim().toLowerCase();
+                        if (/^\(|\(/.test(n)) continue;                            // function call
+                        if (!real[n]) return false;                                // names a column that does not exist
+                    }
+                    return true;
                 }
                 // A WHERE that kept everything, or nothing, did not select a subset.
                 function narrowed() {

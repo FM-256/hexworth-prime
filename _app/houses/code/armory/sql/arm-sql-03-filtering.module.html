@@ -354,27 +354,71 @@
                 // Both failure modes are outside the band, so one rule catches both. The base count
                 // is read from the engine at grade time rather than hardcoded, so it cannot drift
                 // away from the seed.
-                var __m = __out.match(/(\d+) rows? returned/);
-                var __n = __m ? parseInt(__m[1], 10) : null;
-                function filtered() {
-                    if (!ok || __n === null) return false;
-                    var t = lower.match(/from\s+([a-z_][a-z0-9_]*)/);
-                    if (!t) return false;
-                    var base = null;
-                    try {
-                        var r = SQLEngine.exec('SELECT * FROM ' + t[1] + ';');
-                        base = (r && r.rows) ? r.rows.length : null;
-                    } catch (e) { base = null; }
-                    if (base === null) return __n > 0;
-                    return __n > 0 && __n < base;
+                // BUG-078 class B, Chris root cause 1. `did` was ONE boolean for all five chips, so
+                // a single real predicate authorised every fake operator beside it in the same
+                // statement. Measured: `WHERE user_id < 3 AND zz1 IS NULL AND zz2 LIKE '%' AND
+                // role IN (...) AND user_id BETWEEN 1 AND 999` scored 5/5 and wrote the gradebook.
+                // Now each operator is judged ON ITS OWN: its conjunct is run in isolation against
+                // the same table, and it earns its chip only if THAT predicate narrows the result.
+                var __t = lower.match(/from\s+([a-z_][a-z0-9_]*)/);
+                function baseCount(tbl) {
+                    try { var r = SQLEngine.exec('SELECT * FROM ' + tbl + ';');
+                          return (r && r.type !== 'error' && r.rows) ? r.rows.length : null; }
+                    catch (e) { return null; }
                 }
-                var did = filtered();
+                // Split the WHERE into top-level conjuncts. Skips the AND that belongs to BETWEEN
+                // and ignores AND/OR inside string literals -- both fixtured before wiring.
+                function conjuncts(where) {
+                    var out = [], depth = 0, inStr = false, cur = '', btw = false, i = 0;
+                    while (i < where.length) {
+                        var ch = where[i];
+                        if (ch === "'") { inStr = !inStr; cur += ch; i++; continue; }
+                        if (!inStr && ch === '(') { depth++; cur += ch; i++; continue; }
+                        if (!inStr && ch === ')') { depth--; cur += ch; i++; continue; }
+                        if (!inStr && depth === 0 && /\s|^/.test(where[i - 1] || ' ')) {
+                            if (/^BETWEEN\s/i.test(where.slice(i))) { btw = true; }
+                            var mm = /^(AND|OR)\s/i.exec(where.slice(i));
+                            if (mm) {
+                                if (btw && /^AND\s/i.test(where.slice(i))) { btw = false; cur += where.slice(i, i + 3); i += 3; continue; }
+                                out.push(cur.trim()); cur = ''; i += mm[1].length; continue;
+                            }
+                        }
+                        cur += ch; i++;
+                    }
+                    if (cur.trim()) out.push(cur.trim());
+                    return out;
+                }
+                var __where = cmdLine.match(/\bWHERE\s+([\s\S]+?)(?:\s+ORDER\s+BY\b|\s+GROUP\s+BY\b|;|$)/i);
+                var __parts = (__where && __t) ? conjuncts(__where[1]) : [];
+                var __base  = __t ? baseCount(__t[1]) : null;
 
-                if (did && ((lower.includes(' and ') || lower.includes(' or ')) && lower.includes('where'))) completeTask('and-or');
-                if (did && (lower.includes(' in ') && lower.includes('('))) completeTask('in-op');
-                if (did && (lower.includes('between'))) completeTask('between-op');
-                if (did && (lower.includes('like'))) completeTask('like-op');
-                if (did && (lower.includes('is null') || lower.includes('is not null'))) completeTask('is-null');
+                // Does a conjunct matching `re` exist that NARROWS the table on its own?
+                function narrowsAlone(re) {
+                    if (!ok || __base === null) return false;
+                    for (var i = 0; i < __parts.length; i++) {
+                        if (!re.test(__parts[i])) continue;
+                        try {
+                            var r = SQLEngine.exec('SELECT * FROM ' + __t[1] + ' WHERE ' + __parts[i] + ';');
+                            if (!r || r.type === 'error' || !r.rows) continue;
+                            if (r.rows.length > 0 && r.rows.length < __base) return true;
+                        } catch (e) { /* try the next conjunct */ }
+                    }
+                    return false;
+                }
+
+                // and-or needs BOTH: more than one conjunct, and the combination narrowing.
+                var __combined = (function () {
+                    if (!ok || __base === null || !__where) return false;
+                    try {
+                        var r = SQLEngine.exec('SELECT * FROM ' + __t[1] + ' WHERE ' + __where[1] + ';');
+                        return !!r && r.type !== 'error' && r.rows && r.rows.length > 0 && r.rows.length < __base;
+                    } catch (e) { return false; }
+                })();
+                if (__parts.length >= 2 && __combined && (lower.includes(' and ') || lower.includes(' or '))) completeTask('and-or');
+                if (narrowsAlone(/\bIN\s*\(/i)) completeTask('in-op');
+                if (narrowsAlone(/\bBETWEEN\b/i)) completeTask('between-op');
+                if (narrowsAlone(/\bLIKE\b/i)) completeTask('like-op');
+                if (narrowsAlone(/\bIS\s+(NOT\s+)?NULL\b/i)) completeTask('is-null');
             }
         }));
 
