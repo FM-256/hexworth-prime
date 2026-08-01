@@ -262,8 +262,20 @@
         const grid = document.getElementById('capiGrid');
         let completedCount = 0;
 
+        /* Read the SAME store the module pages write to. Each capi-auth-NN page finishes with
+           ModuleProgress.complete('cloud', 'capi-auth-NN'), which lands in
+           hexworth_progress.cloud[id].completed. This page previously read
+           localStorage['hp_module_' + id], a key NOTHING on the platform writes -- grepped: 2 files
+           read it, 0 write it. So every student who finished a module still saw "0 Completed" and
+           every card stuck on Available, permanently. Same shape as the dead-guard trap in memory:
+           the check was well-formed and simply pointed at nothing.
+           Pattern copied from design/, cloud-patterns/, event-driven/ and rate-limiting/, which
+           already do this correctly -- auth/ and owasp/ were the two that did not. */
+        const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        const cloudProgress = progress.cloud || {};
+
         MODULES.forEach(function(mod) {
-            const isComplete = localStorage.getItem('hp_module_' + mod.id) === 'complete';
+            const isComplete = cloudProgress[mod.id] && cloudProgress[mod.id].completed === true;
             if (isComplete) completedCount++;
 
             const card = document.createElement('a');

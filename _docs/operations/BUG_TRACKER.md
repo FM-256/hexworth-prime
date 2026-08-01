@@ -31,6 +31,41 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-081 — API Security landing page: duplicate content, an unregistered module, below-bar hub  ·  [P3]  ·  open
+- **Found:** 2026-08-01 · by Chris, gating the API Security card · taskboard #241
+- **Area:** `_app/houses/cloud/api/index.html`, `_app/components/HubRegistry.js`
+
+Three defects in the DESTINATION the new house card points at. All three were invisible while
+`api/index.html` was unreachable; the card makes them student-facing for the first time.
+
+1. **Duplicate content, two formats, no canonical signal.** The landing page lists 14 items: the 8
+   new module directories AND 6 legacy single-page lessons (`cloud-api-002` … `cloud-api-007`)
+   covering the SAME subjects. `cloud-api-002.presentation.html` is titled "API-2: Authentication &
+   Authorization" — the same topic as the new `auth/` directory, as an older separate file. A
+   student sees six subjects offered twice with nothing indicating which is current.
+2. **`capstone/` is not in `HubRegistry.js`.** The registered children of `api` are exactly seven
+   (`api-auth`, `cloud-patterns`, `api-design`, `event-driven`, `owasp`, `pentest`,
+   `rate-limiting`). `capstone/` holds 11 real files and is absent, so the catalog machinery does
+   not know about a section the card advertises.
+3. **The landing page is below the platform's own bar.** `api/index.html` is 142 lines — a bare
+   directory listing, no hero, no ModuleProgress/AchievementManager wiring. The sibling it now sits
+   beside on the house page, `cse/index.html`, is 567 lines with full hero and progress wiring.
+
+**FIXED SEPARATELY AND ALREADY VERIFIED (was Chris's finding 1, the one with real student impact):**
+`auth/index.html` and `owasp/index.html` read completion from `localStorage['hp_module_' + id]`, a
+key **nothing on the platform writes** — grepped: 2 files read it, 0 write it. The module pages write
+`ModuleProgress.complete('cloud', id)` → `hexworth_progress.cloud[id].completed`. So every student
+finishing an Auth or OWASP module saw "0 Completed" and every card stuck on Available, permanently.
+Same shape as [[reference_lexical_const_window_guard_trap]]: a well-formed check pointing at nothing.
+Both now read the canonical store, matching `design/`, `cloud-patterns/`, `event-driven/` and
+`rate-limiting/`, which were already correct. Verified end-to-end in a browser, fresh page per case:
+hub reads 0 with no progress and 1 after a single module completes. Gate:
+`_tools/eduscan/smoke/api-progress-verify.js`.
+
+The three above are curriculum/content calls, not mechanical fixes, and are disclosed to the
+operator rather than silently shipped behind a card whose copy implies a finished course.
+
+
 ### BUG-080 — AWS Developer Associate has 21 modules and no assessment at all  ·  [P2]  ·  open
 - **Found:** 2026-08-01 · by self · taskboard #241 Cloud Master content QC
 - **Area:** `_app/components/LearningPaths.js`, path `aws-developer` (DVA-C02)
