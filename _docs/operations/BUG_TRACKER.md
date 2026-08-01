@@ -65,6 +65,23 @@ not to start writing `hexworth_uid`.
 
 So this is NOT "85 games award nothing". Local XP works everywhere; only the server sync is dead.
 
+**SEVERITY CORRECTED 2026-08-01 after Nancy — the 12 are NOT better off, and the real figure is 97.**
+I framed the 12 files with a `ModuleProgress.complete()` call as having "another working XP path".
+Traced it: they do not.
+- `bridgeStructuredProgress` writes `progress.xp` into **localStorage** and calls
+  `calculateLevelFromXP` — it never invokes the `addXP` Cloud Function.
+- `syncClassProgress`, the only CF `ModuleProgress` does call, sends
+  `{moduleId, type, score, tenantSlug, classId}`. **No XP in the payload.**
+So `ModuleProgress` syncs COMPLETION server-side and keeps XP purely local. The 12/85 split is real
+for *completion tracking* and meaningless for *XP*: **all 97 files fail to sync XP to the server**,
+and the fix applies equally to every one of them. Nancy caught that the count was right while the
+conclusion drawn from it was wrong.
+
+**Count reconciliation** (Nancy read 103 where I said 170): `grep -rn 'FirestoreManager.addXP'`
+returns **170 LINES**, but 67 of those are the `typeof … && FirestoreManager.addXP)` truthiness
+check, not calls. Actual `.addXP(` call sites: **103**. Nancy's number is the right one; mine counted
+the guard line and the call line as two.
+
 **Distinct from [[reference_lexical_const_window_guard_trap]]**, which was `if (window.X)` failing
 because components are top-level `const`. Same family — a well-formed guard that can never be true —
 but a different cause and a different set of files.
