@@ -2,9 +2,45 @@
 
 **TLDR.** Between an unknown start date and 2026-08-01, eight Armory modules could be completed by
 typing a single line that did no work. Those completions were written to the instructor-visible
-class-progress record. The defect is now fixed. **Completions on the modules below, recorded on or
-before 2026-08-01, cannot be distinguished from genuine ones and should not be treated as evidence
-of competence.** Completions recorded after the fix are sound.
+class-progress record. **Completions on the modules below, recorded on or before 2026-08-01, cannot
+be distinguished from genuine ones and should not be treated as evidence of competence.**
+
+**One of the two defects is fixed; the other is still live. Read the next section before you rely on
+any arm-sql completion, including a recent one.**
+
+> An earlier version of this document said "the defect is now fixed" and "completions recorded after
+> the fix are sound." Both statements were wrong for the arm-sql modules and are corrected below. A
+> document written to calibrate instructor trust that overstates a fix is worse than no document, so
+> the error is left visible rather than quietly overwritten.
+
+## Status by defect class, measured 2026-08-01
+
+| class | what it is | status |
+|---|---|---|
+| **A — the command never ran** | `echo`, or a `#` comment, containing the graded keywords | **CLOSED.** Credit now requires the input to have been dispatched as SQL *and* to have returned without an engine error. An `echo` is neither. |
+| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is unparseable garbage | **OPEN.** The statement genuinely runs and genuinely does not error, so the class-A gate cannot see it. |
+
+Class B exists because `SQLEngine._evalSingleCondition` fails *open*: a condition it cannot parse is
+treated as true, so the query returns every row and reports success. The task graders match on SQL
+keywords alone, so preserving the keyword and corrupting only the operands passes.
+
+**Modules where class B still yields a full completion and a class-progress write** — measured, not
+inferred, with `_tools/eduscan/armsql-garbage-audit.js`:
+
+| module | result with corrupted predicates |
+|---|---|
+| `arm-sql-02-select` | 5/5, record written |
+| `arm-sql-03-filtering` | 5/5, record written |
+| `arm-sql-05-aggregation` | 5/5, record written |
+| `arm-sql-09-security` | 5/5, record written |
+
+The other six reach 1–3 tasks this way and do **not** produce a full completion, so no class-progress
+record is written for them. That is a lower bound in both directions: the harness only corrupts
+commands that have a predicate to corrupt.
+
+**What this means for an instructor.** For those four modules, a completion dated *after* 2026-08-01
+is still not by itself evidence of competence. For the bash modules and for class A generally, the
+gate holds.
 
 ## The eight modules
 
@@ -37,7 +73,17 @@ artefact rather than a student list.
   and are marked practice. Commit `a37e1003f`.
 - **all 10 arm-sql modules** — a real honesty gate: credit requires the command to have been
   dispatched as SQL **and** to have run without an engine error. An `echo` is neither. Commit
-  `2c59d10ef`.
+  `2c59d10ef`. **This closes class A only.** It cannot close class B, because a garbage predicate
+  satisfies both of its conditions.
+
+## What is still outstanding
+
+The real fix is engine work, not gate work: teach `_evalSingleCondition` the predicate forms it
+cannot currently parse, **then** make the remainder error instead of passing through. The order
+matters. Making the fallback error *first* was measured and rejected — `BETWEEN x AND y` is one of
+the forms it cannot parse, and it is a construct `arm-sql-03` explicitly teaches and grades, so
+erroring first would block students doing the assigned work. That is the same inversion that broke
+the bash gate, caught here before shipping instead of after.
 
 ## What is deliberately NOT done
 

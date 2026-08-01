@@ -223,9 +223,36 @@
             for (var i = 0; i < columns.length; i++) {
                 if (columns[i].toLowerCase() === bare.toLowerCase()) return row[i];
             }
-            return null;
+            // BUG-078 class B: this used to return null, so `WHERE nosuchcol = 'x'` quietly
+            // compared null and, combined with the pass-through fallback below, let a query
+            // built entirely from nonexistent columns report success. Real SQL errors here.
+            throw new SQLEvalError('no such column: ' + colName);
         }
         return row[idx];
+    }
+
+    // A predicate the engine cannot honestly evaluate. Raised by _evalSingleCondition and
+    // _colValue, caught at every _evalWhere callsite and turned into the standard { error: ... }.
+    // Throwing from the evaluator rather than pre-validating in a parallel function is deliberate:
+    // a separate validator is a second surface that can disagree with the evaluator, which is the
+    // exact class of bug this is fixing.
+    function SQLEvalError(msg) { this.message = msg; this.__sqlEval = true; }
+    SQLEvalError.prototype = Object.create(Error.prototype);
+
+    // Resolve either a literal or a column reference. Throws for an unknown column.
+    // Literal handling is load-bearing for arm-sql-09, which TEACHES the injection
+    // `WHERE username = '' OR '1'='1'` -- there `'1'` sits in the left-hand slot, and treating it
+    // as a column would throw and break the module's own demonstration. `?` is the bound-parameter
+    // placeholder that same module teaches.
+    function _operandValue(row, columns, tok) {
+        tok = String(tok).trim();
+        if (/^'.*'$/.test(tok) || /^".*"$/.test(tok)) return tok.slice(1, -1);
+        if (tok === '?') return null;
+        if (tok !== '' && !isNaN(Number(tok))) return Number(tok);
+        if (/^NULL$/i.test(tok)) return null;
+        if (/^TRUE$/i.test(tok)) return true;
+        if (/^FALSE$/i.test(tok)) return false;
+        return _colValue(row, columns, tok);
     }
 
     // Parse a simple WHERE token stream; returns boolean
@@ -242,12 +269,12 @@
         var i, ch;
 
         // `BETWEEN lo AND hi` owns its AND. Splitting on it left `col BETWEEN 'a'` as a fragment
-        // that matched no rule and fell through to the pass-through return below -- which is the
-        // real reason BETWEEN never parsed. arm-sql-03 TEACHES and GRADES BETWEEN, so every student
-        // who used it silently got every row back and a green chip. Step over that AND instead.
+        // that matched no rule, which is the real reason BETWEEN never parsed and fell through to
+        // the old pass-through -- arm-sql-03 teaches and grades BETWEEN, so every student who used
+        // it got "all rows" and a green chip. Track it and let the tokenizer step over that AND.
         var betweenOpen = false;
-        // Only split at a word BOUNDARY: without this a column named `brand` or `order` is cut in
-        // half, because the peek below matches the AND/OR inside the identifier.
+        // Only split on AND/OR at a word BOUNDARY. Without this, a column named `brand` or `order`
+        // would be cut in half mid-token.
         var atWordStart = function (idx) { return idx === 0 || /\s|\(/.test(expr[idx - 1]); };
 
         for (i = 0; i < expr.length; i++) {
@@ -351,24 +378,35 @@
             return isNullNot ? !isNull : isNull;
         }
 
-        // Standard comparison: col OP value
-        var cmpMatch = expr.match(/^(\S+)\s*(!=|<>|>=|<=|>|<|=)\s*(.+)$/i);
-        if (cmpMatch) {
-            var leftRaw = _colValue(row, columns, cmpMatch[1]);
-            var op      = cmpMatch[2];
-            var rightRaw = cmpMatch[3].trim();
-
-            // Strip quotes from string literals
-            var right;
-            if (/^'.*'$/.test(rightRaw)) {
-                right = rightRaw.slice(1, -1);
-            } else if (!isNaN(rightRaw)) {
-                right = Number(rightRaw);
+        // BETWEEN x AND y. Taught and graded by arm-sql-03, but previously unparseable, so it fell
+        // to the pass-through below and matched every row. Implemented BEFORE the fallback was made
+        // to error, because erroring first would have blocked students doing the assigned task.
+        var btwMatch = expr.match(/^(\S+)\s+(NOT\s+)?BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
+        if (btwMatch) {
+            var btwNot  = !!btwMatch[2];
+            var btwVal  = _operandValue(row, columns, btwMatch[1]);
+            var btwLo   = _operandValue(row, columns, btwMatch[3]);
+            var btwHi   = _operandValue(row, columns, btwMatch[4]);
+            // Numeric when all three look numeric, else lexicographic (matches SQLite closely enough
+            // for the teaching set, which uses BETWEEN on integers and on dates as text).
+            if (!isNaN(Number(btwVal)) && !isNaN(Number(btwLo)) && !isNaN(Number(btwHi))) {
+                btwVal = Number(btwVal); btwLo = Number(btwLo); btwHi = Number(btwHi);
             } else {
-                right = rightRaw;
+                btwVal = String(btwVal); btwLo = String(btwLo); btwHi = String(btwHi);
             }
+            var btwResult = (btwVal >= btwLo && btwVal <= btwHi);
+            return btwNot ? !btwResult : btwResult;
+        }
 
-            // Coerce left to number if right is numeric
+        // Standard comparison: operand OP operand. Either side may be a literal — arm-sql-09 teaches
+        // the injection `WHERE username = '' OR '1'='1'`, where the left side is a literal.
+        var cmpMatch = expr.match(/^(.+?)\s*(!=|<>|>=|<=|>|<|=)\s*(.+)$/i);
+        if (cmpMatch) {
+            var op       = cmpMatch[2];
+            var leftRaw  = _operandValue(row, columns, cmpMatch[1]);
+            var right    = _operandValue(row, columns, cmpMatch[3]);
+
+            // Coerce left to number if right is numeric, else compare as strings
             var left = (typeof right === 'number' && !isNaN(Number(leftRaw)))
                 ? Number(leftRaw)
                 : String(leftRaw === null || leftRaw === undefined ? '' : leftRaw);
@@ -386,34 +424,11 @@
             }
         }
 
-        // BETWEEN lo AND hi -- taught and graded by arm-sql-03. Previously unreachable because the
-        // tokenizer above split it in half; with that fixed, evaluate it properly.
-        var btwMatch = expr.match(/^(\S+)\s+(NOT\s+)?BETWEEN\s+(.+?)\s+AND\s+(.+)$/i);
-        if (btwMatch) {
-            var btwNot = !!btwMatch[2];
-            var lit = function (t) {
-                t = String(t).trim();
-                if (/^'.*'$/.test(t)) return t.slice(1, -1);
-                if (t !== '' && !isNaN(Number(t))) return Number(t);
-                return _colValue(row, columns, t);
-            };
-            var btwVal = lit(btwMatch[1]), btwLo = lit(btwMatch[3]), btwHi = lit(btwMatch[4]);
-            // Numeric when all three are numeric, else lexicographic -- the teaching set uses
-            // BETWEEN on integers and on ISO dates stored as text, and both work this way.
-            if (!isNaN(Number(btwVal)) && !isNaN(Number(btwLo)) && !isNaN(Number(btwHi))) {
-                btwVal = Number(btwVal); btwLo = Number(btwLo); btwHi = Number(btwHi);
-            } else {
-                btwVal = String(btwVal); btwLo = String(btwLo); btwHi = String(btwHi);
-            }
-            var btwResult = (btwVal >= btwLo && btwVal <= btwHi);
-            return btwNot ? !btwResult : btwResult;
-        }
-
-        // Cannot evaluate — pass through (treat as true so query doesn't silently drop rows).
-        // KNOWN GAP, BUG-078 class B: this is why a garbage predicate still completes a module.
-        // Closing it requires _colValue to reject unknown columns, which currently breaks the
-        // JOIN-alias, subquery-substitution and CTE paths. See _tools/sql-engine-strict-wip.js.
-        return true;
+        // BUG-078 class B: this used to `return true`, so an unparseable predicate returned every
+        // row and reported success. The task graders match on SQL keywords alone, so a student
+        // could keep the keyword, garbage the operands, and complete a module having asserted
+        // nothing. A condition the engine cannot evaluate is now an error, like real SQL.
+        throw new SQLEvalError('unrecognised condition: ' + expr);
     }
 
     // =========================================================================
@@ -651,7 +666,14 @@
             whereClause = _substituteSubqueries(whereClause);
         }
         if (whereClause) {
-            rows = rows.filter(function(r) { return _evalWhere(r, columns, whereClause); });
+            // A predicate the engine cannot honestly evaluate becomes a normal engine error
+            // rather than an exception escaping exec(). See SQLEvalError.
+            try {
+                rows = rows.filter(function(r) { return _evalWhere(r, columns, whereClause); });
+            } catch (e) {
+                if (e && e.__sqlEval) return { error: e.message };
+                throw e;
+            }
         }
 
         // ---- Resolve column descriptors ----
@@ -852,7 +874,12 @@
         // HAVING filter — applied to aggregate result rows
         if (having) {
             // Build a synthetic column list from outCols for HAVING evaluation
-            outRows = outRows.filter(function(r) { return _evalWhere(r, outCols, having); });
+            try {
+                outRows = outRows.filter(function(r) { return _evalWhere(r, outCols, having); });
+            } catch (e) {
+                if (e && e.__sqlEval) return { error: e.message };
+                throw e;
+            }
         }
 
         // ORDER BY
@@ -1009,6 +1036,7 @@
         var whereClause = m[3] ? m[3].trim() : null;
 
         var updateCount = 0;
+        try {
         tbl.rows = tbl.rows.map(function(row) {
             if (whereClause && !_evalWhere(row, tbl.columns, whereClause)) return row;
             var newRow = row.slice();
@@ -1026,6 +1054,11 @@
             updateCount++;
             return newRow;
         });
+        } catch (e) {
+            // Throw escaped before the assignment above, so tbl.rows is untouched.
+            if (e && e.__sqlEval) return _renderError(e.message);
+            throw e;
+        }
 
         // Honesty (BUG-008): a WHERE that matched nothing changed nothing — render it as a gradeable
         // failure (error color) so a no-op UPDATE can't earn task credit for doing nothing.
@@ -1050,7 +1083,12 @@
         if (!whereClause) {
             tbl.rows = [];
         } else {
-            tbl.rows = tbl.rows.filter(function(row) { return !_evalWhere(row, tbl.columns, whereClause); });
+            try {
+                tbl.rows = tbl.rows.filter(function(row) { return !_evalWhere(row, tbl.columns, whereClause); });
+            } catch (e) {
+                if (e && e.__sqlEval) return _renderError(e.message);
+                throw e;
+            }
         }
 
         var deleted = originalCount - tbl.rows.length;
