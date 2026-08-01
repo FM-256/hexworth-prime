@@ -53,6 +53,24 @@ so archiving did not simply move the exposure.
 **The other 17 untracked files in `functions/` were scanned and are clean** — 0 UID-shaped strings,
 0 secret-shaped words, 0 email addresses across all of them. Only `uids.json` carried identifiers.
 
+**SWEEP GENERALISED.** Built `_tools/eduscan/untracked-secret-scan.sh` — the dangerous set is
+exactly UNTRACKED **AND NOT IGNORED**, which is invisible both to scanners that read tracked files
+and to those that read ignored ones. Repo-wide it flagged three more:
+`.scratch_verify/index_original.js`, `index_regressed.js`, `index.js.bak_for_chris_test` — 370KB+
+copies of `functions/index.js` left by a QC run, untracked and uncovered by `.gitignore`, so
+`git add -A` would have committed three near-duplicates of the entire functions source into the repo
+root.
+
+**Checked whether they were actually secrets before acting: they are not.** Every "secret" hit is a
+`defineSecret('LIVEKIT_API_KEY')` REFERENCE or a header read — code that MENTIONS credentials, not
+code that contains them. A search for literal assigned values (`key: "…16+ chars…"`) returns
+nothing. So: committable junk, not a leak. Archived to
+`_archive/sensitive-untracked-2026-08-01/scratch_verify/` (8 files, byte-verified) and `.gitignore`
+extended. Sweep now reports **41 scanned, 0 flagged**.
+
+Scanner proven to discriminate rather than assumed: its uid pattern finds **27** matches in the
+archived `uids.json` and **0** in a clean control.
+
 **Worth noting about how this was found:** no tool surfaced it. It came up because I listed pending
 work and looked at what the untracked files actually were. A scanner that only reads TRACKED files
 cannot see this class at all.
