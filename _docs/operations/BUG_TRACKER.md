@@ -31,6 +31,45 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-078 — Armory terminal modules can be completed by typing one line that runs nothing  ·  [P1]  ·  open
+- **Found:** 2026-08-01 · by self · taskboard #103 grading-honesty sweep
+- **Area:** `_app/houses/code/armory/{bash,sql}/*.module.html` (20 modules with an `onCommand` grader)
+- **Student impact:** a module marks itself complete, fires `ModuleProgress.complete('code', MODULE_ID)`
+  and records progress without the student demonstrating anything.
+
+**Mechanism.** These modules grade through `LinuxTerminal.init(..., { onCommand(cmdLine, output, cmd, args) })`.
+`LinuxTerminal.js:597` fires that callback for EVERY parsed line, before any success check, and passes
+the simulator's `output` as the second argument. **14 of 20 graders never read `output`** — they test
+only what was TYPED, with substring matches like `cmdLine.includes('if ')`. So a line that fails, or
+does nothing at all, still earns the task.
+
+**Confirmed end-to-end on the real engine**, not inferred from reading. Served over http, seeded
+`hexworth_house` (AccessGuard.require('sorted') otherwise redirects to the tourist prompt), cleared
+storage and used a fresh page per case because completion is sticky:
+
+| module | one typed line | result |
+|---|---|---|
+| `arm-sql-07-crud` | `echo "insert into update delete from begin rollback"` | **5/5, complete** |
+| `arm-sql-09-security` | `# ' or -- 1=1 union select ? :id prepare grant revoke` | **5/5, complete** |
+| `arm-bash-10-advanced` | `echo "=( ${x[@]} declare -A declare -a trap set -x getopts"` | **5/5, complete** |
+| `arm-bash-05-loops` | `echo "for x in $(seq 1 3); do while read line; done"` | 2/4 |
+
+The `arm-sql-09-security` case is the sharpest: **a `#` comment executes nothing** and completes the
+module, because `onCommand` fires on the parsed line regardless of what the shell did with it.
+
+**Static sweep** (`_tools/eduscan/armory-terminal-cheat-audit.js`, runs each grader body with
+`completeTask` stubbed): 19 of 20 modules award 2+ tasks from a single crafted line; 7 award ALL of
+them. `arm-bash-06-functions` did not evaluate and is UNEVALUATED, not clean.
+
+**Not yet fixed — deliberately.** The fix is a design question, not an edit: the graders would need to
+read `output` (does the command's result show the skill?) rather than the typed text, and that changes
+what the simulator must return. Dispatched to Nancy before building. Do NOT patch the substring checks
+one at a time; that is the pl300-ch04 pattern where three fixes each reopened the bug.
+
+**Tools:** `_tools/eduscan/armory-terminal-cheat-audit.js` (static, suspects) validated against a
+hand-read known answer on `arm-bash-04` before use.
+
+
 ### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  open
 > **SEVERITY: P1 -> P3 -> P2. Nancy rejected my P3 and she is right.** My P3 rested on one
 > sentence — "needs a specific sequence rather than a live free pass" — and that sentence is
