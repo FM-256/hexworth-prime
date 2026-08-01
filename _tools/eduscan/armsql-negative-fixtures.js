@@ -44,6 +44,21 @@ const CASES = [
     "SELECT SUM(zz4) AS zz4 FROM permissions p INNER JOIN users u ON u.user_id = p.user_id;",
     "SELECT SUM(zz4) AS zz4 FROM network_logs;",
     "WITH zz AS (SELECT SUM(zz4) AS zz4 FROM network_logs), yy AS (SELECT 1 AS zz5) SELECT zz4 FROM zz;"]],
+  // --- Round 4 (Chris). Each beat the fix made for the round-3 line directly above its module. ---
+  ['arm-sql-03-filtering', 'R4: parenthesise the fakes -- conjuncts() only splits at depth 0', [
+    "SELECT * FROM users WHERE user_id < 3 AND (user_id < 3 AND zz1 IS NULL AND zz2 LIKE '%' AND role IN ('admin','analyst') AND user_id BETWEEN 1 AND 999);"]],
+  ['arm-sql-04-joins', 'R4: qualifiers DIFFER but zz is not a table -- existence was never checked', [
+    "SELECT * FROM users u INNER JOIN login_logs l ON u.user_id = zz.user_id LEFT JOIN permissions p ON u.user_id = zz.user_id;"]],
+  ['arm-sql-04-joins', 'R4: pure self-join relates one table to itself', [
+    "SELECT * FROM users u INNER JOIN users v ON u.user_id = v.user_id LEFT JOIN users w ON u.user_id = w.user_id;"]],
+  ['arm-sql-05-aggregation', 'R4: meaningful() is still a row-level some(); add GROUP BY and it falls whole', [
+    "SELECT status, COUNT(*), SUM(zz1), MIN(zz2), MAX(zz3) FROM login_logs GROUP BY status HAVING COUNT(*) > 5;"]],
+  ['arm-sql-06-subqueries', 'R4: FROM users zz1 registers the alias one function ABOVE the AS fix', [
+    "SELECT zz1 FROM users zz1;", "SELECT zz1 FROM users zz1 WHERE zz1 IN (SELECT zz1 FROM users zz1);",
+    "SELECT zz1 FROM users zz1 WHERE EXISTS (SELECT zz1 FROM users zz1);",
+    "WITH zz AS (SELECT zz1 FROM users zz1) SELECT zz1 FROM zz;"]],
+  ['arm-sql-02-select', 'R4: resolved() skips any token containing "("', [
+    "SELECT COUNT(zz9), MIN(zz8) FROM users;", "SELECT DISTINCT COUNT(zz9) FROM users;"]],
 ];
 
 (async () => {
@@ -76,12 +91,23 @@ const CASES = [
     }, cmds);
     await p.close();
     if (r.noInput) { console.log('  ??    ' + mod + '  no terminal input -- harness cannot judge'); still++; continue; }
-    const full = r.wrote || (r.total && r.chips === r.total);
-    if (full) still++;
-    console.log('  ' + (full ? 'OPEN ' : 'closed') + ' ' + mod.padEnd(24) +
+    // SCORE ON ANY UNEARNED CHIP, not on full completion. This suite previously scored
+    // `wrote || chips === total`, so a module leaking chips on garbage printed "closed" -- 02 at
+    // 2/5, 03 at 2/5, 05 at 3/5, 09 at 2/5 all read as passes while awarding credit for operators
+    // the student never demonstrated. Class B is UNEARNED CREDIT, not full completion; a suite that
+    // only fails on full completion certifies exactly the leaks it exists to catch.
+    // Every line below is meaningless input, so the correct number of chips is ZERO.
+    const leaked = r.chips > 0 || r.wrote;
+    if (leaked) still++;
+    console.log('  ' + (leaked ? 'LEAKS ' : 'clean ') + mod.padEnd(24) +
                 'chips ' + r.chips + '/' + r.total + '  write: ' + r.wrote + '   ' + why);
   }
-  console.log('\n  ' + still + ' of ' + CASES.length + ' module(s) still completable on meaningless input');
-  console.log('  These are REGRESSION fixtures. Any of them going OPEN again means class B reopened.');
+  console.log('\n  ' + still + ' of ' + CASES.length + ' case(s) award credit for meaningless input');
+  console.log('  Expected chips for every line here is ZERO. Any chip at all is unearned credit,');
+  console.log('  which is what class B IS -- full completion is only its most visible form.');
+  console.log('  NOTE: passing this suite is NECESSARY, NOT SUFFICIENT. It is a fixed list of');
+  console.log('  strings; three such corpora each returned zero on modules a fourth adversary');
+  console.log('  broke in one pass. A generative adversary over structural positions is the');
+  console.log('  actual requirement -- see BUG_TRACKER BUG-078.');
   process.exit(still ? 1 : 0);
 })();
