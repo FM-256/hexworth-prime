@@ -65,6 +65,22 @@ not to start writing `hexworth_uid`.
 
 So this is NOT "85 games award nothing". Local XP works everywhere; only the server sync is dead.
 
+**FIXED AND COMMITTED 2026-08-01** — 3 commits, 97 files, 0 live `hexworth_uid` reads left in `_app`
+and 0 `addXP` calls still guarded by `if (uid)`.
+`98acb1f7d` 95 standalone pages · `8ee20cf80` CLHCompletionModal.js alone (91 consumers) ·
+`9c88965a6` the `.catch()` shape, hand-fixed.
+
+**REPLAY EXPOSURE, checked because un-gating makes ~99 previously-inert calls live.** Every one of
+the 97 sits behind a client-side once-only award guard, so a student replaying a game does not
+re-award. It took FOUR naming conventions to establish that, and my first three greps each reported
+false gaps:
+`game_*_xp_awarded` · `existing.xpAwarded` on a per-lab object · `stride_modeler_xp_<id>` ·
+`hexworth_game_contra_xp`.
+Guards are CLIENT-SIDE only: clearing localStorage would permit a re-award, and the `addXP` CF has
+no per-user rate limit (a single award is capped at 1–10,000, nothing more). That was already true
+of every working `addXP` path on the platform; this change does not introduce it, but it does make
+it reachable from 97 more places.
+
 **SEVERITY CORRECTED 2026-08-01 after Nancy — the 12 are NOT better off, and the real figure is 97.**
 I framed the 12 files with a `ModuleProgress.complete()` call as having "another working XP path".
 Traced it: they do not.
