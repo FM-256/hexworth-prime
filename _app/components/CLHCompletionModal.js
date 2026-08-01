@@ -418,8 +418,7 @@ class CLHCompletionModal {
                 localStorage.setItem(xpKey, 'true');
 
                 if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
-                    const uid = localStorage.getItem('hexworth_uid');
-                    if (uid) FirestoreManager.addXP(uid, this.xpEarned, this.moduleId + ' completed');
+                    FirestoreManager.addXP(null, this.xpEarned, this.moduleId + ' completed'); // BUG-082: uid arg is ignored by addXP; the CF derives the user from auth
                 }
             }
 
