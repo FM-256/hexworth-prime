@@ -38,12 +38,26 @@ async function post(url, body, headers) {
     console.log('page-claim guard: page does not overclaim evidence integrity');
   }
 
-  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
-    { email: `wallcheat-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`,
-      password: 'Wc' + Math.random().toString(36).slice(2, 6) + '9X', returnSecureToken: true },
+  // FIXED QC identity. This used to mint a random address on EVERY run. The bridge binds a pool
+  // slot to a uid PERMANENTLY (sticky mapping), and nothing releases it -- reclaim-idle-slots.py
+  // cannot even run (taskboard #275, it imports a path that only exists on bc2). So every run
+  // consumed one of the 30 slots forever. The pool was measured at 29 bound / 1 free on
+  // 2026-08-01, and of the 29, every uid that still resolves in Firebase Auth is a QC account.
+  // Every other harness was moved to a fixed identity for exactly this reason; wall was missed.
+  const email = 'wall-adv-qc@hexworth-smoke.local';
+  // Firebase policy on this project caps passwords at 10 characters.
+  const password = 'QcWaA9x';
+  let su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    { email, password, returnSecureToken: true },
     { Referer: 'https://hexworth-prime.web.app/' });
-  if (su.status !== 200) fail(`signUp ${su.status}`);
-  const { idToken } = su.data;
+  if (su.status !== 200) {
+    // EMAIL_EXISTS is the NORMAL path after the first ever run -- sign in instead.
+    su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
+      { email, password, returnSecureToken: true },
+      { Referer: 'https://hexworth-prime.web.app/' });
+  }
+  if (su.status !== 200 || !su.data || !su.data.idToken) fail('could not create the QC user');
+  const idToken = su.data.idToken;
   const auth = { Authorization: `Bearer ${idToken}` };
 
   const l = await post(`${BASE}/launch`, { labId: 'openstack-cli' }, auth);
@@ -88,7 +102,12 @@ async function post(url, body, headers) {
 
   dex('openstack server delete phoenix');
   await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
-  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
-  console.log(`OPERATOR: null hexworth_uid on ${slot}`);
+  // The QC account is deliberately NOT deleted. With a fixed identity the whole point is that
+  // the uid -- and therefore the ONE pool slot bound to it -- survives between runs. Deleting
+  // the account frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER
+  // slot, which is the leak this change exists to stop. Nor is the old
+  // `OPERATOR: null hexworth_uid on <slot>` line printed any more: it asked a human to release
+  // the binding by hand after every run, and that step was never performed, which is precisely
+  // how the pool reached 29 bound of 30 with only QC identities holding the slots.
   console.log('ADVERSARIAL DONE: cheat A rejected; cheat B ceiling recorded honestly');
 })().catch((e) => { console.error('ADVERSARIAL FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });

@@ -21,12 +21,24 @@ async function post(url, body, headers) {
 
 (async () => {
   const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
-  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
-    { email: `wall-qc-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`,
-      password: 'Wa' + Math.random().toString(36).slice(2, 6) + '9X', returnSecureToken: true },
+  // FIXED QC identity -- see the matching note in adversarial-wall.js. A random address per run
+  // created a new Firebase user each time, and the bridge binds a pool slot to a uid
+  // PERMANENTLY with nothing to release it (reclaim-idle-slots.py cannot even run, taskboard
+  // #275). The pool measured 29 bound of 30 on 2026-08-01, held almost entirely by QC uids.
+  const email = 'wall-walk-qc@hexworth-smoke.local';
+  // Firebase policy on this project caps passwords at 10 characters.
+  const password = 'QcWaW9x';
+  let su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+    { email, password, returnSecureToken: true },
     { Referer: 'https://hexworth-prime.web.app/' });
-  if (su.status !== 200) fail(`signUp ${su.status}`);
-  const { idToken } = su.data;
+  if (su.status !== 200) {
+    // EMAIL_EXISTS is the NORMAL path after the first ever run -- sign in instead.
+    su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
+      { email, password, returnSecureToken: true },
+      { Referer: 'https://hexworth-prime.web.app/' });
+  }
+  if (su.status !== 200 || !su.data || !su.data.idToken) fail('could not create the QC user');
+  const idToken = su.data.idToken;
   const auth = { Authorization: `Bearer ${idToken}` };
 
   const l = await post(`${BASE}/launch`, { labId: 'openstack-cli' }, auth);
@@ -110,7 +122,9 @@ async function post(url, body, headers) {
   console.log('cleanup');
   dex('openstack server delete phoenix');
   await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
-  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
-  console.log(`OPERATOR: null hexworth_uid on ${slot}`);
+  // The QC account is deliberately NOT deleted, and the old `OPERATOR: null hexworth_uid`
+  // instruction is gone. See adversarial-wall.js for the full reasoning: deleting a fixed
+  // identity frees the email so the next run mints a new uid and binds another slot, and the
+  // manual release step that line asked for was never actually performed.
   console.log('WALKTHROUGH PASS 3/3 on BOTH runs (fresh project AND returning student)');
 })().catch((e) => { console.error('WALKTHROUGH FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
