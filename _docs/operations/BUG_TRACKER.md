@@ -140,6 +140,36 @@ the 66 UNVERIFIED need a re-run. (2) UNVERIFIED IS NOT CLEAN -- 28 pages never l
 or guard mismatch) and 21 use a completion mechanism this harness does not read. Neither has been
 cleared.
 
+**ROOT CAUSE, and the platform already contains the fix.** Chasing why script/shield produced ZERO
+confirmed completions turned up the real architecture story.
+
+`LinuxTerminal` has a built-in objective system. `_checkObjective(id)` is called from **35 sites, every
+one of them inside the `_executeCommand` switch** -- the objective is awarded by the code path that
+actually performs the operation. `_cd()` runs, then `_checkObjective('cd')`. `_executeRedirect()` runs,
+then `_checkObjective('redirect')`.
+
+That is unforgeable by construction: typing `echo "cd"` cannot fire the `cd` objective, because `_cd()`
+never executes. No string matching is involved anywhere.
+
+**The script and shield labs use that system.** They boot fine in the harness (terminal input present)
+but expose no `completeTask` and no chips, which is why they read as NOSIGNAL -- they never had the
+defect to begin with. **Armory bypassed the objective system and rolled its own typed-text matching in
+`onCommand`.** That divergence is the bug, not the individual substring checks.
+
+So the fix is not a new invention and should not be a fifth string check: award from the execution
+path, the way the rest of the platform already does. For the 5 SQL modules the equivalent hook already
+exists -- `SQLEngine.wrap` dispatches the query and passes the real `result.html` as `output`, and only
+does so when `_isSQLCommand(cmdLine)` is true, so an `echo` can never reach that path.
+
+**The 66 UNVERIFIED now resolve, and none of them are the same defect:**
+- 28 DIDNOTBOOT -- dark-arts pages redirect to `gate-1.html`, a separate gate system. Genuinely
+  unmeasured, not cleared.
+- 21 NOSIGNAL -- script/shield labs on the objective system. Boot fine; this harness cannot read that
+  completion mechanism, and by construction they are not forgeable this way.
+- 17 NOCHEAT -- no extractable grader literals.
+A re-run of all 66 against the fixed scanner build produced ZERO new completions, so the brace bug was
+not suppressing findings here.
+
 **STILL OPEN, and it is a DATA question no option addressed** (Nancy's third concern): students who
 already triggered a false completion have that write in production Firestore now, and completion is
 sticky. Fixing the grader does nothing to existing records. Whether they are left, flagged, or
