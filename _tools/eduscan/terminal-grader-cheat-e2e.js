@@ -26,6 +26,29 @@ const puppeteer = require(path.resolve(__dirname, '../../node_modules/puppeteer'
 const BASE = process.env.BASE || 'http://127.0.0.1:8901';
 const APP = path.resolve(__dirname, '../../_app');
 
+// Brace matching must SKIP braces inside strings, comments and regex-ish literals. A naive
+// counter breaks on real code here: arm-bash-06-functions tests `cmdLine.includes('() {')`, whose
+// literal `{` incremented the depth and made the extracted body run one `}` too long. The static
+// sibling then threw "Unexpected token '}'" and reported the file UNEVALUATED -- I nearly recorded
+// that as the page's defect rather than my own. Same class as the pl300 task-7 sanitizer: a
+// character-level job needs a scanner, not a count.
+function matchBrace(src, open) {
+  let d = 0, i = open, q = null, line = false, block = false;
+  while (i < src.length) {
+    const c = src[i], n = src[i + 1];
+    if (block) { if (c === '*' && n === '/') { block = false; i += 2; continue; } i++; continue; }
+    if (line) { if (c === '\n') line = false; i++; continue; }
+    if (q) { if (c === '\\') { i += 2; continue; } if (c === q) q = null; i++; continue; }
+    if (c === '/' && n === '*') { block = true; i += 2; continue; }
+    if (c === '/' && n === '/') { line = true; i += 2; continue; }
+    if (c === '"' || c === "'" || c === '`') { q = c; i++; continue; }
+    if (c === '{') d++;
+    else if (c === '}') { d--; if (d === 0) return i; }
+    i++;
+  }
+  return -1;
+}
+
 function graderBody(src) {
   const i = src.indexOf('onCommand');
   if (i === -1) return null;
@@ -33,9 +56,9 @@ function graderBody(src) {
   if (fi === -1) return null;
   const j = src.indexOf('{', fi);
   if (j === -1) return null;
-  let d = 1, k = j + 1;
-  while (k < src.length && d > 0) { const c = src[k]; if (c === '{') d++; else if (c === '}') d--; k++; }
-  return src.slice(j + 1, k - 1);
+  const close = matchBrace(src, j);
+  if (close === -1) return null;
+  return src.slice(j + 1, close);
 }
 // String literals inside the grader are the tokens it looks for. Skip ones that are obviously
 // not command text (ids used in completeTask calls are captured separately and excluded).
