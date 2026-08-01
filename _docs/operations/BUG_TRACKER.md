@@ -69,6 +69,50 @@ one at a time; that is the pl300-ch04 pattern where three fixes each reopened th
 **Tools:** `_tools/eduscan/armory-terminal-cheat-audit.js` (static, suspects) validated against a
 hand-read known answer on `arm-bash-04` before use.
 
+---
+
+**SCOPE CORRECTION 2026-08-01, after Nancy [EXPLORE]. This is not an Armory bug.** She asked whether
+my glob was the full set. It was not, and not by a little:
+
+| | count |
+|---|---|
+| pages using `LinuxTerminal.init` with an `onCommand` grader | **179** |
+| of those, handler body never reads `output` | **113** |
+| covered by my original Armory glob | 20 |
+
+The output-ignoring 113 break down as: `houses/script/labs` 45, `dark-arts/vault` 32 (labs 15,
+wifi-arsenal 12, bug-hunting 4, ehe 1), `houses/shield/labs` 14, `houses/code/armory` 14,
+`houses/script/linux` 5, plus 3 singletons. **Only 1 of the 53 Linux Mastery modules ignores
+`output`** -- that course was built to a higher bar and is largely not implicated.
+
+Ignoring `output` is NOT by itself a defect ("type a command containing a pipe" is honestly graded
+on input). The confirmed defect is the completion-from-one-line shape, browser-proven on 3 Armory
+modules. The other 110 are UNVERIFIED SUSPECTS and must not be reported as broken until run.
+
+**`onCommand` FIRING GRANULARITY -- measured in a browser, answers whether option B generalises.**
+It fires **once per submitted line**, with `cmd` set to the FIRST TOKEN only. `;` and `&&` are not
+split; chained commands arrive as plain tokens in `args`:
+
+    typed `echo one; echo two`     -> 1 call, cmd='echo', args=["one;","echo","two"]
+    typed `echo a && echo b`       -> 1 call, cmd='echo', args=["a","&&","echo","b"]
+
+So anchoring on `cmd` (option B) closes BOTH cheat shapes -- the quoted-string one and the chained
+one -- because only the first token can ever match. The cost is a false negative: a student who
+legitimately chains two commands earns credit for the first only.
+
+**OPTION D IS DEAD, on evidence rather than argument.** I claimed Armory completion might be a
+participation marker with "no server-side record", and Nancy caught that my own next sentence
+contradicted it. Traced it: `ModuleProgress.complete` calls `tryClassProgressSync`, which invokes
+the **`syncClassProgress` Cloud Function** with `moduleId`, `tenantSlug` and `classId`, and the CF
+looks up `enrollments/{uid}`. A false completion therefore lands in a Firestore class-progress
+record an instructor sees. Relabelling the page does not fix that.
+
+**STILL OPEN, and it is a DATA question no option addressed** (Nancy's third concern): students who
+already triggered a false completion have that write in production Firestore now, and completion is
+sticky. Fixing the grader does nothing to existing records. Whether they are left, flagged, or
+re-audited is an operator call, and answering it requires querying production -- which I am not
+doing.
+
 
 ### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  open
 > **SEVERITY: P1 -> P3 -> P2. Nancy rejected my P3 and she is right.** My P3 rested on one
