@@ -57,8 +57,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   it with the session id and have 27 reject a baseline from a different session, or clear the
   uid's baseline when a new capstone session starts. Do NOT simply delete the file — that makes
   the current run pass while leaving the hole open for the next returning student.
-- **Containment:** the hub link that would expose this is committed (`1d5a63b1d`) and
-  **deliberately NOT deployed**. Production still has no route to this lab.
+- **EXPOSURE — CORRECTED 2026-08-01, the first version of this line was FALSE.** It said
+  "production still has no route to this lab". That was true only of the hub CLICK path.
+  Measured:
+  `curl https://hexworth.com/components/ContentCatalog.js | grep -c cloud-openstack-project-iac` → `1`
+  `curl -o /dev/null -w '%{http_code}' .../labs/cloud-openstack-project-iac.lab.html` → `200`
+  **Catalog search reaches this lab today, so the bug is LIVE-EXPOSED.** The catalog entry
+  landed in `e608ebd47` (10:09), a different and earlier commit than the paused hub link
+  `1d5a63b1d` (20:18) — two independent routes, and only one of them was paused. I read
+  "hub link not deployed" as "lab unreachable". This is the same stale-containment-claim
+  failure BUG-058 already caused in this file, which is why the correction is written here
+  rather than left as a note elsewhere.
+- **Nancy's interim ruling (2026-08-01): PULL the catalog entry until 27 is fixed.** It is
+  cheap and reversible, and it is the only action that makes a containment claim TRUE again
+  rather than rewriting it to admit ongoing exposure. "Leave it" bets on an unverified
+  population-zero assumption (that no real student has a stale baseline) and on 25/28's known
+  forgeability not compounding with 27's, which taskboard #269 has not closed.
+- **The gate evidence is confounded and a re-run will NOT be a clean signal (Nancy).**
+  `adversarial-project.js` now uses a FIXED QC identity, whose uid already carried a baseline
+  from 18:46 — 5.5h before the 00:32 run. So cheat E never tested "no baseline ever recorded";
+  it inherited a stale one. Worse, `fail()` calls `process.exit(1)`, which in Node does **not**
+  run pending `finally` blocks — so every failing run skips its own `DELETE /destroy` cleanup
+  and leaves the debris that poisons the next run. That applies to all six lab harnesses, not
+  just this one. The QUALITATIVE verdict still holds: the hazard is confirmed by source read
+  alone (server.js:375, :1368, :1535, :425-428), no log required.
 - **Related:** taskboard #249, #252, #269; BUG-058 (same file, a stale comment there already
   misled a reviewer once).
 
