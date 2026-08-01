@@ -528,8 +528,68 @@
     // QUERY PARSER — main entry point for SELECT execution
     // =========================================================================
 
+    // Split a statement on TOP-LEVEL `UNION` / `UNION ALL` only: not inside parentheses (so a UNION
+    // belonging to a subquery stays with it) and not inside a string literal. Returns null when
+    // there is no top-level UNION, so the caller falls through to the ordinary single-SELECT path.
+    function _splitTopLevelUnion(sql) {
+        var parts = [], depth = 0, inStr = false, start = 0, sawAll = false, i = 0;
+        while (i < sql.length) {
+            var ch = sql[i];
+            if (ch === "'") { inStr = !inStr; i++; continue; }
+            if (!inStr && ch === '(') { depth++; i++; continue; }
+            if (!inStr && ch === ')') { depth--; i++; continue; }
+            if (!inStr && depth === 0 && /\s/.test(sql[i - 1] || ' ')) {
+                var m = /^UNION(\s+ALL)?\s/i.exec(sql.slice(i));
+                if (m) {
+                    if (m[1]) sawAll = true;
+                    parts.push(sql.slice(start, i).trim());
+                    i += m[0].length;
+                    start = i;
+                    continue;
+                }
+            }
+            i++;
+        }
+        if (!parts.length) return null;
+        parts.push(sql.slice(start).trim());
+        return { parts: parts.filter(function (p) { return p !== ''; }), all: sawAll };
+    }
+
     function _execSelect(sql) {
         var norm = _normalise(sql);
+
+        // ---- UNION / UNION ALL ----
+        // Previously unimplemented: `A UNION B` fell into the single-SELECT parser, which swallowed
+        // `UNION SELECT ...` into the WHERE clause and returned 0 rows. arm-sql-09 TEACHES union
+        // injection as the way an attacker exfiltrates password hashes, so the module's own example
+        // returned an empty table -- demonstrating that the attack does not work. Measured 2026-08-01.
+        // Split at top level only (never inside parens, never inside a string literal) so that a
+        // UNION appearing in a subquery still belongs to that subquery.
+        var unionParts = _splitTopLevelUnion(norm);
+        if (unionParts && unionParts.parts.length > 1) {
+            var acc = null;
+            for (var ui = 0; ui < unionParts.parts.length; ui++) {
+                var part = _execSelect(unionParts.parts[ui]);
+                if (!part || part.type === 'error') return part;
+                if (!part.rows) continue;
+                if (acc === null) {
+                    acc = { type: 'table', columns: part.columns, rows: part.rows.slice() };
+                } else {
+                    acc.rows = acc.rows.concat(part.rows);
+                }
+            }
+            if (acc === null) return _renderError('UNION requires SELECT statements that return rows');
+            // Plain UNION removes duplicate rows; UNION ALL keeps them.
+            if (!unionParts.all) {
+                var seen = {}, deduped = [];
+                acc.rows.forEach(function (r) {
+                    var k = JSON.stringify(r);
+                    if (!seen[k]) { seen[k] = true; deduped.push(r); }
+                });
+                acc.rows = deduped;
+            }
+            return _renderTable(acc.columns, acc.rows);
+        }
 
         // ---- Special built-in expressions (no FROM) ----
 
