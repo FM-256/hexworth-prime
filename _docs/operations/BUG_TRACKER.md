@@ -31,6 +31,41 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-080 — AWS Developer Associate has 21 modules and no assessment at all  ·  [P2]  ·  open
+- **Found:** 2026-08-01 · by self · taskboard #241 Cloud Master content QC
+- **Area:** `_app/components/LearningPaths.js`, path `aws-developer` (DVA-C02)
+- **Student impact:** a student can complete an entire certification-prep track and never be tested
+  once. Every other Cloud Master course assesses.
+
+**Measured across the cert-prep renderers:**
+
+| path | modules | quiz | exam |
+|---|---|---|---|
+| `aws-ccp` (CLF-C02) | 9 | 3 | 0 |
+| `azure-fundamentals` (AZ-900) | 9 | 3 | 0 |
+| **`aws-developer` (DVA-C02)** | **21** | **0** | **0** |
+
+It is the LARGEST of the three by module count and the only one with no assessment path.
+
+**Second, separate concern in the same path:** its opening modules are `Git Basics`, `Agile & SDLC`,
+`Unit Testing`, `Unit Testing Lab` — general software-engineering content from the code house, not
+AWS. A DVA-C02 track that opens on four non-AWS modules and never assesses is closer to a reading
+list than a cert path. Whether that scope is deliberate is a curriculum call.
+
+**Not a defect, checked and cleared:** `server-plus` and `cse` looked empty because they hold no
+typed content files in their own directories. Both surface real content elsewhere — Server+ links 20
+WSA module pages (`cloud-presentation.module.html`, a different naming convention that my typed-file
+counter read as zero), and every link on both resolves (0 broken of 21 and 0 of 27). Thin index over
+shared content is a legitimate pattern here, not a stub.
+
+**Parity summary for the 11 Cloud Master courses**, content each actually surfaces:
+Cloud Essentials 27, Cloud Security Engineer 27, MS-102 25, Server+ 21, OpenStack 21,
+AWS Developer 21, Azure Administrator 19, PL-300 16, MS-900 10, AWS CCP 9, Azure Fundamentals 9.
+The two 9-module cert paths (CLF-C02, AZ-900) are 3 chapters each against 8-9 chapters elsewhere,
+which is a real depth gap but a deliberate-looking one — task 193 records the clf-c02 3-chapter
+scope as operator-approved.
+
+
 ### BUG-079 — 6 of 12 Cloud Master course hubs were missing their `parent`, so half the catalogue was unreachable  ·  [P2]  ·  DEPLOYED 2026-08-01, 10 of 11 live
 - **Found:** 2026-08-01 · by self · taskboard #241 (Frank: "verify and fix the organization and
   structure of the cloudmaster content. it needs a legit qc/qa")
