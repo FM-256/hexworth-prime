@@ -55,6 +55,15 @@
         .item:hover{ border-color:rgba(34,211,238,.4); transform:translateY(-2px); }
         .item .t{ font-weight:600; font-size:.98rem; }
         .item .d{ color:var(--muted); font-size:.84rem; margin-top:4px; }
+        /* CARTRIDGE. Mirrors .kid-card so hub cards and content cards read as one family.
+           MUST come AFTER the .item rules: same specificity, so source order decides. Declared
+           BEFORE them first time round and .item's `padding:16px 18px` won -- the art panel sat
+           inset at 270px inside a 320px card instead of running edge to edge. */
+        .item-cart{ padding:0; overflow:hidden; }
+        .item-cart .item-art{ width:100%; aspect-ratio:16/10; display:flex; align-items:center;
+                   justify-content:center; background:rgba(255,255,255,.04); border-bottom:1px solid var(--line); }
+        .item-cart .item-ico{ width:42px; height:42px; opacity:.92; }
+        .item-cart .item-body{ padding:12px 14px; }
         .empty{ color:var(--muted); font-size:.9rem; font-style:italic; padding:6px 2px; }
         .path{ margin-top:40px; background:linear-gradient(160deg,rgba(139,92,246,.10),var(--panel));
                border:1px solid var(--line); border-radius:14px; padding:22px 24px; }
@@ -297,7 +306,16 @@
             body.env-on .item{ transition:none; }
             body.env-on .item:hover{ transform:none; }
         }
-    </style>
+    
+        /* ── CARTRIDGE OVERRIDES, LAST ON PURPOSE ──────────────────────────────────────────
+           `body.env-on .item{padding:18px 18px 18px 30px}` and `body.env-on .item-cart{padding:0}`
+           have IDENTICAL specificity (0,2,1), so source order alone decides the winner. Declared
+           earlier in the file this lost silently and the art panel rendered inset at 270px inside a
+           320px card. Verified with getComputedStyle, twice, rather than reasoned about. Anything
+           added after this block will out-rank it -- keep cartridge rules here. */
+        body.env-on .item-cart{ padding:0; }
+        body.env-on .item-cart .item-body{ padding:12px 16px 14px 30px; }
+</style>
 </head>
 <body>
     <div class="wrap">
@@ -381,10 +399,23 @@
                     if (!it || typeof it !== 'object') { return; }
                     var href = safeHref(it.href);
                     var card = document.createElement(href ? 'a' : 'div');
-                    card.className = 'item';
+                    card.className = 'item item-cart';
                     if (href) { card.setAttribute('href', href); }
-                    card.appendChild(el('div', it.title || it.label || 'Untitled', 't'));
-                    if (it.desc || it.sublabel) { card.appendChild(el('div', it.desc || it.sublabel, 'd')); }
+                    // CARTRIDGE SHELL. Same visual language as the child-hub cards above: an art
+                    // panel over a body. Hub cartridges use a generated cover keyed by hubId; content
+                    // items have no per-item cover (covers/manifest.json is keyed by HUB), so the art
+                    // panel carries the item's own catalog icon on a house-tinted field -- the
+                    // "text-name safe default" from the visual-asset taxonomy, not invented artwork.
+                    var art = el('div', null, 'item-art');
+                    var ico = document.createElement('img');
+                    ico.className = 'item-ico'; ico.alt = ''; ico.loading = 'lazy';
+                    ico.src = safeIcon(it.icon);
+                    art.appendChild(ico);
+                    card.appendChild(art);
+                    var body = el('div', null, 'item-body');
+                    body.appendChild(el('div', it.title || it.label || 'Untitled', 't'));
+                    if (it.desc || it.sublabel) { body.appendChild(el('div', it.desc || it.sublabel, 'd')); }
+                    card.appendChild(body);
                     grid.appendChild(card);
                 });
                 sec.appendChild(grid);
@@ -513,7 +544,9 @@
                         if (projSeen[href]) { return; }
                         projSeen[href] = true;
                     }
-                    proj[bucket].push({ title: m.title, desc: m.description, href: href });
+                    // icon carried through so renderSection can draw a cartridge. The catalog has
+                    // an icon on 3,334 of 3,335 entries and the projection was discarding it.
+                    proj[bucket].push({ title: m.title, desc: m.description, href: href, icon: m.icon });
                 });
             }
             // Typed content sections: admin-curated Firestore items first, projection after.
