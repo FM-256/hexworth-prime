@@ -5,8 +5,9 @@ typing a single line that did no work. Those completions were written to the ins
 class-progress record. **Completions on the modules below, recorded on or before 2026-08-01, cannot
 be distinguished from genuine ones and should not be treated as evidence of competence.**
 
-**Both defect classes are now closed on every affected module.** Completions recorded *before* the
-fix dates below still cannot be distinguished from genuine ones; completions after them are sound.
+**Class A is closed. Class B is NOT closed.** An earlier version of this file said all seven modules
+were fixed. That was wrong, and it is the second time this document has overstated safety. Treat any
+arm-sql completion, of any date, as not by itself evidence of competence.
 
 > An earlier version of this document said "the defect is now fixed" and "completions recorded after
 > the fix are sound." Both statements were wrong for the arm-sql modules and are corrected below. A
@@ -27,39 +28,43 @@ keywords alone, so preserving the keyword and corrupting only the operands passe
 **Modules where class B yields a full completion and a class-progress write** — measured against two
 independent adversaries:
 
-| module | full completion on meaningless input | record written | status |
-|---|---|---|---|
-| `arm-sql-02-select` | was yes | was yes | **FIXED** `1599ab981` |
-| `arm-sql-03-filtering` | was yes | was yes | **FIXED** `75cd132e5` |
-| `arm-sql-04-joins` | was yes — **from a single line** | was yes | **FIXED** `4752d12b5` |
-| `arm-sql-05-aggregation` | was yes | was yes | **FIXED** `51d9cc82b` |
-| `arm-sql-06-subqueries` | was yes | was yes | **FIXED** `ad48dc96c` |
-| `arm-sql-09-security` | was yes | was yes | **FIXED** `62e28b303` |
-| `arm-sql-10-practical` | was yes | was yes | **FIXED** `62e28b303` |
+| module | status |
+|---|---|
+| `arm-sql-02-select` | **still completable on garbage** |
+| `arm-sql-03-filtering` | **still completable on garbage** |
+| `arm-sql-04-joins` | **still completable on garbage, from a single line** |
+| `arm-sql-05-aggregation` | partially hardened; 3 of 5 chips still award on garbage |
+| `arm-sql-06-subqueries` | **still completable on garbage** |
+| `arm-sql-09-security` | **still completable on garbage** |
+| `arm-sql-10-practical` | partially hardened; 4 of 5 chips still award on garbage |
 
-**All seven are closed.** Verified by two independent adversaries, neither of which can now complete
-any module in the census: a corruption harness that garbles the modules' own commands
-(`_tools/eduscan/armsql-garbage-audit.js`) and a free-form one that writes arbitrary nonsense. Both
-report zero full completions and zero class-progress writes. Honest completion, measured with each
-module's own prescribed commands, is unchanged at 8/10 throughout — `07` and `08` fall short for
-harness reasons, not because any gate blocks them.
+> **RETRACTION, 2026-08-01.** I marked all seven FIXED after two independent harnesses each returned
+> zero. Chris wrote a third adversary and broke six of them, each with a gradebook write. Both of my
+> harnesses were structurally unable to find these: the corruption harness only mutates the modules'
+> own commands while preserving keywords, table names and aliases, and the free-form harness had **no
+> entries at all for `03`, `05` or `09`** — three of the seven modules it was cited as clearing. Two
+> zeros that could not have been anything else.
 
-The fixes grade what the statement **produced or named**, never the keyword typed. No engine
-behaviour changed, so none of the alias / subquery / CTE breakage that made the engine-level fix
-unshippable applies. Which signal works differs by task shape and each was measured, not assumed:
-row count for filters and joins; the aggregate's value for `COUNT`/`SUM`/`MIN`/`MAX`; group
-reduction for `HAVING`; and, where a task returns nothing countable (`GRANT`, parameterised
-queries, report queries), that every identifier named is a real one.
+Three root causes, none of them the residual I had disclosed:
 
-**These are not claims of unbeatability.** Every confirmed exploit in the corrected census is dead
-and honest work is untouched; both harnesses are committed so this can be re-run rather than taken
-on trust. Disclosed residuals are written into the graders themselves — for example `arm-sql-04`
-still accepts `ON u.user_id = u.user_id`, which requires reading the real schema first and is
-strictly weaker than the one-liner it replaced.
+1. **A statement-level signal carries per-task chips.** Each grader computes ONE boolean for the
+   whole command. In `arm-sql-03`, `user_id < 3` narrows the statement, and that single real
+   predicate authorises `IS NULL`, `LIKE`, `IN` and `BETWEEN` clauses naming columns that do not
+   exist. My measurement was taken one command per task; the code never enforces per-operator
+   effect.
+2. **An alias whitelists the identifier it aliases.** `namesRealColumns` registers `AS <name>` into
+   the known set *before* validating identifiers, so `zz1 AS zz1` self-authorises. That rule is the
+   sole semantic gate on `06`, `09` and `10`, and the doc called it "the one thing the cheat cannot
+   fake."
+3. **`arm-sql-04` only requires rows > 0.** `ON u.user_id = u.user_id` returns 12 rows and still
+   completes the module in one line. I had disclosed that shape as "weaker" without measuring that
+   it still produces the exact harm this document says is gone.
 
-`arm-sql-04` was the sharpest — one line that asserts nothing completed the whole module and wrote
-the record. It no longer does; the line is kept here because it is the clearest statement of what
-class B is.
+Permanent regression fixtures for all of the above are committed at
+`_tools/eduscan/armsql-negative-fixtures.js`, so this is re-runnable rather than re-asserted.
+
+`arm-sql-04` is the sharpest — one line that asserts nothing completes the whole module and writes
+the record. Still true.
 
 ```sql
 SELECT * FROM users u INNER JOIN login_logs l ON u.zz1 = l.zz2 LEFT JOIN permissions p ON u.zz3 = p.zz4;
@@ -78,11 +83,9 @@ the commands, so there is no predicate to corrupt and a student who runs them ha
 > measuring itself. Caught by Nancy on review, using a free-form adversary instead of corrupted
 > versions of the modules' own commands.
 
-**What this means for an instructor.** For the four modules still marked open, a completion is not
-by itself evidence of competence, whatever its date. For the three marked FIXED, completions dated
-after their fix commit are sound; earlier ones are not distinguishable. Class A is closed and the
-bash modules are separately verified as writing no record at all — but do not read either of those
-as a general clearance for arm-sql.
+**What this means for an instructor.** For every arm-sql module in the table above, a completion is
+not by itself evidence of competence, whatever its date. Class A is closed and the bash modules are
+separately verified as writing no record at all — do not read either as a clearance for arm-sql.
 
 ## The eight modules
 

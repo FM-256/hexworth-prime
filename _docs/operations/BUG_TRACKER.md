@@ -694,10 +694,21 @@ not error, because `_evalSingleCondition` ends "Cannot evaluate -- pass through 
 The task graders match on SQL keywords alone (`arm-sql-03` line 344: `lower.includes('between')`),
 so preserving the keyword and corrupting only the operands completes the module.
 
-Harness `_tools/eduscan/armsql-garbage-audit.js` (corrupts operands, preserves keywords and table
-names -- a cheat would know the table). **4 of 10 reach FULL completion and fire the gradebook
-write: `arm-sql-02`, `arm-sql-03`, `arm-sql-05`, `arm-sql-09`.** The other 6 reach 1-3 tasks and do
-not write. Lower bound: commands with no predicate to corrupt were left intact.
+**CENSUS, corrected twice. Current: 7 of 10 affected -- `02 03 04 05 06 09 10`.** `07`/`08` resist
+(DDL/DML errors on a bad identifier). `01` excluded: its tasks ARE the commands.
+
+- The first census said **4** (`02 03 05 09`). RETRACTED -- my harness rewrote single-letter table
+  aliases, which broke `arm-sql-04`'s grader (`/from\s+\w+\s+[a-z]\s/`) so the module scored 0 and
+  read as clean. It is a ONE-LINE full completion. Caught by Nancy.
+- I then marked all 7 **FIXED**. RETRACTED -- Chris broke six of them with a third adversary, each
+  with a gradebook write. Both of my harnesses were structurally unable to find those paths.
+
+**Class B is OPEN.** Three root causes, all live: a statement-level boolean carries per-task chips
+(one real predicate authorises four fake operators); `AS <name>` whitelists the identifier it
+aliases, so `zz1 AS zz1` self-authorises; and `arm-sql-04` requires only rows > 0, so
+`ON u.user_id = u.user_id` still completes it in one line.
+
+Permanent regression fixtures: `_tools/eduscan/armsql-negative-fixtures.js`.
 
 **The root-cause fix is measured and NOT shipped, on purpose.** Rejecting unknown columns instead
 of passing through closes it completely (4 FULL -> 0) but drops honest completion **8/10 -> 2/10**,
