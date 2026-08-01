@@ -5,8 +5,8 @@ typing a single line that did no work. Those completions were written to the ins
 class-progress record. **Completions on the modules below, recorded on or before 2026-08-01, cannot
 be distinguished from genuine ones and should not be treated as evidence of competence.**
 
-**One of the two defects is fixed; the other is still live. Read the next section before you rely on
-any arm-sql completion, including a recent one.**
+**Class A is closed. Class B is closed on three of the seven affected modules and still live on
+four. Read the next section before you rely on any arm-sql completion, including a recent one.**
 
 > An earlier version of this document said "the defect is now fixed" and "completions recorded after
 > the fix are sound." Both statements were wrong for the arm-sql modules and are corrected below. A
@@ -18,7 +18,7 @@ any arm-sql completion, including a recent one.**
 | class | what it is | status |
 |---|---|---|
 | **A — the command never ran** | `echo`, or a `#` comment, containing the graded keywords | **CLOSED.** Credit now requires the input to have been dispatched as SQL *and* to have returned without an engine error. An `echo` is neither. |
-| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is unparseable garbage | **OPEN.** The statement genuinely runs and genuinely does not error, so the class-A gate cannot see it. |
+| **B — the command ran but meant nothing** | real SQL whose `WHERE`/`HAVING` predicate is garbage | **PARTLY CLOSED — 3 of 7 modules.** The statement genuinely runs and genuinely does not error, so the class-A gate cannot see it; the three fixed modules grade the *result* instead. Per-module status below. |
 
 Class B exists because `SQLEngine._evalSingleCondition` fails *open*: a condition it cannot parse is
 treated as true, so the query returns every row and reports success. The task graders match on SQL
@@ -44,8 +44,9 @@ verified with both fixtures on a fresh page — honest work still completes and 
 cheat does not — and `arm-sql-04` is independently clean under the free-form adversary that found
 it. **The four marked open are unchanged: treat completions on those as before.**
 
-`arm-sql-04` is the sharpest: one line that asserts nothing completes the whole module and writes
-the record.
+`arm-sql-04` was the sharpest — one line that asserts nothing completed the whole module and wrote
+the record. It no longer does; the line is kept here because it is the clearest statement of what
+class B is.
 
 ```sql
 SELECT * FROM users u INNER JOIN login_logs l ON u.zz1 = l.zz2 LEFT JOIN permissions p ON u.zz3 = p.zz4;
@@ -64,9 +65,11 @@ the commands, so there is no predicate to corrupt and a student who runs them ha
 > measuring itself. Caught by Nancy on review, using a free-form adversary instead of corrupted
 > versions of the modules' own commands.
 
-**What this means for an instructor.** For the seven modules above, a completion is not by itself
-evidence of competence, whatever its date. Class A is closed and the bash modules are separately
-verified as writing no record at all — but do not read that as a clearance for arm-sql.
+**What this means for an instructor.** For the four modules still marked open, a completion is not
+by itself evidence of competence, whatever its date. For the three marked FIXED, completions dated
+after their fix commit are sound; earlier ones are not distinguishable. Class A is closed and the
+bash modules are separately verified as writing no record at all — but do not read either of those
+as a general clearance for arm-sql.
 
 ## The eight modules
 
@@ -104,12 +107,17 @@ artefact rather than a student list.
 
 ## What is still outstanding
 
-The real fix is engine work, not gate work: teach `_evalSingleCondition` the predicate forms it
-cannot currently parse, **then** make the remainder error instead of passing through. The order
-matters. Making the fallback error *first* was measured and rejected — `BETWEEN x AND y` is one of
-the forms it cannot parse, and it is a construct `arm-sql-03` explicitly teaches and grades, so
-erroring first would block students doing the assigned work. That is the same inversion that broke
-the bash gate, caught here before shipping instead of after.
+Four modules — `arm-sql-02`, `-06`, `-09`, `-10` — still need the result-grading treatment applied
+to `-03`, `-04` and `-05`. Each needs its own discriminator measured first, because the right one
+differs by task shape: row count works for filters and joins, but not for aggregates, where an
+honest result is a single row and only the *value* separates it from garbage.
+
+An engine-level fix (teach `_evalSingleCondition` the forms it cannot parse, **then** error on the
+remainder) would close the class everywhere at once, and remains worth doing as ordinary
+correctness work. It is no longer a prerequisite for honesty. Making the fallback error *without*
+teaching it first was measured and rejected: it drops honest completion from 8/10 to 2/10, because
+the JOIN-alias, subquery and CTE paths depend on the pass-through — the same inversion that broke
+the bash gate, caught before shipping instead of after.
 
 ## What is deliberately NOT done
 
