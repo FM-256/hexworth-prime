@@ -484,6 +484,18 @@
                 return { type: 'star', alias: null };
             }
 
+            // Literal in the SELECT list -- `SELECT 1, password_hash, role`, the classic padding an
+            // attacker uses to line a UNION injection up with the victim query's column count.
+            // Previously resolved as a COLUMN named "1", which does not exist, so it rendered null
+            // and the injected row showed an empty first column.
+            if (/^'.*'$/.test(expr) || (expr !== '' && !isNaN(Number(expr)))) {
+                return {
+                    type: 'lit',
+                    value: /^'.*'$/.test(expr) ? expr.slice(1, -1) : Number(expr),
+                    alias: alias || expr
+                };
+            }
+
             // Plain column (possibly table.col)
             return { type: 'col', expr: expr, alias: alias || expr };
         });
@@ -756,7 +768,9 @@
         // ---- Project columns ----
         var outCols = _resolveOutputColumns(colDescs, columns);
         var outRows = rows.map(function(r) {
-            return outCols.map(function(col) { return _colValue(r, columns, col.src); });
+            return outCols.map(function(col) {
+                return col.lit ? col.value : _colValue(r, columns, col.src);
+            });
         });
 
         // ---- DISTINCT ----
@@ -1020,6 +1034,8 @@
         colDescs.forEach(function(d) {
             if (d.type === 'star') {
                 availableCols.forEach(function(c) { result.push({ label: c.split('.').pop(), src: c }); });
+            } else if (d.type === 'lit') {
+                result.push({ label: String(d.alias), src: null, lit: true, value: d.value });
             } else {
                 // Strip table alias from label if present
                 var label = (d.alias || d.expr || '').split('.').pop();
