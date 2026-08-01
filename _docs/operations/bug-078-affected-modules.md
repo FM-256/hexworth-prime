@@ -24,23 +24,42 @@ Class B exists because `SQLEngine._evalSingleCondition` fails *open*: a conditio
 treated as true, so the query returns every row and reports success. The task graders match on SQL
 keywords alone, so preserving the keyword and corrupting only the operands passes.
 
-**Modules where class B still yields a full completion and a class-progress write** — measured, not
-inferred, with `_tools/eduscan/armsql-garbage-audit.js`:
+**Modules where class B yields a full completion and a class-progress write** — measured against two
+independent adversaries:
 
-| module | result with corrupted predicates |
-|---|---|
-| `arm-sql-02-select` | 5/5, record written |
-| `arm-sql-03-filtering` | 5/5, record written |
-| `arm-sql-05-aggregation` | 5/5, record written |
-| `arm-sql-09-security` | 5/5, record written |
+| module | full completion on meaningless input | record written |
+|---|---|---|
+| `arm-sql-02-select` | yes | yes |
+| `arm-sql-03-filtering` | yes | yes |
+| `arm-sql-04-joins` | yes — **from a single line** | yes |
+| `arm-sql-05-aggregation` | yes | yes |
+| `arm-sql-06-subqueries` | yes | yes |
+| `arm-sql-09-security` | yes | yes |
+| `arm-sql-10-practical` | yes | yes |
 
-The other six reach 1–3 tasks this way and do **not** produce a full completion, so no class-progress
-record is written for them. That is a lower bound in both directions: the harness only corrupts
-commands that have a predicate to corrupt.
+`arm-sql-04` is the sharpest: one line that asserts nothing completes the whole module and writes
+the record.
 
-**What this means for an instructor.** For those four modules, a completion dated *after* 2026-08-01
-is still not by itself evidence of competence. For the bash modules and for class A generally, the
-gate holds.
+```sql
+SELECT * FROM users u INNER JOIN login_logs l ON u.zz1 = l.zz2 LEFT JOIN permissions p ON u.zz3 = p.zz4;
+```
+
+`arm-sql-07-crud` and `arm-sql-08-schema` resisted **both** adversaries, and for a real reason: they
+are DDL/DML, where a bad identifier is a genuine engine error, so the class-A gate does catch them.
+`arm-sql-01-intro` reaches full completion on free-form input but is not counted — its tasks *are*
+the commands, so there is no predicate to corrupt and a student who runs them has done the task.
+
+> **This table replaces an earlier one naming only four modules, which affirmatively cleared
+> `arm-sql-04`, `-06` and `-10`.** That was a measurement artifact, not a finding. My harness
+> corrupted every identifier except keywords and table names — including single-letter table
+> aliases. `arm-sql-04`'s grader requires an alias (`/from\s+\w+\s+[a-z]\s/`), so corrupting `users
+> u` to `users zz1` broke the *grader* and the module scored 0 and read as clean. The harness was
+> measuring itself. Caught by Nancy on review, using a free-form adversary instead of corrupted
+> versions of the modules' own commands.
+
+**What this means for an instructor.** For the seven modules above, a completion is not by itself
+evidence of competence, whatever its date. Class A is closed and the bash modules are separately
+verified as writing no record at all — but do not read that as a clearance for arm-sql.
 
 ## The eight modules
 

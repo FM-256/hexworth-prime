@@ -44,6 +44,17 @@ function corrupt(cmd) {
   // the `!error` gate DOES catch, so corrupting it would understate the exposure.
   const keep = new Set();
   for (const m of cmd.matchAll(/\b(?:FROM|JOIN|INTO|UPDATE|TABLE)\s+([A-Za-z_][A-Za-z0-9_]*)/gi)) keep.add(m[1]);
+  // TABLE ALIASES. Nancy, 2026-08-01: arm-sql-04's grader is /from\s+\w+\s+[a-z]\s/ -- it needs a
+  // single-letter alias. Rewriting `users u` to `users zz1` broke the GRADER, so the module read
+  // clean when in fact ONE meaningless line completes it 4/4 and fires the gradebook write. That is
+  // verbatim the failure this function's own comment claims to have fixed for keywords: I preserved
+  // the tokens I had thought of and destroyed one I had not. Undercounted 4 modules as 7.
+  for (const m of cmd.matchAll(/\b(?:FROM|JOIN)\s+[A-Za-z_][A-Za-z0-9_]*\s+(?!ON\b|WHERE\b|INNER\b|LEFT\b|RIGHT\b|OUTER\b|JOIN\b|GROUP\b|ORDER\b|LIMIT\b|HAVING\b|UNION\b)([A-Za-z_][A-Za-z0-9_]*)/gi)) keep.add(m[1]);
+  // CTE names -- `WITH fails AS (...) SELECT * FROM fails`
+  for (const m of cmd.matchAll(/\bWITH\s+([A-Za-z_][A-Za-z0-9_]*)\s+AS\b/gi)) keep.add(m[1]);
+  for (const m of cmd.matchAll(/,\s*([A-Za-z_][A-Za-z0-9_]*)\s+AS\s*\(/gi)) keep.add(m[1]);
+  // Column ALIASES introduced by AS and then referenced downstream (HAVING c > 5)
+  for (const m of cmd.matchAll(/\bAS\s+([A-Za-z_][A-Za-z0-9_]*)/gi)) keep.add(m[1]);
   let i = 0;
   return cmd.replace(/'[^']*'|"[^"]*"|[A-Za-z_][A-Za-z0-9_]*|\d+/g, (tok) => {
     if (KEYWORDS.has(tok.toLowerCase())) return tok;         // keyword: the grader matches on it
