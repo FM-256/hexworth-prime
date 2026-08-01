@@ -321,11 +321,60 @@
                 var ran = __out.includes('sql-result');
                 var ok = ran && !__out.includes('#f87171');
                 var lower = cmdLine.toLowerCase().replace(/\s+/g,' ').trim();
-                if (ok && (lower.includes('count('))) completeTask('count-fn');
-                if (ok && (lower.includes('sum(') || lower.includes('avg('))) completeTask('sum-avg');
-                if (ok && (lower.includes('min(') || lower.includes('max('))) completeTask('min-max');
-                if (ok && (lower.includes('group by'))) completeTask('group-by');
-                if (ok && (lower.includes('having'))) completeTask('having');
+
+                // BUG-078 class B. Row count cannot separate honest from garbage here -- an honest
+                // aggregate legitimately returns ONE row over a twelve-row table, and so does the
+                // cheat. The difference is in the VALUE. Measured 2026-08-01:
+                //   COUNT(*) FROM login_logs              -> 12      vs  WHERE zz1 = zz2   -> 0
+                //   SUM(bytes_transferred)                -> 15784540 vs SUM(zz1)          -> 0
+                //   MIN/MAX(timestamp)                    -> real dates vs MIN/MAX(zz1)    -> 0, 0
+                //   GROUP BY status  -> 2 real groups     vs GROUP BY zz1 -> ONE null group
+                //   HAVING c > 1     -> 8 groups down to 3 vs HAVING <garbage> -> 2 down to 2
+                // An aggregate computed over nothing, a group keyed on nothing, and a HAVING that
+                // removed nothing are each detectable without touching the engine.
+                var __sel = /^\s*(select|with)\b/i.test(cmdLine);
+                // NOTE the guard is `type !== 'error'`, NOT `!r.error`. exec() funnels every failure
+                // through _renderError, which returns { type:'error', html } -- there is no `.error`
+                // property on a result, so `!r.error` would be permanently true and the error check
+                // would be dead code that reads as if it worked. Verified against the live engine:
+                // SELECT * FROM no_such_table -> keys ["type","html"], type "error".
+                function rowsOf(sql) {
+                    try {
+                        var r = SQLEngine.exec(sql);
+                        return (r && r.type !== 'error' && r.rows) ? r.rows : null;
+                    } catch (e) { return null; }
+                }
+                var __rows = (ok && __sel) ? rowsOf(cmdLine) : null;
+
+                // At least one cell that is not 0 / NULL / empty -- i.e. it aggregated real rows.
+                function meaningful() {
+                    if (!__rows || !__rows.length) return false;
+                    return __rows.some(function (row) {
+                        return row.some(function (c) {
+                            if (c === null || c === undefined) return false;
+                            var v = String(c).trim().toUpperCase();
+                            return v !== '' && v !== '0' && v !== 'NULL';
+                        });
+                    });
+                }
+                // A group keyed on a column that does not exist collapses to a single null key.
+                function grouped() {
+                    if (!__rows || !__rows.length) return false;
+                    return __rows.every(function (row) { return row[0] !== null && row[0] !== undefined; });
+                }
+                // HAVING must actually remove groups. Compare against the same query without it.
+                function havingFiltered() {
+                    if (!__rows) return false;
+                    var bare = cmdLine.replace(/\bHAVING\b[\s\S]*$/i, ';');
+                    var base = rowsOf(bare);
+                    return !!base && __rows.length < base.length;
+                }
+
+                if (ok && meaningful() && (lower.includes('count('))) completeTask('count-fn');
+                if (ok && meaningful() && (lower.includes('sum(') || lower.includes('avg('))) completeTask('sum-avg');
+                if (ok && meaningful() && (lower.includes('min(') || lower.includes('max('))) completeTask('min-max');
+                if (ok && grouped() && (lower.includes('group by'))) completeTask('group-by');
+                if (ok && havingFiltered() && (lower.includes('having'))) completeTask('having');
             }
         }));
         var MODULE_ID = 'arm-sql-05-aggregation';
