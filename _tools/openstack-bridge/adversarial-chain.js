@@ -36,7 +36,7 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); process.exit(1); };
+  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
   // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
   // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
@@ -194,4 +194,10 @@ async function post(url, body, headers) {
     await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
     await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
   }
-})();
+})().catch((e) => {
+  // Runs AFTER the finally block. That ordering is the entire fix: fail() throws rather than
+  // calling process.exit, because process.exit does not unwind and therefore skipped the
+  // session teardown and QC-account deletion on every failing run.
+  if (!e || e.message !== '__harness_fail__') console.error('HARNESS ERROR:', e && e.message);
+  process.exit(1);
+});
