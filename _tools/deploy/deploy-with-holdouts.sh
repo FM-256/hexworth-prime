@@ -59,6 +59,15 @@ for h in "${HOLD[@]}"; do
   cmp -s "$p" "$A/$b.held" && echo "  restored+verified  $p" \
     || { echo "  RESTORE MISMATCH $p vs $A/$b.held"; fail=1; }
 done
+# Check EVERY holdout path, not just _app. A holdout can live outside _app -- firestore.rules is
+# one, and it must be held out alongside HubRegistry.js because hub-registry-audit compares the two
+# for reserved-id parity and fails the deploy if a swap leaves them disagreeing. An _app-only
+# cleanliness check would have reported "clean" with a modified firestore.rules sitting in the tree.
+for h in "${HOLD[@]}"; do
+  p="${h#*:}"
+  st=$(git status --porcelain -- "$p" | wc -l)
+  [ "$st" -eq 0 ] || { echo "  NOT CLEAN after restore: $p"; fail=1; }
+done
 d=$(git status --porcelain _app | wc -l)
 [ "$d" -eq 0 ] || { echo "  _app NOT CLEAN after restore ($d file(s)) -- fix before the next deploy"; fail=1; }
 
