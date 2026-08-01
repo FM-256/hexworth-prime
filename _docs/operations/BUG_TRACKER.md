@@ -473,6 +473,31 @@ on the remainder -- engine feature work, not a gate change. Tracked, not silentl
   destruction, and I had been applying caution meant for *deleting records* to a choice between
   *leaving* and *flagging*. Clearing records stays open, unauthorised, and archive-first.
 
+### BUG-084 — Code Armory hub progress bar can never fill: nothing writes the key it reads  ·  [P2]  ·  open
+- **Found:** 2026-08-01 · by self · while costing out BUG-078 option A
+- **Area:** `_app/houses/code/armory/index.html:305`
+- **Student impact:** a student completes Armory modules and the hub still shows zero progress.
+
+`index.html:305` reads `hexworth_armory_progress`. That string appears in **exactly one place in the
+whole of `_app`** -- that read. No module, component or sync path ever writes it. The modules write
+`hexworth_progress` via `ModuleProgress.complete('code', MODULE_ID)`, which the hub never consults.
+
+Verified by grep across `_app` for the literal: 1 occurrence, and it is the `getItem`. Two fixtures
+not needed -- the negative case is the absence of any `setItem`, which is what the single-occurrence
+count establishes.
+
+**Relevant to BUG-078 option A.** Removing `ModuleProgress.complete()` from arm-sql modules would
+NOT cost a student their Armory hub display, because that display is already disconnected. It would
+cost them dashboard progress, streak, modules-completed count, completion stamps and the
+instructor-visible record -- all of which ride on `hexworth_progress`. I originally presented that
+cost as "instructor-visible credit" only, which understated it.
+
+**Fix is a choice, not an edit:** either point the hub at `ModuleProgress.isCompleted('code', id)`
+like other hubs, or have the modules also write the armory key. Prefer the former -- one source of
+truth. Do not do both.
+
+---
+
 ### BUG-078 — Armory terminal modules can be completed by typing one line that runs nothing  ·  [P1]  ·  open
 - **Found:** 2026-08-01 · by self · taskboard #103 grading-honesty sweep
 - **Area:** `_app/houses/code/armory/{bash,sql}/*.module.html` (20 modules with an `onCommand` grader)
