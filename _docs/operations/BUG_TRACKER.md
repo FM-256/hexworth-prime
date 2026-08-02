@@ -31,6 +31,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-092 — 25 stranded instances, one in EVERY bound pool slot  ·  [P2]  ·  open
+- **Found:** 2026-08-02 · by self, sweeping all 30 slots read-only · while investigating BUG-091
+- **Area:** OpenStack pool, all `student-NN` projects (bc2 claim service)
+- **Symptom:** Every one of the 25 bound slots holds exactly **1 server**. Total stranded: **25 servers, 2 volumes**. Nothing is using them.
+- **Repro:** enumerate `/compute/v2.1/servers/detail` per slot with a user token via `claim_service.py`.
+- **Root cause:** the same non-cleanup as BUG-091. Harnesses that exited via `process.exit` never ran teardown, and the pool's `--instances 1` quota (`provision-pool.sh:52`) means each run leaves exactly one server behind — which is why the count is a suspiciously uniform 1 per slot rather than a scatter.
+- **Why this is worse than the binding leak it accompanies:** cross-referencing the identity census taken the same day, only **2 of the 25** bound slots map to a live QC identity. So roughly **23 instances are running under uids that no longer exist and can never return for them**, holding hypervisor RAM indefinitely. Binding exhaustion is visible and blocks launches; this is silent.
+- **Scale:** each project is capped at `--ram 192`, so the ceiling is ~4.8GB across the pool — real but not immediately fatal. The count, not the size, is the signal: it proves teardown has failed systematically for a long time.
+- **Fix:** none applied. The exit-path fixes landed 2026-08-02 stop NEW strandings (verified: a failing `adversarial-cinder` run tore its session down, `docker ps -a` count 0) but do nothing about what is already there. Clearing it means deleting instances, which is a cloud-state change and is NOT mine to authorize.
+- **Do not conflate with slot reclamation.** Releasing a `hexworth_uid` binding clears a pointer; this deletes running resources. It is the more destructive of the two and needs its own decision.
+- **Related:** BUG-091 · BUG-066 · BUG-089 · taskboard #275
+
 ### BUG-091 — the cinder QC gate is BLOCKED by leftover duplicate volumes  ·  [P2]  ·  open
 - **Found:** 2026-08-02 · by self, running the harness to verify a refactor · in task 275 work
 - **Area:** `_tools/openstack-bridge/adversarial-cinder.js`, OpenStack slot `student-25` (bound to `cinder-adv-qc`)
