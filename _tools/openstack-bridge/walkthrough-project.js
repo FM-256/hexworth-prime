@@ -51,6 +51,29 @@ async function post(url, body, headers) {
   const idToken = su.data.idToken;
   const auth = { Authorization: `Bearer ${idToken}` };
 
+  // CLEAR THIS UID'S CAPSTONE BASELINE BEFORE THE RUN.
+  //
+  // capstone-baselines.json is keyed by uid with NO expiry (server.js:414, sole write at :430),
+  // and it is the only persistent per-uid grading artifact on the platform. Until now the
+  // per-run `accounts:delete` masked that by handing every run a brand-new uid -- an accident,
+  // not a design. Removing that delete (the slot leak, see adversarial-wall.js:105-111) makes
+  // the QC uid PERMANENT, so from the second run onward check 27 would be reading a baseline
+  // written by an EARLIER run instead of "never recorded" -- which is exactly the contamination
+  // BUG-077 already caught once, a stale baseline trusted 5.5 hours later.
+  //
+  // So the harness clears its OWN entry, and only its own, at the start of every run. Scoped to
+  // this uid: no other student's baseline is touched. Done via docker exec rather than a new
+  // server route because server.js is baked into the lab-manager image and would need a rebuild.
+  const qcUid = su.data.localId;
+  if (!qcUid) fail('no localId on the QC identity -- cannot clear the stale baseline safely');
+  sh(`docker exec lab-manager node -e ${JSON.stringify(
+    "const f='/app/data/capstone-baselines.json',fs=require('fs');" +
+    "let a={};try{a=JSON.parse(fs.readFileSync(f,'utf8'))||{}}catch(e){}" +
+    `if(a[${JSON.stringify(qcUid)}]){delete a[${JSON.stringify(qcUid)}];` +
+    "fs.writeFileSync(f,JSON.stringify(a));console.log('baseline cleared')}" +
+    "else{console.log('no baseline to clear')}"
+  )}`);
+
   const l1 = await post(`${BASE}/launch`, { labId: 'openstack-cli' }, auth);
   if (l1.status !== 200 || !l1.data || !l1.data.sessionId) fail(`launch failed: ${l1.status}`);
   const sid = l1.data.sessionId;
@@ -186,8 +209,11 @@ print('created' if changed else 'no changes')`;
     await runLab(2);            // deliberately NO cleanup between
     console.log('WALKTHROUGH PASS: 4/4 twice, second run started from the first run\'s leftovers');
   } finally {
+    // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
+    // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
+    // Safe to stop deleting only because this run CLEARS ITS OWN BASELINE at the top; without
+    // that, a permanent uid would leave check 27 reading an earlier run's baseline.
     await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
-    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
   }
 })().catch((e) => {
   // Runs AFTER the finally block. That ordering is the entire fix: fail() throws rather than
