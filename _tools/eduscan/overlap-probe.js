@@ -203,9 +203,21 @@ const FIXTURE_GOOD = `<!doctype html><meta charset=utf-8><title>fixture-good</ti
 
   const URL = process.argv[2] ||
     'https://hexworth.com/houses/cloud/openstack/labs/cloud-openstack-rescue-live.lab.html';
+  /* Viewports are overridable so a re-run can sweep a DISJOINT window instead of repeating the
+     same five widths. A clean result on the widths you pinned is a cherry-pick, not a measurement
+     -- a right-anchored element can clear a viewport-anchored one at 1600 and collide at 1280,
+     which is exactly how the hop help-button hid for a day.
+       PROBE_VPS="1440x900,1366x768,360x740" node overlap-probe.js <url> */
+  const VPS = process.env.PROBE_VPS
+    ? process.env.PROBE_VPS.split(',').map(s => {
+        const [w, h] = s.trim().split('x').map(Number);
+        return { w, h: h || 900, n: `${w}x${h || 900}` };
+      })
+    : [{w:1920,h:1080,n:'wide'},{w:1600,h:1000,n:'desktop'},
+       {w:1280,h:900,n:'laptop'},{w:1024,h:800,n:'small'},{w:390,h:844,n:'phone'}];
+
   let total = 0;
-  for (const vp of [{w:1920,h:1080,n:'wide'},{w:1600,h:1000,n:'desktop'},
-                    {w:1280,h:900,n:'laptop'},{w:1024,h:800,n:'small'},{w:390,h:844,n:'phone'}]) {
+  for (const vp of VPS) {
     const info = await probe(browser, URL, vp);
     total += info.n;
     console.log(`--- ${vp.n} ${vp.w}x${vp.h} | gated=${info.gated} | "${info.title.slice(0,50)}"`);
