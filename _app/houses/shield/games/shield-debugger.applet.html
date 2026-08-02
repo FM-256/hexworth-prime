@@ -380,6 +380,41 @@
 
         #overlay { pointer-events: none; cursor: pointer; }
         #overlay.hidden { display: none; }
+    
+        /* ── BUG-093: this page scrolled sideways ──────────────────────────────────────────
+           #gameWrapper is a non-wrapping flex row of a fixed-width canvas plus a fixed-width
+           side panel, so it is wider than the viewport BY CONSTRUCTION -- measured on
+           production, not inferred. Appended here rather than edited into the rule above so
+           the same block applies to every affected game regardless of how that rule is
+           written (some are one-liners, some multi-line, some use flex-start); later source
+           order wins on equal specificity.
+           The canvas has a FIXED pixel buffer (see its width/height attributes), so it also
+           overflows on its own below that width. Capping the DISPLAY size scales it without
+           touching the drawing buffer, leaving game coordinates and hit detection unchanged. */
+        /* This page needs the WRAPPER capped, unlike the other eight, and it took two measured
+           failures to find that. `max-width:100%` resolves against the CONTAINING BLOCK, so:
+             attempt 1  capped #gameCanvas   -> 100% of #gameContainer, which was itself 900. No-op.
+             attempt 2  capped #gameContainer -> 100% of #gameWrapper, which was ALSO 900. No-op.
+           Verified attempt 2 was genuinely applied rather than a stale build: the rule was in the
+           served HTML, computed max-width read back as "100%", and the element was still 900px.
+           The wrapper's containing block is the body, so capping IT is what finally resolves the
+           chain against the viewport. */
+        #gameWrapper { flex-wrap: wrap; max-width: 100%; }
+        #gameContainer { max-width: 100%; }
+        #gameCanvas { max-width: 100%; height: auto; }
+    
+        /* Once the row wraps, the side panel lands at the very top and its copy runs under
+           GameScoreboard's collapsed header, which is viewport-anchored at y[130,167]. Measured
+           on every one of these pages as "<panel copy> >< HIGH SCORES". The overlap was always
+           latent -- it only became reachable once the page stopped overflowing horizontally and
+           the content actually landed on screen, which is the same exposed-not-caused pattern
+           seen on the cloud games (BUG-087).
+           175px is the honest cost of the shared overlays on a narrow screen: the achievement
+           toast owns y[20,114] and the collapsed panel y[130,167], so the top ~175px is not
+           usable by page content on any page loading both. */
+        @media (max-width: 899px) {
+            #gameWrapper { padding-top: 175px; }
+        }
     </style>
 </head>
 <body>
