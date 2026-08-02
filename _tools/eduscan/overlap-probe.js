@@ -140,7 +140,45 @@ async function probe(browser, url, vp, label) {
     '*,*::before,*::after{animation:none!important;transition:none!important;' +
     'animation-duration:0s!important;transition-duration:0s!important}' });
   await new Promise(r => setTimeout(r, 250));
-  const info = await page.evaluate(collect, MIN);
+  let info = await page.evaluate(collect, MIN);
+
+  /* DEEPER PASS: sample SCROLLED state too, not just scroll-top.
+     Floating panels are pinned to the viewport (or to body) while page content moves past them,
+     so an element that clears a panel at rest can sit under it once scrolled. Measured case:
+     cloud-aws-sts scrolls inside #game-container (body is height:100vh/overflow:hidden) and at
+     scrollTop 328 two HUD readouts sat under the leaderboard band that were clear at 0.
+     A probe that only ever looks at scroll 0 reports those pages clean. Scrolls the window AND
+     any internal overflow region, since fixed-viewport games scroll inside a div. */
+  if (process.env.PROBE_SCROLL !== 'off') {
+    const positions = await page.evaluate(() => {
+      const regions = [document.scrollingElement, ...document.querySelectorAll('*')].filter(e => {
+        if (!e) return false;
+        const cs = e === document.scrollingElement ? null : getComputedStyle(e);
+        if (cs && !/auto|scroll/.test(cs.overflowY)) return false;
+        return e.scrollHeight > e.clientHeight + 40;
+      });
+      return regions.slice(0, 3).map(e => e.scrollHeight - e.clientHeight);
+    });
+    for (const frac of [0.35, 0.75]) {
+      if (!positions.length) break;
+      await page.evaluate((f) => {
+        const regions = [document.scrollingElement, ...document.querySelectorAll('*')].filter(e => {
+          if (!e) return false;
+          const cs = e === document.scrollingElement ? null : getComputedStyle(e);
+          if (cs && !/auto|scroll/.test(cs.overflowY)) return false;
+          return e.scrollHeight > e.clientHeight + 40;
+        });
+        regions.slice(0, 3).forEach(e => { e.scrollTop = (e.scrollHeight - e.clientHeight) * f; });
+      }, frac);
+      await new Promise(r => setTimeout(r, 350));
+      const scrolled = await page.evaluate(collect, MIN);
+      if (scrolled.n > info.n) {
+        info = scrolled;
+        info.scrolledAt = frac;
+      }
+    }
+  }
+
   const slug = (label || url.split('/').pop().split('.')[0] || 'page').replace(/[^a-z0-9-]/gi, '_');
   await page.screenshot({ path: `${OUT}/overlap-${slug}-${vp.n}.png`, fullPage: true });
   await page.close();
