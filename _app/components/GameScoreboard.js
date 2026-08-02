@@ -39,8 +39,15 @@ const GameScoreboard = (function () {
         var style = document.createElement('style');
         style.textContent = `
             .gs-widget {
+                /* Not top:12px. The shared achievement toast (AchievementManager.js) owns
+                   top:20/right:20 and is ~94px tall, so a panel at 12px was underneath it in every
+                   game loading both -- measured on cloud-flap at 1920 ("Night Owl >< #1").
+                   130px clears the toast band [20,114] with margin. This panel is persistent and
+                   this file is on 79 pages; the toast is transient and on 2,551, so the panel is
+                   the one that yields. Per-page .gs-widget top overrides marked !important are
+                   redundant with this and were removed -- fix the component, not the pages. */
                 position: absolute;
-                top: 12px;
+                top: 130px;
                 right: 12px;
                 width: 220px;
                 background: rgba(8, 8, 18, 0.92);
@@ -185,6 +192,18 @@ const GameScoreboard = (function () {
 
         var div = document.createElement('div');
         div.className = 'gs-widget';
+
+        /* Narrow screens: start COLLAPSED, do not hide. Ten game pages each carried
+           `@media (max-width:899px){ .gs-widget{ display:none } }` to stop a 220px panel landing on
+           the board -- that deletes the student's rank and the affordance to see it. Collapsing
+           keeps the HIGH SCORES header and the toggle, so the panel is one tap away and occupies
+           only a header row. Only the INITIAL state is width-derived; once the student toggles it,
+           their choice stands (no resize listener re-collapsing it under them). */
+        if (window.innerWidth < 900) {
+            _collapsed = true;
+            div.classList.add('gs-collapsed');
+        }
+
         div.innerHTML =
             '<div class="gs-header">' +
                 '<span class="gs-header-title">HIGH SCORES</span>' +

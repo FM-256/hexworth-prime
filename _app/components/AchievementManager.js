@@ -1259,13 +1259,15 @@ const AchievementManager = (function() {
             styles.id = 'achievement-notif-styles';
             styles.textContent = `
                 .achievement-notification {
-                    /* BOTTOM-right, not top-right. GameScoreboard.js injects .gs-widget at
-                       top:12px/right:12px, so both components claimed the SAME corner and the
-                       toast landed on the leaderboard in every game that loads both -- measured on
-                       cloud-flap at 1920 ("Night Owl >< #1", "+10 pts >< ---"). Bottom-right is
-                       also the conventional place for a transient toast. */
+                    /* TOP-right. Do NOT move this to bottom-right: that corner has a documented
+                       occupancy contract (TenantShell.js:143-165) and HexAIButton sits at
+                       bottom:24/right:24 on 1,479 of the 2,551 pages that load this file. Measured
+                       on production at 1920 the bottom-right toast covered the FAB completely
+                       (intersection 64x64 = the whole button) at z-index 100000, for 5s per unlock.
+                       The real collision was with .gs-widget on only 79 pages, and GameScoreboard
+                       -- newer, narrower, non-transient -- is the component that moved instead. */
                     position: absolute;
-                    bottom: 20px;
+                    top: 20px;
                     right: 20px;
                     background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.98));
                     border: 2px solid #ffd700;
