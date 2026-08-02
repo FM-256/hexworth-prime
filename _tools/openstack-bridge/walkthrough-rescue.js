@@ -31,7 +31,11 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the platform
+  // teardown in the finally below and every FAILING run leaked its session and QC account --
+  // and failure paths are a large fraction of what these harnesses exist to exercise.
+  // Same fix already proven on walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
   // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
   // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
@@ -167,6 +171,7 @@ async function post(url, body, headers) {
     console.log(`  RUN ${pass} PASS 3/3`);
   }
 
+  try {
   await runLab(1);
   await runLab(2);
 
@@ -189,8 +194,18 @@ async function post(url, body, headers) {
   } catch (e) {
     console.log(`  (cleanup best-effort: ${e.message.split('\n')[0]})`);
   }
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
-  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
   console.log(`OPERATOR: null hexworth_uid on ${slot}`);
   console.log('WALKTHROUGH PASS 3/3 on BOTH runs (fresh seed AND returning student)');
-})().catch((e) => { console.error('WALKTHROUGH FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+  } finally {
+    // Runs on the FAILING path too -- the whole point. The rescue-specific resource cleanup
+    // above stays on the success path (it has its own best-effort try/catch and its own volume
+    // names); only the PLATFORM teardown belongs here, matching walkthrough-project.js:188-191.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
+  }
+})().catch((e) => {
+  // Runs AFTER the finally. Sentinel filtered so a normal failure does not print
+  // "__harness_fail__" into stdout, which qc-lab.sh stage 3 parses.
+  if (!e || e.message !== '__harness_fail__') console.error('WALKTHROUGH FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});
