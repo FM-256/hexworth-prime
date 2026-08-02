@@ -73,6 +73,40 @@ async function post(url, body, headers) {
   // try/finally so the SESSION is torn down even when this harness fails -- and an adversarial
   // harness failing is a normal outcome, not an edge case. See the finally at the bottom.
   try {
+  // ── PREFLIGHT: refuse to start on a dirty tenant, and say exactly what is in the way ──
+  //
+  // This harness resolves resources BY NAME, and OpenStack permits duplicate names. Once a
+  // previous run leaves a `lab-vol` behind, every later `volume show lab-vol` is AMBIGUOUS and
+  // the run dies with "More than one volume exists with the name 'lab-vol'" -- at the first
+  // volume step, BEFORE reaching any cleanup, so the debris blocks the very code that would
+  // clear it. Measured on 2026-08-02: slot student-25 held two `lab-vol` volumes and a stranded
+  // `cheat-srv` from a Jul 31 run, and the gate had been unrunnable since (BUG-091).
+  //
+  // It also cannot create its server regardless: the pool caps --instances 1
+  // (provision-pool.sh:52), confirmed live as maxTotalInstances=1/used=1, so one leftover
+  // server exhausts the quota outright.
+  //
+  // Failing here with the IDs is strictly better than failing later with an ambiguous lookup:
+  // the operator gets an actionable list instead of a cryptic OpenStack error.
+  const stale = [];
+  const vList = dex('openstack volume list -f value -c ID -c Name').trim();
+  vList.split('\n').filter(Boolean).forEach((line) => {
+    const [id, ...rest] = line.trim().split(/\s+/);
+    if (rest.join(' ') === 'lab-vol') stale.push(`volume ${id} (lab-vol)`);
+  });
+  const sList = dex('openstack server list -f value -c ID -c Name').trim();
+  sList.split('\n').filter(Boolean).forEach((line) => {
+    const [id, ...rest] = line.trim().split(/\s+/);
+    if (rest.join(' ') === 'cheat-srv') stale.push(`server ${id} (cheat-srv)`);
+  });
+  if (stale.length) {
+    console.error(`DIRTY TENANT on ${slot} -- this run cannot start. Leftovers from an earlier run:`);
+    stale.forEach((s) => console.error(`    ${s}`));
+    console.error('  Delete these BY ID (the names are ambiguous, so name-based deletion is unsafe).');
+    console.error('  Servers must go first: they hold the volume attachment and the 1-instance quota.');
+    fail(`tenant not clean: ${stale.length} leftover resource(s)`);
+  }
+
   let img = '';
   for (let i = 0; i < 6 && !img; i++) { img = dex('openstack image list -f value -c Name | head -1').trim(); if (!img) sh('sleep 10'); }
   if (!img) fail('image list empty');
