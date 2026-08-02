@@ -31,6 +31,27 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-086 — cloud-aws-sts: leaderboard band sits on the HUD at narrow widths  ·  [P3]  ·  open
+- **Found:** 2026-08-02 · by self (overlap probe, disjoint-width pass) · in cloud games QC
+- **Area:** `_app/houses/cloud/games/cloud-aws-sts.html` · `_app/components/GameScoreboard.js`
+- **Symptom:** At 360x740 the collapsed leaderboard header (`y[130,167]`, `x[128,348]`) sits on the status bar. Measured: `"Current Cost: $24"` (`x[171,200]`) across `"HIGH SCORES"` (`x[141,230]`), 29x10. Content also scrolls under it at every scroll position.
+- **Repro:** Load the page at 360px wide; scroll `#game-container` to ~328. Probe: `PROBE_VPS="360x740" node _tools/eduscan/overlap-probe.js <url>` → `overlaps=1`.
+- **Root cause:** `body` is `height:100vh; overflow:hidden`; the real scroll region is `#game-container` (`overflow-y:auto`), but GameScoreboard appends `.gs-widget` to **body** at `top:130`. Page content therefore passes through those rows at every scroll offset.
+- **Fix:** NONE YET. Two measured attempts failed and must not be retried: `#status-bar { margin-top:162px }` moved only the first paint (at scrollTop 328 `"+$500/min"` and `"0:02"` were still under the band); `#game-container { margin-top:175px }` moved the **panel too** (`gsY` 130 → 305) because the widget is positioned against body. Net zero.
+- **Blocked on:** a GameScoreboard decision, not a page one. Nancy REJECTED making the widget in-flow below 900px: **46 of 80** consumer pages have a fixed-viewport body and would clip it entirely; on the other 34 it pushes the game-over rank flash off-screen, which is the component's purpose.
+- **Verified:** 9 of 10 cloud games clean at 11 distinct viewports across two disjoint sets, with scrolled-state sampling. This is the only survivor.
+- **Related:** BUG-087 · commits f124e0eb9, 93166f6b3
+
+### BUG-087 — cloud-hop / cloud-hop-vertical overflow horizontally at 1024 and 390  ·  [P3]  ·  open
+- **Found:** 2026-08-02 · by self (overlap probe) · in cloud games QC
+- **Area:** `_app/houses/cloud/games/cloud-hop.applet.html`, `cloud-hop-vertical.applet.html`
+- **Symptom:** `document.documentElement.scrollWidth` exceeds `innerWidth` (measured 1058 vs 1024), so the page scrolls sideways. Pre-existing.
+- **Repro:** Probe at 1024x800 or 390x844 → `h-scroll=true`.
+- **Root cause:** Not yet diagnosed. `#gameContainer` is a fixed 800px wide box offset 140px from centre (`contLeft = (vw-800)/2 + 140`), so its right edge lands at 1052 on a 1024 viewport — the offset is the prime suspect.
+- **Fix:** none. **Explicitly confirmed PRE-EXISTING** — measured on production before and after the 2026-08-02 help-button and `#ui` changes, unchanged in both.
+- **Verified:** n/a
+- **Related:** BUG-086 · commit 5e14b86b8
+
 ### BUG-083 — 30 real student UIDs sat in an untracked-but-committable file  ·  [P2]  ·  fixed
 - **Found:** 2026-08-01 · by self · noticed while listing pending work, not by any scanner
 - **Area:** `functions/uids.json`
