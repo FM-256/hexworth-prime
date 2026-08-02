@@ -132,8 +132,10 @@ async function post(url, body, headers) {
     await runLab(2);            // deliberately NO cleanup between
     console.log('WALKTHROUGH PASS: 4/4 twice, second run started from the first run\'s leftovers');
   } finally {
+    // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
+    // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
+    // Self-inflicted leak, one per run per harness.
     await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
-    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
   }
 })().catch((e) => {
   // Runs AFTER the finally block. That ordering is the entire fix: fail() throws rather than
