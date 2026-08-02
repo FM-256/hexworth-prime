@@ -31,6 +31,19 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-093 — 37 of 91 arcade games scroll sideways on a phone  ·  [P2]  ·  open
+- **Found:** 2026-08-02 · by self, measuring every game on production · after fixing the same class on 4 cloud games (BUG-087)
+- **Area:** `_app/houses/*/games/` — all ten houses. Raw sweep: `_docs/operations/evidence/game-hscroll-sweep-2026-08-02.txt`
+- **Symptom:** `documentElement.scrollWidth` exceeds `innerWidth`, so the page scrolls horizontally and content sits off-screen. **37 of 91 games (41%)** at 390px; **9 of those also at 1024px**.
+- **Repro:** load any listed game at 390px wide. Sweep script measures `scrollWidth > innerWidth + 2` and reports the widest overflowing element.
+- **Root cause, dominant (20 of 37):** `#gameWrapper` is a non-wrapping flex row of a fixed-width canvas plus a fixed-width side panel, so it is wider than the viewport by construction. Identical to BUG-087. Measured widths run 666px to 1226px against a 390px screen.
+- **Root cause, remainder (17 of 37):** other fixed-width children — `TABLE#alert-table` (809), `PRE` blocks (511), `#canvas-wrap` (780), `#statusBar` (314), `#terminal` (254), and several unnamed divs. These need per-page treatment, not the wrapper fix.
+- **THE STATIC HEURISTIC WAS THE WRONG INSTRUMENT and this is the reusable lesson.** Grepping for "non-wrapping flex + `flex-shrink:0` child" produced 16 candidates. Direct measurement found **37 defects**, and of the original 16 at least 2 were false positives (`cloud-dont-check-the-bill`, `cloud-dont-lose-your-domain` measured clean). So the proxy both over- and under-reported — it missed more than it found. Measuring the defect itself cost one script and settled it.
+- **Fix:** none applied yet beyond the 4 cloud games already shipped (BUG-087, commits ea45bf6a3 + 0c5e4360d). The proven shape is: `flex-wrap` on the row, cap the canvas DISPLAY size (`max-width:100%; height:auto` — the drawing buffer and game coordinates are untouched), plus a narrow-width gutter where wrapped content lands under the shared overlays.
+- **No shared stylesheet exists** — every game page is self-contained, so this cannot be fixed in one place. 20 per-file edits for the wrapper class.
+- **PLATFORM CONSTRAINT this keeps colliding with:** on any page loading both shared overlays, the achievement toast owns y[20,114] and the collapsed GameScoreboard panel owns y[130,167], so **the top ~175px is unusable by page content on a narrow screen**. Five pages have now paid that cost individually. That argues the overlay stack needs rethinking rather than each page buying clearance.
+- **Related:** BUG-087 (same class, 4 games fixed) · BUG-086
+
 ### BUG-092 — 25 stranded instances, one in EVERY bound pool slot  ·  [P2]  ·  open
 - **Found:** 2026-08-02 · by self, sweeping all 30 slots read-only · while investigating BUG-091
 - **Area:** OpenStack pool, all `student-NN` projects (bc2 claim service)
