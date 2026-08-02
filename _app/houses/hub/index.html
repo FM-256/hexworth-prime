@@ -438,11 +438,45 @@
                         i.src = safeIcon(it.icon);
                         return i;
                     };
-                    if (typeof it.id === 'string' && SLUG.test(it.id)) {
+                    // COVER KEY. Projected catalog items carry `id`; ADMIN-CURATED Firestore items
+                    // carry only {title, desc, href, icon} and have none -- which is why 56 of 95
+                    // cartridges never even requested a cover and fell through to icons. Measured on
+                    // production: 39 requested, 39 loaded, 0 missing; the other 56 had no cover
+                    // element at all. Fall back to the href's basename, which every curated item has.
+                    // TWO keys, tried in order, because an item can have EITHER and they disagree.
+                    // A catalog item's `id` and its href basename are different strings
+                    // (id `cloud-az104-ch01` vs basename `az104-ch01-prerequisites`), and covers may
+                    // exist under one and not the other. My first version only fell back to the
+                    // basename when `id` was ABSENT -- but the real failure is `id` PRESENT and its
+                    // cover missing, which dropped straight to the icon. Screenshot showed nine
+                    // AZ-104 cards as bare icon-on-gradient beside covered OpenStack cards; the DOM
+                    // counts could not distinguish "never tried" from "tried and 404'd", because
+                    // onerror REPLACES the element it fails on.
+                    var keys = [];
+                    if (typeof it.id === 'string' && SLUG.test(it.id)) { keys.push(it.id); }
+                    if (typeof it.href === 'string') {
+                        var bn = it.href.split('/').pop().replace(/\.(lab|quiz|presentation|module|tool)?\.?html$/, '');
+                        if (SLUG.test(bn) && keys.indexOf(bn) === -1) { keys.push(bn); }
+                    }
+                    // THIRD key: a slug of the title. The Projects shelf is curated in Firestore with
+                    // only {title, desc} -- deliberately NO href, so the cards cannot lie about being
+                    // openable (functions/add-cloudmaster-projects.js). No id and no href means no key
+                    // at all, which is why those 3 were the last cartridges still showing a bare icon
+                    // while every other section reached 100% cover.
+                    if (typeof it.title === 'string') {
+                        var ts = it.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+                        if (SLUG.test(ts) && keys.indexOf(ts) === -1) { keys.push(ts); }
+                    }
+                    if (keys.length) {
+                        var ki = 0;
                         var cov = document.createElement('img');
                         cov.className = 'item-cover'; cov.alt = ''; cov.loading = 'lazy';
-                        cov.src = '/assets/images/covers/items/' + it.id + '.webp';
-                        cov.onerror = function () { cov.replaceWith(iconEl()); };
+                        cov.onerror = function () {
+                            ki += 1;
+                            if (ki < keys.length) { cov.src = '/assets/images/covers/items/' + keys[ki] + '.webp'; }
+                            else { cov.replaceWith(iconEl()); }
+                        };
+                        cov.src = '/assets/images/covers/items/' + keys[0] + '.webp';
                         art.appendChild(cov);
                     } else {
                         art.appendChild(iconEl());
