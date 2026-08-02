@@ -243,6 +243,10 @@
             sublabel: 'SK0-005',
             icon: '/assets/images/icons/icon-keyboard.webp',
             hubHref: '/houses/cloud/server-plus/index.html',
+            catalogCategories: ['server-plus'],
+            /* server-plus reuses WSA's module set (hrefs under modules/wsa/), deliberate --
+               same audited cross-house pattern as aws-ccp/azure-fundamentals. */
+            catalogCrossHouse: true,
             parent: 'cloud-master', tenantAssignable: true,
             house: 'cloud',
             // Curriculum order ruled 2026-08-02 (#241): flagship-first, then tier order
@@ -398,9 +402,9 @@
         { id: 'pentest', origin: 'derived', category: 'course', label: 'Hands-On API Penetration Testing', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/pentest/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 625 },
         { id: 'rate-limiting', origin: 'derived', category: 'course', label: 'Rate Limiting, Throttling & Caching', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/rate-limiting/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 626 },
         { id: 'api-capstone', origin: 'derived', category: 'course', label: 'API Capstone -- Build & Secure a Full API', sublabel: 'API Security', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/api/capstone/index.html', parent: 'api', tenantAssignable: true, house: 'cloud', sortOrder: 627 },
-        { id: 'ms-102', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-102', label: 'Microsoft 365 Administrator', sublabel: 'MS-102', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-102/index.html', parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 540 },
-        { id: 'ms-900', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-900', label: 'Microsoft 365 Fundamentals', sublabel: 'MS-900', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-900/index.html', parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 360 },
-        { id: 'pl-300', origin: 'derived', category: 'cert-prep', catalogCode: 'PL-300', label: 'Power BI Data Analyst', sublabel: 'PL-300', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/pl-300/index.html', parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 550 },
+        { id: 'ms-102', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-102', label: 'Microsoft 365 Administrator', sublabel: 'MS-102', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-102/index.html', catalogCategories: ['ms-102'], parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 540 },
+        { id: 'ms-900', origin: 'derived', category: 'cert-prep', catalogCode: 'MS-900', label: 'Microsoft 365 Fundamentals', sublabel: 'MS-900', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/ms-900/index.html', catalogCategories: ['ms-900'], parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 360 },
+        { id: 'pl-300', origin: 'derived', category: 'cert-prep', catalogCode: 'PL-300', label: 'Power BI Data Analyst', sublabel: 'PL-300', icon: '/assets/images/icons/icon-keyboard.webp', hubHref: '/houses/cloud/pl-300/index.html', catalogCategories: ['pl-300'], parent: 'cloud-master', tenantAssignable: true, house: 'cloud', sortOrder: 550 },
         { id: 'complexity', origin: 'derived', category: 'course', label: 'Big O and Complexity', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/complexity/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 630 },
         { id: 'data-structures', origin: 'derived', category: 'course', label: 'Data Structures', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/data-structures/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 631 },
         { id: 'discrete-math', origin: 'derived', category: 'course', label: 'Discrete Mathematics', sublabel: 'Algorithm Chamber', icon: '/assets/images/icons/icon-branch.webp', hubHref: '/houses/code/algorithm-chamber/discrete-math/index.html', parent: 'algorithm-chamber', tenantAssignable: true, house: 'code', sortOrder: 632 },
