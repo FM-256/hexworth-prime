@@ -1197,6 +1197,33 @@ and awarded the chip. Also corrected that module's fabricated sample output.
 - **Related:** BUG-065 (same four files, independent defect).
 
 ### BUG-066 — the OpenStack slot pool still leaks; my "fixed identity" fix only slowed it  ·  [P2]  ·  open
+> **MECHANISM AMENDED 2026-08-02 — this entry blamed the wrong cause, and the real one is
+> self-inflicted.** The entry attributes the continuing leak to Firebase PURGING
+> `@hexworth-smoke.local` accounts, which are then recreated with a new uid that binds a new
+> slot. Purge may well happen, but it is not what was driving this: **13 of the 15 harnesses
+> were deleting their own QC account at the end of every run** via `accounts:delete`. Each run
+> destroyed its own fixed identity, so the next run's `signUp` minted a new uid and bound
+> another slot. One leak per run per harness, no purge required.
+>
+> The `wall` pair had already found this and documented it at `adversarial-wall.js:105-111`:
+> *"Deleting the account frees the email, so the next run's signUp mints a NEW uid and binds
+> ANOTHER slot, which is the leak this change exists to stop."* It went unread until now.
+>
+> It also explains the identity census better than purge does. A sign-in probe using each
+> harness's real password resolved only **5 of 14** QC identities — not because Firebase purged
+> nine, but because their own last run deleted them. And it explains 23 of 25 bound slots being
+> dead uids without invoking purge at all.
+>
+> **FIXED (12 of 15 harnesses):** `accounts:delete` removed from 8 files (commit 1aa162a8a);
+> `walkthrough-cinder` and `walkthrough-rescue` corrected in 45485edbd after I briefly moved the
+> delete INTO a `finally`, which made the leak fire on failing runs too — worse than the bug.
+> Session teardown on failure fixed across the fleet (940c42466, e5e4e177e, fe7faa1ad).
+>
+> **STILL LEAKING, deliberately out of scope pending their own fixes:** `walkthrough-project` and
+> `adversarial-project` (removing their delete makes the uid permanent, which resurrects
+> BUG-077's baseline contamination — `capstone-baselines.json` is keyed by uid with no expiry,
+> and it is the ONLY persistent per-uid store: `server.js:414`, sole write at `:430`), and
+> `e2e-stage3` (random email per run, so removing the delete fixes nothing — see BUG-089).
 - **Found:** 2026-07-31 · by self · correcting a claim I made earlier the same day
 - **Area:** `_tools/openstack-bridge/*.js` QC identities; bridge slot binding on bc2
 - **THE CLAIM I MADE AND WHY IT IS WRONG:** every harness used to sign up a RANDOM Firebase user
