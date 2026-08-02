@@ -772,7 +772,36 @@ tokenizer split it on its own `AND`. A construct `arm-sql-03` teaches AND grades
 and awarded the chip. Also corrected that module's fabricated sample output.
 
 
-### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  open
+### BUG-077 — capstone check 27 accepts a baseline from a PREVIOUS attempt  ·  [P2]  ·  CLOSED — not a bug
+> **CLOSED 2026-08-02 as NOT-A-BUG, by Nancy, on a line-by-line trace. The surviving claim below
+> is not reachable.** I raised the doubt (the tenant is persistent, so attempt-1 resources should
+> still be standing and should trip 27) and she confirmed it with the mechanism I had missed:
+>
+> - Check 27 (`server.js:385-388`) requires **both** arrays disjoint from the baseline, and `live`
+>   comes from `capstoneIds(st, b.names)` (`server.js:451`), which re-scans **current** cloud state
+>   for anything under those names anywhere in the project. It is NOT scoped to this session's
+>   build, so the invariant is "nothing live right now was live at baseline time" — session- and
+>   attempt-agnostic by design. The "later attempt" framing does not map onto anything 27 tests.
+> - The 1-instance quota (`_tools/openstack-bridge/provision-pool.sh:52`) does force a
+>   delete-before-create on the SERVER. But that file sets no network limit, and nothing in
+>   `server.js` ever deletes a student's Neutron resources — the idle and lifetime reapers
+>   (`server.js:1239`, `:1299`) only `container.remove()`. So an attempt-1 network persists with
+>   its ORIGINAL id until the student explicitly deletes it, `capstoneIds` re-surfaces that id, and
+>   27 fails at :388. To pass, the student must genuinely delete AND rebuild the named network too
+>   — which is precisely what 27 exists to certify.
+>
+> **The proposed fix was rejected and must NOT be applied.** Gating on
+> `b.at >= session.createdAt` closes nothing (no hole is open) and would lock out honest students.
+> My stated exposure was wrong in detail: the 15-min `IDLE_TIMEOUT` is NOT the risk, because a
+> Sablier stop/restart reuses the SAME session and `createdAt` (`server.js:911`). The real risk is
+> the 120-min `MAX_LIFETIME` wall or a disk-quota reap, either of which hands back a NEW
+> `createdAt` on relaunch — the ordinary "recorded the baseline, destroyed the stack, came back
+> after lunch" gap in an async course. That student could not re-record (recording requires a live
+> stack via check 26) and would be stuck.
+>
+> **WATCH ITEM:** this analysis depends on the pool having NO network quota. If a network quota is
+> ever added in `provision-pool.sh`, redo it — a forced network replace would change the result.
+
 > **SEVERITY: P1 -> P3 -> P2. Nancy rejected my P3 and she is right.** My P3 rested on one
 > sentence — "needs a specific sequence rather than a live free pass" — and that sentence is
 > wrong on my own evidence. The trigger is *come back later and don't re-record*, which is the
