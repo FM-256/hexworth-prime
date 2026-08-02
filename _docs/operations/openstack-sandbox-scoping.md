@@ -898,3 +898,24 @@ worth doing if F1 lands yes. If F1 lands no, the honest options are Option B
 (page-issued reader key -- construction-only grading, weaker) or Option C (ungraded
 exploration module, the lab-2 option-1 shape), or dropping lab 6 from the graded track.
 Full option analysis: `_planning/LAB6_KEYSTONE_DESIGN_2026-08-02.md`.
+
+**RULED 2026-08-02 -- F1 DENIED, Option C adopted.** Frank adopted the joint
+recommendation ("proceed with recommendations"): student-triggered credential revocation
+lands INSIDE the no-cloud-deletion ruling. Nancy additionally killed Option B on review --
+a check unconditionally satisfied by clicking the intended button cannot fail an honest
+student or stop a dishonest one, so its badge would mean "you clicked a button" and cheapen
+the adversarially-proven badges beside it. Option B is dead, not deferred.
+
+Her proposed fourth option (a two-credential design graded by WHICH credential the student
+chose to use) was explored and **dead-ends on a structural fact**: every credential in a
+slot belongs to the same pool user, and OpenStack records only user_id/project_id on
+resources -- never the application credential that performed an action. Reads leave no
+trace at all. So "used the least-privileged credential that sufficed" is server-side
+indistinguishable from "used the powerful one for everything," and no state-verification
+check can grade the choice. (Reasoned from token/resource mechanics, not live-probed; if a
+future OpenStack release stamps app-cred ids onto resources, this reopens.)
+
+**Lab 6 final shape: ungraded exploration module** (the lab-2 option-1 precedent): the
+restricted-credential wall (`application credential create` -> 403), role comparison
+against the telescope reader, and the why-IAM-works narrative -- clearly labelled no-badge,
+no checks. Queued as a content build; check ids 29+ remain unallocated.
