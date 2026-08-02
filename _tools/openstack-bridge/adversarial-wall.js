@@ -27,7 +27,10 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the finally at the
+  // bottom and every FAILING run leaked its session -- and for an ADVERSARIAL harness, a
+  // cheat-detected exit IS the normal outcome. Pattern proven on walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); throw new Error('__harness_fail__'); };
 
   // Claim-vs-enforcement guard: the page must NOT claim the evidence files are unforgeable.
   if (fs.existsSync(PAGE)) {
@@ -66,6 +69,9 @@ async function post(url, body, headers) {
   const dex = (cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
   console.log(`launched ${slot} (${sid})`);
 
+  // Opened after sid and auth are bound, because the finally at the bottom uses both.
+  // Everything below runs inside it so the session is torn down however this exits.
+  try {
   const grade = async () => {
     const g = await fetch(`${BASE}/check/${sid}?mission=`, { headers: auth });
     const gr = await g.json();
@@ -101,7 +107,11 @@ async function post(url, body, headers) {
   console.log(`  cheat B scored ${forged}/3 -- forged evidence + real end state is the KNOWN CEILING of this design (page must not claim otherwise; guard above enforces that)`);
 
   dex('openstack server delete phoenix');
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
+  } finally {
+    // Session teardown on the FAILING path too -- for an adversarial harness, a cheat-detected
+    // exit IS the normal outcome. The QC account stays; see the note below.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  }
   // The QC account is deliberately NOT deleted. With a fixed identity the whole point is that
   // the uid -- and therefore the ONE pool slot bound to it -- survives between runs. Deleting
   // the account frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER
@@ -110,4 +120,8 @@ async function post(url, body, headers) {
   // the binding by hand after every run, and that step was never performed, which is precisely
   // how the pool reached 29 bound of 30 with only QC identities holding the slots.
   console.log('ADVERSARIAL DONE: cheat A rejected; cheat B ceiling recorded honestly');
-})().catch((e) => { console.error('ADVERSARIAL FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+})().catch((e) => {
+  // Runs AFTER the finally. Sentinel filtered so qc-lab.sh stage 3 does not parse it.
+  if (!e || e.message !== '__harness_fail__') console.error('ADVERSARIAL FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});

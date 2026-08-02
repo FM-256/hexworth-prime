@@ -36,7 +36,10 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the finally at the
+  // bottom and every FAILING run leaked its session -- and for an ADVERSARIAL harness, failing
+  // is a normal outcome. Pattern proven on walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
   // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
   // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
@@ -67,6 +70,9 @@ async function post(url, body, headers) {
   const dex = (cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
   console.log(`launched ${slot} (${sid})`);
 
+  // try/finally so the SESSION is torn down even when this harness fails -- and an adversarial
+  // harness failing is a normal outcome, not an edge case. See the finally at the bottom.
+  try {
   let img = '';
   for (let i = 0; i < 6 && !img; i++) { img = dex('openstack image list -f value -c Name | head -1').trim(); if (!img) sh('sleep 10'); }
   if (!img) fail('image list empty');
@@ -115,10 +121,17 @@ async function post(url, body, headers) {
   for (let i = 0; i < 12; i++) { if (dex('openstack volume show lab-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
   dex('openstack volume delete lab-vol');
   dex('openstack server delete cheat-srv');
-  // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
-  // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
-  // Self-inflicted leak, one per run per harness.
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
   console.log(`OPERATOR: null hexworth_uid on ${slot}`);
   console.log('ADVERSARIAL PASS: both cheats rejected');
-})().catch((e) => { console.error('ADVERSARIAL FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+  } finally {
+    // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
+    // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
+    // Only the SESSION is torn down, and it happens on the failing path too.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  }
+})().catch((e) => {
+  // Runs AFTER the finally. Sentinel filtered so a normal failure does not print
+  // "__harness_fail__" into stdout, which qc-lab.sh stage 3 parses.
+  if (!e || e.message !== '__harness_fail__') console.error('ADVERSARIAL FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});

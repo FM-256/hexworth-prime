@@ -38,7 +38,10 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the finally at the
+  // bottom and every FAILING run leaked its session -- and for an ADVERSARIAL harness, a
+  // cheat-detected exit IS the normal outcome. Pattern proven on walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('ADVERSARIAL FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
   // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
   // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
@@ -67,6 +70,9 @@ async function post(url, body, headers) {
   if (l.status !== 200 || l.data.cloudMode !== 'personal') fail(`launch ${l.status}`);
   const sid = l.data.sessionId, slot = l.data.cloudSlot;
   const dex = (cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
+  // Opened here, after sid and auth are bound, because the finally at the bottom uses both.
+  // Everything below runs inside it so the session is torn down however this exits.
+  try {
   const seedVol = dex('printenv SEED_VOL_ID').trim();
   if (!seedVol) fail('no SEED_VOL_ID in env -- the checks would be inert');
   console.log(`launched ${slot} (${sid}), seeded vol ${seedVol.slice(0, 8)}...`);
@@ -194,11 +200,20 @@ async function post(url, body, headers) {
   // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
   // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
   // Self-inflicted leak, one per run per harness.
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
   console.log(`OPERATOR: null hexworth_uid on ${slot}`);
   // Keep this line honest about what actually ran: it described 3 cheats after the suite
   // had grown to 5, and an under-selling summary is exactly what gets quoted later as the
   // full scope of the testing.
   console.log('ADVERSARIAL PASS: 5/5 rejected -- same-name forgery, do-nothing, .bashrc env '
     + 'poisoning, root CLI shim (refused by no-new-privileges), and PATH shim');
-})().catch((e) => { console.error('ADVERSARIAL FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+  } finally {
+    // Session teardown on the FAILING path too -- for an adversarial harness, failing is a
+    // normal outcome. The QC account is deliberately NOT deleted (adversarial-wall.js:105-111):
+    // deleting it frees the email and the next run binds ANOTHER pool slot.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  }
+})().catch((e) => {
+  // Runs AFTER the finally. Sentinel filtered so qc-lab.sh stage 3 does not parse it.
+  if (!e || e.message !== '__harness_fail__') console.error('ADVERSARIAL FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});

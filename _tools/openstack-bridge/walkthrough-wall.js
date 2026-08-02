@@ -20,7 +20,10 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the finally at the
+  // bottom and every FAILING run leaked its session. Pattern proven on
+  // walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity -- see the matching note in adversarial-wall.js. A random address per run
   // created a new Firebase user each time, and the bridge binds a pool slot to a uid
   // PERMANENTLY with nothing to release it (reclaim-idle-slots.py cannot even run, taskboard
@@ -47,6 +50,9 @@ async function post(url, body, headers) {
   const dex = (cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
   console.log(`launched ${slot} (${sid})`);
 
+  // Opened after sid and auth are bound, because the finally at the bottom uses both.
+  // Everything below runs inside it so the session is torn down however this exits.
+  try {
   let img = '';
   for (let i = 0; i < 6 && !img; i++) { img = dex('openstack image list -f value -c Name | head -1').trim(); if (!img) sh('sleep 10'); }
   if (!img) fail('image list empty');
@@ -121,10 +127,17 @@ async function post(url, body, headers) {
 
   console.log('cleanup');
   dex('openstack server delete phoenix');
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
+  } finally {
+    // Session teardown on the FAILING path too. The QC account stays -- see the note below.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  }
   // The QC account is deliberately NOT deleted, and the old `OPERATOR: null hexworth_uid`
   // instruction is gone. See adversarial-wall.js for the full reasoning: deleting a fixed
   // identity frees the email so the next run mints a new uid and binds another slot, and the
   // manual release step that line asked for was never actually performed.
   console.log('WALKTHROUGH PASS 3/3 on BOTH runs (fresh project AND returning student)');
-})().catch((e) => { console.error('WALKTHROUGH FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+})().catch((e) => {
+  // Runs AFTER the finally. Sentinel filtered so qc-lab.sh stage 3 does not parse it.
+  if (!e || e.message !== '__harness_fail__') console.error('WALKTHROUGH FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});
