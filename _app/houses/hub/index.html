@@ -83,6 +83,14 @@
                text-decoration:none; color:var(--text); transition:border-color .2s ease, transform .15s ease; display:block; }
         .item:hover{ border-color:rgba(34,211,238,.4); transform:translateY(-2px); }
         .item .t{ font-weight:600; font-size:.98rem; }
+        /* Course pill: which course a projected item belongs to. max-width + ellipsis so a
+           long fallback label (a child with no catalogCode) degrades to truncation, never
+           to a broken card (Nancy condition 2). */
+        .item .course{ display:inline-block; margin-top:4px; padding:1px 8px; border-radius:999px;
+                       font-size:.68rem; letter-spacing:.04em; color:var(--muted);
+                       border:1px solid rgba(148,163,184,.35); background:rgba(148,163,184,.08);
+                       max-width:14ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+                       vertical-align:middle; }
         .item .d{ color:var(--muted); font-size:.84rem; margin-top:4px; }
         /* CARTRIDGE. Mirrors .kid-card so hub cards and content cards read as one family.
            MUST come AFTER the .item rules: same specificity, so source order decides. Declared
@@ -522,6 +530,10 @@
                     card.appendChild(art);
                     var body = el('div', null, 'item-body');
                     body.appendChild(el('div', it.title || it.label || 'Untitled', 't'));
+                    // Course pill (projected items only -- curated Firestore items carry no
+                    // course field and render exactly as before). textContent via el(), same
+                    // XSS discipline as every other field on this page.
+                    if (it.course) { body.appendChild(el('div', it.course, 'course')); }
                     if (it.desc || it.sublabel) { body.appendChild(el('div', it.desc || it.sublabel, 'd')); }
                     card.appendChild(body);
                     grid.appendChild(card);
@@ -670,9 +682,24 @@
             // front of each list). Catalog fields are rendered through the SAME safe path
             // as everything else (renderSection uses textContent + safeHref only).
             var proj = { slides: [], labs: [], quizzes: [], exams: [], projects: [], games: [], other: [] };
-            var cats = {};
-            kids.forEach(function (h) {
-                (Array.isArray(h.catalogCategories) ? h.catalogCategories : []).forEach(function (c) { cats[c] = true; });
+            // Course ranking (#241, ruled 2026-08-02): projected items sort by the OWNING CHILD's
+            // position in the ruled hub order, so content order tracks the hub order with one
+            // source of truth. catRank/catLabel are built from the ALREADY-SORTED kids array.
+            // First claim wins on a duplicate category string -- but that would silently anchor a
+            // whole category to one child, so a repeat claim warns loudly (Nancy condition 1;
+            // safe today by data, not by construction).
+            var cats = {}, catRank = {}, catLabel = {};
+            kids.forEach(function (h, ki) {
+                (Array.isArray(h.catalogCategories) ? h.catalogCategories : []).forEach(function (c) {
+                    if (cats[c]) {
+                        console.warn('hub: category "' + c + '" claimed by two children of ' + id +
+                                     ' -- ranking anchored to the first; fix catalogCategories in HubRegistry');
+                        return;
+                    }
+                    cats[c] = true;
+                    catRank[c] = ki;
+                    catLabel[c] = h.catalogCode || h.label || '';
+                });
             });
             if (Object.keys(cats).length && window.ContentCatalog && Array.isArray(ContentCatalog.MODULES)) {
                 var BUCKET = { presentation: 'slides', lab: 'labs', quiz: 'quizzes', exam: 'exams',
@@ -695,7 +722,23 @@
                     }
                     // icon carried through so renderSection can draw a cartridge. The catalog has
                     // an icon on 3,334 of 3,335 entries and the projection was discarding it.
-                    proj[bucket].push({ title: m.title, desc: m.description, href: href, icon: m.icon, id: m.id });
+                    // course = the owning child's code, shown as a pill on the cartridge so a
+                    // student can tell WHICH course a quiz belongs to ("27 quizzes with no idea
+                    // which course each belongs to" -- the #241 finding this exists to fix).
+                    // _rank/_seq drive the sort below and are never rendered.
+                    proj[bucket].push({ title: m.title, desc: m.description, href: href, icon: m.icon, id: m.id,
+                                        course: catLabel[m.category] || '',
+                                        _rank: (catRank[m.category] == null ? 999 : catRank[m.category]),
+                                        _seq: proj[bucket].length });
+                });
+                // EVERY bucket sorts by (owning child's ruled position, then catalog sequence).
+                // The explicit _seq tiebreak keeps within-course catalog order without relying on
+                // engine sort stability. 'other' included deliberately (Nancy condition 4): the
+                // 17 projected applets cross courses exactly like the quizzes did.
+                Object.keys(proj).forEach(function (k) {
+                    proj[k].sort(function (a, b) {
+                        return (a._rank - b._rank) || (a._seq - b._seq);
+                    });
                 });
             }
             // Typed content sections: admin-curated Firestore items first, projection after.
