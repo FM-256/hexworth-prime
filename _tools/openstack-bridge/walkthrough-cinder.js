@@ -36,7 +36,11 @@ async function post(url, body, headers) {
 }
 
 (async () => {
-  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); process.exit(1); };
+  // THROWS, never process.exit. process.exit does not unwind, so it skipped the finally block
+  // below and every FAILING run leaked its session and QC account -- and adversarial/failure
+  // paths are a large fraction of what these harnesses are for. Same fix already applied to the
+  // project/chain/neutron/secgroup harnesses; see walkthrough-project.js:188-198.
+  const fail = (m) => { console.error('WALKTHROUGH FAIL:', m); throw new Error('__harness_fail__'); };
   // FIXED QC identity. This USED TO BE a random address per run, which created a brand new
   // Firebase user every time -- and the bridge binds a pool slot to a uid PERMANENTLY for
   // sticky mapping, so every gate run consumed one of the 30 slots and never gave it back.
@@ -149,20 +153,32 @@ async function post(url, body, headers) {
     console.log(`  RUN ${pass} PASS 4/4`);
   }
 
-  await runLab(1);
-  // deliberately NO cleanup here -- this is the point
-  await runLab(2);
+  try {
+    await runLab(1);
+    // deliberately NO cleanup here -- this is the point
+    await runLab(2);
 
-  // cleanup: volume + server + session + user (slot mapping cleared by operator pass)
-  console.log('cleanup');
-  // Detach is ASYNCHRONOUS: the first cleanup deleted straight after remove-volume and hit
-  // "Volume status must be available" (HTTP 400). Poll, exactly like the lab's own steps do.
-  dex('openstack server remove volume server-b lab-vol');
-  for (let i = 0; i < 12; i++) { if (dex('openstack volume show lab-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
-  dex('openstack volume delete lab-vol');
-  dex('openstack server delete server-b');
-  await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth });
-  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
-  console.log(`OPERATOR: null hexworth_uid on ${slot}`);
-  console.log('WALKTHROUGH PASS 4/4 on BOTH runs (fresh project AND returning student)');
-})().catch((e) => { console.error('WALKTHROUGH FAIL (throw):', e.message.slice(0, 300)); process.exit(1); });
+    // Lab-resource cleanup stays on the SUCCESS path: these are the walkthrough's own teaching
+    // steps, and they are cinder-specific (the poll below exists only here). Only the platform
+    // teardown moves into finally, matching walkthrough-project.js:188-191 exactly.
+    console.log('cleanup');
+    // Detach is ASYNCHRONOUS: the first cleanup deleted straight after remove-volume and hit
+    // "Volume status must be available" (HTTP 400). Poll, exactly like the lab's own steps do.
+    dex('openstack server remove volume server-b lab-vol');
+    for (let i = 0; i < 12; i++) { if (dex('openstack volume show lab-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+    dex('openstack volume delete lab-vol');
+    dex('openstack server delete server-b');
+    console.log(`OPERATOR: null hexworth_uid on ${slot}`);
+    console.log('WALKTHROUGH PASS 4/4 on BOTH runs (fresh project AND returning student)');
+  } finally {
+    // Runs on the FAILING path too, which is the entire point of this change: the session and
+    // the QC account used to leak on every failed run because process.exit did not unwind.
+    await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
+  }
+})().catch((e) => {
+  // Runs AFTER the finally block. The sentinel is filtered so a normal harness failure does not
+  // print "__harness_fail__" into stdout, which qc-lab.sh stage 3 parses.
+  if (!e || e.message !== '__harness_fail__') console.error('WALKTHROUGH FAIL (throw):', (e && e.message || '').slice(0, 300));
+  process.exit(1);
+});
