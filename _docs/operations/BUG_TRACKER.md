@@ -31,6 +31,29 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-089 — e2e-stage3.js permanently burns a pool slot on every run  ·  [P2]  ·  open
+- **Found:** 2026-08-02 · by Nancy (flagged), confirmed by self · while auditing task 275
+- **Area:** `_tools/openstack-bridge/e2e-stage3.js:31` and `:40`
+- **Symptom:** Every run consumes one of the 30 pool slots and never gives it back. When the pool exhausts, students clicking into any Stage-3/4 cloud lab get a 503.
+- **Repro:** Run it. `:31` mints `stage3-e2e-${Math.random()...}@hexworth-smoke.local` — a NEW Firebase user each time. `:40` calls `/launch` with `labId: 'openstack-cli'`, and `:45` asserts `cloudMode === 'personal'`, i.e. it deliberately claims a slot.
+- **Root cause:** The bridge binds a slot to a uid PERMANENTLY (Keystone `hexworth_uid` project property). The script's own cleanup deletes the instance, the session, and the test USER — but deleting a Firebase user does NOT clear the Keystone binding. The slot stays bound to a uid that no longer exists.
+- **Why it matters beyond the count:** this is precisely the profile of the 23 debris slots measured today — bound to a uid matching no current identity. It is the same class BUG-066 describes (dead uid holding a slot) reached by a second, independent route, and it is NOT fixed by the fixed-QC-identity change, because this script was never given a fixed identity.
+- **Fix:** none yet. Either give it a fixed identity like the other 14 harnesses, or (better, and it fixes the whole class) a bridge `/release` called on teardown so a run returns its slot regardless of what happens to the account. The latter is the option under estimate on task 275.
+- **Mitigating:** `grep` finds NO reference to `e2e-stage3` in any `.sh` gate, cron, or doc — it is ad hoc, not scheduled, so the leak rate is however often a human runs it.
+- **Checked and NOT a slot leak:** `_tools/eduscan/smoke/instructor-boot-failure-probe.js:24` also mints a random `@hexworth-smoke.local` identity, but it only calls `accounts:signUp` and never `/launch`, so it creates orphan Firebase users without binding a slot. It is also not wired into any gate.
+- **Related:** BUG-066 · BUG-090 · taskboard #275
+
+### BUG-090 — pool bindings changed on production with no attributable actor  ·  [P2]  ·  open
+- **Found:** 2026-08-02 · by self, escalated at Nancy's direction · while auditing task 275
+- **Area:** OpenStack pool, Keystone `hexworth_uid` project properties (bc2)
+- **Symptom:** Between 2026-08-01 and 2026-08-02 the pool went from **29 bound / 1 free** to **25 bound / 5 free**. Four bindings were cleared. Under the documented design NOTHING releases a binding automatically — `/reconcile` only deletes application credentials.
+- **The part that makes this more than a curiosity:** the four slots that went free — student-01, 04, 06, 13 — are EXACTLY the four listed as reclaimable by the 08-01 dry run, in a note that states `--apply` was NOT run. A fifth, student-27, is also now free and does NOT fit that list, so the match is not complete and needs its own explanation.
+- **Evidence gathered, all negative:** no crontab entry on bc1 or bc2; nothing matching `reclaim|--apply|hexworth_uid` in either `.bash_history`; `reclaim-idle-slots.py` mtimes are Jul 31 on both hosts; nothing in `/home/eq1/openstack-stage1` modified since 08-01.
+- **Why that evidence is WEAK, not exculpatory (Nancy):** non-interactive `ssh` does not write `.bash_history`, and `--apply` issues Keystone PATCH calls over the network without writing any local file — so unchanged mtimes are uninformative in both directions. There is currently NO mechanism on either host that would have recorded such a run.
+- **Fix:** none. Needs (a) a definite answer on whether any session ran `--apply`, and (b) an audit path for binding changes so this is attributable next time.
+- **Do not close as benign.** Production cloud state changed with zero audit trail; the exact match to a named candidate list is stronger evidence for an unlogged write than for coincidence.
+- **Related:** BUG-089 · BUG-066 · taskboard #275
+
 ### BUG-086 — cloud-aws-sts: leaderboard band sits on the HUD at narrow widths  ·  [P3]  ·  open
 - **Found:** 2026-08-02 · by self (overlap probe, disjoint-width pass) · in cloud games QC
 - **Area:** `_app/houses/cloud/games/cloud-aws-sts.html` · `_app/components/GameScoreboard.js`
