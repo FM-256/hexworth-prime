@@ -86,7 +86,24 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **PLATFORM CONSTRAINT this keeps colliding with:** on any page loading both shared overlays, the achievement toast owns y[20,114] and the collapsed GameScoreboard panel owns y[130,167], so **the top ~175px is unusable by page content on a narrow screen**. Five pages have now paid that cost individually. That argues the overlay stack needs rethinking rather than each page buying clearance.
 - **Related:** BUG-087 (same class, 4 games fixed) · BUG-086
 
-### BUG-092 — 25 stranded instances, one in EVERY bound pool slot  ·  [P2]  ·  open
+### BUG-092 — 25 stranded instances, one in EVERY bound pool slot  ·  [P2]  ·  WON'T FIX (deletion denied)
+> **OPERATOR RULING 2026-08-02: deletion is PERMANENTLY DENIED.** Verbatim: *"denied - no
+> destruction allowed, if anything we need to archive.... deletion is permanently denied"*.
+> This is a standing rule, not a judgement on these 25 instances - no future evidence converts
+> it into a yes. The full case had already been made (inventory, ownership traced, quota
+> confirmed, harness-only names, Nancy consulted twice) and the answer was still no.
+>
+> **What that changes:** the 25 instances and 2 volumes STAY. The archive requirement is already
+> satisfied - `_docs/operations/evidence/pool-sweep-2026-08-02.json` holds all 30 slots with
+> project_id, bound uid and every server/volume record. Nothing further to do here.
+>
+> **The pressure this created is addressed at SOURCE instead**, which is the correct shape: the
+> harnesses no longer delete their own QC identity, so no NEW slots are burned (BUG-066, fixed
+> and verified on live runs). Capacity problems get solved by stopping the leak or adding
+> capacity, never by destroying what is already standing.
+>
+> **Do not re-open this as "just the orphans" or "only the QC ones".** See
+> `feedback_cloud_resource_deletion_permanently_denied.md`.
 - **Found:** 2026-08-02 · by self, sweeping all 30 slots read-only · while investigating BUG-091
 - **Area:** OpenStack pool, all `student-NN` projects (bc2 claim service)
 - **Symptom:** Every one of the 25 bound slots holds exactly **1 server**. Total stranded: **25 servers, 2 volumes**. Nothing is using them.
@@ -119,7 +136,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 - **Reading of that inventory.** The Jul 31 pair is one failing adversarial run that exited via `process.exit`, skipped its cleanup, and has been left running for two days — `cheat-srv` is a name only the harness creates. The Aug 2 volume is **mine**, from the run I made today to verify the exit-path refactor; my run then threw on the ambiguity its own predecessor caused.
 - **There are TWO blockers here, not one.** Beyond the duplicate-name ambiguity, the pool sets `--instances 1` (`provision-pool.sh:52`), so the stranded `cheat-srv` occupies the ONLY instance slot — the harness cannot create its own server even if the volume names were unique.
-- **Fix:** none applied. Unblocking needs `cheat-srv` deleted (releasing both the attachment and the instance quota) and both `lab-vol` volumes deleted BY ID, since the name is ambiguous. All three are QC debris in a QC-owned slot, created by our own harnesses. NOT done unilaterally: it destroys cloud resources, the standing rule is archive-and-verify rather than delete, and Nancy has twice placed cloud-state changes with the operator.
+- **Fix:** DELETION IS PERMANENTLY DENIED (operator, 2026-08-02) - see BUG-092. The debris stays. What ships instead is the preflight already in `adversarial-cinder.js`: the harness now refuses to start and names every blocker by ID, so the gate reports its own blockage clearly rather than dying on an ambiguous lookup. Unblocking the gate for real needs the harness to use unique per-run resource names, NOT a cleanup. Superseded plan (do not action): `cheat-srv` deleted (releasing both the attachment and the instance quota) and both `lab-vol` volumes deleted BY ID, since the name is ambiguous. All three are QC debris in a QC-owned slot, created by our own harnesses. NOT done unilaterally: it destroys cloud resources, the standing rule is archive-and-verify rather than delete, and Nancy has twice placed cloud-state changes with the operator.
 - **Now less likely to recur:** the exit-path fixes landed this session mean failing runs DO tear down. Verified on this very run — the harness threw, the `finally` executed, and the session container was gone afterwards (`docker ps -a` count 0). That stops NEW debris; it does not clear what is already there.
 - **Related:** BUG-077 · BUG-066 · taskboard #275
 
