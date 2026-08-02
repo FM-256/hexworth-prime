@@ -69,12 +69,34 @@ function collect(MIN) {
     return false;
   };
 
+  /* Scrolled OUT of a clipping ancestor = not painted, even though getBoundingClientRect() still
+     returns a layout rect there. Without this, the scroll pass invents overlaps: on
+     cloud-hop-vertical the <h1> inside #startScreen (max-height:606px; overflow-y:auto) reports
+     y=-1 once scrolled and "collides" with the back-link, while it is clipped and invisible.
+     Same trap as the wrapped-inline union rect -- a rect that no longer describes what is on
+     screen. Checks against each scroll/hidden ancestor's own visible box. */
+  const clipped = (e) => {
+    const r = e.getBoundingClientRect();
+    let n = e.parentElement;
+    while (n) {
+      const cs = getComputedStyle(n);
+      if (/hidden|auto|scroll/.test(cs.overflowY) || /hidden|auto|scroll/.test(cs.overflowX)) {
+        const nr = n.getBoundingClientRect();
+        if (r.bottom <= nr.top + 1 || r.top >= nr.bottom - 1 ||
+            r.right <= nr.left + 1 || r.left >= nr.right - 1) return true;
+      }
+      n = n.parentElement || (n.parentNode && n.parentNode.host) || null;
+    }
+    return false;
+  };
+
   const els = all.filter(e => {
     if (!TAGS.test(e.tagName)) return false;
     const t = (e.textContent || '').trim();
     if (!t || t.length > 300) return false;
     if (e.children.length > 0) return false;        // TRUE leaves only, not "children <= 2"
     if (hidden(e)) return false;
+    if (clipped(e)) return false;
     const r = e.getBoundingClientRect();
     if (r.width <= 4 || r.height <= 4) return false;
     if (r.right <= 0 || r.bottom <= 0) return false;              // parked off-canvas
