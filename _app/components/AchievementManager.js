@@ -1259,8 +1259,13 @@ const AchievementManager = (function() {
             styles.id = 'achievement-notif-styles';
             styles.textContent = `
                 .achievement-notification {
+                    /* BOTTOM-right, not top-right. GameScoreboard.js injects .gs-widget at
+                       top:12px/right:12px, so both components claimed the SAME corner and the
+                       toast landed on the leaderboard in every game that loads both -- measured on
+                       cloud-flap at 1920 ("Night Owl >< #1", "+10 pts >< ---"). Bottom-right is
+                       also the conventional place for a transient toast. */
                     position: absolute;
-                    top: 20px;
+                    bottom: 20px;
                     right: 20px;
                     background: linear-gradient(135deg, rgba(30,30,30,0.95), rgba(20,20,20,0.98));
                     border: 2px solid #ffd700;
