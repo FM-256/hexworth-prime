@@ -171,10 +171,16 @@ async function post(url, body, headers) {
     console.log(`OPERATOR: null hexworth_uid on ${slot}`);
     console.log('WALKTHROUGH PASS 4/4 on BOTH runs (fresh project AND returning student)');
   } finally {
-    // Runs on the FAILING path too, which is the entire point of this change: the session and
-    // the QC account used to leak on every failed run because process.exit did not unwind.
+    // Runs on the FAILING path too, which is the entire point: the SESSION used to leak on
+    // every failed run because process.exit did not unwind.
+    //
+    // The QC account is deliberately NOT deleted here -- see adversarial-wall.js:105-111. With a
+    // fixed identity the whole point is that the uid, and therefore the ONE pool slot bound to
+    // it, SURVIVES between runs. Deleting the account frees the email, so the next run's signUp
+    // mints a NEW uid and binds ANOTHER slot. My first version of this fix moved the delete into
+    // this finally, which made the leak fire on failing runs too -- strictly worse than the bug
+    // it was meant to fix.
     await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
-    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
   }
 })().catch((e) => {
   // Runs AFTER the finally block. The sentinel is filtered so a normal harness failure does not

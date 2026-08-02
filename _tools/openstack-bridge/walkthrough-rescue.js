@@ -200,8 +200,10 @@ async function post(url, body, headers) {
     // Runs on the FAILING path too -- the whole point. The rescue-specific resource cleanup
     // above stays on the success path (it has its own best-effort try/catch and its own volume
     // names); only the PLATFORM teardown belongs here, matching walkthrough-project.js:188-191.
+    // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
+    // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
+    // My first version moved the delete in here, which fired the leak on failing runs too.
     await fetch(`${BASE}/destroy/${sid}`, { method: 'DELETE', headers: auth }).catch(() => {});
-    await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`, { idToken }, { Referer: 'https://hexworth-prime.web.app/' }).catch(() => {});
   }
 })().catch((e) => {
   // Runs AFTER the finally. Sentinel filtered so a normal failure does not print
