@@ -68,13 +68,16 @@ async function post(url, body, headers) {
   // lab-manager image and a new route would need a rebuild.
   const qcUid = su.data.localId;
   if (!qcUid) fail('no localId on the QC identity -- cannot clear the stale baseline safely');
-  sh(`docker exec lab-manager node -e ${JSON.stringify(
+  // sh() CAPTURES stdout, so log the result explicitly -- an invisible cleanup step cannot be
+  // verified after the fact. Matters especially here: if this silently stopped working, cheat E
+  // would start passing for the wrong reason and the harness would report an unearned green.
+  console.log('0. baseline: ' + sh(`docker exec lab-manager node -e ${JSON.stringify(
     "const f='/app/data/capstone-baselines.json',fs=require('fs');" +
     "let a={};try{a=JSON.parse(fs.readFileSync(f,'utf8'))||{}}catch(e){}" +
     `if(a[${JSON.stringify(qcUid)}]){delete a[${JSON.stringify(qcUid)}];` +
-    "fs.writeFileSync(f,JSON.stringify(a));console.log('baseline cleared')}" +
-    "else{console.log('no baseline to clear')}"
-  )}`);
+    "fs.writeFileSync(f,JSON.stringify(a));console.log('cleared a stale entry')}" +
+    "else{console.log('none to clear')}"
+  )}`).trim() + ` (uid ${qcUid.slice(0, 8)}...)`);
 
   const l1 = await post(`${BASE}/launch`, { labId: 'openstack-cli' }, auth);
   if (l1.status !== 200 || !l1.data || !l1.data.sessionId) fail(`launch failed: ${l1.status}`);
