@@ -69,7 +69,21 @@
         .move-entry .move-name { color: #22d3ee; font-weight: bold; }
         .move-entry .move-desc { color: #0891b2; font-size: 11px; margin-top: 4px; }
         .move-locked { opacity: 0.4; }
-    </style>
+    
+        /* GameScoreboard.js injects .gs-widget at top:12px/right:12px and AchievementManager's
+           toast now sits bottom-right. Anything else claiming those corners collides -- measured on
+           production at every viewport. MUTE takes bottom-LEFT, the only corner left, and the
+           panel is dropped on phones where there is no room beside a canvas. */
+        #muteBtn { top: auto !important; right: auto !important; bottom: 12px; left: 12px; }
+        @media (max-width: 899px) { .gs-widget { display: none !important; } }
+
+        /* Moving the help "?" to the left made it worse -- it landed on the DEV label and took these
+           from 4/5 to 0/5. Corners are finite; the fix is to move the PANEL out of the chrome row
+           rather than shuffling page buttons between corners. */
+        .gs-widget { top: 104px !important; right: 12px !important; }
+        .life-pip { vertical-align: middle; margin-right: 3px; }
+        .life-pip path { filter: drop-shadow(0 0 4px rgba(34,211,238,.55)); }
+</style>
 </head>
 <body>
     <a class="back-link" href="../index.html">← Back</a>
@@ -105,7 +119,7 @@
             <div id="ui">
                 <span id="scoreDisplay">$0</span>
                 <span id="regionDisplay">us-east-1</span>
-                <span id="livesDisplay">♥♥♥</span>
+                <span id="livesDisplay" aria-label="Lives remaining"></span>
             </div>
         </div>
     </div>
@@ -537,7 +551,24 @@ function update() {
     // UI
     document.getElementById('scoreDisplay').textContent = `$${score}`;
     document.getElementById('regionDisplay').textContent = REGIONS[region];
-    document.getElementById('livesDisplay').textContent = '♥'.repeat(lives) + '♡'.repeat(Math.max(0, 3 - lives));
+    // Lives were '♥'.repeat(n) -- a FONT GLYPH standing in for graphics in a canvas game. It
+    // renders differently on every platform and cannot carry the neon look. Real vector pips now:
+    // a lit hex core for a life still held, a hollow outline for one lost. Hex is the platform's
+    // own motif, not a borrowed dingbat.
+    (function () {
+        var pip = function (held) {
+            return '<svg class="life-pip" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">'
+                 + '<path d="M12 2 21 7v10l-9 5-9-5V7z" fill="' + (held ? '#22d3ee' : 'none') + '"'
+                 + ' fill-opacity="' + (held ? '.28' : '0') + '"'
+                 + ' stroke="' + (held ? '#67e8f9' : 'rgba(103,232,249,.35)') + '"'
+                 + ' stroke-width="1.8" stroke-linejoin="round"/></svg>';
+        };
+        var el = document.getElementById('livesDisplay'), out = '';
+        for (var i = 0; i < lives; i++) { out += pip(true); }
+        for (var j = 0; j < Math.max(0, 3 - lives); j++) { out += pip(false); }
+        el.innerHTML = out;
+        el.setAttribute('aria-label', lives + ' of 3 lives remaining');
+    })();
     document.getElementById('loreWave').textContent = `REGION: ${REGIONS[region]}`;
     document.getElementById('loreScore').textContent = `COST SAVED: $${score}`;
     const uptime = Math.max(0, 99.99 - (3 - lives) * 5).toFixed(2);
