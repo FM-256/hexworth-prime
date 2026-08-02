@@ -14,6 +14,9 @@
  * Exit 0 only if BOTH cheats are rejected by the real grader.
  */
 const { execSync } = require('child_process');
+// Shared dirty-tenant preflight. Same directory; both files are deployed to ~/hexworth-sandbox
+// on bc1 together, so the relative require resolves there as well as in the repo.
+const preflight = require('./preflight.js');
 const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
 const BASE = 'http://localhost/api/sandbox';
 
@@ -88,23 +91,13 @@ async function post(url, body, headers) {
   //
   // Failing here with the IDs is strictly better than failing later with an ambiguous lookup:
   // the operator gets an actionable list instead of a cryptic OpenStack error.
-  const stale = [];
-  const vList = dex('openstack volume list -f value -c ID -c Name').trim();
-  vList.split('\n').filter(Boolean).forEach((line) => {
-    const [id, ...rest] = line.trim().split(/\s+/);
-    if (rest.join(' ') === 'lab-vol') stale.push(`volume ${id} (lab-vol)`);
-  });
-  const sList = dex('openstack server list -f value -c ID -c Name').trim();
-  sList.split('\n').filter(Boolean).forEach((line) => {
-    const [id, ...rest] = line.trim().split(/\s+/);
-    if (rest.join(' ') === 'cheat-srv') stale.push(`server ${id} (cheat-srv)`);
-  });
+  // Shared with every other harness (preflight.js) rather than copied per file: the QUOTA half
+  // is identical everywhere, and a check duplicated 15 times is a check written in the wrong
+  // place. Only the resource NAMES differ, so they are passed in.
+  const stale = preflight.findBlockers(dex, slot, ['lab-vol', 'cheat-srv']);
   if (stale.length) {
-    console.error(`DIRTY TENANT on ${slot} -- this run cannot start. Leftovers from an earlier run:`);
-    stale.forEach((s) => console.error(`    ${s}`));
-    console.error('  Delete these BY ID (the names are ambiguous, so name-based deletion is unsafe).');
-    console.error('  Servers must go first: they hold the volume attachment and the 1-instance quota.');
-    fail(`tenant not clean: ${stale.length} leftover resource(s)`);
+    preflight.report(slot, stale);
+    fail(`tenant not clean: ${stale.length} blocker(s)`);
   }
 
   let img = '';
