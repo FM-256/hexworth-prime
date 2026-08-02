@@ -5,7 +5,6 @@
     <script src="../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../components/AchievementManager.js"></script>
-    <script src="../../../components/ModuleProgress.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IAM Policy Debugger - Hexworth Prime</title>
   <style>
@@ -438,6 +437,47 @@
            Reserve a lane so page content can never occupy the panel's column, above 900px only --
            below that the panel is hidden and a lane would just steal width. */
         @media (min-width: 900px) { body { padding-right: 260px; } }
+
+    /* ── How-to-play intro (overlay, so opening it mid-round never touches game state) ── */
+    .intro-overlay {
+      position: fixed; inset: 0; z-index: 1000; overflow-y: auto;
+      background: rgba(8, 8, 16, 0.96); padding: 30px 20px;
+    }
+    .intro-card {
+      max-width: 760px; margin: 0 auto;
+      background: linear-gradient(160deg, #0d1b2a 0%, #141d2e 50%, #1a2332 100%);
+      border: 1px solid rgba(6, 182, 212, 0.35); border-radius: 12px; padding: 28px;
+      box-shadow: 0 8px 40px rgba(6, 182, 212, 0.15);
+    }
+    .intro-card h2 { color: #22d3ee; margin-bottom: 12px; font-size: 22px; }
+    .intro-card p { color: #d1d5db; line-height: 1.6; margin-bottom: 14px; font-size: 15px; }
+    .howto-table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 14px; }
+    .howto-table th, .howto-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid rgba(6,182,212,0.15); vertical-align: top; }
+    .howto-table th { color: #67e8f9; white-space: nowrap; width: 110px; font-family: 'Courier New', monospace; }
+    .howto-table td { color: #d1d5db; line-height: 1.5; }
+    .golden-rules { display: grid; gap: 10px; margin: 14px 0 18px; }
+    .golden-rule {
+      border-left: 4px solid #06b6d4; background: rgba(6, 182, 212, 0.08);
+      padding: 10px 14px; border-radius: 0 8px 8px 0; color: #e5e7eb; font-size: 15px; line-height: 1.5;
+    }
+    .golden-rule strong { color: #22d3ee; }
+    .example-pair { display: grid; gap: 8px; margin: 10px 0 16px; }
+    .example-pair code {
+      display: block; font-family: 'Courier New', monospace; font-size: 13px; padding: 10px 14px;
+      border-radius: 8px; overflow-x: auto; white-space: pre;
+    }
+    .example-bad  { background: rgba(239, 68, 68, 0.10); border: 1px solid rgba(239, 68, 68, 0.35); color: #fca5a5; }
+    .example-good { background: rgba(34, 197, 94, 0.10); border: 1px solid rgba(34, 197, 94, 0.35); color: #86efac; }
+    .howto-link { color: #06b6d4; text-decoration: none; font-size: 15px; cursor: pointer; }
+    .howto-link:hover { color: #22d3ee; }
+    .field-ref { margin-bottom: 16px; border: 1px solid rgba(6, 182, 212, 0.2); border-radius: 8px; }
+    .field-ref summary {
+      cursor: pointer; padding: 10px 14px; color: #67e8f9; font-size: 14px; list-style: none;
+    }
+    .field-ref summary::before { content: '▸ '; }
+    .field-ref[open] summary::before { content: '▾ '; }
+    .field-ref .field-ref-body { padding: 0 14px 12px; }
+    .hint-note { color: #9ca3af; font-size: 13px; margin-top: 8px; text-align: center; }
 </style>
 </head>
 <body>
@@ -445,6 +485,7 @@
   <div class="container">
     <div class="header">
       <a href="../index.html" class="back-link">← Back</a>
+      <a class="howto-link" id="howtoLink">How to Play</a>
       <h1 class="title">IAM Policy Debugger</h1>
       <div class="score-display">
         <div class="score-item">
@@ -951,6 +992,11 @@
             <div class="round-description">${escapeHtml(round.description)}</div>
           </div>
 
+          <details class="field-ref">
+            <summary>IAM Field Reference — what each policy field means</summary>
+            <div class="field-ref-body">${FIELD_REFERENCE_HTML}</div>
+          </details>
+
           <div class="policy-section">
             <div class="section-title">
               <span><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span> Edit the Policy (JSON)
@@ -974,6 +1020,7 @@
             <button class="btn btn-secondary" id="resetBtn" type="button">Reset Policy</button>
             <button class="btn btn-primary" id="runBtn" type="button">Run Tests</button>
           </div>
+          <div class="hint-note">Stuck? After two runs, a hint will point at the field(s) to focus on. "How to Play" (top left) reopens the instructions any time.</div>
 
           <div id="explanationArea"></div>
         </div>
@@ -1144,9 +1191,80 @@
       document.getElementById('gameContainer').innerHTML = html;
     }
 
-    // Initialize game
+    // ── How-to-play layer (added 2026-08-02, operator play-test: "no way for the user to
+    //    know what he is supposed to do"). The intro is an OVERLAY, not a screen swap, so
+    //    reopening it mid-round never re-renders the round or loses the player's JSON edits.
+    //    Shared between the intro overlay and the per-round collapsible reference panel.
+    const FIELD_REFERENCE_HTML = `
+      <table class="howto-table">
+        <tr><th>Effect</th><td><strong>Allow</strong> or <strong>Deny</strong> — what this statement does when it matches a request.</td></tr>
+        <tr><th>Action</th><td>Which operation, like <strong>s3:GetObject</strong> (read a file) or <strong>ec2:StartInstances</strong>. A <strong>*</strong> is a wildcard: <strong>s3:*</strong> means every S3 operation.</td></tr>
+        <tr><th>Resource</th><td>Which thing it applies to, written as an ARN like <strong>arn:aws:s3:::my-bucket/*</strong>. A bare <strong>*</strong> means EVERYTHING in the account.</td></tr>
+        <tr><th>Principal</th><td>WHO the statement is about. Appears in resource and trust policies. <strong>"*"</strong> means anyone on the internet — including anonymous users.</td></tr>
+        <tr><th>Condition</th><td>Only-when tests: source IP address, whether MFA was used, whether an upload is encrypted, resource tags.</td></tr>
+      </table>
+      <div class="golden-rules">
+        <div class="golden-rule"><strong>Rule 1:</strong> Everything is denied by default. A request is only allowed if a statement explicitly allows it.</div>
+        <div class="golden-rule"><strong>Rule 2:</strong> An explicit <strong>Deny</strong> always wins — even if another statement allows the same request.</div>
+      </div>`;
+
+    function renderIntro() {
+      const overlay = document.createElement('div');
+      overlay.className = 'intro-overlay';
+      overlay.id = 'introOverlay';
+      overlay.innerHTML = `
+        <div class="intro-card">
+          <h2>How to Play</h2>
+          <p>You are looking at an <strong>AWS IAM policy</strong> — the JSON document that decides
+             who is allowed to do what in a cloud account. Every round shows you a policy with a
+             real security flaw in it, taken from mistakes that cause real-world breaches.</p>
+          <p><strong>Your job:</strong> edit the policy JSON until every row in the
+             <strong>Access Test Results</strong> table passes. Each row is one simulated request —
+             who is asking, what they want to do, and on which resource. PASS means your policy
+             gives the <strong>Expected</strong> answer for that request; FAIL means it doesn't yet.</p>
+          <h2>The five fields you will edit</h2>
+          ${FIELD_REFERENCE_HTML}
+          <h2>Example: fixing a wildcard</h2>
+          <div class="example-pair">
+            <code class="example-bad">"Resource": "*"                          ← grants access to EVERY bucket in the account</code>
+            <code class="example-good">"Resource": ["arn:aws:s3:::my-bucket",   ← the bucket itself (needed by list actions)
+             "arn:aws:s3:::my-bucket/*"] ← the files inside it (needed by object actions)</code>
+          </div>
+          <p>That difference is the difference between least privilege and a data breach. Note the
+             two ARN forms: object actions like GetObject match the <strong>/*</strong> form, while
+             bucket-level actions like ListBucket match the bare bucket ARN. Most rounds come down
+             to replacing something too broad with something exact.</p>
+          <p>There is no penalty for attempts — edit, run the tests, read the failures, and iterate.
+             That loop is exactly how real cloud engineers debug policies. After two runs a hint
+             will point at the field(s) to focus on.</p>
+          <div class="button-group">
+            <button class="btn btn-primary" id="startBtn" type="button">Start Debugging</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      document.getElementById('startBtn').addEventListener('click', () => {
+        try { localStorage.setItem('iam_debugger_intro_seen', 'true'); } catch (e) { /* private mode */ }
+        overlay.remove();
+      });
+    }
+
+    document.getElementById('howtoLink').addEventListener('click', () => {
+      if (!document.getElementById('introOverlay')) renderIntro();
+    });
+
+    // Initialize game. The round renders underneath either way; the intro overlays it on a
+    // first visit (or when reopened) and never touches game state.
     renderRound();
+    let introSeen = false;
+    try { introSeen = localStorage.getItem('iam_debugger_intro_seen') === 'true'; } catch (e) { /* private mode */ }
+    if (!introSeen) renderIntro();
   </script>
+    <!-- FirebaseAuth THEN FirestoreManager (order matters -- the gauntlet/m20 precedent, NOT
+         save-the-pod which loads FirestoreManager alone and stays dead): addXP and
+         GameTracker's scoreboard submit both guard on FirebaseAuth first, so without BOTH
+         scripts the guards fail silently and "+50 XP Awarded" is localStorage-only. -->
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/FirestoreManager.js"></script>
     <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
 </body>

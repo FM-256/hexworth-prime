@@ -78,6 +78,21 @@ async function setPolicyAndRun(pg, policyObj) {
   await pg.goto('http://localhost:' + port + GAME_URL, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(300);
 
+  // How-to-play layer (2026-08-02): a first visit (empty localStorage) must show the intro
+  // overlay, and Start must dismiss it. Later navigations in this same context assert the
+  // seen-flag suppresses it (checked implicitly: the playthrough below would fail to click
+  // buttons under a stuck overlay only if it also intercepted programmatic clicks — so the
+  // explicit assertions here are the real check).
+  const introState = await pg.evaluate(() => {
+    const overlay = document.getElementById('introOverlay');
+    const hadIntro = !!overlay;
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) startBtn.click();
+    return { hadIntro, goneAfterStart: !document.getElementById('introOverlay') };
+  });
+  ok('intro overlay shows on first visit', introState.hadIntro, introState);
+  ok('Start Debugging dismisses the intro', introState.goneAfterStart, introState);
+
   const meta = await pg.evaluate(() => ({
     // `rounds` is a top-level `const` inside the page's inline <script>, so it's a bare global
     // binding (not a `window` property) — read it directly, the way any other script tag on the
@@ -120,6 +135,8 @@ async function setPolicyAndRun(pg, policyObj) {
   // reported below reflects exactly one 10-round run, not two stacked runs.
   await pg.goto('http://localhost:' + port + GAME_URL, { waitUntil: 'domcontentloaded', timeout: 20000 });
   await sleep(300);
+  ok('intro overlay suppressed on revisit (seen-flag honored)',
+     await pg.evaluate(() => !document.getElementById('introOverlay')), null);
   for (let i = 0; i < 10; i++) {
     const r = await pg.evaluate((idx) => rounds[idx].intendedFixPolicy, i);
     const res = await setPolicyAndRun(pg, r);
