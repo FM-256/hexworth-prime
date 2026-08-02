@@ -103,7 +103,36 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** 9 of 10 cloud games clean at 11 distinct viewports across two disjoint sets, with scrolled-state sampling. This is the only survivor.
 - **Related:** BUG-087 · commits f124e0eb9, 93166f6b3
 
-### BUG-087 — cloud-hop / cloud-hop-vertical overflow horizontally at 1024 and 390  ·  [P3]  ·  open
+### BUG-087 — cloud-hop / cloud-hop-vertical overflow horizontally at 1024 and 390  ·  [P3]  ·  RESOLVED
+> **FIXED AND LIVE 2026-08-02, commit ea45bf6a3.** Production now reports `h-scroll=false` at
+> 1024, 390 and 360 on both pages.
+>
+> **Root cause was not the container.** Found by enumerating every element whose right edge
+> exceeded the viewport instead of reasoning from the CSS: `#gameWrapper` is a NON-WRAPPING flex
+> row holding `#gameContainer` (800) + `#startScreen` (280, `flex-shrink:0`) = **1080px**, so
+> every viewport below 1080 overflowed. At 1024 the wrapper's right edge was 1052 and
+> `documentElement.scrollWidth` was 1058 against an `innerWidth` of 1024. The body itself was a
+> clean 1024 with no padding — the container and canvas only overflowed because the row pushed
+> them, which also explains the phantom "+140px container offset" measured earlier: the
+> container was never offset, it was shoved.
+>
+> **Fix, three parts per page:** `flex-wrap` on the row so the panel drops below the game;
+> `#gameCanvas { max-width:100%; height:auto }` because the fixed 800x600 buffer overflowed on
+> its own below ~806px (capping DISPLAY size leaves the drawing buffer and all game coordinates
+> untouched); and narrow-width gutters for the two overlaps below.
+>
+> **TWO OVERLAPS WERE EXPOSED, NOT CAUSED — and fixed rather than traded away.** Before the fix
+> the probe reported "0 overlaps" at 390 while able to see only NINE text nodes; the rest were
+> off-canvas and excluded. After, it sees 45. The exposed pair: the `<h1>` under `.back-link`,
+> and on hop-vertical two HUD bands (`#ui` is absolute at `top:10` and ~60px tall, while
+> `#scenarioBar` carries an INLINE `top:34px` inside that band — unnoticed on a wide canvas
+> because `#ui` is `space-between` and the centred text lands in the gap between its columns).
+> The `!important` on `#scenarioBar` is required, not stylistic: the 34px is an inline style
+> attribute, which beats a stylesheet rule without it.
+>
+> **Verified at 22 measurements** — both pages, 11 viewports across two disjoint sets — 0
+> overlaps, 0 spills, h-scroll false everywhere, then re-verified on production after deploy.
+
 - **Found:** 2026-08-02 · by self (overlap probe) · in cloud games QC
 - **Area:** `_app/houses/cloud/games/cloud-hop.applet.html`, `cloud-hop-vertical.applet.html`
 - **Symptom:** `document.documentElement.scrollWidth` exceeds `innerWidth` (measured 1058 vs 1024), so the page scrolls sideways. Pre-existing.
