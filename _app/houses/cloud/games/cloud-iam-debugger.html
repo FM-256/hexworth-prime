@@ -481,6 +481,17 @@
     .field-ref[open] summary::before { content: '▾ '; }
     .field-ref .field-ref-body { padding: 0 14px 12px; }
     .hint-note { color: #9ca3af; font-size: 13px; margin-top: 8px; text-align: center; }
+    .hint-box {
+      border-left: 4px solid #f59e0b; background: rgba(245, 158, 11, 0.08);
+      padding: 12px 16px; border-radius: 0 8px 8px 0; margin-top: 12px;
+      color: #e5e7eb; font-size: 14px; line-height: 1.6;
+    }
+    .hint-box strong { color: #fbbf24; }
+    .hint-fix {
+      font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5;
+      background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 8px; padding: 12px; margin-top: 10px; overflow-x: auto; white-space: pre;
+    }
 </style>
 </head>
 <body>
@@ -546,6 +557,10 @@
           ]
         },
         explanation: "The wildcard '*' in the Resource field grants access to ALL S3 buckets in the account, violating the principle of least privilege. The fix specifies the exact bucket ARN and includes both the bucket itself and its contents (bucket/* for objects).",
+        hints: [
+          "The Actions look right — the problem is WHAT they apply to. Look at the Resource field: right now it covers every bucket in the account, including the HR one.",
+          "Replace \"Resource\": \"*\" with the company-data bucket, using BOTH ARN forms in an array: \"arn:aws:s3:::company-data\" (for ListBucket) and \"arn:aws:s3:::company-data/*\" (for the files)."
+        ],
         vulnerability: "Overly Permissive Resource",
         correctScore: 100
       },
@@ -574,6 +589,10 @@
           ]
         },
         explanation: "In IAM, Allow statements always win unless there's an explicit Deny. The second statement attempts to restrict but only applies to DescribeInstances. An explicit Deny statement is needed to block ALL ec2:* actions on production resources, as Deny always overrides Allow.",
+        hints: [
+          "Nothing in this policy ever says Deny — and in IAM, once something is allowed, only an explicit Deny can take it back. The second statement narrows nothing; it just allows less.",
+          "ADD a third statement: \"Effect\": \"Deny\", \"Action\": \"ec2:*\", \"Resource\": \"*\" with a Condition of StringEquals on ec2:ResourceTag/Environment = production. Deny always outranks Allow."
+        ],
         vulnerability: "Ineffective Access Control",
         correctScore: 100
       },
@@ -600,6 +619,10 @@
           ]
         },
         explanation: "The wildcard 's3:*' grants ALL S3 permissions including destructive actions like DeleteObject, DeleteBucket, and PutBucketPolicy. Following least privilege, specify ONLY the exact actions needed.",
+        hints: [
+          "Count what s3:* includes — delete, rewrite bucket policy, everything. The tests only ever need two permissions to succeed.",
+          "Change \"Action\": \"s3:*\" to the array [\"s3:GetObject\", \"s3:ListBucket\"] — exactly what the passing tests use, nothing more."
+        ],
         vulnerability: "Excessive Action Permissions",
         correctScore: 100
       },
@@ -625,6 +648,10 @@
           ]
         },
         explanation: "The Principal field with '*' allows ANYONE (including anonymous users from the internet) to invoke this function. For sensitive operations like payment processing, specify the exact role that should have access.",
+        hints: [
+          "Read the Principal field: WHO may invoke this function right now? A star there means anyone on the internet, no account required.",
+          "Replace \"Principal\": \"*\" with the exact role: {\"AWS\": \"arn:aws:iam::123456789012:role/PaymentProcessor\"}."
+        ],
         vulnerability: "Public Function Exposure",
         correctScore: 100
       },
@@ -650,6 +677,10 @@
           ]
         },
         explanation: "Without a Condition block restricting the source IP, this policy allows access from any network location. Adding an IpAddress condition ensures access is only granted from the office network (203.0.113.0/24), and since the statement covers s3:*, the restriction automatically applies to every action including PutObject.",
+        hints: [
+          "This policy has no opinion about WHERE a request comes from — office or the other side of the world, same answer. Something is missing entirely, not misconfigured.",
+          "Add a Condition block to the statement: {\"IpAddress\": {\"aws:SourceIp\": \"203.0.113.0/24\"}} — the office network from the description."
+        ],
         vulnerability: "Missing Network Restriction",
         correctScore: 100
       },
@@ -675,6 +706,10 @@
           ]
         },
         explanation: "This is a classic privilege escalation vulnerability. A user with iam:CreatePolicy AND iam:AttachUserPolicy can create a policy with full admin rights and attach it to themselves. The fix removes the attach permissions entirely and restricts policy creation to a specific naming pattern — simply removing AttachUserPolicy still leaves AttachRolePolicy exploitable.",
+        hints: [
+          "Create-a-policy PLUS attach-a-policy = write yourself an admin badge and pin it on. One of those two abilities has to go, and the other needs a fence.",
+          "Remove both Attach actions, and restrict the Resource so policies can only be created under a safe name: \"arn:aws:iam::123456789012:policy/developer-*\"."
+        ],
         vulnerability: "Privilege Escalation",
         correctScore: 100
       },
@@ -700,6 +735,10 @@
           ]
         },
         explanation: "In a role trust policy, 'AWS: *' allows ANY AWS account to assume the role, creating a massive security hole. You must specify the exact account ID. Trust policies intentionally omit a Resource field — the 'resource' being granted is the role itself.",
+        hints: [
+          "This is a trust policy — it decides which ACCOUNTS may assume the role. Check who it trusts right now: everyone.",
+          "Replace the Principal with the partner account only: {\"AWS\": \"arn:aws:iam::555555555555:root\"}. Leave Resource out — a trust policy grants the role itself."
+        ],
         vulnerability: "Cross-Account Exposure",
         correctScore: 100
       },
@@ -726,6 +765,10 @@
           ]
         },
         explanation: "To ENFORCE encryption, add a Deny statement that blocks uploads WITHOUT encryption (a missing encryption header is treated as 'not AES256'). Best practice uses an explicit Deny rather than only conditioning the Allow, since a Deny wins even if another policy elsewhere grants broader access — this game grades by tested behavior, so an equivalently-conditioned Allow that produces the same Allow/Deny outcomes here also passes.",
+        hints: [
+          "The upload permission itself is fine — what's missing is anything that REFUSES an unencrypted upload. Remember which effect wins every argument.",
+          "Add a second statement: \"Effect\": \"Deny\" for s3:PutObject on the same resource, with Condition {\"StringNotEquals\": {\"s3:x-amz-server-side-encryption\": \"AES256\"}}."
+        ],
         vulnerability: "Missing Encryption Enforcement",
         correctScore: 100
       },
@@ -751,6 +794,10 @@
           ]
         },
         explanation: "Destructive IAM actions like DeleteUser and DetachUserPolicy should require MFA to prevent account compromise from leading to total control loss. The 'aws:MultiFactorAuthPresent' Bool condition ensures the caller authenticated with MFA before the action is allowed.",
+        hints: [
+          "These are account-destroying actions, and nothing checks HOW the caller logged in. Password alone shouldn't be enough to delete users.",
+          "Add a Condition to the statement: {\"Bool\": {\"aws:MultiFactorAuthPresent\": \"true\"}}."
+        ],
         vulnerability: "Missing MFA Protection",
         correctScore: 100
       },
@@ -780,6 +827,10 @@
           ]
         },
         explanation: "This final challenge tested three core IAM security principles: (1) Least privilege for actions - dynamodb:* includes dangerous operations like DeleteTable. (2) Specific resources - a wildcard grants access to every table. (3) MFA for write operations - PutItem and UpdateItem modify data and should require MFA, while read-only GetItem/Query do not need to be gated behind it. Splitting reads and MFA-gated writes into separate statements avoids accidentally blocking legitimate reads.",
+        hints: [
+          "Three separate problems: the Action is every DynamoDB operation, the Resource is every table, and writes have no MFA check. Fix all three — two statements is the clean shape.",
+          "Statement 1: Allow [\"dynamodb:GetItem\", \"dynamodb:Query\"] on \"arn:aws:dynamodb:*:*:table/app-data-table\". Statement 2: Allow [\"dynamodb:PutItem\", \"dynamodb:UpdateItem\"] on the same ARN with the MFA Bool condition."
+        ],
         vulnerability: "Multiple Security Issues",
         correctScore: 150
       }
@@ -1021,10 +1072,12 @@
 
           <div class="button-group">
             <button class="btn btn-secondary" id="resetBtn" type="button">Reset Policy</button>
+            <button class="btn btn-secondary" id="hintBtn" type="button">Hint 1 of 3</button>
             <button class="btn btn-primary" id="runBtn" type="button">Run Tests</button>
           </div>
-          <div class="hint-note">Stuck? After two runs, a hint will point at the field(s) to focus on. "How to Play" (top left) reopens the instructions any time.</div>
+          <div class="hint-note">This is a learning tool — hints cost nothing. Three tiers: a nudge, the exact change, then the full fix. "How to Play" (top left) reopens the instructions any time.</div>
 
+          <div id="hintArea"></div>
           <div id="explanationArea"></div>
         </div>
       `;
@@ -1038,6 +1091,29 @@
         document.getElementById('policyEditor').value = JSON.stringify(round.policy, null, 2);
         document.getElementById('jsonError').style.display = 'none';
         document.getElementById('explanationArea').innerHTML = '';
+      });
+
+      // Progressive hints (operator 2026-08-02: "users need help, it is part of a class").
+      // Available from the first second — no failure requirement, no score cost. Tier 1 = the
+      // concept, tier 2 = the exact change, tier 3 = the canonical fix itself, shown as JSON
+      // the student still has to type in (the tests remain the gate, so even copying teaches
+      // the shape of a correct policy).
+      let hintTier = 0;
+      const hintBtn = document.getElementById('hintBtn');
+      hintBtn.addEventListener('click', () => {
+        if (hintTier >= 3) return;
+        hintTier++;
+        const area = document.getElementById('hintArea');
+        const hints = round.hints || [];
+        let block = '';
+        if (hintTier <= 2 && hints[hintTier - 1]) {
+          block = `<div class="hint-box"><strong>Hint ${hintTier}:</strong> ${escapeHtml(hints[hintTier - 1])}</div>`;
+        } else {
+          block = `<div class="hint-box"><strong>The fix:</strong> here is a policy that passes every test — type it in, run the tests, then read the explanation to lock in WHY it works.<pre class="hint-fix">${escapeHtml(JSON.stringify(round.intendedFixPolicy, null, 2))}</pre></div>`;
+        }
+        area.innerHTML += block;
+        hintBtn.textContent = hintTier === 1 ? 'Hint 2 of 3' : (hintTier === 2 ? 'Show the fix' : 'All hints shown');
+        if (hintTier >= 3) hintBtn.disabled = true;
       });
     }
 
@@ -1238,8 +1314,9 @@
              bucket-level actions like ListBucket match the bare bucket ARN. Most rounds come down
              to replacing something too broad with something exact.</p>
           <p>There is no penalty for attempts — edit, run the tests, read the failures, and iterate.
-             That loop is exactly how real cloud engineers debug policies. After two runs a hint
-             will point at the field(s) to focus on.</p>
+             That loop is exactly how real cloud engineers debug policies. And the
+             <strong>Hint button</strong> is always there: a nudge first, then the exact change,
+             then the full fix. Using it costs nothing — this is a class, not a trap.</p>
           <div class="button-group">
             <button class="btn btn-primary" id="startBtn" type="button">Start Debugging</button>
           </div>

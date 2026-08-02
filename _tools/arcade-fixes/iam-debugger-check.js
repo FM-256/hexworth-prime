@@ -93,6 +93,26 @@ async function setPolicyAndRun(pg, policyObj) {
   ok('intro overlay shows on first visit', introState.hadIntro, introState);
   ok('Start Debugging dismisses the intro', introState.goneAfterStart, introState);
 
+  // Progressive hints (2026-08-02): every round must carry exactly 2 authored hints (tier 3
+  // is the round's own intendedFixPolicy), and the button must walk tier 1 -> tier 2 -> fix.
+  const hintData = await pg.evaluate(() => ({
+    allHaveTwo: rounds.every(r => Array.isArray(r.hints) && r.hints.length === 2 &&
+                                  r.hints.every(h => typeof h === 'string' && h.length > 20)),
+  }));
+  ok('every round has 2 authored hint tiers', hintData.allHaveTwo, hintData);
+  const hintUi = await pg.evaluate(() => {
+    const btn = document.getElementById('hintBtn');
+    btn.click();
+    const t1 = document.querySelectorAll('#hintArea .hint-box').length === 1;
+    btn.click();
+    const t2 = document.querySelectorAll('#hintArea .hint-box').length === 2;
+    btn.click();
+    const fixShown = !!document.querySelector('#hintArea .hint-fix');
+    return { t1, t2, fixShown, btnDisabled: btn.disabled };
+  });
+  ok('hint button reveals tier 1, tier 2, then the fix and disables',
+     hintUi.t1 && hintUi.t2 && hintUi.fixShown && hintUi.btnDisabled, hintUi);
+
   const meta = await pg.evaluate(() => ({
     // `rounds` is a top-level `const` inside the page's inline <script>, so it's a bare global
     // binding (not a `window` property) — read it directly, the way any other script tag on the
