@@ -38,7 +38,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Repro:** `ssh bc1 'cd ~/hexworth-sandbox && node adversarial-cinder.js'`
 - **Root cause:** Accumulated debris in the QC identity's persistent tenant. Earlier failing runs exited via `process.exit`, which does not unwind, so their cleanup never ran and each left a `lab-vol` behind. This is the exact consequence BUG-077 predicted for the whole harness fleet.
 - **Why it is not self-healing:** the harness resolves volumes BY NAME, and OpenStack allows duplicate names. Once two exist, every later `volume show lab-vol` is ambiguous and fails before reaching any cleanup step — the debris blocks the very code that would clear it.
-- **Fix:** none applied. Requires deleting the duplicate `lab-vol` volumes in `student-25` by ID, not name. NOT done unilaterally: it destroys cloud resources, and the standing rule is archive-and-verify rather than delete. Needs an explicit decision.
+- **FULL INVENTORY of slot `student-25`, read-only via the claim service, 2026-08-02.** Recorded here as the archive-before-any-delete step:
+
+  | kind | id | name | status | detail |
+  |---|---|---|---|---|
+  | server | `44d0d391-55df-4ffd-b321-22a804090703` | `cheat-srv` | ACTIVE | created 2026-07-31T09:57:27Z |
+  | volume | `9fd193b3-3c1a-4246-a56d-6bd301242aa5` | `lab-vol` | in-use | 1 attachment, created 2026-07-31T09:57:18Z |
+  | volume | `23a9ed11-5e9e-4962-87c2-dd3569c58913` | `lab-vol` | available | 0 attachments, created 2026-08-02T08:54:20Z |
+
+- **Reading of that inventory.** The Jul 31 pair is one failing adversarial run that exited via `process.exit`, skipped its cleanup, and has been left running for two days — `cheat-srv` is a name only the harness creates. The Aug 2 volume is **mine**, from the run I made today to verify the exit-path refactor; my run then threw on the ambiguity its own predecessor caused.
+- **There are TWO blockers here, not one.** Beyond the duplicate-name ambiguity, the pool sets `--instances 1` (`provision-pool.sh:52`), so the stranded `cheat-srv` occupies the ONLY instance slot — the harness cannot create its own server even if the volume names were unique.
+- **Fix:** none applied. Unblocking needs `cheat-srv` deleted (releasing both the attachment and the instance quota) and both `lab-vol` volumes deleted BY ID, since the name is ambiguous. All three are QC debris in a QC-owned slot, created by our own harnesses. NOT done unilaterally: it destroys cloud resources, the standing rule is archive-and-verify rather than delete, and Nancy has twice placed cloud-state changes with the operator.
 - **Now less likely to recur:** the exit-path fixes landed this session mean failing runs DO tear down. Verified on this very run — the harness threw, the `finally` executed, and the session container was gone afterwards (`docker ps -a` count 0). That stops NEW debris; it does not clear what is already there.
 - **Related:** BUG-077 · BUG-066 · taskboard #275
 
