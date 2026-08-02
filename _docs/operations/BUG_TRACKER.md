@@ -31,7 +31,49 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-093 — 37 of 91 arcade games scroll sideways on a phone  ·  [P2]  ·  open
+### BUG-093 — 37 of 91 arcade games scroll sideways on a phone  ·  [P2]  ·  RESOLVED
+> **CLOSED 2026-08-02. 37 -> 0.** All 91 games measured on production: zero horizontal overflow
+> at 1024 or 390. Final evidence: `_docs/operations/evidence/game-hscroll-final-2026-08-02.txt`,
+> verified to cover exactly the 91 games with 0 defects (diffed against the game list, not eyeballed).
+>
+> Shipped in five batches, each verified on a candidate build then re-measured on production:
+> `ea45bf6a3` + `0c5e4360d` (4 cloud, BUG-087) · `c81910534` (9 broken at 1024 too) ·
+> `593684919` (11 wrapper-class) · `3b6890b52` (pre-formatted text + tables) ·
+> `8c8ca3486` (10 flex rows under other selector names) · `f107d8256` (final 6).
+>
+> **The dominant cause was one defect wearing many names.** `display:flex` + `flex-wrap:nowrap`
+> with children that will not shrink — as `#gameWrapper`, `HEADER.header`, `NAV#module-nav`,
+> `DIV.input-container`, `DIV#main`, `DIV.top-bar`, `DIV.game-wrap`, and on
+> `shield-incident-response` **the `body` element itself**. Everything else was a long tail:
+> fixed-size canvases, a CSS grid, wide tables, `white-space:pre` blocks, a progress-bar fill
+> rendering wider than its own track.
+>
+> **Nothing is hidden.** Every fix wraps, folds text, contains with `overflow-x` so a block
+> scrolls inside itself, or caps a canvas's DISPLAY size while leaving its drawing buffer
+> untouched. Log tables, credential columns and terminal output stay readable at full width.
+>
+> **`max-width:100%` resolves against the CONTAINING BLOCK** — the single most expensive lesson
+> here. Capping a canvas inside a fixed-width container is a no-op; the cap has to run up the
+> chain to something the viewport actually constrains. Three failed attempts on `shield-debugger`
+> before that landed, after which 11 files fixed first try.
+>
+> **Four instruments had to be corrected to get this right**, all the same root — geometry that
+> had stopped describing what is painted: the sweeper naming a THEAD *inside* an already-scrolling
+> table; `scrollWidth > clientWidth` flagging its own `overflow-x:auto` fix as a defect; a
+> "what protrudes" probe returning nothing when overflow is inherited up the ancestor chain; and
+> a full sweep that reported "0 defects" after **crashing at 86 of 91 games**. That last one was
+> caught only because 97 log lines for 91 games did not add up.
+>
+> **"0 overlaps" on an overflowing page means nothing** — `cloud-hop` reported 0 while only NINE
+> text nodes were measurable; the rest were off-canvas. After the fix, 45. Overlaps exposed by
+> removing overflow were fixed, not counted as regressions, and that distinction was measured
+> production-before vs candidate-after rather than asserted.
+>
+> Tool promoted to the repo: `_tools/eduscan/hscroll-sweep.js`.
+>
+> **STILL OPEN, unrelated to overflow:** `web-packet-run` has a Mute/HUD overlap reproduced on
+> production at 1600 (pre-existing); `eye-log-centipede` flags only under scroll sampling, which
+> is likely a probe artifact since `.gs-widget` has no rAF pin or scroll listener.
 - **Found:** 2026-08-02 · by self, measuring every game on production · after fixing the same class on 4 cloud games (BUG-087)
 - **Area:** `_app/houses/*/games/` — all ten houses. Raw sweep: `_docs/operations/evidence/game-hscroll-sweep-2026-08-02.txt`
 - **Symptom:** `documentElement.scrollWidth` exceeds `innerWidth`, so the page scrolls horizontally and content sits off-screen. **37 of 91 games (41%)** at 390px; **9 of those also at 1024px**.
