@@ -27,12 +27,26 @@ async function post(url, body, headers) {
 (async () => {
   const fail = (m) => { console.error('E2E FAIL:', m); process.exit(1); };
 
-  // 1. real password-provider test user
-  const email = `stage3-e2e-${Math.random().toString(36).slice(2, 8)}@hexworth-smoke.local`;
-  const password = 'St' + Math.random().toString(36).slice(2, 6) + '9X';
-  const su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
+  // 1. real password-provider test user -- FIXED IDENTITY (BUG-089).
+  // This used to mint `stage3-e2e-${Math.random()...}` on every run. The bridge binds a pool
+  // slot to a uid PERMANENTLY, so a new identity per run permanently burned one of the 30 slots
+  // EVERY TIME, and deleting the account afterwards did not release the Keystone binding -- it
+  // just left a dead uid holding the slot. That is the same debris that filled 23 of 25 bound
+  // slots. A fixed identity binds exactly ONE slot and every later run reuses it.
+  const email = 'stage3-e2e-qc@hexworth-smoke.local';
+  const password = 'QcS3e9x';
+  let su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${API_KEY}`,
     { email, password, returnSecureToken: true }, { Referer: 'https://hexworth-prime.web.app/' });
-  if (su.status !== 200) fail(`signUp ${su.status}: ${JSON.stringify(su.data).slice(0, 200)}`);
+  if (su.status !== 200) {
+    // Retry ONLY on EMAIL_EXISTS, which is the normal path after the first ever run -- sign in
+    // and reuse the SAME uid. Falling through on any non-200 would mask a bad API key or a
+    // referer rejection behind a misleading sign-in error.
+    const why = ((su.data || {}).error || {}).message || '';
+    if (why.indexOf('EMAIL_EXISTS') !== 0) fail(`signUp ${su.status}: ${JSON.stringify(su.data).slice(0, 200)}`);
+    su = await post(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
+      { email, password, returnSecureToken: true }, { Referer: 'https://hexworth-prime.web.app/' });
+  }
+  if (su.status !== 200) fail(`auth ${su.status}: ${JSON.stringify(su.data).slice(0, 200)}`);
   const { idToken, localId } = su.data;
   console.log('1. test user minted:', localId);
 
@@ -92,9 +106,14 @@ async function post(url, body, headers) {
   // 7. cleanup: instance, session, user
   dex(sid2, 'openstack server delete e2e-proof --wait');
   await fetch(`${BASE}/destroy/${sid2}`, { method: 'DELETE', headers: auth });
-  await post(`https://identitytoolkit.googleapis.com/v1/accounts:delete?key=${API_KEY}`,
-    { idToken }, { Referer: 'https://hexworth-prime.web.app/' });
-  console.log('7. cleanup done (instance deleted, session destroyed, test user removed)');
-  console.log(`OPERATOR: clear the test mapping on bc2:  openstack project unset --property hexworth_uid ${slot}`);
+  // The test user is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
+  // destroys the uid, so the next run's signUp mints a NEW one for the same email, binds ANOTHER
+  // pool slot, and the old uid keeps its Keystone binding forever. That would make the fixed
+  // identity above completely inert -- run-over-run behaviour identical to the random-email
+  // version this replaced. Keeping the account is what makes the slot reusable.
+  console.log('7. cleanup done (instance deleted, session destroyed; QC identity kept on purpose)');
+  // The old `OPERATOR: clear the test mapping` line is gone: it asked a human to release the
+  // binding by hand after every run, that step was never performed, and it is precisely how the
+  // pool filled with QC-held slots.
   console.log('E2E PASS');
 })().catch((e) => { console.error('E2E FAIL (throw):', e.message); process.exit(1); });
