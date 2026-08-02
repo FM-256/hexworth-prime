@@ -31,6 +31,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-091 — the cinder QC gate is BLOCKED by leftover duplicate volumes  ·  [P2]  ·  open
+- **Found:** 2026-08-02 · by self, running the harness to verify a refactor · in task 275 work
+- **Area:** `_tools/openstack-bridge/adversarial-cinder.js`, OpenStack slot `student-25` (bound to `cinder-adv-qc`)
+- **Symptom:** The adversarial cinder harness cannot complete. It dies at the first volume step with `More than one volume exists with the name 'lab-vol'`, so `qc-lab.sh cinder` cannot pass and that lab currently has NO working gate protecting it.
+- **Repro:** `ssh bc1 'cd ~/hexworth-sandbox && node adversarial-cinder.js'`
+- **Root cause:** Accumulated debris in the QC identity's persistent tenant. Earlier failing runs exited via `process.exit`, which does not unwind, so their cleanup never ran and each left a `lab-vol` behind. This is the exact consequence BUG-077 predicted for the whole harness fleet.
+- **Why it is not self-healing:** the harness resolves volumes BY NAME, and OpenStack allows duplicate names. Once two exist, every later `volume show lab-vol` is ambiguous and fails before reaching any cleanup step — the debris blocks the very code that would clear it.
+- **Fix:** none applied. Requires deleting the duplicate `lab-vol` volumes in `student-25` by ID, not name. NOT done unilaterally: it destroys cloud resources, and the standing rule is archive-and-verify rather than delete. Needs an explicit decision.
+- **Now less likely to recur:** the exit-path fixes landed this session mean failing runs DO tear down. Verified on this very run — the harness threw, the `finally` executed, and the session container was gone afterwards (`docker ps -a` count 0). That stops NEW debris; it does not clear what is already there.
+- **Related:** BUG-077 · BUG-066 · taskboard #275
+
 ### BUG-089 — e2e-stage3.js permanently burns a pool slot on every run  ·  [P2]  ·  open
 - **Found:** 2026-08-02 · by Nancy (flagged), confirmed by self · while auditing task 275
 - **Area:** `_tools/openstack-bridge/e2e-stage3.js:31` and `:40`
