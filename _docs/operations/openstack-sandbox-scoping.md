@@ -850,3 +850,51 @@ rather than reasoning about it: seeded student-29, deleted ONLY the volume while
 ghost-srv, then re-seeded. Old behaviour would leave orphan debris and hand back an unattached
 pair (permanent free check 10). Observed now: re-seed returned a NEW server id, and the end
 state is exactly one server + one `orphan-vol` `in-use` -- debris repaired, pair consistent.
+
+### Lab 6 design finding (2026-08-02): the credential lab collides with three walls -- Nancy BLOCK
+
+Lab 6 (Keystone reduced privilege, "being denied is the lesson") was designed before building,
+per doctrine. The design pass produced constraint discoveries worth keeping regardless of
+which design eventually ships:
+
+- **The session credential is RESTRICTED by design**, and Keystone forbids restricted app
+  creds from creating OR deleting application credentials. So a student inside the container
+  cannot run `application credential create` at all -- the obvious "build your own
+  least-privilege key" lab fails at step 1, and the restriction (credential-chaining
+  prevention) must not be weakened for a lab.
+- **`/verify` already returns `app_creds`** (name, roles, unrestricted, expires_at) --
+  server-side credential checks need no new read plumbing.
+- **The reconcile sweep deletes every app cred not tied to a live container, with no name
+  filter** -- any credential a lab seeds or a student holds beyond the session dies within
+  ~10 minutes. Any credential-shaped lab requires a sweep change first.
+
+The proposed design ("The Key Audit": seed a dangerous unrestricted key + a legitimate
+reader key; student audits, feels the delete-403, revokes the right one via a page action;
+checks 29-30 = right key gone, right key kept) went to Nancy. **BLOCK, on grounds that were
+correct:**
+
+1. The lab's correct completed state (one key gone, one kept) is indistinguishable from a
+   half-crashed seed, so the existing repair-half-seeded-debris doctrine would recreate the
+   dangerous key on relaunch and erase completed work. Needs a persisted completion marker;
+   name-existence cannot carry it.
+2. The "unbeatable" revoke claim had no mechanism: `seed()` persists nothing, so there is no
+   record to validate a submitted id against, and `delete_cred()` deletes ANY id
+   unconditionally -- including the student's own live session cred. A proposed
+   "session still works" check was also false comfort: `/verify` authenticates as the pool
+   user by password and proves nothing about the session cred.
+3. F2 (sweep filters to `session-*` names) inverts the sweep's fail-safe into fail-open, and
+   its residue bound assumed Keystone purges expired app creds -- unverified, and probably
+   false (expiry blocks auth, not existence). Probe live before any such change.
+4. **F1: student-triggered permanent deletion of a Keystone credential likely lands INSIDE
+   the 2026-08-02 no-cloud-deletion ruling**, not outside it. Frank must rule; the honest
+   prior is "inside."
+5. Pedagogy drift: the graded resolution was an invisible admin acting for the student, not
+   the student acting with sufficient privilege. "Act with reduced privilege" was not what
+   the button taught.
+
+**Disposition: PINNED for Frank.** The F1 ruling gates every deletion-shaped variant; the
+rework (persisted seed/completion record on bc2, revoke validation, expiry probe) is only
+worth doing if F1 lands yes. If F1 lands no, the honest options are Option B
+(page-issued reader key -- construction-only grading, weaker) or Option C (ungraded
+exploration module, the lab-2 option-1 shape), or dropping lab 6 from the graded track.
+Full option analysis: `_planning/LAB6_KEYSTONE_DESIGN_2026-08-02.md`.
