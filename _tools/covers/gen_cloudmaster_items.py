@@ -25,6 +25,40 @@ SCENES = [
     # register from the three cinematic pilots the operator approved. Every entry below now names a
     # PHYSICAL SPACE, a SUBJECT in it, and a beat of action, which is what made the pilots read as
     # cinematic. The operator's instruction was "generate the rest to match".
+    #
+    # ── Wave 2 (2026-08-02): MS-102 / MS-900 / PL-300 / Server+ vocabulary. Without these,
+    #    the generic component keywords below (presentation/quiz/lab) matched first and the
+    #    dry run produced 24 identical lecture halls. Topic-specific entries must sit ABOVE
+    #    the generic tail because first match in list order wins. ──
+    ('tenant',        "an administrator raising a master switch inside an empty glass control room as an entire dark campus lights up floor by floor beyond the window"),
+    ('users and gro', "a marshal on a gantry sorting streams of glowing figures into separate lit channels below, each channel converging toward its own gate"),
+    ('roles and acc', "a keeper at a wall of numbered vault doors handing a single glowing key to a waiting silhouette, the other doors sealed dark down the corridor"),
+    ('entra',         "a figure stepping through a scanning archway that paints them in light, a second gate ahead staying dark until the first confirms"),
+    ('exchange',      "a night mail hall of luminous parcels routing themselves along suspended tracks overhead, a clerk below redirecting one glowing parcel with a gesture"),
+    ('sharepoint',    "workers around a circular table of glowing documents that lift and file themselves onto shelves rising into darkness"),
+    ('teams',         "a dark round chamber where seated silhouettes face a ring of lit panels, threads of light crossing the table between them"),
+    ('complian',      "an inspector walking a catwalk with a glowing ledger, stamping seals of light onto crates that pass on a belt below"),
+    ('licens',        "a clerk at a tall counter sliding glowing tokens across to a queue of silhouettes, shelves of sealed permits lit behind"),
+    ('pricing',       "a clerk at a tall counter sliding glowing tokens across to a queue of silhouettes, shelves of sealed permits lit behind"),
+    ('prepare the d', "a worker at a sluice gate guiding a rushing stream of luminous fragments through filters that leave the stream running clean"),
+    ('model the dat', "an artisan suspending glowing panes in midair and drawing threads between them until a lattice takes shape overhead"),
+    ('visualiz',      "a figure before a towering dark wall where raw streams of light bloom into charts and shapes wherever they touch the surface"),
+    ('dax',           "a mathematician at a slate of floating luminous formulae, one expression flaring bright as its pieces lock into order"),
+    ('deploy and ma', "an engineer on a maintenance walkway tightening a luminous coupling as a long machine spine hums back to life section by section"),
+    ('hyper-v',       "an engineer in a hall of mirrored glass chambers, each chamber running its own miniature glowing machine room"),
+    ('virtualiza',    "an engineer in a hall of mirrored glass chambers, each chamber running its own miniature glowing machine room"),
+    ('cluster',       "twin server towers on a dark floor, one going dim as arcs of light leap across to its partner which brightens without pause"),
+    ('dns',           "a switchboard operator at a vast wall of labeled sockets, tracing one glowing cord to its distant named port"),
+    ('dhcp',          "a dispatcher at a tollgate handing each arriving dark vehicle a glowing numbered plate before waving it into the grid"),
+    ('group policy',  "a broadcast tower atop a control hall pulsing rings of light outward, rows of distant terminals adjusting in unison as each ring passes"),
+    ('iis',           "a night harbor master on a pier of glowing berths, streams of arriving lights docking and departing in ordered lanes"),
+    ('remote deskt',  "a figure at a dark desk reaching into a life-size projection of a distant control room, their hands working controls that exist miles away"),
+    ('certificate',   "a sealmaster in a vaulted chamber pressing a ring into molten light, chains of archived seals hanging away into the dark"),
+    ('replication',   "two distant lit citadels on a dark plain exchanging synchronized pulses along a single bright causeway"),
+    ('firewall',      "a warden before a wall of flame-colored light, opening one narrow gate as queued shapes pass and others are turned away"),
+    ('powershell',    "a scribe typing at a raised console as lines of light run out across the floor and machines execute each line in sequence down the hall"),
+    ('troubleshoot',  "an engineer kneeling in a half-lit aisle tracing a broken run of light back along a cable to a dark junction, toolkit open"),
+    ('failsafe',      "a lone operator sealed in a drill chamber as the room reconfigures around them, warning lights cycling from red toward green"),
     ('account',      "a lone administrator standing before towering glass partitions that divide one vast data hall into separate lit enclosures, each enclosure glowing a different intensity, deep receding perspective"),
     ('identit',      "a figure pausing at a tall security turnstile inside a dark facility, badge raised, beams of light fanning out ahead into corridors that open only where the beam lands"),
     ('governance',   "a figure pausing at a tall security turnstile inside a dark facility, badge raised, beams of light fanning out ahead into corridors that open only where the beam lands"),
