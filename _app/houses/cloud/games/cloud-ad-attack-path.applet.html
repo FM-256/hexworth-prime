@@ -555,6 +555,25 @@
            Reserve a lane so page content can never occupy the panel's column, above 900px only --
            below that the panel is hidden and a lane would just steal width. */
         @media (min-width: 900px) { body { padding-right: 260px; } }
+
+/* ROUND 2 2026-08-03: operator could not tell what this game was FOR. The sidebar
+   explained the scenario, never the game. First-visit overlay + real edge affordance. */
+.ad-intro-overlay { position:fixed; inset:0; z-index:2000; background:rgba(6,10,20,.96);
+    overflow-y:auto; padding:28px 18px; }
+.ad-intro-card { max-width:760px; margin:0 auto; background:linear-gradient(160deg,#101a2e,#0d1524);
+    border:1px solid rgba(6,182,212,.4); border-radius:12px; padding:26px; color:#d7e6f5;
+    box-shadow:0 8px 40px rgba(6,182,212,.18); line-height:1.6; }
+.ad-intro-card h2 { color:#22d3ee; margin-bottom:12px; font-size:21px; }
+.ad-intro-card p { margin-bottom:13px; font-size:15px; }
+.ad-intro-card .role { border-left:4px solid #ef4444; background:rgba(239,68,68,.1);
+    padding:10px 14px; border-radius:0 8px 8px 0; margin-bottom:14px; }
+.ad-intro-card .step { border-left:4px solid #06b6d4; background:rgba(6,182,212,.1);
+    padding:9px 14px; border-radius:0 8px 8px 0; margin-bottom:9px; font-size:14px; }
+.ad-intro-card strong { color:#67e8f9; }
+.ad-howto-link { color:#22d3ee; cursor:pointer; text-decoration:underline; font-size:13px; }
+/* Edge labels must LOOK clickable -- they were 42x10px of bare 11px text. */
+.edge-label-bg { transition: all .18s ease; }
+.edge-hit:hover ~ .edge-label, .edge-label:hover { fill:#ffffff !important; font-weight:bold; }
 </style>
 </head>
 <body>
@@ -587,9 +606,10 @@
                     <h3>Scenario Info</h3>
                     <div class="scenario-info" id="scenarioInfo">
                         <p style="background:rgba(6,182,212,.12);border-left:3px solid #06b6d4;padding:8px 10px;border-radius:0 6px 6px 0;margin-bottom:10px;font-size:13px;line-height:1.5;">
-                            <strong>How to play:</strong> click the <strong>EDGE LABELS</strong> between nodes
-                            (not the nodes themselves) to traverse an attack path. Chain edges from your
-                            starting foothold to the target.
+                            <strong>How to play:</strong> click the <strong>LINES</strong> (or their labels)
+                            between nodes -- not the boxes -- to traverse that AD relationship. Chain hops
+                            from your foothold to Domain Admins.
+                            <span class="ad-howto-link" id="adHowToLink">Full briefing</span>
                         </p>
                         <p><strong>Objective:</strong> <span id="objectiveText">Select a scenario to begin</span></p>
                         <p><strong>Optimal Steps:</strong> <span id="optimalSteps">-</span></p>
@@ -1072,6 +1092,25 @@
             const midX = (x1 + x2) / 2;
             const midY = (y1 + y2) / 2;
 
+            // ROUND 2 2026-08-03: the label was 42x10px of bare 11px text over a dark void --
+            // nothing said "click me", so players clicked the NODES and nothing happened.
+            // A pill plate behind the label makes the click target read as a button.
+            const plate = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            const plateW = Math.max(46, edge.label.length * 7.2 + 14);
+            plate.setAttribute('x', midX - plateW / 2);
+            plate.setAttribute('y', midY - 17);
+            plate.setAttribute('width', plateW);
+            plate.setAttribute('height', 17);
+            plate.setAttribute('rx', 8);
+            plate.setAttribute('fill', 'rgba(8, 20, 34, 0.92)');
+            plate.setAttribute('stroke', edgeColors[edge.label] || edgeColors.default);
+            plate.setAttribute('stroke-width', '1.2');
+            plate.setAttribute('class', 'edge-label-bg');
+            plate.style.pointerEvents = 'auto';
+            plate.style.cursor = 'pointer';
+            plate.addEventListener('click', () => attemptTraverse(scenario, edge));
+            svg.appendChild(plate);
+
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
             text.setAttribute('id', `${edgeId}-label`);
             text.setAttribute('x', midX);
@@ -1507,5 +1546,56 @@
          Docs: _docs/operations/dr-hex-button-integration.md           ── -->
     <hex-ai-button mission-id="cloud-ad-attack-path" house="cloud"></hex-ai-button>
     <script type="module" src="/_lib/HexAIButton.js"></script>
+    <script>
+        // ── First-visit intro (2026-08-03). The operator's question was literally "what the
+        //    hell is the point of this game" -- so state the point, the role, and the verb. ──
+        function renderAdIntro() {
+            if (document.getElementById('adIntroOverlay')) return;
+            const o = document.createElement('div');
+            o.className = 'ad-intro-overlay';
+            o.id = 'adIntroOverlay';
+            o.innerHTML = `
+                <div class="ad-intro-card">
+                    <h2>AD Attack Path -- how privilege escalation really works</h2>
+                    <div class="role"><strong>You are the attacker.</strong> You have phished ONE
+                        low-privilege account (the glowing cyan node). Your goal is the red node:
+                        <strong>Domain Admins</strong> -- total control of the Windows domain.</div>
+                    <p>Real breaches almost never jump straight to Domain Admin. They <em>walk</em> --
+                       one Active Directory relationship at a time, through group memberships,
+                       misconfigured permissions, and cached credentials. Defenders map these same
+                       paths with tools like BloodHound to cut them before an attacker finds them.
+                       That walk is this game.</p>
+                    <h2>How to play</h2>
+                    <div class="step"><strong>1.</strong> The lines between nodes are AD relationships,
+                        each with a label: <strong>MemberOf</strong>, <strong>AdminTo</strong>,
+                        <strong>GenericAll</strong>, <strong>Kerberoast</strong>.</div>
+                    <div class="step"><strong>2.</strong> <strong>Click a line (or its label)</strong>
+                        to traverse that relationship. Not the boxes -- the connections between them.</div>
+                    <div class="step"><strong>3.</strong> Chain hops from your foothold to Domain Admins.
+                        Matching <strong>Optimal Steps</strong> scores highest.</div>
+                    <div class="step"><strong>4.</strong> Some edges are traps. The game enforces REAL
+                        Active Directory rules -- you cannot Kerberoast an account with no SPN, for
+                        example -- and tells you why when it refuses. Being refused is a lesson,
+                        not a bug.</div>
+                    <p>Stuck? The sidebar carries a hint for every scenario, plus
+                       <strong>Undo Last Step</strong> and <strong>Show Optimal Path</strong>.
+                       Using them costs you nothing.</p>
+                    <button class="btn" id="adIntroStart">Start Hunting</button>
+                </div>`;
+            document.body.appendChild(o);
+            document.getElementById('adIntroStart').addEventListener('click', () => {
+                try { localStorage.setItem('ad_attack_intro_seen', 'true'); } catch (e) {}
+                o.remove();
+            });
+        }
+        (function () {
+            let seen = false;
+            try { seen = localStorage.getItem('ad_attack_intro_seen') === 'true'; } catch (e) {}
+            if (!seen) setTimeout(renderAdIntro, 400);
+            const link = document.getElementById('adHowToLink');
+            if (link) link.addEventListener('click', renderAdIntro);
+        })();
+    </script>
+
 </body>
 </html>
