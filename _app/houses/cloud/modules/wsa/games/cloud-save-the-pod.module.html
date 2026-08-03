@@ -412,6 +412,10 @@
             </div>
 
             <button id="startButton">SET SAIL</button>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;color:#ccc;cursor:pointer;">
+                <input type="checkbox" id="practiceToggle" style="accent-color:var(--lap-primary);width:16px;height:16px;">
+                PRACTICE MODE -- slower seas, no scores or ratings
+            </label>
         </div>
 
         <div class="game-container">
@@ -458,6 +462,7 @@
                     <div class="stat-line"><span class="stat-label">SCORE:</span><span id="lcScore"></span></div>
                     <div class="stat-line"><span class="stat-label">DELIVERED:</span><span id="lcDelivered"></span></div>
                     <div class="stat-line"><span class="stat-label">COMBO:</span><span id="lcCombo"></span></div>
+                    <div class="stat-line"><span class="stat-label">RATING:</span><span id="lcStars"></span></div>
                     <div id="newLapMessage" class="stat-line hidden" style="color: var(--lap-accent); margin-top: 20px; font-size: 16px;"></div>
                 </div>
                 <div class="buttons">
@@ -622,6 +627,23 @@
             'minio':      'minio -- S3-compatible object storage you can self-host'
         };
 
+        // ── 2026-08-02 graphics/gameplay package state ──
+        let floatingTexts = [];   // {x,y,text,color,life,maxLife}
+        let rings = [];           // expanding splash/celebration rings {x,y,r,maxR,color,life}
+        let powerups = [];        // shield bubbles {gridX,gridY,bob}
+        let powerupTimer = 0;
+        let practiceMode = false; // slower speeds, no scores/XP -- classroom accommodation
+        let levelDeaths = 0;      // per-level, feeds star rating
+        let levelStartTime = 0;
+        let crossingClean = true; // no backward moves since last delivery -> PERFECT bonus
+
+        function pushText(x, y, text, color) {
+            floatingTexts.push({ x, y, text, color: color || '#ffee66', life: 1200, maxLife: 1200 });
+        }
+        function pushRing(x, y, color, maxR) {
+            rings.push({ x, y, r: 6, maxR: maxR || 55, color: color || '#66e0ff', life: 1 });
+        }
+
         let factTimer = null;
         function showContainerFact(name) {
             const fact = CONTAINER_FACTS[name];
@@ -778,6 +800,9 @@
                 targetY: demo ? 7 * CELL_SIZE : 13 * CELL_SIZE,
                 spoutTimer: 0,
                 swimPhase: 0,
+                tilt: 0,
+                squash: 0,
+                shielded: false,
                 demo
             };
         }
@@ -825,12 +850,36 @@
             ctx.restore();
             ctx.globalAlpha = alpha;
 
-            // Main whale body
+            // Main whale body -- banked into the last horizontal move, with a brief
+            // squash-and-stretch on each hop. Rotation wraps ONLY the body+cargo.
+            ctx.save();
+            ctx.translate(x, y + swimOffset);
+            ctx.rotate(w.tilt || 0);
+            const sq = 1 + (w.squash || 0) * 0.12;
+            ctx.scale(sq, 1 / sq);
+            ctx.translate(-x, -(y + swimOffset));
             drawWhaleBody(x, y + swimOffset, w);
 
-            // Container on back when carrying
+            // Container on back when carrying, with its name so the cargo teaches on sight
             if (currentContainer && !w.demo) {
                 drawContainer3D(x, y + swimOffset - CELL_SIZE * 0.4, currentContainer);
+                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = 'rgba(255,255,255,0.95)';
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(currentContainer, x, y + swimOffset - CELL_SIZE * 0.5);
+                ctx.fillText(currentContainer, x, y + swimOffset - CELL_SIZE * 0.5);
+            }
+            ctx.restore();
+
+            // Shield bubble
+            if (w.shielded) {
+                ctx.strokeStyle = 'rgba(120, 220, 255, ' + (0.5 + Math.sin(Date.now() / 200) * 0.25) + ')';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y + swimOffset, CELL_SIZE * 0.68, 0, Math.PI * 2);
+                ctx.stroke();
             }
 
             ctx.globalAlpha = 1;
@@ -1049,6 +1098,9 @@
                 whale.gridY = newGridY;
                 whale.targetX = newGridX * CELL_SIZE;
                 whale.targetY = newGridY * CELL_SIZE;
+                whale.tilt = dx * 0.16;            // banking into horizontal moves
+                whale.squash = 1;                   // hop squash-and-stretch impulse
+                if (dy > 0) crossingClean = false;  // retreating breaks a PERFECT run
                 lastMoveTime = now;
                 SFX.move();
             }
@@ -1077,7 +1129,7 @@
         function spawnObstacles() {
             obstacles = [];
             const level = LEVELS[gameState.level];
-            const lapMult = 1 + (gameState.lap - 1) * 0.15;
+            const lapMult = (1 + (gameState.lap - 1) * 0.15) * (practiceMode ? 0.7 : 1);
 
             for (let row = 5; row <= 6; row++) {
                 const direction = row % 2 === 0 ? 1 : -1;
@@ -1537,6 +1589,17 @@
             }
         }
 
+        // Assign each open bay a distinct requested container, and make sure the pod the
+        // whale is carrying is always one that SOME open bay wants (a match must always exist).
+        function assignBayRequests() {
+            const picks = [...CONTAINERS].sort(() => Math.random() - 0.5);
+            harbor.forEach((bay, i) => { if (!bay.filled) bay.requested = picks[i]; });
+        }
+        function rerollCarriedFromOpenBays() {
+            const open = harbor.filter(b => !b.filled && b.requested);
+            if (open.length) currentContainer = open[Math.floor(Math.random() * open.length)].requested;
+        }
+
         function initHarbor() {
             harbor = [];
             const bayWidth = CELL_SIZE * 3;
@@ -1547,7 +1610,8 @@
                     y: CELL_SIZE / 2,
                     width: bayWidth,
                     filled: false,
-                    container: null
+                    container: null,
+                    requested: null
                 });
             }
         }
@@ -1669,6 +1733,17 @@
                 });
             }
 
+            // Shield pickup: grid-cell overlap collects it.
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const pu = powerups[i];
+                if (pu.gridX === whale.gridX && pu.gridY === whale.gridY) {
+                    powerups.splice(i, 1);
+                    whale.shielded = true;
+                    pushText(whale.x + CELL_SIZE / 2, whale.y, 'SHIELD UP', '#78dcff');
+                    SFX.combo();
+                }
+            }
+
             obstacles.forEach(obs => {
                 if (obs.type === 'ship' || obs.type === 'debris') {
                     const obsY = obs.row * CELL_SIZE + CELL_SIZE / 2;
@@ -1708,19 +1783,42 @@
             bay.container = currentContainer;
             gameState.podsDelivered++;
 
-            const basePts = 100 * gameState.combo;
-            const laneBonus = whale.gridY * 10;
-            gameState.score += basePts + laneBonus;
-
-            gameState.combo++;
-            if (gameState.combo > gameState.bestCombo) {
-                gameState.bestCombo = gameState.combo;
+            // Bay matching: full credit for the bay that REQUESTED this container,
+            // half credit (and a broken combo) for dumping it on the wrong dock.
+            const matched = bay.requested === currentContainer;
+            const bayCx = bay.x + bay.width / 2;
+            let pts;
+            if (matched) {
+                pts = 100 * gameState.combo + whale.gridY * 10;
+                gameState.combo++;
+                if (gameState.combo > gameState.bestCombo) gameState.bestCombo = gameState.combo;
+                pushText(bayCx, bay.y + 30, '+' + pts + (gameState.combo > 2 ? ' x' + (gameState.combo - 1) : ''), '#66ff99');
+                pushRing(bayCx, bay.y + 20, '#66ff99', 60);
+                SFX.deliver();
+                if (gameState.combo >= 3) SFX.combo();
+            } else {
+                pts = 50;
+                gameState.combo = 1;
+                pushText(bayCx, bay.y + 30, 'WRONG BAY +50', '#ffaa44');
+                SFX.deliver();
             }
-            SFX.deliver();
-            if (gameState.combo >= 3) SFX.combo();
+            // PERFECT crossing: never moved backward since leaving the dock.
+            if (crossingClean && matched) {
+                gameState.score += 75;
+                pushText(bayCx, bay.y + 52, 'PERFECT +75', '#66e0ff');
+            }
+            crossingClean = true;
+            gameState.score += pts;
             showContainerFact(bay.container); // teach the image you just delivered
 
-            currentContainer = CONTAINERS[Math.floor(Math.random() * CONTAINERS.length)];
+            // Wave reset: with 5 bays and up to 6 pods per level, the 6th delivery was
+            // IMPOSSIBLE before (every bay filled, checkCollisions requires !filled --
+            // levels 9 and 10 were uncompletable). A fresh request wave opens the docks.
+            if (harbor.every(b => b.filled)) {
+                harbor.forEach(b => { b.filled = false; b.container = null; });
+                assignBayRequests();
+            }
+            rerollCarriedFromOpenBays();
 
             whale.gridX = 10;
             whale.gridY = 13;
@@ -1740,6 +1838,19 @@
         function die() {
             if (gameState.invincible) return;
 
+            // Shield absorbs one hit: no life lost, brief mercy window.
+            if (whale.shielded) {
+                whale.shielded = false;
+                gameState.invincible = true;
+                gameState.invincibleTimer = 1200;
+                pushText(whale.x + CELL_SIZE / 2, whale.y, 'SHIELD!', '#78dcff');
+                pushRing(whale.x + CELL_SIZE / 2, whale.y + CELL_SIZE / 2, '#78dcff', 70);
+                SFX.combo();
+                return;
+            }
+
+            levelDeaths++;
+            pushRing(whale.x + CELL_SIZE / 2, whale.y + CELL_SIZE / 2, '#ff6666', 80);
             SFX.death();
             gameState.lives--;
             gameState.combo = 1;
@@ -1777,6 +1888,22 @@
             document.getElementById('lcDelivered').textContent = gameState.podsDelivered;
             document.getElementById('lcCombo').textContent = `x${gameState.combo}`;
 
+            // Star rating: 1 for clearing, +1 deathless, +1 under par time (30s per pod).
+            // Persisted per level index as a personal best; practice runs never rate.
+            const took = (Date.now() - levelStartTime) / 1000;
+            const par = LEVELS[gameState.level].pods * 30;
+            const stars = 1 + (levelDeaths === 0 ? 1 : 0) + (took <= par ? 1 : 0);
+            document.getElementById('lcStars').textContent =
+                practiceMode ? 'PRACTICE (not rated)' : 'STARS: ' + stars + '/3' +
+                (levelDeaths === 0 ? ' [deathless]' : '') + (took <= par ? ' [fast]' : '');
+            if (!practiceMode) {
+                const save = loadSave();
+                save.stars = save.stars || {};
+                const key = 'L' + gameState.level;
+                save.stars[key] = Math.max(save.stars[key] || 0, stars);
+                savePersist(save);
+            }
+
             const newLapMsg = document.getElementById('newLapMessage');
             if (gameState.level === 9) {
                 newLapMsg.textContent = `LAP ${gameState.lap} COMPLETE!`;
@@ -1808,6 +1935,15 @@
         function gameOver() {
             SFX.gameOver();
             gameState.mode = 'gameOver';
+            if (practiceMode) {
+                // Practice is a sandbox: no high score, no XP, no achievements, no scoreboard.
+                document.getElementById('goScore').textContent = gameState.score + ' (practice)';
+                document.getElementById('goLevel').textContent = `${gameState.lap}-${gameState.level + 1}`;
+                document.getElementById('goLap').textContent = gameState.lap;
+                document.getElementById('goCombo').textContent = `x${gameState.bestCombo}`;
+                document.getElementById('gameOverOverlay').classList.remove('hidden');
+                return;
+            }
             saveHighScore(gameState.score);
 
             if (!localStorage.getItem('game_pod_xp_awarded')) {
@@ -1839,11 +1975,17 @@
             gameState.countdownPhase = 1;
             gameState.countdownTimer = 0;
             gameState.podsDelivered = 0;
+            levelDeaths = 0;
+            levelStartTime = Date.now();
+            crossingClean = true;
+            powerups = [];
+            powerupTimer = 0;
 
             whale = createWhale(false);
-            currentContainer = CONTAINERS[Math.floor(Math.random() * CONTAINERS.length)];
             spawnObstacles();
             initHarbor();
+            assignBayRequests();
+            rerollCarriedFromOpenBays(); // carried pod always matches an open bay's request
             updateHUD();
 
             const level = LEVELS[gameState.level];
@@ -2328,6 +2470,111 @@
 
         let lastTime = 0;
 
+        // Flow streaks make the current lanes (rows 2-4) READABLE before they kill you,
+        // and every ship drags a foam wake. Both derive direction from live obstacle speed.
+        function drawFlowAndWakes() {
+            const t = Date.now() / 1000;
+            const level = LEVELS[gameState.level];
+            if (level.hasCurrent) {
+                ctx.strokeStyle = 'rgba(140, 210, 255, 0.22)';
+                ctx.lineWidth = 2;
+                for (let row = 2; row <= 4; row++) {
+                    const dir = row % 2 === 0 ? 1 : -1;
+                    const y = row * CELL_SIZE + CELL_SIZE / 2;
+                    for (let i = 0; i < 6; i++) {
+                        const x = ((i * CANVAS_W / 6) + dir * (t * 60) % CANVAS_W + CANVAS_W) % CANVAS_W;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y + Math.sin(t * 2 + i) * 4);
+                        ctx.lineTo(x + dir * 26, y + Math.sin(t * 2 + i) * 4);
+                        ctx.stroke();
+                    }
+                }
+            }
+            obstacles.forEach(obs => {
+                if (obs.type !== 'ship') return;
+                const y = obs.row * CELL_SIZE + CELL_SIZE / 2;
+                const behind = obs.speed > 0 ? obs.x - 4 : obs.x + obs.width + 4;
+                const dir = obs.speed > 0 ? -1 : 1;
+                const grad = ctx.createLinearGradient(behind, y, behind + dir * 60, y);
+                grad.addColorStop(0, 'rgba(230, 245, 255, 0.30)');
+                grad.addColorStop(1, 'rgba(230, 245, 255, 0)');
+                ctx.fillStyle = grad;
+                ctx.fillRect(dir === -1 ? behind - 60 : behind, y - 3, 60, 6);
+            });
+        }
+
+        // Requested-container cards above each open bay: the routing puzzle at a glance.
+        function drawBayRequests() {
+            harbor.forEach(bay => {
+                if (bay.filled || !bay.requested) return;
+                const cx = bay.x + bay.width / 2;
+                const wants = bay.requested === currentContainer;
+                // Positioned INSIDE the bay mouth: the HTML HUD floats over the canvas top,
+                // so anything above bay.y hides behind the LEVEL/PODS/SCORE boxes.
+                drawContainer3D(cx, bay.y + 22, bay.requested);
+                ctx.font = '7px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.fillStyle = wants ? '#66ff99' : 'rgba(255,255,255,0.85)';
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(bay.requested, cx, bay.y + 48);
+                ctx.fillText(bay.requested, cx, bay.y + 48);
+                if (wants) { // pulse the bay that wants your current cargo
+                    ctx.strokeStyle = 'rgba(102, 255, 153, ' + (0.35 + Math.sin(Date.now() / 250) * 0.25) + ')';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(bay.x, bay.y - 2, bay.width, 56);
+                }
+            });
+        }
+
+        // Floating score popups, celebration/death rings, and shield pickups.
+        function drawEffects(dt) {
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                const ft = floatingTexts[i];
+                ft.life -= dt * 1000;
+                ft.y -= dt * 28;
+                if (ft.life <= 0) { floatingTexts.splice(i, 1); continue; }
+                ctx.globalAlpha = Math.min(1, ft.life / (ft.maxLife * 0.5));
+                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+                ctx.lineWidth = 3;
+                ctx.strokeText(ft.text, ft.x, ft.y);
+                ctx.fillStyle = ft.color;
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ctx.globalAlpha = 1;
+            }
+            for (let i = rings.length - 1; i >= 0; i--) {
+                const rg = rings[i];
+                rg.r += dt * 90;
+                rg.life = 1 - rg.r / rg.maxR;
+                if (rg.life <= 0) { rings.splice(i, 1); continue; }
+                ctx.strokeStyle = rg.color;
+                ctx.globalAlpha = rg.life * 0.8;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(rg.x, rg.y, rg.r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.globalAlpha = 1;
+            }
+            powerups.forEach(pu => {
+                pu.bob += dt * 3;
+                const x = pu.gridX * CELL_SIZE + CELL_SIZE / 2;
+                const y = pu.gridY * CELL_SIZE + CELL_SIZE / 2 + Math.sin(pu.bob) * 4;
+                ctx.fillStyle = 'rgba(120, 220, 255, 0.25)';
+                ctx.strokeStyle = 'rgba(120, 220, 255, 0.9)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.beginPath(); // shine
+                ctx.arc(x - 4, y - 4, 3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fill();
+            });
+        }
+
         function gameLoop(timestamp) {
             const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
             lastTime = timestamp;
@@ -2344,10 +2591,12 @@
             }
 
             drawWater();
+            drawFlowAndWakes();
 
             obstacles.forEach(drawObstacle);
 
             drawHarbor();
+            drawBayRequests();
 
             if (whale) {
                 if (gameState.mode === 'title' && whale.demo) {
@@ -2356,6 +2605,8 @@
                     whale.x += (whale.targetX - whale.x) * 0.2;
                     whale.y += (whale.targetY - whale.y) * 0.2;
                     whale.spoutTimer++;
+                    whale.tilt = (whale.tilt || 0) * 0.88;      // ease out of the bank
+                    whale.squash = (whale.squash || 0) * 0.85;  // ease out of the hop
                 }
                 drawWhale(whale);
             }
@@ -2379,6 +2630,7 @@
                 }
             }
 
+            drawEffects(dt);
             drawSplash();
             drawBossEffects();
 
@@ -2388,6 +2640,16 @@
                 if (gameState.mode === 'playing') handleInput();
                 updateObstacles(dt);
                 if (gameState.mode === 'playing') checkCollisions();
+
+                if (gameState.mode === 'playing') {
+                    powerupTimer += dt * 1000;
+                    // One shield afloat at a time, surfacing roughly every 18s
+                    if (powerupTimer > 18000 && powerups.length === 0 && !whale.shielded) {
+                        powerupTimer = 0;
+                        powerups.push({ gridX: 2 + Math.floor(Math.random() * (COLS - 4)),
+                                        gridY: 8 + Math.floor(Math.random() * 4), bob: Math.random() * 6 });
+                    }
+                }
 
                 if (gameState.invincible) {
                     gameState.invincibleTimer -= dt * 1000;
@@ -2403,6 +2665,10 @@
 
             requestAnimationFrame(gameLoop);
         }
+
+        document.getElementById('practiceToggle').addEventListener('change', function () {
+            practiceMode = this.checked;
+        });
 
         // Mute toggle -- dims the icon and flips aria-pressed so state is visible/announced.
         document.getElementById('muteBtn').addEventListener('click', function () {
