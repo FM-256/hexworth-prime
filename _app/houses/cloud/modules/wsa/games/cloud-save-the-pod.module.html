@@ -292,9 +292,17 @@
             display: none !important;
         }
 
+        /* QC 2026-08-02: below 1100px the side panel used to display:none -- which deleted
+           the instructions, controls legend, high scores AND the SET SAIL button on ordinary
+           laptops (the game became unstartable with zero explanation). Restack instead. */
         @media (max-width: 1100px) {
+            .game-wrapper {
+                flex-direction: column-reverse; /* game first, panel below it */
+                align-items: center;
+            }
             .side-panel {
-                display: none;
+                width: 100%;
+                max-width: 800px;
             }
 
             .back-link {
@@ -305,11 +313,41 @@
             }
         }
 
+        /* Canvas must never clip: cap to viewport at EVERY width, not just <=850px
+           (the 850-1100px band used to render the 800px canvas off-screen). */
+        .game-container {
+            max-width: 100%;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Container fact toast: one true line about the image you just delivered. */
+        .fact-toast {
+            position: absolute;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            max-width: 92%;
+            background: rgba(0, 20, 40, 0.92);
+            border: 2px solid var(--lap-accent);
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #e8f4ff;
+            z-index: 250;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+        .fact-toast.show { opacity: 1; }
+        .fact-toast strong { color: var(--lap-accent); }
+
+        #muteBtn.muted { opacity: 0.35; }
+
         @media (max-width: 850px) {
-            canvas {
-                max-width: 100%;
-                height: auto;
-            }
 
             .hud {
                 font-size: 8px;
@@ -378,7 +416,12 @@
 
         <div class="game-container">
             <canvas id="gameCanvas" width="800" height="600"></canvas>
-            <button id="muteBtn" style="position:absolute;top:10px;right:10px;z-index:300;background:var(--lap-primary);color:black;border:none;padding:6px 12px;cursor:pointer;font-family:'Courier New',monospace;font-weight:bold;font-size:12px;border-radius:4px;" onclick="audioMuted=!audioMuted;this.innerHTML=audioMuted?'<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">':'<img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block">'"><img src="/assets/images/icons/icon-signal.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block"></button>
+            <!-- QC 2026-08-02: the old onclick carried raw double quotes inside a
+                 double-quoted attribute -- the attribute terminated early and ':""&gt;'
+                 spilled into the page as literal text next to the HUD. Listener wired
+                 in JS instead; muted state shown by dimming + aria-pressed. -->
+            <button id="muteBtn" type="button" aria-pressed="false" title="Toggle sound"
+                    style="position:absolute;top:10px;right:10px;z-index:300;background:var(--lap-primary);color:black;border:none;padding:6px 12px;cursor:pointer;font-weight:bold;font-size:12px;border-radius:4px;"><img src="/assets/images/icons/icon-signal.webp" alt="Sound" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></button>
 
             <div class="hud">
                 <div class="hud-item">
@@ -433,7 +476,8 @@
                     <div class="stat-line"><span class="stat-label">BEST COMBO:</span><span id="goCombo"></span></div>
                 </div>
                 <div class="buttons">
-                    <button id="retryButton">RETRY</button>
+                    <button id="continueButton">CONTINUE (THIS LEVEL)</button>
+                    <button id="retryButton" class="secondary">RESTART RUN</button>
                     <button id="quitButton" class="secondary">QUIT</button>
                 </div>
             </div>
@@ -555,6 +599,45 @@
             'nginx', 'redis', 'mysql', 'node-api', 'postgres', 'mongo', 'rabbitmq', 'grafana',
             'jenkins', 'vault', 'elastic', 'kafka', 'traefik', 'consul', 'prometheus', 'minio'
         ];
+
+        // Educational layer (2026-08-02): one TRUE line per container image, flashed as a
+        // toast when that pod is delivered. This game sits inside the WSA course next to the
+        // Containers module -- the cargo should teach, not just decorate.
+        const CONTAINER_FACTS = {
+            'nginx':      'nginx -- high-performance web server and reverse proxy; often the front door of a container stack',
+            'redis':      'redis -- in-memory key-value store; used for caching, sessions, and queues',
+            'mysql':      'mysql -- the classic open-source relational database',
+            'node-api':   'node-api -- a Node.js service; JavaScript on the server, one process per container',
+            'postgres':   'postgres -- advanced open-source relational database, strong on standards and JSON',
+            'mongo':      'mongo -- document database; stores JSON-like BSON instead of table rows',
+            'rabbitmq':   'rabbitmq -- message broker; services talk through queues instead of calling each other directly',
+            'grafana':    'grafana -- dashboards for metrics; usually reads from Prometheus',
+            'jenkins':    'jenkins -- CI/CD automation server; builds and ships code in pipelines',
+            'vault':      'vault -- secrets manager; apps fetch credentials at runtime instead of hardcoding them',
+            'elastic':    'elastic(search) -- full-text search and log analytics engine',
+            'kafka':      'kafka -- distributed event log; streams millions of events between systems',
+            'traefik':    'traefik -- cloud-native reverse proxy; auto-discovers containers and routes to them',
+            'consul':     'consul -- service discovery and health checking; services find each other by name',
+            'prometheus': 'prometheus -- metrics collector; scrapes targets and powers alerting',
+            'minio':      'minio -- S3-compatible object storage you can self-host'
+        };
+
+        let factTimer = null;
+        function showContainerFact(name) {
+            const fact = CONTAINER_FACTS[name];
+            if (!fact) return;
+            let toast = document.getElementById('factToast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'factToast';
+                toast.className = 'fact-toast';
+                document.querySelector('.game-container').appendChild(toast);
+            }
+            toast.innerHTML = '<strong>DELIVERED:</strong> ' + fact.replace(/</g, '&lt;');
+            toast.classList.add('show');
+            clearTimeout(factTimer);
+            factTimer = setTimeout(() => toast.classList.remove('show'), 3500);
+        }
 
         const LEVELS = [
             // Beginner levels - gentle introduction
@@ -1635,6 +1718,7 @@
             }
             SFX.deliver();
             if (gameState.combo >= 3) SFX.combo();
+            showContainerFact(bay.container); // teach the image you just delivered
 
             currentContainer = CONTAINERS[Math.floor(Math.random() * CONTAINERS.length)];
 
@@ -1736,6 +1820,11 @@
             }
             if (typeof AchievementManager !== 'undefined') {
                 AchievementManager.unlock('game_pod');
+            }
+            // Global scoreboard + local high-score widget (GameTracker/GameScoreboard now
+            // actually loaded -- they were absent, so no run ever reached the scoreboard).
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('save-the-pod', { score: gameState.score, level: gameState.lap + '-' + (gameState.level + 1) });
             }
 
             document.getElementById('goScore').textContent = gameState.score;
@@ -2315,6 +2404,13 @@
             requestAnimationFrame(gameLoop);
         }
 
+        // Mute toggle -- dims the icon and flips aria-pressed so state is visible/announced.
+        document.getElementById('muteBtn').addEventListener('click', function () {
+            audioMuted = !audioMuted;
+            this.classList.toggle('muted', audioMuted);
+            this.setAttribute('aria-pressed', String(audioMuted));
+        });
+
         document.getElementById('startButton').addEventListener('click', () => {
             initAudio();
             gameState = {
@@ -2354,6 +2450,18 @@
             spawnObstacles();
             initHarbor();
             updateHighScores();
+        });
+
+        // CONTINUE: fairness option (operator 2026-08-02, "part of a class"). Resume the level
+        // you died on -- lives refilled, score kept, combo reset. High score already banked at
+        // gameOver, so continuing can only add; there is nothing to exploit.
+        document.getElementById('continueButton').addEventListener('click', () => {
+            initAudio();
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            gameState.lives = 3;
+            gameState.combo = 1;
+            gameState.mode = 'countdown';
+            startLevel();
         });
 
         document.getElementById('retryButton').addEventListener('click', () => {
@@ -2416,7 +2524,14 @@
     </script>
 
     <script src="../../../../../utils/SyncUtils.js"></script>
+    <!-- FirebaseAuth THEN FirestoreManager (gauntlet/m20 precedent -- #289): addXP and the
+         scoreboard CF both guard on FirebaseAuth first, so this page's XP award and its
+         AchievementManager.unlock were silently dead until these loads were added. -->
+    <script src="../../../../../components/FirebaseAuth.js"></script>
     <script src="../../../../../components/FirestoreManager.js"></script>
+    <script src="../../../../../components/AchievementManager.js"></script>
+    <script src="../../../../../components/GameTracker.js"></script>
+    <script src="../../../../../components/GameScoreboard.js"></script>
 
     <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
          Always-visible chat entry point. State machine is attempt-driven;
