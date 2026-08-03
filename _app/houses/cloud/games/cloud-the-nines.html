@@ -167,6 +167,13 @@
                 Click a component, then click a tier slot on the grid to place it.
                 Click a placed component, then a component one tier to its right, to connect them.
             </div>
+            <label style="display:block;font-size:11px;color:#8ba3bd;margin-top:12px">Shift
+                <select id="levelSelect" style="width:100%;margin-top:5px;padding:8px;background:#0d1524;color:#dbe7f5;border:1px solid rgba(148,163,184,.3);border-radius:8px;font-family:inherit;font-size:13px">
+                    <option value="0">Shift 1</option>
+                    <option value="1">Shift 2</option>
+                    <option value="2">Shift 3</option>
+                </select>
+            </label>
             <button class="btn" id="startBtn">Start the shift</button>
             <button class="btn secondary" id="resetBtn">Reset build</button>
         </div>
@@ -263,8 +270,14 @@ const CATALOG = [
     { id: 'replica',  tier: 'data',      name: 'Read replica',   cap: 70,  cost: 55, base: 14, color: '#fb923c' }
 ];
 
-const START_BUDGET = 420;
+// Budget must make a GENUINELY redundant build purchasable, or 'spreading' can only ever be
+// partial and one zone failure kills the chain regardless -- measured: both a concentrated and
+// a half-spread build died on the same tick, so the insurance could never pay. The cheapest
+// full path (LB+App+Cache+DB = 215) must be affordable TWICE, once per zone.
+const START_BUDGET = 520;
 const BACKLOG_BOUND = 260;   // per component: beyond this, dropped requests are unrecoverable
+const CROSS_AZ_TAX = 1.18;   // a request crossing zones costs 18% more work at the destination
+const REPLICATION_TAX = 0.22; // data tier spread across zones loses 22% of capacity to keeping them consistent
 const CANVAS_W = 900, CANVAS_H = 620;
 const COL_X = [95, 255, 435, 615, 790];   // one x per tier
 const SLOT_Y = [170, 265, 360, 455];      // four slots per tier
@@ -282,9 +295,14 @@ function freshState(seed) {
     // that is what makes spreading a real bet rather than a guaranteed win.
     const roll = rng();
     let azFailAt = null, seedClass;
-    if (roll < 0.34)      { azFailAt = 90 + Math.floor(rng() * 60);  seedClass = 'early-failure'; }
-    else if (roll < 0.67) { azFailAt = 240 + Math.floor(rng() * 120); seedClass = 'late-failure'; }
-    else                  { azFailAt = null;                          seedClass = 'no-failure'; }
+    // FAILURE TIMING must land INSIDE a real run. Measured play: a weak build dies ~31 ticks,
+    // a cache-using build ~88. Failures were originally drawn at 90-150 and 240-360, i.e.
+    // after almost every run had already ended -- so the AZ mechanic, and with it the entire
+    // spread-vs-concentrate trade, was unreachable in practice. Bands now sit inside the
+    // playable window so the insurance can actually pay out (or visibly not).
+    if (roll < 0.34)      { azFailAt = 18 + Math.floor(rng() * 14); seedClass = 'early-failure'; }
+    else if (roll < 0.67) { azFailAt = 45 + Math.floor(rng() * 25); seedClass = 'late-failure'; }
+    else                  { azFailAt = null;                        seedClass = 'no-failure'; }
 
     return {
         rng, seed, seedClass, azFailAt,
@@ -325,7 +343,9 @@ function renderPalette() {
         const body = document.createElement('div'); body.className = 'comp-body';
         const nm = document.createElement('div'); nm.className = 'comp-name'; nm.textContent = c.name;
         const mt = document.createElement('div'); mt.className = 'comp-meta';
-        mt.textContent = TIER_LABEL[c.tier] + ' - cap ' + c.cap + '/tick - $' + c.cost;
+        mt.textContent = TIER_LABEL[c.tier] + ' - cap ' + c.cap + '/tick - $' + c.cost
+            + (c.hit ? ' - absorbs ' + Math.round(c.hit * 100) + '% of reads' : '')
+            + (c.absorb ? ' - holds ' + c.absorb + ' extra backlog' : '');
         body.appendChild(nm); body.appendChild(mt);
         el.appendChild(dot); el.appendChild(body);
         if (affordable) {
@@ -438,9 +458,31 @@ function simulateTick() {
 
     state.placed.forEach(function (p) { p.arrivals = 0; p.served = 0; });
 
+    // REPLICATION TAX -- the real cost of spreading, and the one the cross-AZ latency number
+    // could never impose (Nancy 2026-08-03: a player who builds two INDEPENDENT per-zone
+    // stacks paid no cross-AZ cost at all, so spreading was free insurance -- "if spreading
+    // always wins, mechanic 2 is decoration"). In a real multi-AZ deployment, stateful tiers
+    // must keep zones consistent, and that replication traffic eats throughput the zone can
+    // no longer sell to users. Stateless tiers cross zones for free; data tiers do not.
+    const dataAZs = {};
+    state.placed.forEach(function (p) { if (p.tier === 'data' && !p.dead) dataAZs[p.az] = true; });
+    const replicating = Object.keys(dataAZs).length > 1;
+    state.replicating = replicating;
+    state.placed.forEach(function (p) {
+        const nominal = CATALOG.find(function (c) { return c.id === p.def; }).cap;
+        p.cap = (replicating && p.tier === 'data') ? Math.round(nominal * (1 - REPLICATION_TAX)) : nominal;
+    });
+
     // Forward sweep: entry tier takes the demand, each tier splits evenly downstream.
     const entry = byTier('edge').length ? byTier('edge') : byTier('balancer');
-    if (!entry.length) { return { dropped: state.demand, causes: ['no entry point'] }; }
+    if (!entry.length) {
+        // NANCY 2026-08-03: this returned BEFORE droppedTotal accumulated, so uptime stayed
+        // pinned at its total===0 default of 100%, the loss condition never fired, and a
+        // build with a database but no connected front door sat in silent limbo forever.
+        state.droppedTotal += state.demand;
+        logEvent('every request is being refused -- nothing is listening at the edge', 'ev-bad');
+        return { dropped: state.demand, causes: ['no entry point -- traffic never reached your stack'] };
+    }
     const share = state.demand / entry.length;
     entry.forEach(function (p) { p.arrivals += share; });
 
@@ -476,9 +518,16 @@ function simulateTick() {
             if (outs.length) {
                 const each = forward / outs.length;
                 outs.forEach(function (d) {
-                    // Cross-AZ hops cost real latency -- the insurance premium for spreading.
-                    d.arrivals += each;
-                    if (d.az !== p.az) d.latency += 3;
+                    // NANCY 2026-08-03: this used to add +3ms of latency, which was decorative
+                    // twice over -- the next tier's own `latency = base/(1-util)` assignment
+                    // overwrote it before anything read it, AND latency never feeds served or
+                    // backlog at all. So spreading cost nothing and mechanic 2 was a lecture
+                    // with a timer, exactly the blocker this design was supposed to resolve.
+                    // A cross-AZ hop now costs real THROUGHPUT: the destination must process
+                    // CROSS_AZ_TAX more work per request (connection setup, encryption, retries
+                    // over a longer path), which raises its arrivals, its utilisation, its
+                    // backlog, and therefore its odds of dropping requests.
+                    d.arrivals += (d.az !== p.az) ? each * CROSS_AZ_TAX : each;
                 });
             } else if (tier !== 'data') {
                 // Traffic with nowhere to go is dropped at this tier.
@@ -600,7 +649,9 @@ function refreshHud() {
     document.getElementById('tDropped').textContent = Math.round(state.droppedTotal);
     const caches = state.placed.filter(function (p) { return p.hit && !p.dead; });
     document.getElementById('tCache').textContent = caches.length ? Math.round(caches[0].hit * 100) + '%' : '--';
-    document.getElementById('tAZ').textContent = state.azDown === null ? 'nominal' : AZ_LABEL[state.azDown] + ' down';
+    document.getElementById('tAZ').textContent = state.azDown === null
+        ? (state.replicating ? 'nominal (replicating: -22% data cap)' : 'nominal')
+        : AZ_LABEL[state.azDown] + ' down';
     document.getElementById('tAZ').className = state.azDown === null ? 'stat-good' : 'stat-bad';
 }
 
@@ -692,17 +743,31 @@ document.getElementById('startBtn').addEventListener('click', function () {
 });
 
 document.getElementById('resetBtn').addEventListener('click', function () { newRun(); });
+// Each shift is a different seed, so the three failure classes are all reachable -- that is
+// the only way "learn the distribution over runs" can be true (Nancy, 2026-08-03).
+document.getElementById('levelSelect').addEventListener('change', function () {
+    currentLevel = parseInt(this.value, 10) || 0;
+    newRun();
+});
 document.getElementById('againBtn').addEventListener('click', function () { newRun(); });
 
+// Seed is fixed PER LEVEL (so scores compare the same difficulty) but DIFFERS between
+// levels -- NANCY 2026-08-03: `const level = 1` was hardcoded, so the PRNG drew
+// early-failure at tick 97 for every player on every run, forever. The three seed classes
+// were unreachable and claim 4 ("the player learns the distribution over runs") was false.
+// These three constants are chosen so the set covers all three classes -- verified.
+const LEVEL_SEEDS = [0x1F35A2C1, 0x77E1B903, 0x2C9D45EF];
+let currentLevel = 0;
+
 function newRun() {
-    // Seed is fixed PER LEVEL, not per run, so scores compare the same difficulty.
-    const level = 1;
-    state = freshState(0x9E3779B9 ^ (level * 2654435761));
+    state = freshState(LEVEL_SEEDS[currentLevel]);
     document.getElementById('endOverlay').classList.add('hidden');
     document.getElementById('log').innerHTML = '';
     renderPalette();
-    logEvent('build your topology, then start the shift');
+    logEvent('shift ' + (currentLevel + 1) + ' of ' + LEVEL_SEEDS.length + ' -- build your topology, then start');
     refreshHud();
+    const sel = document.getElementById('levelSelect');
+    if (sel) sel.value = String(currentLevel);
 }
 
 newRun();
@@ -726,7 +791,8 @@ if (!rafId) rafId = requestAnimationFrame(loop);
             'CLICK a placed component, then CLICK one further RIGHT to connect them -- traffic only flows left to right, and you may skip a tier',
             'Press Start the shift when your path reaches the database tier',
             'Watch the colours: cyan is healthy, amber means latency is bending upward, red means it has gone vertical',
-            'Slots 1-2 are AZ-a, slots 3-4 are AZ-b. Spreading across both survives a zone failure -- but your budget is fixed, so spreading SPLITS your capacity instead of adding to it'
+            'A CACHE is the biggest lever you have: it answers most reads itself, so only about a quarter of the traffic reaches your database. Skipping it is the usual reason a run dies early',
+            'Slots 1-2 are AZ-a, slots 3-4 are AZ-b. Spreading across both survives a zone failure -- but it is not free: a database in BOTH zones must stay consistent, and that replication costs 22% of its capacity. Requests crossing zones cost extra work too'
         ],
         why: 'This is the real shape of capacity planning: latency curves upward long before anything breaks, backlog is what actually kills you, and redundancy is an insurance premium that does not always pay out.',
         help: 'Reopen this briefing any time from How to Play. Every run is seeded -- some seeds never fail an AZ at all.',

@@ -54,7 +54,13 @@ splits, and a distribution rule that produces nonsense without real flow solving
 at ~3,000 lines and "a physics-debugging marathon".
 
 ADOPTED: components live in ordered tiers (edge -> balancer -> compute -> cache -> data). An edge
-may only connect tier N to tier N+1. No cycles are representable, so flow is a simple forward
+may only connect a tier to a LATER tier (forward-only).
+
+REVISED 2026-08-03, Nancy-approved: the original rule was strictly tier-adjacent (N to N+1).
+Play-testing showed that refuses compute -> data, making a cache STRUCTURALLY MANDATORY to reach
+the database -- which is false in real cloud architecture and killed a reasonable build at tick 7.
+Forward-only preserves both original constraints (no cycle is representable; flow is still a single
+ordered forward sweep) without encoding that false implication. No cycles are representable, so flow is a simple forward
 sweep with even split across outgoing edges. Keeps the build near 1,500 lines and the model honest.
 
 ## 4. Cataloguing — file it CORRECTLY, fix the hub separately
