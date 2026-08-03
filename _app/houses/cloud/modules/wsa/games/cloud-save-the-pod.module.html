@@ -661,7 +661,7 @@
             return Math.round(Math.min(base * 2.2, Math.max(base, base / sc)));
         }
         function pushRing(x, y, color, maxR) {
-            rings.push({ x, y, r: 6, maxR: maxR || 55, color: color || '#66e0ff', life: 1 });
+            rings.push({ x, y, r: 6, maxR: maxR || 85, color: color || '#66e0ff', life: 1 });
         }
 
         let factTimer = null;
@@ -777,7 +777,9 @@
             }
         }
 
+        let activeTheme = null; // canvas-side handle for per-lap water tinting
         function applyTheme(theme) {
+            activeTheme = theme;
             document.documentElement.style.setProperty('--lap-primary', theme.primary);
             document.documentElement.style.setProperty('--lap-secondary', theme.secondary);
             document.documentElement.style.setProperty('--lap-accent', theme.accent);
@@ -877,7 +879,7 @@
             ctx.translate(x, y + swimOffset);
             ctx.rotate(w.tilt || 0);
             const sq = 1 + (w.squash || 0) * 0.12;
-            ctx.scale(sq, 1 / sq);
+            ctx.scale(sq * 1.18, 1.18 / sq); // art pass: +18% presence, collisions stay grid-based
             ctx.translate(-x, -(y + swimOffset));
             drawWhaleBody(x, y + swimOffset, w);
 
@@ -1818,7 +1820,7 @@
                 gameState.combo++;
                 if (gameState.combo > gameState.bestCombo) gameState.bestCombo = gameState.combo;
                 pushText(bayCx, bay.y + 84, '+' + pts + (gameState.combo > 2 ? ' x' + (gameState.combo - 1) : ''), '#66ff99');
-                pushRing(bayCx, bay.y + 20, '#66ff99', 60);
+                pushRing(bayCx, bay.y + 20, '#66ff99', 95);
                 SFX.deliver();
                 if (gameState.combo >= 3) SFX.combo();
             } else {
@@ -2150,8 +2152,10 @@
 
                 } else {
                     // Water zones with multiple layered wave patterns (parallax)
-                    const baseDepth = row <= 1 ? '#002244' : '#001633';
-                    const deepDepth = row <= 1 ? '#001a33' : '#000d1a';
+                    // ART PASS 2026-08-02: the old #001633 sea read as flat black -- the
+                    // whole scene drowned in it. Living blues, still deep enough for contrast.
+                    const baseDepth = row <= 1 ? '#0b4d7d' : '#07406b';
+                    const deepDepth = row <= 1 ? '#063a5c' : '#052e4f';
 
                     const waterGrad = ctx.createLinearGradient(0, y, 0, y + CELL_SIZE);
                     waterGrad.addColorStop(0, baseDepth);
@@ -2163,8 +2167,8 @@
                     const time = Date.now() / 1000;
 
                     // Layer 1: Fast subtle waves
-                    ctx.strokeStyle = 'rgba(0, 150, 200, 0.08)';
-                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = 'rgba(90, 200, 255, 0.22)';
+                    ctx.lineWidth = 1.5;
                     ctx.beginPath();
                     for (let x = 0; x < CANVAS_W; x += 15) {
                         const waveY = y + CELL_SIZE / 3 + Math.sin(x / 30 + time * 2 + row) * 2;
@@ -2174,8 +2178,8 @@
                     ctx.stroke();
 
                     // Layer 2: Medium waves
-                    ctx.strokeStyle = 'rgba(0, 180, 230, 0.12)';
-                    ctx.lineWidth = 1.5;
+                    ctx.strokeStyle = 'rgba(120, 215, 255, 0.28)';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
                     for (let x = 0; x < CANVAS_W; x += 20) {
                         const waveY = y + CELL_SIZE / 2 + Math.sin(x / 50 + time * 1.5 + row * 0.5) * 3;
@@ -2185,13 +2189,35 @@
                     ctx.stroke();
 
                     // Layer 3: Slow large waves
-                    ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
-                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = 'rgba(160, 230, 255, 0.33)';
+                    ctx.lineWidth = 2.5;
                     ctx.beginPath();
                     for (let x = 0; x < CANVAS_W; x += 25) {
                         const waveY = y + CELL_SIZE * 0.7 + Math.sin(x / 70 + time + row * 0.3) * 4;
                         if (x === 0) ctx.moveTo(x, waveY);
                         else ctx.lineTo(x, waveY);
+                    }
+                    ctx.stroke();
+
+                    // Layer 4: bright moving crest highlights -- the visible sparkle
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)';
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    for (let x = 0; x < CANVAS_W; x += 18) {
+                        const waveY = y + CELL_SIZE * 0.4 + Math.sin(x / 40 - time * 2.6 + row * 1.7) * 3;
+                        if (x === 0) ctx.moveTo(x, waveY);
+                        else ctx.lineTo(x, waveY);
+                    }
+                    ctx.stroke();
+
+                    // Foam seam at the row boundary -- separates the lanes visually
+                    ctx.strokeStyle = 'rgba(210, 240, 255, 0.10)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    for (let x = 0; x < CANVAS_W; x += 10) {
+                        const seamY = y + CELL_SIZE - 1 + Math.sin(x / 22 + time * 1.8) * 1.2;
+                        if (x === 0) ctx.moveTo(x, seamY);
+                        else ctx.lineTo(x, seamY);
                     }
                     ctx.stroke();
 
@@ -2217,6 +2243,31 @@
                         ctx.fillRect(0, y, CANVAS_W, CELL_SIZE / 2);
                     }
                 }
+            }
+
+            // Per-lap water tint: each lap's theme colors the sea, so progression is FELT.
+            if (activeTheme) {
+                ctx.fillStyle = activeTheme.primary;
+                ctx.globalAlpha = 0.05;
+                ctx.fillRect(0, 0, CANVAS_W, 12 * CELL_SIZE);
+                ctx.globalAlpha = 1;
+            }
+
+            // Godrays: three slow diagonal light shafts through the upper water.
+            const rayT = Date.now() / 9000;
+            for (let i = 0; i < 3; i++) {
+                const rx = ((rayT * 120 + i * 300) % (CANVAS_W + 260)) - 130;
+                const rayGrad = ctx.createLinearGradient(rx, 0, rx + 90, 12 * CELL_SIZE);
+                rayGrad.addColorStop(0, 'rgba(200, 235, 255, 0.055)');
+                rayGrad.addColorStop(1, 'rgba(200, 235, 255, 0)');
+                ctx.fillStyle = rayGrad;
+                ctx.beginPath();
+                ctx.moveTo(rx, 0);
+                ctx.lineTo(rx + 70, 0);
+                ctx.lineTo(rx + 190, 12 * CELL_SIZE);
+                ctx.lineTo(rx + 60, 12 * CELL_SIZE);
+                ctx.closePath();
+                ctx.fill();
             }
 
             // Update and draw ambient water bubbles (rising)
@@ -2662,6 +2713,13 @@
             drawEffects(dt);
             drawSplash();
             drawBossEffects();
+
+            // Soft vignette pulls the eye to the playfield center.
+            const vig = ctx.createRadialGradient(CANVAS_W/2, CANVAS_H/2, CANVAS_H * 0.45, CANVAS_W/2, CANVAS_H/2, CANVAS_H * 0.85);
+            vig.addColorStop(0, 'rgba(0,0,0,0)');
+            vig.addColorStop(1, 'rgba(0,10,25,0.32)');
+            ctx.fillStyle = vig;
+            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
             ctx.restore();
 
