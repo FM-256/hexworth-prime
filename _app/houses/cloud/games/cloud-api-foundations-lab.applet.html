@@ -68,6 +68,8 @@ select.method-select:focus{outline:none;border-color:#7c3aed;}
 .status-opts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
 .status-btn{background:#1a1226;border:1px solid #2e1f4a;color:#c4b5fd;font-family:inherit;font-size:11px;padding:4px 9px;border-radius:4px;cursor:pointer;transition:.2s;}
 .status-btn:hover:not(.locked){border-color:#7c3aed;}
+.status-btn.active{border-color:#7c3aed;background:#2a1a4a;color:#e9d5ff;}
+.cls-btn.active{border-color:#7c3aed;background:#2a1a4a;color:#e9d5ff;}
 .status-btn.correct{border-color:#22c55e;background:#052012;color:#86efac;}
 .status-btn.wrong{border-color:#ef4444;background:#200a0a;color:#fca5a5;}
 /* request anatomy */
@@ -134,13 +136,22 @@ textarea#ex-body:focus{outline:none;border-color:#7c3aed;}
 /* util */
 .gap-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
 .hint{font-size:10px;color:#4a2a7a;font-style:italic;margin-top:4px;}
+
+/* FLEET FIX 2026-08-02: no media queries existed; the fixed 200px sidebar grid made this
+   lab unusable on a phone. Stack below 820px and let code blocks scroll, not overflow. */
+@media (max-width: 820px) {
+  .lab-grid, .layout, .wrap { grid-template-columns: 1fr !important; }
+  .sidebar, .nav-col { width: 100% !important; }
+  pre, code { overflow-x: auto; max-width: 100%; }
+  body { padding: 10px; }
+}
 </style>
 </head>
 <body>
 <a class="back-link" onclick="window.history.back()">← Back</a>
 <h1>API FOUNDATIONS LAB</h1>
 <div class="subtitle">CLOUD HOUSE // REQUEST ENGINEERING // INTERACTIVE</div>
-<div class="score-badge">Score: <span id="score-display">0</span> / <span id="max-display">300</span></div>
+<div class="score-badge">Score: <span id="score-display">0</span> / <span id="max-display">500</span></div>
 <div class="progress-bar-wrap"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
 <div class="tabs">
   <button class="tab active" onclick="switchModule(0)">M1: HTTP Methods</button>
@@ -279,7 +290,10 @@ textarea#ex-body:focus{outline:none;border-color:#7c3aed;}
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const S = {
   score: 0,
-  maxScore: 300,
+  // FLEET FIX 2026-08-02: was 300 while 500 points actually exist (M1 105 + M2 145 +
+  // M3 45 + M4 105 + M5 100) -- the progress bar pinned at 100% halfway and the top
+  // 'API Architect' rank fired at 54% real mastery. Every student saw a wrong grade.
+  maxScore: 500,
   m1Done: false, m2Done: false, m3Done: false, m4Done: false, m5Done: false,
   m5Solved: new Set(),
   m5Score: 0,
@@ -352,7 +366,7 @@ const M4_SNIPPETS = [
   { label:'Snippet B', pre:`GET /api/v1/users/42/tasks HTTP/1.1\nAccept: application/json\nAuthorization: Bearer eyJ...`, answer:'REST' },
   { label:'Snippet C', pre:`POST /UserService HTTP/1.1\nContent-Type: text/xml\n\n<?xml version="1.0"?>\n<soap:Envelope xmlns:soap="...">\n  <soap:Body><GetUser><id>42</id></GetUser></soap:Body>\n</soap:Envelope>`, answer:'SOAP' },
   { label:'Snippet D', pre:`// gRPC proto call (binary over HTTP/2)\nrpc GetUser(UserRequest) returns (UserResponse);\n// Equivalent to: { id: 42 }`, answer:'gRPC' },
-  { label:'Snippet E', pre:`POST /graphql HTTP/1.1\n\n{"mutation":"mutation { createTask(title:\"Deploy\",priority:\"high\") { id createdAt } }"}`, answer:'GraphQL' },
+  { label:'Snippet E', pre:`POST /graphql HTTP/1.1\n\n{"query":"mutation { createTask(title:\"Deploy\",priority:\"high\") { id createdAt } }"}`, answer:'GraphQL' },
   { label:'Snippet F', pre:`DELETE /api/tasks/7 HTTP/1.1\nAuthorization: Bearer eyJ...\nAccept: application/json`, answer:'REST' },
 ];
 const M4_TYPES = ['REST','GraphQL','gRPC','SOAP'];
@@ -427,6 +441,10 @@ function buildM1() {
 
 function checkM1() {
   if (S.m1Done) return;
+  // FLEET FIX 2026-08-02: submitting with nothing selected used to LOCK the module at 0
+  // with no retry. Refuse the submit and say why.
+  const m1Unanswered = M1_SCENARIOS.some((s,i) => !document.getElementById(`m1-sel-${i}`).value);
+  if (m1Unanswered) { document.getElementById('m1-result').textContent = 'Answer every scenario first.'; return; }
   let pts = 0;
   M1_SCENARIOS.forEach((s,i) => {
     const sel = document.getElementById(`m1-sel-${i}`);
@@ -459,11 +477,16 @@ function pickStatus(si, code) {
   const card = document.getElementById(`m2-card-${si}`);
   if (card.dataset.locked) return;
   m2Answers[si] = code;
-  card.querySelectorAll('.status-btn').forEach(b => { b.classList.remove('correct','wrong'); });
+  card.querySelectorAll('.status-btn').forEach(b => { b.classList.remove('correct','wrong','active'); });
   document.getElementById(`m2-${si}-${code}`).classList.add('active');
 }
 function checkM2() {
   if (S.m2Done) return;
+  // FLEET FIX 2026-08-02: submitting with nothing selected used to LOCK the module at 0
+  // with no retry. Refuse the submit and say why.
+  if (M2_SCENARIOS.some((s,i) => m2Answers[i] === undefined)) {
+    document.getElementById('m2-result').textContent = 'Pick a status code for every scenario first.'; return;
+  }
   let pts = 0;
   M2_SCENARIOS.forEach((s,i) => {
     const card = document.getElementById(`m2-card-${i}`);
@@ -517,6 +540,11 @@ function pickType(si, type) {
 }
 function checkM4() {
   if (S.m4Done) return;
+  // FLEET FIX 2026-08-02: submitting with nothing selected used to LOCK the module at 0
+  // with no retry. Refuse the submit and say why.
+  if (M4_SNIPPETS.some((s,i) => m4Answers[i] === undefined)) {
+    document.getElementById('m4-result').textContent = 'Classify every snippet first.'; return;
+  }
   let pts = 0;
   M4_SNIPPETS.forEach((s,i) => {
     const chosen = m4Answers[i];
