@@ -2802,7 +2802,16 @@
             gameRunning = false;
             stopBackgroundMusic();
             playSound('gameover');
-            if (typeof GameTracker !== 'undefined') GameTracker.record('cloudhop', { score: score, result: 'failure' });
+            // ROUND 2 FIX: this recorded result:'failure' UNCONDITIONALLY, so a player who
+            // cleared every authored level still showed WINS: 0 forever. The run is a success
+            // if they got past the authored set into the endless cycle.
+            if (typeof GameTracker !== 'undefined') {
+                GameTracker.record('cloudhop', {
+                    score: score,
+                    result: (currentLevel >= LEVELS.length) ? 'success' : 'failure',
+                    levelReached: currentLevel + 1
+                });
+            }
 
             // Update game over title based on cause of death
             const gameOverTitle = document.querySelector('#gameOverScreen h1');
@@ -2883,28 +2892,36 @@
         });
 
         // Touch Controls
+        // TOUCH PARITY (round 2). Previously tap only jumped when already ON a platform, and
+        // every ability that needs the Down key (dash = Right+Down, slow-fall = Down in air,
+        // platform-snap = Down + jump) was unreachable -- 5 of 6 abilities were keyboard-only,
+        // which made the game largely unplayable on the device most students carry.
+        // Mapping: tap = jump AND double-jump (in air), swipe down = slow fall,
+        // swipe right while airborne = dash, swipe down + tap = platform snap.
         canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             touchStartX = touch.clientX;
             touchStartY = touch.clientY;
-
-            // Tap to jump
-            if (player.onPlatform) {
-                keys.space = true;
-            }
+            // Tap always presses jump. In the air that is the double jump (Lambda); the
+            // ability code already gates on jumpJustPressed, so it reads a tap the same way
+            // it reads a keypress.
+            keys.space = true;
         });
 
         canvas.addEventListener('touchmove', (e) => {
             e.preventDefault();
             const touch = e.touches[0];
             const deltaX = touch.clientX - touchStartX;
+            const deltaY = touch.clientY - touchStartY;
 
-            // Swipe horizontal movement
             if (Math.abs(deltaX) > 10) {
                 keys.left = deltaX < 0;
                 keys.right = deltaX > 0;
             }
+            // Downward drag holds Down: alone in the air that is slow-fall (Glacier), and
+            // combined with the rightward drag above it is the dash (CloudFront).
+            keys.down = deltaY > 18;
         });
 
         canvas.addEventListener('touchend', (e) => {
@@ -2912,6 +2929,7 @@
             keys.space = false;
             keys.left = false;
             keys.right = false;
+            keys.down = false;
         });
 
         // Initialize demo mode (lateral only)
