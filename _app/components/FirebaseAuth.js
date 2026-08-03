@@ -33,13 +33,15 @@ const FirebaseAuth = (function() {
         ],
         storageKeys: {
             user: 'hexworth_firebase_user',
-            isAdmin: 'hexworth_firebase_admin'
+            isAdmin: 'hexworth_firebase_admin',
+            isInstructor: 'hexworth_firebase_instructor'
         }
     };
 
     // Current user state
     let currentUser = null;
     let isAdmin = false;
+    let isInstructor = false;
     let _authReady = false;
     let _authReadyResolve = null;
     const _authReadyPromise = new Promise(resolve => { _authReadyResolve = resolve; });
@@ -158,21 +160,41 @@ const FirebaseAuth = (function() {
                 deviceId: getOrCreateDeviceId()
             };
 
-            // QC-4: Read admin from custom claims (set by setAdminClaim Cloud Function)
+            // QC-4: Read admin from custom claims (set by setAdminClaim Cloud Function).
+            // One token fetch serves both the admin and instructor claim reads below --
+            // this runs on every sign-in across 2,553 pages, so no duplicate round trips.
+            let claims = {};
             try {
                 const tokenResult = await user.getIdTokenResult();
-                isAdmin = tokenResult.claims.admin === true;
-            } catch (e) {
-                isAdmin = false;
-            }
+                claims = tokenResult.claims || {};
+            } catch (e) { /* claims stay empty; fallbacks below decide */ }
+            isAdmin = claims.admin === true;
             // Email allowlist fallback (covers period before Cloud Function sets claims)
             if (!isAdmin && user.email) {
                 isAdmin = config.adminEmails.includes(user.email.toLowerCase());
             }
 
+            /* INSTRUCTOR (2026-08-03). Mirrors the admin path deliberately: custom claim first,
+               then a Firestore fallback, then cached to localStorage so AccessGuard can answer
+               SYNCHRONOUSLY -- the guard runs before any await and cannot wait on a round trip.
+               Admins are always instructors; an admin should never be locked out of teaching
+               material. The Firestore fallback reads users/{uid}.role, which setAdminClaim
+               already maintains, so granting a TA access is a single field edit and needs no
+               deploy. A custom `instructor` claim is honoured if one is ever set, which is the
+               upgrade path to server-enforced gating without touching this file again. */
+            isInstructor = claims.instructor === true;
+            if (!isInstructor && typeof FirestoreManager !== 'undefined' && FirestoreManager.getUserProfile) {
+                try {
+                    const prof = await FirestoreManager.getUserProfile(user.uid);
+                    isInstructor = !!prof && (prof.role === 'instructor' || prof.role === 'admin');
+                } catch (e) { /* offline or rules -- fall through to the admin check below */ }
+            }
+            if (isAdmin) isInstructor = true;
+
             // Cache to localStorage for file:// persistence and sync AccessGuard checks
             localStorage.setItem(config.storageKeys.user, JSON.stringify(currentUser));
             localStorage.setItem(config.storageKeys.isAdmin, isAdmin.toString());
+            localStorage.setItem(config.storageKeys.isInstructor, isInstructor.toString());
 
             console.log(`[FirebaseAuth] Signed in: ${user.email || 'anonymous:' + user.uid} (Admin: ${isAdmin})`);
 
@@ -202,6 +224,7 @@ const FirebaseAuth = (function() {
             isAdmin = false;
             localStorage.removeItem(config.storageKeys.user);
             localStorage.removeItem(config.storageKeys.isAdmin);
+            localStorage.removeItem(config.storageKeys.isInstructor);
 
             console.log('[FirebaseAuth] Signed out');
 
@@ -349,6 +372,7 @@ const FirebaseAuth = (function() {
             isAdmin = false;
             localStorage.removeItem(config.storageKeys.user);
             localStorage.removeItem(config.storageKeys.isAdmin);
+            localStorage.removeItem(config.storageKeys.isInstructor);
             window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
                 detail: { user: null, isAdmin: false }
             }));
@@ -375,6 +399,29 @@ const FirebaseAuth = (function() {
      */
     function checkIsAdmin() {
         return isAdmin;
+    }
+
+    /**
+     * Check if the user may see instructor material (teaching decks, answer keys).
+     * Admins always qualify. Falls back to the localStorage cache so a guard running
+     * before auth resolves still gets the previous answer rather than a hard denial.
+     */
+    /**
+     * The AUTHORITATIVE answer: resolved state only, never the localStorage cache.
+     * AccessGuard's async verifier must use this -- checkIsInstructor() below falls back to
+     * the cache, so a verifier calling it would re-read a forged key and confirm the forgery.
+     */
+    function checkIsInstructorResolved() {
+        return isInstructor === true || isAdmin === true;
+    }
+
+    function checkIsInstructor() {
+        if (isInstructor || isAdmin) return true;
+        try {
+            return localStorage.getItem(config.storageKeys.isInstructor) === 'true';
+        } catch (e) {
+            return false;
+        }
     }
 
     /**
@@ -642,6 +689,8 @@ const FirebaseAuth = (function() {
         signOut,
         getUser,
         isAdmin: checkIsAdmin,
+        isInstructor: checkIsInstructor,
+        isInstructorResolved: checkIsInstructorResolved,
         isAnonymous: checkIsAnonymous,
         isSignedIn,
         addAdminEmail,

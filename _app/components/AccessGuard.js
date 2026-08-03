@@ -11,6 +11,11 @@
  * - GATE: User must have passed specific Dark Arts gate
  * - ADMIN: User must have Firebase Admin, God Mode, or Master Key
  * - ADMIN-ONLY: User must have Firebase Admin ONLY (strictest)
+ * - INSTRUCTOR: User must be an instructor OR an admin. For teaching material
+ *   (lecture decks, notes, anything that gives away answers). Separate from
+ *   ADMIN-ONLY so a TA can be handed the decks without being made a platform
+ *   administrator. Granted by setting users/{uid}.role = 'instructor' in
+ *   Firestore, or by an `instructor` custom claim if one is ever issued.
  *
  * Usage (add to protected pages):
  *   <script src="../../components/AccessGuard.js"></script>
@@ -131,6 +136,40 @@ const AccessGuard = (function() {
     }
 
     /**
+     * Async instructor verification. Returns: true (verified), false (forged), null (inconclusive).
+     * Mirrors _verifyAdminAsync: the sync check that let the page render reads a localStorage
+     * cache, so it is forgeable on its own; this re-asks FirebaseAuth once auth has actually
+     * resolved and strips the cache if the answer is no.
+     */
+    async function _verifyInstructorAsync() {
+        try {
+            if (typeof FirebaseAuth === 'undefined') return null;
+            await FirebaseAuth.waitForAuth();
+
+            /* FAIL CLOSED on no identity. This is where instructor deliberately DIVERGES from
+               admin. _verifyAdminAsync returns null (inconclusive, keep showing) for a visitor
+               who is not signed in -- which means an anonymous visitor who types the cache key
+               by hand keeps access forever, because the verifier can never prove a negative
+               about a user who does not exist. MEASURED: a browser with no account that simply
+               set hexworth_firebase_instructor=true read the whole 125-slide week-01 deck.
+               An instructor is ALWAYS signed in, so "no signed-in user" is not inconclusive
+               here, it is a no. Legitimate instructors lose nothing. */
+            if (!FirebaseAuth.isSignedIn()) return false;
+            if (!FirebaseAuth.isInstructor) return null;   // older bundle without the accessor
+
+            /* Ask for the RESOLVED answer, never the cached one. isInstructor() falls back to
+               reading the same localStorage key the sync check trusted, so calling it here
+               would re-read the forgery and cheerfully confirm it. */
+            return FirebaseAuth.isInstructorResolved
+                ? FirebaseAuth.isInstructorResolved()
+                : FirebaseAuth.isInstructor();
+        } catch (e) {
+            console.warn('[AccessGuard] Instructor verification error:', e);
+            return null;   // inconclusive -- do not punish on error
+        }
+    }
+
+    /**
      * QC-4: Async gate verification via Cloud Function.
      * Returns: true (verified), false (forged), null (inconclusive)
      */
@@ -167,6 +206,16 @@ const AccessGuard = (function() {
                 }
                 // result === true → legitimate admin, keep showing
                 // result === null → inconclusive (offline/not signed in), keep showing
+            });
+        } else if (type === 'instructor') {
+            _verifyInstructorAsync().then(result => {
+                if (result === false) {
+                    console.warn('[AccessGuard] ASYNC INSTRUCTOR VERIFICATION FAILED — forged localStorage detected');
+                    localStorage.removeItem('hexworth_firebase_instructor');
+                    hideContent();
+                    redirect('dashboard', 'Instructor access could not be verified.');
+                }
+                // true -> legitimate, keep showing. null -> inconclusive (offline), keep showing.
             });
         } else if (type === 'gate') {
             const gateNum = parseInt(param) || 1;
@@ -611,7 +660,13 @@ const AccessGuard = (function() {
             // and ModuleProgress.js which already check both.
             var tenantData = sessionStorage.getItem('hexworth_tenant') ||
                              localStorage.getItem('hexworth_tenant');
-            if (tenantData && level !== 'admin' && level !== 'admin-only') {
+            /* 'instructor' joined the exclusion list 2026-08-03, the day the level was born.
+               This bypass exists so white-label students skip sorting quizzes and Dark Arts
+               gates that do not exist in their experience -- STUDENT progression mechanics.
+               Instructor material is staff-only in every experience; a tenant student waved
+               through here would read teaching decks with zero checks, defeating the level
+               for the entire white-label population by construction. */
+            if (tenantData && level !== 'admin' && level !== 'admin-only' && level !== 'instructor') {
                 showContent();
                 return true;
             }
@@ -764,6 +819,25 @@ const AccessGuard = (function() {
                 authorized = false;
                 redirectTo = 'dashboard';
                 message = 'This area requires administrator access.';
+                break;
+
+            case 'instructor':
+                /* INSTRUCTOR (2026-08-03). Teaching material: lecture decks, notes, anything
+                   that gives away answers. Distinct from 'admin-only' because a TA or adjunct
+                   needs the decks without gaining platform administration -- granting them
+                   admin to hand over a slide deck is the wrong trade.
+                   FirebaseAuth.isInstructor() returns true for admins too, so an admin is never
+                   locked out of teaching material. It answers synchronously from a localStorage
+                   cache, matching how isFirebaseAdmin() is used above; the async re-verify below
+                   is what closes the gap if the cache is stale. */
+                if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isInstructor && FirebaseAuth.isInstructor()) {
+                    showContent();
+                    _scheduleAsyncVerification('instructor');
+                    return true;
+                }
+                authorized = false;
+                redirectTo = 'dashboard';
+                message = 'This area holds instructor material. Ask your instructor if you need access.';
                 break;
 
             default:

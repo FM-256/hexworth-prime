@@ -20,8 +20,15 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if request.auth != null;
 
-      // Users can create their own doc (first sign-in)
-      allow create: if request.auth != null && request.auth.uid == userId;
+      // Users can create their own doc (first sign-in) -- but never with a role.
+      // Nancy 2026-08-03: `role` became a TRUST ANCHOR when AccessGuard's instructor level
+      // started reading it. The update rule below already excludes it, but create had no
+      // field restriction at all, so any signed-in user (anonymous included) could
+      // setDoc(users/{uid}, {role:'instructor'}) BEFORE initializeNewUser ran -- a
+      // deterministic self-grant, no race, no forgery needed. Only the admin SDK
+      // (setAdminClaim and friends, which bypass rules) may ever write `role`.
+      allow create: if request.auth != null && request.auth.uid == userId
+        && !('role' in request.resource.data);
 
       // Users can update only safe fields
       // XP + level are in the whitelist for backward compat but syncProgress CF

@@ -68,9 +68,22 @@ exports.setAdminClaim = onCall(cfOptions, async (request) => {
         handler: isAdmin
     });
 
-    // Also write to Firestore user doc for client-side cache reads
+    // Also write to Firestore user doc for client-side cache reads.
+    // PRESERVE AN INSTRUCTOR GRANT (Chris 2026-08-03): this write used to be an unconditional
+    // role: isAdmin ? 'admin' : 'student', which was harmless while `role` was inert data.
+    // The moment AccessGuard's instructor level started reading it, this line became a silent
+    // revoker: a TA granted role='instructor' by hand was stomped back to 'student' on their
+    // NEXT explicit sign-in (this function runs on signInWithGoogle, signInWithEmail,
+    // createAccountWithEmail and linkWithGoogle) -- locked out with no error and no obvious
+    // cause. Non-admin instructors keep their role; everyone else behaves exactly as before,
+    // including ex-admins being downgraded to student.
+    const existing = await db.doc(`users/${uid}`).get();
+    const currentRole = existing.exists ? existing.data().role : null;
+    const role = isAdmin ? 'admin'
+               : (currentRole === 'instructor' ? 'instructor' : 'student');
+
     await db.doc(`users/${uid}`).set({
-        role: isAdmin ? 'admin' : 'student',
+        role: role,
         email: email,
         claimsUpdatedAt: FieldValue.serverTimestamp()
     }, { merge: true });
