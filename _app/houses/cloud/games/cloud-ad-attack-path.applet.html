@@ -680,18 +680,23 @@
         const scenarios = [
             {
                 name: "Group Nesting",
-                description: "Simple group membership chain to Domain Admins",
+                description: "Walk nested group membership to Domain Admins -- but not every line is a privilege",
                 optimalSteps: 3,
-                hint: "Select MemberOf edges to walk the nested-group chain from your user to Domain Admins.",
+                hint: "MemberOf is the only edge here that actually carries privilege. Containment (an OU holding an object) grants nothing, and you cannot reset a GROUP's password.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'jdoe', x: 100, y: 150 },
-                    { id: 'groupA', type: 'group', name: 'IT Support', x: 300, y: 150 },
-                    { id: 'groupB', type: 'group', name: 'Server Admins', x: 500, y: 150 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 700, y: 150 }
+                    { id: 'user1', type: 'user', name: 'jdoe', x: 90, y: 210 },
+                    { id: 'ou', type: 'gpo', name: 'Workstations OU', x: 300, y: 380 },
+                    { id: 'groupA', type: 'group', name: 'IT Support', x: 320, y: 210 },
+                    { id: 'groupB', type: 'group', name: 'Server Admins', x: 560, y: 210 },
+                    { id: 'helpdesk', type: 'group', name: 'Helpdesk', x: 560, y: 400 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 790, y: 210 }
                 ],
                 edges: [
                     { from: 'user1', to: 'groupA', label: 'MemberOf', technique: 'Group Membership' },
+                    { from: 'user1', to: 'ou', label: 'Contains', technique: 'Structural containment (decoy)' },
+                    { from: 'user1', to: 'da', label: 'ForceChangePassword', technique: 'Reset the DA group password (decoy)' },
                     { from: 'groupA', to: 'groupB', label: 'MemberOf', technique: 'Nested Groups' },
+                    { from: 'groupA', to: 'helpdesk', label: 'MemberOf', technique: 'Sibling group -- no path onward' },
                     { from: 'groupB', to: 'da', label: 'MemberOf', technique: 'Privilege Escalation' }
                 ],
                 start: 'user1',
@@ -699,136 +704,160 @@
             },
             {
                 name: "Kerberoasting",
-                description: "Kerberoast a service account that is nested into Domain Admins",
+                description: "Two service accounts look identical. Only one can be Kerberoasted",
                 optimalSteps: 2,
-                hint: "Kerberoasting's real prerequisite is a registered SPN, not an ACL right. One service account here has no SPN — it cannot be Kerberoasted directly.",
+                hint: "Kerberoasting's prerequisite is a registered SPN on the TARGET, not an ACL right. One of these accounts has no SPN.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'attacker', x: 130, y: 150 },
-                    { id: 'svc_app', type: 'user', name: 'svc_app (no SPN)', x: 380, y: 260, spn: false },
-                    { id: 'svc_sql', type: 'user', name: 'svc_sql', x: 380, y: 60, spn: true },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
+                    { id: 'user1', type: 'user', name: 'attacker', x: 100, y: 230 },
+                    { id: 'svc_app', type: 'user', name: 'svc_app (no SPN)', x: 380, y: 400 },
+                    { id: 'svc_sql', type: 'user', name: 'svc_sql', x: 380, y: 90, spn: true },
+                    { id: 'svc_web', type: 'user', name: 'svc_web', x: 380, y: 245, spn: true },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 720, y: 230 }
                 ],
                 edges: [
                     { from: 'user1', to: 'svc_app', label: 'Kerberoast', technique: 'Attempt Kerberoast (no SPN registered)' },
                     { from: 'user1', to: 'svc_sql', label: 'Kerberoast', technique: 'Request TGS for registered SPN, crack offline' },
-                    { from: 'svc_sql', to: 'da', label: 'MemberOf', technique: 'Cracked Account Nested in DA' }
+                    { from: 'user1', to: 'svc_web', label: 'Kerberoast', technique: 'Roastable, but goes nowhere useful' },
+                    { from: 'svc_sql', to: 'da', label: 'MemberOf', technique: 'Cracked Account Nested in DA' },
+                    { from: 'svc_web', to: 'svc_app', label: 'GenericAll', technique: 'Dead branch -- svc_app has no path onward' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Local Admin Session",
-                description: "Dump credentials from workstation with a DA session",
+                description: "Find the machine where a privileged session is actually cached",
                 optimalSteps: 2,
-                hint: "You're admin on a workstation where a Domain Admin has an active session. HasSession runs Computer -> User; abuse it from the computer you control.",
+                hint: "AdminTo only applies to COMPUTER objects. Then look for the box where a Domain Admin actually has a session -- not every machine you own has one.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'helpdesk', x: 150, y: 100 },
-                    { id: 'ws1', type: 'computer', name: 'WS-001', x: 400, y: 200 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 100 }
+                    { id: 'user1', type: 'user', name: 'helpdesk', x: 100, y: 230 },
+                    { id: 'ws1', type: 'computer', name: 'WS-001', x: 400, y: 340 },
+                    { id: 'ws2', type: 'computer', name: 'WS-014', x: 400, y: 120 },
+                    { id: 'printer', type: 'group', name: 'Print Operators', x: 400, y: 480 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 740, y: 230 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'ws1', label: 'AdminTo', technique: 'Local Admin Access' },
-                    { from: 'ws1', to: 'da', label: 'HasSession', technique: 'Credential Dumping / Token Impersonation' }
+                    { from: 'user1', to: 'ws1', label: 'AdminTo', technique: 'Local admin on WS-001' },
+                    { from: 'user1', to: 'ws2', label: 'AdminTo', technique: 'Local admin on WS-014 (no privileged session)' },
+                    { from: 'user1', to: 'printer', label: 'AdminTo', technique: 'AdminTo a GROUP (decoy)' },
+                    { from: 'ws1', to: 'da', label: 'HasSession', technique: 'DA session cached -- dump credentials' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "ACL Abuse",
-                description: "WriteDacl on an OU whose inheritable ACEs reach a privileged group",
+                description: "Rewrite an ACL to grant yourself rights -- containment is not a privilege",
                 optimalSteps: 3,
-                hint: "WriteDacl on the OU lets you grant yourself full control of the OU. An inheritable ACE then propagates to the OU's child objects. Contains itself is structural only — it grants no rights.",
+                hint: "WriteDacl lets you add an ACE to an object's ACL. Contains only describes structure and grants nothing. SeBackupPrivilege reaches the domain a different way than DCSync.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'contractor', x: 90, y: 150 },
-                    { id: 'ou', type: 'gpo', name: 'Admin OU', x: 320, y: 150 },
-                    { id: 'protected', type: 'user', name: 'svc_protected', x: 320, y: 280 },
-                    { id: 'group', type: 'group', name: 'Backup Operators', x: 550, y: 150 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 760, y: 150 }
+                    { id: 'user1', type: 'user', name: 'contractor', x: 80, y: 230 },
+                    { id: 'ou', type: 'gpo', name: 'Admin OU', x: 330, y: 230 },
+                    { id: 'protected', type: 'user', name: 'svc_protected', x: 330, y: 420 },
+                    { id: 'group', type: 'group', name: 'Backup Operators', x: 590, y: 230 },
+                    { id: 'auditors', type: 'group', name: 'Auditors', x: 590, y: 420 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 830, y: 230 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'ou', label: 'WriteDacl', technique: 'Grant Self GenericAll on OU (Add-DomainObjectAcl)' },
-                    { from: 'ou', to: 'protected', label: 'Contains', technique: 'Attempt to ride Contains directly (structural only)' },
-                    { from: 'ou', to: 'group', label: 'GenericAll', technique: 'Inheritable ACE Propagates to Child Object' },
-                    { from: 'group', to: 'da', label: 'SeBackupPrivilege', technique: 'Backup Operators: ntdsutil/diskshadow Copy of NTDS.dit, Offline Extraction' }
+                    { from: 'user1', to: 'ou', label: 'WriteDacl', technique: 'Add an inheritable ACE to the OU' },
+                    { from: 'user1', to: 'protected', label: 'Contains', technique: 'Containment (decoy)' },
+                    { from: 'ou', to: 'protected', label: 'Contains', technique: 'Structural containment (decoy)' },
+                    { from: 'ou', to: 'group', label: 'GenericAll', technique: 'Inherited full control over the group' },
+                    { from: 'ou', to: 'auditors', label: 'GenericAll', technique: 'Full control, but Auditors holds no domain right' },
+                    { from: 'group', to: 'da', label: 'SeBackupPrivilege', technique: 'Back up ntds.dit offline, extract credentials' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "GPO Abuse",
-                description: "Edit a GPO linked to the Domain Controllers OU",
+                description: "Own a policy object -- but only one of them is linked where it matters",
                 optimalSteps: 2,
-                hint: "You have GenericAll on a GPO. It is linked (GPLink) to the DC OU, so an edited policy runs as SYSTEM on every DC.",
+                hint: "Editing a GPO only matters if that GPO is LINKED to a scope containing what you want. Check which policy is linked to the domain controllers.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'it_admin', x: 150, y: 150 },
-                    { id: 'gpo', type: 'gpo', name: 'DC Policy', x: 400, y: 150 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 150 }
+                    { id: 'user1', type: 'user', name: 'it_admin', x: 110, y: 230 },
+                    { id: 'gpo', type: 'gpo', name: 'DC Policy', x: 420, y: 120 },
+                    { id: 'gpo2', type: 'gpo', name: 'Kiosk Policy', x: 420, y: 350 },
+                    { id: 'ws', type: 'computer', name: 'KIOSK-02', x: 700, y: 420 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 760, y: 180 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'gpo', label: 'GenericAll', technique: 'Edit GPO Policy (SharpGPOAbuse)' },
-                    { from: 'gpo', to: 'da', label: 'GPLink', technique: 'GPO Linked to DC OU -> Code Execution as SYSTEM' }
+                    { from: 'user1', to: 'gpo', label: 'GenericAll', technique: 'Full control of the DC policy object' },
+                    { from: 'user1', to: 'gpo2', label: 'GenericAll', technique: 'Full control of a kiosk policy' },
+                    { from: 'gpo', to: 'da', label: 'GPLink', technique: 'Policy linked to the DC OU -- run as SYSTEM on the DC' },
+                    { from: 'gpo2', to: 'ws', label: 'GPLink', technique: 'Linked only to a kiosk -- no domain reach' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Unconstrained Delegation",
-                description: "Server with unconstrained delegation - capture DC TGT",
+                description: "Capture a TGT from a delegation-trusted host",
                 optimalSteps: 3,
-                hint: "Coerce the DC to authenticate to the delegation server, capture its TGT, then DCSync (needs BOTH Replicating Directory Changes rights).",
+                hint: "You need admin on a host trusted for UNCONSTRAINED delegation, then coerce a DC to authenticate to it. DCSync needs BOTH replication rights -- and a printer is not a computer you can be AdminTo in this graph.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'developer', x: 100, y: 100 },
-                    { id: 'server', type: 'computer', name: 'APP-SRV', x: 350, y: 200 },
-                    { id: 'dc', type: 'computer', name: 'DC-01', x: 600, y: 200 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 650, y: 50 }
+                    { id: 'user1', type: 'user', name: 'developer', x: 90, y: 210 },
+                    { id: 'server', type: 'computer', name: 'APP-SRV (unconstrained)', x: 360, y: 330 },
+                    { id: 'build', type: 'computer', name: 'BUILD-02', x: 360, y: 110 },
+                    { id: 'dc', type: 'computer', name: 'DC-01', x: 640, y: 330 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 800, y: 160 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'server', label: 'AdminTo', technique: 'Access Delegation Server' },
-                    { from: 'server', to: 'dc', label: 'Unconstrained', technique: 'Coerce Auth (PetitPotam) + Capture TGT from LSASS' },
-                    { from: 'dc', to: 'da', label: 'DCSync', technique: 'Replicate Directory Changes + Replicate Directory Changes All' }
+                    { from: 'user1', to: 'server', label: 'AdminTo', technique: 'Local admin on the delegation-trusted host' },
+                    { from: 'user1', to: 'build', label: 'AdminTo', technique: 'Local admin, but no delegation trust' },
+                    { from: 'server', to: 'dc', label: 'Unconstrained', technique: 'Coerce DC auth, capture its TGT from LSASS' },
+                    { from: 'build', to: 'dc', label: 'HasSession', technique: 'No privileged session cached here' },
+                    { from: 'dc', to: 'da', label: 'DCSync', technique: 'Replicate credentials with GetChanges + GetChangesAll' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
-                name: "Credential Reuse",  // ROUND 2 FIX: contained no password spraying -- it is password reuse from a description field plus ForceChangePassword
-                description: "Found password in description field - reused by help desk, who resets a real DA user's password",
+                name: "Credential Reuse",
+                description: "A password found in a description field -- reused where it should not be",
                 optimalSteps: 4,
-                hint: "ForceChangePassword only works against a user object — you cannot ForceChangePassword the Domain Admins group. Reset an actual DA user first, then authenticate as them.",
+                hint: "ForceChangePassword only works on a USER principal, never on a group. Reset your way to a human who is actually a Domain Admin.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'attacker', x: 80, y: 150 },
-                    { id: 'intern', type: 'user', name: 'intern01', x: 260, y: 250 },
-                    { id: 'helpdesk', type: 'user', name: 'helpdesk_admin', x: 440, y: 150 },
-                    { id: 'da_user', type: 'user', name: 'dave (DA)', x: 620, y: 250 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 780, y: 150 }
+                    { id: 'user1', type: 'user', name: 'attacker', x: 70, y: 230 },
+                    { id: 'intern', type: 'user', name: 'intern01', x: 260, y: 380 },
+                    { id: 'svc', type: 'user', name: 'svc_scan', x: 260, y: 90 },
+                    { id: 'helpdesk', type: 'user', name: 'helpdesk_admin', x: 480, y: 230 },
+                    { id: 'da_user', type: 'user', name: 'dave (DA)', x: 690, y: 380 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 840, y: 210 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'intern', label: 'GenericAll', technique: 'Found Password in Description Attribute' },
-                    { from: 'intern', to: 'helpdesk', label: 'ForceChangePassword', technique: 'Password Reuse -> Reset Help Desk Password' },
-                    { from: 'helpdesk', to: 'da', label: 'ForceChangePassword', technique: 'Attempt to Reset the DA Group Directly (invalid target)' },
-                    { from: 'helpdesk', to: 'da_user', label: 'ForceChangePassword', technique: 'Reset a Real DA User\'s Password' },
-                    { from: 'da_user', to: 'da', label: 'MemberOf', technique: 'Authenticate as Compromised Domain Admin' }
+                    { from: 'user1', to: 'intern', label: 'GenericAll', technique: 'Full control of a low-value account' },
+                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Full control, but this account leads nowhere' },
+                    { from: 'intern', to: 'helpdesk', label: 'ForceChangePassword', technique: 'Reset the help desk admin' },
+                    { from: 'helpdesk', to: 'da', label: 'ForceChangePassword', technique: 'Reset a GROUP password (decoy)' },
+                    { from: 'helpdesk', to: 'da_user', label: 'ForceChangePassword', technique: 'Reset an actual Domain Admin user' },
+                    { from: 'da_user', to: 'da', label: 'MemberOf', technique: 'Dave is nested in Domain Admins' }
                 ],
                 start: 'user1',
                 target: 'da'
             },
             {
                 name: "Full Chain",
-                description: "Multi-hop attack combining targeted Kerberoasting, local admin pivot, session extraction, and ACL abuse",
+                description: "Four hops, three plausible wrong turns at every stage",
                 optimalSteps: 4,
-                hint: "svc_backup has no SPN, so it can't be Kerberoasted directly — but GenericAll lets you write an SPN onto it (targeted Kerberoasting), making it kerberoastable.",
+                hint: "Chain the techniques: take an account you fully control, use it to reach a machine, harvest the session cached there, then rewrite an ACL. Watch for the SPN-less account and the containment decoy.",
                 nodes: [
-                    { id: 'user1', type: 'user', name: 'attacker', x: 50, y: 150 },
-                    { id: 'svc', type: 'user', name: 'svc_backup (no SPN)', x: 220, y: 260, spn: false },
-                    { id: 'server', type: 'computer', name: 'FILE-SRV', x: 390, y: 150 },
-                    { id: 'it_admin', type: 'user', name: 'it_admin', x: 560, y: 260 },
-                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 730, y: 150 }
+                    { id: 'user1', type: 'user', name: 'attacker', x: 60, y: 230 },
+                    { id: 'svc', type: 'user', name: 'svc_backup (no SPN)', x: 240, y: 400 },
+                    { id: 'ou', type: 'gpo', name: 'Servers OU', x: 240, y: 90 },
+                    { id: 'server', type: 'computer', name: 'FILE-SRV', x: 450, y: 230 },
+                    { id: 'ws', type: 'computer', name: 'WS-221', x: 450, y: 430 },
+                    { id: 'it_admin', type: 'user', name: 'it_admin', x: 670, y: 400 },
+                    { id: 'da', type: 'domain', name: 'Domain Admins', x: 840, y: 210 }
                 ],
                 edges: [
-                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Write SPN onto svc_backup (Targeted Kerberoast) -> Crack TGS' },
-                    { from: 'svc', to: 'server', label: 'AdminTo', technique: 'Local Admin Access' },
-                    { from: 'server', to: 'it_admin', label: 'HasSession', technique: 'Credential Dumping (Mimikatz) / Token Impersonation' },
-                    { from: 'it_admin', to: 'da', label: 'WriteDacl', technique: 'Grant Self AddMember Rights -> Add Self to Domain Admins' }
+                    { from: 'user1', to: 'svc', label: 'GenericAll', technique: 'Full control of the backup service account' },
+                    { from: 'user1', to: 'ou', label: 'Contains', technique: 'Containment (decoy)' },
+                    { from: 'user1', to: 'svc', label: 'Kerberoast', technique: 'Kerberoast an account with no SPN (decoy)' },
+                    { from: 'svc', to: 'server', label: 'AdminTo', technique: 'The service account is local admin on FILE-SRV' },
+                    { from: 'svc', to: 'ws', label: 'AdminTo', technique: 'Also admin here, but nobody privileged logs in' },
+                    { from: 'server', to: 'it_admin', label: 'HasSession', technique: 'Harvest the cached IT admin session' },
+                    { from: 'it_admin', to: 'da', label: 'WriteDacl', technique: 'Add yourself to Domain Admins via its ACL' }
                 ],
                 start: 'user1',
                 target: 'da'
