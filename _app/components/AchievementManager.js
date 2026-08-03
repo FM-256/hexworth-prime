@@ -403,6 +403,15 @@ const AchievementManager = (function() {
             title: null
         },
         {
+            id: 'game_nines',
+            icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Three Nines',
+            desc: 'Hold 99.9% uptime for 60 ticks in The Nines',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_flap',
             icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cloud Skimmer',
