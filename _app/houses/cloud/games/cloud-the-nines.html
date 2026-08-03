@@ -146,6 +146,12 @@
         @media (min-width: 900px) {
             .wrap { padding-right: 246px; }
         }
+        /* Below 900px the widget collapses to a ~220px pill but STAYS pinned top-right, where
+           it landed on the build panel (Chris measured 216x37px of overlap at 375). Give the
+           first panel clearance for exactly that band. */
+        @media (max-width: 899px) {
+            .layout > .panel:first-child { padding-top: 52px; }
+        }
     </style>
 </head>
 <body>
@@ -707,11 +713,37 @@ function endRun(causes) {
     document.getElementById('endPeak').textContent = state.peakDemand;
     document.getElementById('endNines').textContent = uptime().toFixed(3) + '%';
 
-    const seedMsg = {
-        'early-failure': 'This seed was an EARLY-FAILURE draw: an availability zone was always going to fail around tick ' + state.azFailAt + '. Spreading across zones was the right bet here.',
-        'late-failure':  'This seed was a LATE-FAILURE draw: the zone failure came at tick ' + state.azFailAt + '. Concentrating early and spreading later would have paid best.',
-        'no-failure':    'This seed was a NO-FAILURE draw: no zone was ever going to fail. Every dollar you spent on spreading was an insurance premium that never claimed -- concentrating would have survived longer. Seeds differ; play several before concluding.'
-    }[state.seedClass];
+    // CHRIS 2026-08-03: this panel used to be keyed on seedClass ALONE, so on any
+    // early/late-failure seed it told every player "spreading across zones was the right bet
+    // here" -- even a player who built entirely inside the zone that never failed, never
+    // spread at all, and whose run the AZ event never touched. That is the design doc's own
+    // named failure mode (false causation) reproduced in the panel directly BELOW the
+    // endCause guard that correctly prevents it. The verdict now depends on what the player
+    // actually built and what actually happened to them.
+    const azHit = state.azDown !== null;                       // did a zone actually fail in this run
+    const azsUsed = {};
+    state.placed.forEach(function (p) { azsUsed[p.az] = true; });
+    const spreadBuild = Object.keys(azsUsed).length > 1;       // did the player actually spread
+    const wasInDeadAz = azHit && state.placed.some(function (p) { return p.az === state.azDown; });
+
+    let seedMsg;
+    if (state.seedClass === 'no-failure') {
+        seedMsg = spreadBuild
+            ? 'This shift was a NO-FAILURE draw: no zone was ever going to fail. You spread anyway, and that insurance premium never claimed -- a concentrated build of the same budget would have survived longer here. Other shifts draw differently; play them before concluding.'
+            : 'This shift was a NO-FAILURE draw: no zone was ever going to fail, and you concentrated. That was the right read for THIS shift -- you spent every dollar on throughput and none on insurance. Other shifts are not so kind.';
+    } else if (!azHit) {
+        seedMsg = 'This shift was scheduled to lose a zone at tick ' + state.azFailAt +
+                  ', but your run ended at tick ' + state.tick + ' -- before it ever happened. The demand curve, not the zone, is what beat you here.';
+    } else if (!wasInDeadAz) {
+        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
+                  ', but you had nothing in it -- the failure cost you nothing, and it is not what ended this run.';
+    } else if (spreadBuild) {
+        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
+                  ' and took part of your stack with it -- but because you had capacity in the other zone, you kept serving. That is the premium claiming.';
+    } else {
+        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
+                  ' and your entire stack was inside it. Concentrating bought you throughput right up until the moment it bought you nothing.';
+    }
     document.getElementById('endSeed').textContent = seedMsg;
     document.getElementById('endOverlay').classList.remove('hidden');
 
