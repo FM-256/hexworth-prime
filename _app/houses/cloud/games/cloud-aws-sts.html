@@ -5,7 +5,6 @@
     <script src="../../../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
     <script src="../../../components/AchievementManager.js"></script>
-    <script src="../../../components/ModuleProgress.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>aws sts - Cloud Heist</title>
     <style>
@@ -806,7 +805,9 @@
         // Parameterized commands
         function handleParameterizedCommand(input) {
             const parts = input.split(' ');
-            const baseCmd = parts.slice(0, 2).join(' ');
+            // Verb stays case-insensitive (as before); the PARAM keeps its original case so
+            // ARNs/access keys survive to their (now case-insensitive) comparisons.
+            const baseCmd = parts.slice(0, 2).join(' ').toLowerCase();
             const param = parts.slice(2).join(' ');
 
             if (baseCmd === 'iam get-user') {
@@ -872,7 +873,7 @@
             }
 
             if (baseCmd === 'lambda delete-function') {
-                if (param.includes('AutoScaleWorkers') || param === gameState.lambdaArn) {
+                if (param.toLowerCase().includes('autoscaleworkers') || param.toLowerCase() === gameState.lambdaArn.toLowerCase()) {
                     if (gameState.lambdaDisabled) {
                         printLine('Lambda function already deleted.', 'warning');
                     } else {
@@ -933,7 +934,7 @@
 
             if (baseCmd === 'iam delete-access-key') {
                 const key = param.trim();
-                if (key === gameState.compromisedKey) {
+                if (key.toLowerCase() === gameState.compromisedKey.toLowerCase()) {
                     if (gameState.credentialsRevoked) {
                         printLine('Access key already revoked.', 'warning');
                     } else {
@@ -1113,7 +1114,12 @@
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const command = input.value.trim().toLowerCase();
+                // FLEET FIX 2026-08-02: this used to lowercase the WHOLE line, which made the
+                // three win-condition commands unsatisfiable -- 'AKIAIOSFODNN7EXAMPLE' and the
+                // Lambda ARN are compared case-sensitively downstream, so credentialsRevoked
+                // and lambdaDisabled could NEVER become true and the game was unwinnable.
+                // Keep the raw text; comparisons below are made case-insensitive instead.
+                const command = input.value.trim();
                 if (command === '') return;
 
                 playClick();
@@ -1122,8 +1128,9 @@
                 gameState.historyIndex = gameState.commandHistory.length;
                 input.value = '';
 
-                if (commands[command]) {
-                    commands[command]();
+                // Simple-command lookup stays case-insensitive now that `command` is raw.
+                if (commands[command.toLowerCase()]) {
+                    commands[command.toLowerCase()]();
                 } else if (handleParameterizedCommand(command)) {
                     // Handled by parameterized function
                 } else {
@@ -1151,6 +1158,12 @@
         // Initialize
         init();
     </script>
+    <!-- FLEET WIRING SWEEP 2026-08-02 (Operation Improve Games): FirebaseAuth MUST load
+         before FirestoreManager -- addXP and GameTracker's scoreboard submit both guard on
+         FirebaseAuth first, so without this pair every XP award and every leaderboard
+         submission on this page silently no-ops behind a typeof check. -->
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/FirestoreManager.js"></script>
     <script src="../../../components/GameTracker.js"></script>
     <script src="../../../components/GameScoreboard.js"></script>
 </body>

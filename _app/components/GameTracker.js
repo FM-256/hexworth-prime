@@ -19,6 +19,12 @@ const GameTracker = (function () {
 
     const GAME_REGISTRY = {
         // "Don't..." survival games
+        // Fleet sweep 2026-08-02: these three recorded with ids absent from the registry,
+        // so record() warned 'Unknown gameId' and DISCARDED every play (aws-sts even rendered
+        // a permanently empty leaderboard via GameScoreboard's regex auto-detect).
+        'aws_sts': { title: "STS: Incident Response", house: 'cloud', icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
+        'apifoundations': { title: "API Foundations Lab", house: 'cloud', icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
+        'ta-whoami': { title: "Who Am I? (IAM)", house: 'cloud', icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
         'save-the-pod': { title: "Pod Crossing", house: 'cloud', icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
         domain:  { title: "Don't Lose Your Domain",   house: 'cloud',  icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">' },
         brick:   { title: "Don't Brick the PC",       house: 'forge',  icon: '<img src="/assets/images/icons/icon-tools.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain">' },
