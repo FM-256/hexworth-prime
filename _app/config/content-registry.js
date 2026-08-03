@@ -797,6 +797,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'cse-final-exam': {
+            id: 'cse-final-exam',
+            title: 'CSE Final Exam',
+            description: 'Server-graded comprehensive final -- 40 questions across all 8 CSE modules, 70% to pass, answers revealed after two unsuccessful attempts',
+            house: 'cloud',
+            type: 'quiz',
+            difficulty: 'intermediate',
+            duration: 75,
+            topics: ['cloud-security', 'cse', 'comprehensive-exam'],
+            paths: ['cse'],
+            components: {
+                quiz: 'houses/cloud/quizzes/cloud-cse-final.exam.html'
+            },
+            prerequisites: ['cse-08-compliance'],
+            objectives: ['Score 70% or higher on the CSE comprehensive final exam']
+        },
         'cse-08-compliance': {
             id: 'cse-08-compliance',
             title: 'CSE: Compliance & Governance',

@@ -30,6 +30,15 @@ SCENES = [
     #    the generic component keywords below (presentation/quiz/lab) matched first and the
     #    dry run produced 24 identical lecture halls. Topic-specific entries must sit ABOVE
     #    the generic tail because first match in list order wins. ──
+    # ── Wave 3 (2026-08-02): CSE course vocabulary. 'security' alone is too greedy (it caught
+    #    three different CSE modules in the dry run) and 'risk' had no entry at all (4 items
+    #    fell to the generic corridor). Specific-before-generic, same as everything above. ──
+    ('encryption',    "a locksmith in a vault of drifting luminous glyphs, sealing a bright document into a lattice of interlocking light that goes dark as it closes"),
+    ('data protect',  "a locksmith in a vault of drifting luminous glyphs, sealing a bright document into a lattice of interlocking light that goes dark as it closes"),
+    ('risk assess',   "an actuary in a dark chamber weighing glowing cubes on a great balance scale, hovering ledgers of light, one pan dipping under a heavier cube"),
+    ('risk',          "an actuary in a dark chamber weighing glowing cubes on a great balance scale, hovering ledgers of light, one pan dipping under a heavier cube"),
+    ('application s', "an armorer fitting translucent plates of light around a running machine's exposed core, seams sealing shut as each plate locks into place"),
+    ('security fund', "a newcomer at the mouth of an immense luminous vault door standing half open, scale dwarfing the figure, warm light pouring past them into the dark"),
     ('tenant',        "an administrator raising a master switch inside an empty glass control room as an entire dark campus lights up floor by floor beyond the window"),
     ('users and gro', "a marshal on a gantry sorting streams of glowing figures into separate lit channels below, each channel converging toward its own gate"),
     ('roles and acc', "a keeper at a wall of numbered vault doors handing a single glowing key to a waiting silhouette, the other doors sealed dark down the corridor"),

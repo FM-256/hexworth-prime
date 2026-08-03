@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- FirebaseAuth provides callFunction() for server-side exam grading -->
+    <script src="../../../components/FirebaseAuth.js"></script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSE Final Exam | EC-Council Cloud Security Essentials</title>
+<style>
+  /* Cloud house dark theme -- matches cloud-cse-08.quiz.html / cb-final.exam.html
+     sky-blue palette, swapped in for the gold/amber palette used by ALA's final
+     exam scaffold. Structural pattern (timer, question render, server grading,
+     result panel) is copied from _app/houses/matrix/adv-linux/exams/ala-final.exam.html. */
+  :root {
+    --bg: #060a14;
+    --bg2: #0c1424;
+    --card: #0c1424;
+    --ink: #e2e8f0;
+    --muted: #8892a8;
+    --accent: #38bdf8;
+    --accent2: #7dd3fc;
+    --accent-glow: rgba(56, 189, 248, 0.3);
+    --ok: #22c55e;
+    --warn: #fbbf24;
+    --bad: #ef4444;
+    --border: rgba(56, 189, 248, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #060a14 0%, #081420 50%, #0a1828 100%);
+    color: var(--ink);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .page-header {
+    padding: 15px 30px;
+    background: rgba(0, 0, 0, 0.5);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .page-header a { color: var(--muted); text-decoration: none; font-size: 0.9rem; transition: color 0.2s; }
+  .page-header a:hover { color: var(--accent); }
+
+  .brand { font-weight: 600; color: var(--ink); display: flex; align-items: center; gap: 8px; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+
+  .exam-header { text-align: center; margin-bottom: 30px; }
+
+  h1 {
+    font-size: clamp(1.6rem, 3vw, 2rem);
+    margin-bottom: 12px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .header-meta { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+
+  .tag { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; background: rgba(56, 189, 248, 0.12); color: var(--accent); border: 1px solid rgba(56, 189, 248, 0.30); }
+
+  .exam-info { background: rgba(12, 20, 36, 0.9); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 30px; }
+  .exam-info h2 { color: var(--accent); font-size: 1.1rem; margin-bottom: 10px; }
+  .exam-info ul { list-style: none; color: var(--muted); }
+  .exam-info li { padding: 4px 0; }
+  .exam-info li::before { content: ">> "; color: var(--accent); }
+
+  .timer-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(6, 10, 20, 0.96);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .timer { font-size: 1.3rem; font-weight: 700; color: var(--accent); font-family: 'Consolas', monospace; }
+  .timer.warning { color: var(--warn); }
+  .timer.danger { color: var(--bad); animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+  .progress-text { color: var(--muted); font-size: 0.9rem; }
+
+  .question {
+    background: rgba(12, 20, 36, 0.85);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .question-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+
+  .question p { font-weight: 600; color: #fff; font-size: 1.0rem; flex: 1; line-height: 1.6; }
+
+  .question p code { font-family: 'Consolas', monospace; background: rgba(56, 189, 248, 0.10); border: 1px solid rgba(56, 189, 248, 0.20); padding: 1px 6px; border-radius: 4px; font-size: 0.88em; color: var(--accent2); }
+
+  .q-num { background: rgba(56, 189, 248, 0.15); color: var(--accent); padding: 4px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; margin-right: 12px; white-space: nowrap; }
+
+  .question label { display: flex; align-items: center; gap: 10px; padding: 12px 14px; margin: 8px 0; border-radius: 10px; cursor: pointer; transition: all 0.2s; background: rgba(255, 255, 255, 0.02); border: 1px solid transparent; font-size: 0.9rem; }
+  .question label:hover { background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25); }
+  .question input[type="radio"] { accent-color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; }
+  .question label.correct { background: rgba(34, 197, 94, 0.15) !important; border-color: var(--ok) !important; }
+  .question label.wrong { background: rgba(239, 68, 68, 0.15) !important; border-color: var(--bad) !important; }
+
+  .btn-submit {
+    display: block;
+    width: 100%;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 16px 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #041018;
+    font-size: 1.2rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+
+  .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 8px 30px var(--accent-glow); }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  #result {
+    background: rgba(12, 20, 36, 0.96);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    margin-top: 30px;
+    text-align: center;
+    display: none;
+  }
+
+  #result.visible { display: block; }
+  #result h2 { font-size: 1.8rem; margin-bottom: 12px; color: var(--ink); }
+
+  .score-circle { width: 160px; height: 160px; border-radius: 50%; border: 6px solid; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 20px auto; background: rgba(0, 0, 0, 0.4); }
+  .score-circle.pass { border-color: var(--accent); box-shadow: 0 0 40px var(--accent-glow); }
+  .score-circle.fail { border-color: var(--bad); box-shadow: 0 0 40px rgba(239, 68, 68, 0.4); }
+  .score-percent { font-size: 2.5rem; font-weight: 700; }
+  .score-circle.pass .score-percent { color: var(--accent); }
+  .score-circle.fail .score-percent { color: var(--bad); }
+  .score-fraction { font-size: 1rem; color: var(--muted); }
+
+  .result-msg { font-size: 1.1rem; margin-top: 20px; padding: 16px; border-radius: 10px; }
+  .result-msg.pass { background: rgba(56, 189, 248, 0.10); color: var(--accent2); border: 1px solid rgba(56, 189, 248, 0.35); }
+  .result-msg.fail { background: rgba(239, 68, 68, 0.10); color: var(--bad); border: 1px solid var(--bad); }
+
+  .unlock-badge { margin-top: 20px; padding: 20px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(125, 211, 252, 0.08)); border: 2px solid var(--accent); border-radius: 12px; }
+  .unlock-badge h3 { color: var(--accent); margin-bottom: 10px; }
+
+  .btn-continue { display: inline-block; margin-top: 15px; padding: 12px 30px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; border-radius: 8px; color: #041018; font-weight: 700; text-decoration: none; cursor: pointer; margin: 8px; }
+
+  footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.85rem; }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <a href="../index.html">&#8592; Back to Cloud House</a>
+  <span class="brand">Hexworth Prime // Cloud</span>
+</header>
+
+<div class="timer-bar">
+  <span class="progress-text">Question <span id="answered">0</span>/40 answered</span>
+  <span class="timer" id="timer">75:00</span>
+</div>
+
+<div class="container">
+  <div class="exam-header">
+    <h1>CSE Final Exam</h1>
+    <div class="header-meta">
+      <span class="tag">CIS-2690</span>
+      <span class="tag">40 Questions</span>
+      <span class="tag">70% to Pass</span>
+      <span class="tag">75 Minutes</span>
+      <span class="tag">All 8 Modules</span>
+    </div>
+  </div>
+
+  <div class="exam-info">
+    <h2>Final Exam Information</h2>
+    <ul>
+      <li>Covers all 8 CSE modules: Cloud Fundamentals, IAM, Data Protection &amp; Encryption, Network Security, Application Security, Security Monitoring &amp; IR, Risk Assessment, and Compliance &amp; Governance</li>
+      <li>You need 70% (28/40) to pass and earn the EC-Council Cloud Security Essentials certification</li>
+      <li>Timer starts when the page loads. Answers auto-submit when time expires.</li>
+      <li>This is your final certification exam. You may retake it if you do not pass.</li>
+      <li>After two unsuccessful attempts, the correct answers are revealed for review.</li>
+    </ul>
+  </div>
+
+  <form id="examForm">
+    <div id="questions"></div>
+    <button type="button" class="btn-submit" id="submitBtn" onclick="submitExam()">Submit Final Exam</button>
+  </form>
+
+  <div id="result"></div>
+</div>
+
+<footer>
+  EC-Council Cloud Security Essentials // CIS-2690 // <a href="../index.html">Cloud House</a>
+</footer>
+
+<script>
+// Answers validated server-side via gradeQuiz() Cloud Function.
+// Answer key stored in Firestore quiz_keys/cloud-cse-final -- this page carries
+// ONLY questions and options, never correct-answer indices. See
+// functions/seed-data/cloud-cse-final.answers.json for the seed source and
+// functions/verify-quiz-keys.js for the bridge verifier.
+const QUIZ_ID = 'cloud-cse-final';
+
+/* ── Final exam: all 8 CSE modules, 5 questions each, 40 total ── */
+const examData = [
+
+  // --- Module 01: Cloud Computing & Security Fundamentals ---
+  {q: "Which NIST publication provides the official definition of cloud computing used throughout the EC-Council CSE curriculum?", a: ["NIST SP 800-53", "NIST SP 800-145", "NIST SP 800-37 Rev. 2", "NIST SP 800-144"]},
+  {q: "A university wants dedicated infrastructure that it owns and operates for maximum data sovereignty over student records. Which cloud deployment model fits this requirement?", a: ["Public cloud", "Hybrid cloud", "Community cloud", "Private cloud"]},
+  {q: "In the shared responsibility model, which layer remains the customer's responsibility across IaaS, PaaS, and SaaS alike?", a: ["Data and content", "Operating system", "Runtime and middleware", "Virtualization"]},
+  {q: "A company subscribes to a fully managed email platform where the vendor manages the OS, middleware, runtime, and application, leaving the company responsible only for its data and user access. Which cloud service model is this?", a: ["IaaS", "PaaS", "SaaS", "FaaS"]},
+  {q: "During a product launch, a web service automatically provisions extra compute capacity to absorb a traffic spike, then scales back down once demand drops. Which NIST essential characteristic does this describe?", a: ["Resource pooling", "Rapid elasticity", "Measured service", "Broad network access"]},
+
+  // --- Module 02: Identity & Access Management ---
+  {q: "In cloud RBAC, which role lets a user view resources and generate reports but cannot modify them?", a: ["Owner", "Contributor", "Guest", "Reader"]},
+  {q: "Which option correctly pairs each MFA factor category with a matching example?", a: ["Something you know = a fingerprint; something you have = a PIN; something you are = a security token", "Something you have = a password; something you are = a mobile device; something you know = a fingerprint", "Something you know = a PIN; something you have = a mobile authenticator app; something you are = a fingerprint", "MFA requires only one of the three factor categories, chosen at random"]},
+  {q: "An organization wants one identity platform that lets employees at two partner companies collaborate on a shared project without either partner creating accounts in the other's directory. Which type of identity federation is this?", a: ["B2B federation", "Hybrid federation", "Multicloud federation", "B2C federation"]},
+  {q: "A security team grants a contractor elevated permissions only for the two hours needed to complete a specific maintenance task, after which the permissions automatically expire. Which least-privilege concept does this describe?", a: ["Just Enough Access", "Just In Time Access", "Role-Based Access Control", "Self-Service Password Reset"]},
+  {q: "What is the primary purpose of Self-Service Password Reset (SSPR) in a modern IAM deployment?", a: ["It automatically rotates all user passwords every 24 hours", "It replaces multifactor authentication entirely", "It lets users verify their identity and reset a forgotten password without contacting the help desk", "It lets administrators view users' plaintext passwords"]},
+
+  // --- Module 03: Data Protection & Encryption ---
+  {q: "Which sequence correctly lists the four pillars of data governance described in the module?", a: ["Encrypt, Classify, Monitor, Archive", "Label, Watermark, Restrict, Delete", "Identify, Protect, Detect, Respond", "Know Your Data, Protect Your Data, Prevent Data Loss, Govern Your Data"]},
+  {q: "Which encryption standard is described as the widely adopted default for encrypting data at rest?", a: ["AES-256", "RSA-2048", "TLS 1.3", "SHA-256"]},
+  {q: "A healthcare company must retain full control over its encryption key lifecycle to satisfy a Separation of Duties (SoD) regulatory requirement, even though this increases its management overhead. Which key management approach fits this need?", a: ["Provider-managed keys with automatic rotation", "Customer-managed keys", "No encryption, relying on network isolation instead", "Keys shared with all employees for convenience"]},
+  {q: "Which statement correctly distinguishes backup from replication as covered in the module?", a: ["Backup provides a low RTO while replication provides a high RPO", "Replication protects against ransomware while backup does not", "Backup and replication are two different names for the same process", "Backup saves a point-in-time copy aligned to RPO, while replication synchronizes data in near real time for a low RTO"]},
+  {q: "A DLP program's first step is 'Know Your Data.' What does this step primarily involve?", a: ["Classifying and segregating sensitive data from non-sensitive data", "Encrypting all data regardless of sensitivity", "Immediately deleting any data flagged as sensitive", "Training end users on watermarking techniques only"]},
+
+  // --- Module 04: Network Security in Cloud ---
+  {q: "Which statement correctly distinguishes Network ACLs from Security Groups in a cloud VPC?", a: ["NACLs are stateful while Security Groups are stateless", "Both NACLs and Security Groups are stateless and require identical inbound and outbound rules", "NACLs are stateless and evaluate inbound and outbound rules separately, while Security Groups are stateful and apply rules to both directions at once", "Security Groups operate at the subnet level while NACLs operate at the instance level"]},
+  {q: "Which AWS VPC component provides external internet access for resources inside the VPC?", a: ["Network ACL", "Route table", "VPC Peering connection", "Internet Gateway (IGW)"]},
+  {q: "An administrator needs to give engineers secure RDP and SSH access to VMs without assigning the VMs public IP addresses or opening management ports directly to the internet. Which Azure service is designed for this?", a: ["Azure Firewall", "Azure Bastion", "NAT Gateway", "Transit Gateway"]},
+  {q: "Which statement correctly distinguishes an IDS from an IPS?", a: ["An IDS actively blocks malicious traffic while an IPS only logs it", "Both IDS and IPS block traffic identically and differ only by vendor", "An IDS passively monitors and alerts on threats without altering traffic, while an IPS actively blocks or modifies malicious traffic", "An IDS operates only at Layer 2 while an IPS operates only at Layer 7"]},
+  {q: "A company's public-facing web application is being probed with SQL injection and cross-site scripting attempts. Which control is specifically designed to filter and block this kind of application-layer attack?", a: ["Web Application Firewall (WAF)", "Network ACL", "Intrusion Detection System", "VPC Peering"]},
+
+  // --- Module 05: Application Security in Cloud ---
+  {q: "According to the OWASP Top 10 as presented in the module, which category holds the #1 position?", a: ["Injection", "Cryptographic Failures", "Security Misconfiguration", "Broken Access Control"]},
+  {q: "A team analyzes an application's source code before deployment to catch misconfigurations and vulnerabilities early. Which testing methodology are they using?", a: ["SAST (Static Application Security Testing / White Box)", "DAST (Dynamic Application Security Testing / Black Box)", "Penetration testing of the live production system", "Fuzz testing of network packets"]},
+  {q: "Which set correctly lists the '3 Rs' of secure cloud software described in the module?", a: ["Reliability, Redundancy, Response", "Reliability, Resiliency, Recovery", "Recovery, Replication, Resilience", "Requirements, Review, Release"]},
+  {q: "Which sequence correctly orders the phases of the Secure SDLC as described by NIST SP 800-64 in the module?", a: ["Acquisition, Initiation, Operations, Implementation, Disposal", "Initiation, Implementation, Acquisition, Disposal, Operations", "Initiation, Acquisition, Implementation, Operations, Disposal", "Design, Development, Testing, Deployment, Maintenance"]},
+  {q: "A developer deploying a serverless function assigns the function its own dedicated, minimally scoped execution role rather than reusing a broad shared role. Which serverless security best practice does this follow?", a: ["Storing secrets directly in the function's environment code for speed", "Disabling logging to reduce cold-start latency", "Using a single shared administrator role across all functions", "One role per function (least privilege)"]},
+
+  // --- Module 06: Security Monitoring & Incident Response ---
+  {q: "Which statement correctly distinguishes SIEM from SOAR?", a: ["SIEM automates incident response while SOAR only stores logs", "SIEM and SOAR are two names for the same product category", "SIEM aggregates and correlates security data from disparate sources for analysis, while SOAR uses playbooks to automate the response to detected threats", "SOAR eliminates the need for any log aggregation entirely"]},
+  {q: "Which pair correctly matches a cloud provider to its native API audit-logging tool, as presented in the module?", a: ["AWS CloudTrail", "Azure CloudTrail", "Google Cloud CloudTrail", "AWS Log Analytics"]},
+  {q: "A CSPM tool scans an organization's cloud estate and flags a storage bucket configured with public read access. Which category of risk is CSPM primarily designed to identify?", a: ["Physical hardware failures in the data center", "Compliance risks and security misconfigurations across cloud resources", "Employee performance issues", "Network bandwidth utilization only"]},
+  {q: "In the module's cloud logging framework, which category of logs answers the question 'who is accessing resources, and is that access normal and verified'?", a: ["Events", "Metrics", "Alerts", "Activity"]},
+  {q: "According to the module's breach timeline, what distinguishes an 'Incident' from an 'Event'?", a: ["An Incident is any anomaly at all, while an Event requires confirmed data loss", "An Incident is verified malicious activity that triggers an investigation, while an Event is an anomaly that has not yet been confirmed as malicious", "There is no meaningful difference between the two terms", "An Incident only applies once media notification has occurred"]},
+
+  // --- Module 07: Cloud Risk Assessment & Management ---
+  {q: "A company calculates that a specific cloud outage would cost $50,000 per occurrence (SLE) and is expected to happen twice per year (ARO). What is the Annualized Loss Expectancy (ALE)?", a: ["$100,000", "$50,000", "$25,000", "$150,000"]},
+  {q: "A risk assessment team decides not to adopt a new cloud service at all because its known vulnerabilities are unacceptable. Which risk response strategy does this represent?", a: ["Mitigate", "Accept", "Avoid", "Transfer"]},
+  {q: "Which sequence correctly lists the seven steps of the NIST Risk Management Framework (SP 800-37 Rev. 2), in order?", a: ["Categorize, Prepare, Select, Assess, Implement, Monitor, Authorize", "Frame, Assess, Respond, Monitor, Prepare, Select, Implement", "Prepare, Select, Categorize, Implement, Authorize, Assess, Monitor", "Prepare, Categorize, Select, Implement, Assess, Authorize, Monitor"]},
+  {q: "A security team uses a probability/impact ranking matrix with High/Medium/Low ratings to quickly prioritize risks without requiring measurable financial data. Which type of risk analysis is this?", a: ["Quantitative risk analysis", "Qualitative risk analysis", "Annualized Loss Expectancy analysis", "Residual risk analysis"]},
+  {q: "According to the module, what does Gartner attribute the vast majority of cloud security failures through 2025 to?", a: ["Zero-day exploits", "Hardware failure", "Human error", "Nation-state attacks"]},
+
+  // --- Module 08: Cloud Compliance & Governance ---
+  {q: "Which regulation specifically governs the privacy of student education records in the United States?", a: ["FERPA", "GDPR", "FISMA", "HIPAA"]},
+  {q: "A company processing credit card payments must comply with which industry standard covering payment card data security?", a: ["SOX", "GLBA", "HITRUST", "PCI-DSS"]},
+  {q: "Which set correctly lists the five functions of the NIST Cybersecurity Framework (CSF)?", a: ["Plan, Do, Check, Act, Monitor", "Prevent, Detect, Contain, Eradicate, Recover", "Identify, Protect, Detect, Respond, Recover", "Assess, Mitigate, Transfer, Accept, Monitor"]},
+  {q: "The CSA Cloud Controls Matrix (CCM) maps its control objectives to which set of external frameworks, according to the module?", a: ["Only internal CSA certification requirements, with no external mapping", "ISO, NIST, PCI, HIPAA, and GDPR", "Only U.S. federal frameworks (FISMA and FedRAMP)", "Only ISO 27001, with no other frameworks"]},
+  {q: "Which of the four pillars of cloud security governance covers conducting security assessments and penetration testing to verify that controls actually work?", a: ["Auditing & Assessment", "Risk Management", "Governance", "Continuous Monitoring"]}
+];
+
+// Shuffle helper
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// Render all questions
+const container = document.getElementById('questions');
+const shuffledData = shuffle([...examData]);
+
+shuffledData.forEach((item, i) => {
+  const div = document.createElement('div');
+  div.classList.add('question');
+  div.setAttribute('data-q', i);
+
+  let html = `
+    <div class="question-header">
+      <span class="q-num">Q${i + 1}</span>
+      <p>${item.q.replace(/`([^`]+)`/g, '<code>$1</code>')}</p>
+    </div>
+  `;
+
+  const answerIndices = [0, 1, 2, 3];
+  shuffle(answerIndices);
+
+  answerIndices.forEach((origIdx) => {
+    html += `<label><input type="radio" name="q${i}" value="${origIdx}"> ${item.a[origIdx]}</label>`;
+  });
+
+  div.innerHTML = html;
+  container.appendChild(div);
+});
+
+window.shuffledData = shuffledData;
+
+// Timer: 75 minutes
+let timeLeft = 75 * 60;
+const timerEl = document.getElementById('timer');
+
+const timerInterval = setInterval(() => {
+  timeLeft--;
+  const mins = Math.floor(timeLeft / 60);
+  const secs = timeLeft % 60;
+  timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+  if (timeLeft <= 600) timerEl.classList.add('warning');
+  if (timeLeft <= 120) { timerEl.classList.remove('warning'); timerEl.classList.add('danger'); }
+
+  if (timeLeft <= 0) {
+    clearInterval(timerInterval);
+    submitExam();
+  }
+}, 1000);
+
+// Track answered count
+document.querySelectorAll('input[type="radio"]').forEach(input => {
+  input.addEventListener('change', () => {
+    const answeredCount = document.querySelectorAll('input[type="radio"]:checked').length;
+    document.getElementById('answered').textContent = answeredCount;
+  });
+});
+
+// Submit exam -- server-side graded
+async function submitExam() {
+  clearInterval(timerInterval);
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Grading...';
+
+  const total = shuffledData.length;
+
+  // Map shuffled positions back to original examData indices for the server
+  const answerMap = {};
+  shuffledData.forEach((item, i) => {
+    const selected = document.querySelector(`input[name="q${i}"]:checked`);
+    if (selected) {
+      const origIdx = examData.indexOf(item);
+      answerMap[String(origIdx)] = parseInt(selected.value);
+    }
+  });
+
+  let score = 0, percent = 0, passed = false, reviewAvailable = false;
+
+  try {
+    if (typeof FirebaseAuth !== 'undefined') {
+      await FirebaseAuth.waitForAuth();
+      const response = await FirebaseAuth.callFunction('gradeQuiz', {
+        quizId: QUIZ_ID, answers: answerMap
+      });
+      score = response.data.score;
+      percent = response.data.percentage;
+      passed = response.data.passed;
+      reviewAvailable = response.data.reviewAvailable === true;
+
+      // Mark correct/incorrect selections based on server results. When the
+      // server reveals the correct answer (on pass, or after the 2nd failed
+      // attempt -- see reviewAfterFails), also highlight the correct option on
+      // each question so the student can review what they missed.
+      shuffledData.forEach((item, i) => {
+        const origIdx = examData.indexOf(item);
+        const result = response.data.results[origIdx];
+        if (!result) return;
+        const selected = document.querySelector(`input[name="q${i}"]:checked`);
+        if (selected) {
+          selected.parentElement.classList.add(result.correct ? 'correct' : 'wrong');
+        }
+        if (typeof result.correctAnswer === 'number') {
+          const correctInput = document.querySelector(`input[name="q${i}"][value="${result.correctAnswer}"]`);
+          if (correctInput) correctInput.parentElement.classList.add('correct');
+        }
+      });
+    }
+  } catch (e) {
+    // A grading-service failure must NEVER render as a false 0/40 FAIL (Chris
+    // reproduced exactly that against an unseeded key). Tell the student the
+    // truth, restore the submit button, and stop before the results panel.
+    console.warn('Server grading failed:', e.message);
+    const banner = document.createElement('div');
+    banner.className = 'exam-info';
+    banner.style.borderColor = '#ef4444';
+    banner.textContent = 'The grading service could not score your exam just now. ' +
+      'Your answers are still on this page -- nothing was recorded as a failed attempt. ' +
+      'Wait a moment and press Submit again; if it keeps happening, tell your instructor.';
+    const btn = document.getElementById('submitBtn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Submit Exam'; btn.parentElement.insertBefore(banner, btn); }
+    return;
+  }
+
+  // Persist result to localStorage
+  if (passed) {
+    localStorage.setItem('hexworth_cloud_cse_final_passed', 'true');
+    localStorage.setItem('hexworth_cloud_cse_final_score', percent);
+    localStorage.setItem('hexworth_cloud_cse_final_date', new Date().toISOString());
+  }
+
+  const resultDiv = document.getElementById('result');
+  resultDiv.innerHTML = `
+    <h2>${passed ? 'Final Exam: Cleared' : 'Final Exam: Insufficient Score'}</h2>
+    <div class="score-circle ${passed ? 'pass' : 'fail'}">
+      <span class="score-percent">${percent}%</span>
+      <span class="score-fraction">${score}/${total}</span>
+    </div>
+    <div class="result-msg ${passed ? 'pass' : 'fail'}">
+      ${passed
+        ? 'Course complete. All 8 CSE modules verified. You have demonstrated EC-Council Cloud Security Essentials competency.'
+        : `You need 70% (28/40) to pass. You scored ${score}/40. Review the modules where you missed questions and reattempt.`
+          + (reviewAvailable ? ' <strong>Because this is your second unsuccessful attempt, the correct answer for each question is now highlighted above for review.</strong>' : '')}
+    </div>
+    ${passed ? `
+      <div class="unlock-badge">
+        <h3>EC-Council Cloud Security Essentials: Complete</h3>
+        <p>CIS-2690 course modules 1 through 8 have been verified. This record has been submitted to your instructor.</p>
+        <a href="../index.html" class="btn-continue">Return to Cloud House</a>
+      </div>
+    ` : `
+      <div style="margin-top: 20px;">
+        <a href="../index.html" class="btn-continue">Review Course Materials</a>
+      </div>
+    `}
+  `;
+  resultDiv.classList.add('visible');
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
+  // Record completion via ModuleProgress on pass. completeQuiz expects a
+  // PERCENTAGE; passing raw `score` (e.g. 28) fails the inner score>=70 check.
+  if (passed && typeof ModuleProgress !== 'undefined') {
+    try {
+      ModuleProgress.completeQuiz('cloud', 'cse-final', percent, { returnToDashboard: false });
+    } catch (e) {
+      console.warn('[cloud-cse-final] ModuleProgress.completeQuiz failed:', e);
+    }
+  }
+}
+</script>
+
+    <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
+         Always-visible chat entry point. State machine is attempt-driven;
+         button stays calm and serves as a general chat entry until lab
+         activity ticks the mood-ring.
+         Docs: _docs/operations/dr-hex-button-integration.md           ── -->
+    <hex-ai-button mission-id="cse-final" house="cloud"></hex-ai-button>
+    <script type="module" src="/_lib/HexAIButton.js"></script>
+    <script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>
