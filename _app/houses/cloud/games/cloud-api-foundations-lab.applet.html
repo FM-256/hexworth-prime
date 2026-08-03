@@ -642,8 +642,19 @@ function sendRequest() {
         resp = { status:401, body:{ error:'Unauthorized', message:'Bearer token required. Add Authorization: Bearer <token>' }};
       }
     }
+    // ROUND 2 FIX 2026-08-02: HEAD is taught in M1 and offered in the dropdown but had no
+    // mock, so every HEAD returned a FALSE 404 -- teaching the opposite of the lesson. HEAD
+    // mirrors GET with no body, per RFC 9110. And a known path with a wrong method is a 405,
+    // not a 404 (405 is even a distractor in this lab's own quiz).
+    if (!resp && method === 'HEAD') {
+      const getResp = MOCK_RESPONSES[`GET ${url}`];
+      if (getResp) resp = { status: getResp.status, body: null, note: 'HEAD returns headers only -- same status as GET, no body.' };
+    }
     if (!resp) {
-      resp = { status:404, body:{ error:'Not Found', message:`No route matches ${method} ${url}` }};
+      const pathExists = Object.keys(MOCK_RESPONSES).some(k => k.split(' ')[1] === url);
+      resp = pathExists
+        ? { status:405, body:{ error:'Method Not Allowed', message:`${url} exists but does not accept ${method}` }}
+        : { status:404, body:{ error:'Not Found', message:`No route matches ${method} ${url}` }};
     }
 
     renderResponse(resp);
