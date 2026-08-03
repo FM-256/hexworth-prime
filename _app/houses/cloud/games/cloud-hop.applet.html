@@ -421,6 +421,7 @@
                 <div style="text-align: right;">
                     <div>Score: <span id="score">0</span> &middot; Best: <span id="highScore">0</span></div>
                     <div id="powerupDisplay"></div>
+                    <div id="costFactBar" style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);max-width:88%;background:rgba(6,16,28,.94);border:1px solid #22c55e;border-radius:8px;padding:9px 15px;font-size:12px;line-height:1.55;color:#d7f7e4;opacity:0;transition:opacity .3s;pointer-events:none;z-index:60"></div>
                 </div>
             </div>
 
@@ -620,9 +621,13 @@
                 chaser.x = player.x - 80;
             }
 
-            // Warning rumble when chaser is within 150px
+            // Warning rumble when the chaser closes in. sightBonus comes from observability
+            // levers (Budget alarm): they earn EARLIER WARNING and deliberately change neither
+            // the chaser's speed nor its position, because an alert does not reduce spend --
+            // modelling it as if it did would teach the opposite of the lesson.
             const distToPlayer = player.x - chaser.x;
-            if (distToPlayer < 150 && gameFrame % 90 === 0) {
+            const warnAt = 150 + sightBonus;
+            if (distToPlayer < warnAt && gameFrame % 90 === 0) {
                 playSound('chaser_warning');
             }
 
@@ -1956,7 +1961,10 @@
             if (platforms.length === 0) return;
 
             const platform = platforms[Math.floor(Math.random() * platforms.length)];
-            const types = ['autoscale', 'multiregion', 'cdn'];
+            // Cost levers share the powerup spawner with the three original buffs. They cycle
+            // in order so a single run surfaces a spread of FinOps actions rather than the same
+            // one repeatedly (runs are only 25-40 hops -- not every lever fits in one run).
+            const types = ['autoscale', 'multiregion', 'cdn', 'costlever'];
             const type = types[Math.floor(Math.random() * types.length)];
 
             powerups.push(new Powerup(platform.x + platform.width / 2, platform.y - 40, type));
@@ -2407,8 +2415,88 @@
             particles = particles.filter(p => p.life > 0);
         }
 
+
+        // ── COST LEVERS (2026-08-03) ──────────────────────────────────────────────────
+        // cloud-hop's chaser is literally the Cost Avalanche, and until now the game taught
+        // NOTHING -- it was the only cloud arcade title with no educational content. These are
+        // real FinOps actions, and NANCY'S CENTRAL CONDITION is encoded in the `effect` field:
+        // the eight levers are NOT causally alike, so they must not all "slow the chaser".
+        //
+        //   effect:'rate'  -> lowers the ongoing UNIT PRICE, so cost accrues more slowly.
+        //                     Modelled as a chaser SPEED reduction. (Savings Plans, Spot.)
+        //   effect:'step'  -> removes a FIXED lump of existing waste. It does not change the
+        //                     future rate at all, so modelling it as a speed change would
+        //                     teach something false. Modelled as pushing the chaser BACK a
+        //                     fixed distance -- the primitive already used on respawn.
+        //   effect:'sight' -> does not reduce cost AT ALL, only visibility. Modelled as
+        //                     extending the warning distance, never touching speed or position,
+        //                     because "an alert reduces spend" is exactly the false lesson.
+        //
+        // Wording verified with Nancy: the Savings Plan line decouples the discount from
+        // duration alone (flexibility tier is the bigger lever), the unattached-volume line
+        // no longer claims "nothing warns you" (Trusted Advisor does, on paid tiers), the
+        // egress line drops an unverifiable superlative, and the Budgets line no longer claims
+        // to be the "only" pre-month-end lever (Cost Anomaly Detection is a second one).
+        const COST_LEVERS = [
+            { id: 'rightsize',  label: 'Right-size',      effect: 'step',  amount: 240,
+              fact: 'Right-sizing: AWS Compute Optimizer routinely finds instances provisioned well above their real peak. Matching the instance to the workload is the least glamorous saving and usually the biggest.' },
+            { id: 'savingsplan', label: 'Savings Plan',   effect: 'rate',  amount: 0.22,
+              fact: 'Savings Plans: the deepest discounts (around 72%) need a 3-year commitment AND the least flexible option -- locked to one instance family and region. A flexible Compute Savings Plan trades some discount for portability.' },
+            { id: 'spot',       label: 'Spot instance',   effect: 'rate',  amount: 0.30,
+              fact: 'Spot: up to about 90% off on-demand, because AWS can reclaim the capacity with a two-minute warning. Perfect for fault-tolerant batch work, dangerous for anything that cannot be interrupted.' },
+            { id: 'lifecycle',  label: 'S3 lifecycle',    effect: 'step',  amount: 200,
+              fact: 'Lifecycle rules: objects nobody has read in a year still bill at full Standard rate until a rule moves them to a colder class. Storage is the bill nobody notices growing.' },
+            { id: 'orphanebs',  label: 'Delete orphan EBS', effect: 'step', amount: 260,
+              fact: 'Unattached volumes bill at the full rate forever after the instance is gone. Trusted Advisor flags them on paid support tiers -- on Basic support, nothing tells you.' },
+            { id: 'egress',     label: 'Cut NAT egress',  effect: 'step',  amount: 220,
+              fact: 'NAT gateway and cross-AZ data transfer are two of the most notorious surprise line items. A VPC endpoint keeps S3 traffic off the NAT entirely.' },
+            { id: 'idlelb',     label: 'Remove idle LB',  effect: 'step',  amount: 180,
+              fact: 'An Application Load Balancer bills by the hour whether or not it has a single healthy target behind it.' },
+            { id: 'budget',     label: 'Budget alarm',    effect: 'sight', amount: 260,
+              fact: 'AWS Budgets can alert on FORECAST, not just actual spend -- so it warns before month-end. Cost Anomaly Detection is the complementary lever, watching daily spend for unusual jumps.' }
+        ];
+        let leverIndex = 0;
+        let sightBonus = 0;           // extra warning distance earned by observability levers
+        const leversCollected = new Set();
+
+        function applyCostLever(lever) {
+            leversCollected.add(lever.id);
+            if (lever.effect === 'rate') {
+                // Unit price fell: the avalanche accrues more slowly from here.
+                chaser.speed = Math.max(chaser.baseSpeed * 0.55, chaser.speed - lever.amount);
+                showLeverBanner(lever, 'Cost RATE reduced');
+            } else if (lever.effect === 'step') {
+                // A lump of existing waste is gone: distance bought, rate unchanged.
+                chaser.x -= lever.amount;
+                showLeverBanner(lever, 'Waste removed -- ground regained');
+            } else {
+                // Visibility only. Deliberately does NOT touch speed or position.
+                sightBonus += lever.amount;
+                showLeverBanner(lever, 'Early warning -- cost unchanged');
+            }
+        }
+
+        function showLeverBanner(lever, effectText) {
+            const el = document.getElementById('powerupDisplay');
+            if (!el) return;
+            el.innerHTML = '<span class="powerup-text">' + lever.label + ' -- ' + effectText + '</span>';
+            const fx = document.getElementById('costFactBar');
+            if (fx) {
+                fx.textContent = lever.fact;
+                fx.style.opacity = '1';
+                clearTimeout(window._costFactTimer);
+                window._costFactTimer = setTimeout(function () { fx.style.opacity = '0'; }, 7000);
+            }
+        }
+
         // Activate Powerup
         function activatePowerup(type) {
+            if (type === 'costlever') {
+                const lever = COST_LEVERS[leverIndex % COST_LEVERS.length];
+                leverIndex++;
+                applyCostLever(lever);
+                return;   // cost levers are not timed buffs; their effect is permanent
+            }
             activePowerup = type;
             powerupDuration = 300; // 5 seconds
 
@@ -2981,5 +3069,26 @@
          Docs: _docs/operations/dr-hex-button-integration.md           ── -->
     <hex-ai-button mission-id="cloud-hop" house="cloud"></hex-ai-button>
     <script type="module" src="/_lib/HexAIButton.js"></script>
+<script src="../../../components/GameBriefing.js"></script>
+<script>
+    GameBriefing.init({
+        key: 'cloud-hop',
+        title: 'Cloud Hop',
+        accent: '#22c55e',
+        role: 'You are running a cloud workload, and a Cost Avalanche is rolling in behind you. It never stops, and it gets faster.',
+        goal: 'Get as far as you can before the avalanche catches you. Collect COST LEVERS -- real FinOps actions -- to buy yourself distance and time.',
+        howto: [
+            'ARROW KEYS or A/D to move, SPACE or UP to jump. On a phone: tap to jump, drag to move, drag DOWN for the ability keys',
+            'Land on platforms -- falling behind is what kills you, not the gap',
+            'Grab COST LEVERS. Each one is a real way to cut a cloud bill, and each does something different',
+            'A Savings Plan or Spot slows the avalanche down -- those lower the ongoing price you pay',
+            'Deleting waste (orphan volumes, idle load balancers, S3 lifecycle) pushes the avalanche BACK -- it removes cost you already had, but the rate keeps climbing',
+            'A budget alarm changes neither: it only warns you sooner. Visibility is not a saving'
+        ],
+        why: 'That distinction is the whole of FinOps. Cutting unit price and deleting waste are different levers with different effects, and an alert is not a lever at all.',
+        help: 'Reopen this briefing any time from How to Play.',
+        startLabel: 'Outrun the bill'
+    });
+</script>
 </body>
 </html>
