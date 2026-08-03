@@ -1326,6 +1326,39 @@ const AchievementManager = (function() {
                     box-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
                 }
 
+                /* CLICK-THROUGH, scoped to the two real toasts BY ID -- deliberately not to
+                   .achievement-notification.
+
+                   The bug: these toasts are decorative (no click handler, no dismiss
+                   affordance, they self-remove on a timer) yet sat at z-index 100000 with
+                   default pointer-events, so for their ~5s life they ATE every click landing
+                   underneath. Measured 2026-08-03 on the live cloud-the-nines page:
+                   elementFromPoint() over the game's own header returned the toast, so Pause,
+                   Restart and Watch Demo all silently did nothing until it expired. That is the
+                   same failure the comment above documents -- covering a control for 5s -- and
+                   this is the general fix rather than a third relocation.
+
+                   Why by ID and not by class (Nancy 2026-08-03): the class name is NOT owned by
+                   this component. Three pages define their own unrelated .achievement-notification
+                   in a page-local <style> and also load this file --
+                   houses/web/reviews/web-dns-resolver-race.html,
+                   houses/web/reviews/web-protocol-stack.html,
+                   houses/script/reviews/script-permission-puzzle.html.
+                   This block is injected into <head> AFTER their inline styles at equal
+                   specificity, so a class-scoped rule would silently reach their banners too.
+                   None of those three is interactive today, but the next dismiss button someone
+                   adds would be broken by us, invisibly.
+
+                   Both IDs are listed because there are two real consumers: this file's
+                   #achievement-notification, and AchievementPanel.js:1026, which builds
+                   #ap-notification with the same class and NO positioning CSS of its own -- it
+                   relies on the block above. dashboard.html loads both. An ID rule naming only
+                   the first would leave that one still eating clicks. */
+                #achievement-notification,
+                #ap-notification {
+                    pointer-events: none;
+                }
+
                 @keyframes achievementSlideIn {
                     from { transform: translateX(120%); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
