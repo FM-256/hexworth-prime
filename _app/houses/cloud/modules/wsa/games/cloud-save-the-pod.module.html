@@ -355,6 +355,10 @@
 
             .hud-item {
                 padding: 4px 8px;
+                /* Translucent at phone scale: the HUD floats over the (scaled) harbor row,
+                   and opaque boxes were hiding the bay request names (Chris, 2026-08-02). */
+                background: rgba(0, 0, 0, 0.35);
+                border-width: 1px;
             }
 
             .overlay h2 {
@@ -398,7 +402,8 @@
 
             <h3>OCEAN ZONES</h3>
             <div class="lane-info">
-                <div><span class="icon">HARBOR</span> Delivery bays</div>
+                <div><span class="icon">HARBOR</span> Bays REQUEST a container -- read the name card</div>
+                <div><span class="icon">MATCH</span> Right bay = full points + combo. Wrong bay = half, combo breaks</div>
                 <div><span class="icon">CURRENT</span> Ride or drown</div>
                 <div><span class="icon">SHIPS</span> Deadly traffic</div>
                 <div><span class="icon">MEDIAN</span> Safe rest zone</div>
@@ -640,6 +645,13 @@
         function pushText(x, y, text, color) {
             floatingTexts.push({ x, y, text, color: color || '#ffee66', life: 1200, maxLife: 1200 });
         }
+        // Scale-aware label size: at phone widths the 800px canvas is CSS-scaled to ~335px,
+        // so native 7px text rasterizes to ~3 CSS px of mush (Chris, 2026-08-02). Draw labels
+        // larger as display scale shrinks, capped so desktop art proportions survive.
+        function labelPx(base) {
+            const sc = (canvas.clientWidth || CANVAS_W) / CANVAS_W;
+            return Math.round(Math.min(base * 2.2, Math.max(base, base / sc)));
+        }
         function pushRing(x, y, color, maxR) {
             rings.push({ x, y, r: 6, maxR: maxR || 55, color: color || '#66e0ff', life: 1 });
         }
@@ -864,7 +876,7 @@
             // Container on back when carrying, with its name so the cargo teaches on sight
             if (currentContainer && !w.demo) {
                 drawContainer3D(x, y + swimOffset - CELL_SIZE * 0.4, currentContainer);
-                ctx.font = '8px "Press Start 2P", monospace';
+                ctx.font = labelPx(8) + 'px "Press Start 2P", monospace';
                 ctx.textAlign = 'center';
                 ctx.fillStyle = 'rgba(255,255,255,0.95)';
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)';
@@ -1787,26 +1799,28 @@
             // Bay matching: full credit for the bay that REQUESTED this container,
             // half credit (and a broken combo) for dumping it on the wrong dock.
             const matched = bay.requested === currentContainer;
-            const bayCx = bay.x + bay.width / 2;
+            // Popup anchor: clamped inward and BELOW the HUD/back-link band -- at bay 0 the
+            // fixed page chrome (top-left, z-index 10000) swallowed 'WRONG BAY' (Chris).
+            const bayCx = Math.min(Math.max(bay.x + bay.width / 2, 110), CANVAS_W - 110);
             let pts;
             if (matched) {
                 pts = 100 * gameState.combo + whale.gridY * 10;
                 gameState.combo++;
                 if (gameState.combo > gameState.bestCombo) gameState.bestCombo = gameState.combo;
-                pushText(bayCx, bay.y + 30, '+' + pts + (gameState.combo > 2 ? ' x' + (gameState.combo - 1) : ''), '#66ff99');
+                pushText(bayCx, bay.y + 84, '+' + pts + (gameState.combo > 2 ? ' x' + (gameState.combo - 1) : ''), '#66ff99');
                 pushRing(bayCx, bay.y + 20, '#66ff99', 60);
                 SFX.deliver();
                 if (gameState.combo >= 3) SFX.combo();
             } else {
                 pts = 50;
                 gameState.combo = 1;
-                pushText(bayCx, bay.y + 30, 'WRONG BAY +50', '#ffaa44');
+                pushText(bayCx, bay.y + 84, 'WRONG BAY +50', '#ffaa44');
                 SFX.deliver();
             }
             // PERFECT crossing: never moved backward since leaving the dock.
             if (crossingClean && matched) {
                 gameState.score += 75;
-                pushText(bayCx, bay.y + 52, 'PERFECT +75', '#66e0ff');
+                pushText(bayCx, bay.y + 106, 'PERFECT +75', '#66e0ff');
             }
             crossingClean = true;
             gameState.score += pts;
@@ -2513,7 +2527,7 @@
                 // Positioned INSIDE the bay mouth: the HTML HUD floats over the canvas top,
                 // so anything above bay.y hides behind the LEVEL/PODS/SCORE boxes.
                 drawContainer3D(cx, bay.y + 22, bay.requested);
-                ctx.font = '7px "Press Start 2P", monospace';
+                ctx.font = labelPx(7) + 'px "Press Start 2P", monospace';
                 ctx.textAlign = 'center';
                 ctx.fillStyle = wants ? '#66ff99' : 'rgba(255,255,255,0.85)';
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)';
@@ -2536,7 +2550,7 @@
                 ft.y -= dt * 28;
                 if (ft.life <= 0) { floatingTexts.splice(i, 1); continue; }
                 ctx.globalAlpha = Math.min(1, ft.life / (ft.maxLife * 0.5));
-                ctx.font = '10px "Press Start 2P", monospace';
+                ctx.font = labelPx(10) + 'px "Press Start 2P", monospace';
                 ctx.textAlign = 'center';
                 ctx.strokeStyle = 'rgba(0,0,0,0.8)';
                 ctx.lineWidth = 3;
