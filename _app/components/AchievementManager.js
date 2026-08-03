@@ -376,6 +376,15 @@ const AchievementManager = (function() {
             title: 'the Printer Whisperer'
         },
         {
+            id: 'game_flap',
+            icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Cloud Skimmer',
+            desc: 'Clear 10 milestones in Cloud Flap',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_pod',
             icon: '<img src="/assets/images/icons/icon-docker.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Pod Saver',
