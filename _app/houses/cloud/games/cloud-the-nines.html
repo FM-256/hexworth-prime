@@ -1,838 +1,903 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <script src="../../../components/AccessGuard.js"></script>
-    <script>AccessGuard.require('sorted');</script>
-    <script src="../../../components/AchievementManager.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>The Nines - Hexworth Prime</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Nines | House of the Cloud</title>
+<!--
+  THE NINES -- Mini Metro, where the network you draw is a request path and the passengers
+  are requests.
 
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background:
-                radial-gradient(120% 80% at 12% 0%, rgba(34,211,238,.10), transparent 58%),
-                radial-gradient(110% 80% at 100% 100%, rgba(139,92,246,.12), transparent 60%),
-                linear-gradient(180deg, #070b14 0%, #060910 50%, #05070f 100%);
-            background-attachment: fixed;
-            color: #dbe7f5;
-            min-height: 100vh;
-            padding: 16px;
-        }
+  REBUILD 2026-08-03. v1 was a capacity SIMULATOR with a placement UI: pick a component from
+  a palette, click to drop it in a zone, watch a demand curve climb. The physics were sound
+  and are kept below. But the ask was a Mini Metro clone, and the thing that makes Mini Metro
+  what it is was absent -- there was not one drag handler in the file. You never authored a
+  route, never re-authored one under pressure, and failure was an aggregate percentage rather
+  than a place on the map you could point at. v1 is archived at
+  hexworth-shared/archive/games/cloud-the-nines-v1-simulator-20260803.html.
 
-        .wrap { max-width: 1560px; margin: 0 auto; }
+  What carries over is the CLOUD PHYSICS, now spatial instead of numeric:
+    - cross-zone hops cost throughput (a runner crawls over a zone boundary)
+    - data stations spread across zones lose capacity to replication traffic
+    - a seeded zone failure takes every station in it dark, mid-run
+  What is new is the GAME: stations arrive over time, requests queue as visible shapes, you
+  drag lines between stations, runners walk those lines, and one station drowning in its own
+  backlog ends the run -- at that station, where you can watch it happen.
 
-        .topbar {
-            display: flex; align-items: center; gap: 16px;
-            flex-wrap: wrap; margin-bottom: 14px;
-        }
-        .back-link {
-            color: #22d3ee; text-decoration: none; font-size: 14px;
-            border: 1px solid rgba(34,211,238,.4); border-radius: 8px; padding: 6px 13px;
-        }
-        .back-link:hover { background: rgba(34,211,238,.12); }
-        .title {
-            font-size: 25px; font-weight: 800; letter-spacing: .04em;
-            background: linear-gradient(135deg, #22d3ee, #a78bfa);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        }
-        .title-sub { font-size: 12px; color: #7f93ab; letter-spacing: .1em; text-transform: uppercase; }
+  Determinism: every draw comes from a seeded RNG, so a level replays identically.
+  Math.random is never called.
+-->
+<style>
+    :root {
+        --bg: #080d16;
+        --panel: rgba(14, 22, 36, 0.92);
+        --ink: #e8f0fb;
+        --muted: #8ea3bd;
+        --line: rgba(120, 170, 220, 0.18);
+        --accent: #22d3ee;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --bad: #ff4d5e;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+        margin: 0; padding: 0; height: 100%;
+        background: var(--bg); color: var(--ink);
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+    }
+    /* HEUR-008: absolute, never fixed -- a body filter on a host wrapper breaks fixed. */
+    #wrap { position: absolute; inset: 0; display: flex; flex-direction: column; }
 
-        .layout { display: grid; grid-template-columns: 260px 1fr 280px; gap: 14px; align-items: start; }
+    header {
+        display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+        padding: 10px 18px; border-bottom: 1px solid var(--line);
+        background: var(--panel); z-index: 5;
+    }
+    header h1 {
+        font-size: 17px; margin: 0; letter-spacing: .02em; font-weight: 700;
+        color: var(--accent); white-space: nowrap;
+    }
+    .stat { display: flex; flex-direction: column; line-height: 1.15; min-width: 62px; }
+    .stat b { font-size: 16px; font-variant-numeric: tabular-nums; }
+    .stat span { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .stat.good b { color: var(--ok); } .stat.warn b { color: var(--warn); } .stat.bad b { color: var(--bad); }
+    .spacer { flex: 1; }
+    button {
+        background: rgba(34, 211, 238, .12); color: var(--accent);
+        border: 1px solid rgba(34, 211, 238, .4); border-radius: 6px;
+        padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+        font-family: inherit;
+    }
+    button:hover { background: rgba(34, 211, 238, .22); }
+    button.ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+    button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-        .panel {
-            background: linear-gradient(160deg, rgba(16,26,44,.92), rgba(11,18,32,.92));
-            border: 1px solid rgba(34,211,238,.22);
-            border-radius: 12px; padding: 14px;
-        }
-        .panel h3 {
-            font-size: 12px; text-transform: uppercase; letter-spacing: .12em;
-            color: #67e8f9; margin-bottom: 10px; padding-bottom: 6px;
-            border-bottom: 1px solid rgba(34,211,238,.2);
-        }
+    #stage { position: relative; flex: 1; min-height: 0; }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 
-        /* Palette of buildable components */
-        .comp {
-            display: flex; align-items: center; gap: 9px;
-            background: rgba(255,255,255,.035); border: 1px solid rgba(148,163,184,.22);
-            border-radius: 9px; padding: 9px 11px; margin-bottom: 7px; cursor: pointer;
-            transition: all .16s ease;
-        }
-        .comp:hover:not(.disabled) { border-color: #22d3ee; background: rgba(34,211,238,.1); transform: translateX(3px); }
-        .comp.selected { border-color: #22d3ee; background: rgba(34,211,238,.18); }
-        .comp.disabled { opacity: .38; cursor: not-allowed; }
-        .comp-dot { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
-        .comp-body { flex: 1; min-width: 0; }
-        .comp-name { font-size: 13px; font-weight: 600; }
-        .comp-meta { font-size: 10.5px; color: #8ba3bd; }
+    /* Line inventory: the scarce resource. Mini Metro keeps this on screen at all times. */
+    #lines-bar {
+        position: absolute; left: 14px; bottom: 14px; z-index: 4;
+        display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+        background: var(--panel); border: 1px solid var(--line);
+        border-radius: 10px; padding: 9px 12px;
+    }
+    .lchip {
+        width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+        font-size: 11px; font-weight: 700; cursor: pointer; border: 2px solid transparent;
+        color: #04121d; user-select: none;
+    }
+    .lchip.empty { background: transparent; border: 2px dashed var(--line); color: var(--muted); }
+    .lchip.sel { border-color: #fff; box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+    #lines-bar .lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .res { font-size: 12px; color: var(--muted); }
+    .res b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
-        .stat-row { display: flex; justify-content: space-between; font-size: 13px; padding: 5px 0; }
-        .stat-row span:last-child { font-weight: 700; color: #e8f4ff; }
-        .stat-good { color: #4ade80 !important; }
-        .stat-warn { color: #fbbf24 !important; }
-        .stat-bad  { color: #f87171 !important; }
-
-        .canvas-shell { position: relative; }
-        canvas {
-            display: block; width: 100%; height: auto;
-            background: #05080f;
-            border: 1px solid rgba(34,211,238,.3); border-radius: 12px;
-            box-shadow: 0 0 40px rgba(34,211,238,.10);
-        }
-
-        /* HUD is absolute inside the shell -- never fixed (CLAUDE.md rule 5 / HEUR-008) */
-        .hud {
-            position: absolute; top: 10px; left: 10px; right: 10px;
-            display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none;
-        }
-        .hud-item {
-            background: rgba(5,10,20,.82); border: 1px solid rgba(34,211,238,.35);
-            border-radius: 8px; padding: 5px 11px; font-size: 12px;
-        }
-        .hud-label { font-size: 9px; color: #7f93ab; letter-spacing: .1em; text-transform: uppercase; }
-        .hud-value { font-weight: 700; font-size: 15px; }
-
-        .btn {
-            width: 100%; padding: 10px; margin-top: 8px;
-            background: linear-gradient(135deg, #22d3ee, #0891b2); color: #04121d;
-            border: none; border-radius: 9px; font-size: 14px; font-weight: 700;
-            cursor: pointer; font-family: inherit;
-        }
-        .btn:hover { filter: brightness(1.1); }
-        .btn.secondary { background: rgba(255,255,255,.07); color: #cfe3f5; border: 1px solid rgba(148,163,184,.3); }
-        .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
-
-        .legend-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin-bottom: 5px; color: #a9c0d6; }
-        .legend-swatch { width: 22px; height: 8px; border-radius: 3px; }
-
-        .log { font-size: 11.5px; line-height: 1.55; max-height: 190px; overflow-y: auto; }
-        .log div { padding: 3px 0; border-bottom: 1px solid rgba(148,163,184,.12); color: #a9c0d6; }
-        .log .ev-bad { color: #f87171; }
-        .log .ev-good { color: #4ade80; }
-        .log .ev-warn { color: #fbbf24; }
-
-        .overlay {
-            position: absolute; inset: 0; z-index: 60;
-            background: rgba(4,8,16,.94);
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 12px; padding: 22px;
-        }
-        .overlay.hidden { display: none; }
-        .over-card { max-width: 560px; text-align: center; }
-        .over-card h2 { font-size: 26px; color: #22d3ee; margin-bottom: 8px; }
-        .over-card .verdict { font-size: 15px; color: #cfe3f5; margin-bottom: 14px; line-height: 1.6; }
-        .over-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; }
-        .over-stat { background: rgba(255,255,255,.05); border-radius: 9px; padding: 10px; }
-        .over-stat .v { font-size: 21px; font-weight: 800; color: #22d3ee; }
-        .over-stat .k { font-size: 10px; color: #8ba3bd; text-transform: uppercase; letter-spacing: .08em; }
-        .cause { background: rgba(248,113,113,.1); border-left: 3px solid #f87171;
-                 padding: 10px 13px; border-radius: 0 8px 8px 0; text-align: left;
-                 font-size: 13px; line-height: 1.6; margin-bottom: 12px; }
-        .seedclass { background: rgba(139,92,246,.12); border-left: 3px solid #a78bfa;
-                 padding: 10px 13px; border-radius: 0 8px 8px 0; text-align: left;
-                 font-size: 12.5px; line-height: 1.6; margin-bottom: 14px; color: #cfc4f5; }
-
-        @media (max-width: 1180px) {
-            .layout { grid-template-columns: 1fr; }
-            .panel { max-width: 100%; }
-        }
-
-        /* GameScoreboard is a 220px absolutely-positioned panel pinned to the right edge
-           (component doctrine: fix the component, not the pages -- so we yield the lane
-           rather than override its position). Below 900px it self-collapses to a header
-           row, so the gutter is only needed above that. */
-        @media (min-width: 900px) {
-            .wrap { padding-right: 246px; }
-        }
-        /* Below 900px the widget collapses to a ~220px pill but STAYS pinned top-right, where
-           it landed on the build panel (Chris measured 216x37px of overlap at 375). Give the
-           first panel clearance for exactly that band. */
-        @media (max-width: 899px) {
-            /* margin, NOT padding: padding moves the content but leaves the element's box
-               where it was, so the measured overlap was unchanged (7992px2, identical to
-               Chris's figure). The BOX has to move. */
-            .layout > .panel:first-child { margin-top: 46px; }
-        }
-    </style>
+    /* Overlays: absolute + inset, matching the shipped ArcadeScoreModal pattern. */
+    .ovl {
+        position: absolute; inset: 0; z-index: 40; display: grid; place-items: center;
+        background: rgba(5, 9, 18, .93); padding: 20px; overflow-y: auto;
+    }
+    .ovl .box {
+        max-width: 560px; width: 100%; background: linear-gradient(160deg, #111a2c, #0d1523);
+        border: 1px solid var(--accent); border-radius: 14px; padding: 24px;
+    }
+    .ovl h2 { margin: 0 0 6px; color: var(--accent); font-size: 21px; }
+    .ovl p { color: #cddcec; line-height: 1.6; margin: 8px 0; }
+    .ovl .sub { color: var(--muted); font-size: 13px; }
+    .choices { display: grid; gap: 10px; margin-top: 16px; }
+    .choice {
+        text-align: left; padding: 13px 16px; border-radius: 9px; cursor: pointer;
+        background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--ink);
+        font-size: 14px; font-family: inherit; width: 100%;
+    }
+    .choice:hover { background: rgba(34,211,238,.12); border-color: var(--accent); }
+    .choice b { display: block; color: var(--accent); font-size: 15px; margin-bottom: 2px; }
+    .choice span { color: var(--muted); font-size: 12.5px; }
+    .grade { font-size: 32px; font-weight: 800; margin: 6px 0 2px; letter-spacing: .01em; }
+    table.sum { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
+    table.sum td { padding: 5px 0; border-bottom: 1px solid var(--line); }
+    table.sum td:last-child { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+    @media (max-width: 640px) {
+        header { gap: 11px; padding: 8px 12px; }
+        header h1 { font-size: 14px; }
+        .stat b { font-size: 14px; } .stat { min-width: 50px; }
+        #lines-bar { left: 8px; bottom: 8px; padding: 7px 9px; gap: 6px; }
+    }
+</style>
 </head>
 <body>
-<div class="wrap">
-    <div class="topbar">
-        <a href="../index.html" class="back-link">&larr; Back</a>
-        <div>
-            <div class="title">THE NINES</div>
-            <div class="title-sub">Hold your uptime as demand climbs</div>
-        </div>
-    </div>
-
-    <div class="layout">
-        <!-- LEFT: build palette -->
-        <div class="panel">
-            <h3>Build</h3>
-            <div id="palette"></div>
-            <div style="font-size:11px;color:#8ba3bd;margin-top:10px;line-height:1.5">
-                Click a component, then click a tier slot on the grid to place it.
-                Click a placed component, then a component one tier to its right, to connect them.
-            </div>
-            <label style="display:block;font-size:11px;color:#8ba3bd;margin-top:12px">Shift
-                <select id="levelSelect" style="width:100%;margin-top:5px;padding:8px;background:#0d1524;color:#dbe7f5;border:1px solid rgba(148,163,184,.3);border-radius:8px;font-family:inherit;font-size:13px">
-                    <option value="0">Shift 1</option>
-                    <option value="1">Shift 2</option>
-                    <option value="2">Shift 3</option>
-                </select>
-            </label>
-            <button class="btn" id="startBtn">Start the shift</button>
-            <button class="btn secondary" id="resetBtn">Reset build</button>
-        </div>
-
-        <!-- CENTRE: field -->
-        <div class="canvas-shell">
-            <canvas id="field" width="900" height="620"></canvas>
-            <div class="hud">
-                <div class="hud-item"><div class="hud-label">Uptime</div><div class="hud-value" id="hudUptime">100.000%</div></div>
-                <div class="hud-item"><div class="hud-label">Tick</div><div class="hud-value" id="hudTick">0</div></div>
-                <div class="hud-item"><div class="hud-label">Demand</div><div class="hud-value" id="hudDemand">0</div></div>
-                <div class="hud-item"><div class="hud-label">Budget</div><div class="hud-value" id="hudBudget">0</div></div>
-                <div class="hud-item"><div class="hud-label">p99 latency</div><div class="hud-value" id="hudLatency">--</div></div>
-            </div>
-            <div class="overlay hidden" id="endOverlay">
-                <div class="over-card">
-                    <h2 id="endTitle">Outage</h2>
-                    <div class="verdict" id="endVerdict"></div>
-                    <div class="cause" id="endCause"></div>
-                    <div class="over-stats">
-                        <div class="over-stat"><div class="v" id="endTicks">0</div><div class="k">Ticks survived</div></div>
-                        <div class="over-stat"><div class="v" id="endPeak">0</div><div class="k">Peak demand held</div></div>
-                        <div class="over-stat"><div class="v" id="endNines">0</div><div class="k">Final uptime</div></div>
-                    </div>
-                    <div class="seedclass" id="endSeed"></div>
-                    <button class="btn" id="againBtn">Run it again</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- RIGHT: telemetry -->
-        <div class="panel">
-            <h3>Telemetry</h3>
-            <div class="stat-row"><span>Served / tick</span><span id="tServed">0</span></div>
-            <div class="stat-row"><span>Backlog</span><span id="tBacklog">0</span></div>
-            <div class="stat-row"><span>Dropped total</span><span id="tDropped">0</span></div>
-            <div class="stat-row"><span>Cache hit rate</span><span id="tCache">--</span></div>
-            <div class="stat-row"><span>AZ status</span><span id="tAZ">nominal</span></div>
-
-            <h3 style="margin-top:16px">Latency colour</h3>
-            <div class="legend-row"><span class="legend-swatch" style="background:#22d3ee"></span> under 70% -- flat</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#fbbf24"></span> 70-90% -- the curve bends</div>
-            <div class="legend-row"><span class="legend-swatch" style="background:#f87171"></span> above 90% -- vertical</div>
-
-            <h3 style="margin-top:16px">Event log</h3>
-            <div class="log" id="log"></div>
+<div id="wrap">
+    <header>
+        <h1>THE NINES</h1>
+        <div class="stat" id="s-up"><b>100.00%</b><span>Uptime</span></div>
+        <div class="stat"><b id="s-week">1</b><span>Week</span></div>
+        <div class="stat"><b id="s-served">0</b><span>Served</span></div>
+        <div class="stat"><b id="s-drop">0</b><span>Dropped</span></div>
+        <div class="spacer"></div>
+        <button id="btn-pause" type="button">Pause</button>
+        <button id="btn-restart" type="button" class="ghost">Restart</button>
+    </header>
+    <div id="stage">
+        <canvas id="cv"></canvas>
+        <div id="lines-bar">
+            <span class="lbl">Lines</span>
+            <div id="chips" style="display:flex;gap:6px"></div>
+            <span class="res" style="margin-left:6px">Runners <b id="r-run">0</b><button type="button" id="add-runner" title="Put a spare runner on the selected line" style="margin-left:5px;padding:1px 7px;font-size:12px;line-height:1.35">+</button></span>
+            <span class="res">Tunnels <b id="r-tun">0</b></span>
         </div>
     </div>
 </div>
 
-<script>
-/* ============================================================================
-   THE NINES -- Mini Metro for cloud capacity.
-   Design decisions and the three Nancy blockers they resolve:
-   _docs/features/GAME_THE_NINES_DESIGN.md
-
-   The load model is deliberately NOT a saturation stopwatch. A stopwatch model
-   says nothing is wrong at 99% utilisation and everything is wrong at 101%,
-   which teaches students that running at 95% is safe -- the single most
-   expensive false belief in capacity planning. Instead every component runs the
-   classic M/M/1-shaped response curve, so the player FEELS latency bend upward
-   long before anything fails, and loses on BACKLOG (requests dropped that can
-   never be caught up) rather than on a boolean.
-   ========================================================================== */
-
-/* ---- Seeded PRNG. ONE source for every draw, including AZ failure timing.
-        A stray Math.random() would make both reproducibility and score
-        comparability false, so there is not one anywhere in this file. ---- */
-function makeRng(seed) {
-    let s = seed >>> 0;
-    return function () {
-        s ^= s << 13; s >>>= 0;
-        s ^= s >> 17;
-        s ^= s << 5;  s >>>= 0;
-        return s / 4294967296;
-    };
-}
-
-/* ---- Tiers. An edge may only join tier N to tier N+1, so no cycle is
-        representable and flow is a single forward sweep. ---- */
-const TIERS = ['edge', 'balancer', 'compute', 'cache', 'data'];
-const TIER_LABEL = {
-    edge: 'Edge / CDN', balancer: 'Load balancer', compute: 'Compute',
-    cache: 'Cache', data: 'Database'
-};
-
-const CATALOG = [
-    { id: 'cdn',      tier: 'edge',      name: 'CDN edge',       cap: 260, cost: 40, base: 4,  color: '#38bdf8' },
-    { id: 'alb',      tier: 'balancer',  name: 'Load balancer',  cap: 240, cost: 45, base: 3,  color: '#22d3ee' },
-    { id: 'app',      tier: 'compute',   name: 'App server',     cap: 90,  cost: 55, base: 12, color: '#4ade80' },
-    { id: 'queue',    tier: 'compute',   name: 'Queue worker',   cap: 70,  cost: 50, base: 10, color: '#a3e635', absorb: 140 },
-    { id: 'cache',    tier: 'cache',     name: 'Cache node',     cap: 300, cost: 40, base: 2,  color: '#c084fc', hit: 0.72 },
-    { id: 'db',       tier: 'data',      name: 'Database',       cap: 85,  cost: 75, base: 16, color: '#f472b6' },
-    { id: 'replica',  tier: 'data',      name: 'Read replica',   cap: 70,  cost: 55, base: 14, color: '#fb923c' }
-];
-
-// Budget must make a GENUINELY redundant build purchasable, or 'spreading' can only ever be
-// partial and one zone failure kills the chain regardless -- measured: both a concentrated and
-// a half-spread build died on the same tick, so the insurance could never pay. The cheapest
-// full path (LB+App+Cache+DB = 215) must be affordable TWICE, once per zone.
-const START_BUDGET = 520;
-const BACKLOG_BOUND = 260;   // per component: beyond this, dropped requests are unrecoverable
-const CROSS_AZ_TAX = 1.18;   // a request crossing zones costs 18% more work at the destination
-const REPLICATION_TAX = 0.22; // data tier spread across zones loses 22% of capacity to keeping them consistent
-const CANVAS_W = 900, CANVAS_H = 620;
-const COL_X = [95, 255, 435, 615, 790];   // one x per tier
-const SLOT_Y = [170, 265, 360, 455];      // four slots per tier
-const AZ_LABEL = ['AZ-a', 'AZ-b'];
-
-const canvas = document.getElementById('field');
-const ctx = canvas.getContext('2d');
-
-let state = null;
-let rafId = null;
-
-function freshState(seed) {
-    const rng = makeRng(seed);
-    // Seed class decides whether an AZ ever fails, and when. SOME SEEDS NEVER FAIL --
-    // that is what makes spreading a real bet rather than a guaranteed win.
-    const roll = rng();
-    let azFailAt = null, seedClass;
-    // FAILURE TIMING must land INSIDE a real run. Measured play: a weak build dies ~31 ticks,
-    // a cache-using build ~88. Failures were originally drawn at 90-150 and 240-360, i.e.
-    // after almost every run had already ended -- so the AZ mechanic, and with it the entire
-    // spread-vs-concentrate trade, was unreachable in practice. Bands now sit inside the
-    // playable window so the insurance can actually pay out (or visibly not).
-    if (roll < 0.34)      { azFailAt = 18 + Math.floor(rng() * 14); seedClass = 'early-failure'; }
-    else if (roll < 0.67) { azFailAt = 45 + Math.floor(rng() * 25); seedClass = 'late-failure'; }
-    else                  { azFailAt = null;                        seedClass = 'no-failure'; }
-
-    return {
-        rng, seed, seedClass, azFailAt,
-        placed: [], edges: [],
-        budget: START_BUDGET,
-        selected: null, connectFrom: null,
-        running: false, over: false,
-        tick: 0, demand: 40, peakDemand: 40,
-        servedTick: 0, droppedTotal: 0, deliveredTotal: 0,
-        azDown: null, p99: 0, log: []
-    };
-}
-
-function logEvent(text, cls) {
-    state.log.unshift({ text: 'T' + state.tick + '  ' + text, cls: cls || '' });
-    if (state.log.length > 40) state.log.pop();
-    const el = document.getElementById('log');
-    el.innerHTML = '';
-    state.log.forEach(function (e) {
-        const d = document.createElement('div');
-        if (e.cls) d.className = e.cls;
-        d.textContent = e.text;
-        el.appendChild(d);
-    });
-}
-
-/* ---------- build interactions ---------- */
-
-function renderPalette() {
-    const p = document.getElementById('palette');
-    p.innerHTML = '';
-    CATALOG.forEach(function (c) {
-        const affordable = state.budget >= c.cost && !state.running;
-        const el = document.createElement('div');
-        el.className = 'comp' + (affordable ? '' : ' disabled') + (state.selected === c.id ? ' selected' : '');
-        const dot = document.createElement('div');
-        dot.className = 'comp-dot'; dot.style.background = c.color;
-        const body = document.createElement('div'); body.className = 'comp-body';
-        const nm = document.createElement('div'); nm.className = 'comp-name'; nm.textContent = c.name;
-        const mt = document.createElement('div'); mt.className = 'comp-meta';
-        mt.textContent = TIER_LABEL[c.tier] + ' - cap ' + c.cap + '/tick - $' + c.cost
-            + (c.hit ? ' - absorbs ' + Math.round(c.hit * 100) + '% of reads' : '')
-            + (c.absorb ? ' - holds ' + c.absorb + ' extra backlog' : '');
-        body.appendChild(nm); body.appendChild(mt);
-        el.appendChild(dot); el.appendChild(body);
-        if (affordable) {
-            el.addEventListener('click', function () {
-                state.selected = (state.selected === c.id) ? null : c.id;
-                state.connectFrom = null;
-                renderPalette();
-            });
-        }
-        p.appendChild(el);
-    });
-}
-
-function slotAt(mx, my) {
-    for (let t = 0; t < TIERS.length; t++) {
-        for (let s = 0; s < SLOT_Y.length; s++) {
-            const dx = mx - COL_X[t], dy = my - SLOT_Y[s];
-            if (Math.abs(dx) < 52 && Math.abs(dy) < 30) return { tier: TIERS[t], slot: s, x: COL_X[t], y: SLOT_Y[s] };
-        }
-    }
-    return null;
-}
-
-function placedAt(mx, my) {
-    return state.placed.find(function (p) {
-        return Math.abs(mx - p.x) < 52 && Math.abs(my - p.y) < 30;
-    }) || null;
-}
-
-canvas.addEventListener('click', function (ev) {
-    if (state.over) return;
-    const r = canvas.getBoundingClientRect();
-    const mx = (ev.clientX - r.left) * (CANVAS_W / r.width);
-    const my = (ev.clientY - r.top) * (CANVAS_H / r.height);
-
-    const hitComp = placedAt(mx, my);
-
-    // CONNECT mode: a placed component is selected as the source
-    if (state.connectFrom && hitComp && hitComp !== state.connectFrom) {
-        const a = TIERS.indexOf(state.connectFrom.tier), b = TIERS.indexOf(hitComp.tier);
-        // FORWARD-ONLY (not strictly adjacent). The design's constraints were "no cycles,
-        // simple forward sweep" -- both hold for any b > a. Requiring b === a+1 additionally
-        // made a cache MANDATORY to reach the database, refusing app -> db, which is a real
-        // and common architecture. Play-test caught it: the edge was silently rejected and
-        // the run died at tick 7 with "no downstream".
-        if (b > a) {
-            const dup = state.edges.some(function (e) { return e.from === state.connectFrom.uid && e.to === hitComp.uid; });
-            if (!dup) {
-                state.edges.push({ from: state.connectFrom.uid, to: hitComp.uid });
-                logEvent('connected ' + state.connectFrom.name + ' -> ' + hitComp.name);
-            }
-        } else {
-            logEvent('traffic only flows left to right -- pick a component further right', 'ev-warn');
-        }
-        state.connectFrom = null;
-        return;
-    }
-
-    if (hitComp) { state.connectFrom = hitComp; return; }
-
-    // PLACE mode
-    if (state.selected && !state.running) {
-        const slot = slotAt(mx, my);
-        if (!slot) return;
-        const c = CATALOG.find(function (x) { return x.id === state.selected; });
-        if (slot.tier !== c.tier) { logEvent(c.name + ' belongs in the ' + TIER_LABEL[c.tier] + ' tier', 'ev-warn'); return; }
-        if (state.placed.some(function (p) { return p.tier === slot.tier && p.slot === slot.slot; })) return;
-        if (state.budget < c.cost) return;
-        state.budget -= c.cost;
-        // AZ assignment alternates by slot: slots 0,1 -> AZ-a, slots 2,3 -> AZ-b.
-        // Budget is HARD-CAPPED, so a second AZ does not add capacity, it splits it.
-        state.placed.push({
-            uid: 'c' + state.placed.length + '_' + slot.tier + slot.slot,
-            def: c.id, tier: c.tier, slot: slot.slot, x: slot.x, y: slot.y,
-            name: c.name, cap: c.cap, base: c.base, color: c.color,
-            absorb: c.absorb || 0, hit: c.hit || 0,
-            az: slot.slot < 2 ? 0 : 1,
-            backlog: 0, arrivals: 0, served: 0, util: 0, latency: c.base, dead: false
-        });
-        state.selected = null;
-        renderPalette();
-    }
-});
-
-/* ---------- simulation ---------- */
-
-function byTier(tier) {
-    return state.placed.filter(function (p) { return p.tier === tier && !p.dead; });
-}
-
-function downstream(node) {
-    return state.edges
-        .filter(function (e) { return e.from === node.uid; })
-        .map(function (e) { return state.placed.find(function (p) { return p.uid === e.to; }); })
-        .filter(function (p) { return p && !p.dead; });
-}
-
-function simulateTick() {
-    state.tick++;
-    // Demand climbs forever -- gently at first, then relentlessly.
-    state.demand = Math.round(40 + Math.pow(state.tick, 1.28) * 0.9);
-    if (state.demand > state.peakDemand) state.peakDemand = state.demand;
-
-    // AZ failure fires from the SEED, never from Math.random.
-    if (state.azFailAt !== null && state.tick === state.azFailAt && state.azDown === null) {
-        state.azDown = Math.floor(state.rng() * 2);
-        state.placed.forEach(function (p) { if (p.az === state.azDown) p.dead = true; });
-        logEvent(AZ_LABEL[state.azDown] + ' has failed -- every component in it is gone', 'ev-bad');
-    }
-
-    state.placed.forEach(function (p) { p.arrivals = 0; p.served = 0; });
-
-    // REPLICATION TAX -- the real cost of spreading, and the one the cross-AZ latency number
-    // could never impose (Nancy 2026-08-03: a player who builds two INDEPENDENT per-zone
-    // stacks paid no cross-AZ cost at all, so spreading was free insurance -- "if spreading
-    // always wins, mechanic 2 is decoration"). In a real multi-AZ deployment, stateful tiers
-    // must keep zones consistent, and that replication traffic eats throughput the zone can
-    // no longer sell to users. Stateless tiers cross zones for free; data tiers do not.
-    const dataAZs = {};
-    state.placed.forEach(function (p) { if (p.tier === 'data' && !p.dead) dataAZs[p.az] = true; });
-    const replicating = Object.keys(dataAZs).length > 1;
-    state.replicating = replicating;
-    state.placed.forEach(function (p) {
-        const nominal = CATALOG.find(function (c) { return c.id === p.def; }).cap;
-        p.cap = (replicating && p.tier === 'data') ? Math.round(nominal * (1 - REPLICATION_TAX)) : nominal;
-    });
-
-    // Forward sweep: entry tier takes the demand, each tier splits evenly downstream.
-    const entry = byTier('edge').length ? byTier('edge') : byTier('balancer');
-    if (!entry.length) {
-        // NANCY 2026-08-03: this returned BEFORE droppedTotal accumulated, so uptime stayed
-        // pinned at its total===0 default of 100%, the loss condition never fired, and a
-        // build with a database but no connected front door sat in silent limbo forever.
-        state.droppedTotal += state.demand;
-        logEvent('every request is being refused -- nothing is listening at the edge', 'ev-bad');
-        return { dropped: state.demand, causes: ['no entry point -- traffic never reached your stack'] };
-    }
-    const share = state.demand / entry.length;
-    entry.forEach(function (p) { p.arrivals += share; });
-
-    let droppedThisTick = 0;
-    const causes = [];
-
-    TIERS.forEach(function (tier) {
-        byTier(tier).forEach(function (p) {
-            const offered = p.arrivals + p.backlog;
-            p.served = Math.min(offered, p.cap);
-            p.backlog = offered - p.served;
-
-            // A queue worker's real job is burst absorption -- it can hold backlog
-            // beyond the normal bound, which a saturation model could not express.
-            const bound = BACKLOG_BOUND + p.absorb;
-            if (p.backlog > bound) {
-                droppedThisTick += p.backlog - bound;
-                p.backlog = bound;
-                if (causes.indexOf(p.name) === -1) causes.push(p.name);
-            }
-
-            p.util = p.cap ? p.arrivals / p.cap : 0;
-            // Classic M/M/1-shaped response curve: flat to ~70%, bending by 85%, vertical at 1.
-            p.latency = p.base / Math.max(1 - Math.min(p.util, 0.99), 0.01);
-
-            // Pass traffic on. A CACHE genuinely absorbs a share of reads by HIT RATE --
-            // it is not modelled as "+X capacity on the database", because that would
-            // make the teaching text lie about the mechanism.
-            let forward = p.served;
-            if (p.hit) forward = p.served * (1 - p.hit);
-
-            const outs = downstream(p);
-            if (outs.length) {
-                const each = forward / outs.length;
-                outs.forEach(function (d) {
-                    // NANCY 2026-08-03: this used to add +3ms of latency, which was decorative
-                    // twice over -- the next tier's own `latency = base/(1-util)` assignment
-                    // overwrote it before anything read it, AND latency never feeds served or
-                    // backlog at all. So spreading cost nothing and mechanic 2 was a lecture
-                    // with a timer, exactly the blocker this design was supposed to resolve.
-                    // A cross-AZ hop now costs real THROUGHPUT: the destination must process
-                    // CROSS_AZ_TAX more work per request (connection setup, encryption, retries
-                    // over a longer path), which raises its arrivals, its utilisation, its
-                    // backlog, and therefore its odds of dropping requests.
-                    d.arrivals += (d.az !== p.az) ? each * CROSS_AZ_TAX : each;
-                });
-            } else if (tier !== 'data') {
-                // Traffic with nowhere to go is dropped at this tier.
-                droppedThisTick += forward;
-                if (causes.indexOf(p.name + ' (no downstream)') === -1) causes.push(p.name + ' (no downstream)');
-            }
-        });
-    });
-
-    state.servedTick = Math.round(byTier('data').reduce(function (a, p) { return a + p.served; }, 0));
-    state.deliveredTotal += state.servedTick;
-    state.droppedTotal += droppedThisTick;
-    const lats = state.placed.filter(function (p) { return !p.dead; }).map(function (p) { return p.latency; });
-    state.p99 = lats.length ? Math.round(Math.max.apply(null, lats)) : 0;
-
-    return { dropped: droppedThisTick, causes: causes };
-}
-
-function uptime() {
-    const total = state.deliveredTotal + state.droppedTotal;
-    return total === 0 ? 100 : (state.deliveredTotal / total) * 100;
-}
-
-/* ---------- render ---------- */
-
-function latencyColor(p) {
-    if (p.dead) return '#3f4756';
-    if (p.util < 0.7) return '#22d3ee';
-    if (p.util < 0.9) return '#fbbf24';
-    return '#f87171';
-}
-
-function draw() {
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-
-    // tier columns
-    ctx.font = '11px "Segoe UI", sans-serif';
-    ctx.textAlign = 'center';
-    TIERS.forEach(function (t, i) {
-        ctx.fillStyle = 'rgba(148,163,184,.5)';
-        ctx.fillText(TIER_LABEL[t].toUpperCase(), COL_X[i], 118);
-        ctx.strokeStyle = 'rgba(148,163,184,.10)';
-        ctx.setLineDash([4, 6]);
-        ctx.beginPath(); ctx.moveTo(COL_X[i], 130); ctx.lineTo(COL_X[i], 520); ctx.stroke();
-        ctx.setLineDash([]);
-        // empty slots
-        SLOT_Y.forEach(function (y, s) {
-            const taken = state.placed.some(function (p) { return p.tier === t && p.slot === s; });
-            if (!taken) {
-                ctx.strokeStyle = 'rgba(148,163,184,.16)';
-                ctx.strokeRect(COL_X[i] - 48, y - 24, 96, 48);
-                ctx.fillStyle = 'rgba(148,163,184,.28)';
-                ctx.fillText(AZ_LABEL[s < 2 ? 0 : 1], COL_X[i], y + 4);
-            }
-        });
-    });
-
-    // edges, with traffic as moving light
-    state.edges.forEach(function (e) {
-        const a = state.placed.find(function (p) { return p.uid === e.from; });
-        const b = state.placed.find(function (p) { return p.uid === e.to; });
-        if (!a || !b) return;
-        const dim = a.dead || b.dead;
-        ctx.strokeStyle = dim ? 'rgba(80,90,105,.45)' : 'rgba(34,211,238,.42)';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(a.x + 48, a.y); ctx.lineTo(b.x - 48, b.y); ctx.stroke();
-        if (state.running && !dim && a.served > 0) {
-            const t = (state.tick * 0.25 + (a.x + a.y) * 0.01) % 1;
-            const px = a.x + 48 + (b.x - 48 - (a.x + 48)) * t;
-            const py = a.y + (b.y - a.y) * t;
-            ctx.fillStyle = '#a5f3fc';
-            ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI * 2); ctx.fill();
-        }
-    });
-
-    // components
-    state.placed.forEach(function (p) {
-        const col = latencyColor(p);
-        ctx.fillStyle = p.dead ? 'rgba(30,36,48,.85)' : 'rgba(12,20,34,.94)';
-        ctx.strokeStyle = col;
-        ctx.lineWidth = state.connectFrom === p ? 3 : 1.6;
-        ctx.beginPath(); ctx.roundRect(p.x - 48, p.y - 24, 96, 48, 9); ctx.fill(); ctx.stroke();
-
-        ctx.fillStyle = p.dead ? '#5b6577' : '#e6f3ff';
-        ctx.font = '11px "Segoe UI", sans-serif';
-        ctx.fillText(p.name, p.x, p.y - 4);
-        ctx.fillStyle = p.dead ? '#4d5666' : col;
-        ctx.font = 'bold 10px "Segoe UI", sans-serif';
-        ctx.fillText(p.dead ? 'FAILED' : Math.round(p.util * 100) + '%  ' + Math.round(p.latency) + 'ms', p.x, p.y + 11);
-
-        // backlog bar
-        if (!p.dead) {
-            const bound = BACKLOG_BOUND + p.absorb;
-            const frac = Math.min(1, p.backlog / bound);
-            ctx.fillStyle = 'rgba(148,163,184,.2)';
-            ctx.fillRect(p.x - 44, p.y + 16, 88, 4);
-            ctx.fillStyle = frac > 0.75 ? '#f87171' : frac > 0.4 ? '#fbbf24' : '#4ade80';
-            ctx.fillRect(p.x - 44, p.y + 16, 88 * frac, 4);
-        }
-    });
-
-    if (state.azDown !== null) {
-        ctx.fillStyle = 'rgba(248,113,113,.75)';
-        ctx.font = 'bold 13px "Segoe UI", sans-serif';
-        ctx.fillText(AZ_LABEL[state.azDown] + ' OFFLINE', CANVAS_W / 2, 560);
-    }
-}
-
-function refreshHud() {
-    const up = uptime();
-    document.getElementById('hudUptime').textContent = up.toFixed(3) + '%';
-    document.getElementById('hudUptime').className = 'hud-value ' + (up >= 99.9 ? 'stat-good' : up >= 99 ? 'stat-warn' : 'stat-bad');
-    document.getElementById('hudTick').textContent = state.tick;
-    document.getElementById('hudDemand').textContent = state.demand;
-    document.getElementById('hudBudget').textContent = '$' + state.budget;
-    document.getElementById('hudLatency').textContent = state.p99 ? state.p99 + 'ms' : '--';
-    document.getElementById('tServed').textContent = state.servedTick;
-    document.getElementById('tBacklog').textContent = Math.round(state.placed.reduce(function (a, p) { return a + p.backlog; }, 0));
-    document.getElementById('tDropped').textContent = Math.round(state.droppedTotal);
-    const caches = state.placed.filter(function (p) { return p.hit && !p.dead; });
-    document.getElementById('tCache').textContent = caches.length ? Math.round(caches[0].hit * 100) + '%' : '--';
-    document.getElementById('tAZ').textContent = state.azDown === null
-        ? (state.replicating ? 'nominal (replicating: -22% data cap)' : 'nominal')
-        : AZ_LABEL[state.azDown] + ' down';
-    document.getElementById('tAZ').className = state.azDown === null ? 'stat-good' : 'stat-bad';
-}
-
-/* ---------- run loop ---------- */
-
-let lastStep = 0;
-function loop(ts) {
-    if (state.running && ts - lastStep > 620) {
-        lastStep = ts;
-        const res = simulateTick();
-        if (res.dropped > 0.5) {
-            logEvent(Math.round(res.dropped) + ' requests dropped', 'ev-warn');
-        }
-        // LOSS: uptime below three nines means the backlog has become unrecoverable.
-        if (uptime() < 99.0 && state.tick > 6) {
-            endRun(res.causes);
-        }
-    }
-    draw();
-    refreshHud();
-    rafId = requestAnimationFrame(loop);
-}
-
-function endRun(causes) {
-    state.running = false;
-    state.over = true;
-
-    // CAUSE ATTRIBUTION comes from the SAME state that ended the run, and says
-    // "multiple" when it is multiple. Naming whichever component the loop reached
-    // first would be a confident lie.
-    let causeText;
-    if (!causes || causes.length === 0) {
-        causeText = 'Demand simply outgrew the topology -- no single component was the culprit.';
-    } else if (causes.length === 1) {
-        causeText = 'First unrecoverable backlog: ' + causes[0] + '. Its queue passed the point where it could ever catch up.';
-    } else {
-        causeText = 'Multiple components blew in the same tick: ' + causes.join(', ') + '. No single one caused this.';
-    }
-    // The AZ message must never claim the AZ killed you when the curve was already killing you.
-    if (state.azDown !== null && state.tick <= state.azFailAt + 12) {
-        causeText += ' ' + AZ_LABEL[state.azDown] + ' failed ' + (state.tick - state.azFailAt) +
-                     ' ticks earlier, which removed capacity you were already relying on.';
-    } else if (state.azDown !== null) {
-        causeText += ' ' + AZ_LABEL[state.azDown] + ' failed earlier at tick ' + state.azFailAt +
-                     ', but you survived well past it -- the demand curve, not the AZ, ended this run.';
-    }
-
-    document.getElementById('endTitle').textContent = 'Uptime lost';
-    document.getElementById('endVerdict').textContent =
-        'You held three nines for ' + state.tick + ' ticks against a demand curve that never stops climbing.';
-    document.getElementById('endCause').textContent = causeText;
-    document.getElementById('endTicks').textContent = state.tick;
-    document.getElementById('endPeak').textContent = state.peakDemand;
-    document.getElementById('endNines').textContent = uptime().toFixed(3) + '%';
-
-    // CHRIS 2026-08-03: this panel used to be keyed on seedClass ALONE, so on any
-    // early/late-failure seed it told every player "spreading across zones was the right bet
-    // here" -- even a player who built entirely inside the zone that never failed, never
-    // spread at all, and whose run the AZ event never touched. That is the design doc's own
-    // named failure mode (false causation) reproduced in the panel directly BELOW the
-    // endCause guard that correctly prevents it. The verdict now depends on what the player
-    // actually built and what actually happened to them.
-    const azHit = state.azDown !== null;                       // did a zone actually fail in this run
-    const azsUsed = {};
-    state.placed.forEach(function (p) { azsUsed[p.az] = true; });
-    const spreadBuild = Object.keys(azsUsed).length > 1;       // did the player actually spread
-    const wasInDeadAz = azHit && state.placed.some(function (p) { return p.az === state.azDown; });
-
-    let seedMsg;
-    if (state.seedClass === 'no-failure') {
-        seedMsg = spreadBuild
-            ? 'This shift was a NO-FAILURE draw: no zone was ever going to fail. You spread anyway, and that insurance premium never claimed -- a concentrated build of the same budget would have survived longer here. Other shifts draw differently; play them before concluding.'
-            : 'This shift was a NO-FAILURE draw: no zone was ever going to fail, and you concentrated. That was the right read for THIS shift -- you spent every dollar on throughput and none on insurance. Other shifts are not so kind.';
-    } else if (!azHit) {
-        seedMsg = 'This shift was scheduled to lose a zone at tick ' + state.azFailAt +
-                  ', but your run ended at tick ' + state.tick + ' -- before it ever happened. The demand curve, not the zone, is what beat you here.';
-    } else if (!wasInDeadAz) {
-        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
-                  ', but you had nothing in it -- the failure cost you nothing, and it is not what ended this run.';
-    } else if (spreadBuild) {
-        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
-                  ' and took part of your stack with it -- but because you had capacity in the other zone, you kept serving. That is the premium claiming.';
-    } else {
-        seedMsg = AZ_LABEL[state.azDown] + ' failed at tick ' + state.azFailAt +
-                  ' and your entire stack was inside it. Concentrating bought you throughput right up until the moment it bought you nothing.';
-    }
-    document.getElementById('endSeed').textContent = seedMsg;
-    document.getElementById('endOverlay').classList.remove('hidden');
-
-    // Scoring: ticks survived is the score. Never guard with `if (window.X)` --
-    // these components are top-level const declarations, so window.X is undefined
-    // even when they exist (38 dead guards found platform-wide 2026-07-31).
-    if (typeof GameTracker !== 'undefined') {
-        GameTracker.record('the-nines', { score: state.tick, result: 'failure', peak: state.peakDemand });
-    }
-    if (typeof AchievementManager !== 'undefined' && state.tick >= 60) {
-        AchievementManager.unlock('game_nines');
-    }
-    if (state.tick >= 60 && !localStorage.getItem('nines_xp_awarded')) {
-        localStorage.setItem('nines_xp_awarded', 'true');
-        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
-            FirestoreManager.addXP(null, 50, 'The Nines: 60 ticks');
-        }
-    }
-}
-
-/* ---------- controls ---------- */
-
-document.getElementById('startBtn').addEventListener('click', function () {
-    if (state.running) return;
-    if (!byTier('data').length) { logEvent('you need a database tier before traffic can complete', 'ev-warn'); return; }
-    state.running = true;
-    logEvent('shift started -- demand is climbing', 'ev-good');
-    renderPalette();
-});
-
-document.getElementById('resetBtn').addEventListener('click', function () { newRun(); });
-// Each shift is a different seed, so the three failure classes are all reachable -- that is
-// the only way "learn the distribution over runs" can be true (Nancy, 2026-08-03).
-document.getElementById('levelSelect').addEventListener('change', function () {
-    currentLevel = parseInt(this.value, 10) || 0;
-    newRun();
-});
-document.getElementById('againBtn').addEventListener('click', function () { newRun(); });
-
-// Seed is fixed PER LEVEL (so scores compare the same difficulty) but DIFFERS between
-// levels -- NANCY 2026-08-03: `const level = 1` was hardcoded, so the PRNG drew
-// early-failure at tick 97 for every player on every run, forever. The three seed classes
-// were unreachable and claim 4 ("the player learns the distribution over runs") was false.
-// These three constants are chosen so the set covers all three classes -- verified.
-const LEVEL_SEEDS = [0x1F35A2C1, 0x77E1B903, 0x2C9D45EF];
-let currentLevel = 0;
-
-function newRun() {
-    state = freshState(LEVEL_SEEDS[currentLevel]);
-    document.getElementById('endOverlay').classList.add('hidden');
-    document.getElementById('log').innerHTML = '';
-    renderPalette();
-    logEvent('shift ' + (currentLevel + 1) + ' of ' + LEVEL_SEEDS.length + ' -- build your topology, then start');
-    refreshHud();
-    const sel = document.getElementById('levelSelect');
-    if (sel) sel.value = String(currentLevel);
-}
-
-newRun();
-if (!rafId) rafId = requestAnimationFrame(loop);
-</script>
-
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../components/AchievementManager.js"></script>
 <script src="../../../components/FirebaseAuth.js"></script>
 <script src="../../../components/FirestoreManager.js"></script>
 <script src="../../../components/GameTracker.js"></script>
 <script src="../../../components/GameScoreboard.js"></script>
 <script src="../../../components/GameBriefing.js"></script>
 <script>
+'use strict';
+
+/* ══════════════════════════════ tuning ══════════════════════════════ */
+
+const AZ_COUNT      = 3;
+const AZ_NAME       = ['az-a', 'az-b', 'az-c'];
+const SHAPES        = ['circle', 'triangle', 'square', 'diamond', 'cross'];
+const LINE_COLORS   = ['#22d3ee', '#f472b6', '#fbbf24', '#a78bfa', '#34d399', '#fb923c'];
+
+const WEEK_SECONDS  = 22;      // time between upgrade choices
+const STATION_CAP   = 6;       // queued requests a station tolerates
+const OVERLOAD_FUSE = 9;       // seconds over capacity before the run ends
+const REQ_PATIENCE  = 34;      // seconds a request waits before timing out (counts as dropped)
+const RUNNER_CAP    = 6;       // requests one runner carries
+const RUNNER_SPEED  = 152;     // px/sec on a within-zone hop
+
+// Cloud physics carried over from v1, expressed spatially.
+const CROSS_AZ_TAX    = 0.55;  // a runner crossing a zone boundary moves at 55% speed
+const REPLICATION_TAX = 0.25;  // data stations spanning zones lose 25% of queue capacity
+
+const LEVELS = [
+    { name: 'Single Region', seed: 0x1F35A2C1, azFail: null, spawnEvery: 12 },
+    { name: 'Zone Failure',  seed: 0x77E1B903, azFail: 96,   spawnEvery: 11 },
+    { name: 'Peak Season',   seed: 0x2C9D45EF, azFail: 62,   spawnEvery: 9  }
+];
+
+/* ══════════════════════════════ rng ══════════════════════════════ */
+/* Mulberry32. Every random draw comes from here so a level replays identically. */
+function mkRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+}
+
+/* ══════════════════════════════ state ══════════════════════════════ */
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+let S = null;
+let level = 0;
+let paused = false;
+let lastT = 0;
+
+function newGame() {
+    const L = LEVELS[level];
+    S = {
+        rng: mkRng(L.seed),
+        t: 0, week: 1, weekT: 0,
+        stations: [], lines: [], runners: [],
+        linesMax: 3, runnersSpare: 2, tunnels: 1, capBonus: 0,
+        served: 0, dropped: 0,
+        spawnEvery: L.spawnEvery, spawnT: 6,
+        azFailAt: L.azFail, azDown: -1, azDownT: 0,
+        replicating: false, azFailed: false,
+        over: false, overReason: '', selLine: 0,
+        drag: null, msg: '', msgT: 0,
+        zones: []
+    };
+    layoutZones();
+    /* Open with one of each core shape, all in ONE zone. Mini Metro starts compact and
+       expands; scattering the first three across zones would force a cross-zone line on move
+       one, spend the only tunnel, and put a slow hop in the opening -- measured as
+       unwinnable in the first playtest (served 0 after 11s). Zones b and c fill in later. */
+    ['circle', 'triangle', 'square'].forEach(function (sh) { addStation(sh, 0); });
+    paintChips();
+}
+
+/* Zones are drawn regions AND the driver of station placement -- they sit far apart, which is
+   what makes a cross-zone hop a real spatial cost rather than a number in a panel. */
+function layoutZones() {
+    if (!S) return;
+    S.zones = [];
+    const R = Math.min(W, H);
+    for (let i = 0; i < AZ_COUNT; i++) {
+        const ang = -Math.PI / 2 + (i * 2 * Math.PI) / AZ_COUNT;
+        S.zones.push({
+            name: AZ_NAME[i],
+            cx: W / 2 + Math.cos(ang) * R * 0.27,
+            cy: H / 2 + Math.sin(ang) * R * 0.24,
+            r: R * 0.21
+        });
+    }
+}
+
+function addStation(shape, az) {
+    const z = S.zones[az];
+    if (!z) return;
+    let x = z.cx, y = z.cy;
+    for (let tries = 0; tries < 50; tries++) {
+        const a = S.rng() * Math.PI * 2;
+        const r = Math.sqrt(S.rng()) * z.r * 0.86;
+        const nx = z.cx + Math.cos(a) * r;
+        const ny = z.cy + Math.sin(a) * r;
+        if (nx < 46 || ny < 46 || nx > W - 46 || ny > H - 104) continue;   // H-104 clears the lines-bar HUD
+        if (S.stations.every(function (s) { return Math.hypot(s.x - nx, s.y - ny) > 60; })) { x = nx; y = ny; break; }
+    }
+    S.stations.push({
+        id: S.stations.length, shape: shape, az: az, x: x, y: y,
+        queue: [], cap: STATION_CAP, over: 0, dead: false
+    });
+}
+
+/* A request may only want a shape that actually exists on the map. */
+function liveShapes() {
+    const set = {};
+    S.stations.forEach(function (s) { if (!s.dead) set[s.shape] = true; });
+    return Object.keys(set);
+}
+
+/* ══════════════════════════════ geometry ══════════════════════════════ */
+
+/* Octolinear elbow: a straight run, then a 45-degree diagonal. This one constraint is what
+   makes a drawn line read as a transit map rather than a scribble. */
+function elbow(ax, ay, bx, by) {
+    const dx = bx - ax, dy = by - ay;
+    const adx = Math.abs(dx), ady = Math.abs(dy);
+    const sx = Math.sign(dx), sy = Math.sign(dy);
+    if (adx > ady) return [ax + sx * (adx - ady), ay];
+    return [ax, ay + sy * (ady - adx)];
+}
+
+function segLength(a, b) {
+    const e = elbow(a.x, a.y, b.x, b.y);
+    return Math.hypot(e[0] - a.x, e[1] - a.y) + Math.hypot(b.x - e[0], b.y - e[1]);
+}
+
+function segPoint(a, b, t) {
+    const e = elbow(a.x, a.y, b.x, b.y);
+    const l1 = Math.hypot(e[0] - a.x, e[1] - a.y);
+    const l2 = Math.hypot(b.x - e[0], b.y - e[1]);
+    const total = l1 + l2;
+    if (total === 0) return { x: a.x, y: a.y };
+    const d = t * total;
+    if (d <= l1) {
+        const k = l1 === 0 ? 0 : d / l1;
+        return { x: a.x + (e[0] - a.x) * k, y: a.y + (e[1] - a.y) * k };
+    }
+    const k = l2 === 0 ? 0 : (d - l1) / l2;
+    return { x: e[0] + (b.x - e[0]) * k, y: e[1] + (b.y - e[1]) * k };
+}
+
+function stationAt(x, y) {
+    return S.stations.find(function (s) { return !s.dead && Math.hypot(s.x - x, s.y - y) < 28; }) || null;
+}
+
+/* ══════════════════════════════ lines ══════════════════════════════ */
+
+function getLine(i) {
+    if (!S.lines[i]) S.lines[i] = { color: LINE_COLORS[i % LINE_COLORS.length], stops: [] };
+    return S.lines[i];
+}
+
+function crossings(stops) {
+    let n = 0;
+    for (let i = 1; i < stops.length; i++) {
+        const a = S.stations[stops[i - 1]], b = S.stations[stops[i]];
+        if (a && b && a.az !== b.az) n++;
+    }
+    return n;
+}
+function tunnelsUsed() {
+    return S.lines.reduce(function (a, l) { return a + (l ? crossings(l.stops) : 0); }, 0);
+}
+
+/* Lines extend from either END only. That restriction is Mini Metro's, and it is the reason
+   line topology is a decision rather than a doodle. */
+function tryConnect(fromId, toId) {
+    if (fromId === toId) return;
+    const li = S.selLine;
+    const line = getLine(li);
+    let stops = line.stops.slice();
+
+    if (stops.length === 0) {
+        const drawn = S.lines.filter(function (l) { return l && l.stops.length >= 2; }).length;
+        if (drawn >= S.linesMax) { flash('No spare line -- select an empty slot or clear one'); return; }
+        stops = [fromId, toId];
+    } else if (stops[stops.length - 1] === fromId) {
+        if (stops.indexOf(toId) !== -1) return;
+        stops.push(toId);
+    } else if (stops[0] === fromId) {
+        if (stops.indexOf(toId) !== -1) return;
+        stops.unshift(toId);
+    } else {
+        flash('Extend a line from either end');
+        return;
+    }
+
+    const others = S.lines.reduce(function (a, l, idx) {
+        return a + (idx === li || !l ? 0 : crossings(l.stops));
+    }, 0);
+    if (others + crossings(stops) > S.tunnels) { flash('No tunnel left for a cross-zone hop'); return; }
+
+    line.stops = stops;
+    if (!S.runners.some(function (r) { return r.line === li; })) assignRunner(li);
+    paintChips();
+}
+
+function assignRunner(li) {
+    if (S.runnersSpare <= 0) return false;
+    S.runnersSpare--;
+    const r = { line: li, seg: 0, p: 0, dir: 1, load: [] };
+    /* Stagger runners sharing a line. They run identical deterministic math, so without this
+       a second runner sits exactly on top of the first forever: capacity doubles and the
+       player sees nothing move. Alternate ends, then offset within the segment. */
+    const already = S.runners.filter(function (x) { return x.line === li; }).length;
+    const st0 = S.lines[li] && S.lines[li].stops;
+    if (already && st0 && st0.length >= 2) {
+        if (already % 2 === 1) { r.seg = st0.length - 1; r.dir = -1; }
+        r.p = (Math.floor(already / 2) * 0.37) % 1;
+    }
+    S.runners.push(r);
+    /* Board immediately at the stop it starts on. Without this the first hop is always empty,
+       so the first request is not served until TWO hops in -- measured at 14s in playtest,
+       which reads as a broken game rather than a slow one. */
+    /* Board at the stop this runner ACTUALLY starts on. This used to be hardcoded to
+       stops[0], which was harmless while every runner started at index 0 -- but the stagger
+       above puts odd-indexed runners at the far end, and they would then instantly board a
+       request queued at the opposite end of the line. A queue marker vanished at a station
+       with no runner near it. Even-indexed runners still have seg 0, so this is a strict
+       generalisation rather than a behaviour change for them. */
+    const l0 = S.lines[li];
+    if (l0 && l0.stops.length) exchange(r, S.stations[l0.stops[r.seg]], l0);
+    return true;
+}
+
+function clearLine(li) {
+    const line = getLine(li);
+    line.stops = [];
+    S.runners = S.runners.filter(function (r) {
+        if (r.line === li) {
+            S.runnersSpare++;
+            S.dropped += r.load.length;   // requests in flight when you tear up the line are lost
+            return false;
+        }
+        return true;
+    });
+    paintChips();
+}
+
+/* ══════════════════════════════ simulation ══════════════════════════════ */
+
+function update(dt) {
+    S.t += dt;
+    S.weekT += dt;
+
+    /* A new station arrives -- the pressure that forces you to re-author the map. */
+    S.spawnT -= dt;
+    if (S.spawnT <= 0) {
+        S.spawnT = S.spawnEvery;
+        const pool = S.t > 70 ? SHAPES : SHAPES.slice(0, 3);   // exotic shapes arrive later
+        const shape = pool[Math.floor(S.rng() * pool.length)];
+        /* Early stations stay in the opening zone so the map grows outward rather than
+           starting scattered; zones b and c open up once there is something to connect. */
+        let az = S.stations.length < 5 ? 0 : Math.floor(S.rng() * AZ_COUNT);
+        if (az === S.azDown) az = (az + 1) % AZ_COUNT;
+        addStation(shape, az);
+    }
+
+    /* Seeded zone failure. */
+    if (S.azFailAt !== null && S.t >= S.azFailAt && S.azDown === -1) {
+        S.azDown = Math.floor(S.rng() * AZ_COUNT);
+        S.azDownT = 26;
+        S.azFailed = true;
+        S.stations.forEach(function (s) {
+            if (s.az === S.azDown) { s.dead = true; S.dropped += s.queue.length; s.queue.length = 0; }
+        });
+        flash(AZ_NAME[S.azDown].toUpperCase() + ' IS DOWN -- reroute around it');
+    }
+    if (S.azDown !== -1) {
+        S.azDownT -= dt;
+        if (S.azDownT <= 0) {
+            const back = S.azDown;
+            S.stations.forEach(function (s) { if (s.az === back) s.dead = false; });
+            flash(AZ_NAME[back].toUpperCase() + ' is back');
+            S.azDown = -1; S.azFailAt = null;
+        }
+    }
+
+    /* Replication tax: data (square) stations spread across zones lose queue capacity to the
+       traffic that keeps those zones consistent. Spreading buys survivability, not free lunch. */
+    const dataZones = {};
+    S.stations.forEach(function (s) { if (s.shape === 'square' && !s.dead) dataZones[s.az] = true; });
+    S.replicating = Object.keys(dataZones).length > 1;
+    S.stations.forEach(function (s) {
+        s.cap = STATION_CAP + S.capBonus;
+        if (S.replicating && s.shape === 'square') s.cap = Math.round(s.cap * (1 - REPLICATION_TAX));
+    });
+
+    /* Requests appear, queue visibly, and eventually time out. */
+    const shapes = liveShapes();
+    const rate = 0.048 + S.t * 0.0021;                 // demand climbs forever (tuned from playtest)
+    S.stations.forEach(function (st) {
+        if (st.dead) { st.over = 0; return; }
+        if (S.rng() < rate * dt * 6) {
+            const want = shapes.filter(function (x) { return x !== st.shape; });
+            if (want.length) st.queue.push({ want: want[Math.floor(S.rng() * want.length)], age: 0 });
+        }
+        for (let i = st.queue.length - 1; i >= 0; i--) {
+            st.queue[i].age += dt;
+            if (st.queue[i].age > REQ_PATIENCE) { st.queue.splice(i, 1); S.dropped++; }
+        }
+        /* The loss condition, and it happens AT a station you can point at. */
+        if (st.queue.length > st.cap) {
+            st.over += dt;
+            if (st.over >= OVERLOAD_FUSE && !S.over) {
+                S.over = true;
+                S.overReason = 'A ' + st.shape + ' station in ' + AZ_NAME[st.az] +
+                    ' drowned in its own backlog. Requests arrived faster than anything could carry them away.';
+            }
+        } else {
+            st.over = Math.max(0, st.over - dt * 1.6);
+        }
+    });
+
+    S.runners.forEach(function (r) { stepRunner(r, dt); });
+
+    if (S.weekT >= WEEK_SECONDS && !S.over) { S.weekT = 0; S.week++; offerUpgrade(); }
+}
+
+function stepRunner(r, dt) {
+    const line = S.lines[r.line];
+    if (!line || line.stops.length < 2) return;
+    const stops = line.stops;
+    if (r.seg > stops.length - 1) { r.seg = stops.length - 1; r.dir = -1; }
+    if (r.seg < 0) { r.seg = 0; r.dir = 1; }
+    const nextIdx = r.seg + r.dir;
+    if (nextIdx < 0 || nextIdx > stops.length - 1) { r.dir *= -1; return; }
+
+    const a = S.stations[stops[r.seg]], b = S.stations[stops[nextIdx]];
+    if (!a || !b) return;
+
+    /* Crossing a zone boundary is slow. This is v1's latency tax, made physical. */
+    const speed = RUNNER_SPEED * (a.az !== b.az ? CROSS_AZ_TAX : 1);
+    r.p += (speed * dt) / Math.max(1, segLength(a, b));
+
+    if (r.p >= 1) {
+        r.p = 0;
+        r.seg = nextIdx;
+        exchange(r, S.stations[stops[r.seg]], line);
+        if (r.seg >= stops.length - 1) r.dir = -1;
+        else if (r.seg <= 0) r.dir = 1;
+    }
+}
+
+/* Mini Metro's boarding rule, unchanged: a request boards only if this line actually reaches a
+   station of the shape it wants. That is what makes topology the thing you think about. */
+function exchange(r, st, line) {
+    if (!st) return;
+    for (let i = r.load.length - 1; i >= 0; i--) {
+        if (r.load[i].want === st.shape) { r.load.splice(i, 1); S.served++; }
+    }
+    if (st.dead) return;
+    const reach = {};
+    line.stops.forEach(function (id) { const s = S.stations[id]; if (s && !s.dead) reach[s.shape] = true; });
+    let i = 0;
+    while (i < st.queue.length && r.load.length < RUNNER_CAP) {
+        if (reach[st.queue[i].want]) r.load.push(st.queue.splice(i, 1)[0]);
+        else i++;
+    }
+}
+
+function uptime() {
+    const total = S.served + S.dropped;
+    return total === 0 ? 100 : (S.served / total) * 100;
+}
+
+/* ══════════════════════════════ render ══════════════════════════════ */
+
+function drawShape(x, y, shape, s, fill, stroke, lw) {
+    ctx.beginPath();
+    if (shape === 'circle')        ctx.arc(x, y, s, 0, Math.PI * 2);
+    else if (shape === 'square')   ctx.rect(x - s, y - s, s * 2, s * 2);
+    else if (shape === 'triangle') { ctx.moveTo(x, y - s * 1.15); ctx.lineTo(x + s, y + s * 0.8); ctx.lineTo(x - s, y + s * 0.8); ctx.closePath(); }
+    else if (shape === 'diamond')  { ctx.moveTo(x, y - s * 1.2); ctx.lineTo(x + s * 1.1, y); ctx.lineTo(x, y + s * 1.2); ctx.lineTo(x - s * 1.1, y); ctx.closePath(); }
+    else { const t = s * 0.42; ctx.rect(x - t, y - s, t * 2, s * 2); ctx.rect(x - s, y - t, s * 2, t * 2); }
+    if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+    if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 3; ctx.stroke(); }
+}
+
+function render() {
+    ctx.fillStyle = '#080d16';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    S.zones.forEach(function (z, i) {
+        const down = i === S.azDown;
+        const g = ctx.createRadialGradient(z.cx, z.cy, 0, z.cx, z.cy, z.r);
+        g.addColorStop(0, down ? 'rgba(255,77,94,.13)' : 'rgba(34,211,238,.085)');
+        g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(z.cx, z.cy, z.r, 0, Math.PI * 2); ctx.fill();
+        ctx.setLineDash([4, 8]);
+        ctx.strokeStyle = down ? 'rgba(255,77,94,.42)' : 'rgba(120,170,220,.16)';
+        ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = down ? 'rgba(255,77,94,.85)' : 'rgba(142,163,189,.55)';
+        ctx.font = '600 11px Segoe UI, sans-serif';
+        ctx.fillText(z.name.toUpperCase() + (down ? '  DOWN' : ''), z.cx, z.cy - z.r + 16);
+    });
+
+    S.lines.forEach(function (line, li) {
+        if (!line || line.stops.length < 2) return;
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = li === S.selLine ? 9 : 7;
+        ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        for (let i = 0; i < line.stops.length - 1; i++) {
+            const a = S.stations[line.stops[i]], b = S.stations[line.stops[i + 1]];
+            if (!a || !b) continue;
+            const e = elbow(a.x, a.y, b.x, b.y);
+            if (i === 0) ctx.moveTo(a.x, a.y);
+            ctx.lineTo(e[0], e[1]); ctx.lineTo(b.x, b.y);
+        }
+        ctx.stroke();
+    });
+
+    if (S.drag) {
+        const a = S.stations[S.drag.from];
+        if (a) {
+            ctx.strokeStyle = 'rgba(255,255,255,.55)';
+            ctx.lineWidth = 4; ctx.setLineDash([6, 6]);
+            const e = elbow(a.x, a.y, S.drag.x, S.drag.y);
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(e[0], e[1]); ctx.lineTo(S.drag.x, S.drag.y); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+    }
+
+    S.runners.forEach(function (r) {
+        const line = S.lines[r.line];
+        if (!line || line.stops.length < 2) return;
+        const nextIdx = r.seg + r.dir;
+        const a = S.stations[line.stops[r.seg]], b = S.stations[line.stops[nextIdx]];
+        if (!a || !b) return;
+        const pt = segPoint(a, b, r.p);
+        ctx.fillStyle = line.color;
+        ctx.strokeStyle = '#04121d'; ctx.lineWidth = 3;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(pt.x - 11, pt.y - 7, 22, 14, 4);
+        else ctx.rect(pt.x - 11, pt.y - 7, 22, 14);
+        ctx.fill(); ctx.stroke();
+        r.load.forEach(function (q, i) {
+            drawShape(pt.x - 6 + (i % 3) * 6, pt.y - 2 + Math.floor(i / 3) * 6, q.want, 2, '#04121d', null);
+        });
+    });
+
+    S.stations.forEach(function (st) {
+        if (st.over > 0) {
+            const k = Math.min(1, st.over / OVERLOAD_FUSE);
+            ctx.beginPath(); ctx.arc(st.x, st.y, 22 + k * 8, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255,77,94,' + (0.35 + k * 0.6) + ')';
+            ctx.lineWidth = 2 + k * 3; ctx.stroke();
+        }
+        drawShape(st.x, st.y, st.shape, 13, st.dead ? '#38455c' : '#eaf5ff', '#04121d', 4);
+        st.queue.forEach(function (q, i) {
+            const col = Math.floor(i / 4), row = i % 4;
+            drawShape(st.x + 23 + col * 11, st.y - 16 + row * 11, q.want, 3.6,
+                      q.age > REQ_PATIENCE * 0.7 ? '#ff9aa4' : '#9fd8e8', null);
+        });
+    });
+
+    if (S.msgT > 0) {
+        ctx.globalAlpha = Math.min(1, S.msgT);
+        ctx.fillStyle = '#fff';
+        ctx.font = '700 16px Segoe UI, sans-serif';
+        ctx.fillText(S.msg, W / 2, 40);
+        ctx.globalAlpha = 1;
+    }
+}
+
+function flash(m) { S.msg = m; S.msgT = 3.2; }
+
+/* ══════════════════════════════ hud ══════════════════════════════ */
+
+function paintChips() {
+    const box = document.getElementById('chips');
+    box.innerHTML = '';
+    for (let i = 0; i < S.linesMax; i++) {
+        const l = S.lines[i];
+        const used = !!(l && l.stops.length >= 2);
+        const d = document.createElement('div');
+        d.className = 'lchip' + (used ? '' : ' empty') + (i === S.selLine ? ' sel' : '');
+        if (used) d.style.background = l.color;
+        d.textContent = used ? String(l.stops.length) : '+';
+        d.title = used ? 'Line ' + (i + 1) + ' -- click to select, double-click to tear up'
+                       : 'Empty line slot -- select it, then drag between two stations';
+        d.addEventListener('click', function () { S.selLine = i; paintChips(); });
+        d.addEventListener('dblclick', function () { clearLine(i); });
+        box.appendChild(d);
+    }
+    document.getElementById('r-run').textContent = S.runnersSpare;
+    document.getElementById('r-tun').textContent = Math.max(0, S.tunnels - tunnelsUsed());
+}
+
+function paintHud() {
+    const u = uptime();
+    document.getElementById('s-week').textContent = S.week;
+    document.getElementById('s-served').textContent = S.served;
+    document.getElementById('s-drop').textContent = S.dropped;
+    const el = document.getElementById('s-up');
+    el.querySelector('b').textContent = u.toFixed(2) + '%';
+    el.className = 'stat ' + (u >= 99.9 ? 'good' : u >= 99 ? 'warn' : 'bad');
+}
+
+/* ══════════════════════════════ upgrades ══════════════════════════════ */
+
+const UPGRADES = [
+    { t: 'A new line',     d: 'One more colour to draw with. More reach, more topology to think about.', f: function () { S.linesMax++; } },
+    { t: 'Another runner', d: 'Spare capacity to put on any line. Throughput rather than reach.',        f: function () { S.runnersSpare++; } },
+    { t: 'A tunnel',       d: 'One more cross-zone hop allowed. Survivability -- but runners crawl over it.', f: function () { S.tunnels++; } },
+    { t: 'Bigger buffers', d: 'Every station tolerates 2 more queued requests before the fuse starts burning.', f: function () { S.capBonus += 2; } }
+];
+
+function offerUpgrade() {
+    paused = true;
+    const pool = UPGRADES.slice();
+    const pick = [];
+    while (pick.length < 3 && pool.length) {
+        pick.push(pool.splice(Math.floor(S.rng() * pool.length), 1)[0]);
+    }
+    showOverlay(
+        '<h2>Week ' + S.week + '</h2>' +
+        '<p class="sub">Demand does not stop climbing. Pick one.</p>' +
+        '<div class="choices">' + pick.map(function (c, i) {
+            return '<button type="button" class="choice" data-i="' + i + '"><b>' + c.t + '</b><span>' + c.d + '</span></button>';
+        }).join('') + '</div>',
+        function (root) {
+            root.querySelectorAll('.choice').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    pick[parseInt(b.dataset.i, 10)].f();
+                    closeOverlay(); paused = false; paintChips();
+                });
+            });
+        }
+    );
+}
+
+/* ══════════════════════════════ overlays ══════════════════════════════ */
+
+function showOverlay(html, wire) {
+    closeOverlay();
+    const o = document.createElement('div');
+    o.className = 'ovl'; o.id = 'ovl';
+    o.innerHTML = '<div class="box">' + html + '</div>';
+    document.getElementById('stage').appendChild(o);
+    if (wire) wire(o);
+}
+function closeOverlay() { const o = document.getElementById('ovl'); if (o) o.remove(); }
+
+/* Evidence-based verdict -- it reads what you actually built, never a generic platitude. */
+function verdict() {
+    const drawn = S.lines.filter(function (l) { return l && l.stops.length >= 2; });
+    if (!drawn.length) return 'You never drew a line. Requests only move along a line you author.';
+    const cross = tunnelsUsed();
+    if (cross === 0 && S.azFailed) {
+        return 'Every line stayed inside one zone, so when that zone failed there was no path around it.';
+    }
+    if (cross === 0) return 'You kept every line inside a single zone. Fast hops, but a single zone failure would have taken the whole run with it.';
+    if (S.replicating) return 'You spread data stations across zones. That bought survivability and cost queue capacity to replication -- exactly the trade the tax models.';
+    const longest = drawn.reduce(function (m, l) { return Math.max(m, l.stops.length); }, 0);
+    if (longest >= 7) return 'One very long line. It reaches everything, but a runner takes a long time to come back to where it is needed.';
+    return 'Short lines and tight loops. Good latency, but every new station forces another decision.';
+}
+
+function endRun() {
+    paused = true;
+    const u = uptime();
+    /* A ratio is only as good as the sample behind it. 14 requests served with none dropped is
+       100%, and it is not four nines -- it is not enough traffic to claim anything. Each nine
+       demands roughly an order of magnitude more evidence, which is exactly how availability
+       targets work in practice. */
+    const MIN_FOR = { 4: 1000, 3: 200, 2: 50 };
+    let nines, col;
+    if (S.served < MIN_FOR[2]) {
+        nines = 'NOT ENOUGH TRAFFIC';
+        col = 'var(--muted)';
+    } else if (u >= 99.99 && S.served >= MIN_FOR[4]) { nines = 'FOUR NINES';  col = 'var(--ok)'; }
+    else if (u >= 99.9 && S.served >= MIN_FOR[3])    { nines = 'THREE NINES'; col = 'var(--ok)'; }
+    else if (u >= 99)                                { nines = 'TWO NINES';   col = 'var(--warn)'; }
+    else                                             { nines = 'BELOW TWO NINES'; col = 'var(--bad)'; }
+
+    showOverlay(
+        '<h2>Outage</h2>' +
+        '<p>' + S.overReason + '</p>' +
+        '<div class="grade" style="color:' + col + '">' + nines + '</div>' +
+        '<p class="sub">' + u.toFixed(3) + '% of ' + (S.served + S.dropped) + ' requests served' +
+        (S.served < MIN_FOR[2]
+            ? ' &mdash; too small a sample to claim any nines'
+            : (u >= 99.99 && S.served < MIN_FOR[4]) ? ' &mdash; the ratio is there, the traffic is not'
+            : (u >= 99.9 && S.served < MIN_FOR[3]) ? ' &mdash; the ratio is there, the traffic is not' : '') +
+        '</p>' +
+        '<table class="sum">' +
+        '<tr><td>Weeks survived</td><td>' + S.week + '</td></tr>' +
+        '<tr><td>Requests served</td><td>' + S.served + '</td></tr>' +
+        '<tr><td>Requests dropped</td><td>' + S.dropped + '</td></tr>' +
+        '<tr><td>Stations online</td><td>' + S.stations.filter(function (s) { return !s.dead; }).length + '</td></tr>' +
+        '<tr><td>Lines drawn</td><td>' + S.lines.filter(function (l) { return l && l.stops.length >= 2; }).length + '</td></tr>' +
+        '</table>' +
+        '<p class="sub">' + verdict() + '</p>' +
+        '<div class="choices"><button type="button" class="choice" id="again"><b>Run it again</b><span>Same seed, same map. What would you build differently?</span></button></div>',
+        function (root) {
+            root.querySelector('#again').addEventListener('click', function () {
+                closeOverlay(); newGame(); paused = false;
+                document.getElementById('btn-pause').textContent = 'Pause';
+            });
+        }
+    );
+
+    if (typeof GameTracker !== 'undefined' && GameTracker.record) {
+        GameTracker.record('the-nines', { score: S.served, result: 'failure', weeks: S.week });
+    }
+    if (typeof AchievementManager !== 'undefined' && AchievementManager.unlock && u >= 99.9 && S.week >= 5) {
+        AchievementManager.unlock('game_nines');
+    }
+    if (S.week >= 5 && !localStorage.getItem('nines_xp_awarded')) {
+        try { localStorage.setItem('nines_xp_awarded', 'true'); } catch (e) { /* private mode */ }
+        if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+            FirestoreManager.addXP(null, 50, 'The Nines: 5 weeks');
+        }
+    }
+}
+
+/* ══════════════════════════════ input: drag to draw ══════════════════════════════ */
+
+function pos(ev) {
+    const r = cv.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+}
+
+cv.addEventListener('pointerdown', function (ev) {
+    if (paused || !S || S.over) return;
+    const p = pos(ev);
+    const st = stationAt(p.x, p.y);
+    if (!st) return;
+    try { cv.setPointerCapture(ev.pointerId); } catch (e) { /* older browsers */ }
+    S.drag = { from: st.id, x: p.x, y: p.y };
+});
+cv.addEventListener('pointermove', function (ev) {
+    if (!S || !S.drag) return;
+    const p = pos(ev);
+    S.drag.x = p.x; S.drag.y = p.y;
+});
+cv.addEventListener('pointerup', function (ev) {
+    if (!S || !S.drag) return;
+    const p = pos(ev);
+    const st = stationAt(p.x, p.y);
+    if (st) tryConnect(S.drag.from, st.id);
+    S.drag = null;
+});
+cv.addEventListener('pointercancel', function () { if (S) S.drag = null; });
+
+/* ══════════════════════════════ loop ══════════════════════════════ */
+
+function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    const r = cv.getBoundingClientRect();
+    W = r.width || 800; H = r.height || 600;
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    layoutZones();
+}
+window.addEventListener('resize', resize);
+
+/* FIXED TIMESTEP. The demand roll draws one RNG value per live station per update(), so
+   stepping by a variable frame delta made the number of draws a function of FRAMERATE rather
+   than elapsed time -- which quietly broke the "same seed, same run" promise the restart
+   button makes. Accumulating and stepping in fixed 1/60s slices makes a replay depend only on
+   elapsed time and player input, which is what determinism has to mean here. */
+const STEP = 1 / 60;
+let acc = 0;
+
+function loop(ts) {
+    const dt = Math.min(0.25, (ts - lastT) / 1000 || 0);
+    lastT = ts;
+    if (S && !paused && !S.over) {
+        acc += dt;
+        let guard = 0;
+        while (acc >= STEP && !S.over && guard++ < 240) {   // guard: never spiral after a tab-out
+            update(STEP);
+            if (S.msgT > 0) S.msgT -= STEP;
+            acc -= STEP;
+        }
+        if (S.over) endRun();
+    }
+    if (S) { render(); paintHud(); }
+    requestAnimationFrame(loop);
+}
+
+/* Spending a spare runner on an already-drawn line. Without this the weekly "Another runner"
+   upgrade was a dead counter once every line slot was in use -- the UI sold throughput the
+   player could never actually deploy. */
+document.getElementById('add-runner').addEventListener('click', function () {
+    const l = S.lines[S.selLine];
+    if (!l || l.stops.length < 2) { flash('Select a drawn line first'); return; }
+    if (S.runnersSpare <= 0) { flash('No spare runner'); return; }
+    assignRunner(S.selLine);
+    flash('Runner added to line ' + (S.selLine + 1));
+    paintChips();
+});
+
+document.getElementById('btn-pause').addEventListener('click', function () {
+    if (!S || S.over) return;
+    paused = !paused;
+    this.textContent = paused ? 'Resume' : 'Pause';
+});
+document.getElementById('btn-restart').addEventListener('click', function () {
+    closeOverlay(); newGame(); paused = false;
+    document.getElementById('btn-pause').textContent = 'Pause';
+});
+
+resize();
+newGame();
+resize();
+requestAnimationFrame(loop);
+
+if (typeof GameBriefing !== 'undefined') {
     GameBriefing.init({
         key: 'the-nines',
         title: 'The Nines',
         accent: '#22d3ee',
-        role: 'You are the capacity engineer. Traffic to your service climbs every tick and never stops.',
-        goal: 'Build a topology that keeps uptime above three nines (99.9%) for as long as possible. Your score is how many ticks you held. There is no winning -- only lasting.',
+        role: 'You are the capacity planner for a service whose traffic never stops growing.',
+        goal: 'Keep requests moving. A station that stays over capacity for nine seconds takes the service down, and the run ends there -- at that station, where you can see it.',
         howto: [
-            'CLICK a component in the Build panel, then CLICK an empty slot in its tier column to place it',
-            'CLICK a placed component, then CLICK one further RIGHT to connect them -- traffic only flows left to right, and you may skip a tier',
-            'Press Start the shift when your path reaches the database tier',
-            'Watch the colours: cyan is healthy, amber means latency is bending upward, red means it has gone vertical',
-            'A CACHE is the biggest lever you have: it answers most reads itself, so only about a quarter of the traffic reaches your database. Skipping it is the usual reason a run dies early',
-            'Slots 1-2 are AZ-a, slots 3-4 are AZ-b. Spreading across both survives a zone failure -- but it is not free: a database in BOTH zones must stay consistent, and that replication costs 22% of its capacity. Requests crossing zones cost extra work too'
+            'DRAG from one station to another to draw a line. That line is a request path.',
+            'Requests are the small shapes queued beside each station. A request only boards if your line reaches a station of its shape.',
+            'Lines extend from either END. Double-click a line chip to tear it up and get the runner back.',
+            'Select a line, then press + beside Runners to put a spare runner on it -- more carrying capacity on the same track.',
+            'Each week, choose one upgrade: a new line, another runner, a tunnel, or bigger buffers.',
+            'Crossing a zone boundary spends a tunnel and runners crawl over it -- the latency tax, made physical.'
         ],
-        why: 'This is the real shape of capacity planning: latency curves upward long before anything breaks, backlog is what actually kills you, and redundancy is an insurance premium that does not always pay out.',
-        help: 'Reopen this briefing any time from How to Play. Every run is seeded -- some seeds never fail an AZ at all.',
-        startLabel: 'Take the shift'
+        why: 'Capacity planning is topology, not arithmetic. Where you route matters more than how much you buy.',
+        help: 'Press How to Play any time to reopen this briefing.'
     });
+}
 </script>
 </body>
 </html>
