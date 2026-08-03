@@ -376,6 +376,33 @@ const AchievementManager = (function() {
             title: 'the Printer Whisperer'
         },
         {
+            id: 'game_clouddestroyer',
+            icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Region Sweeper',
+            desc: 'Clear all six regions in Cloud Destroyer',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'game_cloudhop_vertical',
+            icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Stack Climber',
+            desc: 'Complete a deployment-order scenario in Cloud Hop: Vertical',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
+            id: 'ta_whoami',
+            icon: '<img src="/assets/images/icons/icon-padlock.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Identity Confirmed',
+            desc: 'Reach a good ending in Who Am I?',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_flap',
             icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Cloud Skimmer',
