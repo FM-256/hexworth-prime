@@ -379,9 +379,41 @@
         .visually-hidden { position:absolute; width:1px; height:1px; margin:-1px; padding:0;
                            overflow:hidden; clip:rect(0 0 0 0); clip-path:inset(50%);
                            white-space:nowrap; border:0; }
-    </style>
+    
+/* ── GRAPHICS PASS 2026-08-02 (Operation Improve Games) ──────────────────────
+   Terminal sims read as flat grey text on black. Real CRTs glow: phosphor bloom
+   on text, a moving scan sweep, screen curvature vignette, and semantic colour
+   so success/warning/error read instantly instead of as more grey. */
+.output-area, #output, .terminal-body, .terminal-output {
+    text-shadow: 0 0 1px rgba(180, 255, 220, 0.45), 0 0 6px rgba(90, 220, 180, 0.16);
+}
+.success, .win, .good { color: #6ef7a8 !important; text-shadow: 0 0 8px rgba(110,247,168,.55); }
+.error, .danger, .bad  { color: #ff7b72 !important; text-shadow: 0 0 8px rgba(255,123,114,.5); }
+.warning, .warn        { color: #ffcf6b !important; text-shadow: 0 0 8px rgba(255,207,107,.45); }
+.info                  { color: #86d9ff !important; }
+/* Slow scan sweep across the whole screen */
+body::after {
+    content: '';
+    position: fixed; left: 0; right: 0; height: 140px; top: -140px;
+    background: linear-gradient(180deg, rgba(120,255,210,0) 0%, rgba(120,255,210,0.045) 50%, rgba(120,255,210,0) 100%);
+    pointer-events: none; z-index: 9998;
+    animation: crtSweep 7s linear infinite;
+}
+@keyframes crtSweep { 0% { top: -140px; } 100% { top: 100%; } }
+/* Screen-edge curvature darkening */
+.crt-vignette {
+    position: fixed; inset: 0; pointer-events: none; z-index: 9997;
+    background: radial-gradient(120% 100% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.42) 100%);
+}
+/* Blinking block cursor on the prompt */
+.prompt-cursor { display:inline-block; width:9px; height:15px; background:#6ef7a8;
+                 vertical-align:-2px; margin-left:2px; animation: curBlink 1.05s steps(1) infinite;
+                 box-shadow: 0 0 8px rgba(110,247,168,.7); }
+@keyframes curBlink { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+</style>
 </head>
 <body>
+<div class="crt-vignette"></div>
 <h1 class="visually-hidden">Don't Lose Your Domain</h1>
     <a class="back-link" href="../index.html">&larr; Back to Cloud House</a>
     <div class="header">
@@ -1339,7 +1371,13 @@ There are 12 achievements. Some require creative thinking.`;
             // Track game stats
             if (typeof GameTracker !== 'undefined') {
                 const saved = loadAchievements();
+                // FLEET FIX 2026-08-02: recorded with NO score field, so the live-looking
+                // HIGH SCORES panel could never populate. Score = achievements earned,
+                // time bonus for a fast clean resolution, zeroed on a losing ending.
+                const _won = !!(state.ending && /win|success|saved|contained|resolved/i.test(state.ending));
+                const _score = _won ? (Object.keys(loadAchievements()).length * 100 + Math.max(0, 300 - (state.timeElapsed || 0)) * 2) : 0;
                 GameTracker.record('domain', {
+                    score: _score,
                     result: state.ending || 'unknown',
                     timeElapsed: state.timeElapsed,
                     commandsUsed: state.commandCount,
