@@ -95,7 +95,13 @@
         // live tenant and routes the user INTO the hub just declared inactive, and
         // overrideLinks() keeps rewriting every Dashboard/Home link on the page to that hub
         // on its 1s/3s timers for the lifetime of the view.
-        try { if (window.TenantRouter && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
+        // NOT `window.TenantRouter` — TenantRouter.js:27 declares `const TenantRouter = ...`
+        // at the top level of a CLASSIC script, so the binding lives in the global declarative
+        // record and never becomes a property of window. `window.TenantRouter` is permanently
+        // undefined and this whole call was dead code. `typeof` is the working pattern already
+        // used at AccessGuard.js:658. Caught at QC 2026-08-04 by reproducing the stale-cache
+        // redirect it was supposed to prevent.
+        try { if (typeof TenantRouter !== 'undefined' && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
 
         // Strip whichever branch rendered: the full shell bar, or the re-enter pill
         // (plus the pill's dismiss badge, which is a SIBLING element rather than a child —

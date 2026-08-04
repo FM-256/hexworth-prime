@@ -244,7 +244,13 @@ const AccessGuard = (function() {
                        tenant just revoked -- verified: it resolved to /tenant/index.html and
                        rendered "Tenant not found". refresh() re-reads the (now empty) storage
                        and drops _active to false, so the redirect reaches the real dashboard. */
-                    try { if (window.TenantRouter && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
+                    // NOT `window.TenantRouter` — TenantRouter.js:27 declares it with top-level
+                    // `const` in a classic script, so it lives in the global declarative record
+                    // and is never a property of window. This guard made the refresh dead code,
+                    // leaving _active stale at true so redirect() below routed the just-revoked
+                    // student INTO the dead tenant hub. `typeof` matches the working check at
+                    // line 658. Caught at QC 2026-08-04.
+                    try { if (typeof TenantRouter !== 'undefined' && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
                     hideContent();
                     redirect('dashboard', 'This tenant is no longer active.');
                 }
