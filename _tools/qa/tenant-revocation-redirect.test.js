@@ -1,6 +1,12 @@
 /**
  * tenant-revocation-redirect.test.js — where a revoked tenant student LANDS.
  *
+ * SCOPE (2026-08-04): revocation now means the tenant is GONE (404). An earlier version
+ * of this suite asserted that any status !== 'active' revoked, which matched the code but
+ * not production: all six live tenants are "suspended", so that rule purged every tenant
+ * student and pinned them to the dashboard. Both the code and this suite were corrected.
+ * Do not reintroduce a status assertion here without checking real tenant data first.
+ *
  * WHY: QC 2026-08-04 found TenantRouter.refresh() was dead code. Both call sites gated on
  * `window.TenantRouter`, but TenantRouter.js:27 declares `const TenantRouter` at the top
  * level of a classic script — that binding lives in the global declarative record and never
@@ -97,9 +103,12 @@ const blob=s=>JSON.stringify({slug:s,name:'Demo Academy',status:'active',
    await pg.close();
  }
 
- await run('inactive @1.5s','inactive',1500);
+ // POLICY (2026-08-04, after the outage): DELETION revokes, STATUS does not.
+ // A status check here took the platform down — all six live tenants are "suspended",
+ // so every tenant student was purged and pinned to the dashboard. These cases now
+ // assert the CURRENT policy: a 404 tenant revokes; a merely non-'active' one does not.
  await run('404 @1.5s','404',1500);
- await run('inactive @2.5s','inactive',2500);
+ await run('404 @2.5s','404',2500);
 
  await b.close();
  console.log(fail?`\n${fail} FAILED`:'\nALL PASSED');
