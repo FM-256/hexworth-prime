@@ -418,8 +418,22 @@ service cloud.firestore {
       // Any authenticated user can read (needed for code lookup)
       allow read: if request.auth != null;
 
-      // Any authenticated user can create a class
-      allow create: if request.auth != null;
+      // Create a class you own. The handlerUid must be YOU.
+      //
+      // FIXED 2026-08-04. This was bare `if request.auth != null` — no ownership check and
+      // no schema check. PROVEN in the rules emulator: userA created a class with
+      // handlerUid:'userB', a forged owner. ClassManager.js:182 always sets
+      // `handlerUid: user.uid`, so the legitimate path is unaffected; the rule simply now
+      // enforces what the only real writer already does.
+      //
+      // Impact of the hole: a planted class appears in a REAL handler's own "My Classes"
+      // query (which filters where('handlerUid','==',uid)) the next time they open their
+      // dashboard — roster pollution and instructor impersonation. Not takeover of their
+      // existing classes; `update` was already correctly gated and is unchanged.
+      // (No stored-XSS chain found — `name` is escapeHtml'd where it renders in
+      // handler-dashboard.js.)
+      allow create: if request.auth != null
+        && request.resource.data.handlerUid == request.auth.uid;
 
       // Handler can update anything; students can ONLY add/remove own UID
       allow update: if request.auth != null && (
