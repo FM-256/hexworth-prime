@@ -3,33 +3,38 @@
  * probe-overflow.js -- measure per-slide vertical overflow in a deck.
  *
  * WHY THIS EXISTS
- *   Chris measured 36-99px of overflow across the CSE companion deck's eight visual
- *   slides at 1024x600 and 1024x768 on 2026-08-03, and because .slide-text was centred
- *   the overflow painted UPWARD over the heading. The fix (safe center + a short-viewport
- *   media block) was verified by hand. Any later change to a slide's visual can silently
- *   reintroduce it, and no EduScan rule covers vertical overflow -- so it gets measured,
- *   not reasoned about. Aspect-ratio arithmetic is not a measurement.
+ *   Chris measured 36-99px of overflow across the CSE companion deck's visual slides
+ *   at 1024x600 and 1024x768 on 2026-08-03; because .slide-text was centred, the
+ *   overflow painted UPWARD over the heading. No EduScan rule covers vertical
+ *   overflow, so it gets measured rather than reasoned about.
  *
- * WHAT IT MEASURES
- *   For every .slide: scrollHeight vs clientHeight on the slide itself and on both
- *   panels (.slide-text, .slide-visual). Any positive delta is content the projector
- *   will cut off or the panel will scroll -- and a scroll is the thing we are avoiding.
+ * HOW IT MEASURES -- and why the obvious approach is WRONG
+ *   Decks lay slides out as `position: absolute; inset: 0` inside an
+ *   `overflow: hidden` flex container, showing one at a time via `.active`.
+ *   The tempting shortcut is to force every slide to `display:flex; position:static`
+ *   so all N can be measured in a single pass. DO NOT DO THAT. `position: static`
+ *   removes the very constraint that pins each slide's height to the viewport, which
+ *   inflates the measured vertical budget and makes genuinely overflowing slides
+ *   report clean. The first version of this file did exactly that and passed a deck
+ *   whose ch4 slide was clipping its caption at two of three viewports.
+ *
+ *   Instead we drive the deck's OWN navigation -- window.show(i), the same function
+ *   the Next button calls -- one slide at a time, and measure the slide while it is
+ *   genuinely active and genuinely constrained.
  *
  * USAGE
- *   _tools/qa/serve.sh &                       # deck must be served, not file://
+ *   _tools/qa/serve.sh 8137 &
  *   node _tools/qa/probe-overflow.js <url> [--slide N]
  *
  * EXIT
- *   0 = no overflow at any tested viewport. 1 = overflow found (details on stdout).
+ *   0 = no overflow anywhere. 1 = overflow found. 2 = probe could not measure.
  */
 const puppeteer = require('puppeteer');
 
-// The three Chris tested. 1024x600 is the netbook/short-window worst case, 1024x768 the
-// classroom projector, 1280x720 the typical laptop.
 const VIEWPORTS = [
-    { w: 1024, h: 600 },
-    { w: 1024, h: 768 },
-    { w: 1280, h: 720 },
+    { w: 1024, h: 600 },   // short window / netbook worst case
+    { w: 1024, h: 768 },   // classroom projector
+    { w: 1280, h: 720 },   // typical laptop
 ];
 
 async function main() {
@@ -50,75 +55,72 @@ async function main() {
         const page = await browser.newPage();
         await page.setViewport({ width: vp.w, height: vp.h });
 
-        // Gated decks run AccessGuard, which does not merely hide <body> -- it REPLACES
-        // the content when it fails closed. Trying to un-hide it after load measures an
-        // empty document and reports a clean pass, which is how the first run of this
-        // probe "passed" on 0 slides. Block the guard instead: this probe measures
-        // layout geometry, not the gate, and the gate has its own tests.
+        // A gated deck's AccessGuard REPLACES the body when it fails closed, so
+        // un-hiding after load measures an empty document and reports a false clean.
+        // Block the guard -- this probe measures layout, not the gate.
         await page.setRequestInterception(true);
-        page.on('request', req => {
-            if (/AccessGuard\.js/.test(req.url())) return req.abort();
-            req.continue();
-        });
+        page.on('request', r => /AccessGuard\.js/.test(r.url()) ? r.abort() : r.continue());
         await page.goto(url, { waitUntil: 'networkidle0' });
 
-        // Slides are a deck-wide carousel: only the current one is displayed. Show them
-        // all so every slide gets measured in one pass.
-        await page.evaluate(() => {
-            document.body.style.visibility = 'visible';
-            document.querySelectorAll('.slide').forEach(s => {
-                s.style.display = 'flex';
-                s.style.position = 'static';
-            });
-        });
-
-        // A probe that finds nothing must fail loudly, never report "clean".
-        const slideCount = await page.evaluate(() => document.querySelectorAll('.slide').length);
-        if (slideCount === 0) {
+        const count = await page.evaluate(() => document.querySelectorAll('.slide').length);
+        if (count === 0) {
             console.error(`FATAL ${vp.w}x${vp.h}: 0 slides found -- page did not render. ` +
-                          `Not a pass. Check the URL and that the server is up.`);
+                          `Not a pass.`);
+            await browser.close();
+            process.exit(2);
+        }
+        const hasShow = await page.evaluate(() => typeof window.show === 'function');
+        if (!hasShow) {
+            console.error(`FATAL ${vp.w}x${vp.h}: deck exposes no window.show(i); ` +
+                          `cannot drive native navigation. Refusing to fake it.`);
             await browser.close();
             process.exit(2);
         }
 
-        const rows = await page.evaluate(() => {
-            const out = [];
-            document.querySelectorAll('.slide').forEach((slide, i) => {
-                const probe = (el) => el
-                    ? Math.max(0, el.scrollHeight - el.clientHeight)
-                    : 0;
-                const h2 = slide.querySelector('h2');
-                out.push({
-                    i: i + 1,
-                    title: h2 ? h2.textContent.trim().slice(0, 46) : '(divider)',
-                    slide: probe(slide),
-                    text: probe(slide.querySelector('.slide-text')),
-                    visual: probe(slide.querySelector('.slide-visual')),
-                    // natural vs rendered height of any generated image in the panel
-                    imgH: (() => {
-                        const im = slide.querySelector('.viz img');
-                        return im ? Math.round(im.getBoundingClientRect().height) : null;
-                    })(),
-                });
-            });
-            return out;
-        });
+        const bad = [];
+        for (let i = 0; i < count; i++) {
+            if (only && i + 1 !== only) continue;
+            await page.evaluate(n => window.show(n), i);
+            // let the fade settle and any image reflow land
+            await new Promise(r => setTimeout(r, 90));
 
-        const bad = rows.filter(r => (!only || r.i === only) &&
-                                     (r.slide > 0 || r.text > 0 || r.visual > 0));
+            const row = await page.evaluate(() => {
+                const slide = document.querySelector('.slide.active');
+                if (!slide) return null;
+                const over = el => el ? Math.max(0, el.scrollHeight - el.clientHeight) : 0;
+                const h2 = slide.querySelector('h2');
+                const img = slide.querySelector('.viz img, .ov-stage img');
+                const vis = slide.querySelector('.slide-visual');
+                // Does the visual's content actually fit inside the panel box?
+                let clipped = 0;
+                if (img && vis) {
+                    const ib = img.getBoundingClientRect(), vb = vis.getBoundingClientRect();
+                    clipped = Math.round(Math.max(0, vb.top - ib.top) + Math.max(0, ib.bottom - vb.bottom));
+                }
+                return {
+                    title: h2 ? h2.textContent.trim().slice(0, 44) : '(divider)',
+                    slide: over(slide),
+                    text: over(slide.querySelector('.slide-text')),
+                    visual: over(vis),
+                    clipped,
+                };
+            });
+            if (!row) continue;
+            if (row.slide || row.text || row.visual || row.clipped) {
+                bad.push({ i: i + 1, ...row });
+            }
+        }
+
         console.log(`\n=== ${vp.w}x${vp.h} ===`);
         if (!bad.length) {
-            console.log(`  clean -- 0px overflow across ${rows.length} slides measured`);
+            console.log(`  clean -- 0px overflow across ${count} slides, measured natively`);
         } else {
             failed = true;
             for (const r of bad) {
                 console.log(`  slide ${String(r.i).padStart(2)}  ${r.title}`);
-                console.log(`      slide +${r.slide}px   text +${r.text}px   visual +${r.visual}px`);
+                console.log(`      slide +${r.slide}px  text +${r.text}px  ` +
+                            `visual +${r.visual}px  image clipped ${r.clipped}px`);
             }
-        }
-        if (only) {
-            const r = rows.find(x => x.i === only);
-            if (r) console.log(`  [slide ${only}] rendered image height: ${r.imgH ?? 'n/a'}px`);
         }
         await page.close();
     }
