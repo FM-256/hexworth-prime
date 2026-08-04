@@ -732,7 +732,19 @@ const AccessGuard = (function() {
                 } catch (e) { /* unparseable -> not a tenant session */ }
             }
 
-            if (tenantSlug && level !== 'admin' && level !== 'admin-only' && level !== 'instructor') {
+            /* STAFF CREDENTIALS OUTRANK TENANT STATE — do not remove.
+               This branch sits ABOVE the admin/god-mode/master-key bypasses below, so
+               before this guard existed it won for anyone holding a tenant blob, admin or
+               not. Once the branch also started REVOKING (async verify -> purge ->
+               redirect('dashboard')), that ordering meant an administrator carrying a
+               stale blob for a tenant they had deactivated was bounced off every gated
+               page on the platform, including /houses/observatory/ — reported and
+               reproduced 2026-08-04: admin + sorted + inactive tenant landed on
+               /dashboard.html with "This tenant is no longer active."
+               An admin's access never derived from the tenant, so tenant revocation must
+               not be able to take it away. Staff fall through to their own bypasses. */
+            if (tenantSlug && !isFirebaseAdmin() && !hasGodMode() && !hasMasterKey() &&
+                level !== 'admin' && level !== 'admin-only' && level !== 'instructor') {
                 showContent();
                 /* Tenant was the ONLY bypass in this file with no background check at all --
                    admin, gate and instructor each schedule one. Not a defeated verification;
