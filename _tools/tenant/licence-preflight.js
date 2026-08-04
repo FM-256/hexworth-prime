@@ -54,12 +54,24 @@ const only = process.argv[2] || null;
         const enforcing = licensing.enforce === true;
 
         const classes = await doc.ref.collection('classes').get();
-        const unlicensed = [];
+
+        // BLOCKING vs INFORMATIONAL turns on class status, because that is what the code
+        // actually does: enrollInClass refuses any class whose status !== 'active' before it
+        // ever reaches the licence gate. So a RETIRED class teaching an unlicensed course
+        // cannot be harmed by enforcement — nobody can enrol in it either way. Blocking on
+        // one would be stricter than the system being modelled, and would push an operator
+        // toward deleting history they are deliberately keeping.
+        //
+        // It is still REPORTED, because reactivating such a class would start refusing
+        // enrolments with no obvious cause. Warn, do not block.
+        const unlicensed = [];   // live and unlicensed -> blocks
+        const dormant = [];      // retired and unlicensed -> informational
         classes.forEach(c => {
             const v = c.data();
             // A class with no courseId cannot be checked; report it rather than pass it.
-            if (!v.courseId) { unlicensed.push({ ...v, id: c.id, courseId: '(none)' }); return; }
-            if (!licensed.includes(v.courseId)) unlicensed.push({ ...v, id: c.id });
+            const courseId = v.courseId || '(none)';
+            if (v.courseId && licensed.includes(v.courseId)) return;
+            (v.status === 'active' ? unlicensed : dormant).push({ ...v, id: c.id, courseId });
         });
 
         const misconfigured = enforcing && licensed.length === 0;
@@ -80,9 +92,17 @@ const only = process.argv[2] || null;
         }
         for (const c of unlicensed) {
             console.log(`    ! class "${c.name}" (${c.id}) teaches "${c.courseId}" — NOT licensed`);
-            console.log(`      ${c.studentCount || 0} student(s), status=${c.status}`);
-            console.log(`      Fix: licence "${c.courseId}", retire the class, or leave this`);
-            console.log('           tenant unenforced.');
+            console.log(`      ${c.studentCount || 0} student(s), status=${c.status} — ACCEPTING ENROLMENTS`);
+            console.log(`      Fix: licence "${c.courseId}", set this class's status away from`);
+            console.log('           "active" (its data is kept either way), or leave this tenant');
+            console.log('           unenforced.');
+        }
+        for (const c of dormant) {
+            console.log(`    - note: retired class "${c.name}" (${c.id}) teaches unlicensed `
+                      + `"${c.courseId}" (${c.studentCount || 0} student(s), status=${c.status}).`);
+            console.log('      Not blocking: enrolment is already closed on a non-active class, so');
+            console.log('      enforcement cannot affect it. Its records are untouched. Reactivating');
+            console.log('      it would start refusing enrolments — licence the course first.');
         }
         console.log('');
     }
