@@ -5189,6 +5189,10 @@ exports.redeemInvite = onCall(cfOptions, async (request) => {
  * adminCreateClass — Creates a class under a tenant.
  * Input: { tenantSlug, name, courseId, joinCode, startDate, endDate, settings, instructorUid? }
  */
+// Licence check lives in functions/licensing.js so it can be unit-tested without
+// booting this bundle. See that file for the model and the why-here reasoning.
+const { isCourseLicensed } = require('./licensing');
+
 exports.adminCreateClass = onCall(cfOptions, async (request) => {
     requireAdmin(request);
 
@@ -5201,6 +5205,20 @@ exports.adminCreateClass = onCall(cfOptions, async (request) => {
     // Validate tenant exists
     const tenantDoc = await db.doc(`tenants/${tenantSlug}`).get();
     if (!tenantDoc.exists) throw new HttpsError('not-found', `Tenant "${tenantSlug}" not found.`);
+
+    // Licence gate. No-op unless this tenant has opted in via licensing.enforce.
+    // Fails loudly, to the admin, at the moment of the mistake — and names the two ways out
+    // so the message is actionable rather than merely a refusal.
+    const licence = isCourseLicensed(tenantDoc.data(), courseId);
+    if (!licence.allowed) {
+        console.warn(`[licensing] refused class creation: tenant=${tenantSlug} course=${courseId} `
+                   + `licensed=${JSON.stringify(licence.licensed)}`);
+        throw new HttpsError('failed-precondition',
+            `"${tenantSlug}" is not licensed for "${courseId}". `
+          + `Licensed courses: ${licence.licensed.join(', ') || '(none)'}. `
+          + `Add "${courseId}" to the tenant's licensing.contentAccess.courses, or create this `
+          + `class in a tenant that licenses it.`);
+    }
 
     // Generate or validate join code
     let code = (joinCode || '').trim().toUpperCase();
@@ -5546,6 +5564,21 @@ exports.enrollInClass = onCall(cfOptions, async (request) => {
     const classData = classDoc.data();
     if (classData.status !== 'active') {
         throw new HttpsError('failed-precondition', 'This class is not currently accepting enrollments.');
+    }
+
+    // Licence gate, defence in depth. adminCreateClass is the primary gate, but classes
+    // created BEFORE a tenant opted in are already on disk and would otherwise keep taking
+    // enrolments forever. No-op unless licensing.enforce is set.
+    //
+    // Deliberately worded for a STUDENT, not an admin: they cannot fix a licence and should
+    // not be shown its internals. The console line carries the detail an admin needs.
+    const enrolLicence = isCourseLicensed(tenantDoc.data(), classData.courseId);
+    if (!enrolLicence.allowed) {
+        console.warn(`[licensing] refused enrolment: tenant=${tenantSlug} class=${classId} `
+                   + `course=${classData.courseId} licensed=${JSON.stringify(enrolLicence.licensed)}`);
+        throw new HttpsError('failed-precondition',
+            'This class is not available under your organization\'s current licence. '
+          + 'Please contact your instructor.');
     }
 
     // Check seat limits
