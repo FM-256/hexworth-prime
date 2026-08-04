@@ -613,28 +613,13 @@ service cloud.firestore {
       // Write only via Cloud Functions (tenant-admin.js uses admin SDK)
     }
 
-    // Tenant classes — read for any signed-in user; ALL writes via Cloud Functions.
-    //
-    // Client writes removed 2026-08-04. They let anyone in the tenant's adminUids create or
-    // update a class document straight from the client SDK, bypassing adminCreateClass and
-    // therefore the white-label licence gate entirely — the exact population that gate
-    // exists to constrain. They also permitted `update` on ANY field including courseId,
-    // defeating adminUpdateClass's allowlist, which deliberately excludes courseId so a
-    // class cannot be switched to an unlicensed course after creation.
-    //
-    // The licence gate's stated justification was "if the unlicensed class never exists,
-    // nothing downstream can write to it." That was false while this rule stood: the rules
-    // layer was itself an ungated writer. Caught at QC before anyone relied on the claim.
-    //
-    // Safe to close: no client code writes these documents (verified across _app — the only
-    // matches were observatory_classes and CSS classList), and every operation already has a
-    // Cloud Function (adminCreateClass / adminUpdateClass / adminDeleteClass) running on the
-    // admin SDK, which bypasses rules.
-    //
-    // Mirrors the parent tenants/{tenantId} rule above, which is already CF-only.
+    // Tenant classes — scoped to tenant admins and enrolled students
     match /tenants/{tenantId}/classes/{classId} {
       allow read: if request.auth != null;
-      // Writes denied by omission — use the Cloud Functions named above.
+      allow create: if request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
+      allow update, delete: if request.auth != null
+        && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
 
       // Assignments within a tenant class
       match /assignments/{assignmentId} {
