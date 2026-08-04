@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSE Lecture &middot; Chapter 7 | CloudMaster</title>
+<!--
+  CSE LECTURE DECK -- CHAPTER 7 (Monitoring and Incident Response)
+
+  Generated from the approved CH1 pattern by _planning/cse-visuals/build-decks.py. The CSS and
+  slide engine are lifted verbatim from cse-lecture-ch1.html so the eight decks cannot drift.
+  Edit the builder and re-emit rather than hand-patching one chapter.
+
+  This is a PROJECTION deck, not a reading deck: the visual owns the slide, on-screen text is a
+  title plus two or three beats, and every talking point, trap, class anchor and ask-the-room
+  prompt lives in the presenter panel (press N) where the class cannot see it.
+-->
+<style>
+    :root {
+        --bg:      #070c14;
+        --panel:   #0e1726;
+        --ink:     #eef4fd;
+        --muted:   #8ea3bd;
+        --line:    rgba(120,170,220,.16);
+        --accent:  #22d3ee;
+        --gold:    #ffd86b;
+        --green:   #4ade80;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+        margin: 0; background: var(--bg); color: var(--ink);
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        overflow: hidden;
+    }
+    .app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+
+    /* ── top bar ─────────────────────────────────────────────── */
+    .bar {
+        position: absolute; top: 0; left: 0; right: 0; height: 44px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 22px; border-bottom: 1px solid var(--line);
+        background: rgba(7,12,20,.9); z-index: 5;
+    }
+    .bar a { color: var(--muted); text-decoration: none; font-size: 13px; }
+    .bar a:hover { color: var(--accent); }
+    .bar .mid { font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase;
+                color: var(--gold); font-weight: 700; }
+    .bar .right { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    /* ── slides ──────────────────────────────────────────────── */
+    .stage { position: absolute; top: 44px; left: 0; right: 0; bottom: 52px; }
+    .slide {
+        position: absolute; inset: 0; display: none;
+        flex-direction: column; align-items: center;
+        padding: 20px 46px 12px;
+    }
+    .slide.active { display: flex; animation: fade .25s ease; }
+    @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+    h2 {
+        font-size: clamp(1.5rem, 2.6vw, 2.2rem); margin: 0 0 2px;
+        letter-spacing: -.02em; text-align: center; text-wrap: balance;
+    }
+    .sub { color: var(--muted); font-size: clamp(.85rem, 1.15vw, 1rem); margin: 0 0 12px; text-align: center; }
+
+    /* THE VISUAL -- takes every pixel left over. This is the point of the deck. */
+    .visual {
+        flex: 1; min-height: 0; width: 100%;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .visual img, .visual video {
+        max-width: 100%; max-height: 100%; width: auto; height: auto;
+        object-fit: contain; border-radius: 10px;
+        border: 1px solid var(--line);
+        box-shadow: 0 18px 50px rgba(0,0,0,.55);
+    }
+
+    /* ── the sliding responsibility boundary (slide 7) ────────
+       This ONE moving element is driven from the DOM, not from the generated video.
+       Kling was asked to slide the band and did not: measured across the whole 5s clip
+       the band centre moved ~24px in a 768px frame -- imperceptible, and the slide's
+       entire lesson is that the line MOVES. Chris measured zero at his sample column.
+       A generated clip cannot be held to a geometric promise, so the promise moves to
+       CSS, where the geometry is exact and testable.
+       Percentages are measured from the artwork, not guessed: the tower occupies
+       x 39.1-59.6%, y 5.5-59.9% of the image (sampled by amber-pixel bounding box). */
+    /* The stage box must match the rendered image EXACTLY, because the band below is
+       positioned in percentages of it. An inline-block wrapper has height:auto, so the
+       image's max-height:100% resolves against nothing and the slide overflowed by
+       42-73px. Declaring the artwork's own ratio (1408x768 = 11/6) lets the box fit
+       inside both constraints without distorting, and keeps stage == image. */
+    .tower-stage {
+        position: relative; aspect-ratio: 11 / 6;
+        height: 100%; width: auto; max-width: 100%; max-height: 100%;
+    }
+    .tower-stage img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .cust-zone {
+        position: absolute; left: 38.4%; width: 21.8%; top: 5.0%;
+        background: rgba(56,150,255,.30);
+        border-bottom: 5px solid #7dd3fc;
+        box-shadow: 0 0 24px rgba(56,189,248,.8);
+        border-radius: 3px 3px 0 0;
+        pointer-events: none;
+        animation: shareShrink 11s ease-in-out infinite;
+    }
+    /* The customer's share is most of the stack at IaaS and a sliver at SaaS. */
+    @keyframes shareShrink {
+        0%,   14% { height: 45%; }
+        48%,  62% { height: 13%; }
+        92%, 100% { height: 45%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .cust-zone { animation: none; height: 45%; }
+    }
+
+    /* beats -- short anchors, never paragraphs */
+    .beats {
+        flex: none; display: flex; flex-wrap: wrap; justify-content: center;
+        gap: 10px 26px; margin-top: 14px; max-width: 1200px;
+    }
+    .beats span {
+        font-size: clamp(.9rem, 1.35vw, 1.15rem); color: var(--ink);
+        display: inline-flex; align-items: baseline; gap: 9px; line-height: 1.35;
+    }
+    .beats span::before {
+        content: '\25B8'; color: var(--gold); font-size: .8em; flex: none;
+    }
+    .beats span.key { color: var(--green); font-weight: 650; }
+    .beats span.key::before { color: var(--green); }
+
+    /* ── cover / divider ─────────────────────────────────────── */
+    .slide.cover { justify-content: center; }
+    .slide.cover .eyebrow {
+        font-size: 12px; letter-spacing: .2em; text-transform: uppercase;
+        color: var(--accent); font-weight: 700; margin-bottom: 14px;
+    }
+    .slide.cover h1 { font-size: clamp(2.2rem, 5vw, 3.6rem); margin: 0 0 14px; letter-spacing: -.03em; }
+    .slide.cover .tag { color: var(--muted); font-size: 1.05rem; max-width: 60ch; text-align: center; }
+
+    /* ── bottom nav ──────────────────────────────────────────── */
+    .nav {
+        position: absolute; bottom: 0; left: 0; right: 0; height: 52px;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0 22px; border-top: 1px solid var(--line);
+        background: rgba(7,12,20,.9); z-index: 5;
+    }
+    .nav button {
+        background: var(--panel); color: var(--ink); border: 1px solid var(--line);
+        border-radius: 8px; padding: 8px 16px; font-size: 13.5px; cursor: pointer;
+        font-family: inherit;
+    }
+    .nav button:hover { border-color: var(--accent); }
+    .nav .hint { color: var(--muted); font-size: 11.5px; }
+    .nav .hint kbd {
+        background: rgba(255,255,255,.07); border: 1px solid var(--line);
+        border-radius: 4px; padding: 1px 6px; font-family: inherit; font-size: 11px;
+    }
+
+    /* ── presenter notes ─────────────────────────────────────── */
+    /* absolute, not fixed -- see the positioning note in the header comment. */
+    .notes {
+        position: absolute; left: 0; right: 0; bottom: 52px;
+        max-height: 62%; overflow-y: auto;
+        background: rgba(9,14,26,.975); border-top: 2px solid var(--gold);
+        padding: 20px 46px 26px; z-index: 6; display: none;
+    }
+    .notes.open { display: block; }
+    .notes h3 {
+        font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase;
+        color: var(--gold); margin: 0 0 12px;
+    }
+    .notes ul { list-style: none; padding: 0; margin: 0 0 14px; }
+    .notes li {
+        font-size: 15px; line-height: 1.55; color: #cbd5e1;
+        margin-bottom: 9px; padding-left: 20px; position: relative;
+    }
+    .notes li::before { content: '\25B8'; position: absolute; left: 0; color: var(--gold); }
+    .notes li b { color: #93c5fd; }
+    .notes .anchor, .notes .askrm {
+        border-radius: 8px; padding: 11px 15px; font-size: 14.5px; line-height: 1.5;
+        margin-top: 10px;
+    }
+    .notes .anchor { background: rgba(74,222,128,.09); border-left: 3px solid var(--green); }
+    .notes .anchor b { color: var(--green); }
+    .notes .askrm { background: rgba(34,211,238,.09); border-left: 3px solid var(--accent); }
+    .notes .askrm b { color: var(--accent); }
+    .notes .private {
+        color: var(--muted); font-size: 11.5px; margin-top: 14px; font-style: italic;
+    }
+</style>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<script src="../../../../components/FirestoreManager.js"></script>
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('instructor');</script>
+</head>
+<body>
+<div class="app">
+
+  <div class="bar">
+    <a href="../../instructor/index.html">&larr; Instructor Slides</a>
+    <span class="mid">EC-Council C|CSE &middot; Lecture &middot; Chapter 7</span>
+    <span class="right" id="counter"></span>
+  </div>
+
+  <div class="stage" id="stage">
+
+    <section class="slide cover active">
+      <div class="eyebrow">Chapter 7 &middot; EC-Council C|CSE</div>
+      <h1>Monitoring and Incident Response</h1>
+      <p class="tag">Cloud records everything, and destroys evidence just as fast.</p>
+    </section>
+
+    <section class="slide" data-notes="{&quot;points&quot;: [&quot;The one to emphasise: the audit log. It is cloud&#x27;s genuine advantage over on-prem &amp;mdash; every administrative action, recorded, by default. On-prem never had this.&quot;, &quot;The catch worth stating: it is only useful if it is enabled everywhere, kept long enough, and written somewhere the attacker cannot edit. All three fail routinely.&quot;, &quot;Audit / activity Who did what, to which resource, when, from where The primary security source. Every control-plane API call.&quot;, &quot;Application &amp;amp; system logs What happened inside the workload Detail during investigation. Volume problem at scale.&quot;, &quot;Metrics How much, how fast, how many Anomalies &amp;mdash; a cost or egress spike is often the first breach signal.&quot;], &quot;anchor&quot;: &quot;In cloud you trade packet capture for a complete record of every action taken. That is a good trade &amp;mdash; if anyone reads it.&quot;}">
+      <h2>Three kinds of telemetry, three different questions</h2>
+      <p class="sub">Students treat "logs" as one thing. Separate them and the tooling makes sense.</p>
+      <div class="visual">
+        <img src="/assets/images/cse-lecture/ch7/ch7-01-three-telemetry.webp" alt="Scene: three very different instruments reading one machine.">
+      </div>
+      <div class="beats">
+        <span>Audit: who did what</span>
+        <span>Logs: what happened inside — and there is too much</span>
+        <span class="key">Metrics: a spike is often the first signal</span>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="{&quot;points&quot;: [&quot;SIEM &amp;mdash; collects logs from everywhere and correlates them. The question it answers: \&quot;did something bad happen across these systems?\&quot;&quot;, &quot;SOAR &amp;mdash; automates the response once something fires. \&quot;Do the first five steps without waiting for a human at 3am.\&quot;&quot;, &quot;CSPM &amp;mdash; continuously checks CONFIGURATION against policy. Not \&quot;did something happen\&quot; but \&quot;is anything currently wrong\&quot; &amp;mdash; the public bucket, the wildcard role. Directly answers chapter two&#x27;s misconfiguration problem.&quot;, &quot;CNAPP &amp;mdash; the consolidation: posture plus workload plus identity plus code, one platform. Mostly a market term; teach it as \&quot;the category vendors converged on\&quot;, not as a distinct technology.&quot;], &quot;ask&quot;: &quot;A bucket has been public for six months, with no attack. Which tool tells you?\&quot; CSPM. A SIEM sees events; only posture management sees a bad state that is quietly sitting there.&quot;}">
+      <h2>The acronym fog, cleared</h2>
+      <p class="sub">SIEM, SOAR, CSPM, CNAPP. Give each a one-line job so they stop blurring.</p>
+      <div class="visual">
+        <img src="/assets/images/cse-lecture/ch7/ch7-02-acronym-fog.webp" alt="Scene: fog lifting off a row of tools.">
+      </div>
+      <div class="beats">
+        <span>Different tools, different jobs</span>
+        <span>Most overlap less than the marketing suggests</span>
+        <span class="key">Name the job, then the acronym</span>
+      </div>
+    </section>
+
+    <section class="slide" data-notes="{&quot;points&quot;: [&quot;Containment is an API call. Isolate by revoking a role or replacing a security group, in seconds. Faster than any physical response ever was &amp;mdash; and reversible if you are wrong.&quot;, &quot;Evidence is ephemeral. Terminate the instance and the disk may be gone forever. Snapshot BEFORE you contain. Students&#x27; instinct is to kill it first; correct that instinct explicitly.&quot;, &quot;Identity is the first question, not the last. Which credential did this? Cloud incidents are usually credential incidents. Rotating the key is often the actual containment.&quot;, &quot;Recovery can be a redeploy. If infrastructure is code, rebuild from source rather than clean a compromised host. Chapter six&#x27;s \&quot;repave\&quot;, arriving on schedule.&quot;], &quot;anchor&quot;: &quot;Snapshot, then contain. Do it in the other order and you have destroyed the only copy of the evidence.&quot;}">
+      <h2>What incident response actually changes in cloud</h2>
+      <p class="sub">The phases are unchanged. Three of the steps are not.</p>
+      <div class="visual">
+        <img src="/assets/images/cse-lecture/ch7/ch7-03-ephemeral-evidence.webp" alt="Scene: the evidence is disappearing while you look at it.">
+      </div>
+      <div class="beats">
+        <span>The instance can vanish in seconds</span>
+        <span>Snapshot before you terminate</span>
+        <span class="key">Containment is an API call — so is destroying the evidence</span>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="notes" id="notes"></div>
+
+  <div class="nav">
+    <button onclick="go(-1)">&larr; Prev</button>
+    <span class="hint">
+      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> move &nbsp;&middot;&nbsp;
+      <kbd>N</kbd> presenter notes &nbsp;&middot;&nbsp; <kbd>F</kbd> fullscreen
+    </span>
+    <button onclick="go(1)">Next &rarr;</button>
+  </div>
+
+</div>
+
+<script>
+/* Slide engine. Deliberately tiny -- a lecture deck that fails mid-class because of a
+   clever framework is worse than one with no features. */
+const slides  = Array.from(document.querySelectorAll('.slide'));
+const notesEl = document.getElementById('notes');
+let idx = 0;
+
+function renderNotes(i) {
+    const raw = slides[i].dataset.notes;
+    if (!raw) {
+        notesEl.innerHTML = '<h3>Presenter notes</h3>' +
+            '<p class="private">No notes for this slide.</p>';
+        return;
+    }
+    let n;
+    try { n = JSON.parse(raw); }
+    catch (e) {
+        // Never let a malformed note blank the panel mid-lecture.
+        notesEl.innerHTML = '<h3>Presenter notes</h3>' +
+            '<p class="private">Notes for this slide could not be read.</p>';
+        return;
+    }
+    let html = '<h3>Presenter notes &middot; slide ' + (i + 1) + ' of ' + slides.length + '</h3>';
+    if (n.points && n.points.length) {
+        html += '<ul>' + n.points.map(p => '<li>' + p + '</li>').join('') + '</ul>';
+    }
+    if (n.anchor) html += '<div class="anchor"><b>Class anchor:</b> &ldquo;' + n.anchor + '&rdquo;</div>';
+    if (n.ask)    html += '<div class="askrm"><b>Ask the room:</b> &ldquo;' + n.ask + '&rdquo;</div>';
+    html += '<p class="private">Visible on your screen only &mdash; press N to hide before you ask.</p>';
+    notesEl.innerHTML = html;
+}
+
+function show(i) {
+    idx = Math.max(0, Math.min(slides.length - 1, i));
+    slides.forEach((s, k) => s.classList.toggle('active', k === idx));
+    document.getElementById('counter').textContent = (idx + 1) + ' / ' + slides.length;
+    renderNotes(idx);
+    // restart any animation so the motion is showing when the slide lands, not
+    // half-finished from a previous visit
+    const v = slides[idx].querySelector('video');
+    if (v) { try { v.currentTime = 0; v.play(); } catch (e) {} }
+}
+function go(d) { show(idx + d); }
+function toggleNotes() { notesEl.classList.toggle('open'); }
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); go(1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(-1); }
+    else if (e.key === 'Home') { e.preventDefault(); show(0); }
+    else if (e.key === 'End')  { e.preventDefault(); show(slides.length - 1); }
+    else if (e.key === 'n' || e.key === 'N') { toggleNotes(); }
+    else if (e.key === 'f' || e.key === 'F') {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
+    }
+});
+
+show(0);
+</script>
+</body>
+</html>
