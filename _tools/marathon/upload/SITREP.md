@@ -15,73 +15,73 @@
 - 3b6890b52 fix(games): BUG-093 batch 3 -- pre-formatted text and wide tables contained, not wrapped
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-08-04 — EduScan scan-root fix COMMITTED (0267eefde). No deploy: _tools only.
+**Manual section updated:** 2026-08-04 — PAUSED mid-task, operator changing location. Production SAFE.
 
-## NOW — EduScan scan-root fix committed. The "1,582 orphans" were MINE. Nancy PAUSEd 3x.
+## NOW — PAUSED. az-104 quiz shuffle is COMMITTED but NOT DEPLOYED. Read this before resuming.
 
-### REVERT POINT — tag `revert-point-2026-08-04-eduscan-fix` -> 217d5adb7
-  Lodestar: `revert-point-2026-08-04` -> ae29833 (~/job-campaign-stack, separate repo).
-  Revert with: `git reset --hard revert-point-2026-08-04-eduscan-fix`
+### ★ PRODUCTION IS SAFE. DO NOT half-ship this.
+  live HTML  = OLD option order.  live Firestore quiz_keys = OLD indices.  They AGREE.
+  Students are grading correctly right now. The ONLY unsafe state is a gap we create.
+  Local HEAD be99e4ccf has NEW option order + NEW keys, committed, undeployed.
 
-### ★ THERE IS NO REGISTRY CORRUPTION. I manufactured it, then believed it.
-  `cli.js --path <anything not exactly ./_app>` emitted 1,582 false REG-ORPHAN-001 CRITICALS.
-  cli.js writes _tools/reports/TREASURE_MAP.json; nexus/hub.js:38 points the deploy gate at
-  that file; deploy.sh:176 runs the gate. One scoped scan poisoned the gate, blocked deploys,
-  and I called it pre-existing forge/shield debt THREE TIMES and `--force`d past it TWICE.
-  Both forces were unnecessary. NO FILE WAS EVER MISSING.
-  Real baseline (`_docs/operations/nexus-2026-07-07-criticals-scope.md`): 10 criticals, all
-  sprint-source backlog tags. Confirmed against findings.json.
+### RESUME SEQUENCE — exact, do not reorder
+  0. Chris was mid-review of be99e4ccf when we stopped. Re-run him if no PASS is recorded.
+  1. `_tools/deploy/record-chris-pass.sh "<scope>"`  (deploy.sh BLOCKS without it)
+  2. `cd functions && node push-quiz-keys.js --filter az104`     <- PRODUCTION Firestore write
+  3. `./deploy.sh`  IMMEDIATELY after step 2 — back to back, minimal gap
+  4. verify live: option order on az104-ch02 Q4 should show "Owner can assign roles" at [3]
+  5. regenerate the 6 Confluence solution pages (see below) — 71/90 letters go stale on deploy
+  WHY THIS ORDER: keys-first because gradeQuiz reads the key at SUBMIT time. Getting Chris's
+  pass BEFORE pushing matters — pushing then waiting for review leaves live HTML and live keys
+  disagreeing for the whole review window.
 
-### FIXED — commit 0267eefde, 14 files, all under _tools/ (force-added). NO hosting deploy.
-  Root cause: rootPath and registryPath are independent options that coincide only on a
-  canonical scan. Registry entries are relative to the APP ROOT; orphans.js resolved them
-  against rootPath. Reproduced with a file AND with a valid subdir (_app/houses/cloud) --
-  which killed the first proposed fix ("validate --path is a directory"): it would have
-  passed the real bug straight through.
-  Introduced appRoot (registryRoot in orphans.js), derived from registryPath, defaulting to
-  rootPath so canonical scans are byte-identical. 13 validators repointed.
-  ★ THE QUIET ONE: assignment-links.js had NO appRoot at all -> on any scoped scan its
-    LearningPaths.js lookup failed, validate() early-returned, and ASGN-001..006 SILENTLY
-    STOPPED RUNNING, incl. the ASGN-005 PATH_HOUSE_MAP guard. Two failure shapes, one visible:
-    a bad path against a REGISTRY fabricates loud criticals; against a validator's own asset
-    it makes the check quietly not run. Severity counts cannot detect the second kind.
-  Report split: canonical TREASURE_MAP.json filename now RESERVED for full-tree scans;
-  anything else writes TREASURE_MAP.scoped.*. Exact root equality, in index.js at reporter
-  construction so it binds in-process callers too.
-  NOT changed, deliberately: tree-mapper.js (single-root by design; an appRoot field was added
-  then REMOVED as dead code -- a half-migrated file that looks fixed is worse), skill-map.js
-  (joins rootPath+'_app', expects REPO root, unwired), REG-ORPHAN severity stays critical per
-  Confluence "Deployment Checklist" p.753665 ("Blocks deploy. Must fix.").
+### WHY THERE IS NO SAFE ORDERING (Nancy traced it)
+  gradeQuiz has no version field, no key-version param, no maintenance flag. The quiz HTML
+  embeds questions as a static JS array loaded ONCE at page load. A student holding the page
+  across the key write is graded against positions that no longer exist. Only a moment with no
+  in-flight sessions removes this. Accept a short window; do not pretend it is zero.
 
-### VERIFIED
-  canonical scan byte-identical to baseline: 12,677 issues, {info:548, low:9579, medium:1522,
-    suspect:39, warning:989}, zero per-code deltas
-  scoped _app/houses/cloud: REG-ORPHAN 1582 -> 0; FLOW-001 296 vs canonical 1266 (proper
-    subset, no inflation); registry 1,474 either way
-  npm run scan:test 78/78 -- and the regression test is proven to FAIL when either fix is
-    reverted ("got 1582" / "pathHouseMapEntries=0"). Its first version passed WITH the bug.
-  node _tools/nexus/nexus.js gate -> GATE PASSED, exit 0
+### WHAT WAS FIXED (be99e4ccf)
+  QUIZ-008. az104-ch02 key was [1]x15 — every answer B, all-B scored 100%. ch01 14/15, ch06
+  93%, ch04/ch05 87%, ch03 67%. After: max single-index share 33-47% on all six.
+  Tool: `_tools/quiz/az104-shuffle.js` (NEW). Deterministic, seeded sha256(quizId:qIndex);
+  moves option literals as RAW SOURCE so \' and → survive; asserts per question that the
+  option at the NEW index is byte-identical to the one at the OLD index AND that the option
+  set is unchanged, aborting the whole run on any mismatch; reseeds if a permutation lands
+  >60% on one index so it cannot silently no-op.
+  NOT the ALA tool: ALA embeds {q,opts,ans,exp} (answer in HTML, browser-graded, Firestore
+  inert). AZ-104 embeds {question,options,explanation}, NO answer field, genuinely
+  server-graded (QuizEngine.js:621 -> gradeQuiz CF). HTML question N maps to answers[N] by
+  ARRAY POSITION ALONE, no shared id — a correspondence nothing in this repo had ever checked.
+  Verified before writing: 6 quizzes x 15 questions, 15 keys each, 4 options, all in range.
 
-### MY ERRORS THIS TASK, for the record
-  1. Manufactured the orphans, then built a story ("forge/shield debt") that explained the
-     number without checking it. Repeated it three times.
-  2. First regression test asserted on results.issues (does not exist at top level) -> passed
-     with the bug reintroduced.
-  3. That same test wrote to the default outputDir and clobbered the canonical gate report on
-     every run -- the SECOND self-inflicted instance of the bug being fixed.
-  4. Claimed FLOW-001 592/2532 as MEASURED; true values 296/1266. Summed overlapping result
-     buckets. Nancy re-derived and caught it.
-  5. `git add -f _tools/eduscan/validators/` swept in two untracked foreign files
-     (functional/browser.js, functional/runtime.js). Amended out; still on disk, untracked.
+### BRIDGET AUDIT — ran, clean, with two findings that matter
+  ★ 0 WRONG ANSWERS, 90/90, pre- AND post-shuffle. She re-derived every correct answer from
+    the explanations independently. The biased generator was LAZY, NOT INCORRECT — the shuffle
+    had nothing wrong to cement. This was the main fear; it is cleared.
+  ★ CONFLUENCE STATES LETTER **AND** TEXT ("Correct Answer: B) The deployment and management
+    layer..."). After the shuffle 71/90 letters (79%) are STALE. Text stays accurate; the
+    letter/position binding breaks. Pages: ch01 3407881, ch02 2982980, ch03 3015392,
+    ch04 2851885, ch05 2950389, ch06 3473409. Never Karl-audited, v1 since 2026-04-26.
+  ★ PRE-EXISTING PROD BUG, fixed as a side effect of the push: live quiz_keys/az104-ch06-quiz
+    holds a 16-ELEMENT answers array vs 15 HTML questions (spurious trailing 1, seeded
+    2026-04-24). The corrected 15-length key fixes it.
 
-### SHIPPED EARLIER TODAY
-  - CSE lecture decks ch1-8 LIVE (41 slides), projection format, notes behind N.
-  - Companion deck (43 slides) still live; all 8 banned visuals replaced.
-  - Lodestar: intake fetch button + staleness clock + external-applications area (14 tests).
+### OPEN DECISION FOR THE OPERATOR — do not decide this solo
+  Scope. These 6 are ~11% of it: ~52 of 64 cloud-house quiz files are skewed, 423 findings
+  platform-wide. Shipping 6 leaves ~46 guessable with NO visible signal which is which. Is
+  partial remediation better than uniform badness? Operator has been told; awaiting answer.
 
-### OPEN
-  - hub-registry-audit.js (deploy.sh:190) -- Nancy flagged same failure family, NOT examined.
-  - CloudMaster focus per operator: slides / flow / labs / games, improve what exists.
+### SHIPPED AND LIVE EARLIER TODAY
+  - WSA nav fix c4f0b42dd — 12 presentations had NO visible way back (HEUR-024 12->0); also
+    fixed a pre-existing 85px nav overflow at 768px. Chris PASS. Deployed CLEAN, no --force.
+  - CSE lecture decks ch1-8 (41 slides), projection format, notes behind N.
+  - eduscan scan-root fix 4f378156a (13 validators) — the "1,582 orphans" were MY artifact.
+  - Lodestar: intake button + staleness clock + external-applications area.
+
+### REVERT POINTS
+  hexworth-prime: tag `revert-point-2026-08-04-eduscan-fix` -> 217d5adb7
+  lodestar:       tag `revert-point-2026-08-04` -> ae29833
 
 ## PRIOR — BUG-093 CLOSED: 37 -> 0. All 91 games measured on prod, zero h-overflow.
 
