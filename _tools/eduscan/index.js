@@ -8,6 +8,7 @@
  *   const results = EduScan.scan({ path: './_app', verbose: true });
  */
 
+const path = require('path');
 const Scanner = require('./scanner');
 const ParserOrchestrator = require('./parsers');
 const ValidatorOrchestrator = require('./validators');
@@ -58,8 +59,18 @@ class EduScan {
             registryPath: this.options.registryPath
         });
 
+        // registryRoot is NOT rootPath. Registry entries declare paths relative to the app
+        // root (the directory holding config/content-registry.js), which is fixed no matter
+        // what subset of the tree a given scan walks. Resolving them against rootPath instead
+        // meant ANY scan whose root was not exactly ./_app reported all 1,582 entries as
+        // missing, at severity critical -- reproduced 2026-08-04 with a plain file
+        // (--path <a .html>) AND with a perfectly valid subdirectory (--path _app/houses/cloud).
+        // Those false criticals overwrote _tools/reports/TREASURE_MAP.json, which
+        // _tools/nexus/hub.js reads as the deploy gate's input, and blocked real deploys.
+        // Derived from registryPath rather than hardcoded, so the registry can move.
         this.orphanDetector = new OrphanDetector({
             rootPath: this.options.path,
+            registryRoot: path.dirname(path.dirname(this.options.registryPath)),
             verbose: this.options.verbose,
             deep: this.options.deepOrphans,
             reachabilityMode: this.options.reachabilityMode || 'links'
@@ -67,12 +78,14 @@ class EduScan {
 
         this.flowValidator = new FlowValidator({
             rootPath: this.options.path,
+            appRoot: path.dirname(path.dirname(this.options.registryPath)),
             verbose: this.options.verbose
         });
 
         this.syntaxValidator = new SyntaxValidator({
             verbose: this.options.verbose,
             rootPath: this.options.path,
+            appRoot: path.dirname(path.dirname(this.options.registryPath)),
             profile: this.options.syntaxProfile
         });
 
@@ -87,12 +100,31 @@ class EduScan {
             colors: this.options.colors
         });
 
+        // The canonical report FILENAME is reserved for full-tree scans.
+        //
+        // _tools/nexus/hub.js points the deploy gate at _tools/reports/TREASURE_MAP.json and
+        // trusts it. Every scan writes reports, including in-process library callers that
+        // never pass an outputDir, so ANY scoped scan silently replaced the gate's input with
+        // partial data. On 2026-08-04 that turned a debugging scan into a deploy blocker, and
+        // this file's own regression test reproduced it a second time before it was caught.
+        //
+        // Exact root equality, not "is it under _app" -- a scan of functions/ or _docs/ is not
+        // a subdirectory of _app by any prefix test yet is just as wrong to publish as the
+        // platform's state. Anything that is not the whole app writes TREASURE_MAP.scoped.*,
+        // so a partial scan cannot masquerade as a full one no matter where it is written.
+        const scanRoot = path.resolve(this.options.path);
+        const appRootAbs = path.resolve(path.dirname(path.dirname(this.options.registryPath)));
+        this.isFullScan = scanRoot === appRootAbs;
+        const suffix = this.isFullScan ? '' : '.scoped';
+
         this.jsonReporter = new JSONReporter({
-            outputDir: this.options.outputDir
+            outputDir: this.options.outputDir,
+            filename: `TREASURE_MAP${suffix}.json`
         });
 
         this.markdownReporter = new MarkdownReporter({
-            outputDir: this.options.outputDir
+            outputDir: this.options.outputDir,
+            filename: `TREASURE_MAP${suffix}.md`
         });
     }
 

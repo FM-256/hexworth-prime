@@ -83,6 +83,11 @@ class HeuristicsValidator {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci';
         this.rootPath = options.rootPath || './_app';
+        // appRoot: the APP ROOT (holds components/, config/, houses/, arctic/). Fixed regardless
+        // of which subtree a scan walks; defaults to rootPath so full scans are unchanged.
+        // App-wide assets resolved against a scan subtree either vanish (silently disabling the
+        // check) or fabricate findings. See _tools/eduscan/index.js for the 2026-08-04 incident.
+        this.appRoot = options.appRoot || this.rootPath;
 
         // Load quarantine allowlist (generic, per-code)
         this.allowlist = this.loadAllowlist();
@@ -724,7 +729,7 @@ class HeuristicsValidator {
      */
     validateRendererLinks() {
         const issues = [];
-        const componentsDir = path.resolve(this.rootPath, 'components');
+        const componentsDir = path.resolve(this.appRoot, 'components');
 
         let jsFiles;
         try {
@@ -847,7 +852,7 @@ class HeuristicsValidator {
      */
     validateFixedPositionOverlays() {
         const issues = [];
-        const componentsDir = path.resolve(this.rootPath, 'components');
+        const componentsDir = path.resolve(this.appRoot, 'components');
 
         let jsFiles;
         try {
@@ -2569,7 +2574,7 @@ class HeuristicsValidator {
                 const houseId = houseMatch[1];
 
                 // Check if the house directory exists and has content
-                const houseDir = path.join(this.rootPath, 'houses', houseId);
+                const houseDir = path.join(this.appRoot, 'houses', houseId);
 
                 if (!fs.existsSync(houseDir)) {
                     const line = content.substring(0, arrayMatch.index).split('\n').length;
@@ -3674,7 +3679,7 @@ class HeuristicsValidator {
         }
 
         // ── Step 2: walk lab config.js files ──
-        const housesDir = path.resolve(this.rootPath, 'houses');
+        const housesDir = path.resolve(this.appRoot, 'houses');
         const labConfigs = [];
         try {
             const houses = fs.readdirSync(housesDir);

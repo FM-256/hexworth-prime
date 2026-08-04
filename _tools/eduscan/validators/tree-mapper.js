@@ -13,6 +13,13 @@ const path = require('path');
 
 class TreeMapper {
     constructor(options = {}) {
+        // rootPath here is BOTH the scan root and the app root, deliberately. Every path this
+        // mapper emits is relative to it (18 sites), and both call sites -- cli.js --tree and
+        // gen-catalog-from-tree.js -- pass only rootPath. It maps the whole app or nothing.
+        // An appRoot field was briefly added here during the 2026-08-04 scan-root fix and then
+        // removed: with no caller diverging the two it was dead code, and a half-migrated file
+        // that LOOKS fixed is worse than one that is honestly single-root. If --tree ever needs
+        // to run scoped, migrate all 18 relative-path sites together, not just the houses lookup.
         this.rootPath = options.rootPath || './_app';
         this.verbose = options.verbose || false;
         this.maxDepth = options.maxDepth || 5;

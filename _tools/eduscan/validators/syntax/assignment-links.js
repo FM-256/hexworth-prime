@@ -30,6 +30,11 @@ const HOUSE_FOLDERS = ['shield', 'web', 'forge', 'script', 'cloud', 'code', 'key
 class AssignmentLinkValidator {
     constructor(options = {}) {
         this.rootPath = options.rootPath || './_app';
+        // appRoot: the APP ROOT (holds config/, components/, houses/, arctic/). Fixed no matter
+        // which subtree a scan walks. Defaults to rootPath so canonical full scans are unchanged.
+        // App-wide assets MUST resolve against this -- resolving them against a scan subtree
+        // makes them vanish, which either fabricates findings or silently disables the check.
+        this.appRoot = options.appRoot || this.rootPath;
         this.verbose = options.verbose || false;
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
         this.handlerDashboardFile = options.handlerDashboardFile || './handler-dashboard.html';
@@ -61,7 +66,7 @@ class AssignmentLinkValidator {
         };
 
         // Load and parse LearningPaths.js
-        const lpAbsolutePath = path.resolve(this.rootPath, this.learningPathsFile);
+        const lpAbsolutePath = path.resolve(this.appRoot, this.learningPathsFile);
         if (!fs.existsSync(lpAbsolutePath)) {
             if (this.verbose) {
                 console.log('[ASGN] LearningPaths.js not found, skipping assignment link validation');
@@ -80,14 +85,14 @@ class AssignmentLinkValidator {
         }
 
         // Load and parse PATH_HOUSE_MAP from handler-dashboard.html or its JS file
-        const handlerAbsPath = path.resolve(this.rootPath, this.handlerDashboardFile);
+        const handlerAbsPath = path.resolve(this.appRoot, this.handlerDashboardFile);
         let pathHouseMap = {};
         if (fs.existsSync(handlerAbsPath)) {
             const handlerContent = fs.readFileSync(handlerAbsPath, 'utf8');
             pathHouseMap = this.parsePathHouseMap(handlerContent);
             // If not found in HTML, check the external JS file
             if (Object.keys(pathHouseMap).length === 0) {
-                const jsPath = path.resolve(this.rootPath, './js/handler-dashboard.js');
+                const jsPath = path.resolve(this.appRoot, './js/handler-dashboard.js');
                 if (fs.existsSync(jsPath)) {
                     const jsContent = fs.readFileSync(jsPath, 'utf8');
                     pathHouseMap = this.parsePathHouseMap(jsContent);
@@ -168,7 +173,7 @@ class AssignmentLinkValidator {
                 } else if (!isHouseFolder) {
                     // Non-house path: check if href starts with a top-level content directory
                     const firstSeg = mod.href.split('/')[0];
-                    const topLevelDir = path.resolve(this.rootPath, firstSeg);
+                    const topLevelDir = path.resolve(this.appRoot, firstSeg);
                     if (fs.existsSync(topLevelDir) && fs.statSync(topLevelDir).isDirectory()) {
                         // Top-level content path (e.g., signal/, arctic/) — use as-is
                         resolvedHref = mod.href;
@@ -184,7 +189,7 @@ class AssignmentLinkValidator {
                 }
 
                 // Verify file exists on disk
-                const absolutePath = path.resolve(this.rootPath, resolvedHref);
+                const absolutePath = path.resolve(this.appRoot, resolvedHref);
                 if (!fs.existsSync(absolutePath)) {
                     broken++;
 
@@ -236,7 +241,7 @@ class AssignmentLinkValidator {
 
             // Step 1: If courseHref is defined, the dashboard uses it directly — skip derivation
             if (pathData.courseHref) {
-                const absolutePath = path.resolve(this.rootPath, pathData.courseHref);
+                const absolutePath = path.resolve(this.appRoot, pathData.courseHref);
                 if (!fs.existsSync(absolutePath)) {
                     broken++;
                     issues.push({
@@ -306,7 +311,7 @@ class AssignmentLinkValidator {
             }
 
             // Verify derived index.html exists on disk
-            const absolutePath = path.resolve(this.rootPath, resolvedHref);
+            const absolutePath = path.resolve(this.appRoot, resolvedHref);
             if (!fs.existsSync(absolutePath)) {
                 broken++;
                 issues.push({
@@ -336,8 +341,8 @@ class AssignmentLinkValidator {
         for (const [mapPathId, houseFolder] of Object.entries(pathHouseMap)) {
             // ASGN-004: Does the house directory exist?
             // Some sections are top-level (arctic, signal, projects, arena) not under houses/
-            const houseDirPath = path.resolve(this.rootPath, 'houses', houseFolder);
-            const topLevelPath = path.resolve(this.rootPath, houseFolder);
+            const houseDirPath = path.resolve(this.appRoot, 'houses', houseFolder);
+            const topLevelPath = path.resolve(this.appRoot, houseFolder);
             if (!fs.existsSync(houseDirPath) && !fs.existsSync(topLevelPath)) {
                 issues.push({
                     code: 'ASGN-004',
@@ -376,7 +381,7 @@ class AssignmentLinkValidator {
         // regression test that pins both directions.
         this.workshopIds = new Set();
         try {
-            const HubRegistry = require(path.resolve(this.rootPath, 'components/HubRegistry.js'));
+            const HubRegistry = require(path.resolve(this.appRoot, 'components/HubRegistry.js'));
             (HubRegistry.all ? HubRegistry.all() : []).forEach(h => {
                 if (h && h.status === 'workshop') this.workshopIds.add(h.id);
             });

@@ -35,6 +35,12 @@ const REASON = {
 class OrphanDetector {
     constructor(options = {}) {
         this.rootPath = options.rootPath || './_app';
+        // The base that REGISTRY-DECLARED paths are relative to -- the app root, i.e. the
+        // directory containing config/content-registry.js. Deliberately independent of
+        // rootPath: a scan may legitimately walk a subtree, but the registry always describes
+        // the whole app from the same origin. Conflating the two produced 1,582 false
+        // critical REG-ORPHAN-001 findings on any non-canonical --path (see index.js).
+        this.registryRoot = options.registryRoot || this.rootPath;
         this.verbose = options.verbose || false;
         this.deep = options.deep || false;
 
@@ -320,7 +326,10 @@ class OrphanDetector {
                     continue;
                 }
 
-                const absolutePath = path.resolve(this.rootPath, componentPath);
+                // registryRoot, NOT rootPath -- see the constructor. Resolving a registry
+                // path against whatever subtree this scan happens to walk is what made every
+                // declared file look missing.
+                const absolutePath = path.resolve(this.registryRoot, componentPath);
 
                 if (!fs.existsSync(absolutePath)) {
                     const orphan = {
@@ -408,7 +417,7 @@ class OrphanDetector {
         }
 
         // Also crawl content-registry.js
-        const registryPath = path.resolve(this.rootPath, 'config/content-registry.js');
+        const registryPath = path.resolve(this.registryRoot, 'config/content-registry.js');
         if (fs.existsSync(registryPath)) {
             this.crawlFile(registryPath, 'registry');
         }

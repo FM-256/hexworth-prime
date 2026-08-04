@@ -36,6 +36,12 @@ class LearningPathsValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
+        // appRoot is the APP ROOT (the directory holding config/ and components/), which is
+        // fixed regardless of which subtree a scan walks. Defaults to rootPath so a canonical
+        // full scan behaves exactly as before. Global, app-wide assets MUST resolve against
+        // this, not rootPath: doing otherwise made every scoped scan report app-root files as
+        // missing at severity critical, which then blocked deploys (2026-08-04).
+        this.appRoot = options.appRoot || this.rootPath;
         this.learningPathsFile = options.learningPathsFile || './components/LearningPaths.js';
         this.registryPath = options.registryPath || './_tools/reports/MODULE_REGISTRY.json';
 
@@ -204,7 +210,7 @@ class LearningPathsValidator {
      */
     validate() {
         const issues = [];
-        const absolutePath = path.resolve(this.rootPath, this.learningPathsFile);
+        const absolutePath = path.resolve(this.appRoot, this.learningPathsFile);
 
         if (!fs.existsSync(absolutePath)) {
             issues.push({
@@ -354,7 +360,7 @@ class LearningPathsValidator {
             if (!pathData.courseHref) continue;
 
             const courseHref = pathData.courseHref;
-            const resolvedPath = path.resolve(this.rootPath, courseHref);
+            const resolvedPath = path.resolve(this.appRoot, courseHref);
 
             if (!fs.existsSync(resolvedPath)) {
                 issues.push({
@@ -365,7 +371,7 @@ class LearningPathsValidator {
                     file: this.learningPathsFile,
                     pathId,
                     courseHref,
-                    expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                    expectedPath: resolvedPath.replace(path.resolve(this.appRoot) + '/', ''),
                     fix: `Create the file at '${courseHref}' or fix the courseHref path`
                 });
             }
@@ -640,11 +646,11 @@ class LearningPathsValidator {
 
         if (href.startsWith('houses/')) {
             // Full path - use as-is (relative to _app/)
-            expectedPath = path.join(this.rootPath, href);
+            expectedPath = path.join(this.appRoot, href);
             resolveMethod = 'absolute';
         } else if (isHousePath) {
             // House path with relative href - prepend house folder
-            expectedPath = path.join(this.rootPath, 'houses', pathId, href);
+            expectedPath = path.join(this.appRoot, 'houses', pathId, href);
             resolveMethod = 'house-relative';
         } else if (isCertPath) {
             // Certification path with relative href - THIS IS THE BUG CASE
@@ -653,7 +659,7 @@ class LearningPathsValidator {
 
             const guessedHouse = this.guessHouseFolder(href);
             if (guessedHouse) {
-                expectedPath = path.join(this.rootPath, 'houses', guessedHouse, href);
+                expectedPath = path.join(this.appRoot, 'houses', guessedHouse, href);
                 resolveMethod = 'guessed';
             } else {
                 // Can't resolve - this is a design issue
@@ -671,7 +677,7 @@ class LearningPathsValidator {
             }
         } else {
             // Unknown path type - try relative to _app
-            expectedPath = path.join(this.rootPath, href);
+            expectedPath = path.join(this.appRoot, href);
             resolveMethod = 'root-relative';
         }
 
@@ -688,7 +694,7 @@ class LearningPathsValidator {
         return {
             valid: false,
             message: `Module '${module.id}' href '${href}' does not resolve to an existing file`,
-            expectedPath: expectedPath.replace(this.rootPath, '_app'),
+            expectedPath: expectedPath.replace(this.appRoot, '_app'),
             suggestion,
             fix: suggestion
                 ? `Change href to: '${suggestion.path}'`
@@ -874,7 +880,7 @@ class LearningPathsValidator {
     _loadContentCatalog() {
         if (this._catalogCache !== null) return this._catalogCache;
 
-        const absolutePath = path.resolve(this.rootPath, this.catalogFile);
+        const absolutePath = path.resolve(this.appRoot, this.catalogFile);
 
         if (!fs.existsSync(absolutePath)) {
             if (this.verbose) {

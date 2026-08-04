@@ -30,6 +30,11 @@ class XPAuditValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
+        // appRoot: the APP ROOT (holds components/, config/, houses/, arctic/). Fixed regardless
+        // of which subtree a scan walks; defaults to rootPath so full scans are unchanged.
+        // App-wide assets resolved against a scan subtree either vanish (silently disabling the
+        // check) or fabricate findings. See _tools/eduscan/index.js for the 2026-08-04 incident.
+        this.appRoot = options.appRoot || this.rootPath;
         this.profile = options.profile || 'ci';
     }
 
@@ -154,7 +159,7 @@ class XPAuditValidator {
         const issues = [];
 
         // Scan components/*.js
-        const componentsDir = path.join(this.rootPath, 'components');
+        const componentsDir = path.join(this.appRoot, 'components');
         if (fs.existsSync(componentsDir)) {
             const jsFiles = this._findJSFiles(componentsDir);
             for (const filePath of jsFiles) {

@@ -55,6 +55,7 @@ class SyntaxValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
+        this.appRoot = options.appRoot || this.rootPath;
         this.profile = options.profile || 'ci';  // 'ci', 'strict', or 'inventory'
 
         // Initialize sub-validators with profile
@@ -78,10 +79,12 @@ class SyntaxValidator {
         });
         this.learningPathsValidator = new LearningPathsValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            appRoot: this.appRoot          // global validator: resolve app-wide assets from the app root
         });
         this.assignmentLinkValidator = new AssignmentLinkValidator({
             verbose: this.verbose,
+            appRoot: this.appRoot,         // GLOBAL validator (see docblock): app-root assets
             rootPath: this.rootPath
         });
         this.namingValidator = new NamingValidator({
@@ -96,11 +99,13 @@ class SyntaxValidator {
         this.heuristicsValidator = new HeuristicsValidator({
             verbose: this.verbose,
             rootPath: this.rootPath,
-            profile: this.profile
+            profile: this.profile,
+            appRoot: this.appRoot,
         });
         this.contentCatalogValidator = new ContentCatalogValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            appRoot: this.appRoot          // global validator: resolve app-wide assets from the app root
         });
         this.dependencyCheckValidator = new DependencyCheckValidator({
             verbose: this.verbose,
@@ -122,7 +127,8 @@ class SyntaxValidator {
         });
         this.paletteValidator = new PaletteValidator({
             verbose: this.verbose,
-            rootPath: this.rootPath
+            rootPath: this.rootPath,
+            appRoot: this.appRoot,
         });
         this.contentBlobValidator = new ContentBlobValidator({
             verbose: this.verbose,
@@ -151,7 +157,8 @@ class SyntaxValidator {
         this.sandboxValidator = new SandboxValidator({
             verbose: this.verbose,
             rootPath: this.rootPath,
-            profile: this.profile
+            profile: this.profile,
+            appRoot: this.appRoot,
         });
         this.linuxTerminalValidator = new LinuxTerminalValidator({
             verbose: this.verbose,
@@ -173,7 +180,8 @@ class SyntaxValidator {
         this.xpAuditValidator = new XPAuditValidator({
             verbose: this.verbose,
             rootPath: this.rootPath,
-            profile: this.profile
+            profile: this.profile,
+            appRoot: this.appRoot,
         });
         this.clientSecretsValidator = new ClientSecretsValidator({
             verbose: this.verbose,

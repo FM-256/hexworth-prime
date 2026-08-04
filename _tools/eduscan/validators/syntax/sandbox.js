@@ -75,6 +75,11 @@ class SandboxValidator {
         this.verbose = options.verbose || false;
         this.profile = options.profile || 'ci';
         this.rootPath = options.rootPath || './_app';
+        // appRoot: the APP ROOT (holds components/, config/, houses/, arctic/). Fixed regardless
+        // of which subtree a scan walks; defaults to rootPath so full scans are unchanged.
+        // App-wide assets resolved against a scan subtree either vanish (silently disabling the
+        // check) or fabricate findings. See _tools/eduscan/index.js for the 2026-08-04 incident.
+        this.appRoot = options.appRoot || this.rootPath;
     }
 
     /**
@@ -269,7 +274,7 @@ class SandboxValidator {
         }
 
         // Check SandboxLauncher.js itself for LAB_INFO consistency
-        const launcherPath = path.join(this.rootPath, 'components', 'SandboxLauncher.js');
+        const launcherPath = path.join(this.appRoot, 'components', 'SandboxLauncher.js');
         if (fs.existsSync(launcherPath)) {
             const launcherContent = fs.readFileSync(launcherPath, 'utf8');
             // Same single parser as KNOWN_LAB_IDS (was a divergent inline regex — Nancy 2026-07-07).
@@ -306,7 +311,7 @@ class SandboxValidator {
         }
 
         // SANDBOX-008: Check SandboxLauncher.js iframe sandbox attribute
-        const launcherPath2 = path.join(this.rootPath, 'components', 'SandboxLauncher.js');
+        const launcherPath2 = path.join(this.appRoot, 'components', 'SandboxLauncher.js');
         if (fs.existsSync(launcherPath2)) {
             const launcherSrc = fs.readFileSync(launcherPath2, 'utf8');
 

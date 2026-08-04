@@ -45,6 +45,12 @@ const DARK_ARTS_PATTERN = /(?:^|\/|\\)dark-arts(?:\/|\\)/i;
 class FlowValidator {
     constructor(options = {}) {
         this.rootPath = options.rootPath || './_app';
+        // appRoot is the APP ROOT (the directory holding config/ and components/), which is
+        // fixed regardless of which subtree a scan walks. Defaults to rootPath so a canonical
+        // full scan behaves exactly as before. Global, app-wide assets MUST resolve against
+        // this, not rootPath: doing otherwise made every scoped scan report app-root files as
+        // missing at severity critical, which then blocked deploys (2026-08-04).
+        this.appRoot = options.appRoot || this.rootPath;
         this.verbose = options.verbose || false;
 
         // Reuse LearningPathsValidator for parsing LP data
@@ -178,7 +184,7 @@ class FlowValidator {
      * Parse LearningPaths.js and add all module hrefs to the chained set
      */
     _addLearningPathHrefs(chained) {
-        const lpFile = path.resolve(this.rootPath, 'components/LearningPaths.js');
+        const lpFile = path.resolve(this.appRoot, 'components/LearningPaths.js');
 
         if (!fs.existsSync(lpFile)) {
             if (this.verbose) {
@@ -261,7 +267,7 @@ class FlowValidator {
      * relative hrefs like '../../../houses/script/linux/...'
      */
     _addArcticDataHrefs(chained) {
-        const arcticFile = path.resolve(this.rootPath, 'arctic/ArcticData.js');
+        const arcticFile = path.resolve(this.appRoot, 'arctic/ArcticData.js');
         if (!fs.existsSync(arcticFile)) {
             if (this.verbose) console.log('[FLOW] ArcticData.js not found');
             return;

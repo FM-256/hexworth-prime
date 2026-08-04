@@ -15,6 +15,11 @@ const path = require('path');
 class DependencyMap {
     constructor(options = {}) {
         this.rootPath = options.rootPath || './_app';
+        // appRoot: the APP ROOT (holds components/, config/, houses/, arctic/). Fixed regardless
+        // of which subtree a scan walks; defaults to rootPath so full scans are unchanged.
+        // App-wide assets resolved against a scan subtree either vanish (silently disabling the
+        // check) or fabricate findings. See _tools/eduscan/index.js for the 2026-08-04 incident.
+        this.appRoot = options.appRoot || this.rootPath;
         this.verbose = options.verbose || false;
     }
 
@@ -140,8 +145,8 @@ class DependencyMap {
     _discoverComponents() {
         const components = {};
         const dirs = [
-            path.join(this.rootPath, 'components'),
-            path.join(this.rootPath, 'config')
+            path.join(this.appRoot, 'components'),
+            path.join(this.appRoot, 'config')
         ];
 
         for (const dir of dirs) {

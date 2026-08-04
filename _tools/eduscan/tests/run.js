@@ -1084,6 +1084,87 @@ console.log('');
     }
 }
 
+// ---------------------------------------------------------------------------
+// Scan-root decoupling (regression, 2026-08-04)
+//
+// A registry entry declares its path relative to the APP ROOT, and the global validators
+// load app-wide assets from that same root. Both used to resolve against rootPath -- whatever
+// subtree the scan happened to walk -- so ANY root other than the canonical ./_app made all
+// ~1,582 registry entries resolve to '<scan-root>/houses/...', find nothing, and emit
+// REG-ORPHAN-001 at severity CRITICAL. cli.js writes TREASURE_MAP.json and _tools/nexus/hub.js
+// points the deploy gate at that file, so one scoped scan poisoned the gate and blocked real
+// deploys on fabricated findings.
+//
+// Uses a VALID subdirectory on purpose: a directory-exists check would pass this bug straight
+// through. The defect is path resolution, not input validation.
+//
+// NOTE ON THE ASSERTIONS: orphan findings live at results.orphans.*, NOT results.issues. The
+// first version of this test read results.issues (undefined -> [] -> 0 orphans) and therefore
+// PASSED with the bug deliberately reintroduced. The non-vacuity guards below exist so this
+// test can only pass by actually exercising registry resolution.
+{
+    const EduScan = require(path.join(EDUSCAN_DIR, 'index.js'));
+    const repoRoot = path.resolve(EDUSCAN_DIR, '../..');
+    const appRoot  = path.join(repoRoot, '_app');
+    const subdir   = path.join(appRoot, 'houses', 'cloud');
+    let subPassed = 0, subFailed = 0;
+    const check = (label, cond) => {
+        if (cond) { subPassed++; } else { subFailed++; console.log(`    \u2717 ${label}`); }
+    };
+
+    if (!fs.existsSync(subdir) || !fs.existsSync(path.join(appRoot, 'config', 'content-registry.js'))) {
+        console.log('  - scan-root decoupling — skipped (checkout lacks _app/houses/cloud or the registry)');
+    } else {
+        const scanner = new EduScan({
+            path: subdir,
+            registryPath: path.join(appRoot, 'config', 'content-registry.js'),
+            quiet: true, colors: false,
+            // full validator set: the coupling affected syntax/flow validators too, not just orphans
+            outputDir: path.join(TESTS_DIR, '.tmp-scanroot')
+        });
+        const r = scanner.scan() || {};
+        const orphansNode = r.orphans || {};
+        const registryOrphans = orphansNode.registryOrphans || [];
+        const orphanIssues = (orphansNode.issues || []).filter(i => i.code === 'REG-ORPHAN-001');
+        const registryCount = (r.registry && r.registry.count) || 0;
+
+        // Non-vacuity FIRST: if the registry never loaded, "zero orphans" proves nothing.
+        check(`registry actually loaded (count=${registryCount} > 100)`, registryCount > 100);
+        check('orphans node present in scan results', !!r.orphans);
+
+        check(`subdirectory scan manufactures no registry orphans (got ${registryOrphans.length})`,
+              registryOrphans.length === 0);
+        check(`subdirectory scan emits no REG-ORPHAN-001 issues (got ${orphanIssues.length})`,
+              orphanIssues.length === 0);
+
+        // --- the GLOBAL validators, asserted directly ---
+        // REG-ORPHAN was only the loudest symptom. Every validator that loads an app-root
+        // asset (components/, config/, arctic/, houses/) had the same coupling: on a scoped
+        // scan the asset vanished, which for AssignmentLinks meant validate() early-returned
+        // and ASGN-001..006 silently stopped running -- a coverage hole, not a visible failure,
+        // so "0 criticals" would never have caught it.
+        const AssignmentLinkValidator = require(path.join(EDUSCAN_DIR, 'validators/syntax/assignment-links.js'));
+        const asgn = new AssignmentLinkValidator({ rootPath: subdir, appRoot });
+        const asgnResult = asgn.validate ? asgn.validate([]) : null;
+        const asgnStats = (asgnResult && asgnResult.stats) || {};
+        check(`AssignmentLinks still runs on a scoped scan (pathHouseMapEntries=${asgnStats.pathHouseMapEntries})`,
+              (asgnStats.pathHouseMapEntries || 0) > 0);
+
+        // LearningPaths house-path branch: resolving 'houses/<id>/<href>' against a scan
+        // subtree doubles the path and fires LP-001 at HIGH, which --strict blocks on.
+        const lpIssues = ((r.syntax && r.syntax.issues) || []).filter(i => i.code === 'LP-001');
+        check(`no LP-001 inflation from a scoped scan (got ${lpIssues.length})`, lpIssues.length === 0);
+
+        if (subFailed === 0) {
+            console.log(`  \u2713 scan-root decoupling — ${registryCount} registry entries resolved from a subdirectory scan, 0 false orphans (${subPassed} checks)`);
+            passed++;
+        } else {
+            console.log(`  \u2717 scan-root decoupling — ${subFailed} check(s) failed: a scoped scan is fabricating criticals again`);
+            failed++;
+        }
+    }
+}
+
 console.log('');
 console.log(`Results: ${passed}/${passed + failed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

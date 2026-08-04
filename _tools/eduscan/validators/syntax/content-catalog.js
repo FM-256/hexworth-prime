@@ -45,6 +45,12 @@ class ContentCatalogValidator {
     constructor(options = {}) {
         this.verbose = options.verbose || false;
         this.rootPath = options.rootPath || './_app';
+        // appRoot is the APP ROOT (the directory holding config/ and components/), which is
+        // fixed regardless of which subtree a scan walks. Defaults to rootPath so a canonical
+        // full scan behaves exactly as before. Global, app-wide assets MUST resolve against
+        // this, not rootPath: doing otherwise made every scoped scan report app-root files as
+        // missing at severity critical, which then blocked deploys (2026-08-04).
+        this.appRoot = options.appRoot || this.rootPath;
         this.catalogFile = options.catalogFile || 'components/ContentCatalog.js';
     }
 
@@ -167,7 +173,7 @@ class ContentCatalogValidator {
      * @returns {Object|null} { HOUSES, MODULES } or null on failure
      */
     _loadCatalog() {
-        const absolutePath = path.resolve(this.rootPath, this.catalogFile);
+        const absolutePath = path.resolve(this.appRoot, this.catalogFile);
 
         if (!fs.existsSync(absolutePath)) {
             if (this.verbose) {
@@ -273,7 +279,7 @@ class ContentCatalogValidator {
 
             // Full path = _app/{house.basePath}/{module.href}
             // path.join handles ../ navigation (e.g., dark-arts vault hrefs)
-            const resolvedPath = path.resolve(this.rootPath, house.basePath, module.href);
+            const resolvedPath = path.resolve(this.appRoot, house.basePath, module.href);
 
             if (!fs.existsSync(resolvedPath)) {
                 if (isAvailable) {
@@ -288,7 +294,7 @@ class ContentCatalogValidator {
                         moduleId: module.id,
                         house: module.house,
                         href: module.href,
-                        expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                        expectedPath: resolvedPath.replace(path.resolve(this.appRoot) + '/', ''),
                         fix: `Create the file or fix the href for module '${module.id}'`
                     });
                 } else {
@@ -303,7 +309,7 @@ class ContentCatalogValidator {
                         house: module.house,
                         status: module.status,
                         href: module.href,
-                        expectedPath: resolvedPath.replace(path.resolve(this.rootPath) + '/', ''),
+                        expectedPath: resolvedPath.replace(path.resolve(this.appRoot) + '/', ''),
                         fix: `Create the file before setting status to 'available', or remove the dead href`
                     });
                 }
@@ -323,12 +329,12 @@ class ContentCatalogValidator {
             if (!module.href || module.href.startsWith('http')) continue;
             const house = catalog.HOUSES[module.house];
             if (!house) continue;
-            const resolved = path.resolve(this.rootPath, house.basePath, module.href);
+            const resolved = path.resolve(this.appRoot, house.basePath, module.href);
             catalogPaths.add(resolved);
         }
 
         // Scan each house directory for content HTML files
-        const housesDir = path.resolve(this.rootPath, 'houses');
+        const housesDir = path.resolve(this.appRoot, 'houses');
         if (!fs.existsSync(housesDir)) return;
 
         for (const houseId of Object.keys(catalog.HOUSES)) {
@@ -346,7 +352,7 @@ class ContentCatalogValidator {
 
                 if (!catalogPaths.has(filePath)) {
                     summary.undeclared++;
-                    const relativePath = path.relative(path.resolve(this.rootPath), filePath);
+                    const relativePath = path.relative(path.resolve(this.appRoot), filePath);
                     issues.push({
                         code: 'CAT-002',
                         severity: 'medium',
