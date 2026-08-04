@@ -195,6 +195,27 @@ const AccessGuard = (function() {
      * QC-4: Schedule background async verification.
      * If verification returns false (forged), hide content and redirect.
      */
+    /* Confirms a tenant session against the SERVER, never against the cached blob it is
+       meant to invalidate -- the trap the instructor verifier had to be rewritten to avoid.
+       Uses getTenantConfig: public, CORS-enabled, 30s-cached, and already the endpoint every
+       /tenant/*.html loader calls before writing the blob. Returns:
+         false -> revoke (tenant gone, or status !== 'active')
+         true  -> live
+         null  -> inconclusive (offline/transient); caller keeps showing and re-checks next load */
+    function _verifyTenantAsync(slug) {
+        if (!slug) return Promise.resolve(false);
+        return fetch('https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug='
+                     + encodeURIComponent(slug))
+            .then(function(r) {
+                if (r.status === 404) return false;      // tenant deleted outright
+                if (!r.ok) return null;                  // transient -> inconclusive
+                return r.json().then(function(cfg) {
+                    return cfg && cfg.status === 'active';
+                });
+            })
+            .catch(function() { return null; });         // offline -> inconclusive
+    }
+
     function _scheduleAsyncVerification(type, param) {
         if (type === 'admin') {
             _verifyAdminAsync().then(result => {
@@ -206,6 +227,29 @@ const AccessGuard = (function() {
                 }
                 // result === true → legitimate admin, keep showing
                 // result === null → inconclusive (offline/not signed in), keep showing
+            });
+        } else if (type === 'tenant') {
+            _verifyTenantAsync(param).then(result => {
+                if (result === false) {
+                    console.warn('[AccessGuard] ASYNC TENANT VERIFICATION FAILED — tenant inactive or gone');
+                    try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
+                    try {
+                        localStorage.removeItem('hexworth_tenant');
+                        localStorage.removeItem('hexworth_tenant_slug');
+                        localStorage.removeItem('hexworth_tenant_shell_hidden');
+                    } catch (e) {}
+                    /* redirect() consults TenantRouter.isActive() and sends tenant users to
+                       the tenant hub. That flag was cached true at page load, so without this
+                       refresh the "no longer active" redirect lands the user back INSIDE the
+                       tenant just revoked -- verified: it resolved to /tenant/index.html and
+                       rendered "Tenant not found". refresh() re-reads the (now empty) storage
+                       and drops _active to false, so the redirect reaches the real dashboard. */
+                    try { if (window.TenantRouter && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
+                    hideContent();
+                    redirect('dashboard', 'This tenant is no longer active.');
+                }
+                // true  -> tenant live, keep showing
+                // null  -> inconclusive (offline), keep showing; re-checked next load
             });
         } else if (type === 'instructor') {
             _verifyInstructorAsync().then(result => {
@@ -666,8 +710,28 @@ const AccessGuard = (function() {
                Instructor material is staff-only in every experience; a tenant student waved
                through here would read teaching decks with zero checks, defeating the level
                for the entire white-label population by construction. */
-            if (tenantData && level !== 'admin' && level !== 'admin-only' && level !== 'instructor') {
+            /* The bypass used to fire on the mere PRESENCE of this key. It never parsed it.
+               Verified in a browser 2026-08-04: localStorage.setItem('hexworth_tenant','x')
+               — not even valid JSON — unlocked a gated module for an otherwise-unsorted
+               visitor (body 12,192 -> 54,659 bytes, 0 -> 17 slides). One console line, any
+               user, tenant or not. Now the blob must at least PARSE and name a tenant, and
+               the async pass below confirms that tenant is real and active. */
+            var tenantSlug = null;
+            if (tenantData) {
+                try {
+                    var parsedTenant = JSON.parse(tenantData);
+                    if (parsedTenant && typeof parsedTenant.slug === 'string' && parsedTenant.slug.trim()) {
+                        tenantSlug = parsedTenant.slug.trim();
+                    }
+                } catch (e) { /* unparseable -> not a tenant session */ }
+            }
+
+            if (tenantSlug && level !== 'admin' && level !== 'admin-only' && level !== 'instructor') {
                 showContent();
+                /* Tenant was the ONLY bypass in this file with no background check at all --
+                   admin, gate and instructor each schedule one. Not a defeated verification;
+                   an absent one. */
+                _scheduleAsyncVerification('tenant', tenantSlug);
                 return true;
             }
         } catch(e) {}

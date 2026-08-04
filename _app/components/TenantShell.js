@@ -42,6 +42,9 @@
     'use strict';
 
     var SHELL_HIDDEN_KEY = 'hexworth_tenant_shell_hidden';
+    // Set once revocation is confirmed. Guards the DOMContentLoaded-deferred injectors,
+    // which would otherwise render from stale locals after the storage purge.
+    var revoked = false;
 
     // ── Check for tenant context ─────────────────────────
     var raw = null;
@@ -51,6 +54,82 @@
 
     // No tenant = no-op. Direct Hexworth Prime users see nothing.
     if (!raw) return;
+
+    // ── Revocation: an inactive tenant must leave NO trace on the student ──
+    //
+    // The tenant config is cached in sessionStorage AND localStorage at join time and was
+    // never re-checked. Deactivating a tenant, and even removing the student from the class
+    // and the tenant, changed only Firestore — nothing server-side can reach a browser's
+    // localStorage, which persists across reboots indefinitely. So the shell and the
+    // re-enter pill kept rendering from a snapshot forever. Reported 2026-08-04.
+    //
+    // Operator ruling: "if the tenant is inactive no pill should be present for anybody."
+    //
+    // Verified against the SERVER, never against the cached blob that is being invalidated.
+    // Uses getTenantConfig — already public, CORS-enabled, 30s-cached, and already the
+    // endpoint every /tenant/*.html loader calls before writing this blob in the first
+    // place. It returns `status`, and the loaders already reject non-'active' at JOIN time;
+    // this applies the same test on every page load, which is the bit that was missing.
+    //
+    // Fail-open on a network error, deliberately: a student mid-lesson on flaky wifi must
+    // not lose their course because a fetch timed out. A deactivated tenant surviving until
+    // the next successful check is the lesser harm, and AccessGuard's own async verifier
+    // closes the access half separately.
+    function purgeTenantAndStrip(reason) {
+        try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
+        try {
+            localStorage.removeItem('hexworth_tenant');
+            localStorage.removeItem('hexworth_tenant_slug');
+            localStorage.removeItem(SHELL_HIDDEN_KEY);
+        } catch (e) {}
+        // Stop the deferred injectors: on a page that loads this script in <head> (the
+        // documented, recommended placement) injectBar/injectPill wait for DOMContentLoaded.
+        // A cached 30s getTenantConfig response can resolve BEFORE that fires, in which case
+        // the strip below removes nothing and the deferred callback then renders the shell
+        // anyway from local vars that storage-clearing never touched. This flag is what the
+        // injectors check; the DOM strip alone loses that race.
+        revoked = true;
+
+        // TenantRouter caches _active=true at script load and exposes refresh() precisely
+        // for post-hoc storage changes. Without this, AccessGuard.redirect() still sees a
+        // live tenant and routes the user INTO the hub just declared inactive, and
+        // overrideLinks() keeps rewriting every Dashboard/Home link on the page to that hub
+        // on its 1s/3s timers for the lifetime of the view.
+        try { if (window.TenantRouter && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
+
+        // Strip whichever branch rendered: the full shell bar, or the re-enter pill.
+        ['tenant-shell-bar', 'tenant-reenter-pill'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        });
+        if (window.console && console.info) {
+            console.info('[TenantShell] tenant revoked (' + reason + ') — shell and pill removed');
+        }
+    }
+
+    (function verifyTenantStillActive() {
+        var peek = null;
+        try { peek = JSON.parse(raw); } catch (e) {}
+        var slug = peek && peek.slug;
+        // An unparseable or slugless blob cannot name a tenant to verify, and is exactly what
+        // a hand-typed localStorage value looks like. Strip it rather than honour it.
+        if (!slug) { purgeTenantAndStrip('no slug in cached config'); return; }
+
+        fetch('https://us-central1-hexworth-prime.cloudfunctions.net/getTenantConfig?slug='
+              + encodeURIComponent(slug))
+            .then(function(r) {
+                if (r.status === 404) { purgeTenantAndStrip('tenant no longer exists'); return null; }
+                if (!r.ok) return null;                       // transient — fail open
+                return r.json();
+            })
+            .then(function(cfg) {
+                if (!cfg) return;
+                if (cfg.status !== 'active') {
+                    purgeTenantAndStrip('tenant status=' + cfg.status);
+                }
+            })
+            .catch(function() { /* offline — fail open, re-checked next load */ });
+    })();
 
     // Parse tenant for name (needed even when hidden, for the re-engage pill)
     var tenantPeek = null;
@@ -88,6 +167,10 @@
         };
 
         var injectPill = function() {
+            // Same race as injectBar: this re-enters via DOMContentLoaded, which can fire
+            // AFTER a cached getTenantConfig response has already revoked the tenant. The
+            // storage purge does not reach these closure locals, so the flag is the guard.
+            if (revoked) return;
             if (!document.body) {
                 document.addEventListener('DOMContentLoaded', injectPill);
                 return;
@@ -231,6 +314,11 @@
             window.__tenantShellHiddenRewriterRegistered = true;
             var hiddenHubUrl = '/tenant/index.html?slug=' + encodeURIComponent(tenantPeek.slug);
             var hiddenOverrideLinks = function() {
+                // Revoked: stop rewriting. This re-runs on 1s/3s timers and a
+                // MutationObserver, so without this it keeps pointing every
+                // Dashboard/Home link at the dead tenant hub for the life of
+                // the page, long after the shell itself was stripped.
+                if (revoked) return;
                 var targetUrl = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive())
                     ? TenantRouter.getUrl('dashboard')
                     : hiddenHubUrl;
@@ -439,11 +527,16 @@
     // Insert at the very top of <body>
     // Wait for body to exist (script might be in <head>)
     function injectBar() {
+        // Revocation can land before DOMContentLoaded when getTenantConfig answers from its
+        // 30s cache. Check at BOTH the immediate and deferred moment: the deferred callback
+        // fires long after the storage purge and would otherwise render an inactive tenant.
+        if (revoked) return;
         if (document.body) {
             document.body.insertBefore(headerBar, document.body.firstChild);
         } else {
             // Body not ready yet — wait
             document.addEventListener('DOMContentLoaded', function() {
+                if (revoked) return;
                 document.body.insertBefore(headerBar, document.body.firstChild);
             });
         }
@@ -456,6 +549,9 @@
     // and also observes for dynamically added links.
 
     function overrideLinks() {
+        // Same reason as the hidden-branch rewriter: timers + MutationObserver keep
+        // this alive after revocation unless it checks the flag.
+        if (revoked) return;
         // Use TenantRouter for the hub URL if available, otherwise fall back
         var targetUrl = (typeof TenantRouter !== 'undefined' && TenantRouter.isActive())
             ? TenantRouter.getUrl('dashboard')
