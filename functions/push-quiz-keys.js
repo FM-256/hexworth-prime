@@ -34,6 +34,16 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const filterIdx = process.argv.indexOf('--filter');
 const FILTER = filterIdx !== -1 ? process.argv[filterIdx + 1] : null;
 
+// `--filter` with no value left FILTER undefined, which fell through the ternary below
+// as falsy and pushed EVERY key in the registry — the exact opposite of the narrowing the
+// operator asked for. A scoped push is the whole safety model here, so refuse rather than
+// silently widen. Raised in review 2026-08-04.
+if (filterIdx !== -1 && (!FILTER || FILTER.startsWith('--'))) {
+    console.error('ERROR: --filter requires a value (e.g., --filter az104).');
+    console.error('       Refusing to run: a valueless --filter would push ALL keys.');
+    process.exit(1);
+}
+
 async function main() {
     console.log('Quiz Key Push Tool');
     console.log('══════════════════');
@@ -54,8 +64,14 @@ async function main() {
         .sort();
 
     if (quizIds.length === 0) {
-        console.log('No keys matched filter "' + FILTER + '"');
-        process.exit(0);
+        // Exit 1, NOT 0. A typo'd filter ("az-104" instead of "az104") matched nothing and
+        // exited success, so the caller — and any script chaining on && — read "pushed
+        // fine" when nothing was written. When the HTML is already live and Firestore is
+        // stale, that misreport leaves students being mis-graded while the log says OK.
+        // Raised in review 2026-08-04.
+        console.error('ERROR: no keys matched filter "' + FILTER + '" — nothing was pushed.');
+        console.error('       Check the prefix against the ids in quiz_keys.json.');
+        process.exit(1);
     }
 
     console.log(`Found ${quizIds.length} keys to push.\n`);
