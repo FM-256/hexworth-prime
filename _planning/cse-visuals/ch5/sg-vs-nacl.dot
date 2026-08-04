@@ -1,0 +1,83 @@
+/*
+ * CSE companion deck -- CH5 "Security groups vs NACLs -- the exam favourite"
+ *
+ * Route: s4 Topological. This slide is about WHERE each control sits (subnet boundary
+ * vs instance) and what that costs you on the return path. Containment is the lesson,
+ * so nested clusters carry it -- an illustrated scene cannot hold "inside" reliably.
+ *
+ * The text panel already carries a full comparison TABLE. So this visual must NOT be a
+ * second table; it is the spatial gestalt plus the one failure the table cannot show:
+ * the return packet dying at a stateless NACL.
+ *
+ * Anchors: 6 (SUBNET, NACL/stateless, SECURITY GROUP/stateful, instance, inbound 443,
+ * blocked return) -- inside s1's 3-5..8 range.
+ *
+ * RENDER: dot -Tpng -Gdpi=192 sg-vs-nacl.dot -o out.png  then Pillow -> webp q92
+ *   (s9.1's -Gratio=fill is not used; see shared-responsibility.dot for the rationale.)
+ * _planning/ is gitignored -- this file must be `git add -f`.
+ */
+digraph sg_vs_nacl {
+  bgcolor   = "#0b1220";
+  rankdir   = TB;
+  compound  = true;          /* lets edges terminate on cluster borders */
+  fontname  = "DejaVu Sans";
+  nodesep   = 0.3;
+  ranksep   = 0.42;
+  margin    = 0.14;
+
+  node [shape=box, style="filled", fontname="DejaVu Sans", fontsize=14,
+        penwidth=2, margin="0.22,0.13"];
+  edge [fontname="DejaVu Sans", fontsize=12, penwidth=2, arrowsize=0.85];
+
+  /* the outside world */
+  net [label="the internet", shape=ellipse, fillcolor="#1b2540",
+       color="#94a3b8", fontcolor="#cbd5e1"];
+
+  subgraph cluster_subnet {
+    label     = "SUBNET";
+    fontcolor = "#7aa2ff";
+    fontsize  = 15;
+    color     = "#7aa2ff";
+    style     = "dashed,rounded";
+    penwidth  = 2;
+    margin    = 16;
+
+    /* The NACL is drawn as the subnet's doorway, because that is literally where it
+       sits -- not on the machine. */
+    nacl [label="NACL  ·  stateless\nallow AND deny, in order",
+          fillcolor="#3b2f10", color="#ffd86b", fontcolor="#ffd86b"];
+
+    subgraph cluster_sg {
+      label     = "SECURITY GROUP  ·  stateful";
+      fontcolor = "#4ade80";
+      fontsize  = 14;
+      color     = "#4ade80";
+      style     = "rounded";
+      penwidth  = 2;
+      margin    = 14;
+
+      inst [label="instance", fillcolor="#1e3a5f", color="#7aa2ff", fontcolor="#e6edf3"];
+    }
+  }
+
+  /* inbound path -- the part students get right */
+  net  -> nacl [label="  inbound 443", color="#4ade80", fontcolor="#86efac"];
+  nacl -> inst [label="  allowed", color="#4ade80", fontcolor="#86efac",
+                lhead="cluster_sg"];
+
+  /* return path -- the part that breaks, and the whole point of the slide */
+  inst -> nacl [label="  reply from ephemeral port  ", color="#ff6b6b",
+                fontcolor="#fca5a5", style=dashed, ltail="cluster_sg"];
+  nacl -> net  [label="  DROPPED — no outbound rule  ", color="#ff6b6b",
+                fontcolor="#fca5a5", style=dashed, arrowhead=tee];
+
+  /* the takeaway, stated once */
+  note [label="Stateful remembers the connection.\nStateless does not — you must allow the return path yourself.",
+        shape=box, style="filled,rounded",
+        fillcolor="#2a1519", color="#ff6b6b", fontcolor="#fca5a5", fontsize=13,
+        penwidth=2];
+  /* Anchor the takeaway BELOW the topology. Ranking it beside `net` (the obvious first
+     try) parked it top-right and left half the canvas empty, which then letterboxes
+     badly when scaled into the 560px panel. Pulling it off the instance puts it last. */
+  inst -> note [style=invis, ltail="cluster_subnet"];
+}
