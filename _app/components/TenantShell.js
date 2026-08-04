@@ -97,8 +97,11 @@
         // on its 1s/3s timers for the lifetime of the view.
         try { if (window.TenantRouter && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
 
-        // Strip whichever branch rendered: the full shell bar, or the re-enter pill.
-        ['tenant-shell-bar', 'tenant-reenter-pill'].forEach(function(id) {
+        // Strip whichever branch rendered: the full shell bar, or the re-enter pill
+        // (plus the pill's dismiss badge, which is a SIBLING element rather than a child —
+        // the pill is a <button> and nesting a button inside one is invalid HTML, so the
+        // badge is positioned alongside it and must be removed by id in its own right).
+        ['tenant-shell-bar', 'tenant-reenter-pill', 'tenant-pill-dismiss'].forEach(function(id) {
             var el = document.getElementById(id);
             if (el && el.parentNode) el.parentNode.removeChild(el);
         });
@@ -245,15 +248,115 @@
             // at all widths. Mobile pill at bottom: 136 clears mobile
             // HexAIButton (bottom 16, height 64 → top edge at 80) + SoundToggle
             // by the same 8px margin as desktop.
+            // ── Dismiss badge ────────────────────────────────────────────────
+            // Reported 2026-08-04: "the pill stay on the screen even after class is done,
+            // or the tennant deactivated or the user removed from tennant" / "we need to
+            // have a way to remove the pills".
+            //
+            // Two of those three cases CANNOT be detected from this page. The automatic
+            // check above uses getTenantConfig, which is public and needs no auth — that is
+            // the only reason the tenant-deactivated case could be closed at all. Class-ended
+            // lives on the class doc and student-removed lives at enrollments/{uid}, which
+            // firestore.rules:887-889 restricts to an authenticated self-read. Verified in a
+            // browser: on a content page `firebase`, `FirebaseAuth` and `FirestoreManager` are
+            // all undefined, so there is no authenticated call path where this pill renders.
+            // A manual control is therefore not a convenience here, it is the only mechanism
+            // that covers those two cases — and it covers unforeseen ones for free.
+            //
+            // WHY IT CONFIRMS FIRST. purgeTenantAndStrip is not cosmetic. The blob does double
+            // duty: AccessGuard.js:699-736 re-reads it on EVERY require() call and uses its
+            // presence to waive the sorting quiz that tenant students never take. Dropping it
+            // therefore revokes content access, and 81 of the 96 pages that load this script
+            // call AccessGuard.require() (measured, not estimated). That is exactly right when
+            // the relationship is over and a hard regression when it is not, so a mis-click on
+            // a live enrollment must not be able to trigger it silently.
+            //
+            // WHY IT ROUTES TO THE LOBBY. Once the blob is gone this script is a no-op on the
+            // next load (see the early return at the top — no blob, no bar, no pill), so there
+            // would otherwise be no on-page route back and the student would need a join code
+            // they may not have kept. lobby.html is the re-entry point, so we land them there
+            // rather than on a page they can no longer open.
+            //
+            // Distinct from "Exit Shell" (line ~513), which sets SHELL_HIDDEN_KEY only and
+            // deliberately leaves the blob — that hides the chrome while keeping enrollment
+            // and access intact, and is what produced this leftover pill in the first place.
+            var dismiss = document.createElement('button');
+            dismiss.id = 'tenant-pill-dismiss';
+            dismiss.type = 'button';
+            dismiss.textContent = '×';                 // multiplication sign, not an emoji
+            dismiss.title = 'Leave ' + tenantName + ' and remove this pill';
+            dismiss.setAttribute('aria-label', dismiss.title);
+            dismiss.style.cssText = [
+                'position: absolute',                        // HEUR-008: never fixed, same as the pill
+                'width: 18px',
+                'height: 18px',
+                'border-radius: 50%',
+                'z-index: 100000',                           // one above the pill so it stays clickable
+                'background: #0f172a',
+                'color: #e2e8f0',
+                'border: 1px solid rgba(255,255,255,0.25)',
+                'padding: 0',
+                'cursor: pointer',
+                'font-size: 12px',
+                'font-weight: 700',
+                'line-height: 1',
+                'display: flex',
+                'align-items: center',
+                'justify-content: center',
+                'opacity: 0',                                // revealed on hover/focus of either element
+                'transition: opacity 0.2s ease',
+                'pointer-events: none'                       // unhoverable while invisible, so it cannot
+            ].join(';');                                     // be clicked by accident off-screen
+
+            // Reveal on hover or keyboard focus of EITHER element. Focus matters on its own:
+            // an opacity-0 control that only appears on hover is unreachable by keyboard.
+            var showDismiss = function() {
+                dismiss.style.opacity = '1';
+                dismiss.style.pointerEvents = 'auto';
+            };
+            var hideDismiss = function() {
+                dismiss.style.opacity = '0';
+                dismiss.style.pointerEvents = 'none';
+            };
+            [pill, dismiss].forEach(function(el) {
+                el.addEventListener('mouseenter', showDismiss);
+                el.addEventListener('mouseleave', hideDismiss);
+                el.addEventListener('focus', showDismiss);
+                el.addEventListener('blur', hideDismiss);
+            });
+
+            dismiss.addEventListener('click', function(ev) {
+                // The pill sits underneath; without this the re-enter handler also fires and
+                // reloads the page out from under the confirm.
+                ev.stopPropagation();
+                ev.preventDefault();
+                var ok = window.confirm(
+                    'Leave ' + tenantName + '?\n\n' +
+                    'This removes the pill and exits the tenant on this device. You will lose ' +
+                    'access to ' + tenantName + ' course content until you rejoin with your ' +
+                    'join code.\n\n' +
+                    'Your enrollment and progress are not deleted.'
+                );
+                if (!ok) return;
+                purgeTenantAndStrip('dismissed by student');
+                window.location.href = '/lobby.html';
+            });
+
             var pendingFrame = null;
             var isMobile = function() { return window.innerWidth <= 600; };
             var repositionY = function() {
                 pendingFrame = null;
                 var offsetBottom = isMobile() ? 136 : 144;
-                pill.style.top = (window.scrollY + window.innerHeight - offsetBottom - 44) + 'px';
+                var top = window.scrollY + window.innerHeight - offsetBottom - 44;
+                pill.style.top = top + 'px';
+                // Overlap the pill's top-right corner by 5px so the badge reads as attached
+                // to the pill rather than floating as a separate control.
+                dismiss.style.top = (top - 5) + 'px';
             };
             var updateRight = function() {
-                pill.style.right = (isMobile() ? 16 : 24) + 'px';
+                var right = isMobile() ? 16 : 24;
+                pill.style.right = right + 'px';
+                dismiss.style.right = (right - 5) + 'px';
             };
             var scheduleReposition = function() {
                 if (pendingFrame !== null) return;
@@ -275,6 +378,7 @@
                 window.location.reload();
             });
             document.body.appendChild(pill);
+            document.body.appendChild(dismiss);
         };
         injectPill();
 
