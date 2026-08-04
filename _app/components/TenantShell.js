@@ -133,9 +133,14 @@
             })
             .then(function(cfg) {
                 if (!cfg) return;
-                if (cfg.status !== 'active') {
-                    purgeTenantAndStrip('tenant status=' + cfg.status);
-                }
+                /* DELETION STRIPS. STATUS DOES NOT. See the matching note in
+                   AccessGuard._verifyTenantAsync. Testing `cfg.status !== 'active'` here took
+                   the platform down on 2026-08-04: all six live tenants are "suspended", so
+                   this purged the blob for every tenant user, which in turn cost them the
+                   AccessGuard bypass and pinned them to the dashboard. The 404 branch above
+                   still strips a tenant that no longer exists. Which statuses should revoke
+                   is an operator decision that has not been made yet. */
+                void cfg;
             })
             .catch(function() { /* offline — fail open, re-checked next load */ });
     })();

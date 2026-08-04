@@ -210,7 +210,18 @@ const AccessGuard = (function() {
                 if (r.status === 404) return false;      // tenant deleted outright
                 if (!r.ok) return null;                  // transient -> inconclusive
                 return r.json().then(function(cfg) {
-                    return cfg && cfg.status === 'active';
+                    /* DELETION REVOKES. STATUS DOES NOT. Do not "tighten" this back to
+                       `cfg.status === 'active'` without checking production data first.
+                       That test caused an outage on 2026-08-04: ALL SIX live tenants carry
+                       status "suspended", not "active", so every tenant user on every page
+                       load was purged and redirected to the dashboard — they could not
+                       navigate anywhere. It was never caught in testing because every test
+                       mocked getTenantConfig and asserted the mock, never the real endpoint.
+                       'suspended' is an operator-facing lifecycle state, NOT a revocation,
+                       and the set of statuses that should revoke is an operator decision that
+                       has not been made. Until it is, only a tenant that is genuinely GONE
+                       (404, handled above) revokes access. */
+                    return cfg ? true : null;
                 });
             })
             .catch(function() { return null; });         // offline -> inconclusive
