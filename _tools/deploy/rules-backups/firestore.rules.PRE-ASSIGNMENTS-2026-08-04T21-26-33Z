@@ -636,29 +636,11 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Writes denied by omission — use the Cloud Functions named above.
 
-      // Assignments within a tenant class — read for signed-in users; ALL writes via
-      // Cloud Functions (createAssignment / updateAssignment / deleteAssignment,
-      // functions/index.js:4053-4279).
-      //
-      // The client write was removed 2026-08-04 after it was PROVEN exploitable, not merely
-      // suspected. Authenticated as a real member of faculty-testing-primus adminUids, a
-      // direct REST PATCH returned HTTP 200 and created an assignment with: title 300 chars
-      // (CF max 200), points 999999999 (CF max 10000), a contentType outside
-      // VALID_CONTENT_TYPES, a status outside VALID_ASSIGNMENT_STATUSES, an arbitrary field
-      // the update allowlist would strip, and a FORGED createdBy naming a uid that never
-      // authenticated. Confirmed landed via the Admin SDK, then removed.
-      //
-      // Every validation the Assignment API performs was therefore optional for any tenant
-      // admin, and downstream consumers (student assignment lists, points aggregation,
-      // instructor dashboards) were built assuming those guarantees held.
-      //
-      // This is the same defect as the parent classes/{classId} rule fixed hours earlier:
-      // a rules-layer write sitting beside a validating Cloud Function, gated only on
-      // adminUids membership. Fixing the parent and not the child is how a sibling survives
-      // a fix — check one level down.
+      // Assignments within a tenant class
       match /assignments/{assignmentId} {
         allow read: if request.auth != null;
-        // Writes denied by omission — use the Cloud Functions named above.
+        allow write: if request.auth != null
+          && request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids;
       }
 
       // Student progress within a tenant class
