@@ -75,13 +75,24 @@
     // not lose their course because a fetch timed out. A deactivated tenant surviving until
     // the next successful check is the lesser harm, and AccessGuard's own async verifier
     // closes the access half separately.
-    function purgeTenantAndStrip(reason) {
-        try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
-        try {
-            localStorage.removeItem('hexworth_tenant');
-            localStorage.removeItem('hexworth_tenant_slug');
-            localStorage.removeItem(SHELL_HIDDEN_KEY);
-        } catch (e) {}
+    /* TWO UNRELATED ACTIONS — do not merge them again.
+       A tenant is WHITE-LABEL ACCESS: a branded wrapper over Hexworth. Ending the wrapper
+       and ending someone's Hexworth account are different events with different triggers.
+
+       stripTenantChrome() ends the WRAPPER ONLY. Branding, bar, pill and link overrides go;
+       the blob stays, so the person keeps browsing Hexworth exactly as any other user.
+       This is what a suspended tenant gets.
+
+       purgeTenantAndStrip() additionally DELETES the blob. Because AccessGuard.js:699-736
+       re-reads that blob on every require() call to waive the sorting quiz white-label
+       students never take, deleting it also removes their content access. Reserve it for
+       cases where there is no white-label relationship left to honour: the operator's own
+       manual dismiss, and a tenant that returns 404.
+
+       Collapsing these two took the platform down on 2026-08-04. Suspended-tenant students
+       had their blob deleted, lost the bypass, and were redirected to the dashboard from
+       every page — killing Hexworth for them when the intent was only to end the tenant. */
+    function stripTenantChrome(reason) {
         // Stop the deferred injectors: on a page that loads this script in <head> (the
         // documented, recommended placement) injectBar/injectPill wait for DOMContentLoaded.
         // A cached 30s getTenantConfig response can resolve BEFORE that fires, in which case
@@ -112,8 +123,23 @@
             if (el && el.parentNode) el.parentNode.removeChild(el);
         });
         if (window.console && console.info) {
-            console.info('[TenantShell] tenant revoked (' + reason + ') — shell and pill removed');
+            console.info('[TenantShell] tenant wrapper removed (' + reason + ') — '
+                       + 'branding, bar and pill gone; Hexworth access untouched');
         }
+    }
+
+    /* Chrome removal PLUS deletion of the blob. This also costs the student their
+       AccessGuard bypass, so it is only correct where no white-label relationship remains:
+       the manual dismiss, a 404 tenant, or a blob that names no tenant at all. A suspended
+       tenant must NOT come through here — see the note above stripTenantChrome(). */
+    function purgeTenantAndStrip(reason) {
+        try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
+        try {
+            localStorage.removeItem('hexworth_tenant');
+            localStorage.removeItem('hexworth_tenant_slug');
+            localStorage.removeItem(SHELL_HIDDEN_KEY);
+        } catch (e) {}
+        stripTenantChrome(reason);
     }
 
     (function verifyTenantStillActive() {
@@ -133,14 +159,15 @@
             })
             .then(function(cfg) {
                 if (!cfg) return;
-                /* DELETION STRIPS. STATUS DOES NOT. See the matching note in
-                   AccessGuard._verifyTenantAsync. Testing `cfg.status !== 'active'` here took
-                   the platform down on 2026-08-04: all six live tenants are "suspended", so
-                   this purged the blob for every tenant user, which in turn cost them the
-                   AccessGuard bypass and pinned them to the dashboard. The 404 branch above
-                   still strips a tenant that no longer exists. Which statuses should revoke
-                   is an operator decision that has not been made yet. */
-                void cfg;
+                /* A tenant that is no longer active ends the WHITE-LABEL WRAPPER and nothing
+                   else. Chrome only — the blob survives, so the student keeps their Hexworth
+                   access and simply browses unbranded. This is the operator's original ask
+                   ("if the tenant is inactive no pill should be present for anybody") without
+                   the collateral damage of the first attempt, which deleted the blob and
+                   thereby killed Hexworth for every suspended tenant's students. */
+                if (cfg.status !== 'active') {
+                    stripTenantChrome('tenant status=' + cfg.status);
+                }
             })
             .catch(function() { /* offline — fail open, re-checked next load */ });
     })();

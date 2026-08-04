@@ -242,7 +242,23 @@ const AccessGuard = (function() {
         } else if (type === 'tenant') {
             _verifyTenantAsync(param).then(result => {
                 if (result === false) {
-                    console.warn('[AccessGuard] ASYNC TENANT VERIFICATION FAILED — tenant inactive or gone');
+                    /* NEVER REDIRECT, NEVER HIDE. A tenant is WHITE-LABEL ACCESS — a branded
+                       wrapper over Hexworth. Ending the wrapper and ending someone's Hexworth
+                       access are two unrelated actions, and this handler may only perform the
+                       first. The previous version did both: it deleted the blob, hid the page
+                       and called redirect('dashboard'), which on 2026-08-04 pinned every
+                       white-label student to the dashboard because all six live tenants are
+                       status "suspended". Killing the tenant must never kill Hexworth.
+
+                       result === false now means the tenant is GONE (404) or the blob names no
+                       tenant at all — a forgery. Dropping the blob there closes the bypass hole
+                       (a hand-typed hexworth_tenant key used to unlock gated content for
+                       anyone), and the student simply continues under their own Hexworth
+                       credentials. A merely suspended tenant never reaches this branch;
+                       TenantShell.stripTenantChrome() removes its branding and leaves
+                       everything else alone. */
+                    console.warn('[AccessGuard] tenant not found or not a real tenant — '
+                               + 'dropping the white-label bypass; Hexworth access unaffected');
                     try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
                     try {
                         localStorage.removeItem('hexworth_tenant');
@@ -262,8 +278,9 @@ const AccessGuard = (function() {
                     // student INTO the dead tenant hub. `typeof` matches the working check at
                     // line 658. Caught at QC 2026-08-04.
                     try { if (typeof TenantRouter !== 'undefined' && TenantRouter.refresh) TenantRouter.refresh(); } catch (e) {}
-                    hideContent();
-                    redirect('dashboard', 'This tenant is no longer active.');
+                    /* Deliberately NO hideContent() and NO redirect() — see above. The page the
+                       student is on stays open and readable; only the white-label bypass is
+                       withdrawn, and their own credentials govern the next navigation. */
                 }
                 // true  -> tenant live, keep showing
                 // null  -> inconclusive (offline), keep showing; re-checked next load
