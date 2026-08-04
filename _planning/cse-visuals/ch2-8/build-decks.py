@@ -47,7 +47,7 @@ def notes_json(slide):
     must NOT be projected; the whole point of the presenter panel."""
     def clean(s):
         # strip the leading bold label the companion deck uses inside cue/ask/demo divs
-        return re.sub(r'^(Class anchor:|Ask the room:|Demo:)\s*', '', s).strip().strip('"')
+        return re.sub(r'^(Class anchor:|Ask the room:|Demo cue:|Demo:)\s*', '', s).strip().strip('"')
     payload = {'points': [p for p in slide['points'] if p]}
     if slide.get('table'):
         payload['points'] += [t for t in slide['table'][1:] if t]
