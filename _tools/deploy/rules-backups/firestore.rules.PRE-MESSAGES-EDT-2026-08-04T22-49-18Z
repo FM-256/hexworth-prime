@@ -257,64 +257,13 @@ service cloud.firestore {
     }
 
     // Handler messages — F-27 handler-to-student comms
-    //
-    // FIXED 2026-08-04. `allow read: if request.auth != null` was scoped by nothing. Its
-    // comment claimed "queries filter by recipientUid or classId", but that is a CLIENT
-    // convention, not a rule — a direct get() on a known id, or an unfiltered list(), was
-    // enforced by nothing at all. PROVEN in the rules emulator: an uninvolved user read a
-    // private individually-targeted message, listed the whole collection unfiltered, and
-    // flipped readBy on someone else's message. Production held 9 real messages, 4 of them
-    // private instructor-to-student, readable by any authenticated account on the platform.
-    //
-    // Scoped below to the people a message is actually for. Mirrors the newer F-23
-    // messages/ rules further down this file, which got this right from the start.
-    //
-    // A message is either individually targeted (recipientUid set) or class-wide
-    // (recipientUid absent — see sendHandlerMessage, functions/index.js:1240-1296, where
-    // recipientUid is optional and validated against the class memberUids).
     match /handler_messages/{msgId} {
-      // NOTE ON .get(field, default) AND exists(): a bare `resource.data.senderUid` throws
-      // "Property senderUid is undefined" on any document missing the field, and a bare
-      // get(/classes/$(id)) throws when the class no longer exists. In rules an evaluation
-      // error denies, so a fragile predicate still fails closed — but it denies for the
-      // WRONG REASON, and on a list() the error aborts the whole query rather than filtering
-      // it. Defaults and an exists() guard keep the predicate total. Caught by the emulator
-      // harness on the first run of this fix.
-      allow read: if request.auth != null && (
-        // the sender
-        resource.data.get('senderUid', '') == request.auth.uid ||
-        // the named recipient
-        resource.data.get('recipientUid', '') == request.auth.uid ||
-        // the handler of the class it belongs to
-        isHandlerForClass(resource.data.get('classId', '')) ||
-        // a class-wide message (no named recipient), read by a member of that class.
-        // MUST test `== null`, NOT `== ''`. sendHandlerMessage (functions/index.js:1290)
-        // writes `recipientUid: recipientUid || null`, so on a class-wide message the key is
-        // PRESENT WITH VALUE null — never absent. `.get(field, default)` returns the default
-        // only when the key is ABSENT, so a `.get('recipientUid','') == ''` test never fired
-        // for a single real message. Caught in the rules emulator before deploy; it would
-        // have left every class-wide message permanently unmarkable-as-read.
-        // (`recipientType == 'class'` is the explicit discriminator, but the null test also
-        // covers any legacy document written without that field.)
-        (resource.data.get('recipientUid', null) == null &&
-          exists(/databases/$(database)/documents/classes/$(resource.data.get('classId', '__none__'))) &&
-          request.auth.uid in
-            get(/databases/$(database)/documents/classes/$(resource.data.get('classId', '__none__'))).data.get('memberUids', []))
-      );
-
-      // Mark-as-read, but only by someone the message was actually for. The hasOnly(['readBy'])
-      // guard limited WHICH field could change and never WHO could change it.
+      // Any authenticated user can read (queries filter by recipientUid or classId)
+      allow read: if request.auth != null;
+      // Students can update only the readBy field (mark as read)
       allow update: if request.auth != null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
-        && (
-          resource.data.get('recipientUid', '') == request.auth.uid ||
-          (resource.data.get('recipientUid', null) == null &&
-            exists(/databases/$(database)/documents/classes/$(resource.data.get('classId', '__none__'))) &&
-            request.auth.uid in
-              get(/databases/$(database)/documents/classes/$(resource.data.get('classId', '__none__'))).data.get('memberUids', []))
-        );
-
-      // Handlers can delete their own messages — already correctly scoped, unchanged.
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']);
+      // Handlers can delete their own messages
       allow delete: if request.auth != null && resource.data.senderUid == request.auth.uid;
       // Only Cloud Functions (admin SDK) can create
     }
@@ -383,33 +332,11 @@ service cloud.firestore {
     }
 
     // EDT lab submissions — students write their own, handlers read for grading
-    //
-    // FIXED 2026-08-04. VERB ASYMMETRY: `create` was correctly scoped to the caller's own
-    // uid via the doc-id suffix, and `update` was bare `if request.auth != null`. The author
-    // clearly understood ownership mattered and applied it to one verb only.
-    //
-    // A submission holds frameworkResponse, codeConflictResponse, autoScores AND the grade
-    // fields frameworkGraded, frameworkScore, finalTotal, instructorFeedback, gradedBy —
-    // written solely by gradeEDTSubmission (functions/index.js:7151-7249), which requires a
-    // handler/admin claim and verifies the grading instructor owns a class containing that
-    // student. PROVEN in the rules emulator: userA updated userB's submission setting
-    // frameworkGraded, finalTotal:100 and gradedBy:'userA', bypassing every one of those
-    // checks. A student could forge their own passing grade, or destroy another student's
-    // work and fabricate instructor feedback.
-    //
-    // Closed as CF-only rather than scoped-to-owner: the owner must not be able to write
-    // their own grade fields either, and no client code writes this collection — submission
-    // goes through submitEDTLab (functions/index.js:6903-7059) and grading through
-    // gradeEDTSubmission, both Admin SDK, which bypasses these rules.
-    //
-    // Zero submissions existed when this was found, so no real grade was forged. The path
-    // was live and would have mattered the day the Ethics labs went into use.
     match /edt_submissions/{submissionId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null &&
         submissionId.matches('.*_' + request.auth.uid + '$');
-      // Updates via Cloud Functions only — see the note above.
-      allow update: if false;
+      allow update: if request.auth != null;
       allow delete: if false;
     }
 
