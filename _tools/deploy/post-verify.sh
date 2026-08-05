@@ -190,6 +190,34 @@ else
 fi
 echo ""
 
+# ── Check 4b: CTF box / flag-registry cross-check ────────────────────
+# Added 2026-08-05. ops-05-operation-blackwire shipped to students fully built,
+# listed in the arena, and unsolvable — no flag_registry doc, so every flag
+# submission threw. Nothing caught it because the defect lived in the GAP between
+# content on disk and flags in Firestore, and no check spanned both. It was found
+# by hand, months late.
+#
+# Runs here rather than inside eduscan's main scan because scan() is synchronous
+# and this needs an async Firestore read. Non-blocking: it flags divergence, it
+# does not abort a deploy that already happened.
+echo "[4b/5] CTF box / flag-registry cross-check"
+if [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would run eduscan --ctf-boxes${NC}"
+else
+    CTF_OUT="$(node "$REPO_ROOT/_tools/eduscan/cli.js" --ctf-boxes 2>&1)"
+    CTF_RC=$?
+    if [[ $CTF_RC -eq 1 ]]; then
+        echo -e "  ${RED}✗ unregistered or unsolvable CTF box(es) detected${NC}"
+        echo "$CTF_OUT" | grep -E '\[BOX-00[123]\]' | head -5 | sed 's/^/    /'
+        DIVERGENCE=1
+    elif [[ $CTF_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}! cross-check could not run${NC} (see _tools/eduscan --ctf-boxes)"
+    else
+        echo -e "  ${GREEN}✓${NC} every box on disk has its flags registered"
+    fi
+fi
+echo ""
+
 # ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
 echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then
