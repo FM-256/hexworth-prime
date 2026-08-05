@@ -141,7 +141,10 @@
   #exitLink:hover{color:var(--cyan);border-color:var(--cyan)}
   #tr{top:14px;right:14px;min-width:196px;text-align:right}
   #bl{bottom:14px;left:14px;min-width:238px}
-  #br{bottom:14px;right:14px;min-width:206px;text-align:right}
+  /* Raised to clear the Dr. Hex floating button, which is fixed at
+     bottom:24 right:24 z-index:9000 (_lib/HexAIButton.js:129-132). At the
+     original bottom:14 the corroborator panel sat directly on top of it. */
+  #br{bottom:110px;right:14px;min-width:206px;text-align:right}
   .k{color:var(--cyan-dim)}
   .v{color:var(--cyan)}
   .v.warn{color:var(--amber)}
@@ -498,6 +501,17 @@
        enabled.</p>
   </div>
 </div>
+
+<!-- ── Dr. Hex floating mood-ring button ──────────────────────────────────
+     The REAL Dr. Hex: the platform's LLM-backed chat tutor, governed by
+     _docs/operations/dr-hex-constitution.md. This is the open-ended "explain
+     what I am looking at" voice, and it is deliberately NOT the same thing as
+     the Sortie Coach panel, which gives tiered, objective-scoped, scripted
+     nudges and costs decision discipline. Dr. Hex is free-form and free.
+     Same integration as the five sibling games in this directory.
+     Docs: _docs/operations/dr-hex-button-integration.md                  ── -->
+<hex-ai-button mission-id="cold-horizon" house="cloud"></hex-ai-button>
+<script type="module" src="/_lib/HexAIButton.js"></script>
 
 <script type="importmap">
 { "imports": { "three": "/vendor/three/three.module.min.js" } }
@@ -1773,6 +1787,11 @@ function stepScan(dt){
 }
 
 function onPanelLogged(node){
+  // Dispatch from the completion handler rather than from the key-hold loop, so
+  // every route that logs an integration reports it exactly once. Putting it in
+  // stepScan meant the path used by tooling never fired the event, which is the
+  // kind of gap that makes an integration look wired when half of it is not.
+  reportAttempt();
   const delta = node.real - node.claimed;
   if(Math.abs(delta) > 10){
     Audio.alarm();
@@ -1821,11 +1840,22 @@ function openDecision(){
   if(document.pointerLockElement) document.exitPointerLock();
 }
 
+// Dr. Hex's mood ring is attempt-driven, not polled: the page tells it when the
+// student has actually submitted something gradeable, and the callable
+// recomputes state after Firestore commits. Guarded so the game still runs
+// standalone with the button absent.
+// See _docs/operations/dr-hex-button-integration.md.
+function reportAttempt(){
+  try{ window.dispatchEvent(new CustomEvent('hexworth:lab-attempt-submitted')); }
+  catch(e){ /* no button on the page — nothing listening, nothing to do */ }
+}
+
 function decide(k){
   state.decided = true;
   state.correct = (k === 'ir');
   $('dec').classList.remove('show');
   completeObjective(4);
+  reportAttempt();            // the one graded call in the sortie
   endMission(state.correct, k);
 }
 
