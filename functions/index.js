@@ -6666,7 +6666,14 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         teamId: userTeamId,
         teamName: userTeamData.name || 'Unknown',
         challengeId: challengeId,
-        submittedFlag: flag,
+        /* NEVER store the raw flag of a CORRECT submission. tournaments/{id}/submissions is
+           `allow read: if request.auth != null` (firestore.rules) because the ungated live
+           broadcast board needs the feed — so any signed-in user could read every team's
+           winning flag and replay it. Storing the answer next to `correct: true` turned the
+           submission log into an answer key.
+           Incorrect guesses are retained: they are not answers, and they are the useful half
+           for reviewing suspected cheating. */
+        submittedFlag: correct ? null : flag,
         correct: correct,
         points: correct ? (challenge.currentPoints || challenge.points || 0) : 0,
         submittedBy: uid,
