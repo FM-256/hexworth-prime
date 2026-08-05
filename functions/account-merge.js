@@ -32,6 +32,7 @@
  */
 const admin = require('firebase-admin');
 admin.initializeApp({ projectId: 'hexworth-prime' });
+const { recomputeCtfStats } = require('./ctf-stats');
 const db = admin.firestore();
 
 const uidA = process.argv[2];
@@ -173,8 +174,11 @@ async function main() {
     // 3. Merge scalars (take best)
     const mergedStreak = Math.max(a.streak || 0, b.streak || 0);
     const mergedGamesPlayed = Math.max(a.gamesPlayed || 0, b.gamesPlayed || 0);
-    const mergedCtfBoxes = Math.max(a.ctfBoxesPwned || 0, b.ctfBoxesPwned || 0);
-    const mergedCtfFlags = Math.max(a.ctfFlagsCaptured || 0, b.ctfFlagsCaptured || 0);
+    /* CTF counters are NOT merged by Math.max — see below. Taking the larger of two stored
+       values would resurrect exactly the client-derived numbers that Phase B retired: the
+       server is the sole writer of these fields, and a merge that copies stored values back
+       in would silently undo that for every merged account. They are recomputed from the
+       MERGED flag_captures instead, after the subcollection copy. */
 
     // Inherit identity fields from A if B has none
     const mergedHouse = b.house || a.house || null;
@@ -195,6 +199,23 @@ async function main() {
     console.log('  Flag captures: copied', flagResult.copied, '| skipped', flagResult.skipped);
 
     const scoreResult = await copySubcollection(uidA, uidB, 'score_submissions');
+
+    /* Recompute the CTF counters from the MERGED capture set. This runs AFTER the
+       flag_captures copy above, so it sees the union of both accounts. Capture doc ids are
+       deterministic ({boxId}_{flagId}), so the copy de-duplicates naturally and a flag both
+       accounts captured is counted once — which Math.max could never express, and which is
+       strictly more accurate than either account's stored figure.
+       Uses the same ctf-stats module the Cloud Functions use; there is one definition. */
+    let mergedCtfBoxes = 0, mergedCtfFlags = 0;
+    if (!DRY_RUN) {
+        const stats = await recomputeCtfStats(db, admin.firestore.FieldValue, uidB);
+        mergedCtfBoxes = stats.boxesPwned;
+        mergedCtfFlags = stats.flagsCaptured;
+        console.log(`  CTF recomputed from merged captures: ${mergedCtfFlags} flags, ${mergedCtfBoxes} boxes`);
+    } else {
+        const caps = await db.collection('users').doc(uidB).collection('flag_captures').get();
+        console.log(`  [DRY] would recompute CTF from ${caps.size} existing + ${flagResult.copied || 0} copied captures`);
+    }
     console.log('  Score submissions: copied', scoreResult.copied, '| skipped', scoreResult.skipped);
     console.log();
 
