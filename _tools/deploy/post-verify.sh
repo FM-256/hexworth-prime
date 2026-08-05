@@ -218,6 +218,24 @@ else
 fi
 echo ""
 
+# ── Check 4c: rules/CF bypass check (SEC-010/011) ────────────────────
+# Static, no credentials. Catches the class of bug that shipped twice on
+# 2026-08-04: a client write in firestore.rules shadowing a validating Cloud
+# Function, so the function's checks can simply be skipped.
+echo "[4c/5] Firestore rules / Cloud Function bypass check"
+if [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would run eduscan --rules-bypass${NC}"
+else
+    RB_OUT="$(node "$REPO_ROOT/_tools/eduscan/cli.js" --rules-bypass 2>&1)"
+    if [[ $? -eq 1 ]]; then
+        echo -e "  ${YELLOW}! client writes shadow a validating Cloud Function${NC}"
+        echo "$RB_OUT" | grep -E '\[SEC-01[01]\]' | head -4 | sed 's/^/    /'
+    else
+        echo -e "  ${GREEN}✓${NC} no client write shadows a validating Cloud Function"
+    fi
+fi
+echo ""
+
 # ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
 echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then

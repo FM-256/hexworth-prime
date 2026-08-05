@@ -214,6 +214,10 @@ function parseArgs(args) {
                 options.ctfBoxes = true;
                 break;
 
+            case '--rules-bypass':
+                options.rulesBypass = true;
+                break;
+
             case '--smoke-only':
                 options.smokeOnly = true;
                 options.functional = true;
@@ -653,6 +657,30 @@ function main() {
             // CTF box <-> flag_registry cross-check (async - reads Firestore)
             runCtfBoxes(options, colorFn);
             return;
+        }
+
+        if (options.rulesBypass) {
+            // SEC-010/011 — static; no credentials needed
+            const RulesBypassValidator = require('./validators/security/rules-bypass');
+            const repoRoot = require('path').join(__dirname, '../..');
+            const found = new RulesBypassValidator({ repoRoot }).validate();
+            console.log('');
+            console.log(colorFn('FIRESTORE RULES / CLOUD FUNCTION BYPASS CHECK', 'bold'));
+            console.log('');
+            if (!found.length) {
+                console.log(colorFn('  CLEAN', 'green') + '  no client write shadows a validating Cloud Function.');
+                process.exit(0);
+            }
+            for (const f of found) {
+                console.log(colorFn(`  [${f.code}] ${f.severity.toUpperCase()}`, 'yellow') + `  ${f.file}`);
+                console.log(`      ${f.message}`);
+                console.log(colorFn(`      fix: ${f.fix}`, 'dim'));
+                console.log('');
+            }
+            const counts = {};
+            found.forEach(f => { counts[f.code] = (counts[f.code] || 0) + 1; });
+            console.log('  ' + Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join('   '));
+            process.exit(found.some(f => f.severity === 'high') ? 1 : 0);
         }
 
         if (options.orphansOnly) {
