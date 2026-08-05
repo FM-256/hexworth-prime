@@ -15,415 +15,115 @@
 - 3b6890b52 fix(games): BUG-093 batch 3 -- pre-formatted text and wide tables contained, not wrapped
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-08-04 — PAUSED mid-task, operator changing location. Production SAFE.
+**Manual section updated:** 2026-08-05 — ALL CLEAR. Nothing committed-and-undeployed.
+Production verified on all three surfaces. Safe to stop, safe to resume cold.
 
-## NOW — PAUSED. az-104 quiz shuffle is COMMITTED but NOT DEPLOYED. Read this before resuming.
+## NOW — nothing is pending. Next task is queued but NOT started.
 
-### ★ PRODUCTION IS SAFE. DO NOT half-ship this.
-  live HTML  = OLD option order.  live Firestore quiz_keys = OLD indices.  They AGREE.
-  Students are grading correctly right now. The ONLY unsafe state is a gap we create.
-  Local HEAD be99e4ccf has NEW option order + NEW keys, committed, undeployed.
+### NEXT TASK (operator asked, not begun)
+  Read this article, document it, create a directory under the hexworth-shared PLANNING
+  folder, capture the ideas that come out of it, and separate the projects that actually
+  materialise. Then discuss.
+    https://the-decoder.com/claude-opus-5-pushes-prompt-to-game-ai-from-rough-color-blocks-to-full-3d-prototypes-with-physics-and-music/
+  Operator framing: they are exploring creativity/innovation and multi-agent capability,
+  not just building. Treat it as exploratory, not a spec.
 
-### RESUME SEQUENCE — exact, do not reorder
-  0. Chris was mid-review of be99e4ccf when we stopped. Re-run him if no PASS is recorded.
-  1. `_tools/deploy/record-chris-pass.sh "<scope>"`  (deploy.sh BLOCKS without it)
-  2. `cd functions && node push-quiz-keys.js --filter az104`     <- PRODUCTION Firestore write
-  3. `./deploy.sh`  IMMEDIATELY after step 2 — back to back, minimal gap
-  4. verify live: option order on az104-ch02 Q4 should show "Owner can assign roles" at [3]
-  5. regenerate the 6 Confluence solution pages (see below) — 71/90 letters go stale on deploy
-  WHY THIS ORDER: keys-first because gradeQuiz reads the key at SUBMIT time. Getting Chris's
-  pass BEFORE pushing matters — pushing then waiting for review leaves live HTML and live keys
-  disagreeing for the whole review window.
+### DEPLOY STATE — verified, not assumed
+  hosting    current  (Lagrange box files + arena card live, byte-checked)
+  functions  current  (validateFlag/validateAction/ctfSubmitFlag, ctf-stats.js)
+  rules      current  (live ruleset md5 == committed, checked via Rules API with
+                       header X-Goog-User-Project: hexworth-prime — a bare ADC call 403s)
+  Uncommitted files in the tree are pre-existing debris from earlier sessions, NOT this work.
 
-### WHY THERE IS NO SAFE ORDERING (Nancy traced it)
-  gradeQuiz has no version field, no key-version param, no maintenance flag. The quiz HTML
-  embeds questions as a static JS array loaded ONCE at page load. A student holding the page
-  across the key write is graded against positions that no longer exist. Only a moment with no
-  in-flight sessions removes this. Accept a short window; do not pretend it is zero.
+---
 
-### WHAT WAS FIXED (be99e4ccf)
-  QUIZ-008. az104-ch02 key was [1]x15 — every answer B, all-B scored 100%. ch01 14/15, ch06
-  93%, ch04/ch05 87%, ch03 67%. After: max single-index share 33-47% on all six.
-  Tool: `_tools/quiz/az104-shuffle.js` (NEW). Deterministic, seeded sha256(quizId:qIndex);
-  moves option literals as RAW SOURCE so \' and → survive; asserts per question that the
-  option at the NEW index is byte-identical to the one at the OLD index AND that the option
-  set is unchanged, aborting the whole run on any mismatch; reseeds if a permutation lands
-  >60% on one index so it cannot silently no-op.
-  NOT the ALA tool: ALA embeds {q,opts,ans,exp} (answer in HTML, browser-graded, Firestore
-  inert). AZ-104 embeds {question,options,explanation}, NO answer field, genuinely
-  server-graded (QuizEngine.js:621 -> gradeQuiz CF). HTML question N maps to answers[N] by
-  ARRAY POSITION ALONE, no shared id — a correspondence nothing in this repo had ever checked.
-  Verified before writing: 6 quizzes x 15 questions, 15 keys each, 4 options, all in range.
+## WHAT HAPPENED TODAY (2026-08-04/05)
 
-### BRIDGET AUDIT — ran, clean, with two findings that matter
-  ★ 0 WRONG ANSWERS, 90/90, pre- AND post-shuffle. She re-derived every correct answer from
-    the explanations independently. The biased generator was LAZY, NOT INCORRECT — the shuffle
-    had nothing wrong to cement. This was the main fear; it is cleared.
-  ★ CONFLUENCE STATES LETTER **AND** TEXT ("Correct Answer: B) The deployment and management
-    layer..."). After the shuffle 71/90 letters (79%) are STALE. Text stays accurate; the
-    letter/position binding breaks. Pages: ch01 3407881, ch02 2982980, ch03 3015392,
-    ch04 2851885, ch05 2950389, ch06 3473409. Never Karl-audited, v1 since 2026-04-26.
-  ★ PRE-EXISTING PROD BUG, fixed as a side effect of the push: live quiz_keys/az104-ch06-quiz
-    holds a 16-ELEMENT answers array vs 15 HTML questions (spurious trailing 1, seeded
-    2026-04-24). The corrected 15-length key fixes it.
+### 1. Tenant outage — caused and fixed
+  I treated tenant `status != 'active'` as revoked. ALL SIX live tenants are "suspended",
+  which is NORMAL. Every white-label student was purged and pinned to the dashboard, unable
+  to navigate. Admins were unaffected (staff bypasses outrank tenant state), which made it
+  look like an Observatory bug for an hour.
+  THE MODEL, operator's words: "the tennants work as api's for controlled access... what you
+  did is kill access to hexworth, instead of killing the tennant. 2 unrelated actions."
+    end the WRAPPER  -> strip branding/bar/pill, KEEP the blob   (tenant suspended)
+    end ACCESS       -> delete the blob                          (404, forgery, manual dismiss)
+  The blob doubles as an access credential (AccessGuard waives the sorting quiz with it), so
+  deleting it removes content access on ~81 gated pages. See memory
+  project_tenant_white_label_model.
+  ROOT CAUSE OF THE MISS: every test mocked getTenantConfig and asserted the mock. 15/15 green
+  while shipping an outage. See memory feedback_never_mock_the_thing_under_test.
 
-### OPEN DECISION FOR THE OPERATOR — do not decide this solo
-  Scope. These 6 are ~11% of it: ~52 of 64 cloud-house quiz files are skewed, 423 findings
-  platform-wide. Shipping 6 leaves ~46 guessable with NO visible signal which is which. Is
-  partial remediation better than uniform badness? Operator has been told; awaiting answer.
+### 2. CTF counters — server-authoritative, all three phases deployed
+  A: _recomputeCtfStats derives both counters at all FOUR capture sites
+  B: both client writers removed + rules allowlist closed, SHIPPED TOGETHER (hosting first,
+     then rules — reverse order rejects the bundled profilePatch from stale tabs)
+  C: account-merge recomputes instead of Math.max; one shared definition in ctf-stats.js
+  Also fixed: 88 boxes could never be marked complete (missing alias maps), ops-05 Blackwire
+  was playable and unsolvable (registry never seeded), validateAction threw on every
+  first-time capture (my regression, caught before any student hit it).
 
-### SHIPPED AND LIVE EARLIER TODAY
-  - WSA nav fix c4f0b42dd — 12 presentations had NO visible way back (HEUR-024 12->0); also
-    fixed a pre-existing 85px nav overflow at 768px. Chris PASS. Deployed CLEAN, no --force.
-  - CSE lecture decks ch1-8 (41 slides), projection format, notes behind N.
-  - eduscan scan-root fix 4f378156a (13 validators) — the "1,582 orphans" were MY artifact.
-  - Lodestar: intake button + staleness clock + external-applications area.
+### 3. Four security holes closed, each PROVEN then fixed
+  tenant classes client-write bypass        | assignments client-write bypass
+  handler_messages unscoped read (9 real messages, 4 private, exposed)
+  edt_submissions verb asymmetry (any user could forge a grade)
+  users CREATE had no field allowlist — new signups could forge ctfBoxesPwned/tier
 
-### REVERT POINTS
-  hexworth-prime: tag `revert-point-2026-08-04-eduscan-fix` -> 217d5adb7
-  lodestar:       tag `revert-point-2026-08-04` -> ae29833
+### 4. Lagrange Edge MVP-0 — built, deployed, ACCEPTED
+  Box le-01-cold-horizon, Mission 1 "Three Temperatures". 7/7 acceptance criteria proven
+  against production. Listed as `coming-soon` (first use of that status; 148 others are
+  `available`) so it is visible and unreachable.
+  Design + scope: hexworth-shared/workbench/new box design/Lagrange-edge-box/
+    Lagrange-Edge-Box-Master-Design-v1.1.docx   (operator's, 6400 words)
+    Lagrange-Edge-MVP-Scope-v1.md               (mine, 24 acceptance criteria + accept record)
+  OPERATOR DECISION OUTSTANDING: flip to `available`, or keep coming-soon.
 
-## PRIOR — BUG-093 CLOSED: 37 -> 0. All 91 games measured on prod, zero h-overflow.
+---
 
-### BUG-093 DONE. Evidence: `_docs/operations/evidence/game-hscroll-final-2026-08-02.txt`
-PROVEN to cover exactly the 91 games with 0 defects -- diffed against the game list, not
-eyeballed (the first assembled file had 92 lines and a malformed entry).
-Five batches, each verified on a candidate build THEN re-measured on production:
-  ea45bf6a3 + 0c5e4360d (4 cloud) · c81910534 (9 broken at 1024 too) · 593684919 (11 wrapper)
-  3b6890b52 (pre-text + tables) · 8c8ca3486 (10 flex rows, other names) · f107d8256 (final 6)
-★ ONE DEFECT WEARING MANY NAMES: display:flex + flex-wrap:nowrap with non-shrinking children --
-#gameWrapper, HEADER.header, NAV#module-nav, .input-container, #main, .top-bar, .game-wrap, and
-on shield-incident-response THE BODY ELEMENT ITSELF. Long tail: fixed canvases, a CSS grid, wide
-tables, white-space:pre, a progress-bar fill wider than its own track.
-★ `max-width:100%` RESOLVES AGAINST THE CONTAINING BLOCK -- capping a canvas inside a fixed-width
-container is a NO-OP. Cost 3 attempts on shield-debugger; after that, 11 files fixed first try.
-NOTHING IS HIDDEN: everything wraps, folds, contains with overflow-x, or caps a canvas DISPLAY
-size (drawing buffer untouched, so game coordinates are unaffected).
+## OPEN — decisions, not code. Do not start these without the operator.
 
-### ★★ FOUR INSTRUMENTS WERE WRONG, all the same root: geometry != what is painted
-  1. sweeper named a THEAD *inside* an already-scrolling table as "the cause"
-  2. scrollWidth>clientWidth flagged its OWN overflow-x:auto fix as a defect
-  3. "what protrudes" returned nothing when overflow is INHERITED up the ancestor chain
-  4. a full sweep printed "0 DEFECTS" after CRASHING at 86 of 91 games -- caught only because
-     97 log lines for 91 games did not add up. A CLEAN NUMBER FROM A DEAD HARNESS.
-★ "0 overlaps" on an OVERFLOWING page means nothing: cloud-hop reported 0 while only NINE text
-nodes were measurable. After the fix, 45. Overlaps exposed by removing overflow were FIXED, and
-exposed-vs-caused was measured prod-before vs candidate-after, not asserted.
-Tool promoted: `_tools/eduscan/hscroll-sweep.js`.
+  users.accountType / users.labsCompleted are DUAL-WRITTEN (SEC-012 found them).
+    labsCompleted is progress data in the bundled profilePatch — needs Phase-B-style care.
+  tournament challenges are `allow read: if true` and carry flagHash AND flagSalt.
+    Offline brute force, no rate limit. No client reads those fields — fix is to move the key
+    material out of the public doc. Coordinated CF + admin console + rules + migration.
+  arena_sessions: 58 live sessions, any signed-in user can write any session. CANNOT be fixed
+    by a rule alone — hostUid is never written, so the doc records no owner. Needs a client
+    change first.
+  cross-tenant class read: any signed-in user reads any tenant's classes incl. instructorEmail
+    and joinCode. Business call — only matters if tenants are ever separate customers.
+  BoxEngine FLAG PREFETCH: 231 boxes hand every flag to the client on page load
+    (BoxEngine.js:98-106 + deliverFlag has no progress check). Spoiler-class, not forgery.
+    LagrangeEngine deliberately does not inherit it.
+  test-x (Dr. Wallace) is NOT enforcing licences, by operator decision. Preflight is clean.
+  hackerman-reset.js still holds a third definition of "pwned". Dead script, not reachable.
 
-### STILL OPEN (not overflow): web-packet-run Mute/HUD overlap (PRE-EXISTING, prod @1600) ·
-eye-log-centipede flags only under scroll sampling (.gs-widget has no rAF pin/scroll listener
-=> likely probe artifact, recorded as unresolved rather than claimed).
+---
 
-## PRIOR — BUG-093 in progress
+## TOOLING ADDED TODAY — run these, they are wired in
 
-### THE FINDING: 37 of 91 ARCADE GAMES (41%) SCROLLED SIDEWAYS ON A PHONE
-Measured on production across all ten houses, not inferred. 9 of the 37 were broken at 1024 too.
-Evidence frozen: `_docs/operations/evidence/game-hscroll-sweep-2026-08-02.txt`.
-★ THE INSTRUMENT WAS THE STORY. A static grep ("non-wrapping flex + flex-shrink:0 child") gave
-16 candidates. DIRECT MEASUREMENT found 37 defects, and >=2 of the 16 were false positives. The
-proxy over- AND under-reported -- it MISSED MORE THAN IT FOUND. One script settled it.
+  node _tools/eduscan/cli.js --ctf-boxes      BOX-001..004, 243/243 coverage, post-verify 4b
+  node _tools/eduscan/cli.js --rules-bypass   SEC-010/011/012, post-verify 4c
+  node _tools/tenant/licence-preflight.js     safe-to-enforce check, exit 1 if not
+  functions/migrate-dispatch-aliases.js       alias repair (already applied)
+  _tools/rules-test/*.test.js                 emulator harnesses (gitignored, kept)
 
-### SHIPPED + PRODUCTION-VERIFIED: 24 games, the ENTIRE #gameWrapper class (20/20) + 4 cloud
-  BUG-087 4 cloud games (ea45bf6a3, 0c5e4360d) · BUG-093 batch 1 = 9 worst (c81910534)
-  BUG-093 batch 2 = 11 remaining wrapper-class (593684919). All re-measured on prod: clean.
-ROOT CAUSE: #gameWrapper is a non-wrapping flex row of a fixed canvas + fixed side panel --
-wider than the viewport BY CONSTRUCTION (666px to 1226px against a 390px screen).
-★ THE FIX THAT COST 3 ATTEMPTS, then made batch 2 a one-shot: `max-width:100%` resolves against
-the CONTAINING BLOCK. Capping only the canvas resolves against a fixed-width container = no-op.
-Cap the WRAPPER (its containing block is the body), the container, AND the canvas. Capping the
-canvas DISPLAY size never touches the drawing buffer, so game coordinates are unaffected.
+  NEW AGENT: mallory — exploit-driven security auditor. Proves bugs by running them, never by
+  reading. Has the Bug Hunting hub (31 modules) as her KB and knows the CTF box architecture.
+  Always demands an A/B: attack succeeds before the fix, denied after.
 
-### NO REGRESSIONS -- and that was MEASURED, not asserted
-Production-before vs candidate-after, per page: the 1024 overlaps were IDENTICAL before/after
-(pre-existing). Every "new" 390 overlap sits on a page where prod had h-scroll=true and the probe
-could see only 4-19 elements -- the rest were off-canvas. EXPOSED, NOT CAUSED.
-★ That is also why "0 overlaps" on an overflowing page means nothing: hop reported 0 while only
-NINE text nodes were measurable. After the fix, 45.
+---
 
-### STILL OPEN ON BUG-093: 17 games, different causes, need per-page work
-TABLE#alert-table (809) · PRE blocks (511) · #canvas-wrap (780) · #statusBar (314) · #terminal
-(254) + unnamed divs. NOT the shared block -- these need individual treatment.
-Also open: web-packet-run Mute/HUD overlap (PRE-EXISTING, reproduced on prod at 1600) ·
-eye-log-centipede flags only under scroll sampling (gs-widget is position:absolute with NO rAF
-pin and NO scroll listener, so offset from content is fixed => probably a probe artifact;
-recorded as unresolved rather than claimed either way).
+## STANDING WARNINGS — earned today
 
-### ★★ PLATFORM CONSTRAINT, hit on FOURTEEN pages now and paid for individually each time
-With both shared overlays loaded, the achievement toast owns y[20,114] and the collapsed
-GameScoreboard panel owns y[130,167] -- so THE TOP ~175px IS UNUSABLE by page content on a
-narrow screen. Every wrapped game needed a 175px gutter. That is a design problem in the overlay
-stack, not fourteen page problems.
-
-## PRIOR — THREE things on Frank's desk. Harness leak FIXED + VERIFIED live. Pool debris SYSTEMIC.
-
-### HARNESS FLEET: FIXED AND PROVEN ON REAL RUNS (not node --check)
-All 15 harnesses: zero random identities, zero accounts:delete calls. Root cause was
-SELF-INFLICTED (13 of 15 deleted their own fixed QC identity every run, so the next run bound
-a new slot) -- documented at `adversarial-wall.js:105-111`, unread by me until now.
-VERIFIED BOTH DIRECTIONS:
-  failing path  adversarial-cinder threw -> finally ran -> container GONE (docker ps -a = 0)
-  passing path  walkthrough-project PASS 4/4 twice, two consecutive runs
-  companion fix run 2 logged "0. baseline: cleared a stale entry (uid kc7K896s...)" -- run 1
-    left a baseline behind (exactly Nancy's predicted contamination) and run 2 cleared it
-Both reused student-17; no new slot bound. I also had to fix my own blind spot: the clear was
-SILENT because sh() captures stdout, so the first passing run proved nothing about it.
-
-### 3. NEW OPERATOR DECISION: the pool debris is SYSTEMIC (BUG-091, BUG-092)
-Swept all 30 slots read-only: EVERY one of the 25 bound slots holds exactly 1 server.
-25 servers + 2 volumes stranded. Uniform count is the tell (--instances 1 cap).
-CAREFUL WITH THE CLASSIFICATION -- I overclaimed once and Nancy caught it. The criterion is
-"signIn with the harness's OWN hardcoded password succeeded", which can only classify the 14
-QC identities, because those are the only passwords known. So the defensible statement is
-"23 of 25 bound uids are NOT any current QC identity". It does NOT prove they are dead -- a
-real student's uid would fail the same test. Proving dead needs the Auth-admin getUser ->
-user-not-found that no available credential can do.
-RAW EVIDENCE FROZEN: `_docs/operations/evidence/pool-sweep-2026-08-02.json` (all 30 slots).
-BINDING HISTORY DOES NOT EXIST -- claim_service.py suppresses its request logging (:592) and
-the journal holds 65 lines of start/stop only. So it CANNOT be shown that student-25 was
-QC-bound continuously since before the Jul 31 resources appeared. Same absence as BUG-090.
-The cinder GATE IS BLOCKED right now: duplicate `lab-vol` + a stranded `cheat-srv` holding the
-only instance slot (quota CONFIRMED real: maxTotalInstances=1, used=1). Cannot self-heal --
-the harness resolves volumes BY NAME and the ambiguity kills it before cleanup runs.
-Nothing deleted. Full inventory archived in BUG-091 first.
-
-### NANCY'S CHALLENGES ON THAT, ALL ANSWERED WITH DATA
-clocks agree (both hosts 2026-08-02T09:14Z, no skew) · attachment confirmed BY ID
-(lab-vol 9fd193b3 -> server 44d0d391 = cheat-srv, both directions) · quota is REAL not
-harness-side · `cheat-srv` is harness-only (adversarial-cinder.js:96, absent from _app).
-SHE WAS RIGHT ON ONE: `lab-vol` is NOT a discriminator -- the student lab itself instructs
-`openstack volume create --size 1 lab-vol` (17 hits). Only cheat-srv attributes.
-
-### ★ TOOL TRAP FOUND: repo-root grep SKIPS `_tools/` (gitignored)
-`grep -rn "cheat-srv" .` returned ONLY my own prose -- which would have meant no harness
-creates it, the OPPOSITE of the truth. This environment's grep is gitignore-aware and
-`_tools/` is gitignored, so it silently skips every harness, scanner and gate. It fails
-QUIETLY in the CONFIDENT direction. Empty result => re-run at the explicit path.
-Memory: `reference_grep_skips_gitignored_tools.md`.
-
-## ALSO ON FRANK'S DESK — the two from earlier, unchanged.
-
-### 1. OPERATOR DECISION: lift the Cloud Master capstone hold?
-The capstone is FINISHED, LIVE (HTTP 200), harness-gated — and UNREACHABLE. Its only inbound
-link is in `_app/houses/cloud/openstack/index.html`, a deploy HOLDOUT pinned at 1a1fb33c2.
-Prod has 0 references; the tree has 1. The withheld diff is 20 additive lines.
-BUG-077 is CLOSED as not-a-bug (Nancy traced it; check 27 needs BOTH arrays disjoint, no
-network quota exists, nothing deletes Neutron resources, so an old network trips it — passing
-REQUIRES a real teardown). So the correctness blocker is gone.
-CHRIS BLOCKED on CAPACITY ONLY, and says it is the operator's call, not his:
-  - real headroom ~2 slots (3 live QC identities will each claim one on next run)
-  - he CORRECTED my citation: pool exhaustion returns a hard 503 (POOL_EXHAUSTED) caught by
-    SandboxLauncher, NOT the cloudMode read-only path I cited. Outcome still graceful:
-    "The cloud is at capacity right now. Try again shortly." + button re-enabled.
-  - he ALSO found: this pool already serves FIVE live Stage-4 labs. The capstone is a SIXTH
-    consumer of a risk already accepted, not a new exposure.
-### 2. OPERATOR DECISION: authorize reclaiming the 23 debris slots? (`--apply`, reserved to Frank twice in repo history)
-
-### ROOT CAUSE OF THE SLOT LEAK — I HAD IT WRONG ALL DAY
-NOT (only) Firebase purge. It is SELF-INFLICTED: 13 of 15 harnesses deleted their own fixed
-QC account at the end of every run, so the next run's signUp minted a NEW uid and bound
-ANOTHER slot. Documented in-repo at `adversarial-wall.js:105-111` — the wall pair already
-fixed it — and I had not read it. It also explains the census better than purge: only 5 of 14
-QC identities resolved because the rest were deleted by their own last run.
-FIXED: 8 files, one line each, node --check clean (1aa162a8a).
-HELD, per Nancy: the project pair (removing their delete makes the uid permanent and
-resurrects BUG-077's contamination — `capstone-baselines.json` is keyed by uid with NO expiry;
-verified it is the ONLY persistent per-uid store, server.js:414/:430) and e2e-stage3 (random
-email per run, so removing the delete fixes nothing — needs BUG-089's fix).
-
-### I MADE THE LEAK WORSE BEFORE I MADE IT BETTER
-I moved `accounts:delete` INTO a `finally` on cinder+rescue "to fix a leak". The delete IS the
-leak, so it then fired on failing runs too. Caught by reading the next file in the queue,
-corrected in 45485edbd. Third time today a fix of mine reopened what it closed.
-The QC hook blocked me twice more: a comment referencing a `finally` I had not written, and a
-half-applied `try {` that left a file syntactically invalid. Both correct.
-
-### POOL STATE, measured read-only
-30 slots / 25 bound / 5 free — but real headroom ~2. Only 2 bound slots map to a live QC
-identity (student-17 proj-walk-qc, student-25 cinder-adv-qc); the other 23 are NOT any
-current QC identity (which is NOT the same as "dead" — see the correction above).
-Method that worked: signIn with the harness's REAL password (existence + uid, creates nothing).
-A wrong-password probe was USELESS — uniform INVALID_LOGIN_CREDENTIALS, because email
-enumeration protection collapses EMAIL_NOT_FOUND into it. Uniform answer = tool smell.
-
-### NEW BUGS FILED: 086 087 089 090
-  089 e2e-stage3 burns a slot per run · 090 pool bindings changed with NO attributable actor
-  (the 4 freed slots are EXACTLY the 4 named reclaimable on 08-01 in a note saying --apply was
-  never run; I did not run it this session, every command was read-only; Keystone's own log is
-  UNCHECKED not absent — it lives on the DevStack VM and eq1 has no key).
-
-### CREDENTIALS, settled
-No SA can do Auth admin: workstation ADC is authorized_user (403 from Identity Toolkit), bc1's
-sa-nexus-scanner returns auth/insufficient-permission (correctly scoped), bc2 has no key at
-all. Path forward is an admin-gated onCall run-once, NOT a key on bc2.
-
-## PRIOR — cloud games QC: 9/10 clear on all 3 passes; aws-sts 360px OPEN (BUG-086).
-
-### THE 3 PASSES ARE DONE, and each one went DEEPER (a repeat proves nothing)
-  pass 1  5 widths, at rest              -> 0 after fixes
-  pass 2  6 DISJOINT widths              -> found 3 the first five missed; fixed; now 0 except aws-sts
-  pass 3  5 widths + SCROLLED state      -> found 1; it was a PROBE BUG, not a page bug; now 0
-Final: 9/10 games clean on every pass. cloud-aws-sts has ONE real overlap at 360x740 only.
-
-### THE INSTRUMENT WAS WRONG THREE TIMES. Fix the probe before trusting any table.
-`_tools/eduscan/overlap-probe.js` — rebuilt, now has `--self-test` with TWO fixtures and
-`PROBE_VPS` for disjoint sweeps. Three separate false-answer classes found and fixed:
-  1. SHADOW DOM blind — `querySelectorAll` does not pierce shadow roots, so it could not see
-     HexAIButton AT ALL. That is why it called 1,479 pages "clean" while my toast buried the FAB.
-  2. WRAPPED INLINE union rects — `getBoundingClientRect` on an inline element returns the union
-     of its line boxes, so every `<strong>Label:</strong> <span>wrapped value</span>` "overlapped".
-     Now compares individual line boxes via `getClientRects()`.
-  3. CLIPPED elements (introduced by my own scroll pass) — a rect survives after overflow clips the
-     element out of view. Invented a 202x10 "defect" on hop-vertical I nearly fixed.
-ALL THREE measured GEOMETRY instead of VISIBILITY. That is the recurring shape.
-
-### THE FAB REGRESSION — my fix was the bug, Nancy caught it, production confirmed her
-I moved the achievement toast to bottom-right to clear a 79-page collision. Measured on prod at
-1920: toast covered HexAIButton **completely**, 64x64 = the whole button, z-index 100000, 5s per
-unlock, on 1,479 pages. Counts: AchievementManager 2,551 / GameScoreboard 79 / both 79.
-I changed the 2,551-page component to fix a 79-page bug, into a corner with a documented
-occupancy contract at `TenantShell.js:143-165`. REVERTED, Chris PASS (he fired a real unlock
-through `AchievementManager.unlock()`, closing my own stated gap), live and verified.
-RULE: count pages for BOTH components first. The smaller footprint yields.
-
-### aws-sts 360px — OPEN, and BOTH obvious fixes are measured-wrong (do not retry them)
-  attempt 1  `#status-bar margin-top:162px`  -> moved only the FIRST PAINT. At scrollTop 328
-                                                "+$500/min" and "0:02" were under the band anyway.
-  attempt 2  `#game-container margin-top:175` -> the PANEL MOVED TOO (gsY 130 -> 305), because
-                                                `.gs-widget` is positioned against body. Net zero.
-Shape: body is `height:100vh/overflow:hidden`, real scroll region is `#game-container`, and
-GameScoreboard appends `.gs-widget` to BODY at top:130. Content scrolls through those rows always.
-Nancy REJECTED the in-flow-below-900px component fix with counts: **46 of 80** consumer pages have
-a fixed-viewport body and would CLIP the widget entirely; on the other 34 it pushes the game-over
-rank flash off-screen. Needs a real component decision, not another page margin.
-
-### A 162px MARGIN REACHED PRODUCTION UNCOMMITTED
-`deploy.sh` ships the WORKING TREE. I had an uncommitted edit in `_app` when a deploy ran, so it
-shipped. Holdouts were fine (md5 verified against the pinned build). Removed and redeployed.
-Never leave `_app` dirty while a deploy is in flight.
-
-### STILL OPEN
-  aws-sts 360px overlap (above) · hop/hop-vertical `h-scroll=true` at 1024 and 390 (PRE-EXISTING,
-  verified before and after my changes, separate defect) · MEMORY.md needs compaction (23.6KB vs
-  24.4KB read limit) · THE NINES unbuilt · BUG-078 class B (6 of 7, held out of every deploy).
-
-## PRIOR CONTEXT — Cloud Master hub LIVE and full-width.
-
-### SHIPPED + VERIFIED ON PRODUCTION (this stretch)
-  8 visually-hidden heading fixes -- 4 cloud games + 4 openstack presentations, EACH rendered
-    individually on prod: all 1x1, down from full-width headings painted over the page
-  hub WRAP fix -- narrow centred column REMOVED (standing rule 2026-06-25, no exceptions).
-    prod-measured: cloud-master 1920 wrap=1920px 100%, 7 cards/row @240px (was 4 @235px);
-    1440 5/row; 390 unchanged; aws-ccp also 100% (leaf hub, 0 kid cards, correct); no h-scroll,
-    no page errors on either hub.
-  Earlier: 95/95 cartridge covers · masthead cover · 12 games surfaced (shelf 1 -> 13) ·
-    sections collapse, DEFAULT CLOSED.
-  Holdouts held on EVERY deploy: SQLEngine + 10 arm-sql + 4 arm-bash @626d95850,
-  incubator + openstack @1a1fb33c2. Tree clean after each.
-
-### THE BIG CORRECTION: 448 IS A CANDIDATE LIST, NOT A DEFECT COUNT
-`.visually-hidden` used with no rule + no external stylesheet = 448 files. I VERIFIED 4/4 sampled
-GAMES render the heading visibly on prod (shield-dont-get-phished 1440x37, cloud-flap 192x37,
-code-git-blame 1440x39, web-nmap 1440x39) -- then nearly extrapolated that to all 448.
-RENDERED the WSA module pages instead: `no element` -- no <style> block, no stylesheet, no heading
-in the DOM at all (runtime-injected shells). A scripted sweep would have written dead CSS into
-hundreds of files that were never broken and reported "448 defects closed".
-RULE: render each candidate BEFORE touching it. Operator: "not the time for scripts... we need to
-be surgical, one at a time." That method is what caught this.
-
-### GAME QC: I SKIPPED THE PROCESS AND THE OPERATOR CAUGHT IT
-_docs/operations/games-marathon.md has a LOCKED contract: step 1 is BOOT + PLAY (win path, lose
-path, all levels), Nancy consulted OFTEN, and CHRIS MUST PLAY IT before deploy. I reviewed a
-SCREENSHOT OF THE TITLE SCREEN and never pressed Enter.
-On playing cloud-dont-check-the-bill: boot/start/input/help/HUD/achievements all work, timer runs
-(3:00 -> 2:56), 0 page errors, no h-scroll at 4 viewports.
-TWO of my three "defects" DISSOLVED under measurement: the "Sorted +10pts" toast was my harness
-seeding hexworth_house; the "help does nothing" was my tail-window reading the wrong end (help
-renders 15 lines). STILL UNPLAYED: win path, lose path, 12 achievements.
-STILL OPEN on that game: dead landscape below y~470, ASCII banner sized for an 80-col terminal,
-no house identity. That is a REDESIGN, not patches -- do it once, deliberately.
-
-### THREE OPEN ITEMS ON THE HUB, each needs its OWN change
-  a) PROJECTION BUG -- the 12 games are hand-CURATED into Firestore; a 13th stays invisible.
-     Correct fix = house-scope the projection (index.html:667 checks category ONLY). Naive fix
-     drags 22 games from 8 other houses in. catalogCrossHouse:true is load-bearing on aws-ccp and
-     azure-fundamentals.
-  b) `.applet` KEY GAP -- the cover-key strip list omits `.applet`, so `x.applet.html` yields NO
-     key. 3 of 4 cloud applet games resolved by COINCIDENCE (title slug matched). One word fixes
-     it; changes key derivation for EVERY hub.
-  c) Hubs(11) shelf does not collapse -- different render path, no toggle.
-
-### NEXT BUILD: THE NINES (spec committed, Nancy's 3 blockers resolved)
-_docs/features/GAME_THE_NINES_DESIGN.md -- backlog+latency model NOT a saturation stopwatch;
-a 2nd AZ SPLITS capped capacity and some seeds never fail, so spreading can LOSE; tier-adjacent
-edges only (~1,500 lines). File it category:'games' and CURATE it, like the other 12.
-
-### STANDING ORDERS
-SLOW DOWN. Details matter. Be thorough, be proud. Next-play mentality. Priority: CLOUD MASTER,
-then Lodestar. A cron heartbeat NEVER outranks a stated operator priority.
-Deploys run BACKGROUNDED (a 2-min harness timeout once killed one mid-swap, stranding 17 files).
-Do NOT check holdouts mid-deploy -- the tree is swapped and the leak check INVERTS.
-
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-### DEPLOY ORDER IS LOAD-BEARING, do not reorder
-  functions FIRST  -- the once-per-reason guard in exports.addXP
-  hosting  SECOND  -- the 97 files that un-gate ~99 addXP calls
-Hosting first re-opens the replay window Chris blocked on: un-gated calls protected only by a
-devtools-clearable localStorage boolean, against a CF with no dedup and no rate limit.
-
-### LODESTAR RESTARTED 2026-08-01
-Was fully DOWN (no process, no response). Started with `.venv/bin/python -m campaign serve` from
-~/job-campaign-stack -- system python3 lacks uvicorn. HTTP 200, PID 474956, port 8080, guard
-resolved the prod DB path. Verified clean against the 07-24 pollution fix: 0 "60" cells; data
-intact (5,534 postings / 7 predictions / 6 applications).
-
-### LIVE AND VERIFIED TODAY (4 deploys, every one checked against pre-captured baselines)
-  8/8   5 lab grading fixes · tourist sticky notice · hub dedup · ProjectsData · HubRegistry
-        parenting (Cloud Master 3 -> 10 of 11 courses reachable)
-  4/4   API Security house card (the 11th course got a door) + auth/owasp progress fix
- 11/11  API track back-links, 4 sub-hubs
-  5/5   api-capstone rules+registry PAIR (rules read from the Rules REST API, not the CLI)
-
-### BUG-082, the big one -- 97 files, committed, functions half deploying
-`hexworth_uid` was read at 100 sites and WRITTEN NOWHERE, so server XP sync never fired anywhere.
-Local XP was always fine; cross-device XP, instructor-visible XP and Firestore leaderboards missed
-all of it. Fix deletes the dead guard (addXP ignores the uid arg; the CF uses request.auth.uid).
-Three isolated commits: 95 standalone pages · CLHCompletionModal.js ALONE (91 consumers) · the
-.catch() shape hand-fixed. Plus f8f014c1c, the server-side once-per-reason transaction.
-
-### BUG-083 -- 30 REAL STUDENT UIDs were one `git add` from being committed
-functions/uids.json, untracked and NOT gitignored. Never actually committed (verified: 0 commits
-in git log --all). Archived + ignored; sweep generalised to
-_tools/eduscan/untracked-secret-scan.sh. The dangerous set is UNTRACKED **AND NOT IGNORED** --
-invisible to scanners that read tracked files AND to those that read ignored ones.
-
-### FIFTEEN DETECTORS OF MINE WERE WRONG TODAY, all keying on the wrong surface
-Comment-vs-code x3 · link TEXT not href · window.X on a top-level `class` · occurrence-count vs
-`grep -c` lines · a verifier that errored both ways (so it PASSED a "prove it can fail" test) ·
-guard-key NAMES instead of structure (4 naming conventions before the answer) · `|| echo 0`
-appending a second zero. Rule now in memory: TWO FIXTURES, ALWAYS -- one that must match, one that
-must not. Mechanised in _tools/deploy/prove-verifiers-discriminate.js.
-
-### WAITING ON THE OPERATOR
-1. BUG-078 -- is a real bash interpreter in scope? Blocks 3 Armory modules.
-2. BUG-078 -- false completions already in production Firestore; leave, flag, or re-audit?
-3. #272 -- destination for the orphaned AWS final + ContentCatalog:945 title/description conflict.
-4. #283 -- SDK vs raw REST. Recommendation on record: SDK.
-
-### HELD OUT OF EVERY DEPLOY
-  incubator card (Chris BLOCK, #272) · openstack capstone link (Nancy HELD, BUG-077)
-  Both restored in the tree, byte-verified against archives, swapped out at deploy time.
-
-### Standing hazards
-- ONE clean pass + ONE clean fail is not evidence. Try the near-miss and the ABSENT value.
-- A guard that cannot fail is not a guard. Ask what input makes the condition false.
-- Three of my own fixes reopened the bug they closed. Suspect every guard added for KINDNESS.
-- Backticks in `git commit -m` are shell substitution. Ate text three times. Use -F.
+  1. A green deploy log proves NOTHING. deploy.sh exited 0 having shipped nothing (Chris
+     marker missing). ONLY curl the live asset and grep for a string unique to the change.
+  2. Never mock the thing under test. A mock encodes your assumption and then confirms it.
+  3. Assert BOTH directions. "Attack denied" without "legitimate path still works" is half a
+     test — and the half that breaks users is the other one.
+  4. Secure the verb you are NOT thinking about. Four bugs today were create-gated/update-open
+     or the reverse. SEC-011 exists for this.
+  5. Test against REAL archived vulnerable state, not a fixture you wrote. My fixtures kept
+     matching my assumptions; the archived pre-fix ruleset did not.
+  6. A rule that reports CLEAN because it looked in the wrong place is worse than no rule.
+     I shipped FOUR false-clean checks today before catching them.
