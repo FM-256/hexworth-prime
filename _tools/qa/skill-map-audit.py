@@ -61,6 +61,43 @@ for lab_id in ids:
     except Exception as exc:
         broken.append((lab_id, str(exc).split(":")[-1].strip()[:70]))
 
+def _check_not_publicly_served() -> bool:
+    """Skill Maps must NEVER ship to hosting.
+
+    They contain answer keys: `forbidden_disclosures` enumerates literal answer
+    strings ("alert 47 is real"), and `semantic_guard.answer_summary` states the
+    solution outright as ground truth for the judge model. The orchestrator
+    reads its own copy from /opt/hexclass/lab-skill-maps/, and nothing in _app/
+    fetches them over HTTP — verified by grep — so hosting has no reason to
+    serve them.
+
+    On 2026-08-05 they WERE being served: hexworth.com/lab-skill-maps/*.yaml
+    returned HTTP 200 for all 34, because firebase.json's ignore list excluded
+    .md and __pycache__ but never .yaml. Fixed by adding 'lab-skill-maps/**'.
+    This check exists so that removing that one line is caught on the next
+    deploy instead of silently re-publishing every answer key.
+    """
+    import json
+    fb = os.path.join(REPO, "firebase.json")
+    try:
+        with open(fb, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+    except Exception as exc:
+        print(f"  WARN: could not read firebase.json ({exc}); skipping hosting check")
+        return True
+    hosting = cfg.get("hosting")
+    hosting = hosting[0] if isinstance(hosting, list) else (hosting or {})
+    ignore = hosting.get("ignore", [])
+    ok = any("lab-skill-maps" in str(pat) for pat in ignore)
+    if ok:
+        print("  hosting: lab-skill-maps excluded from deploy (answer keys not public)")
+    else:
+        print("  FAIL: firebase.json does NOT exclude lab-skill-maps —")
+        print("        deploying would publish every lab's answer key at")
+        print("        https://<host>/lab-skill-maps/<lab>.yaml")
+    return ok
+
+
 if "--list" in sys.argv:
     print(f"Skill Maps: {len(ok)} loading, {len(broken)} failing, {len(ids)} total\n")
     for lab_id, why in broken:
@@ -69,6 +106,11 @@ if "--list" in sys.argv:
 
 print(f"  {len(ok)}/{len(ids)} Skill Maps load; {len(broken)} failing "
       f"(baseline {BASELINE_BROKEN})")
+
+hosting_ok = _check_not_publicly_served()
+
+if not hosting_ok:
+    sys.exit(1)
 
 if len(broken) > BASELINE_BROKEN:
     print(f"  FAIL: {len(broken)} failing maps exceeds the baseline of {BASELINE_BROKEN}.")
