@@ -208,6 +208,85 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
  * 2. Without flagId: check submission against ALL flags for the box,
  *    return which one matched (SEC-2: client doesn't know flag IDs)
  */
+// ─── CTF stat recompute (server-authoritative) ───────────────────────────────
+/**
+ * Recompute a user's CTF counters from server-held evidence and write them to the profile.
+ *
+ * WHY THIS EXISTS. `ctfBoxesPwned` and `ctfFlagsCaptured` had TWO independent writers with
+ * different sources of truth: the client (BoxEngine._aggregateCTFStats and a near-duplicate
+ * in dashboard.html) scanned localStorage and self-reported, while these Cloud Functions
+ * counted validated captures. Last write won, so a displayed number depended on which writer
+ * ran most recently rather than on what the student did. Worse, routine drift (second device,
+ * cleared storage, a flag found but never submitted) made a forged value indistinguishable
+ * from an honest one — the dual-writer design removed the ability to detect tampering.
+ *
+ * PHASE A of the fix: make the SERVER number correct. Purely additive — the client still
+ * writes today and can still overwrite this. Removing the client writers and tightening the
+ * firestore.rules allowlist is Phase B, and must ship as one change because dashboard.html
+ * bundles these fields with quizzes/labsCompleted/gamesPlayed in a single setUserProfile
+ * call: a rules `hasOnly` check evaluates the WHOLE write, so dropping these two fields from
+ * the allowlist would silently reject that entire call and break quiz/lab/game sync.
+ *
+ * DEFINITIONS, both deliberate:
+ *   flagsCaptured — every capture doc, tournament ones included. This PRESERVES the existing
+ *                   semantics (a raw count()) so no user's number moves in Phase A.
+ *   boxesPwned    — a box counts when the distinct flags captured for it reach the number of
+ *                   flags its flag_registry doc declares. This is a NEW decision, not a
+ *                   refactor: the codebase already contained a conflicting definition in
+ *                   hackerman-reset.js ("any flag at all = 1 box"). Captures with no
+ *                   flag_registry doc (tournament submissions, keyed by tournamentId) are
+ *                   skipped for this count — they have no notion of "all flags" to complete.
+ *
+ * @param {string} uid
+ * @returns {Promise<{boxesPwned:number, flagsCaptured:number}>}
+ */
+const _flagTotalsCache = new Map();   // boxId -> flag count. Instances are reused between
+                                      // invocations, so this avoids re-reading flag_registry
+                                      // on every submission. Registry docs are write:false
+                                      // and seeded out-of-band, so staleness is not a concern.
+async function _recomputeCtfStats(uid) {
+    const caps = await db.collection(`users/${uid}/flag_captures`).get();
+
+    // Unchanged semantics: every capture counts, whatever its source.
+    const flagsCaptured = caps.size;
+
+    // Group the box-sourced captures by box, de-duplicating flag ids.
+    const byBox = new Map();
+    caps.forEach(doc => {
+        const d = doc.data() || {};
+        if (d.source === 'tournament') return;      // no flag_registry doc to complete
+        if (!d.boxId) return;
+        if (!byBox.has(d.boxId)) byBox.set(d.boxId, new Set());
+        byBox.get(d.boxId).add(d.flagId || doc.id);
+    });
+
+    let boxesPwned = 0;
+    for (const [boxId, captured] of byBox) {
+        let total = _flagTotalsCache.get(boxId);
+        if (total === undefined) {
+            const reg = await db.doc(`flag_registry/${boxId}`).get();
+            // Skip and log rather than throw: an unknown boxId must never break a submission
+            // the student got RIGHT. It only means we cannot judge completion for that box.
+            if (!reg.exists) {
+                console.warn(`[ctf-stats] no flag_registry/${boxId} — skipped for boxesPwned`);
+                _flagTotalsCache.set(boxId, 0);
+                continue;
+            }
+            total = Object.keys(reg.data().flags || {}).length;
+            _flagTotalsCache.set(boxId, total);
+        }
+        if (total > 0 && captured.size >= total) boxesPwned++;
+    }
+
+    await db.doc(`users/${uid}`).set({
+        ctfBoxesPwned: boxesPwned,
+        ctfFlagsCaptured: flagsCaptured,
+        updatedAt: FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    return { boxesPwned, flagsCaptured };
+}
+
 exports.validateFlag = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
@@ -267,12 +346,8 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
             await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
                 boxId, flagId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
-            // Sync flag count to profile
-            const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
-            await db.doc(`users/${uid}`).set({
-                ctfFlagsCaptured: allCaptures.data().count,
-                updatedAt: FieldValue.serverTimestamp()
-            }, { merge: true });
+            // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
+            await _recomputeCtfStats(uid);
         }
         return { correct: isCorrect, flagId: isCorrect ? flagId : null };
     }
@@ -285,12 +360,8 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
             await db.doc(`users/${uid}/flag_captures/${boxId}_${resolvedId}`).set({
                 boxId, flagId: resolvedId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
-            // Sync flag count to profile
-            const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
-            await db.doc(`users/${uid}`).set({
-                ctfFlagsCaptured: allCaptures.data().count,
-                updatedAt: FieldValue.serverTimestamp()
-            }, { merge: true });
+            // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
+            await _recomputeCtfStats(uid);
             return { correct: true, flagId: resolvedId };
         }
     }
@@ -3651,12 +3722,8 @@ exports.validateAction = onCall(cfOptions, async (request) => {
         stateSnapshot: stateProof
     });
 
-    // Sync profile
-    const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
-    await db.doc(`users/${uid}`).set({
-        ctfFlagsCaptured: allCaptures.data().count,
-        updatedAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
+    await _recomputeCtfStats(uid);
 
     return { success: true, totalFlags: allCaptures.data().count };
 });
@@ -6691,11 +6758,8 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             capturedAt: FieldValue.serverTimestamp(),
             source: 'tournament'
         });
-        const allCaptures = await db.collection(`users/${uid}/flag_captures`).count().get();
-        await db.doc(`users/${uid}`).set({
-            ctfFlagsCaptured: allCaptures.data().count,
-            updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true });
+        // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
+        await _recomputeCtfStats(uid);
 
         // Update challenge solve count
         const newSolveCount = (challenge.solveCount || 0) + 1;
