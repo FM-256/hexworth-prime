@@ -274,12 +274,23 @@ class SkillMapValidator {
                 message: `Skill Map ${filename}: transfer_prompt missing or empty`,
                 file: rel,
             });
-        } else if (!tp.trim().endsWith('?')) {
+        // CONTAINS '?', not ends-with. This is a second implementation of the
+        // rule enforced by _tools/hexclass/orchestrator/skill_map_loader.py and
+        // it must not drift from it: the strict ends-with form disqualified 16
+        // of 29 real maps on 2026-08-05 for good content, because the house
+        // style is a question FOLLOWED BY directives ("...What is your
+        // response? Name the specific attack ... Then state which construction
+        // breaks it and why."). This validator is not currently wired into the
+        // scan (SKILL-MAP-001 is still "planned" per dr-hex-lab-skill-map.md),
+        // so it was inert and did not cause that outage — but left as-is it
+        // would have reintroduced the whole false-positive class on the day
+        // somebody enabled it. Fixed 2026-08-05 alongside the loader.
+        } else if (!tp.includes('?')) {
             fileIssues.push({
                 code: 'SKILL-MAP-001e',
                 severity: 'medium',
                 category: 'dr-hex-skill-map',
-                message: `Skill Map ${filename}: transfer_prompt does not end with '?' — it must be a question`,
+                message: `Skill Map ${filename}: transfer_prompt is not a question (must contain '?')`,
                 file: rel,
             });
         }
