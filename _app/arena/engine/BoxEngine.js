@@ -2239,19 +2239,22 @@ const BoxEngine = {
             }
         } catch (e) { console.error('[ARENA] AssignmentManager error:', e); }
 
-        // Sync aggregate CTF stats to Firestore user profile
-        try {
-            if (typeof FirestoreManager !== 'undefined' && typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn()) {
-                const user = FirebaseAuth.getUser();
-                if (user) {
-                    const ctfStats = this._aggregateCTFStats();
-                    FirestoreManager.setUserProfile(user.uid, {
-                        ctfBoxesPwned: ctfStats.boxesPwned,
-                        ctfFlagsCaptured: ctfStats.flagsCaptured
-                    });
-                }
-            }
-        } catch (e) { console.error('[ARENA] CTF stats sync error:', e); }
+        // CTF stats are SERVER-AUTHORITATIVE as of 2026-08-05 (Phase B). The client no
+        // longer self-reports them. _recomputeCtfStats (functions/index.js) derives both
+        // ctfBoxesPwned and ctfFlagsCaptured from flag_captures + flag_registry on every
+        // validated capture, and firestore.rules no longer permits a client to write either
+        // field.
+        //
+        // What this block used to do was scan localStorage and overwrite the server's
+        // numbers. Two writers with different sources of truth meant the displayed value
+        // depended on which ran last — and because innocent drift (second device, cleared
+        // storage, a flag found but never submitted) was routine, a forged value was
+        // indistinguishable from an honest one. It also structurally undercounted: the scan
+        // covered prefixes a-e x 1-20 only, so the f/ow-/rev- boxes and every dispatch box
+        // could never be counted.
+        //
+        // _aggregateCTFStats() is retained deliberately — local gameplay still uses it for
+        // in-session display. It simply no longer decides what Firestore holds.
 
         console.log(`%c[ARENA] Assessment reported: ${boxId} (${s.score} pts, ${elapsed}s, ${events.length} events)`, 'color: #9b59b6');
     },
