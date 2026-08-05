@@ -42,6 +42,7 @@
  * - HEUR-025: Module completion ID mismatch — ModuleProgress.complete() uses a different moduleId than the hub/index page expects, causing completions to silently fail (student sees no progress)
  * - HEUR-026: Course module links to house root instead of course hub — file inside a course directory (courses/xxx/) has a back/home link that escapes to the house root instead of the course's own index.html
  * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
+ * - HEUR-041: `window.<Component>` guard on a component declared as a top-level `const`/`let` in a classic script. Such a binding lives in the global LEXICAL environment and is NEVER a window property, so the guard is permanently false and the branch silently never runs. Resolves each component's real export form from its source (window./globalThis./self./root./global. all count as bridges) and only fires when the page actually loads that component, since an absent component makes the guard correctly falsy. Fix: `typeof X !== 'undefined' && X`.
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
  * - HEUR-030: Course-hub tenant-leak — _app/houses/<h>/<c>/index.html has <a id="dashboardBtn"> but is missing the canonical TenantRouter rewrite IIFE. Tenant students clicking Dashboard leak to the house index (main hex) instead of their tenant dashboard. Detection requires BOTH `getElementById('dashboardBtn')` AND `TenantRouter.getUrl` present; if either is absent the rewriter isn't wired. HIGH (tenant-isolation breach). Canonical pattern: _app/houses/code/python-for-it/index.html (search "Tenant-aware Dashboard button").
@@ -221,6 +222,7 @@ class HeuristicsValidator {
         issues.push(...this.checkCourseModuleEscapesToHouseRoot(file));
         issues.push(...this.checkContentLinkEscapesToPlatformRoot(file));
         issues.push(...this.checkModuleProgressSignature(file));
+        issues.push(...this.checkWindowGuardOnLexicalSingleton(file));
         issues.push(...this.checkLooksClickableButIsnt(file));
         issues.push(...this.checkDashboardBtnTenantRewrite(file));
         issues.push(...this.checkLocationHrefTenantLeak(file));
@@ -3238,6 +3240,105 @@ class HeuristicsValidator {
      * addEventListener('click') or .onclick = wiring, assume it's JS-wired
      * and skip. Severity is 'suspect' (human triage) not 'high' (block).
      */
+    /**
+     * HEUR-041: `window.<Component>` guard on a lexically-declared singleton.
+     *
+     * Most platform components are `const X = (function(){...})()` at the top
+     * level of a CLASSIC script. A top-level `const`/`let` binds in the global
+     * LEXICAL environment and never becomes a property of `window`. So
+     *
+     *     if (window.FirestoreManager) { FirestoreManager.addXP(...) }
+     *
+     * is permanently false even with FirestoreManager.js loaded and running.
+     * The feature silently no-ops: no console error, no thrown exception, and
+     * the guard reads as defensive good practice. That is what makes it
+     * expensive — it is invisible to review and to any test that asserts the
+     * guarded branch was "reached".
+     *
+     * Only some components are affected. Several DO bridge explicitly, and the
+     * bridge has many spellings, so this resolves it by reading the component
+     * source rather than assuming:
+     *     window.X = / globalThis.X = / self.X = / root.X = / global.X =
+     * (HubRegistry uses `root.X` and NexusReader uses `global.X`, both closing
+     * over `window` — treating either as unbridged produces a false positive.)
+     *
+     * ONLY fires when the page actually LOADS the component. If the script is
+     * absent the guard is correctly falsy and the code correctly skips; that is
+     * not a bug and flagging it would bury the real ones. Applying that filter
+     * took a platform sweep from 251 suspect files to 4 genuinely broken ones.
+     *
+     * Fix: guard on the bare identifier, which is safe on an undeclared name:
+     *     if (typeof X !== 'undefined' && X) { ... }
+     *
+     * Added 2026-08-05 after four cloud games were found to have silently never
+     * awarded Firestore XP. Companion to HEUR-028, one level up: HEUR-028
+     * catches wrong ARGUMENTS to a component call, this catches a call that can
+     * never happen at all.
+     */
+    checkWindowGuardOnLexicalSingleton(file) {
+        const issues = [];
+        const raw = file.content;
+        if (!/window\.[A-Z]/.test(raw)) return issues;   // cheap bail
+
+        // Live code only. Documenting this trap in a comment must not trip the
+        // rule that detects it — the first draft flagged its own explanatory
+        // comments in four places. stripNonCode blanks JS comments/strings and
+        // HTML comments while PRESERVING line numbers, so getLineNumber below
+        // still reports the true line.
+        const { stripNonCode } = require('../../utils/strip-noncode.js');
+        const content = stripNonCode(raw);
+
+        // Build the component map once per run.
+        if (!this._lexicalOnlyComponents) {
+            this._lexicalOnlyComponents = new Set();
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const dir = path.join(this.appRoot, 'components');
+                for (const entry of fs.readdirSync(dir)) {
+                    if (!entry.endsWith('.js')) continue;
+                    const name = entry.slice(0, -3);
+                    const src = fs.readFileSync(path.join(dir, entry), 'utf8');
+                    const lexical = new RegExp(`^\\s*(?:const|let)\\s+${name}\\s*=`, 'm').test(src);
+                    if (!lexical) continue;
+                    // Any global-object alias counts as a real bridge.
+                    const bridged = new RegExp(
+                        `(?:window|globalThis|self|global|root)\\s*\\.\\s*${name}\\s*=`
+                    ).test(src);
+                    if (!bridged) this._lexicalOnlyComponents.add(name);
+                }
+            } catch (e) {
+                this._lexicalOnlyComponents = new Set();   // components dir unreadable
+            }
+        }
+        if (this._lexicalOnlyComponents.size === 0) return issues;
+
+        for (const name of this._lexicalOnlyComponents) {
+            // The page must actually load the component for this to be a defect.
+            if (!new RegExp(`${name}\\.js`).test(content)) continue;
+
+            // Reads only. `window.X = ...` is somebody deliberately installing a
+            // shim (see houses/observatory/index.html) and is not this bug.
+            const re = new RegExp(`window\\s*\\.\\s*${name}\\b(?!\\s*=[^=])`, 'g');
+            let m;
+            while ((m = re.exec(content)) !== null) {
+                issues.push({
+                    code: 'HEUR-041',
+                    severity: 'high',
+                    category: 'heuristic',
+                    message: `window.${name} guard is permanently false — ${name} is a top-level `
+                           + `const in a classic script, so it is a lexical global and never a `
+                           + `window property. This branch never runs.`,
+                    file: file.path,
+                    line: this.getLineNumber(content, m.index),
+                    fix: `Guard on the bare identifier: `
+                       + `if (typeof ${name} !== 'undefined' && ${name}) { ... }`
+                });
+            }
+        }
+        return issues;
+    }
+
     checkLooksClickableButIsnt(file) {
         const issues = [];
         const content = file.content;
