@@ -226,6 +226,23 @@ DRIFT_OUTPUT=$(node _tools/eduscan/cli.js --diff 2>&1 || true)
 echo "$DRIFT_OUTPUT" | awk '/DRIFT ANALYSIS/,/^$/{print}' | sed 's/^/  /'
 echo ""
 
+# ── Gate 3.6: Answer-key exposure (BLOCKING, and deliberately PRE-deploy) ──
+# This same check also runs in post-verify, but post-verify runs AFTER the
+# upload — it would report a published exam answer key, not prevent one. On
+# 2026-08-05 three separate answer-key exposures were found live in production:
+# 34 Skill Map YAMLs, the complete COP1034C final project, and four instructor
+# solution guides including an ALA final exam with 10 literal FLAG values.
+# Detection after the fact is not good enough for this class, so it gates here.
+echo -e "${BOLD}[3.6/7]${NC} Answer-key exposure check..."
+if python3 _tools/qa/skill-map-audit.py; then
+    echo ""
+else
+    echo -e "${RED}DEPLOY BLOCKED${NC}: deploying would publish answer-bearing files."
+    echo "Add the path to firebase.json hosting.ignore, or if it is a false"
+    echo "positive, READ the file and add it to REVIEWED_SAFE in the audit."
+    exit 1
+fi
+
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
 echo -e "${BOLD}[4/7]${NC} Deploying to Firebase..."
 echo ""

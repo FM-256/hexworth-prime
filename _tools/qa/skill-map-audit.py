@@ -110,36 +110,66 @@ def _check_not_publicly_served() -> bool:
         print("        deploying would publish every lab's answer key at")
         print("        https://<host>/lab-skill-maps/<lab>.yaml")
 
-    # GENERIC SWEEP, not a hardcoded path. Raw source files under a
-    # solution-shaped directory cannot be protected by AccessGuard — that only
-    # works on HTML — so if hosting serves them they are simply public. On
-    # 2026-08-05 the complete COP1034C final-project solution was live at
-    # /houses/code/python-for-it/solutions/final/main.py, HTTP 200.
-    # Written as a sweep so a NEW solutions directory is caught on the deploy
-    # that introduces it, rather than years later by a reviewer.
+    # GENERIC SWEEP for answer-bearing content that hosting would serve.
+    #
+    # Three live exposures were found by three different people looking from
+    # three angles, which is why this is a sweep with a REVIEWED list rather
+    # than a list of known-bad paths:
+    #   lab-skill-maps/*.yaml            34 answer keys      (Chris, from firebase.json)
+    #   python-for-it/solutions/*.py     COP1034C final      (Chris, by sampling)
+    #   matrix/handouts/*-walkthrough.pdf 41 exam flags      (Chris, third pass)
+    # The last was a FINAL EXAM answer key: "ALA Final Exam ... Solution Guide",
+    # CONFIDENTIAL header, 10 literal FLAG{...} values, publicly fetchable.
+    #
+    # ANY extension, because the class is not a file type — the .py sweep that
+    # replaced the .yaml fix still missed .pdf. And AccessGuard cannot protect
+    # non-HTML at all: it is a script tag, so a .pdf or .py is served raw
+    # regardless of how carefully the surrounding course is gated.
+    #
+    # REVIEWED_SAFE exists because the directory heuristic over-matches badly:
+    # "security-solutions" is an SC-900 TOPIC, a hashing "walkthrough" applet is
+    # student-facing teaching, and new_year_resolution.webp matches on
+    # "resolution". Blocking those would be the over-correction. Anything NOT on
+    # this list fails the gate and needs a human to look, which is the point.
+    KEYS = ("solution", "answer-key", "answerkey", "answer_key",
+            "walkthrough", "instructor-guide", "instructor-solution")
+    REVIEWED_SAFE = {
+        # topic-name collisions, confirmed by reading each one
+        "houses/shield/security-plus/quizzes/secplus-d1-crypto-solutions-quiz.quiz.html",
+        "houses/shield/sc-900/presentations/sc900-ch03-security-solutions.presentation.html",
+        "houses/shield/sc-900/labs/sc900-ch03-security-solutions.lab.html",
+        "_archive/terminal-labs/sc-900/sc900-ch03-security-solutions.lab.html",
+        # student-facing teaching applet, not a solution guide
+        "houses/shield/applets/crypto/hashing_walkthrough/shield-crypto-hashing-walkthrough.applet.html",
+        # substring accidents on "re-SOLUTION"
+        "assets/images/badges/new_year_resolution.webp",
+        "dark-arts/vault/labs/linux/da-linux-shell-resolution.lab.html",
+    }
     app = os.path.join(REPO, "_app")
     leaking = []
     for dirpath, _dirs, files in os.walk(app):
         rel_dir = os.path.relpath(dirpath, app).replace(os.sep, "/")
-        low = rel_dir.lower()
-        if not any(k in low for k in ("solution", "answer-key", "answerkey")):
-            continue
         for fn in files:
-            if not fn.endswith((".py", ".txt", ".ipynb", ".sql", ".sh")):
+            rel = f"{rel_dir}/{fn}" if rel_dir != "." else fn
+            if not any(k in rel.lower() for k in KEYS):
                 continue
-            rel = f"{rel_dir}/{fn}"
+            if fn.endswith(".md"):          # already ignored platform-wide
+                continue
+            if rel in REVIEWED_SAFE:
+                continue
             if _served(rel):
                 leaking.append(rel)
     if leaking:
         ok = False
-        print(f"  FAIL: {len(leaking)} raw solution file(s) would be PUBLICLY served.")
-        print("        AccessGuard cannot protect non-HTML files; hosting serves them raw.")
-        for r in leaking[:6]:
+        print(f"  FAIL: {len(leaking)} answer-bearing file(s) would be PUBLICLY served.")
+        print("        Non-HTML cannot be AccessGuard-protected; hosting serves it raw.")
+        for r in leaking[:8]:
             print(f"          https://<host>/{r}")
-        if len(leaking) > 6:
-            print(f"          ... and {len(leaking)-6} more")
+        if len(leaking) > 8:
+            print(f"          ... and {len(leaking)-8} more")
+        print("        If one is a false positive, read it and add it to REVIEWED_SAFE.")
     else:
-        print("  hosting: no raw solution files would be served")
+        print("  hosting: no answer-bearing files would be served")
 
     return ok
 
