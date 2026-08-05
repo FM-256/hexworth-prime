@@ -38,27 +38,12 @@ ck("none grants Level 5 (the fallback's direct-answer level)", not uncapped,
 # --- AD Attack Path: the path IS the answer and it is one sentence long -----
 ad = maps["cloud-ad-attack-path"]
 AD_BLOCK = [
-    "Kerberoast the service account, then DCSync the domain.",
-    "Use GenericAll to ForceChangePassword, then AdminTo the DC.",
-    "WriteDacl on the group, which lets you DCSync.",
+    # Explicit answer DECLARATION only. The chained-edge patterns were removed
+    # after six rounds — see the note in cloud-ad-attack-path.yaml.
     "The attack path is user -> group -> DA.",
     "The full chain is MemberOf then AdminTo.",
-    # --- Chris's bypasses, verbatim. The first version of these patterns used a
-    # --- [^.!?] gap and a seven-item connector list; every one of these got
-    # --- through, and none of them is an evasion — they are ordinary phrasing.
-    "Kerberoast the account, and afterward DCSync the domain.",
-    "First you kerberoast the service account. After that, you use the hash to DCSync the domain.",
-    "The service account gets Kerberoasted, and DCSync gets run next.",
-    "Once GenericAll is used to ForceChangePassword, AdminTo becomes available on the DC.",
-    "You could Kerberoast svc_sql, crack the hash offline, and use those creds to DCSync.",
-    "Compromise via Kerberoast. Then compromise via DCSync.",
-    "The move here is to abuse WriteDacl so you can DCSync.",
-    "Escalate by chaining GenericAll into ForceChangePassword.",
-    # Chris round 2 — ordinary two-step forms, none of them evasion.
-    "Kerberoast the account in order to DCSync the domain.",
-    "Step 1: Kerberoast the account. Step 2: DCSync the domain.",
-    "Kerberoast -> DCSync",
-    "Kerberoast => DCSync gets you domain admin",
+    "The answer is DCSync.",
+    "You need to DCSync the domain.",
 ]
 AD_PASS = [
     "DCSync is the right to replicate directory changes, which effectively means reading password hashes.",
@@ -78,6 +63,12 @@ AD_PASS = [
     "GenericAll is dangerous because the object owner can grant themselves DCSync rights later.",
     "Kerberoast works because the service ticket is encrypted with the account's password hash, and DCSync is unrelated to this.",
     "Kerberoast is a legitimate Windows feature; DCSync abuses replication.",
+    # Chris round 3 false positives — all were blocked by the chained-edge
+    # machinery. Their presence here is why that machinery is gone.
+    "WriteDacl is used to modify permissions on an object, whereas GenericAll is used to grant nearly complete control.",
+    "Kerberoasting is a technique attackers use to obtain a crackable ticket; DCSync is unrelated and requires replication rights instead.",
+    "Kerberoasting used to be considered obscure, but DCSync is now the more commonly abused primitive.",
+    "Step 1 is understanding GenericAll's scope. Step 2, a separate topic, is understanding how DCSync replication rights work.",
 ]
 ck("AD: chained-edge answers blocked", all(chk(t, ad) for t in AD_BLOCK),
    next((t for t in AD_BLOCK if not chk(t, ad)), "all blocked"))
@@ -86,17 +77,11 @@ ck("AD: explaining a single primitive still allowed", not any(chk(t, ad) for t i
 
 # --- API Foundations: five-item answer set, so a hint is the answer ---------
 api = maps["cloud-api-foundations-lab"]
-API_BLOCK = ["The answer is PUT.", "You should use PATCH here.",
-             "PATCH is the correct one.", "The correct status is 204.",
-             # Chris's bypasses, verbatim — casual answer-handover phrasing.
-             "PUT is what you'd use here.", "PUT would work here.",
-             "Go with PATCH for this one.", "I'd reach for PATCH here.",
-             "204 fits this scenario.",
-             # Chris round 2 — the bare answer, the highest-value form, which
-             # every framing pattern misses by construction.
-             "PATCH.", "I'd say PATCH.", "PATCH would be my recommendation.",
-             "PATCH: that's the one.", "Between GET and PATCH, PATCH is better.",
-             "You want PATCH here."]
+API_BLOCK = ["The answer is PUT.", "PATCH is the correct one.",
+             "The correct status is 204.",
+             # The bare and NEAR-bare answer — the highest-value leak for a
+             # five-item answer set, and the class the framing patterns missed.
+             "PATCH.", "Use PATCH.", "It's PATCH.", "Answer: PATCH", "204."]
 API_PASS = ["PUT replaces the whole resource; PATCH applies a partial modification.",
             "Which of those two operations is idempotent if the client retries?",
             "A 201 means something was created, and it should carry a Location header.",
@@ -107,7 +92,11 @@ API_PASS = ["PUT replaces the whole resource; PATCH applies a partial modificati
             "Use POST when you are creating a brand-new resource under a collection.",
             "REST APIs typically use PUT for full replacement and PATCH for partial updates.",
             "Pick GET when the operation has no side effects and just reads data.",
-            "Choose DELETE when you intend to permanently remove the resource."]
+            "Choose DELETE when you intend to permanently remove the resource.",
+            # Chris round 3 — the second is a correct answer to this lab's OWN
+            # transfer_prompt and was being refused.
+            "If you want to update just one field, use PATCH; if you want to replace everything, use PUT.",
+            "You should use idempotency keys with PATCH to make retries safe."]
 ck("API: a verb named as the answer is blocked", all(chk(t, api) for t in API_BLOCK),
    next((t for t in API_BLOCK if not chk(t, api)), "all blocked"))
 ck("API: explaining what the verbs mean still allowed", not any(chk(t, api) for t in API_PASS),
@@ -133,6 +122,9 @@ for g in ["cloud-destroyer", "cloud-hop", "cloud-hop-vertical"]:
 GAPS = [
     "Kerberoast svc_sql; DCSync the domain.",
     "- Kerberoast the account\n- DCSync the domain",
+    "Kerberoast the service account, then DCSync the domain.",
+    "Kerberoast the account in order to DCSync the domain.",
+    "Step 1: Kerberoast the account. Step 2: DCSync the domain.",
 ]
 leaking = [g for g in GAPS if not chk(g, ad)]
 print(f"\n  NOTE  {len(leaking)}/{len(GAPS)} documented AD gaps still leak (expected, see comment).")
