@@ -263,7 +263,14 @@ A planned EduScan validator (`SKILL-MAP-001`) will check:
 - Every Skill Map has all required fields populated (no placeholders)
 - `allowed_help_levels` includes 0 and at least one positive level
 - `forbidden_disclosures` is non-empty
-- `transfer_prompt` is non-empty and is a question (ends with `?`)
+- `transfer_prompt` is non-empty and is a question (contains `?`)
+  - Relaxed from "ends with `?`" on 2026-08-05. The house style is a question
+    followed by directives ("...What is your response? Name the specific attack
+    ... Then state which construction breaks it and why."), and the stricter
+    rule silently disqualified 16 of 29 maps for good content. A map that fails
+    validation does not error — the lab loses its forbidden strings and flag
+    values, and its `allowed_help_levels` reset to the fallback's full `[0..5]`,
+    handing back the direct answers the map deliberately withheld.
 - `primary_skill.layer` is one of the four valid values
 
 Severity: HIGH for labs missing a Skill Map (Dr. Hex cannot operate

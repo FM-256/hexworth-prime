@@ -152,7 +152,7 @@ except SkillMapValidationError as e:
     _expect("forbidden_disclosures" in str(e), "empty forbidden_disclosures raises", str(e))
 
 
-_section("validate: transfer_prompt must end with ?")
+_section("validate: transfer_prompt must contain ?")
 
 bad = _make_valid_dict()
 bad["transfer_prompt"] = "Explain the defensive technique."
@@ -161,6 +161,21 @@ try:
     _expect(False, "non-question transfer_prompt raises")
 except SkillMapValidationError as e:
     _expect("?" in str(e), "non-question transfer_prompt raises", str(e))
+
+# The house style is a question FOLLOWED BY directives. The rule used to be
+# endswith('?') and silently disqualified 16 of 29 real maps for content like
+# this. Locked in so the stricter rule cannot come back by accident.
+mid = _make_valid_dict()
+mid["transfer_prompt"] = (
+    "What is your response? Name the specific attack their proposal enables "
+    "and walk through ONE concrete exploit step. Then state which standard "
+    "construction breaks the attack and why."
+)
+try:
+    _validate_skill_map(mid, source="test")
+    _expect(True, "question-then-directive transfer_prompt is accepted")
+except SkillMapValidationError as e:
+    _expect(False, "question-then-directive transfer_prompt is accepted", str(e))
 
 
 _section("validate: secondary_skill optional + valid")

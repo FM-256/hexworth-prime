@@ -279,9 +279,24 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
     transfer_prompt = _require_field(data, source, "transfer_prompt", str).strip()
     if not transfer_prompt:
         raise SkillMapValidationError(f"{source}.transfer_prompt: must not be empty")
-    if not transfer_prompt.endswith("?"):
+    # Must ASK something, but need not END on the question mark.
+    #
+    # This was `endswith("?")`, and it silently disqualified 16 of 29 Skill Maps
+    # on 2026-08-05 — every one of them for good content. The house style for a
+    # transfer prompt is a question followed by directives, e.g. key-hmac:
+    # "...What is your response? Name the specific attack their proposal enables
+    # and walk through ONE concrete exploit step. Then state which standard HMAC
+    # construction breaks the attack and why."
+    # That is a question. It just does not end on the '?'.
+    #
+    # A failing map does not error, it degrades: the lab loses its specific
+    # forbidden strings and its flag values, AND its allowed_help_levels are
+    # replaced by the fallback's full [0..5] — so a lab that deliberately
+    # withheld direct answers silently gets them back. Enforcing punctuation
+    # position at that cost is the wrong trade.
+    if "?" not in transfer_prompt:
         raise SkillMapValidationError(
-            f"{source}.transfer_prompt: must be a question ending in '?'"
+            f"{source}.transfer_prompt: must be a question (must contain '?')"
         )
 
     # Optional fields

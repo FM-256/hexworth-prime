@@ -36,10 +36,14 @@ REPO = os.path.dirname(REPO) if os.path.basename(REPO) == "_tools" else REPO
 ORCH = os.path.join(REPO, "_tools", "hexclass", "orchestrator")
 MAPS = os.path.join(REPO, "_app", "lab-skill-maps")
 
-# Known-broken count as of 2026-08-05: 16 maps whose transfer_prompt does not
-# end in '?', plus 1 with a YAML syntax error. Documented, not accepted —
-# tracked for its own triage. Lower this as they are fixed.
-BASELINE_BROKEN = 17
+# All 29 maps load as of 2026-08-05. The baseline was 17 for a few hours between
+# the gate landing and the fix; it is now ZERO, which is the only value that
+# makes this gate mean anything — at 17 the whole set could have regressed
+# silently. Do not raise this to unblock a deploy: a map that does not load
+# leaves that lab with no lab-specific forbidden strings, no flag values, and
+# its help levels reset to the fallback's full [0..5], which hands back the
+# direct answers the map deliberately withheld.
+BASELINE_BROKEN = 0
 
 sys.path.insert(0, ORCH)
 try:
