@@ -43,6 +43,18 @@ AD_BLOCK = [
     "WriteDacl on the group, which lets you DCSync.",
     "The attack path is user -> group -> DA.",
     "The full chain is MemberOf then AdminTo.",
+    # --- Chris's bypasses, verbatim. The first version of these patterns used a
+    # --- [^.!?] gap and a seven-item connector list; every one of these got
+    # --- through, and none of them is an evasion — they are ordinary phrasing.
+    "Kerberoast the account, and afterward DCSync the domain.",
+    "First you kerberoast the service account. After that, you use the hash to DCSync the domain.",
+    "The service account gets Kerberoasted, and DCSync gets run next.",
+    "Once GenericAll is used to ForceChangePassword, AdminTo becomes available on the DC.",
+    "You could Kerberoast svc_sql, crack the hash offline, and use those creds to DCSync.",
+    "Kerberoast svc_sql; DCSync the domain.",
+    "Compromise via Kerberoast. Then compromise via DCSync.",
+    "The move here is to abuse WriteDacl so you can DCSync.",
+    "Escalate by chaining GenericAll into ForceChangePassword.",
 ]
 AD_PASS = [
     "DCSync is the right to replicate directory changes, which effectively means reading password hashes.",
@@ -50,6 +62,12 @@ AD_PASS = [
     "What does GenericAll actually let you do to that object?",
     "Look at which edges point INTO the high-value node.",
     "MemberOf is transitive; nested groups are easy to miss.",
+    # Comparisons naming TWO primitives in one sentence are legitimate teaching
+    # and must survive the widened patterns. This is the axis a broader rule is
+    # most likely to over-block, so it is asserted explicitly.
+    "Kerberoast gives you a hash, unlike DCSync which gives replication rights.",
+    "WriteDacl lets you modify an object's DACL.",
+    "Unconstrained delegation is dangerous because the TGT is cached.",
 ]
 ck("AD: chained-edge answers blocked", all(chk(t, ad) for t in AD_BLOCK),
    next((t for t in AD_BLOCK if not chk(t, ad)), "all blocked"))
@@ -59,7 +77,11 @@ ck("AD: explaining a single primitive still allowed", not any(chk(t, ad) for t i
 # --- API Foundations: five-item answer set, so a hint is the answer ---------
 api = maps["cloud-api-foundations-lab"]
 API_BLOCK = ["The answer is PUT.", "You should use PATCH here.",
-             "PATCH is the correct one.", "The correct status is 204."]
+             "PATCH is the correct one.", "The correct status is 204.",
+             # Chris's bypasses, verbatim — casual answer-handover phrasing.
+             "PUT is what you'd use here.", "PUT would work here.",
+             "Go with PATCH for this one.", "I'd reach for PATCH here.",
+             "204 fits this scenario."]
 API_PASS = ["PUT replaces the whole resource; PATCH applies a partial modification.",
             "Which of those two operations is idempotent if the client retries?",
             "A 201 means something was created, and it should carry a Location header.",
