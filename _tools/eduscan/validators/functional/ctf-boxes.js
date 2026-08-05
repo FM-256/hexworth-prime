@@ -196,8 +196,15 @@ class CtfBoxValidator {
                     continue;
                 }
 
+                /* Compare COUNTS, not names. What breaks completion is a canonical set
+                   LARGER than the number of achievements the box actually has — the
+                   threshold becomes unreachable. A box whose canonical id merely has a
+                   different NAME than its config (hw001-dead-workstation collapses five
+                   scenarios onto 'repaired' while its config says 'fixed') works perfectly:
+                   one canonical id, threshold of one, student credited. Flagging that as a
+                   defect was wrong, and cost a real box a false finding. */
                 const unseeded = [...reachable].filter(f => !known.has(f));
-                if (unseeded.length) {
+                if (known.size > reachable.size) {
                     /* BOX-003 — the box's declared flag ids and the registry's CANONICAL ids
                        do not line up. Submissions still SUCCEED: validateFlag mode 2 matches
                        on flag VALUE, not id, and records the capture under the registry's
@@ -217,11 +224,11 @@ class CtfBoxValidator {
                         code: 'BOX-003',
                         severity: 'medium',
                         category: 'ctf',
-                        message: `Box "${boxId}" declares flag id(s) ${unseeded.join(', ')} that `
-                               + `no canonical registry id matches (registry canonical: `
-                               + `${[...known].join(', ')}). Submissions still succeed, but the `
-                               + `completion threshold cannot be reached, so the box can never `
-                               + `be marked pwned.`,
+                        message: `Box "${boxId}" declares ${reachable.size} achievement(s) `
+                               + `but its registry resolves to ${known.size} canonical flag(s) `
+                               + `(${[...known].join(', ')}). Submissions still succeed, but the `
+                               + `completion threshold is ${known.size} and the box can only `
+                               + `yield ${reachable.size} — so it can never be marked pwned.`,
                         file: rel,
                         fix: `Add an aliases map on flag_registry/${boxId} collapsing its keys `
                            + `onto the canonical id(s) the box declares, as ad001-lockout-storm `
