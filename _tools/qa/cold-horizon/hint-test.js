@@ -1,5 +1,5 @@
 /**
- * hint-test.js — the Dr. Hex coaching layer.
+ * hint-test.js — the out-of-fiction coaching layer (Sortie Coach).
  * Canon requires: out of fiction, tiered (restate objective -> name the
  * unexamined interface -> name the artifact), visually UNMISTAKABLE from
  * EIDOLON, and a hint cost that is stated rather than silent.
@@ -24,6 +24,14 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
  await p.goto(`http://127.0.0.1:${port}/houses/cloud/games/cloud-cold-horizon.html?qa=1`,{waitUntil:'domcontentloaded',timeout:60000});
  await new Promise(r=>setTimeout(r,3500));
 
+ // Wait for the brief to finish typing. Sampling on a fixed delay read a
+ // half-rendered brief once the sequence grew; the START button gaining .on is
+ // the real "brief complete" signal.
+ for(let i=0;i<40;i++){
+   const ready=await p.evaluate(()=>document.getElementById('startBtn').classList.contains('on'));
+   if(ready) break;
+   await new Promise(r=>setTimeout(r,250));
+ }
  // plain-language opener must precede any sensor id in the brief
  const boot=await p.evaluate(()=>document.getElementById('bootLine').textContent);
  ck('brief opens in plain language, before any sensor id',
@@ -39,10 +47,10 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
 
  // tier escalation on objective 1
  const t1=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
- ck('H opens Dr. Hex at tier 1', t1.open===true && t1.tier===1, 'tier='+t1.tier);
+ ck('H opens the coach at tier 1', t1.open===true && t1.tier===1, 'tier='+t1.tier);
  ck('tier 1 restates the objective', /Objective one/i.test(t1.msg));
  ck('cost is stated, not silent', t1.discipline===97, 'discipline='+t1.discipline);
- ck('Dr. Hex is visually distinct from EIDOLON', t1.hexBg!==t1.eidBg, t1.hexBg+' vs '+t1.eidBg);
+ ck('coach panel is visually distinct from EIDOLON', t1.hexBg!==t1.eidBg, t1.hexBg+' vs '+t1.eidBg);
 
  const t2=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
  ck('second press escalates to tier 2', t2.tier===2, 'tier='+t2.tier);
@@ -70,9 +78,41 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
  await new Promise(r=>setTimeout(r,2200));
  const d=await p.evaluate(()=>{const q=window.__COLD_HORIZON_QA__;
    q.showHex();q.showHex();q.showHex();return q.hexState();});
- ck('decision tier 3 names the shared dependency, not just the answer',
-    /bus-a/.test(d.msg) && /PLAT-CLK-A/.test(d.msg) && /odd one out/.test(d.msg),
-    'phase='+d.phase);
+
+ // POSITIVE: it must point at the artifact.
+ ck('decision tier 3 points at the artifact (bus and clock)',
+    /bus/i.test(d.msg) && /clock/i.test(d.msg), 'phase='+d.phase);
+
+ // NEGATIVE — the assertion the first version of this test was missing, which
+ // is why it passed while tier 3 restated the correct option almost verbatim
+ // and named the decoy to rule it out. Coaching must not become a verdict:
+ // dr-hex-constitution.md:120 forbids handing over an answer at ANY help level.
+ ck('decision tier 3 does NOT tell the player which option to pick',
+    !/corroborated by (my|your) own/i.test(d.msg) && !/\bfile TH-2\b/i.test(d.msg),
+    'msg="'+d.msg.slice(0,110)+'..."');
+ ck('decision tier 3 does NOT name the decoy to rule it out',
+    !/odd one out/i.test(d.msg));
+
+ // Blanket check across EVERY hint in EVERY phase against the REAL option
+ // labels, so this cannot regress in a phase the test does not visit.
+ const leak = await p.evaluate(()=>{
+   const q = window.__COLD_HORIZON_QA__;
+   const norm = s => s.toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+   const bad = [];
+   for(const [phase, tiers] of Object.entries(q.HINTS)){
+     tiers.forEach((text, i) => {
+       const t = norm(text);
+       for(const o of q.OPTIONS){
+         // strip the parenthetical value so we compare the CLAIM, not the number
+         const label = norm(o.label.replace(/\([^)]*\)/g,''));
+         if(label.length > 12 && t.includes(label)) bad.push(`${phase} tier${i+1} contains option "${o.k}"`);
+       }
+     });
+   }
+   return bad;
+ });
+ ck('no hint in any phase reproduces a decision option verbatim',
+    leak.length===0, leak.join('; ') || 'clean');
 
  await p.screenshot({path:'/tmp/claude-1000/-home-eq/d7b814d9-d937-47c0-8ed6-0ba92645deec/scratchpad/hex.png'});
  console.log('\npageerrors:',errs.length,errs.slice(0,3));
