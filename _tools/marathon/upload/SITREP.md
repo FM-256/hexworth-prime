@@ -15,18 +15,58 @@
 - 3b6890b52 fix(games): BUG-093 batch 3 -- pre-formatted text and wide tables contained, not wrapped
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-08-05 — ALL CLEAR. Nothing committed-and-undeployed.
-Production verified on all three surfaces. Safe to stop, safe to resume cold.
+**Manual section updated:** 2026-08-05 (late) — COLD HORIZON DEPLOYED AND LIVE-VERIFIED.
+Nothing committed-and-undeployed. 639-commit backlog pushed to origin earlier in the session.
 
-## NOW — nothing is pending. Next task is queued but NOT started.
+## NOW — Cold Horizon: Line of Sight is live. Nothing pending.
 
-### NEXT TASK (operator asked, not begun)
-  Read this article, document it, create a directory under the hexworth-shared PLANNING
-  folder, capture the ideas that come out of it, and separate the projects that actually
-  materialise. Then discuss.
+### SHIPPED THIS SESSION — the platform's first 3D game
+  /houses/cloud/games/cloud-cold-horizon.html   "COLD HORIZON: Line of Sight"
+  three.js r185 VENDORED at _app/vendor/three/ (no CDN, no build step, force-added past
+  the *.min.js gitignore rule). Procedural Earth shader, procedural station with real
+  shadow maps, hand-written bloom chain, runtime WebAudio, Newtonian flight under command
+  latency, infrared mode swapping every mesh to a temperature-keyed unlit material.
+
+  It is the PHYSICAL CORROBORATION SORTIE for the le-01-cold-horizon arena box, NOT a
+  second Mission 1. See the file header before touching any temperature: TH-1 41.2 /
+  TH-2 58.9 / TH-3 41.4, vote 41.3, outlet 54.1 — all mirrored from the box's
+  config-shared.js. Change one, change both.
+
+  LIVE-VERIFIED by running it on hexworth.com, not by reading the deploy log:
+  body visible, canvas up, GameTracker+AchievementManager reachable, QA seam absent,
+  HUD live, TH-2 58.9 / vote 41.3 on screen, 0 non-200s, 0 page errors.
+
+### GATES — both agents blocked this at least once, both were right
+  Nancy: dead component wiring, then the window-vs-lexical-const guard bug. GO after fixes.
+  Chris: BLOCKED twice. (1) shipped a second "Mission 1: Three Temperatures" colliding with
+  the arena box — I had asserted canon fidelity without opening Lagrange-Edge-MVP-Scope-v1.md
+  or _app/arena/boxes/le-01-cold-horizon/. (2) the CANON comment still quoted the docx's
+  superseded 41-vs-87 two-source framing. PASS at 7d1993069.
+
+### OPEN, FOUND BY NANCY, NOT PART OF THIS DEPLOY — needs its own triage
+  window.<Component> guards are DEAD for lexically-declared singletons:
+    window.ModuleProgress    251 files
+    window.FirestoreManager   31 files
+    window.FirebaseAuth        2 files
+  These components are `const X = (function(){...})()` at classic-script top level, which
+  binds lexically, NOT on window. Guard with `typeof X !== 'undefined'`. Nancy recommends an
+  EduScan rule (same argument that produced HEUR-028). Some sites have fallback save paths,
+  some may record nothing at all — triage before assuming severity.
+
+### OPERATOR DECISION OUTSTANDING
+  Chris offered a second remedy for the collision that I did NOT take, because it needs the
+  operator: let this sortie SUPERSEDE the arena box's Mission 1 and retire/update
+  _app/arena/boxes/le-01-cold-horizon/ + Lagrange-Edge-MVP-Scope-v1.md. Currently the two
+  coexist as a designed pairing (desk investigation -> physical corroboration).
+
+### STILL QUEUED, NOT BEGUN
+  Read the-decoder article, document it into a new planning directory under
+  hexworth-shared, separate the ideas that materialise, then discuss.
     https://the-decoder.com/claude-opus-5-pushes-prompt-to-game-ai-from-rough-color-blocks-to-full-3d-prototypes-with-physics-and-music/
-  Operator framing: they are exploring creativity/innovation and multi-agent capability,
-  not just building. Treat it as exploratory, not a spec.
+  Operator framing: exploratory, creativity/innovation and multi-agent capability.
+  NOTE: the article's core claim was tested rather than discussed — Cold Horizon IS the
+  experiment. Prompt-to-3D at article quality is real; the maintenance argument (code-drawn
+  assets cannot have a broken path) is the part worth writing up.
 
 ### DEPLOY STATE — verified, not assumed
   hosting    current  (Lagrange box files + arena card live, byte-checked)
