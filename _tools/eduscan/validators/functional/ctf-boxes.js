@@ -88,10 +88,27 @@ class CtfBoxValidator {
      * releases are legitimate, and an unbuilt device's flags must not read as unseeded.
      */
     _reachableFlagIds(boxPath) {
+        /* OPEN-WORLD BOXES use a different architecture and a different filename. They have
+           config-shared.js (no config.js), no `flags` block at all, and declare their flag ids
+           as the VALUES of a flagConnections map — the student earns a flag by making the
+           right connection, deliverFlag hands them the text, and they then submit it through
+           validateFlag like any other box. Reading only config.js skipped all 12 of them, and
+           they were reported as unexamined (BOX-004) rather than silently passed. Verified
+           healthy when checked by hand: 3 declared, 3 canonical, completable, every one. */
         const configPath = path.join(boxPath, 'config.js');
-        if (!fs.existsSync(configPath)) return null;
-        const src = fs.readFileSync(configPath, 'utf8');
+        const sharedPath = path.join(boxPath, 'config-shared.js');
+        const usePath = fs.existsSync(configPath) ? configPath
+                      : (fs.existsSync(sharedPath) ? sharedPath : null);
+        if (!usePath) return null;
+        const src = fs.readFileSync(usePath, 'utf8');
         const ids = new Set();
+
+        // Open-world shape — flagConnections: { 'conn-id': 'flagId', ... }
+        const fcMatch = src.match(/flagConnections\s*:\s*\{([\s\S]*?)\n\s*\}/);
+        if (fcMatch) {
+            (fcMatch[1].match(/:\s*'([^']+)'/g) || [])
+                .forEach(q => ids.add(q.replace(/:\s*'/, '').replace(/'$/, '')));
+        }
 
         // Shape A — a map whose keys are the flag ids.
         const mapMatch = src.match(/\bflags:\s*\{([\s\S]*?)\n\s*\},/);
