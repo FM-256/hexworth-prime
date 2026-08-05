@@ -71,23 +71,58 @@ class CtfBoxValidator {
         }
     }
 
-    /** Flag ids a box declares on nodes whose page file EXISTS (i.e. actually reachable). */
+    /**
+     * Flag ids a box declares that are actually REACHABLE.
+     *
+     * Two real config shapes exist, and an earlier version of this method recognised only
+     * the rarer one — it required `flags: [...]` and `page: '...'` within 400 characters of
+     * each other, which matched exactly ONE box out of 243. Every other box returned null and
+     * was silently skipped, so the rule reported CLEAN while examining 0.4% of the tree.
+     * Coverage is asserted in validate() now for exactly that reason.
+     *
+     *   Shape A  flags: { f1: {...}, f2: {...} }        (map keyed by flag id)
+     *   Shape B  flags: [ { id: 'user', ... }, ... ]    (array of objects — most boxes)
+     *            flags: ['f1','f2']                     (array of bare ids — per-node)
+     *
+     * Flags declared on a node whose page file is MISSING are then subtracted: staged
+     * releases are legitimate, and an unbuilt device's flags must not read as unseeded.
+     */
     _reachableFlagIds(boxPath) {
         const configPath = path.join(boxPath, 'config.js');
-        if (!fs.existsSync(configPath)) return null;          // not a flag-bearing box
+        if (!fs.existsSync(configPath)) return null;
         const src = fs.readFileSync(configPath, 'utf8');
-
-        // Node blocks look like: { id: '...', ..., flags: ['f1','f2'], ..., page: 'x.html' }
         const ids = new Set();
-        const nodeRe = /flags:\s*\[([^\]]*)\][\s\S]{0,400}?page:\s*'([^']+)'/g;
-        let m, sawAny = false;
-        while ((m = nodeRe.exec(src)) !== null) {
-            sawAny = true;
-            const page = m[2];
-            if (!fs.existsSync(path.join(boxPath, page))) continue;   // unbuilt node — skip
-            (m[1].match(/'([^']+)'/g) || []).forEach(q => ids.add(q.replace(/'/g, '')));
+
+        // Shape A — a map whose keys are the flag ids.
+        const mapMatch = src.match(/\bflags:\s*\{([\s\S]*?)\n\s*\},/);
+        if (mapMatch) {
+            (mapMatch[1].match(/^\s*([A-Za-z0-9_]+)\s*:/gm) || [])
+                .forEach(k => ids.add(k.replace(/[:\s]/g, '')));
         }
-        return sawAny ? ids : null;
+
+        // Shape B — arrays, either of {id:'x'} objects or of bare id strings.
+        const arrRe = /\bflags:\s*\[([\s\S]*?)\]/g;
+        let a;
+        while ((a = arrRe.exec(src)) !== null) {
+            const body = a[1];
+            const objIds = body.match(/id:\s*'([^']+)'/g);
+            if (objIds) {
+                objIds.forEach(q => ids.add(q.replace(/id:\s*'/, '').replace(/'$/, '')));
+            } else {
+                (body.match(/'([^']+)'/g) || []).forEach(q => ids.add(q.replace(/'/g, '')));
+            }
+        }
+
+        if (ids.size === 0) return null;
+
+        // Subtract flags belonging to nodes whose page does not exist.
+        const nodeRe = /flags:\s*\[([^\]]*)\][\s\S]{0,400}?page:\s*'([^']+)'/g;
+        let m;
+        while ((m = nodeRe.exec(src)) !== null) {
+            if (fs.existsSync(path.join(boxPath, m[2]))) continue;
+            (m[1].match(/'([^']+)'/g) || []).forEach(q => ids.delete(q.replace(/'/g, '')));
+        }
+        return ids;
     }
 
     async validate() {
@@ -105,6 +140,11 @@ class CtfBoxValidator {
             });
             return issues;
         }
+
+        // Boxes this rule could not read flag ids from. REPORTED, never silent: an earlier
+        // version recognised only one config shape and skipped 242 of 243 boxes while printing
+        // CLEAN. Coverage is part of the result, not a footnote.
+        const skippedBoxes = [];
 
         const snap = await db.collection('flag_registry').get();
         const registry = new Map();
@@ -124,7 +164,7 @@ class CtfBoxValidator {
                 if (!fs.statSync(boxPath).isDirectory()) continue;
 
                 const reachable = this._reachableFlagIds(boxPath);
-                if (reachable === null) continue;    // no flag-bearing config; not our concern
+                if (reachable === null) { skippedBoxes.push(boxId); continue; }
                 const rel = path.relative(this.appRoot, boxPath);
 
                 if (!registry.has(boxId)) {
@@ -158,19 +198,53 @@ class CtfBoxValidator {
 
                 const unseeded = [...reachable].filter(f => !known.has(f));
                 if (unseeded.length) {
+                    /* BOX-003 — the box's declared flag ids and the registry's CANONICAL ids
+                       do not line up. Submissions still SUCCEED: validateFlag mode 2 matches
+                       on flag VALUE, not id, and records the capture under the registry's
+                       resolved id. What breaks is completion. _recomputeCtfStats counts
+                       distinct canonical ids as the threshold, so a box whose registry
+                       declares five canonical flags while the box really has one can never
+                       reach it — the student solves it and is never credited.
+
+                       This is what a missing `aliases` map looks like: ad001-lockout-storm
+                       collapses its five scenario ids onto one canonical `fixed` and is
+                       correct; vpn005-always-on-bypass has the same five keys with NO alias
+                       map, so it demands five captures for a one-flag box.
+
+                       Deliberately NOT critical: nothing errors, no student is blocked, and
+                       the capture is recorded. Only the completion credit is unreachable. */
                     issues.push({
                         code: 'BOX-003',
-                        severity: 'high',
+                        severity: 'medium',
                         category: 'ctf',
-                        message: `Box "${boxId}" declares reachable flag(s) the registry does not `
-                               + `know: ${unseeded.join(', ')}. Those submissions fail server-side `
-                               + `while the rest of the box works.`,
+                        message: `Box "${boxId}" declares flag id(s) ${unseeded.join(', ')} that `
+                               + `no canonical registry id matches (registry canonical: `
+                               + `${[...known].join(', ')}). Submissions still succeed, but the `
+                               + `completion threshold cannot be reached, so the box can never `
+                               + `be marked pwned.`,
                         file: rel,
-                        fix: `Add ${unseeded.join(', ')} to flag_registry/${boxId}.flags, or alias `
-                           + `them to an existing canonical flag id.`
+                        fix: `Add an aliases map on flag_registry/${boxId} collapsing its keys `
+                           + `onto the canonical id(s) the box declares, as ad001-lockout-storm `
+                           + `does — or align the box config's flag ids with the registry.`
                     });
                 }
             }
+        }
+
+        if (skippedBoxes.length) {
+            issues.push({
+                code: 'BOX-004',
+                severity: 'info',
+                category: 'ctf',
+                message: `${skippedBoxes.length} box(es) declared no readable flag ids and were `
+                       + `NOT checked: ${skippedBoxes.slice(0, 12).join(', ')}`
+                       + `${skippedBoxes.length > 12 ? ', …' : ''}. These are open-world boxes `
+                       + `with no config.js; they use a different architecture. Not a pass — `
+                       + `they simply were not examined.`,
+                file: '_tools/eduscan/validators/functional/ctf-boxes.js',
+                fix: 'Extend _reachableFlagIds if these should be covered, or confirm their '
+                   + 'flags are registered by another route.'
+            });
         }
 
         return issues;
