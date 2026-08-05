@@ -161,7 +161,7 @@ MAX_TOOL_ITERATIONS = int(os.environ.get("HEX_MAX_TOOL_ITERATIONS", "3"))
 # Prometheus. MUST match pyproject.toml; the v0.6.6 commit aligned them
 # after a pre-existing drift where pyproject was stale at 0.6.1 while
 # main.py had advanced to 0.6.5 through several un-versioned commits.
-VERSION = "0.6.7"
+VERSION = "0.6.8"
 
 # Special tokens that qwen2.5:7b and similar models treat as control sequences
 # in their chat template. If these appear verbatim in tool result content,
