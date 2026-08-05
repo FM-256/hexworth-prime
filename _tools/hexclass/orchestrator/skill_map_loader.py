@@ -133,6 +133,9 @@ class LabSkillMap:
     flag_values: list[str] = field(default_factory=list)
     walkthrough_text: str = ""
     phase_scaffolds: dict[str, PhaseScaffold] = field(default_factory=dict)
+    # Optional semantic-guard declaration. None on every map that has not opted
+    # in; the judge simply never runs for those labs.
+    semantic_guard: Optional[dict] = None
 
     @property
     def max_help_level(self) -> int:
@@ -276,6 +279,40 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
             f"{source}.forbidden_disclosures: must list at least one forbidden string (use Level 0 + empty list if truly nothing is forbidden, but be explicit)"
         )
 
+    # OPTIONAL semantic_guard. Absent on every existing map and must stay
+    # optional — this is additive, not a new requirement.
+    #
+    #   semantic_guard:
+    #     answer_summary: "<the answer, in one sentence, as ground truth>"
+    #     trigger_terms: ["kerberoast", "dcsync", ...]
+    #
+    # answer_summary is handed to the judge model as ground truth and is never
+    # shown to a student. trigger_terms drive the cheap recall filter that
+    # decides whether the judge is worth invoking at all — they should be
+    # GENEROUS, because a missed trigger loses the guardrail while a spurious
+    # one costs a single local inference.
+    semantic_guard = None
+    sg_raw = data.get("semantic_guard")
+    if sg_raw is not None:
+        if not isinstance(sg_raw, dict):
+            raise SkillMapValidationError(
+                f"{source}.semantic_guard: must be a mapping, got {type(sg_raw).__name__}")
+        answer_summary = str(sg_raw.get("answer_summary", "")).strip()
+        if not answer_summary:
+            raise SkillMapValidationError(
+                f"{source}.semantic_guard.answer_summary: must not be empty — the judge "
+                f"has no ground truth without it")
+        terms_raw = sg_raw.get("trigger_terms")
+        if not isinstance(terms_raw, list) or not terms_raw:
+            raise SkillMapValidationError(
+                f"{source}.semantic_guard.trigger_terms: must be a non-empty list — with no "
+                f"trigger terms the judge would never run and the guard would be inert")
+        terms = [str(t).strip() for t in terms_raw if str(t).strip()]
+        if not terms:
+            raise SkillMapValidationError(
+                f"{source}.semantic_guard.trigger_terms: all entries were empty")
+        semantic_guard = {"answer_summary": answer_summary, "trigger_terms": terms}
+
     transfer_prompt = _require_field(data, source, "transfer_prompt", str).strip()
     if not transfer_prompt:
         raise SkillMapValidationError(f"{source}.transfer_prompt: must not be empty")
@@ -360,6 +397,7 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
         flag_values=flag_values,
         walkthrough_text=walkthrough_text,
         phase_scaffolds=phase_scaffolds,
+        semantic_guard=semantic_guard,
     )
 
 

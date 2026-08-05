@@ -987,6 +987,23 @@ async def health() -> dict[str, Any]:
     out["pgvector"] = pgvector_result if not isinstance(pgvector_result, Exception) else {"status": f"probe error: {pgvector_result}"}
     out["audit_cf"] = audit_result if not isinstance(audit_result, Exception) else {"status": f"probe error: {audit_result}"}
 
+    # Semantic disclosure guard. Surfaced because it FAILS OPEN by design — on
+    # timeout or an unparseable verdict the reply reaches the student. That is
+    # the right trade (a slow judge must not break the tutor) but it means the
+    # guard can stop working while everything still looks healthy. A rising
+    # fail_open with a flat judged count is the signal that it has gone dark.
+    try:
+        import semantic_disclosure as _sem
+        _c = _sem.counters()
+        out["semantic_guard"] = {
+            "status": "ok",
+            "mode": _sem.MODE,          # shadow until validated against real traffic
+            "model": _sem.JUDGE_MODEL,
+            **_c,
+        }
+    except Exception as _e:             # noqa: BLE001
+        out["semantic_guard"] = {"status": f"unavailable: {_e.__class__.__name__}"}
+
     # Roll-up: each subsystem reports "ok" in its "status" or top-level
     # key; anything else is degraded. Operator's at-a-glance check.
     out["all_ok"] = (
@@ -1637,6 +1654,50 @@ async def chat(req: ChatRequest, _: str = Depends(require_api_key)) -> ChatRespo
                 session_state=None,  # fresh per-request for v1; session tracking is Phase 2
                 lab_skill_map=lint_skill_map,
             )
+            # ── SEMANTIC DISCLOSURE GUARD ────────────────────────────────
+            # String matching cannot tell "Kerberoast then DCSync" (the answer)
+            # from "Kerberoast yields a hash, unlike DCSync" (teaching). Same
+            # words, opposite intent. Six rounds of pattern tuning on two Skill
+            # Maps ended with patterns that refused a lab's own transfer-prompt
+            # answer while still letting "Use PATCH." through — so the regex
+            # layer was cut back to blunt-handover only and the meaning question
+            # moved here, where a model can answer it.
+            #
+            # Regex handles RECALL (cheap trigger), the model handles PRECISION.
+            # Runs only when the lab declares a semantic_guard AND the reply
+            # mentions a trigger term, so most turns cost nothing.
+            #
+            # SHADOW BY DEFAULT (HEX_SEMANTIC_GUARD=shadow): logs what it would
+            # have blocked and changes nothing, exactly as voice_linter itself
+            # was rolled out before Phase 2 enforce-mode. Promote only after
+            # checking shadow logs against real traffic.
+            try:
+                import semantic_disclosure as _sem
+                _sg_decl = getattr(sm_for_prompt, "semantic_guard", None) if sm_for_prompt else None
+                if _sg_decl:
+                    _guard = _sem.SemanticGuard(
+                        answer_summary=_sg_decl.get("answer_summary", ""),
+                        trigger_terms=_sg_decl.get("trigger_terms", []),
+                    )
+                    _verdict = await _sem.evaluate(scrubbed_text, _guard, ollama_url=OLLAMA_URL)
+                    if _verdict is not None and _verdict.discloses:
+                        log.warning(
+                            "semantic_guard[%s]: mission=%s reason=%s%s",
+                            _sem.MODE, req.mission_id or "-", _verdict.reason,
+                            "" if _sem.MODE == "enforce" else " (SHADOW — not blocked)",
+                        )
+                        if _sem.MODE == "enforce":
+                            from voice_linter import LintViolation as _LV
+                            lint_result.violations.append(_LV(
+                                code=_sem.VIOLATION_CODE,
+                                severity="BLOCK",
+                                message=f"Semantic guard: reply discloses the assessed answer ({_verdict.reason})",
+                                excerpt=scrubbed_text[:120],
+                            ))
+            except Exception as _sem_exc:      # noqa: BLE001
+                # Guard must never break the tutor. Logged, never silent.
+                log.warning("semantic_guard: skipped (%s)", _sem_exc.__class__.__name__)
+
             from voice_linter import ENFORCE_BLOCK_CODES, VOICE_LINTER_REFUSAL
             # AI-26 2026-05-30: extract the student query so quality_log can
             # carry the dedup key (studentQueryFirst60). Falls back to empty.

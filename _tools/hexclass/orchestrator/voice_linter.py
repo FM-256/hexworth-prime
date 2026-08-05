@@ -49,6 +49,14 @@ ENFORCE_BLOCK_CODES = frozenset({
     "no_walkthrough_paste",
     "no_forbidden_disclosure",
     "no_lived_experience",
+    # Registered so that promoting HEX_SEMANTIC_GUARD to 'enforce' actually
+    # takes effect. Leaving it out would make enforce mode a silent no-op —
+    # the same dead-guard shape as a window.X check on a lexical const, or an
+    # audit whose exit code is captured and discarded. The MODE env var is the
+    # safety control here; registration is not.
+    # Only ever emitted by semantic_disclosure.evaluate(), which is shadow by
+    # default and never appends this violation unless MODE == 'enforce'.
+    "no_semantic_disclosure",
 })
 
 # Canned refusal returned when an enforce-mode BLOCK fires.
