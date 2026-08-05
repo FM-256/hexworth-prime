@@ -88,13 +88,59 @@ def _check_not_publicly_served() -> bool:
     hosting = cfg.get("hosting")
     hosting = hosting[0] if isinstance(hosting, list) else (hosting or {})
     ignore = hosting.get("ignore", [])
-    ok = any("lab-skill-maps" in str(pat) for pat in ignore)
-    if ok:
-        print("  hosting: lab-skill-maps excluded from deploy (answer keys not public)")
+    import fnmatch
+
+    def _served(rel: str) -> bool:
+        """Would firebase ship this path, given the ignore list?"""
+        for pat in ignore:
+            p = str(pat)
+            if fnmatch.fnmatch(rel, p) or fnmatch.fnmatch(rel, p.rstrip("/*") + "/*"):
+                return False
+            if p.endswith("/**") and rel.startswith(p[:-3] + "/"):
+                return False
+        return True
+
+    ok = True
+
+    if any("lab-skill-maps" in str(pat) for pat in ignore):
+        print("  hosting: lab-skill-maps excluded (answer keys not public)")
     else:
+        ok = False
         print("  FAIL: firebase.json does NOT exclude lab-skill-maps —")
         print("        deploying would publish every lab's answer key at")
         print("        https://<host>/lab-skill-maps/<lab>.yaml")
+
+    # GENERIC SWEEP, not a hardcoded path. Raw source files under a
+    # solution-shaped directory cannot be protected by AccessGuard — that only
+    # works on HTML — so if hosting serves them they are simply public. On
+    # 2026-08-05 the complete COP1034C final-project solution was live at
+    # /houses/code/python-for-it/solutions/final/main.py, HTTP 200.
+    # Written as a sweep so a NEW solutions directory is caught on the deploy
+    # that introduces it, rather than years later by a reviewer.
+    app = os.path.join(REPO, "_app")
+    leaking = []
+    for dirpath, _dirs, files in os.walk(app):
+        rel_dir = os.path.relpath(dirpath, app).replace(os.sep, "/")
+        low = rel_dir.lower()
+        if not any(k in low for k in ("solution", "answer-key", "answerkey")):
+            continue
+        for fn in files:
+            if not fn.endswith((".py", ".txt", ".ipynb", ".sql", ".sh")):
+                continue
+            rel = f"{rel_dir}/{fn}"
+            if _served(rel):
+                leaking.append(rel)
+    if leaking:
+        ok = False
+        print(f"  FAIL: {len(leaking)} raw solution file(s) would be PUBLICLY served.")
+        print("        AccessGuard cannot protect non-HTML files; hosting serves them raw.")
+        for r in leaking[:6]:
+            print(f"          https://<host>/{r}")
+        if len(leaking) > 6:
+            print(f"          ... and {len(leaking)-6} more")
+    else:
+        print("  hosting: no raw solution files would be served")
+
     return ok
 
 
