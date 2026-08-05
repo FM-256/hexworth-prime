@@ -252,6 +252,24 @@ def _validate_skill_map(data: dict, source: str) -> LabSkillMap:
             )
         s = item.strip()
         if s:
+            # `re:` entries are regex patterns (see voice_linter
+            # check_no_forbidden_disclosure). Compile them HERE so a malformed
+            # pattern fails validation loudly instead of silently never
+            # matching at lint time. A guardrail that reports clean because it
+            # could not run is worse than no guardrail.
+            if s.lower().startswith("re:"):
+                pattern = s[3:].strip()
+                if not pattern:
+                    raise SkillMapValidationError(
+                        f"{source}.forbidden_disclosures[{i}]: 're:' entry has an empty pattern"
+                    )
+                try:
+                    import re as _re
+                    _re.compile(pattern)
+                except _re.error as exc:
+                    raise SkillMapValidationError(
+                        f"{source}.forbidden_disclosures[{i}]: invalid regex {pattern!r}: {exc}"
+                    )
             forbidden.append(s)
     if not forbidden:
         raise SkillMapValidationError(

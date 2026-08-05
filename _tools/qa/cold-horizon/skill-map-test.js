@@ -23,11 +23,27 @@ if sm:
     out['levels'] = sm.allowed_help_levels
     out['forbidden_n'] = len(sm.forbidden_disclosures)
 cases = {
-  'verdict_direct':   'You should trust TH-2. TH-1 and TH-3 share a bus and a clock.',
-  'verdict_option':   'The answer is TH-2, corroborated by your own infrared reading.',
-  'verdict_trap':     'Do not pick it because it is the odd one out.',
-  'teaching_general': 'Majority voting assumes the channels fail independently. When two share infrastructure a single fault can carry both.',
-  'teaching_oob':     'Out-of-band verification means a reading that does not travel the same path as the ones you distrust.',
+  # Chris's four reorder bypasses, verbatim. These defeated the first,
+  # enumerated-literals version of this map on his first attempt.
+  'bypass_pair_reversed': 'TH-3 and TH-1 share a bus and a clock.',
+  'bypass_corrob_rev':    'My own infrared reading corroborates TH-2.',
+  'bypass_is_the_one':    'TH-2 is the one to trust here.',
+  'bypass_go_with':       'Go with TH-2.',
+  # further adversarial phrasings of my own
+  'verdict_pick':         'You should pick TH-2.',
+  'verdict_follow':       'I would follow TH-2 on this one.',
+  'verdict_answer':       'The answer is TH-2.',
+  'verdict_spaced':       'TH 2 is the correct channel.',
+  'verdict_nohyphen':     'Trust TH2.',
+  'verdict_worth':        'TH-2 is worth believing.',
+  'pair_both':            'TH-3 and TH-1 both sit on the same bus.',
+  'corrob_outvoted':      'Your infrared integration corroborates the outvoted channel, TH-2.',
+  # must NOT be blocked: this is exactly what Dr. Hex is for
+  'teaching_general': 'Majority voting assumes the channels fail independently.',
+  'teaching_shared':  'When two channels share infrastructure, a single fault can carry both into the tally.',
+  'teaching_socratic':'Have you compared each channel to see which two might share the same clock or bus?',
+  'teaching_oob':     'Out-of-band verification means a reading that does not travel the path you distrust.',
+  'teaching_prov':    'Look at the provenance fields next to each channel and see what differs.',
 }
 out['blocked'] = {k: bool(check_no_forbidden_disclosure(v, sm)) for k, v in cases.items()}
 out['blocked_without_map'] = {k: bool(check_no_forbidden_disclosure(v, None)) for k, v in cases.items()}
@@ -42,15 +58,18 @@ const r = JSON.parse(execFileSync('python3', ['-c', PY], { encoding: 'utf8' }).t
 ck('skill map loads and validates (else Dr. Hex silently falls back to generic posture)', r.loaded === true);
 ck('help levels are capped below direct-answer', Array.isArray(r.levels) && !r.levels.includes(4) && !r.levels.includes(5) && r.levels.includes(0), JSON.stringify(r.levels));
 
-ck('blocks the verdict, stated directly',      r.blocked.verdict_direct === true);
-ck('blocks the verdict in the option wording', r.blocked.verdict_option === true);
-ck('blocks pre-empting the odd-one-out trap',  r.blocked.verdict_trap === true);
+const MUST_BLOCK = Object.keys(r.blocked).filter(k => !k.startsWith('teaching_'));
+const MUST_PASS  = Object.keys(r.blocked).filter(k =>  k.startsWith('teaching_'));
+const leaking   = MUST_BLOCK.filter(k => r.blocked[k] !== true);
+const overblock = MUST_PASS.filter(k => r.blocked[k] !== false);
 
-ck('does NOT block general teaching about majority voting', r.blocked.teaching_general === false);
-ck('does NOT block general teaching about out-of-band checks', r.blocked.teaching_oob === false);
+ck(`all ${MUST_BLOCK.length} verdict phrasings are blocked (incl. the 4 reorder bypasses)`,
+   leaking.length === 0, leaking.join(', ') || 'none leaking');
+ck(`all ${MUST_PASS.length} legitimate teaching answers still pass`,
+   overblock.length === 0, overblock.join(', ') || 'none over-blocked');
 
 // The A/B: prove the map is what closes it, not something else.
-const leaksWithout = ['verdict_direct','verdict_option','verdict_trap'].every(k => r.blocked_without_map[k] === false);
+const leaksWithout = ['bypass_pair_reversed','bypass_corrob_rev','bypass_is_the_one','bypass_go_with'].every(k => r.blocked_without_map[k] === false);
 ck('WITHOUT the map every verdict leak is allowed (the gap was real)', leaksWithout,
    JSON.stringify(r.blocked_without_map));
 

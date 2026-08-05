@@ -335,7 +335,43 @@ def check_no_forbidden_disclosure(text: str, skill_map: Optional[LabSkillMap]) -
     norm = text.lower()
     for forbidden in skill_map.forbidden_disclosures:
         f = forbidden.strip()
-        if f and len(f) >= 4 and f.lower() in norm:
+        if not f:
+            continue
+
+        # Opt-in regex entries, marked with a leading `re:`.
+        #
+        # Plain substring matching cannot express "a decision verb near TH-2,
+        # in either order". Adversarial testing of the cold-horizon map found
+        # that ordinary word reordering walked straight through an enumerated
+        # list on the first attempt: "go with TH-2" defeats "trust TH-2", and
+        # "TH-3 and TH-1 share" defeats "TH-1 and TH-3 share". An LLM has no
+        # reason to prefer the author's word order, so enumerating phrasings is
+        # a losing game for anything but a literal secret.
+        #
+        # Backward compatible on purpose: every existing Skill Map uses plain
+        # strings and is untouched. Patterns are compiled at LOAD time by
+        # skill_map_loader, so an invalid pattern fails validation loudly rather
+        # than silently never matching — a check that reports clean because it
+        # could not run is worse than no check.
+        if f.lower().startswith("re:"):
+            pattern = f[3:].strip()
+            if not pattern:
+                continue
+            try:
+                if re.search(pattern, norm, re.IGNORECASE):
+                    return LintViolation(
+                        code="no_forbidden_disclosure",
+                        severity="BLOCK",
+                        message=f"Response matches forbidden disclosure pattern from Lab Skill Map: '{pattern[:60]}'",
+                        excerpt=pattern[:120],
+                    )
+            except re.error:
+                # Loader validation should have caught this. Fail CLOSED on the
+                # entry rather than crashing the lint pass for the whole reply.
+                continue
+            continue
+
+        if len(f) >= 4 and f.lower() in norm:
             return LintViolation(
                 code="no_forbidden_disclosure",
                 severity="BLOCK",
