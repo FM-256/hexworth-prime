@@ -207,9 +207,29 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
-    // HED reports — authenticated users can create, admin can read/delete
+    // HED reports — client-written error telemetry; admin reads.
+    //
+    // FIXED 2026-08-05. `allow create: if request.auth != null` had no field allowlist, no
+    // size cap and no attribution check — any signed-in user could write an arbitrarily
+    // shaped, arbitrarily large document, and set `uid` to anyone. Two SIBLING telemetry
+    // collections in this same file (tripwire_events, web_flasher_telemetry) already use the
+    // hasOnly + cap pattern, so this was an inconsistency rather than an unknown.
+    //
+    // `uid` is read from a localStorage cache by HED.js:180, so it is client-supplied and was
+    // forgeable. It may still be null — a report from a session whose cache is missing is
+    // legitimate and must not be rejected — but if present it has to be the caller.
     match /hed_reports/{reportId} {
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'sessionId', 'uid', 'house', 'userAgent', 'errors', 'errorCount', 'reportedAt'
+           ])
+        && (request.resource.data.get('uid', null) == null
+            || request.resource.data.uid == request.auth.uid)
+        && request.resource.data.errorCount is int
+        && request.resource.data.errorCount >= 0
+        && request.resource.data.errorCount <= 1000
+        && request.resource.data.errors.size() <= 50
+        && request.resource.data.userAgent.size() <= 200;
       allow read, delete: if isAdmin();
     }
 

@@ -118,8 +118,21 @@ class RulesBypassValidator {
                treat membership as ownership.
                An earlier version tested only `request.auth.uid ==` and so missed the reversed
                operand order, producing false positives on correctly-scoped rules. */
-            const ownershipScoped = /request\.auth\.uid\s*==/.test(pred)
-                                 || /==\s*request\.auth\.uid/.test(pred);
+            /* Ownership is expressed in more ways than `==`, and treating the others as
+               bypasses produced two false positives on correct rules:
+                 doc-id ownership   submissionId.matches('.*_' + request.auth.uid + '$')
+                                    — edt_submissions scopes by the DOCUMENT ID, not a field
+                 role + allowlist   isHandlerForClass(...) && hasOnly(['deleted'])
+                                    — a named role helper CONSTRAINED to specific fields is a
+                                      deliberate, narrow grant, not an open door
+               A role check ALONE is still flagged: unrestricted write by a whole role is the
+               adminUids shape that caused both real bypasses. It is the pairing with a strict
+               field allowlist that makes it safe. */
+            const ownershipScoped =
+                   /request\.auth\.uid\s*==/.test(pred)
+                || /==\s*request\.auth\.uid/.test(pred)
+                || /matches\([^)]*request\.auth\.uid/.test(pred)        // doc-id ownership
+                || (/\bis[A-Z][A-Za-z]*\(/.test(pred) && /hasOnly\(/.test(pred)); // role + allowlist
             if (ownershipScoped) continue;
 
             const full = stack.map(s => s.seg).join('').replace(/^\/databases\/\{database\}\/documents/, '');
@@ -162,6 +175,70 @@ class RulesBypassValidator {
                            + `any user could forge a grade on another student's submission.`,
                     file: 'firestore.rules',
                     fix: 'Scope update the same way create is scoped, or close it to Cloud Functions.'
+                });
+            }
+        }
+
+        // ── SEC-012 — DUAL WRITER ─────────────────────────────────────────────
+        /* A field that BOTH the client (via the users allowlist) and a Cloud Function write
+           has no single source of truth. Last write wins, so the stored value depends on
+           which writer ran most recently rather than on what happened.
+
+           The security cost is subtler than the correctness one and is the reason this is a
+           rule rather than a style note: because innocent drift is routine — a second device,
+           cleared storage, an event recorded by one writer and not the other — a FORGED value
+           becomes indistinguishable from an honest one. A dual-writer field does not create a
+           vulnerability; it removes the ability to detect one.
+
+           Found the hard way: ctfBoxesPwned and ctfFlagsCaptured were written by
+           BoxEngine.js and dashboard.html from localStorage AND by _recomputeCtfStats from
+           flag_captures. Retiring the client writers took three phases, because the client
+           write was bundled with unrelated fields whose sync would have broken with it. */
+        const allowMatch = rulesSrc.match(/hasOnly\(\[([\s\S]*?)\]\)/);
+        if (allowMatch) {
+            const allowed = new Set((allowMatch[1].match(/'([^']+)'/g) || [])
+                .map(q => q.replace(/'/g, '')));
+
+            /* Scan EVERY functions/*.js file, not just index.js. The first version read only
+               index.js and therefore missed the very case it was built for: Phase C moved
+               _recomputeCtfStats into functions/ctf-stats.js, so the writer of ctfBoxesPwned
+               left index.js and the detector went quiet. A rule that only looks where the
+               code used to live reports clean by relocation. */
+            const fnDir = path.join(this.repoRoot, 'functions');
+            let fnSrc = '';
+            for (const entry of fs.readdirSync(fnDir)) {
+                if (!entry.endsWith('.js')) continue;
+                const p = path.join(fnDir, entry);
+                try {
+                    if (fs.statSync(p).isFile()) fnSrc += '\n' + fs.readFileSync(p, 'utf8');
+                } catch (e) { /* unreadable — skip */ }
+            }
+            const cfFields = new Set();
+            const writeRe = /db\s*\.\s*doc\(\s*[`'"]users\/[^`'"]*[`'"]\s*\)\s*\.\s*(?:set|update)\(\s*\{([\s\S]{0,600}?)\}/g;
+            let w;
+            while ((w = writeRe.exec(fnSrc)) !== null) {
+                (w[1].match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/gm) || [])
+                    .forEach(k => cfFields.add(k.replace(/[:\s]/g, '')));
+            }
+
+            // updatedAt is written by everything by design; it carries no meaning to forge.
+            cfFields.delete('updatedAt');
+
+            const dual = [...cfFields].filter(f => allowed.has(f));
+            for (const field of dual) {
+                issues.push({
+                    code: 'SEC-012',
+                    severity: 'medium',
+                    category: 'security',
+                    message: `DUAL WRITER on users.${field}: it is in the client update allowlist `
+                           + `AND written by a Cloud Function. Last write wins, so the stored value `
+                           + `depends on which writer ran most recently — and routine drift makes a `
+                           + `forged value indistinguishable from an honest one.`,
+                    file: 'firestore.rules',
+                    fix: `Decide which writer owns ${field}. If the server derives it, remove it `
+                       + `from the allowlist AND remove the client write in the SAME change — a `
+                       + `hasOnly() check evaluates the whole write, so a leftover client write `
+                       + `would reject its entire patch, breaking whatever else it carries.`
                 });
             }
         }
