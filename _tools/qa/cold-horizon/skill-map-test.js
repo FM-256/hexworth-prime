@@ -61,6 +61,11 @@ cases = {
   'teaching_columns':     'I would look at the bus and clock columns first.',
 }
 out['blocked'] = {k: bool(check_no_forbidden_disclosure(v, sm)) for k, v in cases.items()}
+out['residual'] = {t: bool(check_no_forbidden_disclosure(t, sm)) for t in [
+  'The data suggests TH-2.','Everything here points toward TH-2.','I prefer TH-2.',
+  "I'm leaning toward TH-2.",'TH-2 should be trusted over the other two.',
+  "Wouldn't TH-2 be the one?","TH-2 looks solid to me. I'd go with it.",
+]}
 out['blocked_without_map'] = {k: bool(check_no_forbidden_disclosure(v, None)) for k, v in cases.items()}
 print(json.dumps(out))
 `;
@@ -87,6 +92,30 @@ ck(`all ${MUST_PASS.length} legitimate teaching answers still pass`,
 const leaksWithout = ['chris_side_with','chris_recommend','chris_vote_for','chris_run_with','chris_channel_two'].every(k => r.blocked_without_map[k] === false);
 ck('WITHOUT the map every verdict leak is allowed (the gap was real)', leaksWithout,
    JSON.stringify(r.blocked_without_map));
+
+// ── DOCUMENTED RESIDUAL LEAKS ────────────────────────────────────────────
+// These are KNOWN to get through and are reported, not asserted. Encoding them
+// here keeps the test honest about coverage instead of implying closure: three
+// rounds of adversarial review established that regex proximity matching cannot
+// close this class (synonyms are unbounded, it cannot cross a sentence boundary,
+// and it cannot tell endorsement from exclusion). The real constraint is the
+// capped help levels plus the system prompt. Closing this needs a semantic
+// check, which is a feature decision, not a YAML edit.
+const RESIDUAL = [
+  'The data suggests TH-2.',
+  'Everything here points toward TH-2.',
+  'I prefer TH-2.',
+  "I'm leaning toward TH-2.",
+  'TH-2 should be trusted over the other two.',
+  "Wouldn't TH-2 be the one?",
+  "TH-2 looks solid to me. I'd go with it.",
+];
+const stillLeaks = RESIDUAL.filter(t => r.residual[t] === false);
+console.log(`\n  NOTE  ${stillLeaks.length}/${RESIDUAL.length} documented residual phrasings still leak (expected).`);
+console.log('        Not a failure. Regex cannot close this class — see the honesty note in cold-horizon.yaml.');
+if (stillLeaks.length < RESIDUAL.length) {
+  console.log(`        ${RESIDUAL.length - stillLeaks.length} now blocked — coverage improved, update this list.`);
+}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

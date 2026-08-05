@@ -252,6 +252,12 @@ else
     echo "$SM_OUT" | head -6 | sed 's/^/  /'
     if [[ $SM_RC -ne 0 ]]; then
         echo -e "  ${YELLOW}! a Skill Map stopped loading — Dr. Hex has no guardrail on that lab${NC}"
+        # MUST set DIVERGENCE or this check does not gate anything. The first
+        # version captured SM_RC, printed a warning, and never used it again —
+        # post-verify still exited 0 and reported PASSED. A detector for silent
+        # failures that fails silently is worse than no detector, and that is
+        # the exact pattern this check exists to catch.
+        DIVERGENCE=1
     fi
 fi
 echo ""

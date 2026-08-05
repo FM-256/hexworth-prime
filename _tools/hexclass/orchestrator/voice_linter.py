@@ -366,8 +366,17 @@ def check_no_forbidden_disclosure(text: str, skill_map: Optional[LabSkillMap]) -
                         excerpt=pattern[:120],
                     )
             except re.error:
-                # Loader validation should have caught this. Fail CLOSED on the
-                # entry rather than crashing the lint pass for the whole reply.
+                # Unreachable in practice: skill_map_loader compiles every `re:`
+                # entry at load time and rejects the map if it fails.
+                #
+                # Be honest about what this branch does — it is FAIL-OPEN for
+                # this entry, not fail-closed. `continue` skips the check, so a
+                # response that the pattern would have blocked is allowed
+                # through. An earlier comment here claimed "fail CLOSED", which
+                # was wrong and is exactly the kind of label that makes a
+                # reviewer stop looking. Kept permissive deliberately: crashing
+                # the lint pass would drop every OTHER check on the reply too,
+                # which is a worse failure. The real defence is the loader.
                 continue
             continue
 
