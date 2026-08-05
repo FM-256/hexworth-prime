@@ -272,7 +272,17 @@ async function _recomputeCtfStats(uid) {
                 _flagTotalsCache.set(boxId, 0);
                 continue;
             }
-            total = Object.keys(reg.data().flags || {}).length;
+            /* COUNT CANONICAL FLAGS, NOT REGISTRY KEYS. A registry doc may list several
+               accepted spellings that all alias to ONE flag — validateFlag resolves them via
+               `aliases[fid] || fid` before writing the capture, so a student can only ever
+               produce as many distinct capture docs as there are CANONICAL ids. Using the raw
+               key count demanded more captures than the box can yield: measured on production,
+               6 boxes were affected, five of them dispatch boxes with 5 keys collapsing to a
+               single flag — a student who fully completed one showed 1/5 and could never be
+               credited with the box. Found immediately after seeding a 6th such box. */
+            const regFlags = reg.data().flags || {};
+            const regAliases = reg.data().aliases || {};
+            total = new Set(Object.keys(regFlags).map(k => regAliases[k] || k)).size;
             _flagTotalsCache.set(boxId, total);
         }
         if (total > 0 && captured.size >= total) boxesPwned++;
