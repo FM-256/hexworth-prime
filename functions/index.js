@@ -3723,9 +3723,17 @@ exports.validateAction = onCall(cfOptions, async (request) => {
     });
 
     // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
-    await _recomputeCtfStats(uid);
+    // Capture the return value: this site (unlike the other three) USES the count in its
+    // response. 98081d6cd replaced the old `const allCaptures = ...count()` block by pattern
+    // and left the reference below dangling, so every first-time action-lab capture threw
+    // ReferenceError: allCaptures is not defined. Both writes complete before the throw, so
+    // no student lost progress — but the caller got an internal error, and BoxEngine's
+    // .catch(() => {}) swallowed it, meaning the hexworth:lab-attempt-submitted event never
+    // dispatched. A pattern replacement that silently mangles one of four sites is exactly
+    // what a diff makes easy to miss.
+    const ctfStats = await _recomputeCtfStats(uid);
 
-    return { success: true, totalFlags: allCaptures.data().count };
+    return { success: true, totalFlags: ctfStats.flagsCaptured };
 });
 
 // ─── WL: White Label Tenant API ─────────────────────────────────
