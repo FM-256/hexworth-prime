@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HEUR-041 window guard on lexical singleton fixture</title>
+    <script src="../../../../components/FirestoreManager.js"></script>
+    <script src="../../../../components/HubRegistry.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+</head>
+<body>
+    <main>
+        <p>Locks in HEUR-041. Exactly ONE finding is expected, from the positive
+        case below. Every other construct here is negative coverage for a false
+        positive that the rule actually produced during development.</p>
+    </main>
+
+    <script>
+        // POSITIVE: FirestoreManager is `const X = (function(){...})()` with no
+        // global assignment in any form, and this page loads it. The guard is
+        // permanently false and the branch can never run. MUST fire.
+        if (window.FirestoreManager) {
+            FirestoreManager.addXP(null, 1, 'fixture');
+        }
+
+        // NEGATIVE 1 — bridged via `root.X = X` inside an IIFE closed over
+        // window. A grep for `window.X =` misses this and would call a working
+        // component dead. MUST NOT fire.
+        if (window.HubRegistry) {
+            HubRegistry.getHub('x');
+        }
+
+        // NEGATIVE 2 — bridged directly (`window.ModuleProgress = ModuleProgress`).
+        // This is the shape that was reported platform-wide as broken across 251
+        // files and was not broken at all. MUST NOT fire.
+        if (window.ModuleProgress) {
+            void 0;
+        }
+
+        // NEGATIVE 3 — component NOT loaded on this page. With no FirebaseAuth.js
+        // script tag the guard is correctly falsy and the code correctly skips.
+        // That is not a defect, and flagging it buries the real ones. MUST NOT fire.
+        if (window.FirebaseAuth) {
+            void 0;
+        }
+
+        // NEGATIVE 4 — a deliberate shim INSTALLING a stand-in on window, as
+        // houses/observatory/index.html does for LabStateSync. An assignment is
+        // not a read-guard. MUST NOT fire.
+        window.FirestoreManager = { getDb: function () { return null; } };
+
+        // NEGATIVE 5 — documenting the trap must not trip the rule that detects
+        // it. The first draft of HEUR-041 flagged its own explanatory comments in
+        // four separate places, which is why the check runs against stripNonCode.
+        // Mentioning window.FirestoreManager here MUST NOT fire.
+        void 0;
+
+        // NEGATIVE 6 — same mention inside a string literal. MUST NOT fire.
+        const doc = 'guard on window.FirestoreManager is always false';
+        void doc;
+    </script>
+</body>
+</html>
