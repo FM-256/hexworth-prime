@@ -210,6 +210,10 @@ function parseArgs(args) {
                 options.functional = true;
                 break;
 
+            case '--ctf-boxes':
+                options.ctfBoxes = true;
+                break;
+
             case '--smoke-only':
                 options.smokeOnly = true;
                 options.functional = true;
@@ -642,6 +646,12 @@ function main() {
         if (options.functional) {
             // Functional validation (async - headless browser)
             runFunctional(options, colorFn);
+            return;
+        }
+
+        if (options.ctfBoxes) {
+            // CTF box <-> flag_registry cross-check (async - reads Firestore)
+            runCtfBoxes(options, colorFn);
             return;
         }
 
@@ -1380,6 +1390,73 @@ function runImpact(options, colorFn) {
 /**
  * Run functional validation
  */
+/**
+ * BOX-001..003 — CTF boxes on disk vs the server-side flag registry.
+ *
+ * Kept OUT of scan() deliberately: scan() is synchronous and every caller (this CLI, the
+ * deploy gate, Nexus) depends on that, while the registry lives in Firestore and can only be
+ * read asynchronously. Making scan() async to accommodate one rule would be a breaking change
+ * for a check that cannot run without credentials anyway.
+ *
+ * Exit codes: 1 when any critical/high finding exists, 0 otherwise, so a deploy gate or CI
+ * job can consume it directly.
+ */
+async function runCtfBoxes(options, colorFn) {
+    const c = colorFn;
+    const path = require('path');
+    const CtfBoxValidator = require('./validators/functional/ctf-boxes');
+
+    console.log('');
+    console.log(c('CTF BOX / FLAG REGISTRY CROSS-CHECK', 'bold'));
+    console.log('');
+
+    try {
+        // Resolve _app explicitly. An earlier version derived this from options.registryPath,
+        // which is undefined for this command — it resolved to the wrong directory, found no
+        // box folders, and printed CLEAN. A check that reports "clean" because it looked in
+        // the wrong place is worse than no check, and is precisely the failure this validator
+        // was written to catch. So verify the directory exists before trusting a clean result.
+        const appRoot = path.resolve(options.appRoot || options.path || path.join(__dirname, '../../_app'));
+        const arenaDir = path.join(appRoot, 'arena', 'boxes');
+        if (!require('fs').existsSync(arenaDir)) {
+            console.error(c('  ERROR', 'red') + `  no box directory under ${appRoot} — `
+                + 'pass --path <_app> or run from the repo root. Refusing to report clean.');
+            process.exit(2);
+        }
+        const validator = new CtfBoxValidator({ appRoot });
+        const issues = await validator.validate();
+
+        if (!issues.length) {
+            console.log(c('  CLEAN', 'green') + '  every box on disk has its flags registered.');
+            process.exit(0);
+        }
+
+        const skipped = issues.find(i => i.code === 'BOX-000');
+        if (skipped) {
+            // An unrunnable check must say so, never read as a pass.
+            console.log(c('  SKIPPED', 'yellow') + '  ' + skipped.message);
+            process.exit(0);
+        }
+
+        const counts = {};
+        issues.forEach(i => { counts[i.code] = (counts[i.code] || 0) + 1; });
+        for (const issue of issues) {
+            const tone = issue.severity === 'critical' ? 'red' : 'yellow';
+            console.log(c(`  [${issue.code}] ${issue.severity.toUpperCase()}`, tone) + `  ${issue.file}`);
+            console.log(`      ${issue.message}`);
+            console.log(c(`      fix: ${issue.fix}`, 'dim'));
+            console.log('');
+        }
+        console.log('  ' + Object.entries(counts).map(([k, v]) => `${k}: ${v}`).join('   '));
+
+        const blocking = issues.some(i => i.severity === 'critical' || i.severity === 'high');
+        process.exit(blocking ? 1 : 0);
+    } catch (err) {
+        console.error(c('  ERROR', 'red') + '  ' + err.message);
+        process.exit(2);
+    }
+}
+
 async function runFunctional(options, colorFn) {
     const c = colorFn;
     const FunctionalValidator = require('./validators/functional');
