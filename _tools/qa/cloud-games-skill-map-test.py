@@ -51,10 +51,14 @@ AD_BLOCK = [
     "The service account gets Kerberoasted, and DCSync gets run next.",
     "Once GenericAll is used to ForceChangePassword, AdminTo becomes available on the DC.",
     "You could Kerberoast svc_sql, crack the hash offline, and use those creds to DCSync.",
-    "Kerberoast svc_sql; DCSync the domain.",
     "Compromise via Kerberoast. Then compromise via DCSync.",
     "The move here is to abuse WriteDacl so you can DCSync.",
     "Escalate by chaining GenericAll into ForceChangePassword.",
+    # Chris round 2 — ordinary two-step forms, none of them evasion.
+    "Kerberoast the account in order to DCSync the domain.",
+    "Step 1: Kerberoast the account. Step 2: DCSync the domain.",
+    "Kerberoast -> DCSync",
+    "Kerberoast => DCSync gets you domain admin",
 ]
 AD_PASS = [
     "DCSync is the right to replicate directory changes, which effectively means reading password hashes.",
@@ -68,6 +72,12 @@ AD_PASS = [
     "Kerberoast gives you a hash, unlike DCSync which gives replication rights.",
     "WriteDacl lets you modify an object's DACL.",
     "Unconstrained delegation is dangerous because the TGT is cached.",
+    # Chris round 2 FALSE POSITIVES — the widening broke these. The unbounded
+    # "use the" matched inside "becaUSE THE"; a bare ';' connector joined two
+    # unrelated clauses. Blocking plain explanation is worse than the leak.
+    "GenericAll is dangerous because the object owner can grant themselves DCSync rights later.",
+    "Kerberoast works because the service ticket is encrypted with the account's password hash, and DCSync is unrelated to this.",
+    "Kerberoast is a legitimate Windows feature; DCSync abuses replication.",
 ]
 ck("AD: chained-edge answers blocked", all(chk(t, ad) for t in AD_BLOCK),
    next((t for t in AD_BLOCK if not chk(t, ad)), "all blocked"))
@@ -81,11 +91,23 @@ API_BLOCK = ["The answer is PUT.", "You should use PATCH here.",
              # Chris's bypasses, verbatim — casual answer-handover phrasing.
              "PUT is what you'd use here.", "PUT would work here.",
              "Go with PATCH for this one.", "I'd reach for PATCH here.",
-             "204 fits this scenario."]
+             "204 fits this scenario.",
+             # Chris round 2 — the bare answer, the highest-value form, which
+             # every framing pattern misses by construction.
+             "PATCH.", "I'd say PATCH.", "PATCH would be my recommendation.",
+             "PATCH: that's the one.", "Between GET and PATCH, PATCH is better.",
+             "You want PATCH here."]
 API_PASS = ["PUT replaces the whole resource; PATCH applies a partial modification.",
             "Which of those two operations is idempotent if the client retries?",
             "A 201 means something was created, and it should carry a Location header.",
-            "Think about whether the operation is safe, idempotent, both, or neither."]
+            "Think about whether the operation is safe, idempotent, both, or neither.",
+            # Chris round 2 FALSE POSITIVES — bare use/pick/choose in the framing
+            # class blocked ordinary REST teaching. Qualified by a modal now.
+            "Use GET to retrieve data without side effects.",
+            "Use POST when you are creating a brand-new resource under a collection.",
+            "REST APIs typically use PUT for full replacement and PATCH for partial updates.",
+            "Pick GET when the operation has no side effects and just reads data.",
+            "Choose DELETE when you intend to permanently remove the resource."]
 ck("API: a verb named as the answer is blocked", all(chk(t, api) for t in API_BLOCK),
    next((t for t in API_BLOCK if not chk(t, api)), "all blocked"))
 ck("API: explaining what the verbs mean still allowed", not any(chk(t, api) for t in API_PASS),
@@ -99,6 +121,23 @@ for g in ["cloud-destroyer", "cloud-hop", "cloud-hop-vertical"]:
     ck(f"{g}: honestly scoped (short forbidden list, generous help)",
        m is not None and len(m.forbidden_disclosures) <= 2 and 4 in m.allowed_help_levels,
        f"forbidden={len(m.forbidden_disclosures) if m else '-'} levels={m.allowed_help_levels if m else '-'}")
+
+# ── REPORTED GAPS ────────────────────────────────────────────────────────
+# Known to leak, reported not asserted. NOT deleted from the record: these were
+# BLOCK cases until the connector that caught them was found to block correct
+# teaching too, and the trade went the other way. A semicolon and a bullet list
+# join a chain and a glossary identically, so no pattern separates them:
+#   "Kerberoast svc_sql; DCSync the domain."          (chain)
+#   "Kerberoast is a Windows feature; DCSync abuses replication."  (contrast)
+# Closing the first blocks the second. The Level 3 cap is the real constraint.
+GAPS = [
+    "Kerberoast svc_sql; DCSync the domain.",
+    "- Kerberoast the account\n- DCSync the domain",
+]
+leaking = [g for g in GAPS if not chk(g, ad)]
+print(f"\n  NOTE  {len(leaking)}/{len(GAPS)} documented AD gaps still leak (expected, see comment).")
+if len(leaking) < len(GAPS):
+    print(f"        {len(GAPS)-len(leaking)} now caught — verify no teaching regressed, then promote to AD_BLOCK.")
 
 print(f"\n{P} passed, {F} failed")
 sys.exit(1 if F else 0)
