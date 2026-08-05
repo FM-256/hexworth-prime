@@ -27,8 +27,45 @@ service cloud.firestore {
       // setDoc(users/{uid}, {role:'instructor'}) BEFORE initializeNewUser ran -- a
       // deterministic self-grant, no race, no forgery needed. Only the admin SDK
       // (setAdminClaim and friends, which bypass rules) may ever write `role`.
+      /* CREATE HAD NO FIELD ALLOWLIST — only `role` was blocked. Every other field was
+         free, so any brand-new signup could create their own profile with arbitrary values:
+         PROVEN 2026-08-05 by writing ctfBoxesPwned=9999 / ctfFlagsCaptured=9999 directly via
+         the REST API immediately after accounts:signUp, confirmed persisted by a second-
+         channel Admin SDK read, and rendered as fact on the user dossier
+         (UserProfileModal.js:249-250).
+         This defeated the counter hardening added to the UPDATE rule hours earlier: update
+         correctly excluded the CTF counters, create did not exist in that guarantee. Existing
+         users were never exposed — their writes route through update — but every new account
+         was, deterministically, with no race.
+         `tier` was equally free, and it includes 'instructor' and 'enterprise', rendered as a
+         badge by FirestoreLeaderboard.js:288.
+         The allowlist below is exactly what FirestoreManager.initializeNewUser writes
+         (FirestoreManager.js:1616+), and the value pins say a new profile must START CLEAN.
+         Anything a student earns is written by the server afterwards, never asserted at
+         signup. */
       allow create: if request.auth != null && request.auth.uid == userId
-        && !('role' in request.resource.data);
+        && !('role' in request.resource.data)
+        && request.resource.data.keys().hasOnly([
+             'email', 'displayName', 'photoURL', 'tier', 'grandfathered',
+             'xp', 'streak', 'modulesCompleted', 'labsCompleted',
+             'achievements', 'quizzes', 'createdAt',
+             /* setUserProfile (FirestoreManager.js:363) unconditionally appends updatedAt to
+                EVERY write it makes, including the first. Since the doc does not exist yet,
+                that merge:true write is evaluated as a CREATE carrying 13 keys, not the 12
+                initializeNewUser lists. Omitting it denied every Google, email and ANONYMOUS
+                sign-in — anonymous being how students join a class. Caught in the emulator
+                before deploy; the allowlist was built from the object literal and missed the
+                wrapper that actually performs the write. */
+             'updatedAt'
+           ])
+        && request.resource.data.get('tier', 'free') == 'free'
+        && request.resource.data.get('grandfathered', false) == false
+        && request.resource.data.get('xp', 0) == 0
+        && request.resource.data.get('streak', 0) == 0
+        && request.resource.data.get('modulesCompleted', []).size() == 0
+        && request.resource.data.get('labsCompleted', []).size() == 0
+        && request.resource.data.get('achievements', []).size() == 0
+        && request.resource.data.get('quizzes', {}).size() == 0;
 
       // Users can update only safe fields
       // XP + level are in the whitelist for backward compat but syncProgress CF
