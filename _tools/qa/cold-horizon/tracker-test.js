@@ -60,7 +60,7 @@ const s=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);
    document.getElementById('startBtn').click();
    const q=window.__COLD_HORIZON_QA__;
    ['VESTA-2','HELIOS-7','JANUS-4','KEPLER-9'].forEach(id=>q.forceScan(id));
-   q.decide('kvm');
+   q.decide('vote');
  });
  await new Promise(r=>setTimeout(r,1500));
  const st2=await p2.evaluate(()=>{

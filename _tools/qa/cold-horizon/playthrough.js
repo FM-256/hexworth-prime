@@ -113,8 +113,8 @@ function check(name, pass, detail){
   s = await Q(()=>window.__COLD_HORIZON_QA__.snapshot());
   check('holding [F] integrates the panel (real timer path)',
         s.scanned.includes('HELIOS-7'), 'scanned='+JSON.stringify(s.scanned));
-  check('IR reading is physical truth (87.4) not telemetry (41.0)',
-        Math.abs((s.readings['HELIOS-7']||0) - 87.4) < 0.01,
+  check('IR reading is physical truth (58.9) not the 41.3 vote',
+        Math.abs((s.readings['HELIOS-7']||0) - 58.9) < 0.01,
         'read='+s.readings['HELIOS-7']);
 
   // 7. remaining three panels
@@ -153,13 +153,37 @@ function check(name, pass, detail){
     document.getElementById('startBtn').click();
     const q = window.__COLD_HORIZON_QA__;
     ['VESTA-2','HELIOS-7','JANUS-4','KEPLER-9'].forEach(id=>q.forceScan(id));
-    q.decide('kvm');
+    q.decide('vote');
   });
   await sleep(800);
   const w = await wrong.evaluate(()=>window.__COLD_HORIZON_QA__.snapshot());
   check('incorrect call still reaches a scored end card',
         w.endOpen===true && w.correct===false, 'title='+w.endTitle);
   await wrong.close();
+
+  // 10. "spot the outlier" path — right channel, unsafe reasoning. The box canon
+  //     explicitly warns this is the trap, so it must NOT score as a clean win.
+  const trap = await page.browser().newPage();
+  await trap.setViewport({width:1280,height:720});
+  await trap.evaluateOnNewDocument(()=>{
+    localStorage.setItem('hexworth_house','cloud');
+    localStorage.setItem('hexworth_sorted','true');
+  });
+  await trap.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+  await sleep(3000);
+  await trap.evaluate(()=>{
+    document.getElementById('startBtn').click();
+    const q = window.__COLD_HORIZON_QA__;
+    ['VESTA-2','HELIOS-7','JANUS-4','KEPLER-9'].forEach(id=>q.forceScan(id));
+    q.decide('outlier');
+  });
+  await sleep(800);
+  const t = await trap.evaluate(()=>window.__COLD_HORIZON_QA__.snapshot());
+  check('picking TH-2 as "the outlier" is NOT scored a clean win',
+        t.endOpen===true && t.correct===false, 'title='+t.endTitle);
+  check('the outlier path gets its own reasoning-specific ending',
+        /UNSAFE REASONING/.test(t.endTitle), 'title='+t.endTitle);
+  await trap.close();
 
   console.log('\n=== ERRORS ('+errs.length+') ===');
   errs.slice(0,20).forEach(e=>console.log('  '+e.slice(0,300)));

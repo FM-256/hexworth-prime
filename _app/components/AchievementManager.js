@@ -379,7 +379,7 @@ const AchievementManager = (function() {
             id: 'game_coldhorizon',
             icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Out of Band',
-            desc: 'Trust the sensor you carried yourself in Cold Horizon',
+            desc: 'Corroborate an outvoted sensor off-network in Cold Horizon',
             points: 50,
             category: 'regular',
             title: null
