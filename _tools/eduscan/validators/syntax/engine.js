@@ -476,13 +476,38 @@ class EngineValidator {
             },
             'THREE': {
                 library: 'Three.js',
-                files: ['three.min.js', 'three.js'],
+                // Module builds included: an ES module page resolves 'three'
+                // through an importmap to three.module(.min).js, never to the
+                // classic UMD bundle.
+                files: ['three.min.js', 'three.js', 'three.module.min.js', 'three.module.js'],
                 severity: 'high'
             }
         };
 
         const includes = this.extractScriptIncludes(content);
-        const includedPaths = includes.map(i => i.src.toLowerCase()).join(' ');
+        let includedPaths = includes.map(i => i.src.toLowerCase()).join(' ');
+
+        // An ES module page never carries a <script src> for its libraries — it
+        // declares them in an importmap and pulls them in with a bare-specifier
+        // `import`. Both are real inclusions and this check would otherwise
+        // report a working page as missing its engine.
+        // Fold any importmap TARGETS into includedPaths so the existing
+        // filename matching (three.min.js, three.module.min.js, ...) just works.
+        // Added 2026-08-05 for Cold Horizon, the platform's first module page.
+        const importmapPattern =
+            /<script[^>]*type\s*=\s*["']\s*importmap\s*["'][^>]*>([\s\S]*?)<\/script>/gi;
+        let imMatch;
+        while ((imMatch = importmapPattern.exec(content)) !== null) {
+            try {
+                const map = JSON.parse(imMatch[1]);
+                const targets = Object.values(map.imports || {})
+                    .filter(v => typeof v === 'string');
+                includedPaths += ' ' + targets.join(' ').toLowerCase();
+            } catch (e) {
+                // A malformed importmap is its own problem; HTML validation
+                // reports it. Do not let it mask the engine check.
+            }
+        }
 
         // Extract inline script content
         const scriptPattern = /<script(?![^>]*src)[^>]*>([\s\S]*?)<\/script>/gi;

@@ -376,6 +376,15 @@ const AchievementManager = (function() {
             title: 'the Printer Whisperer'
         },
         {
+            id: 'game_coldhorizon',
+            icon: '<img src="/assets/images/icons/icon-globe.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
+            name: 'Out of Band',
+            desc: 'Trust the sensor you carried yourself in Cold Horizon',
+            points: 50,
+            category: 'regular',
+            title: null
+        },
+        {
             id: 'game_clouddestroyer',
             icon: '<img src="/assets/images/icons/icon-cloud.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle">',
             name: 'Region Sweeper',

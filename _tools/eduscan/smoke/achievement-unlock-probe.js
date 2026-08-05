@@ -19,6 +19,7 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 // These should now unlock for real.
 // ALL 13 — not a sample. Nancy caught this covering 7 and the commit claiming 13; the other 6
 // were asserted by pattern-match, which is the exact thing this harness exists to avoid.
+// (14 entries as of 2026-08-05: the original 13 plus Cold Horizon.)
 const SHOULD_UNLOCK = [
   ['/houses/cloud/games/cloud-aws-sts.html', 'game_awssts', 'cloud'],
   ['/houses/code/games/code-git-blame.html', 'game_gitblame', 'code'],
@@ -33,6 +34,11 @@ const SHOULD_UNLOCK = [
   ['/houses/shield/games/shield-threat-runner.applet.html', 'game_threatrunner', 'shield'],
   ['/houses/shield/games/shield-tor-darkweb.html', 'game_tor', 'shield'],
   ['/houses/web/games/web-packet-run.applet.html', 'game_packetrun', 'web'],
+  // Added 2026-08-05 with Cold Horizon. It shipped its first draft with NO
+  // AchievementManager/GameTracker script tags at all — the guarded calls were
+  // present and could never fire, which is BUG-071's shape exactly. Covered
+  // here so that regression cannot recur silently on this page.
+  ['/houses/cloud/games/cloud-cold-horizon.html', 'game_coldhorizon', 'cloud'],
 ];
 
 // Bucket B: guard was broken AND the id is undefined. The guard fix reaches unlock() now, but

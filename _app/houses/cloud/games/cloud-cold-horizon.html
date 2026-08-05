@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>COLD HORIZON: Three Temperatures | Hexworth Prime</title>
+<meta name="description" content="Pilot a remote service vehicle around ASTRAEA-9 under signal latency. Two sensors disagree about one radiator. Go look.">
+
+<!--
+  ============================================================================
+  COLD HORIZON: Mission 1, "Three Temperatures"
+  ============================================================================
+  Companion simulation to the Lagrange Edge flagship box (ASTRAEA-9).
+
+  CANON (Lagrange-Edge-Box-Master-Design-v1.1.docx):
+    - Platform ASTRAEA-9, call sign COLD HORIZON, cislunar L1, normally uncrewed.
+    - Player is duty IR lead in the Terran Mission Operations Center, Jacksonville.
+    - Local mission AI EIDOLON is a COMPETENT OPERATOR ON CORRUPTED INPUTS.
+      Never the villain, never an oracle, never gives pedagogical hints.
+    - Opening alarm: node HELIOS-7 thermal. Terran dashboard reports 41 C,
+      Space KVM reports 87 C, EIDOLON reports insufficient confidence.
+    - Design thesis: "the player cannot touch the truth". Trust under distance.
+    - NO-BRICK RULE: no player action may render the mission unplayable.
+
+  THE LESSON (real incident-response doctrine, not decoration):
+    When two digital sources disagree, both may be forged, because both travel
+    the same compromised path. Resolve it with an OUT-OF-BAND observation that
+    is physically grounded. A radiator actually dumping 87 C of waste heat
+    glows in infrared. Radiative physics is not on the attacker's network.
+
+  ARCHITECTURE
+    - three.js r185, vendored at /vendor/three/ (no CDN, no build step).
+    - Station: MeshStandardMaterial + real directional shadow maps.
+    - Earth:   custom ShaderMaterial, procedural fbm continents, terminator,
+               night-side city lights, separate cloud shell + Fresnel atmosphere.
+    - Bloom:   hand-written bright-pass -> 2-level separable gaussian -> ACES
+               composite. Deliberately not the addons EffectComposer, so the
+               page has exactly ONE vendored dependency.
+    - Thermal: every station mesh carries a second, unlit IR material keyed to
+               its TRUE temperature. Toggling swaps material references only.
+    - Audio:   WebAudio, synthesised at runtime. No sound in vacuum, so what you
+               hear is conducted through the RSV frame, plus radio.
+    - Latency: thrust commands are queued and applied after a delay. The lag is
+               the mechanic, not a bug.
+  ============================================================================
+-->
+
+<!-- Access control. BOTH lines are required. AccessGuard.js hides <body> the
+     moment it loads and ONLY require() can reveal it again. Shipping the script
+     tag without the require() call produces a permanently blank page with no
+     console error. -->
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+
+<!-- Platform integration. AccessGuard does NOT pull these in: it only auto-loads
+     TouristVisa and the tenant shell, so without these tags window.GameTracker
+     and window.AchievementManager are undefined and every guarded call in
+     endMission() silently no-ops. That is BUG-071's exact shape: the guard is
+     always false, so the unlock path looks fine and never runs.
+     Order matters: FirebaseAuth and FirestoreManager before GameTracker, which
+     uses them to sync scores. -->
+<script src="../../../components/AchievementManager.js"></script>
+<script src="../../../components/FirebaseAuth.js"></script>
+<script src="../../../components/FirestoreManager.js"></script>
+<script src="../../../components/GameTracker.js"></script>
+
+<style>
+  :root{
+    --amber:#ffb347; --amber-dim:#a86f24;
+    --cyan:#6fe3ff;  --cyan-dim:#2b7f94;
+    --red:#ff5a4d;   --green:#7dff9b;
+    --panel:rgba(6,10,16,.82);
+    --edge:rgba(111,227,255,.28);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;
+    font-family:var(--mono);color:#cfe6f2;-webkit-font-smoothing:antialiased}
+  canvas{display:block}
+  #app{position:fixed;inset:0}
+
+  /* ---------- HUD ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:20;
+       opacity:0;transition:opacity .8s ease}
+  #hud.live{opacity:1}
+  .hud-corner{position:absolute;padding:10px 13px;background:var(--panel);
+    border:1px solid var(--edge);border-radius:3px;font-size:11.5px;
+    line-height:1.65;letter-spacing:.04em;backdrop-filter:blur(3px)}
+  #tl{top:48px;left:14px;min-width:210px}
+
+  /* Exit. Deliberately top-LEFT: AchievementManager renders its unlock toast at
+     top-right with z-index 100000 and pointer-events:auto, where it swallows
+     clicks on anything beneath it for ~5s after an unlock. Also lives outside
+     #hud, which is pointer-events:none for the whole overlay. */
+  #exitLink{position:fixed;top:14px;left:14px;z-index:30;pointer-events:auto;
+    font-size:10.5px;letter-spacing:.18em;color:var(--cyan-dim);text-decoration:none;
+    border:1px solid var(--edge);background:var(--panel);padding:5px 11px;
+    border-radius:3px;transition:color .2s,border-color .2s;backdrop-filter:blur(3px)}
+  #exitLink:hover{color:var(--cyan);border-color:var(--cyan)}
+  #tr{top:14px;right:14px;min-width:196px;text-align:right}
+  #bl{bottom:14px;left:14px;min-width:238px}
+  #br{bottom:14px;right:14px;min-width:206px;text-align:right}
+  .k{color:var(--cyan-dim)}
+  .v{color:var(--cyan)}
+  .v.warn{color:var(--amber)}
+  .v.bad{color:var(--red)}
+  .v.ok{color:var(--green)}
+  .hdr{color:var(--amber);letter-spacing:.18em;font-size:10px;
+       border-bottom:1px solid rgba(255,179,71,.25);padding-bottom:4px;
+       margin-bottom:6px;text-transform:uppercase}
+
+  /* reticle */
+  #retic{position:absolute;left:50%;top:50%;width:46px;height:46px;
+    transform:translate(-50%,-50%);pointer-events:none}
+  #retic .rl{position:absolute;background:var(--cyan);opacity:.75}
+  #retic.hot .rl{background:var(--amber)}
+  #retic .h1{left:0;top:50%;width:13px;height:1px}
+  #retic .h2{right:0;top:50%;width:13px;height:1px}
+  #retic .v1{top:0;left:50%;height:13px;width:1px}
+  #retic .v2{bottom:0;left:50%;height:13px;width:1px}
+  #retic .dot{position:absolute;left:50%;top:50%;width:2px;height:2px;
+    margin:-1px 0 0 -1px;background:var(--cyan);opacity:.9}
+
+  /* prograde / velocity vector marker */
+  #pro{position:absolute;width:24px;height:24px;margin:-12px 0 0 -12px;
+    border:1px solid var(--green);border-radius:50%;opacity:.85;display:none}
+  #pro:before,#pro:after{content:"";position:absolute;background:var(--green)}
+  #pro:before{left:-6px;top:50%;width:6px;height:1px}
+  #pro:after{right:-6px;top:50%;width:6px;height:1px}
+
+  /* target callout */
+  #tgt{position:absolute;padding:5px 9px;background:rgba(6,10,16,.85);
+    border:1px solid var(--amber);border-radius:2px;font-size:11px;
+    color:var(--amber);white-space:nowrap;display:none;transform:translate(14px,-50%)}
+
+  /* scan progress */
+  #scan{position:absolute;left:50%;top:calc(50% + 46px);transform:translateX(-50%);
+    width:210px;display:none;text-align:center}
+  #scan .bar{height:3px;background:rgba(255,179,71,.18);border:1px solid var(--amber-dim)}
+  #scan .fill{height:100%;width:0;background:var(--amber);transition:width .06s linear}
+  #scan .lbl{font-size:10.5px;color:var(--amber);letter-spacing:.16em;margin-bottom:5px}
+
+  /* objective list */
+  #obj{position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    background:var(--panel);border:1px solid var(--edge);border-left:2px solid var(--amber);
+    padding:11px 14px;font-size:11.5px;border-radius:3px;min-width:250px;
+    backdrop-filter:blur(3px)}
+  #obj li{list-style:none;margin:5px 0;color:var(--cyan-dim);
+    transition:color .3s;position:relative;padding-left:24px}
+  #obj li:before{content:"[ ]";position:absolute;left:0;font-size:11px;
+    letter-spacing:-.05em}
+  #obj li.done{color:var(--green);text-decoration:none}
+  #obj li.done:before{content:"[x]"}
+  #obj li.active{color:var(--amber)}
+  #obj ul{margin:0;padding:0}
+
+  /* EIDOLON — canon requires a visually UNMISTAKABLE register, distinct from
+     any out-of-fiction hint layer. Cold blue, hard edges, machine voice. */
+  #eid{position:absolute;left:50%;bottom:96px;transform:translateX(-50%);
+    width:min(620px,86vw);background:rgba(4,14,22,.9);
+    border:1px solid rgba(111,227,255,.5);border-left:3px solid var(--cyan);
+    padding:12px 16px;font-size:12.5px;line-height:1.6;border-radius:2px;
+    opacity:0;transition:opacity .45s;backdrop-filter:blur(4px)}
+  #eid.show{opacity:1}
+  #eid .who{font-size:9.5px;letter-spacing:.3em;color:var(--cyan);
+    margin-bottom:5px;text-transform:uppercase}
+  #eid .msg{color:#d8f2fb}
+  #eid .conf{font-size:10px;color:var(--cyan-dim);margin-top:6px;letter-spacing:.08em}
+
+  /* thermal overlay */
+  #irOv{position:fixed;inset:0;pointer-events:none;z-index:15;display:none}
+  #irOv .scan{position:absolute;inset:0;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.22) 0 1px,transparent 1px 3px)}
+  #irOv .vig{position:absolute;inset:0;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(0,0,0,.72) 100%)}
+  #irOv .tag{position:absolute;top:14px;left:50%;transform:translateX(-50%);
+    color:#ffd9a0;font-size:11px;letter-spacing:.34em;
+    text-shadow:0 0 12px rgba(255,140,40,.9)}
+  #irOv .ramp{position:absolute;right:18px;top:50%;transform:translateY(-50%);
+    width:13px;height:190px;border:1px solid rgba(255,200,140,.5);
+    background:linear-gradient(to top,#000,#3b0a5e,#a51d2d,#ff6a00,#ffd000,#fff)}
+  #irOv .rlab{position:absolute;right:36px;font-size:9.5px;color:#ffd9a0}
+
+  /* boot / brief */
+  #boot{position:fixed;inset:0;z-index:60;background:#02060b;
+    display:flex;align-items:center;justify-content:center;
+    transition:opacity .9s ease}
+  #boot.gone{opacity:0;pointer-events:none}
+  .bootbox{width:min(760px,90vw);padding:30px 34px;border:1px solid var(--edge);
+    background:rgba(4,10,16,.9);border-radius:4px}
+  .bootbox h1{margin:0;font-size:27px;letter-spacing:.36em;color:var(--amber);font-weight:600}
+  .bootbox .sub{color:var(--cyan-dim);font-size:11px;letter-spacing:.24em;margin:7px 0 20px}
+  .bootline{font-size:12px;line-height:1.9;color:#9fc4d4;white-space:pre-wrap;min-height:212px}
+  .bootline .g{color:var(--green)} .bootline .a{color:var(--amber)}
+  .bootline .c{color:var(--cyan)}  .bootline .r{color:var(--red)}
+  #startBtn{margin-top:18px;padding:11px 26px;background:transparent;
+    border:1px solid var(--amber);color:var(--amber);font-family:var(--mono);
+    font-size:12.5px;letter-spacing:.22em;cursor:pointer;border-radius:2px;
+    opacity:0;transition:opacity .5s,background .2s}
+  #startBtn.on{opacity:1}
+  #startBtn:hover{background:rgba(255,179,71,.14)}
+  .keyhint{margin-top:15px;font-size:11px;color:var(--cyan-dim);line-height:1.85}
+  .keyhint b{color:var(--cyan);font-weight:600}
+
+  /* decision modal */
+  #dec{position:fixed;inset:0;z-index:70;background:rgba(2,6,11,.9);
+    display:none;align-items:center;justify-content:center;backdrop-filter:blur(5px)}
+  #dec.show{display:flex}
+  .decbox{width:min(700px,92vw);padding:28px 32px;background:#040b12;
+    border:1px solid var(--amber);border-radius:4px}
+  .decbox h2{margin:0 0 6px;color:var(--amber);font-size:16px;letter-spacing:.2em}
+  .decbox p{color:#a9c8d6;font-size:12.5px;line-height:1.75}
+  .opt{display:block;width:100%;text-align:left;margin:9px 0;padding:13px 15px;
+    background:rgba(111,227,255,.05);border:1px solid var(--edge);color:#cfe6f2;
+    font-family:var(--mono);font-size:12.5px;cursor:pointer;border-radius:2px;
+    transition:background .18s,border-color .18s;line-height:1.55}
+  .opt:hover{background:rgba(111,227,255,.13);border-color:var(--cyan)}
+  .opt b{color:var(--cyan)}
+
+  /* end card */
+  #end{position:fixed;inset:0;z-index:80;background:rgba(2,6,11,.94);
+    display:none;align-items:center;justify-content:center;backdrop-filter:blur(6px)}
+  #end.show{display:flex}
+  .endbox{width:min(680px,92vw);padding:32px 36px;background:#040b12;
+    border:1px solid var(--edge);border-top:2px solid var(--amber);border-radius:4px}
+  .endbox h2{margin:0 0 4px;color:var(--amber);font-size:20px;letter-spacing:.26em}
+  .endbox .rank{color:var(--cyan);font-size:12px;letter-spacing:.2em;margin-bottom:18px}
+  .endbox p{color:#a9c8d6;font-size:12.5px;line-height:1.8}
+  .endbox .tk{color:var(--green)}
+  .stat{display:flex;justify-content:space-between;padding:6px 0;
+    border-bottom:1px solid rgba(111,227,255,.13);font-size:12px}
+  .stat span:first-child{color:var(--cyan-dim)}
+  .stat span:last-child{color:var(--cyan)}
+  .btnrow{margin-top:22px;display:flex;gap:11px;flex-wrap:wrap}
+  .btn{padding:10px 22px;background:transparent;border:1px solid var(--cyan);
+    color:var(--cyan);font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+    cursor:pointer;border-radius:2px;text-decoration:none;display:inline-block}
+  .btn:hover{background:rgba(111,227,255,.13)}
+  .btn.amber{border-color:var(--amber);color:var(--amber)}
+  .btn.amber:hover{background:rgba(255,179,71,.13)}
+
+  /* damage flash */
+  #dmg{position:fixed;inset:0;z-index:18;pointer-events:none;
+    box-shadow:inset 0 0 130px rgba(255,60,40,.9);opacity:0;transition:opacity .35s}
+  #dmg.hit{opacity:1;transition:opacity .05s}
+
+  /* mobile / unsupported */
+  #nope{position:fixed;inset:0;z-index:90;background:#02060b;display:none;
+    align-items:center;justify-content:center;padding:26px;text-align:center}
+  #nope.show{display:flex}
+  #nope div{max-width:440px;font-size:13px;line-height:1.8;color:#9fc4d4}
+  #nope h3{color:var(--amber);letter-spacing:.22em;font-size:15px}
+
+  @media (max-width:900px){
+    #obj{display:none}
+    .hud-corner{font-size:10.5px;padding:8px 10px}
+  }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- Always-available return path. Without this the only exit mid-mission is the
+     browser's back button, and pointer lock makes that non-obvious. -->
+<a id="exitLink" href="../../../games.html">&larr; ABORT TELEOP</a>
+
+<!-- ============================== HUD ============================== -->
+<div id="hud">
+  <div class="hud-corner" id="tl">
+    <div class="hdr">RSV-04 &middot; TELEOP</div>
+    <div><span class="k">RANGE&nbsp;&nbsp;</span><span class="v" id="hRange">----</span></div>
+    <div><span class="k">VEL&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="v" id="hVel">0.00</span></div>
+    <div><span class="k">RCS&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="v" id="hFuel">100%</span></div>
+    <div><span class="k">HULL&nbsp;&nbsp;&nbsp;</span><span class="v ok" id="hHull">100%</span></div>
+    <div id="hRecall" style="display:none;color:var(--red);letter-spacing:.14em;
+         margin-top:5px;border-top:1px solid rgba(255,90,77,.35);padding-top:5px">
+      AUTO-RECALL ACTIVE
+    </div>
+  </div>
+
+  <div class="hud-corner" id="tr">
+    <div class="hdr">Link &middot; Dead Air</div>
+    <div><span class="k">LAG</span> <span class="v" id="hLag">0.00 s</span></div>
+    <div><span class="k">CMD Q</span> <span class="v" id="hQ">&middot;&middot;&middot;&middot;</span></div>
+    <div><span class="k">MODE</span> <span class="v" id="hMode">OPTICAL</span></div>
+  </div>
+
+  <div class="hud-corner" id="bl">
+    <div class="hdr">Terran Dashboard &middot; ASTRAEA-9</div>
+    <div><span class="k">HELIOS-7&nbsp;</span><span class="v" id="dHelios">41.0 C</span> <span class="k">NOMINAL</span></div>
+    <div><span class="k">VESTA-2&nbsp;&nbsp;</span><span class="v" id="dVesta">39.2 C</span> <span class="k">NOMINAL</span></div>
+    <div><span class="k">JANUS-4&nbsp;&nbsp;</span><span class="v" id="dJanus">42.6 C</span> <span class="k">NOMINAL</span></div>
+    <div><span class="k">KEPLER-9&nbsp;</span><span class="v" id="dKepler">38.8 C</span> <span class="k">NOMINAL</span></div>
+  </div>
+
+  <div class="hud-corner" id="br">
+    <div class="hdr">Space KVM &middot; Direct</div>
+    <div><span class="k">HELIOS-7&nbsp;</span><span class="v bad" id="kHelios">87.4 C</span></div>
+    <div class="k" style="font-size:10px;line-height:1.5;margin-top:5px">
+      Two authenticated sources<br>disagree. Neither can be<br>confirmed from the ground.
+    </div>
+  </div>
+
+  <div id="retic">
+    <div class="rl h1"></div><div class="rl h2"></div>
+    <div class="rl v1"></div><div class="rl v2"></div>
+    <div class="dot"></div>
+  </div>
+  <div id="pro"></div>
+  <div id="tgt"></div>
+
+  <div id="scan">
+    <div class="lbl">IR INTEGRATION</div>
+    <div class="bar"><div class="fill" id="scanFill"></div></div>
+  </div>
+
+  <div id="obj">
+    <div class="hdr">Mission 1 &middot; Three Temperatures</div>
+    <ul>
+      <li id="o1" class="active">Close to within 40 m of ASTRAEA-9</li>
+      <li id="o2">Switch to IR (thermal) camera &mdash; [V]</li>
+      <li id="o3">Integrate all four radiator panels &mdash; [F]</li>
+      <li id="o4">Report which source you trust</li>
+    </ul>
+  </div>
+
+  <div id="eid">
+    <div class="who">EIDOLON &middot; local operations</div>
+    <div class="msg" id="eidMsg"></div>
+    <div class="conf" id="eidConf"></div>
+  </div>
+</div>
+
+<!-- thermal overlay chrome -->
+<div id="irOv">
+  <div class="scan"></div>
+  <div class="vig"></div>
+  <div class="tag">INFRARED &middot; 8&ndash;14 &micro;m &middot; UNCALIBRATED</div>
+  <div class="ramp"></div>
+  <div class="rlab" style="top:calc(50% - 100px)">100 C</div>
+  <div class="rlab" style="top:calc(50% + 92px)">0 C</div>
+</div>
+
+<div id="dmg"></div>
+
+<!-- ============================== BOOT ============================== -->
+<div id="boot">
+  <div class="bootbox">
+    <h1>COLD HORIZON</h1>
+    <div class="sub">ASTRAEA-9 &middot; CISLUNAR L1 &middot; MISSION 1 &mdash; THREE TEMPERATURES</div>
+    <div class="bootline" id="bootLine"></div>
+    <button id="startBtn">ASSUME TELEOPERATION</button>
+    <div class="keyhint">
+      <b>W A S D</b> translate &middot; <b>SPACE / CTRL</b> up &amp; down &middot; <b>SHIFT</b> boost<br>
+      <b>MOUSE</b> aim (click to capture) &middot; <b>X</b> kill relative velocity<br>
+      <b>V</b> infrared camera &middot; <b>F</b> hold to integrate a panel &middot; <b>ESC</b> release mouse
+    </div>
+  </div>
+</div>
+
+<!-- ============================== DECISION ============================== -->
+<div id="dec">
+  <div class="decbox">
+    <h2>INCIDENT CALL</h2>
+    <p>You hold three readings for HELIOS-7. The Terran dashboard says
+       <b style="color:var(--cyan)">41.0 C</b>. The Space KVM says
+       <b style="color:var(--red)">87.4 C</b>. Your own infrared integration of its
+       radiator says <b style="color:var(--amber)" id="decIR">--</b>.</p>
+    <p style="color:var(--amber)">Which source do you file as authoritative?</p>
+    <div id="decOpts"></div>
+  </div>
+</div>
+
+<!-- ============================== END ============================== -->
+<div id="end">
+  <div class="endbox">
+    <h2 id="endTitle">MISSION COMPLETE</h2>
+    <div class="rank" id="endRank"></div>
+    <p id="endBody"></p>
+    <div id="endStats"></div>
+    <div class="btnrow">
+      <button class="btn amber" id="againBtn">RUN AGAIN</button>
+      <a class="btn" href="../../../games.html">BACK TO ARCADE</a>
+    </div>
+  </div>
+</div>
+
+<div id="nope">
+  <div>
+    <h3>WEBGL REQUIRED</h3>
+    <p>Cold Horizon renders ASTRAEA-9 in real time and needs a WebGL2 context with
+       a keyboard and mouse. Open it on a desktop browser with hardware acceleration
+       enabled.</p>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.min.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ==========================================================================
+   0.  CONFIG  —  every tunable number lives here
+   ========================================================================== */
+const CFG = {
+  earthRadius   : 2400,
+  earthCenter   : new THREE.Vector3(0, -3050, -700),
+  sunDir        : new THREE.Vector3(0.55, 0.30, 0.78).normalize(),
+  starCount     : 7000,
+  starRadius    : 44000,
+
+  // Teleoperation. Four-tick latency is canon; ticks are 150 ms here so the
+  // round trip reads as ~0.6 s — long enough to teach anticipation, short
+  // enough to stay flyable. Cranked up as the link degrades.
+  tickMs        : 150,
+  baseTicks     : 4,
+
+  thrust        : 5.2,      // m/s^2 while a translation command is active
+  boostMul      : 2.35,
+  maxFuel       : 100,
+  fuelPerSec    : 3.1,
+  scanSeconds   : 2.4,      // hold [F] this long to integrate a panel
+  scanRange     : 62,       // metres — IR integration needs proximity
+  approachRange : 40,       // objective 1 threshold
+  collideDmg    : 17,
+};
+
+// The four compute nodes. `claimed` is what the Terran dashboard reports.
+// `real` is physical truth, observable ONLY through the IR camera.
+// HELIOS-7 is the forged one: its telemetry is being replayed at nominal
+// while the panel actually dumps 87 C of waste heat.
+const NODES = [
+  { id:'VESTA-2',  claimed:39.2, real:38.4, pos:new THREE.Vector3(-26, 8.5, -13) },
+  { id:'HELIOS-7', claimed:41.0, real:87.4, pos:new THREE.Vector3( 26, 8.5, -13) },
+  { id:'JANUS-4',  claimed:42.6, real:43.1, pos:new THREE.Vector3(-26, 8.5,  13) },
+  { id:'KEPLER-9', claimed:38.8, real:37.9, pos:new THREE.Vector3( 26, 8.5,  13) },
+];
+
+/* ==========================================================================
+   1.  CAPABILITY GATE
+   ========================================================================== */
+(function gate(){
+  const c = document.createElement('canvas');
+  const ok = !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
+  if(!ok){ document.getElementById('nope').classList.add('show');
+           document.getElementById('boot').style.display='none'; throw new Error('no webgl2'); }
+})();
+
+const $ = id => document.getElementById(id);
+
+/* ==========================================================================
+   2.  AUDIO  —  synthesised, no files.
+   There is no sound in vacuum. Everything audible is either conducted through
+   the RSV frame (thrusters, hull strikes) or arrives over the radio. That
+   constraint is an artistic weapon: the mix is mostly silence and breath.
+   ========================================================================== */
+const Audio = (()=>{
+  let ctx=null, master=null, thrGain=null, thrFilt=null, humGain=null, started=false;
+
+  function start(){
+    if(started) return; started = true;
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+    master = ctx.createGain(); master.gain.value = 0.55; master.connect(ctx.destination);
+
+    // --- cabin hum: two detuned low oscillators through a lowpass. This is the
+    //     RSV's own avionics, felt through the frame rather than heard.
+    humGain = ctx.createGain(); humGain.gain.value = 0.055;
+    const hf = ctx.createBiquadFilter(); hf.type='lowpass'; hf.frequency.value=220;
+    [51, 76.5].forEach(f=>{
+      const o = ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+      const g = ctx.createGain(); g.gain.value=.5; o.connect(g); g.connect(hf); o.start();
+    });
+    hf.connect(humGain); humGain.connect(master);
+
+    // --- thruster rumble: filtered noise whose gain tracks commanded thrust.
+    const buf = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
+    const src = ctx.createBufferSource(); src.buffer=buf; src.loop=true;
+    thrFilt = ctx.createBiquadFilter(); thrFilt.type='lowpass';
+    thrFilt.frequency.value=340; thrFilt.Q.value=1.1;
+    thrGain = ctx.createGain(); thrGain.gain.value=0;
+    src.connect(thrFilt); thrFilt.connect(thrGain); thrGain.connect(master); src.start();
+  }
+
+  // Called every frame with 0..1 thrust intensity.
+  function thrust(v){
+    if(!ctx) return;
+    thrGain.gain.setTargetAtTime(v*0.16, ctx.currentTime, 0.07);
+    thrFilt.frequency.setTargetAtTime(300 + v*520, ctx.currentTime, 0.09);
+  }
+
+  // Generic blip used for radio traffic and UI.
+  function blip(freq=880, dur=0.07, type='square', vol=0.13){
+    if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain(), bp=ctx.createBiquadFilter();
+    bp.type='bandpass'; bp.frequency.value=freq*1.4; bp.Q.value=2.2;
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0,ctx.currentTime);
+    g.gain.linearRampToValueAtTime(vol,ctx.currentTime+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dur);
+    o.connect(bp); bp.connect(g); g.connect(master); o.start(); o.stop(ctx.currentTime+dur+0.02);
+  }
+
+  // EIDOLON "speaks" as a short burst of pitched blips — a machine voice with
+  // no words, so it never competes with the text it accompanies.
+  function voice(len){
+    if(!ctx) return;
+    const n = Math.min(14, Math.max(4, Math.round(len/9)));
+    for(let i=0;i<n;i++)
+      setTimeout(()=>blip(430 + (i%3)*95 + Math.random()*40, 0.045,'sine',0.075), i*54);
+  }
+
+  function hull(){ // conducted strike — low, short, nasty
+    if(!ctx) return;
+    const o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='triangle'; o.frequency.setValueAtTime(150,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(42,ctx.currentTime+0.3);
+    g.gain.setValueAtTime(0.32,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.42);
+    o.connect(g); g.connect(master); o.start(); o.stop(ctx.currentTime+0.45);
+  }
+
+  function alarm(){ blip(1180,0.13,'square',0.1); setTimeout(()=>blip(890,0.17,'square',0.1),150); }
+  function chime(){ blip(660,0.1,'sine',0.11); setTimeout(()=>blip(990,0.16,'sine',0.11),105); }
+
+  return { start, thrust, blip, voice, hull, alarm, chime, get ctx(){return ctx;} };
+})();
+
+/* ==========================================================================
+   3.  RENDERER / SCENE
+   ========================================================================== */
+const app = $('app');
+const renderer = new THREE.WebGLRenderer({
+  antialias:true, powerPreference:'high-performance',
+  logarithmicDepthBuffer:true   // Earth is 2.4 km away and the hull is 2 m away.
+                                // Without this the depth buffer tears itself apart.
+});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+// PCFSoft is deprecated in r185 and silently downgrades to PCF, so ask for PCF
+// directly. In vacuum the shadow terminator should be near-hard anyway.
+renderer.shadowMap.type = THREE.PCFShadowMap;
+// Scene renders into an HDR target; tonemapping happens in my composite pass.
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.12, 90000);
+
+// Sunlight. In vacuum there is no atmospheric scatter to soften it, so the
+// shadow is a knife edge and the ambient term is almost nothing — just the
+// faint blue bounce off the Earth below.
+const sun = new THREE.DirectionalLight(0xfff4e2, 3.15);
+sun.position.copy(CFG.sunDir).multiplyScalar(400);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near = 120; sun.shadow.camera.far = 780;
+sun.shadow.camera.left=-95; sun.shadow.camera.right=95;
+sun.shadow.camera.top=95;   sun.shadow.camera.bottom=-95;
+sun.shadow.bias = -0.0006;
+scene.add(sun); scene.add(sun.target);
+
+const earthBounce = new THREE.HemisphereLight(0x3b6ea8, 0x080c14, 0.34);
+scene.add(earthBounce);
+
+/* ==========================================================================
+   4.  SHADER CHUNKS  —  hash-based value noise + fbm.
+   Value noise rather than simplex: shorter, no permutation table, and for
+   continent silhouettes at this scale the difference is invisible.
+   ========================================================================== */
+const NOISE_GLSL = `
+float hash(vec3 p){ p = fract(p*0.3183099 + vec3(0.71,0.113,0.419));
+  p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
+float vnoise(vec3 x){
+  vec3 i = floor(x), f = fract(x); f = f*f*(3.0-2.0*f);
+  return mix(mix(mix(hash(i+vec3(0,0,0)),hash(i+vec3(1,0,0)),f.x),
+                 mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),
+                 mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);
+}
+float fbm(vec3 p, int oct){
+  float a=0.5, s=0.0;
+  for(int i=0;i<8;i++){ if(i>=oct) break; s += a*vnoise(p); p *= 2.02; a *= 0.5; }
+  return s;
+}`;
+
+/* ==========================================================================
+   5.  EARTH  —  surface, clouds, atmosphere.
+   Three nested spheres. No textures anywhere: continents, ice, city lights and
+   weather are all evaluated in the fragment shader.
+   ========================================================================== */
+const earthGroup = new THREE.Group();
+earthGroup.position.copy(CFG.earthCenter);
+// The station sits almost directly over the pole, so an untilted sphere shows
+// the player nothing but ice cap. Tilt the body to bring mid-latitudes — where
+// the continents and city lights are — into the visible face.
+earthGroup.rotation.set(-0.92, 0, 0.28);
+scene.add(earthGroup);
+
+const earthUniforms = {
+  uSunDir  : { value: CFG.sunDir.clone() },
+  uTime    : { value: 0 },
+  uThermal : { value: 0 },
+};
+
+const earthMat = new THREE.ShaderMaterial({
+  uniforms: earthUniforms,
+  vertexShader:`
+    varying vec3 vN; varying vec3 vP;
+    void main(){ vN = normalize(normalMatrix * normal); vP = normalize(position);
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader:`
+    uniform vec3 uSunDir; uniform float uTime; uniform float uThermal;
+    varying vec3 vN; varying vec3 vP;
+    ${NOISE_GLSL}
+    void main(){
+      vec3 p = vP;
+
+      // ---- continents: warped fbm, thresholded into land / sea
+      float warp = fbm(p*1.7 + vec3(11.0,3.0,7.0), 4);
+      float h    = fbm(p*2.35 + warp*0.55, 6);
+      float land = smoothstep(0.505, 0.545, h);
+
+      // ---- terrain colour: desert/green mix driven by a second noise field,
+      //      darkening toward higher "elevation"
+      float veg  = fbm(p*5.1 + 21.0, 4);
+      vec3 green = vec3(0.106,0.196,0.094);
+      vec3 arid  = vec3(0.286,0.223,0.129);
+      vec3 soil  = mix(green, arid, smoothstep(0.42,0.62,veg));
+      soil *= 0.82 + 0.35*fbm(p*13.0, 3);
+
+      // ---- oceans: deep abyssal blue shelving to a brighter shelf near coasts
+      float shelf = smoothstep(0.470, 0.508, h);
+      vec3 sea = mix(vec3(0.008,0.031,0.086), vec3(0.031,0.129,0.220), shelf);
+
+      // ---- polar ice, latitude driven, roughened so the edge is not a band.
+      //      Pushed poleward so the caps stay caps instead of swallowing the disc.
+      float lat = abs(p.y);
+      float ice = smoothstep(0.82, 0.945, lat + fbm(p*7.0,3)*0.09);
+      vec3 albedo = mix(sea, soil, land);
+      albedo = mix(albedo, vec3(0.80,0.85,0.90), ice);
+
+      // ---- lighting + terminator. The soft edge is the only place the day
+      //      side bleeds into night, so it gets a warm sunrise tint.
+      float ndl  = dot(normalize(vN), normalize(uSunDir));
+      float day  = smoothstep(-0.13, 0.16, ndl);
+      float dusk = (1.0 - abs(ndl*7.0)) ;
+      dusk = clamp(dusk,0.0,1.0) * 0.5;
+
+      // ---- specular glint off water only
+      vec3 V = normalize(-vec3(0.0,0.0,-1.0));
+      float spec = pow(max(dot(reflect(-normalize(uSunDir), normalize(vN)), V),0.0), 42.0);
+      spec *= (1.0-land)*(1.0-ice)*day;
+
+      // ---- night side: city lights clustered on land, flickering very slightly
+      float pop = fbm(p*23.0, 4);
+      float cities = smoothstep(0.585, 0.70, pop) * land * (1.0-ice);
+      cities *= (1.0 - day);
+      vec3 night = vec3(1.0,0.72,0.36) * cities * 1.55;
+
+      // Exposure: the day side used to clip to flat white through ACES, which
+      // erased every continent. Keep the lit term under 1.0 and let bloom do
+      // the brightening instead.
+      vec3 col = albedo * (day*0.92 + 0.015);
+      col += vec3(1.0,0.55,0.28) * dusk * 0.30 * day;
+      col += vec3(1.0,0.94,0.82) * spec * 1.7;
+      col += night;
+
+      // IR camera is tuned for near-field targets; Earth reads as a cold wash.
+      col = mix(col, vec3(0.012,0.020,0.052) + col*0.10, uThermal);
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+const earthMesh = new THREE.Mesh(new THREE.SphereGeometry(CFG.earthRadius, 160, 96), earthMat);
+earthGroup.add(earthMesh);
+
+// --- cloud shell: independent rotation, additive, fbm alpha
+const cloudMat = new THREE.ShaderMaterial({
+  transparent:true, depthWrite:false,
+  uniforms: earthUniforms,
+  vertexShader:`varying vec3 vN; varying vec3 vP;
+    void main(){ vN=normalize(normalMatrix*normal); vP=normalize(position);
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`
+    uniform vec3 uSunDir; uniform float uTime; uniform float uThermal;
+    varying vec3 vN; varying vec3 vP;
+    ${NOISE_GLSL}
+    void main(){
+      vec3 p = vP;
+      // two counter-drifting layers so the weather never looks like a texture
+      float c1 = fbm(p*3.1 + vec3(uTime*0.0035,0.0,0.0), 6);
+      float c2 = fbm(p*6.4 - vec3(uTime*0.0021,0.0,0.0), 5);
+      float c  = smoothstep(0.50,0.72, c1*0.68 + c2*0.42);
+      float ndl = dot(normalize(vN), normalize(uSunDir));
+      float day = smoothstep(-0.12,0.18,ndl);
+      // Thinner than it was: at 0.86 the cloud shell hid the whole planet.
+      float a = c * day * 0.52 * (1.0-uThermal*0.85);
+      vec3 col = vec3(1.0,0.99,0.97) * (0.42 + day*0.46);
+      gl_FragColor = vec4(col, a);
+    }`
+});
+earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(CFG.earthRadius*1.012, 128, 72), cloudMat));
+
+// --- atmosphere: backside shell, Fresnel-weighted. This is the limb glow that
+//     makes the planet read as a body with air rather than a painted ball.
+const atmoMat = new THREE.ShaderMaterial({
+  side:THREE.BackSide, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending,
+  uniforms: earthUniforms,
+  vertexShader:`varying vec3 vN; varying vec3 vW;
+    void main(){ vN=normalize(normalMatrix*normal);
+      vW=(modelMatrix*vec4(position,1.0)).xyz;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+  fragmentShader:`
+    uniform vec3 uSunDir; uniform float uThermal;
+    varying vec3 vN; varying vec3 vW;
+    void main(){
+      vec3 V = normalize(cameraPosition - vW);
+      // BackSide flips the normal, so the rim is where N.V is most negative
+      float rim = pow(clamp(1.0 - abs(dot(normalize(vN), V)), 0.0, 1.0), 3.1);
+      float ndl = clamp(dot(normalize(-vN), normalize(uSunDir)), 0.0, 1.0);
+      // Rayleigh-ish: blue dominates, warming toward the terminator
+      vec3 tint = mix(vec3(0.20,0.42,1.0), vec3(1.0,0.52,0.26),
+                      pow(1.0-ndl, 3.4)*0.65);
+      float a = rim * (0.16 + ndl*1.25);
+      gl_FragColor = vec4(tint * a * 1.5 * (1.0-uThermal*0.9), a*(1.0-uThermal*0.9));
+    }`
+});
+earthGroup.add(new THREE.Mesh(new THREE.SphereGeometry(CFG.earthRadius*1.055, 96, 56), atmoMat));
+
+/* ==========================================================================
+   6.  STARFIELD  —  custom points so magnitude and colour temperature vary.
+   ========================================================================== */
+{
+  const n = CFG.starCount;
+  const pos = new Float32Array(n*3), col = new Float32Array(n*3), siz = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    // even distribution on a sphere
+    const u = Math.random()*2-1, th = Math.random()*Math.PI*2, r = Math.sqrt(1-u*u);
+    const d = CFG.starRadius;
+    pos[i*3]=Math.cos(th)*r*d; pos[i*3+1]=u*d; pos[i*3+2]=Math.sin(th)*r*d;
+    // magnitude: heavily weighted to the faint end, a few bright anchors
+    const m = Math.pow(Math.random(), 3.1);
+    siz[i] = 1.0 + m*4.4;
+    // colour temperature from cool red dwarfs to hot blue giants
+    const t = Math.random();
+    const c = t<0.62 ? [1.0,0.94,0.86] : t<0.85 ? [1.0,0.80,0.62] : [0.74,0.84,1.0];
+    const b = 0.35 + m*0.65;
+    col[i*3]=c[0]*b; col[i*3+1]=c[1]*b; col[i*3+2]=c[2]*b;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('color',    new THREE.BufferAttribute(col,3));
+  g.setAttribute('sz',       new THREE.BufferAttribute(siz,1));
+  const m = new THREE.ShaderMaterial({
+    uniforms:{ uThermal: earthUniforms.uThermal },
+    vertexShader:`attribute float sz; varying vec3 vC;
+      void main(){ vC=color;
+        vec4 mv = modelViewMatrix*vec4(position,1.0);
+        gl_PointSize = sz; gl_Position = projectionMatrix*mv; }`,
+    fragmentShader:`varying vec3 vC; uniform float uThermal;
+      void main(){
+        vec2 d = gl_PointCoord-0.5;
+        float a = smoothstep(0.5,0.06,length(d));
+        gl_FragColor = vec4(vC*a, a*(1.0-uThermal*0.92)); }`,
+    vertexColors:true, transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+  });
+  scene.add(new THREE.Points(g,m));
+}
+
+// --- the sun itself: a bright additive disc that the bloom pass will bleed
+{
+  // depthTest must stay ON: with it off the sun draws over the station whenever
+  // the hull is between the camera and the sun direction.
+  const g = new THREE.SpriteMaterial({ color:0xfff3dd, transparent:true,
+    blending:THREE.AdditiveBlending, depthWrite:false, depthTest:true });
+  const s = new THREE.Sprite(g);
+  s.position.copy(CFG.sunDir).multiplyScalar(38000);
+  s.scale.setScalar(2600);
+  scene.add(s);
+}
+
+/* ==========================================================================
+   7.  ASTRAEA-9  —  procedural station.
+   Built from primitives with a shared material palette. Every mesh gets a
+   second, unlit IR material derived from its true temperature; thermal mode
+   swaps references rather than rebuilding anything.
+   ========================================================================== */
+const station = new THREE.Group();
+scene.add(station);
+
+const irRegistry = [];      // { mesh, optical, thermal }
+const radiators  = [];      // interactive panels
+
+// Maps a temperature to the classic white-hot IR ramp.
+function irColor(tempC){
+  // Gamma the ramp before the lookup. Mapping 0-100 C linearly put every
+  // nominal 38-43 C surface at vivid magenta, so the station read as uniformly
+  // hot and the one genuine anomaly did not stand out at all. Raising the
+  // exponent sinks the nominal band into the dark end and reserves the bright
+  // half of the palette for a real thermal excursion — which is exactly how a
+  // technician's IR image of this scene would look.
+  const t = Math.pow(THREE.MathUtils.clamp(tempC/100, 0, 1), 1.75);
+  const stops = [
+    [0.00, [0.02,0.02,0.06]], [0.22, [0.25,0.05,0.42]],
+    [0.44, [0.72,0.11,0.18]], [0.64, [1.00,0.42,0.02]],
+    [0.82, [1.00,0.84,0.13]], [1.00, [1.00,1.00,0.98]],
+  ];
+  for(let i=0;i<stops.length-1;i++){
+    const [a,ca]=stops[i], [b,cb]=stops[i+1];
+    if(t>=a && t<=b){
+      const k=(t-a)/(b-a);
+      return new THREE.Color(ca[0]+(cb[0]-ca[0])*k, ca[1]+(cb[1]-ca[1])*k, ca[2]+(cb[2]-ca[2])*k);
+    }
+  }
+  return new THREE.Color(1,1,1);
+}
+
+// Registers a mesh with both of its materials.
+function reg(mesh, tempC){
+  const optical = mesh.material;
+  const thermal = new THREE.MeshBasicMaterial({ color: irColor(tempC) });
+  mesh.userData.optical = optical;
+  mesh.userData.thermal = thermal;
+  irRegistry.push(mesh);
+  return mesh;
+}
+
+const MAT = {
+  hull  : ()=> new THREE.MeshStandardMaterial({color:0xb9bec6, metalness:.72, roughness:.44}),
+  hullD : ()=> new THREE.MeshStandardMaterial({color:0x6d737d, metalness:.80, roughness:.38}),
+  gold  : ()=> new THREE.MeshStandardMaterial({color:0xd8a94a, metalness:.94, roughness:.28}),
+  truss : ()=> new THREE.MeshStandardMaterial({color:0x8d939c, metalness:.85, roughness:.35}),
+  panel : ()=> new THREE.MeshStandardMaterial({color:0x101a3a, metalness:.42, roughness:.28}),
+  // A radiator is a high-emissivity sheet, not paper. Off-white rather than
+  // pure white so it still has shading, and rough so it does not read as glass.
+  rad   : ()=> new THREE.MeshStandardMaterial({color:0xd2d7dc, metalness:.16, roughness:.78,
+                                               side:THREE.DoubleSide}),
+  frame : ()=> new THREE.MeshStandardMaterial({color:0x5a6068, metalness:.86, roughness:.34}),
+};
+
+function add(parent, geo, mat, pos, rot, temp, shadow=true){
+  const m = new THREE.Mesh(geo, mat);
+  if(pos) m.position.copy(pos);
+  if(rot) m.rotation.set(rot.x||0, rot.y||0, rot.z||0);
+  m.castShadow = shadow; m.receiveShadow = shadow;
+  parent.add(m); reg(m, temp);
+  return m;
+}
+
+// ---- central spine -------------------------------------------------------
+add(station, new THREE.CylinderGeometry(1.5,1.5,52,18), MAT.hull(),
+    new THREE.Vector3(0,0,0), {z:Math.PI/2}, 22);
+
+// ---- truss lattice along the spine ---------------------------------------
+for(let i=-24;i<=24;i+=6){
+  add(station, new THREE.TorusGeometry(2.4,0.16,6,16), MAT.truss(),
+      new THREE.Vector3(i,0,0), {y:Math.PI/2}, 20);
+  // diagonal stringers
+  for(let k=0;k<4;k++){
+    const a = k*Math.PI/2 + Math.PI/4;
+    add(station, new THREE.CylinderGeometry(0.11,0.11,6.2,5), MAT.truss(),
+        new THREE.Vector3(i+3, Math.sin(a)*2.4, Math.cos(a)*2.4),
+        {z:Math.PI/2, y:0.34}, 20);
+  }
+}
+
+// ---- compute modules: one pressurised can per node -----------------------
+NODES.forEach((node)=>{
+  const g = new THREE.Group();
+  g.position.copy(node.pos).setY(0);
+  station.add(g);
+
+  const can = add(g, new THREE.CylinderGeometry(3.3,3.3,11,26), MAT.hull(),
+                  new THREE.Vector3(0,0,0), {x:Math.PI/2}, node.real*0.42+18);
+  // end caps + ribbing so the can reads as engineered, not as a cylinder
+  add(g, new THREE.SphereGeometry(3.3,24,14,0,Math.PI*2,0,Math.PI/2), MAT.hullD(),
+      new THREE.Vector3(0,0,5.5), {x:Math.PI/2}, node.real*0.42+18);
+  add(g, new THREE.SphereGeometry(3.3,24,14,0,Math.PI*2,0,Math.PI/2), MAT.hullD(),
+      new THREE.Vector3(0,0,-5.5), {x:-Math.PI/2}, node.real*0.42+18);
+  for(let z=-4;z<=4;z+=2)
+    add(g, new THREE.TorusGeometry(3.36,0.09,5,22), MAT.hullD(),
+        new THREE.Vector3(0,0,z), {}, node.real*0.42+18);
+
+  // gold MLI blanket patch
+  add(g, new THREE.CylinderGeometry(3.38,3.38,3.0,26,1,true), MAT.gold(),
+      new THREE.Vector3(0,0,1.6), {x:Math.PI/2}, node.real*0.42+18);
+
+  // strut to the spine
+  add(g, new THREE.CylinderGeometry(0.34,0.34, Math.abs(node.pos.x)-3, 8), MAT.truss(),
+      new THREE.Vector3(-Math.sign(node.pos.x)*(Math.abs(node.pos.x)-3)/2, 0, 0),
+      {z:Math.PI/2}, 21);
+
+  // ---- THE RADIATOR. This is the object the whole mission turns on. -------
+  const rg = new THREE.Group();
+  rg.position.set(0, 6.4, 0);
+  g.add(rg);
+
+  // deployment boom
+  add(rg, new THREE.CylinderGeometry(0.22,0.22,4.6,8), MAT.truss(),
+      new THREE.Vector3(0,-2.3,0), {}, node.real);
+
+  // the panel itself — a real radiator is a thin high-emissivity sheet
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.14, 9.6), MAT.rad());
+  panel.castShadow = true; panel.receiveShadow = true;
+  panel.rotation.x = Math.PI/2;
+  panel.position.set(0, 2.4, 0);
+  rg.add(panel);
+  reg(panel, node.real);
+
+  // coolant loop ribs across the face
+  for(let i=-3;i<=3;i++)
+    add(rg, new THREE.CylinderGeometry(0.075,0.075,9.4,5), MAT.hullD(),
+        new THREE.Vector3(i*0.95, 2.32, 0), {x:Math.PI/2}, node.real, false);
+
+  // structural frame around the panel edge — without it the radiator reads as
+  // a sheet of paper stuck to a pole
+  [[0,4.85],[0,-4.85]].forEach(([x,z])=>
+    add(rg, new THREE.BoxGeometry(7.5,0.26,0.3), MAT.frame(),
+        new THREE.Vector3(x, 2.4, z), {}, node.real*0.7, false));
+  [[3.75,0],[-3.75,0]].forEach(([x,z])=>
+    add(rg, new THREE.BoxGeometry(0.3,0.26,9.9), MAT.frame(),
+        new THREE.Vector3(x, 2.4, z), {}, node.real*0.7, false));
+
+  // identification placard (optical only — in IR it is just warm metal)
+  panel.userData.node = node;
+  node.panel  = panel;
+  node.group  = rg;
+  node.worldPos = new THREE.Vector3();
+  radiators.push(panel);
+
+  // A radiator's own boom, ribs and frame sit between the sensor and the panel
+  // face. Tag them so the occlusion test does not treat an assembly's own parts
+  // as something blocking the view of it.
+  rg.traverse(o=>{ o.userData.radGroup = node.id; });
+});
+
+// ---- solar arrays --------------------------------------------------------
+[-1,1].forEach(side=>{
+  const arm = new THREE.Group();
+  arm.position.set(side*30, 0, 0);
+  station.add(arm);
+  add(arm, new THREE.CylinderGeometry(0.3,0.3,9,8), MAT.truss(),
+      new THREE.Vector3(side*4.5,0,0), {z:Math.PI/2}, 24);
+  for(let w=0; w<3; w++){
+    const wing = add(arm, new THREE.BoxGeometry(11.5,0.1,5.4), MAT.panel(),
+        new THREE.Vector3(side*(10+w*11.8), 0, 0), {}, 44);
+    // cell grid lines, cheap and effective
+    for(let c=-5;c<=5;c++)
+      add(arm, new THREE.BoxGeometry(0.06,0.13,5.4), MAT.hullD(),
+          new THREE.Vector3(side*(10+w*11.8)+c*1.05, 0, 0), {}, 44, false);
+    wing.userData.solar = true;
+  }
+});
+
+// ---- high-gain antenna ---------------------------------------------------
+{
+  const d = add(station, new THREE.SphereGeometry(4.2, 30, 18, 0, Math.PI*2, 0, Math.PI*0.34),
+      MAT.hull(), new THREE.Vector3(0, -7.5, 0), {x:Math.PI}, 12);
+  d.material.side = THREE.DoubleSide;
+  add(station, new THREE.CylinderGeometry(0.2,0.2,5.2,8), MAT.truss(),
+      new THREE.Vector3(0,-4.4,0), {}, 14);
+  add(station, new THREE.SphereGeometry(0.42,10,8), MAT.gold(),
+      new THREE.Vector3(0,-9.4,0), {}, 14);
+}
+
+// ---- docking node (where the RSV nominally berths) ------------------------
+add(station, new THREE.CylinderGeometry(2.1,2.1,2.4,16), MAT.hullD(),
+    new THREE.Vector3(-27.5,0,0), {z:Math.PI/2}, 19);
+add(station, new THREE.TorusGeometry(2.15,0.2,8,20), MAT.gold(),
+    new THREE.Vector3(-28.7,0,0), {y:Math.PI/2}, 19);
+
+// ---- navigation strobes --------------------------------------------------
+const strobes = [];
+[[-29,0,0,0xff4a3a],[29,0,0,0x46ff7a],[0,7.6,0,0xffffff],[0,-11,0,0xffffff]].forEach(([x,y,z,c])=>{
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.34,10,8),
+    new THREE.MeshBasicMaterial({color:c}));
+  m.position.set(x,y,z); station.add(m);
+  strobes.push({mesh:m, base:new THREE.Color(c), phase:Math.random()*Math.PI*2});
+});
+
+// The station holds attitude relative to Earth; a slow residual roll sells
+// that it is a real body in orbit rather than set dressing.
+station.rotation.z = 0.05;
+
+/* ==========================================================================
+   8.  POST-PROCESSING  —  hand-written bloom.
+   bright-pass at 1/2 res -> separable gaussian at 1/2 and 1/4 -> ACES composite.
+   ========================================================================== */
+const RT = (w,h)=> new THREE.WebGLRenderTarget(Math.max(2,w|0), Math.max(2,h|0), {
+  minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter,
+  type:THREE.HalfFloatType, depthBuffer:true });
+
+let sceneRT, brightRT, blurA1, blurA2, blurB1, blurB2;
+
+const fsScene  = new THREE.Scene();
+const fsCam    = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const fsQuad   = new THREE.Mesh(new THREE.PlaneGeometry(2,2), null);
+fsScene.add(fsQuad);
+
+const brightMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiff:{value:null}, uThresh:{value:0.72}, uKnee:{value:0.34} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiff; uniform float uThresh, uKnee; varying vec2 vUv;
+    void main(){
+      vec3 c = texture2D(tDiff, vUv).rgb;
+      float l = dot(c, vec3(0.2126,0.7152,0.0722));
+      // soft knee so bright regions ramp in rather than popping
+      float s = clamp((l - uThresh + uKnee) / (2.0*uKnee), 0.0, 1.0);
+      float w = max(l - uThresh, s*s*uKnee) / max(l, 1e-5);
+      gl_FragColor = vec4(c*w, 1.0);
+    }`
+});
+
+const blurMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiff:{value:null}, uDir:{value:new THREE.Vector2(1,0)},
+             uRes:{value:new THREE.Vector2(1,1)} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiff; uniform vec2 uDir, uRes; varying vec2 vUv;
+    void main(){
+      // 9-tap gaussian, weights from the binomial row
+      float w[5]; w[0]=0.2270270270; w[1]=0.1945945946; w[2]=0.1216216216;
+      w[3]=0.0540540541; w[4]=0.0162162162;
+      vec2 t = uDir / uRes;
+      vec3 c = texture2D(tDiff, vUv).rgb * w[0];
+      for(int i=1;i<5;i++){
+        c += texture2D(tDiff, vUv + t*float(i)).rgb * w[i];
+        c += texture2D(tDiff, vUv - t*float(i)).rgb * w[i];
+      }
+      gl_FragColor = vec4(c,1.0);
+    }`
+});
+
+const compMat = new THREE.ShaderMaterial({
+  uniforms:{
+    tScene:{value:null}, tB1:{value:null}, tB2:{value:null},
+    uBloom:{value:0.62}, uThermal:{value:0}, uTime:{value:0},
+    uShake:{value:0}, uRes:{value:new THREE.Vector2(1,1)}
+  },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tScene, tB1, tB2;
+    uniform float uBloom, uThermal, uTime, uShake; uniform vec2 uRes;
+    varying vec2 vUv;
+
+    // Narkowicz ACES approximation — cheap, and it keeps the sun's core from
+    // clipping to a flat white disc.
+    vec3 aces(vec3 x){
+      const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14;
+      return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+    }
+    void main(){
+      vec2 uv = vUv;
+      // hull-strike shake, applied as a UV wobble rather than a camera move so
+      // it cannot desync the physics
+      if(uShake > 0.001){
+        uv += vec2(sin(uTime*61.0), cos(uTime*47.0)) * uShake * 0.006;
+      }
+
+      // slight chromatic aberration toward the edges — optics, not decoration
+      vec2 d = (uv - 0.5);
+      float r2 = dot(d,d);
+      float ca = (0.0016 + uThermal*0.0026) * r2;
+      vec3 col;
+      col.r = texture2D(tScene, uv + d*ca).r;
+      col.g = texture2D(tScene, uv).g;
+      col.b = texture2D(tScene, uv - d*ca).b;
+
+      vec3 bloom = texture2D(tB1, uv).rgb * 0.62 + texture2D(tB2, uv).rgb * 0.38;
+      col += bloom * uBloom;
+
+      col = aces(col);
+
+      // IR grade. An earlier version collapsed this to luminance, which threw
+      // away the entire false-colour ramp — every object came back grey and the
+      // temperature reading was carried only by brightness. The palette IS the
+      // signal here, so chroma is preserved; the sensor character comes from
+      // fixed-pattern noise and a contrast lift instead.
+      if(uThermal > 0.5){
+        float n = fract(sin(dot(uv*uRes, vec2(12.9898,78.233)) + uTime*11.0)*43758.5453);
+        col += (n - 0.5) * 0.04;                       // sensor noise
+        col = clamp((col - 0.5) * 1.07 + 0.5, 0.0, 1.0); // contrast lift
+      }
+
+      // vignette
+      col *= 1.0 - r2*0.62;
+      // linear -> sRGB
+      col = pow(max(col, 0.0), vec3(1.0/2.2));
+      gl_FragColor = vec4(col, 1.0);
+    }`
+});
+
+function sizeTargets(){
+  const w = Math.floor(innerWidth * Math.min(devicePixelRatio,2));
+  const h = Math.floor(innerHeight * Math.min(devicePixelRatio,2));
+  [sceneRT,brightRT,blurA1,blurA2,blurB1,blurB2].forEach(t=>t&&t.dispose());
+  sceneRT  = RT(w,h);
+  brightRT = RT(w/2,h/2);
+  blurA1   = RT(w/2,h/2);  blurA2 = RT(w/2,h/2);
+  blurB1   = RT(w/4,h/4);  blurB2 = RT(w/4,h/4);
+  compMat.uniforms.uRes.value.set(w,h);
+}
+sizeTargets();
+
+function blitPass(mat, target){
+  fsQuad.material = mat;
+  renderer.setRenderTarget(target);
+  renderer.clear();
+  renderer.render(fsScene, fsCam);
+}
+
+function renderFrame(){
+  // 1. scene -> HDR target
+  renderer.setRenderTarget(sceneRT);
+  renderer.clear();
+  renderer.render(scene, camera);
+
+  // 2. bright pass
+  brightMat.uniforms.tDiff.value = sceneRT.texture;
+  blitPass(brightMat, brightRT);
+
+  // 3. half-res blur
+  blurMat.uniforms.tDiff.value = brightRT.texture;
+  blurMat.uniforms.uRes.value.set(brightRT.width, brightRT.height);
+  blurMat.uniforms.uDir.value.set(1,0);  blitPass(blurMat, blurA1);
+  blurMat.uniforms.tDiff.value = blurA1.texture;
+  blurMat.uniforms.uDir.value.set(0,1);  blitPass(blurMat, blurA2);
+
+  // 4. quarter-res blur, fed from the half-res result for a wider skirt
+  blurMat.uniforms.tDiff.value = blurA2.texture;
+  blurMat.uniforms.uRes.value.set(blurB1.width, blurB1.height);
+  blurMat.uniforms.uDir.value.set(1,0);  blitPass(blurMat, blurB1);
+  blurMat.uniforms.tDiff.value = blurB1.texture;
+  blurMat.uniforms.uDir.value.set(0,1);  blitPass(blurMat, blurB2);
+
+  // 5. composite to screen
+  compMat.uniforms.tScene.value = sceneRT.texture;
+  compMat.uniforms.tB1.value    = blurA2.texture;
+  compMat.uniforms.tB2.value    = blurB2.texture;
+  fsQuad.material = compMat;
+  renderer.setRenderTarget(null);
+  renderer.clear();
+  renderer.render(fsScene, fsCam);
+}
+
+/* ==========================================================================
+   9.  THE RSV  —  Newtonian flight under command latency.
+
+   Attitude is direct (the RSV's attitude loop runs locally on the vehicle, so
+   pointing is crisp). TRANSLATION is what crosses the Dead Air link, so every
+   thrust command is stamped and does not take effect until it arrives. That
+   asymmetry is deliberate: it keeps aiming pleasant while making every burn a
+   commitment you have to plan.
+   ========================================================================== */
+const ship = {
+  pos : new THREE.Vector3(-118, 26, 96),
+  vel : new THREE.Vector3(0.9, -0.22, -0.75),
+  yaw : 0, pitch : 0,
+  fuel: CFG.maxFuel,
+  hull: 100,
+};
+// Point the RSV at the station on spawn.
+{
+  const d = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), ship.pos).normalize();
+  ship.yaw   = Math.atan2(-d.x, -d.z);
+  ship.pitch = Math.asin(THREE.MathUtils.clamp(d.y,-1,1));
+}
+
+const keys = Object.create(null);
+const cmdQueue = [];            // { at:ms, vec:Vector3, boost:bool }
+let linkTicks = CFG.baseTicks;  // grows as the mission degrades the link
+
+addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  keys[k] = true;
+  if(k===' ') e.preventDefault();
+  if(k==='v') toggleThermal();
+  if(k==='x') killRel();
+  if(k==='escape' && document.pointerLockElement) document.exitPointerLock();
+});
+addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
+
+// requestPointerLock returns a promise in current browsers and REJECTS when the
+// call is not tied to a user gesture. Unguarded that surfaces as an uncaught
+// page error, so every call site swallows it — losing pointer lock is a
+// degraded control scheme, not a crash.
+function grabPointer(){
+  try{
+    const p = renderer.domElement.requestPointerLock();
+    if(p && typeof p.catch === 'function') p.catch(()=>{});
+  }catch(e){ /* pointer lock unavailable — mouse-look simply stays unlocked */ }
+}
+renderer.domElement.addEventListener('click', ()=>{
+  if(state.running && !document.pointerLockElement) grabPointer();
+});
+addEventListener('mousemove', e=>{
+  if(document.pointerLockElement !== renderer.domElement) return;
+  ship.yaw   -= e.movementX * 0.0021;
+  ship.pitch -= e.movementY * 0.0021;
+  ship.pitch  = THREE.MathUtils.clamp(ship.pitch, -1.52, 1.52);
+});
+
+// Body-relative basis from yaw/pitch.
+function basis(){
+  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(ship.pitch, ship.yaw, 0,'YXZ'));
+  return {
+    fwd  : new THREE.Vector3(0,0,-1).applyQuaternion(q),
+    right: new THREE.Vector3(1,0,0).applyQuaternion(q),
+    up   : new THREE.Vector3(0,1,0).applyQuaternion(q),
+    q
+  };
+}
+
+// Reads the keyboard and stamps a command for future execution.
+function issueCommands(now){
+  if(!state.running) return;
+  const v = new THREE.Vector3();
+  if(keys['w']) v.z -= 1;
+  if(keys['s']) v.z += 1;
+  if(keys['a']) v.x -= 1;
+  if(keys['d']) v.x += 1;
+  if(keys[' ']) v.y += 1;
+  if(keys['control']) v.y -= 1;
+  if(v.lengthSq() === 0) return;
+  if(ship.fuel <= 0) return;
+  cmdQueue.push({ at: now + linkTicks*CFG.tickMs, vec: v.normalize(),
+                  boost: !!keys['shift'] });
+}
+
+// "Kill relative velocity" — a single queued burn that cancels current drift.
+// This is the NO-BRICK safety valve: however badly you tumble away, one key
+// always brings you back to a stop.
+function killRel(){
+  if(!state.running) return;
+  if(ship.vel.lengthSq() < 1e-6) return;
+  Audio.blip(520,0.09,'square',0.1);
+  cmdQueue.push({ at: performance.now() + linkTicks*CFG.tickMs, kill:true });
+}
+
+let thrustLevel = 0;   // 0..1, for audio and exhaust
+let recalling   = false;  // ground-authority auto-recall active (see NO-BRICK below)
+
+function stepShip(dt, now){
+  // --- apply any commands that have arrived
+  let applied = null;
+  while(cmdQueue.length && cmdQueue[0].at <= now){
+    const c = cmdQueue.shift();
+    if(c.kill){
+      // burn opposite to velocity, capped by what the RCS can do in one pulse
+      const dv = ship.vel.clone().multiplyScalar(-1);
+      const max = CFG.thrust * 0.85;
+      if(dv.length() > max) dv.setLength(max);
+      ship.vel.add(dv);
+      ship.fuel = Math.max(0, ship.fuel - dv.length()*1.4);
+      continue;
+    }
+    applied = c;
+  }
+  if(applied && ship.fuel > 0){
+    const b = basis();
+    const a = new THREE.Vector3()
+      .addScaledVector(b.right, applied.vec.x)
+      .addScaledVector(b.up,    applied.vec.y)
+      .addScaledVector(b.fwd,  -applied.vec.z);
+    const mul = CFG.thrust * (applied.boost ? CFG.boostMul : 1);
+    ship.vel.addScaledVector(a.normalize(), mul*dt);
+    ship.fuel = Math.max(0, ship.fuel - CFG.fuelPerSec*(applied.boost?2.1:1)*dt);
+    thrustLevel = Math.min(1, thrustLevel + dt*7);
+  } else {
+    thrustLevel = Math.max(0, thrustLevel - dt*3.4);
+  }
+
+  // --- AUTOMATED RECALL.
+  // NO-BRICK RULE (canon): no player action may render the mission unplayable.
+  // Without this, a player who burns all 100% of the RCS escaping the station
+  // ends up stranded — [X] still stops them, because cancelling drift is a
+  // safety function and is deliberately not fuel-gated, but with no propellant
+  // there is no way back and the mission can never be completed.
+  // The Terran MOC holds "dock or recall a service vehicle" as a standing
+  // capability, so an exhausted RSV gets tugged home on ground authority and
+  // is re-serviced on arrival. Costs the player time and pride, not the run.
+  const rangeNow = ship.pos.length();
+  if(ship.fuel <= 0.5 && rangeNow > CFG.approachRange){
+    if(!recalling){
+      recalling = true;
+      $('hFuel').classList.add('bad');
+      $('hRecall').style.display = 'block';
+      eidolon('RSV-04, your propellant is exhausted. Mission Operations is taking the ' +
+              'vehicle on automated recall. Hold station and let it fly you in — you will ' +
+              'be re-serviced at the berth.',
+              'CONFIDENCE: HIGH — ground authority, no local input required', 9000);
+    }
+    // gentle constant-rate tug toward the station
+    const home = ship.pos.clone().multiplyScalar(-1).normalize().multiplyScalar(7.5);
+    ship.vel.lerp(home, Math.min(1, dt*0.55));
+  } else if(recalling && rangeNow <= CFG.approachRange){
+    recalling = false;
+    ship.fuel = 32;                    // re-serviced at the berth
+    ship.vel.multiplyScalar(0.12);
+    $('hFuel').classList.remove('bad');
+    $('hRecall').style.display = 'none';
+    Audio.chime();
+    eidolon('Recall complete. You have partial propellant. The panel is still unmeasured.',
+            'CONFIDENCE: HIGH', 6000);
+  }
+
+  // --- no drag in vacuum. Position integrates, full stop.
+  ship.pos.addScaledVector(ship.vel, dt);
+
+  // --- collision: treat the station as a set of spheres around each module.
+  //     Bouncing off rather than stopping keeps it forgiving.
+  const hitR = 6.0;
+  const checks = [ new THREE.Vector3(0,0,0), ...NODES.map(n=>n.pos.clone().setY(0)) ];
+  for(const c of checks){
+    const d = ship.pos.distanceTo(c);
+    const r = (c.lengthSq()===0) ? 4.2 : hitR;
+    if(d < r){
+      const n = new THREE.Vector3().subVectors(ship.pos, c).normalize();
+      ship.pos.copy(c).addScaledVector(n, r + 0.05);
+      const vn = ship.vel.dot(n);
+      if(vn < 0){
+        ship.vel.addScaledVector(n, -vn*1.55);   // inelastic bounce
+        if(-vn > 1.4) damage(Math.min(CFG.collideDmg, (-vn)*5));
+      }
+    }
+  }
+
+  // --- camera follows the RSV exactly (the operator sees through its optics)
+  const b = basis();
+  camera.position.copy(ship.pos);
+  camera.quaternion.copy(b.q);
+
+  Audio.thrust(thrustLevel);
+}
+
+let shakeAmt = 0;
+function damage(amount){
+  ship.hull = Math.max(0, ship.hull - amount);
+  shakeAmt = Math.min(1, shakeAmt + amount/16);
+  Audio.hull();
+  $('dmg').classList.add('hit');
+  setTimeout(()=>$('dmg').classList.remove('hit'), 70);
+  if(ship.hull <= 0 && state.running) endMission(false, 'hull');
+}
+
+/* ==========================================================================
+   10.  THERMAL CAMERA
+   ========================================================================== */
+let thermal = false;
+function toggleThermal(){
+  if(!state.running) return;
+  thermal = !thermal;
+  irRegistry.forEach(m=>{ m.material = thermal ? m.userData.thermal : m.userData.optical; });
+  earthUniforms.uThermal.value = thermal ? 1 : 0;
+  compMat.uniforms.uThermal.value = thermal ? 1 : 0;
+  $('irOv').style.display = thermal ? 'block' : 'none';
+  $('hMode').textContent = thermal ? 'INFRARED' : 'OPTICAL';
+  $('hMode').className = thermal ? 'v warn' : 'v';
+  // strobes and the sun sprite are optical artefacts; an IR sensor would not
+  // see them at all
+  strobes.forEach(s=> s.mesh.visible = !thermal);
+  Audio.blip(thermal?1240:760, 0.1, 'square', 0.09);
+  if(thermal && !state.obj2){ completeObjective(2); }
+}
+
+/* ==========================================================================
+   11.  MISSION STATE  +  EIDOLON
+   ========================================================================== */
+const state = {
+  running:false, obj1:false, obj2:false, obj3:false, obj4:false,
+  scanned:new Set(), scanning:null, scanT:0,
+  t0:0, decided:false, correct:false, readings:{}
+};
+
+// EIDOLON is a competent operator on corrupted inputs. It never hints, never
+// moralises, never breaks character, and it is allowed to be WRONG — its
+// wrongness is the lesson.
+function eidolon(msg, conf, hold=6200){
+  $('eidMsg').textContent = msg;
+  $('eidConf').textContent = conf || '';
+  $('eid').classList.add('show');
+  Audio.voice(msg.length);
+  clearTimeout(eidolon._t);
+  eidolon._t = setTimeout(()=> $('eid').classList.remove('show'), hold);
+}
+
+function completeObjective(n){
+  if(state['obj'+n]) return;
+  state['obj'+n] = true;
+  const el = $('o'+n);
+  if(el){ el.classList.add('done'); el.classList.remove('active'); }
+  const next = $('o'+(n+1));
+  if(next) next.classList.add('active');
+  Audio.chime();
+}
+
+/* ==========================================================================
+   12.  IR INTEGRATION  —  the act of looking
+   ========================================================================== */
+const raycaster = new THREE.Raycaster();
+let aimed = null;
+
+// An IR sensor integrates a FIELD OF VIEW, not a single ray. Acquisition is
+// therefore angular: the panel counts as on-boresight if it falls inside the
+// sensor cone and within range. A single centre-screen ray was the first
+// implementation and it was wrong twice over — the station's residual roll
+// walked the panel off the ray several times a second, restarting the
+// integration, and it would have demanded inhuman stillness from the player.
+// The raycast survives for ONE job: occlusion, so you cannot read a radiator
+// through the hull.
+const SENSOR_COS = Math.cos(7.0 * Math.PI/180);
+const _toPanel = new THREE.Vector3();
+const _fwd     = new THREE.Vector3();
+
+function updateAim(){
+  aimed = null;
+  if(!state.running) return;
+
+  camera.getWorldDirection(_fwd);
+  let best = null, bestDot = SENSOR_COS;
+
+  for(const panel of radiators){
+    panel.getWorldPosition(panel.userData.node.worldPos);
+    _toPanel.subVectors(panel.userData.node.worldPos, camera.position);
+    const dist = _toPanel.length();
+    if(dist > CFG.scanRange) continue;
+    _toPanel.divideScalar(dist);                 // normalise
+    const d = _toPanel.dot(_fwd);
+    if(d > bestDot){ bestDot = d; best = { panel, dist }; }
+  }
+
+  if(best){
+    // occlusion: if something solid sits between the sensor and the panel,
+    // there is no reading to take
+    raycaster.set(camera.position, _toPanel.subVectors(
+      best.panel.userData.node.worldPos, camera.position).normalize());
+    raycaster.far = best.dist - 0.4;
+    const nodeId = best.panel.userData.node.id;
+    const blocked = raycaster.intersectObject(station, true)
+      .some(h => h.object !== best.panel && h.object.userData.radGroup !== nodeId);
+    raycaster.far = Infinity;
+    if(!blocked) aimed = best.panel;
+  }
+  const retic = $('retic'), tgt = $('tgt');
+  retic.classList.toggle('hot', !!aimed);
+
+  if(aimed){
+    const node = aimed.userData.node;
+    const done = state.scanned.has(node.id);
+    tgt.style.display = 'block';
+    tgt.style.left = '50%'; tgt.style.top = '50%';
+    tgt.textContent = done
+      ? `${node.id}  RAD  IR ${node.real.toFixed(1)} C  [LOGGED]`
+      : (thermal ? `${node.id}  RAD  hold [F] to integrate`
+                 : `${node.id}  RAD  optical only — no temperature`);
+  } else {
+    tgt.style.display = 'none';
+  }
+}
+
+// Brief loss of boresight must not discard a partial integration — the panel
+// drifts, the operator breathes. Progress decays over a short grace window
+// instead of resetting, and only a genuine target change zeroes it.
+let graceT = 0;
+const SCAN_GRACE = 0.5;
+
+function stepScan(dt){
+  const target = aimed && !state.scanned.has(aimed.userData.node.id) ? aimed : null;
+  const holding = !!keys['f'] && thermal && (target || (state.scanning && graceT < SCAN_GRACE));
+  const box = $('scan');
+
+  if(holding){
+    if(target){
+      if(state.scanning !== target){ state.scanning = target; state.scanT = 0; }
+      graceT = 0;
+    } else {
+      graceT += dt;                     // coasting on grace, still integrating
+    }
+    state.scanT += dt;
+    box.style.display='block';
+    $('scanFill').style.width = Math.min(100, state.scanT/CFG.scanSeconds*100) + '%';
+    if(state.scanT % 0.34 < dt) Audio.blip(1500, 0.03, 'sine', 0.05);
+
+    if(state.scanT >= CFG.scanSeconds){
+      const node = aimed.userData.node;
+      state.scanned.add(node.id);
+      state.readings[node.id] = node.real;
+      state.scanning = null; state.scanT = 0;
+      box.style.display='none';
+      Audio.chime();
+      onPanelLogged(node);
+    }
+  } else {
+    state.scanning = null; state.scanT = 0;
+    box.style.display='none';
+  }
+}
+
+function onPanelLogged(node){
+  const delta = node.real - node.claimed;
+  if(Math.abs(delta) > 20){
+    Audio.alarm();
+    eidolon(
+      `Your integration of ${node.id} does not match my telemetry. I hold ${node.claimed.toFixed(1)} C ` +
+      `from the platform bus. You are reporting ${node.real.toFixed(1)} C. One of us is reading a ` +
+      `stream that is no longer describing the panel.`,
+      'CONFIDENCE: LOW — conflicting authenticated sources');
+  } else {
+    eidolon(`${node.id} integration agrees with the bus within tolerance. Logged.`,
+            'CONFIDENCE: HIGH');
+  }
+  if(state.scanned.size === NODES.length){
+    completeObjective(3);
+    setTimeout(openDecision, 1500);
+  }
+}
+
+/* ==========================================================================
+   13.  THE CALL
+   ========================================================================== */
+const OPTIONS = [
+  { k:'terran', label:'The Terran dashboard (41.0 C)',
+    sub:'It is the system of record and it is authenticated.' },
+  { k:'kvm',    label:'The Space KVM (87.4 C)',
+    sub:'It sits closer to the hardware, so it should be more trustworthy.' },
+  { k:'ir',     label:'My own infrared integration of the radiator',
+    sub:'Measured off-network, from the panel itself.' },
+  { k:'none',   label:'None of them — declare the thermal channel unreliable',
+    sub:'Escalate without naming an authoritative value.' },
+];
+
+function openDecision(){
+  if(state.decided) return;
+  $('decIR').textContent = (state.readings['HELIOS-7'] ?? 0).toFixed(1) + ' C';
+  const box = $('decOpts'); box.innerHTML='';
+  OPTIONS.forEach(o=>{
+    const b = document.createElement('button');
+    b.className='opt';
+    b.innerHTML = `<b>${o.label}</b><br><span style="opacity:.72;font-size:11.5px">${o.sub}</span>`;
+    b.onclick = ()=> decide(o.k);
+    box.appendChild(b);
+  });
+  $('dec').classList.add('show');
+  if(document.pointerLockElement) document.exitPointerLock();
+}
+
+function decide(k){
+  state.decided = true;
+  state.correct = (k === 'ir');
+  $('dec').classList.remove('show');
+  completeObjective(4);
+  endMission(state.correct, k);
+}
+
+/* ==========================================================================
+   14.  END CARD  +  platform registration hooks
+   ========================================================================== */
+function endMission(win, reason){
+  state.running = false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  const secs = (performance.now() - state.t0)/1000;
+
+  const T = $('endTitle'), R = $('endRank'), B = $('endBody'), S = $('endStats');
+
+  if(reason === 'hull'){
+    T.textContent = 'VEHICLE LOST';
+    R.textContent = 'RSV-04 STRUCTURAL FAILURE';
+    B.innerHTML = `You drove the service vehicle into ASTRAEA-9 hard enough to end it. ` +
+      `Under the no-brick rule the investigation survives — a second RSV is on the pad — ` +
+      `but the panel is still unmeasured and HELIOS-7 is still climbing.<br><br>` +
+      `<span class="tk">Remember [X].</span> One key cancels all relative velocity. ` +
+      `In vacuum nothing slows you down but you.`;
+  } else if(win){
+    T.textContent = 'CALL ACCEPTED';
+    R.textContent = 'OUT-OF-BAND VERIFICATION — CORRECT';
+    B.innerHTML =
+      `You filed the infrared integration as authoritative, and you were right.<br><br>` +
+      `The Terran dashboard and the Space KVM disagreed, and the instinct is to pick the one ` +
+      `nearer the hardware. But both readings crossed the same compromised transport, so both ` +
+      `were forgeable — and one was forged. The radiator was not. A panel rejecting 87 C of ` +
+      `waste heat glows in the 8&ndash;14 &micro;m band whether or not anyone is lying about it.<br><br>` +
+      `<span class="tk">That is the whole discipline:</span> when two sources that share a path ` +
+      `disagree, stop adjudicating between them and go get a third one that does not share the path. ` +
+      `Physical observation, an out-of-band channel, a second organisation's telemetry — anything ` +
+      `the attacker would have to compromise separately.<br><br>` +
+      `EIDOLON was not lying to you. It was reading a stream that had stopped describing the panel, ` +
+      `and it told you its confidence was low. A competent operator on corrupted inputs.`;
+  } else {
+    T.textContent = 'CALL FILED — INCORRECT';
+    R.textContent = OPTIONS.find(o=>o.k===reason)?.label || 'INCONCLUSIVE';
+    B.innerHTML =
+      (reason==='none'
+        ? `Declaring the channel unreliable is defensible and it is honest — but you were holding ` +
+          `a measurement you took yourself, off-network, with your own sensor. That is not an ` +
+          `unreliable channel. That is the one reading nobody could have touched.<br><br>`
+        : `You filed a networked reading as authoritative. Both the Terran dashboard and the Space KVM ` +
+          `reach you across the same transport, and that transport is what the intruder holds. ` +
+          `Picking the one that is "closer to the hardware" feels rigorous, but proximity is not ` +
+          `independence — a forged stream is forged wherever you read it from.<br><br>`) +
+      `You flew out and put an infrared sensor on the panel yourself. It read ` +
+      `<span class="tk">${(state.readings['HELIOS-7']??0).toFixed(1)} C</span>. ` +
+      `That measurement did not cross the compromised path, which is exactly what made it worth ` +
+      `the trip. Out-of-band verification only helps if you actually trust it when it disagrees.`;
+  }
+
+  S.innerHTML = `
+    <div class="stat"><span>Panels integrated</span><span>${state.scanned.size} / ${NODES.length}</span></div>
+    <div class="stat"><span>Mission time</span><span>${Math.floor(secs/60)}m ${String(Math.floor(secs%60)).padStart(2,'0')}s</span></div>
+    <div class="stat"><span>RCS remaining</span><span>${ship.fuel.toFixed(0)}%</span></div>
+    <div class="stat"><span>Hull integrity</span><span>${ship.hull.toFixed(0)}%</span></div>`;
+
+  $('end').classList.add('show');
+
+  // ---- platform hooks. Both are optional at runtime: the page must still work
+  //      standalone, so every call is guarded.
+  // NB on the guard form: these components declare themselves as
+  // `const GameTracker = (function(){...})()` at the top level of a CLASSIC
+  // script. A top-level `const` lands in the global LEXICAL environment, not on
+  // `window` — so `window.GameTracker` is undefined even when the script has
+  // loaded and run. Guarding on `window.X` therefore never fires, which is how
+  // a fully-wired integration can look correct and be dead. Module code can
+  // still read the binding by name, and `typeof` is safe on an undeclared
+  // identifier, so the bare-identifier form is both correct and non-throwing.
+  try{
+    if(win && typeof GameTracker !== 'undefined' && typeof GameTracker.record === 'function'){
+      // GameTracker.record computes isWin from `details.result === 'success'`
+      // and reads `details.timeElapsed` — NOT `won`/`durationSec`. Passing the
+      // wrong keys records a genuine victory as a loss and never sets bestTime.
+      GameTracker.record('cold-horizon', {
+        result: 'success',
+        score: Math.round(ship.fuel + ship.hull),
+        timeElapsed: Math.round(secs)
+      });
+    }
+    if(!win && typeof GameTracker !== 'undefined' && typeof GameTracker.record === 'function'){
+      // Record the attempt too, so plays/losses reflect reality rather than
+      // only ever counting the runs that went well.
+      GameTracker.record('cold-horizon', {
+        result: 'failure', score: Math.round(ship.fuel + ship.hull),
+        timeElapsed: Math.round(secs)
+      });
+    }
+    if(win && typeof AchievementManager !== 'undefined' &&
+       typeof AchievementManager.unlock === 'function'){
+      AchievementManager.unlock('game_coldhorizon');
+    }
+  }catch(e){ console.warn('[cold-horizon] tracker hook failed:', e); }
+}
+
+$('againBtn').onclick = ()=> location.reload();
+
+/* ==========================================================================
+   15.  BOOT SEQUENCE
+   ========================================================================== */
+const BOOT_LINES = [
+  ['TERRAN MISSION OPERATIONS CENTER &middot; JACKSONVILLE FL', 'c'],
+  ['Operator certificate ....................... <span class="g">ACCEPTED</span>', ''],
+  ['Ground station handshake ................... <span class="g">LOCKED</span>', ''],
+  ['Dead Air channel ........................... <span class="a">DEGRADED</span>', ''],
+  ['Round-trip latency ......................... <span class="a">0.60 s</span>', ''],
+  ['', ''],
+  ['<span class="r">ALARM</span>  Node HELIOS-7 entered thermal protection mode.', ''],
+  ['       Terran dashboard reports .... <span class="c">41.0 C</span>  NOMINAL', ''],
+  ['       Space KVM reports ........... <span class="r">87.4 C</span>  CRITICAL', ''],
+  ['       EIDOLON reports ............. <span class="a">INSUFFICIENT CONFIDENCE</span>', ''],
+  ['', ''],
+  ['Both sources are authenticated. Both cross the same transport.', ''],
+  ['<span class="a">RSV-04 released from berth. Teleoperation available.</span>', ''],
+];
+
+function runBoot(){
+  const el = $('bootLine');
+  let i = 0;
+  (function next(){
+    if(i >= BOOT_LINES.length){ $('startBtn').classList.add('on'); return; }
+    const [txt] = BOOT_LINES[i++];
+    el.innerHTML += txt + '\n';
+    setTimeout(next, txt === '' ? 90 : 230);
+  })();
+}
+runBoot();
+
+$('startBtn').onclick = ()=>{
+  Audio.start();
+  $('boot').classList.add('gone');
+  setTimeout(()=>{ $('boot').style.display='none'; }, 950);
+  $('hud').classList.add('live');
+  state.running = true;
+  state.t0 = performance.now();
+  grabPointer();
+
+  setTimeout(()=> eidolon(
+    'RSV-04, I have you on the near approach. I am holding HELIOS-7 at 41.0 C and the ' +
+    'platform bus agrees with me. The Space KVM does not. I cannot resolve the difference ' +
+    'from inside, because both of those readings reach me the same way.',
+    'CONFIDENCE: INSUFFICIENT — awaiting independent observation', 9000), 2200);
+
+  setTimeout(()=> eidolon(
+    'If you intend to look at the panel directly, your infrared sensor is on the [V] key. ' +
+    'I cannot see through it. Whatever you read there, I will take as an outside source.',
+    'CONFIDENCE: N/A — advisory', 8000), 13000);
+};
+
+/* ==========================================================================
+   16.  MAIN LOOP
+   ========================================================================== */
+let last = performance.now();
+const proEl = $('pro');
+const tmpV = new THREE.Vector3();
+
+function tick(now){
+  requestAnimationFrame(tick);
+  const dt = Math.min(0.05, (now - last)/1000);
+  last = now;
+
+  earthUniforms.uTime.value = now*0.001;
+  compMat.uniforms.uTime.value = now*0.001;
+
+  // Earth and station both rotate: the terminator crawls, the station holds
+  // a slow residual roll.
+  earthGroup.rotation.y += dt*0.0075;
+  station.rotation.y     = Math.sin(now*0.00006)*0.02;
+  station.rotation.x     = Math.cos(now*0.00005)*0.015;
+
+  // navigation strobes
+  strobes.forEach(s=>{
+    const f = (Math.sin(now*0.0021 + s.phase) > 0.86) ? 1 : 0.06;
+    s.mesh.material.color.copy(s.base).multiplyScalar(f*2.4);
+  });
+
+  if(state.running){
+    issueCommands(now);
+    stepShip(dt, now);
+    updateAim();
+    stepScan(dt);
+
+    // objective 1: proximity
+    const range = ship.pos.length();
+    if(!state.obj1 && range < CFG.approachRange){
+      completeObjective(1);
+      eidolon('You are inside forty metres. I have lost my own optical coverage of the ' +
+              'starboard truss since the event, so you are my eyes out there.',
+              'CONFIDENCE: HIGH — proximity confirmed');
+    }
+
+    // ---- HUD
+    $('hRange').textContent = range.toFixed(1) + ' m';
+    $('hVel').textContent   = ship.vel.length().toFixed(2) + ' m/s';
+    $('hFuel').textContent  = ship.fuel.toFixed(0) + '%';
+    $('hFuel').className    = 'v' + (ship.fuel < 22 ? ' bad' : ship.fuel < 48 ? ' warn' : '');
+    $('hHull').textContent  = ship.hull.toFixed(0) + '%';
+    $('hHull').className    = 'v' + (ship.hull < 34 ? ' bad' : ship.hull < 70 ? ' warn' : ' ok');
+    $('hLag').textContent   = (linkTicks*CFG.tickMs/1000).toFixed(2) + ' s';
+    // NB: textContent does not decode HTML entities — use the literal character.
+    $('hQ').textContent     = cmdQueue.length ? '#'.repeat(Math.min(6,cmdQueue.length)) : '····';
+
+    // prograde marker: where the RSV is actually going, which under latency is
+    // rarely where it is pointing
+    if(ship.vel.length() > 0.12){
+      tmpV.copy(ship.pos).add(ship.vel.clone().setLength(60));
+      tmpV.project(camera);
+      if(tmpV.z < 1){
+        proEl.style.display='block';
+        proEl.style.left = (tmpV.x*0.5+0.5)*innerWidth + 'px';
+        proEl.style.top  = (-tmpV.y*0.5+0.5)*innerHeight + 'px';
+      } else proEl.style.display='none';
+    } else proEl.style.display='none';
+  }
+
+  // shake decay
+  shakeAmt = Math.max(0, shakeAmt - dt*1.6);
+  compMat.uniforms.uShake.value = shakeAmt;
+
+  renderFrame();
+}
+requestAnimationFrame(tick);
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  sizeTargets();
+});
+
+/* ==========================================================================
+   17.  QA SEAM  —  ?qa=1 AND a local host. Both are required.
+
+   This exposes the REAL simulation objects so an automated playthrough can
+   drive the actual code path: no stubs, no parallel implementation. A test
+   that pokes a mock only ever confirms the mock.
+
+   The host check is not paranoia. decide() has no preconditions — it does not
+   verify that any panel was ever scanned — so on production this seam would be
+   a one-line console cheat granting the achievement and a near-maximum
+   GameTracker score, indistinguishable from a real run in the scoreboard's own
+   bookkeeping. Binding it to localhost means the seam cannot exist on
+   hexworth.com at all, no matter what query string a student types.
+   ========================================================================== */
+const QA_HOSTS = ['localhost','127.0.0.1','[::1]',''];
+if(new URLSearchParams(location.search).get('qa') === '1' &&
+   QA_HOSTS.includes(location.hostname)){
+  window.__COLD_HORIZON_QA__ = {
+    ship, state, NODES, camera, radiators,
+    toggleThermal, decide, basis,
+    // Place the RSV a fixed standoff from a named panel and point at it, so a
+    // test can reach the scan state without flying for two minutes.
+    aimAt(nodeId, standoff=22){
+      const node = NODES.find(n=>n.id===nodeId);
+      if(!node) throw new Error('no node '+nodeId);
+      node.panel.getWorldPosition(node.worldPos);
+      ship.pos.copy(node.worldPos).add(new THREE.Vector3(0, standoff*0.35, standoff));
+      ship.vel.set(0,0,0);
+      const d = new THREE.Vector3().subVectors(node.worldPos, ship.pos).normalize();
+      ship.yaw   = Math.atan2(-d.x, -d.z);
+      ship.pitch = Math.asin(THREE.MathUtils.clamp(d.y,-1,1));
+      camera.position.copy(ship.pos);
+      camera.quaternion.copy(basis().q);
+      camera.updateMatrixWorld(true);
+      return node.worldPos.toArray();
+    },
+    aimedId(){ return aimed ? aimed.userData.node.id : null; },
+    forceScan(nodeId){          // drives the same completion path as holding [F]
+      const node = NODES.find(n=>n.id===nodeId);
+      state.scanned.add(node.id);
+      state.readings[node.id] = node.real;
+      onPanelLogged(node);
+      return { scanned:[...state.scanned], readings:{...state.readings} };
+    },
+    snapshot(){ return {
+      running:state.running, thermal,
+      // scan preconditions, so a failing integration says WHICH gate blocked it
+      keyF: !!keys['f'], aimed: aimed ? aimed.userData.node.id : null,
+      scanT: +state.scanT.toFixed(2),
+      objs:[state.obj1,state.obj2,state.obj3,state.obj4],
+      scanned:[...state.scanned], readings:{...state.readings},
+      decided:state.decided, correct:state.correct, recalling,
+      fuel:+ship.fuel.toFixed(1), hull:+ship.hull.toFixed(1),
+      range:+ship.pos.length().toFixed(1),
+      decOpen: document.getElementById('dec').classList.contains('show'),
+      endOpen: document.getElementById('end').classList.contains('show'),
+      endTitle: document.getElementById('endTitle').textContent,
+    }; }
+  };
+}
+</script>
+</body>
+</html>

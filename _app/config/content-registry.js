@@ -13486,6 +13486,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'cloud-cold-horizon': {
+            id: 'cloud-cold-horizon',
+            title: 'Cold Horizon',
+            description: 'Real-time 3D orbital simulation. Two sensors disagree about one radiator on ASTRAEA-9 and the local AI cannot resolve it. Fly out under signal latency and read the panel yourself.',
+            house: 'cloud',
+            type: 'applet',
+            difficulty: 'intermediate',
+            duration: 20,
+            topics: ['incident response', 'telemetry', 'out-of-band verification', 'orbital infrastructure'],
+            paths: ['cse'],
+            components: {
+                applet: 'houses/cloud/games/cloud-cold-horizon.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'cloud-hop-vertical': {
             id: 'cloud-hop-vertical',
             title: 'Cloud Hop: Vertical',

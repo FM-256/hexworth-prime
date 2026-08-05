@@ -1039,6 +1039,17 @@ class HeuristicsValidator {
             // Added 2026-06-02 (CAREER-4) when SEO JSON-LD blocks fired 25 FPs.
             if (/type\s*=\s*["'][^"']*\/(?:ld\+json|json|template|handlebars|mustache|x-template)["']/i.test(attrs)) continue;
 
+            // Same class of false positive, but these type values carry no
+            // slash so the pattern above cannot reach them:
+            //   type="importmap"        — ES module specifier map (JSON body)
+            //   type="speculationrules" — prefetch/prerender hints (JSON body)
+            // Both are JSON objects the browser never executes as JS, so
+            // new Function() sees `{ "imports": { ... } }` as a block statement
+            // and reports `Unexpected token ':'` on the first property.
+            // Added 2026-08-05 when Cold Horizon — the platform's first ES
+            // module page — fired a HIGH on a perfectly valid importmap.
+            if (/type\s*=\s*["']\s*(?:importmap|speculationrules)\s*["']/i.test(attrs)) continue;
+
             try {
                 // new Function() parses the code without executing it
                 new Function(code);
