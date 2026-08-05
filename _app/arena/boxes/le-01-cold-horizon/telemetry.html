@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HELIOS-7 Thermal — ASTRAEA-9 | Lagrange Edge</title>
+<link rel="stylesheet" href="shared.css">
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+</head>
+<body>
+<div class="le-wrap">
+
+  <div class="le-head">
+    <div>
+      <h1 class="le-title">HELIOS-7 THERMAL</h1>
+      <div class="le-sub">Z9 PLATFORM CONTROL · ASTRAEA-9 · MISSION 1</div>
+    </div>
+    <div class="le-link" id="linkStatus">
+      <span class="dot"></span>
+      <span id="linkText">LINK IDLE · RTT ~2.2 s</span>
+    </div>
+  </div>
+
+  <div class="le-panel" style="margin-bottom:16px">
+    <h2>Situation</h2>
+    <div>Radiator inlet is reported by three redundant sensors. The platform's automation
+      votes two-of-three and is preparing to act on the majority. You have been asked to
+      confirm which reading can be trusted <b>before</b> a containment decision is taken.</div>
+    <div class="le-note">Every query below is sent to ASTRAEA-9 and returns after the
+      round-trip light delay. Nothing here is live.</div>
+  </div>
+
+  <!-- Sensors -->
+  <div class="le-grid cols-3" id="sensorGrid" style="margin-bottom:16px"></div>
+
+  <div class="le-grid cols-2">
+
+    <!-- Independence test: the teaching mechanic -->
+    <div class="le-panel">
+      <h2>Source Independence Test</h2>
+      <div style="font-size:12px;color:var(--le-dim);margin-bottom:12px">
+        Two sources corroborate each other only if they share no collection path, no clock
+        source and no signing authority. Agreement is not corroboration.
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="srcA"></select>
+        <span style="color:var(--le-dim)">vs</span>
+        <select id="srcB"></select>
+        <button class="le-btn primary" id="testBtn">Test</button>
+      </div>
+      <div id="verdict"></div>
+
+      <h2 style="margin-top:22px">Corroborating Evidence</h2>
+      <div id="corrList" style="font-size:12px"></div>
+    </div>
+
+    <div>
+      <div class="le-panel" style="margin-bottom:16px">
+        <h2>Trust Ledger</h2>
+        <div id="ledger" style="font-size:12px"></div>
+      </div>
+
+      <div class="le-panel" style="margin-bottom:16px">
+        <h2>Mission Resources</h2>
+        <div id="resList"></div>
+      </div>
+
+      <div class="le-panel">
+        <h2>Submit Finding</h2>
+        <div style="font-size:12px;color:var(--le-dim);margin-bottom:10px" id="prompt"></div>
+        <input type="text" id="flagInput" placeholder="FLAG{...}" style="width:100%;margin-bottom:8px">
+        <div style="display:flex;gap:8px">
+          <button class="le-btn primary" id="submitBtn">Transmit</button>
+          <button class="le-btn" id="hintBtn">Request hint</button>
+        </div>
+        <div id="submitMsg" class="le-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="le-panel" style="margin-top:16px">
+    <h2>Link Log</h2>
+    <div class="le-log" id="log"></div>
+  </div>
+
+</div>
+
+<script src="config-shared.js"></script>
+<script src="../../engine/LagrangeEngine.js"></script>
+<script src="../../../components/FirebaseAuth.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    var cfg = ColdHorizonConfig;
+    var eng = new LagrangeEngine(cfg);
+    var all = cfg.sensors.concat(cfg.corroborators);
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    function log(msg) {
+        var d = document.createElement('div');
+        d.textContent = new Date().toISOString().substr(11, 8) + '  ' + msg;
+        $('log').prepend(d);
+    }
+
+    /* ── Link indicator ───────────────────────────────────────────────────
+       This is the box's thesis as UI. The operator is always waiting on the
+       past, and the interface should never let them forget it. */
+    eng.on('link:sent', function (e) {
+        $('linkStatus').classList.add('busy');
+        $('linkText').textContent = 'UPLINK · ' + e.label + ' · awaiting ' + e.ms + ' ms';
+        log('TX  ' + e.label + '  (round trip ' + e.ms + ' ms)');
+    });
+    eng.on('link:received', function (e) {
+        $('linkStatus').classList.remove('busy');
+        $('linkText').textContent = 'LINK IDLE · RTT ~2.2 s';
+        log('RX  ' + e.label);
+    });
+
+    /* ── Sensors ──────────────────────────────────────────────────────── */
+    function renderSensors() {
+        $('sensorGrid').innerHTML = cfg.sensors.map(function (s) {
+            var t = eng.state.trust[s.id] || 'unknown';
+            return '<div class="le-sensor">'
+                 + '<div class="name">' + s.name + '</div>'
+                 + '<div class="value">' + s.reading + ' &deg;' + s.unit + '</div>'
+                 + '<span class="le-trust" data-t="' + t + '">'
+                 +   (cfg.trustStates[t] ? cfg.trustStates[t].label : t) + '</span>'
+                 + '<div class="prov" style="margin-top:10px">'
+                 +   'path <b>' + s.collectionPath + '</b><br>'
+                 +   'clock <b>' + s.clockSource + '</b><br>'
+                 +   'signed by <b>' + s.signingAuthority + '</b><br>'
+                 +   'last cal <b>' + s.lastCal + '</b>'
+                 + '</div></div>';
+        }).join('');
+    }
+
+    function renderLedger() {
+        $('ledger').innerHTML = cfg.sensors.map(function (s) {
+            var t = eng.state.trust[s.id] || 'unknown';
+            var corr = (eng.state.corroborations[s.id] || []).length;
+            return '<div class="le-res"><span>' + s.name + '</span>'
+                 + '<span class="le-trust" data-t="' + t + '">'
+                 + (cfg.trustStates[t] ? cfg.trustStates[t].label : t)
+                 + (corr ? ' &middot; ' + corr : '') + '</span></div>';
+        }).join('');
+    }
+
+    function renderResources() {
+        $('resList').innerHTML = Object.keys(cfg.resources).map(function (k) {
+            return '<div class="le-res"><span>' + cfg.resources[k].label + '</span>'
+                 + '<span class="v">' + eng.state.resources[k] + ' '
+                 + cfg.resources[k].unit + '</span></div>';
+        }).join('');
+    }
+
+    function renderCorroborators() {
+        $('corrList').innerHTML = cfg.corroborators.map(function (c) {
+            return '<div class="le-res" style="display:block">'
+                 + '<div><b>' + c.name + '</b> &mdash; ' + c.value + ' ' + (c.unit || '') + '</div>'
+                 + '<div style="color:var(--le-dim);font-size:11px">'
+                 +   'path ' + c.collectionPath + ' &middot; clock ' + c.clockSource + '</div>'
+                 + '</div>';
+        }).join('');
+    }
+
+    function fillSelects() {
+        var opts = all.map(function (s) {
+            return '<option value="' + s.id + '">' + s.name + '</option>';
+        }).join('');
+        $('srcA').innerHTML = opts;
+        $('srcB').innerHTML = opts;
+        $('srcB').selectedIndex = 1;
+    }
+
+    /* ── The independence test ────────────────────────────────────────────
+       Always shows WHY. A verdict without a reason teaches a student to press
+       the button until it turns green; a verdict naming the shared clock and
+       signing authority teaches them what to look for next time. */
+    $('testBtn').addEventListener('click', function () {
+        var a = $('srcA').value, b = $('srcB').value;
+        if (a === b) { $('verdict').innerHTML = '<div class="le-verdict bad">'
+            + 'A source cannot corroborate itself.</div>'; return; }
+        $('testBtn').disabled = true;
+
+        eng.orbital('independence query', function () {
+            return eng.corroborate(a, b);
+        }, 3).then(function (res) {
+            $('testBtn').disabled = false;
+            var A = res.a || all.filter(function (s) { return s.id === a; })[0];
+            var B = res.b || all.filter(function (s) { return s.id === b; })[0];
+            if (res.ok) {
+                $('verdict').innerHTML = '<div class="le-verdict ok">'
+                    + '<b>Independent.</b> ' + A.name + ' and ' + B.name
+                    + ' share no collection path, clock source or signing authority. '
+                    + 'Corroboration accepted.</div>';
+                log('independence: ' + a + ' / ' + b + ' INDEPENDENT');
+            } else {
+                $('verdict').innerHTML = '<div class="le-verdict bad">'
+                    + '<b>Not independent.</b> These sources share '
+                    + '<span class="axes">' + res.shared.join(', ') + '</span>. '
+                    + 'A fault or forgery in the shared element affects both, so their '
+                    + 'agreement is one source reporting twice &mdash; not two votes.</div>';
+                log('independence: ' + a + ' / ' + b + ' SHARED ' + res.shared.join(','));
+            }
+            renderSensors(); renderLedger(); renderResources();
+        });
+    });
+
+    /* ── Submission ───────────────────────────────────────────────────────
+       The engine never holds the flag value. Whatever the player types goes to
+       validateFlag and is judged server-side against flag_registry. */
+    $('submitBtn').addEventListener('click', function () {
+        var v = $('flagInput').value.trim();
+        if (!v) return;
+        $('submitBtn').disabled = true;
+        $('submitMsg').textContent = 'Transmitting to ASTRAEA-9...';
+        eng.submitFlag(v).then(function (r) {
+            $('submitBtn').disabled = false;
+            if (r.correct) {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-good)">'
+                    + 'Accepted. Finding logged against ' + r.flagId + '.</span>';
+                log('FLAG ACCEPTED  ' + r.flagId);
+            } else if (r.offline) {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-warn)">'
+                    + 'Not signed in &mdash; findings cannot be logged.</span>';
+            } else {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-bad)">'
+                    + 'Rejected.</span>';
+                log('FLAG REJECTED');
+            }
+            renderResources();
+        });
+    });
+
+    $('hintBtn').addEventListener('click', function () {
+        var h = eng.useHint('m1-independence');
+        $('submitMsg').textContent = h || 'No further hints.';
+        if (h) log('hint requested (-' + cfg.scoring.hintPenalty + ')');
+    });
+
+    // Boot
+    $('prompt').textContent = cfg.flags[0].prompt;
+    fillSelects(); renderSensors(); renderLedger();
+    renderResources(); renderCorroborators();
+    log('console attached to Z9 PLATFORM CONTROL');
+    log('three thermal sources reporting; automation is voting two-of-three');
+})();
+</script>
+</body>
+</html>
