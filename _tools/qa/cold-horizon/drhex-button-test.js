@@ -66,21 +66,38 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
  await p.keyboard.press('h');
  await new Promise(r=>setTimeout(r,1200));
  const two=await p.evaluate(()=>({
-   coachOpen: document.getElementById('hex').classList.contains('show'),
-   coachLabel: document.querySelector('#hex .who').textContent.trim(),
+   coachOpen: document.getElementById('coach').classList.contains('show'),
+   coachLabel: document.querySelector('#coach .who').textContent.trim(),
    btnStillThere: !!document.querySelector('hex-ai-button'),
  }));
  ck('Sortie Coach opens on [H] and is not the Dr. Hex button', two.coachOpen===true && two.btnStillThere===true);
  ck('coach panel does not claim to be Dr. Hex', !/dr\.?\s*hex/i.test(two.coachLabel), 'label="'+two.coachLabel+'"');
 
- // attempt event must fire on a graded action
- const fired=await p.evaluate(()=>new Promise(res=>{
-   let seen=false;
-   window.addEventListener('hexworth:lab-attempt-submitted',()=>{seen=true;},{once:true});
+ // A graded action must RECORD, not merely dispatch.
+ //
+ // The event itself is deliberately NOT asserted: __hexLabRecord returns early
+ // when signed out and dispatches only after the callable succeeds, so in a
+ // headless signed-out browser "no event" is the correct outcome. Asserting the
+ // event here would have been asserting the auth state, not the integration.
+ // What is genuinely mine to get right is the CALL: that the real platform API
+ // is present, and that my call site invokes it with the right arguments. The
+ // spy wraps the real function rather than replacing the subsystem.
+ ck('the real __hexLabRecord global is registered by the button',
+    await p.evaluate(()=>typeof window.__hexLabRecord==='function'));
+
+ const calls=await p.evaluate(()=>{
+   const real=window.__hexLabRecord;
+   const seen=[];
+   window.__hexLabRecord=(...a)=>{ seen.push(a); return real.apply(null,a); };
    window.__COLD_HORIZON_QA__.forceScan('VESTA-2');
-   setTimeout(()=>res(seen),300);
- }));
- ck('a graded action dispatches hexworth:lab-attempt-submitted', fired===true);
+   window.__COLD_HORIZON_QA__.decide('vote');          // a WRONG call
+   window.__hexLabRecord=real;
+   return seen;
+ });
+ ck('a completed integration records a correct attempt',
+    calls.some(c=>c[1]==='panel-VESTA-2' && c[2]===true), JSON.stringify(calls));
+ ck('a wrong incident call records an INCORRECT attempt, so the ring can move',
+    calls.some(c=>c[1]==='incident-call' && c[2]===false), JSON.stringify(calls));
 
  await p.screenshot({path:'/tmp/claude-1000/-home-eq/d7b814d9-d937-47c0-8ed6-0ba92645deec/scratchpad/drhex.png'});
  console.log('\nnon-200:',bad.length,bad.slice(0,5));

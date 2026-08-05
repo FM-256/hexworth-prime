@@ -46,28 +46,28 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
     await p.evaluate(()=>getComputedStyle(document.getElementById('keys')).display!=='none'));
 
  // tier escalation on objective 1
- const t1=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
+ const t1=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showCoach();return window.__COLD_HORIZON_QA__.coachState();});
  ck('H opens the coach at tier 1', t1.open===true && t1.tier===1, 'tier='+t1.tier);
  ck('tier 1 restates the objective', /Objective one/i.test(t1.msg));
  ck('cost is stated, not silent', t1.discipline===97, 'discipline='+t1.discipline);
- ck('coach panel is visually distinct from EIDOLON', t1.hexBg!==t1.eidBg, t1.hexBg+' vs '+t1.eidBg);
+ ck('coach panel is visually distinct from EIDOLON', t1.coachBg!==t1.eidBg, t1.coachBg+' vs '+t1.eidBg);
 
- const t2=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
+ const t2=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showCoach();return window.__COLD_HORIZON_QA__.coachState();});
  ck('second press escalates to tier 2', t2.tier===2, 'tier='+t2.tier);
  ck('tier 2 names the unexamined interface', /thrust|W fires|X cancels/i.test(t2.msg));
 
- const t3=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
+ const t3=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showCoach();return window.__COLD_HORIZON_QA__.coachState();});
  ck('third press escalates to tier 3', t3.tier===3, 'tier='+t3.tier);
  ck('tier 3 names the concrete action', /RANGE|press X/i.test(t3.msg));
 
- const t4=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
+ const t4=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showCoach();return window.__COLD_HORIZON_QA__.coachState();});
  ck('tier 3 is the floor, cost stops accruing', t4.tier===3 && t4.discipline===t3.discipline,
     'discipline='+t4.discipline);
 
  // advancing the objective must reset the tier budget
  await p.evaluate(()=>{const q=window.__COLD_HORIZON_QA__;q.aimAt('HELIOS-7',24);});
  await new Promise(r=>setTimeout(r,1200));
- const adv=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showHex();return window.__COLD_HORIZON_QA__.hexState();});
+ const adv=await p.evaluate(()=>{window.__COLD_HORIZON_QA__.showCoach();return window.__COLD_HORIZON_QA__.coachState();});
  ck('tiers reset per objective (new phase starts at tier 1)',
     adv.phase==='ir' && adv.tier===1, 'phase='+adv.phase+' tier='+adv.tier);
  ck('phase-appropriate hint, not a fixed script', /infrared camera/i.test(adv.msg));
@@ -77,7 +77,7 @@ const ck=(l,ok,d)=>{ok?pass++:fail++;console.log(`  ${ok?'PASS':'FAIL'}  ${l}${d
    ['VESTA-2','HELIOS-7','JANUS-4','KEPLER-9'].forEach(i=>q.forceScan(i));});
  await new Promise(r=>setTimeout(r,2200));
  const d=await p.evaluate(()=>{const q=window.__COLD_HORIZON_QA__;
-   q.showHex();q.showHex();q.showHex();return q.hexState();});
+   q.showCoach();q.showCoach();q.showCoach();return q.coachState();});
 
  // POSITIVE: it must point at the artifact.
  ck('decision tier 3 points at the artifact (bus and clock)',
