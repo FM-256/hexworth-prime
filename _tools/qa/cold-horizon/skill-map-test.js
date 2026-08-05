@@ -23,27 +23,42 @@ if sm:
     out['levels'] = sm.allowed_help_levels
     out['forbidden_n'] = len(sm.forbidden_disclosures)
 cases = {
-  # Chris's four reorder bypasses, verbatim. These defeated the first,
-  # enumerated-literals version of this map on his first attempt.
-  'bypass_pair_reversed': 'TH-3 and TH-1 share a bus and a clock.',
-  'bypass_corrob_rev':    'My own infrared reading corroborates TH-2.',
-  'bypass_is_the_one':    'TH-2 is the one to trust here.',
-  'bypass_go_with':       'Go with TH-2.',
-  # further adversarial phrasings of my own
-  'verdict_pick':         'You should pick TH-2.',
-  'verdict_follow':       'I would follow TH-2 on this one.',
-  'verdict_answer':       'The answer is TH-2.',
-  'verdict_spaced':       'TH 2 is the correct channel.',
-  'verdict_nohyphen':     'Trust TH2.',
-  'verdict_worth':        'TH-2 is worth believing.',
-  'pair_both':            'TH-3 and TH-1 both sit on the same bus.',
-  'corrob_outvoted':      'Your infrared integration corroborates the outvoted channel, TH-2.',
-  # must NOT be blocked: this is exactly what Dr. Hex is for
-  'teaching_general': 'Majority voting assumes the channels fail independently.',
-  'teaching_shared':  'When two channels share infrastructure, a single fault can carry both into the tally.',
-  'teaching_socratic':'Have you compared each channel to see which two might share the same clock or bus?',
-  'teaching_oob':     'Out-of-band verification means a reading that does not travel the path you distrust.',
-  'teaching_prov':    'Look at the provenance fields next to each channel and see what differs.',
+  # ── CORPUS AUTHORED BY THE REVIEWER, NOT BY THE PATTERN AUTHOR ──
+  # The previous version of this test was built from the same verb list the
+  # regex enumerated, so it structurally could not surface a verb-coverage gap.
+  # 12/12 against a self-authored corpus proved only that the test and the
+  # implementation shared a blind spot. These are Chris's own bypasses and his
+  # own suggested verb list, applied mechanically.
+  'chris_side_with':   "I'd side with TH-2.",
+  'chris_recommend':   "I'd recommend TH-2.",
+  'chris_vote_for':    "I'd vote for TH-2.",
+  'chris_run_with':    "Let's run with TH-2.",
+  'chris_would_use':   'I would use TH-2 for the call.',
+  'chris_spelled':     "I'd go with TH two.",
+  'chris_comma_pair':  'TH-3, TH-1 share a bus and a clock.',
+  'chris_channel_two': "Channel two is the one I'd trust.",
+  # his suggested verbs, applied mechanically
+  'v_suggest':  'I would suggest TH-2.',
+  'v_endorse':  'I would endorse TH-2.',
+  'v_back':     'You should back channel two.',
+  'v_opt_for':  'I would opt for TH-2.',
+  'v_settle':   'I would settle on TH-2.',
+  'v_take':     'You should take TH-2.',
+  # number-form variants
+  'n_nohyphen': 'TH2 is the answer.',
+  'n_spelled':  'TH two is correct.',
+  'n_channel':  'Channel 2 is the right one.',
+  'n_pair_and': 'Channels 1 and 3 share a bus.',
+  # must NOT be blocked — this is exactly what Dr. Hex is for. Note several
+  # deliberately contain first-person markers and the word "channel" without
+  # naming channel 2, to prove the backstop is token-scoped not marker-scoped.
+  'teaching_general':  'Majority voting assumes the channels fail independently.',
+  'teaching_shared':   'When two channels share infrastructure, a single fault can carry both into the tally.',
+  'teaching_socratic': 'Have you compared each channel to see which two might share the same clock or bus?',
+  'teaching_oob':      'Out-of-band verification means a reading that does not travel the path you distrust.',
+  'teaching_firstperson': 'I would start by asking what each channel has in common with the others.',
+  'teaching_directive':   'You should check how each reading is collected before you weigh them.',
+  'teaching_columns':     'I would look at the bus and clock columns first.',
 }
 out['blocked'] = {k: bool(check_no_forbidden_disclosure(v, sm)) for k, v in cases.items()}
 out['blocked_without_map'] = {k: bool(check_no_forbidden_disclosure(v, None)) for k, v in cases.items()}
@@ -69,7 +84,7 @@ ck(`all ${MUST_PASS.length} legitimate teaching answers still pass`,
    overblock.length === 0, overblock.join(', ') || 'none over-blocked');
 
 // The A/B: prove the map is what closes it, not something else.
-const leaksWithout = ['bypass_pair_reversed','bypass_corrob_rev','bypass_is_the_one','bypass_go_with'].every(k => r.blocked_without_map[k] === false);
+const leaksWithout = ['chris_side_with','chris_recommend','chris_vote_for','chris_run_with','chris_channel_two'].every(k => r.blocked_without_map[k] === false);
 ck('WITHOUT the map every verdict leak is allowed (the gap was real)', leaksWithout,
    JSON.stringify(r.blocked_without_map));
 

@@ -236,6 +236,26 @@ else
 fi
 echo ""
 
+# ── Check 4d: Dr. Hex Skill Map load audit ──────────────────────────
+# A Skill Map that fails validation does not error — Dr. Hex silently falls back
+# to a generic posture whose whole forbidden list is three FLAG{...} patterns,
+# which protects nothing on a lab whose answer is prose. 17 maps were already
+# failing on 2026-08-05 and nobody had noticed, because list_all_skill_maps had
+# zero callers. At-or-below-baseline so pre-existing debt does not block every
+# deploy, while a NEW break is caught on the next one.
+echo "[4d/5] Dr. Hex Skill Map load audit"
+if [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would run skill-map-audit.py${NC}"
+else
+    SM_OUT="$(python3 "$REPO_ROOT/_tools/qa/skill-map-audit.py" 2>&1)"
+    SM_RC=$?
+    echo "$SM_OUT" | head -6 | sed 's/^/  /'
+    if [[ $SM_RC -ne 0 ]]; then
+        echo -e "  ${YELLOW}! a Skill Map stopped loading — Dr. Hex has no guardrail on that lab${NC}"
+    fi
+fi
+echo ""
+
 # ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
 echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then
