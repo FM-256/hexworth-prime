@@ -19,7 +19,7 @@
     the 2-of-3 vote returns ~41.3 nominal and is WRONG, because TH-1 and TH-3
     share a bus, a clock source and a signing authority. One source wearing two
     hats. Its lesson is "corroboration is not consensus", and it explicitly
-    warns against "spot the outlier" — TH-2 IS the outlier and IS correct.
+    warns against "spot the outlier": TH-2 IS the outlier and IS correct.
 
     THIS FILE IS NOT THAT MISSION AND MUST NOT BE TITLED AS IT. It is the
     physical corroboration step the box asks for and cannot perform from a
@@ -209,6 +209,40 @@
   #eid .msg{color:#d8f2fb}
   #eid .conf{font-size:10px;color:var(--cyan-dim);margin-top:6px;letter-spacing:.08em}
 
+  /* ── DR. HEX — the OUT-OF-FICTION coaching layer ──────────────────────
+     Canon: "Dr. Hex never speaks in fiction and never appears inside a mission
+     interface", and "the two must be visually unmistakable. Two helpful voices
+     in the same visual register will be conflated, and the conflation will be
+     blamed on EIDOLON."
+     So this deliberately breaks every convention EIDOLON uses: warm parchment
+     instead of cold blue, solid instead of translucent, square instead of the
+     comms panel's left-rule, and it sits on the OPPOSITE side of the screen.  */
+  #hex{position:fixed;right:18px;top:50%;transform:translateY(-50%);
+    z-index:40;width:min(430px,80vw);
+    background:#f4ead6;color:#2a2318;border:2px solid #8a6b2f;border-radius:2px;
+    padding:14px 16px;font-size:12.5px;line-height:1.62;display:none;
+    box-shadow:0 10px 40px rgba(0,0,0,.6);pointer-events:auto}
+  #hex.show{display:block}
+  #hex .who{font-size:9.5px;letter-spacing:.22em;color:#8a6b2f;
+    text-transform:uppercase;margin-bottom:7px;font-weight:700;
+    border-bottom:1px solid rgba(138,107,47,.35);padding-bottom:5px}
+  #hex .tier{font-size:10px;letter-spacing:.1em;color:#7a6238;margin-top:9px;
+    border-top:1px solid rgba(138,107,47,.3);padding-top:7px}
+  #hex .more{color:#6b4f1c;font-weight:700}
+  #hex .close{position:absolute;top:9px;right:11px;cursor:pointer;
+    color:#8a6b2f;font-size:14px;line-height:1;border:0;background:none;
+    font-family:var(--mono)}
+
+  /* persistent control legend — the keys used to appear once on the boot
+     screen and vanish the moment the player started flying */
+  #keys{position:fixed;left:14px;bottom:152px;z-index:22;font-size:10px;
+    letter-spacing:.06em;color:var(--cyan-dim);background:var(--panel);
+    border:1px solid var(--edge);border-radius:3px;padding:7px 11px;
+    line-height:1.7;backdrop-filter:blur(3px);pointer-events:none}
+  #keys b{color:var(--cyan);font-weight:600}
+  #keys .h{color:var(--amber)}
+  @media (max-width:900px){ #keys{display:none} }
+
   /* thermal overlay */
   #irOv{position:fixed;inset:0;pointer-events:none;z-index:15;display:none}
   #irOv .scan{position:absolute;inset:0;
@@ -379,6 +413,23 @@
     <div class="msg" id="eidMsg"></div>
     <div class="conf" id="eidConf"></div>
   </div>
+</div>
+
+<!-- Dr. Hex: OUT OF FICTION. Deliberately outside #hud (which is
+     pointer-events:none) so its close button is clickable, and deliberately in a
+     warm parchment register that shares nothing with EIDOLON's comms panel. -->
+<div id="hex">
+  <button class="close" id="hexClose" aria-label="Close coaching">&times;</button>
+  <div class="who">Dr. Hex &middot; coaching &middot; out of fiction</div>
+  <div class="msg" id="hexMsg"></div>
+  <div class="tier" id="hexTier"></div>
+</div>
+
+<!-- persistent control legend -->
+<div id="keys">
+  <b>WASD</b> move &middot; <b>SPACE/CTRL</b> up &amp; down &middot; <b>SHIFT</b> boost<br>
+  <b>MOUSE</b> aim &middot; <b>X</b> stop &middot; <b>V</b> heat camera &middot; <b>F</b> hold to read<br>
+  <span class="h"><b>H</b> stuck? coaching</span>
 </div>
 
 <!-- thermal overlay chrome -->
@@ -1247,7 +1298,18 @@ addEventListener('keydown', e=>{
   if(k===' ') e.preventDefault();
   if(k==='v') toggleThermal();
   if(k==='x') killRel();
-  if(k==='escape' && document.pointerLockElement) document.exitPointerLock();
+  if(k==='h'){
+    e.preventDefault();
+    showHex();
+    // Release the mouse so the panel can actually be read and dismissed. Asking
+    // for help while the cursor is captured otherwise leaves the close button
+    // unclickable, which is its own small confusion.
+    if(document.pointerLockElement) document.exitPointerLock();
+  }
+  if(k==='escape'){
+    hideHex();
+    if(document.pointerLockElement) document.exitPointerLock();
+  }
 });
 addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
 addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
@@ -1456,6 +1518,120 @@ function eidolon(msg, conf, hold=6200){
   eidolon._t = setTimeout(()=> $('eid').classList.remove('show'), hold);
 }
 
+/* ==========================================================================
+   DR. HEX  —  the out-of-fiction coaching layer.
+
+   Canon (Master Design v1.1, "Hint architecture: EIDOLON and Dr. Hex"):
+     "What should I do next"  -> Dr. Hex, out of fiction, tiered, visually distinct
+     "I am stuck"             -> Dr. Hex, escalating tiers:
+                                   1. restate objective
+                                   2. name the unexamined interface
+                                   3. name the artifact
+     "Dr. Hex never speaks in fiction and never appears inside a mission interface."
+     "Hint tier consumed is logged and reduces Decision Discipline by a stated
+      amount rather than an unstated one."
+
+   EIDOLON is deliberately unhelpful — it is a competent operator on corrupted
+   inputs and that boundary is the lesson. Shipping EIDOLON without this layer
+   left a player with a talking character who refuses to explain and nothing
+   else, which is exactly the confusion the design predicts: "Players will ask
+   EIDOLON for help first, because it is in front of them and it talks."
+
+   The cost is STATED, never silent. Tiers reset per objective, so asking for
+   help on flying does not spend your budget on the incident call.
+   ========================================================================== */
+const HINT_COST = [0, 3, 6, 10];        // index by tier; stated to the player
+const HINTS = {
+  approach: [
+    'Objective one is to close to within 40 metres of ASTRAEA-9. Your current ' +
+    'range is the RANGE readout at top left, and it should be falling.',
+
+    'You have thrust but no brakes and no friction. W fires the forward thruster ' +
+    'and you keep that speed until you cancel it — S thrusts backward, and X ' +
+    'cancels all drift in one press. The station is the lit structure ahead of you.',
+
+    'Point the centre of the screen at the station, tap W two or three times, and ' +
+    'watch RANGE fall. When it reads under about 60, press X to stop. Your ' +
+    'commands take roughly 0.6 seconds to arrive, so burn early and be patient.'
+  ],
+  ir: [
+    'Objective two is to switch to the infrared camera.',
+
+    'This is a sensor mode on your vehicle, not an action in the world. Nothing ' +
+    'out there changes when you use it — only what you can see changes.',
+
+    'Press V. The scene recolours to a heat palette, and one radiator panel will ' +
+    'read far brighter than the other three. Press V again to go back to optical.'
+  ],
+  scan: [
+    'Objective three is to take an infrared reading from all four radiator panels.',
+
+    'The radiators are the flat rectangular panels standing above each of the four ' +
+    'modules. You must be within about 60 metres and the panel must be near the ' +
+    'centre of your view for the sensor to hold it. The reticle turns amber and ' +
+    'names the panel when you have one.',
+
+    'With a panel centred, hold F until the IR INTEGRATION bar fills, then release. ' +
+    'Do that for all four. Three will agree with their telemetry; one will not, and ' +
+    'that one is HELIOS-7.'
+  ],
+  decide: [
+    'Objective four is to file which thermal channel the containment decision ' +
+    'should follow.',
+
+    'Compare the reading you took yourself against the three channels listed at ' +
+    'bottom left. Look at the small grey text next to each one: it names the bus ' +
+    'and the clock each channel arrives on. Two of the three match.',
+
+    'TH-1 and TH-3 both arrive on bus-a under PLAT-CLK-A, so their agreement is ' +
+    'one source counted twice, not two independent votes. Your own infrared ' +
+    'reading agrees with TH-2, and it crossed none of the platform buses. File ' +
+    'TH-2 corroborated by your own reading — not TH-2 because it is the odd one out.'
+  ]
+};
+
+let hintPhase = null, hintTier = 0;
+state.hintsUsed = 0;
+state.discipline = 100;
+
+// Which objective is the player actually on right now.
+function currentPhase(){
+  if(!state.obj1) return 'approach';
+  if(!state.obj2) return 'ir';
+  if(!state.obj3) return 'scan';
+  return 'decide';
+}
+
+function showHex(){
+  if(!state.running && !state.decided) return;
+  const phase = currentPhase();
+  if(phase !== hintPhase){ hintPhase = phase; hintTier = 0; }   // tiers are per objective
+
+  if(hintTier >= 3){                       // already at the deepest tier
+    $('hexTier').innerHTML =
+      'Tier 3 of 3 — this is as specific as the coaching gets. ' +
+      `Decision discipline this run: <b>${state.discipline}</b>.`;
+    $('hex').classList.add('show');
+    return;
+  }
+
+  hintTier++;
+  state.hintsUsed++;
+  const cost = HINT_COST[hintTier];
+  state.discipline = Math.max(0, state.discipline - cost);
+
+  $('hexMsg').textContent = HINTS[phase][hintTier - 1];
+  $('hexTier').innerHTML =
+    `Tier ${hintTier} of 3 &middot; decision discipline &minus;${cost}, now ` +
+    `<b>${state.discipline}</b>` +
+    (hintTier < 3 ? ' &middot; <span class="more">press [H] again for a more specific hint</span>' : '');
+  $('hex').classList.add('show');
+  Audio.blip(520, 0.07, 'sine', 0.07);
+}
+
+function hideHex(){ $('hex').classList.remove('show'); }
+$('hexClose').onclick = hideHex;
+
 function completeObjective(n){
   if(state['obj'+n]) return;
   state['obj'+n] = true;
@@ -1612,6 +1788,7 @@ function openDecision(){
     b.onclick = ()=> decide(o.k);
     box.appendChild(b);
   });
+  hideHex();                  // the modal would otherwise bury an open coaching panel
   $('dec').classList.add('show');
   if(document.pointerLockElement) document.exitPointerLock();
 }
@@ -1706,6 +1883,9 @@ function endMission(win, reason){
 
   S.innerHTML = `
     <div class="stat"><span>Panels integrated</span><span>${state.scanned.size} / ${NODES.length}</span></div>
+    <div class="stat"><span>Decision discipline</span><span>${state.discipline} / 100${
+      state.hintsUsed ? ` (${state.hintsUsed} hint${state.hintsUsed>1?'s':''} taken)` : ' (no hints taken)'
+    }</span></div>
     <div class="stat"><span>Mission time</span><span>${Math.floor(secs/60)}m ${String(Math.floor(secs%60)).padStart(2,'0')}s</span></div>
     <div class="stat"><span>RCS remaining</span><span>${ship.fuel.toFixed(0)}%</span></div>
     <div class="stat"><span>Hull integrity</span><span>${ship.hull.toFixed(0)}%</span></div>`;
@@ -1754,6 +1934,14 @@ $('againBtn').onclick = ()=> location.reload();
    15.  BOOT SEQUENCE
    ========================================================================== */
 const BOOT_LINES = [
+  // Plain language FIRST. The brief used to open on TH-1 / bus-a / PLAT-CLK-A,
+  // which is the evidence, not the job. A player who does not yet know they are
+  // flying a drone at a radiator cannot parse a clock-source argument.
+  ['<span class="a">YOU ARE FLYING A REPAIR DRONE AT A SPACE STATION.</span>', ''],
+  ['Its own sensors disagree about how hot one part is. You are going to', ''],
+  ['fly out and look at that part with a heat camera, and settle it.', ''],
+  ['<span class="c">Stuck at any point, press [H] for coaching.</span>', ''],
+  ['', ''],
   ['TERRAN MISSION OPERATIONS CENTER &middot; JACKSONVILLE FL', 'c'],
   ['Operator certificate ....................... <span class="g">ACCEPTED</span>', ''],
   ['Ground station handshake ................... <span class="g">LOCKED</span>', ''],
@@ -1906,7 +2094,16 @@ if(new URLSearchParams(location.search).get('qa') === '1' &&
    QA_HOSTS.includes(location.hostname)){
   window.__COLD_HORIZON_QA__ = {
     ship, state, NODES, camera, radiators,
-    toggleThermal, decide, basis,
+    toggleThermal, decide, basis, showHex, hideHex,
+    hexState(){ return {
+      open: document.getElementById('hex').classList.contains('show'),
+      phase: hintPhase, tier: hintTier,
+      hintsUsed: state.hintsUsed, discipline: state.discipline,
+      msg: document.getElementById('hexMsg').textContent,
+      // proof the two voices are in different visual registers
+      hexBg: getComputedStyle(document.getElementById('hex')).backgroundColor,
+      eidBg: getComputedStyle(document.getElementById('eid')).backgroundColor,
+    }; },
     // Place the RSV a fixed standoff from a named panel and point at it, so a
     // test can reach the scan state without flying for two minutes.
     aimAt(nodeId, standoff=22){

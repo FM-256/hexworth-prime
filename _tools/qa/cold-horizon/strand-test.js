@@ -39,7 +39,12 @@ const s=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);
    await new Promise(r=>setTimeout(r,1000));
    last = await p.evaluate(()=>window.__COLD_HORIZON_QA__.snapshot());
    samples.push(last.range);
-   if(last.range <= 40) break;
+   // Wait for the RECALL to report complete, not for a range threshold.
+   // stepShip evaluates rangeNow BEFORE integrating position, so a snapshot read
+   // after the move can show range <= 40 a full frame before the re-service
+   // branch runs. Breaking on range raced that by one frame and intermittently
+   // read fuel:0 / recalling:true. `recalling === false` is the real signal.
+   if(last.recalling === false && last.range <= 45) break;
  }
  const recallSeen = samples.length>1;
  console.log('range trace:', samples.map(n=>Math.round(n)).join(' -> '));
