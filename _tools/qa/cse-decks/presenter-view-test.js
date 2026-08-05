@@ -45,6 +45,17 @@ const cur = pg => pg.evaluate(()=>[...document.querySelectorAll('.slide')].findI
 {const src=fs.readFileSync('/home/eq/ai-content/hexworth-prime/_app/houses/cloud/cse/instructor/cse-lecture-ch1.html','utf8');
   ck('deck still carries AccessGuard.require (not weakened by this work)',
      src.includes("AccessGuard.require('instructor')"));}
+ // HTML WELL-FORMEDNESS. 18/18 passed with an orphaned </div> in the body,
+ // because browsers silently drop a stray end tag — the DOM was right at
+ // runtime while the source was not. This file is about to be copied into 8
+ // chapters, so the malformed structure would have been copied 8 times.
+ {const src=fs.readFileSync('/home/eq/ai-content/hexworth-prime/_app/houses/cloud/cse/instructor/cse-lecture-ch1.html','utf8');
+  let body=src.slice(src.indexOf('<body>'), src.indexOf('</body>'));
+  body=body.replace(/<script[\s\S]*?<\/script>/g,'').replace(/<!--[\s\S]*?-->/g,'');
+  const o=(body.match(/<div\b/g)||[]).length, c=(body.match(/<\/div>/g)||[]).length;
+  const so=(body.match(/<section\b/g)||[]).length, sc=(body.match(/<\/section>/g)||[]).length;
+  ck('body div tags balance', o===c, `open=${o} close=${c}`);
+  ck('body section tags balance', so===sc, `open=${so} close=${sc}`);}
  const total=await deck.evaluate(()=>document.querySelectorAll('.slide').length);
  ck('deck loads and finds slides', total>0, 'slides='+total);
 
