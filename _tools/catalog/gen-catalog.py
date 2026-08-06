@@ -57,6 +57,11 @@ SCRIPT_EXT = {'.js', '.py', '.sh', '.mjs', '.cjs'}
 SKIP_DIRS = {
     'node_modules', '.git', '__pycache__', 'reports', '.cache', 'venv', '.venv',
     'dist', 'build', 'coverage', '_backups',
+    # Archived scripts still EXIST -- we do not destroy -- but they are deliberately out of
+    # the live tree, so counting them as live orphans would mean the orphan number never
+    # falls no matter how much tidying happens, and the archive would keep re-appearing as
+    # a candidate for archiving.
+    '_archive',
 }
 
 # A script named in one of these is GATE-wired: it runs without anyone choosing to run it.

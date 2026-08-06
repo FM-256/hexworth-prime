@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-06 18:54 · **1121 scripts** · 12 wired into a gate · 239 called by other code · 144 only mentioned in docs · 726 referenced by nothing · 533 not in git
+**Generated:** 2026-08-06 18:58 · **1039 scripts** · 12 wired into a gate · 237 called by other code · 145 only mentioned in docs · 645 referenced by nothing · 464 not in git
 
 ## Read this before writing a new script
 
@@ -52,48 +52,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Everything else, by directory
 
-### `_tools` — 128 scripts, 111 referenced by nothing
+### `_tools` — 92 scripts, 75 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_chris-flux-404-check.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-flux-qc.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-imagery-qc.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-navbrand-crop.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-overflow-check.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-overflow-verify.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-reveal-timing.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-subhead-check.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-tagline-final.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-tagline-zoom.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-tagline-zoom2.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris-tmp-extra-test.js` | ORPHAN | 0 | 2026-07-11 | no | _one-shot probe (leading underscore)_ |
-| `_chris_debug_tmp.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_interactivity.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_interactivity_quiz.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_playtest_tmp.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_qc_temp.js` | ORPHAN | 0 | 2026-07-21 | no | _one-shot probe (leading underscore)_ |
-| `_chris_qc_temp2.js` | ORPHAN | 0 | 2026-07-21 | no | _one-shot probe (leading underscore)_ |
-| `_chris_reverify.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_reverify_shot.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test1.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test2.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test3_play.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test4_overlays.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test5_natural_lose.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_tmp_test6_stage2_announce.js` | ORPHAN | 0 | 2026-07-19 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_final.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_final2.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_quiz320.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_scroll.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_shots.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_shots2.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_tmp.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_chris_verify_zoom.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_tmp_verify_darkarts.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
-| `_tmp_verify_f1_tabs.js` | ORPHAN | 0 | 2026-07-20 | no | _one-shot probe (leading underscore)_ |
 | `a11y-audit.js` | CALLED | 1 | 2026-03-11 | yes |  |
-| `ai900-ch01-honest-button-test.js` | CALLED | 2 | 2026-07-11 | yes |  |
+| `ai900-ch01-honest-button-test.js` | CALLED | 1 | 2026-07-11 | yes |  |
 | `apply-fixes.js` | ORPHAN | 0 | 2026-02-06 | yes |  |
 | `armbash-honesty-seq-test.js` | DOCS-ONLY | 0 | 2026-07-22 | yes |  |
 | `armbash-honesty-test.js` | DOCS-ONLY | 0 | 2026-07-22 | yes |  |
@@ -206,18 +170,16 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scrape-mslearn.py` | CALLED | 1 | 2026-03-28 | yes |  |
 
-### `_tools/aplus-qc` — 2 scripts, 2 referenced by nothing
+### `_tools/aplus-qc` — 1 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_soho_diag.mjs` | ORPHAN | 0 | 2026-07-04 | no | _one-shot probe (leading underscore)_ |
 | `render-health.mjs` | ORPHAN | 0 | 2026-07-04 | no |  |
 
-### `_tools/arcade-fixes` — 41 scripts, 21 referenced by nothing
+### `_tools/arcade-fixes` — 40 scripts, 20 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_markcomplete-probe.js` | ORPHAN | 0 | 2026-07-04 | no | _one-shot probe (leading underscore)_ |
 | `ad-attack-path-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `api-interceptor-owasp-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `aplus-cloud-scenarios-check.js` | CALLED | 3 | 2026-07-04 | yes |  |
@@ -318,19 +280,16 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `seed-quiz-explanations.js` | DOCS-ONLY | 0 | 2026-06-15 | no |  |
 
-### `_tools/diagnostics/tenant-analytics` — 15 scripts, 5 referenced by nothing
+### `_tools/diagnostics/tenant-analytics` — 12 scripts, 2 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_diag_ala_overflow_check.js` | ORPHAN | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
-| `_diag_compute_sim.js` | ORPHAN | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_tenant_progress_universe.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_tnt_localstorage_wsa.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_tnt_wsa_locate.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_tnt_wsa_progresskey.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_wsa_backfill_dryrun.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
-| `_diag_wsa_byname.js` | ORPHAN | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
-| `_diag_wsa_dataintegrity.js` | ORPHAN | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_wsa_survey.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `_diag_wsa_why.js` | DOCS-ONLY | 0 | 2026-06-14 | no | _one-shot probe (leading underscore)_ |
 | `ala-class-backfill.js` | ORPHAN | 0 | 2026-06-17 | yes |  |
@@ -501,47 +460,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `json.js` | DOCS-ONLY | 0 | 2026-02-06 | yes |  |
 | `markdown.js` | DOCS-ONLY | 0 | 2026-02-13 | yes |  |
 
-### `_tools/eduscan/smoke` — 92 scripts, 74 referenced by nothing
+### `_tools/eduscan/smoke` — 56 scripts, 38 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_bird-flap-check.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_bird-frames.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_bird-poses.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_bird-where.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_bug074-lane-verify.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_card-zoom.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_dbg-art.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_dbg-tmp.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_dbg2.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_deck-exit-check.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_fbauth-window-check.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_guardfix-render-check.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_hub-env-shot.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_hub-env-shot2.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_hub-motion-check.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_hub-qc-sweep.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_incubator-card-verify.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_items-shot.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_label-plate-check.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_lexical-window-measure.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_mp-complete-check.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_mp-repro.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp2.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp3.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp4.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp5.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_nancy_check_tmp6.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_preview-cold-open.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_preview-guard-verify.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_preview-route-check.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_qc-states.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_secops-path-render.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
-| `_serve-app.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
 | `_storm-check.js` | CALLED | 1 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_storm-contrast.js` | ORPHAN | 0 | 2026-07-31 | yes | _one-shot probe (leading underscore)_ |
-| `_which-art.js` | ORPHAN | 0 | 2026-07-31 | no | _one-shot probe (leading underscore)_ |
 | `achievement-unlock-probe.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
 | `api-backlink-verify.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `api-progress-verify.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
@@ -762,19 +685,17 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `test_tool_integration.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `test_tools_registry.py` | DOCS-ONLY | 0 | 2026-05-25 | yes |  |
 
-### `_tools/hexclass/orchestrator/tools` — 17 scripts, 4 referenced by nothing
+### `_tools/hexclass/orchestrator/tools` — 15 scripts, 2 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `__init__.py` | CALLED | 1 | 2026-05-25 | yes | _one-shot probe (leading underscore)_ |
-| `_honeypot.py` | ORPHAN | 0 | 2026-05-25 | yes | _one-shot probe (leading underscore)_ |
-| `_house_activity.py` | ORPHAN | 0 | 2026-05-25 | yes | _one-shot probe (leading underscore)_ |
 | `_kb.py` | DOCS-ONLY | 0 | 2026-05-24 | yes | _one-shot probe (leading underscore)_ |
 | `_meta.py` | DOCS-ONLY | 0 | 2026-05-24 | yes | _one-shot probe (leading underscore)_ |
-| `_prereq.py` | CALLED | 1 | 2026-05-25 | yes | _one-shot probe (leading underscore)_ |
-| `_progress.py` | CALLED | 3 | 2026-05-24 | yes | _one-shot probe (leading underscore)_ |
+| `_prereq.py` | DOCS-ONLY | 0 | 2026-05-25 | yes | _one-shot probe (leading underscore)_ |
+| `_progress.py` | CALLED | 2 | 2026-05-24 | yes | _one-shot probe (leading underscore)_ |
 | `audit.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
-| `dispatch.py` | CALLED | 3 | 2026-05-24 | yes |  |
+| `dispatch.py` | CALLED | 2 | 2026-05-24 | yes |  |
 | `error_sanitizer.py` | ORPHAN | 0 | 2026-05-24 | yes |  |
 | `exposure.py` | CALLED | 1 | 2026-05-24 | yes |  |
 | `output_filter.py` | ORPHAN | 0 | 2026-05-25 | yes |  |
@@ -892,13 +813,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `check-bc1.sh` | CALLED | 1 | 2026-07-11 | yes |  |
 | `check-peer.sh` | CALLED | 2 | 2026-07-11 | yes |  |
 
-### `_tools/nexus` — 6 scripts, 1 referenced by nothing
+### `_tools/nexus` — 5 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_e2e_test_cat002.js` | DOCS-ONLY | 0 | 2026-04-29 | yes | _one-shot probe (leading underscore)_ |
-| `_marathon_check_item.js` | CALLED | 1 | 2026-04-30 | yes | _one-shot probe (leading underscore)_ |
-| `_marathon_drain_group.sh` | ORPHAN | 0 | 2026-04-30 | yes | _one-shot probe (leading underscore)_ |
+| `_marathon_check_item.js` | ORPHAN | 0 | 2026-04-30 | yes | _one-shot probe (leading underscore)_ |
 | `autofix-cli.js` | DOCS-ONLY | 0 | 2026-04-29 | yes |  |
 | `hub.js` | CALLED | 3 | 2026-05-09 | yes |  |
 | `publish.js` | CALLED | 4 | 2026-05-17 | yes |  |
@@ -946,17 +866,17 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `chris-agree-check.js` | ORPHAN | 0 | 2026-07-06 | no |  |
 | `chris-decline-check.js` | ORPHAN | 0 | 2026-07-06 | no |  |
 | `consent-decline-check.js` | DOCS-ONLY | 0 | 2026-07-06 | yes |  |
-| `fstree-roots.js` | CALLED | 2 | 2026-07-05 | yes |  |
+| `fstree-roots.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `inject-smoke.js` | ORPHAN | 0 | 2026-07-05 | yes |  |
 | `inject-telemetry.js` | DOCS-ONLY | 0 | 2026-07-05 | yes |  |
 | `lab-wire-smoke.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `mission-panel-smoke.js` | ORPHAN | 0 | 2026-07-09 | yes |  |
-| `obs-tab-qc.js` | CALLED | 2 | 2026-07-10 | yes |  |
+| `obs-tab-qc.js` | CALLED | 1 | 2026-07-10 | yes |  |
 | `reconsent-check.js` | DOCS-ONLY | 0 | 2026-07-06 | yes |  |
-| `recrawl-6-roots.js` | CALLED | 2 | 2026-07-05 | yes |  |
+| `recrawl-6-roots.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `render-dashboard.js` | ORPHAN | 0 | 2026-07-05 | yes |  |
 | `sandbox-card-smoke.js` | CALLED | 1 | 2026-07-09 | yes |  |
-| `telemetry-check.js` | CALLED | 2 | 2026-07-05 | yes |  |
+| `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
 ### `_tools/openstack-bridge` — 23 scripts, 10 referenced by nothing
@@ -1033,12 +953,10 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `html-nesting.js` | ORPHAN | 0 | 2026-08-05 | no |  |
 | `presenter-view-test.js` | DOCS-ONLY | 0 | 2026-08-06 | yes |  |
 
-### `_tools/qc-scratch` — 3 scripts, 3 referenced by nothing
+### `_tools/qc-scratch` — 1 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_qc_fph.js` | ORPHAN | 0 | 2026-06-25 | no | _one-shot probe (leading underscore)_ |
-| `_qc_fph_realclick.js` | ORPHAN | 0 | 2026-06-25 | no | _one-shot probe (leading underscore)_ |
 | `qc-cpu-lab.js` | ORPHAN | 0 | 2026-06-25 | no |  |
 
 ### `_tools/quiz` — 6 scripts, 3 referenced by nothing
@@ -1373,7 +1291,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `apply-catalog-mask.py` | ORPHAN | 0 | 2026-07-09 | yes |  |
 | `apply-mission-engine.py` | ORPHAN | 0 | 2026-07-09 | yes |  |
 | `apply-missions-endpoint.py` | DOCS-ONLY | 0 | 2026-07-09 | yes |  |
-| `missions.js` | CALLED | 4 | 2026-07-09 | yes |  |
+| `missions.js` | CALLED | 3 | 2026-07-09 | yes |  |
 
 ### `_tools/sandbox-missions/less-readingroom` — 3 scripts, 3 referenced by nothing
 
@@ -1758,72 +1676,33 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-103 scripts are referenced by nothing AND follow the leading-underscore
+22 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
 being mistaken for working tooling; the files keep existing. Read one before moving
 it — a leading underscore is a naming convention, not evidence that a script is dead.
 
-- `_tools/_chris-flux-404-check.js` · last modified 2026-07-19
-- `_tools/_chris-flux-qc.js` · last modified 2026-07-19
-- `_tools/_chris-imagery-qc.js` · last modified 2026-07-19
-- `_tools/_chris-navbrand-crop.js` · last modified 2026-07-19
-- `_tools/_chris-overflow-check.js` · last modified 2026-07-19
-- `_tools/_chris-overflow-verify.js` · last modified 2026-07-19
-- `_tools/_chris-reveal-timing.js` · last modified 2026-07-19
-- `_tools/_chris-subhead-check.js` · last modified 2026-07-19
-- `_tools/_chris-tagline-final.js` · last modified 2026-07-19
-- `_tools/_chris-tagline-zoom.js` · last modified 2026-07-19
-- `_tools/_chris-tagline-zoom2.js` · last modified 2026-07-19
-- `_tools/_chris-tmp-extra-test.js` · last modified 2026-07-11
-- `_tools/_chris_debug_tmp.js` · last modified 2026-07-20
-- `_tools/_chris_interactivity.js` · last modified 2026-07-20
-- `_tools/_chris_interactivity_quiz.js` · last modified 2026-07-20
-- `_tools/_chris_playtest_tmp.js` · last modified 2026-07-20
-- `_tools/_chris_qc_temp.js` · last modified 2026-07-21
-- `_tools/_chris_qc_temp2.js` · last modified 2026-07-21
-- `_tools/_chris_reverify.js` · last modified 2026-07-20
-- `_tools/_chris_reverify_shot.js` · last modified 2026-07-20
-- `_tools/_chris_tmp_test1.js` · last modified 2026-07-19
-- `_tools/_chris_tmp_test2.js` · last modified 2026-07-19
-- `_tools/_chris_tmp_test3_play.js` · last modified 2026-07-19
-- `_tools/_chris_tmp_test4_overlays.js` · last modified 2026-07-19
-- `_tools/_chris_tmp_test5_natural_lose.js` · last modified 2026-07-19
-- `_tools/_chris_tmp_test6_stage2_announce.js` · last modified 2026-07-19
-- `_tools/_chris_verify_final.js` · last modified 2026-07-20
-- `_tools/_chris_verify_final2.js` · last modified 2026-07-20
-- `_tools/_chris_verify_quiz320.js` · last modified 2026-07-20
-- `_tools/_chris_verify_scroll.js` · last modified 2026-07-20
-- `_tools/_chris_verify_shots.js` · last modified 2026-07-20
-- `_tools/_chris_verify_shots2.js` · last modified 2026-07-20
-- `_tools/_chris_verify_tmp.js` · last modified 2026-07-20
-- `_tools/_chris_verify_zoom.js` · last modified 2026-07-20
-- `_tools/_tmp_verify_darkarts.js` · last modified 2026-07-20
-- `_tools/_tmp_verify_f1_tabs.js` · last modified 2026-07-20
-- `_tools/aplus-qc/_soho_diag.mjs` · last modified 2026-07-04
-- `_tools/arcade-fixes/_markcomplete-probe.js` · last modified 2026-07-04
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
-- `_tools/diagnostics/tenant-analytics/_diag_compute_sim.js` · last modified 2026-06-14
-- `_tools/diagnostics/tenant-analytics/_diag_wsa_byname.js` · last modified 2026-06-14
-- `_tools/diagnostics/tenant-analytics/_diag_wsa_dataintegrity.js` · last modified 2026-06-14
-- `_tools/eduscan/smoke/_bird-flap-check.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_bird-frames.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_bird-poses.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_bird-where.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_bug074-lane-verify.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_card-zoom.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_dbg-art.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_dbg-tmp.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_dbg2.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_deck-exit-check.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_fbauth-window-check.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_guardfix-render-check.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_hub-env-shot.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_hub-env-shot2.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_hub-motion-check.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_hub-qc-sweep.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_incubator-card-verify.js` · last modified 2026-07-31
-- `_tools/eduscan/smoke/_items-shot.js` · last modified 2026-07-31
-- _...and 43 more_
+- `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
+- `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/cat-lost-notes/_test-checks.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/cat-lost-notes/_test-solution.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/cd-breadcrumbs/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/chmod-lockdown/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/chown-handover/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/cpmv-relocation/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/find-sweep/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/grep-investigation/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/headtail-logwatch/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/ip-linecheck/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/less-readingroom/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/ls-first-inventory/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/mkdir-groundbreaking/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/ps-runaway/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/rm-decommission/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/sortuniq-ledger/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/systemctl-servicedesk/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/tar-timecapsule/_envcheck.sh` · last modified 2026-07-09
+- `_tools/sandbox-missions/wc-census/_envcheck.sh` · last modified 2026-07-09
 
