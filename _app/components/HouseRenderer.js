@@ -2271,7 +2271,14 @@ const HouseRenderer = (function() {
             }
         };
         script.onerror = function() {
-            panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
+            /* mount, NOT panel. This is the branch that fires on a real network failure --
+               venue wifi, an ad blocker, a deploy race between HouseRenderer.js and
+               InstructorDashboard.js -- i.e. exactly when an instructor is reaching for
+               their slides mid-class. Writing to panel here wipes the links block that is
+               panel's other child, so the dashboard failing would take the slide link down
+               with it. Caught by Chris via failure injection after I claimed in a commit
+               message that both branches were handled and had only fixed the other one. */
+            mount.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
         };
         document.body.appendChild(script);
     }
