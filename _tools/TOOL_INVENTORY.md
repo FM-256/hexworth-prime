@@ -1,6 +1,16 @@
 # Hexworth Prime — Developer Tool Inventory
 
-> Last updated: 2026-02-27
+> **This file explains WHY the big systems exist. For WHAT EXISTS and WHETHER ANYTHING
+> RUNS IT, see the generated [`_tools/CATALOG.md`](CATALOG.md)** — all 1121 scripts under
+> `_tools/`, with a derived wiring column (GATE / CALLED / DOCS-ONLY / ORPHAN) that a
+> script cannot fib about. Regenerate with `python3 _tools/catalog/gen-catalog.py`.
+>
+> The two are deliberately split. This document is narrative and hand-written, which is
+> why it describes seven systems and went five months without an update while the tree
+> grew past a thousand scripts. Do not try to list scripts here; that is the catalog's job
+> and it is generated.
+
+> Last updated: 2026-02-27 (narrative); script inventory is generated — see CATALOG.md
 
 ## Overview
 
