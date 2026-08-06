@@ -982,19 +982,40 @@ const CHAN  = 'cse-deck-' + location.pathname + '-' + PAIR;
 let bc = null, echo = false;
 try { bc = new BroadcastChannel(CHAN); } catch (e) { bc = null; }
 
-function broadcast(i) {
-    if (echo) return;
+/* force=true is used ONLY to answer a hello. The reply must go out even while the deck is
+   applying a received index, or the answer to "where are you?" is swallowed by the echo
+   guard and the presenter never learns the truth. */
+function broadcast(i, force) {
+    if (echo && !force) return;
     const msg = { i: i, from: IS_PV ? 'pv' : 'deck', t: Date.now() };
     if (bc) { try { bc.postMessage(msg); } catch (e) {} }
     // Fallback: a storage event fires in OTHER tabs of the same origin.
     try { localStorage.setItem(CHAN, JSON.stringify(msg)); } catch (e) {}
 }
 function receive(msg) {
-    if (!msg || typeof msg.i !== 'number') return;
+    if (!msg) return;
     if ((msg.from === 'pv') === IS_PV) return;   // ignore our own role
+    /* HELLO HANDSHAKE -- handled BEFORE the numeric check, which would otherwise drop it.
+       Carrying ?i= tells the presenter where the deck was AT THE MOMENT P WAS PRESSED, and
+       that is all it can do: a presenter reached any other way -- a bookmark, a hand-typed
+       URL, a reload that loses the query string -- had no index and sat on slide 1 until
+       the next advance. Chris reproduced exactly that on the WSA decks; this deck had the
+       same weakness, so the URL is now a hint and the deck is the source of truth. */
+    if (msg.hello) {
+        if (!IS_PV) broadcast(idx, true);        // only the projected deck answers
+        return;
+    }
+    if (typeof msg.i !== 'number') return;
     echo = true;                                  // apply without rebroadcasting
     show(msg.i);
     echo = false;
+}
+
+/* Ask the deck where it is. Sent by the presenter on load, after the listeners are wired. */
+function sayHello() {
+    const msg = { hello: true, from: IS_PV ? 'pv' : 'deck', t: Date.now() };
+    if (bc) { try { bc.postMessage(msg); } catch (e) {} }
+    try { localStorage.setItem(CHAN, JSON.stringify(msg)); } catch (e) {}
 }
 if (bc) bc.onmessage = e => receive(e.data);
 addEventListener('storage', e => {
@@ -1107,7 +1128,14 @@ buildChapterList();
         const c = CHAPTERS.find(x => x.n === parseInt(q.get('ch'), 10));
         if (c) at = c.start;
     }
-    if (IS_PV) { echo = true; show(at); echo = false; }
+    if (IS_PV) {
+        echo = true; show(at); echo = false;
+        /* ...then ASK, unconditionally. ?i= is only a hint -- absent on a bookmark or a
+           hand-typed presenter link, stale after a reload. Sent here, at the end of start(),
+           because bc.onmessage and the storage listener are already wired above; sending
+           before that would post the question with nothing listening for the answer. */
+        sayHello();
+    }
     else { show(at); }
 })();
 </script>
