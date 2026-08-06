@@ -35,7 +35,9 @@ const realErrs=a=>a.filter(e=>!GUARD_ABORT.test(e));
 // Deck under test. Defaults to the merged all-chapters deck; pass a path to test a
 // single chapter file instead (the seven un-merged chapters have no presenter view,
 // so only cse-lecture-ch1.html and cse-lecture.html can pass this suite).
-const DECK=process.argv[2]||'/houses/cloud/cse/instructor/cse-lecture.html';
+// The merged deck lives in the CloudMaster instructor area itself (operator ruling
+// 2026-08-06, "consolidated here"), NOT in cse/instructor/ where its source chapters are.
+const DECK=process.argv[2]||'/houses/cloud/instructor/cse-lecture.html';
 const DECK_SRC=path.join(ROOT,DECK);
 console.log('deck under test: '+DECK+'\n');
 (async()=>{

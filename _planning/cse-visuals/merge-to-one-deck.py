@@ -39,8 +39,17 @@ import re
 import sys
 
 REPO = pathlib.Path('/home/eq/ai-content/hexworth-prime')
+
+# SOURCE chapters stay where they are; the MERGED deck is emitted into the CloudMaster
+# instructor area itself. Operator ruling 2026-08-06: "I want it consolidated here:
+# https://hexworth.com/houses/cloud/instructor/index.html" -- the instructor area is
+# where the deck belongs, not one directory over next to its own sources.
+# NOTE the depth change this causes: houses/cloud/instructor/ is THREE levels under
+# _app, where houses/cloud/cse/instructor/ was FOUR. The component <script src> paths
+# and the back-link in the top bar are re-depthed in TEMPLATE accordingly. Asset paths
+# are absolute (/assets/...) and are unaffected.
 DECKS = REPO / '_app/houses/cloud/cse/instructor'
-OUT = DECKS / 'cse-lecture.html'
+OUT = REPO / '_app/houses/cloud/instructor/cse-lecture.html'
 
 # (chapter number, on-screen chapter title). Titles are read back out of each file's
 # cover <h1> and asserted against this table, so a renamed chapter fails the build
@@ -257,16 +266,21 @@ TEMPLATE = '''<!DOCTYPE html>
         font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
     }}
 </style>
-<script src="../../../../components/FirebaseAuth.js"></script>
-<script src="../../../../components/FirestoreManager.js"></script>
-<script src="../../../../components/AccessGuard.js"></script>
+<!-- THREE levels to _app, not four: this deck lives at houses/cloud/instructor/.
+     Four levels resolves to the repo root, where components/ does not exist, and all
+     three scripts 404 -- which makes AccessGuard.require below throw and the deck
+     render ungated and broken. -->
+<script src="../../../components/FirebaseAuth.js"></script>
+<script src="../../../components/FirestoreManager.js"></script>
+<script src="../../../components/AccessGuard.js"></script>
 <script>AccessGuard.require('instructor');</script>
 </head>
 <body>
 <div class="app">
 
   <div class="bar">
-    <a href="../../instructor/index.html">&larr; Instructor Slides</a>
+    <!-- Sibling now, not two levels up: the deck sits INSIDE the instructor area. -->
+    <a href="index.html">&larr; Instructor Slides</a>
     <span class="mid">EC-Council C|CSE &middot; <span class="chap" id="chapLabel">&mdash;</span></span>
     <span class="right" id="counter"></span>
   </div>
