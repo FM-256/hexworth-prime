@@ -1022,6 +1022,46 @@ const HouseRenderer = (function() {
             }
 
             /* Instructor panel */
+            /* Per-house instructor resources, rendered above the dashboard when a house
+               passes config.instructorLinks. Absent for every house that does not. */
+            .hr-instructor-links {
+                display: grid;
+                gap: 12px;
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                margin-bottom: 26px;
+            }
+            .hr-instructor-link {
+                display: block;
+                text-decoration: none;
+                background: rgba(15, 15, 20, 0.6);
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-left: 3px solid var(--house-primary, #60a5fa);
+                border-radius: 10px;
+                padding: 16px 18px;
+                transition: border-color 0.16s ease, transform 0.16s ease;
+            }
+            .hr-instructor-link:hover {
+                border-color: var(--house-primary, #60a5fa);
+                transform: translateY(-2px);
+            }
+            .hr-instructor-link:focus-visible {
+                outline: 2px solid var(--house-primary, #60a5fa);
+                outline-offset: 2px;
+            }
+            .hr-il-name {
+                display: block;
+                font-size: 1rem;
+                font-weight: 650;
+                color: #e0e0e0;
+                margin-bottom: 4px;
+            }
+            .hr-il-desc {
+                display: block;
+                font-size: 0.8rem;
+                color: #8a8a8a;
+                line-height: 1.5;
+            }
+
             .hr-instructor-loading {
                 text-align: center;
                 padding: 60px 20px;
@@ -2170,10 +2210,49 @@ const HouseRenderer = (function() {
     // INSTRUCTOR PANEL (lazy)
     // ========================================
 
-    /** Render the Instructor tab (lazy-loads InstructorDashboard.js) */
+    /** Render the Instructor tab (lazy-loads InstructorDashboard.js)
+     *
+     *  OPTIONAL config.instructorLinks — [{href, name, desc}] — puts per-house instructor
+     *  resources at the TOP of this tab. Added 2026-08-06: the CloudMaster instructor slide
+     *  decks lived at houses/cloud/instructor/ with exactly ONE inbound link in the whole
+     *  of _app (a deck's own back-link), so an instructor could only reach their slides by
+     *  already being on them. This tab is where they look; now it says so.
+     *
+     *  Opt-in ON PURPOSE. Every house shares this component, and a house that passes no
+     *  instructorLinks takes the byte-identical code path it took before — panel is the
+     *  dashboard's own container, exactly as it was.
+     */
     function renderInstructorPanel() {
         const panel = document.getElementById('hr-panel-instructor');
-        panel.innerHTML = `
+        const links = (config && config.instructorLinks) || [];
+
+        /* InstructorDashboard.render() REPLACES its container's innerHTML, so the links
+           cannot be siblings inside the same element -- they would be wiped the moment the
+           dashboard loads. Give the dashboard its own child to own instead. */
+        let mount = panel;
+        if (links.length) {
+            const list = links.map(function (l) {
+                const a = document.createElement('a');
+                a.className = 'hr-instructor-link';
+                a.href = l.href;
+                const n = document.createElement('span');
+                n.className = 'hr-il-name';
+                n.textContent = l.name || l.href;      // textContent: config is ours, but a
+                a.appendChild(n);                       // deck title is data, not markup
+                if (l.desc) {
+                    const d = document.createElement('span');
+                    d.className = 'hr-il-desc';
+                    d.textContent = l.desc;
+                    a.appendChild(d);
+                }
+                return a.outerHTML;
+            }).join('');
+            panel.innerHTML = '<div class="hr-instructor-links">' + list + '</div>' +
+                              '<div id="hr-instructor-dash"></div>';
+            mount = document.getElementById('hr-instructor-dash');
+        }
+
+        mount.innerHTML = `
             <div class="hr-instructor-loading">
                 <div class="hr-spinner"></div>
                 <div>Loading Instructor Dashboard...</div>
@@ -2184,11 +2263,11 @@ const HouseRenderer = (function() {
         const script = document.createElement('script');
         script.src = '../../components/InstructorDashboard.js';
         script.onload = function() {
-            panel.innerHTML = '';
+            mount.innerHTML = '';
             if (typeof InstructorDashboard !== 'undefined') {
-                InstructorDashboard.init(panel);
+                InstructorDashboard.init(mount);
             } else {
-                panel.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
+                mount.innerHTML = '<div class="hr-profile-empty"><div class="hr-profile-empty-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle"></div><div class="hr-profile-empty-text">Instructor Dashboard unavailable</div></div>';
             }
         };
         script.onerror = function() {
