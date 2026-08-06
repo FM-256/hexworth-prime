@@ -842,6 +842,10 @@ show(0);
     var PAIR = pairToken();
     var CHAN = 'wsa-deck-' + location.pathname + '-' + PAIR;
     var bc = null; try { bc = new BroadcastChannel(CHAN); } catch (e) {}
+    /* Guards the obvious loop: a window that RECEIVES an index applies it without
+       rebroadcasting. Must be declared here -- sendIndex() reads it on the very first
+       render(), so an undeclared `echo` throws ReferenceError before a note ever paints. */
+    var echo = false;
 
     var panel = document.getElementById('pnotes');
     var pv2 = document.getElementById('pv2');
@@ -875,7 +879,25 @@ show(0);
                 '<div class="warn">Drag this window to your laptop screen. If your displays are ' +
                 '<b>mirrored</b> rather than <b>extended</b>, the class is reading these now.</div>';
         }
-        if (bc && !IS_PV) { try { bc.postMessage({ i: i }); } catch (e) {} }
+        if (!IS_PV) sendIndex(i);
+    }
+
+    /* Transport. BroadcastChannel with a localStorage FALLBACK -- the CSE deck has both,
+       and the first cut of this file lifted only the channel. Without the fallback, a
+       browser lacking BroadcastChannel leaves the presenter stuck on slide 1 forever,
+       silently. Chris caught the omission behind a commit message that claimed parity. */
+    function sendIndex(i, force) {
+        if (echo && !force) return;
+        var msg = { i: i, t: Date.now() };
+        if (bc) { try { bc.postMessage(msg); } catch (e) {} }
+        try { localStorage.setItem(CHAN, JSON.stringify(msg)); } catch (e) {}
+    }
+    function applyIndex(i) {
+        var all = document.querySelectorAll('.slide');
+        if (typeof i !== 'number' || !all[i]) return;
+        echo = true;                       // apply without rebroadcasting
+        [].forEach.call(all, function (s, k) { s.classList.toggle('active', k === i); });
+        echo = false;
     }
 
     /* Watch the deck's OWN class toggling rather than hooking show(). Nothing to sync. */
@@ -884,19 +906,48 @@ show(0);
         obs.observe(s, { attributes: true, attributeFilter: ['class'] });
     });
 
-    if (bc && IS_PV) {
-        bc.onmessage = function (e) {
-            var all = document.querySelectorAll('.slide');
-            if (e.data && typeof e.data.i === 'number' && all[e.data.i]) {
-                [].forEach.call(all, function (s, k) { s.classList.toggle('active', k === e.data.i); });
-            }
-        };
+    /* THE PRESENTER ASKS WHERE THE DECK IS, rather than trusting its own URL.
+       Carrying &i= fixes the P button, but a presenter opened ANY other way -- a bookmark,
+       a hand-typed URL, a reload after the query string is lost -- still sat on slide 1
+       until the next advance. Chris's reproduction did exactly that and still failed after
+       the &i= fix. So the URL is now an optimisation and the handshake is the guarantee:
+       on load the presenter broadcasts "hello", the deck answers with its real index.
+       (The CSE deck has the same URL-only weakness; noted as follow-up, not touched here.)
+
+       BOTH transports are consumed, not just the one that is written. The fallback was
+       write-only in the first cut -- setItem with no 'storage' listener -- so a browser
+       without BroadcastChannel stayed on slide 1 forever and nothing said so. */
+    function onMessage(msg) {
+        if (!msg) return;
+        if (msg.hello) {
+            // Only the projected deck answers, and it answers even while applying an echo.
+            if (!IS_PV) sendIndex(activeIndex(), true);
+            return;
+        }
+        if (IS_PV) applyIndex(msg.i);
+    }
+    if (bc) bc.onmessage = function (e) { onMessage(e.data); };
+    addEventListener('storage', function (e) {
+        if (e.key !== CHAN || !e.newValue) return;
+        try { onMessage(JSON.parse(e.newValue)); } catch (err) {}
+    });
+    function sayHello() {
+        // t makes each write distinct, so the 'storage' event fires on a repeat hello.
+        var msg = { hello: true, t: Date.now() };
+        if (bc) { try { bc.postMessage(msg); } catch (e) {} }
+        try { localStorage.setItem(CHAN, JSON.stringify(msg)); } catch (e) {}
     }
 
     document.addEventListener('keydown', function (e) {
         if (e.key === 'n' || e.key === 'N') { panel.classList.toggle('open'); }
         if ((e.key === 'p' || e.key === 'P') && !IS_PV) {
-            var url = location.pathname + '?presenter=1&pair=' + encodeURIComponent(PAIR);
+            /* CARRY THE CURRENT INDEX. Without &i=, pressing P on slide 21 opened the
+               presenter showing slide 1's notes until the next advance -- the realistic
+               mid-lecture case, and the whole reason the CSE deck carries it. The first
+               cut of this file lifted the pairing token and the mirror warning but not
+               this, behind a commit message asserting parity. */
+            var url = location.pathname + '?presenter=1&pair=' + encodeURIComponent(PAIR) +
+                      '&i=' + activeIndex();
             var w = window.open(url, 'wsa-presenter', 'width=1000,height=720');
             if (!w) { alert('The presenter window was blocked. Allow pop-ups, then press P again.'); return; }
             panel.classList.remove('open');   // never leave notes up on the projector
@@ -904,8 +955,19 @@ show(0);
         }
     });
 
-    if (IS_PV) { document.body.classList.add('wsa-presenter');
-                 document.title = 'PRESENTER \u2014 ' + document.title; }
+    if (IS_PV) {
+        document.body.classList.add('wsa-presenter');
+        document.title = 'PRESENTER \u2014 ' + document.title;
+        /* Open where the deck ACTUALLY is. Applied under the echo guard so opening the
+           presenter never yanks the projected slide. */
+        var start = parseInt(new URLSearchParams(location.search).get('i') || '', 10);
+        if (!isNaN(start)) applyIndex(start);
+        /* ...and ASK, unconditionally. The URL is only a hint: it is absent on a bookmark
+           or a hand-typed presenter link, and stale after a reload. Asking makes the deck
+           the single source of truth. Sent after the listeners above are wired, or the
+           reply would arrive before anything is listening for it. */
+        sayHello();
+    }
     render();
 })();
 </script>
