@@ -14,7 +14,12 @@ THE PROBLEM, IN THE OPERATOR'S WORDS
 
   cse-lecture-chN.html  33 content slides, 33 visuals, on-screen text is 2-3 short beats.
                         Beautiful and empty: a student who looks up learns nothing.
-  cse-companion.html    34 content slides, 236 <li> of real substance, 13 images.
+  cse-companion.html    34 content slides, 118 <li> of real substance, 13 images.
+                        (118 counted as `<li\b`. An earlier note said 236, which was the
+                        sloppy pattern `li>` matching BOTH <li> and </li> -- exactly the
+                        mistake the instructor page's own header warns about, where a
+                        loose grep once claimed 310 WSA slides against a real 89.
+                        Chris blocked the deploy over it. Count with a word boundary.)
                         Substantive and unpresentable: a wall of words on a projector.
 
   Each alone is wrong. This makes the one that is right.
@@ -96,7 +101,11 @@ def load_companion():
             continue                      # chapter divider or cover, no content to take
         # Keep the bullets' inline markup (<b>, <code>) -- it is the companion's emphasis,
         # and dropping it would be rewording by omission.
-        bullets = [x.strip() for x in re.findall(r'<li[^>]*>(.*?)</li>', part, re.S)]
+        # \b after li: without it this also matches SVG <line ...>, since "line" starts
+        # with "li". No bullet was corrupted -- none of those false starts had a closing
+        # </li> before the slide boundary -- but that is document-structure luck, not
+        # correctness. Chris found it while verifying the fold.
+        bullets = [x.strip() for x in re.findall(r'<li\b[^>]*>(.*?)</li>', part, re.S)]
         # Three slides -- "Five essential characteristics", "The threat landscape, in cloud
         # terms", "The IAM failures that actually cause breaches" -- carry their substance in
         # a two-column <table class="cmp"> (term -> consequence) and have NO <li> at all.
@@ -332,7 +341,7 @@ TEMPLATE = '''<!DOCTYPE html>
   WHAT THIS IS
     ONE asset built from BOTH existing ones, because each alone was wrong:
       cse-lecture-chN.html  gorgeous visuals, on-screen text was 2-3 short beats
-      cse-companion.html    236 bullets of real substance, no visuals, unpresentable
+      cse-companion.html    118 bullets of real substance, no visuals, unpresentable
     Every content slide here carries the chapter deck's visual AND the companion's
     bullets, side by side. The join is exact: all 33 content slides matched by title
     across the two sources. Nothing was authored, reworded or re-illustrated.
