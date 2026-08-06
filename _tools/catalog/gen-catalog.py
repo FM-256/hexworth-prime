@@ -35,7 +35,8 @@ HEADER CONVENTION (optional, opportunistic -- do NOT backfill 789 files)
   Repeat a key to add lines. Status meanings:
       GATE   something invokes it automatically; breaking it breaks a gate
       TOOL   run by hand, worth keeping and finding
-      PROBE  answered one question once; delete it rather than let it rot
+      PROBE  answered one question once; ARCHIVE it rather than let it rot -- we do not
+             destroy, we move things somewhere they stop being mistaken for live tooling
 """
 import json
 import os
@@ -311,7 +312,8 @@ def render_md(rows):
     L.append('```')
     L.append('')
     L.append('`GATE` = something invokes it automatically. `TOOL` = run by hand, worth')
-    L.append('keeping. `PROBE` = answered one question once; delete it rather than let it rot.')
+    L.append('keeping. `PROBE` = answered one question once; **archive** it rather than let it')
+    L.append('rot. We do not destroy — moving it out of the live tree is the whole remedy.')
     L.append('')
     L.append('The **Wiring** column is derived and cannot be fibbed:')
     L.append('')
@@ -357,11 +359,14 @@ def render_md(rows):
                      f"{'yes' if r['tracked'] else 'no'} | {what} |")
         L.append('')
 
-    L.append('## Deletion candidates')
+    L.append('## Archive candidates')
     L.append('')
     L.append(f'{len(probes)} scripts are referenced by nothing AND follow the leading-underscore')
-    L.append('one-shot convention. That is a strong signal, not a verdict — read one before')
-    L.append('removing it, and archive rather than destroy.')
+    L.append('one-shot convention. That is a strong signal, not a verdict.')
+    L.append('')
+    L.append('**These get ARCHIVED, never deleted.** Move them out of the live tree so they stop')
+    L.append('being mistaken for working tooling; the files keep existing. Read one before moving')
+    L.append('it — a leading underscore is a naming convention, not evidence that a script is dead.')
     L.append('')
     for r in sorted(probes, key=lambda r: r['path'])[:60]:
         L.append(f"- `{r['path']}` · last modified {r['mtime']}")

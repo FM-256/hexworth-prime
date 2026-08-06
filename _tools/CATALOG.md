@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-06 16:35 · **1121 scripts** · 12 wired into a gate · 239 called by other code · 144 only mentioned in docs · 726 referenced by nothing · 533 not in git
+**Generated:** 2026-08-06 18:54 · **1121 scripts** · 12 wired into a gate · 239 called by other code · 144 only mentioned in docs · 726 referenced by nothing · 533 not in git
 
 ## Read this before writing a new script
 
@@ -19,7 +19,8 @@ write one and give it a header so the next person finds it:
 ```
 
 `GATE` = something invokes it automatically. `TOOL` = run by hand, worth
-keeping. `PROBE` = answered one question once; delete it rather than let it rot.
+keeping. `PROBE` = answered one question once; **archive** it rather than let it
+rot. We do not destroy — moving it out of the live tree is the whole remedy.
 
 The **Wiring** column is derived and cannot be fibbed:
 
@@ -1755,11 +1756,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `refresh-image-catalog.py` | ORPHAN | 0 | 2026-06-09 | yes |  |
 | `render_rich.py` | ORPHAN | 0 | 2026-06-09 | yes |  |
 
-## Deletion candidates
+## Archive candidates
 
 103 scripts are referenced by nothing AND follow the leading-underscore
-one-shot convention. That is a strong signal, not a verdict — read one before
-removing it, and archive rather than destroy.
+one-shot convention. That is a strong signal, not a verdict.
+
+**These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
+being mistaken for working tooling; the files keep existing. Read one before moving
+it — a leading underscore is a naming convention, not evidence that a script is dead.
 
 - `_tools/_chris-flux-404-check.js` · last modified 2026-07-19
 - `_tools/_chris-flux-qc.js` · last modified 2026-07-19
