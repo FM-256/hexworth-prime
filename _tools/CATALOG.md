@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-06 16:27 · **1121 scripts** · 11 wired into a gate · 239 called by other code · 144 only mentioned in docs · 727 referenced by nothing · 534 not in git
+**Generated:** 2026-08-06 16:35 · **1121 scripts** · 12 wired into a gate · 239 called by other code · 144 only mentioned in docs · 726 referenced by nothing · 533 not in git
 
 ## Read this before writing a new script
 
@@ -36,6 +36,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Invoked by | In git | What |
 |---|---|---|---|
+| `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
@@ -268,12 +269,6 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `build-aplus-core1-final.js` | DOCS-ONLY | 0 | 2026-07-29 | yes |  |
-
-### `_tools/catalog` — 1 scripts, 1 referenced by nothing
-
-| Script | Wiring | Called by | Modified | In git | What |
-|---|---|---|---|---|---|
-| `gen-catalog.py` | ORPHAN | 0 | 2026-08-06 | no | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 
 ### `_tools/confluence` — 6 scripts, 3 referenced by nothing
 

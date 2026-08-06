@@ -262,6 +262,57 @@ else
 fi
 echo ""
 
+# ── Check 4e: script catalog refresh + drift ─────────────────────────
+# DELIBERATELY NON-BLOCKING. This never sets DIVERGENCE and never fails a deploy: it
+# regenerates bookkeeping, it does not verify the deploy. A gate that can flake teaches
+# people to skip gates, and then they skip the ones that matter. The point of running it
+# here is DRIFT -- the orphan and not-in-git counts only mean something if they are
+# recomputed on a schedule nobody has to remember.
+echo "[4e/5] Script catalog refresh"
+if [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would regenerate _tools/CATALOG.md${NC}"
+else
+    # Snapshot the previous totals BEFORE regenerating, so the delta is real.
+    CAT_JSON="$REPO_ROOT/_tools/catalog.json"
+    CAT_PREV="$(python3 - "$CAT_JSON" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    d = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+s = d.get('scripts', [])
+c = lambda w: sum(1 for r in s if r.get('wiring') == w)
+print(f"{len(s)} {c('GATE')} {c('ORPHAN')} {sum(1 for r in s if not r.get('tracked'))}")
+PY
+)"
+    CAT_OUT="$(python3 "$REPO_ROOT/_tools/catalog/gen-catalog.py" 2>&1)"
+    CAT_RC=$?
+    if [[ $CAT_RC -ne 0 ]]; then
+        # Informational only. Say so plainly rather than implying the deploy is at risk.
+        echo -e "  ${YELLOW}! catalog did not regenerate (non-blocking; CATALOG.md is now stale)${NC}"
+        echo "$CAT_OUT" | head -3 | sed 's/^/    /'
+    else
+        echo "$CAT_OUT" | head -2 | sed 's/^/  /'
+        CAT_NOW="$(python3 - "$CAT_JSON" <<'PY' 2>/dev/null || true
+import json, sys
+d = json.load(open(sys.argv[1])); s = d['scripts']
+c = lambda w: sum(1 for r in s if r.get('wiring') == w)
+print(f"{len(s)} {c('GATE')} {c('ORPHAN')} {sum(1 for r in s if not r.get('tracked'))}")
+PY
+)"
+        if [[ -n "$CAT_PREV" && -n "$CAT_NOW" && "$CAT_PREV" != "$CAT_NOW" ]]; then
+            read -r P_TOT P_GATE P_ORPH P_UNTR <<<"$CAT_PREV"
+            read -r N_TOT N_GATE N_ORPH N_UNTR <<<"$CAT_NOW"
+            printf "  drift since last deploy: scripts %+d · gated %+d · orphaned %+d · not-in-git %+d\n" \
+                   $((N_TOT-P_TOT)) $((N_GATE-P_GATE)) $((N_ORPH-P_ORPH)) $((N_UNTR-P_UNTR))
+            if (( N_ORPH - P_ORPH > 0 )); then
+                echo -e "  ${DIM}new scripts arrived that nothing calls — search _tools/CATALOG.md before writing the next one${NC}"
+            fi
+        fi
+    fi
+fi
+echo ""
+
 # ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
 echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then
