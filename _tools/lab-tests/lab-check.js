@@ -180,13 +180,19 @@ const done=pg=>pg.evaluate(()=>Object.keys(LAB.tasksDone).filter(k=>LAB.tasksDon
                    'pcwin11-lab','frontdeskwin11','DeskWin11','PC-Win11','DESK-WIN11'];
    const wantNot = ['test','lab-vm','sw11','vmware11','vm11','host11','node-11','esxi11',
                     'win2011','2011','ubuntu-server','Windows-10','Windows10Pro','w10box',
-                    'server11','node11','','   ','---','11'];
+                    'server11','node11','','   ','---','11',
+                    /* surnames ending in -win beside a room or rack number. A separator the
+                       student TYPED must never be discarded, which is what let these in. */
+                    'Darwin 11','Corwin 11','Baldwin 11','Edwin 11','Erwin 11','Goodwin 11',
+                    'Godwin-11','Darwin-11','Darwin 11 Lab','win 2011'];
    return { bad: want11.filter(n=>!guessOS(n).startsWith('Windows 11')),
             falsePos: wantNot.filter(n=>guessOS(n).startsWith('Windows 11')),
             ubuntu: guessOS('ubuntu-server'), win10: guessOS('Windows-10'),
             win10glued: guessOS('Windows10Pro'),
             win10prefixed: guessOS('PCwin10'),
             collateral: guessOS('twin11'),
+            collateralGlued: guessOS('Baldwin11'),
+            collateralSeparated: guessOS('Baldwin 11'),
             odd: ['','   ','---','11','\u{1F600}'].map(x=>guessOS(x)) };
  });
  ck('every ordinary spelling of Windows 11 is detected', names.bad.length===0, names.bad.join(' | '));
@@ -197,8 +203,15 @@ const done=pg=>pg.evaluate(()=>Object.keys(LAB.tasksDone).filter(k=>LAB.tasksDon
     /Windows 10/.test(names.win10glued) && /Windows 10/.test(names.win10prefixed),
     names.win10glued+' / '+names.win10prefixed);
  /* Pin the accepted collateral so it is a decision on record, not a surprise later. */
- ck('DISCLOSED: a name ending in "win" before the number reads as Windows',
-    /Windows 11/.test(names.collateral), 'twin11 -> '+names.collateral);
+ /* The accepted trade, pinned at its ACTUAL scope. An earlier version discarded every
+    separator before matching, so "Baldwin 11" collided too; the disclosure said "glued"
+    while the code accepted separated as well. Both halves are asserted so the scope cannot
+    quietly widen again. */
+ ck('DISCLOSED: a GLUED letter run ending in "win" reads as Windows',
+    /Windows 11/.test(names.collateral) && /Windows 11/.test(names.collateralGlued),
+    'twin11 -> '+names.collateral+', Baldwin11 -> '+names.collateralGlued);
+ ck('but a SEPARATOR the student typed keeps it out',
+    names.collateralSeparated==='Other/Unknown', 'Baldwin 11 -> '+names.collateralSeparated);
  ck('empty, whitespace, punctuation-only, a bare number and emoji all return Other/Unknown',
     names.odd.every(o=>o==='Other/Unknown'), JSON.stringify(names.odd));
  ck('a hyphenated name satisfies task 1 end to end', await pg.evaluate(()=>{
