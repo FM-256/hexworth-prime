@@ -14,6 +14,7 @@
 # Usage:
 #   ./deploy.sh                     Run all gates, deploy hosting + regen inventory + ping IndexNow
 #   ./deploy.sh --strict            Nexus blocks on CRITICAL or HIGH
+#   --force also skips the dash hygiene gate (2.6), same as it skips Nexus
 #   ./deploy.sh --force             Skip Nexus only (preserve smoke gate)
 #   ./deploy.sh --skip-smoke        Skip smoke only (preserve Nexus gate)
 #   ./deploy.sh --skip-inventory    Skip Confluence inventory regen (deploy proceeds normally)
@@ -194,6 +195,29 @@ if [ -f _tools/eduscan/hub-registry-audit.js ]; then
     else
         echo -e "${RED}DEPLOY BLOCKED${NC}: hub-registry audit failed (reserved-id drift or an invalid published hub)."
         exit 1
+    fi
+fi
+
+# ── Gate 2.6: Dash hygiene gate ──────────────────────────────────────
+# Style rule `feedback_no_em_dashes` has been in force since 2026-05-26 and was already
+# automated as EduScan HEUR-035, which fired at LOW and therefore could never fail a build:
+# --strict blocks on CRITICAL/HIGH only. An A+ Core 2 deck reached production on 2026-08-06
+# carrying 24 em-dashes. HEUR-035 is now HIGH for visibility; THIS is the part that blocks.
+# Scoped to files changed against master, so ~1587 legacy files cannot turn it into noise.
+# Catches all five forms: literal U+2014, &mdash;, &#8212;, &#x2014;, and " -- ".
+if [ -f _tools/eduscan/dash-hygiene-gate.js ]; then
+    if [ "$FORCE" = true ]; then
+        echo -e "${BOLD}[2.6/7]${NC} Dash hygiene gate ${YELLOW}[SKIPPED]${NC} — --force flag set"
+        echo ""
+    else
+        echo -e "${BOLD}[2.6/7]${NC} Dash hygiene gate (changed _app content)..."
+        if node _tools/eduscan/dash-hygiene-gate.js --quiet; then
+            echo ""
+        else
+            echo ""
+            echo -e "${DIM}To bypass static analysis: ./deploy.sh --force${NC}"
+            exit 1
+        fi
     fi
 fi
 

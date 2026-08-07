@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virtualization Lab · Build a VM | A+ Core 2</title>
+<!--
+  A+ CORE 2 · CHAPTER 25 LAB · VIRTUALIZATION
+
+  WHAT MAKES THIS A LAB AND NOT A QUIZ
+    There is no multiple choice anywhere in this file. The student operates a simulated
+    VirtualBox Manager and the lab grades THE RESULTING MACHINE STATE, not the clicks that
+    produced it. Every task reads LAB.state and asks "is the machine actually configured
+    this way", so no sequence of clicks in the UI produces credit for a machine that is not
+    actually configured that way. What that does NOT mean is "unforgeable": see honesty
+    rule 2 for the client-only limit, stated plainly rather than promised away.
+
+    The A+ Core 1 lab this supersedes (core-1/labs/forge-vm-setup.lab.html) rubber-stamped
+    two of its five gates with `case 3: return true; // RAM slider always has a valid value`,
+    which credits a student for moving a slider to any position at all, including the
+    default. That is the failure mode this file exists not to repeat.
+
+  THE FOUR HONESTY RULES THIS FILE IS BUILT TO (platform standard)
+    1. No navigation credit. Opening a dialog, switching a tab or loading the page NEVER
+       calls markTask(). Credit happens only inside an action handler that changed state.
+    2. Every gate hard-checks its own precondition in JS, and it re-derives that
+       precondition from the machine model rather than from any cached tick. Calling an
+       advance function directly is a no-op unless the model satisfies the checks, and
+       writing to LAB.tasksDone by hand does not help, because the completion gate ignores
+       it for every state-derived task. Verified adversarially by lab-cheat.js, which forges
+       the tick cache at each stage boundary, through the save file, and alongside a
+       partially-real machine, and asserts nothing advances.
+
+       THE LIMIT, stated rather than promised away: LAB.vms, LAB.labVmId and LAB.hostRefused
+       are plain objects on window, exactly as LAB.tasksDone was. A student who reads the
+       check() functions in this file, which are unminified because the platform has no build
+       step, can fabricate a satisfying object graph from the console and finish the lab
+       without ever pressing New. Chris reproduced precisely that on 2026-08-06, after the
+       tick-cache hole was closed. This is the same client-only limit as rule 3, not a defect
+       peculiar to the tick cache, and no amount of client-side checking closes it: every
+       candidate mitigation is another plain object one layer down, so obfuscation would be
+       theatre. Closing it needs server-side grading of lab state, which this platform does
+       not have for labs. The server-graded path exists for exams (gradeQuiz plus Firestore
+       quiz_keys, where the key never reaches the browser), and ch25's quiz is taskboard #293.
+
+       What re-derivation genuinely buys, and why it was still worth fixing: the grade always
+       describes the model. A student cannot bank credit for a machine and then break it,
+       because every state-derived tick is recomputed and revoked. That honest-feedback
+       property is what this lab is for. Cheat-proofing is what the exam is for.
+    3. Read-the-value checkpoints are FREE TEXT, and the expected value is computed live
+       from the simulated machine at submit time, so it tracks the machine and can never
+       go stale against it. Being honest about the limit: this is a CLIENT-ONLY lab, so a
+       student with dev tools can read window.HOST and apply the formula without ever
+       opening the sim. No client-side lab can close that, and obfuscating it would be
+       theatre. These checkpoints are a learning aid, not an exam. The platform's
+       exam-integrity path is the server-graded quiz (gradeQuiz + Firestore quiz_keys),
+       where the key never reaches the browser at all.
+    4. Nothing in a list is answer-bearing by position; there are no option lists to game.
+
+  THREE STAGES, one state model and one grader. Stage 1 is Oracle VirtualBox, stage 2 is
+  VMware Workstation with every concept renamed, stage 3 is a bare-metal Type 1 host where
+  the subject stops being one VM and becomes the box. Only the chrome table (window.UI)
+  and the task list change between them, which is why the model is separated from the
+  chrome: the transferable skill is the point, so the engine must not be able to cheat by
+  treating the products as different problems.
+-->
+<script src="../../../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<style>
+    :root{
+        --bg:#0b0f17; --panel:#131a26; --panel-2:#0f1520; --ink:#e8f0fb; --muted:#8ea3bd;
+        --line:rgba(120,170,220,.18); --accent:#22d3ee; --gold:#ffd86b; --green:#4ade80;
+        --red:#ef4444; --purple:#a855f7;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    /* APP LAYOUT, NOT DOCUMENT LAYOUT. The page itself never scrolls; the two columns
+       scroll inside themselves. A lab where you must scroll the page to read a task,
+       and lose sight of the tool the task is about, is broken no matter how it grades.
+       Below 1150px the grid collapses to one column and normal page scrolling returns,
+       because on a narrow screen stacking is the only honest option. */
+    html,body{height:100%;overflow:hidden}
+    body{background:var(--bg);color:var(--ink);font-family:'Segoe UI',system-ui,sans-serif;
+         font-size:14px;line-height:1.45;padding:12px 14px 10px;overflow:hidden}
+    .wrap{max-width:1600px;margin:0 auto;height:100%;display:flex;flex-direction:column;min-height:0}
+    @media (max-width:1150px){
+        body{overflow:auto}
+        html,body{height:auto}
+        .wrap{height:auto;display:block}
+    }
+    a.back{color:var(--muted);text-decoration:none;font-size:13.5px}
+    a.back:hover{color:var(--accent)}
+    header.page{border-bottom:1px solid var(--line);padding:8px 0 9px;margin-bottom:10px;flex:none;
+        display:flex;align-items:baseline;gap:13px;flex-wrap:wrap}
+    header.page h1{font-size:19px;letter-spacing:-.01em}
+    header.page .sub{color:var(--muted);font-size:12.5px}
+    header.page .spacer{flex:1}
+    header.page button.link{background:none;border:none;color:var(--muted);font:inherit;
+        font-size:12.5px;cursor:pointer}
+    header.page button.link:hover{color:var(--accent)}
+    .stage-pill{background:rgba(34,211,238,.12);border:1px solid var(--accent);
+        color:var(--accent);border-radius:20px;padding:2px 11px;font-size:10.5px;font-weight:700;
+        letter-spacing:.1em;text-transform:uppercase}
+
+    .grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(340px,.85fr);gap:18px;
+        flex:1;min-height:0;align-items:stretch}
+    .col-left{display:flex;flex-direction:column;min-height:0;overflow-y:auto;padding-right:4px}
+    @media (max-width:1150px){
+        .grid{grid-template-columns:1fr;flex:none;min-height:0}
+        .col-left{overflow:visible}
+    }
+
+    /* ── the simulated VirtualBox Manager ───────────────────────────── */
+    /* The manager window fills its column instead of floating in the top half, and the
+       black console takes the slack, the same as a real VM window, which does not leave a
+       dead band under itself when you enlarge it. */
+    .vbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+        display:flex;flex-direction:column;flex:1;min-height:0}
+    .vbox-title{background:#1b2433;padding:8px 14px;font-size:12.5px;color:#cbd5e1;
+        border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+    .vbox-title .dot{width:10px;height:10px;border-radius:50%;background:#475569}
+    .vbox-toolbar{display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);
+        background:var(--panel-2);flex-wrap:wrap}
+    .tb{background:#1e2a3d;border:1px solid var(--line);color:var(--ink);border-radius:7px;
+        padding:8px 15px;font:inherit;font-size:13px;cursor:pointer}
+    .tb:hover:not(:disabled){border-color:var(--accent)}
+    .tb:disabled{opacity:.4;cursor:not-allowed}
+    .tb.primary{background:rgba(34,211,238,.14);border-color:var(--accent);color:var(--accent)}
+    /* Host summary. ESXi shows you the physical box's totals, because on a Type 1 the
+       box IS the product. Stage 3 only; stages 1 and 2 run on your desktop. */
+    .hoststrip{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:8px 14px;
+        border-bottom:1px solid var(--line);background:#131c29;font-size:12px;color:var(--muted)}
+    .hoststrip b{color:var(--ink);font-variant-numeric:tabular-nums}
+    .hoststrip .hname{color:var(--gold);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+    .hoststrip .hbar{flex:0 1 150px;min-width:90px;height:7px;border-radius:4px;background:#0b111b;
+        border:1px solid var(--line);overflow:hidden}
+    .hoststrip .hbar i{display:block;height:100%;background:var(--accent)}
+    .hoststrip .hbar i.full{background:var(--red)}
+    .vbox-body{display:grid;grid-template-columns:200px 1fr;min-height:340px;flex:1;min-height:0}
+    @media (max-width:760px){.vbox-body{grid-template-columns:1fr}}
+    .vmlist{border-right:1px solid var(--line);padding:10px;background:var(--panel-2)}
+    .vmlist .empty{color:var(--muted);font-size:12.5px;padding:14px 6px;font-style:italic}
+    .vmrow{padding:9px 11px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:9px;
+        font-size:13.5px;border:1px solid transparent}
+    .vmrow:hover{background:#18212f}
+    .vmrow.sel{background:rgba(34,211,238,.10);border-color:var(--accent)}
+    .vmrow .state{width:8px;height:8px;border-radius:50%;background:#64748b;flex:none}
+    .vmrow.running .state{background:var(--green)}
+    .details{padding:12px 16px;display:flex;flex-direction:column;min-height:0}
+    /* Two columns, so the four config sections do not push the VM screen below the fold.
+       At 1366x768 the screen sat at 705-855 in a 768px viewport, clipped, on the one task
+       that says "boot it and READ what it says". Halving the section stack lifts it. */
+    .dgrid{display:grid;grid-template-columns:1fr 1fr;gap:2px 26px}
+    @media (max-width:900px){.dgrid{grid-template-columns:1fr}}
+    .details h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+        margin:10px 0 5px}
+    .details h3.first{margin-top:0}
+    .kv{display:grid;grid-template-columns:118px 1fr;gap:4px 12px;font-size:13px}
+    .kv .k{color:var(--muted)}
+    .kv .v{color:var(--ink);font-variant-numeric:tabular-nums}
+    .kv .v.warn{color:var(--gold)}
+    .kv .v.bad{color:var(--red)}
+    .kv .v.ok{color:var(--green)}
+    .nothing{color:var(--muted);font-style:italic;font-size:13.5px}
+
+    /* the VM "screen" when running */
+    .screen{background:#000;border:1px solid var(--line);border-radius:8px;margin-top:10px;
+        padding:13px;min-height:118px;font-family:ui-monospace,'Cascadia Code',monospace;font-size:12.5px;
+        flex:1}
+    .screen .l{color:#cbd5e1;margin-bottom:3px}
+    .screen .err{color:#fca5a5}
+    .screen .ok{color:#86efac}
+    .screen .dim{color:#64748b}
+
+    /* ── dialogs ────────────────────────────────────────────────────── */
+    .modal{position:fixed;inset:0;background:rgba(3,6,12,.72);display:none;align-items:center;
+        justify-content:center;z-index:60;padding:20px}
+    .modal.open{display:flex}
+    .dlg{background:var(--panel);border:1px solid var(--line);border-radius:11px;width:100%;
+        max-width:560px;max-height:88vh;overflow-y:auto}
+    .dlg.wide{max-width:940px}
+    .dlg h2{font-size:16px;padding:14px 18px;border-bottom:1px solid var(--line)}
+    /* ── briefing ───────────────────────────────────────────────────── */
+    /* Two columns so the whole briefing fits a 768px laptop without scrolling inside the
+       dialog, the same rule the lab itself is held to. */
+    .brief-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
+    @media (max-width:820px){.brief-cols{grid-template-columns:1fr;gap:4px}}
+    .brief p{font-size:13px;line-height:1.55;margin-bottom:9px;color:#dbe4ef}
+    .brief p.lead{color:var(--ink)}
+    .brief h3{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);
+        margin:16px 0 8px}
+    .brief h3:first-child{margin-top:0}
+    .brief ol{margin:0 0 4px 17px;font-size:13px;line-height:1.55}
+    .brief ol li{margin-bottom:8px}
+    /* Cards, not a four-column table. In a half-width dialog column the table wrapped every
+       cell and ran to 820px, which is how the briefing stopped fitting a laptop. */
+    .swcard{background:#131c29;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:9px}
+    .swcard .swhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;margin-bottom:3px}
+    .swcard .swhead b{font-size:13px;color:var(--ink)}
+    .swcard .tag{font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+    .swcard a{color:var(--accent);font-size:12.5px}
+    .swcard .swwhy{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:3px}
+    .brief .note{background:#131c29;border-left:2px solid var(--gold);border-radius:0 7px 7px 0;
+        padding:10px 13px;font-size:12.5px;line-height:1.6;color:#cbd5e1;margin-top:4px}
+    .dlg .body{padding:16px 18px}
+    .dlg .foot{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:9px;justify-content:flex-end}
+    .fld{margin-bottom:14px}
+    .fld label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+    .fld input[type=text],.fld input[type=number]{width:100%;background:var(--panel-2);
+        border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:9px 11px;font:inherit;font-size:13.5px}
+    .fld input:focus{outline:none;border-color:var(--accent)}
+    .fld .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+    .slider-row{display:flex;align-items:center;gap:12px}
+    .slider-row input[type=range]{flex:1}
+    .slider-row .val{min-width:92px;text-align:right;font-variant-numeric:tabular-nums;font-size:13.5px}
+    .meter{height:9px;border-radius:5px;background:#1e2a3d;overflow:hidden;margin-top:7px;position:relative}
+    .meter .fill{height:100%;background:var(--green);transition:width .18s,background .18s}
+    .meter .fill.warn{background:var(--gold)}
+    .meter .fill.bad{background:var(--red)}
+    .seg{display:flex;gap:7px;flex-wrap:wrap}
+    .seg button{flex:1;min-width:110px;background:var(--panel-2);border:1px solid var(--line);
+        color:var(--ink);border-radius:7px;padding:9px;font:inherit;font-size:12.5px;cursor:pointer;text-align:left}
+    .seg button:hover{border-color:var(--accent)}
+    .seg button.on{border-color:var(--accent);background:rgba(34,211,238,.12)}
+    .seg button .t{display:block;font-weight:650;margin-bottom:2px}
+    .seg button .d{display:block;font-size:11px;color:var(--muted)}
+    .tabs{display:flex;gap:5px;border-bottom:1px solid var(--line);margin-bottom:14px;flex-wrap:wrap}
+    .tabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);
+        padding:8px 12px;font:inherit;font-size:13px;cursor:pointer}
+    .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+
+    /* ── task panel ─────────────────────────────────────────────────── */
+    /* The panel must SCROLL WITHIN ITSELF, not extend the page. At 7 tasks it is ~1040px
+       against a 768px laptop viewport, so `position:sticky` alone did nothing: the page grew,
+       and scrolling to reach tasks 3-7 pushed the VirtualBox Manager completely off screen.
+       Every one of those tasks says "open Settings and do X", and a lab where the instruction
+       and the tool cannot be on screen together is broken, however well it grades. */
+    .tasks{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px;
+        display:flex;flex-direction:column;min-height:0}
+    /* ONE task open, the rest single lines. This is why nothing scrolls: seven expanded
+       task cards are ~1040px and no laptop viewport holds that beside a tool window. It is
+       also better teaching: tell the student what to do NOW, not hand them seven
+       paragraphs at once. Real installers work exactly this way. */
+    .steps{flex:none;display:flex;flex-direction:column;gap:2px}
+    .step{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;
+        font-size:12.5px;color:var(--muted);cursor:pointer;border:1px solid transparent}
+    .step:hover{background:#18212f}
+    .step .n{width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line);flex:none;
+        display:grid;place-items:center;font-size:10px}
+    .step.done{color:var(--green)} .step.done .n{border-color:var(--green)}
+    .step.cur{background:rgba(34,211,238,.08);border-color:var(--accent);color:var(--ink)}
+    .step.cur .n{border-color:var(--accent);color:var(--accent)}
+    .open{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);flex:1;min-height:0;
+        display:flex;flex-direction:column;overflow:hidden}
+    .open .t{font-size:13.5px;font-weight:650;margin-bottom:4px}
+    .open .d{font-size:12.5px;color:var(--muted)}
+    @media (max-width:1150px){.tasks{max-height:none}}
+
+    .tasks h2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+    .prog{height:7px;background:#1e2a3d;border-radius:4px;overflow:hidden;margin:10px 0 14px}
+    .prog .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green));width:0;transition:width .3s}
+    .task{border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:9px;background:var(--panel-2)}
+    .task.done{border-color:var(--green);background:rgba(74,222,128,.07)}
+    .task .th{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;font-weight:600}
+    .task .mark{width:17px;height:17px;border-radius:50%;border:2px solid var(--line);flex:none;margin-top:2px;
+        display:grid;place-items:center;font-size:10.5px;color:var(--green)}
+    .task.done .mark{border-color:var(--green)}
+    .task .d{font-size:12.5px;color:var(--muted);margin-top:6px;padding-left:26px}
+    .answer{padding-left:26px;margin-top:9px;display:flex;gap:7px}
+    .answer input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+        color:var(--ink);padding:7px 9px;font:inherit;font-size:12.5px}
+    .answer button{background:rgba(34,211,238,.14);border:1px solid var(--accent);color:var(--accent);
+        border-radius:6px;padding:7px 13px;font:inherit;font-size:12.5px;cursor:pointer}
+    .fb{font-size:12px;margin-top:6px;padding-left:26px}
+    .fb.bad{color:var(--gold)}
+    .fb.good{color:var(--green)}
+    .done-btn{width:100%;margin-top:12px;padding:11px;border:none;border-radius:8px;font:inherit;
+        font-size:14px;font-weight:650;cursor:pointer;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff}
+    .done-btn:disabled{background:#1e2a3d;color:var(--muted);cursor:not-allowed}
+    .note{font-size:12px;color:var(--muted);margin-top:12px;border-top:1px solid var(--line);padding-top:11px}
+</style>
+<script src="../../../../../../components/ModuleProgress.js"></script>
+</head>
+<body>
+<div class="wrap">
+    <header class="page">
+        <a class="back" href="../chapters/ch25-virtualization/index.html">&larr; Chapter 25</a>
+        <h1>Virtualization Lab</h1>
+        <span class="stage-pill" id="stagePill">Stage 1 of 3 &middot; Oracle VirtualBox</span>
+        <span class="sub">Graded on the machine you build, not the buttons you press.</span>
+        <span class="spacer"></span>
+        <button class="link" onclick="openBrief()">Briefing &amp; software</button>
+        <button class="link" onclick="resetLab()">Reset lab</button>
+    </header>
+
+    <div class="grid">
+        <!-- ══════════ SIMULATED VIRTUALBOX MANAGER ══════════ -->
+        <div class="col-left">
+            <div class="vbox">
+                <div class="vbox-title"><span class="dot"></span> <span id="productName">Oracle VM VirtualBox Manager</span></div>
+                <div class="vbox-toolbar">
+                    <button class="tb primary" id="btnNew" onclick="openNew()">New</button>
+                    <button class="tb" id="btnSettings" onclick="openSettings()" disabled>Settings</button>
+                    <button class="tb" id="btnStart" onclick="startVM()" disabled>Start</button>
+                    <button class="tb" id="btnStop" onclick="stopVM()" disabled>Power Off</button>
+                    <button class="tb" id="btnSnap" onclick="takeSnapshot()" disabled>Take Snapshot</button>
+                    <button class="tb" id="btnTools" onclick="installTools()" disabled>Install Tools</button>
+                </div>
+                <div class="hoststrip" id="hostStrip" hidden></div>
+                <div class="vbox-body">
+                    <div class="vmlist" id="vmlist"><div class="empty">No virtual machines yet.<br>Press <b>New</b> to create one.</div></div>
+                    <div class="details" id="details"><p class="nothing">Select a virtual machine to see its configuration.</p></div>
+                </div>
+            </div>
+                </div>
+
+        <!-- ══════════ TASKS ══════════ -->
+        <div class="tasks">
+            <h2 id="railTitle">Stage 1 &middot; Tasks</h2>
+            <div style="font-size:12px;color:var(--muted)" id="railCount"></div>
+            <div class="prog"><div class="fill" id="progFill"></div></div>
+            <div class="steps" id="steps"></div>
+            <div class="open" id="openTask"></div>
+            <button class="done-btn" id="finishBtn" onclick="finishStage()" disabled>Complete Stage 1</button>
+            <div class="note" id="statusNote"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════ NEW VM WIZARD ══════════ -->
+<div class="modal" id="mNew"><div class="dlg">
+    <h2 id="newTitle">Create Virtual Machine</h2>
+    <div class="body">
+        <div class="fld">
+            <label>Name</label>
+            <input type="text" id="nvName" placeholder="e.g. Win11-Lab" autocomplete="off">
+            <div class="hint" id="nvNameErr" style="color:var(--red);min-height:14px"></div>
+            <div class="hint">VirtualBox guesses the guest OS from the name. Include the OS.</div>
+        </div>
+        <div class="fld">
+            <label>Guest OS detected</label>
+            <div id="nvGuess" class="nothing" style="font-size:13.5px">&ndash;</div>
+        </div>
+        <div class="fld">
+            <label id="lblMemNew">Base memory</label>
+            <div class="slider-row">
+                <input type="range" id="nvRam" min="256" max="16384" step="256" value="2048" oninput="onRam()">
+                <span class="val" id="nvRamVal">2048 MB</span>
+            </div>
+            <div class="meter"><div class="fill" id="nvRamMeter"></div></div>
+            <div class="hint" id="nvRamHint"></div>
+        </div>
+        <div class="fld">
+            <label>Virtual hard disk (GB)</label>
+            <div class="slider-row">
+                <input type="range" id="nvDisk" min="8" max="200" step="1" value="50" oninput="onDisk()">
+                <span class="val" id="nvDiskVal">50 GB</span>
+            </div>
+            <div class="hint">Dynamically allocated: grows as used, up to this ceiling.</div>
+        </div>
+    </div>
+    <div class="foot">
+        <button class="tb" onclick="closeModal('mNew')">Cancel</button>
+        <button class="tb primary" id="nvCreate" onclick="createVM()">Create</button>
+    </div>
+</div></div>
+
+<!-- ══════════ BRIEFING: what this is, and where the real software lives ══════════ -->
+<div class="modal" id="mBrief"><div class="dlg wide">
+    <h2>Virtualization Lab: briefing</h2>
+    <div class="body brief">
+        <div class="brief-cols">
+        <div>
+        <h3>What you are doing</h3>
+        <p class="lead">You will build a virtual machine three times, on three hypervisors, and find that it
+        is the same job every time. That is the point: a technician who can drive only one product has
+        learned a menu, not virtualization.</p>
+        <ol>
+            <li><b>Stage 1, Oracle VirtualBox.</b> One guest on your desktop: memory, an installer,
+            an isolated network, a snapshot. You will see what an empty computer does when you boot it.</li>
+            <li><b>Stage 2, VMware Workstation.</b> The same machine, every concept renamed.
+            <span style="color:var(--muted)">.vdi</span> becomes <span style="color:var(--muted)">.vmdk</span>,
+            Guest Additions becomes VMware Tools, and "Internal Network" is gone. Finding what replaced it
+            is the task.</li>
+            <li><b>Stage 3, a Type 1 host.</b> The subject stops being one VM and becomes the
+            server: several guests, one finite pool of physical memory, and a host that does not warn when
+            it runs out. It refuses.</li>
+        </ol>
+        <p>Nothing is graded on clicking. Every tick is computed from the machine you actually built, and it
+        goes back out if you break it.</p>
+        </div>
+        <div>
+        <h3>The software, and where we have it</h3>
+
+        <div class="swcard">
+            <div class="swhead"><b>Oracle VirtualBox</b><span class="tag">Stage 1 &middot; Type 2 &middot; free, GPLv3</span></div>
+            <a href="/signal/toolkit/tools/virtualbox.tool.html" target="_blank" rel="noopener">Signal Toolkit &rarr; Oracle VirtualBox</a>
+            <div class="swwhy">Our install guide for Windows, macOS and Linux, with the download link and the Extension Pack step.</div>
+        </div>
+
+        <div class="swcard">
+            <div class="swhead"><b>VMware Workstation Pro</b><span class="tag">Stage 2 &middot; Type 2 &middot; free for personal use</span></div>
+            <a href="/signal/toolkit/tools/vmware-workstation.tool.html" target="_blank" rel="noopener">Signal Toolkit &rarr; VMware Workstation</a>
+            <div class="swwhy">Needs a free Broadcom account. Not available on macOS, so that page points you to Fusion.</div>
+        </div>
+
+        <div class="swcard">
+            <div class="swhead"><b>VMware ESXi</b><span class="tag">Stage 3 &middot; Type 1 &middot; bare metal</span></div>
+            <a href="/signal/toolkit/tools/vmware-workstation.tool.html" target="_blank" rel="noopener">Run it nested inside Workstation</a>
+            <div class="swwhy">You do not install this one on your laptop. It takes the machine over. Nested inside Workstation is the practical route, covered on that page.</div>
+        </div>
+        </div>
+        </div>
+
+        <p class="note"><b>This is a simulation, not the real binary.</b> It models the decisions, the
+        vocabulary and the arithmetic: how much memory you may safely hand a guest, what isolation
+        actually means, why a bare-metal host refuses your fourth VM. Install the real thing from the links
+        above and build the same machine again: everything here transfers, because the constraints are the
+        same constraints.</p>
+    </div>
+    <div class="foot" style="justify-content:space-between;align-items:center">
+        <span style="color:var(--muted);font-size:11.5px">Reopen this any time from <b>Briefing &amp; software</b>, top right.</span>
+        <button class="tb primary" onclick="closeModal('mBrief')">Start the lab</button>
+    </div>
+</div></div>
+
+<!-- ══════════ SETTINGS ══════════ -->
+<div class="modal" id="mSet"><div class="dlg">
+    <h2 id="setTitle">Settings</h2>
+    <div class="body">
+        <div class="tabs">
+            <button class="on" data-tab="storage" onclick="setTab('storage')">Storage</button>
+            <button data-tab="network" onclick="setTab('network')">Network</button>
+            <button data-tab="system" onclick="setTab('system')">System</button>
+        </div>
+
+        <div class="tabpane" data-pane="storage">
+            <div class="fld">
+                <label>Optical drive (IDE)</label>
+                <div id="setIso" style="font-size:13.5px;margin-bottom:9px"></div>
+                <div class="seg">
+                    <button onclick="attachIso('win11_23h2.iso')"><span class="t">win11_23h2.iso</span><span class="d">5.4 GB installer</span></button>
+                    <button onclick="attachIso('ubuntu-24.04.iso')"><span class="t">ubuntu-24.04.iso</span><span class="d">2.1 GB installer</span></button>
+                    <button onclick="attachIso(null)"><span class="t">Remove disk</span><span class="d">leave the drive empty</span></button>
+                </div>
+            </div>
+            <div class="fld">
+                <label>Hard disk</label>
+                <div id="setDisk" style="font-size:13.5px"></div>
+            </div>
+        </div>
+
+        <div class="tabpane" data-pane="network" hidden>
+            <div class="fld">
+                <label>Attached to</label>
+                <div class="seg" id="netSeg"></div>
+                <div class="hint" id="netHint" style="margin-top:9px"></div>
+            </div>
+        </div>
+
+        <div class="tabpane" data-pane="system" hidden>
+            <div class="fld">
+                <label id="lblMem">Base memory</label>
+                <div class="slider-row">
+                    <input type="range" id="stRam" min="256" max="16384" step="256" oninput="onStRam()">
+                    <span class="val" id="stRamVal"></span>
+                </div>
+                <div class="meter"><div class="fill" id="stRamMeter"></div></div>
+                <div class="hint" id="stRamHint"></div>
+            </div>
+            <div class="fld">
+                <label id="lblCpu">Processors</label>
+                <div class="slider-row">
+                    <input type="range" id="stCpu" min="1" max="8" step="1" oninput="onStCpu()">
+                    <span class="val" id="stCpuVal"></span>
+                </div>
+                <div class="hint" id="stCpuHint"></div>
+            </div>
+        </div>
+    </div>
+    <div class="foot"><button class="tb primary" onclick="closeModal('mSet')">OK</button></div>
+</div></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   THE MACHINE MODEL.
+
+   The GUI mutates this and NOTHING ELSE. Every task grades by reading it, so
+   there is no way to earn a task except by building the machine the task
+   describes. Stages 2 (VMware) and 3 (Type 1 allocation) attach to this same
+   object, which is why the model is kept separate from the chrome.
+   ════════════════════════════════════════════════════════════════════════ */
+/* window.* NOT const: a top-level const in a classic script is lexically scoped and is
+   NOT reachable from another script tag. This file's own plan is for Stage 2 (VMware)
+   and Stage 3 (Type 1 allocation) to attach to this same model and grader. As a const
+   they could not see it. Same trap that left 251 dead window.ModuleProgress guards. */
+/* reservedRam is what a DESKTOP OS underneath needs (stages 1-2, Type 2). hvOverhead is
+   what the bare-metal hypervisor itself consumes (stage 3, Type 1). There is no desktop
+   under it, so the guest pool is bigger. That difference IS the Type 1 lesson, and it is
+   why stage 3's memory answer is a different number from stage 1's. */
+window.HOST = { ram: 16384, cores: 8, disk: 512, reservedRam: 4096, hvOverhead: 768,
+                name: 'esxi01.lab.local' };
+
+window.LAB = {
+    stage: 1,           /* 1 = VirtualBox, 2 = VMware Workstation, 3 = Type 1 host */
+    vms: [],            /* every machine, each tagged with the stage that built it */
+    selected: null,
+    hostRefused: false, /* latched when the Type 1 host has actually refused a power-on */
+    briefSeen: false,   /* the briefing opens itself once, then only on request */
+    labVmId: { 1:null, 2:null, 3:null },   /* the graded machine, PER STAGE */
+    focus: null,        /* which task the rail has open, navigation only */
+    tasksDone: {},
+    seq: 0
+};
+const STORE_KEY = 'core2-ch25-lab';
+
+/* THE CHROME, per stage. Same engine, same grader: only the vocabulary and the shell
+   change, which is exactly the lesson: a hypervisor is a hypervisor, and what a student
+   learns in one product transfers to the other once they can see past the labels. */
+window.UI = {
+  1: { product:'Oracle VM VirtualBox Manager', short:'VirtualBox', stageName:'Oracle VirtualBox',
+       diskExt:'.vdi', diskDesc:'dynamically allocated', tools:'Guest Additions',
+       newTitle:'Create Virtual Machine', memLabel:'Base memory', cpuLabel:'Processors',
+       isolationName:'Internal Network', isolationKey:'internal',
+       nets:[['nat','NAT','Out to the internet, nothing in'],
+             ['bridged','Bridged Adapter','Own IP on the physical LAN'],
+             ['hostonly','Host-only Adapter','Guest and host only'],
+             ['internal','Internal Network','Guest to guest only. Sealed.']] },
+  2: { product:'VMware Workstation Pro', short:'VMware', stageName:'VMware Workstation',
+       diskExt:'.vmdk', diskDesc:'split into 2 GB files', tools:'VMware Tools',
+       newTitle:'New Virtual Machine Wizard', memLabel:'Memory for this virtual machine',
+       cpuLabel:'Number of processor cores',
+       isolationName:'LAN Segment', isolationKey:'lanseg',
+       nets:[['nat','NAT','Share the host\'s IP address'],
+             ['bridged','Bridged','Connected directly to the physical network'],
+             ['hostonly','Host-only','A private network shared with the host'],
+             ['lanseg','LAN Segment','A private network shared only with other VMs']] },
+  /* Stage 3 is not a third desktop product. It is the same guest concepts on a machine
+     with no desktop at all: no NAT (there is no host OS to share an address with), port
+     groups on a virtual switch instead of adapter modes, and a browser client because the
+     server has no screen you can sit in front of. */
+  3: { product:'VMware ESXi Host Client · esxi01.lab.local', short:'ESXi',
+       stageName:'Type 1 Hypervisor',
+       diskExt:'.vmdk', diskDesc:'thin provisioned on VMFS', tools:'VMware Tools',
+       newTitle:'New virtual machine', memLabel:'Memory', cpuLabel:'vCPUs',
+       isolationName:'Isolated port group', isolationKey:'isolated',
+       nets:[['vmnet','VM Network','Port group with an uplink to the physical switch'],
+             ['mgmt','Management Network','The port group the host itself is administered on'],
+             ['isolated','Isolated port group','A vSwitch with no uplink. Guest to guest only.']] }
+};
+function ui() { return UI[LAB.stage]; }
+/* The memory a guest may actually be given. On a Type 2 host a desktop OS is underneath and
+   must be fed; on a Type 1 only the hypervisor is. Every meter, warning and capacity refusal
+   reads this one function, so there is no second copy of the arithmetic. */
+function guestPool() { return HOST.ram - (LAB.stage === 3 ? HOST.hvOverhead : HOST.reservedRam); }
+function runningRam() { return stageVMs().filter(v => v.running).reduce((n, v) => n + v.ram, 0); }
+function runningCpus() { return stageVMs().filter(v => v.running).reduce((n, v) => n + v.cpus, 0); }
+function stageVMs() { return LAB.vms.filter(v => v.stage === LAB.stage); }
+
+/* A guest OS guess, the way VirtualBox does it, from the name. Deliberately
+   substring-based so a student who types a real machine name gets a real guess. */
+function guessOS(name) {
+    const n = (name || '').toLowerCase();
+    if (/win(dows)?\s*11|win11/.test(n)) return 'Windows 11 (64-bit)';
+    if (/win(dows)?\s*10|win10/.test(n)) return 'Windows 10 (64-bit)';
+    if (/ubuntu/.test(n))                return 'Ubuntu (64-bit)';
+    if (/debian/.test(n))                return 'Debian (64-bit)';
+    if (/linux/.test(n))                 return 'Linux 2.6 / 3.x / 4.x (64-bit)';
+    return 'Other/Unknown';
+}
+
+/* Memory pressure, computed rather than looked up in a table. This is what the meter and
+   every RAM warning read, and what the "how much can you safely give it" task
+   is graded against. */
+function ramVerdict(mb) {
+    const safeMax = guestPool();                          // 12288 on Type 2, 15616 on Type 1
+    if (mb > safeMax)      return { level:'bad',  text: LAB.stage === 3
+        ? `Over ${safeMax} MB there is nothing left for the hypervisor itself. The host will refuse to power the guest on.`
+        : `Over ${safeMax} MB starves the host (${HOST.ram} MB total, ${HOST.reservedRam} MB reserved). The host will swap.` };
+    if (mb > safeMax * 0.75) return { level:'warn', text:'Workable, but little headroom left for the host and a second VM.' };
+    if (mb < 2048)         return { level:'warn', text:'Under 2048 MB a modern desktop guest will install slowly or refuse.' };
+    return { level:'ok', text:'Comfortable for the guest, and the host keeps its own memory.' };
+}
+
+function selectedVM() { return LAB.vms.find(v => v.id === LAB.selected) || null; }
+/* THE graded machine. Fixed at first creation so a student who builds a second VM to
+   experiment does not have their earned tasks revoked. Selection is navigation, not
+   grading. The previous build graded whatever was selected, and creating a scratch VM
+   silently dropped 6 completed tasks to 4. */
+function labVM() { return LAB.vms.find(v => v.id === LAB.labVmId[LAB.stage]) || null; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   TASKS. Each `check` reads the model. None of them can be satisfied by
+   navigation, and none of them takes an answer from a list.
+   ════════════════════════════════════════════════════════════════════════ */
+window.STAGE_TASKS = {
+
+/* ══ STAGE 1 · ORACLE VIRTUALBOX ══ */
+1: [
+    { id:'t1', title:'Create a virtual machine for Windows 11',
+      desc:'Press New. Name it so VirtualBox detects the guest as Windows 11. The detection reads the name.',
+      check:() => { const v = labVM(); return !!v && v.os.startsWith('Windows 11'); } },
+
+    { id:'t2', title:'Give it enough memory without starving the host',
+      desc:'Open Settings &rarr; System. The host has ' + HOST.ram + ' MB and must keep ' + HOST.reservedRam +
+           ' MB for itself. Set base memory to at least 4096 MB and no more than the safe maximum.',
+      check:() => { const v = labVM(); return !!v && v.ram >= 4096 && v.ram <= (HOST.ram - HOST.reservedRam); } },
+
+    { id:'t3', title:'Read the safe maximum off the manager',
+      desc:'In Settings &rarr; System, drag the memory slider until the meter turns red, then back one step. ' +
+           'Type the highest value in MB that does NOT starve the host.',
+      answer:true, placeholder:'e.g. 8192',
+      /* Computed from HOST at submit time, never written into the markup. */
+      expect:() => String(HOST.ram - HOST.reservedRam),
+      check:() => LAB.tasksDone.t3 === true },
+
+    { id:'t4', title:'Attach an installer ISO',
+      desc:'Settings &rarr; Storage. A new VM is an empty computer, so give the optical drive something to boot.',
+      check:() => { const v = labVM(); return !!v && v.iso !== null; } },
+
+    { id:'t5', title:'Boot it and read what it says',
+      desc:'Press Start. Watch the screen.',
+      check:() => { const v = labVM(); return !!v && v.booted; } },
+
+    { id:'t6', title:'Isolate it from the network',
+      desc:'You are about to open a suspicious file inside this VM. Settings &rarr; Network. ' +
+           'Choose the mode that lets the guest reach NOTHING: not the internet, not the host.',
+      check:() => { const v = labVM(); return !!v && v.net === 'internal'; } },
+
+    { id:'t7', title:'Take a snapshot before the risky change',
+      desc:'With the machine configured, take a snapshot so you can return to this exact state.',
+      check:() => { const v = labVM(); return !!v && v.snapshots >= 1; } }
+],
+
+/* ══ STAGE 2 · VMWARE WORKSTATION ══
+   Not a repeat of stage 1 in different colours. Every task here turns on something that is
+   genuinely DIFFERENT in VMware, or on the student mapping a concept they already met to a
+   name they have not: LAN Segment is VirtualBox's Internal Network, VMware Tools is Guest
+   Additions, .vmdk is .vdi. That mapping is the transferable skill. A technician who can
+   only drive one product has learned a menu, not virtualization. */
+2: [
+    { id:'s2t1', title:'Rebuild the machine in VMware',
+      desc:'Press <b>New</b>. VMware calls this the New Virtual Machine Wizard. Name it so the guest is detected as Windows 11 again.',
+      check:() => { const v = labVM(); return !!v && v.os.startsWith('Windows 11'); } },
+
+    { id:'s2t2', title:'Same memory rule, different label',
+      desc:'VMware calls it <b>Memory for this virtual machine</b>. The host has not changed: at least 4096 MB, no more than the safe maximum.',
+      check:() => { const v = labVM(); return !!v && v.ram >= 4096 && v.ram <= (HOST.ram - HOST.reservedRam); } },
+
+    { id:'s2t3', title:'Name VMware\'s disk format',
+      desc:'Open <b>Settings → Storage</b> and read what VMware created. Type the file extension of a VMware virtual disk, including the dot.',
+      answer:true, placeholder:'e.g. .xyz',
+      expect:() => UI[2].diskExt,
+      check:() => LAB.tasksDone.s2t3 === true },
+
+    { id:'s2t4', title:'Attach the installer',
+      desc:'<b>Settings → Storage.</b> Same idea as VirtualBox: an empty machine has nothing to boot.',
+      check:() => { const v = labVM(); return !!v && v.iso !== null; } },
+
+    { id:'s2t5', title:'Install VMware Tools',
+      desc:'Boot the machine, then install the guest tooling. In VirtualBox this was Guest Additions; VMware calls it something else. Without it: fixed resolution, no shared clipboard, no time sync.',
+      check:() => { const v = labVM(); return !!v && v.tools; } },
+
+    { id:'s2t6', title:'Isolate it: find VMware\'s name for it',
+      desc:'Same requirement as stage 1: the guest must reach <b>nothing</b>. VMware does not offer a mode called "Internal Network". Find the one that does the same job.',
+      check:() => { const v = labVM(); return !!v && v.net === 'lanseg'; } },
+
+    { id:'s2t7', title:'Snapshot this machine too',
+      desc:'VMware calls the manager the Snapshot Manager, but the thing it makes is the same, and it is still not a backup.',
+      check:() => { const v = labVM(); return !!v && v.snapshots >= 1; } }
+],
+
+/* ══ STAGE 3 · TYPE 1 (BARE METAL) ══
+   Stages 1 and 2 were one machine on your desktop. This stage cannot be done one machine at
+   a time, because the thing being taught is not a guest. It is the HOST. A Type 1
+   hypervisor exists to run many guests on one physical box, and the box's memory is finite
+   and hard-enforced: it does not warn you, it refuses. Every task here turns on capacity
+   across ALL running guests, which is a quantity stage 1 never had to think about. */
+3: [
+    { id:'s3t1', title:'Create the first guest on the host',
+      desc:'This is not your laptop. It is a server with no desktop, administered from the browser. Press <b>New</b>, name it <b>web01</b>, and give it at least 2048 MB.',
+      check:() => { const v = labVM(); return !!v && v.ram >= 2048; } },
+
+    { id:'s3t2', title:'How much memory can guests actually have here?',
+      desc:'Read the host summary above the machine list. There is no Windows or macOS underneath this hypervisor, only the hypervisor itself. Type, in MB, how much of the physical memory is left for guests.',
+      answer:true, placeholder:'MB',
+      /* Computed from HOST, never written into the markup. The strip prints the two inputs
+         (physical, overhead) and never the difference, so this is a subtraction, not a copy. */
+      expect:() => String(HOST.ram - HOST.hvOverhead),
+      wrong:'Not that number. The strip shows the physical memory and what the hypervisor itself consumes. Nothing else is running on this box: there is no desktop OS to reserve for.',
+      check:() => LAB.tasksDone.s3t2 === true },
+
+    { id:'s3t3', title:'Consolidate: three servers on one box',
+      desc:'This is the reason Type 1 exists. Build <b>db01</b> (6144 MB) and <b>file01</b> (2048 MB) alongside web01 at 4096 MB, and have all three <b>running at the same time</b>. Select each one and press Start.',
+      check:() => { const r = stageVMs().filter(v => v.running);
+                    return r.length >= 3 && r.reduce((n,v) => n + v.ram, 0) >= 12288; } },
+
+    { id:'s3t4', title:'Find the ceiling: make the host refuse',
+      desc:'Add a fourth guest, <b>app01</b>, with 6144 MB, and press Start with the other three still running. The host will not swap, warn, or "make it work". Read what it says.',
+      check:() => LAB.hostRefused === true },
+
+    { id:'s3t5', title:'Fit all four without powering anything off',
+      desc:'The pool is physical and you cannot buy more RAM in this rack today. Right-size the guests in <b>Settings &rarr; System</b> until all four run at once inside the pool.',
+      check:() => { const r = stageVMs().filter(v => v.running);
+                    return r.length >= 4 && r.reduce((n,v) => n + v.ram, 0) <= guestPool(); } },
+
+    { id:'s3t6', title:'vCPUs are not memory',
+      desc:'The host has ' + HOST.cores + ' physical cores. Give the four running guests <b>more than ' + HOST.cores +
+           ' vCPUs between them</b> and notice the host allows it. Memory is handed out; CPU time is shared.',
+      check:() => { const r = stageVMs().filter(v => v.running);
+                    return r.length >= 4 && r.reduce((n,v) => n + v.cpus, 0) > HOST.cores; } },
+
+    { id:'s3t7', title:'Name this class of hypervisor',
+      desc:'VirtualBox and VMware Workstation were installed <i>onto</i> an operating system. This one boots the server itself and has no operating system beneath it. Type the term for this kind.',
+      answer:true, placeholder:'the term',
+      /* Accepts the several names the industry and the exam both use, so a student who knows
+         the concept is not failed for picking the wrong synonym. */
+      /* Anchored whole-string matching failed students who knew the answer: "type one",
+         "Type I", "a type 1 hypervisor" and "hypervisor type 1" were all marked wrong.
+         Normalise the separators and the spelled-out/roman numerals, reject the OTHER kind
+         explicitly, then accept the concept token anywhere in the sentence. */
+      accepts:(raw) => {
+          const n = String(raw).toLowerCase()
+              .replace(/[-_]+/g, ' ')
+              .replace(/\btype\s*one\b/g, 'type 1')
+              .replace(/\btype\s*i\b/g, 'type 1')    /* roman numeral; "type ii" must not match */
+              .replace(/\btype\s*two\b/g, 'type 2')
+              .replace(/\btype\s*ii\b/g, 'type 2')
+              .replace(/[^a-z0-9]/g, '');
+          if (/type2|hosted/.test(n)) return false;   /* that is the other kind */
+          return /type1/.test(n) || /baremetal/.test(n) || n === 'native' || /nativehypervisor/.test(n);
+      },
+      wrong:'Not that. There are only two kinds, and the other one is what stages 1 and 2 ran on.',
+      check:() => LAB.tasksDone.s3t7 === true }
+]
+};
+
+/* The rail, grader and renderer all read TASKS, which just means "this stage's tasks". */
+Object.defineProperty(window, 'TASKS', { get(){ return STAGE_TASKS[LAB.stage]; } });
+
+/* Grading targets the selected VM, or the only VM if just one exists, so a student
+   who builds one machine is not punished for having clicked away from it. */
+
+
+/* ════════════════════════════════════════════════════════════════════════
+   RENDER
+   ════════════════════════════════════════════════════════════════════════ */
+function renderList() {
+    const el = document.getElementById('vmlist');
+    const mine = stageVMs();          /* only the machines this product built */
+    if (!mine.length) {
+        el.innerHTML = '<div class="empty">No virtual machines yet.<br>Press <b>New</b> to create one.</div>';
+        return;
+    }
+    el.innerHTML = mine.map(v =>
+        `<div class="vmrow ${v.id===LAB.selected?'sel':''} ${v.running?'running':''}" onclick="selectVM('${v.id}')">
+           <span class="state"></span><span>${escapeHtml(v.name)}</span>
+           ${v.id===LAB.labVmId[LAB.stage]?'<span style="margin-left:auto;font-size:9.5px;color:var(--gold);letter-spacing:.06em">LAB VM</span>':''}
+         </div>`).join('');
+}
+
+function renderHost() {
+    const strip = document.getElementById('hostStrip');
+    if (LAB.stage !== 3) { strip.hidden = true; return; }
+    strip.hidden = false;
+    const used = runningRam(), pool = guestPool();
+    const pct = Math.min(100, used / pool * 100);
+    /* Physical and overhead are shown; "available to guests" deliberately is NOT, because that is
+       the subtraction task s3t2 asks for, and printing it would make the task a copy job. */
+    strip.innerHTML =
+      `<span class="hname">${HOST.name}</span>` +
+      `<span>Physical memory <b>${HOST.ram}</b> MB</span>` +
+      `<span>Hypervisor overhead <b>${HOST.hvOverhead}</b> MB</span>` +
+      `<span>Allocated to running guests <b>${used}</b> MB</span>` +
+      `<span><b>${stageVMs().filter(v => v.running).length}</b> of <b>${stageVMs().length}</b> powered on` +
+      ` &middot; <b>${runningCpus()}</b> vCPUs on <b>${HOST.cores}</b> cores</span>` +
+      /* bar last, so when the strip wraps it wraps at a sentence boundary rather than
+         stranding the meter in the middle of the numbers */
+      `<div class="hbar"><i class="${pct >= 100 ? 'full' : ''}" style="width:${pct}%"></i></div>`;
+}
+
+function renderDetails() {
+    renderHost();
+    const el = document.getElementById('details');
+    const v = selectedVM();
+    if (!v) { el.innerHTML = '<p class="nothing">Select a virtual machine to see its configuration.</p>'; return; }
+    const rv = ramVerdict(v.ram);
+    /* Label comes from the chrome table, not a second hard-coded map. That map had no
+       'lanseg', so the VMware stage rendered "Adapter 1: undefined". One source of truth. */
+    const netEntry = ui().nets.find(n => n[0] === v.net);
+    const netLabel = netEntry ? netEntry[1] : v.net;
+    el.innerHTML = `
+      <div class="dgrid">
+        <div>
+          <h3 class="first">General</h3>
+          <div class="kv">
+            <div class="k">Name</div><div class="v">${escapeHtml(v.name)}</div>
+            <div class="k">Operating System</div><div class="v">${v.os}</div>
+            <div class="k">State</div><div class="v ${v.running?'ok':''}">${v.running?'Running':'Powered Off'}</div>
+          </div>
+          <h3>System</h3>
+          <div class="kv">
+            <div class="k">Base Memory</div><div class="v ${rv.level==='ok'?'ok':rv.level==='warn'?'warn':'bad'}">${v.ram} MB</div>
+            <div class="k">Processors</div><div class="v">${v.cpus}</div>
+          </div>
+        </div>
+        <div>
+          <h3 class="first">Storage</h3>
+          <div class="kv">
+            <div class="k">Hard disk</div><div class="v">${v.disk} GB (${ui().diskExt}, ${ui().diskDesc})</div>
+            <div class="k">Optical drive</div><div class="v ${v.iso?'ok':'warn'}">${v.iso ? escapeHtml(v.iso) : 'Empty'}</div>
+          </div>
+          <h3>Network &amp; Snapshots</h3>
+          <div class="kv">
+            <div class="k">Adapter 1</div><div class="v">${netLabel}</div>
+            <div class="k">Snapshots</div><div class="v ${v.snapshots?'ok':''}">${v.snapshots}</div>
+            <div class="k">${ui().tools}</div><div class="v ${v.tools?'ok':'warn'}">${v.tools?'Installed':'Not installed'}</div>
+          </div>
+        </div>
+      </div>
+      <div class="screen" id="screen">${v.screen || '<span class="dim">Machine is powered off.</span>'}</div>`;
+    document.getElementById('btnSettings').disabled = false;
+    document.getElementById('btnStart').disabled = v.running;
+    document.getElementById('btnStop').disabled = !v.running;
+    document.getElementById('btnSnap').disabled = false;
+    const bt = document.getElementById('btnTools');
+    bt.disabled = !v.running || v.tools;
+    bt.textContent = v.tools ? ui().tools + ' installed' : 'Install ' + ui().tools;
+}
+
+/* The rail: single-line steps plus ONE open task. Seven expanded cards are ~1040px and no
+   laptop viewport holds that beside a tool window, which is what forced the page to scroll
+   and pushed VirtualBox off screen. */
+function currentTaskId() {
+    if (LAB.focus && !LAB.tasksDone[LAB.focus]) return LAB.focus;
+    const next = TASKS.find(t => !LAB.tasksDone[t.id]);
+    return next ? next.id : TASKS[TASKS.length - 1].id;
+}
+function focusTask(id) { LAB.focus = id; renderTasks(); }   /* navigation only, credits nothing */
+
+function renderTasks() {
+    const doneN = TASKS.filter(t => LAB.tasksDone[t.id]).length;
+    document.getElementById('railTitle').innerHTML = 'Stage ' + LAB.stage + ' &middot; Tasks';
+    document.getElementById('railCount').textContent = doneN + ' of ' + TASKS.length + ' complete';
+    document.getElementById('progFill').style.width = (doneN / TASKS.length * 100) + '%';
+
+    const cur = currentTaskId();
+    document.getElementById('steps').innerHTML = TASKS.map((t, i) => {
+        const done = !!LAB.tasksDone[t.id];
+        return `<div class="step ${done?'done':''} ${t.id===cur?'cur':''}" onclick="focusTask('${t.id}')">
+                  <span class="n">${done?'&#10003;':(i+1)}</span><span>${t.title}</span></div>`;
+    }).join('');
+
+    const t = TASKS.find(x => x.id === cur), done = !!LAB.tasksDone[t.id];
+    document.getElementById('openTask').innerHTML =
+        `<div class="t">${done?'&#10003; ':''}${t.title}</div><div class="d">${t.desc}</div>` +
+        (t.answer && !done
+            ? `<div class="answer"><input type="text" id="ans" placeholder="${t.placeholder||''}"
+                 onkeydown="if(event.key==='Enter')submitAnswer()"><button onclick="submitAnswer()">Check</button></div>`
+            : '') + `<div class="fb" id="fb"></div>`;
+
+    const fb = document.getElementById('finishBtn');
+    fb.disabled = doneN < TASKS.length;
+    fb.textContent = LAB.stage === 1 ? 'Continue to Stage 2 · VMware'
+                   : LAB.stage === 2 ? 'Continue to Stage 3 · Type 1'
+                   : 'Complete the lab';
+    const v = labVM();
+    /* Stage 3 grades the host, not one machine, so the footer reports the host. */
+    document.getElementById('statusNote').innerHTML = LAB.stage === 3
+        ? `Host <b>${HOST.ram}</b> MB RAM · <b>${HOST.cores}</b> cores · <b>${HOST.hvOverhead}</b> MB taken by the hypervisor` +
+          ` &nbsp;·&nbsp; <b>${stageVMs().filter(x => x.running).length}</b> of <b>${stageVMs().length}</b> guests running`
+        : `Host <b>${HOST.ram}</b> MB RAM · <b>${HOST.cores}</b> cores · <b>${HOST.reservedRam}</b> MB reserved for the host` +
+          (v ? ` &nbsp;·&nbsp; Lab machine: <b>${escapeHtml(v.name)}</b>` : ' &nbsp;·&nbsp; no lab machine yet');
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   GRADING. Called after any state change. NEVER called from a navigation
+   handler. Opening a dialog or switching a tab cannot credit anything.
+   ════════════════════════════════════════════════════════════════════════ */
+function evaluate() {
+    TASKS.forEach(t => {
+        /* Free-text tasks are knowledge, not machine state, so they are credited only by
+           submitAnswer() and never revoked. */
+        if (t.answer) return;
+        /* STATE-DERIVED TASKS TRACK THE MACHINE, INCLUDING DOWNWARD. A sticky tick would
+           let a student set memory to 4096, take the credit, drop it back to 2048 and hand
+           in a machine that does not meet the task it was credited for. The tick means
+           "the machine is configured this way NOW", so it goes out again if the student
+           breaks it. This is why the stage cannot be completed with a wrong machine. */
+        LAB.tasksDone[t.id] = !!t.check();
+    });
+    renderTasks();
+    save();
+}
+
+function submitAnswer() {
+    const t = TASKS.find(x => x.id === currentTaskId());
+    const input = document.getElementById('ans'), fb = document.getElementById('fb');
+    if (!t || !t.answer || !input) return;
+    const raw = input.value.trim().replace(/[, ]/g, '').replace(/mb$/i, '');
+    if (!raw) { fb.className = 'fb bad'; fb.textContent = 'Type a value first.'; return; }
+    /* Expected value computed live from HOST, never written into the DOM. */
+    /* Numeric tasks compare against a value computed from HOST; word tasks use accepts(),
+       so a student who knows "bare metal" is not failed for not typing "Type 1". */
+    const correct = t.accepts ? t.accepts(input.value.trim()) : (raw === t.expect());
+    if (correct) {
+        LAB.tasksDone[t.id] = true; renderTasks(); save();
+        const f = document.getElementById('fb'); if (f) { f.className = 'fb good'; f.textContent = 'Correct.'; }
+    } else {
+        /* No reveal, no elimination, unlimited retries: the student must read the meter. */
+        fb.className = 'fb bad';
+        fb.textContent = t.wrong || 'Not that value. Drag the memory slider until the meter turns red, then step back one.';
+    }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   ACTIONS: the only places that mutate state
+   ════════════════════════════════════════════════════════════════════════ */
+/* The briefing shows itself the first time and never again unprompted. A student who has
+   read it does not want it in the way, and one who has not should not have to find a button
+   to be told what the lab is or where the real software lives. */
+function openBrief() {
+    document.getElementById('mBrief').classList.add('open');
+    if (!LAB.briefSeen) { LAB.briefSeen = true; save(); }
+}
+function openNew()  { document.getElementById('mNew').classList.add('open'); onRam(); onDisk(); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+function onName() {
+    const g = guessOS(document.getElementById('nvName').value);
+    const el = document.getElementById('nvGuess');
+    el.textContent = g;
+    el.className = g === 'Other/Unknown' ? 'nothing' : '';
+}
+function onRam() {
+    const mb = +document.getElementById('nvRam').value;
+    document.getElementById('nvRamVal').textContent = mb + ' MB';
+    const v = ramVerdict(mb), f = document.getElementById('nvRamMeter');
+    f.style.width = Math.min(100, mb / HOST.ram * 100) + '%';
+    f.className = 'fill ' + (v.level === 'ok' ? '' : v.level);
+    document.getElementById('nvRamHint').textContent = v.text;
+}
+function onDisk() {
+    const gb = +document.getElementById('nvDisk').value;
+    document.getElementById('nvDiskVal').textContent = gb + ' GB';
+}
+
+function createVM() {
+    const name = document.getElementById('nvName').value.trim();
+    /* Inline validation, not alert(). A modal is the wrong instrument in a lab and it
+       blocks automated verification. It hung the harness for two minutes. */
+    if (!name) {
+        const err = document.getElementById('nvNameErr');
+        if (err) err.textContent = 'Give the machine a name. VirtualBox reads the guest OS from it.';
+        document.getElementById('nvName').focus();
+        return;                                   /* hard gate: no name, no machine */
+    }
+    const vm = {
+        stage: LAB.stage,      /* which product built it, the list shows only this stage's */
+        tools: false,          /* Guest Additions / VMware Tools, installed inside the guest */
+        id: 'vm' + (++LAB.seq),
+        name,
+        os: guessOS(name),
+        ram: +document.getElementById('nvRam').value,
+        cpus: 1,
+        disk: +document.getElementById('nvDisk').value,
+        iso: null,
+        net: ui().nets[0][0],   /* from the chrome table, an ESXi host has no "NAT" mode */
+        running: false,
+        booted: false,
+        snapshots: 0,
+        screen: ''
+    };
+    LAB.vms.push(vm);
+    LAB.selected = vm.id;
+    if (!LAB.labVmId[LAB.stage]) LAB.labVmId[LAB.stage] = vm.id;   /* first of THIS stage is graded */
+    closeModal('mNew');
+    renderList(); renderDetails(); evaluate();
+}
+
+function selectVM(id) {           /* navigation only, deliberately does NOT evaluate() */
+    LAB.selected = id;
+    renderList(); renderDetails();
+}
+
+function openSettings() {
+    const v = selectedVM(); if (!v) return;     // hard precondition, not a hidden button
+    document.getElementById('setTitle').textContent = v.name + ' Settings';
+    document.getElementById('stRam').value = v.ram;
+    document.getElementById('stCpu').value = v.cpus;
+    onStRam(); onStCpu(); paintSettings();
+    setTab('storage');
+    document.getElementById('mSet').classList.add('open');
+}
+function setTab(name) {                          /* navigation only, no credit */
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+    document.querySelectorAll('.tabpane').forEach(p => p.hidden = (p.dataset.pane !== name));
+}
+function paintSettings() {
+    const v = selectedVM(); if (!v) return;
+    document.getElementById('setIso').innerHTML = v.iso
+        ? `<span style="color:var(--green)">${escapeHtml(v.iso)}</span> attached to the optical drive`
+        : `<span style="color:var(--gold)">Empty</span>. The machine has nothing to boot from`;
+    document.getElementById('setDisk').textContent =
+        v.disk + ' GB, ' + ui().diskDesc + ' (' + ui().diskExt + ')';
+
+    /* Network modes are RENDERED FROM THE CHROME TABLE, so VMware presents VMware's names.
+       That is what makes the isolation task real transfer rather than repetition: VMware
+       offers no "Internal Network", and the student has to recognise that LAN Segment does
+       the same job. */
+    document.getElementById('netSeg').innerHTML = ui().nets.map(([k, t, d]) =>
+        `<button data-net="${k}" onclick="setNet('${k}')"><span class="t">${t}</span><span class="d">${d}</span></button>`
+    ).join('');
+    document.querySelectorAll('#netSeg button').forEach(b => b.classList.toggle('on', b.dataset.net === v.net));
+
+    const hints = {
+        nat:'The guest reaches the internet through the host. Nothing outside can reach the guest.',
+        bridged:'The guest takes its own address on the physical network. Anything on the LAN can reach it.',
+        hostonly:'Guest and host can talk. No route to the internet.',
+        internal:'Guest to guest only. No host, no internet. This is the isolation setting.',
+        lanseg:"Guest to guest only. No host, no internet. VMware's name for the isolation setting.",
+        vmnet:'The standard port group. Guests here reach the physical network through the host\'s uplink.',
+        mgmt:'The port group the host itself listens on. Guests do not normally belong here.',
+        isolated:'A virtual switch with no uplink at all. Guest to guest only. The Type 1 equivalent of an Internal Network.'
+    };
+    document.getElementById('netHint').textContent = hints[v.net];
+}
+function attachIso(name) {
+    const v = selectedVM(); if (!v) return;
+    v.iso = name;
+    if (!name && v.running) { v.screen = bootScreen(v); }
+    paintSettings(); renderDetails(); evaluate();
+}
+function setNet(mode) {
+    const v = selectedVM(); if (!v) return;
+    v.net = mode;
+    paintSettings(); renderDetails(); evaluate();
+}
+function onStRam() {
+    const mb = +document.getElementById('stRam').value;
+    document.getElementById('stRamVal').textContent = mb + ' MB';
+    const verdict = ramVerdict(mb), f = document.getElementById('stRamMeter');
+    f.style.width = Math.min(100, mb / HOST.ram * 100) + '%';
+    f.className = 'fill ' + (verdict.level === 'ok' ? '' : verdict.level);
+    document.getElementById('stRamHint').textContent = verdict.text;
+    const v = selectedVM(); if (v) { v.ram = mb; renderDetails(); evaluate(); }
+}
+function onStCpu() {
+    const n = +document.getElementById('stCpu').value;
+    document.getElementById('stCpuVal').textContent = n + (n === 1 ? ' CPU' : ' CPUs');
+    document.getElementById('stCpuHint').textContent = n > HOST.cores / 2
+        ? 'More vCPUs than half the host cores makes guests slower, not faster: they queue for the same silicon.'
+        : 'Scheduled onto ' + HOST.cores + ' real cores.';
+    const v = selectedVM(); if (v) { v.cpus = n; renderDetails(); evaluate(); }
+}
+
+function bootScreen(v) {
+    if (!v.iso) {
+        return '<div class="l err">FATAL: No bootable medium found! System halted.</div>' +
+               '<div class="l dim">&nbsp;</div>' +
+               '<div class="l dim">The virtual disk is blank and the optical drive is empty.</div>' +
+               '<div class="l dim">This is not a fault. A new VM is an empty computer.</div>';
+    }
+    const os = v.iso.includes('win') ? 'Windows Setup' : 'Ubuntu installer';
+    return `<div class="l dim">${ui().short}: starting virtual machine…</div>
+            <div class="l">Booting from ${escapeHtml(v.iso)}</div>
+            <div class="l ok">${os} is loading.</div>
+            <div class="l dim">&nbsp;</div>
+            <div class="l dim">Memory: ${v.ram} MB &nbsp;·&nbsp; CPUs: ${v.cpus} &nbsp;·&nbsp; Disk: ${v.disk} GB</div>`;
+}
+
+function startVM() {
+    const v = selectedVM(); if (!v || v.running) return;   // hard precondition
+    /* TYPE 1 ENFORCES. A Type 2 product on a desktop lets you overcommit and the host OS
+       swaps, badly, but it boots, which is what stages 1 and 2 model. A bare-metal host
+       hands out physical pages and refuses when there are none left. The refusal is not an
+       error state to route around; it is the task. */
+    if (LAB.stage === 3 && runningRam() + v.ram > guestPool()) {
+        LAB.hostRefused = true;                 /* latched: the student saw the host enforce it */
+        const free = guestPool() - runningRam();
+        v.screen = `<div class="l err">Failed to power on virtual machine ${escapeHtml(v.name)}.</div>
+            <div class="l dim">&nbsp;</div>
+            <div class="l">Insufficient memory resources on host ${HOST.name}.</div>
+            <div class="l dim">Requested ${v.ram} MB &middot; ${free} MB free in the guest pool.</div>
+            <div class="l dim">This host does not swap the difference for you. Power a guest off,
+            or right-size one.</div>`;
+        renderList(); renderDetails(); evaluate();
+        return;                                  /* the machine stays powered off */
+    }
+    v.running = true;
+    v.booted = true;                                        // credit is for booting, not for pressing a button
+    v.screen = bootScreen(v);
+    renderList(); renderDetails(); evaluate();
+}
+function stopVM() {
+    const v = selectedVM(); if (!v || !v.running) return;
+    v.running = false; v.screen = '';
+    renderList(); renderDetails();
+}
+/* Snapshots belong to the MACHINE. On LAB they were global, so a brand-new VM reported a
+   count it never earned and task 7 could be satisfied on the wrong machine entirely. */
+/* Guest tooling is installed INSIDE a running guest. That is the whole point of the
+   "why won't my screen resize" lesson, so the lab enforces it: the machine must be running. */
+function installTools() {
+    const v = selectedVM();
+    if (!v || !v.running) return;              /* hard precondition, not a hidden button */
+    v.tools = true;
+    v.screen = bootScreen(v);
+    renderDetails(); evaluate();
+}
+
+function takeSnapshot() {
+    const v = selectedVM(); if (!v) return;
+    v.snapshots++;
+    renderDetails(); evaluate();
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   COMPLETION: hard-gated on every task, re-checked here rather than
+   trusting the button's disabled attribute.
+   ════════════════════════════════════════════════════════════════════════ */
+/* RE-DERIVED FROM THE MACHINE, NOT FROM THE TICK CACHE.
+   This function used to read LAB.tasksDone, which is a plain writable object on window. That
+   meant six lines in devtools completed the entire three-stage lab with zero VMs ever built:
+       STAGE_TASKS[1].forEach(t => LAB.tasksDone[t.id] = true); finishStage();   (x3)
+   ModuleProgress.complete() fired on a lab nobody had touched. Chris reproduced it, 2026-08-06.
+   That is the same `case 3: return true` failure this file's header says it exists not to
+   repeat, reached through a different door: the gate trusted a cache instead of the check.
+
+   Now every state-derived task is re-run against the machine at the moment of completion, so
+   forging the cache buys nothing: evaluate() would overwrite it and this ignores it outright.
+   Free-text tasks are the one exception, because knowledge is not machine state and there is
+   nothing to re-derive; they are credited only by submitAnswer().
+
+   The checks read LAB.stage through labVM()/stageVMs()/ui(), so evaluating stage n's tasks
+   requires being in stage n's context. Swap it in, restore it in `finally` so a throwing
+   check cannot strand the lab in the wrong stage. */
+function stageComplete(n) {
+    const prev = LAB.stage;
+    LAB.stage = n;
+    try {
+        return STAGE_TASKS[n].every(t => t.answer ? LAB.tasksDone[t.id] === true : !!t.check());
+    } finally {
+        LAB.stage = prev;
+    }
+}
+
+function goToStage(n) {
+    /* Hard gates, re-derived from the tasks rather than from a flag or the button state, so
+       a direct console call cannot jump a student past a stage they have not done. */
+    if (n === 2 && !stageComplete(1)) return;
+    if (n === 3 && !(stageComplete(1) && stageComplete(2))) return;
+    if (n === 1 && LAB.stage === 1) return;
+    LAB.stage = n;
+    LAB.focus = null;
+    const mine = stageVMs();
+    LAB.selected = mine.length ? mine[0].id : null;
+    document.getElementById('productName').textContent = ui().product;
+    document.getElementById('stagePill').textContent = 'Stage ' + n + ' of 3 · ' + ui().stageName;
+    document.getElementById('newTitle').textContent = ui().newTitle;
+    document.getElementById('lblMem').textContent = ui().memLabel;
+    document.getElementById('lblCpu').textContent = ui().cpuLabel;
+    renderList(); renderDetails(); evaluate();
+}
+
+function finishStage() {
+    /* Re-derives every task from the machine. Not `TASKS.some(t => !LAB.tasksDone[t.id])`,
+       which trusted a writable cache and made this function a one-line lab bypass. */
+    if (!stageComplete(LAB.stage)) return;
+
+    /* EVERY EARLIER STAGE MUST ALSO BE DONE. goToStage() enforced the ordering, but nothing
+       forced a student through goToStage(): LAB.stage is a plain property, so `LAB.stage = 3`
+       routes around the gate entirely. A student could then do stage 3 completely honestly,
+       every click real, and complete a lab whose stages 1 and 2 they never touched, which is
+       the exact skill transfer the three-stage structure exists to teach. Chris, 2026-08-07.
+       Checked here rather than only at the jump, because this is the function that grants
+       credit, and a gate on the door does nothing if the wall has a hole. */
+    for (let n = 1; n < LAB.stage; n++) {
+        if (!stageComplete(n)) return;
+    }
+    save();
+    if (LAB.stage === 1) { goToStage(2); return; }           /* on to VMware */
+    if (LAB.stage === 2) { goToStage(3); return; }           /* on to the Type 1 host */
+    /* Module progress is recorded once, when the last built stage is finished. */
+    if (typeof ModuleProgress !== 'undefined') {
+        ModuleProgress.complete('forge', 'forge-core2-virtualization-lab',
+            { returnUrl: '../chapters/ch25-virtualization/index.html' });
+    }
+    const b = document.getElementById('finishBtn');
+    b.textContent = 'Lab complete'; b.disabled = true;
+}
+
+function save() {
+    try {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        if (!p.forge) p.forge = {};
+        p.forge[STORE_KEY] = { stage: LAB.stage, vms: LAB.vms, labVmId: LAB.labVmId, selected: LAB.selected,
+            seq: LAB.seq, tasks: LAB.tasksDone, briefSeen: LAB.briefSeen,
+            completed: TASKS.every(t => LAB.tasksDone[t.id]), savedAt: new Date().toISOString() };
+        localStorage.setItem('hexworth_progress', JSON.stringify(p));
+    } catch (e) { console.warn('[Forge] save failed', e); }
+}
+
+/* The previous build wrote progress and never read it back, so leaving the page lost the
+   machine and every tick. */
+function restore() {
+    try {
+        const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        const st = p.forge && p.forge[STORE_KEY];
+        if (!st || !Array.isArray(st.vms)) return;
+        LAB.vms = st.vms.map(v => Object.assign({ snapshots: 0 }, v, { running: false, screen: '' }));
+        LAB.stage = (st.stage === 2 || st.stage === 3) ? st.stage : 1;
+        /* NOT restored. Guests come back powered off, so s3t3/t5/t6 have to be re-earned on
+           any reload regardless, and a persisted flag would have been the one state tick a
+           hand-edited localStorage could forge. Re-triggering it takes one Start press. */
+        LAB.hostRefused = false;
+        LAB.briefSeen = st.briefSeen === true;
+        LAB.labVmId = (st.labVmId && typeof st.labVmId === 'object') ? st.labVmId : { 1:null, 2:null, 3:null };
+        LAB.selected = st.selected || (LAB.vms[0] && LAB.vms[0].id) || null;
+        LAB.seq = st.seq || LAB.vms.length;
+        /* Only free-text ticks are restored. Every state-derived tick is RECOMPUTED from the
+           restored machine by evaluate(), so a hand-edited localStorage cannot grant them. */
+        LAB.tasksDone = {};
+        /* restore free-text ticks for EVERY stage; state ticks are recomputed by evaluate() */
+        [1,2,3].forEach(n => STAGE_TASKS[n].filter(t => t.answer)
+            .forEach(t => { if (st.tasks && st.tasks[t.id]) LAB.tasksDone[t.id] = true; }));
+    } catch (e) { console.warn('[Forge] restore failed', e); }
+}
+
+function resetLab() {
+    /* Reset THIS stage only. Wiping stage 1 because a student wants to redo stage 2
+       would destroy work they already finished. */
+    LAB.vms = LAB.vms.filter(v => v.stage !== LAB.stage);
+    LAB.labVmId[LAB.stage] = null;
+    if (LAB.stage === 3) LAB.hostRefused = false;   /* the machines are gone; so is what they proved */
+    STAGE_TASKS[LAB.stage].forEach(t => { delete LAB.tasksDone[t.id]; });
+    LAB.selected = null; LAB.focus = null;
+    save(); renderList(); renderDetails(); renderTasks();
+    document.getElementById('finishBtn').disabled = true;
+}
+
+document.getElementById('nvName').addEventListener('input', onName);
+restore();
+document.getElementById('productName').textContent = ui().product;
+document.getElementById('stagePill').textContent = 'Stage ' + LAB.stage + ' of 3 · ' + ui().stageName;
+document.getElementById('newTitle').textContent = ui().newTitle;
+document.getElementById('lblMem').textContent = ui().memLabel;
+document.getElementById('lblCpu').textContent = ui().cpuLabel;
+renderList(); renderDetails(); evaluate();
+if (!LAB.briefSeen) openBrief();      /* first visit: say what this is before they press anything */
+</script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

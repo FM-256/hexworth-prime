@@ -41,6 +41,7 @@ module.exports = {
     'heur-029-issues.html':                  ['HEUR-029'],
     'heur-018-issues.html':                  ['HEUR-018'],
     'heur-035-issues.html':                  ['HEUR-035'],
+    'heur-035-encodings.html':               ['HEUR-035'],
     'heur-040-issues.html':                  ['HEUR-040'],
     'heur-041-issues.html':                  ['HEUR-041']
 };

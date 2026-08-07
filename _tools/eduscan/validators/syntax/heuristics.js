@@ -58,7 +58,7 @@
  * - HEUR-032: Broken webp icon reference. HTML references `/assets/images/icons/icon-NAME.webp` where the file does not exist on disk. Common typo source: plurality (`icon-gears` vs `icon-gear`) or synonyms (`icon-checklist` vs `icon-checkbox`). Caught on WSA m01 (2026-05-29). HIGH: visible broken-image fallback in the UI. Detection: extract every `icon-*.webp` ref from HTML, resolve against `_app/assets/images/icons/`, flag any miss.
  * - HEUR-033: SVG width-% keyframe overflow. CSS `@keyframes` definition contains `width: 100%` or similar percentage, and the animation class is applied to a `<rect>` or `<line>` inside an inline `<svg>`. SVG percentage widths resolve to the viewBox root, not the parent container, so the animated element overflows the intended bounds. Caught on WSA m01 slide 23 progress bars (2026-05-29). MEDIUM (visual overflow). Detection: pair `@keyframes` with `width: \d+%` against `class="ANIM" ... <rect|line` in svg blocks. Fix is `transform: scaleX()` with `transform-origin` set.
  * - HEUR-034: Infinite opacity 0→1 keyframe causes flicker. `@keyframes` definition starts at `opacity: 0` and ends at `opacity: 1`, AND the applying class declares `animation: ... infinite`. Creates a fade-in / fade-out flicker loop because each cycle resets opacity to 0. Caught on WSA m01 slides 17 and 26 drop-in animations (2026-05-29). MEDIUM (UX issue). Detection: parse `@keyframes` for `0%.*opacity:\s*0` AND `100%.*opacity:\s*1`; check applying class for `animation: ... infinite`.
- * - HEUR-035: Em-dash character in content. Per user style preference (memory `feedback_no_em_dashes`), the em-dash character (U+2014) should not appear in HTML content. Common alternatives: comma, colon, or period depending on grammar. Detection: count `—` characters outside `<style>`, `<script>`, and `code-block`/`pre` contexts. Going-forward enforcement only — legacy content allowlisted by file path.
+ * - HEUR-035: Em-dash or double-hyphen in content. Per user style preference (memory `feedback_no_em_dashes`), neither the em-dash nor its ` -- ` substitute should appear in HTML content. Detection covers ALL FOUR encodings (literal U+2014, `&mdash;`, `&#8212;`, `&#x2014;`) plus ` -- ` with a space on both sides, counted outside `<style>`, `<script>`, `code-block` and `pre`. HIGH as of 2026-08-06 (was LOW, which could never fail a build: --strict blocks on CRITICAL/HIGH and the Nexus triage gate publishes ['critical','high']). Encoding coverage added the same day after a source grep for `—` returned 0 on a deck rendering six of them from `&#8212;` inside SVG <text>. Legacy footprint is ~1587 files, so the BLOCKING enforcement lives in `_tools/eduscan/dash-hygiene-gate.js`, which only inspects files changed against master; this rule provides the platform-wide visibility.
  * - HEUR-036: has-visual class without visual element. Slide has `class="slide has-visual"` but its `<div class="slide-visual">` is empty or contains neither an `<svg>` nor an `<img>` element. Indicates a partially-built slide where the visual half is missing — companion bug to HEUR-031 (empty text wrapper). Detection: find each `<div class="slide(?:\s+active)?\s+has-visual"...data-slide="N"...>` block (note: implementation regex requires `slide` and `has-visual` in that order with optional `active` between — does NOT match arbitrary class ordering); check that the slide-visual child contains an `<svg` OR `<img`. Broadened 2026-06-09 after WSA rich-render swap (c8ec7a084) replaced inline SVGs with img tags referencing webp files under the wsa-visuals subtree. MEDIUM (incomplete slide). Known gap: no validator currently confirms a referenced webp under the wsa-visuals subtree actually exists on disk — HEUR-032 only covers icon-NAME.webp paths. A future author could place an img tag with a non-existent webp path and pass HEUR-036 silently.
  * - HEUR-037: <a target="_blank"> missing rel="noopener" (or rel="noreferrer" — per HTML spec noreferrer implies noopener). Tabnabbing risk via window.opener: new tab can redirect parent. Modern browsers (Chrome 88+, FF 79+, Safari 12.1+) default to implicit noopener but explicit attribute is HTML spec best practice. LOW severity — does NOT publish to Nexus triage queue per TRIAGE_SEVERITY_GATE=['critical','high']; guards against silent regression in future scans. ~35 current findings across 14 files. Detection: regex match `<a target="_blank">` that lacks both noopener and noreferrer tokens in rel attribute.
  * - HEUR-039: WSA cat-contract `.has-visual .slide-text` content budget exceeded. Static companion to OVERFLOW-001b. For each `.slide.has-visual` div in a WSA cloud-presentation.module.html file, extracts the inner `.slide-text` body, strips HTML/entities/whitespace, and counts chars. Budget = 600 chars (empirical: m01/m02 reference deck's safe ceiling is 558c; boundary cases at 634-968c clip 14-53px at 1280×720; >800c clips reliably). HIGH severity. Scope: same as HEUR-038. NOTE: m01 + m02 are NOT passing fixtures for HEUR-039 — they have ~10-11 overflowing slides each that need content rewrite. They ARE the structural fixtures for HEUR-038 (CSS contract), which is independent of content density. Dedup-stable identifier: `line: slideIndex` (overall .slide div index in source order), so partial-trim edits don't generate ghost findings. Known limitations: (1) regex skips `<script>`/`<style>` early to avoid `</div>` in JS strings throwing depth; (2) class-token matched with `(?:^|\s)has-visual(?:\s|$)` to prevent prefix-substring false positives on hypothetical `has-visual-*` variants (none today). Predicted output ~212 findings across 19 WSA files (Nancy dry-run 2026-06-07).
@@ -4442,7 +4442,9 @@ class HeuristicsValidator {
         const content = file.content;
         if (!content) return issues;
 
-        // Strip <style>, <script>, and elements with class containing "code-block" or pre tags
+        // Strip <style>, <script>, and elements with class containing "code-block" or pre tags.
+        // NOTE: <script> is stripped, so a dash inside a JS string or comment is NOT seen here.
+        // The dash-hygiene-gate covers that surface on changed files; this rule covers rendered content.
         const stripped = content
             .replace(/<style[\s\S]*?<\/style>/gi, '')
             .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -4450,19 +4452,44 @@ class HeuristicsValidator {
             .replace(/<div class="code-block"[\s\S]*?<\/div>/gi, '')
             .replace(/<code[\s\S]*?<\/code>/gi, '');
 
-        if (!stripped.includes('—')) return issues;
-        const count = (stripped.match(/—/g) || []).length;
+        // ALL FOUR ENCODINGS, plus the banned ` -- ` substitute. The detector used to test
+        // only the literal U+2014 and reported a clean 0 on a deck that was rendering six
+        // em-dashes, because an SVG <text> carried them as `&#8212;` (2026-08-06). A grep
+        // that cannot see the encoding is not a pass.
+        const FORMS = [
+            { re: /—/g,          label: 'literal em-dash (—)' },
+            { re: /&mdash;/gi,   label: '&mdash; entity' },
+            { re: /&#8212;/g,    label: '&#8212; numeric entity' },
+            { re: /&#x2014;/gi,  label: '&#x2014; hex entity' },
+            // ` -- ` is banned as a substitute too (operator, 2026-07-04). Requiring a space
+            // on BOTH sides keeps `<!--`, `-->`, `i--` and `var(--muted)` out of the match.
+            { re: / -- /g,       label: '" -- " double-hyphen substitute' }
+        ];
+        const seen = [];
+        let count = 0;
+        for (const f of FORMS) {
+            const n = (stripped.match(f.re) || []).length;
+            if (n) { count += n; seen.push(`${n} × ${f.label}`); }
+        }
+        if (!count) return issues;
 
-        // Find first occurrence position (in original content) for line number
-        const firstPos = content.indexOf('—');
+        // First occurrence in the ORIGINAL content, whichever form comes first, for the line no.
+        const positions = ['—', '&mdash;', '&#8212;', '&#x2014;', ' -- ']
+            .map(t => content.indexOf(t)).filter(i => i >= 0);
+        const firstPos = positions.length ? Math.min(...positions) : 0;
+
         issues.push({
             code: 'HEUR-035',
-            severity: 'low',
+            // HIGH as of 2026-08-06 (operator instruction). At LOW this rule could never fail
+            // a build: deploy.sh --strict blocks on CRITICAL/HIGH only, and the Nexus triage
+            // gate publishes ['critical','high']. So the rule existed, fired, and stopped
+            // nothing: an A+ deck shipped to production carrying 24 em-dashes.
+            severity: 'high',
             category: 'heuristic',
-            message: `Em-dash character (—) used ${count} time(s) in content. Per style preference, use commas, colons, or periods instead.`,
+            message: `Em-dash or double-hyphen used ${count} time(s) in content (${seen.join(', ')}). Per style preference, use commas, colons, or periods instead.`,
             file: file.path,
             line: this.getLineNumber(content, firstPos),
-            fix: `Replace " — " (em-dash with surrounding spaces) with ", " (comma) for clause separation, or ": " (colon) when introducing an explanation.`
+            fix: `Replace " — " (or " -- ") with ", " for clause separation, or ": " when introducing an explanation. Do NOT swap one dash form for another: &mdash;, &#8212; and " -- " are all flagged.`
         });
         return issues;
     }

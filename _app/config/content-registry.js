@@ -11860,7 +11860,8 @@ const ContentRegistry = {
             topics: ['virtualization', 'hypervisor', 'virtualbox', 'vmware', 'vm'],
             paths: ['aplus-core2'],
             components: {
-                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-virtualization.presentation.html'
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-virtualization.presentation.html',
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-virtualization.lab.html'
             },
             prerequisites: [],
             objectives: []
