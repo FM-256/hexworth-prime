@@ -548,6 +548,14 @@ def main():
     tail = (tail.replace('const TOTAL = 21;', f'const TOTAL = {total};')
                 .replace('>1 / 21<', f'>1 / {total}<')
                 .replace('forge-core2-malware-pres', PROGRESS_ID))
+    # Drop the inherited copyLegacyKey line entirely -- see note above.
+    tail = re.sub(r'\n\s*if \(ModuleProgress\.copyLegacyKey\)[^\n]*\n', '\n', tail, count=1)
+    if 'copyLegacyKey' in tail:
+        die('inherited copyLegacyKey call was not removed')
+    # Nothing from the SOURCE deck may survive as an identifier in ours.
+    for stale in ('forge-malware', 'forge-core2-malware-pres', 'Malware'):
+        if stale in tail:
+            die(f'source-deck identifier {stale!r} survived into the engine')
     if f'const TOTAL = {total};' not in tail:
         die('TOTAL substitution failed -- the engine would navigate to the wrong slide count')
     if PROGRESS_ID not in tail:
@@ -619,7 +627,7 @@ HUB = '''<!DOCTYPE html>
         <div class="header">
             <h1>Chapter 25: Virtualization &amp; Hypervisors</h1>
             <p class="subtitle">Hypervisors, Type 1 vs Type 2, Oracle VirtualBox and VMware</p>
-            <span class="domain-badge">Domain 1: Operating Systems (31%)</span>
+            <span class="domain-badge">Domain 4: Virtualization &amp; Cloud Computing (11%)</span>
         </div>
         <div class="content-grid">
             <div class="card">
