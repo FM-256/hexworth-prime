@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-06 18:58 · **1039 scripts** · 12 wired into a gate · 237 called by other code · 145 only mentioned in docs · 645 referenced by nothing · 464 not in git
+**Generated:** 2026-08-07 14:54 · **1050 scripts** · 14 wired into a gate · 237 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 464 not in git
 
 ## Read this before writing a new script
 
@@ -42,9 +42,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/cli.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
+| `_tools/eduscan/dash-hygiene-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when CHANGED _app content introduces an em-dash or a " -- " substitute |
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
+| `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/qa/skill-map-audit.py` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/seo/ping-indexnow.py` | `deploy.sh` | yes | _(no header)_ |
@@ -531,7 +533,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `expectations.js` | CALLED | 2 | 2026-08-05 | yes |  |
+| `expectations.js` | CALLED | 2 | 2026-08-06 | yes |  |
 | `run.js` | CALLED | 2 | 2026-08-04 | yes |  |
 
 ### `_tools/eduscan/tests/fixtures` — 2 scripts, 0 referenced by nothing
@@ -601,7 +603,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `emoji.js` | CALLED | 2 | 2026-03-02 | yes |  |
 | `engine.js` | CALLED | 1 | 2026-08-05 | yes |  |
 | `flex-overflow.js` | DOCS-ONLY | 0 | 2026-07-28 | yes |  |
-| `heuristics.js` | CALLED | 6 | 2026-08-05 | yes |  |
+| `heuristics.js` | CALLED | 6 | 2026-08-06 | yes |  |
 | `html.js` | CALLED | 6 | 2026-07-23 | yes |  |
 | `hub-refs.js` | CALLED | 1 | 2026-05-07 | yes |  |
 | `index.js` | CALLED | 1 | 2026-08-04 | yes |  |
@@ -719,6 +721,20 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `option-order-verify.js` | ORPHAN | 0 | 2026-05-07 | yes |  |
 | `quote-uniqueness.js` | ORPHAN | 0 | 2026-05-07 | yes |  |
+
+### `_tools/lab-tests` — 9 scripts, 9 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `core1-vm.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ Core 1 VM lab: gates 3 and 4 must not rubber-stamp (#294) |
+| `lab-brief.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab briefing: content, real links, fits without scrolling |
+| `lab-cheat.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab ADVERSARIAL: every known bypass must stay closed |
+| `lab-check.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab stage 1 + the graded-machine naming trap |
+| `lab-flow.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab task rail: auto-advance, flash, scroll into view |
+| `lab-layout.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab layout: nothing scrolls at 1600x900 or 1366x768 |
+| `lab-s2.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab stage 2: VMware chrome and transfer tasks |
+| `lab-s3.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 lab stage 3: Type 1 host, capacity, isolation, removal |
+| `quiz-qc.js` | ORPHAN | 0 | 2026-08-07 | yes | A+ ch25 quiz: anti-tell heuristics, grounding, server scoring math |
 
 ### `_tools/labkit` — 1 scripts, 0 referenced by nothing
 

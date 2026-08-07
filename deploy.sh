@@ -14,7 +14,7 @@
 # Usage:
 #   ./deploy.sh                     Run all gates, deploy hosting + regen inventory + ping IndexNow
 #   ./deploy.sh --strict            Nexus blocks on CRITICAL or HIGH
-#   --force also skips the dash hygiene gate (2.6), same as it skips Nexus
+#   --force also skips the dash hygiene gate (2.6) and the A+ lab suites (2.7)
 #   ./deploy.sh --force             Skip Nexus only (preserve smoke gate)
 #   ./deploy.sh --skip-smoke        Skip smoke only (preserve Nexus gate)
 #   ./deploy.sh --skip-inventory    Skip Confluence inventory regen (deploy proceeds normally)
@@ -215,6 +215,52 @@ if [ -f _tools/eduscan/dash-hygiene-gate.js ]; then
             echo ""
         else
             echo ""
+            echo -e "${DIM}To bypass static analysis: ./deploy.sh --force${NC}"
+            exit 1
+        fi
+    fi
+fi
+
+# ── Gate 2.7: A+ lab suites ──────────────────────────────────────────
+# The suites in _tools/lab-tests caught every defect in the ch25 marathon (2026-08-06/07):
+# a tick cache that let six devtools lines complete a lab with zero VMs, a stage-skip that
+# credited a lab whose first two stages were never done, a quiz that scored every perfect
+# student 60%, and Core 1 gates that credited a student for touching nothing. They lived in a
+# session scratchpad until 2026-08-07 and vanished with the session; running them was always
+# something someone had to remember. Now it is not.
+#
+# SCOPED TO WHAT CHANGED, deliberately: nine puppeteer suites take minutes, and paying that on
+# a deploy that never touched a lab would make this the gate people reach for --force to skip.
+# Covers the A+ Core 1 and Core 2 applets the suites actually assert against, plus the suites
+# and shared components they drive.
+if [ -f _tools/lab-tests/run-all.js ]; then
+    LAB_PATHS="_app/houses/forge/applets/comptia-aplus _tools/lab-tests _app/components/QuizEngine.js _app/components/ModuleProgress.js"
+    LAB_BASE="$(git rev-parse --verify --quiet origin/master || git rev-parse --verify --quiet master)"
+    LAB_CHANGED=""
+    if [ -n "$LAB_BASE" ]; then
+        LAB_MB="$(git merge-base HEAD "$LAB_BASE" 2>/dev/null || echo "$LAB_BASE")"
+        LAB_CHANGED="$(git diff --name-only "$LAB_MB" -- $LAB_PATHS 2>/dev/null)"
+    fi
+    # deploy ships the WORKING TREE, not the commit, so uncommitted and untracked count too
+    LAB_CHANGED="$LAB_CHANGED
+$(git diff --name-only HEAD -- $LAB_PATHS 2>/dev/null)
+$(git ls-files --others --exclude-standard -- $LAB_PATHS 2>/dev/null)"
+    LAB_CHANGED="$(printf '%s\n' "$LAB_CHANGED" | grep -c . || true)"
+
+    if [ "$FORCE" = true ]; then
+        echo -e "${BOLD}[2.7/7]${NC} A+ lab suites ${YELLOW}[SKIPPED]${NC} — --force flag set"
+        echo ""
+    elif [ "$LAB_CHANGED" -eq 0 ]; then
+        echo -e "${BOLD}[2.7/7]${NC} A+ lab suites ${DIM}[skipped — no A+ lab/quiz files changed]${NC}"
+        echo ""
+    else
+        echo -e "${BOLD}[2.7/7]${NC} A+ lab suites (${LAB_CHANGED} relevant file(s) changed)..."
+        if node _tools/lab-tests/run-all.js; then
+            echo ""
+        else
+            echo ""
+            echo -e "${RED}DEPLOY BLOCKED${NC}: an A+ lab suite failed."
+            echo -e "${DIM}Run it yourself: node _tools/lab-tests/run-all.js${NC}"
             echo -e "${DIM}To bypass static analysis: ./deploy.sh --force${NC}"
             exit 1
         fi
