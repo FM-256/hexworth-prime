@@ -242,7 +242,10 @@
        also better teaching: tell the student what to do NOW, not hand them seven
        paragraphs at once. Real installers work exactly this way. */
     .steps{flex:none;display:flex;flex-direction:column;gap:2px}
+    @keyframes tickflash{0%{background:rgba(74,222,128,.42)}100%{background:transparent}}
+    .step.flash{animation:tickflash .9s ease-out}
     .step{display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;
+        transition:background .18s;
         font-size:12.5px;color:var(--muted);cursor:pointer;border:1px solid transparent}
     .step:hover{background:#18212f}
     .step .n{width:17px;height:17px;border-radius:50%;border:1.5px solid var(--line);flex:none;
@@ -910,9 +913,15 @@ function renderTasks() {
     const cur = currentTaskId();
     document.getElementById('steps').innerHTML = TASKS.map((t, i) => {
         const done = !!LAB.tasksDone[t.id];
-        return `<div class="step ${done?'done':''} ${t.id===cur?'cur':''}" onclick="focusTask('${t.id}')">
+        return `<div class="step ${done?'done':''} ${t.id===cur?'cur':''} ${t.id===justDone?'flash':''}"
+                     data-step="${t.id}" onclick="focusTask('${t.id}')">
                   <span class="n">${done?'&#10003;':(i+1)}</span><span>${t.title}</span></div>`;
     }).join('');
+    /* Keep the live step in view. The rail fits 8 steps on a laptop today, but a longer
+       stage must not leave the current one below the fold. */
+    const curEl = document.querySelector('.step.cur');
+    if (curEl && curEl.scrollIntoView) curEl.scrollIntoView({ block: 'nearest' });
+    justDone = null;      /* the flash is a one-shot, not a state */
 
     const t = TASKS.find(x => x.id === cur), done = !!LAB.tasksDone[t.id];
     document.getElementById('openTask').innerHTML =
@@ -946,7 +955,10 @@ function escapeHtml(s) {
    GRADING. Called after any state change. NEVER called from a navigation
    handler. Opening a dialog or switching a tab cannot credit anything.
    ════════════════════════════════════════════════════════════════════════ */
+window.justDone = null;      /* the task that ticked on THIS evaluate, for the flash */
+
 function evaluate() {
+    const before = Object.assign({}, LAB.tasksDone);
     TASKS.forEach(t => {
         /* Free-text tasks are knowledge, not machine state, so they are credited only by
            submitAnswer() and never revoked. */
@@ -958,6 +970,22 @@ function evaluate() {
            breaks it. This is why the stage cannot be completed with a wrong machine. */
         LAB.tasksDone[t.id] = !!t.check();
     });
+
+    /* THE RAIL DRIVES ITSELF. A student should never have to notice a task went green and
+       then hunt for the next one: that is bookkeeping, not learning, and it is the exact
+       complaint that a lab where you must monitor and move is not effective. Whatever just
+       completed gets flashed, and focus moves to the next thing that still needs doing. */
+    const newlyDone = TASKS.filter(t => !before[t.id] && LAB.tasksDone[t.id]).map(t => t.id);
+    if (newlyDone.length) {
+        justDone = newlyDone[newlyDone.length - 1];
+        const openNow = LAB.focus;
+        /* Advance when the open task is the one that completed, or when nothing is open. A
+           student who has deliberately opened some OTHER unfinished task is left alone. */
+        if (!openNow || newlyDone.includes(openNow) || LAB.tasksDone[openNow]) {
+            const next = TASKS.find(t => !LAB.tasksDone[t.id]);
+            LAB.focus = next ? next.id : null;
+        }
+    }
     renderTasks();
     save();
 }
