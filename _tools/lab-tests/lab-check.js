@@ -166,18 +166,32 @@ const done=pg=>pg.evaluate(()=>Object.keys(LAB.tasksDone).filter(k=>LAB.tasksDon
  /* Reported live 2026-08-07: task 1 would not read the name. "Windows-11", "Win_11", "Win.11"
     and "W11" all detected as Other/Unknown because the pattern only allowed spaces. */
  const names = await pg.evaluate(()=>{
+   /* Two live reports came from this function. The first matrix tested 14 spellings and
+      every one either had a separator right after the digits or ended there, so the
+      suffix-glued-to-the-number case, which is the SECOND report, went untested. The
+      must-detect list now covers both sides of the number. */
    const want11 = ['Windows 11','Win11','win 11','Windows-11','Win-11','Windows_11',
                    'windows11','W11','Win11 Lab','My Windows 11 VM','Windows 11 Pro',
-                   'Win.11','Windows Eleven','Windows 11 (test)'];
-   const wantNot = ['test','lab-vm','sw11','vmware11','ubuntu-server','Windows-10'];
+                   'Win.11','Windows Eleven','Windows 11 (test)',
+                   /* suffix directly against the digits, no separator at all */
+                   'Win11Home','Windows11Pro','WIN11LAB','W11Box','MyW11PC','win11-lab','WIN11'];
+   const wantNot = ['test','lab-vm','sw11','vmware11','vm11','host11','node-11','esxi11',
+                    'win2011','2011','ubuntu-server','Windows-10','Windows10Pro','w10box',
+                    '','   ','---','11'];
    return { bad: want11.filter(n=>!guessOS(n).startsWith('Windows 11')),
             falsePos: wantNot.filter(n=>guessOS(n).startsWith('Windows 11')),
-            ubuntu: guessOS('ubuntu-server'), win10: guessOS('Windows-10') };
+            ubuntu: guessOS('ubuntu-server'), win10: guessOS('Windows-10'),
+            win10glued: guessOS('Windows10Pro'),
+            odd: ['','   ','---','11','\u{1F600}'].map(x=>guessOS(x)) };
  });
  ck('every ordinary spelling of Windows 11 is detected', names.bad.length===0, names.bad.join(' | '));
  ck('and nothing that is not Windows 11 is', names.falsePos.length===0, names.falsePos.join(' | '));
  ck('other guests still detect through separators too',
     /Ubuntu/.test(names.ubuntu) && /Windows 10/.test(names.win10), names.ubuntu+' / '+names.win10);
+ ck('Windows 10 still detects with the suffix glued on too',
+    /Windows 10/.test(names.win10glued), names.win10glued);
+ ck('empty, whitespace, punctuation-only, a bare number and emoji all return Other/Unknown',
+    names.odd.every(o=>o==='Other/Unknown'), JSON.stringify(names.odd));
  ck('a hyphenated name satisfies task 1 end to end', await pg.evaluate(()=>{
     localStorage.removeItem('hexworth_progress'); resetLab();
     openNew();const n=document.getElementById('nvName');n.value='Windows-11';
