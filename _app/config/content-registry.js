@@ -11861,7 +11861,8 @@ const ContentRegistry = {
             paths: ['aplus-core2'],
             components: {
                 presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-virtualization.presentation.html',
-                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-virtualization.lab.html'
+                lab: 'houses/forge/applets/comptia-aplus/core-2/labs/forge-virtualization.lab.html',
+                quiz: 'houses/forge/applets/comptia-aplus/core-2/quizzes/forge-ch25.quiz.html'
             },
             prerequisites: [],
             objectives: []
