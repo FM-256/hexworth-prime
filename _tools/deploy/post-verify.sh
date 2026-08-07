@@ -187,7 +187,19 @@ else
     # on every deploy for a reason that has nothing to do with the deploy. The blocking
     # enforcement for NEW violations is dash-hygiene-gate.js at deploy gate 2.6, which is
     # scoped to changed files. A verification gate that is permanently red verifies nothing.
-    if ! node "$REPO_ROOT/_tools/eduscan/cli.js" --fail-on critical,high --fail-on-except HEUR-035 >/dev/null 2>&1; then
+    #
+    # HEUR-042 (correct answer is always the longest option) is excluded for exactly the same
+    # reason and was added the same way: HIGH for triage visibility, ~248 legacy quizzes over
+    # the bar on the day it shipped, and blocking enforcement that lives in
+    # answer-balance-gate.js at deploy gate 2.9, scoped to changed quizzes. It failed this
+    # check on the #295 functions deploy (2026-08-07) within the hour of being written --
+    # a deploy that touched no quiz at all, which is the proof that leaving it in would make
+    # this gate permanently red and therefore worthless.
+    #
+    # THE PATTERN, for whoever adds the next one: a rule that is HIGH for VISIBILITY and
+    # enforced elsewhere on CHANGED files belongs in this exclusion list. A rule that is HIGH
+    # because a deploy genuinely must not proceed does NOT.
+    if ! node "$REPO_ROOT/_tools/eduscan/cli.js" --fail-on critical,high --fail-on-except HEUR-035,HEUR-042 >/dev/null 2>&1; then
         echo -e "  ${RED}✗ EduScan found critical/high findings post-deploy${NC}"
         DIVERGENCE=1
     else
