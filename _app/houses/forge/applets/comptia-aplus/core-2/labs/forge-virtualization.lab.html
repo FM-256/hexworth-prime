@@ -12,8 +12,9 @@
     VirtualBox Manager and the lab grades THE RESULTING MACHINE STATE, not the clicks that
     produced it. Every task reads LAB.state and asks "is the machine actually configured
     this way", so no sequence of clicks in the UI produces credit for a machine that is not
-    actually configured that way. What that does NOT mean is "unforgeable": see honesty
-    rule 2 for the client-only limit, stated plainly rather than promised away.
+    actually configured that way, with ONE documented exception noted at s3t7, where identity
+    is a student-chosen name. What none of this means is "unforgeable": see honesty rule 2 for
+    the client-only limit, stated plainly rather than promised away.
 
     The A+ Core 1 lab this supersedes (core-1/labs/forge-vm-setup.lab.html) rubber-stamped
     two of its five gates with `case 3: return true; // RAM slider always has a valid value`,
@@ -428,12 +429,32 @@
     <h2 id="setTitle">Settings</h2>
     <div class="body">
         <div class="tabs">
-            <button class="on" data-tab="storage" onclick="setTab('storage')">Storage</button>
+            <button class="on" data-tab="general" onclick="setTab('general')">General</button>
+            <button data-tab="storage" onclick="setTab('storage')">Storage</button>
             <button data-tab="network" onclick="setTab('network')">Network</button>
             <button data-tab="system" onclick="setTab('system')">System</button>
         </div>
 
-        <div class="tabpane" data-pane="storage">
+        <!-- GENERAL. Real VirtualBox puts the machine name here, and without it this lab had a
+             trap: labVmId pins the FIRST machine of a stage as the graded one, and a student who
+             named it badly could never satisfy task 1. Building a second, correct machine did not
+             help, because grading still pointed at the first. The only escape was Reset lab, which
+             wipes the whole stage. Renaming re-runs the guest-OS detection, so the task can now be
+             satisfied by fixing the mistake rather than by starting over. -->
+        <div class="tabpane" data-pane="general">
+            <div class="fld">
+                <label>Name</label>
+                <input type="text" id="stName" oninput="renameVM()">
+                <div class="hint" id="stNameHint"></div>
+            </div>
+            <div class="fld">
+                <label>Type / Version</label>
+                <div id="stGuess" style="font-size:13.5px"></div>
+                <div class="hint">Detected from the name, the way the real product guesses it.</div>
+            </div>
+        </div>
+
+        <div class="tabpane" data-pane="storage" hidden>
             <div class="fld">
                 <label>Optical drive (IDE)</label>
                 <div id="setIso" style="font-size:13.5px;margin-bottom:9px"></div>
@@ -709,7 +730,49 @@ window.STAGE_TASKS = {
       check:() => { const r = stageVMs().filter(v => v.running);
                     return r.length >= 4 && r.reduce((n,v) => n + v.cpus, 0) > HOST.cores; } },
 
-    { id:'s3t7', title:'Name this class of hypervisor',
+    /* The port groups were rendering in Settings with no task using them, which made the
+       stage-3 network pane decoration. It is also the one concept stages 1 and 2 both teach
+       that stage 3 was silently dropping, and the vSwitch is where the Type 1 version of it
+       lives: no uplink, no route off the box. */
+    { id:'s3t7', title:'Isolate a guest on the virtual switch',
+      desc:'The database guest must not be reachable from the physical network. Open <b>Settings &rarr; Network</b> on <b>db01</b> and attach it to the port group with no uplink. On a Type 1 host the isolation is a property of the vSwitch, not of the guest.',
+      /* EVERY machine that currently calls itself a database must be isolated, and there must
+         be at least one. The length guard matters: `.every()` on an empty array is vacuously
+         true, which would credit a student who built no database at all.
+
+         This is derived purely from current state, deliberately. Two earlier designs were
+         worse. Scanning for ANY isolated match let a throwaway named "db-decoy" credit the
+         task while the real db01 stayed exposed (Chris, 2026-08-07). Pinning the guest by id
+         at creation fixed that and reintroduced this file's own naming trap one field over: a
+         student who named a scratch machine "db-temp", renamed it to file01 with the General
+         tab, then built the real db01 and isolated it exactly as instructed was locked out
+         permanently, because the pin still pointed at the renamed machine and nothing could
+         move it. Reset lab, wiping all of stage 3, was the only escape (Chris, again).
+
+         State-derived self-heals in both directions: rename a machine off /db/i and it stops
+         being graded, rename one onto /db/i and it starts. Nothing is frozen at creation, so
+         no honest sequence of clicks can strand a student.
+
+         THE RESIDUAL, AND IT IS GUI-REACHABLE, NOT CONSOLE-ONLY. Identity here is a name a
+         student chooses. So renaming the real db01 to something else, then renaming an
+         unrelated machine onto /db/i and isolating that, credits the task while the true
+         database guest stays on an uplinked port group. Two General-tab renames and one
+         Network click, no devtools. That is a DIFFERENT threat model from honesty rule 2,
+         which covers forging the object graph from the console, and it is the one exception
+         to this file's claim that no sequence of UI clicks credits a machine that is not
+         configured that way. Chris reproduced it, 2026-08-07.
+
+         Accepted, not overlooked: it takes deliberate two-step intent, it is not easier than
+         simply doing what the task asks, and the alternative designs were worse. Pinning
+         identity at creation removed this hole and replaced it with a false NEGATIVE that
+         locked out a student who made an honest naming mistake, which is the worse failure
+         for a teaching lab. Cheat-resistance lives in the server-graded quiz. */
+      check:() => {
+          const dbs = stageVMs().filter(v => /db/i.test(v.name));
+          return dbs.length > 0 && dbs.every(v => v.net === 'isolated');
+      } },
+
+    { id:'s3t8', title:'Name this class of hypervisor',
       desc:'VirtualBox and VMware Workstation were installed <i>onto</i> an operating system. This one boots the server itself and has no operating system beneath it. Type the term for this kind.',
       answer:true, placeholder:'the term',
       /* Accepts the several names the industry and the exam both use, so a student who knows
@@ -730,7 +793,7 @@ window.STAGE_TASKS = {
           return /type1/.test(n) || /baremetal/.test(n) || n === 'native' || /nativehypervisor/.test(n);
       },
       wrong:'Not that. There are only two kinds, and the other one is what stages 1 and 2 ran on.',
-      check:() => LAB.tasksDone.s3t7 === true }
+      check:() => LAB.tasksDone.s3t8 === true }
 ]
 };
 
@@ -992,13 +1055,37 @@ function openSettings() {
     document.getElementById('stRam').value = v.ram;
     document.getElementById('stCpu').value = v.cpus;
     onStRam(); onStCpu(); paintSettings();
-    setTab('storage');
+    document.getElementById('stName').value = v.name;
+    paintGeneral();
+    setTab('general');
     document.getElementById('mSet').classList.add('open');
 }
 function setTab(name) {                          /* navigation only, no credit */
     document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('.tabpane').forEach(p => p.hidden = (p.dataset.pane !== name));
 }
+/* Renaming is a real edit to the machine, so it re-detects the guest OS and re-grades.
+   It cannot be used to dodge anything: the graded machine stays pinned by id, and every
+   task still re-derives from the machine's actual state. */
+function renameVM() {
+    const v = selectedVM(); if (!v) return;
+    const name = document.getElementById('stName').value.trim();
+    if (!name) { paintGeneral(); return; }        /* an unnamed machine is not a machine */
+    v.name = name;
+    v.os = guessOS(name);
+    paintGeneral(); renderList(); renderDetails(); evaluate();
+    document.getElementById('setTitle').textContent = v.name + ' Settings';
+}
+function paintGeneral() {
+    const v = selectedVM(); if (!v) return;
+    const el = document.getElementById('stGuess');
+    el.textContent = v.os;
+    el.className = v.os === 'Other/Unknown' ? 'nothing' : '';
+    document.getElementById('stNameHint').textContent = v.name.trim()
+        ? 'The guest type is detected from this name.'
+        : 'A machine needs a name.';
+}
+
 function paintSettings() {
     const v = selectedVM(); if (!v) return;
     document.getElementById('setIso').innerHTML = v.iso
