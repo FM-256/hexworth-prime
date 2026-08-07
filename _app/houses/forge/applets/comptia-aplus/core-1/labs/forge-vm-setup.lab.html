@@ -186,6 +186,9 @@
             cursor: pointer;
         }
 
+        .slider-hint { font-size: 12px; margin-top: 6px; line-height: 1.45; }
+        .slider-hint.ok  { color: #4ade80; }
+        .slider-hint.bad { color: #fbbf24; }
         .slider-value {
             color: #60a5fa;
             font-weight: 600;
@@ -429,9 +432,10 @@
                                 <div class="config-row">
                                     <span class="config-label">Base Memory</span>
                                     <div class="slider-container">
-                                        <input type="range" class="slider" id="ramSlider" min="512" max="16384" value="4096" step="512" oninput="updateRam()">
-                                        <span class="slider-value" id="ramValue">4096 MB</span>
+                                        <input type="range" class="slider" id="ramSlider" min="512" max="16384" value="512" step="512" oninput="updateRam()">
+                                        <span class="slider-value" id="ramValue">512 MB</span>
                                     </div>
+                                    <div class="slider-hint bad" id="ramHint">Choose a guest operating system at step 2 first.</div>
                                 </div>
                             </div>
                             <div class="config-section">
@@ -454,9 +458,10 @@
                                 <div class="config-row">
                                     <span class="config-label">Disk Size</span>
                                     <div class="slider-container">
-                                        <input type="range" class="slider" id="diskSlider" min="20" max="500" value="50" step="10" oninput="updateDisk()">
-                                        <span class="slider-value" id="diskValue">50 GB</span>
+                                        <input type="range" class="slider" id="diskSlider" min="20" max="500" value="20" step="10" oninput="updateDisk()">
+                                        <span class="slider-value" id="diskValue">20 GB</span>
                                     </div>
+                                    <div class="slider-hint bad" id="diskHint">Choose a guest operating system at step 2 first.</div>
                                 </div>
                                 <div class="config-row">
                                     <span class="config-label">File Type</span>
@@ -599,12 +604,49 @@
             updateUI();
         }
 
+        /* The host is stated on screen as 16384 MB. It keeps 4096 for itself, so a guest may
+           have at most 12288: over that and the host swaps and everything crawls. Guest
+           minimums are the vendors' own floors for a usable install. */
+        /* Thresholds are taken from the guidance THIS LAB puts on screen at step 3, not from
+           numbers I preferred: "Never allocate more than 50% of host RAM", "Windows 11:
+           Minimum 4 GB", "Linux: Can run with 2 GB for basic use". A check that contradicts
+           the page's own instructions teaches a student that reading them does not pay. */
+        const HOST_RAM = 16384;
+        const RAM_CEILING = HOST_RAM / 2;          /* the lab's own 50% rule */
+        const GUEST_REQ = {
+            windows: { ram: 4096, disk: 64, label: 'Windows 11' },
+            linux:   { ram: 2048, disk: 25, label: 'Linux' },
+            mac:     { ram: 4096, disk: 80, label: 'macOS' }
+        };
+        function guestReq() { return GUEST_REQ[document.getElementById('vmType').value] || null; }
+
         function updateRam() {
-            document.getElementById('ramValue').textContent = document.getElementById('ramSlider').value + ' MB';
+            const ram = +document.getElementById('ramSlider').value;
+            const req = guestReq();
+            document.getElementById('ramValue').textContent = ram + ' MB';
+            const hint = document.getElementById('ramHint');
+            if (hint) {
+                if (!req) hint.textContent = 'Choose a guest operating system at step 2 first.';
+                else if (ram < req.ram) hint.textContent = `${req.label} needs at least ${req.ram} MB to install and run.`;
+                else if (ram > RAM_CEILING) hint.textContent = `Over ${RAM_CEILING} MB is more than half the host's ${HOST_RAM} MB. The host starts swapping and everything crawls.`;
+                else hint.textContent = `Workable for ${req.label}, and the host keeps its own memory.`;
+                hint.className = 'slider-hint ' + (isStepValid(3) ? 'ok' : 'bad');
+            }
+            updateUI();
         }
 
         function updateDisk() {
-            document.getElementById('diskValue').textContent = document.getElementById('diskSlider').value + ' GB';
+            const disk = +document.getElementById('diskSlider').value;
+            const req = guestReq();
+            document.getElementById('diskValue').textContent = disk + ' GB';
+            const hint = document.getElementById('diskHint');
+            if (hint) {
+                if (!req) hint.textContent = 'Choose a guest operating system at step 2 first.';
+                else if (disk < req.disk) hint.textContent = `${req.label} needs at least ${req.disk} GB for the OS plus room to work.`;
+                else hint.textContent = `Enough for ${req.label}. The disk grows as it is used, up to this ceiling.`;
+                hint.className = 'slider-hint ' + (isStepValid(4) ? 'ok' : 'bad');
+            }
+            updateUI();
         }
 
         // Single source of truth for whether a given wizard step is satisfied. Used both to
@@ -614,8 +656,21 @@
             switch (step) {
                 case 1: return hypervisorSelected;
                 case 2: return document.getElementById('vmName').value.length > 0 && document.getElementById('vmType').value !== '';
-                case 3: return true; // RAM slider always has a valid value
-                case 4: return true; // Disk slider always has a valid value
+                /* These two used to `return true` with the comment "the slider always has a
+                   valid value", which credited a student for leaving a slider where it was
+                   loaded. Two of five gates rubber-stamped. The sliders now start BELOW every
+                   guest's minimum, so passing requires reading the requirement and sizing the
+                   machine for the OS actually chosen at step 2, which is the skill the step
+                   claims to teach. Taskboard #294, fixed 2026-08-07. */
+                case 3: {
+                    const req = guestReq();
+                    const ram = +document.getElementById('ramSlider').value;
+                    return !!req && ram >= req.ram && ram <= RAM_CEILING;
+                }
+                case 4: {
+                    const req = guestReq();
+                    return !!req && +document.getElementById('diskSlider').value >= req.disk;
+                }
                 case 5: return vmCreated;
                 default: return false;
             }
@@ -661,7 +716,8 @@
                 <li>Linux: Can run with 2 GB for basic use</li>
                 <li>More RAM = better VM performance</li>
                 </ul></div>
-                <p><strong>Task:</strong> Set memory allocation (4 GB recommended).</p>`,
+                <p><strong>Task:</strong> Size the memory for the guest you chose, at least its
+                minimum and no more than half the host's 16384 MB.</p>`,
                 `<p>Configure the virtual hard disk for your VM.</p>
                 <div class="info-box"><strong>Disk Options:</strong>
                 <ul style="margin: 10px 0 0 20px;">
@@ -688,6 +744,9 @@
         }
 
         document.getElementById('vmType').addEventListener('change', function() {
+            /* The memory and disk requirements depend on the guest chosen here, so both
+               hints and both gates have to re-evaluate when it changes. */
+            updateRam(); updateDisk();
             const versionSelect = document.getElementById('vmVersion');
             versionSelect.innerHTML = '';
             if (this.value && versions[this.value]) {
@@ -775,6 +834,11 @@
                 console.warn('[Forge] Failed to save:', e);
             }
         }
+
+        /* Paint the sliders and their requirements on load. Both start deliberately BELOW
+           every guest's minimum, so the position they load in cannot satisfy the gate: the
+           two steps that used to `return true` now require a real decision. */
+        updateRam(); updateDisk();
     </script>
 
     <!-- ── Dr. Hex floating mood-ring button ──────────────────────────
