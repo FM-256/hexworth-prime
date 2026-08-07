@@ -4,66 +4,45 @@
 /**
  * gradeQuiz Cloud Function — Unit Test Suite
  *
- * Tests the grading comparison logic extracted from the gradeQuiz function.
- * Does NOT require Firebase emulator — tests pure logic only.
+ * Exercises the REAL grading implementation from ../quiz-grading.js, which is the
+ * same module functions/index.js calls in production. No Firebase emulator needed:
+ * the grading core is pure by construction.
  *
  * Run: cd functions && npm test
+ *
+ * WHY THIS FILE CHANGED (2026-08-07, taskboard #295)
+ * It used to carry its own hand-copied duplicate of the grading loop, introduced with
+ * the comment "This mirrors the exact logic in index.js lines 1547-1573. If index.js
+ * changes, this must be updated to match." Nobody updated it. Production moved to line
+ * 1705 and grew a `terminal` branch that the copy never got, so the suite went on
+ * reporting 64/64 green while testing code that no longer existed anywhere. The copy is
+ * gone; there is one implementation now and this file imports it.
  *
  * Coverage:
  *   - MC grading (integer comparison)
  *   - MS grading (array, order-insensitive)
  *   - ORDER grading (array, order-sensitive)
+ *   - TERMINAL grading (free-text command match)   <- was entirely untested before
+ *   - Drawn-subset (poolSize) scoring + the anti-forgery cap   <- #295
+ *   - Reveal population, incl. not leaking the undrawn bank
  *   - Edge cases (unanswered, out of range, empty)
  *   - Backward compatibility (no types field)
  *   - Score calculation and pass/fail
  */
 
-// ─── Extract the comparison logic from gradeQuiz ────────────────
-// This mirrors the exact logic in index.js lines 1547-1573.
-// If index.js changes, this must be updated to match.
+const {
+    gradeSubmission,
+    applyReveal,
+    resolveServedCount,
+    validSubmittedIndices,
+    REJECT_TOO_MANY_ANSWERS
+} = require('../quiz-grading');
 
-function compareAnswer(submitted, expected, type) {
-    if (submitted === undefined) return false;
-
-    if (Array.isArray(expected) && Array.isArray(submitted)) {
-        if (submitted.length !== expected.length) return false;
-
-        if (type === 'order') {
-            return submitted.every((v, j) => v === expected[j]);
-        } else {
-            const sortedSub = [...submitted].sort((a, b) => a - b);
-            const sortedExp = [...expected].sort((a, b) => a - b);
-            return sortedSub.every((v, j) => v === sortedExp[j]);
-        }
-    }
-
-    return submitted === expected;
-}
-
+// Adapter preserving this suite's original positional call shape, so the 64 cases
+// written against the old inline copy keep their exact meaning while now running
+// against production code. New tests below call gradeSubmission directly.
 function gradeQuiz(answers, answerKey, types) {
-    types = types || [];
-    const total = answerKey.length;
-    let score = 0;
-    const results = [];
-
-    for (let i = 0; i < total; i++) {
-        const submitted = answers[String(i)];
-        let expected = answerKey[i];
-        let qType = types[i] || null;
-
-        // Unwrap object-wrapped answers: {ms: [0,1]} or {order: [0,1,2,3]}
-        if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
-            if (expected.ms) { qType = 'ms'; expected = expected.ms; }
-            else if (expected.order) { qType = 'order'; expected = expected.order; }
-        }
-
-        const isCorrect = compareAnswer(submitted, expected, qType);
-        if (isCorrect) score++;
-        results.push({ correct: isCorrect });
-    }
-
-    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-    return { score, total, percentage, results };
+    return gradeSubmission({ answerKey, types: types || [], answers, poolSize: undefined, isPartial: false });
 }
 
 // ─── Test Runner ────────────────────────────────────────────────
@@ -395,6 +374,185 @@ function detectPartial(requestData) {
     // attempt log + scopes its own reveal — grading itself is unaffected.
     const r = gradeQuiz({ '0': 2, '1': 1 }, [2, 1]);
     assertEq(r.score, 2, 'Partial: grading logic independent of partial flag');
+})();
+
+// ── TERMINAL Grading ────────────────────────────────────────────
+// Never covered before 2026-08-07: the old hand-copied logic in this file had no
+// terminal branch at all, so this whole answer type was unexercised in production.
+
+console.log('\nTERMINAL Grading:');
+
+(function testTerminalExactMatch() {
+    const key = [{ terminal: ['ls -la', 'ls -al'] }];
+    const r = gradeSubmission({ answerKey: key, types: [], answers: { '0': 'ls -la' }, isPartial: false });
+    assertEq(r.score, 1, 'TERMINAL: exact match → correct');
+})();
+
+(function testTerminalCaseAndWhitespaceInsensitive() {
+    const key = [{ terminal: ['ls -la'] }];
+    assertEq(gradeSubmission({ answerKey: key, types: [], answers: { '0': '  LS -LA  ' } }).score, 1,
+        'TERMINAL: case + surrounding whitespace ignored');
+})();
+
+(function testTerminalAcceptsAnyVariant() {
+    const key = [{ terminal: ['ip a', 'ifconfig'] }];
+    assertEq(gradeSubmission({ answerKey: key, types: [], answers: { '0': 'ifconfig' } }).score, 1,
+        'TERMINAL: any accepted variant counts');
+})();
+
+(function testTerminalWrongCommand() {
+    const key = [{ terminal: ['ls -la'] }];
+    assertEq(gradeSubmission({ answerKey: key, types: [], answers: { '0': 'rm -rf /' } }).score, 0,
+        'TERMINAL: non-matching command → wrong');
+})();
+
+(function testTerminalBranchPrecedesArrayBranch() {
+    // THE REGRESSION THIS GUARDS: `expected` unwraps to an ARRAY of accepted strings.
+    // If the array branch ran first, a string submission would fall through to
+    // `submitted === expected` (string === array) and grade 0 for EVERY student.
+    // Declared via the types array rather than the wrapper, which is the shape that
+    // makes branch order actually matter.
+    const r = gradeSubmission({
+        answerKey: [['ls -la', 'ls -al']], types: ['terminal'], answers: { '0': 'ls -la' }
+    });
+    assertEq(r.score, 1, 'TERMINAL: string-vs-array handled before the array branch');
+})();
+
+(function testTerminalNonStringSubmission() {
+    const key = [{ terminal: ['ls'] }];
+    assertEq(gradeSubmission({ answerKey: key, types: [], answers: { '0': ['ls'] } }).score, 0,
+        'TERMINAL: array submission is not a string → wrong, no crash');
+})();
+
+// ── Drawn-subset delivery / poolSize (taskboard #295) ───────────
+
+console.log('\nDrawn Subset (poolSize):');
+
+(function testServedCountResolution() {
+    assertEq(resolveServedCount(12, 20), 12, 'served: valid poolSize honoured');
+    assertEq(resolveServedCount(undefined, 20), 20, 'served: absent poolSize → full bank');
+    assertEq(resolveServedCount(0, 20), 20, 'served: zero rejected → full bank');
+    assertEq(resolveServedCount(-5, 20), 20, 'served: negative rejected → full bank');
+    assertEq(resolveServedCount(25, 20), 20, 'served: poolSize > bank rejected → full bank');
+    assertEq(resolveServedCount(1.5, 20), 20, 'served: non-integer rejected → full bank');
+    assertEq(resolveServedCount('12', 20), 20, 'served: string rejected → full bank');
+})();
+
+(function testTheActualBug() {
+    // THE #295 REPRO. 20-question bank, 12 drawn. The student answers all 12 they were
+    // shown, correctly. Before the fix this scored 12/20 = 60% and failed them.
+    const answerKey = Array.from({ length: 20 }, (_, i) => i % 4);
+    const drawn = [0, 3, 5, 6, 9, 11, 12, 14, 15, 17, 18, 19];   // scattered across the bank
+    const answers = {};
+    drawn.forEach(i => { answers[String(i)] = answerKey[i]; });
+
+    const r = gradeSubmission({ answerKey, types: [], answers, poolSize: 12, isPartial: false });
+    assertEq(r.score, 12, '#295: 12 of 12 correct → score 12');
+    assertEq(r.total, 12, '#295: total is the SERVED count, not the 20-question bank');
+    assertEq(r.percentage, 100, '#295: a perfect drawn-subset attempt scores 100, not 60');
+    assertEq(r.bankSize, 20, '#295: bankSize still reports the full bank');
+    assertEq(r.results.length, 20, '#295: results stays bank-length for client index mapping');
+    assertEq(r.pooled, true, '#295: pooled flag set');
+})();
+
+(function testPooledPartialCredit() {
+    const answerKey = Array.from({ length: 20 }, (_, i) => i % 4);
+    const drawn = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const answers = {};
+    drawn.forEach((i, n) => { answers[String(i)] = n < 7 ? answerKey[i] : (answerKey[i] + 1) % 4; });
+    const r = gradeSubmission({ answerKey, types: [], answers, poolSize: 10 });
+    assertEq(r.score, 7, 'pooled: 7 of 10 correct → score 7');
+    assertEq(r.percentage, 70, 'pooled: 7/10 → 70%, not 7/20 = 35%');
+})();
+
+(function testPooledTimeoutSubmitsFewer() {
+    // state.answers holds only ANSWERED questions (QuizEngine.js:296-311), so a
+    // timed-out attempt legitimately submits fewer than were served. Those unanswered
+    // served questions must still count against the student — the denominator is what
+    // they were SHOWN, not what they got round to.
+    const answerKey = Array.from({ length: 20 }, (_, i) => i % 4);
+    const answers = { '0': answerKey[0], '5': answerKey[5], '9': answerKey[9] };
+    const r = gradeSubmission({ answerKey, types: [], answers, poolSize: 12 });
+    assertEq(r.score, 3, 'pooled timeout: 3 answered correctly → score 3');
+    assertEq(r.total, 12, 'pooled timeout: denominator stays at the served count');
+    assertEq(r.percentage, 25, 'pooled timeout: 3/12 = 25%, not 3/3 = 100%');
+})();
+
+(function testAntiForgeryCap() {
+    // Submit the WHOLE bank against a 12-question attempt. Without the cap this is
+    // 20/12 = 167%. Must be refused outright rather than clamped, because a client
+    // doing this is not a student who mis-clicked.
+    const answerKey = Array.from({ length: 20 }, (_, i) => i % 4);
+    const answers = {};
+    answerKey.forEach((v, i) => { answers[String(i)] = v; });
+    const r = gradeSubmission({ answerKey, types: [], answers, poolSize: 12 });
+    assert(r.rejected !== null, 'cap: over-submission is rejected');
+    // Guarded so a regression that removes the cap reports a clean failure instead of
+    // throwing on a null deref and taking the rest of the suite down with it.
+    assertEq(r.rejected && r.rejected.code, REJECT_TOO_MANY_ANSWERS, 'cap: reports too-many-answers');
+    assert(r.percentage <= 100, 'cap: never returns a percentage above 100');
+})();
+
+(function testCapCannotFireOnNonPooledQuiz() {
+    // The 415 existing server-graded quizzes must not gain a new way to fail.
+    const answerKey = [0, 1, 2, 3];
+    const answers = { '0': 0, '1': 1, '2': 2, '3': 3, '99': 1, 'x': 2, '-1': 3, '__proto__': 9 };
+    const r = gradeSubmission({ answerKey, types: [], answers });
+    assertEq(r.rejected, null, 'cap: cannot fire without pooling, even with junk keys');
+    assertEq(r.score, 4, 'cap: junk keys do not affect score');
+    assertEq(r.total, 4, 'cap: total is the bank when not pooled');
+})();
+
+(function testSubmittedIndexValidation() {
+    assertEq(validSubmittedIndices({ '0': 1, '3': 2 }, 5), [0, 3], 'indices: canonical integers accepted');
+    assertEq(validSubmittedIndices({ '01': 1, '1.0': 1, '+1': 1, ' 1': 1 }, 5), [],
+        'indices: non-canonical integer strings rejected (no cap padding via aliases)');
+    assertEq(validSubmittedIndices({ '-1': 1, '99': 1 }, 5), [], 'indices: out-of-range rejected');
+    assertEq(validSubmittedIndices({ '__proto__': 1, 'toString': 1 }, 5), [],
+        'indices: prototype-shaped keys rejected');
+    assertEq(validSubmittedIndices(null, 5), [], 'indices: null answers → empty');
+})();
+
+// ── Reveal population ───────────────────────────────────────────
+
+console.log('\nReveal:');
+
+(function testRevealFull() {
+    const answerKey = [2, 1, 3];
+    const results = [{ correct: true }, { correct: false }, { correct: true }];
+    applyReveal({ results, answerKey, explanations: ['a', 'b', 'c'], answers: { '0': 2, '1': 0, '2': 3 }, isPartial: false, pooled: false });
+    assertEq(results[1].correctAnswer, 1, 'reveal: correct answer populated');
+    assertEq(results[1].explanation, 'b', 'reveal: explanation populated');
+})();
+
+(function testRevealPartialScopedToSubmitted() {
+    const answerKey = [2, 1, 3];
+    const results = [{ correct: true }, { correct: false }, { correct: false }];
+    applyReveal({ results, answerKey, explanations: ['a', 'b', 'c'], answers: { '1': 0 }, isPartial: true, pooled: false });
+    assertEq(results[0].correctAnswer, undefined, 'reveal: partial does not leak unsubmitted Q0');
+    assertEq(results[1].correctAnswer, 1, 'reveal: partial reveals the submitted question');
+    assertEq(results[2].correctAnswer, undefined, 'reveal: partial does not leak unsubmitted Q2');
+})();
+
+(function testRevealPooledDoesNotLeakUndrawnBank() {
+    // Retake pulls a FRESH draw (assessment-testing-standard.md:47). Revealing the
+    // undrawn remainder on attempt 1 would hand over the material attempt 2 draws from.
+    const answerKey = [0, 1, 2, 3, 0, 1, 2, 3];
+    const results = answerKey.map(() => ({ correct: true }));
+    applyReveal({ results, answerKey, explanations: [], answers: { '1': 1, '4': 0 }, isPartial: false, pooled: true });
+    assertEq(results[1].correctAnswer, 1, 'reveal pooled: asked question revealed');
+    assertEq(results[4].correctAnswer, 0, 'reveal pooled: asked question revealed');
+    const leaked = results.filter((r, i) => i !== 1 && i !== 4 && r.correctAnswer !== undefined);
+    assertEq(leaked.length, 0, 'reveal pooled: ZERO undrawn bank answers leaked');
+})();
+
+(function testRevealUnwrapsWrappedTypes() {
+    const answerKey = [{ ms: [0, 2] }, { order: [1, 0] }, { terminal: ['ls'] }];
+    const results = [{ correct: true }, { correct: true }, { correct: true }];
+    applyReveal({ results, answerKey, explanations: [], answers: { '0': [0, 2], '1': [1, 0], '2': 'ls' }, isPartial: false, pooled: false });
+    assertEq(results[0].correctAnswer, [0, 2], 'reveal: ms unwrapped');
+    assertEq(results[1].correctAnswer, [1, 0], 'reveal: order unwrapped');
+    assertEq(results[2].correctAnswer, ['ls'], 'reveal: terminal reveals accepted-command list');
 })();
 
 // ── Report ──────────────────────────────────────────────────────

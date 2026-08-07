@@ -114,6 +114,16 @@ async function main() {
                 // Opt-in "reveal correct answers after N failed attempts" (gradeQuiz reads
                 // this). Written only when present so it never appears on exams that don't use it.
                 ...(Number.isInteger(data.reviewAfterFails) ? { reviewAfterFails: data.reviewAfterFails } : {}),
+                // Drawn-subset delivery (taskboard #295). gradeQuiz uses this as the SCORING
+                // DENOMINATOR, so it is written UNCONDITIONALLY for the same reason revealToAll
+                // is: under merge:true a stray poolSize already on the live doc would survive
+                // forever, and a live poolSize the registry does not know about is the
+                // false-PASS case (a student who answers 12 of 20 and stops gets 12/12 = 100%).
+                // Explicit delete when the registry does not declare one, so the registry is
+                // the single authority in BOTH directions.
+                poolSize: (Number.isInteger(data.poolSize) && data.poolSize > 0)
+                    ? data.poolSize
+                    : admin.firestore.FieldValue.delete(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             }, { merge: true });
 

@@ -267,6 +267,37 @@ $(git ls-files --others --exclude-standard -- $LAB_PATHS 2>/dev/null)"
     fi
 fi
 
+# ── Gate 2.8: Pool-draw bridge (taskboard #295) ──────────────────────
+# A quiz declares its draw in the PAGE (QuizEngine poolSize); gradeQuiz learns the served
+# count only from quiz_keys/{id}.poolSize. Disagree, and nobody finds out from a log:
+#   page pools, key doc silent  -> the drawn subset is graded against the FULL bank, so a
+#                                  perfect student scores 12/20 = 60% and fails, every attempt
+#   key doc pools, page silent  -> a student who runs out of time answering 12 of 20 is
+#                                  graded 12/12 = 100%. A false PASS, which is worse.
+# Both directions are checked. Unconditional and offline: it reads the repo and the static
+# registry, no Firestore and no credentials, and it costs about half a second over ~5,300
+# files — cheap enough that scoping it to changed files would only add a way to miss.
+if [ -f functions/verify-quiz-keys.js ]; then
+    if [ "$FORCE" = true ]; then
+        echo -e "${BOLD}[2.8/7]${NC} Pool-draw bridge ${YELLOW}[SKIPPED]${NC} — --force flag set"
+        echo ""
+    else
+        echo -e "${BOLD}[2.8/7]${NC} Pool-draw bridge (page draw vs quiz_keys poolSize)..."
+        if node functions/verify-quiz-keys.js --pool-draw > /tmp/hexworth-pooldraw.$$ 2>&1; then
+            rm -f /tmp/hexworth-pooldraw.$$
+            echo ""
+        else
+            grep -E '^  (X|\?) ' /tmp/hexworth-pooldraw.$$ || cat /tmp/hexworth-pooldraw.$$
+            rm -f /tmp/hexworth-pooldraw.$$
+            echo ""
+            echo -e "${RED}DEPLOY BLOCKED${NC}: a quiz's draw and its answer key disagree."
+            echo -e "${DIM}Run it yourself: node functions/verify-quiz-keys.js --pool-draw${NC}"
+            echo -e "${DIM}To bypass static analysis: ./deploy.sh --force${NC}"
+            exit 1
+        fi
+    fi
+fi
+
 # ── Gate 3: Smoke gate (real-browser pre-render check) ───────────────
 if [ "$SKIP_SMOKE" = true ]; then
     echo -e "${BOLD}[3/7]${NC} Smoke gate ${YELLOW}[SKIPPED]${NC} — --skip-smoke flag set"

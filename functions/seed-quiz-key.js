@@ -108,6 +108,13 @@ async function main() {
                 passingScore: entry.passingScore != null ? entry.passingScore : 70,
                 questionCount: entry.questionCount != null ? entry.questionCount : entry.answers.length,
                 ...(entry.note ? { note: entry.note } : {}),
+                // Drawn-subset delivery (taskboard #295). gradeQuiz reads this as the scoring
+                // DENOMINATOR; without it here, a registry entry declaring poolSize would be
+                // silently dropped on the way to Firestore and the quiz would keep grading the
+                // drawn subset against the full bank — the exact 60% failure #295 fixed, arriving
+                // by a different road. No explicit delete needed: this .set() has no merge, so it
+                // replaces the document and an absent poolSize is already removed.
+                ...(Number.isInteger(entry.poolSize) && entry.poolSize > 0 ? { poolSize: entry.poolSize } : {}),
                 updatedAt: new Date().toISOString()
             });
             const back = await ref.get();

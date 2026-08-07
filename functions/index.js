@@ -32,6 +32,7 @@ const db = getFirestore();
 
 // ─── Configuration ───────────────────────────────────────────────
 const ADMIN_EMAILS = require('./admin-emails'); // single source of truth — see admin-emails.js
+const { gradeSubmission, applyReveal } = require('./quiz-grading'); // see quiz-grading.js header
 const FLAG_SECRET = crypto.randomBytes(32).toString('hex'); // per-deploy secret
 
 // App Check: Set to true after configuring reCAPTCHA v3 in Firebase Console
@@ -1702,8 +1703,6 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
         throw new HttpsError('internal', 'Invalid answer key format.');
     }
 
-    const total = answerKey.length;
-
     // QC-57 per-question grading: instant-feedback pages call gradeQuiz once per
     // answer with { partial: true }. Partial calls must not write quiz_attempts
     // (15 misleading near-zero "failed" docs per real attempt), must not count
@@ -1713,63 +1712,32 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     // and those full submissions MUST keep normal logging + reviewAfterFails.
     const isPartial = request.data.partial === true;
 
-    const types = keyData.types || []; // Optional per-question type array: 'mc', 'ms', 'order'
-    let score = 0;
-    const results = [];
+    // The comparison logic lives in quiz-grading.js so the test suite can exercise the
+    // REAL implementation. It used to be inline here with a hand-copied duplicate in
+    // tests/gradeQuiz.test.js; the copy drifted (it never grew the `terminal` branch)
+    // and went on reporting green. See that file's header.
+    //
+    // #295: `total` is now the SERVED question count, not answerKey.length. For a quiz
+    // whose key doc declares poolSize, servedCount < bankSize and `results.length`
+    // (bankSize) is therefore LARGER than `total`. They were equal for this function's
+    // entire prior life — do not reintroduce that assumption. With no poolSize the two
+    // are identical and the arithmetic is unchanged for all 415 server-graded quizzes.
+    const graded = gradeSubmission({
+        answerKey,
+        types: keyData.types || [],   // optional per-question type array: 'mc','ms','order','terminal'
+        answers,
+        poolSize: keyData.poolSize,   // absent on every key doc today => full-bank behaviour
+        isPartial
+    });
 
-    // Compare each submitted answer against the key.
-    // Supports three answer formats:
-    //   MC:    integer === integer
-    //   MS:    array vs array, order-insensitive (sort both, compare elementwise)
-    //   ORDER: array vs array, order-sensitive (compare elementwise without sorting)
-    for (let i = 0; i < total; i++) {
-        const submitted = answers[String(i)];
-        let expected = answerKey[i];
-        let qType = types[i] || null;
-        let isCorrect = false;
-
-        // Unwrap object-wrapped answers: {ms: [0,1]}, {order: [0,1,2,3]}, or
-        // {terminal: ['cmd a','cmd b']}. Firestore does not allow nested arrays,
-        // so MS/ORDER/TERMINAL answers are stored as objects keyed by the type.
-        if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
-            if (expected.ms) { qType = 'ms'; expected = expected.ms; }
-            else if (expected.order) { qType = 'order'; expected = expected.order; }
-            else if (expected.terminal) { qType = 'terminal'; expected = expected.terminal; }
-        }
-
-        if (submitted === undefined) {
-            isCorrect = false;
-        } else if (qType === 'terminal') {
-            // TERMINAL (multi-modal quizzes): submitted is a free-text command string; correct if it
-            // matches any accepted variant (case-insensitive, trimmed), mirroring the client's own
-            // submitTerminal() comparison. This branch MUST precede the array branch below: submitted
-            // is a string, so a terminal question would otherwise fall to the final `submitted ===
-            // expected` (string === array) and silently grade 0 for EVERY student.
-            const accepted = Array.isArray(expected) ? expected : [];
-            const norm = (s) => String(s).trim().toLowerCase();
-            isCorrect = typeof submitted === 'string' && accepted.some((a) => norm(a) === norm(submitted));
-        } else if (Array.isArray(expected) && Array.isArray(submitted)) {
-            if (submitted.length !== expected.length) {
-                isCorrect = false;
-            } else if (qType === 'order') {
-                // ORDER: exact sequence match
-                isCorrect = submitted.every((v, j) => v === expected[j]);
-            } else {
-                // MS (or untyped array): sort both, compare elementwise
-                const sortedSub = [...submitted].sort((a, b) => a - b);
-                const sortedExp = [...expected].sort((a, b) => a - b);
-                isCorrect = sortedSub.every((v, j) => v === sortedExp[j]);
-            }
-        } else {
-            // MC: direct equality
-            isCorrect = submitted === expected;
-        }
-
-        if (isCorrect) score++;
-        results.push({ correct: isCorrect });
+    if (graded.rejected) {
+        // Today only 'too-many-answers': more distinct in-range indices submitted than
+        // the attempt served, i.e. a client grading itself against a denominator it
+        // undercut. Impossible on a non-pooled quiz.
+        throw new HttpsError('invalid-argument', graded.rejected.message);
     }
 
-    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    const { score, total, percentage, results } = graded;
     const passingScore = keyData.passingScore || 70;
     const passed = percentage >= passingScore;
 
@@ -1799,20 +1767,17 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
     // the point of a learning-check review, and failing students need it most.
     // revealForReview adds the opt-in "after N fails" path (see above).
     if (passed || keyData.revealToAll || revealForReview) {
-        const explanations = Array.isArray(keyData.explanations) ? keyData.explanations : [];
-        for (let i = 0; i < total; i++) {
-            // Partial (per-question) calls only reveal the question actually submitted —
-            // otherwise a revealToAll key would leak the full answer set on every click.
-            if (isPartial && !(String(i) in answers)) continue;
-            let expected = answerKey[i];
-            if (expected && typeof expected === 'object' && !Array.isArray(expected)) {
-                if (expected.ms) expected = expected.ms;
-                else if (expected.order) expected = expected.order;
-                else if (expected.terminal) expected = expected.terminal; // reveal accepted-command list
-            }
-            results[i].correctAnswer = expected;
-            if (explanations[i]) results[i].explanation = explanations[i];
-        }
+        // Bounded by the BANK, not by `total`. Before #295 those were the same number;
+        // now a pooled quiz's drawn indices are scattered across the whole bank, so
+        // looping to `total` would reveal the wrong questions and miss the asked ones.
+        applyReveal({
+            results,
+            answerKey,
+            explanations: keyData.explanations,
+            answers,
+            isPartial,
+            pooled: graded.pooled
+        });
     }
 
     // Log the attempt to Firestore for analytics — full submissions only.
