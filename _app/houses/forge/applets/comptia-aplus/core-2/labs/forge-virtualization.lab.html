@@ -898,7 +898,10 @@ function renderDetails() {
    laptop viewport holds that beside a tool window, which is what forced the page to scroll
    and pushed VirtualBox off screen. */
 function currentTaskId() {
-    if (LAB.focus && !LAB.tasksDone[LAB.focus]) return LAB.focus;
+    /* An explicit click wins, finished or not. Previously a student who clicked a completed
+       step got shown the next unfinished one instead, so completed work could not be
+       re-read at all. Auto-advance still moves focus off a task when it completes. */
+    if (LAB.focus && TASKS.some(t => t.id === LAB.focus)) return LAB.focus;
     const next = TASKS.find(t => !LAB.tasksDone[t.id]);
     return next ? next.id : TASKS[TASKS.length - 1].id;
 }
@@ -913,7 +916,7 @@ function renderTasks() {
     const cur = currentTaskId();
     document.getElementById('steps').innerHTML = TASKS.map((t, i) => {
         const done = !!LAB.tasksDone[t.id];
-        return `<div class="step ${done?'done':''} ${t.id===cur?'cur':''} ${t.id===justDone?'flash':''}"
+        return `<div class="step ${done?'done':''} ${t.id===cur?'cur':''} ${justDone.has(t.id)?'flash':''}"
                      data-step="${t.id}" onclick="focusTask('${t.id}')">
                   <span class="n">${done?'&#10003;':(i+1)}</span><span>${t.title}</span></div>`;
     }).join('');
@@ -921,7 +924,7 @@ function renderTasks() {
        stage must not leave the current one below the fold. */
     const curEl = document.querySelector('.step.cur');
     if (curEl && curEl.scrollIntoView) curEl.scrollIntoView({ block: 'nearest' });
-    justDone = null;      /* the flash is a one-shot, not a state */
+    justDone.clear();     /* the flash is a one-shot, not a state */
 
     const t = TASKS.find(x => x.id === cur), done = !!LAB.tasksDone[t.id];
     document.getElementById('openTask').innerHTML =
@@ -955,7 +958,9 @@ function escapeHtml(s) {
    GRADING. Called after any state change. NEVER called from a navigation
    handler. Opening a dialog or switching a tab cannot credit anything.
    ════════════════════════════════════════════════════════════════════════ */
-window.justDone = null;      /* the task that ticked on THIS evaluate, for the flash */
+/* A SET, not one id. One action can satisfy two tasks at once, and picking the last one in
+   array order silently dropped the other's flash. Nancy, 2026-08-07. */
+window.justDone = new Set();
 
 function evaluate() {
     const before = Object.assign({}, LAB.tasksDone);
@@ -977,11 +982,13 @@ function evaluate() {
        completed gets flashed, and focus moves to the next thing that still needs doing. */
     const newlyDone = TASKS.filter(t => !before[t.id] && LAB.tasksDone[t.id]).map(t => t.id);
     if (newlyDone.length) {
-        justDone = newlyDone[newlyDone.length - 1];
+        newlyDone.forEach(id => justDone.add(id));
         const openNow = LAB.focus;
-        /* Advance when the open task is the one that completed, or when nothing is open. A
-           student who has deliberately opened some OTHER unfinished task is left alone. */
-        if (!openNow || newlyDone.includes(openNow) || LAB.tasksDone[openNow]) {
+        /* Advance ONLY when the open task is the one that just completed, or when nothing is
+           open. The earlier version also advanced whenever the open task happened to be done,
+           which pulled the card out from under a student who had opened a FINISHED task to
+           re-read it while an unrelated action ticked something else. Nancy, 2026-08-07. */
+        if (!openNow || newlyDone.includes(openNow)) {
             const next = TASKS.find(t => !LAB.tasksDone[t.id]);
             LAB.focus = next ? next.id : null;
         }
@@ -1001,7 +1008,14 @@ function submitAnswer() {
        so a student who knows "bare metal" is not failed for not typing "Type 1". */
     const correct = t.accepts ? t.accepts(input.value.trim()) : (raw === t.expect());
     if (correct) {
-        LAB.tasksDone[t.id] = true; renderTasks(); save();
+        LAB.tasksDone[t.id] = true;
+        /* submitAnswer() credits directly and never calls evaluate(), so answer tasks never
+           flashed. That is the one moment with no other visual change to tell a student they
+           got it right. Nancy, 2026-08-07. */
+        justDone.add(t.id);
+        const nextUp = TASKS.find(x => !LAB.tasksDone[x.id]);
+        if (LAB.focus === t.id) LAB.focus = nextUp ? nextUp.id : null;
+        renderTasks(); save();
         const f = document.getElementById('fb'); if (f) { f.className = 'fb good'; f.textContent = 'Correct.'; }
     } else {
         /* No reveal, no elimination, unlimited retries: the student must read the meter. */
