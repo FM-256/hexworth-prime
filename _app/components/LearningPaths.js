@@ -2295,6 +2295,12 @@ class LearningPaths {
                     title: 'Documentation & Professionalism',
                     type: 'applet',
                     href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch24-documentation/index.html'
+                },
+                {
+                    id: 'forge-aplus-core2-ch25',
+                    title: 'Virtualization & Hypervisors',
+                    type: 'applet',
+                    href: 'houses/forge/applets/comptia-aplus/core-2/chapters/ch25-virtualization/index.html'
                 }
             ]
         },

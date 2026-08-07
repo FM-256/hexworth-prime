@@ -11849,6 +11849,22 @@ const ContentRegistry = {
             prerequisites: [],
             objectives: []
         },
+        'forge-virtualization-c2': {
+            id: 'forge-virtualization-c2',
+            title: 'Virtualization & Hypervisors',
+            description: 'Virtualization & Hypervisors — module content for forge house',
+            house: 'forge',
+            type: 'module',
+            difficulty: 'beginner',
+            duration: 45,
+            topics: ['virtualization', 'hypervisor', 'virtualbox', 'vmware', 'vm'],
+            paths: ['aplus-core2'],
+            components: {
+                presentation: 'houses/forge/applets/comptia-aplus/core-2/presentations/forge-virtualization.presentation.html'
+            },
+            prerequisites: [],
+            objectives: []
+        },
         'forge-mdm-config': {
             id: 'forge-mdm-config',
             title: 'MDM Policy Configuration Lab',
