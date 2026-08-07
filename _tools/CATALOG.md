@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-07 14:54 · **1050 scripts** · 14 wired into a gate · 237 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 464 not in git
+**Generated:** 2026-08-07 17:23 · **1051 scripts** · 14 wired into a gate · 238 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
 
 ## Read this before writing a new script
 
@@ -317,10 +317,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 81 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 82 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `answer-balance-audit.js` | CALLED | 1 | 2026-08-07 | no | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
 | `armory-terminal-cheat-audit.js` | CALLED | 1 | 2026-08-01 | yes |  |
 | `armsql-garbage-audit.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `armsql-generative-adversary.js` | ORPHAN | 0 | 2026-08-01 | no |  |
