@@ -586,34 +586,44 @@ function stageVMs() { return LAB.vms.filter(v => v.stage === LAB.stage); }
 /* A guest OS guess, the way VirtualBox does it, from the name. Deliberately
    substring-based so a student who types a real machine name gets a real guess. */
 function guessOS(name) {
-    /* A HOSTNAME'S BOUNDARIES ARE NOT ALWAYS PUNCTUATION. Two live reports came from this
-       one function, both the same root cause seen from opposite ends.
-         2026-08-07 a: only spaces separated the token from the number, so "Windows-11",
-           "Win_11" and "Win.11" read as Other/Unknown.
-         2026-08-07 b: folding punctuation fixed the front and left the back, because the
-           trailing \b still demanded a boundary AFTER the digits. "Win11Home", "WIN11LAB"
-           and "W11Box" still failed. Ordinary names: plenty of shops forbid separators in
-           hostnames and simply concatenate. Chris caught it; my own name matrix had tested
-           14 spellings and not one of them put a suffix directly against the digits.
-       So: split camelCase, fold punctuation, and treat every letter/digit transition as a
-       boundary too. The tokens are then whole words, which is what keeps "sw11", "vmware11",
-       "vm11" and "win2011" out: they tokenise to sw / vmware / vm / win 2011, none of which
-       is the OS token followed by the version. */
-    const n = String(name || '')
-        .replace(/([a-z])([A-Z])/g, '$1 $2')      /* MyW11PC  -> My W11PC   */
+    /* THREE LIVE REPORTS CAME FROM THIS ONE FUNCTION, all the same root cause from different
+       angles, and the first two fixes were boundary heuristics that each left a side untested:
+         a) only spaces counted, so "Windows-11" failed.
+         b) punctuation folded, but the trailing boundary still had to exist, so "Win11Home"
+            failed.
+         c) camelCase split only on lower->upper, so a prefix with no case change, "PCwin11",
+            "LABWIN11", "deskwin11", failed.
+       Patching a fourth boundary rule would just move the hole again, so this stops asking
+       "is the OS word a clean token" and asks the question that actually matters: is an OS
+       word sitting immediately before the version number.
+
+       Two passes, because the two OS spellings need different strictness:
+         "windows" and "win" are distinctive enough to match ANYWHERE, even glued inside a
+         longer run, which is what makes every prefix and suffix convention work.
+         bare "w" is one letter and would match half the hostnames in the world, so it is
+         accepted only as its own token: "W11" and "MyW11PC" yes, "sw11" no.
+       Known and accepted collateral: a name whose letters happen to end in "win" right
+       before the number, "twin11", reads as Windows. The real products guess from substrings
+       too and behave the same way; a wrong guess is visible in the details pane and fixable
+       from Settings > General, which a silent non-detection was not. */
+    const tok = String(name || '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')          /* MyW11PC   -> My W11PC  */
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')    /* PCWin11   -> PC Win11  */
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, ' ')              /* Windows-11 -> windows 11 */
-        .replace(/([a-z])(\d)/g, '$1 $2')         /* win11    -> win 11     */
-        .replace(/(\d)([a-z])/g, '$1 $2')         /* 11home   -> 11 home    */
+        .replace(/[^a-z0-9]+/g, ' ')
+        .replace(/([a-z])(\d)/g, '$1 $2')
+        .replace(/(\d)([a-z])/g, '$1 $2')
         .trim();
+    const compact = tok.replace(/\s+/g, '');
     const is = (num, word) =>
-        new RegExp('\\b(?:windows|win|w)\\s+' + num + '\\b').test(n) ||
-        new RegExp('\\b(?:windows|win)\\s+' + word + '\\b').test(n);
+        new RegExp('(?:windows|win)' + num + '(?!\\d)').test(compact) ||
+        new RegExp('(?:windows|win)' + word).test(compact) ||
+        new RegExp('\\bw\\s*' + num + '\\b').test(tok);
     if (is(11, 'eleven')) return 'Windows 11 (64-bit)';
     if (is(10, 'ten'))    return 'Windows 10 (64-bit)';
-    if (/\bubuntu\b/.test(n)) return 'Ubuntu (64-bit)';
-    if (/\bdebian\b/.test(n)) return 'Debian (64-bit)';
-    if (/\blinux\b/.test(n))  return 'Linux 2.6 / 3.x / 4.x (64-bit)';
+    if (/\bubuntu\b/.test(tok)) return 'Ubuntu (64-bit)';
+    if (/\bdebian\b/.test(tok)) return 'Debian (64-bit)';
+    if (/\blinux\b/.test(tok))  return 'Linux 2.6 / 3.x / 4.x (64-bit)';
     return 'Other/Unknown';
 }
 

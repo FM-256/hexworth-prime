@@ -174,22 +174,31 @@ const done=pg=>pg.evaluate(()=>Object.keys(LAB.tasksDone).filter(k=>LAB.tasksDon
                    'windows11','W11','Win11 Lab','My Windows 11 VM','Windows 11 Pro',
                    'Win.11','Windows Eleven','Windows 11 (test)',
                    /* suffix directly against the digits, no separator at all */
-                   'Win11Home','Windows11Pro','WIN11LAB','W11Box','MyW11PC','win11-lab','WIN11'];
+                   'Win11Home','Windows11Pro','WIN11LAB','W11Box','MyW11PC','win11-lab','WIN11',
+                   /* prefix glued on with NO case transition, the third reported shape */
+                   'PCwin11','PCWin11','DESKWIN11','LABWIN11','ITwin11','HRwin11','deskwin11',
+                   'pcwin11-lab','frontdeskwin11','DeskWin11','PC-Win11','DESK-WIN11'];
    const wantNot = ['test','lab-vm','sw11','vmware11','vm11','host11','node-11','esxi11',
                     'win2011','2011','ubuntu-server','Windows-10','Windows10Pro','w10box',
-                    '','   ','---','11'];
+                    'server11','node11','','   ','---','11'];
    return { bad: want11.filter(n=>!guessOS(n).startsWith('Windows 11')),
             falsePos: wantNot.filter(n=>guessOS(n).startsWith('Windows 11')),
             ubuntu: guessOS('ubuntu-server'), win10: guessOS('Windows-10'),
             win10glued: guessOS('Windows10Pro'),
+            win10prefixed: guessOS('PCwin10'),
+            collateral: guessOS('twin11'),
             odd: ['','   ','---','11','\u{1F600}'].map(x=>guessOS(x)) };
  });
  ck('every ordinary spelling of Windows 11 is detected', names.bad.length===0, names.bad.join(' | '));
  ck('and nothing that is not Windows 11 is', names.falsePos.length===0, names.falsePos.join(' | '));
  ck('other guests still detect through separators too',
     /Ubuntu/.test(names.ubuntu) && /Windows 10/.test(names.win10), names.ubuntu+' / '+names.win10);
- ck('Windows 10 still detects with the suffix glued on too',
-    /Windows 10/.test(names.win10glued), names.win10glued);
+ ck('Windows 10 still detects with a suffix or a prefix glued on',
+    /Windows 10/.test(names.win10glued) && /Windows 10/.test(names.win10prefixed),
+    names.win10glued+' / '+names.win10prefixed);
+ /* Pin the accepted collateral so it is a decision on record, not a surprise later. */
+ ck('DISCLOSED: a name ending in "win" before the number reads as Windows',
+    /Windows 11/.test(names.collateral), 'twin11 -> '+names.collateral);
  ck('empty, whitespace, punctuation-only, a bare number and emoji all return Other/Unknown',
     names.odd.every(o=>o==='Other/Unknown'), JSON.stringify(names.odd));
  ck('a hyphenated name satisfies task 1 end to end', await pg.evaluate(()=>{
