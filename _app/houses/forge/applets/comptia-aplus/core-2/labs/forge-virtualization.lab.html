@@ -308,6 +308,8 @@
                     <button class="tb" id="btnStop" onclick="stopVM()" disabled>Power Off</button>
                     <button class="tb" id="btnSnap" onclick="takeSnapshot()" disabled>Take Snapshot</button>
                     <button class="tb" id="btnTools" onclick="installTools()" disabled>Install Tools</button>
+                    <button class="tb" id="btnPin" onclick="setLabVM()" disabled title="Grade this machine">Use as Lab VM</button>
+                    <button class="tb" id="btnRemove" onclick="removeVM()" disabled>Remove</button>
                 </div>
                 <div class="hoststrip" id="hostStrip" hidden></div>
                 <div class="vbox-body">
@@ -849,7 +851,11 @@ function renderDetails() {
     renderHost();
     const el = document.getElementById('details');
     const v = selectedVM();
-    if (!v) { el.innerHTML = '<p class="nothing">Select a virtual machine to see its configuration.</p>'; return; }
+    if (!v) {
+        el.innerHTML = '<p class="nothing">Select a virtual machine to see its configuration.</p>';
+        ['btnPin','btnRemove'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = true; });
+        return;
+    }
     const rv = ramVerdict(v.ram);
     /* Label comes from the chrome table, not a second hard-coded map. That map had no
        'lanseg', so the VMware stage rendered "Adapter 1: undefined". One source of truth. */
@@ -889,6 +895,11 @@ function renderDetails() {
     document.getElementById('btnStart').disabled = v.running;
     document.getElementById('btnStop').disabled = !v.running;
     document.getElementById('btnSnap').disabled = false;
+    const isLab = v.id === LAB.labVmId[LAB.stage];
+    const bp = document.getElementById('btnPin');
+    bp.disabled = isLab;
+    bp.textContent = isLab ? 'Lab VM' : 'Use as Lab VM';
+    document.getElementById('btnRemove').disabled = false;
     const bt = document.getElementById('btnTools');
     bt.disabled = !v.running || v.tools;
     bt.textContent = v.tools ? ui().tools + ' installed' : 'Install ' + ui().tools;
@@ -1242,6 +1253,35 @@ function installTools() {
     v.tools = true;
     v.screen = bootScreen(v);
     renderDetails(); evaluate();
+}
+
+/* THE GRADED MACHINE IS THE STUDENT'S CHOICE, and machines can be thrown away.
+   labVmId pins the first machine of a stage so a scratch VM cannot silently drop earned
+   ticks. That pinning is right, but it was the ONLY way a machine became graded, so a
+   student whose first attempt was named wrong could build three more and never satisfy
+   task 1, with no way to delete the bad one. Reported from the live lab, 2026-08-07.
+   Renaming (Settings > General) already fixed one route out of that; these two give the
+   other, and match what the real products do: you can discard a machine, and you decide
+   which one you are working on. */
+function setLabVM() {
+    const v = selectedVM(); if (!v) return;
+    LAB.labVmId[LAB.stage] = v.id;
+    renderList(); renderDetails(); evaluate();
+}
+
+function removeVM() {
+    const v = selectedVM(); if (!v) return;
+    v.running = false;                       /* a real product will not delete a running VM */
+    LAB.vms = LAB.vms.filter(x => x.id !== v.id);
+    /* If the graded machine was the one discarded, hand the role to another machine from
+       this stage rather than leaving the stage ungradeable. */
+    if (LAB.labVmId[LAB.stage] === v.id) {
+        const rest = stageVMs();
+        LAB.labVmId[LAB.stage] = rest.length ? rest[0].id : null;
+    }
+    const mine = stageVMs();
+    LAB.selected = mine.length ? mine[0].id : null;
+    renderList(); renderDetails(); evaluate();
 }
 
 function takeSnapshot() {
