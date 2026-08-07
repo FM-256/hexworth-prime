@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-07 17:23 · **1051 scripts** · 14 wired into a gate · 238 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
+**Generated:** 2026-08-07 17:38 · **1052 scripts** · 16 wired into a gate · 237 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
 
 ## Read this before writing a new script
 
@@ -41,6 +41,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
+| `_tools/eduscan/answer-balance-audit.js` | `deploy.sh` | yes | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
+| `_tools/eduscan/answer-balance-gate.js` | `deploy.sh` | **NO** | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option |
 | `_tools/eduscan/cli.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/eduscan/dash-hygiene-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when CHANGED _app content introduces an em-dash or a " -- " substitute |
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
@@ -317,11 +319,10 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 82 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 81 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `answer-balance-audit.js` | CALLED | 1 | 2026-08-07 | no | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
 | `armory-terminal-cheat-audit.js` | CALLED | 1 | 2026-08-01 | yes |  |
 | `armsql-garbage-audit.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `armsql-generative-adversary.js` | ORPHAN | 0 | 2026-08-01 | no |  |
@@ -604,7 +605,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `emoji.js` | CALLED | 2 | 2026-03-02 | yes |  |
 | `engine.js` | CALLED | 1 | 2026-08-05 | yes |  |
 | `flex-overflow.js` | DOCS-ONLY | 0 | 2026-07-28 | yes |  |
-| `heuristics.js` | CALLED | 6 | 2026-08-06 | yes |  |
+| `heuristics.js` | CALLED | 6 | 2026-08-07 | yes |  |
 | `html.js` | CALLED | 6 | 2026-07-23 | yes |  |
 | `hub-refs.js` | CALLED | 1 | 2026-05-07 | yes |  |
 | `index.js` | CALLED | 1 | 2026-08-04 | yes |  |

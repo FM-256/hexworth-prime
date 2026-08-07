@@ -117,6 +117,10 @@ function resolveCorrect(qs, cfgObj, registry) {
 }
 
 function analyseQuiz(cfgObj, rel, registry) {
+    // Null-safe by contract: loadRegistry() returns null when it cannot read the file, and
+    // this is an exported entry point, so a caller wiring the two together as documented
+    // must degrade to client-graded-only analysis rather than throw.
+    registry = registry || {};
     const qs = Array.isArray(cfgObj.questions) ? cfgObj.questions : [];
     const correctIdx = resolveCorrect(qs, cfgObj, registry);
     const mc = qs
@@ -211,7 +215,58 @@ function analyseQuiz(cfgObj, rel, registry) {
     };
 }
 
-// ── Run ───────────────────────────────────────────────────────────────────────────
+/**
+ * Analyse one HTML file's QuizEngine configs. Returns an array of per-quiz results.
+ *
+ * Exported so EduScan HEUR-042 and the pre-deploy gate call THIS, rather than each
+ * growing its own copy of the extraction and the thresholds. The gradeQuiz test file is
+ * what a third hand-copied implementation looks like a few months later: it drifted from
+ * production and reported green on logic that existed nowhere.
+ */
+function analyseFile(raw, rel, registry) {
+    const out = [];
+    if (!raw || !raw.includes('new QuizEngine(')) return out;
+    const src = stripJsComments(
+        [...raw.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]).join('\n;\n')
+    );
+    let idx = src.indexOf('new QuizEngine(');
+    while (idx !== -1) {
+        const cfg = balancedBraceSlice(src, idx);
+        if (!cfg) { out.push({ unparseable: `${rel} (no config literal)` }); break; }
+        try {
+            const obj = new Function('"use strict"; return (' + cfg + ');')();
+            const r = analyseQuiz(obj, rel, registry || {});
+            if (r) out.push(r);
+        } catch (e) {
+            out.push({ unparseable: `${rel} (${e.message.slice(0, 60)})` });
+        }
+        idx = src.indexOf('new QuizEngine(', idx + 1);
+    }
+    return out;
+}
+
+/**
+ * Load the answer-key registry once.
+ *
+ * Returns NULL when it cannot be read — deliberately not {}, because the two mean
+ * different things to a caller: {} is "no server-graded quiz has a key yet", null is
+ * "I could not look", and a caller that cannot tell them apart will report a confident
+ * clean result over unmeasured data. Consumers must decide how loudly to say so.
+ * analyseQuiz() tolerates null so a missing registry degrades to client-graded-only
+ * analysis instead of throwing.
+ */
+function loadRegistry(repoRoot) {
+    try {
+        return JSON.parse(fs.readFileSync(path.join(repoRoot || REPO, 'functions', 'quiz_keys.json'), 'utf8'));
+    } catch (e) {
+        return null;
+    }
+}
+
+module.exports = { analyseFile, analyseQuiz, loadRegistry, stripJsComments, balancedBraceSlice, visibleLen };
+
+// ── Run (CLI only) ────────────────────────────────────────────────────────────────
+if (require.main !== module) return;
 // The answer keys for server-graded quizzes. Missing file is not fatal — client-graded
 // quizzes still analyse fine — but it IS reported, because a silent {} would quietly drop
 // every server-graded quiz from the audit and still print a confident summary.

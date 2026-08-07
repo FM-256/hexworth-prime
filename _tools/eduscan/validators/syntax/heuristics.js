@@ -42,6 +42,7 @@
  * - HEUR-025: Module completion ID mismatch — ModuleProgress.complete() uses a different moduleId than the hub/index page expects, causing completions to silently fail (student sees no progress)
  * - HEUR-026: Course module links to house root instead of course hub — file inside a course directory (courses/xxx/) has a back/home link that escapes to the house root instead of the course's own index.html
  * - HEUR-027: Content link escapes to platform root — any file inside houses/ has an href that resolves above the house directory to the main platform dashboard (tenant isolation breach — students escape course context)
+ * - HEUR-042: Quiz answer LENGTH bias — the correct option is systematically the longest, so a student can score above chance by picking the wordiest answer without knowing the material. `assessment-testing-standard.md` section 1 names length as the first tell, and exists because an A+ midterm draft had correct-is-longest in 49 of 60 questions. Measured 2026-08-07 across 407 quizzes / 5,261 questions: 61.2% against 25% by chance, with 20 quizzes at a flat 100%. Fires at twice chance with n>=8. HIGH, per the HEUR-035 lesson that a LOW rule can never fail a build. Correct index for server-graded pages is JOINED from `functions/quiz_keys.json` (those pages carry no `correct` field by design), so without the join the 415 quizzes that matter most would go unmeasured while the rule reported clean. Deliberately NOT a position check: authored positions are skewed far worse (B=55.7% platform-wide) but QuizEngine enforces a Fisher-Yates option shuffle every attempt and ignores randomize:false (QuizEngine.js:30-31,139-145), so no student sees it; length is immune to shuffling. Blocking enforcement is scoped to changed files in `_tools/eduscan/answer-balance-gate.js` (deploy gate 2.9) because ~248 legacy quizzes are already over the bar and the standard grandfathers shipped content. Measurement is shared with `_tools/eduscan/answer-balance-audit.js` — one implementation, not three.
  * - HEUR-041: `window.<Component>` guard on a component declared as a top-level `const`/`let` in a classic script. Such a binding lives in the global LEXICAL environment and is NEVER a window property, so the guard is permanently false and the branch silently never runs. Resolves each component's real export form from its source (window./globalThis./self./root./global. all count as bridges) and only fires when the page actually loads that component, since an absent component makes the guard correctly falsy. Fix: `typeof X !== 'undefined' && X`.
  * - HEUR-028: ModuleProgress.complete() signature mismatch — call does not follow the (houseId, moduleId, options) pattern; first arg is not a recognized house ID, or second arg appears to be a score/number instead of a module ID string
  * - HEUR-029: Looks-clickable but isn't — non-anchor element styled as clickable (role="link"/"button", cursor:pointer + tabindex, onkeydown navigation, or href on non-anchor) with no onclick attribute AND no class/id wired up via JS addEventListener('click') or .onclick assignment; mouse clicks silently fail
@@ -242,6 +243,7 @@ class HeuristicsValidator {
         issues.push(...this.checkWsaSlideLayoutContract(file));
         issues.push(...this.checkWsaHasVisualTextBudget(file));
         issues.push(...this.checkDuplicateRootHtmlAttr(file));
+        issues.push(...this.checkQuizAnswerLengthBias(file));
 
         // Filter out allowlisted issues
         return issues.filter(issue => !this.isAllowlisted(file.path, issue.code));
@@ -4859,6 +4861,80 @@ class HeuristicsValidator {
             }
         }
 
+        return issues;
+    }
+
+    /**
+     * HEUR-042: Quiz answer LENGTH bias — the correct option is systematically the longest.
+     *
+     * The one tell on this platform that a student can use without knowing anything. Pick
+     * the wordiest option, beat chance. Measured 2026-08-07 across 407 quizzes / 5,261
+     * questions: correct-is-longest ran at 61.2% against 25% by chance, with 20 quizzes at
+     * a flat 100%. On those, reading the question is optional.
+     *
+     * Deliberately NOT a position check. Authored keys are skewed far worse (B carries
+     * 55.7% platform-wide, and some keys are literally all-B) but QuizEngine enforces a
+     * Fisher-Yates shuffle of the options on every attempt and ignores randomize:false
+     * (QuizEngine.js:30-31,139-145), so no student ever sees that clustering. Flagging it
+     * here would send someone re-keying hundreds of quizzes for something invisible.
+     * Length is immune to shuffling: moving the longest option from B to D does not make
+     * it shorter. Position skew is tracked as latent by
+     * `_tools/eduscan/answer-balance-audit.js` and taskboard #299.
+     *
+     * HIGH, per the HEUR-035 lesson: at LOW a rule can never fail a build (--strict blocks
+     * on CRITICAL/HIGH, Nexus triage publishes ['critical','high']), so it fires forever
+     * and stops nothing. The BLOCKING enforcement is scoped to changed files in
+     * `_tools/eduscan/answer-balance-gate.js` — ~248 legacy quizzes are already over the
+     * bar and the assessment standard's own migration note grandfathers shipped content,
+     * so a platform-wide block would simply be forced past with --force.
+     *
+     * Server-graded pages carry no `correct` field (shipping the key to the browser is
+     * what server grading prevents), so the correct index is joined from quiz_keys.json in
+     * authored order. Without that join the 415 quizzes that matter most go unmeasured
+     * while the rule reports clean.
+     */
+    checkQuizAnswerLengthBias(file) {
+        const issues = [];
+        const content = file.content;
+        if (!content || !content.includes('new QuizEngine(')) return issues;
+
+        let audit;
+        try {
+            audit = require('../../answer-balance-audit.js');
+        } catch (e) {
+            return issues;   // tool absent (partial checkout): silent, nothing to measure against
+        }
+
+        // Registry is read once per process and cached on the class.
+        if (HeuristicsValidator._answerKeyRegistry === undefined) {
+            HeuristicsValidator._answerKeyRegistry = audit.loadRegistry(path.join(__dirname, '..', '..', '..', '..'));
+        }
+        const registry = HeuristicsValidator._answerKeyRegistry;
+
+        let quizzes;
+        try {
+            quizzes = audit.analyseFile(content, file.path, registry);
+        } catch (e) {
+            return issues;   // a config this rule cannot evaluate is not evidence of a defect
+        }
+
+        for (const q of quizzes) {
+            if (!q || q.unparseable || !q.questions) continue;
+            const chancePct = Math.round((1 / (q.options || 4)) * 100);
+            // Same bar as the audit: twice chance, and at least 8 questions so a short quiz
+            // cannot trip it on ordinary variation.
+            if (q.questions < 8 || q.correctIsLongestPct < chancePct * 2) continue;
+
+            issues.push({
+                code: 'HEUR-042',
+                severity: 'high',
+                category: 'heuristic',
+                message: `Correct answer is the longest option in ${q.correctIsLongest}/${q.questions} questions (${q.correctIsLongestPct}%), against ~${chancePct}% by chance. A student can score above chance by always picking the wordiest option, without knowing the material.`,
+                file: file.path,
+                line: this.getLineNumber(content, content.indexOf('new QuizEngine(')),
+                fix: `Rebalance option lengths, per assessment-testing-standard.md section 1: pad distractors with equally specific but WRONG justifications, and trim the verbose correct answer. Do not just shorten the correct option until it is shortest — that inverts the tell. Target is near chance (~${chancePct}%), not zero. Measure with: node _tools/eduscan/answer-balance-audit.js`
+            });
+        }
         return issues;
     }
 }

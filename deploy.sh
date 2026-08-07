@@ -298,6 +298,34 @@ if [ -f functions/verify-quiz-keys.js ]; then
     fi
 fi
 
+# ── Gate 2.9: Answer-balance gate ────────────────────────────────────
+# assessment-testing-standard.md section 1 names LENGTH as the first tell: the correct
+# answer must not be identifiable by being the longest option. Measured 2026-08-07, it is
+# the longest in 61.2% of all 5,261 quiz questions against 25% by chance, and 20 quizzes sit
+# at a flat 100% -- there, a student who reads nothing and always picks the wordiest option
+# scores full marks. HEUR-042 gives platform-wide visibility; this is the part that blocks.
+#
+# SCOPED TO CHANGED QUIZZES, deliberately. 248 legacy quizzes are already over the bar and
+# the standard grandfathers shipped content, so a platform-wide block would be --forced past
+# on day one and stop mattering. Position skew is NOT gated: QuizEngine shuffles options
+# every attempt, so no student sees it (see the gate header).
+if [ -f _tools/eduscan/answer-balance-gate.js ]; then
+    if [ "$FORCE" = true ]; then
+        echo -e "${BOLD}[2.9/7]${NC} Answer-balance gate ${YELLOW}[SKIPPED]${NC} — --force flag set"
+        echo ""
+    else
+        echo -e "${BOLD}[2.9/7]${NC} Answer-balance gate (changed quizzes)..."
+        if node _tools/eduscan/answer-balance-gate.js; then
+            echo ""
+        else
+            echo ""
+            echo -e "${DIM}Report across everything: node _tools/eduscan/answer-balance-audit.js${NC}"
+            echo -e "${DIM}To bypass static analysis: ./deploy.sh --force${NC}"
+            exit 1
+        fi
+    fi
+fi
+
 # ── Gate 3: Smoke gate (real-browser pre-render check) ───────────────
 if [ "$SKIP_SMOKE" = true ]; then
     echo -e "${BOLD}[3/7]${NC} Smoke gate ${YELLOW}[SKIPPED]${NC} — --skip-smoke flag set"
