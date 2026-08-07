@@ -181,7 +181,13 @@ echo "[4/5] EduScan critical+high gate"
 if [[ "$DRY_RUN" == 1 ]]; then
     echo -e "  ${DIM}DRY-RUN: would run eduscan --fail-on critical,high${NC}"
 else
-    if ! node "$REPO_ROOT/_tools/eduscan/cli.js" --fail-on critical,high >/dev/null 2>&1; then
+    # HEUR-035 (em-dash / " -- ") is excluded from THIS gate, not from the scan or from
+    # triage. It was promoted LOW -> HIGH on 2026-08-06 for triage visibility, which turned
+    # ~3228 legacy style findings into HIGH and made this functional post-deploy check fail
+    # on every deploy for a reason that has nothing to do with the deploy. The blocking
+    # enforcement for NEW violations is dash-hygiene-gate.js at deploy gate 2.6, which is
+    # scoped to changed files. A verification gate that is permanently red verifies nothing.
+    if ! node "$REPO_ROOT/_tools/eduscan/cli.js" --fail-on critical,high --fail-on-except HEUR-035 >/dev/null 2>&1; then
         echo -e "  ${RED}✗ EduScan found critical/high findings post-deploy${NC}"
         DIVERGENCE=1
     else

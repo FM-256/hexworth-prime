@@ -67,6 +67,7 @@ function parseArgs(args) {
         remediation: false,         // Generate remediation plan
         reachabilityMode: 'links',  // 'links' or 'links+registry'
         failOn: null,               // 'critical', 'critical,high', etc.
+        failOnExcept: [],           // rule codes that never fail the gate (e.g. HEUR-035)
         warnOnly: false,
         watch: false,               // Watch mode - re-scan on changes
         functional: false,          // Run functional validation (headless browser)
@@ -188,6 +189,16 @@ function parseArgs(args) {
                 i++;
                 break;
 
+            case '--fail-on-except':
+                /* Codes that are reported at their real severity but must not fail a gate.
+                   For style rules promoted to HIGH for triage visibility, where the blocking
+                   enforcement lives elsewhere (HEUR-035 blocks via dash-hygiene-gate on
+                   CHANGED files at deploy gate 2.6). Without this the only ways to stop a
+                   style rule from failing every post-deploy verification are to demote it,
+                   which loses the triage visibility, or to sweep 3228 legacy findings. */
+                options.failOnExcept = (nextArg || '').split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+                i++;
+                break;
             case '--fail-on':
                 options.failOn = nextArg || 'critical';
                 i++;
@@ -348,6 +359,8 @@ Options:
   --remediation          Generate PATCH_PLAN.md/json with grouped fixes
   --reachability <mode>  Reachability mode: links (default), links+registry
   --fail-on <severities> Exit with error if issues found (e.g., "critical,high")
+  --fail-on-except <codes>  Rule codes excluded from --fail-on (e.g., "HEUR-035").
+                         Still reported and still published to triage at full severity.
   --warn-only            Never exit with error code (for CI adoption)
   -w, --watch            Watch mode - re-scan automatically on file changes
   --functional           Run functional validation (headless browser, Puppeteer)
@@ -877,12 +890,19 @@ function determineExitCode(issues, options) {
         ? options.failOn.toLowerCase().split(',').map(s => s.trim())
         : ['critical']; // Default: only fail on critical
 
+    // Excluded codes still appear in the report and still publish to triage at their real
+    // severity; they simply do not decide this exit code.
+    const excluded = new Set(options.failOnExcept || []);
+    const gated = excluded.size
+        ? issues.filter(i => !excluded.has(String(i.code || i.rule || '').toUpperCase()))
+        : issues;
+
     // Count issues by severity
     const counts = {
-        critical: issues.filter(i => i.severity === 'critical').length,
-        high: issues.filter(i => i.severity === 'high').length,
-        medium: issues.filter(i => i.severity === 'medium').length,
-        low: issues.filter(i => i.severity === 'low').length
+        critical: gated.filter(i => i.severity === 'critical').length,
+        high: gated.filter(i => i.severity === 'high').length,
+        medium: gated.filter(i => i.severity === 'medium').length,
+        low: gated.filter(i => i.severity === 'low').length
     };
 
     // Check if any fail-on severity has issues
