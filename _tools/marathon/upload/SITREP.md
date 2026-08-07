@@ -15,15 +15,15 @@
 - a5b6c78f6 Respect the separators a student typed; only infer the ones they did not
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-08-07 16:00 EDT — status check, no new work since 14:54.
+**Manual section updated:** 2026-08-07 16:12 EDT — pushed. Idle and ready for new work.
 
-## NOW: idle at a clean stopping point. ONE thing needs doing: 22 commits are UNPUSHED.
+## NOW: NOTHING OPEN. Everything shipped, deployed, and now backed up. Awaiting next task.
 
-  THE ONLY OPEN RISK RIGHT NOW — origin/master is 267b5eb9c, 2026-08-06 20:54, EIGHTEEN
-  HOURS BEHIND. Every commit of the ch25 marathon (2965d7f51 .. 384f0827d, 22 of them,
-  incl. the two grading-integrity fixes and the new deploy gate) exists ONLY on this
-  machine. It is deployed to hexworth.com but not backed up to GitHub. `git push` and
-  this line goes away. Nothing blocks the push; it simply has not been run.
+  PUSHED at 16:10 — origin/master is 30f40ec5d, 0 unpushed. The whole ch25 marathon
+  (2965d7f51 .. 384f0827d, 22 commits, incl. the two grading-integrity fixes and deploy
+  gate 2.7) is on GitHub. Verified by re-fetching and confirming four spot commits across
+  the range are ancestors of origin/master, not by trusting the push output. Before this,
+  origin had been eighteen hours behind and the entire marathon lived on one machine.
 
   WORKING TREE — 102 dirty files, ZERO of them under `_app/`. All tracked modifications
   are `_tools/` and `_docs/` (openstack harnesses, reports, sprints.json, this file).
