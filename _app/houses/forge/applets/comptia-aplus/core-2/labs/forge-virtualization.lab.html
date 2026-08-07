@@ -527,6 +527,7 @@ window.LAB = {
     selected: null,
     hostRefused: false, /* latched when the Type 1 host has actually refused a power-on */
     briefSeen: false,   /* the briefing opens itself once, then only on request */
+    completed: false,   /* module credit fires ONCE. See finishStage(). */
     labVmId: { 1:null, 2:null, 3:null },   /* the graded machine, PER STAGE */
     focus: null,        /* which task the rail has open, navigation only */
     tasksDone: {},
@@ -922,7 +923,9 @@ function renderTasks() {
             : '') + `<div class="fb" id="fb"></div>`;
 
     const fb = document.getElementById('finishBtn');
-    fb.disabled = doneN < TASKS.length;
+    /* Once credit is awarded the button stays spent, so a later revocation cannot re-arm it. */
+    fb.disabled = LAB.completed ? true : (doneN < TASKS.length);
+    if (LAB.completed) { fb.textContent = 'Lab complete'; return; }
     fb.textContent = LAB.stage === 1 ? 'Continue to Stage 2 · VMware'
                    : LAB.stage === 2 ? 'Continue to Stage 3 · Type 1'
                    : 'Complete the lab';
@@ -1271,10 +1274,21 @@ function finishStage() {
     save();
     if (LAB.stage === 1) { goToStage(2); return; }           /* on to VMware */
     if (LAB.stage === 2) { goToStage(3); return; }           /* on to the Type 1 host */
-    /* Module progress is recorded once, when the last built stage is finished. */
-    if (typeof ModuleProgress !== 'undefined') {
-        ModuleProgress.complete('forge', 'forge-core2-virtualization-lab',
-            { returnUrl: '../chapters/ch25-virtualization/index.html' });
+    /* FIRE ONCE. State-derived ticks are deliberately revocable, and renderTasks() recomputes
+       the Finish button on every evaluate(), so completion was re-reachable: finish the lab,
+       rename a machine with the General tab (a feature added this same session), rename it
+       back, press Finish again, and ModuleProgress.complete() fired a second time. It is not
+       idempotent: it increments the lifetime modules-completed counter, calls updateStreak(),
+       queues a second activity event and shows the overlay again. No exploit intent needed,
+       just exploring the rename you were told about. Nancy, 2026-08-07.
+       Deliberately NOT cleared by resetLab: redoing the lab must not re-award lifetime credit. */
+    if (!LAB.completed) {
+        LAB.completed = true;
+        save();
+        if (typeof ModuleProgress !== 'undefined') {
+            ModuleProgress.complete('forge', 'forge-core2-virtualization-lab',
+                { returnUrl: '../chapters/ch25-virtualization/index.html' });
+        }
     }
     const b = document.getElementById('finishBtn');
     b.textContent = 'Lab complete'; b.disabled = true;
@@ -1285,7 +1299,7 @@ function save() {
         const p = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
         if (!p.forge) p.forge = {};
         p.forge[STORE_KEY] = { stage: LAB.stage, vms: LAB.vms, labVmId: LAB.labVmId, selected: LAB.selected,
-            seq: LAB.seq, tasks: LAB.tasksDone, briefSeen: LAB.briefSeen,
+            seq: LAB.seq, tasks: LAB.tasksDone, briefSeen: LAB.briefSeen, completedOnce: LAB.completed,
             completed: TASKS.every(t => LAB.tasksDone[t.id]), savedAt: new Date().toISOString() };
         localStorage.setItem('hexworth_progress', JSON.stringify(p));
     } catch (e) { console.warn('[Forge] save failed', e); }
@@ -1305,6 +1319,7 @@ function restore() {
            hand-edited localStorage could forge. Re-triggering it takes one Start press. */
         LAB.hostRefused = false;
         LAB.briefSeen = st.briefSeen === true;
+        LAB.completed = st.completedOnce === true;   /* credit is awarded once, ever */
         LAB.labVmId = (st.labVmId && typeof st.labVmId === 'object') ? st.labVmId : { 1:null, 2:null, 3:null };
         LAB.selected = st.selected || (LAB.vms[0] && LAB.vms[0].id) || null;
         LAB.seq = st.seq || LAB.vms.length;
