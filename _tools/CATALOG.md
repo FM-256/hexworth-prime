@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-07 17:38 · **1052 scripts** · 16 wired into a gate · 237 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
+**Generated:** 2026-08-07 23:57 · **1054 scripts** · 16 wired into a gate · 239 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 464 not in git
 
 ## Read this before writing a new script
 
@@ -42,7 +42,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/answer-balance-audit.js` | `deploy.sh` | yes | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
-| `_tools/eduscan/answer-balance-gate.js` | `deploy.sh` | **NO** | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option |
+| `_tools/eduscan/answer-balance-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option |
 | `_tools/eduscan/cli.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/eduscan/dash-hygiene-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when CHANGED _app content introduces an em-dash or a " -- " substitute |
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
@@ -319,7 +319,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 81 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 83 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -358,6 +358,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `check-overflow-file.js` | ORPHAN | 0 | 2026-06-16 | yes |  |
 | `classify-overflow.js` | ORPHAN | 0 | 2026-06-07 | yes |  |
 | `dead-progress-key-audit.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
+| `finish-double-award-audit.js` | CALLED | 1 | 2026-08-07 | yes | Finds labs where ModuleProgress.complete() can fire more than once (#296) |
 | `firmware-manifest-audit.js` | CALLED | 1 | 2026-05-17 | yes |  |
 | `fix-dead-uid-guard.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `gen-accountability-map.js` | ORPHAN | 0 | 2026-07-27 | yes |  |
@@ -376,6 +377,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `meta-orphan-registry-audit.js` | CALLED | 1 | 2026-05-24 | yes |  |
 | `meta-rule-registry-audit.js` | CALLED | 2 | 2026-05-24 | yes |  |
 | `meta-smoke-wiring-audit.js` | CALLED | 1 | 2026-05-24 | yes |  |
+| `moduleprogress-idempotency.test.js` | CALLED | 1 | 2026-08-07 | yes | Proves ModuleProgress.complete() cannot double-count the lifetime counter (#296) |
 | `new-hub-builder.js` | ORPHAN | 0 | 2026-05-04 | yes |  |
 | `nist-standard-supersession-audit.js` | DOCS-ONLY | 0 | 2026-05-25 | yes |  |
 | `orphan-audit.js` | CALLED | 1 | 2026-04-30 | no |  |
