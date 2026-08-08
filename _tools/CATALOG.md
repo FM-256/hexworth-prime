@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-07 23:57 · **1054 scripts** · 16 wired into a gate · 239 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 464 not in git
+**Generated:** 2026-08-08 00:17 · **1055 scripts** · 16 wired into a gate · 240 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
 
 ## Read this before writing a new script
 
@@ -319,7 +319,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 83 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 84 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -385,6 +385,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `orphan-cluster-analyzer.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 | `orphan-finder.js` | ORPHAN | 0 | 2026-04-30 | no |  |
 | `overlap-probe.js` | DOCS-ONLY | 0 | 2026-08-02 | yes |  |
+| `path-registry-disagreement.js` | CALLED | 1 | 2026-08-08 | no | PROBE, NEGATIVE RESULT: registry `paths:` is NOT a reachability signal |
 | `placement-recommender.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 | `prog003-classifier.js` | DOCS-ONLY | 0 | 2026-05-09 | yes |  |
 | `progress-denominator-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
@@ -507,7 +508,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc-laptop-memory-shot-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-overlay-probe-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-soho-rescue-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
-| `reachability-walk.js` | CALLED | 7 | 2026-07-31 | yes |  |
+| `reachability-walk.js` | CALLED | 8 | 2026-07-31 | yes |  |
 | `screenshot-forge-QC.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `shot_nancy_tmp.js` | ORPHAN | 0 | 2026-07-31 | no |  |
 | `stack_probe_nancy_tmp.js` | ORPHAN | 0 | 2026-07-31 | no |  |
