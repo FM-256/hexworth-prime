@@ -103,11 +103,20 @@ Two things already work in our favour, and both were built before hosting rather
 - Cloud SQL pricing at this scale (SQLite is what everything has been tested on; §"what this
   gate does not prove" in every gate artifact says the same thing).
 
-## Unrelated risk found while answering this
+## Unrelated risk found while answering this — FIXED 2026-08-08
 
-**`~/hexworth-shared/carreer_launchpad/` is not a git repository.** `git rev-parse` returns
-*"not a git repository (or any of the parent directories)"*. The entire product — API,
-prompts, tests, and every M1/M2/M3 gate artifact — has **no version control and no history**.
-This is the same failure mode `CLAUDE.md` records for `_tools/` (534 scripts not in git, so
-they do not survive a fresh clone), except it is a whole product rather than a script
-collection. Worth fixing independently of the hosting decision.
+**`~/hexworth-shared/carreer_launchpad/` was not a git repository.** The entire product —
+API, prompts, tests, and every M1/M2/M3 gate artifact — had no version control and no
+history. Same failure mode `CLAUDE.md` records for `_tools/` (534 scripts not in git, so they
+do not survive a fresh clone), except a whole product rather than a script collection.
+
+Now its own repo (`248a68e`, branch `master`): 122 files, 808KB, from a 427MB tree. The
+`.gitignore` was written before `init` rather than after, because a secret or a 160MB venv
+committed once stays in the object store forever. Excluded: three `.venv` dirs, `__pycache__`,
+and `*.db` — the last one because `llm_call` stores full request/response JSON, meaning whole
+resumes and interview transcripts live in that file.
+
+**Still open:** the repo has **no remote**. It now survives an `rm`, not a disk loss. Pick a
+home for it before treating this as closed — and note that the same hosting question applies,
+since a private repo for a product with paying customers is not the same decision as a
+scratch repo.
