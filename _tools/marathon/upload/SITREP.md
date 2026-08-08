@@ -78,15 +78,20 @@
   for a student with no consent record at all (absence of a decline is not consent).
   Protocol + the exact question to ask + empty results table: docs/m4_thesis.md.
 
-  Carried forward — items 1 and 2 are now FIXED (f1bc7c3), item 3 is still open:
+  Carried forward — ALL THREE now FIXED (f1bc7c3, f605e8c). Nothing carried into M4.
   1. DONE. Robotic interviewer killed: 0/40 quote-back openers, 39/40 one question per turn.
   2. DONE. claims_verify gained rule 3 — a claim about SETTING (in production, at scale,
      for real users) is `unsupported`, NEVER `partially_supported`. A 12-minute storage lab
      is not weak evidence for running storage in production, it is evidence about something
      else. par-09 now grades correctly.
-  3. OPEN, cosmetic, your call. Claims are extracted in the third person, so the report
-     reads "Your claim: The candidate owns...". The LABEL was fixed; the claim text was not,
-     because changing claims_extract.md invalidates M2 (another ~$0.90 to re-measure).
+  3. DONE. The report was discussing the READER in the third person: "Your claim: The
+     candidate owns..." sat next to a rationale already saying "Your resume states you...".
+     claim_text is now second person, the label is a neutral "Claim:", and the probe
+     schema's what_it_exposes had no voice specified at all so it kept emitting "The
+     candidate cannot supply..." — now forbidden by name. Regenerated sample_report.md has
+     ZERO "the candidate" outside the generator's own HTML comment.
+     M2 re-run after that change: recall 1.000 held, agreement 0.946, both disagreements
+     erring STRICT. docs/m4_thesis.md limitations struck through with what replaced them.
 
   Waiting on you: 3 M4 subjects; the hosting call (analysis above, revisit after M4);
   em-dashes on career page titles (sweep or exempt; 3 pre-existing hits).
