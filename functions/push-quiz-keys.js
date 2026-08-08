@@ -20,6 +20,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const { announceTarget } = require('./firestore-target');
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -49,6 +50,9 @@ async function main() {
     console.log('══════════════════');
     console.log(`Mode:   ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE (writing to Firestore)'}`);
     console.log(`Filter: ${FILTER || 'ALL keys'}`);
+    // "LIVE (writing to Firestore)" is equally true of the emulator and of production.
+    // Say WHICH. See firestore-target.js for the incident that prompted this.
+    announceTarget({ writing: !DRY_RUN });
     console.log('');
 
     if (!fs.existsSync(KEYS_FILE)) {
@@ -148,6 +152,21 @@ async function main() {
     if (!DRY_RUN && pushed > 0) {
         console.log('\nFirestore quiz_keys/ updated. gradeQuiz() will use these immediately.');
     }
+
+    // A key that failed to push means gradeQuiz() will score that quiz against a document
+    // that is missing or stale, and students get the wrong grade. Counting the failures and
+    // then exiting 0 tells every caller the push succeeded. Report it in the exit code.
+    if (errors > 0) {
+        console.error(`\n${errors} key(s) FAILED to push. quiz_keys is not in the state the `
+            + 'registry describes.');
+        process.exitCode = 1;
+    }
 }
 
-main().catch(console.error);
+// Not `.catch(console.error)`: that prints the error and exits 0, so a push that crashed
+// on its first document was indistinguishable from a clean run to anything reading $?.
+// seed-quiz-key.js already got this right; this file did not.
+main().catch((e) => {
+    console.error('ERROR:', e && e.stack ? e.stack : e);
+    process.exit(1);
+});

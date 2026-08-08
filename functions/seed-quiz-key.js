@@ -28,6 +28,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const { announceTarget } = require('./firestore-target');
 
 if (!admin.apps.length) {
     admin.initializeApp({ projectId: 'hexworth-prime' });
@@ -46,6 +47,8 @@ async function main() {
     console.log('seed-quiz-key.js');
     console.log('================');
     console.log(`Mode: ${DRY_RUN ? 'DRY RUN (no writes)' : 'LIVE (writing to Firestore)'}`);
+    // Which Firestore. "LIVE" alone does not distinguish emulator from production.
+    announceTarget({ writing: !DRY_RUN });
     console.log('');
 
     if (!IDS.length) {

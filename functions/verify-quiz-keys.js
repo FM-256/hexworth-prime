@@ -35,6 +35,7 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
+const { announceTarget } = require('./firestore-target');
 
 // --registry lets the fixtures supply their own key docs instead of the real 621-entry
 // registry, so proving the gate falsifiable never means writing fake ids into production
@@ -387,6 +388,10 @@ async function main() {
     if (!admin.apps.length) {
         admin.initializeApp({ projectId: 'hexworth-prime' });
     }
+    // Read-only tool, so one quiet line rather than the banner: a verifier that reports
+    // PASSED against the emulator while the operator believes it checked production is
+    // the same invisibility problem, just with a gentler failure mode.
+    announceTarget({ writing: false });
     const db = admin.firestore();
 
     if (MODE_MISSING) {
