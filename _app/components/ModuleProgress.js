@@ -604,9 +604,32 @@ const ModuleProgress = (function() {
             pushToUserProfile(houseId, moduleId, type || 'presentation');
         }
 
-        // Update completion counter (lifetime total, used by stats panel)
-        const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
-        localStorage.setItem(MODULES_COMPLETED_KEY, (completedCount + 1).toString());
+        // Update completion counter (lifetime total, used by stats panel).
+        //
+        // GATED ON isFirstCompletion, like pushToUserProfile above. It was unconditional,
+        // so any lab that could call complete() twice for the same module permanently
+        // inflated this number (taskboard #296).
+        //
+        // The invariant this restores is not a matter of taste: resetModule() at the bottom
+        // of this file decrements the counter by EXACTLY ONE per module, with the comment
+        // "the lifetime counter only ever increments, so undo exactly one". That is only
+        // correct if a module contributes exactly one increment. Complete a lab twice and
+        // reset it, and the counter keeps a phantom module that no reset can ever remove --
+        // the student's stats panel reports more modules completed than they have completed,
+        // permanently, with no way back.
+        //
+        // Fixed HERE rather than in the labs. An audit
+        // (_tools/eduscan/finish-double-award-audit.js) found 589 call sites across 592 lab
+        // files, of which 19 carry a sticky guard. Patching the other 570 would be the same
+        // fix written 570 times, and the 571st lab would arrive without it.
+        //
+        // This does NOT make complete() fully idempotent, and it is not claimed to. A second
+        // call still shows the completion overlay and still re-syncs. What it stops is the
+        // one effect that is cumulative, permanent and unrecoverable.
+        if (isFirstCompletion) {
+            const completedCount = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
+            localStorage.setItem(MODULES_COMPLETED_KEY, (completedCount + 1).toString());
+        }
 
         // Update streak (consecutive study days)
         updateStreak();
@@ -1474,6 +1497,39 @@ const ModuleProgress = (function() {
         candidates.forEach(function (k) {
             if (Object.prototype.hasOwnProperty.call(house, k)) { delete house[k]; removed.keys.push(k); }
         });
+        // Clear the STRUCTURED arrays too, not just the flat per-house keys above.
+        //
+        // These were left behind, and it was already a bug before #296 touched this file:
+        // bridgeStructuredProgress() gates full XP and every array push on
+        // `!progress.completedModules.includes(moduleId)`. So resetting a module and then
+        // redoing it awarded NO XP and re-added nothing -- the module was reset everywhere a
+        // student can see, and still "already completed" everywhere the awarding logic looks.
+        //
+        // #296 made it matter twice over: the lifetime counter is now gated on the same
+        // array, so without this cleanup a reset would decrement the counter and the redo
+        // could never restore it. A reset has to undo the completion in BOTH formats or it
+        // undoes it in neither.
+        //
+        // completionCounts is cleared for the same reason: it drives diminishing XP, and a
+        // genuinely reset module should not return at a reduced rate.
+        candidates.forEach(function (k) {
+            ['completedModules', 'labsCompleted'].forEach(function (arr) {
+                if (Array.isArray(progress[arr])) {
+                    const i = progress[arr].indexOf(k);
+                    if (i !== -1) { progress[arr].splice(i, 1); removed.keys.push(arr + ':' + k); }
+                }
+            });
+            ['modulesCompleted', 'labsCompleted', 'quizzesPassed'].forEach(function (arr) {
+                if (Array.isArray(house[arr])) {
+                    const i = house[arr].indexOf(k);
+                    if (i !== -1) { house[arr].splice(i, 1); removed.keys.push(houseId + '.' + arr + ':' + k); }
+                }
+            });
+            if (progress.completionCounts && Object.prototype.hasOwnProperty.call(progress.completionCounts, k)) {
+                delete progress.completionCounts[k];
+            }
+        });
+
         progress[houseId] = house;
         try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress)); } catch (_) {}
 
