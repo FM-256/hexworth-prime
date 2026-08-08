@@ -21,6 +21,7 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 const { announceTarget } = require('./firestore-target');
+const { buildPayload, findDrift } = require('./quiz-key-payload');
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -83,6 +84,10 @@ async function main() {
     let pushed = 0;
     let updated = 0;
     let errors = 0;
+    // Registry-owned fields that live Firestore has and the registry does not. These are
+    // NOT deleted (see quiz-key-payload.js), so they are the silent-drift cases and the
+    // only way to notice them is to report them.
+    const drift = [];
 
     for (const quizId of quizIds) {
         const data = allKeys[quizId];
@@ -91,6 +96,11 @@ async function main() {
         const summary = `${quizId}: ${data.answers.length} answers, passing ${data.passingScore}%`;
 
         if (DRY_RUN) {
+            // Read the live doc even on a dry run, purely to report drift. A dry run that
+            // could not see drift would be the least useful place to hide it: it is exactly
+            // where someone looks before deciding whether a push is safe.
+            const existingDry = await docRef.get();
+            drift.push(...findDrift(quizId, existingDry.exists ? existingDry.data() : null, data));
             console.log(`  [DRY] ${summary}`);
             console.log(`         answers: [${data.answers.join(', ')}]`);
             pushed++;
@@ -102,34 +112,14 @@ async function main() {
             const existing = await docRef.get();
             const isUpdate = existing.exists;
 
-            // Merge: preserves any extra fields (like usage stats) while
-            // overwriting the answer data
-            await docRef.set({
-                answers: data.answers,
-                passingScore: data.passingScore,
-                questionCount: data.questionCount,
-                // Per-question rationales for post-submission answer review. Pushed only
-                // when present. revealToAll (formative module quizzes) tells gradeQuiz to
-                // reveal the correct answer + explanation to every student, not just passers.
-                // Written UNCONDITIONALLY (true/false) so the static registry is authoritative
-                // and a stray Firestore flag can never persist under merge:true.
-                ...(Array.isArray(data.explanations) ? { explanations: data.explanations } : {}),
-                revealToAll: data.revealToAll === true,
-                // Opt-in "reveal correct answers after N failed attempts" (gradeQuiz reads
-                // this). Written only when present so it never appears on exams that don't use it.
-                ...(Number.isInteger(data.reviewAfterFails) ? { reviewAfterFails: data.reviewAfterFails } : {}),
-                // Drawn-subset delivery (taskboard #295). gradeQuiz uses this as the SCORING
-                // DENOMINATOR, so it is written UNCONDITIONALLY for the same reason revealToAll
-                // is: under merge:true a stray poolSize already on the live doc would survive
-                // forever, and a live poolSize the registry does not know about is the
-                // false-PASS case (a student who answers 12 of 20 and stops gets 12/12 = 100%).
-                // Explicit delete when the registry does not declare one, so the registry is
-                // the single authority in BOTH directions.
-                poolSize: (Number.isInteger(data.poolSize) && data.poolSize > 0)
-                    ? data.poolSize
-                    : admin.firestore.FieldValue.delete(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            // Payload built by quiz-key-payload.js, which seed-quiz-key.js also uses.
+            // They previously wrote DIFFERENT field sets from the same registry (#298), so
+            // there is now exactly one definition of what an entry becomes in Firestore.
+            // merge:true preserves the 20+ provenance and audit fields other tools write
+            // (source, createdAt, karlAuditArtifact, fixNote, ...) which a full replace
+            // would destroy.
+            drift.push(...findDrift(quizId, existing.exists ? existing.data() : null, data));
+            await docRef.set(buildPayload(data, { serverTimestamp: true }), { merge: true });
 
             if (isUpdate) {
                 console.log(`  [UPD] ${summary}`);
@@ -148,6 +138,19 @@ async function main() {
     console.log(`  Pushed:  ${pushed} (${updated} updated, ${pushed - updated} new)`);
     console.log(`  Errors:  ${errors}`);
     console.log(`  Total:   ${quizIds.length}`);
+
+    // Drift is reported, never auto-corrected. Deleting a live `explanations` array because
+    // the registry lacks one would silently remove post-submission review from a quiz that
+    // has it today, which is a student-visible change and the operator's call.
+    if (drift.length) {
+        console.log(`\n  Drift:   ${drift.length} field(s) live in Firestore but absent from `
+            + 'the registry.');
+        console.log('           These are NOT deleted by a push. The registry is not '
+            + 'authoritative for them.');
+        for (const d of drift) console.log(`           - ${d.quizId}: ${d.field}`);
+        console.log('           Fix by backfilling quiz_keys.json from live, or decide '
+            + 'these should be dropped.');
+    }
 
     if (!DRY_RUN && pushed > 0) {
         console.log('\nFirestore quiz_keys/ updated. gradeQuiz() will use these immediately.');

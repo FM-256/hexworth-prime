@@ -29,6 +29,7 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 const path = require('path');
 const { announceTarget } = require('./firestore-target');
+const { buildPayload } = require('./quiz-key-payload');
 
 if (!admin.apps.length) {
     admin.initializeApp({ projectId: 'hexworth-prime' });
@@ -106,20 +107,19 @@ async function main() {
         }
 
         if (!DRY_RUN) {
-            await ref.set({
-                answers: entry.answers,
-                passingScore: entry.passingScore != null ? entry.passingScore : 70,
-                questionCount: entry.questionCount != null ? entry.questionCount : entry.answers.length,
-                ...(entry.note ? { note: entry.note } : {}),
-                // Drawn-subset delivery (taskboard #295). gradeQuiz reads this as the scoring
-                // DENOMINATOR; without it here, a registry entry declaring poolSize would be
-                // silently dropped on the way to Firestore and the quiz would keep grading the
-                // drawn subset against the full bank — the exact 60% failure #295 fixed, arriving
-                // by a different road. No explicit delete needed: this .set() has no merge, so it
-                // replaces the document and an absent poolSize is already removed.
-                ...(Number.isInteger(entry.poolSize) && entry.poolSize > 0 ? { poolSize: entry.poolSize } : {}),
-                updatedAt: new Date().toISOString()
-            });
+            // #298. This used to be a non-merge .set(), which REPLACED the whole document.
+            // That silently stripped explanations, revealToAll and reviewAfterFails (so
+            // students stopped seeing correct answers after submitting), and — worse, and
+            // not in the original report — every provenance field other tools write:
+            // source, createdAt, karlAuditArtifact, fixNote, lastFixedBy, rebalancedAt and
+            // ~20 more. A field scan of production found 30+ distinct names across the 621
+            // live docs. "We do not destroy" covers fields, not just files.
+            //
+            // Now merge:true with the payload built by quiz-key-payload.js, the same one
+            // push-quiz-keys.js uses, so the two tools cannot disagree about the field set
+            // again. poolSize carries an explicit delete in that payload, which is what
+            // replaces the removal the old full-replace gave for free.
+            await ref.set(buildPayload(entry, { serverTimestamp: false }), { merge: true });
             const back = await ref.get();
             const ok = JSON.stringify(back.data().answers) === JSON.stringify(entry.answers);
             console.log(`    ${ok ? 'written and read back OK' : 'READ-BACK MISMATCH'}`);
