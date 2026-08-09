@@ -67,6 +67,7 @@
     <span style="font-size:12px;color:var(--le-dim)">ACT I &middot; TERRAN GATEWAY</span>
     <a class="le-btn" href="?m=2" id="tab2">2 &middot; Ghost Session</a>
     <a class="le-btn" href="?m=3" id="tab3">3 &middot; Last Good Contact</a>
+    <a class="le-btn" href="?m=4" id="tab4">4 &middot; Signed in Ash</a>
     <a class="le-btn" href="index.html" style="margin-left:auto">&larr; Operator client</a>
   </div>
 
@@ -90,6 +91,26 @@
         <button class="le-btn primary" id="testBtn">Test</button>
       </div>
       <div id="verdict"></div>
+
+      <!-- Telecommand frame audit. Present only for missions that declare
+           `frames`. Independence cannot express replay: two frames sharing a
+           counter are not a correlated-failure problem, they are the same frame
+           sent twice, and that needs its own check. -->
+      <div id="framePanel" style="display:none">
+        <h2 style="margin-top:22px">Telecommand Frame Audit</h2>
+        <div style="font-size:12px;color:var(--le-dim);margin-bottom:12px">
+          A signature states that a key signed a payload. It carries no statement
+          about when the frame was sent, or about which service it was issued for.
+          Compare two frames.
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select id="frmA"></select>
+          <span style="color:var(--le-dim)">vs</span>
+          <select id="frmB"></select>
+          <button class="le-btn primary" id="frameBtn">Audit</button>
+        </div>
+        <div id="frameVerdict"></div>
+      </div>
 
       <h2 style="margin-top:22px">Corroborating Evidence</h2>
       <div id="corrList" style="font-size:12px"></div>
@@ -137,7 +158,9 @@
        rendering an empty console: a bad query string is a typo, not a reason to
        show a player a blank page. */
     var qm = parseInt(new URLSearchParams(location.search).get('m'), 10);
-    var MN = (qm === 2 || qm === 3) ? qm : 2;
+    // Derived from the config, so adding mission 5 needs no edit here.
+    var KNOWN = Object.keys(ColdHorizonConfig.missionData || {}).map(Number);
+    var MN = KNOWN.indexOf(qm) !== -1 ? qm : KNOWN[0];
 
     var cfg = ColdHorizonConfig.forMission(MN);
     var eng = new LagrangeEngine(cfg);
@@ -285,6 +308,79 @@
         });
     });
 
+    /* ── Frame audit ──────────────────────────────────────────────────────
+       A separate mechanic on purpose. The independence test answers "could these
+       two have failed together"; it has nothing to say about a frame that is
+       individually perfect and was simply sent twice. Act I taught one habit
+       three times, and a fourth run of it would have been a treadmill.
+
+       Three findings, each reported with its reason:
+         REPLAY   same frame counter, and a counter is single-use by design
+         IDENTICAL PAYLOAD  the bytes were not re-signed, they were re-sent
+         SCOPE    the audience claim names a service other than the one that
+                  accepted the frame
+       Reported even when the signature verifies, because that is the lesson. */
+    function auditFrames(A, B) {
+        var out = [];
+        if (A.frameCounter === B.frameCounter) {
+            out.push({ bad: true, text: 'REPLAY. Both frames carry counter ' + A.frameCounter
+                + '. A telecommand frame counter is single-use; the platform accepting it '
+                + 'twice is the anti-replay control failing open, not the signature being '
+                + 'forged.' });
+        }
+        if (A.payloadHash === B.payloadHash) {
+            out.push({ bad: true, text: 'IDENTICAL PAYLOAD (' + A.payloadHash + '). These '
+                + 'bytes were not signed twice, they were sent twice. Whoever sent the '
+                + 'second one never needed the key.' });
+        }
+        [A, B].forEach(function (F) {
+            if (cfg.acceptedBy && F.aud && F.aud !== cfg.acceptedBy) {
+                out.push({ bad: true, text: 'SCOPE. ' + F.label + ' carries aud=' + F.aud
+                    + ' and was accepted by ' + cfg.acceptedBy + '. It validates, and it was '
+                    + 'never issued for the service that honoured it.' });
+            }
+        });
+        if (!out.length) {
+            out.push({ bad: false, text: 'No replay, distinct payloads, and both audience '
+                + 'claims match the accepting service. Nothing here impeaches either frame.' });
+        }
+        return out;
+    }
+
+    function wireFrames() {
+        var F = cfg.frames;
+        if (!F || !F.length) return;
+        $('framePanel').style.display = '';
+        var opts = F.map(function (f) {
+            return '<option value="' + f.id + '">' + f.label + '</option>';
+        }).join('');
+        $('frmA').innerHTML = opts; $('frmB').innerHTML = opts;
+        $('frmB').selectedIndex = Math.min(1, F.length - 1);
+
+        $('frameBtn').addEventListener('click', function () {
+            var a = $('frmA').value, b = $('frmB').value;
+            if (a === b) {
+                $('frameVerdict').innerHTML = '<div class="le-verdict bad">'
+                    + 'Comparing a frame with itself establishes nothing.</div>';
+                return;
+            }
+            var A = F.filter(function (x) { return x.id === a; })[0];
+            var B = F.filter(function (x) { return x.id === b; })[0];
+            $('frameBtn').disabled = true;
+            // Through the link like everything else: this is a query to the platform.
+            eng.orbital('frame audit', function () { return auditFrames(A, B); }, 3)
+               .then(function (res) {
+                $('frameBtn').disabled = false;
+                $('frameVerdict').innerHTML = res.map(function (r) {
+                    return '<div class="le-verdict ' + (r.bad ? 'bad' : 'ok') + '">'
+                         + r.text + '</div>';
+                }).join('');
+                res.forEach(function (r) { log('frame audit: ' + r.text.split('.')[0]); });
+                renderResources();
+            });
+        });
+    }
+
     /* ── Submission. The engine never holds the flag value; validateFlag judges
        it server-side against flag_registry. ─────────────────────────────── */
     $('submitBtn').addEventListener('click', function () {
@@ -329,7 +425,7 @@
     var act = $('tab' + MN); if (act) act.classList.add('primary');
 
     fillSelects(); renderSensors(); renderLedger();
-    renderResources(); renderCorroborators();
+    renderResources(); renderCorroborators(); wireFrames();
     log('console attached to Z1 TERRAN GATEWAY');
     log('mission ' + MN + ' · ' + (mission.title || ''));
 
@@ -347,7 +443,8 @@
     var QA_HOSTS = ['localhost','127.0.0.1','[::1]',''];
     if (new URLSearchParams(location.search).get('qa') === '1' &&
         QA_HOSTS.indexOf(location.hostname) !== -1) {
-        window.__LE_QA__ = { eng: eng, cfg: cfg, mission: MN, axes: axes, sources: all };
+        window.__LE_QA__ = { eng: eng, cfg: cfg, mission: MN, axes: axes, sources: all,
+                             auditFrames: auditFrames };
     }
 })();
 </script>

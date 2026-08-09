@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * act1-test.js — Lagrange Edge Act I: missions 1, 2 and 3 in a real browser.
+ * missions-test.js — Lagrange Edge box missions, in a real browser.
  *
- * @catalog what    Verifies Act I of le-01-cold-horizon: mission 1 still works after the
- *                  config gained two missions, and missions 2/3 teach the right lesson.
- * @catalog run     node _tools/qa/cold-horizon/act1-test.js
+ * @catalog what    Verifies every built mission of le-01-cold-horizon: Act I (1,2,3) plus
+ *                  mission 4. Asserts each mission's TRAP is rejected and its solution
+ *                  accepted, and that earlier missions stay unregressed as new ones land.
+ * @catalog run     node _tools/qa/cold-horizon/missions-test.js
  * @catalog status  TOOL
  *
  * WHAT THIS IS FOR, beyond "does it render".
@@ -79,7 +80,7 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     return p;
   }
 
-  console.log('\n--- LAGRANGE EDGE, Act I ---\n');
+  console.log('\n--- LAGRANGE EDGE, box missions ---\n');
 
   // ── config-level invariants ────────────────────────────────────────────────
   const cfgPage = await open(base+'gateway.html?m=2&qa=1');
@@ -99,8 +100,12 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     };
   });
 
-  check('three canonical flags declared, one per mission',
-        cfgFacts.flags.length === 3, cfgFacts.flags.join(', '));
+  /* Derived, not hardcoded. This read `=== 3` and went stale the moment mission
+     4 landed, which is the same class of bug as a registry that declares more
+     canonical flags than the box can yield. */
+  check('exactly one canonical flag per declared mission',
+        cfgFacts.flags.length === cfgFacts.missions.length,
+        `${cfgFacts.flags.length} flags, ${cfgFacts.missions.length} missions`);
   check('every mission points at a flag that exists',
         cfgFacts.missions.every(m => cfgFacts.flags.includes(m.flagId)));
   check('every mission has hints under its own flag id',
@@ -227,6 +232,57 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
         /containment decision/i.test(s1.prompt), s1.prompt.slice(0,60));
   check('mission 1 readings unchanged (41.2 first)', /41\.2/.test(s1.firstReading), s1.firstReading);
   await p1.close();
+
+  // ── MISSION 4 — Signed in Ash. Act II, and a DIFFERENT mechanic. ─────────
+  console.log('\n  mission 4 — Signed in Ash (PKI + replay)');
+  const p4 = await open(base+'gateway.html?m=4&qa=1');
+  const s4 = await p4.evaluate(()=>({
+    title: document.getElementById('mTitle').textContent,
+    framePanel: getComputedStyle(document.getElementById('framePanel')).display !== 'none',
+    frameOpts: document.querySelectorAll('#frmA option').length,
+    prompt: document.getElementById('prompt').textContent,
+  }));
+  check('mission 4 renders its own title', /SIGNED IN ASH/i.test(s4.title), s4.title);
+  check('the frame audit panel appears for a mission that declares frames',
+        s4.framePanel === true && s4.frameOpts === 3, `panel=${s4.framePanel} opts=${s4.frameOpts}`);
+
+  // The panel must NOT appear where no frames are declared, or every earlier
+  // mission grows a control that does nothing.
+  const p2b = await open(base+'gateway.html?m=2&qa=1');
+  const hidden = await p2b.evaluate(()=>
+    getComputedStyle(document.getElementById('framePanel')).display === 'none');
+  check('the frame panel stays hidden on missions with no frames', hidden === true);
+  await p2b.close();
+
+  /* THE CORE OF THE MISSION. Every frame is individually valid, so a check that
+     only asked "does the signature verify" would pass on the replay. Drive the
+     page's own audit. */
+  const audit = (a,b) => p4.evaluate((a,b)=>{
+    const F = window.__LE_QA__.cfg.frames;
+    const A = F.filter(x=>x.id===a)[0], B = F.filter(x=>x.id===b)[0];
+    return window.__LE_QA__.auditFrames(A,B).map(r=>({bad:r.bad, text:r.text}));
+  }, a, b);
+
+  let f = await audit('f-1131','f-1131-r');
+  check('REPLAY is caught: the disputed frame reuses counter 1131',
+        f.some(r=>r.bad && /REPLAY/.test(r.text)), f.map(r=>r.text.split('.')[0]).join(' | '));
+  check('and the identical payload is named, so it reads as re-sent not re-signed',
+        f.some(r=>r.bad && /IDENTICAL PAYLOAD/.test(r.text)));
+  check('the SCOPE failure is caught: aud names thermal, command accepted it',
+        f.some(r=>r.bad && /SCOPE/.test(r.text)));
+
+  // Both signatures verify. If a "valid signature" reading were the mission, this
+  // pair would look clean, which is precisely the lesson.
+  const sigs = await p4.evaluate(()=>window.__LE_QA__.cfg.frames.map(f=>f.sig));
+  check('every frame in the mission has a VALID signature, including the replay',
+        sigs.every(x=>x==='VALID'), sigs.join(','));
+
+  // A legitimate pair must come back clean, or the mechanic just says "bad" always.
+  f = await audit('f-1131','f-1132');
+  check('a legitimate pair is NOT flagged as replay or identical payload',
+        !f.some(r=>r.bad && /REPLAY|IDENTICAL/.test(r.text)),
+        f.map(r=>r.text.split('.')[0]).join(' | '));
+  await p4.close();
 
   console.log('\n=== ERRORS ('+errs.length+') ===');
   errs.slice(0,15).forEach(e=>console.log('  '+e.slice(0,220)));

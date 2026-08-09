@@ -368,6 +368,110 @@ const ColdHorizonConfig = {
                            + 'Agreement between them is not two clocks agreeing, it is one '
                            + 'clock and its copy.' }
             ]
+        },
+
+        /* ── MISSION 4 — SIGNED IN ASH ──────────────────────────────────────
+           MVP-1's centrepiece, and the first mission that is NOT another
+           independence test. Act I taught one habit three times; running it a
+           fourth would be a treadmill. This mission needs the habit and then
+           needs something the habit cannot do.
+
+           THE COMMAND'S SIGNATURE IS VALID. The key is the right key, the chain
+           builds to a trusted root, nothing is expired. And it still does not
+           establish origin, for two independent reasons the player must find:
+
+             REPLAY.  The frame counter was already used. A signature proves the
+                      key signed THAT PAYLOAD at some point; it says nothing
+                      about when it was sent. That is precisely why CCSDS SDLS
+                      carries an anti-replay sequence rather than relying on the
+                      MAC alone.                                        [REAL]
+             SCOPE.   The token's `aud` names the thermal service, not the
+                      command authority. It validates and it was not issued FOR
+                      this. Verbatim the `bh-mod-auth-access` lesson on aud/iss
+                      claim validation, which the scope doc names as this
+                      mission's module citation.                        [REAL]
+
+           IT CHAINS BACKWARD DELIBERATELY. Mission 3 establishes a known-good
+           timestamp; without it there is no reference against which "this frame
+           counter was already used at 06:09" means anything. And mission 2
+           planted "authentication is not attribution" so this can pay it off
+           rather than teach it cold. Act I is the equipment for Act II.
+
+           Provenance: REAL. CCSDS Space Data Link Security, telecommand frame
+           counters, and JWT-style audience/issuer claim validation. */
+        4: {
+            axes: ['keyCustody', 'signingAuthority', 'logPipeline'],
+            situation:
+                'The maintenance command from session S-4471 carries a valid signature. '
+              + 'Ops is treating that as proof of origin and is ready to close the '
+              + 'investigation. Audit the telecommand frame itself. A signature establishes '
+              + 'that a key signed a payload; decide what else it does and does not show.',
+            /* Frames for the audit panel. The mission is solved by comparing them,
+               not by reading any single one: every frame here is individually valid. */
+            frames: [
+                { id: 'f-1131', label: 'Frame 1131 — thermal setpoint',
+                  frameCounter: 1131, payloadHash: 'a41c…9e02', sig: 'VALID',
+                  aud: 'astraea.thermal', iss: 'terran-sso', sentAt: '06:09:41Z',
+                  note: 'Legitimate. Issued and acknowledged inside the known-good window '
+                      + 'established in Last Good Contact.' },
+                { id: 'f-1131-r', label: 'Frame 1131 — maintenance command (disputed)',
+                  frameCounter: 1131, payloadHash: 'a41c…9e02', sig: 'VALID',
+                  aud: 'astraea.thermal', iss: 'terran-sso', sentAt: '06:14:22Z',
+                  note: 'The disputed command. Signature verifies. Same frame counter and '
+                      + 'the same payload hash as 06:09:41Z.' },
+                { id: 'f-1132', label: 'Frame 1132 — housekeeping poll',
+                  frameCounter: 1132, payloadHash: 'b7d0…1a55', sig: 'VALID',
+                  aud: 'astraea.command', iss: 'terran-sso', sentAt: '06:15:03Z',
+                  note: 'Normal traffic. Counter advances, audience is the command '
+                      + 'authority, payload is its own.' }
+            ],
+            /* The service this frame was accepted BY. A token whose aud names a
+               different service is a scope failure even when it verifies. */
+            acceptedBy: 'astraea.command',
+            sensors: [
+                { id: 'cmd-sig', name: 'Telecommand signature',
+                  reading: 'VERIFIES', unit: '',
+                  keyCustody: 'moc-hsm-2', signingAuthority: 'lagrange-ops-ca',
+                  logPipeline: 'netops-syslog',
+                  note: 'MAC verifies against the operations signing key. Chain builds to a '
+                      + 'trusted root. Nothing is expired.' },
+                { id: 'cmd-cert', name: 'Signing certificate chain',
+                  reading: 'TRUSTED', unit: '',
+                  keyCustody: 'moc-hsm-2', signingAuthority: 'lagrange-ops-ca',
+                  logPipeline: 'netops-syslog',
+                  note: 'Same key custody and same authority as the signature it vouches '
+                      + 'for. A chain confirming its own leaf is one statement.' },
+                { id: 'hsm-audit', name: 'HSM key-use audit',
+                  reading: 'ONE USE AT 06:09:41Z', unit: '',
+                  keyCustody: 'moc-hsm-2', signingAuthority: 'hsm-attest-ca',
+                  logPipeline: 'hsm-internal',
+                  note: 'The HSM records the key being used ONCE this hour, at 06:09:41Z. '
+                      + 'It has no record of a signing operation at 06:14:22Z.' }
+            ],
+            corroborators: [
+                { id: 'seq-window', name: 'SDLS anti-replay window',
+                  value: 'COUNTER 1131 ALREADY SEEN', unit: '',
+                  keyCustody: 'astraea-fsw', signingAuthority: 'astraea-platform-ca',
+                  logPipeline: 'platform-telemetry',
+                  reasoning: 'The platform recorded frame counter 1131 at 06:09:41Z and '
+                           + 'accepted it again at 06:14:22Z. A frame counter is single-use '
+                           + 'by design; accepting it twice is the anti-replay control '
+                           + 'failing open, not the signature being forged.' },
+                { id: 'aud-claim', name: 'Token audience claim',
+                  value: 'aud = astraea.thermal', unit: '',
+                  keyCustody: 'terran-sso', signingAuthority: 'terran-sso-ca',
+                  logPipeline: 'sso-audit',
+                  reasoning: 'The frame was accepted by astraea.command. Its audience claim '
+                           + 'names astraea.thermal. It validates, and it was never issued '
+                           + 'for the service that honoured it.' },
+                { id: 'hsm-attest', name: 'HSM attestation log',
+                  value: 'NO SIGNING OPERATION AT 06:14:22Z', unit: '',
+                  keyCustody: 'moc-hsm-2', signingAuthority: 'hsm-attest-ca',
+                  logPipeline: 'hsm-internal',
+                  reasoning: 'The key never left the module and the module did not sign '
+                           + 'anything at the disputed time. Whoever sent that frame did '
+                           + 'not need the key, because the bytes already existed.' }
+            ]
         }
     },
 
@@ -380,11 +484,12 @@ const ColdHorizonConfig = {
        uncompletable before this one was written.
        ═══════════════════════════════════════════════════════════════════ */
     /* ⚠ PRE-DEPLOY BLOCKER, 2026-08-08 ────────────────────────────────────
-       Missions 2 and 3 declare flag ids here, and flag VALUES live in Firestore
-       under flag_registry/le-01-cold-horizon, admin-write only. Until someone
-       with that access seeds `m2-ghost-session` and `m3-last-good-contact`,
-       submitFlag will reject every correct answer to those two missions and the
-       box can never reach 3/3.
+       Missions 2, 3 and 4 declare flag ids here, and flag VALUES live in
+       Firestore under flag_registry/le-01-cold-horizon, admin-write only. Until
+       someone with that access seeds `m2-ghost-session`,
+       `m3-last-good-contact` and `m4-signed-in-ash`, submitFlag will reject
+       every correct answer to those three missions and the box can never
+       reach 4/4.
 
        That is precisely the failure the scope doc records: on 2026-08-04, 88
        boxes were found that a student could fully solve and never be credited
@@ -401,7 +506,10 @@ const ColdHorizonConfig = {
                 + 'actually establish about who issued the command?' },
         { id: 'm3-last-good-contact', mission: 3, points: 100,
           prompt: 'What is the last contact whose timestamp can be trusted, and what makes '
-                + 'it trustworthy when the logs disagree?' }
+                + 'it trustworthy when the logs disagree?' },
+        { id: 'm4-signed-in-ash', mission: 4, points: 100,
+          prompt: 'The signature verifies. State what that does and does not establish '
+                + 'about the origin of this command, and name the two controls that failed.' }
     ],
 
     missions: [
@@ -455,6 +563,24 @@ const ColdHorizonConfig = {
                 corroboratorsRequired: 1,
                 corroboratorFamily: 'physical'
             }
+        },
+        {
+            id: 4,
+            title: 'Signed in Ash',
+            objective: 'Audit the disputed telecommand frame. Establish what a valid '
+                     + 'signature does and does not prove, and name the two controls that '
+                     + 'failed open.',
+            learningFocus: 'PKI and token claims; anti-replay; authentication is not '
+                         + 'authorisation and not freshness',
+            phaseOutput: 'Signature valid, origin unproven',
+            flagId: 'm4-signed-in-ash',
+            zone: 'z1',
+            moduleCitation: 'bh-mod-auth-access',
+            revealGate: {
+                necessaries: ['frame-counter-reused', 'audience-claim-mismatch'],
+                corroboratorsRequired: 1,
+                corroboratorFamily: 'platform'
+            }
         }
     ],
 
@@ -477,6 +603,20 @@ const ColdHorizonConfig = {
             + 'for a signal to go out and come back. Moving a clock does not move it.',
             'ASTRAEA-9 is 326,000 km away. Nothing can be commanded and acknowledged in less '
             + 'than about 2.18 seconds. Find the pair of entries that claims otherwise.'
+        ],
+        'm4-signed-in-ash': [
+            'The signature verifies. Ask what a verified signature is a statement ABOUT '
+            + 'before you decide what it proves.',
+            'A certificate chain that vouches for its own leaf, held in the same module, '
+            + 'logged through the same pipeline, is one statement rather than three.',
+            'Compare the disputed frame against earlier traffic. Look at the frame counter '
+            + 'and the payload hash, not at the signature.',
+            'A signature proves a key signed a payload. It carries no statement about WHEN '
+            + 'the frame was sent, which is exactly why the protocol carries a separate '
+            + 'anti-replay sequence.',
+            'Read the audience claim, and read which service actually accepted the frame. '
+            + 'A token can validate and still never have been issued for the thing that '
+            + 'honoured it.'
         ],
         'm1-independence': [
             'Two readings agree. Ask what they have in common before you ask what they mean.',
@@ -521,6 +661,14 @@ ColdHorizonConfig.forMission = function (n) {
     var m = base.missionData[n];
     var view = {};
     Object.keys(base).forEach(function (k) { view[k] = base[k]; });
+    /* Carry EVERY field the mission declares, not a fixed list. Mission 4 added
+       `frames` and `acceptedBy` for the telecommand audit and they silently did
+       not arrive, because this function copied four named keys. A whitelist here
+       means every new mechanic needs an edit in a file that has nothing to do
+       with it, and the failure is a quiet undefined rather than an error. */
+    Object.keys(m).forEach(function (k) {
+        if (k !== 'axes' && k !== 'sensors' && k !== 'corroborators') view[k] = m[k];
+    });
     view.sensors           = m.sensors || [];
     view.corroborators     = m.corroborators || [];
     view.independenceAxes  = m.axes || base.independenceAxes;
