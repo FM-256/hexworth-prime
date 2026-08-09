@@ -284,6 +284,57 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
         f.map(r=>r.text.split('.')[0]).join(' | '));
   await p4.close();
 
+  /* ── FALSE-NEGATIVE GRADING ────────────────────────────────────────────
+     Chris blocked the deploy on this and he was right. validateFlag answers a
+     MISSING registry entry with {correct:false} -- byte-identical to a genuinely
+     wrong answer -- so submitFlag took the wrong-answer branch, subtracted
+     wrongAnswerPenalty and rendered "Rejected". A student who solved mission 2
+     correctly would have been told they were wrong AND docked points.
+
+     Asserted on BEHAVIOUR, not on the config flag: spy on the real submitFlag
+     and watch the real score. */
+  console.log('\n  grading honesty (unseeded registry)');
+  const pg = await open(base+'gateway.html?m=2&qa=1');
+  const ungraded = await pg.evaluate(async ()=>{
+    const Q = window.__LE_QA__;
+    let called = 0;
+    const real = Q.eng.submitFlag.bind(Q.eng);
+    Q.eng.submitFlag = function(v){ called++; return real(v); };
+    const before = Q.eng.state.score;
+    document.getElementById('flagInput').value = 'FLAG{whatever}';
+    document.getElementById('submitBtn').click();
+    await new Promise(r=>setTimeout(r,600));
+    return { called, before, after: Q.eng.state.score,
+             msg: document.getElementById('submitMsg').textContent,
+             btn: document.getElementById('submitBtn').textContent };
+  });
+  check('an ungraded mission NEVER calls submitFlag',
+        ungraded.called === 0, `called ${ungraded.called}x`);
+  check('and therefore cannot dock points for a correct answer',
+        ungraded.after === ungraded.before, `${ungraded.before} -> ${ungraded.after}`);
+  check('the player is told it cannot be graded, NOT that they were wrong',
+        /cannot be graded/i.test(ungraded.msg) && !/rejected/i.test(ungraded.msg),
+        JSON.stringify(ungraded.msg.slice(0,90)));
+  check('and is told BEFORE typing, on the button itself',
+        /not gradable/i.test(ungraded.btn), ungraded.btn);
+  await pg.close();
+
+  /* A guard that blocked EVERYTHING would pass all four checks above. Mission 1
+     is seeded, so its submit path must still run. */
+  const pg1 = await open(base+'telemetry.html?qa=1');
+  const graded = await pg1.evaluate(async ()=>{
+    // telemetry.html has no seam, so reach the engine through the click path and
+    // observe the message it produces. Not signed in, so the honest outcome is
+    // the offline branch -- what matters is that the gradable guard did NOT fire.
+    document.getElementById('flagInput').value = 'FLAG{x}';
+    document.getElementById('submitBtn').click();
+    await new Promise(r=>setTimeout(r,3200));
+    return { msg: document.getElementById('submitMsg').textContent };
+  });
+  check('a SEEDED mission is not blocked by the guard (it reaches the real path)',
+        !/cannot be graded/i.test(graded.msg), JSON.stringify(graded.msg.slice(0,90)));
+  await pg1.close();
+
   console.log('\n=== ERRORS ('+errs.length+') ===');
   errs.slice(0,15).forEach(e=>console.log('  '+e.slice(0,220)));
 

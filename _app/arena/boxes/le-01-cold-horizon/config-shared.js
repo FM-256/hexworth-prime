@@ -498,16 +498,24 @@ const ColdHorizonConfig = {
        values. The arena card already reads flags: 3 to match this list.
        ──────────────────────────────────────────────────────────────────────── */
     flags: [
-        { id: 'm1-independence', mission: 1, points: 100,
+        /* `gradable` says whether this flag's VALUE exists in Firestore
+           flag_registry yet. It is not cosmetic. validateFlag answers a missing
+           registry entry with {correct:false} -- the SAME payload as a genuinely
+           wrong answer -- so LagrangeEngine.submitFlag takes the wrong-answer
+           branch, subtracts wrongAnswerPenalty and the page renders "Rejected".
+           A student who solved the mission correctly would be told they were
+           wrong and docked points, which inverts the exact behaviour this box
+           exists to teach. Flip to true only when the value is actually seeded. */
+        { id: 'm1-independence', mission: 1, points: 100, gradable: true,
           prompt: 'Which source is trustworthy for the containment decision, and why is '
                 + 'the majority wrong?' },
-        { id: 'm2-ghost-session', mission: 2, points: 100,
+        { id: 'm2-ghost-session', gradable: false, mission: 2, points: 100,
           prompt: 'Was operator session S-4471 legitimate, and what can this evidence '
                 + 'actually establish about who issued the command?' },
-        { id: 'm3-last-good-contact', mission: 3, points: 100,
+        { id: 'm3-last-good-contact', gradable: false, mission: 3, points: 100,
           prompt: 'What is the last contact whose timestamp can be trusted, and what makes '
                 + 'it trustworthy when the logs disagree?' },
-        { id: 'm4-signed-in-ash', mission: 4, points: 100,
+        { id: 'm4-signed-in-ash', gradable: false, mission: 4, points: 100,
           prompt: 'The signature verifies. State what that does and does not establish '
                 + 'about the origin of this command, and name the two controls that failed.' }
     ],
