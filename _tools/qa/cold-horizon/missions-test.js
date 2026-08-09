@@ -120,6 +120,41 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
   check('unbuilt zones are still locked',
         cfgFacts.zones.filter(z=>!built.includes(z.page)).every(z=>z.status==='locked'));
 
+  /* ── THE ARENA CARD MUST NOT CLAIM FLAGS THE BOX CANNOT YIELD ───────────
+     Chris blocked twice on this and the suite was blind to it both times: it
+     compared the box's INTERNAL flag and mission counts, which agree with each
+     other and say nothing about what the storefront advertises.
+
+     The card's `flags:` field is the completion denominator. Claiming more than
+     is seeded is the 2026-08-04 bug that left 88 boxes solvable and never
+     creditable, and the MVP-0 acceptance record fixes the rule: the card states
+     what is SEEDED AND CREDITABLE today, not what is built.
+
+     Read from the arena HTML on disk and compared against the count of
+     gradable:true flags, so drift fails here instead of in production. */
+  const arenaSrc = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/index.html','utf8');
+  const cardMatch = arenaSrc.match(/\{ id: 'le01',[\s\S]*?\},/);
+  const cardFlags = cardMatch ? parseInt((cardMatch[0].match(/flags: (\d+)/)||[])[1],10) : NaN;
+  const gradableCount = await cfgPage.evaluate(()=>
+    ColdHorizonConfig.flags.filter(f=>f.gradable === true).length);
+  check('the arena card advertises exactly the number of CREDITABLE flags',
+        cardFlags === gradableCount,
+        `card says ${cardFlags}, ${gradableCount} flag(s) gradable`);
+  check('and the card was found at all, so a rename cannot silently skip this',
+        !!cardMatch && !isNaN(cardFlags), cardMatch ? 'found' : 'CARD NOT FOUND');
+
+  /* The edit that caused this touched 14 OTHER boxes, because the anchor
+     `difficulty: 4, flags: 3,` is shared by dozens of cards and the replace was
+     uncounted. Assert no other card moved, so a future careless anchor is caught
+     by the suite rather than by a reviewer reading a diff. */
+  const flagCensus = {};
+  arenaSrc.replace(/\{ id: '([a-z0-9]+)',[\s\S]*?flags: (\d+)/g,
+    (m,id,n)=>{ flagCensus[id]=+n; return m; });
+  check('no collateral cards: ops02 still yields 4, ow01 still 3',
+        flagCensus.ops02 === 4 && flagCensus.ow01 === 3,
+        `ops02=${flagCensus.ops02} ow01=${flagCensus.ow01}`);
+
   /* gateway.html is BUILT and deliberately HELD. Two things must agree or the
      hold is only half real: the zone must be locked, and the file must be
      excluded from hosting. Locking the zone alone leaves a directly typeable URL
