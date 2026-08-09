@@ -13506,7 +13506,8 @@ const ContentRegistry = {
         },
         'cloud-cold-horizon': {
             id: 'cloud-cold-horizon',
-            title: 'Cold Horizon: Line of Sight',
+            // id stays: it keys GameTracker records and achievements. Display title only.
+            title: 'Lagrange Edge: Line of Sight',
             description: 'Real-time 3D orbital simulation. Two of HELIOS-7 thermal channels outvote a third, and the two that agree share a bus, a clock and a signing authority. Fly out under signal latency and corroborate the outvoted channel with an infrared camera.',
             house: 'cloud',
             type: 'applet',
