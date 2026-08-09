@@ -99,7 +99,7 @@ const ColdHorizonConfig = {
            Shipping the page would quietly undo an accepted property. Flip to
            'active' and drop the firebase.json ignore together, once the three
            flag values are seeded. */
-        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'locked' },
+        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'active' },
         { id: 'z6', name: 'InfiniBand Fabric',    page: 'fabric.html',    status: 'locked' },
         { id: 'z4', name: 'Orbital Gateway',      page: 'orbital.html',   status: 'locked' }
     ],
@@ -224,20 +224,10 @@ const ColdHorizonConfig = {
        ids. Declaring more ids than the box can yield is what left 88 boxes
        uncompletable before this one was written.
        ═══════════════════════════════════════════════════════════════════ */
-    /* ⚠ PRE-DEPLOY BLOCKER, 2026-08-08 ────────────────────────────────────
-       Missions 2, 3 and 4 declare flag ids here, and flag VALUES live in
-       Firestore under flag_registry/le-01-cold-horizon, admin-write only. Until
-       someone with that access seeds `m2-ghost-session`,
-       `m3-last-good-contact` and `m4-signed-in-ash`, submitFlag will reject
-       every correct answer to those three missions and the box can never
-       reach 4/4.
-
-       That is precisely the failure the scope doc records: on 2026-08-04, 88
-       boxes were found that a student could fully solve and never be credited
-       for, because the registry declared more canonical flags than the box
-       could yield. Do not ship Act I to production before seeding those two
-       values. The arena card already reads flags: 3 to match this list.
-       ──────────────────────────────────────────────────────────────────────── */
+    /* Flag values for all 15 missions were seeded into flag_registry on 2026-08-09,
+       DERIVED from missions-held.js by _tools/qa/cold-horizon/derive-flag-values.js, so an
+       accepted answer cannot drift from the evidence a player is shown. Verify with
+       `cd functions && node verify-box-flags.js le-01-cold-horizon`. */
     flags: [
         /* `gradable` says whether this flag's VALUE exists in Firestore
            flag_registry yet. It is not cosmetic. validateFlag answers a missing
@@ -250,36 +240,36 @@ const ColdHorizonConfig = {
         { id: 'm1-independence', mission: 1, points: 100, gradable: true,
           prompt: 'Which source is trustworthy for the containment decision, and why is '
                 + 'the majority wrong?' },
-        { id: 'm2-ghost-session', gradable: false, mission: 2, points: 100,
+        { id: 'm2-ghost-session', gradable: true, mission: 2, points: 100,
           prompt: 'Was operator session S-4471 legitimate, and what can this evidence '
                 + 'actually establish about who issued the command?' },
-        { id: 'm3-last-good-contact', gradable: false, mission: 3, points: 100,
+        { id: 'm3-last-good-contact', gradable: true, mission: 3, points: 100,
           prompt: 'What is the last contact whose timestamp can be trusted, and what makes '
                 + 'it trustworthy when the logs disagree?' },
-        { id: 'm4-signed-in-ash', gradable: false, mission: 4, points: 100,
+        { id: 'm4-signed-in-ash', gradable: true, mission: 4, points: 100,
           prompt: 'The signature verifies. State what that does and does not establish '
                 + 'about the origin of this command, and name the two controls that failed.' },
-        { id: 'm8-partition-zero', gradable: false, mission: 8, points: 100,
+        { id: 'm8-partition-zero', gradable: true, mission: 8, points: 100,
           prompt: 'Is this node a legitimate member of partition 0x7fff, and what establishes that independently of the Subnet Manager?' },
-        { id: 'm9-nightjar', gradable: false, mission: 9, points: 100,
+        { id: 'm9-nightjar', gradable: true, mission: 9, points: 100,
           prompt: 'What is actually running, and what establishes that it did not come from the ground?' },
-        { id: 'm10-redundant-truth', gradable: false, mission: 10, points: 100,
+        { id: 'm10-redundant-truth', gradable: true, mission: 10, points: 100,
           prompt: 'How far back is the thermal record trustworthy, and what marks the boundary?' },
-        { id: 'm11-eidolon', gradable: false, mission: 11, points: 100,
+        { id: 'm11-eidolon', gradable: true, mission: 11, points: 100,
           prompt: 'Is EIDOLON faulty, and what does its confidence actually measure?' },
-        { id: 'm12-heat-debt', gradable: false, mission: 12, points: 100,
+        { id: 'm12-heat-debt', gradable: true, mission: 12, points: 100,
           prompt: 'Can the remaining panels carry HELIOS-7\'s load for the containment window, and what did you measure to know?' },
-        { id: 'm13-severance', gradable: false, mission: 13, points: 100,
+        { id: 'm13-severance', gradable: true, mission: 13, points: 100,
           prompt: 'In what order do you take these actions, and what does your ordering cost you?' },
-        { id: 'm14-cold-horizon', gradable: false, mission: 14, points: 100,
+        { id: 'm14-cold-horizon', gradable: true, mission: 14, points: 100,
           prompt: 'What does this evidence establish about what happened, and does it name who?' },
-        { id: 'm15-black-relay', gradable: false, mission: 15, points: 100,
+        { id: 'm15-black-relay', gradable: true, mission: 15, points: 100,
           prompt: 'Which endpoint did the workload actually talk to, and what establishes it?' },
-        { id: 'm5-the-quiet-dish', gradable: false, mission: 5, points: 100,
+        { id: 'm5-the-quiet-dish', gradable: true, mission: 5, points: 100,
           prompt: 'Was this station the point of entry, and what does a clean change log actually prove?' },
-        { id: 'm6-dead-air', gradable: false, mission: 6, points: 100,
+        { id: 'm6-dead-air', gradable: true, mission: 6, points: 100,
           prompt: 'Which channel can you trust for a containment order, and what does choosing it cost you?' },
-        { id: 'm7-borrowed-hands', gradable: false, mission: 7, points: 100,
+        { id: 'm7-borrowed-hands', gradable: true, mission: 7, points: 100,
           prompt: 'How did the workload arrive, given the host records show nothing?' }
     ],
 

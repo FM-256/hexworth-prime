@@ -179,8 +179,16 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
      was green through that, because it only ever asked whether the page was
      reachable. Assert the served config carries none of the held missions' text,
      and that the payload file is excluded exactly like the page. */
-  check('the held mission PAYLOAD is excluded from hosting too, not just the page',
-        fbIgnore.includes(heldPayload), `excluded=${fbIgnore.includes(heldPayload)}`);
+  /* The pairing is the invariant, in BOTH directions. While the missions were held,
+     the page and its payload had to be excluded together or the hold was cosmetic.
+     Now that z1 is active they must SHIP together, or the page loads and finds no
+     mission data. Asserting "excluded" absolutely was asserting a moment, not a rule. */
+  check('page and payload are held together or shipped together, never split',
+        fbIgnore.includes(heldPath) === fbIgnore.includes(heldPayload),
+        `page-excluded=${fbIgnore.includes(heldPath)} payload-excluded=${fbIgnore.includes(heldPayload)}`);
+  check('an ACTIVE zone ships its payload',
+        z1.status !== 'active' || !fbIgnore.includes(heldPayload),
+        `z1=${z1.status}, payload-excluded=${fbIgnore.includes(heldPayload)}`);
   const servedCfg = fs.readFileSync(
     '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/config-shared.js','utf8');
   const leaks = ['GHOST SESSION','LAST GOOD CONTACT','SIGNED IN ASH',
@@ -544,6 +552,41 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     await pg.close();
   }
 
+  /* ── CROSS-MISSION CREDIT ───────────────────────────────────────────────
+     Several missions legitimately accept the SAME shared-dependency value as
+     their answer: astraea-telemetry-ca is correct for missions 1, 10 and 12.
+     validateFlag without a flagId loops every flag and the first match wins, so
+     a student solving mission 12 would have been credited for mission 10.
+     Silent, and it would have looked like the box working. */
+  const dup = await (async () => {
+    const D = require('./derive-flag-values.js');
+    const m1 = ['PLAT-CLK-A','bus-a/thermal/aggregator-1','astraea-telemetry-ca'];
+    const all = Object.assign({1:m1}, D), seen = {};
+    for (const [n,v] of Object.entries(all)) for (const x of v) (seen[x]=seen[x]||[]).push(n);
+    return Object.entries(seen).filter(([,ms])=>ms.length>1);
+  })();
+  check('collisions exist, so a flagId is REQUIRED not optional',
+        dup.length > 0, `${dup.length} values accepted by more than one mission`);
+  const gwSrc = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/gateway.html','utf8');
+  const telSrc2 = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/telemetry.html','utf8');
+  const engSrc = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/engine/LagrangeEngine.js','utf8');
+  check('every page submits WITH its own flag id, so credit lands on the right mission',
+        /submitFlag\(v,\s*flag\.id\)/.test(gwSrc) && /submitFlag\(v,\s*\(cfg\.flags/.test(telSrc2));
+  check('the engine forwards flagId to validateFlag when given one',
+        /if \(flagId\) payload\.flagId = flagId/.test(engSrc));
+
+  /* Derived, never hand-written: a hand-written answer is one edit from disagreeing
+     with the fixture it describes, and the player is told they are wrong for reading
+     the evidence correctly. */
+  const derived = require('./derive-flag-values.js');
+  check('every built mission has at least one derived accepted answer',
+        Object.keys(derived).length >= 14 &&
+        Object.values(derived).every(v => v.length > 0),
+        `${Object.keys(derived).length} missions derived`);
+
   /* ── FALSE-NEGATIVE GRADING ────────────────────────────────────────────
      Chris blocked the deploy on this and he was right. validateFlag answers a
      MISSING registry entry with {correct:false} -- byte-identical to a genuinely
@@ -553,31 +596,37 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
 
      Asserted on BEHAVIOUR, not on the config flag: spy on the real submitFlag
      and watch the real score. */
-  console.log('\n  grading honesty (unseeded registry)');
+  console.log('\n  grading honesty');
+  /* Every flag is seeded and gradable as of 2026-08-09, so the ungraded PATH can no
+     longer be exercised through a real mission. The guard still matters: it is what
+     protects mission 16 the day it is authored and not yet seeded. So assert both
+     halves -- a gradable mission really does submit, and the guard that would stop an
+     ungradable one is still present and still keyed on the flag. */
   const pg = await open(base+'gateway.html?m=2&qa=1');
-  const ungraded = await pg.evaluate(async ()=>{
+  const graded2 = await pg.evaluate(async ()=>{
     const Q = window.__LE_QA__;
     let called = 0;
     const real = Q.eng.submitFlag.bind(Q.eng);
-    Q.eng.submitFlag = function(v){ called++; return real(v); };
-    const before = Q.eng.state.score;
-    document.getElementById('flagInput').value = 'FLAG{whatever}';
+    Q.eng.submitFlag = function(v, id){ called++; return Promise.resolve({correct:false, offline:true}); };
+    document.getElementById('flagInput').value = 'FLAG{x}';
     document.getElementById('submitBtn').click();
-    await new Promise(r=>setTimeout(r,600));
-    return { called, before, after: Q.eng.state.score,
-             msg: document.getElementById('submitMsg').textContent,
-             btn: document.getElementById('submitBtn').textContent };
+    await new Promise(r=>setTimeout(r,400));
+    Q.eng.submitFlag = real;
+    return { called, btn: document.getElementById('submitBtn').textContent };
   });
-  check('an ungraded mission NEVER calls submitFlag',
-        ungraded.called === 0, `called ${ungraded.called}x`);
-  check('and therefore cannot dock points for a correct answer',
-        ungraded.after === ungraded.before, `${ungraded.before} -> ${ungraded.after}`);
-  check('the player is told it cannot be graded, NOT that they were wrong',
-        /cannot be graded/i.test(ungraded.msg) && !/rejected/i.test(ungraded.msg),
-        JSON.stringify(ungraded.msg.slice(0,90)));
-  check('and is told BEFORE typing, on the button itself',
-        /not gradable/i.test(ungraded.btn), ungraded.btn);
+  check('a SEEDED mission submits for real', graded2.called === 1, `called ${graded2.called}x`);
+  check('and its button is not labelled ungradable', !/not gradable/i.test(graded2.btn), graded2.btn);
+  const gwSrc2 = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/gateway.html','utf8');
+  check('the ungradable guard still exists for the next unseeded mission',
+        /flag\.gradable === false/.test(gwSrc2) && /cannot be graded yet/.test(gwSrc2));
+  check('no flag is left marked ungradable while the box claims it',
+        (await pg.evaluate(()=>ColdHorizonConfig.flags.filter(f=>f.gradable===false).length)) === 0);
   await pg.close();
+
+  /* (The ungraded-path behaviour test lived here. It could only run while a
+     mission was unseeded, which is no longer a state this box can be in. The
+     guard it covered is now asserted above by presence and by its inverse.) */
 
   /* A guard that blocked EVERYTHING would pass all four checks above. Mission 1
      is seeded, so its submit path must still run. */

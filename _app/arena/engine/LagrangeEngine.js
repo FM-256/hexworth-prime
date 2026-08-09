@@ -145,7 +145,20 @@
     /* ── Flag submission — inherited plumbing, unchanged ─────────────────────
        Sends what the player typed to validateFlag. The value is compared
        server-side against flag_registry; this engine never holds it. */
-    LagrangeEngine.prototype.submitFlag = function (submission) {
+    /* `flagId` is REQUIRED once a box has more than one mission seeded, and this is
+       not a nicety. validateFlag has two modes: given a flagId it compares against
+       THAT flag; without one it loops every flag in the box and the FIRST match wins.
+
+       These missions accept the shared dependency the player discovered as their
+       answer, and several missions legitimately share a dependency value --
+       `astraea-telemetry-ca` is a correct answer for missions 1, 10 and 12. Under
+       mode 2, a student solving mission 12 correctly would have been credited for
+       mission 10, or mission 1, depending on Firestore key order. Silent, and it
+       would have looked like the box working.
+
+       Passing the flagId makes the comparison say what it means: is THIS the answer
+       to the mission the player is looking at. */
+    LagrangeEngine.prototype.submitFlag = function (submission, flagId) {
         var self = this;
         var boxId = this.cfg.registryId;
         if (!boxId || !submission) return Promise.resolve({ correct: false });
@@ -155,9 +168,9 @@
                 if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
                     return { correct: false, offline: true };
                 }
-                return FirebaseAuth.callFunction('validateFlag', {
-                    boxId: boxId, submission: String(submission).trim()
-                }).then(function (r) {
+                var payload = { boxId: boxId, submission: String(submission).trim() };
+                if (flagId) payload.flagId = flagId;
+                return FirebaseAuth.callFunction('validateFlag', payload).then(function (r) {
                     var data = (r && r.data) || r || {};
                     if (data.correct) {
                         self.state.solved[data.flagId] = true;
