@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terran Gateway — Lagrange Edge</title>
+<link rel="stylesheet" href="shared.css">
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+
+<!--
+  ============================================================================
+  Z1 TERRAN GATEWAY  —  Act I, missions 2 and 3
+  ============================================================================
+  ONE PAGE, TWO MISSIONS, chosen with ?m=2 or ?m=3.
+
+  WHY GENERIC RATHER THAN A SECOND telemetry.html. Mission 1's page hardcodes
+  the words "collection path", "clock source" and "signing authority" into its
+  rendering. Those are thermal-telemetry words. They mean nothing about a
+  session token, so a copy-paste of that page would have carried the wrong
+  vocabulary into every later mission and the axes would have had to be faked
+  to fit it. Instead this page renders WHATEVER axes the mission declares, and
+  the config decides what independence means for that kind of evidence:
+
+     mission 2   issuer / logPipeline / clockSource                  identity
+     mission 3   timeSource / timeRoot / logPipeline / signingAuthority   time
+
+  Mission 3 carries a fourth axis on purpose. Two clocks with DIFFERENT NAMES
+  can still be one clock, because one is disciplined from the other, so the
+  upstream root has to be an axis of its own. Comparing clock names finds
+  nothing, which is exactly the mistake this mission is about.
+
+  That is also why mission 1 was left alone. It works, it is covered by tests,
+  and refactoring it to add two new missions would risk a shipped mission to
+  tidy a file. Missions 4 onward can use this page as-is by adding an entry to
+  missionData; nothing here knows there are only two.
+
+  THE ACT I SPIRAL. All three missions ask one question against three kinds of
+  evidence: what do these agreeing sources have in common, and is there
+  anything here that could not have failed with them? Thermal, then identity,
+  then time. A player who memorised "check the bus and the clock" has a
+  checklist and will fail mission 2. A player who learned to look for the
+  shared dependency will not.
+
+  FLAG VALUES ARE NOT IN THIS FILE OR IN THE CONFIG. Whatever the player types
+  goes to validateFlag and is judged server-side against flag_registry.
+  ============================================================================
+-->
+</head>
+<body>
+<div class="le-wrap">
+
+  <div class="le-head">
+    <div>
+      <h1 class="le-title" id="mTitle">TERRAN GATEWAY</h1>
+      <div class="le-sub" id="mSub">Z1 TERRAN GATEWAY &middot; MOC JACKSONVILLE</div>
+    </div>
+    <div class="le-link" id="linkStatus">
+      <span class="dot"></span>
+      <span id="linkText">LINK IDLE &middot; RTT ~2.2 s</span>
+    </div>
+  </div>
+
+  <!-- Mission switch. Both missions live in this zone, and a player who has
+       finished one should be able to reach the other without going back out. -->
+  <div class="le-panel" style="margin-bottom:16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <span style="font-size:12px;color:var(--le-dim)">ACT I &middot; TERRAN GATEWAY</span>
+    <a class="le-btn" href="?m=2" id="tab2">2 &middot; Ghost Session</a>
+    <a class="le-btn" href="?m=3" id="tab3">3 &middot; Last Good Contact</a>
+    <a class="le-btn" href="index.html" style="margin-left:auto">&larr; Operator client</a>
+  </div>
+
+  <div class="le-panel" style="margin-bottom:16px">
+    <h2>Situation</h2>
+    <div id="situation"></div>
+    <div class="le-note" id="objective"></div>
+  </div>
+
+  <div class="le-grid cols-3" id="sensorGrid" style="margin-bottom:16px"></div>
+
+  <div class="le-grid cols-2">
+
+    <div class="le-panel">
+      <h2>Source Independence Test</h2>
+      <div style="font-size:12px;color:var(--le-dim);margin-bottom:12px" id="axesNote"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <select id="srcA"></select>
+        <span style="color:var(--le-dim)">vs</span>
+        <select id="srcB"></select>
+        <button class="le-btn primary" id="testBtn">Test</button>
+      </div>
+      <div id="verdict"></div>
+
+      <h2 style="margin-top:22px">Corroborating Evidence</h2>
+      <div id="corrList" style="font-size:12px"></div>
+    </div>
+
+    <div>
+      <div class="le-panel" style="margin-bottom:16px">
+        <h2>Trust Ledger</h2>
+        <div id="ledger" style="font-size:12px"></div>
+      </div>
+
+      <div class="le-panel" style="margin-bottom:16px">
+        <h2>Mission Resources</h2>
+        <div id="resList"></div>
+      </div>
+
+      <div class="le-panel">
+        <h2>Submit Finding</h2>
+        <div style="font-size:12px;color:var(--le-dim);margin-bottom:10px" id="prompt"></div>
+        <input type="text" id="flagInput" placeholder="FLAG{...}" style="width:100%;margin-bottom:8px">
+        <div style="display:flex;gap:8px">
+          <button class="le-btn primary" id="submitBtn">Transmit</button>
+          <button class="le-btn" id="hintBtn">Request hint</button>
+        </div>
+        <div id="submitMsg" class="le-note"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="le-panel" style="margin-top:16px">
+    <h2>Link Log</h2>
+    <div class="le-log" id="log"></div>
+  </div>
+
+</div>
+
+<script src="config-shared.js"></script>
+<script src="../../engine/LagrangeEngine.js"></script>
+<script src="../../../components/FirebaseAuth.js"></script>
+<script>
+(function () {
+    'use strict';
+
+    /* Which mission. Anything other than 2 or 3 falls back to 2 rather than
+       rendering an empty console: a bad query string is a typo, not a reason to
+       show a player a blank page. */
+    var qm = parseInt(new URLSearchParams(location.search).get('m'), 10);
+    var MN = (qm === 2 || qm === 3) ? qm : 2;
+
+    var cfg = ColdHorizonConfig.forMission(MN);
+    var eng = new LagrangeEngine(cfg);
+    var all = cfg.sensors.concat(cfg.corroborators);
+    var axes = cfg.independenceAxes;
+    var mission = cfg.mission || {};
+    var flag = (ColdHorizonConfig.flags || []).filter(function (f) {
+        return f.mission === MN; })[0] || {};
+
+    var $ = function (id) { return document.getElementById(id); };
+
+    function log(msg) {
+        var d = document.createElement('div');
+        d.textContent = new Date().toISOString().substr(11, 8) + '  ' + msg;
+        $('log').prepend(d);
+    }
+
+    /* Axis names are config keys. Shown to the player as words, so the label
+       lives here rather than being derived from the key by a regex that would
+       turn logPipeline into "log Pipeline". */
+    var AXIS_LABEL = {
+        collectionPath: 'collection path', clockSource: 'clock source',
+        signingAuthority: 'signing authority', issuer: 'issuer',
+        logPipeline: 'log pipeline', timeSource: 'time source',
+        timeRoot: 'upstream time root'
+    };
+    function axisWords(list) {
+        return list.map(function (a) { return AXIS_LABEL[a] || a; });
+    }
+
+    /* ── Link indicator. The box's thesis as UI: the operator is always waiting
+       on the past, and the interface should never let them forget it. ─────── */
+    eng.on('link:sent', function (e) {
+        $('linkStatus').classList.add('busy');
+        $('linkText').textContent = 'UPLINK · ' + e.label + ' · awaiting ' + e.ms + ' ms';
+        log('TX  ' + e.label + '  (round trip ' + e.ms + ' ms)');
+    });
+    eng.on('link:received', function (e) {
+        $('linkStatus').classList.remove('busy');
+        $('linkText').textContent = 'LINK IDLE · RTT ~2.2 s';
+        log('RX  ' + e.label);
+    });
+
+    /* Provenance block, rendered from the mission's OWN axes rather than from a
+       fixed list of thermal-telemetry field names. */
+    function provHtml(s) {
+        return axes.map(function (a) {
+            return (AXIS_LABEL[a] || a) + ' <b>' + (s[a] === undefined ? '&mdash;' : s[a]) + '</b>';
+        }).join('<br>');
+    }
+
+    function trustBadge(id) {
+        var t = eng.state.trust[id] || 'unknown';
+        var lbl = cfg.trustStates[t] ? cfg.trustStates[t].label : t;
+        return '<span class="le-trust" data-t="' + t + '">' + lbl + '</span>';
+    }
+
+    function renderSensors() {
+        $('sensorGrid').innerHTML = cfg.sensors.map(function (s) {
+            return '<div class="le-sensor">'
+                 + '<div class="name">' + s.name + '</div>'
+                 + '<div class="value">' + s.reading + (s.unit ? ' ' + s.unit : '') + '</div>'
+                 + trustBadge(s.id)
+                 + '<div class="prov" style="margin-top:10px">' + provHtml(s) + '</div>'
+                 + (s.note ? '<div class="prov" style="margin-top:8px;opacity:.85">'
+                             + s.note + '</div>' : '')
+                 + '</div>';
+        }).join('');
+    }
+
+    function renderLedger() {
+        $('ledger').innerHTML = cfg.sensors.map(function (s) {
+            var corr = (eng.state.corroborations[s.id] || []).length;
+            return '<div class="le-res"><span>' + s.name + '</span>'
+                 + trustBadge(s.id).replace('</span>', (corr ? ' &middot; ' + corr : '') + '</span>')
+                 + '</div>';
+        }).join('');
+    }
+
+    function renderResources() {
+        $('resList').innerHTML = Object.keys(cfg.resources).map(function (k) {
+            return '<div class="le-res"><span>' + cfg.resources[k].label + '</span>'
+                 + '<span class="v">' + eng.state.resources[k] + ' '
+                 + cfg.resources[k].unit + '</span></div>';
+        }).join('');
+    }
+
+    /* Corroborators carry their reasoning. Showing it is the point: the player
+       has to be able to see WHY a physical record settles something, not just
+       that clicking it turned a badge green. */
+    function renderCorroborators() {
+        $('corrList').innerHTML = cfg.corroborators.map(function (c) {
+            return '<div class="le-res" style="display:block;margin-bottom:10px">'
+                 + '<div><b>' + c.name + '</b> &mdash; ' + c.value + ' ' + (c.unit || '') + '</div>'
+                 + '<div style="color:var(--le-dim);font-size:11px;margin:4px 0">'
+                 + provHtml(c) + '</div>'
+                 + (c.reasoning ? '<div style="font-size:11.5px;line-height:1.5">'
+                                  + c.reasoning + '</div>' : '')
+                 + '</div>';
+        }).join('');
+    }
+
+    function fillSelects() {
+        var opts = all.map(function (s) {
+            return '<option value="' + s.id + '">' + s.name + '</option>';
+        }).join('');
+        $('srcA').innerHTML = opts;
+        $('srcB').innerHTML = opts;
+        $('srcB').selectedIndex = Math.min(1, all.length - 1);
+    }
+
+    /* ── The independence test ────────────────────────────────────────────
+       Always shows WHY. A verdict without a reason teaches a player to press
+       the button until it turns green; a verdict that names the shared issuer
+       teaches them what to look for next time. */
+    $('testBtn').addEventListener('click', function () {
+        var a = $('srcA').value, b = $('srcB').value;
+        if (a === b) {
+            $('verdict').innerHTML = '<div class="le-verdict bad">'
+                + 'A source cannot corroborate itself.</div>';
+            return;
+        }
+        $('testBtn').disabled = true;
+
+        eng.orbital('independence query', function () {
+            return eng.corroborate(a, b);
+        }, 3).then(function (res) {
+            $('testBtn').disabled = false;
+            var A = res.a || all.filter(function (s) { return s.id === a; })[0];
+            var B = res.b || all.filter(function (s) { return s.id === b; })[0];
+            if (res.ok) {
+                $('verdict').innerHTML = '<div class="le-verdict ok">'
+                    + '<b>Independent.</b> ' + A.name + ' and ' + B.name + ' share no '
+                    + axisWords(axes).join(', ') + '. Corroboration accepted.</div>';
+                log('independence: ' + a + ' / ' + b + ' INDEPENDENT');
+            } else {
+                $('verdict').innerHTML = '<div class="le-verdict bad">'
+                    + '<b>Not independent.</b> These sources share '
+                    + '<span class="axes">' + axisWords(res.shared).join(', ') + '</span>. '
+                    + 'A fault or a forgery in the shared element affects both, so their '
+                    + 'agreement is one source reporting twice &mdash; not two votes.</div>';
+                log('independence: ' + a + ' / ' + b + ' SHARED ' + res.shared.join(','));
+            }
+            renderSensors(); renderLedger(); renderResources();
+        });
+    });
+
+    /* ── Submission. The engine never holds the flag value; validateFlag judges
+       it server-side against flag_registry. ─────────────────────────────── */
+    $('submitBtn').addEventListener('click', function () {
+        var v = $('flagInput').value.trim();
+        if (!v) return;
+        $('submitBtn').disabled = true;
+        $('submitMsg').textContent = 'Transmitting...';
+        eng.submitFlag(v).then(function (r) {
+            $('submitBtn').disabled = false;
+            if (r.correct) {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-good)">'
+                    + 'Accepted. Finding logged against ' + r.flagId + '.</span>';
+                log('FLAG ACCEPTED  ' + r.flagId);
+            } else if (r.offline) {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-warn)">'
+                    + 'Not signed in &mdash; findings cannot be logged.</span>';
+            } else {
+                $('submitMsg').innerHTML = '<span style="color:var(--le-bad)">Rejected.</span>';
+                log('FLAG REJECTED');
+            }
+            renderResources();
+        });
+    });
+
+    $('hintBtn').addEventListener('click', function () {
+        var h = eng.useHint(flag.id);
+        $('submitMsg').textContent = h || 'No further hints.';
+        if (h) log('hint requested (-' + ColdHorizonConfig.scoring.hintPenalty + ')');
+    });
+
+    // ── Boot ───────────────────────────────────────────────────────────────
+    $('mTitle').textContent = (mission.title || 'TERRAN GATEWAY').toUpperCase();
+    $('mSub').textContent   = 'Z1 TERRAN GATEWAY · MOC JACKSONVILLE · MISSION ' + MN;
+    document.title = (mission.title || 'Terran Gateway') + ' — Lagrange Edge';
+    $('situation').textContent = cfg.situation || '';
+    $('objective').textContent = mission.objective || '';
+    $('prompt').textContent    = flag.prompt || '';
+    $('axesNote').textContent  =
+        'Two sources corroborate each other only if they share no '
+      + axisWords(axes).join(', no ') + '. Agreement is not corroboration.';
+    // Mark the active tab so the player can see which mission they are in.
+    var act = $('tab' + MN); if (act) act.classList.add('primary');
+
+    fillSelects(); renderSensors(); renderLedger();
+    renderResources(); renderCorroborators();
+    log('console attached to Z1 TERRAN GATEWAY');
+    log('mission ' + MN + ' · ' + (mission.title || ''));
+
+    /* ── QA SEAM — ?qa=1 AND a local host. Both are required. ───────────────
+       Exposes the REAL engine this page built, so an automated check drives the
+       same code a player does. A test that constructs its own engine only ever
+       proves the test agrees with itself.
+
+       Host-gated for the same reason the sortie's seam is: on production this
+       would hand any visitor a live handle to the mission's state object. The
+       trust ledger is not a secret, but `eng` also carries submitFlag and the
+       resource counters, and the standing rule in this box is that nothing the
+       client holds may decide anything. Binding the seam to localhost means it
+       cannot exist on hexworth.com at all, whatever query string is typed. */
+    var QA_HOSTS = ['localhost','127.0.0.1','[::1]',''];
+    if (new URLSearchParams(location.search).get('qa') === '1' &&
+        QA_HOSTS.indexOf(location.hostname) !== -1) {
+        window.__LE_QA__ = { eng: eng, cfg: cfg, mission: MN, axes: axes, sources: all };
+    }
+})();
+</script>
+</body>
+</html>

@@ -93,7 +93,7 @@ const ColdHorizonConfig = {
     zones: [
         { id: 'z0', name: 'Operator Thin Client', page: 'index.html',     status: 'active' },
         { id: 'z9', name: 'Platform Control',     page: 'telemetry.html', status: 'active' },
-        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'locked' },
+        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'active' },
         { id: 'z6', name: 'InfiniBand Fabric',    page: 'fabric.html',    status: 'locked' },
         { id: 'z4', name: 'Orbital Gateway',      page: 'orbital.html',   status: 'locked' }
     ],
@@ -181,6 +181,197 @@ const ColdHorizonConfig = {
     ],
 
     /* ═══════════════════════════════════════════════════════════════════
+       ACT I, MISSIONS 2 AND 3 — the same skill, different evidence
+       ═══════════════════════════════════════════════════════════════════
+       Act I is one lesson taught three times against three kinds of evidence,
+       which is the spiral the platform already uses elsewhere: thermal in
+       mission 1, IDENTITY in mission 2, TIME in mission 3. Every one of them
+       is the same question. What do these agreeing sources have in common,
+       and is there anything here that could not have failed with them?
+
+       THE AXES CHANGE PER MISSION AND THAT IS THE POINT. Mission 1 asks about
+       collection path, clock and signing authority. Those words mean nothing
+       for a session token, so mission 2 asks about issuer, log pipeline and
+       clock instead. A player who learned "check bus and clock" has learned a
+       checklist. A player who learned "find the shared dependency" can do
+       mission 2. The engine reads cfg.independenceAxes, so each mission simply
+       hands it a different list.
+
+       WHY THIS SHAPE. LagrangeEngine reads cfg.sensors, cfg.corroborators and
+       cfg.independenceAxes off whatever config it is constructed with. Rather
+       than teach the engine about missions, each page builds a MISSION-SCOPED
+       VIEW with forMission(n). Mission 1 keeps reading the top-level arrays
+       untouched, so a working mission is not refactored to add two new ones.
+       ═══════════════════════════════════════════════════════════════════ */
+    missionData: {
+
+        /* ── MISSION 2 — GHOST SESSION ──────────────────────────────────────
+           A maintenance command reached ASTRAEA-9 from a Terran operator
+           session while HELIOS-7's channels were diverging. Was it legitimate?
+
+           THE TRAP, and it is the same trap in a new coat: the session token
+           and the SSO audit log agree, and they are the same source. The
+           identity provider vouching for its own token is one voice, not two.
+
+           THE CANON OUTPUT IS "COMPROMISED BUT INCONCLUSIVE" and the design
+           has to actually earn the second word. The physical record proves the
+           human was not in the building, so the credential was used without
+           them. Nothing here can say BY WHOM, because everything capable of
+           attributing the action derives from the identity provider that was
+           itself the thing being used. Authentication is not attribution.
+           That is also mission 4's lesson ("valid signature does not establish
+           origin"), so this plants it rather than duplicating it.
+
+           Provenance: REAL. Federated identity, SSO audit trails, physical
+           access control as an out-of-band witness, and the standing
+           distinction between authentication and attribution. */
+        2: {
+            axes: ['issuer', 'logPipeline', 'clockSource'],
+            situation:
+                'A maintenance command reached ASTRAEA-9 at 06:14:22Z from operator '
+              + 'session S-4471, during the window in which HELIOS-7 thermal channels '
+              + 'diverged. The session authenticated cleanly. Establish whether it was '
+              + 'legitimate, and be precise about what the evidence can and cannot show.',
+            sensors: [
+                { id: 'sess-token', name: 'Operator session token S-4471',
+                  reading: 'VALID', unit: '',
+                  issuer: 'terran-sso', logPipeline: 'sso-audit', clockSource: 'MOC-NTP',
+                  note: 'Subject R. Okonkwo. Issued 06:12:04Z, MFA satisfied, not expired.' },
+                { id: 'sso-audit', name: 'SSO audit record for S-4471',
+                  reading: 'CONFIRMS', unit: '',
+                  issuer: 'terran-sso', logPipeline: 'sso-audit', clockSource: 'MOC-NTP',
+                  note: 'Authentication success, MFA satisfied, same subject, same second.' },
+                { id: 'vpn-log', name: 'VPN concentrator session log',
+                  reading: 'CONFIRMS', unit: '',
+                  issuer: 'terran-sso', logPipeline: 'netops-syslog', clockSource: 'MOC-NTP',
+                  note: 'Tunnel established for the same subject. SSO-integrated, so the '
+                      + 'identity it reports is the one SSO handed it.' }
+            ],
+            corroborators: [
+                { id: 'badge-log', name: 'Facility access control, ops floor',
+                  value: 'BADGED OUT 05:48Z', unit: '',
+                  issuer: 'facility-acs', logPipeline: 'facility-acs', clockSource: 'ACS-RTC',
+                  reasoning: 'R. Okonkwo badged OUT of the operations floor at 05:48Z and '
+                           + 'did not badge back in. The session authenticated at 06:12:04Z. '
+                           + 'This system shares no issuer, no pipeline and no clock with '
+                           + 'the identity provider.' },
+                { /* Independent of the SSO family, but NOT of badge-log: same clock, same
+                     pipeline. Deliberate, and the same shape as mission 1's corroborator
+                     pair. Two witnesses can each be independent of the accused and still
+                     be one witness with respect to each other. */
+                  id: 'cam-still', name: 'Ops floor camera still, 06:12Z',
+                  value: 'POSITION UNOCCUPIED', unit: '',
+                  issuer: 'facility-cctv', logPipeline: 'facility-acs', clockSource: 'ACS-RTC',
+                  reasoning: 'Console position 4 is unoccupied in the frame timestamped '
+                           + '06:12Z. Shares a clock and a pipeline with the badge record, '
+                           + 'so it strengthens that account rather than being a second one.' },
+                { id: 'cmd-origin', name: 'Uplink source address for the command',
+                  value: '10.42.7.19 (MOC floor subnet)', unit: '',
+                  issuer: 'terran-sso', logPipeline: 'netops-syslog', clockSource: 'MOC-NTP',
+                  reasoning: 'The command came from inside the MOC address space, which is '
+                           + 'consistent with a legitimate console and equally consistent '
+                           + 'with anyone who reached that subnet. It narrows WHERE and '
+                           + 'says nothing about WHO.' }
+            ]
+        },
+
+        /* ── MISSION 3 — LAST GOOD CONTACT ──────────────────────────────────
+           Rebuild the last communications window that can be trusted, so every
+           later mission has a reference point that is not simply asserted.
+
+           THE TRAP: the platform clock and the ground clock are disciplined
+           from the same upstream source, so two logs agreeing on a timestamp
+           are one clock counted twice. Exactly mission 1's structure, applied
+           to time.
+
+           THE ANCHOR IS THE BOX'S OWN PHYSICS, which is why this mission is
+           worth building rather than being a third variation. ASTRAEA-9 sits
+           ~326,000 km away, so a command and its acknowledgement cannot be
+           separated by less than ~2.18 s. That figure is not a setting anyone
+           can edit, it is the distance. Any command/ack pair in the logs that
+           appears to have completed faster than light is proof the timestamps
+           were moved, and the ranging fix is a measurement of DISTANCE rather
+           than a reading of a clock, so it cannot be forged by touching one.
+
+           The player looks for the physically impossible round trip. That is
+           the whole mission, and it turns the constraint the box opens with
+           into the tool that solves it.
+
+           Provenance: REAL (two-way ranging, light-time as a physical bound,
+           NTP hierarchy and common-mode clock failure). */
+        3: {
+            /* timeRoot is the axis that matters and the reason this mission is not
+               mission 1 reskinned. Two clocks with DIFFERENT NAMES can still be one
+               clock: PLAT-CLK-A is disciplined from MOC-NTP, which is disciplined from
+               GPS-DISC-1. Comparing clock names finds nothing, which is exactly the
+               mistake a real analyst makes. Caught by act1-test: plat-log and moc-log
+               came back INDEPENDENT because they share no field value, while being the
+               same time by derivation. Dependency here is a hierarchy, not a string
+               match, so the hierarchy is stated as its own axis. Real anchor: NTP
+               stratum and common-mode clock failure. */
+            axes: ['timeSource', 'timeRoot', 'logPipeline', 'signingAuthority'],
+            situation:
+                'Every later finding needs a moment it can be measured against. Establish '
+              + 'the last contact whose timestamp can be trusted. Note that a command and '
+              + 'its acknowledgement cannot be separated by less than the round-trip light '
+              + 'delay, whatever any log says.',
+            sensors: [
+                { id: 'plat-log', name: 'ASTRAEA-9 command log',
+                  reading: '06:14:22.31Z', unit: '',
+                  timeSource: 'PLAT-CLK-A', timeRoot: 'GPS-DISC-1',
+                  logPipeline: 'platform-telemetry',
+                  signingAuthority: 'astraea-telemetry-ca',
+                  note: 'Command received. Platform clock, disciplined from the ground '
+                      + 'reference on every contact.' },
+                { id: 'moc-log', name: 'MOC uplink log',
+                  reading: '06:14:22.10Z', unit: '',
+                  timeSource: 'MOC-NTP', timeRoot: 'GPS-DISC-1',
+                  logPipeline: 'netops-syslog',
+                  signingAuthority: 'lagrange-ops-ca',
+                  note: 'Command transmitted. 0.21 s before the platform recorded '
+                      + 'receiving it, which is not possible at this range.' },
+                { id: 'sso-time', name: 'SSO audit timestamp for the session',
+                  reading: '06:12:04.00Z', unit: '',
+                  timeSource: 'MOC-NTP', timeRoot: 'GPS-DISC-1',
+                  logPipeline: 'sso-audit',
+                  signingAuthority: 'lagrange-ops-ca',
+                  note: 'Shares its time source with the MOC uplink log.' }
+            ],
+            corroborators: [
+                { id: 'range-fix', name: 'Two-way ranging fix, modem-measured',
+                  value: '2.181 s round trip', unit: '',
+                  /* Its own root: a free-running counter is not disciplined from
+                     anything, which is precisely what makes it usable here. */
+                  timeSource: 'MODEM-COUNTER', timeRoot: 'MODEM-COUNTER',
+                  logPipeline: 'rf-front-end',
+                  signingAuthority: 'gs-ranging-ca',
+                  reasoning: 'This is a measurement of DISTANCE, not a reading of a clock. '
+                           + 'The modem counts its own elapsed ticks between transmitting a '
+                           + 'code and hearing it returned. Moving a clock does not move '
+                           + 'this number, and 2.181 s is the floor for any command and its '
+                           + 'acknowledgement.' },
+                { id: 'gs-maser', name: 'Ground station arrival time, maser reference',
+                  value: '06:14:23.19Z', unit: '',
+                  timeSource: 'GS-MASER', timeRoot: 'GS-MASER',
+                  logPipeline: 'rf-front-end',
+                  signingAuthority: 'gs-ranging-ca',
+                  reasoning: 'RF arrival stamped against a local hydrogen maser that is not '
+                           + 'disciplined from the ground NTP hierarchy. Shares a pipeline '
+                           + 'with the ranging fix, so the two are one account of the RF '
+                           + 'front end rather than two independent ones.' },
+                { id: 'ntp-tree', name: 'Time service topology',
+                  value: 'PLAT-CLK-A <- MOC-NTP <- GPS-DISC-1', unit: '',
+                  timeSource: 'MOC-NTP', timeRoot: 'GPS-DISC-1',
+                  logPipeline: 'netops-syslog',
+                  signingAuthority: 'lagrange-ops-ca',
+                  reasoning: 'The platform clock is disciplined FROM the ground reference. '
+                           + 'Agreement between them is not two clocks agreeing, it is one '
+                           + 'clock and its copy.' }
+            ]
+        }
+    },
+
+    /* ═══════════════════════════════════════════════════════════════════
        FLAG IDENTIFIERS ONLY — values live in flag_registry
        ═══════════════════════════════════════════════════════════════════
        One canonical flag per mission (scope doc section 6), because the
@@ -188,10 +379,29 @@ const ColdHorizonConfig = {
        ids. Declaring more ids than the box can yield is what left 88 boxes
        uncompletable before this one was written.
        ═══════════════════════════════════════════════════════════════════ */
+    /* ⚠ PRE-DEPLOY BLOCKER, 2026-08-08 ────────────────────────────────────
+       Missions 2 and 3 declare flag ids here, and flag VALUES live in Firestore
+       under flag_registry/le-01-cold-horizon, admin-write only. Until someone
+       with that access seeds `m2-ghost-session` and `m3-last-good-contact`,
+       submitFlag will reject every correct answer to those two missions and the
+       box can never reach 3/3.
+
+       That is precisely the failure the scope doc records: on 2026-08-04, 88
+       boxes were found that a student could fully solve and never be credited
+       for, because the registry declared more canonical flags than the box
+       could yield. Do not ship Act I to production before seeding those two
+       values. The arena card already reads flags: 3 to match this list.
+       ──────────────────────────────────────────────────────────────────────── */
     flags: [
         { id: 'm1-independence', mission: 1, points: 100,
           prompt: 'Which source is trustworthy for the containment decision, and why is '
-                + 'the majority wrong?' }
+                + 'the majority wrong?' },
+        { id: 'm2-ghost-session', mission: 2, points: 100,
+          prompt: 'Was operator session S-4471 legitimate, and what can this evidence '
+                + 'actually establish about who issued the command?' },
+        { id: 'm3-last-good-contact', mission: 3, points: 100,
+          prompt: 'What is the last contact whose timestamp can be trusted, and what makes '
+                + 'it trustworthy when the logs disagree?' }
     ],
 
     missions: [
@@ -212,10 +422,62 @@ const ColdHorizonConfig = {
                 corroboratorsRequired: 1,
                 corroboratorFamily: 'physical'   // must come from a different evidence family
             }
+        },
+        {
+            id: 2,
+            title: 'Ghost Session',
+            objective: 'Establish whether operator session S-4471 was legitimate, and state '
+                     + 'precisely what the evidence can and cannot attribute.',
+            learningFocus: 'Identity and session analysis; authentication is not attribution',
+            phaseOutput: 'Terran session marked compromised but inconclusive',
+            flagId: 'm2-ghost-session',
+            zone: 'z1',
+            revealGate: {
+                // The token and its own audit record are one source. The physical record
+                // is the only account that could have failed independently of the IdP.
+                necessaries: ['token-and-audit-share-issuer', 'physical-record-independent'],
+                corroboratorsRequired: 1,
+                corroboratorFamily: 'physical'
+            }
+        },
+        {
+            id: 3,
+            title: 'Last Good Contact',
+            objective: 'Establish the last contact whose timestamp can be trusted, and the '
+                     + 'physical bound that proves the others were moved.',
+            learningFocus: 'Timeline correlation; common-mode clock failure; light-time as '
+                         + 'an unforgeable bound',
+            phaseOutput: 'Known-good timestamp established',
+            flagId: 'm3-last-good-contact',
+            zone: 'z1',
+            revealGate: {
+                necessaries: ['clocks-share-upstream', 'impossible-round-trip-found'],
+                corroboratorsRequired: 1,
+                corroboratorFamily: 'physical'
+            }
         }
     ],
 
     hints: {
+        'm2-ghost-session': [
+            'Two records agree that the operator authenticated. Ask what ISSUED both of them '
+            + 'before you ask what they say.',
+            'A session token and that token\'s own audit log are one source, not two. An '
+            + 'identity provider vouching for its own token is a single voice.',
+            'Which record about this operator does not come from the identity provider at '
+            + 'all?',
+            'Authentication proves a credential was used. It does not prove who used it. Be '
+            + 'careful that your finding claims only the first.'
+        ],
+        'm3-last-good-contact': [
+            'Two logs agree on a timestamp. Ask where each of those clocks gets its time.',
+            'A clock disciplined FROM another clock is that clock. Agreement between them is '
+            + 'one reading written twice.',
+            'One number here was measured rather than read: the modem counted its own ticks '
+            + 'for a signal to go out and come back. Moving a clock does not move it.',
+            'ASTRAEA-9 is 326,000 km away. Nothing can be commanded and acknowledged in less '
+            + 'than about 2.18 seconds. Find the pair of entries that claims otherwise.'
+        ],
         'm1-independence': [
             'Two readings agree. Ask what they have in common before you ask what they mean.',
             'Majority voting assumes independent failure. Check that assumption.',
@@ -233,6 +495,39 @@ const ColdHorizonConfig = {
         // than by agreement count. The behaviour the box exists to teach.
         independenceBonus: 150
     }
+};
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MISSION-SCOPED VIEW
+   ═══════════════════════════════════════════════════════════════════════════
+   LagrangeEngine reads cfg.sensors, cfg.corroborators and cfg.independenceAxes
+   off whatever config it is constructed with. It has no concept of a mission
+   and does not need one: each page asks for the view it wants and hands that
+   to the engine.
+
+   Mission 1 is deliberately untouched. It reads the top-level arrays exactly as
+   it did before, so adding two missions cannot regress the one that already
+   works. forMission(1) returns the base config unchanged for the same reason.
+
+   `storageKey` is namespaced per mission so a trust ledger built in Ghost
+   Session cannot leak into Last Good Contact. Without that they share one saved
+   state object and a source corroborated in one mission arrives pre-corroborated
+   in the next, which would hand the player the habit's ANSWER while skipping the
+   habit.
+   ═══════════════════════════════════════════════════════════════════════════ */
+ColdHorizonConfig.forMission = function (n) {
+    var base = ColdHorizonConfig;
+    if (n === 1 || !base.missionData || !base.missionData[n]) return base;
+    var m = base.missionData[n];
+    var view = {};
+    Object.keys(base).forEach(function (k) { view[k] = base[k]; });
+    view.sensors           = m.sensors || [];
+    view.corroborators     = m.corroborators || [];
+    view.independenceAxes  = m.axes || base.independenceAxes;
+    view.situation         = m.situation || '';
+    view.storageKey        = base.storageKey + '_m' + n;
+    view.mission           = (base.missions || []).filter(function (x) { return x.id === n; })[0] || null;
+    return view;
 };
 
 if (typeof module !== 'undefined' && module.exports) module.exports = ColdHorizonConfig;
