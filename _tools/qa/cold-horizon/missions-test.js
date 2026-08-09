@@ -451,6 +451,69 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     await pg.close();
   }
 
+  /* ── ACT V ──────────────────────────────────────────────────────────────
+     13 is a SEQUENCING mission and needs its own assertions: the independence
+     mechanic cannot express "in what order", which is the whole question. */
+  console.log('\n  mission 13 — Severance (sequencing)');
+  const p13 = await open(base+'gateway.html?m=13&qa=1');
+  const s13 = await p13.evaluate(()=>({
+    title: document.getElementById('mTitle').textContent,
+    seqShown: getComputedStyle(document.getElementById('seqPanel')).display !== 'none',
+    frameHidden: getComputedStyle(document.getElementById('framePanel')).display === 'none',
+    items: document.querySelectorAll('#seqList li').length,
+  }));
+  check('m13 renders its own title', /SEVERANCE/i.test(s13.title), s13.title);
+  check('m13 shows the sequencing panel and NOT the frame audit',
+        s13.seqShown && s13.frameHidden, `seq=${s13.seqShown} frameHidden=${s13.frameHidden}`);
+  check('m13 lists every containment action', s13.items === 5, String(s13.items));
+
+  const seq = (order) => p13.evaluate((o)=>window.__LE_QA__.auditSequence(o), order);
+  // The canonical safe order: capture, close the door, remove the member, cool it,
+  // then reopen. Nothing irrecoverable.
+  let v = await seq(['a-snapshot','a-revoke','a-isolate','a-thermal','a-restore']);
+  check('a safe ordering reports NO irrecoverable violation',
+        v.hard.length === 0, `${v.hard.length} hard, ${v.soft.length} trade-off`);
+  // Isolating before snapshotting destroys the volatile state permanently.
+  v = await seq(['a-isolate','a-snapshot','a-revoke','a-thermal','a-restore']);
+  check('isolating before the snapshot is caught as IRRECOVERABLE',
+        v.hard.some(c=>c.before==='a-snapshot' && c.after==='a-isolate'),
+        v.hard.map(c=>c.before+'->'+c.after).join(' '));
+  // Restoring the path before revoking hands the credential straight back.
+  v = await seq(['a-snapshot','a-isolate','a-thermal','a-restore','a-revoke']);
+  check('restoring before revoking is caught: the credential is handed back',
+        v.hard.some(c=>c.before==='a-revoke' && c.after==='a-restore'));
+  /* The soft constraint must NOT be reported as irrecoverable. A mission where
+     every rule is hard teaches rule-following, not risk-based containment. */
+  v = await seq(['a-snapshot','a-revoke','a-isolate','a-restore','a-thermal']);
+  check('spending thermal margin on forensics is a TRADE-OFF, not a violation',
+        v.soft.some(c=>c.before==='a-thermal') && !v.hard.some(c=>c.before==='a-thermal'),
+        `${v.hard.length} hard, ${v.soft.length} soft`);
+  // The worst case must report every hard violation, not just the first.
+  v = await seq(['a-restore','a-thermal','a-isolate','a-revoke','a-snapshot']);
+  check('the worst ordering reports EVERY violation, not just the first',
+        v.hard.length >= 4, `${v.hard.length} hard`);
+  check('every reported violation carries a reason the player can act on',
+        v.hard.every(c=>c.reason && c.reason.length > 40));
+  await p13.close();
+
+  for (const L of [{m:14,t:/COLD HORIZON/i,trap:['r-narrative','r-session'],sol:['r-narrative','r-badge'],notInd:['r-timeline','r-evidence-seal']},
+                   {m:15,t:/BLACK RELAY/i,trap:['ep-a','ep-b'],sol:['ep-a','ep-flow'],notInd:['ep-flow','ep-tls']}]) {
+    console.log(`\n  mission ${L.m}`);
+    const pg = await open(base+`gateway.html?m=${L.m}&qa=1`);
+    const t = await pg.evaluate(()=>document.getElementById('mTitle').textContent);
+    check(`m${L.m} renders its own title`, L.t.test(t), t);
+    let r = await testPair(pg, L.trap[0], L.trap[1]);
+    check(`m${L.m} TRAP rejected: ${L.trap.join(' vs ')}`, r.ok===false && r.shared.length>0, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.sol[0], L.sol[1]);
+    check(`m${L.m} SOLUTION accepted: ${L.sol.join(' vs ')}`, r.ok===true, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.notInd[0], L.notInd[1]);
+    check(`m${L.m} two corroborators are NOT independent of each other`, r.ok===false, 'shared: '+r.shared.join(','));
+    // Sequencing belongs to 13 alone.
+    const noSeq = await pg.evaluate(()=>getComputedStyle(document.getElementById('seqPanel')).display === 'none');
+    check(`m${L.m} does not grow a sequencing panel it has no actions for`, noSeq);
+    await pg.close();
+  }
+
   /* ── FALSE-NEGATIVE GRADING ────────────────────────────────────────────
      Chris blocked the deploy on this and he was right. validateFlag answers a
      MISSING registry entry with {correct:false} -- byte-identical to a genuinely

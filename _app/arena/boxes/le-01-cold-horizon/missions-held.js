@@ -514,3 +514,182 @@ Object.assign(ColdHorizonMissions, {
         ]
     }
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACT V — THE BURN. Missions 13, 14, 15.
+   ═══════════════════════════════════════════════════════════════════════════
+   Mission 13 is NOT another independence test and must not be. Its canon
+   learning focus is "risk-based containment", and the question is not which
+   source to trust but what ORDER to act in, which the independence mechanic
+   cannot express at all. It declares `actions` and `constraints`; gateway.html
+   renders a sequencing panel for any mission that does.
+
+   The constraints are of two kinds and the distinction is the lesson:
+     hard  — violating it destroys something irrecoverable, or reopens the door
+     soft  — a genuine trade-off with no free answer, judged not enforced
+   A mission where every rule is hard teaches rule-following. The thermal
+   deadline is what makes this a decision.
+   ═══════════════════════════════════════════════════════════════════════════ */
+Object.assign(ColdHorizonMissions, {
+
+    13: {
+        axes: ['authority', 'collectionPath', 'signingAuthority'],
+        situation: 'You have the evidence. HELIOS-7 is climbing, a rogue member holds the '
+                 + 'fabric, and a credential that is not the operator\'s is still valid. '
+                 + 'Sequence the containment. Order is the whole problem: several of these '
+                 + 'actions destroy the evidence for the others, and one of them is on a '
+                 + 'clock that does not care about your investigation.',
+        actions: [
+            { id: 'a-snapshot', label: 'Snapshot volatile state on the orbital host',
+              note: 'Process table, open sockets, the running container\'s layers. Gone on reboot.' },
+            { id: 'a-revoke',   label: 'Revoke the compromised credential',
+              note: 'Kills the session that issued the replayed frame.' },
+            { id: 'a-isolate',  label: 'Isolate the rogue fabric member',
+              note: 'Drops it from partition 0x7fff. Also drops its volatile state.' },
+            { id: 'a-thermal',  label: 'Take HELIOS-7 off the bus',
+              note: 'Thermal containment. The panel is climbing while you decide.' },
+            { id: 'a-restore',  label: 'Restore command authority and rotate keys',
+              note: 'Reopens the command path.' }
+        ],
+        /* before MUST precede after. `hard` violations are irreversible or reopen
+           the attack path; `soft` is a real trade-off the player has to own. */
+        constraints: [
+            { before: 'a-snapshot', after: 'a-isolate', hard: true,
+              reason: 'Isolating the node drops its volatile state. Snapshot first or the '
+                    + 'evidence for what it was doing is gone permanently.' },
+            { before: 'a-snapshot', after: 'a-restore', hard: true,
+              reason: 'Restoring authority means reboots and re-deploys. Capture before you '
+                    + 'change the thing you are trying to describe.' },
+            { before: 'a-revoke', after: 'a-restore', hard: true,
+              reason: 'Reopening the command path while the credential is still valid hands '
+                    + 'it straight back. Revoke before you restore, never after.' },
+            { before: 'a-isolate', after: 'a-restore', hard: true,
+              reason: 'Restoring the fabric with the rogue member still in the partition '
+                    + 'returns it to full reachability.' },
+            { before: 'a-thermal', after: 'a-restore', hard: false,
+              reason: 'The panel is on a clock. Every step you take before thermal '
+                    + 'containment is margin you are spending on forensics. Defensible, and '
+                    + 'you should be able to say why you chose it.' }
+        ],
+        sensors: [
+            { id: 'c-margin', name: 'Thermal margin remaining', reading: '18 MINUTES', unit: '',
+              authority: 'platform-telemetry', collectionPath: 'platform/thermal',
+              signingAuthority: 'astraea-telemetry-ca',
+              note: 'From the telemetry family you already know is unreliable. Treat as soft.' },
+            { id: 'c-ir', name: 'Your own IR trend on HELIOS-7', reading: 'RISING 1.9 C/MIN', unit: '',
+              authority: 'rsv-infrared', collectionPath: 'rsv/optics',
+              signingAuthority: 'rsv-payload-attest',
+              note: 'Measured. This is the clock that is actually running.' },
+            { id: 'c-session', name: 'Compromised session state', reading: 'STILL VALID', unit: '',
+              authority: 'terran-sso', collectionPath: 'sso-audit',
+              signingAuthority: 'terran-sso-ca',
+              note: 'The credential from Ghost Session has not been revoked.' }
+        ],
+        corroborators: [
+            { id: 'c-runbook', name: 'Containment runbook, ops-authored',
+              value: 'EVIDENCE BEFORE ERADICATION', unit: '',
+              authority: 'ops-walkdown', collectionPath: 'ops/maintenance/records',
+              signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'Written before any of this happened, by people with no stake in '
+                       + 'the outcome. Independent of every platform system involved.' },
+            { id: 'c-legal', name: 'Evidence-handling requirement', value: 'VOLATILE FIRST', unit: '',
+              authority: 'ops-walkdown', collectionPath: 'ops/legal', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'Shares an authority with the runbook, so the two are one policy '
+                       + 'position rather than two independent confirmations.' },
+            { id: 'c-fsw', name: 'Flight software safing behaviour', value: 'AUTO-SHEDS AT 71 C', unit: '',
+              authority: 'astraea-fsw', collectionPath: 'platform/fsw', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'The platform will protect itself if you run out of time. That is a '
+                       + 'floor, not a plan: it sheds the load its own way and you lose the '
+                       + 'choice.' }
+        ]
+    },
+
+    /* 14 — COLD HORIZON. The title mission. Recovery and ATTRIBUTION, and the
+       last trap is the one the whole box has been building toward: the evidence
+       supports a specific technical account and NOT a specific actor. Every
+       source that would name who is downstream of the identity provider that was
+       itself the thing used. You can establish what happened, when, and through
+       which path. Naming the party is a claim the record does not carry, and the
+       mission is scored on refusing to make it. */
+    14: {
+        axes: ['origin', 'collectionPath', 'signingAuthority'],
+        situation: 'Containment holds. Write the incident record: what happened, what the '
+                 + 'evidence establishes, and what it does not. Ops wants a name in the '
+                 + 'report. Decide whether the record carries one.',
+        sensors: [
+            { id: 'r-narrative', name: 'Draft attribution narrative', reading: 'NAMES A PARTY', unit: '',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              note: 'Built from the session records, which is to say from the identity '
+                  + 'provider whose credential was used.' },
+            { id: 'r-session', name: 'Session attribution chain', reading: 'RESOLVES TO ONE SUBJECT', unit: '',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              note: 'The IdP resolving its own token to its own subject.' },
+            { id: 'r-cmdlog', name: 'Command authority log', reading: 'SAME SUBJECT', unit: '',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              note: 'Populated from the SSO assertion. Not a second witness.' }
+        ],
+        corroborators: [
+            { id: 'r-badge', name: 'Facility access record', value: 'SUBJECT WAS NOT ON SITE', unit: '',
+              origin: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca',
+              reasoning: 'Independent of the identity provider, and it REFUTES the named '
+                       + 'subject rather than confirming them. The strongest evidence in the '
+                       + 'file argues against the name the report wants.' },
+            { id: 'r-timeline', name: 'Reconstructed technical timeline',
+              value: 'REPLAY -> FABRIC JOIN -> WORKLOAD -> THERMAL', unit: '',
+              origin: 'ground/replay-lab', collectionPath: 'ground/replay-lab',
+              signingAuthority: 'gs-ranging-ca',
+              reasoning: 'Built off-platform from the write-once downlink record. This is '
+                       + 'what the evidence DOES establish: a sequence, a path, and a method.' },
+            { id: 'r-evidence-seal', name: 'Evidence bundle hash, sealed at capture',
+              value: 'INTACT', unit: '',
+              origin: 'ground/replay-lab', collectionPath: 'ground/evidence-seal',
+              signingAuthority: 'gs-ranging-ca',
+              reasoning: 'Shares an origin with the timeline, so it attests that the bundle '
+                       + 'was not altered rather than independently confirming its contents.' }
+        ]
+    },
+
+    /* 15 — BLACK RELAY (optional). Threat hunting and the sequel hook. Three
+       endpoints look like the relay; two are the same infrastructure wearing
+       different names, which is mission 1's lesson applied to an adversary's
+       estate rather than to your own. */
+    15: {
+        axes: ['operator', 'collectionPath', 'signingAuthority'],
+        situation: 'The workload was talking to something. Find the relay endpoint it '
+                 + 'actually used, and be careful: an adversary buys redundancy from the same '
+                 + 'places everyone else does.',
+        sensors: [
+            { id: 'ep-a', name: 'Endpoint A, first-seen in egress flow', reading: 'CANDIDATE', unit: '',
+              operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
+              signingAuthority: 'ti-feed-ca', note: 'Resolved via the passive DNS feed.' },
+            { id: 'ep-b', name: 'Endpoint B, same ASN', reading: 'CANDIDATE', unit: '',
+              operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
+              signingAuthority: 'ti-feed-ca',
+              note: 'A different name on the same operator, from the same feed.' },
+            { id: 'ep-c', name: 'Endpoint C, unrelated hosting', reading: 'CANDIDATE', unit: '',
+              operator: 'relay-provider-2', collectionPath: 'threat/passive-dns',
+              signingAuthority: 'ti-feed-ca', note: 'Different operator, same feed.' }
+        ],
+        corroborators: [
+            { id: 'ep-flow', name: 'Orbital gateway flow record, byte counts',
+              value: 'SUSTAINED TO ENDPOINT C ONLY', unit: '',
+              operator: 'orbital-gateway', collectionPath: 'platform/netflow',
+              signingAuthority: 'astraea-platform-ca',
+              reasoning: 'What the platform actually sent, rather than what a reputation feed '
+                       + 'says about a name. Shares nothing with the threat-intel pipeline.' },
+            { id: 'ep-tls', name: 'TLS certificate fingerprint observed on the wire',
+              value: 'MATCHES ENDPOINT C', unit: '',
+              operator: 'orbital-gateway', collectionPath: 'platform/netflow',
+              signingAuthority: 'astraea-platform-ca',
+              reasoning: 'Observed by the same gateway on the same path, so it strengthens '
+                       + 'that one account rather than being a second one.' },
+            { id: 'ep-reputation', name: 'Threat-intel reputation score',
+              value: 'A AND B FLAGGED, C CLEAN', unit: '',
+              operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
+              signingAuthority: 'ti-feed-ca',
+              reasoning: 'The feed flags the two endpoints that share its own operator and '
+                       + 'clears the one the platform actually talked to. A reputation score '
+                       + 'is an opinion about a name, not an observation of a connection.' }
+        ]
+    }
+});

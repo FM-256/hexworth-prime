@@ -94,6 +94,21 @@
            `frames`. Independence cannot express replay: two frames sharing a
            counter are not a correlated-failure problem, they are the same frame
            sent twice, and that needs its own check. -->
+      <!-- Containment sequencing. Present only for a mission that declares
+           `actions`. The independence test answers "which source do I trust";
+           it cannot express "in what ORDER do I act", and mission 13's whole
+           question is the second one. -->
+      <div id="seqPanel" style="display:none">
+        <h2 style="margin-top:22px">Containment Sequence</h2>
+        <div style="font-size:12px;color:var(--le-dim);margin-bottom:12px">
+          Order the actions. Several destroy the evidence for the others, and one
+          is on a clock. There is no ordering that costs nothing.
+        </div>
+        <ol id="seqList" style="padding-left:18px;font-size:12px;line-height:1.9"></ol>
+        <button class="le-btn primary" id="seqBtn">Commit sequence</button>
+        <div id="seqVerdict"></div>
+      </div>
+
       <div id="framePanel" style="display:none">
         <h2 style="margin-top:22px">Telecommand Frame Audit</h2>
         <div style="font-size:12px;color:var(--le-dim);margin-bottom:12px">
@@ -190,7 +205,7 @@
         timeRoot: 'upstream time root', keyCustody: 'key custody',
         authority: 'authority', producer: 'producer', writer: 'writer',
         inputPath: 'input path', policyAuthority: 'policy authority',
-        basis: 'basis'
+        basis: 'basis', origin: 'origin', operator: 'operator'
     };
     function axisWords(list) {
         return list.map(function (a) { return AXIS_LABEL[a] || a; });
@@ -312,6 +327,79 @@
             renderSensors(); renderLedger(); renderResources();
         });
     });
+
+    /* ── Containment sequencing ───────────────────────────────────────────
+       Checks the player's order against the mission's declared constraints and
+       reports EVERY violation with its reason, rather than a pass/fail.
+
+       HARD and SOFT are reported differently on purpose. A hard violation
+       destroys something irrecoverable or reopens the path, and it is simply
+       wrong. A soft one is a real trade-off: thermal margin spent on forensics
+       is a choice an operator has to be able to defend, not a rule to obey. A
+       mission where every constraint is hard would teach rule-following, which
+       is the opposite of risk-based containment. */
+    function auditSequence(order) {
+        var pos = {};
+        order.forEach(function (id, i) { pos[id] = i; });
+        var hard = [], soft = [];
+        (cfg.constraints || []).forEach(function (c) {
+            if (pos[c.before] === undefined || pos[c.after] === undefined) return;
+            if (pos[c.before] > pos[c.after]) (c.hard ? hard : soft).push(c);
+        });
+        return { hard: hard, soft: soft };
+    }
+
+    function wireSequence() {
+        var A = cfg.actions;
+        if (!A || !A.length) return;
+        $('seqPanel').style.display = '';
+        var order = A.map(function (a) { return a.id; });
+
+        function draw() {
+            var host = $('seqList');
+            host.innerHTML = '';
+            order.forEach(function (id, i) {
+                var a = A.filter(function (x) { return x.id === id; })[0];
+                var li = document.createElement('li');
+                li.style.marginBottom = '6px';
+                li.innerHTML = '<b>' + a.label + '</b>'
+                    + '<div style="color:var(--le-dim);font-size:11px">' + (a.note || '') + '</div>';
+                var up = document.createElement('button');
+                up.className = 'le-btn'; up.textContent = 'up';
+                up.style.cssText = 'padding:1px 7px;font-size:10px;margin-right:4px';
+                up.disabled = (i === 0);
+                up.onclick = function () {
+                    order.splice(i - 1, 0, order.splice(i, 1)[0]); draw();
+                };
+                li.appendChild(up);
+                host.appendChild(li);
+            });
+        }
+        draw();
+
+        $('seqBtn').addEventListener('click', function () {
+            $('seqBtn').disabled = true;
+            eng.orbital('containment sequence', function () { return auditSequence(order); }, 4)
+               .then(function (res) {
+                $('seqBtn').disabled = false;
+                var out = '';
+                res.hard.forEach(function (c) {
+                    out += '<div class="le-verdict bad"><b>Irrecoverable.</b> ' + c.reason + '</div>';
+                });
+                res.soft.forEach(function (c) {
+                    out += '<div class="le-verdict"><b>Trade-off.</b> ' + c.reason + '</div>';
+                });
+                if (!res.hard.length) {
+                    out = '<div class="le-verdict ok"><b>Nothing irrecoverable.</b> Evidence '
+                        + 'survives, the credential closes before the path reopens, and the '
+                        + 'rogue member is out before the fabric returns.</div>' + out;
+                }
+                $('seqVerdict').innerHTML = out;
+                log('sequence: ' + res.hard.length + ' hard, ' + res.soft.length + ' trade-off');
+                renderResources();
+            });
+        });
+    }
 
     /* ── Frame audit ──────────────────────────────────────────────────────
        A separate mechanic on purpose. The independence test answers "could these
@@ -462,7 +550,7 @@
     });
 
     fillSelects(); renderSensors(); renderLedger();
-    renderResources(); renderCorroborators(); wireFrames();
+    renderResources(); renderCorroborators(); wireFrames(); wireSequence();
     log('console attached to Z1 TERRAN GATEWAY');
     log('mission ' + MN + ' · ' + (mission.title || ''));
 
@@ -486,7 +574,7 @@
     if (new URLSearchParams(location.search).get('qa') === '1' &&
         QA_HOSTS.indexOf(location.hostname) !== -1) {
         window.__LE_QA__ = { eng: eng, cfg: cfg, mission: MN, axes: axes, sources: all,
-                             auditFrames: auditFrames };
+                             auditFrames: auditFrames, auditSequence: auditSequence };
     }
 })();
 </script>

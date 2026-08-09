@@ -268,7 +268,13 @@ const ColdHorizonConfig = {
         { id: 'm11-eidolon', gradable: false, mission: 11, points: 100,
           prompt: 'Is EIDOLON faulty, and what does its confidence actually measure?' },
         { id: 'm12-heat-debt', gradable: false, mission: 12, points: 100,
-          prompt: 'Can the remaining panels carry HELIOS-7\'s load for the containment window, and what did you measure to know?' }
+          prompt: 'Can the remaining panels carry HELIOS-7\'s load for the containment window, and what did you measure to know?' },
+        { id: 'm13-severance', gradable: false, mission: 13, points: 100,
+          prompt: 'In what order do you take these actions, and what does your ordering cost you?' },
+        { id: 'm14-cold-horizon', gradable: false, mission: 14, points: 100,
+          prompt: 'What does this evidence establish about what happened, and does it name who?' },
+        { id: 'm15-black-relay', gradable: false, mission: 15, points: 100,
+          prompt: 'Which endpoint did the workload actually talk to, and what establishes it?' }
     ],
 
     missions: [
@@ -395,6 +401,33 @@ const ColdHorizonConfig = {
             zone: 'z1',
             revealGate: { necessaries: ['capacity-figure-shares-the-bad-family', 'ir-survey-shows-a-hot-panel'], corroboratorsRequired: 1,
                           corroboratorFamily: 'physical' }
+        },
+        {
+            id: 13, title: 'Severance',
+            objective: 'Sequence the containment actions so evidence survives, the path closes, and the platform does too.',
+            learningFocus: 'Risk-based containment; order is the decision',
+            phaseOutput: 'Attacker control collapses',
+            flagId: 'm13-severance', zone: 'z1',
+            revealGate: { necessaries: ['evidence-before-eradication', 'revoke-before-restore'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 14, title: 'Cold Horizon',
+            objective: 'Write the incident record: what the evidence establishes, and what it does not.',
+            learningFocus: 'Recovery and attribution; a record carries what it carries',
+            phaseOutput: 'Mission rating and epilogue',
+            flagId: 'm14-cold-horizon', zone: 'z1',
+            revealGate: { necessaries: ['technical-timeline-established', 'attribution-not-supported'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 15, title: 'Black Relay',
+            objective: 'Identify the relay endpoint the workload actually used.',
+            learningFocus: 'Threat hunting; an observation beats an opinion about a name',
+            phaseOutput: 'Hidden faction and sequel hook',
+            flagId: 'm15-black-relay', zone: 'z1',
+            revealGate: { necessaries: ['candidates-share-one-operator', 'flow-record-is-an-observation'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
         }
     ],
 
@@ -461,6 +494,24 @@ const ColdHorizonConfig = {
             'The quoted capacity comes from the same telemetry family that has been wrong about HELIOS-7 since the first alarm.',
             'You have an infrared camera and three panels. Nameplate ratings are not measurements.',
             'One of the three is already running hot, and a degraded coating radiates less for the same temperature.'
+        ],
+        'm13-severance': [
+            'Two of these actions destroy the evidence for the others. Find which.',
+            'Reopening the command path while the credential is still valid hands it straight back.',
+            'The panel is on a clock that does not care about your investigation. That is a trade-off, not a rule.',
+            'There is no ordering with zero cost. Pick one you can defend, and know what you spent.'
+        ],
+        'm14-cold-horizon': [
+            'Ops wants a name. Ask what every record naming one has in common.',
+            'The session chain, the command log and the narrative all resolve through the identity provider whose credential was used.',
+            'The strongest independent record in the file ARGUES AGAINST the name, rather than confirming it.',
+            'You can establish a sequence, a path and a method. Naming the party is a claim this record does not carry, and saying so is the finding.'
+        ],
+        'm15-black-relay': [
+            'Three endpoints are candidates. Ask who OPERATES each before you ask what a feed says about them.',
+            'Two of the three are the same infrastructure wearing different names.',
+            'A reputation score is an opinion about a name. A byte count is an observation of a connection.',
+            'The feed clears the endpoint the platform actually talked to. Ask why that might be.'
         ],
         'm1-independence': [
             'Two readings agree. Ask what they have in common before you ask what they mean.',
