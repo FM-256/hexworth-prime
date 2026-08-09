@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cold Horizon — Rupture FX bench</title>
+
+<!--
+  ============================================================================
+  COLD HORIZON — HELIOS-7 RADIATOR RUPTURE   |  STANDALONE TUNING BENCH
+  ============================================================================
+  NOT WIRED INTO THE GAME. Nothing here touches cloud-cold-horizon.html.
+
+  Lives under _app/_source/ because firebase.json ignores '**/_source/**', so it
+  does not deploy. It sits under _app so /vendor/three/ resolves exactly as it
+  does in the real game (hosting public dir is _app).
+
+  ── v2, after "meh, needs more" ───────────────────────────────────────────
+  The first pass was one puff on a bare panel against black. Four things were
+  missing and all four were the reason it read small:
+
+    1. NO BLOOM. The game runs a hand-written bright-pass -> 2-level gaussian
+       -> ACES composite. Sunlit ice crystals against black are exactly the
+       case bloom exists for, and without it the plume was grey confetti.
+       Ported here at the same thresholds.
+    2. NO CONTEXT. A panel floating in void has no scale. Now it hangs off a
+       real truss and module stack with Earth behind it, so the plume has
+       something to be measured against and something to occlude.
+    3. ONE VENT. A coolant loop does not fail at a single point. Seven ribs
+       carry the loop across the panel face; when the header lets go the
+       pressure wave takes them in sequence. That cascade is the difference
+       between an event and a system dying.
+    4. TOO FEW PARTICLES. 900/s was a garden hose. Real venting is a wall.
+
+  ── THE RULE THAT SHAPES EVERY DECISION ───────────────────────────────────
+  The box grades every system REAL / EXTRAPOLATED / INVENTED and owes a
+  citation on REAL. An orange fireball with a shockwave would be INVENTED
+  dressed as engineering, which is the one thing that ledger forbids.
+
+    NO fireball.        Combustion needs an oxidiser. There isn't one.
+    NO shockwave ring.  A blast wave needs a medium. There isn't one.
+    NO sound.           Ditto. The game conducts audio through the RSV frame.
+    NO deceleration.    Debris and crystals fly straight at constant velocity.
+    NO billowing.       A vacuum plume is ballistic. It expands as a cone and
+                        thins. It never rolls or curls like smoke in air.
+
+  WHAT DOES HAPPEN, and why each is defensible:
+
+    COOLANT RUPTURE   A pumped loop rejecting 58.9 C is far above design point.
+                      The line goes before the panel. Coolant flashes to vapour
+                      and ice on the way out and the crystals catch sunlight.
+                      Observed on real spacecraft: ISS ammonia leaks were
+                      spotted visually as exactly this glittering plume. [REAL]
+    VENT AS THRUSTER  An uncontrolled jet imparts real thrust; the assembly
+                      yaws. Free, correct, and it sells vacuum harder than any
+                      particle count.                                    [REAL]
+    ARC FLASH         Severing an energised bus arcs, and arcing in vacuum is a
+                      documented failure mode. Brief, blue-white.        [REAL]
+    STRUCTURAL SHEAR  The panel parts at the frame line and tumbles off. Thin
+                      high-emissivity sheet, so it flexes as it goes.    [REAL]
+    RIB CASCADE       Loop pressure propagates; ribs fail in sequence, not at
+                      once.                                     [EXTRAPOLATED]
+    COOLING EDGE      Vacuum sheds heat by radiation only, so hot metal stays
+                      hot far longer than intuition says. Cooling here is
+                      COMPRESSED for pacing.                    [EXTRAPOLATED]
+
+  ── SERIES CONSTRAINT, DO NOT BREAK ───────────────────────────────────────
+  HELIOS-7 is lost. ASTRAEA-9 SURVIVES. Fourteen more missions happen on that
+  platform and the design doc's NO-BRICK RULE says no player action may make
+  the mission unplayable. Node loss, never station loss.
+
+  ── HOW TO USE ────────────────────────────────────────────────────────────
+      cd _app && python3 -m http.server 8123
+      http://127.0.0.1:8123/_source/fx/cold-horizon-rupture.html
+  4/5/6/7 variant · R replay · SPACE pause · 1/2/3 camera · B bloom · H hide UI
+  drag orbit · wheel zoom
+
+  ── PLUGGING IT IN LATER ──────────────────────────────────────────────────
+  Everything between the RUPTURE MODULE banners is dependency-free apart from
+  three, and never reads or writes game state:
+
+      const fx = new Rupture(scene, RUPTURE_CFG);
+      fx.trigger(node.group, panelMesh, ribMeshes);
+      fx.update(dt);
+      if (fx.done) { ...show end card... }
+
+  The game already has bloom, so the module deliberately does NOT ship a
+  post chain. It only makes bright additive particles; the host page blooms.
+  ============================================================================
+-->
+
+<style>
+  :root{
+    --cyan:#6fe3ff; --cyan-dim:#2b7f94; --amber:#ffb347;
+    --panel:rgba(6,10,16,.86); --edge:rgba(111,227,255,.28);
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;
+    font-family:var(--mono);color:#cfe6f2}
+  canvas{display:block}
+  #ui{position:fixed;top:12px;left:12px;z-index:10;background:var(--panel);
+    border:1px solid var(--edge);border-radius:4px;padding:12px 14px;
+    font-size:11px;line-height:1.5;max-height:calc(100vh - 24px);overflow:auto;
+    backdrop-filter:blur(4px);width:300px}
+  #ui h1{font-size:11px;letter-spacing:.16em;color:var(--amber);margin:0 0 2px}
+  #ui .sub{color:var(--cyan-dim);margin-bottom:10px;font-size:10px;letter-spacing:.06em}
+  #ui .grp{border-top:1px solid rgba(111,227,255,.16);margin-top:9px;padding-top:8px}
+  #ui .grp b{color:var(--cyan);font-weight:600;letter-spacing:.08em;font-size:10px}
+  .row{display:flex;align-items:center;gap:7px;margin:4px 0}
+  .row label{flex:0 0 120px;color:#9fc4d4;font-size:10px}
+  .row input[type=range]{flex:1;height:3px;accent-color:var(--cyan)}
+  .row .val{flex:0 0 48px;text-align:right;color:var(--cyan);font-size:10px}
+  #keys{position:fixed;bottom:12px;left:12px;z-index:10;background:var(--panel);
+    border:1px solid var(--edge);border-radius:4px;padding:8px 11px;font-size:10px;
+    color:var(--cyan-dim);letter-spacing:.06em;backdrop-filter:blur(4px)}
+  #keys b{color:var(--cyan)}
+  #clock{position:fixed;top:12px;right:12px;z-index:10;background:var(--panel);
+    border:1px solid var(--edge);border-radius:4px;padding:9px 13px;font-size:11px;
+    text-align:right;backdrop-filter:blur(4px);min-width:172px}
+  #clock .t{color:var(--amber);font-size:17px;letter-spacing:.06em}
+  #clock .ph{color:var(--cyan);font-size:10px;letter-spacing:.1em;margin-top:3px}
+  #clock .ct{color:var(--cyan-dim);font-size:9.5px;margin-top:2px}
+  button{background:transparent;border:1px solid var(--edge);color:var(--cyan-dim);
+    font:inherit;font-size:10px;padding:5px 9px;border-radius:3px;cursor:pointer;
+    letter-spacing:.08em;margin-top:4px;width:100%;text-align:left}
+  button:hover{border-color:var(--cyan);color:var(--cyan)}
+  #replay{text-align:center;margin-top:9px;letter-spacing:.14em}
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <h1>RUPTURE FX BENCH</h1>
+  <div class="sub">HELIOS-7 radiator assembly &middot; standalone &middot; v2</div>
+
+  <!-- Variant picker. Buttons are generated from VARIANTS so data-v can never
+       name a key that does not exist. -->
+  <div class="grp"><b>VARIANT</b></div>
+  <div id="variants"></div>
+  <div id="vname" style="color:var(--amber);font-size:10.5px;letter-spacing:.1em;margin-top:7px"></div>
+  <div id="vnote" style="color:#8fb0c0;font-size:10px;line-height:1.45;margin-top:3px"></div>
+
+  <div id="sliders"></div>
+  <button id="replay">REPLAY &nbsp;[R]</button>
+</div>
+
+<div id="clock">
+  <div class="t" id="tval">T+0.00</div>
+  <div class="ph" id="phase">ARMED</div>
+  <div class="ct" id="counts">&mdash;</div>
+</div>
+
+<div id="keys">
+  <b>4-7</b> variant &nbsp; <b>R</b> replay &nbsp; <b>SPACE</b> pause &nbsp;
+  <b>1/2/3</b> camera &nbsp; <b>B</b> bloom &nbsp; <b>H</b> hide UI
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.min.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ===========================================================================
+   TUNABLES — every number the effect reads.
+   =========================================================================== */
+const RUPTURE_CFG = {
+  // ── timeline, seconds from trigger ──
+  tPreVent:    -1.00,   // optional weep BEFORE the breach. negative = none
+  preVentFrac:  0.06,   // its rate as a fraction of full pressure
+  tVent:        0.00,   // header lets go
+  tArc:         0.52,   // energised bus severs, brief arc
+  tShear:       0.62,   // panel parts from the frame
+  tVentDecay:   1.60,   // loop pressure falls off
+  tSettle:      9.00,   // effect finished
+
+  // ── rib cascade: the loop crosses the face 7 times and they go in sequence ──
+  ribCount:     7,
+  ribStagger:   0.13,   // seconds between successive rib failures
+  ribDelay:     0.18,   // after shear, before the first rib goes
+  ribRate:      0.34,   // each rib's spawn rate vs the main header
+
+  // ── coolant jet ──
+  jetRate:     4200,    // crystals/sec at full pressure, main header
+  jetSpeed:      42,    // m/s initial. Constant after: no drag in vacuum
+  jetSpread:   0.17,    // cone half-angle, radians
+  jetLife:      5.0,    // seconds before cull (sublimation)
+  jetSize:     0.26,    // sprite size, metres
+  jetJitter:   0.38,    // speed variance, fraction
+
+  // ── debris ──
+  debrisCount:  96,
+  debrisSpeed:  8.5,
+  debrisSpin:   2.8,
+  debrisSpread: 0.58,
+
+  // ── panel separation ──
+  panelDrift:   3.1,
+  panelTumble:  0.55,
+
+  // ── vent reaction on the assembly ──
+  reactionYaw:  0.95,
+
+  // ── arc flash ──
+  arcMs:        150,
+  arcIntensity:  62,
+
+  // ── shear-edge glow ──
+  glowCoolSec:  11.0,
+};
+
+/* ===========================================================================
+   VARIANTS — four takes on the same event. They differ in FRAMING, never in
+   what physics allows. Pick one, then fine-tune with the sliders.
+   =========================================================================== */
+const VARIANTS = {
+  documentary: {
+    _name:'A · DOCUMENTARY',
+    _note:'What a real leak looks like. Tight fast jet, restrained debris, long '+
+          'slow cooling. The horror is that it is quiet and unspectacular.',
+    tPreVent:-1, tArc:0.55, tShear:0.70, tVentDecay:2.4, tSettle:12,
+    ribCount:7, ribStagger:0.22, ribDelay:0.30, ribRate:0.22,
+    jetRate:2400, jetSpeed:52, jetSpread:0.10, jetLife:6.0, jetSize:0.19, jetJitter:0.30,
+    debrisCount:26, debrisSpeed:5.0, debrisSpin:1.6, debrisSpread:0.30,
+    panelDrift:1.6, panelTumble:0.28,
+    reactionYaw:0.55, arcMs:90, arcIntensity:30, glowCoolSec:16,
+  },
+  catastrophic: {
+    _name:'B · CATASTROPHIC',
+    _note:'The whole assembly fails together. Wall of coolant, heavy '+
+          'fragmentation, panel gone inside a quarter second. Still no fireball.',
+    tPreVent:-1, tArc:0.16, tShear:0.24, tVentDecay:1.2, tSettle:9,
+    ribCount:7, ribStagger:0.045, ribDelay:0.05, ribRate:0.55,
+    jetRate:9000, jetSpeed:68, jetSpread:0.36, jetLife:4.6, jetSize:0.36, jetJitter:0.48,
+    debrisCount:96, debrisSpeed:16, debrisSpin:4.6, debrisSpread:0.78,
+    panelDrift:6.8, panelTumble:1.25,
+    reactionYaw:2.1, arcMs:190, arcIntensity:105, glowCoolSec:8,
+  },
+  slowBleed: {
+    _name:'C · SLOW BLEED',
+    _note:'It weeps for four seconds first. The assembly yaws off station under '+
+          'its own vent thrust, THEN tears. You watch it die knowing you called it.',
+    tPreVent:0.0, preVentFrac:0.09, tVent:4.0, tArc:4.7, tShear:5.05,
+    tVentDecay:6.6, tSettle:17,
+    ribCount:7, ribStagger:0.34, ribDelay:0.45, ribRate:0.26,
+    jetRate:4600, jetSpeed:38, jetSpread:0.15, jetLife:7.0, jetSize:0.24, jetJitter:0.34,
+    debrisCount:44, debrisSpeed:6.5, debrisSpin:2.2, debrisSpread:0.45,
+    panelDrift:2.6, panelTumble:0.5,
+    reactionYaw:2.9, arcMs:150, arcIntensity:52, glowCoolSec:20,
+  },
+  cascade: {
+    _name:'D · CASCADE',
+    _note:'Warning puff, pause, breach, then the ribs let go one after another. '+
+          'Four beats, so the end card is not the first hint it went wrong.',
+    tPreVent:0.0, preVentFrac:0.20, tVent:1.9, tArc:2.3, tShear:2.55,
+    tVentDecay:4.2, tSettle:14,
+    ribCount:7, ribStagger:0.26, ribDelay:0.22, ribRate:0.42,
+    jetRate:6000, jetSpeed:50, jetSpread:0.24, jetLife:5.4, jetSize:0.30, jetJitter:0.42,
+    debrisCount:64, debrisSpeed:10.5, debrisSpin:3.2, debrisSpread:0.62,
+    panelDrift:4.0, panelTumble:0.8,
+    reactionYaw:1.4, arcMs:160, arcIntensity:70, glowCoolSec:13,
+  },
+};
+
+/* ===========================================================================
+   ▼▼▼ RUPTURE MODULE — copy THIS BLOCK into the game. three only. ▼▼▼
+   The module makes bright additive particles and expects the HOST page to
+   bloom. The game already has a bloom chain, so shipping a second one here
+   would be a duplicate implementation that drifts.
+   =========================================================================== */
+
+/* Soft round sprite, generated rather than loaded, so the module carries no
+   asset dependency. */
+function makeSprite(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32,32,0, 32,32,32);
+  g.addColorStop(0,   'rgba(255,255,255,1)');
+  g.addColorStop(0.32,'rgba(255,255,255,0.6)');
+  g.addColorStop(1,   'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,64,64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+class Rupture {
+  constructor(scene, cfg){
+    this.scene = scene; this.cfg = cfg;
+    this.t = 0; this.armed = false; this.done = false;
+    this.sprite = makeSprite();
+    this.group = new THREE.Group();
+    scene.add(this.group);
+
+    /* ── coolant crystals ──────────────────────────────────────────────────
+       Points, because a leak is thousands of crystals and the whole reason it
+       reads as vacuum is that each one flies dead straight. Capacity is sized
+       from the worst variant so switching variants never overflows the pool. */
+    const peak = 9000, life = 7.0;
+    const N = Math.ceil(peak * life * 1.15);
+    this.jetMax   = N;
+    this.jetPos   = new Float32Array(N*3);
+    this.jetVel   = new Float32Array(N*3);
+    this.jetAge   = new Float32Array(N).fill(1e9);   // 1e9 = slot free
+    this.jetLifeA = new Float32Array(N);
+    this.jetAlpha = new Float32Array(N);
+    this.jetHead  = 0;
+
+    const jg = new THREE.BufferGeometry();
+    jg.setAttribute('position', new THREE.BufferAttribute(this.jetPos, 3));
+    jg.setAttribute('alpha',    new THREE.BufferAttribute(this.jetAlpha, 1));
+
+    /* Custom shader only so per-particle alpha works. Additive because these
+       are sunlit crystals against black. depthWrite off so the cloud never
+       carves a hole in the geometry behind it. */
+    this.jetMat = new THREE.ShaderMaterial({
+      uniforms:{ map:{value:this.sprite}, size:{value:cfg.jetSize},
+                 tint:{value:new THREE.Color(0xe6f2ff)} },
+      vertexShader:`
+        attribute float alpha; varying float vA; uniform float size;
+        void main(){
+          vA = alpha;
+          vec4 mv = modelViewMatrix * vec4(position,1.0);
+          gl_PointSize = size * 330.0 / max(-mv.z, 0.001);
+          gl_Position = projectionMatrix * mv;
+        }`,
+      fragmentShader:`
+        uniform sampler2D map; uniform vec3 tint; varying float vA;
+        void main(){
+          vec4 t = texture2D(map, gl_PointCoord);
+          gl_FragColor = vec4(tint, t.a * vA);
+        }`,
+      transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+    });
+    this.jet = new THREE.Points(jg, this.jetMat);
+    this.jet.frustumCulled = false;
+    this.group.add(this.jet);
+
+    /* ── debris: real meshes so fragments catch the sun and read as solid ── */
+    const dgeo = new THREE.BoxGeometry(0.26, 0.05, 0.40);
+    const dmat = new THREE.MeshStandardMaterial({
+      color:0xb9c2c8, roughness:0.6, metalness:0.78 });
+    this.debrisMax = 96;
+    this.debris = new THREE.InstancedMesh(dgeo, dmat, this.debrisMax);
+    this.debris.frustumCulled = false;
+    this.debris.count = 0;
+    this.group.add(this.debris);
+    this.dState = Array.from({length:this.debrisMax}, () => ({
+      p:new THREE.Vector3(), v:new THREE.Vector3(),
+      q:new THREE.Quaternion(), av:new THREE.Vector3()
+    }));
+    this._m4 = new THREE.Matrix4();
+    this._one = new THREE.Vector3(1,1,1);
+
+    /* ── arc: a real PointLight, so it lights surrounding geometry for the
+       frame or two it exists. Blue-white. This is electrical, not combustion. */
+    this.arc = new THREE.PointLight(0xbfd8ff, 0, 120, 2);
+    this.arc.visible = false;
+    this.group.add(this.arc);
+
+    /* ── shear-edge glow, cooling by radiation only so it lingers ── */
+    this.glowMat = new THREE.MeshBasicMaterial({
+      color:0xff6a2a, transparent:true, opacity:0,
+      blending:THREE.AdditiveBlending, depthWrite:false });
+    this.glow = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.13, 0.4), this.glowMat);
+    this.glow.visible = false;
+    this.group.add(this.glow);
+
+    this.vents = [];
+  }
+
+  /* origin: assembly group (yaws under vent thrust). panel: mesh that shears.
+     ribs: optional meshes; each becomes its own vent point in the cascade. */
+  trigger(origin, panel, ribs){
+    const c = this.cfg;
+    this.t = 0; this.armed = true; this.done = false;
+    this.originObj = origin || null;
+    this.panel = panel || null;
+    this.ribs  = ribs || [];
+    this.panelFreed = false; this.arcFired = false; this.yaw = 0;
+    this.jetHead = 0; this.jetAge.fill(1e9);
+    this.debris.count = 0;
+
+    this.origin = new THREE.Vector3();
+    if(panel) panel.getWorldPosition(this.origin);
+
+    /* A severed line vents along its own run, not radially. Fixed axis, not a
+       sphere of particles. */
+    this.axis = new THREE.Vector3(-0.22, -1, 0.16).normalize();
+
+    /* ── the cascade ──────────────────────────────────────────────────────
+       Main header first, then each rib in sequence as pressure propagates
+       across the face. Rib positions are taken from the real meshes when the
+       host passes them, so the jets emerge from where the pipes actually are. */
+    /* The header opens at tPreVent when there is a weep, not at tVent. Getting
+       this wrong silently kills the entire pre-vent phase: the pressure ramp
+       computes a weep, then the spawn loop skips the only vent that could
+       emit it, so variants C and D opened on four seconds of nothing. */
+    this.vents = [{ pos:this.origin.clone(), axis:this.axis.clone(),
+                    t0:(c.tPreVent >= 0 ? c.tPreVent : c.tVent),
+                    rate:1, main:true }];
+
+    const n = Math.min(c.ribCount, Math.max(0, this.ribs.length || c.ribCount));
+    for(let i=0;i<n;i++){
+      const p = new THREE.Vector3();
+      if(this.ribs[i]) this.ribs[i].getWorldPosition(p);
+      else p.copy(this.origin).add(new THREE.Vector3((i-(n-1)/2)*0.95, 0, 0));
+      // Alternate which end of the rib blows, so the cascade is not a
+      // metronome of identical jets.
+      const side = (i % 2) ? 1 : -1;
+      const ax = new THREE.Vector3(side*0.42, -0.86, (i/n - 0.5)*0.5).normalize();
+      this.vents.push({
+        pos:p, axis:ax, rate:c.ribRate, main:false,
+        t0: c.tShear + c.ribDelay + i*c.ribStagger
+      });
+    }
+  }
+
+  _spawnAt(vent, n, dt, life){
+    const c = this.cfg;
+    for(let i=0;i<n;i++){
+      const s = this.jetHead % this.jetMax; this.jetHead++;
+      const i3 = s*3;
+
+      // direction inside a cone around the vent axis
+      const a = Math.random()*Math.PI*2;
+      const r = Math.random()*c.jetSpread;
+      const dir  = vent.axis.clone();
+      const perp = new THREE.Vector3(1,0,0).cross(dir);
+      if(perp.lengthSq() < 1e-6) perp.set(0,0,1).cross(dir);
+      perp.normalize();
+      const perp2 = dir.clone().cross(perp).normalize();
+      dir.addScaledVector(perp,  Math.sin(a)*r)
+         .addScaledVector(perp2, Math.cos(a)*r).normalize();
+
+      const spd = c.jetSpeed * (1 + (Math.random()-0.5)*2*c.jetJitter);
+
+      /* Backdate along the path by a sub-frame amount. Without this every
+         particle spawned in one frame starts at the identical point and the
+         jet reads as a stack of discrete pulses. */
+      const back = Math.random()*dt;
+      this.jetPos[i3  ] = vent.pos.x + dir.x*spd*back;
+      this.jetPos[i3+1] = vent.pos.y + dir.y*spd*back;
+      this.jetPos[i3+2] = vent.pos.z + dir.z*spd*back;
+      this.jetVel[i3  ] = dir.x*spd;
+      this.jetVel[i3+1] = dir.y*spd;
+      this.jetVel[i3+2] = dir.z*spd;
+      this.jetAge[s]    = 0;
+      this.jetLifeA[s]  = life;
+    }
+  }
+
+  _fireDebris(){
+    const c = this.cfg;
+    const n = Math.min(c.debrisCount, this.debrisMax);
+    for(let i=0;i<n;i++){
+      const d = this.dState[i];
+      // Fragments come off the whole frame line, not one point.
+      d.p.copy(this.origin).add(new THREE.Vector3(
+        (Math.random()-0.5)*7.2, (Math.random()-0.5)*0.3, (Math.random()-0.5)*9.2));
+      const dir = new THREE.Vector3(
+        (Math.random()-0.5)*2, (Math.random()-0.5)*2, (Math.random()-0.5)*2
+      ).normalize().lerp(this.axis, 1 - c.debrisSpread).normalize();
+      d.v.copy(dir).multiplyScalar(c.debrisSpeed * (0.3 + Math.random()*1.0));
+      d.av.set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
+          .multiplyScalar(c.debrisSpin);
+      d.q.identity();
+    }
+    this.debris.count = n;
+  }
+
+  update(dt){
+    if(!this.armed || this.done) return;
+    const c = this.cfg;
+    this.t += dt;
+
+    /* ── main header pressure ── ramps instantly, decays as the loop empties ── */
+    let pressure = 0;
+    if(c.tPreVent >= 0 && this.t >= c.tPreVent && this.t < c.tVent){
+      // A weeping seal before the line parts. Something is visibly wrong and it
+      // is already too late to unsay the call.
+      pressure = c.preVentFrac;
+    } else if(this.t >= c.tVent){
+      pressure = this.t < c.tVentDecay ? 1
+        : Math.max(0, 1 - (this.t - c.tVentDecay) / (c.tSettle - c.tVentDecay));
+      pressure *= pressure;
+    }
+
+    /* ── spawn from every open vent ── */
+    for(const v of this.vents){
+      if(this.t < v.t0) continue;
+      // Ribs share the header's falling pressure: once the loop is empty,
+      // nothing is left to vent from anywhere.
+      const p = v.main ? pressure : pressure * v.rate;
+      if(p <= 0) continue;
+      this._spawnAt(v, Math.floor(c.jetRate * p * dt), dt, c.jetLife);
+    }
+
+    /* ── integrate: straight lines, constant velocity, nothing slows them ── */
+    const pos=this.jetPos, vel=this.jetVel, age=this.jetAge,
+          al=this.jetAlpha, lf=this.jetLifeA;
+    let live = 0;
+    for(let s=0;s<this.jetMax;s++){
+      if(age[s] > 1e8){ al[s] = 0; continue; }
+      age[s] += dt;
+      if(age[s] > lf[s]){ age[s] = 1e9; al[s] = 0; continue; }
+      const i3 = s*3;
+      pos[i3  ] += vel[i3  ]*dt;
+      pos[i3+1] += vel[i3+1]*dt;
+      pos[i3+2] += vel[i3+2]*dt;
+      const k = age[s]/lf[s];
+      al[s] = (1-k)*(1-k)*0.95;      // crystals sublimate, cloud thins
+      live++;
+    }
+    this.liveCount = live;
+    this.jet.geometry.attributes.position.needsUpdate = true;
+    this.jet.geometry.attributes.alpha.needsUpdate = true;
+    this.jetMat.uniforms.size.value = c.jetSize;
+
+    /* ── the vent is a thruster: real reaction on the assembly ── */
+    if(this.originObj && pressure > 0){
+      this.yaw += c.reactionYaw * pressure * dt;
+      this.originObj.rotation.y = this.yaw;
+    }
+
+    /* ── arc flash ── */
+    if(!this.arcFired && this.t >= c.tArc){
+      this.arcFired = true; this.arcT = 0;
+      this.arc.position.copy(this.origin);
+      this.arc.visible = true;
+    }
+    if(this.arcFired && this.arc.visible){
+      this.arcT += dt*1000;
+      const k = 1 - this.arcT / c.arcMs;
+      // An arc flickers; it does not ramp smoothly.
+      this.arc.intensity = k > 0 ? c.arcIntensity*k*(0.5 + Math.random()*0.5) : 0;
+      if(k <= 0) this.arc.visible = false;
+    }
+
+    /* ── structural shear ── */
+    if(!this.panelFreed && this.t >= c.tShear){
+      this.panelFreed = true;
+      this._fireDebris();
+      if(this.panel){
+        // Detach into world space so it keeps drifting while the stub yaws.
+        const wp = new THREE.Vector3(), wq = new THREE.Quaternion();
+        this.panel.getWorldPosition(wp); this.panel.getWorldQuaternion(wq);
+        this.scene.attach(this.panel);
+        this.panel.position.copy(wp); this.panel.quaternion.copy(wq);
+        this.panelV = this.axis.clone().multiplyScalar(c.panelDrift)
+          .add(new THREE.Vector3((Math.random()-0.5)*1.2, 0, (Math.random()-0.5)*1.2));
+        this.panelA = new THREE.Vector3(
+          Math.random()-0.5, Math.random()-0.5, Math.random()-0.5
+        ).multiplyScalar(c.panelTumble);
+      }
+      this.glow.position.copy(this.origin);
+      this.glow.visible = true;
+    }
+
+    if(this.panelFreed && this.panel && this.panelV){
+      this.panel.position.addScaledVector(this.panelV, dt);
+      this.panel.rotateX(this.panelA.x*dt);
+      this.panel.rotateY(this.panelA.y*dt);
+      this.panel.rotateZ(this.panelA.z*dt);
+    }
+
+    /* ── glow: radiation is the only way out, so it lingers and reddens ── */
+    if(this.glow.visible){
+      const k = Math.max(0, 1 - (this.t - c.tShear)/c.glowCoolSec);
+      this.glowMat.opacity = k*k*0.95;
+      this.glowMat.color.setRGB(1, 0.16 + 0.62*k, 0.05 + 0.55*k*k);
+    }
+
+    /* ── debris: straight lines, free tumble ── */
+    if(this.debris.count){
+      const dq = new THREE.Quaternion(), e = new THREE.Euler();
+      for(let i=0;i<this.debris.count;i++){
+        const d = this.dState[i];
+        d.p.addScaledVector(d.v, dt);
+        e.set(d.av.x*dt, d.av.y*dt, d.av.z*dt);
+        dq.setFromEuler(e); d.q.multiply(dq);
+        this._m4.compose(d.p, d.q, this._one);
+        this.debris.setMatrixAt(i, this._m4);
+      }
+      this.debris.instanceMatrix.needsUpdate = true;
+    }
+
+    if(this.t >= c.tSettle) this.done = true;
+  }
+
+  /* Which ribs have let go so far, for the readout. */
+  ventsOpen(){ let n=0; for(const v of this.vents) if(this.t >= v.t0) n++; return n; }
+
+  phase(){
+    if(!this.armed) return 'ARMED';
+    const c = this.cfg, t = this.t;
+    if(c.tPreVent >= 0 && t < c.tVent) return 'SEAL WEEPING';
+    if(t < c.tArc)       return 'COOLANT LOOP BREACH';
+    if(t < c.tShear)     return 'BUS ARC';
+    if(t < c.tVentDecay) return 'STRUCTURAL SHEAR';
+    if(t < c.tSettle)    return 'VENTING, PRESSURE FALLING';
+    return 'HELIOS-7 OFFLINE';
+  }
+
+  reset(){
+    this.armed = false; this.done = false; this.t = 0;
+    this.jetAge.fill(1e9); this.jetAlpha.fill(0);
+    this.jet.geometry.attributes.alpha.needsUpdate = true;
+    this.debris.count = 0; this.liveCount = 0;
+    this.arc.visible = false; this.glow.visible = false;
+    if(this.originObj) this.originObj.rotation.y = 0;
+  }
+}
+
+/* ===========================================================================
+   ▲▲▲ END RUPTURE MODULE ▲▲▲
+   =========================================================================== */
+
+
+/* ===========================================================================
+   BENCH — mock scene + bloom. None of this ships; the game has its own.
+   =========================================================================== */
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(52, innerWidth/innerHeight, 0.1, 60000);
+
+/* One hard source plus a weak earthshine fill. Space is high contrast: sunlit
+   faces are bright and shadowed faces are nearly black. */
+const sun = new THREE.DirectionalLight(0xfff4e6, 3.4);
+sun.position.set(60, 34, 42);
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x16222e, 0.55));
+
+/* ── stars ── */
+{
+  const n = 3200, p = new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const v = new THREE.Vector3().randomDirection().multiplyScalar(30000);
+    p[i*3]=v.x; p[i*3+1]=v.y; p[i*3+2]=v.z;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(p,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial(
+    {color:0xffffff, size:1.8, sizeAttenuation:false})));
+}
+
+/* ── Earth ──────────────────────────────────────────────────────────────────
+   Context, not a set piece. The plume needs something to be measured against
+   and something to pass in front of, otherwise it has no scale at all. Simple
+   day/night terminator; the game's own Earth is far richer and this only has
+   to sell distance. */
+{
+  const mat = new THREE.ShaderMaterial({
+    uniforms:{ uSun:{value:sun.position.clone().normalize()} },
+    vertexShader:`
+      varying vec3 vN; varying vec3 vP;
+      void main(){ vN = normalize(normalMatrix*normal);
+        vP = normalize(position);
+        gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+    fragmentShader:`
+      uniform vec3 uSun; varying vec3 vN; varying vec3 vP;
+      // cheap value noise for continent blotches
+      float h(vec3 p){ return fract(sin(dot(p,vec3(12.99,78.23,45.16)))*43758.5); }
+      float n3(vec3 p){
+        vec3 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+        float a=mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),
+                    mix(mix(h(i+vec3(0,0,1)),h(i+vec3(1,0,1)),f.x),mix(h(i+vec3(0,1,1)),h(i+vec3(1,1,1)),f.x),f.y),f.z);
+        return a; }
+      void main(){
+        float f = n3(vP*3.1)*0.6 + n3(vP*7.3)*0.28 + n3(vP*15.0)*0.12;
+        vec3 ocean = vec3(0.04,0.13,0.30);
+        vec3 land   = vec3(0.16,0.24,0.13);
+        vec3 base = mix(ocean, land, smoothstep(0.52,0.60,f));
+        base = mix(base, vec3(0.82,0.85,0.88), smoothstep(0.70,0.80,f)*0.6); // cloud
+        float d = max(dot(normalize(vN), normalize(uSun)), 0.0);
+        vec3 night = vec3(0.012,0.016,0.03) + vec3(0.9,0.6,0.25)*pow(1.0-d,14.0)*0.05;
+        gl_FragColor = vec4(base*d*1.25 + night, 1.0);
+      }`
+  });
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(2400, 64, 48), mat);
+  earth.position.set(-900, -3050, -2200);
+  scene.add(earth);
+}
+
+/* ── the assembly, matching cloud-cold-horizon.html (~line 1030) ────────────
+   Same dimensions as the real one so the effect is tuned against the geometry
+   it will actually run on, not a stand-in of a different size. */
+const matTruss = new THREE.MeshStandardMaterial({color:0x8d949a, roughness:0.7, metalness:0.8});
+const matRad   = new THREE.MeshStandardMaterial({color:0xe8e6e0, roughness:0.42, metalness:0.16});
+const matFrame = new THREE.MeshStandardMaterial({color:0x9aa2a8, roughness:0.55, metalness:0.85});
+const matHull  = new THREE.MeshStandardMaterial({color:0xb4b1a6, roughness:0.62, metalness:0.55});
+
+/* Station stub the radiator hangs off. Purely for scale: without a parent
+   structure the panel reads as a kite, not part of a platform. */
+{
+  const station = new THREE.Group();
+  station.position.set(0, -7.6, 0);
+  const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,26,10), matTruss);
+  spine.rotation.z = Math.PI/2; station.add(spine);
+  for(let i=-2;i<=2;i++){
+    const mod = new THREE.Mesh(new THREE.CylinderGeometry(1.9,1.9,4.4,14), matHull);
+    mod.rotation.z = Math.PI/2; mod.position.x = i*5.2; station.add(mod);
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(1.95,0.1,6,18), matFrame);
+    rib.rotation.y = Math.PI/2; rib.position.x = i*5.2 + 2.2; station.add(rib);
+  }
+  // a second radiator on the far side, undamaged, so the loss reads as a loss
+  const far = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.12, 8.0), matRad);
+  far.rotation.x = Math.PI/2; far.position.set(-13.5, -3.4, 0);
+  station.add(far);
+  scene.add(station);
+}
+
+const assembly = new THREE.Group();
+scene.add(assembly);
+
+const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,4.6,8), matTruss);
+boom.position.set(0,-2.3,0); assembly.add(boom);
+
+const panel = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.14, 9.6), matRad);
+panel.rotation.x = Math.PI/2; panel.position.set(0, 2.4, 0);
+assembly.add(panel);
+
+/* The seven coolant ribs. Kept in an array because the module turns each one
+   into its own vent point in the cascade. */
+const ribs = [];
+for(let i=-3;i<=3;i++){
+  const rib = new THREE.Mesh(new THREE.CylinderGeometry(0.075,0.075,9.4,5), matTruss);
+  rib.rotation.x = Math.PI/2; rib.position.set(i*0.95, 2.32, 0);
+  assembly.add(rib); ribs.push(rib);
+}
+[[0,4.85],[0,-4.85]].forEach(([x,z])=>{
+  const f = new THREE.Mesh(new THREE.BoxGeometry(7.5,0.26,0.3), matFrame);
+  f.position.set(x,2.4,z); assembly.add(f);
+});
+[[3.75,0],[-3.75,0]].forEach(([x,z])=>{
+  const f = new THREE.Mesh(new THREE.BoxGeometry(0.3,0.26,9.9), matFrame);
+  f.position.set(x,2.4,z); assembly.add(f);
+});
+
+const panelHome = { parent: assembly, pos: panel.position.clone(), quat: panel.quaternion.clone() };
+const fx = new Rupture(scene, RUPTURE_CFG);
+
+/* ── BLOOM ──────────────────────────────────────────────────────────────────
+   Same shape as the game's chain (cloud-cold-horizon.html section 8):
+   bright-pass at 1/2 res -> separable gaussian at 1/2 and 1/4 -> ACES composite.
+   This is the single largest reason v1 read as grey confetti: sunlit ice
+   against black is precisely the case bloom exists for. */
+const RT = (w,h)=> new THREE.WebGLRenderTarget(Math.max(2,w|0), Math.max(2,h|0), {
+  minFilter:THREE.LinearFilter, magFilter:THREE.LinearFilter,
+  type:THREE.HalfFloatType, depthBuffer:true });
+
+let sceneRT, brightRT, blurA1, blurA2, blurB1, blurB2;
+const fsScene = new THREE.Scene();
+const fsCam   = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const fsQuad  = new THREE.Mesh(new THREE.PlaneGeometry(2,2), null);
+fsScene.add(fsQuad);
+
+const brightMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiff:{value:null}, uThresh:{value:0.72}, uKnee:{value:0.34} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiff; uniform float uThresh, uKnee; varying vec2 vUv;
+    void main(){
+      vec3 c = texture2D(tDiff, vUv).rgb;
+      float l = dot(c, vec3(0.2126,0.7152,0.0722));
+      float s = clamp((l - uThresh + uKnee) / (2.0*uKnee), 0.0, 1.0);
+      float w = max(l - uThresh, s*s*uKnee) / max(l, 1e-5);
+      gl_FragColor = vec4(c*w, 1.0);
+    }`
+});
+
+const blurMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiff:{value:null}, uDir:{value:new THREE.Vector2(1,0)},
+             uRes:{value:new THREE.Vector2(1,1)} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tDiff; uniform vec2 uDir, uRes; varying vec2 vUv;
+    void main(){
+      float w[5]; w[0]=0.2270270270; w[1]=0.1945945946; w[2]=0.1216216216;
+      w[3]=0.0540540541; w[4]=0.0162162162;
+      vec2 t = uDir / uRes;
+      vec3 c = texture2D(tDiff, vUv).rgb * w[0];
+      for(int i=1;i<5;i++){
+        c += texture2D(tDiff, vUv + t*float(i)).rgb * w[i];
+        c += texture2D(tDiff, vUv - t*float(i)).rgb * w[i];
+      }
+      gl_FragColor = vec4(c,1.0);
+    }`
+});
+
+const compMat = new THREE.ShaderMaterial({
+  uniforms:{ tScene:{value:null}, tB1:{value:null}, tB2:{value:null},
+             uBloom:{value:0.85} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }`,
+  fragmentShader:`
+    uniform sampler2D tScene, tB1, tB2; uniform float uBloom; varying vec2 vUv;
+    // Narkowicz ACES: cheap, and it stops bright cores clipping to flat white
+    vec3 aces(vec3 x){
+      const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14;
+      return clamp((x*(a*x+b))/(x*(c*x+d)+e), 0.0, 1.0);
+    }
+    void main(){
+      vec2 d = vUv - 0.5;
+      float ca = 0.0016 * dot(d,d);           // slight optical CA at the edges
+      vec3 col;
+      col.r = texture2D(tScene, vUv + d*ca).r;
+      col.g = texture2D(tScene, vUv).g;
+      col.b = texture2D(tScene, vUv - d*ca).b;
+      col += (texture2D(tB1,vUv).rgb*0.62 + texture2D(tB2,vUv).rgb*0.38) * uBloom;
+      gl_FragColor = vec4(aces(col), 1.0);
+    }`
+});
+
+let bloomOn = true;
+function sizeTargets(){
+  const w = innerWidth, h = innerHeight;
+  [sceneRT,brightRT,blurA1,blurA2,blurB1,blurB2].forEach(t=>t&&t.dispose());
+  sceneRT  = RT(w,h);
+  brightRT = RT(w/2,h/2);
+  blurA1   = RT(w/2,h/2); blurA2 = RT(w/2,h/2);
+  blurB1   = RT(w/4,h/4); blurB2 = RT(w/4,h/4);
+}
+sizeTargets();
+
+function blurPass(src, dst, w, h){
+  fsQuad.material = blurMat;
+  blurMat.uniforms.tDiff.value = src.texture;
+  blurMat.uniforms.uRes.value.set(w,h);
+  blurMat.uniforms.uDir.value.set(1,0);
+  renderer.setRenderTarget(dst); renderer.render(fsScene, fsCam);
+  blurMat.uniforms.tDiff.value = dst.texture;
+  blurMat.uniforms.uDir.value.set(0,1);
+  renderer.setRenderTarget(src); renderer.render(fsScene, fsCam);
+  return src;
+}
+
+function renderFrame(){
+  if(!bloomOn){
+    renderer.setRenderTarget(null); renderer.render(scene, camera); return;
+  }
+  renderer.setRenderTarget(sceneRT); renderer.render(scene, camera);
+
+  fsQuad.material = brightMat;
+  brightMat.uniforms.tDiff.value = sceneRT.texture;
+  renderer.setRenderTarget(brightRT); renderer.render(fsScene, fsCam);
+
+  // half res
+  fsQuad.material = blurMat;
+  blurMat.uniforms.tDiff.value = brightRT.texture;
+  blurMat.uniforms.uRes.value.set(innerWidth/2, innerHeight/2);
+  blurMat.uniforms.uDir.value.set(1,0);
+  renderer.setRenderTarget(blurA1); renderer.render(fsScene, fsCam);
+  blurPass(blurA1, blurA2, innerWidth/2, innerHeight/2);
+
+  // quarter res, fed from the half-res result for a wider skirt
+  fsQuad.material = blurMat;
+  blurMat.uniforms.tDiff.value = blurA1.texture;
+  blurMat.uniforms.uRes.value.set(innerWidth/4, innerHeight/4);
+  blurMat.uniforms.uDir.value.set(1,0);
+  renderer.setRenderTarget(blurB1); renderer.render(fsScene, fsCam);
+  blurPass(blurB1, blurB2, innerWidth/4, innerHeight/4);
+
+  fsQuad.material = compMat;
+  compMat.uniforms.tScene.value = sceneRT.texture;
+  compMat.uniforms.tB1.value    = blurA1.texture;
+  compMat.uniforms.tB2.value    = blurB1.texture;
+  renderer.setRenderTarget(null); renderer.render(fsScene, fsCam);
+}
+
+/* ── camera ── */
+const PRESETS = [
+  {p:new THREE.Vector3( 18,  7, 23), t:new THREE.Vector3(0,1,0)},    // 1 three-quarter
+  {p:new THREE.Vector3(  2, 17, 34), t:new THREE.Vector3(0,-1,0)},   // 2 wide, station in frame
+  {p:new THREE.Vector3(  7, 1.8, 8), t:new THREE.Vector3(0,2.2,0)},  // 3 close on the tear
+];
+let orbit = {r:28, th:0.9, ph:1.15, tgt:new THREE.Vector3(0,1,0)};
+function applyPreset(i){
+  const P = PRESETS[i]; if(!P) return;
+  const d = P.p.clone().sub(P.t);
+  orbit.r = d.length();
+  orbit.th = Math.atan2(d.x, d.z);
+  orbit.ph = Math.acos(THREE.MathUtils.clamp(d.y/orbit.r, -1, 1));
+  orbit.tgt.copy(P.t);
+}
+applyPreset(0);
+function placeCamera(){
+  const s = Math.sin(orbit.ph);
+  camera.position.set(
+    orbit.tgt.x + orbit.r*s*Math.sin(orbit.th),
+    orbit.tgt.y + orbit.r*Math.cos(orbit.ph),
+    orbit.tgt.z + orbit.r*s*Math.cos(orbit.th));
+  camera.lookAt(orbit.tgt);
+}
+
+/* ── input ── */
+let drag=false, lx=0, ly=0, paused=false;
+addEventListener('mousedown', e=>{ if(e.target===renderer.domElement){drag=true;lx=e.clientX;ly=e.clientY;} });
+addEventListener('mouseup',   ()=> drag=false);
+addEventListener('mousemove', e=>{
+  if(!drag) return;
+  orbit.th -= (e.clientX-lx)*0.006;
+  orbit.ph = THREE.MathUtils.clamp(orbit.ph - (e.clientY-ly)*0.006, 0.08, Math.PI-0.08);
+  lx=e.clientX; ly=e.clientY;
+});
+addEventListener('wheel', e=>{
+  orbit.r = THREE.MathUtils.clamp(orbit.r*(1+Math.sign(e.deltaY)*0.09), 4, 400);
+}, {passive:true});
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); sizeTargets();
+});
+
+function replay(){
+  fx.reset();
+  panelHome.parent.add(panel);
+  panel.position.copy(panelHome.pos);
+  panel.quaternion.copy(panelHome.quat);
+  assembly.rotation.y = 0;
+  fx.trigger(assembly, panel, ribs);
+}
+
+/* Applying a variant overwrites only the keys it declares, so a variant that
+   omits tPreVent inherits the base rather than silently keeping the previous
+   variant's value. _base is captured before anything mutates RUPTURE_CFG. */
+const _base = Object.assign({}, RUPTURE_CFG);
+const VARIANT_KEYS = Object.keys(VARIANTS);
+function applyVariant(name){
+  const v = VARIANTS[name]; if(!v) return;
+  Object.assign(RUPTURE_CFG, _base);
+  for(const k in v){ if(!k.startsWith('_')) RUPTURE_CFG[k] = v[k]; }
+  document.getElementById('vname').textContent = v._name;
+  document.getElementById('vnote').textContent = v._note;
+  document.querySelectorAll('#variants button').forEach(b=>{
+    const on = b.dataset.v === name;
+    b.style.borderColor = on ? 'var(--cyan)' : 'var(--edge)';
+    b.style.color       = on ? 'var(--cyan)' : 'var(--cyan-dim)';
+  });
+  // Push new values into the sliders so they never show stale numbers.
+  document.querySelectorAll('#sliders .row').forEach(row=>{
+    const key = row.dataset.key; if(!key) return;
+    const inp = row.querySelector('input'), val = row.querySelector('.val');
+    inp.value = RUPTURE_CFG[key]; val.textContent = RUPTURE_CFG[key];
+  });
+  replay();
+}
+
+document.getElementById('replay').onclick = replay;
+addEventListener('keydown', e=>{
+  const k = e.key.toLowerCase();
+  if(k==='r') replay();
+  if(k===' '){ paused = !paused; e.preventDefault(); }
+  if(k==='1') applyPreset(0);
+  if(k==='2') applyPreset(1);
+  if(k==='3') applyPreset(2);
+  if(k==='b') bloomOn = !bloomOn;
+  // 4..7 select a variant. Index derived from VARIANTS order, never hardcoded.
+  const n = parseInt(k,10);
+  if(n >= 4 && n <= 3 + VARIANT_KEYS.length) applyVariant(VARIANT_KEYS[n-4]);
+  if(k==='h'){ const u=document.getElementById('ui'); u.style.display = u.style.display==='none'?'':'none'; }
+});
+
+/* ── sliders, generated from a table so a new tunable is one line ── */
+const SLIDERS = [
+  ['TIMELINE'],
+  ['tVent','breach at',0,8,0.05], ['tArc','arc at',0,8,0.05],
+  ['tShear','shear at',0,9,0.05], ['tVentDecay','decay at',0.2,12,0.05],
+  ['tSettle','settle at',2,24,0.5],
+  ['RIB CASCADE'],
+  ['ribCount','ribs',0,7,1], ['ribDelay','first rib',0,2,0.02],
+  ['ribStagger','stagger',0,1,0.01], ['ribRate','rib rate',0,1,0.02],
+  ['COOLANT JET'],
+  ['jetRate','rate',0,9000,50], ['jetSpeed','speed',2,140,1],
+  ['jetSpread','spread',0.01,1.2,0.01], ['jetLife','life',0.4,7,0.1],
+  ['jetSize','size',0.03,1.0,0.01], ['jetJitter','jitter',0,1,0.02],
+  ['DEBRIS + PANEL'],
+  ['debrisCount','count',0,96,1], ['debrisSpeed','speed',0.5,40,0.5],
+  ['debrisSpin','spin',0,8,0.1], ['debrisSpread','spread',0,1,0.02],
+  ['panelDrift','panel drift',0,20,0.1], ['panelTumble','panel tumble',0,3,0.05],
+  ['REACTION + LIGHT'],
+  ['reactionYaw','vent thrust',0,4,0.05], ['arcIntensity','arc power',0,200,1],
+  ['arcMs','arc ms',10,900,10], ['glowCoolSec','glow cool s',0.5,40,0.5],
+];
+const host = document.getElementById('sliders');
+SLIDERS.forEach(s=>{
+  if(s.length===1){
+    const d=document.createElement('div'); d.className='grp';
+    d.innerHTML = `<b>${s[0]}</b>`; host.appendChild(d); return;
+  }
+  const [key,label,min,max,step] = s;
+  const row=document.createElement('div'); row.className='row';
+  // data-key is what lets applyVariant push new values back into the sliders.
+  row.dataset.key = key;
+  row.innerHTML = `<label>${label}</label>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${RUPTURE_CFG[key]}">
+    <span class="val">${RUPTURE_CFG[key]}</span>`;
+  const inp=row.querySelector('input'), val=row.querySelector('.val');
+  inp.oninput = ()=>{ RUPTURE_CFG[key] = parseFloat(inp.value); val.textContent = inp.value; };
+  host.appendChild(row);
+});
+
+/* Variant buttons, generated from VARIANTS so data-v always names a real key. */
+const vhost = document.getElementById('variants');
+VARIANT_KEYS.forEach((name,i)=>{
+  const b = document.createElement('button');
+  b.dataset.v = name;
+  b.textContent = `${i+4} · ${VARIANTS[name]._name.split('·')[1].trim()}`;
+  b.onclick = ()=> applyVariant(name);
+  vhost.appendChild(b);
+});
+
+/* ── loop ── */
+const tv=document.getElementById('tval'), ph=document.getElementById('phase'),
+      ct=document.getElementById('counts');
+let last = performance.now();
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt = Math.min((now-last)/1000, 0.05); last = now;
+  if(!paused) fx.update(dt);
+  placeCamera();
+  tv.textContent = 'T+' + fx.t.toFixed(2);
+  ph.textContent = fx.done ? 'HELIOS-7 OFFLINE' : fx.phase();
+  ct.textContent = `${fx.liveCount|0} crystals · ${fx.debris.count} frag · `
+                 + `${fx.ventsOpen()}/${fx.vents.length} vents`
+                 + (bloomOn ? '' : ' · BLOOM OFF');
+  renderFrame();
+}
+/* Boot on variant A. applyVariant calls replay itself and must run AFTER the
+   sliders and buttons exist, since it writes into both. */
+applyVariant('documentary');
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
