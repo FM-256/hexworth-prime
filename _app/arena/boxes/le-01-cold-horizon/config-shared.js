@@ -258,7 +258,17 @@ const ColdHorizonConfig = {
                 + 'it trustworthy when the logs disagree?' },
         { id: 'm4-signed-in-ash', gradable: false, mission: 4, points: 100,
           prompt: 'The signature verifies. State what that does and does not establish '
-                + 'about the origin of this command, and name the two controls that failed.' }
+                + 'about the origin of this command, and name the two controls that failed.' },
+        { id: 'm8-partition-zero', gradable: false, mission: 8, points: 100,
+          prompt: 'Is this node a legitimate member of partition 0x7fff, and what establishes that independently of the Subnet Manager?' },
+        { id: 'm9-nightjar', gradable: false, mission: 9, points: 100,
+          prompt: 'What is actually running, and what establishes that it did not come from the ground?' },
+        { id: 'm10-redundant-truth', gradable: false, mission: 10, points: 100,
+          prompt: 'How far back is the thermal record trustworthy, and what marks the boundary?' },
+        { id: 'm11-eidolon', gradable: false, mission: 11, points: 100,
+          prompt: 'Is EIDOLON faulty, and what does its confidence actually measure?' },
+        { id: 'm12-heat-debt', gradable: false, mission: 12, points: 100,
+          prompt: 'Can the remaining panels carry HELIOS-7\'s load for the containment window, and what did you measure to know?' }
     ],
 
     missions: [
@@ -330,6 +340,61 @@ const ColdHorizonConfig = {
                 corroboratorsRequired: 1,
                 corroboratorFamily: 'platform'
             }
+        },
+        {
+            id: 8,
+            title: 'Partition Zero',
+            objective: 'Establish whether the rogue node\'s fabric membership is legitimate, and what the Subnet Manager can and cannot vouch for.',
+            learningFocus: 'Fabric segmentation; an authority cannot corroborate itself',
+            phaseOutput: 'Rogue member isolated',
+            flagId: 'm8-partition-zero',
+            zone: 'z1',
+            revealGate: { necessaries: ['sm-views-are-one-authority', 'hardware-counter-independent'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 9,
+            title: 'Nightjar',
+            objective: 'Establish what is actually executing on the platform and where it came from, given an approved tag.',
+            learningFocus: 'Container and workload security; a tag is a pointer, a digest is the content',
+            phaseOutput: 'Orbital origin established',
+            flagId: 'm9-nightjar',
+            zone: 'z1',
+            revealGate: { necessaries: ['tag-is-not-digest', 'never-pulled-from-terran-registry'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 10,
+            title: 'Redundant Truth',
+            objective: 'Establish how far back the thermal record can be trusted and where the forgery boundary sits.',
+            learningFocus: 'Telemetry integrity; replication protects against loss, not forgery',
+            phaseOutput: 'Forgery boundary located',
+            flagId: 'm10-redundant-truth',
+            zone: 'z1',
+            revealGate: { necessaries: ['replicas-share-one-writer', 'write-once-record-off-platform'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 11,
+            title: 'Eidolon',
+            objective: 'Establish whether EIDOLON\'s autonomy is faulty or its inputs are, and what that means for trusting it.',
+            learningFocus: 'AI assurance and data provenance; a model is only as good as what it is shown',
+            phaseOutput: 'AI cleared as constrained ally',
+            flagId: 'm11-eidolon',
+            zone: 'z1',
+            revealGate: { necessaries: ['eidolon-inputs-are-the-shared-channels', 'offline-replay-reaches-the-right-call'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 12,
+            title: 'Heat Debt',
+            objective: 'Establish the real thermal headroom on the remaining panels and decide whether the containment plan survives it.',
+            learningFocus: 'Cyber-physical response; acting on a measured bound rather than a quoted one',
+            phaseOutput: 'Platform survives containment window',
+            flagId: 'm12-heat-debt',
+            zone: 'z1',
+            revealGate: { necessaries: ['capacity-figure-shares-the-bad-family', 'ir-survey-shows-a-hot-panel'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
         }
     ],
 
@@ -366,6 +431,36 @@ const ColdHorizonConfig = {
             'Read the audience claim, and read which service actually accepted the frame. '
             + 'A token can validate and still never have been issued for the thing that '
             + 'honoured it.'
+        ],
+        'm8-partition-zero': [
+            'Three records agree the node belongs. Ask what PRODUCED all three before you ask what they say.',
+            'A Subnet Manager\'s config, its membership table and its own audit log are one authority speaking three times.',
+            'Which record about that port was not written by the fabric control plane at all?',
+            'A port counter is hardware. It counts frames whether or not the SM believes anything is attached.'
+        ],
+        'm9-nightjar': [
+            'The tag matches. Ask what a tag IS before you decide what it proves.',
+            'A build attestation and an SBOM produced by the same pipeline are one statement, not two.',
+            'Read what the runtime says is executing, not what the registry says was deployed.',
+            'If the image never crossed the link it was not deployed from the ground. That is the origin, established rather than assumed.'
+        ],
+        'm10-redundant-truth': [
+            'Three replicas agree to the sample. Ask what WROTE them.',
+            'Replication protects against loss. It says nothing about a forgery upstream of the writer.',
+            'One record here was written before the replicas, by a different path. Find the gap in it.',
+            'The boundary is the last record that cannot be rewritten: written on the ground, as the bits arrived, on write-once media.'
+        ],
+        'm11-eidolon': [
+            'EIDOLON has disagreed with the platform all along. Every earlier mission taught suspicion of agreement, not of dissent.',
+            'A system reporting no internal fault, over the bus it reads, is reporting on itself.',
+            'Ask what its thermal inputs ARE before you judge its conclusions.',
+            'It reads TH-1 and TH-3. It has been reasoning correctly about a panel it was never shown.'
+        ],
+        'm12-heat-debt': [
+            'The headroom figure looks comfortable. Ask which system produced it.',
+            'The quoted capacity comes from the same telemetry family that has been wrong about HELIOS-7 since the first alarm.',
+            'You have an infrared camera and three panels. Nameplate ratings are not measurements.',
+            'One of the three is already running hot, and a degraded coating radiates less for the same temperature.'
         ],
         'm1-independence': [
             'Two readings agree. Ask what they have in common before you ask what they mean.',

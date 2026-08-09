@@ -295,3 +295,222 @@ if (typeof ColdHorizonConfig !== 'undefined') {
     ColdHorizonConfig.missionData = ColdHorizonMissions;
 }
 if (typeof module !== 'undefined' && module.exports) module.exports = ColdHorizonMissions;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MISSIONS 8-12 — Acts III and IV
+   ═══════════════════════════════════════════════════════════════════════════
+   Merged rather than spliced into the literal above, so adding a mission never
+   requires surgery inside a 300-line object.
+
+   THE AXES CHANGE EVERY TIME, on purpose. By mission 8 a player has run the
+   independence test three ways and the risk stops being "can they do it" and
+   becomes "have they memorised a checklist". Fabric membership, image
+   provenance, replica writers, model inputs and thermal basis share no
+   vocabulary, so the only thing that carries between them is the question:
+   what do these agreeing sources have in common?
+   ═══════════════════════════════════════════════════════════════════════════ */
+Object.assign(ColdHorizonMissions, {
+
+    /* 8 — PARTITION ZERO. Three views agree the rogue node is a legitimate
+       member, and all three are the Subnet Manager describing itself: its
+       config, the table it produced, and the audit log it writes. The witness
+       is a hardware port counter, which counts frames whether or not the SM
+       believes anything is attached. Real anchor: InfiniBand P_Key membership. */
+    8: {
+        axes: ['authority', 'collectionPath', 'signingAuthority'],
+        situation: 'A node holds full membership of partition 0x7fff and is reachable by '
+                 + 'every workload on the fabric. Nothing on record says it should exist. '
+                 + 'Establish whether its membership is legitimate before anything is isolated.',
+        sensors: [
+            { id: 'sm-table', name: 'Subnet Manager membership table', reading: 'MEMBER, P_Key 0x7fff', unit: '',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              note: 'The SM lists the node as a full member of the default partition.' },
+            { id: 'sm-config', name: 'Partition configuration file', reading: 'CONFIRMS MEMBERSHIP', unit: '',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              note: 'The config the SM loaded. It agrees with the table it produced.' },
+            { id: 'sm-audit', name: 'Fabric audit log', reading: 'NO UNAUTHORISED JOIN', unit: '',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/audit', signingAuthority: 'astraea-fabric-ca',
+              note: 'Written by the SM. Silence here is the SM reporting on itself.' }
+        ],
+        corroborators: [
+            { id: 'port-counter', name: 'Leaf switch port counter, physical',
+              value: '412 GB since 06:02Z on a port with no assigned host', unit: '',
+              authority: 'switch-asic', collectionPath: 'fabric/hw/counters', signingAuthority: 'switch-hw-attest',
+              reasoning: 'A port counter is hardware. It counts frames whether or not the Subnet '
+                       + 'Manager believes anything is attached, so it cannot be edited by editing '
+                       + 'the partition table.' },
+            { id: 'sm-standby', name: 'Standby Subnet Manager view', value: 'NODE ABSENT FROM ITS LAST SYNC', unit: '',
+              authority: 'opensm-standby', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              reasoning: 'A second SM, but it shares the state path and the signing authority with '
+                       + 'the primary. Useful, and not independent.' },
+            { id: 'cable-map', name: 'Physical cable inventory, hand-recorded',
+              value: 'PORT 14 UNPOPULATED AT LAST WALKDOWN', unit: '',
+              authority: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'A human wrote this on the deck. Shares nothing with the fabric control '
+                       + 'plane, and it says nothing should be on that port.' }
+        ]
+    },
+
+    /* 9 — NIGHTJAR. The image TAG matches the approved release; the DIGEST does
+       not. A tag is a mutable pointer, a digest is the content. Two attestations
+       vouch for the image and both came out of the same build pipeline, so they
+       are one statement. The witness is the running container's own layer hash,
+       read off the orbital host rather than from the registry describing it. */
+    9: {
+        axes: ['producer', 'collectionPath', 'signingAuthority'],
+        situation: 'A workload is executing on ASTRAEA-9 that appears in no deployment record. '
+                 + 'It presents the approved image tag. Establish what is actually running, and '
+                 + 'where it came from.',
+        sensors: [
+            { id: 'img-tag', name: 'Deployed image tag', reading: 'astraea/telemetry:2.4.1 (APPROVED)', unit: '',
+              producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              note: 'The tag matches the approved release exactly.' },
+            { id: 'img-attest', name: 'Build attestation for 2.4.1', reading: 'SIGNED, CHAIN VALID', unit: '',
+              producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              note: 'The build farm attesting to its own output.' },
+            { id: 'sbom', name: 'SBOM for the approved release', reading: 'NO UNEXPECTED COMPONENTS', unit: '',
+              producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              note: 'Generated by the same pipeline from the same inputs.' }
+        ],
+        corroborators: [
+            { id: 'layer-hash', name: 'Running container layer digest, read on the host',
+              value: 'sha256:1c7e... DOES NOT MATCH THE TAGGED DIGEST', unit: '',
+              producer: 'astraea-runtime', collectionPath: 'platform/containerd', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'A tag is a mutable pointer; a digest is the content. This is what is '
+                       + 'actually executing, read from the runtime rather than from the registry '
+                       + 'that describes it.' },
+            { id: 'egress-flow', name: 'Orbital gateway egress flow record',
+              value: 'OUTBOUND TO AN ADDRESS IN NO ALLOWLIST', unit: '',
+              producer: 'orbital-gateway', collectionPath: 'platform/netflow', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'Shares a signing authority with the runtime, so it corroborates the '
+                       + 'platform account rather than standing apart from it.' },
+            { id: 'reg-pull-log', name: 'Registry pull log for this digest',
+              value: 'NEVER PULLED FROM THE TERRAN REGISTRY', unit: '',
+              producer: 'terran-registry', collectionPath: 'registry/access', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'If the image never crossed the link, it was not deployed from the ground. '
+                       + 'That is the orbital origin, established rather than assumed.' }
+        ]
+    },
+
+    /* 10 — REDUNDANT TRUTH. Three replicas agree because ONE writer feeds all
+       three. Replication protects against LOSS; it does nothing about forgery
+       upstream of the writer. Mission 1's shape, one level further out. The
+       forgery boundary is the ground downlink recording: written as the bits
+       arrived, on write-once media, on the far side of the link. */
+    10: {
+        axes: ['writer', 'collectionPath', 'signingAuthority'],
+        situation: 'The thermal history for HELIOS-7 is stored in three replicas and they agree '
+                 + 'to the sample. Establish how far back the record can be trusted, and where '
+                 + 'the forgery boundary sits.',
+        sensors: [
+            { id: 'rep-a', name: 'Replica A, primary store', reading: 'NOMINAL THROUGHOUT', unit: '',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              note: 'Fed by the ingest writer.' },
+            { id: 'rep-b', name: 'Replica B, hot standby', reading: 'IDENTICAL TO A', unit: '',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              note: 'Byte-identical. Same writer, so identity is expected, not evidence.' },
+            { id: 'rep-c', name: 'Replica C, cold archive', reading: 'IDENTICAL TO A', unit: '',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb-archive', signingAuthority: 'astraea-telemetry-ca',
+              note: 'Different store, same writer.' }
+        ],
+        corroborators: [
+            { id: 'wal-gap', name: 'Write-ahead log continuity', value: 'SEQUENCE BREAK 06:08Z TO 06:11Z', unit: '',
+              writer: 'tsdb-wal', collectionPath: 'platform/tsdb-wal', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'The WAL is written before the replicas and by a different path. A gap '
+                       + 'there with no gap in the replicas means the replicas were written from '
+                       + 'something other than the live stream.' },
+            { id: 'downlink-tape', name: 'Ground downlink recording, write-once', value: 'SHOWS 58.9 C AT 06:09Z', unit: '',
+              writer: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca',
+              reasoning: 'Recorded on the ground as the bits arrived, on write-once media, by a '
+                       + 'system on the other side of the link from every replica. This is the '
+                       + 'boundary: everything after it can be rewritten, and this cannot.' },
+            { id: 'rep-checksum', name: 'Replica checksum service', value: 'ALL THREE MATCH', unit: '',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              reasoning: 'Confirms the replicas agree with each other. That was never in doubt and '
+                       + 'is not the question.' }
+        ]
+    },
+
+    /* 11 — EIDOLON. The payoff of the whole box, and the trap is INVERTED. Every
+       earlier mission taught suspicion of the source that agrees with the crowd;
+       here the temptation is to distrust the one that has been disagreeing. It
+       was never lying. Its confidence is a function of its inputs, and its
+       thermal inputs are TH-1 and TH-3 -- the two channels that share everything.
+       A competent operator on corrupted inputs, which is the canon description
+       from the design doc's first page. */
+    11: {
+        axes: ['inputPath', 'policyAuthority', 'signingAuthority'],
+        situation: 'EIDOLON has reported insufficient confidence since the first alarm and its '
+                 + 'recommendations have been conservative to the point of obstruction. Ops wants '
+                 + 'it taken out of the loop. Establish whether the autonomy is faulty or the '
+                 + 'inputs are.',
+        sensors: [
+            { id: 'eid-conf', name: 'EIDOLON confidence trace', reading: 'LOW SINCE 06:09Z', unit: '',
+              inputPath: 'platform/telemetry-bus', policyAuthority: 'eidolon-policy-v4', signingAuthority: 'astraea-platform-ca',
+              note: 'Confidence fell when the thermal channels diverged, not before.' },
+            { id: 'eid-policy', name: 'Autonomy policy in force', reading: 'WITHIN ENVELOPE', unit: '',
+              inputPath: 'platform/policy-store', policyAuthority: 'eidolon-policy-v4', signingAuthority: 'astraea-platform-ca',
+              note: 'The policy vouching for its own compliance.' },
+            { id: 'eid-selfcheck', name: 'EIDOLON self-assessment', reading: 'NO INTERNAL FAULT', unit: '',
+              inputPath: 'platform/telemetry-bus', policyAuthority: 'eidolon-policy-v4', signingAuthority: 'astraea-platform-ca',
+              note: 'The system reporting on itself, over the bus it reads.' }
+        ],
+        corroborators: [
+            { id: 'input-provenance', name: 'Provenance of EIDOLON input channels',
+              value: 'READS TH-1 AND TH-3, NOT TH-2', unit: '',
+              inputPath: 'ops/config-audit', policyAuthority: 'lagrange-ops', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'Its thermal inputs are the two channels that share a bus, a clock and a '
+                       + 'signing authority. It has been reasoning correctly about a panel it was '
+                       + 'never shown.' },
+            { id: 'policy-diff', name: 'Policy store diff since last release', value: 'UNCHANGED SINCE 2026-06-30', unit: '',
+              inputPath: 'ops/config-audit', policyAuthority: 'lagrange-ops', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'Nobody altered the autonomy envelope. Shares its path with the provenance '
+                       + 'record, so the two are one account of the config.' },
+            { id: 'replay-harness', name: 'Offline replay against the corrected inputs',
+              value: 'RECOMMENDS THE SAME ACTION YOU DID', unit: '',
+              inputPath: 'ground/replay-lab', policyAuthority: 'lagrange-ops', signingAuthority: 'gs-ranging-ca',
+              reasoning: 'Fed the same policy with TH-2 included, on the ground, off the platform '
+                       + 'entirely. It reaches the correct call. The reasoning was never the problem.' }
+        ]
+    },
+
+    /* 12 — HEAT DEBT. The first mission whose answer is an ACTION under
+       uncertainty rather than a finding. The obvious move is to shed HELIOS-7's
+       load onto the remaining panels, and the capacity figure everyone quotes
+       comes from the same telemetry family that has been wrong since mission 1.
+       The physical bound is what the panels can actually radiate, and one of the
+       three is already running hot. */
+    12: {
+        axes: ['basis', 'collectionPath', 'signingAuthority'],
+        situation: 'HELIOS-7 must come off the bus for containment. Its thermal load has to go '
+                 + 'somewhere for the length of the window. Establish what the remaining panels '
+                 + 'can actually reject, and decide whether the platform survives the plan.',
+        sensors: [
+            { id: 'cap-nominal', name: 'Rated capacity, remaining panels', reading: '3 x 4.2 kW = 12.6 kW', unit: '',
+              basis: 'design-spec', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca',
+              note: 'Nameplate rating at end-of-life margin, from the design pack.' },
+            { id: 'cap-telemetry', name: 'Reported current rejection', reading: '11.8 kW HEADROOM', unit: '',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              note: 'The same telemetry family that has been wrong about HELIOS-7.' },
+            { id: 'load-forecast', name: 'Load to be shed during the window', reading: '9.1 kW', unit: '',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              note: 'Derived from the same bus.' }
+        ],
+        corroborators: [
+            { id: 'ir-survey', name: 'Your own infrared survey of the three panels',
+              value: 'TWO AT 46 C, ONE AT 61 C', unit: '',
+              basis: 'rsv-infrared', collectionPath: 'rsv/optics', signingAuthority: 'rsv-payload-attest',
+              reasoning: 'Measured off the platform with the same instrument that settled mission 1. '
+                       + 'One of the three panels is already running hot, so the usable headroom is '
+                       + 'not what the nameplate implies.' },
+            { id: 'degradation', name: 'Panel degradation record', value: 'PANEL 3 COATING DEGRADED, 2031 SURVEY', unit: '',
+              basis: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'A hand-recorded survey explains the hot panel: its emissivity is down, so '
+                       + 'it radiates less for the same temperature.' },
+            { id: 'pump-margin', name: 'Coolant pump duty on the remaining loop', value: '94 PERCENT', unit: '',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              reasoning: 'Consistent with a loop already working hard. Same family as the capacity '
+                       + 'figure it would be used to confirm.' }
+        ]
+    }
+});

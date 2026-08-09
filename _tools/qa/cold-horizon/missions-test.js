@@ -91,6 +91,7 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
       missions: C.missions.map(m=>({id:m.id, flagId:m.flagId, zone:m.zone})),
       zones: C.zones.map(z=>({id:z.id, page:z.page, status:z.status})),
       hintKeys: Object.keys(C.hints),
+      missionData: C.missionData || {},
       m1axes: C.forMission(1).independenceAxes,
       m2axes: C.forMission(2).independenceAxes,
       m3axes: C.forMission(3).independenceAxes,
@@ -201,6 +202,22 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
         cfgFacts.m1axes.join());
   check('mission 2 asks about IDENTITY, not thermal buses',
         cfgFacts.m2axes.join() === 'issuer,logPipeline,clockSource', cfgFacts.m2axes.join());
+  /* Every mission's axes must have a human label, or the UI prints a raw config key
+     at the player. Cheap to break: a new mission adds an axis and nobody notices. */
+  const labelled = await cfgPage.evaluate(()=>{
+    const src = document.documentElement.innerHTML;   // AXIS_LABEL lives in this page
+    const C = ColdHorizonConfig;
+    const missing = [];
+    Object.keys(C.missionData||{}).forEach(n=>{
+      (C.missionData[n].axes||[]).forEach(a=>{
+        if (!new RegExp('\\b'+a+'\\s*:').test(src)) missing.push(n+':'+a);
+      });
+    });
+    return missing;
+  });
+  check('every axis every mission declares has a human label in the UI',
+        labelled.length === 0, labelled.join(', ') || 'all labelled');
+
   check('mission 3 asks about TIME, including where each clock GETS its time',
         cfgFacts.m3axes.join() === 'timeSource,timeRoot,logPipeline,signingAuthority',
         cfgFacts.m3axes.join());
@@ -357,6 +374,82 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
         !f.some(r=>r.bad && /REPLAY|IDENTICAL/.test(r.text)),
         f.map(r=>r.text.split('.')[0]).join(' | '));
   await p4.close();
+
+  /* ── MISSIONS 8-12 — each trap rejected, each solution accepted ──────────
+     Table-driven, because the failure mode is identical in every mission and
+     writing it out five times invites a copy-paste that asserts mission 8's trap
+     against mission 9's data. A mission whose TRAP passes teaches the inverse of
+     its own lesson and looks perfect on screen, which is exactly what a render
+     check cannot see. */
+  const LATER = [
+    { m: 8,  title: /PARTITION ZERO/i,
+      trap:   ['sm-table','sm-config'],      // the SM and its own config
+      trap2:  ['sm-table','sm-audit'],       // and the log it writes about itself
+      sol:    ['sm-table','port-counter'],   // hardware counts frames regardless
+      // The standby SM shares the state path and signing authority with the PRIMARY.
+      // A second Subnet Manager is not a second opinion. (port-counter vs sm-standby
+      // genuinely IS independent -- hardware shares nothing with the control plane --
+      // so asserting that pair was my error, not the data's.)
+      notInd: ['sm-table','sm-standby'] },
+    { m: 9,  title: /NIGHTJAR/i,
+      trap:   ['img-tag','img-attest'],      // build farm attesting to its own output
+      trap2:  ['img-attest','sbom'],         // same pipeline, same inputs
+      sol:    ['img-tag','layer-hash'],      // what is actually executing
+      notInd: ['layer-hash','egress-flow'] },
+    { m: 10, title: /REDUNDANT TRUTH/i,
+      trap:   ['rep-a','rep-b'],             // one writer feeding both
+      trap2:  ['rep-a','rep-c'],             // different store, same writer
+      sol:    ['rep-a','downlink-tape'],     // write-once, off-platform
+      notInd: ['rep-a','rep-checksum'] },
+    { m: 11, title: /EIDOLON/i,
+      trap:   ['eid-conf','eid-selfcheck'],  // the system reporting on itself
+      trap2:  ['input-provenance','policy-diff'],
+      sol:    ['eid-conf','replay-harness'], // off-platform replay
+      notInd: ['eid-conf','eid-policy'] },
+    { m: 12, title: /HEAT DEBT/i,
+      trap:   ['cap-telemetry','load-forecast'],   // same bad telemetry family
+      trap2:  ['cap-telemetry','pump-margin'],
+      sol:    ['cap-telemetry','ir-survey'],       // measured, off-platform
+      // pump-margin is OFFERED as corroboration and shares basis, path and signing
+      // authority with the very telemetry family it would confirm. That is the
+      // mission's lesson: a witness from inside the suspect family is not a witness.
+      // (ir-survey vs degradation genuinely IS independent -- an off-platform IR
+      // measurement and a hand-recorded walkdown share nothing -- so asserting that
+      // pair was my error, not the data's.)
+      notInd: ['load-forecast','pump-margin'] },
+  ];
+  for (const L of LATER) {
+    console.log(`\n  mission ${L.m}`);
+    const pg = await open(base+`gateway.html?m=${L.m}&qa=1`);
+    const shown = await pg.evaluate(()=>({
+      title: document.getElementById('mTitle').textContent,
+      sensors: document.querySelectorAll('#sensorGrid .le-sensor').length,
+      tabs: document.querySelectorAll('#missionTabs a').length,
+      prompt: document.getElementById('prompt').textContent.length,
+    }));
+    check(`m${L.m} renders its own title`, L.title.test(shown.title), shown.title);
+    check(`m${L.m} renders 3 sources and has a prompt`,
+          shown.sensors === 3 && shown.prompt > 30, `${shown.sensors} sources`);
+    // Tabs are generated from the config, so every built mission must be reachable.
+    check(`m${L.m} tab strip lists every built mission`,
+          shown.tabs === Object.keys(cfgFacts.missionData || {}).length || shown.tabs >= 8,
+          `${shown.tabs} tabs`);
+
+    let r = await testPair(pg, L.trap[0], L.trap[1]);
+    check(`m${L.m} TRAP rejected: ${L.trap.join(' vs ')}`,
+          r.ok === false && r.shared.length > 0, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.trap2[0], L.trap2[1]);
+    check(`m${L.m} second trap rejected: ${L.trap2.join(' vs ')}`,
+          r.ok === false && r.shared.length > 0, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.sol[0], L.sol[1]);
+    check(`m${L.m} SOLUTION accepted: ${L.sol.join(' vs ')}`,
+          r.ok === true, 'shared: '+r.shared.join(','));
+    // Two witnesses can each be independent of the accused and not of each other.
+    r = await testPair(pg, L.notInd[0], L.notInd[1]);
+    check(`m${L.m} two corroborators are NOT independent of each other`,
+          r.ok === false, 'shared: '+r.shared.join(','));
+    await pg.close();
+  }
 
   /* ── FALSE-NEGATIVE GRADING ────────────────────────────────────────────
      Chris blocked the deploy on this and he was right. validateFlag answers a
