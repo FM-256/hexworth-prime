@@ -263,11 +263,37 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
 
     // Mode 1: specific flagId provided
     if (flagId) {
-        const correctFlag = flags[flagId];
-        if (!correctFlag) {
+        /* Check the whole ALIAS GROUP for this flag, not just its canonical value.
+         *
+         * A box may seed several legitimate answers for one mission and alias the
+         * alternates to a single capture id. le-01-cold-horizon does exactly that:
+         * the accepted answer is the shared dependency a player discovered, and a
+         * mission's trap pair usually shares more than one axis, so reporting the
+         * shared issuer, the shared pipeline or the shared signing authority are
+         * all correct findings.
+         *
+         * Mode 2 already honoured that, because it scanned every value and then
+         * resolved through `aliases`. Mode 1 compared against `flags[flagId]`
+         * alone, so the moment a client started passing a flagId (to stop
+         * cross-mission mis-crediting, since real systems share dependency values
+         * and the same string can be the right answer to several missions) every
+         * alternate silently became wrong. A student giving a valid answer would
+         * be told they failed AND docked wrongAnswerPenalty -- 27 of 27 alternates
+         * across 15 missions, caught in review before it shipped.
+         *
+         * The cross-mission scoping is unchanged: candidates are still restricted
+         * to the one mission the caller named.
+         */
+        const aliasMap = flagDoc.data().aliases || {};
+        const candidates = Object.keys(flags).filter(
+            k => k === flagId || aliasMap[k] === flagId
+        );
+        if (!candidates.length) {
             throw new HttpsError('not-found', 'Flag not found.');
         }
-        const isCorrect = normalizedSubmission === correctFlag.trim().toLowerCase();
+        const isCorrect = candidates.some(
+            k => normalizedSubmission === String(flags[k]).trim().toLowerCase()
+        );
 
         if (isCorrect) {
             await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
