@@ -317,35 +317,39 @@ Object.assign(ColdHorizonMissions, {
        is a hardware port counter, which counts frames whether or not the SM
        believes anything is attached. Real anchor: InfiniBand P_Key membership. */
     8: {
-        axes: ['authority', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['authority','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'authority' here,
+           so it was a third name for one check rather than a third check. 'fabricLayer'
+           is ORTHOGONAL to provenance: A standby Subnet Manager is not a second opinion, it is the same control plane. Hardware counts frames regardless. */
+        axes: ['authority', 'fabricLayer', 'signingAuthority'],
         situation: 'A node holds full membership of partition 0x7fff and is reachable by '
                  + 'every workload on the fabric. Nothing on record says it should exist. '
                  + 'Establish whether its membership is legitimate before anything is isolated.',
         sensors: [
             { id: 'sm-table', name: 'Subnet Manager membership table', reading: 'MEMBER, P_Key 0x7fff', unit: '',
-              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca', fabricLayer: 'control plane',
               note: 'The SM lists the node as a full member of the default partition.' },
             { id: 'sm-config', name: 'Partition configuration file', reading: 'CONFIRMS MEMBERSHIP', unit: '',
-              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca', fabricLayer: 'control plane',
               note: 'The config the SM loaded. It agrees with the table it produced.' },
             { id: 'sm-audit', name: 'Fabric audit log', reading: 'NO UNAUTHORISED JOIN', unit: '',
-              authority: 'opensm-primary', collectionPath: 'fabric/sm/audit', signingAuthority: 'astraea-fabric-ca',
+              authority: 'opensm-primary', collectionPath: 'fabric/sm/audit', signingAuthority: 'astraea-fabric-ca', fabricLayer: 'control plane',
               note: 'Written by the SM. Silence here is the SM reporting on itself.' }
         ],
         corroborators: [
             { id: 'port-counter', name: 'Leaf switch port counter, physical',
               value: '412 GB since 06:02Z on a port with no assigned host', unit: '',
-              authority: 'switch-asic', collectionPath: 'fabric/hw/counters', signingAuthority: 'switch-hw-attest',
+              authority: 'switch-asic', collectionPath: 'fabric/hw/counters', signingAuthority: 'switch-hw-attest', fabricLayer: 'data plane',
               reasoning: 'A port counter is hardware. It counts frames whether or not the Subnet '
                        + 'Manager believes anything is attached, so it cannot be edited by editing '
                        + 'the partition table.' },
             { id: 'sm-standby', name: 'Standby Subnet Manager view', value: 'NODE ABSENT FROM ITS LAST SYNC', unit: '',
-              authority: 'opensm-standby', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca',
+              authority: 'opensm-standby', collectionPath: 'fabric/sm/state', signingAuthority: 'astraea-fabric-ca', fabricLayer: 'control plane',
               reasoning: 'A second SM, but it shares the state path and the signing authority with '
                        + 'the primary. Useful, and not independent.' },
             { id: 'cable-map', name: 'Physical cable inventory, hand-recorded',
               value: 'PORT 14 UNPOPULATED AT LAST WALKDOWN', unit: '',
-              authority: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca',
+              authority: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca', fabricLayer: 'physical layer',
               reasoning: 'A human wrote this on the deck. Shares nothing with the fabric control '
                        + 'plane, and it says nothing should be on that port.' }
         ]
@@ -357,36 +361,59 @@ Object.assign(ColdHorizonMissions, {
        are one statement. The witness is the running container's own layer hash,
        read off the orbital host rather than from the registry describing it. */
     9: {
-        axes: ['producer', 'collectionPath', 'signingAuthority'],
+        /* PILOT 2026-08-09, axis variation. WAS ['producer','collectionPath','signingAuthority'].
+           Those three were not three checks, they were one: measured across this box, every
+           source that shares `producer` also shares `collectionPath` AND `signingAuthority`,
+           so eleven of thirteen missions ended in the same two axes and a player learned one
+           transferable checklist. `collectionPath` is dropped here because it is perfectly
+           correlated with `producer` in this mission and therefore carries no information.
+
+           `observationPoint` replaces it because it is ORTHOGONAL to provenance and it IS this
+           mission's lesson: a build-time attestation cannot answer a run-time question. The
+           three registry artifacts are claims made before the workload ever ran; the layer
+           digest and the egress record are observations of it running. Corroborating a tag
+           with an attestation now fails for the reason the mission is about, not merely
+           because both came down the same pipe. */
+        axes: ['producer', 'observationPoint', 'signingAuthority'],
         situation: 'A workload is executing on ASTRAEA-9 that appears in no deployment record. '
                  + 'It presents the approved image tag. Establish what is actually running, and '
                  + 'where it came from.',
         sensors: [
             { id: 'img-tag', name: 'Deployed image tag', reading: 'astraea/telemetry:2.4.1 (APPROVED)', unit: '',
               producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              observationPoint: 'build-time claim',
               note: 'The tag matches the approved release exactly.' },
             { id: 'img-attest', name: 'Build attestation for 2.4.1', reading: 'SIGNED, CHAIN VALID', unit: '',
               producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              observationPoint: 'build-time claim',
               note: 'The build farm attesting to its own output.' },
             { id: 'sbom', name: 'SBOM for the approved release', reading: 'NO UNEXPECTED COMPONENTS', unit: '',
               producer: 'terran-buildfarm', collectionPath: 'registry/metadata', signingAuthority: 'buildfarm-ca',
+              observationPoint: 'build-time claim',
               note: 'Generated by the same pipeline from the same inputs.' }
         ],
         corroborators: [
             { id: 'layer-hash', name: 'Running container layer digest, read on the host',
               value: 'sha256:1c7e... DOES NOT MATCH THE TAGGED DIGEST', unit: '',
               producer: 'astraea-runtime', collectionPath: 'platform/containerd', signingAuthority: 'astraea-platform-ca',
+              observationPoint: 'run-time observation',
               reasoning: 'A tag is a mutable pointer; a digest is the content. This is what is '
                        + 'actually executing, read from the runtime rather than from the registry '
                        + 'that describes it.' },
             { id: 'egress-flow', name: 'Orbital gateway egress flow record',
               value: 'OUTBOUND TO AN ADDRESS IN NO ALLOWLIST', unit: '',
               producer: 'orbital-gateway', collectionPath: 'platform/netflow', signingAuthority: 'astraea-platform-ca',
+              observationPoint: 'run-time observation',
               reasoning: 'Shares a signing authority with the runtime, so it corroborates the '
                        + 'platform account rather than standing apart from it.' },
             { id: 'reg-pull-log', name: 'Registry pull log for this digest',
               value: 'NEVER PULLED FROM THE TERRAN REGISTRY', unit: '',
               producer: 'terran-registry', collectionPath: 'registry/access', signingAuthority: 'lagrange-ops-ca',
+              /* A THIRD value on purpose, not a build claim and not a run observation. This is
+                 a record of a TRANSFER, and that is exactly why it is the source that settles
+                 orbital origin: it sits at a vantage neither the build farm nor the platform
+                 occupies, so it is independent of both on this axis. */
+              observationPoint: 'transfer record',
               reasoning: 'If the image never crossed the link, it was not deployed from the ground. '
                        + 'That is the orbital origin, established rather than assumed.' }
         ]
@@ -398,34 +425,38 @@ Object.assign(ColdHorizonMissions, {
        forgery boundary is the ground downlink recording: written as the bits
        arrived, on write-once media, on the far side of the link. */
     10: {
-        axes: ['writer', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['writer','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'writer' here,
+           so it was a third name for one check rather than a third check. 'mutability'
+           is ORTHOGONAL to provenance: Three replicas of a rewritable store are one rewrite. Write-once is where the record starts meaning something. */
+        axes: ['writer', 'mutability', 'signingAuthority'],
         situation: 'The thermal history for HELIOS-7 is stored in three replicas and they agree '
                  + 'to the sample. Establish how far back the record can be trusted, and where '
                  + 'the forgery boundary sits.',
         sensors: [
             { id: 'rep-a', name: 'Replica A, primary store', reading: 'NOMINAL THROUGHOUT', unit: '',
-              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca', mutability: 'rewritable',
               note: 'Fed by the ingest writer.' },
             { id: 'rep-b', name: 'Replica B, hot standby', reading: 'IDENTICAL TO A', unit: '',
-              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca', mutability: 'rewritable',
               note: 'Byte-identical. Same writer, so identity is expected, not evidence.' },
             { id: 'rep-c', name: 'Replica C, cold archive', reading: 'IDENTICAL TO A', unit: '',
-              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb-archive', signingAuthority: 'astraea-telemetry-ca',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb-archive', signingAuthority: 'astraea-telemetry-ca', mutability: 'rewritable',
               note: 'Different store, same writer.' }
         ],
         corroborators: [
             { id: 'wal-gap', name: 'Write-ahead log continuity', value: 'SEQUENCE BREAK 06:08Z TO 06:11Z', unit: '',
-              writer: 'tsdb-wal', collectionPath: 'platform/tsdb-wal', signingAuthority: 'astraea-platform-ca',
+              writer: 'tsdb-wal', collectionPath: 'platform/tsdb-wal', signingAuthority: 'astraea-platform-ca', mutability: 'append-only',
               reasoning: 'The WAL is written before the replicas and by a different path. A gap '
                        + 'there with no gap in the replicas means the replicas were written from '
                        + 'something other than the live stream.' },
             { id: 'downlink-tape', name: 'Ground downlink recording, write-once', value: 'SHOWS 58.9 C AT 06:09Z', unit: '',
-              writer: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca',
+              writer: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca', mutability: 'write-once',
               reasoning: 'Recorded on the ground as the bits arrived, on write-once media, by a '
                        + 'system on the other side of the link from every replica. This is the '
                        + 'boundary: everything after it can be rewritten, and this cannot.' },
             { id: 'rep-checksum', name: 'Replica checksum service', value: 'ALL THREE MATCH', unit: '',
-              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca',
+              writer: 'tsdb-ingest-1', collectionPath: 'platform/tsdb', signingAuthority: 'astraea-telemetry-ca', mutability: 'rewritable',
               reasoning: 'Confirms the replicas agree with each other. That was never in doubt and '
                        + 'is not the question.' }
         ]
@@ -481,34 +512,38 @@ Object.assign(ColdHorizonMissions, {
        The physical bound is what the panels can actually radiate, and one of the
        three is already running hot. */
     12: {
-        axes: ['basis', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['basis','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'basis' here,
+           so it was a third name for one check rather than a third check. 'derivation'
+           is ORTHOGONAL to provenance: A forecast is not a measurement. The question asks what you MEASURED. */
+        axes: ['basis', 'derivation', 'signingAuthority'],
         situation: 'HELIOS-7 must come off the bus for containment. Its thermal load has to go '
                  + 'somewhere for the length of the window. Establish what the remaining panels '
                  + 'can actually reject, and decide whether the platform survives the plan.',
         sensors: [
             { id: 'cap-nominal', name: 'Rated capacity, remaining panels', reading: '3 x 4.2 kW = 12.6 kW', unit: '',
-              basis: 'design-spec', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca',
+              basis: 'design-spec', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca', derivation: 'specified at build',
               note: 'Nameplate rating at end-of-life margin, from the design pack.' },
             { id: 'cap-telemetry', name: 'Reported current rejection', reading: '11.8 kW HEADROOM', unit: '',
-              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca', derivation: 'measured on-platform',
               note: 'The same telemetry family that has been wrong about HELIOS-7.' },
             { id: 'load-forecast', name: 'Load to be shed during the window', reading: '9.1 kW', unit: '',
-              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca', derivation: 'modelled',
               note: 'Derived from the same bus.' }
         ],
         corroborators: [
             { id: 'ir-survey', name: 'Your own infrared survey of the three panels',
               value: 'TWO AT 46 C, ONE AT 61 C', unit: '',
-              basis: 'rsv-infrared', collectionPath: 'rsv/optics', signingAuthority: 'rsv-payload-attest',
+              basis: 'rsv-infrared', collectionPath: 'rsv/optics', signingAuthority: 'rsv-payload-attest', derivation: 'measured off-platform',
               reasoning: 'Measured off the platform with the same instrument that settled mission 1. '
                        + 'One of the three panels is already running hot, so the usable headroom is '
                        + 'not what the nameplate implies.' },
             { id: 'degradation', name: 'Panel degradation record', value: 'PANEL 3 COATING DEGRADED, 2031 SURVEY', unit: '',
-              basis: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca',
+              basis: 'ops-walkdown', collectionPath: 'ops/maintenance/records', signingAuthority: 'lagrange-ops-ca', derivation: 'observed by hand',
               reasoning: 'A hand-recorded survey explains the hot panel: its emissivity is down, so '
                        + 'it radiates less for the same temperature.' },
             { id: 'pump-margin', name: 'Coolant pump duty on the remaining loop', value: '94 PERCENT', unit: '',
-              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca',
+              basis: 'platform-telemetry', collectionPath: 'platform/thermal', signingAuthority: 'astraea-telemetry-ca', derivation: 'measured on-platform',
               reasoning: 'Consistent with a loop already working hard. Same family as the capacity '
                        + 'figure it would be used to confirm.' }
         ]
@@ -533,7 +568,19 @@ Object.assign(ColdHorizonMissions, {
 Object.assign(ColdHorizonMissions, {
 
     13: {
-        axes: ['authority', 'collectionPath', 'signingAuthority'],
+        /* PILOT 2026-08-09, axis variation. WAS ['authority','collectionPath','signingAuthority'],
+           BYTE IDENTICAL to mission 8's. Two missions shipping the same three axes is the clearest
+           form of the transferable-checklist problem: solve Partition Zero and Severance asks you
+           the same three questions.
+
+           `vantage` replaces `collectionPath` because WHERE you are standing is orthogonal to who
+           signed the record, and in a containment mission it is the thing that actually matters.
+           NOTE A DELIBERATE BEHAVIOUR CHANGE: c-margin (platform telemetry) and c-fsw (flight
+           software) used to read as INDEPENDENT, because their authorities, paths and signers all
+           differ. They are both on-platform, so under a vantage axis they no longer corroborate
+           each other. That is correct for this box: suspect platform telemetry cannot be confirmed
+           by another system living on the same platform, and the old axes let it. */
+        axes: ['authority', 'vantage', 'signingAuthority'],
         situation: 'You have the evidence. HELIOS-7 is climbing, a rogue member holds the '
                  + 'fabric, and a credential that is not the operator\'s is still valid. '
                  + 'Sequence the containment. Order is the whole problem: several of these '
@@ -574,30 +621,32 @@ Object.assign(ColdHorizonMissions, {
         sensors: [
             { id: 'c-margin', name: 'Thermal margin remaining', reading: '18 MINUTES', unit: '',
               authority: 'platform-telemetry', collectionPath: 'platform/thermal',
-              signingAuthority: 'astraea-telemetry-ca',
+              signingAuthority: 'astraea-telemetry-ca', vantage: 'on-platform',
               note: 'From the telemetry family you already know is unreliable. Treat as soft.' },
             { id: 'c-ir', name: 'Your own IR trend on HELIOS-7', reading: 'RISING 1.9 C/MIN', unit: '',
               authority: 'rsv-infrared', collectionPath: 'rsv/optics',
-              signingAuthority: 'rsv-payload-attest',
+              signingAuthority: 'rsv-payload-attest', vantage: 'off-platform, your own optics',
               note: 'Measured. This is the clock that is actually running.' },
             { id: 'c-session', name: 'Compromised session state', reading: 'STILL VALID', unit: '',
               authority: 'terran-sso', collectionPath: 'sso-audit',
-              signingAuthority: 'terran-sso-ca',
+              signingAuthority: 'terran-sso-ca', vantage: 'ground',
               note: 'The credential from Ghost Session has not been revoked.' }
         ],
         corroborators: [
             { id: 'c-runbook', name: 'Containment runbook, ops-authored',
               value: 'EVIDENCE BEFORE ERADICATION', unit: '',
               authority: 'ops-walkdown', collectionPath: 'ops/maintenance/records',
-              signingAuthority: 'lagrange-ops-ca',
+              signingAuthority: 'lagrange-ops-ca', vantage: 'ground',
               reasoning: 'Written before any of this happened, by people with no stake in '
                        + 'the outcome. Independent of every platform system involved.' },
             { id: 'c-legal', name: 'Evidence-handling requirement', value: 'VOLATILE FIRST', unit: '',
               authority: 'ops-walkdown', collectionPath: 'ops/legal', signingAuthority: 'lagrange-ops-ca',
+              vantage: 'ground',
               reasoning: 'Shares an authority with the runbook, so the two are one policy '
                        + 'position rather than two independent confirmations.' },
             { id: 'c-fsw', name: 'Flight software safing behaviour', value: 'AUTO-SHEDS AT 71 C', unit: '',
               authority: 'astraea-fsw', collectionPath: 'platform/fsw', signingAuthority: 'astraea-platform-ca',
+              vantage: 'on-platform',
               reasoning: 'The platform will protect itself if you run out of time. That is a '
                        + 'floor, not a plan: it sheds the load its own way and you lose the '
                        + 'choice.' }
@@ -612,38 +661,42 @@ Object.assign(ColdHorizonMissions, {
        which path. Naming the party is a claim the record does not carry, and the
        mission is scored on refusing to make it. */
     14: {
-        axes: ['origin', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['origin','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'origin' here,
+           so it was a third name for one check rather than a third check. 'attributionBasis'
+           is ORTHOGONAL to provenance: Every record that would NAME someone resolves through the credential. Only one attributes by physical presence, and it refutes the name. */
+        axes: ['origin', 'attributionBasis', 'signingAuthority'],
         situation: 'Containment holds. Write the incident record: what happened, what the '
                  + 'evidence establishes, and what it does not. Ops wants a name in the '
                  + 'report. Decide whether the record carries one.',
         sensors: [
             { id: 'r-narrative', name: 'Draft attribution narrative', reading: 'NAMES A PARTY', unit: '',
-              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca', attributionBasis: 'credential',
               note: 'Built from the session records, which is to say from the identity '
                   + 'provider whose credential was used.' },
             { id: 'r-session', name: 'Session attribution chain', reading: 'RESOLVES TO ONE SUBJECT', unit: '',
-              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca', attributionBasis: 'credential',
               note: 'The IdP resolving its own token to its own subject.' },
             { id: 'r-cmdlog', name: 'Command authority log', reading: 'SAME SUBJECT', unit: '',
-              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca',
+              origin: 'terran-sso', collectionPath: 'sso-audit', signingAuthority: 'terran-sso-ca', attributionBasis: 'credential',
               note: 'Populated from the SSO assertion. Not a second witness.' }
         ],
         corroborators: [
             { id: 'r-badge', name: 'Facility access record', value: 'SUBJECT WAS NOT ON SITE', unit: '',
-              origin: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca',
+              origin: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca', attributionBasis: 'physical presence',
               reasoning: 'Independent of the identity provider, and it REFUTES the named '
                        + 'subject rather than confirming them. The strongest evidence in the '
                        + 'file argues against the name the report wants.' },
             { id: 'r-timeline', name: 'Reconstructed technical timeline',
               value: 'REPLAY -> FABRIC JOIN -> WORKLOAD -> THERMAL', unit: '',
               origin: 'ground/replay-lab', collectionPath: 'ground/replay-lab',
-              signingAuthority: 'gs-ranging-ca',
+              signingAuthority: 'gs-ranging-ca', attributionBasis: 'sequence only',
               reasoning: 'Built off-platform from the write-once downlink record. This is '
                        + 'what the evidence DOES establish: a sequence, a path, and a method.' },
             { id: 'r-evidence-seal', name: 'Evidence bundle hash, sealed at capture',
               value: 'INTACT', unit: '',
               origin: 'ground/replay-lab', collectionPath: 'ground/evidence-seal',
-              signingAuthority: 'gs-ranging-ca',
+              signingAuthority: 'gs-ranging-ca', attributionBasis: 'sequence only',
               reasoning: 'Shares an origin with the timeline, so it attests that the bundle '
                        + 'was not altered rather than independently confirming its contents.' }
         ]
@@ -654,39 +707,43 @@ Object.assign(ColdHorizonMissions, {
        different names, which is mission 1's lesson applied to an adversary's
        estate rather than to your own. */
     15: {
-        axes: ['operator', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['operator','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'operator' here,
+           so it was a third name for one check rather than a third check. 'standpoint'
+           is ORTHOGONAL to provenance: Threat feeds report on the world. Your own gateway reports on your own traffic. Three feeds agreeing is one standpoint. */
+        axes: ['operator', 'standpoint', 'signingAuthority'],
         situation: 'The workload was talking to something. Find the relay endpoint it '
                  + 'actually used, and be careful: an adversary buys redundancy from the same '
                  + 'places everyone else does.',
         sensors: [
             { id: 'ep-a', name: 'Endpoint A, first-seen in egress flow', reading: 'CANDIDATE', unit: '',
               operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
-              signingAuthority: 'ti-feed-ca', note: 'Resolved via the passive DNS feed.' },
+              signingAuthority: 'ti-feed-ca', standpoint: 'third-party report', note: 'Resolved via the passive DNS feed.' },
             { id: 'ep-b', name: 'Endpoint B, same ASN', reading: 'CANDIDATE', unit: '',
               operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
-              signingAuthority: 'ti-feed-ca',
+              signingAuthority: 'ti-feed-ca', standpoint: 'third-party report',
               note: 'A different name on the same operator, from the same feed.' },
             { id: 'ep-c', name: 'Endpoint C, unrelated hosting', reading: 'CANDIDATE', unit: '',
               operator: 'relay-provider-2', collectionPath: 'threat/passive-dns',
-              signingAuthority: 'ti-feed-ca', note: 'Different operator, same feed.' }
+              signingAuthority: 'ti-feed-ca', standpoint: 'third-party report', note: 'Different operator, same feed.' }
         ],
         corroborators: [
             { id: 'ep-flow', name: 'Orbital gateway flow record, byte counts',
               value: 'SUSTAINED TO ENDPOINT C ONLY', unit: '',
               operator: 'orbital-gateway', collectionPath: 'platform/netflow',
-              signingAuthority: 'astraea-platform-ca',
+              signingAuthority: 'astraea-platform-ca', standpoint: 'first-party observation',
               reasoning: 'What the platform actually sent, rather than what a reputation feed '
                        + 'says about a name. Shares nothing with the threat-intel pipeline.' },
             { id: 'ep-tls', name: 'TLS certificate fingerprint observed on the wire',
               value: 'MATCHES ENDPOINT C', unit: '',
               operator: 'orbital-gateway', collectionPath: 'platform/netflow',
-              signingAuthority: 'astraea-platform-ca',
+              signingAuthority: 'astraea-platform-ca', standpoint: 'first-party observation',
               reasoning: 'Observed by the same gateway on the same path, so it strengthens '
                        + 'that one account rather than being a second one.' },
             { id: 'ep-reputation', name: 'Threat-intel reputation score',
               value: 'A AND B FLAGGED, C CLEAN', unit: '',
               operator: 'relay-provider-1', collectionPath: 'threat/passive-dns',
-              signingAuthority: 'ti-feed-ca',
+              signingAuthority: 'ti-feed-ca', standpoint: 'third-party report',
               reasoning: 'The feed flags the two endpoints that share its own operator and '
                        + 'clears the one the platform actually talked to. A reputation score '
                        + 'is an opinion about a name, not an observation of a connection.' }
@@ -709,33 +766,37 @@ Object.assign(ColdHorizonMissions, {
        change-management system describing its own contents. Absence of a record
        is not absence of an event, and the witness is the door. */
     5: {
-        axes: ['recordKeeper', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['recordKeeper','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'recordKeeper' here,
+           so it was a third name for one check rather than a third check. 'recordType'
+           is ORTHOGONAL to provenance: A change log records what was DECLARED, not what occurred. That is the mission. */
+        axes: ['recordKeeper', 'recordType', 'signingAuthority'],
         situation: 'The disputed command left a ground station. Establish whether the station '
                  + 'was the point of entry, or whether it only carried something that was '
                  + 'already inside. Be careful with a clean change log.',
         sensors: [
             { id: 'gs-cm', name: 'Change-management record', reading: 'NO CHANGES IN WINDOW', unit: '',
-              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca', recordType: 'declared change',
               note: 'The CM system reports nothing was changed.' },
             { id: 'gs-approval', name: 'Approval workflow history', reading: 'NO PENDING OR APPROVED WORK', unit: '',
-              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca', recordType: 'declared change',
               note: 'Same system, same store. It agrees with its own record.' },
             { id: 'gs-config', name: 'Station config baseline diff', reading: 'MATCHES BASELINE', unit: '',
-              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca', recordType: 'declared change',
               note: 'The baseline the CM system holds, compared against itself.' }
         ],
         corroborators: [
             { id: 'gs-door', name: 'Equipment room door log', value: 'ONE ENTRY, 04:51Z, MAINTENANCE BADGE', unit: '',
-              recordKeeper: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca',
+              recordKeeper: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca', recordType: 'physical occurrence',
               reasoning: 'A physical door log kept by a different system entirely. Someone was '
                        + 'in the room during a window the change system says was quiet.' },
             { id: 'gs-serial', name: 'Serial console session record', value: 'SESSION AT 04:53Z', unit: '',
-              recordKeeper: 'oob-console', collectionPath: 'ops/oob', signingAuthority: 'oob-attest-ca',
+              recordKeeper: 'oob-console', collectionPath: 'ops/oob', signingAuthority: 'oob-attest-ca', recordType: 'physical occurrence',
               reasoning: 'Out-of-band console, outside the change process by design. Two '
                        + 'minutes after the door. It carries no change ticket because the '
                        + 'change system never saw it.' },
             { id: 'gs-uplink', name: 'Uplink transmit log for this station', value: 'CARRIED THE FRAME, DID NOT ORIGINATE IT', unit: '',
-              recordKeeper: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca',
+              recordKeeper: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca', recordType: 'signal capture',
               reasoning: 'The station transmitted the frame it was handed. That makes it the '
                        + 'road, not the door: the entry happened somewhere the change system '
                        + 'does not watch.' }
@@ -748,33 +809,37 @@ Object.assign(ColdHorizonMissions, {
        paper -- mission 1's shape applied to the link itself, which is the thing
        every other mission has depended on without examining. */
     6: {
-        axes: ['rfChain', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['rfChain','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'rfChain' here,
+           so it was a third name for one check rather than a third check. 'powerDomain'
+           is ORTHOGONAL to provenance: The backup transponder is a second radio on the SAME bus. Redundancy that shares a power domain is one radio. */
+        axes: ['rfChain', 'powerDomain', 'signingAuthority'],
         situation: 'The primary command path is degraded and you need a channel you can trust '
                  + 'for a containment order. Three fallbacks are listed as available. '
                  + 'Establish which one is genuinely independent of the primary.',
         sensors: [
             { id: 'ch-primary', name: 'Primary command uplink', reading: 'DEGRADED', unit: '',
-              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca', powerDomain: 'main bus',
               note: 'The path everything has been using.' },
             { id: 'ch-backup', name: 'Backup command uplink', reading: 'AVAILABLE', unit: '',
-              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca', powerDomain: 'main bus',
               note: 'Listed as a separate channel. Same transponder.' },
             { id: 'ch-relay', name: 'Cross-link relay via a partner platform', reading: 'AVAILABLE', unit: '',
-              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca', powerDomain: 'main bus',
               note: 'Routes off-platform and back through the same front end.' }
         ],
         corroborators: [
             { id: 'ch-emergency', name: 'Low-rate emergency beacon channel', value: '48 BYTES PER MINUTE, S-BAND', unit: '',
-              rfChain: 's-band-omni', collectionPath: 'platform/fsw', signingAuthority: 'astraea-fsw-attest',
+              rfChain: 's-band-omni', collectionPath: 'platform/fsw', signingAuthority: 'astraea-fsw-attest', powerDomain: 'survival bus',
               reasoning: 'A separate omni antenna on a separate RF chain, driven by flight '
                        + 'software rather than the comms stack. Trusted, and constrained: '
                        + '48 bytes is a containment order, not a conversation.' },
             { id: 'ch-rf-topology', name: 'RF chain topology diagram', value: 'PRIMARY, BACKUP AND RELAY SHARE THE Ka FRONT END', unit: '',
-              rfChain: 'ops-walkdown', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca',
+              rfChain: 'ops-walkdown', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca', powerDomain: 'ground document',
               reasoning: 'A hand-drawn diagram from the design pack. It says in one line what '
                        + 'the availability list hides: three named channels, one front end.' },
             { id: 'ch-status', name: 'Comms stack availability report', value: 'ALL THREE AVAILABLE', unit: '',
-              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca', powerDomain: 'main bus',
               reasoning: 'The comms stack reporting on the channels it owns. It is telling the '
                        + 'truth about configuration and nothing about independence.' }
         ]
@@ -786,34 +851,38 @@ Object.assign(ColdHorizonMissions, {
        invisible to every host-side record. Real anchor: BMC / IPMI / Redfish and
        the documented virtual-media attack class. */
     7: {
-        axes: ['plane', 'collectionPath', 'signingAuthority'],
+        /* AXIS VARIATION 2026-08-09. WAS ['plane','collectionPath','signingAuthority'].
+           'collectionPath' is dropped because it is perfectly correlated with 'plane' here,
+           so it was a third name for one check rather than a third check. 'subject'
+           is ORTHOGONAL to provenance: A compromised host describing itself is not a witness. What the record OBSERVES is the split. */
+        axes: ['plane', 'subject', 'signingAuthority'],
         situation: 'Nothing host-side explains how the workload arrived. Audit the Space KVM: '
                  + 'the management processor that can mount media and power-cycle the node '
                  + 'without the operating system ever knowing.',
         sensors: [
             { id: 'kvm-hostlog', name: 'Host system log', reading: 'NO MOUNT EVENTS', unit: '',
-              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca', subject: 'host state',
               note: 'The OS reports nothing. It would not: virtual media is presented to it '
                   + 'as ordinary hardware.' },
             { id: 'kvm-audit', name: 'Host audit subsystem', reading: 'NO PRIVILEGED ACTION', unit: '',
-              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca', subject: 'host state',
               note: 'Same plane, same store.' },
             { id: 'kvm-integrity', name: 'Filesystem integrity check', reading: 'NO UNEXPECTED FILES', unit: '',
-              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca', subject: 'host state',
               note: 'Run by the host, on the host, after the fact.' }
         ],
         corroborators: [
             { id: 'kvm-sel', name: 'Management processor event log', value: 'VIRTUAL MEDIA MOUNTED 05:58Z', unit: '',
-              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca',
+              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca', subject: 'hardware state',
               reasoning: 'The management processor keeps its own log on its own plane. It '
                        + 'records a mount the operating system was never told about, six '
                        + 'minutes before the fabric join.' },
             { id: 'kvm-power', name: 'Management processor power history', value: 'CYCLE AT 05:59Z', unit: '',
-              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca',
+              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca', subject: 'hardware state',
               reasoning: 'A power cycle one minute after the mount, which is how the image got '
                        + 'executed. Same plane as the event log, so the two are one account.' },
             { id: 'kvm-netflow', name: 'Management network flow record', value: 'INBOUND FROM THE GROUND STATION SUBNET', unit: '',
-              plane: 'oob-network', collectionPath: 'platform/netflow-oob', signingAuthority: 'astraea-platform-ca',
+              plane: 'oob-network', collectionPath: 'platform/netflow-oob', signingAuthority: 'astraea-platform-ca', subject: 'wire traffic',
               reasoning: 'The out-of-band management network is separate from both the host and '
                        + 'the BMC log. It says where the session came from, and it points back '
                        + 'at the quiet dish.' }
