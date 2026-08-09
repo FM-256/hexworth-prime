@@ -1875,7 +1875,452 @@ function decide(k){
   // incident call records an incorrect attempt and the mood ring can actually
   // move — which is the entire point of the state machine.
   reportAttempt('incident-call', state.correct);
-  endMission(state.correct, k);
+  // The end card no longer comes straight up. The call has a physical outcome
+  // and the operator watches it happen. See section 13.5.
+  startConsequence(k);
+}
+
+/* ==========================================================================
+   13.5  CONSEQUENCE  —  the call has a physical outcome and you watch it.
+
+   WHY THIS EXISTS. The sortie used to end the instant the player clicked an
+   option: fly, measure, choose, receive four paragraphs. Operator, 2026-08-08:
+   "that ending is extremely anti-climactic". It also quietly taught the wrong
+   thing. A containment call on a platform you cannot reach either saves a node
+   or loses one, and if the only difference between those outcomes is the
+   wording of a debrief, the lesson is that the call was an exam question.
+
+   THE FOUR OUTCOMES ARE PHYSICALLY DIFFERENT, not differently worded:
+
+     ir       You followed the panel. The loop is isolated and purged in a
+              CONTROLLED vent. HELIOS-7 survives.
+     outlier  Same physical outcome, because TH-2 really was the right channel.
+              The debrief is where the difference lives, and it should be,
+              because the reasoning is what would fail you next time.
+     vote     Nobody acts on a panel at 58.9 C. The loop lets go. Node lost.
+     none     Ground escalates and safes it late. It survives, degraded.
+
+   THE SAME PHENOMENON, CHOSEN OR SUFFERED. The controlled purge and the
+   rupture run through the same code with different numbers. That is the point:
+   venting a loop on purpose and watching one tear itself open look alike for
+   the first half second, and the difference is entirely whether you decided it.
+
+   PHYSICS RULES, inherited from the provenance ledger. The box grades every
+   system REAL / EXTRAPOLATED / INVENTED and owes a citation on REAL, so:
+   no fireball (no oxidiser), no shockwave (no medium), no sound in vacuum
+   (audio is radio or conducted through the RSV frame), no deceleration (debris
+   flies straight forever), no billowing (a vacuum plume is ballistic).
+   Coolant flashing to vapour and ice that catches sunlight is REAL: ISS
+   ammonia leaks were spotted visually as exactly that.
+
+   SERIES CONSTRAINT. HELIOS-7 can be lost. ASTRAEA-9 SURVIVES. Fourteen more
+   missions happen on that platform and the design doc's NO-BRICK RULE says no
+   player action may render the mission unplayable.
+
+   Tuned in _app/_source/fx/cold-horizon-rupture.html, which is a standalone
+   bench with four variants and live sliders. Retune there, not here.
+   ========================================================================== */
+
+/* A soft round sprite, generated rather than loaded, so this carries no asset
+   dependency and cannot 404 on a cold cache. */
+function makeFxSprite(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(32,32,0, 32,32,32);
+  g.addColorStop(0,   'rgba(255,255,255,1)');
+  g.addColorStop(0.32,'rgba(255,255,255,0.6)');
+  g.addColorStop(1,   'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,64,64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+/* Vent profiles. `shear` beyond `settle` means the panel never parts, which is
+   how a controlled purge is expressed without a second code path. */
+const VENT = {
+  rupture: {
+    preVent:1.2, preFrac:0.16, vent:3.0, arc:3.42, shear:3.66,
+    decay:5.0, settle:15.0,
+    ribCount:7, ribDelay:0.24, ribStagger:0.26, ribRate:0.42,
+    rate:6000, speed:50, spread:0.24, life:5.4, size:0.30, jitter:0.42,
+    debris:64, debrisSpeed:10.5, debrisSpin:3.2, debrisSpread:0.62,
+    panelDrift:4.0, panelTumble:0.8, yaw:1.4, arcMs:160, arcPower:70, coolSec:13,
+  },
+  purge: {
+    // Deliberate, symmetric, brief. No arc, no debris, nothing shears.
+    preVent:-1, preFrac:0, vent:0.0, arc:1e9, shear:1e9,
+    decay:1.5, settle:6.0,
+    ribCount:0, ribDelay:0, ribStagger:0, ribRate:0,
+    rate:1500, speed:26, spread:0.09, life:3.0, size:0.20, jitter:0.22,
+    debris:0, debrisSpeed:0, debrisSpin:0, debrisSpread:0,
+    panelDrift:0, panelTumble:0, yaw:0.30, arcMs:0, arcPower:0, coolSec:0,
+  },
+  late: {
+    // Ground got there eventually. A real breach, contained before it spreads.
+    preVent:0.0, preFrac:0.10, vent:2.2, arc:1e9, shear:1e9,
+    decay:3.4, settle:9.0,
+    ribCount:2, ribDelay:0.5, ribStagger:0.6, ribRate:0.28,
+    rate:3200, speed:40, spread:0.18, life:4.4, size:0.25, jitter:0.35,
+    debris:0, debrisSpeed:0, debrisSpin:0, debrisSpread:0,
+    panelDrift:0, panelTumble:0, yaw:0.9, arcMs:0, arcPower:0, coolSec:0,
+  },
+};
+
+class Rupture {
+  constructor(scn){
+    this.scene = scn;
+    this.t = 0; this.armed = false; this.done = false;
+    this.group = new THREE.Group(); scn.add(this.group);
+
+    /* Points, because a leak is thousands of crystals and the whole reason it
+       reads as vacuum is that every one of them flies dead straight. Pool is
+       sized for the worst profile so a switch can never overflow it. */
+    const N = Math.ceil(6000 * 5.4 * 1.15);
+    this.max = N;
+    this.p = new Float32Array(N*3);
+    this.v = new Float32Array(N*3);
+    this.age = new Float32Array(N).fill(1e9);      // 1e9 = free slot
+    this.lifeA = new Float32Array(N);
+    this.al = new Float32Array(N);
+    this.head = 0;
+
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.p,3));
+    g.setAttribute('alpha',    new THREE.BufferAttribute(this.al,1));
+    this.mat = new THREE.ShaderMaterial({
+      uniforms:{ map:{value:makeFxSprite()}, size:{value:0.3},
+                 tint:{value:new THREE.Color(0xe6f2ff)} },
+      vertexShader:`
+        attribute float alpha; varying float vA; uniform float size;
+        void main(){ vA = alpha;
+          vec4 mv = modelViewMatrix * vec4(position,1.0);
+          gl_PointSize = size * 330.0 / max(-mv.z, 0.001);
+          gl_Position = projectionMatrix * mv; }`,
+      fragmentShader:`
+        uniform sampler2D map; uniform vec3 tint; varying float vA;
+        void main(){ vec4 t = texture2D(map, gl_PointCoord);
+          gl_FragColor = vec4(tint, t.a * vA); }`,
+      transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+    });
+    this.pts = new THREE.Points(g, this.mat);
+    this.pts.frustumCulled = false;
+    this.group.add(this.pts);
+
+    // Debris: real meshes so fragments catch the sun and read as solid.
+    this.debrisMax = 64;
+    this.deb = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.26,0.05,0.40),
+      new THREE.MeshStandardMaterial({color:0xb9c2c8, roughness:0.6, metalness:0.78}),
+      this.debrisMax);
+    this.deb.frustumCulled = false; this.deb.count = 0;
+    this.group.add(this.deb);
+    this.dS = Array.from({length:this.debrisMax}, ()=>({
+      p:new THREE.Vector3(), v:new THREE.Vector3(),
+      q:new THREE.Quaternion(), av:new THREE.Vector3() }));
+    this._m4 = new THREE.Matrix4(); this._one = new THREE.Vector3(1,1,1);
+
+    // Real PointLight: an arc lights what is around it. Blue-white, electrical.
+    this.arc = new THREE.PointLight(0xbfd8ff, 0, 120, 2);
+    this.arc.visible = false; this.group.add(this.arc);
+
+    // Shear edge. Vacuum sheds heat by radiation only, so this lingers.
+    this.glowMat = new THREE.MeshBasicMaterial({color:0xff6a2a, transparent:true,
+      opacity:0, blending:THREE.AdditiveBlending, depthWrite:false});
+    this.glow = new THREE.Mesh(new THREE.BoxGeometry(7.6,0.13,0.4), this.glowMat);
+    this.glow.visible = false; this.group.add(this.glow);
+    this.vents = [];
+  }
+
+  trigger(profile, originObj, panel){
+    const c = this.cfg = profile;
+    this.t = 0; this.armed = true; this.done = false;
+    this.originObj = originObj || null;
+    this.panel = panel || null;
+    this.freed = false; this.arcFired = false; this.yaw = 0;
+    this.head = 0; this.age.fill(1e9); this.deb.count = 0;
+
+    this.origin = new THREE.Vector3();
+    if(panel) panel.getWorldPosition(this.origin);
+    // A severed line vents along its own run, not radially outward.
+    this.axis = new THREE.Vector3(-0.22,-1,0.16).normalize();
+
+    /* The header opens at preVent when there is a weep, not at vent. Getting
+       this wrong silently kills the whole pre-vent phase: the pressure ramp
+       computes a weep and the spawn loop then skips the only vent that could
+       emit it. Caught in the bench by a "0 crystals" reading. */
+    this.vents = [{ pos:this.origin.clone(), axis:this.axis.clone(),
+                    t0:(c.preVent >= 0 ? c.preVent : c.vent), rate:1, main:true }];
+    for(let i=0;i<c.ribCount;i++){
+      const side = (i % 2) ? 1 : -1;
+      this.vents.push({
+        pos:this.origin.clone().add(new THREE.Vector3((i-(c.ribCount-1)/2)*0.95,0,0)),
+        axis:new THREE.Vector3(side*0.42,-0.86,(i/c.ribCount-0.5)*0.5).normalize(),
+        rate:c.ribRate, main:false,
+        t0:c.shear + c.ribDelay + i*c.ribStagger });
+    }
+  }
+
+  _spawn(vent, n, dt){
+    const c = this.cfg;
+    for(let i=0;i<n;i++){
+      const s = this.head % this.max; this.head++;
+      const i3 = s*3;
+      const a = Math.random()*Math.PI*2, r = Math.random()*c.spread;
+      const dir = vent.axis.clone();
+      const perp = new THREE.Vector3(1,0,0).cross(dir);
+      if(perp.lengthSq() < 1e-6) perp.set(0,0,1).cross(dir);
+      perp.normalize();
+      const perp2 = dir.clone().cross(perp).normalize();
+      dir.addScaledVector(perp, Math.sin(a)*r).addScaledVector(perp2, Math.cos(a)*r).normalize();
+      const spd = c.speed * (1 + (Math.random()-0.5)*2*c.jitter);
+      // Backdate along the path, else a frame's worth of particles all start at
+      // the same point and the jet reads as a stack of discrete pulses.
+      const back = Math.random()*dt;
+      this.p[i3  ] = vent.pos.x + dir.x*spd*back;
+      this.p[i3+1] = vent.pos.y + dir.y*spd*back;
+      this.p[i3+2] = vent.pos.z + dir.z*spd*back;
+      this.v[i3  ] = dir.x*spd; this.v[i3+1] = dir.y*spd; this.v[i3+2] = dir.z*spd;
+      this.age[s] = 0; this.lifeA[s] = c.life;
+    }
+  }
+
+  _fireDebris(){
+    const c = this.cfg, n = Math.min(c.debris, this.debrisMax);
+    for(let i=0;i<n;i++){
+      const d = this.dS[i];
+      // Fragments come off the whole frame line, not one point.
+      d.p.copy(this.origin).add(new THREE.Vector3(
+        (Math.random()-0.5)*7.2, (Math.random()-0.5)*0.3, (Math.random()-0.5)*9.2));
+      const dir = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
+        .normalize().lerp(this.axis, 1-c.debrisSpread).normalize();
+      d.v.copy(dir).multiplyScalar(c.debrisSpeed*(0.3+Math.random()));
+      d.av.set(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5)
+        .multiplyScalar(c.debrisSpin);
+      d.q.identity();
+    }
+    this.deb.count = n;
+  }
+
+  update(dt){
+    if(!this.armed || this.done) return;
+    const c = this.cfg; this.t += dt;
+
+    let pressure = 0;
+    if(c.preVent >= 0 && this.t >= c.preVent && this.t < c.vent) pressure = c.preFrac;
+    else if(this.t >= c.vent){
+      pressure = this.t < c.decay ? 1
+        : Math.max(0, 1 - (this.t - c.decay)/(c.settle - c.decay));
+      pressure *= pressure;
+    }
+    for(const vn of this.vents){
+      if(this.t < vn.t0) continue;
+      const pr = vn.main ? pressure : pressure*vn.rate;
+      if(pr > 0) this._spawn(vn, Math.floor(c.rate*pr*dt), dt);
+    }
+
+    // Straight lines, constant velocity. Nothing out here slows them down.
+    let live = 0;
+    for(let s=0;s<this.max;s++){
+      if(this.age[s] > 1e8){ this.al[s] = 0; continue; }
+      this.age[s] += dt;
+      if(this.age[s] > this.lifeA[s]){ this.age[s] = 1e9; this.al[s] = 0; continue; }
+      const i3 = s*3;
+      this.p[i3  ] += this.v[i3  ]*dt;
+      this.p[i3+1] += this.v[i3+1]*dt;
+      this.p[i3+2] += this.v[i3+2]*dt;
+      const k = this.age[s]/this.lifeA[s];
+      this.al[s] = (1-k)*(1-k)*0.95;
+      live++;
+    }
+    this.live = live;
+    this.pts.geometry.attributes.position.needsUpdate = true;
+    this.pts.geometry.attributes.alpha.needsUpdate = true;
+    this.mat.uniforms.size.value = c.size;
+
+    // The vent is a thruster. Real reaction, and it sells vacuum harder than
+    // any particle count.
+    if(this.originObj && pressure > 0){
+      this.yaw += c.yaw*pressure*dt;
+      this.originObj.rotation.y = this.yaw;
+    }
+
+    if(!this.arcFired && this.t >= c.arc){
+      this.arcFired = true; this.arcT = 0;
+      this.arc.position.copy(this.origin); this.arc.visible = true;
+    }
+    if(this.arcFired && this.arc.visible){
+      this.arcT += dt*1000;
+      const k = 1 - this.arcT/c.arcMs;
+      // An arc flickers; it does not ramp.
+      this.arc.intensity = k > 0 ? c.arcPower*k*(0.5+Math.random()*0.5) : 0;
+      if(k <= 0) this.arc.visible = false;
+    }
+
+    if(!this.freed && this.t >= c.shear){
+      this.freed = true;
+      this._fireDebris();
+      if(this.panel){
+        const wp = new THREE.Vector3(), wq = new THREE.Quaternion();
+        this.panel.getWorldPosition(wp); this.panel.getWorldQuaternion(wq);
+        this.scene.attach(this.panel);
+        this.panel.position.copy(wp); this.panel.quaternion.copy(wq);
+        this.pV = this.axis.clone().multiplyScalar(c.panelDrift)
+          .add(new THREE.Vector3((Math.random()-0.5)*1.2,0,(Math.random()-0.5)*1.2));
+        this.pA = new THREE.Vector3(Math.random()-0.5,Math.random()-0.5,Math.random()-0.5)
+          .multiplyScalar(c.panelTumble);
+      }
+      this.glow.position.copy(this.origin); this.glow.visible = true;
+    }
+    if(this.freed && this.panel && this.pV){
+      this.panel.position.addScaledVector(this.pV, dt);
+      this.panel.rotateX(this.pA.x*dt);
+      this.panel.rotateY(this.pA.y*dt);
+      this.panel.rotateZ(this.pA.z*dt);
+    }
+    if(this.glow.visible && c.coolSec > 0){
+      const k = Math.max(0, 1 - (this.t - c.shear)/c.coolSec);
+      this.glowMat.opacity = k*k*0.95;
+      this.glowMat.color.setRGB(1, 0.16+0.62*k, 0.05+0.55*k*k);
+    }
+    if(this.deb.count){
+      const dq = new THREE.Quaternion(), e = new THREE.Euler();
+      for(let i=0;i<this.deb.count;i++){
+        const d = this.dS[i];
+        d.p.addScaledVector(d.v, dt);
+        e.set(d.av.x*dt, d.av.y*dt, d.av.z*dt);
+        dq.setFromEuler(e); d.q.multiply(dq);
+        this._m4.compose(d.p, d.q, this._one);
+        this.deb.setMatrixAt(i, this._m4);
+      }
+      this.deb.instanceMatrix.needsUpdate = true;
+    }
+    if(this.t >= c.settle) this.done = true;
+  }
+}
+
+/* ── the beat scripts ───────────────────────────────────────────────────────
+   Each entry is [seconds after the call, what happens]. Written as data so the
+   pacing can be read at a glance instead of being buried in timeouts. */
+const CONSEQUENCE = {
+  ir: { profile:'purge', hold:9.5, beats:[
+    [0.0, ()=> eidolon('Call logged. Following TH-2 against the tally, on your '+
+      'infrared. Requesting containment authority.', 'CONFIDENCE: LOW, and rising')],
+    [2.4, ()=> { eidolon('Authority granted. Isolating HELIOS-7 from the primary loop '+
+      'and purging to safe pressure. Stand off, this vents toward you.',
+      'CONTAINMENT: EXECUTING'); Audio.chime(); }],
+    [6.6, ()=> eidolon('HELIOS-7 isolated. Panel is falling through 44 C and dropping. '+
+      'The node is down, and it is intact.', 'CONFIDENCE: HIGH — panel corroborated')],
+  ]},
+  outlier: { profile:'purge', hold:9.5, beats:[
+    [0.0, ()=> eidolon('Call logged. Following TH-2. Requesting containment authority.',
+      'CONFIDENCE: LOW')],
+    [2.4, ()=> { eidolon('Authority granted. Isolating HELIOS-7 and purging to safe '+
+      'pressure.', 'CONTAINMENT: EXECUTING'); Audio.chime(); }],
+    [6.6, ()=> eidolon('HELIOS-7 isolated and intact. For the record, your stated reason '+
+      'was that TH-2 disagreed with the others. I logged the infrared you took, '+
+      'because that is the part that holds.', 'NOTE FILED')],
+  ]},
+  vote: { profile:'rupture', hold:17.0, beats:[
+    [0.0, ()=> eidolon('Call logged. Filing HELIOS-7 nominal at 41.3 C on the two-of-three '+
+      'majority. No containment requested.', 'CONFIDENCE: LOW — the tally and the panel disagree')],
+    [2.6, ()=> { eidolon('Coolant loop delta-P is falling. That is not consistent with a '+
+      'nominal panel.', 'ALERT'); Audio.alarm(); }],
+    [4.4, ()=> { eidolon('Loop breach on HELIOS-7. Pressure is going to vacuum.',
+      'ALERT — UNCONTAINED'); Audio.alarm(); }],
+    [7.6, ()=> eidolon('HELIOS-7 is off the bus. Structural loss of the radiator assembly. '+
+      'Debris is on your side of the truss, RSV-04.', 'NODE LOST')],
+    [12.0, ()=> eidolon('ASTRAEA-9 is stable. Thermal load has been shed to the remaining '+
+      'panels and the platform holds. The node does not.',
+      'PLATFORM: STABLE — one node down')],
+  ]},
+  none: { profile:'late', hold:12.0, beats:[
+    [0.0, ()=> eidolon('Call logged. Thermal channel declared unreliable, no authoritative '+
+      'value filed. Escalating to the flight director.', 'CONFIDENCE: NONE FILED')],
+    [3.2, ()=> { eidolon('Loop pressure is falling while they read your escalation. '+
+      'Breach on HELIOS-7.', 'ALERT'); Audio.alarm(); }],
+    [6.4, ()=> eidolon('Ground has isolated it. Late, but before the assembly went. '+
+      'HELIOS-7 survives at reduced capacity.', 'CONTAINED — DEGRADED')],
+  ]},
+};
+
+let fx = null;
+const seq = { on:false, k:null, t:0, i:0, beats:[], hold:0, struck:false, last:0 };
+
+/* Aim the RSV's optics at HELIOS-7 and hold. Not a cinematic camera cut: the
+   camera IS the drone (stepShip binds it to ship.pos/basis), so cutting away
+   would break the one rule the whole sortie rests on, that the operator only
+   ever sees what the vehicle sees. This is the optics being commanded to hold
+   on the node, which is what an operator would actually do. */
+function aimAtHelios(dt){
+  const n = NODES.find(x=>x.id === 'HELIOS-7'); if(!n) return;
+  const tgt = n.group ? n.group.getWorldPosition(new THREE.Vector3()) : n.pos;
+  const d = tgt.clone().sub(ship.pos).normalize();
+  const wantYaw   = Math.atan2(-d.x, -d.z);
+  const wantPitch = Math.asin(THREE.MathUtils.clamp(d.y, -1, 1));
+  // shortest angular path, so it never spins the long way round
+  let dy = ((wantYaw - ship.yaw + Math.PI*3) % (Math.PI*2)) - Math.PI;
+  ship.yaw   += dy * Math.min(1, dt*1.6);
+  ship.pitch += (wantPitch - ship.pitch) * Math.min(1, dt*1.6);
+  const b = basis();
+  camera.position.copy(ship.pos);
+  camera.quaternion.copy(b.q);
+}
+
+function startConsequence(k){
+  const c = CONSEQUENCE[k] || CONSEQUENCE.vote;
+  // Hand control back to nobody: the flight is over, but the loop keeps
+  // running so the outcome can play. state.running stays false so no thrust
+  // command, scan or collision test fires during it.
+  state.running = false;
+  if(document.pointerLockElement) document.exitPointerLock();
+  seq.on = true; seq.k = k; seq.t = 0; seq.i = 0;
+  seq.beats = c.beats; seq.hold = c.hold; seq.struck = false;
+  seq.last = performance.now();   // own clock, see stepConsequence
+
+  const node = NODES.find(x=>x.id === 'HELIOS-7');
+  if(!fx) fx = new Rupture(scene);
+  fx.trigger(VENT[c.profile], node && node.group, node && node.panel);
+}
+
+function stepConsequence(){
+  if(!seq.on) return;
+
+  /* WALL CLOCK, NOT THE FRAME DT. The main loop clamps dt to 0.05 s so that a
+     stall cannot teleport the RSV through the station. That clamp is right for
+     flight and wrong for a scripted sequence: on a machine rendering at 12 fps
+     the beats would fire at a quarter speed and a 9.5 s outcome would take
+     nearly 40 s. Found exactly that way, in a headless run on swiftshader.
+
+     The particles integrate on this same clock so the visuals and the narration
+     cannot drift apart, and a large step is harmless here because everything in
+     the effect travels in a straight line at constant velocity. */
+  const now = performance.now();
+  const dt  = Math.min(0.25, (now - (seq.last || now)) / 1000);
+  seq.last  = now;
+  seq.t += dt;
+  aimAtHelios(dt);
+  while(seq.i < seq.beats.length && seq.t >= seq.beats[seq.i][0]){
+    try{ seq.beats[seq.i][1](); }catch(e){ /* a beat must never stall the end */ }
+    seq.i++;
+  }
+  if(fx) fx.update(dt);
+
+  /* One debris strike on the RSV, once, and only on the uncontained case.
+     Sound in vacuum is conducted, not carried: this is the only honest way the
+     player hears anything, and it is why the hull takes it rather than the ear. */
+  if(!seq.struck && seq.k === 'vote' && seq.t > 8.4){
+    seq.struck = true;
+    shakeAmt = Math.min(1, shakeAmt + 0.5);
+    Audio.hull();
+    $('dmg').classList.add('hit');
+    setTimeout(()=>$('dmg').classList.remove('hit'), 70);
+  }
+
+  if(seq.t >= seq.hold){
+    seq.on = false;
+    endMission(state.correct, seq.k);
+  }
 }
 
 /* ==========================================================================
@@ -2141,6 +2586,13 @@ function tick(now){
     } else proEl.style.display='none';
   }
 
+  /* The outcome plays AFTER the flight is over, so this sits outside the
+     state.running guard on purpose. startConsequence() clears state.running to
+     stop thrust, scanning and collision, and everything above this line is
+     inside that guard — so if this call moved up there, the beats would never
+     advance and the mission would dead-end with no end card. */
+  stepConsequence();
+
   // shake decay
   shakeAmt = Math.max(0, shakeAmt - dt*1.6);
   compMat.uniforms.uShake.value = shakeAmt;
@@ -2225,6 +2677,17 @@ if(new URLSearchParams(location.search).get('qa') === '1' &&
       decOpen: document.getElementById('dec').classList.contains('show'),
       endOpen: document.getElementById('end').classList.contains('show'),
       endTitle: document.getElementById('endTitle').textContent,
+      /* The consequence, so a test can assert the outcome actually PLAYED and
+         did not simply time out into the end card. `live` and `frags` are read
+         off the real particle pool, not a flag set when it was requested. */
+      seq: { on:seq.on, k:seq.k, t:+seq.t.toFixed(2), beat:seq.i,
+             beats:seq.beats.length, hold:seq.hold, struck:seq.struck },
+      fx: fx ? { t:+fx.t.toFixed(2), done:fx.done, live:fx.live|0,
+                 frags:fx.deb.count, freed:!!fx.freed, vents:fx.vents.length }
+              : null,
+      // Has HELIOS-7's panel actually left its parent assembly?
+      panelShorn: (()=>{ const n = NODES.find(x=>x.id==='HELIOS-7');
+                         return !!(n && n.panel && n.panel.parent === scene); })(),
     }; }
   };
 }
