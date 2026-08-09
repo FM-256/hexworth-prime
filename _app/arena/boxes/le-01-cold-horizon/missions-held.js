@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAGRANGE EDGE — HELD MISSION PAYLOAD (Act I missions 2-3, MVP-1 mission 4)
+   LAGRANGE EDGE, HELD MISSION PAYLOAD (Act I missions 2-3, MVP-1 mission 4)
    ═══════════════════════════════════════════════════════════════════════════
    SEPARATE FILE ON PURPOSE, and the reason is a real finding rather than tidiness.
 
@@ -19,7 +19,7 @@
 
 const ColdHorizonMissions = {
 
-        /* ── MISSION 2 — GHOST SESSION ──────────────────────────────────────
+        /* ── MISSION 2, GHOST SESSION ──────────────────────────────────────
            A maintenance command reached ASTRAEA-9 from a Terran operator
            session while HELIOS-7's channels were diverging. Was it legitimate?
 
@@ -89,7 +89,7 @@ const ColdHorizonMissions = {
             ]
         },
 
-        /* ── MISSION 3 — LAST GOOD CONTACT ──────────────────────────────────
+        /* ── MISSION 3, LAST GOOD CONTACT ──────────────────────────────────
            Rebuild the last communications window that can be trusted, so every
            later mission has a reference point that is not simply asserted.
 
@@ -184,7 +184,7 @@ const ColdHorizonMissions = {
             ]
         },
 
-        /* ── MISSION 4 — SIGNED IN ASH ──────────────────────────────────────
+        /* ── MISSION 4, SIGNED IN ASH ──────────────────────────────────────
            MVP-1's centrepiece, and the first mission that is NOT another
            independence test. Act I taught one habit three times; running it a
            fourth would be a treadmill. This mission needs the habit and then
@@ -223,17 +223,17 @@ const ColdHorizonMissions = {
             /* Frames for the audit panel. The mission is solved by comparing them,
                not by reading any single one: every frame here is individually valid. */
             frames: [
-                { id: 'f-1131', label: 'Frame 1131 — thermal setpoint',
+                { id: 'f-1131', label: 'Frame 1131, thermal setpoint',
                   frameCounter: 1131, payloadHash: 'a41c…9e02', sig: 'VALID',
                   aud: 'astraea.thermal', iss: 'terran-sso', sentAt: '06:09:41Z',
                   note: 'Legitimate. Issued and acknowledged inside the known-good window '
                       + 'established in Last Good Contact.' },
-                { id: 'f-1131-r', label: 'Frame 1131 — maintenance command (disputed)',
+                { id: 'f-1131-r', label: 'Frame 1131, maintenance command (disputed)',
                   frameCounter: 1131, payloadHash: 'a41c…9e02', sig: 'VALID',
                   aud: 'astraea.thermal', iss: 'terran-sso', sentAt: '06:14:22Z',
                   note: 'The disputed command. Signature verifies. Same frame counter and '
                       + 'the same payload hash as 06:09:41Z.' },
-                { id: 'f-1132', label: 'Frame 1132 — housekeeping poll',
+                { id: 'f-1132', label: 'Frame 1132, housekeeping poll',
                   frameCounter: 1132, payloadHash: 'b7d0…1a55', sig: 'VALID',
                   aud: 'astraea.command', iss: 'terran-sso', sentAt: '06:15:03Z',
                   note: 'Normal traffic. Counter advances, audience is the command '
@@ -297,7 +297,7 @@ if (typeof ColdHorizonConfig !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) module.exports = ColdHorizonMissions;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MISSIONS 8-12 — Acts III and IV
+   MISSIONS 8-12, Acts III and IV
    ═══════════════════════════════════════════════════════════════════════════
    Merged rather than spliced into the literal above, so adding a mission never
    requires surgery inside a 300-line object.
@@ -311,7 +311,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = ColdHorizo
    ═══════════════════════════════════════════════════════════════════════════ */
 Object.assign(ColdHorizonMissions, {
 
-    /* 8 — PARTITION ZERO. Three views agree the rogue node is a legitimate
+    /* 8, PARTITION ZERO. Three views agree the rogue node is a legitimate
        member, and all three are the Subnet Manager describing itself: its
        config, the table it produced, and the audit log it writes. The witness
        is a hardware port counter, which counts frames whether or not the SM
@@ -351,7 +351,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 9 — NIGHTJAR. The image TAG matches the approved release; the DIGEST does
+    /* 9, NIGHTJAR. The image TAG matches the approved release; the DIGEST does
        not. A tag is a mutable pointer, a digest is the content. Two attestations
        vouch for the image and both came out of the same build pipeline, so they
        are one statement. The witness is the running container's own layer hash,
@@ -392,7 +392,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 10 — REDUNDANT TRUTH. Three replicas agree because ONE writer feeds all
+    /* 10, REDUNDANT TRUTH. Three replicas agree because ONE writer feeds all
        three. Replication protects against LOSS; it does nothing about forgery
        upstream of the writer. Mission 1's shape, one level further out. The
        forgery boundary is the ground downlink recording: written as the bits
@@ -431,7 +431,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 11 — EIDOLON. The payoff of the whole box, and the trap is INVERTED. Every
+    /* 11, EIDOLON. The payoff of the whole box, and the trap is INVERTED. Every
        earlier mission taught suspicion of the source that agrees with the crowd;
        here the temptation is to distrust the one that has been disagreeing. It
        was never lying. Its confidence is a function of its inputs, and its
@@ -474,7 +474,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 12 — HEAT DEBT. The first mission whose answer is an ACTION under
+    /* 12, HEAT DEBT. The first mission whose answer is an ACTION under
        uncertainty rather than a finding. The obvious move is to shed HELIOS-7's
        load onto the remaining panels, and the capacity figure everyone quotes
        comes from the same telemetry family that has been wrong since mission 1.
@@ -516,7 +516,7 @@ Object.assign(ColdHorizonMissions, {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   ACT V — THE BURN. Missions 13, 14, 15.
+   ACT V, THE BURN. Missions 13, 14, 15.
    ═══════════════════════════════════════════════════════════════════════════
    Mission 13 is NOT another independence test and must not be. Its canon
    learning focus is "risk-based containment", and the question is not which
@@ -525,8 +525,8 @@ Object.assign(ColdHorizonMissions, {
    renders a sequencing panel for any mission that does.
 
    The constraints are of two kinds and the distinction is the lesson:
-     hard  — violating it destroys something irrecoverable, or reopens the door
-     soft  — a genuine trade-off with no free answer, judged not enforced
+     hard , violating it destroys something irrecoverable, or reopens the door
+     soft , a genuine trade-off with no free answer, judged not enforced
    A mission where every rule is hard teaches rule-following. The thermal
    deadline is what makes this a decision.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -604,7 +604,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 14 — COLD HORIZON. The title mission. Recovery and ATTRIBUTION, and the
+    /* 14, COLD HORIZON. The title mission. Recovery and ATTRIBUTION, and the
        last trap is the one the whole box has been building toward: the evidence
        supports a specific technical account and NOT a specific actor. Every
        source that would name who is downstream of the identity provider that was
@@ -649,7 +649,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 15 — BLACK RELAY (optional). Threat hunting and the sequel hook. Three
+    /* 15, BLACK RELAY (optional). Threat hunting and the sequel hook. Three
        endpoints look like the relay; two are the same infrastructure wearing
        different names, which is mission 1's lesson applied to an adversary's
        estate rather than to your own. */
@@ -695,7 +695,7 @@ Object.assign(ColdHorizonMissions, {
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   MISSIONS 5, 6, 7 — the Act II/III gaps
+   MISSIONS 5, 6, 7, the Act II/III gaps
    ═══════════════════════════════════════════════════════════════════════════
    Skipped when Act II was built because the scope doc's MVP-1 named 4, 8 and 10
    as the vertical slice. Added now to close the arc: the design document
@@ -704,7 +704,7 @@ Object.assign(ColdHorizonMissions, {
    ═══════════════════════════════════════════════════════════════════════════ */
 Object.assign(ColdHorizonMissions, {
 
-    /* 5 — THE QUIET DISH. Ground station maintenance access. The trap is a
+    /* 5, THE QUIET DISH. Ground station maintenance access. The trap is a
        negative: three records show no unauthorised change, and all three are the
        change-management system describing its own contents. Absence of a record
        is not absence of an event, and the witness is the door. */
@@ -742,7 +742,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 6 — DEAD AIR. Resilient communications. Three fallback channels are listed
+    /* 6, DEAD AIR. Resilient communications. Three fallback channels are listed
        as available and two of them terminate on the same transponder, so a single
        failure takes both. The lesson is redundancy that is only redundant on
        paper -- mission 1's shape applied to the link itself, which is the thing
@@ -780,7 +780,7 @@ Object.assign(ColdHorizonMissions, {
         ]
     },
 
-    /* 7 — BORROWED HANDS. Out-of-band management, and the reason the earlier
+    /* 7, BORROWED HANDS. Out-of-band management, and the reason the earlier
        missions could not find the entry point. The Space KVM sits BESIDE the
        operating system: it mounts virtual media, survives a rebuild, and is
        invisible to every host-side record. Real anchor: BMC / IPMI / Redfish and

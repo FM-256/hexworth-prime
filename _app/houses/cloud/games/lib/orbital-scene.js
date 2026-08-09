@@ -1,5 +1,5 @@
 /**
- * orbital-scene.js — the reusable half of a Lagrange Edge sortie.
+ * orbital-scene.js, the reusable half of a Lagrange Edge sortie.
  *
  * WHY THIS FILE EXISTS. cloud-cold-horizon.html is 2,400 lines and roughly 350
  * of them are "what a spacecraft scene looks like": procedural Earth, starfield,
@@ -55,8 +55,8 @@ export function createEarth(o) {
   const earthGroup = new THREE.Group();
   earthGroup.position.copy(o.center);
   // The station sits almost directly over the pole, so an untilted sphere shows
-  // the player nothing but ice cap. Tilt the body to bring mid-latitudes — where
-  // the continents and city lights are — into the visible face.
+  // the player nothing but ice cap. Tilt the body to bring mid-latitudes, where
+  // the continents and city lights are, into the visible face.
   earthGroup.rotation.set(-0.92, 0, 0.28);
 
 
@@ -332,7 +332,7 @@ export function createPostChain(renderer) {
       uniform float uBloom, uThermal, uTime, uShake; uniform vec2 uRes;
       varying vec2 vUv;
 
-      // Narkowicz ACES approximation — cheap, and it keeps the sun's core from
+      // Narkowicz ACES approximation, cheap, and it keeps the sun's core from
       // clipping to a flat white disc.
       vec3 aces(vec3 x){
         const float a=2.51,b=0.03,c=2.43,d=0.59,e=0.14;
@@ -346,7 +346,7 @@ export function createPostChain(renderer) {
           uv += vec2(sin(uTime*61.0), cos(uTime*47.0)) * uShake * 0.006;
         }
 
-        // slight chromatic aberration toward the edges — optics, not decoration
+        // slight chromatic aberration toward the edges, optics, not decoration
         vec2 d = (uv - 0.5);
         float r2 = dot(d,d);
         float ca = (0.0016 + uThermal*0.0026) * r2;
@@ -361,7 +361,7 @@ export function createPostChain(renderer) {
         col = aces(col);
 
         // IR grade. An earlier version collapsed this to luminance, which threw
-        // away the entire false-colour ramp — every object came back grey and the
+        // away the entire false-colour ramp, every object came back grey and the
         // temperature reading was carried only by brightness. The palette IS the
         // signal here, so chroma is preserved; the sensor character comes from
         // fixed-pattern noise and a contrast lift instead.

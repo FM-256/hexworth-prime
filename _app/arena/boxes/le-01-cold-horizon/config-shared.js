@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   LAGRANGE EDGE — OPERATION COLD HORIZON
+   LAGRANGE EDGE, OPERATION COLD HORIZON
    Box le-01-cold-horizon  |  MVP-0: Mission 1 "Three Temperatures"
 
    Companion design: hexworth-shared/workbench/new box design/Lagrange-edge-box/
@@ -14,7 +14,7 @@
 
    This is not stylistic. BoxEngine._initWithMode (BoxEngine.js:98-106)
    pre-fetches every flag in a box's config on page load, and deliverFlag checks
-   only that the caller is signed in — so 231 existing boxes hand their answers
+   only that the caller is signed in, so 231 existing boxes hand their answers
    to the client before the player does anything. Lagrange does not inherit that.
    Scope doc criterion A3.
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -29,7 +29,7 @@ const ColdHorizonConfig = {
     accentColor: '#4aa3ff',
 
     /* ═══════════════════════════════════════════════════════════════════
-       PHYSICS — the constraint the whole box rests on
+       PHYSICS, the constraint the whole box rests on
        ═══════════════════════════════════════════════════════════════════
        ASTRAEA-9 holds station near Earth-Moon L1, ~326,000 km from Earth.
        Light does that in ~1.09 s, so a command and its acknowledgement cost
@@ -51,7 +51,7 @@ const ColdHorizonConfig = {
     },
 
     /* ═══════════════════════════════════════════════════════════════════
-       TRUST STATES — the Trust Ledger
+       TRUST STATES, the Trust Ledger
        ═══════════════════════════════════════════════════════════════════
        A source cannot reach 'trusted-limited' by agreement alone. It requires
        corroboration by an INDEPENDENT source, and independence is tested, not
@@ -66,13 +66,13 @@ const ColdHorizonConfig = {
         'trusted-limited':{ label: 'Trusted for Limited Use', use: 'Authorises a named action' }
     },
 
-    /* Independence test — two sources are NOT independent if they share any of
+    /* Independence test, two sources are NOT independent if they share any of
        these. This is the mission's actual teaching mechanic, and the rejection
        reason must always be shown to the player. */
     independenceAxes: ['collectionPath', 'clockSource', 'signingAuthority'],
 
     /* ═══════════════════════════════════════════════════════════════════
-       RESOURCES — displayed here, AUTHORITATIVE ON THE SERVER
+       RESOURCES, displayed here, AUTHORITATIVE ON THE SERVER
        ═══════════════════════════════════════════════════════════════════
        These values are for rendering only. The server owns every number that
        gates scoring or completion; the client never decides what it spent.
@@ -86,7 +86,7 @@ const ColdHorizonConfig = {
     },
 
     /* ═══════════════════════════════════════════════════════════════════
-       ZONES — MVP-0 subset. Unbuilt zones are declared but gated.
+       ZONES, MVP-0 subset. Unbuilt zones are declared but gated.
        A box may ship with unbuilt nodes; it may not ship with unbuilt nodes
        REACHABLE, or with flags seeded for content that does not exist.
        ═══════════════════════════════════════════════════════════════════ */
@@ -105,20 +105,20 @@ const ColdHorizonConfig = {
     ],
 
     /* ═══════════════════════════════════════════════════════════════════
-       MISSION 1 — THREE TEMPERATURES
+       MISSION 1, THREE TEMPERATURES
        ═══════════════════════════════════════════════════════════════════
        HELIOS-7 reports three thermal readings that disagree. Two agree with
        each other and are wrong; the third is correct and outvoted.
 
        Real anchor: triple modular redundancy with 2-of-3 majority voting, and
-       the failure mode safety engineering has known for decades — majority
+       the failure mode safety engineering has known for decades, majority
        voting assumes INDEPENDENT failure. When two channels share a dependency,
        a single fault takes both, and the vote confidently returns the wrong
        answer. Provenance: REAL (TMR / correlated failure, OT reliability
-       engineering — note this is NOT bug-hunting-hub content; no ICS/OT module
+       engineering, note this is NOT bug-hunting-hub content; no ICS/OT module
        exists in the hub, so the brief cites reliability engineering directly).
 
-       The player must not "spot the outlier" — that is the trap. TH-2 IS the
+       The player must not "spot the outlier", that is the trap. TH-2 IS the
        outlier and IS correct. They must run the independence test, discover
        that TH-1 and TH-3 share a clock source and a signing authority, and
        conclude the majority is one source wearing two hats.
@@ -151,12 +151,12 @@ const ColdHorizonConfig = {
     ],
 
     /* Corroborating evidence available on the telemetry console. Each exists so
-       the correct answer is DERIVABLE rather than guessable — the player can
+       the correct answer is DERIVABLE rather than guessable, the player can
        confirm TH-2 physically, not just procedurally. */
     corroborators: [
         {
             /* Deliberately independent of TH-2 on ALL THREE axes: different bus, different
-               clock, different signing authority. Caught in headless test — the first draft
+               clock, different signing authority. Caught in headless test, the first draft
                gave this the same provenance as TH-2, which made the intended solution path
                fail its own independence check. A corroborator that shares a failure mode
                corroborates nothing, and the mechanic correctly refused it. */
@@ -187,7 +187,7 @@ const ColdHorizonConfig = {
     ],
 
     /* ═══════════════════════════════════════════════════════════════════
-       ACT I, MISSIONS 2 AND 3 — the same skill, different evidence
+       ACT I, MISSIONS 2 AND 3, the same skill, different evidence
        ═══════════════════════════════════════════════════════════════════
        Act I is one lesson taught three times against three kinds of evidence,
        which is the spiral the platform already uses elsewhere: thermal in
@@ -217,7 +217,7 @@ const ColdHorizonConfig = {
        production should do. */
 
     /* ═══════════════════════════════════════════════════════════════════
-       FLAG IDENTIFIERS ONLY — values live in flag_registry
+       FLAG IDENTIFIERS ONLY, values live in flag_registry
        ═══════════════════════════════════════════════════════════════════
        One canonical flag per mission (scope doc section 6), because the
        platform's completion threshold is the count of distinct canonical flag
@@ -283,7 +283,7 @@ const ColdHorizonConfig = {
             flagId: 'm1-independence',
             zone: 'z9',
             /* The reveal gate. Checked SERVER-SIDE against captured evidence, never
-               against a client progress object — presence-only checks are the shape of
+               against a client progress object, presence-only checks are the shape of
                the hexworth_tenant bug, where any localStorage value satisfied them.
                Scope criterion E1. */
             revealGate: {
