@@ -274,7 +274,13 @@ const ColdHorizonConfig = {
         { id: 'm14-cold-horizon', gradable: false, mission: 14, points: 100,
           prompt: 'What does this evidence establish about what happened, and does it name who?' },
         { id: 'm15-black-relay', gradable: false, mission: 15, points: 100,
-          prompt: 'Which endpoint did the workload actually talk to, and what establishes it?' }
+          prompt: 'Which endpoint did the workload actually talk to, and what establishes it?' },
+        { id: 'm5-the-quiet-dish', gradable: false, mission: 5, points: 100,
+          prompt: 'Was this station the point of entry, and what does a clean change log actually prove?' },
+        { id: 'm6-dead-air', gradable: false, mission: 6, points: 100,
+          prompt: 'Which channel can you trust for a containment order, and what does choosing it cost you?' },
+        { id: 'm7-borrowed-hands', gradable: false, mission: 7, points: 100,
+          prompt: 'How did the workload arrive, given the host records show nothing?' }
     ],
 
     missions: [
@@ -428,6 +434,33 @@ const ColdHorizonConfig = {
             flagId: 'm15-black-relay', zone: 'z1',
             revealGate: { necessaries: ['candidates-share-one-operator', 'flow-record-is-an-observation'], corroboratorsRequired: 1,
                           corroboratorFamily: 'physical' }
+        },
+        {
+            id: 5, title: 'The Quiet Dish',
+            objective: 'Establish whether the ground station was the point of entry or only carried the frame.',
+            learningFocus: 'Segmentation and maintenance access; absence of a record is not absence of an event',
+            phaseOutput: 'Ground station not initial entry',
+            flagId: 'm5-the-quiet-dish', zone: 'z1',
+            revealGate: { necessaries: ['change-records-are-one-keeper', 'physical-and-oob-records-independent'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 6, title: 'Dead Air',
+            objective: 'Establish which fallback channel is genuinely independent of the degraded primary.',
+            learningFocus: 'Resilient communications; redundancy on paper is not redundancy',
+            phaseOutput: 'Trusted but constrained command channel',
+            flagId: 'm6-dead-air', zone: 'z1',
+            revealGate: { necessaries: ['three-channels-one-front-end', 'emergency-beacon-separate-chain'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
+        },
+        {
+            id: 7, title: 'Borrowed Hands',
+            objective: 'Audit the Space KVM and establish how the workload arrived without any host-side trace.',
+            learningFocus: 'Out-of-band management; a second plane the host cannot see',
+            phaseOutput: 'Planted image and persistence discovered',
+            flagId: 'm7-borrowed-hands', zone: 'z1',
+            revealGate: { necessaries: ['host-records-are-one-plane', 'bmc-log-records-the-mount'], corroboratorsRequired: 1,
+                          corroboratorFamily: 'physical' }
         }
     ],
 
@@ -513,6 +546,24 @@ const ColdHorizonConfig = {
             'A reputation score is an opinion about a name. A byte count is an observation of a connection.',
             'The feed clears the endpoint the platform actually talked to. Ask why that might be.'
         ],
+        'm5-the-quiet-dish': [
+            'Three records say nothing changed. Ask what KEEPS all three.',
+            'A change-management system, its approval history and its own baseline are one record keeper.',
+            'Absence of a record is not absence of an event. Which systems here do not report to the change process at all?',
+            'A door log and an out-of-band console session sit outside change management by design. Both fired in a window the CM system calls quiet.'
+        ],
+        'm6-dead-air': [
+            'Three fallbacks are listed as available. Availability is a statement about configuration.',
+            'Ask what RF chain each one terminates on before you ask whether it is up.',
+            'The comms stack is telling the truth about its own channels and nothing about their independence.',
+            'One channel runs on a separate omni antenna driven by flight software. It is trusted and it is 48 bytes a minute: enough for an order, not a conversation.'
+        ],
+        'm7-borrowed-hands': [
+            'Every host-side record agrees nothing happened. Ask what plane all of them live on.',
+            'The system log, the audit subsystem and an integrity check are the operating system reporting on itself.',
+            'The management processor sits BESIDE the OS. It can mount media and power-cycle the node without the OS ever being told.',
+            'A virtual media mount at 05:58Z and a power cycle at 05:59Z, on a log the host has no access to. That is how the image got executed.'
+        ],
         'm1-independence': [
             'Two readings agree. Ask what they have in common before you ask what they mean.',
             'Majority voting assumes independent failure. Check that assumption.',
@@ -550,6 +601,10 @@ const ColdHorizonConfig = {
    in the next, which would hand the player the habit's ANSWER while skipping the
    habit.
    ═══════════════════════════════════════════════════════════════════════════ */
+/* Missions are authored in the order they were built, not the order they are
+   played. Sorting here means nothing downstream has to know that. */
+ColdHorizonConfig.missions.sort(function (a, b) { return a.id - b.id; });
+
 ColdHorizonConfig.forMission = function (n) {
     var base = ColdHorizonConfig;
     if (n === 1 || !base.missionData || !base.missionData[n]) return base;

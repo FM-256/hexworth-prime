@@ -451,6 +451,36 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     await pg.close();
   }
 
+  /* ── MISSIONS 5-7, the Act II/III gaps ─────────────────────────────────── */
+  for (const L of [
+    { m:5, t:/QUIET DISH/i,   trap:['gs-cm','gs-approval'],   sol:['gs-cm','gs-door'],       notInd:['gs-cm','gs-config'] },
+    { m:6, t:/DEAD AIR/i,     trap:['ch-primary','ch-backup'], sol:['ch-primary','ch-emergency'], notInd:['ch-backup','ch-relay'] },
+    { m:7, t:/BORROWED HANDS/i, trap:['kvm-hostlog','kvm-audit'], sol:['kvm-hostlog','kvm-sel'], notInd:['kvm-sel','kvm-power'] },
+  ]) {
+    console.log(`\n  mission ${L.m}`);
+    const pg = await open(base+`gateway.html?m=${L.m}&qa=1`);
+    const t = await pg.evaluate(()=>document.getElementById('mTitle').textContent);
+    check(`m${L.m} renders its own title`, L.t.test(t), t);
+    let r = await testPair(pg, L.trap[0], L.trap[1]);
+    check(`m${L.m} TRAP rejected: ${L.trap.join(' vs ')}`, r.ok===false && r.shared.length>0, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.sol[0], L.sol[1]);
+    check(`m${L.m} SOLUTION accepted: ${L.sol.join(' vs ')}`, r.ok===true, 'shared: '+r.shared.join(','));
+    r = await testPair(pg, L.notInd[0], L.notInd[1]);
+    check(`m${L.m} a second same-family source is NOT independent`, r.ok===false, 'shared: '+r.shared.join(','));
+    await pg.close();
+  }
+
+  /* Story order, not build order: the tab strip is generated from the config and
+     a player should meet mission 5 before mission 8. */
+  // A fresh page: cfgPage was closed after the config-invariant block, and reusing
+  // it throws "Attempted to use detached Frame". The sort happens at load time, so
+  // this has to be read from a live page rather than from the file on disk.
+  const ordPage = await open(base+'gateway.html?m=5&qa=1');
+  const order = await ordPage.evaluate(()=>ColdHorizonConfig.missions.map(m=>m.id));
+  await ordPage.close();
+  check('missions are in story order despite being authored out of order',
+        order.join(',') === [...order].sort((a,b)=>a-b).join(','), order.join(','));
+
   /* ── ACT V ──────────────────────────────────────────────────────────────
      13 is a SEQUENCING mission and needs its own assertions: the independence
      mechanic cannot express "in what order", which is the whole question. */

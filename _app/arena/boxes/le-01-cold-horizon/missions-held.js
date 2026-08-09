@@ -693,3 +693,130 @@ Object.assign(ColdHorizonMissions, {
         ]
     }
 });
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MISSIONS 5, 6, 7 — the Act II/III gaps
+   ═══════════════════════════════════════════════════════════════════════════
+   Skipped when Act II was built because the scope doc's MVP-1 named 4, 8 and 10
+   as the vertical slice. Added now to close the arc: the design document
+   describes fifteen missions and a box that plays 12 of them has holes where
+   its phase outputs should chain.
+   ═══════════════════════════════════════════════════════════════════════════ */
+Object.assign(ColdHorizonMissions, {
+
+    /* 5 — THE QUIET DISH. Ground station maintenance access. The trap is a
+       negative: three records show no unauthorised change, and all three are the
+       change-management system describing its own contents. Absence of a record
+       is not absence of an event, and the witness is the door. */
+    5: {
+        axes: ['recordKeeper', 'collectionPath', 'signingAuthority'],
+        situation: 'The disputed command left a ground station. Establish whether the station '
+                 + 'was the point of entry, or whether it only carried something that was '
+                 + 'already inside. Be careful with a clean change log.',
+        sensors: [
+            { id: 'gs-cm', name: 'Change-management record', reading: 'NO CHANGES IN WINDOW', unit: '',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              note: 'The CM system reports nothing was changed.' },
+            { id: 'gs-approval', name: 'Approval workflow history', reading: 'NO PENDING OR APPROVED WORK', unit: '',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              note: 'Same system, same store. It agrees with its own record.' },
+            { id: 'gs-config', name: 'Station config baseline diff', reading: 'MATCHES BASELINE', unit: '',
+              recordKeeper: 'cm-system', collectionPath: 'ops/change-mgmt', signingAuthority: 'lagrange-ops-ca',
+              note: 'The baseline the CM system holds, compared against itself.' }
+        ],
+        corroborators: [
+            { id: 'gs-door', name: 'Equipment room door log', value: 'ONE ENTRY, 04:51Z, MAINTENANCE BADGE', unit: '',
+              recordKeeper: 'facility-acs', collectionPath: 'facility-acs', signingAuthority: 'facility-acs-ca',
+              reasoning: 'A physical door log kept by a different system entirely. Someone was '
+                       + 'in the room during a window the change system says was quiet.' },
+            { id: 'gs-serial', name: 'Serial console session record', value: 'SESSION AT 04:53Z', unit: '',
+              recordKeeper: 'oob-console', collectionPath: 'ops/oob', signingAuthority: 'oob-attest-ca',
+              reasoning: 'Out-of-band console, outside the change process by design. Two '
+                       + 'minutes after the door. It carries no change ticket because the '
+                       + 'change system never saw it.' },
+            { id: 'gs-uplink', name: 'Uplink transmit log for this station', value: 'CARRIED THE FRAME, DID NOT ORIGINATE IT', unit: '',
+              recordKeeper: 'gs-recorder', collectionPath: 'ground/downlink-archive', signingAuthority: 'gs-ranging-ca',
+              reasoning: 'The station transmitted the frame it was handed. That makes it the '
+                       + 'road, not the door: the entry happened somewhere the change system '
+                       + 'does not watch.' }
+        ]
+    },
+
+    /* 6 — DEAD AIR. Resilient communications. Three fallback channels are listed
+       as available and two of them terminate on the same transponder, so a single
+       failure takes both. The lesson is redundancy that is only redundant on
+       paper -- mission 1's shape applied to the link itself, which is the thing
+       every other mission has depended on without examining. */
+    6: {
+        axes: ['rfChain', 'collectionPath', 'signingAuthority'],
+        situation: 'The primary command path is degraded and you need a channel you can trust '
+                 + 'for a containment order. Three fallbacks are listed as available. '
+                 + 'Establish which one is genuinely independent of the primary.',
+        sensors: [
+            { id: 'ch-primary', name: 'Primary command uplink', reading: 'DEGRADED', unit: '',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              note: 'The path everything has been using.' },
+            { id: 'ch-backup', name: 'Backup command uplink', reading: 'AVAILABLE', unit: '',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              note: 'Listed as a separate channel. Same transponder.' },
+            { id: 'ch-relay', name: 'Cross-link relay via a partner platform', reading: 'AVAILABLE', unit: '',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              note: 'Routes off-platform and back through the same front end.' }
+        ],
+        corroborators: [
+            { id: 'ch-emergency', name: 'Low-rate emergency beacon channel', value: '48 BYTES PER MINUTE, S-BAND', unit: '',
+              rfChain: 's-band-omni', collectionPath: 'platform/fsw', signingAuthority: 'astraea-fsw-attest',
+              reasoning: 'A separate omni antenna on a separate RF chain, driven by flight '
+                       + 'software rather than the comms stack. Trusted, and constrained: '
+                       + '48 bytes is a containment order, not a conversation.' },
+            { id: 'ch-rf-topology', name: 'RF chain topology diagram', value: 'PRIMARY, BACKUP AND RELAY SHARE THE Ka FRONT END', unit: '',
+              rfChain: 'ops-walkdown', collectionPath: 'ops/design-docs', signingAuthority: 'lagrange-ops-ca',
+              reasoning: 'A hand-drawn diagram from the design pack. It says in one line what '
+                       + 'the availability list hides: three named channels, one front end.' },
+            { id: 'ch-status', name: 'Comms stack availability report', value: 'ALL THREE AVAILABLE', unit: '',
+              rfChain: 'ka-transponder-1', collectionPath: 'platform/comms', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'The comms stack reporting on the channels it owns. It is telling the '
+                       + 'truth about configuration and nothing about independence.' }
+        ]
+    },
+
+    /* 7 — BORROWED HANDS. Out-of-band management, and the reason the earlier
+       missions could not find the entry point. The Space KVM sits BESIDE the
+       operating system: it mounts virtual media, survives a rebuild, and is
+       invisible to every host-side record. Real anchor: BMC / IPMI / Redfish and
+       the documented virtual-media attack class. */
+    7: {
+        axes: ['plane', 'collectionPath', 'signingAuthority'],
+        situation: 'Nothing host-side explains how the workload arrived. Audit the Space KVM: '
+                 + 'the management processor that can mount media and power-cycle the node '
+                 + 'without the operating system ever knowing.',
+        sensors: [
+            { id: 'kvm-hostlog', name: 'Host system log', reading: 'NO MOUNT EVENTS', unit: '',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              note: 'The OS reports nothing. It would not: virtual media is presented to it '
+                  + 'as ordinary hardware.' },
+            { id: 'kvm-audit', name: 'Host audit subsystem', reading: 'NO PRIVILEGED ACTION', unit: '',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              note: 'Same plane, same store.' },
+            { id: 'kvm-integrity', name: 'Filesystem integrity check', reading: 'NO UNEXPECTED FILES', unit: '',
+              plane: 'host-os', collectionPath: 'platform/syslog', signingAuthority: 'astraea-platform-ca',
+              note: 'Run by the host, on the host, after the fact.' }
+        ],
+        corroborators: [
+            { id: 'kvm-sel', name: 'Management processor event log', value: 'VIRTUAL MEDIA MOUNTED 05:58Z', unit: '',
+              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca',
+              reasoning: 'The management processor keeps its own log on its own plane. It '
+                       + 'records a mount the operating system was never told about, six '
+                       + 'minutes before the fabric join.' },
+            { id: 'kvm-power', name: 'Management processor power history', value: 'CYCLE AT 05:59Z', unit: '',
+              plane: 'bmc', collectionPath: 'platform/bmc', signingAuthority: 'bmc-attest-ca',
+              reasoning: 'A power cycle one minute after the mount, which is how the image got '
+                       + 'executed. Same plane as the event log, so the two are one account.' },
+            { id: 'kvm-netflow', name: 'Management network flow record', value: 'INBOUND FROM THE GROUND STATION SUBNET', unit: '',
+              plane: 'oob-network', collectionPath: 'platform/netflow-oob', signingAuthority: 'astraea-platform-ca',
+              reasoning: 'The out-of-band management network is separate from both the host and '
+                       + 'the BMC log. It says where the session came from, and it points back '
+                       + 'at the quiet dish.' }
+        ]
+    }
+});
