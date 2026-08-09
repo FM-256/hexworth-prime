@@ -120,6 +120,22 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
   check('unbuilt zones are still locked',
         cfgFacts.zones.filter(z=>!built.includes(z.page)).every(z=>z.status==='locked'));
 
+  /* gateway.html is BUILT and deliberately HELD. Two things must agree or the
+     hold is only half real: the zone must be locked, and the file must be
+     excluded from hosting. Locking the zone alone leaves a directly typeable URL
+     and quietly undoes the MVP-0 acceptance criterion that it 404s. */
+  // firebase.json's `hosting` is an object here, but the schema also permits an
+  // array of targets. Handle both, or this check breaks the day a second target
+  // is added and it breaks by reading `undefined`, not by failing loudly.
+  const fbHosting = JSON.parse(fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/firebase.json','utf8')).hosting;
+  const fbIgnore = (Array.isArray(fbHosting) ? fbHosting[0] : fbHosting).ignore || [];
+  const heldPath = 'arena/boxes/le-01-cold-horizon/gateway.html';
+  const z1 = cfgFacts.zones.filter(z=>z.id==='z1')[0];
+  check('a HELD page is locked in config AND excluded from hosting, not just one',
+        (z1.status === 'locked') === fbIgnore.includes(heldPath),
+        `z1=${z1.status}, hosting-excluded=${fbIgnore.includes(heldPath)}`);
+
   // The axes MUST differ per mission. If mission 2 inherited mission 1's thermal
   // axes, its sources would share nothing and every pair would read independent.
   check('mission 1 keeps its own axes untouched',

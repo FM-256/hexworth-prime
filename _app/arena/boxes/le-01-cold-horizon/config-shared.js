@@ -93,7 +93,13 @@ const ColdHorizonConfig = {
     zones: [
         { id: 'z0', name: 'Operator Thin Client', page: 'index.html',     status: 'active' },
         { id: 'z9', name: 'Platform Control',     page: 'telemetry.html', status: 'active' },
-        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'active' },
+        /* RE-LOCKED 2026-08-09. Missions 2-4 are built and tested but not
+           creditable, and the MVP-0 acceptance record proved "gateway.html,
+           fabric.html, orbital.html all 404" as its staged-release criterion.
+           Shipping the page would quietly undo an accepted property. Flip to
+           'active' and drop the firebase.json ignore together, once the three
+           flag values are seeded. */
+        { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'locked' },
         { id: 'z6', name: 'InfiniBand Fabric',    page: 'fabric.html',    status: 'locked' },
         { id: 'z4', name: 'Orbital Gateway',      page: 'orbital.html',   status: 'locked' }
     ],
