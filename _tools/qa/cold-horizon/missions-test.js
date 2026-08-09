@@ -166,10 +166,33 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
     '/home/eq/ai-content/hexworth-prime/firebase.json','utf8')).hosting;
   const fbIgnore = (Array.isArray(fbHosting) ? fbHosting[0] : fbHosting).ignore || [];
   const heldPath = 'arena/boxes/le-01-cold-horizon/gateway.html';
+  const heldPayload = 'arena/boxes/le-01-cold-horizon/missions-held.js';
   const z1 = cfgFacts.zones.filter(z=>z.id==='z1')[0];
   check('a HELD page is locked in config AND excluded from hosting, not just one',
         (z1.status === 'locked') === fbIgnore.includes(heldPath),
         `z1=${z1.status}, hosting-excluded=${fbIgnore.includes(heldPath)}`);
+
+  /* Nancy: holding the ENTRY POINT is not holding the CONTENT. config-shared.js is
+     loaded by index.html and telemetry.html, both of which ship, so unlaunched
+     mission text sitting in it would be one curl away from production. The suite
+     was green through that, because it only ever asked whether the page was
+     reachable. Assert the served config carries none of the held missions' text,
+     and that the payload file is excluded exactly like the page. */
+  check('the held mission PAYLOAD is excluded from hosting too, not just the page',
+        fbIgnore.includes(heldPayload), `excluded=${fbIgnore.includes(heldPayload)}`);
+  const servedCfg = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/config-shared.js','utf8');
+  const leaks = ['GHOST SESSION','LAST GOOD CONTACT','SIGNED IN ASH',
+                 'badge-log','range-fix','f-1131','sso-audit']
+                .filter(w => servedCfg.includes(w));
+  check('the SERVED config leaks no held-mission text (traps, evidence, hints)',
+        leaks.length === 0, leaks.length ? 'LEAKED: '+leaks.join(', ') : 'clean');
+  const idxSrc = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/index.html','utf8');
+  const telSrc = fs.readFileSync(
+    '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon/telemetry.html','utf8');
+  check('no SHIPPING page pulls the held payload in',
+        !idxSrc.includes('missions-held.js') && !telSrc.includes('missions-held.js'));
 
   // The axes MUST differ per mission. If mission 2 inherited mission 1's thermal
   // axes, its sources would share nothing and every pair would read independent.
