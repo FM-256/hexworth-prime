@@ -120,3 +120,29 @@ traefik's dashboard/API is already listening on bc1 `:8080` (`--api.dashboard=tr
 - Extend the same `*.bc1.hexworth.tech` + Access pattern to any other bc1 admin surface as it appears.
 - Consider the same tunnel+Access pattern for **bc2** if it needs office-reachable admin too.
 ```
+
+---
+
+## bc1-ssh: headless SSH over Cloudflare Access (added 2026-07-10)
+
+Zscaler-proof SSH path for agent/automation use — works from any network that
+passes HTTPS, no Tailscale required.
+
+| Piece | Value |
+|---|---|
+| Hostname | `bc1-ssh.hexworth.tech` (CNAME → `2809c48c-...cfargotunnel.com`, proxied) |
+| Tunnel ingress | `ssh://172.18.0.1:22`, inserted immediately before catch-all (order-asserted) |
+| Access app | `bc1 SSH`, id `5dab1047-32d1-45e7-935f-a9128416807e` |
+| Policy | SINGLE policy `1f232cd7-...`, `decision=non_identity` (Service Auth) — `allow` would 302 to login |
+| Service token | `bc1-ssh`, id `e40906ac-...`, expires 2027-07-10; secret ONLY in `~/.config/cloudflare/bc1-ssh-token.env` (600) on the operator workstation |
+| Client | `Host bc1-cf` in `~/.ssh/config` — ProxyCommand sources the env file (secrets never in argv), `HostKeyAlias 100.96.136.114` pins bc1's known host key |
+| sshd precondition | key-only enforced BEFORE exposure: `/etc/ssh/sshd_config.d/00-hexworth-lockdown.conf` (PasswordAuthentication no, PermitRootLogin no, AllowUsers eq1) |
+
+**Gotchas earned:**
+- sshd `Include` is FIRST-match-wins: a `99-*.conf` lockdown loses to `50-cloud-init.conf`. Use `00-` prefix. (The original bootstrap validated but never took effect because of this.)
+- API token needed `Account | Access: Service Tokens | Edit` added in the dashboard — the Apps+Policies scope does NOT cover service tokens (error is a generic `10000 Authentication error`).
+- Unauthenticated probe of the hostname returns 403 (no login page) — correct for a Service-Auth-only app.
+
+**Verification (2026-07-10):** `ssh bc1-cf` headless → `eq1@bc1` PASS; no-token curl → 403; cockpit 302 + sandbox 200 unaffected.
+
+**Recovery if this path breaks:** Cockpit (`bc1.hexworth.tech`, OTP email) is independent; direct `Host bc1` (Tailscale) works off-Zscaler. Rollback: remove the ingress rule from `~/.cloudflared/config.yml` (backups in `~/bc1ssh-bootstrap-archive-1783634661/`) and `docker restart cloudflared`.
