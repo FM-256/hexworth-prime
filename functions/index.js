@@ -214,6 +214,96 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 const { recomputeCtfStats } = require('./ctf-stats');
 const _recomputeCtfStats = (uid) => recomputeCtfStats(db, FieldValue, uid);
 
+/* ── #306: THE REVEAL GATE, ENFORCED ──────────────────────────────────────────────
+   config-shared.js declared the gate as "checked SERVER-SIDE against captured evidence"
+   and cited scope criterion E1. Nothing read it. Mallory proved on 2026-08-09 that a
+   player could type a flag and Transmit on the first frame with zero evidence work, so
+   anyone holding a flag out-of-band got full credit without touching the mechanic the box
+   exists to teach.
+
+   ⚠ THIS MUST GUARD EVERY CREDITING PATH. validateFlag has two: Mode 1 with a flagId and
+   Mode 2 which scans every flag for the box. Gating only Mode 1 would make "omit the
+   flagId" the bypass, which is precisely the shape of bug this is closing. If you add a
+   third path, it calls this too.
+
+   FAILS OPEN BY DESIGN when no gate is seeded for a flag. 12 of 15 missions have a
+   derivable spec (see gen-mission-gates.js); the rest behave exactly as they do today
+   rather than being gated on a guess that would reject correct answers. */
+const missionGates = require('./mission-gates');
+
+async function assertGateSatisfied(uid, boxId, flagId) {
+    let gateDoc;
+    try {
+        gateDoc = await db.doc(`mission_gates/${boxId}`).get();
+    } catch (e) {
+        /* A gate lookup that ERRORS must not silently credit. But it must also not lock every
+           student out of a working box because one read failed, so it is logged loudly and
+           treated as ungated. If this line starts appearing in logs, that is the alarm. */
+        console.error(`[revealGate] lookup failed for ${boxId}/${flagId}: ${e.message}`);
+        return null;
+    }
+    if (!gateDoc.exists) return null;
+    const gate = (gateDoc.data().gates || {})[flagId];
+    if (!gate) return null;
+
+    const progSnap = await db.doc(`users/${uid}/mission_progress/${boxId}_${flagId}`).get();
+    const progress = progSnap.exists ? progSnap.data() : {};
+    const result = missionGates.evaluateGate(gate, progress, gate.sources || {});
+    return result.satisfied ? null : result;
+}
+
+/**
+ * recordMissionFinding — the ONLY way a finding enters a player's ledger.
+ *
+ * The client reports an ACTION ("I compared these sources"), never a conclusion. The server
+ * re-derives the result from its own copy of the mission's provenance and records it only if
+ * the claim is TRUE. Accepting a self-reported conclusion would verify nothing, because a
+ * client that can be edited to skip the work can be edited to claim it.
+ *
+ * What this deliberately does not try to stop: someone calling this endpoint directly with
+ * the correct source pairs. Doing that requires knowing which sources share a dependency,
+ * which IS the learning objective. The bar is "credit requires demonstrating the reasoning",
+ * not "credit requires using our UI". Reject claims that are FALSE, not claims that arrived
+ * by an unusual route.
+ */
+exports.recordMissionFinding = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
+    const { boxId, flagId, findingId, sources, corroboratorId } = request.data || {};
+    if (!boxId || !flagId) throw new HttpsError('invalid-argument', 'Missing boxId or flagId.');
+
+    const uid = request.auth.uid;
+    const gateDoc = await db.doc(`mission_gates/${boxId}`).get();
+    if (!gateDoc.exists) throw new HttpsError('not-found', 'No gate spec for this box.');
+    const gate = (gateDoc.data().gates || {})[flagId];
+    if (!gate) throw new HttpsError('not-found', 'No gate spec for this mission.');
+
+    const ref = db.doc(`users/${uid}/mission_progress/${boxId}_${flagId}`);
+    const update = { boxId, flagId, updatedAt: FieldValue.serverTimestamp() };
+
+    /* Claiming a CORROBORATOR is claiming to hold a second source. The family is decided by
+       the server's own data, so a player cannot nominate a platform reading as physical
+       evidence: that substitution is the exact error every mission in this box is about. */
+    if (corroboratorId) {
+        const src = (gate.sources || {})[corroboratorId];
+        if (!src) throw new HttpsError('invalid-argument', 'Unknown source.');
+        update[`corroborators.${corroboratorId}`] = true;
+        await ref.set(update, { merge: true });
+        return { recorded: true, corroboratorId, family: src.family };
+    }
+
+    if (!findingId) throw new HttpsError('invalid-argument', 'Nothing claimed.');
+    const spec = (gate.findings || {})[findingId];
+    const verdict = missionGates.verifyFinding(spec, { sources }, gate.sources || {});
+    if (!verdict.ok) {
+        /* The reason is returned because it is about the sources the PLAYER named, so it
+           teaches without handing over an answer they had not already reached. */
+        return { recorded: false, reason: verdict.reason };
+    }
+    update[`findings.${findingId}`] = true;
+    await ref.set(update, { merge: true });
+    return { recorded: true, findingId, detail: verdict.reason };
+});
+
 exports.validateFlag = onCall(cfOptions, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
@@ -296,6 +386,15 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
         );
 
         if (isCorrect) {
+            /* Checked AFTER correctness so a wrong answer is still told it is wrong, and
+               BEFORE any write so a gated submission leaves no capture behind. The player
+               is not told which requirements are outstanding: the missing necessaries ARE
+               the findings the mission exists to make them discover. */
+            const blocked = await assertGateSatisfied(uid, boxId, flagId);
+            if (blocked) {
+                return { correct: false, gated: true, flagId: null,
+                         message: missionGates.refusalMessage(blocked) };
+            }
             await db.doc(`users/${uid}/flag_captures/${boxId}_${flagId}`).set({
                 boxId, flagId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
@@ -310,6 +409,12 @@ exports.validateFlag = onCall(cfOptions, async (request) => {
     for (const [fid, fvalue] of Object.entries(flags)) {
         if (normalizedSubmission === fvalue.trim().toLowerCase()) {
             const resolvedId = aliases[fid] || fid;
+            // Same gate as Mode 1. Omitting flagId must not be a way around it.
+            const blocked = await assertGateSatisfied(uid, boxId, resolvedId);
+            if (blocked) {
+                return { correct: false, gated: true, flagId: null,
+                         message: missionGates.refusalMessage(blocked) };
+            }
             await db.doc(`users/${uid}/flag_captures/${boxId}_${resolvedId}`).set({
                 boxId, flagId: resolvedId, capturedAt: FieldValue.serverTimestamp(), sessionId: sessionId || null
             });
