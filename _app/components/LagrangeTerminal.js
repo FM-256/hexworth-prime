@@ -71,6 +71,32 @@ class LagrangeTerminal extends SecurityTerminal {
         /* Commands this console owns. Everything else falls through to
            SecurityTerminal (nmap, tcpdump, dig) and then to LinuxTerminal. */
         this.spaceCommands = ['pass', 'tm', 'tc', 'frames', 'ranging', 'sdls', 'link', 'lehelp'];
+
+        /* THE SORTIE HAND-OFF. A flown sortie leaves an observation in storage and the console
+           adds it as a source. This is the two-phase mission shape: fly out and measure the
+           thing with your own instrument, then reason about it at the desk.
+
+           The RSV survey is not a reward for finishing a game. It is the ONLY reading in this
+           box that shares no link, no clock and no signing authority with the platform, and
+           the console cannot produce it because the console is downstream of the platform.
+           You have to go and look.
+
+           It unlocks a SOURCE, never credit: the flag is still compared server-side, so
+           forging this key buys a telemetry row and no points. */
+        this.sortie = LagrangeTerminal.readSortie();
+        if (this.sortie && this.sortie.observation) {
+            this.platform.telemetry = this.platform.telemetry.concat([this.sortie.observation]);
+        }
+    }
+
+    /** The observation a flown sortie left behind, or null. Never throws: a console that
+        cannot read storage must still work, it just has fewer sources. */
+    static readSortie() {
+        try {
+            if (typeof localStorage === 'undefined') return null;
+            var raw = localStorage.getItem('hexworth_le01_sortie');
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) { return null; }
     }
 
     /* ── physical constants and derivations ─────────────────────────────────── */
@@ -105,9 +131,7 @@ class LagrangeTerminal extends SecurityTerminal {
             telemetry: [
                 { point: 'TH-1', desc: 'HELIOS-7 thermal channel 1', value: '41.2 C', via: 'ka-1' },
                 { point: 'TH-2', desc: 'HELIOS-7 thermal channel 2', value: '41.4 C', via: 'ka-1' },
-                { point: 'TH-3', desc: 'HELIOS-7 thermal channel 3', value: '58.9 C', via: 'ka-1' },
-                { point: 'IR-SURVEY', desc: 'RSV infrared survey of HELIOS-7',
-                  value: '58.6 C', via: 'rsv-opt' }
+                { point: 'TH-3', desc: 'HELIOS-7 thermal channel 3', value: '58.9 C', via: 'ka-1' }
             ],
             /* Pass windows. "No telemetry" during LOS is not the same claim as
                "the platform is silent", and the console must let a student tell
@@ -208,6 +232,12 @@ class LagrangeTerminal extends SecurityTerminal {
             ? this.platform.telemetry.filter(t => t.point.toUpperCase() === want)
             : this.platform.telemetry;
         if (!points.length) {
+            if (want === 'IR-SURVEY' && !this.sortie) {
+                return 'tm: IR-SURVEY is not available from this console.\n\n' +
+                       'The infrared survey is taken from the RSV, off-platform. Nothing at this\n' +
+                       'desk can produce it, because everything here arrives through ASTRAEA-9.\n' +
+                       'Fly the Line of Sight sortie and it will appear as a source.';
+            }
             return `tm: no such telemetry point: ${args[0]}\n` +
                    `available: ${this.platform.telemetry.map(t => t.point).join(', ')}`;
         }
@@ -218,9 +248,18 @@ class LagrangeTerminal extends SecurityTerminal {
                    `             via ${l.id || '?'} | clock ${l.clock || '?'} | ` +
                    `signed ${l.authority || '?'}`;
         });
-        return ['Telemetry (value, then how it reached you):', ...rows, '',
-                `Age at receipt: at least ${this.rtlt().toFixed(2)} s. Nothing here is current.`
-               ].join('\n');
+        var tail = [`Age at receipt: at least ${this.rtlt().toFixed(2)} s. Nothing here is current.`];
+        /* Say what is MISSING and why. Silently listing three platform channels would let a
+           player conclude they have three sources, when they have one source counted three
+           times: TH-1, TH-2 and TH-3 all arrive on ka-1, on one clock, under one signature. */
+        if (!this.sortie) {
+            tail.push('');
+            tail.push('NO OUT-OF-BAND SOURCE ON RECORD. Every reading above came down the same');
+            tail.push('link, on the same clock, under the same signature. They can agree with');
+            tail.push('each other all day and still be one source.');
+            tail.push('Fly the Line of Sight sortie and measure HELIOS-7 yourself.');
+        }
+        return ['Telemetry (value, then how it reached you):', ...rows, '', ...tail].join('\n');
     }
 
     _cmdSdls() {

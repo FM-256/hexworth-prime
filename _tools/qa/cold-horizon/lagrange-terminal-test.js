@@ -28,20 +28,35 @@ function check(name, cond, detail) {
 /* Minimal stand-ins for the two ancestors. They record what falls through to them, which is
    how the inheritance test can prove a non-space command actually reaches the parent. */
 const fellThrough = [];
+const displayed = [];
 const src = `
 class LinuxTerminal {
     constructor(o) { this.opts = o || {}; this.commandHistory = []; this.historyIndex = 0; }
     _parseCommand(line) { const p = line.split(/\\s+/); return { cmd: p[0], args: p.slice(1) }; }
     execute(line) { fellThrough.push(line); return 'PARENT:' + line; }
+    _displayOutput(cmd, out) { displayed.push([cmd, out]); }
 }
 class SecurityTerminal extends LinuxTerminal {}
 ` + fs.readFileSync(path.join(ROOT, 'components/LagrangeTerminal.js'), 'utf8')
   + '\n;globalThis.__LT = LagrangeTerminal; globalThis.__ST = SecurityTerminal;';
 
-const sandbox = { console, module: { exports: {} }, fellThrough };
+const sandbox = { console, module: { exports: {} }, fellThrough, displayed };
 vm.createContext(sandbox);
 vm.runInContext(src, sandbox);
 const LagrangeTerminal = sandbox.__LT;
+
+/* Build a terminal with a given storage state, so the sortie hand-off can be tested in BOTH
+   directions. A test that only ever runs the not-flown case would pass forever while the
+   flown path was broken, which is the shape of failure this box keeps producing. */
+function withStorage(store) {
+    const s2 = { console, module: { exports: {} }, fellThrough, displayed,
+        localStorage: { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = v; } } };
+    vm.createContext(s2);
+    vm.runInContext(src, s2);
+    return new (vm.runInContext('__LT', s2))({});
+}
+const FLOWN = { hexworth_le01_sortie: JSON.stringify({ mission: 1, observation:
+    { point: 'IR-SURVEY', desc: 'RSV infrared survey of HELIOS-7', value: '58.6 C', via: 'rsv-opt' } }) };
 
 console.log('\n  physics, derived not hardcoded');
 const t = new LagrangeTerminal({});
@@ -58,7 +73,10 @@ check('...and the clock that stamped it', /clock MOC-NTP/.test(tm));
 check('...and the authority that signed it', /signed astraea-platform-ca/.test(tm));
 check('...and states the reading is stale by at least the light-time floor',
       /at least 2\.\d+ s/.test(tm));
-const ir = t.execute('tm IR-SURVEY');
+/* IR-SURVEY is no longer issued at the desk: it is EARNED by flying the sortie, so this
+   check now uses a terminal that has the hand-off. The contract changed deliberately and the
+   assertion moved with it rather than being softened. */
+const ir = withStorage(FLOWN).execute('tm IR-SURVEY');
 check('the out-of-band IR reading resolves to a DIFFERENT link, clock and signer',
       /via rsv-opt/.test(ir) && /clock RSV-RTC/.test(ir) && /signed rsv-payload-attest/.test(ir));
 check('an unknown point fails with the list of real ones, not silently',
@@ -105,6 +123,35 @@ check('a NON-space command falls through to the parent chain',
 check('a space command does NOT reach the parent',
       (fellThrough.length === 1) && !!t.execute('pass') && fellThrough.length === 1);
 check('LagrangeTerminal really is a SecurityTerminal', t instanceof sandbox.__ST);
+
+console.log('\n  output actually REACHES the screen');
+displayed.length = 0;
+const ret = t.execute('ranging');
+check('a space command calls the platform render hook _displayOutput',
+      displayed.length === 1, displayed.length + ' call(s)');
+check('...with the command line the student typed', displayed[0] && displayed[0][0] === 'ranging');
+check('...and the same text it returned (return value is not a second source of truth)',
+      displayed[0] && displayed[0][1] === ret);
+check('the component does NOT call a render hook that does not exist (a CALL, not a mention),',
+      !/this\._render\s*\(/.test(fs.readFileSync(path.join(ROOT, 'components/LagrangeTerminal.js'), 'utf8')));
+
+console.log('\n  the sortie hand-off: fly, then work the console');
+const notFlown = withStorage({});
+const flownT = withStorage(FLOWN);
+const tmA = notFlown.execute('tm'), tmB = flownT.execute('tm');
+check('un-flown: the out-of-band source is ABSENT', !/IR-SURVEY/.test(tmA));
+check('un-flown: the console SAYS the readings share a link, clock and signer',
+      /NO OUT-OF-BAND SOURCE/.test(tmA));
+check('un-flown: it points at the sortie rather than leaving a dead end',
+      /Fly the Line of Sight/.test(tmA));
+check('un-flown: asking for it BY NAME explains why a desk cannot produce it',
+      /not available from this console/.test(notFlown.execute('tm IR-SURVEY')));
+check('FLOWN: the survey appears as a source', /IR-SURVEY/.test(tmB));
+check('FLOWN: and carries RSV provenance, not the platform\'s',
+      /via rsv-opt/.test(tmB) && /clock RSV-RTC/.test(tmB) && /signed rsv-payload-attest/.test(tmB));
+check('FLOWN: the prompt to go and fly is gone', !/NO OUT-OF-BAND SOURCE/.test(tmB));
+check('a broken storage value never throws, it just means not flown',
+      withStorage({ hexworth_le01_sortie: 'not json' }).sortie === null);
 
 console.log('\n  the lexical-class trap is not reintroduced');
 check('the component does not attach itself to window',
