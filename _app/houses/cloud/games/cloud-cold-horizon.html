@@ -535,6 +535,7 @@ import * as THREE from 'three';
 /* The reusable half of a sortie: procedural Earth, starfield and the bloom
    chain. Extracted at n=1 so mission 4 inherits them instead of copy-pasting
    ~350 lines that would then have to be fixed in two places forever. */
+import { createRSV } from './lib/rsv-flight.js';
 import { createEarth, createStarfield, createPostChain }
   from './lib/orbital-scene.js';
 
@@ -971,208 +972,69 @@ const renderFrame = () => post.render(scene, camera);
    asymmetry is deliberate: it keeps aiming pleasant while making every burn a
    commitment you have to plan.
    ========================================================================== */
-const ship = {
-  pos : new THREE.Vector3(-118, 26, 96),
-  vel : new THREE.Vector3(0.9, -0.22, -0.75),
-  yaw : 0, pitch : 0,
-  fuel: CFG.maxFuel,
-  hull: 100,
-};
-// Point the RSV at the station on spawn.
-{
-  const d = new THREE.Vector3().subVectors(new THREE.Vector3(0,0,0), ship.pos).normalize();
-  ship.yaw   = Math.atan2(-d.x, -d.z);
-  ship.pitch = Math.asin(THREE.MathUtils.clamp(d.y,-1,1));
-}
+/* The ship itself, its spawn point and its spawn attitude moved into
+   lib/rsv-flight.js with the rest of the flight model. Leaving the old `const ship`
+   here alongside the destructured one was a duplicate declaration, which is a
+   SyntaxError: the module never evaluated, the QA seam never attached, and the
+   playthrough's very first check failed. A whole page dying at parse time is the
+   loudest possible failure and still says nothing about WHICH line, so: when an
+   extraction moves a binding, delete the original in the same edit. */
 
-const keys = Object.create(null);
-const cmdQueue = [];            // { at:ms, vec:Vector3, boost:bool }
-let linkTicks = CFG.baseTicks;  // grows as the mission degrades the link
+/* ── FLIGHT MODEL ─────────────────────────────────────────────────────────────
+   Extracted to lib/rsv-flight.js on 2026-08-10. The ship, teleoperation latency,
+   pointer-lock look, [X] kill-relative-velocity, Newtonian integration, sphere
+   collision and the NO-BRICK automated recall are mission-AGNOSTIC and now live
+   there, so a second flying mission is a config rather than a copy of this file.
+   The box's own engineering note asked for exactly this at n=1.
 
-addEventListener('keydown', e=>{
-  const k = e.key.toLowerCase();
-  keys[k] = true;
-  if(k===' ') e.preventDefault();
-  if(k==='v') toggleThermal();
-  if(k==='x') killRel();
-  if(k==='h'){
-    e.preventDefault();
-    showCoach();
-    // Release the mouse so the panel can actually be read and dismissed. Asking
-    // for help while the cursor is captured otherwise leaves the close button
-    // unclickable, which is its own small confusion.
-    if(document.pointerLockElement) document.exitPointerLock();
-  }
-  if(k==='escape'){
-    hideCoach();
-    if(document.pointerLockElement) document.exitPointerLock();
-  }
-});
-addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
-addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
-
-// requestPointerLock returns a promise in current browsers and REJECTS when the
-// call is not tied to a user gesture. Unguarded that surfaces as an uncaught
-// page error, so every call site swallows it, losing pointer lock is a
-// degraded control scheme, not a crash.
-function grabPointer(){
-  try{
-    const p = renderer.domElement.requestPointerLock();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
-  }catch(e){ /* pointer lock unavailable, mouse-look simply stays unlocked */ }
-}
-renderer.domElement.addEventListener('click', ()=>{
-  if(state.running && !document.pointerLockElement) grabPointer();
-});
-addEventListener('mousemove', e=>{
-  if(document.pointerLockElement !== renderer.domElement) return;
-  ship.yaw   -= e.movementX * 0.0021;
-  ship.pitch -= e.movementY * 0.0021;
-  ship.pitch  = THREE.MathUtils.clamp(ship.pitch, -1.52, 1.52);
-});
-
-// Body-relative basis from yaw/pitch.
-function basis(){
-  const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(ship.pitch, ship.yaw, 0,'YXZ'));
-  return {
-    fwd  : new THREE.Vector3(0,0,-1).applyQuaternion(q),
-    right: new THREE.Vector3(1,0,0).applyQuaternion(q),
-    up   : new THREE.Vector3(0,1,0).applyQuaternion(q),
-    q
-  };
-}
-
-// Reads the keyboard and stamps a command for future execution.
-function issueCommands(now){
-  if(!state.running) return;
-  const v = new THREE.Vector3();
-  if(keys['w']) v.z -= 1;
-  if(keys['s']) v.z += 1;
-  if(keys['a']) v.x -= 1;
-  if(keys['d']) v.x += 1;
-  if(keys[' ']) v.y += 1;
-  if(keys['control']) v.y -= 1;
-  if(v.lengthSq() === 0) return;
-  if(ship.fuel <= 0) return;
-  cmdQueue.push({ at: now + linkTicks*CFG.tickMs, vec: v.normalize(),
-                  boost: !!keys['shift'] });
-}
-
-// "Kill relative velocity", a single queued burn that cancels current drift.
-// This is the NO-BRICK safety valve: however badly you tumble away, one key
-// always brings you back to a stop.
-function killRel(){
-  if(!state.running) return;
-  if(ship.vel.lengthSq() < 1e-6) return;
-  Audio.blip(520,0.09,'square',0.1);
-  cmdQueue.push({ at: performance.now() + linkTicks*CFG.tickMs, kill:true });
-}
-
-let thrustLevel = 0;   // 0..1, for audio and exhaust
-let recalling   = false;  // ground-authority auto-recall active (see NO-BRICK below)
-
-function stepShip(dt, now){
-  // --- apply any commands that have arrived
-  let applied = null;
-  while(cmdQueue.length && cmdQueue[0].at <= now){
-    const c = cmdQueue.shift();
-    if(c.kill){
-      // burn opposite to velocity, capped by what the RCS can do in one pulse
-      const dv = ship.vel.clone().multiplyScalar(-1);
-      const max = CFG.thrust * 0.85;
-      if(dv.length() > max) dv.setLength(max);
-      ship.vel.add(dv);
-      ship.fuel = Math.max(0, ship.fuel - dv.length()*1.4);
-      continue;
-    }
-    applied = c;
-  }
-  if(applied && ship.fuel > 0){
-    const b = basis();
-    const a = new THREE.Vector3()
-      .addScaledVector(b.right, applied.vec.x)
-      .addScaledVector(b.up,    applied.vec.y)
-      .addScaledVector(b.fwd,  -applied.vec.z);
-    const mul = CFG.thrust * (applied.boost ? CFG.boostMul : 1);
-    ship.vel.addScaledVector(a.normalize(), mul*dt);
-    ship.fuel = Math.max(0, ship.fuel - CFG.fuelPerSec*(applied.boost?2.1:1)*dt);
-    thrustLevel = Math.min(1, thrustLevel + dt*7);
-  } else {
-    thrustLevel = Math.max(0, thrustLevel - dt*3.4);
-  }
-
-  // --- AUTOMATED RECALL.
-  // NO-BRICK RULE (canon): no player action may render the mission unplayable.
-  // Without this, a player who burns all 100% of the RCS escaping the station
-  // ends up stranded, [X] still stops them, because cancelling drift is a
-  // safety function and is deliberately not fuel-gated, but with no propellant
-  // there is no way back and the mission can never be completed.
-  // The Terran MOC holds "dock or recall a service vehicle" as a standing
-  // capability, so an exhausted RSV gets tugged home on ground authority and
-  // is re-serviced on arrival. Costs the player time and pride, not the run.
-  const rangeNow = ship.pos.length();
-  if(ship.fuel <= 0.5 && rangeNow > CFG.approachRange){
-    if(!recalling){
-      recalling = true;
-      $('hFuel').classList.add('bad');
-      $('hRecall').style.display = 'block';
-      eidolon('RSV-04, your propellant is exhausted. Mission Operations is taking the ' +
-              'vehicle on automated recall. Hold station and let it fly you in, you will ' +
-              'be re-serviced at the berth.',
-              'CONFIDENCE: HIGH, ground authority, no local input required', 9000);
-    }
-    // gentle constant-rate tug toward the station
-    const home = ship.pos.clone().multiplyScalar(-1).normalize().multiplyScalar(7.5);
-    ship.vel.lerp(home, Math.min(1, dt*0.55));
-  } else if(recalling && rangeNow <= CFG.approachRange){
-    recalling = false;
-    ship.fuel = 32;                    // re-serviced at the berth
-    ship.vel.multiplyScalar(0.12);
+   Everything the mission owns stays here and is passed IN: the station geometry
+   that becomes the collision set, every HUD element, every line EIDOLON speaks,
+   and what a non-movement key does. The destructure keeps the original names so
+   the remaining ~1,200 lines of mission code are untouched by the move. */
+const rsv = createRSV({
+  THREE, cfg: CFG, camera, renderer, audio: Audio,
+  isRunning : () => state.running,
+  // The station hull plus every compute node. Mission geometry, mission's business.
+  obstacles : () => [ new THREE.Vector3(0,0,0), ...NODES.map(n => n.pos.clone().setY(0)) ],
+  onDamage  : (amount) => {
+    shakeAmt = Math.min(1, shakeAmt + amount/16);
+    $('dmg').classList.add('hit');
+    setTimeout(()=>$('dmg').classList.remove('hit'), 70);
+    if(rsv.ship.hull <= 0 && state.running) endMission(false, 'hull');
+  },
+  onRecallStart: () => {
+    $('hFuel').classList.add('bad');
+    $('hRecall').style.display = 'block';
+    eidolon('RSV-04, your propellant is exhausted. Mission Operations is taking the ' +
+            'vehicle on automated recall. Hold station and let it fly you in, you will ' +
+            'be re-serviced at the berth.',
+            'CONFIDENCE: HIGH, ground authority, no local input required', 9000);
+  },
+  onRecallEnd: () => {
     $('hFuel').classList.remove('bad');
     $('hRecall').style.display = 'none';
     Audio.chime();
     eidolon('Recall complete. You have partial propellant. The panel is still unmeasured.',
             'CONFIDENCE: HIGH', 6000);
-  }
-
-  // --- no drag in vacuum. Position integrates, full stop.
-  ship.pos.addScaledVector(ship.vel, dt);
-
-  // --- collision: treat the station as a set of spheres around each module.
-  //     Bouncing off rather than stopping keeps it forgiving.
-  const hitR = 6.0;
-  const checks = [ new THREE.Vector3(0,0,0), ...NODES.map(n=>n.pos.clone().setY(0)) ];
-  for(const c of checks){
-    const d = ship.pos.distanceTo(c);
-    const r = (c.lengthSq()===0) ? 4.2 : hitR;
-    if(d < r){
-      const n = new THREE.Vector3().subVectors(ship.pos, c).normalize();
-      ship.pos.copy(c).addScaledVector(n, r + 0.05);
-      const vn = ship.vel.dot(n);
-      if(vn < 0){
-        ship.vel.addScaledVector(n, -vn*1.55);   // inelastic bounce
-        if(-vn > 1.4) damage(Math.min(CFG.collideDmg, (-vn)*5));
-      }
+  },
+  onKey: (k, e) => {
+    if(k === 'v') toggleThermal();
+    if(k === 'h'){
+      e.preventDefault();
+      showCoach();
+      // Release the mouse so the panel can be read and dismissed; asking for help
+      // with the cursor captured otherwise leaves the close button unclickable.
+      if(document.pointerLockElement) document.exitPointerLock();
     }
-  }
+    if(k === 'escape'){
+      hideCoach();
+      if(document.pointerLockElement) document.exitPointerLock();
+    }
+  },
+});
+const { ship, keys, cmdQueue, basis, issueCommands, killRel, stepShip, grabPointer, damage } = rsv;
 
-  // --- camera follows the RSV exactly (the operator sees through its optics)
-  const b = basis();
-  camera.position.copy(ship.pos);
-  camera.quaternion.copy(b.q);
-
-  Audio.thrust(thrustLevel);
-}
-
-let shakeAmt = 0;
-function damage(amount){
-  ship.hull = Math.max(0, ship.hull - amount);
-  shakeAmt = Math.min(1, shakeAmt + amount/16);
-  Audio.hull();
-  $('dmg').classList.add('hit');
-  setTimeout(()=>$('dmg').classList.remove('hit'), 70);
-  if(ship.hull <= 0 && state.running) endMission(false, 'hull');
-}
+let shakeAmt = 0;   // screen shake stays here: the mission owns its post chain
 
 /* ==========================================================================
    10.  THERMAL CAMERA
@@ -2279,7 +2141,7 @@ function tick(now){
     $('hFuel').className    = 'v' + (ship.fuel < 22 ? ' bad' : ship.fuel < 48 ? ' warn' : '');
     $('hHull').textContent  = ship.hull.toFixed(0) + '%';
     $('hHull').className    = 'v' + (ship.hull < 34 ? ' bad' : ship.hull < 70 ? ' warn' : ' ok');
-    $('hLag').textContent   = (linkTicks*CFG.tickMs/1000).toFixed(2) + ' s';
+    $('hLag').textContent   = (rsv.linkTicks*CFG.tickMs/1000).toFixed(2) + ' s';
     // NB: textContent does not decode HTML entities, use the literal character.
     $('hQ').textContent     = cmdQueue.length ? '#'.repeat(Math.min(6,cmdQueue.length)) : '····';
 
@@ -2384,7 +2246,7 @@ if(new URLSearchParams(location.search).get('qa') === '1' &&
       scanT: +state.scanT.toFixed(2),
       objs:[state.obj1,state.obj2,state.obj3,state.obj4],
       scanned:[...state.scanned], readings:{...state.readings},
-      decided:state.decided, correct:state.correct, recalling,
+      decided:state.decided, correct:state.correct, recalling: rsv.recalling,
       fuel:+ship.fuel.toFixed(1), hull:+ship.hull.toFixed(1),
       range:+ship.pos.length().toFixed(1),
       decOpen: document.getElementById('dec').classList.contains('show'),

@@ -102,8 +102,12 @@ function check(name, pass, detail){
   check('reticle acquires HELIOS-7 radiator via raycast', aimedId==='HELIOS-7',
         'aimed='+aimedId);
 
-  // 5. thermal camera
-  await Q(()=>window.__COLD_HORIZON_QA__.toggleThermal());
+  // 5. thermal camera — pressed as a REAL key, not called through the seam.
+  // The flight model moved to lib/rsv-flight.js on 2026-08-10 and owns the keydown listener
+  // now, routing non-movement keys back to the mission via onKey. Calling toggleThermal()
+  // directly would still pass with that wire cut, so the key itself is what gets pressed:
+  // this check covers the mission function AND the module boundary that reaches it.
+  await page.keyboard.press('v');
   await sleep(700);
   s = await Q(()=>window.__COLD_HORIZON_QA__.snapshot());
   check('IR camera toggles and completes objective 2', s.thermal===true && s.objs[1]===true,
