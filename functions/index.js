@@ -246,7 +246,22 @@ async function assertGateSatisfied(uid, boxId, flagId) {
     const gate = (gateDoc.data().gates || {})[flagId];
     if (!gate) return null;
 
-    const progSnap = await db.doc(`users/${uid}/mission_progress/${boxId}_${flagId}`).get();
+    /* The progress read needs the same guard as the gate lookup above, and did not have it.
+       Unguarded, a transient Firestore error here would throw straight out of validateFlag,
+       and validateFlag is the submission path for EVERY CTF box on the platform, not just this
+       one. A blip in one box's gate would surface as flag submission being broken everywhere.
+
+       Fails OPEN, loudly, for the same reason the lookup does: refusing to credit a correct
+       answer because a read failed is a worse outcome than crediting one we could not verify.
+       Forcing this path is not a practical bypass, and if it starts appearing in logs that is
+       the alarm rather than the leak. */
+    let progSnap;
+    try {
+        progSnap = await db.doc(`users/${uid}/mission_progress/${boxId}_${flagId}`).get();
+    } catch (e) {
+        console.error(`[revealGate] progress read failed for ${uid} ${boxId}/${flagId}: ${e.message}`);
+        return null;
+    }
     const progress = progSnap.exists ? progSnap.data() : {};
     const result = missionGates.evaluateGate(gate, progress, gate.sources || {});
     return result.satisfied ? null : result;
