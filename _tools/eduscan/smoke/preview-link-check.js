@@ -41,6 +41,18 @@ if (!urls.length) {
       await page.setViewport({ width: 1440, height: 900 });
 
       let landed = '(navigation failed)', title = '', gate = false, visible = '';
+
+      /* LANDING ON THE RIGHT PATH IS NOT THE SAME AS THE PAGE WORKING. This box shipped a
+         terminal that returned HTTP 200 with a banner and a blinking cursor while the class
+         behind it was dead in TDZ, and it shipped an arena that served 200 with every one of
+         its 149 boxes empty because one apostrophe was unescaped. Both would have passed the
+         landing check above. An uncaught error or a 404 on a module the page imports is the
+         cheapest available signal that the page is broken, so collect both. */
+      const pageErrors = [], deadReqs = [];
+      page.on('pageerror', (e) => pageErrors.push(String(e.message || e).slice(0, 160)));
+      page.on('requestfailed', (r) => deadReqs.push(`${r.url().slice(-60)} (${r.failure() && r.failure().errorText})`));
+      page.on('response', (r) => { if (r.status() >= 400) deadReqs.push(`${r.url().slice(-60)} (HTTP ${r.status()})`); });
+
       try {
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
         await new Promise((r) => setTimeout(r, 3500));   // let any client-side redirect fire
@@ -55,12 +67,18 @@ if (!urls.length) {
 
       const target = new URL(url).pathname;
       const actual = landed.startsWith('http') ? new URL(landed).pathname : landed;
-      const ok = actual === target;
+      // A page that throws on load is not usable, however correct its URL.
+      const ok = actual === target && pageErrors.length === 0;
 
       console.log(`\n  ${url}`);
       console.log(`    lands on : ${actual}`);
       console.log(`    title    : ${title}`);
-      if (!ok) {
+      console.log(`    errors   : ${pageErrors.length ? pageErrors.join(' | ') : 'none'}`);
+      if (deadReqs.length) console.log(`    dead reqs: ${[...new Set(deadReqs)].join(' | ')}`);
+      if (actual === target && pageErrors.length) {
+        console.log('    FAIL  the page LOADS and then THROWS. Correct URL, broken page.');
+        bad++;
+      } else if (!ok) {
         console.log(`    visible  : ${visible}`);
         console.log(gate
           ? '    FAIL  a cold visitor is GATED here -- this link does not work for anyone but me.'

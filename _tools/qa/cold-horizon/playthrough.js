@@ -40,6 +40,13 @@ function check(name, pass, detail){
 (async ()=>{
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   const port = server.address().port;
+  /* THIS SUITE IS LOCAL-ONLY, AND THAT IS DELIBERATE. Do not add a base-URL override to
+     point it at hexworth.com: every check here drives window.__COLD_HORIZON_QA__, and that
+     seam requires BOTH ?qa=1 AND a localhost hostname (cloud-cold-horizon.html:2200), so on
+     production it does not exist and check #1 fails instantly. That is the seam working as
+     designed, not a broken deploy. I tried the override on 2026-08-10 and this is what it
+     cost. To verify a DEPLOY, boot the live page cold and assert zero uncaught errors plus a
+     reachable start state; to verify BEHAVIOUR, run this suite locally. */
   const url = `http://127.0.0.1:${port}/houses/cloud/games/cloud-cold-horizon.html?qa=1`;
 
   const browser = await puppeteer.launch({ headless:'new',
