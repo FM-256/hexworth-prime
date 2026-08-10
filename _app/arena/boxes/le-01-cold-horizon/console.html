@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ground Segment Console, ASTRAEA-9 | Lagrange Edge</title>
+<link rel="stylesheet" href="shared.css">
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<style>
+  /* shared.css has .le-log, but it is a 220px capped event strip, not a terminal body.
+     These are the few rules a console needs on top of the box's existing language: a
+     scrollable monospace surface and a prompt line that reads as an input, not a form field. */
+  .lt-body {
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: 13px; line-height: 1.55;
+      background: #04080d; border: 1px solid var(--le-line);
+      padding: 12px; height: 420px; overflow-y: auto; white-space: pre-wrap;
+      color: #b9d6e4;
+  }
+  .lt-line { padding: 1px 0; }
+  .lt-prompt { color: var(--le-accent, #4aa3ff); }
+  .lt-command { color: #e8f2f7; }
+  .lt-error { color: #ff8f6b; }
+  .lt-inputrow {
+      display: flex; align-items: center; gap: 8px; margin-top: 10px;
+      border: 1px solid var(--le-line); background: #04080d; padding: 8px 12px;
+  }
+  .lt-inputrow input {
+      flex: 1; background: transparent; border: 0; outline: none;
+      color: #e8f2f7; font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 13px;
+  }
+</style>
+</head>
+<body>
+<div class="le-wrap">
+
+  <div class="le-head">
+    <div>
+      <h1 class="le-title">GROUND SEGMENT CONSOLE</h1>
+      <div class="le-sub">Z2 · ASTRAEA-9 · MOC JACKSONVILLE</div>
+    </div>
+    <div class="le-link">
+      <span class="dot"></span>
+      <span id="linkText">ASTRAEA-9 · 326,000 km · RTT ~2.2 s</span>
+    </div>
+  </div>
+
+  <div class="le-panel" style="margin-bottom:16px">
+    <h2>What this console is for</h2>
+    <div>Every reading here arrived through something: a link, a clock, a signing
+      authority. The console tells you which, on every line, because that is the
+      difference between two sources and one source counted twice.</div>
+    <div class="le-note"><b>Type <span class="lt-command">lehelp</span> to begin.</b>
+      Network tooling (<span class="lt-command">nmap</span>,
+      <span class="lt-command">tcpdump</span>, <span class="lt-command">dig</span>)
+      works here too: the ground segment is a real network.</div>
+  </div>
+
+  <div class="le-panel">
+    <h2>Console</h2>
+    <div class="lt-body" id="terminalOutput"></div>
+    <div class="lt-inputrow">
+      <span class="lt-prompt" id="promptLabel">ir-lead@moc-jax:~$</span>
+      <input id="commandInput" type="text" autocomplete="off" spellcheck="false"
+             aria-label="Console command input">
+    </div>
+    <div class="le-note"><a class="le-btn" href="index.html">Back to the mission board</a></div>
+  </div>
+
+</div>
+
+<!-- Order matters. LagrangeTerminal extends SecurityTerminal, which was standalone as of
+     2026-08-10; LinuxTerminal is still loaded because the security tooling and this page's
+     styling conventions came from that family, and a future fallback may delegate to it. -->
+<script src="../../../components/LinuxTerminal.js"></script>
+<script src="../../../components/SecurityTerminal.js"></script>
+<script src="../../../components/LagrangeTerminal.js"></script>
+<script>
+(function () {
+    'use strict';
+    var out = document.getElementById('terminalOutput');
+    var input = document.getElementById('commandInput');
+
+    function esc(s) {
+        var d = document.createElement('div');
+        d.textContent = String(s == null ? '' : s);
+        return d.innerHTML;
+    }
+    function line(html) {
+        var d = document.createElement('div');
+        d.className = 'lt-line';
+        d.innerHTML = html;
+        out.appendChild(d);
+        out.scrollTop = out.scrollHeight;
+    }
+
+    /* The class binding is LEXICAL, so `window.LagrangeTerminal` is permanently undefined and a
+       guard written that way would never fire. typeof is the only check that works here, and it
+       matters: if the component fails to load, this page must SAY so rather than present a
+       prompt that silently swallows everything. That exact failure shipped on five lab pages. */
+    if (typeof LagrangeTerminal === 'undefined') {
+        line('<span class="lt-error">Console failed to load.</span>');
+        line('The terminal component did not initialise, so no command on this page would do '
+           + 'anything. This message exists so that failure is visible instead of silent.');
+        input.disabled = true;
+        input.placeholder = 'console unavailable';
+        return;
+    }
+
+    var term = new LagrangeTerminal({
+        container: '#terminalOutput',
+        inputElement: '#commandInput',
+        user: 'ir-lead',
+        hostname: 'moc-jax'
+    });
+
+    /* Render hook. The component calls this for every command it handles, and the inherited
+       security tooling calls it too, so one override covers both families. */
+    term._displayOutput = function (command, output) {
+        line('<span class="lt-prompt">' + esc(document.getElementById('promptLabel').textContent)
+             + '</span> <span class="lt-command">' + esc(command) + '</span>');
+        if (output !== null && output !== undefined && String(output).length) {
+            line(String(output));
+        }
+    };
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        var v = input.value.trim();
+        if (!v) return;
+        term.execute(v);
+        input.value = '';
+    });
+
+    line('LAGRANGE EDGE ground segment console');
+    line('ASTRAEA-9 · cislunar L1 · one-way light time 1.09 s');
+    line('');
+    line('Type <span class="lt-command">lehelp</span> for the command list.');
+    input.focus();
+})();
+</script>
+</body>
+</html>

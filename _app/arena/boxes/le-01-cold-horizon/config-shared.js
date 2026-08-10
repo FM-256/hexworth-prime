@@ -100,6 +100,11 @@ const ColdHorizonConfig = {
            'active' and drop the firebase.json ignore together, once the three
            flag values are seeded. */
         { id: 'z1', name: 'Terran Gateway',       page: 'gateway.html',   status: 'active' },
+        /* The ground-segment console. A PLACE, not a mission: no mission declares z2 as its
+           zone, so it is reached from the Platform Zones panel rather than from a mission
+           card. It is the instrument the investigations are worked WITH, which is why it
+           carries provenance on every reading rather than just returning values. */
+        { id: 'z2', name: 'Ground Segment Console', page: 'console.html', status: 'active' },
         { id: 'z6', name: 'InfiniBand Fabric',    page: 'fabric.html',    status: 'locked' },
         { id: 'z4', name: 'Orbital Gateway',      page: 'orbital.html',   status: 'locked' }
     ],

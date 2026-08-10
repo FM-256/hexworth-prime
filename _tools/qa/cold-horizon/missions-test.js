@@ -114,12 +114,23 @@ const testPair = (page, a, b) => page.evaluate((a,b)=>{
         cfgFacts.hintKeys.join(', '));
   // The scope doc's rule, and the bug that left 88 boxes uncompletable: a zone may
   // be declared unbuilt, but it may never be reachable while unbuilt.
-  const built = ['index.html','telemetry.html','gateway.html'];
+  /* DERIVED FROM THE DIRECTORY, not hand-listed. This was
+     `['index.html','telemetry.html','gateway.html']`, which meant the check could only ever
+     be as current as someone's memory: building a legitimate new zone page made a CORRECT
+     configuration fail, and, far worse, deleting a page would have left the list asserting a
+     file that no longer existed. Reading the tree is the only version that cannot go stale,
+     and it is the same rule the script catalog follows: a thing cannot lie about existing. */
+  const BOX_DIR = '/home/eq/ai-content/hexworth-prime/_app/arena/boxes/le-01-cold-horizon';
+  const built = require('fs').readdirSync(BOX_DIR).filter(f => f.endsWith('.html'));
   check('no ACTIVE zone points at a page that does not exist',
         cfgFacts.zones.filter(z=>z.status==='active').every(z=>built.includes(z.page)),
         cfgFacts.zones.filter(z=>z.status==='active').map(z=>z.page).join(', '));
   check('unbuilt zones are still locked',
         cfgFacts.zones.filter(z=>!built.includes(z.page)).every(z=>z.status==='locked'));
+  /* The derived check above passes vacuously if the directory read returns nothing, so prove
+     it found real files. A guard that cannot fail is not a guard. */
+  check('the built-page list was actually derived from disk',
+        built.length >= 4 && built.includes('index.html'), built.join(', '));
 
   /* ── THE ARENA CARD MUST NOT CLAIM FLAGS THE BOX CANNOT YIELD ───────────
      Chris blocked twice on this and the suite was blind to it both times: it
