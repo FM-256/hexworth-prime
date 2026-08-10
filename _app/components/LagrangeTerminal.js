@@ -136,7 +136,13 @@ class LagrangeTerminal extends SecurityTerminal {
             const output = this._executeSpaceCommand(cmd, args);
             this.commandHistory.push(trimmed);
             this.historyIndex = this.commandHistory.length;
-            if (typeof this._render === 'function') this._render(output);
+            /* _displayOutput is the platform's render hook, the one lab pages override
+               (SecurityTerminal.js: "Display output (can be overridden by lab pages)").
+               This called a non-existent this._render at first, guarded by a typeof check,
+               so every space command computed the right text and put NOTHING on screen.
+               The unit test did not catch it because it asserts the RETURN value; a command
+               that returns correctly and renders nowhere passes that test perfectly. */
+            this._displayOutput(trimmed, output);
             return output;
         }
         return super.execute(command);

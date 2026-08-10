@@ -31,10 +31,48 @@
  * House: Eye (CyberOps)
  */
 
-class SecurityTerminal extends LinuxTerminal {
+/* STANDALONE AS OF 2026-08-10, and this was a LIVE BUG, not a refactor for taste.
+ *
+ * This class declared `extends LinuxTerminal`. LinuxTerminal is
+ * `const LinuxTerminal = (function(){...})()`, an IIFE returning a plain OBJECT, so it is not
+ * a constructor and the extends clause threw at script-load time:
+ *     TypeError: Class extends value #<Object> is not a constructor
+ * The failed class declaration also left `SecurityTerminal` in a permanent TDZ, so even
+ * `typeof SecurityTerminal` raised. Every page loading this file got a terminal that rendered
+ * its banner and prompt and then did NOTHING: verified in a browser on the nmap lab, where
+ * typing a command and pressing Enter left the output length unchanged at 591 characters and
+ * the text sitting in the input box. Five lab pages were affected.
+ *
+ * WHY STANDALONE RATHER THAN COMPOSING LinuxTerminal. Measured what the five labs actually
+ * use: nmap, host, whois, dig, traceroute and tcpdump. They do not use the 60+ Linux
+ * commands. LinuxTerminal is also a SINGLETON that takes ownership of a container selector,
+ * and every one of these labs overrides `_displayOutput` to render into that same container
+ * itself, so wiring both would have them writing to one element. The dependency surface on
+ * the phantom parent was one method and five properties; this class already defined the other
+ * 45 itself. Standalone is the smaller, safer change.
+ *
+ * If a future lab genuinely needs `ls`/`cat`/`grep` in this terminal, delegate to
+ * LinuxTerminal.execute() from _executeFallback rather than reintroducing inheritance.
+ */
+class SecurityTerminal {
     constructor(options = {}) {
-        // Initialize parent class
-        super(options);
+        /* State the phantom parent used to be assumed to provide. Enumerated from the real
+           references in this file, not guessed: _parseCommand plus config, commandHistory,
+           containerEl, currentDir and currentUser. */
+        const user = options.user || 'analyst';
+        const hostname = options.hostname || 'workstation';
+        this.config = {
+            user, hostname,
+            container: options.container || null,
+            inputElement: options.inputElement || null
+        };
+        this.currentUser = { name: user, home: `/home/${user}` };
+        this.currentDir = options.startDir || this.currentUser.home;
+        this.commandHistory = [];
+        this.historyIndex = 0;
+        this.containerEl = typeof document !== 'undefined' && options.container
+            ? document.querySelector(options.container)
+            : null;
 
         // Security terminal specific config
         this.securityConfig = {
@@ -57,6 +95,27 @@ class SecurityTerminal extends LinuxTerminal {
 
         // Initialize scenario
         this._initScenario(this.securityConfig.scenario);
+    }
+
+    /* Was inherited from the phantom parent. Splits a command line into {cmd, args},
+       honouring simple single/double quoting so an argument containing a space survives
+       (nmap -oN "scan out.txt"). Empty input yields {cmd:'', args:[]} rather than throwing,
+       because execute() guards on the trimmed line and must never depend on this to. */
+    _parseCommand(line) {
+        const tokens = String(line || '').match(/"[^"]*"|'[^']*'|\S+/g) || [];
+        const clean = tokens.map(t => t.replace(/^["']|["']$/g, ''));
+        return { cmd: clean[0] || '', args: clean.slice(1) };
+    }
+
+    /* Replaces `super._executeCommand`. This terminal is standalone, so a command it does
+       not own is reported rather than silently swallowed: a student typing `ls` should be
+       told this console is a security toolset, not left staring at a dead prompt, which is
+       exactly the failure mode the extends bug produced for every command. */
+    _executeFallback(cmd, args, raw) {
+        if (!cmd) return '';
+        return `<span class="lt-error">${this._escape(cmd)}: command not found</span>\n` +
+               `This console provides security tooling. Try <span class="command">sechelp</span> ` +
+               `for the available commands.`;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -253,7 +312,7 @@ class SecurityTerminal extends LinuxTerminal {
             output = this._executeSecurityCommand(cmd, args, trimmed);
         } else {
             // Fall back to parent class for standard Linux commands
-            output = super._executeCommand(cmd, args, trimmed);
+            output = this._executeFallback(cmd, args, trimmed);
         }
 
         // Display output (can be overridden by lab pages)
