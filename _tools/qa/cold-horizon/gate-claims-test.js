@@ -46,20 +46,54 @@ let pass = 0, fail = 0;
 const t = (n, c, d) => { c ? (pass++, console.log('  PASS  ' + n + (d ? '  -> ' + d : '')))
                            : (fail++, console.log('  FAIL  ' + n + (d ? '  -> ' + d : ''))); };
 
-/* Each case: the distractor pair the mission's own text invites, then the comparisons that
-   genuinely establish the trap. The control runs the same correct work with no distractor. */
-const CASES = [
-    /* `earn` matters: the distractor pairs involve each mission's EARNED corroborator, which
-       the act layer keeps out of the selects until it is obtained. Without seeding it the
-       page.select() calls silently no-op, the distractor never happens, and this whole test
-       goes vacuous. It did exactly that on the first run: the sabotage build passed 8/8. */
-    { m: 3, flag: 'm3-last-good-contact', earn: '3:range-fix',
-      distractor: ['gs-maser', 'range-fix'],            // share logPipeline, NOT timeRoot
-      correct: [['plat-log', 'moc-log'], ['moc-log', 'sso-time']] },
-    { m: 2, flag: 'm2-ghost-session', earn: '2:badge-log',
-      distractor: ['badge-log', 'cam-still'],           // share logPipeline/clockSource, NOT issuer
-      correct: [['sess-token', 'sso-audit'], ['sess-token', 'vpn-log']] }
-];
+/* CASES ARE DERIVED FROM THE SPEC, NOT HARDCODED, and that is the point of this revision.
+   The previous version covered m2 and m3 and inferred the rest. Chris blocked on exactly that:
+   "the mechanism looks generic, it should just work" is the assumption that made this very test
+   vacuous twice already. So every gated mission is derived and driven, including the drone- and
+   satellite-kind acts whose corroborators unlock differently.
+
+   For each gate:
+     correct    a chain through the sources that genuinely share the trap axis, which is what a
+                player establishes by testing pairs
+     distractor a pair that shares SOME OTHER axis while differing on the trap axis: the poison.
+                Five of the twelve missions have no such pair at all, so poisoning is
+                structurally impossible there. That is reported rather than silently skipped,
+                because "no case found" and "case found and passed" must never look alike. */
+function deriveCases(spec) {
+    return Object.keys(spec).map(function (flag) {
+        var g = spec[flag], T = g.trapAxis, V = g.trapValue, S = g.sources;
+        var ids = Object.keys(S);
+        var trap = ids.filter(function (id) { return (S[id].axes || {})[T] === V; });
+        var distractor = null;
+        outer:
+        for (var i = 0; i < ids.length; i++) {
+            for (var j = i + 1; j < ids.length; j++) {
+                var x = ids[i], y = ids[j];
+                if ((S[x].axes || {})[T] === (S[y].axes || {})[T]) continue;   // must NOT share the trap
+                var ax = Object.keys(S[x].axes || {}).filter(function (a) {
+                    return a !== T && S[x].axes[a] !== undefined && S[y].axes[a] === S[x].axes[a];
+                })[0];
+                if (ax) { distractor = [x, y]; break outer; }
+            }
+        }
+        var correct = [];
+        for (var k = 0; k + 1 < trap.length && k < 2; k++) correct.push([trap[k], trap[k + 1]]);
+        return { flag: flag, m: g.missionId, correct: correct, distractor: distractor,
+                 trapCount: trap.length };
+    }).filter(function (c) { return c.correct.length > 0; });
+}
+
+/* The corroborator each mission gates behind an act, so the harness can seed it and make every
+   source selectable. Read from the mission data rather than listed here, so a content change
+   cannot leave this stale. MissionActs.isEarned keys on missionId:corrId and ignores kind, so
+   one seed shape works for terminal, drone and satellite alike. */
+function earnedCorroborators() {
+    var src = fs.readFileSync(path.resolve(__dirname,
+        '../../../_app/arena/boxes/le-01-cold-horizon/missions-held.js'), 'utf8');
+    var out = {}, re = /\{ id: '([a-z0-9-]+)',\s*\n\s*earnedBy: \{ kind: '([a-z]+)'/g, m;
+    while ((m = re.exec(src))) out[m[1]] = m[2];
+    return out;
+}
 
 (async () => {
     await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -68,6 +102,16 @@ const CASES = [
     const browser = await puppeteer.launch({ headless: 'new',
         args: ['--no-sandbox', '--disable-setuid-sandbox'] });
     const errors = [];
+
+    /* Which act to seed for this mission: the one earned corroborator that appears among this
+       gate's sources. Without it the distractor pair may include a locked corroborator, and
+       page.select on a missing option is a SILENT no-op. */
+    const EARNED = earnedCorroborators();
+    function seedFor(c) {
+        const gate = SPEC[c.flag];
+        const id = Object.keys(gate.sources).filter(x => EARNED[x])[0];
+        return id ? (c.m + ':' + id) : ('' + c.m + ':none');
+    }
 
     async function run(c, withDistractor) {
         const page = await browser.newPage();
@@ -79,7 +123,7 @@ const CASES = [
                 localStorage.setItem('hexworth_le01_acts',
                     JSON.stringify({ [earn]: { kind: 'terminal', at: new Date().toISOString() } }));
             } catch (e) {}
-        }, c.earn);
+        }, seedFor(c));
         await page.goto(`${base}/arena/boxes/le-01-cold-horizon/gateway.html?m=${c.m}`,
                         { waitUntil: 'networkidle0', timeout: 40000 });
         /* Capture what the page WOULD send. FirebaseAuth.js has already loaded and defined the
@@ -116,33 +160,52 @@ const CASES = [
 
     console.log('\n--- claims the independence-test UI actually sends ---\n');
 
+    const CASES = deriveCases(SPEC);
+    console.log(`  ${CASES.length} gated missions derived from the spec\n`);
+    let unpoisonable = 0;
+
     for (const c of CASES) {
         const gate = SPEC[c.flag];
         const nec0 = gate.necessaries[0];
         const spec = gate.findings[nec0];
+        const orderings = c.distractor ? [false, true] : [false];
+        if (!c.distractor) unpoisonable++;
 
-        for (const withDistractor of [false, true]) {
-            const label = withDistractor ? 'AFTER the distractor the mission invites' : 'control, no distractor';
+        for (const withDistractor of orderings) {
+            const label = withDistractor ? 'distractor first' : 'control';
             const { claims, missing } = await run(c, withDistractor);
             if (missing.length) {
-                t(`m${c.m} ${label}: sources are selectable`, false, 'not in the menu: ' + missing.join(', '));
+                t(`m${c.m} ${label}: sources selectable`, false, 'not in menu: ' + missing.join(', '));
                 continue;
             }
             const forNec0 = claims.filter(p => p.findingId === nec0);
-            // The real server verifier, not a reimplementation of it.
             const accepted = forNec0.filter(p =>
                 verifyFinding(spec, { sources: p.sources }, gate.sources).ok);
-            t(`m${c.m} ${label}: a claim still VERIFIES`, accepted.length > 0,
-              accepted.length ? `${accepted.length}/${forNec0.length} claims accepted`
-                              : `0/${forNec0.length} accepted; last=${JSON.stringify((forNec0[forNec0.length-1]||{}).sources||[])}`);
-            /* And no claim may be a lie. The server would decline them anyway, but a UI that
-               sprays false claims is telling the player's ledger things they did not show. */
-            const lies = forNec0.filter(p => !verifyFinding(spec, { sources: p.sources }, gate.sources).ok
-                                             && p.sources.length >= (spec.minSources || 2));
-            t(`m${c.m} ${label}: no oversized FALSE claim is sent`, lies.length === 0,
-              lies.length ? JSON.stringify(lies[0].sources) : 'none');
+            t(`m${c.m} ${label}: a claim VERIFIES`, accepted.length > 0,
+              accepted.length ? `${accepted.length}/${forNec0.length}`
+                              : `0/${forNec0.length}; last=${JSON.stringify((forNec0[forNec0.length-1]||{}).sources||[])}`);
+            /* THE REAL INVARIANT IS INTERNAL CONSISTENCY, not "it matches the trap".
+               An earlier version of this assertion failed m7 and m8 on claims like
+               ["kvm-hostlog","kvm-netflow","kvm-audit"], which are not lies: those three DO
+               all share an axis, just not the one this mission is about. The client cannot
+               know which axis is the trap, and is not supposed to guess: the server holds
+               that and declines the rest. Asserting the client only ever claims the trap
+               grouping would demand exactly the guessing the design removed.
+               What must hold is that every claim is TRUE OF SOMETHING: all its sources share
+               one value of one axis. A claim that fails this is the client inventing a
+               grouping the player never demonstrated. */
+            const inconsistent = forNec0.filter(p => {
+                const rows = p.sources.map(id => (gate.sources[id] || {}).axes || {});
+                if (!rows.length) return true;
+                return !Object.keys(rows[0]).some(ax =>
+                    rows[0][ax] !== undefined && rows.every(r => r[ax] === rows[0][ax]));
+            });
+            t(`m${c.m} ${label}: every claim is true of SOME axis`, inconsistent.length === 0,
+              inconsistent.length ? JSON.stringify(inconsistent[0].sources) : 'none');
         }
     }
+    console.log(`\n  ${unpoisonable} of ${CASES.length} missions have NO poisonable pair at all `
+              + `(no source shares a non-trap axis while differing on the trap axis).`);
 
     console.log(`\n=== page errors (${errors.length}) ===`);
     if (errors.length) console.log('  ' + [...new Set(errors)].join('\n  '));
