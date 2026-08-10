@@ -165,6 +165,7 @@
      production neither exists and the mission text is not downloadable. Ship the
      two together or neither. -->
 <script src="missions-held.js"></script>
+<script src="acts.js"></script>
 <script src="../../engine/LagrangeEngine.js"></script>
 <script src="../../../components/FirebaseAuth.js"></script>
 <script>
@@ -284,25 +285,58 @@
     /* Corroborators carry their reasoning. Showing it is the point: the player
        has to be able to see WHY a physical record settles something, not just
        that clicking it turned a badge green. */
+    /* A corroborator that must be EARNED is not shown. Showing its value and then
+       asking the player to go get it would make the trip decoration: they would
+       already have the answer. So the tile states WHAT the act would establish and
+       WHERE to go, and nothing else. The value arrives when they come back. */
+    function actGate(c) {
+        if (!c.earnedBy || typeof MissionActs === 'undefined') return null;
+        if (MissionActs.isEarned(MN, c.id)) return null;
+        return MissionActs.verb(c.earnedBy.kind);
+    }
+
     function renderCorroborators() {
         $('corrList').innerHTML = cfg.corroborators.map(function (c) {
+            var v = actGate(c);
+            if (v) {
+                return '<div class="le-res le-act" style="display:block;margin-bottom:10px">'
+                     + '<div><b>' + c.name + '</b>, <span class="le-redact">NOT YET OBTAINED</span></div>'
+                     + '<div style="font-size:11.5px;line-height:1.5;margin:6px 0">'
+                     + 'This would establish ' + (c.earnedBy.establishes || 'something the records cannot')
+                     + '.</div>'
+                     + '<div style="color:var(--le-dim);font-size:11px;margin-bottom:8px">'
+                     + v.blurb + '</div>'
+                     + '<a class="le-btn" href="' + v.page(MN, c.id) + '">' + v.label + '</a>'
+                     + '</div>';
+            }
             return '<div class="le-res" style="display:block;margin-bottom:10px">'
                  + '<div><b>' + c.name + '</b>, ' + c.value + ' ' + (c.unit || '') + '</div>'
                  + '<div style="color:var(--le-dim);font-size:11px;margin:4px 0">'
                  + provHtml(c) + '</div>'
                  + (c.reasoning ? '<div style="font-size:11.5px;line-height:1.5">'
                                   + c.reasoning + '</div>' : '')
+                 + (c.earnedBy ? '<div class="le-earned">OBTAINED BY YOU</div>' : '')
                  + '</div>';
         }).join('');
     }
 
+    /* Evidence you have not obtained cannot be tested against. Leaving an unearned
+       corroborator in these menus would let a player run the independence test on a
+       source they never went and got, which is the exact "pick the card" shape the
+       acts exist to remove. Sensors are always present: those are the readings the
+       platform pushes at you, and being handed them is the point. */
+    function availableSources() {
+        return all.filter(function (s) { return !actGate(s); });
+    }
+
     function fillSelects() {
-        var opts = all.map(function (s) {
+        var avail = availableSources();
+        var opts = avail.map(function (s) {
             return '<option value="' + s.id + '">' + s.name + '</option>';
         }).join('');
         $('srcA').innerHTML = opts;
         $('srcB').innerHTML = opts;
-        $('srcB').selectedIndex = Math.min(1, all.length - 1);
+        $('srcB').selectedIndex = Math.min(1, avail.length - 1);
     }
 
     /* ── The independence test ────────────────────────────────────────────

@@ -57,6 +57,15 @@
       works here too: the ground segment is a real network.</div>
   </div>
 
+  <!-- Standing orders. Present ONLY when the console was opened from a mission's act
+       button, so the free-roam console is unchanged for a player just exploring. -->
+  <div class="le-panel" id="ordersPanel" style="display:none;margin-bottom:16px">
+    <h2>Standing Orders</h2>
+    <div id="ordersText"></div>
+    <div class="le-note" id="ordersCmd"></div>
+    <div id="ordersDone" style="display:none;margin-top:12px"></div>
+  </div>
+
   <div class="le-panel">
     <h2>Console</h2>
     <div class="lt-body" id="terminalOutput"></div>
@@ -73,6 +82,9 @@
 <!-- Order matters. LagrangeTerminal extends SecurityTerminal, which was standalone as of
      2026-08-10; LinuxTerminal is still loaded because the security tooling and this page's
      styling conventions came from that family, and a future fallback may delegate to it. -->
+<script src="config-shared.js"></script>
+<script src="missions-held.js"></script>
+<script src="acts.js"></script>
 <script src="../../../components/LinuxTerminal.js"></script>
 <script src="../../../components/SecurityTerminal.js"></script>
 <script src="../../../components/LagrangeTerminal.js"></script>
@@ -108,12 +120,72 @@
         return;
     }
 
+    /* ── ACT WIRING ───────────────────────────────────────────────────────────────
+       Opened as console.html?act=<mission>:<corrId>, this page is not free-roam: a
+       mission sent the player here to obtain one specific reading. Resolve what that
+       is, hand the terminal THAT mission's platform (otherwise `tm BMC-SEL` answers
+       "no such telemetry point" and the level is a dead end), and watch for the
+       command that satisfies it. Everything degrades to the ordinary console if any
+       piece is absent, because a broken act must not cost a player the console too. */
+    var req = (typeof MissionActs !== 'undefined') ? MissionActs.parseRequest() : null;
+    var actCorr = null, actMission = null;
+    if (req && typeof ColdHorizonConfig !== 'undefined') {
+        try {
+            var mcfg = ColdHorizonConfig.forMission(Number(req.missionId));
+            actCorr = (mcfg.corroborators || []).filter(function (c) { return c.id === req.corrId; })[0] || null;
+            if (actCorr && actCorr.earnedBy) actMission = req.missionId; else actCorr = null;
+        } catch (e) { actCorr = null; }
+    }
+
+    var platform = LagrangeTerminal.defaultPlatform();
+    if (actMission) platform = MissionActs.platformFor(actMission, platform);
+
     var term = new LagrangeTerminal({
         container: '#terminalOutput',
         inputElement: '#commandInput',
         user: 'ir-lead',
-        hostname: 'moc-jax'
+        hostname: 'moc-jax',
+        platform: platform
     });
+
+    /* Normalised so "TM  badge" and "tm BADGE" are the same instruction. A player who
+       typed the right command in the wrong case has done the work. */
+    function norm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+    /* A command can RUN and still not deliver: `tm` on an unknown point and `tc` without
+       an authenticated session both return prose, not evidence. Crediting the act on
+       "they typed it" would hand out the corroborator for a refusal, which teaches the
+       opposite of the mission. So the output has to be checked, not just the input. */
+    function outputSucceeded(text) {
+        var t = String(text || '');
+        if (/no such telemetry point/i.test(t)) return false;
+        if (/REFUSED at the frame layer/i.test(t)) return false;
+        if (/is not available from this console/i.test(t)) return false;
+        return t.length > 0;
+    }
+
+    function showOrders() {
+        if (!actCorr) return;
+        var eb = actCorr.earnedBy;
+        document.getElementById('ordersPanel').style.display = '';
+        document.getElementById('ordersText').innerHTML =
+            'Mission ' + actMission + ' sent you here for <b>' + esc(actCorr.name) + '</b>. '
+            + 'It would establish ' + esc(eb.establishes || 'what the platform cannot say about itself') + '.';
+        if (MissionActs.isEarned(actMission, actCorr.id)) return markDone(true);
+        document.getElementById('ordersCmd').innerHTML =
+            'Run <span class="lt-command">' + esc(eb.command || '') + '</span> to obtain it.';
+    }
+
+    function markDone(already) {
+        var d = document.getElementById('ordersDone');
+        d.style.display = '';
+        d.innerHTML = '<div style="color:var(--le-accent,#4aa3ff);font-size:12px;margin-bottom:8px">'
+                    + (already ? 'ALREADY OBTAINED.' : 'OBTAINED.')
+                    + ' This reading is now available to mission ' + esc(actMission) + '.</div>'
+                    + '<a class="le-btn primary" href="gateway.html?m=' + esc(actMission) + '">'
+                    + 'Return to mission ' + esc(actMission) + '</a>';
+        document.getElementById('ordersCmd').innerHTML = '';
+    }
 
     /* Render hook. The component calls this for every command it handles, and the inherited
        security tooling calls it too, so one override covers both families. */
@@ -123,7 +195,24 @@
         if (output !== null && output !== undefined && String(output).length) {
             line(String(output));
         }
+
+        /* The act completes HERE, on the render hook, because this is the one place that
+           sees both what was asked and what came back. Checking the input alone would
+           credit a refusal; checking output alone would credit an unrelated command that
+           happened to print. */
+        if (!actCorr || MissionActs.isEarned(actMission, actCorr.id)) return;
+        var want = norm(actCorr.earnedBy.command);
+        if (!want || norm(command) !== want) return;
+        if (!outputSucceeded(output)) return;
+        MissionActs.record(actMission, actCorr.id, actCorr.earnedBy.kind,
+                           { command: String(command), value: actCorr.value || null });
+        markDone(false);
+        line('');
+        line('<span style="color:var(--le-accent,#4aa3ff)">ACT COMPLETE. '
+           + esc(actCorr.name) + ' is now available to mission ' + esc(actMission) + '.</span>');
     };
+
+    showOrders();
 
     input.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter') return;
