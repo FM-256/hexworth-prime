@@ -113,6 +113,25 @@ service cloud.firestore {
         allow read: if isAdmin();
       }
 
+      /* Mission progress — the evidence ledger the reveal gate is evaluated against (#306).
+         Written ONLY by recordMissionFinding, which verifies each claim against the server's
+         own copy of the mission provenance before recording it.
+
+         ⚠ NO CLIENT WRITE, AND THIS IS THE WHOLE CONTROL. If a client could write here it
+         would simply post {findings: {...: true}} and every gate opens: the verification in
+         recordMissionFinding becomes a formality you can walk around, and #306 is reopened
+         by its own fix. Read is allowed so a player's own progress can be shown back to them;
+         reading it reveals nothing they did not establish themselves.
+
+         Omitting this block entirely would ALSO have been safe here, since the default at the
+         bottom of this file denies what is not matched. It is written out because a rule that
+         exists and says "no client writes" survives someone later adding a permissive
+         users/{userId}/{document=**} catch-all, and a silent default does not. */
+      match /mission_progress/{progressId} {
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow write: if false;
+      }
+
       // Gate attempt rate-limiting — written by Cloud Functions (validateGateAnswer)
       match /gate_attempts/{attemptId} {
         allow read: if isAdmin();

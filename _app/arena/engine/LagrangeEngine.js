@@ -176,6 +176,15 @@
                         self.state.solved[data.flagId] = true;
                         self.emit('flag:captured', { flagId: data.flagId });
                         self.save();
+                    } else if (data.gated) {
+                        /* GATED IS NOT WRONG (#306). The server refused to credit because the
+                           trust ledger does not yet support the finding, and the submission may
+                           well be the right answer. Falling through to the wrong-answer branch
+                           would dock wrongAnswerPenalty AND tell a correct player they were
+                           incorrect, which punishes them for the order they did things in. The
+                           message is the server's, and it deliberately names no missing
+                           necessary, because those are the answers. */
+                        self.emit('flag:gated', { message: data.message || '' });
                     } else {
                         self.state.score -= (self.cfg.scoring
                             ? self.cfg.scoring.wrongAnswerPenalty : 50);
@@ -187,6 +196,42 @@
                     return { correct: false, error: e && e.message };
                 });
             });
+    };
+
+    /* ── #306: REPORT AN ACTION, NEVER A CONCLUSION ───────────────────────────────
+       The player did something on this page: compared two sources, or came back from a
+       sortie holding a corroborator. That ACTION is sent to the server, which re-derives
+       the finding from its own copy of the mission's provenance and records it only if
+       the claim is actually true.
+
+       What is deliberately NOT sent is what the client concluded. A client that can be
+       edited to skip the work can be edited to claim it, so a self-reported conclusion
+       would be worth nothing. This is the difference between the gate being real and the
+       gate being decoration, which is what #306 was.
+
+       Fails SOFT on every error path. A player mid-mission whose network hiccups must not
+       lose the work, and there is no credit riding on this call: the gate is evaluated
+       again server-side at submit, against what the server itself recorded. */
+    LagrangeEngine.prototype.reportFinding = function (flagId, claim) {
+        var boxId = this.cfg.registryId;
+        if (!boxId || !flagId || !claim) return Promise.resolve({ recorded: false });
+        if (typeof FirebaseAuth === 'undefined' || !FirebaseAuth.isSignedIn()) {
+            return Promise.resolve({ recorded: false, offline: true });
+        }
+        var payload = { boxId: boxId, flagId: flagId };
+        if (claim.findingId) { payload.findingId = claim.findingId; payload.sources = claim.sources || []; }
+        if (claim.corroboratorId) payload.corroboratorId = claim.corroboratorId;
+        var self = this;
+        return FirebaseAuth.callFunction('recordMissionFinding', payload).then(function (r) {
+            var data = (r && r.data) || r || {};
+            if (data.recorded) self.emit('finding:recorded', data);
+            return data;
+        }).catch(function (e) {
+            /* not-found means no gate is seeded for this box or mission, which is the
+               normal state for the 3 missions whose gate could not be derived, and for
+               every box before seeding. Not an error worth showing anyone. */
+            return { recorded: false, error: e && e.message };
+        });
     };
 
     LagrangeEngine.prototype.useHint = function (flagId) {
