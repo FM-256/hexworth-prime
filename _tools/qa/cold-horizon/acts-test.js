@@ -43,7 +43,9 @@ function check(name, pass, detail) {
   console.log(`  ${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  -> ' + detail : ''}`);
 }
 
-// Every level that declares an act, so a new one cannot be added without being covered.
+/* The 11 console + satellite levels. The 3 DRONE acts are covered separately below, on
+   their own pages: m6 and m8 in lagrange-inspect.html, m12 in cloud-cold-horizon.html.
+   11 + 3 = all 14 levels that declare an act. */
 const CASES = [
   { m: 2,  corr: 'badge-log',       cmd: 'tm BADGE',       kind: 'terminal' },
   { m: 3,  corr: 'range-fix',       cmd: 'ranging',        kind: 'terminal' },
@@ -201,6 +203,51 @@ const CASES = [
     }), d.corr);
     check(`m${d.m} level UNLOCKS after the walk-down`, !un.stillLocked && un.selectable);
     await page.close();
+  }
+
+  /* MISSION 12, the third drone act, on the OTHER page. It flies cloud-cold-horizon.html
+     because its corroborator IS that infrared survey word for word. It is covered here
+     because it is the single act the allowlist in that file is supposed to ALLOW: the other
+     checks prove the allowlist blocks foreign acts, and this one proves it does not block
+     everything. Chris caught its absence on review, having flown it by hand to confirm there
+     was no live regression. A gate that only tests the deny path is half a gate.
+
+     Slower than the rest by design: the win path plays a ~10 s narration sequence before the
+     end card, and the act is credited at the end of it. An earlier probe of mine waited 6 s
+     and reported a working mechanic as broken. */
+  {
+    const p12 = await fresh();
+    await p12.goto(`${base}${BOX}/gateway.html?m=12`, { waitUntil: 'networkidle0', timeout: 40000 });
+    const href12 = await p12.evaluate(() => {
+      const a = document.querySelector('#corrList .le-act a.le-btn');
+      return a ? a.getAttribute('href') : '';
+    });
+    check('m12 routes to the THERMAL sortie, which is its actual evidence',
+          href12.indexOf('cold-horizon') !== -1 && href12.indexOf('lagrange-inspect') === -1, href12);
+
+    await p12.goto(`${base}/houses/cloud/games/cloud-cold-horizon.html?qa=1&act=12:ir-survey`,
+                   { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await new Promise(r => setTimeout(r, 3000));
+    await p12.evaluate(() => ['VESTA-2','HELIOS-7','JANUS-4','KEPLER-9']
+      .forEach(id => window.__COLD_HORIZON_QA__.forceScan(id)));
+    await new Promise(r => setTimeout(r, 600));
+    await p12.evaluate(() => window.__COLD_HORIZON_QA__.decide('ir'));
+    await new Promise(r => setTimeout(r, 18000));   // outcome sequence, then the end card
+    const got12 = await p12.evaluate(() => {
+      const raw = localStorage.getItem('hexworth_le01_acts');
+      const acts = raw ? JSON.parse(raw) : {};
+      return { credited: !!acts['12:ir-survey'],
+               kind: acts['12:ir-survey'] ? acts['12:ir-survey'].kind : null };
+    });
+    check('m12 the allowlist ALLOWS its one act', got12.credited, 'kind=' + got12.kind);
+
+    await p12.goto(`${base}${BOX}/gateway.html?m=12`, { waitUntil: 'networkidle0', timeout: 40000 });
+    const un12 = await p12.evaluate(() => ({
+      stillLocked: !!document.querySelector('#corrList .le-act'),
+      selectable: Array.from(document.querySelectorAll('#srcA option')).map(o => o.value).indexOf('ir-survey') !== -1
+    }));
+    check('m12 level UNLOCKS after the survey', !un12.stillLocked && un12.selectable);
+    await p12.close();
   }
 
   /* The thermal sortie must credit ONE act and refuse the rest. This is the exact
