@@ -298,10 +298,17 @@ exports.recordMissionFinding = onCall(cfOptions, async (request) => {
     /* Claiming a CORROBORATOR is claiming to hold a second source. The family is decided by
        the server's own data, so a player cannot nominate a platform reading as physical
        evidence: that substitution is the exact error every mission in this box is about. */
+    /* ⚠ NESTED OBJECT, NOT A DOTTED KEY. `set(..., {merge:true})` does NOT expand dot notation
+       the way `update()` does: it writes a field whose NAME literally contains a dot. This
+       code originally did update[`findings.${id}`] = true and then set(), which produced a
+       field called "findings.three-channels-one-front-end" while evaluateGate read
+       progress.findings and found undefined. Every necessary counted as missing, so a student
+       who did all the work was still refused. Caught by the end-to-end run reading the ledger
+       back out of Firestore; the callable itself cheerfully reported recorded:true. */
     if (corroboratorId) {
         const src = (gate.sources || {})[corroboratorId];
         if (!src) throw new HttpsError('invalid-argument', 'Unknown source.');
-        update[`corroborators.${corroboratorId}`] = true;
+        update.corroborators = { [corroboratorId]: true };
         await ref.set(update, { merge: true });
         return { recorded: true, corroboratorId, family: src.family };
     }
@@ -314,7 +321,9 @@ exports.recordMissionFinding = onCall(cfOptions, async (request) => {
            teaches without handing over an answer they had not already reached. */
         return { recorded: false, reason: verdict.reason };
     }
-    update[`findings.${findingId}`] = true;
+    // Nested, for the same reason as corroborators above. A merge on a nested map adds the key
+    // without clobbering findings already recorded.
+    update.findings = { [findingId]: true };
     await ref.set(update, { merge: true });
     return { recorded: true, findingId, detail: verdict.reason };
 });
