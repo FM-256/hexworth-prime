@@ -78,7 +78,25 @@ var MissionActs = (function () {
         drone: {
             label: 'FLY RSV-04',
             blurb: 'A record can be moved. A structure you flew out and looked at cannot.',
-            page: function (m, c) { return '../../../houses/cloud/games/cloud-cold-horizon.html?act=' + m + ':' + c; }
+            /* ROUTED BY WHAT THE MISSION ACTUALLY NEEDS TO SEE, not by verb.
+
+               For one commit every drone act pointed here at cloud-cold-horizon.html, which
+               is a HELIOS-7 thermal panel survey. Mission 12's corroborator IS that survey,
+               word for word. Missions 6 and 8 want an RF chain topology and a physical cable
+               count, and flying a thermal survey establishes neither. Chris blocked the deploy
+               over it: the box teaches that a reading carries only what its provenance
+               supports, and crediting "seen with your own optics" for something never seen is
+               that lesson inverted.
+
+               So the environment is chosen by the evidence. A drone act with no environment
+               built for it gets NO page rather than a convenient stand-in. */
+            page: function (m, c) {
+                var key = String(m) + ':' + String(c);
+                if (key === '12:ir-survey') {
+                    return '../../../houses/cloud/games/cloud-cold-horizon.html?act=' + key;
+                }
+                return '../../../houses/cloud/games/lagrange-inspect.html?act=' + key;
+            }
         },
         satellite: {
             label: 'COMMAND THE PLATFORM',

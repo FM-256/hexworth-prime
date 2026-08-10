@@ -62,15 +62,28 @@ const CASES = [
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
   const base = `http://127.0.0.1:${port}`;
+  /* The inspection sortie is a real WebGL page, so the software rasteriser has to be
+     enabled or the renderer throws and the walk-down cannot be flown headless. The gateway
+     and console pages do not need it; sharing one browser is simpler than two. */
   const browser = await puppeteer.launch({ headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--use-gl=angle',
+           '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1600,900'] });
 
   const errors = [];
+  const expectedThrows = [];
   async function fresh() {
     const ctx = browser.createBrowserContext ? await browser.createBrowserContext()
                                              : browser.defaultBrowserContext();
     const page = ctx.newPage ? await ctx.newPage() : await browser.newPage();
-    page.on('pageerror', e => errors.push(String(e.message).slice(0, 140)));
+    /* The unknown-act guard in lagrange-inspect.html halts the module with a throw, which
+       is deliberate: it is how the page refuses to fly an environment it does not have. It
+       is asserted as its own check below, so counting it here too would leave "runtime
+       errors" permanently at 1 and destroy the signal for a real one. */
+    page.on('pageerror', e => {
+      const m = String(e.message);
+      if (m.indexOf('opened without a known act') !== -1) { expectedThrows.push(m); return; }
+      errors.push(m.slice(0, 140));
+    });
     // Sorted, or AccessGuard bounces every page to the tourist prompt.
     await page.evaluateOnNewDocument(() => {
       try { localStorage.setItem('hexworth_house', 'cloud'); } catch (e) {}
@@ -135,6 +148,73 @@ const CASES = [
 
     await page.close();
   }
+
+  /* ── DRONE ACTS ────────────────────────────────────────────────────────────────
+     The three the console cannot cover. m6 and m8 fly lagrange-inspect.html, which is
+     built for their evidence; m12 flies the thermal sortie because its corroborator IS
+     that survey. The environment routing is the thing under test as much as the flight:
+     an earlier build sent all three to the thermal sortie and credited an RF topology
+     nobody had looked at, which is why the allowlist and the router exist. */
+  const DRONE = [
+    { m: 6, corr: 'ch-rf-topology', page: 'lagrange-inspect', headline: 'Ka FRONT END' },
+    { m: 8, corr: 'cable-map',      page: 'lagrange-inspect', headline: 'PORT 14 UNPOPULATED' }
+  ];
+  for (const d of DRONE) {
+    const page = await fresh();
+    // The gateway must ROUTE to the purpose-built environment, not the thermal sortie.
+    await page.goto(`${base}${BOX}/gateway.html?m=${d.m}`, { waitUntil: 'networkidle0', timeout: 40000 });
+    const href = await page.evaluate(() => {
+      const a = document.querySelector('#corrList .le-act a.le-btn');
+      return a ? a.getAttribute('href') : '';
+    });
+    check(`m${d.m} routes to its OWN environment, not the thermal sortie`,
+          href.indexOf(d.page) !== -1 && href.indexOf('cold-horizon') === -1, href);
+
+    // Fly it: inspect every target through the seam, then confirm the act is credited.
+    await page.goto(`${base}/houses/cloud/games/lagrange-inspect.html?qa=1&act=${d.m}:${d.corr}`,
+                    { waitUntil: 'domcontentloaded', timeout: 40000 });
+    // Give the module graph, the scene build and the first frames time to land.
+    await new Promise(r => setTimeout(r, 4000));
+    const flew = await page.evaluate(async (m, corr) => {
+      const q = window.__LE_INSPECT_QA__;
+      if (!q) return { err: 'no QA seam' };
+      const ids = q.env().targets;
+      ids.forEach(id => q.inspect(id));
+      await new Promise(r => setTimeout(r, 400));
+      const raw = localStorage.getItem('hexworth_le01_acts');
+      const acts = raw ? JSON.parse(raw) : {};
+      const rec = acts[m + ':' + corr];
+      return { snap: q.snapshot(), credited: !!rec,
+               finding: rec && rec.payload ? rec.payload.finding : null,
+               env: rec && rec.payload ? rec.payload.environment : null };
+    }, String(d.m), d.corr);
+    check(`m${d.m} walk-down completes and credits the act`, flew.credited,
+          flew.err || (flew.finding || '').slice(0, 46));
+    check(`m${d.m} finding matches the corroborator it earns`,
+          !!flew.finding && flew.finding.indexOf(d.headline) !== -1, flew.finding || '(none)');
+
+    // And the level unlocks.
+    await page.goto(`${base}${BOX}/gateway.html?m=${d.m}`, { waitUntil: 'networkidle0', timeout: 40000 });
+    const un = await page.evaluate((corrId) => ({
+      stillLocked: !!document.querySelector('#corrList .le-act'),
+      selectable: Array.from(document.querySelectorAll('#srcA option')).map(o => o.value).indexOf(corrId) !== -1
+    }), d.corr);
+    check(`m${d.m} level UNLOCKS after the walk-down`, !un.stillLocked && un.selectable);
+    await page.close();
+  }
+
+  /* The thermal sortie must credit ONE act and refuse the rest. This is the exact
+     defect Chris blocked: it used to credit any act it was handed. */
+  const wrong = await fresh();
+  await wrong.goto(`${base}/houses/cloud/games/lagrange-inspect.html?act=99:not-a-thing`,
+                   { waitUntil: 'domcontentloaded', timeout: 40000 });
+  await new Promise(r => setTimeout(r, 800));
+  const refusedEnv = await wrong.evaluate(() =>
+    document.body.textContent.indexOf('dispatched by a mission') !== -1);
+  check('an unknown act gets NO environment rather than a stand-in', refusedEnv);
+  check('the unknown-act guard HALTS the page instead of flying it',
+        expectedThrows.length > 0, expectedThrows[0] || '(never thrown)');
+  await wrong.close();
 
   // A refusal must NOT pay. m4's console has no authenticated session, so a telecommand
   // there is refused at the frame layer; crediting it would reward the failure.

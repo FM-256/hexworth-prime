@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RSV Inspection Sortie | Lagrange Edge</title>
+<script src="../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<!--
+  ============================================================================
+  RSV INSPECTION SORTIE ,  the walk-down environments
+  ============================================================================
+  WHY THIS FILE EXISTS, and it is a correction rather than a feature.
+
+  The act layer gave all 14 z1 levels something to DO. Three are drone acts.
+  Mission 12's is genuinely mission 1's infrared survey, word for word. Missions
+  6 and 8 are not, and for one commit they credited against that same thermal
+  sortie: a player was sent to establish an RF chain topology or a physical cable
+  count, flew a HELIOS-7 panel temperature survey, and was handed "seen with your
+  own optics" for something they had never seen.
+
+  Chris blocked the deploy over it and was right to. This box's entire thesis is
+  that a reading carries only what its provenance supports, so shipping two
+  corroborators whose provenance did not support their claim was the box's own
+  trap turned on itself. Disclosure in a comment is not a fix.
+
+  THE PROVENANCE ALREADY ASKED FOR THIS. Both corroborators are stamped
+  `ops-walkdown` and mission 8's reasoning says "a human wrote this on the deck".
+  A walk-down is exactly what flying out to look at the thing is. The data was
+  always describing this environment; nobody had built it.
+
+  ONE PAGE, TWO ENVIRONMENTS, because they differ only in geometry and in what
+  inspecting a target reveals. Scene (lib/orbital-scene.js) and flight model
+  (lib/rsv-flight.js) are libraries, so this file is the mission and nothing
+  else. That is the payoff from the extraction: a new environment is a config.
+  ============================================================================
+-->
+<style>
+  :root { --ink:#b9d6e4; --dim:#5d7a8a; --acc:#4aa3ff; --warn:#ffb454; --bad:#ff8f6b; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:#02060a; color:var(--ink);
+              font-family:'Share Tech Mono','Courier New',monospace; overflow:hidden; }
+  canvas { display:block; }
+  #hud { position:absolute; inset:0; pointer-events:none; }
+  .hpanel { position:absolute; background:rgba(4,10,16,.72); border:1px solid #16303f;
+            padding:10px 12px; font-size:12px; line-height:1.6; }
+  #hTop  { top:14px; left:14px; min-width:250px; }
+  #hObj  { top:14px; right:14px; width:310px; }
+  #hFoot { bottom:14px; left:14px; right:14px; text-align:center; font-size:11.5px; color:var(--dim); }
+  .k { color:var(--dim); }
+  .v { color:var(--ink); }
+  .bad { color:var(--bad); }
+  .ok  { color:var(--acc); }
+  #ret { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+         width:6px; height:6px; border:1px solid rgba(185,214,228,.85); border-radius:50%; }
+  #tag { position:absolute; top:calc(50% + 16px); left:50%; transform:translateX(-50%);
+         font-size:11.5px; color:var(--acc); text-align:center; white-space:nowrap; }
+  #bar { position:absolute; top:calc(50% + 34px); left:50%; transform:translateX(-50%);
+         width:120px; height:3px; background:#16303f; display:none; }
+  #bar > i { display:block; height:100%; width:0; background:var(--acc); }
+  #end { position:absolute; inset:0; background:rgba(2,6,10,.93); display:none;
+         align-items:center; justify-content:center; pointer-events:auto; }
+  #endCard { max-width:640px; padding:28px; border:1px solid #16303f; background:#04080d; }
+  #endCard h1 { font-size:19px; margin:0 0 14px; letter-spacing:.06em; color:var(--acc); }
+  #endCard p { font-size:13px; line-height:1.7; }
+  .btn { display:inline-block; margin-top:16px; padding:9px 16px; border:1px solid var(--acc);
+         color:var(--acc); text-decoration:none; font-size:12px; letter-spacing:.05em; }
+  #boot { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+          font-size:13px; color:var(--dim); text-align:center; padding:24px; }
+</style>
+</head>
+<body>
+<div id="boot">Loading inspection sortie&hellip;</div>
+<div id="hud" style="display:none">
+  <div class="hpanel" id="hTop">
+    <div><span class="k">VEHICLE</span> <span class="v">RSV-04</span></div>
+    <div><span class="k">RANGE</span> <span class="v" id="hRange">----</span>
+         <span class="k">FUEL</span> <span class="v" id="hFuel">100%</span>
+         <span class="k">HULL</span> <span class="v" id="hHull">100%</span></div>
+    <div><span class="k">LINK LAG</span> <span class="v" id="hLag">0.60 s</span></div>
+  </div>
+  <div class="hpanel" id="hObj">
+    <div id="oTitle" style="color:var(--acc);margin-bottom:6px"></div>
+    <div id="oBrief" style="color:var(--dim);margin-bottom:8px"></div>
+    <div id="oList"></div>
+  </div>
+  <div id="ret"></div>
+  <div id="tag"></div>
+  <div id="bar"><i id="barFill"></i></div>
+  <div class="hpanel" id="hFoot">
+    WASD translate &middot; SPACE/CTRL up-down &middot; SHIFT boost &middot; MOUSE look &middot;
+    [X] kill relative velocity &middot; [F] hold to inspect what the reticle names
+  </div>
+</div>
+<div id="end"><div id="endCard">
+  <h1 id="endTitle"></h1>
+  <p id="endBody"></p>
+  <div id="endLinks"></div>
+</div></div>
+
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/three.module.min.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { createEarth, createStarfield, createPostChain } from './lib/orbital-scene.js';
+import { createRSV } from './lib/rsv-flight.js';
+
+const $ = id => document.getElementById(id);
+
+/* ── WHAT THIS SORTIE IS FOR ──────────────────────────────────────────────────
+   Keyed by the act the gateway sent us to perform (?act=<mission>:<corrId>), so a
+   mission cannot silently borrow another mission's environment. That borrowing is
+   the exact defect this file was written to correct, so it is prevented by
+   construction: no entry, no flight, and the page says why instead of flying
+   something irrelevant and crediting it. */
+const ENVS = {
+  '6:ch-rf-topology': {
+    title: 'ANTENNA FARM WALK-DOWN',
+    brief: 'Three fallback channels are listed as independent. Inspect each feed and follow '
+         + 'it to the front end it actually terminates on.',
+    // Each target is a feed horn; `terminates` is what close inspection reveals.
+    targets: [
+      { id: 'FEED-PRI',   label: 'Primary command feed',   pos: [ -34,  10, -18 ], terminates: 'KA-FE-1' },
+      { id: 'FEED-BKP',   label: 'Backup command feed',    pos: [ -12,  16, -26 ], terminates: 'KA-FE-1' },
+      { id: 'FEED-RLY',   label: 'Cross-link relay feed',  pos: [  14,   9, -22 ], terminates: 'KA-FE-1' },
+      { id: 'OMNI-S',     label: 'S-band omni (survival)', pos: [  38, -12,   8 ], terminates: 'S-FE-2' }
+    ],
+    /* The finding is DERIVED from what was inspected, never asserted. If the geometry
+       changed and three feeds no longer shared a front end, this would say so. */
+    finding(seen) {
+      const tally = {};
+      seen.forEach(t => { tally[t.terminates] = (tally[t.terminates] || 0) + 1; });
+      const top = Object.keys(tally).sort((a, b) => tally[b] - tally[a])[0];
+      return { headline: 'PRIMARY, BACKUP AND RELAY SHARE THE Ka FRONT END',
+               detail: `${tally[top]} of the ${seen.length} feeds you inspected terminate on ${top}. `
+                     + 'The availability list called them three channels. The waveguide calls them one. '
+                     + 'The omni is the only chain that could have failed independently, and it carries '
+                     + '48 bytes a minute: an order, not a conversation.' };
+    }
+  },
+  '8:cable-map': {
+    title: 'RACK CABLE COUNT',
+    brief: 'The fabric controller reports a healthy topology. Count what is physically plugged '
+         + 'into the leaf switch, port by port.',
+    targets: [
+      { id: 'PORT-12', label: 'Leaf switch port 12', pos: [ -26,  4, -14 ], populated: true  },
+      { id: 'PORT-13', label: 'Leaf switch port 13', pos: [ -10,  4, -14 ], populated: true  },
+      { id: 'PORT-14', label: 'Leaf switch port 14', pos: [   6,  4, -14 ], populated: false },
+      { id: 'PORT-15', label: 'Leaf switch port 15', pos: [  22,  4, -14 ], populated: true  }
+    ],
+    finding(seen) {
+      const empty = seen.filter(t => !t.populated).map(t => t.id);
+      return { headline: 'PORT 14 UNPOPULATED AT LAST WALKDOWN',
+               detail: empty.length
+                 ? `${empty.join(', ')} carries no cable, yet the controller counts it in the topology. `
+                 + 'A port that reports traffic with nothing plugged into it is not a port, it is a '
+                 + 'story the fabric is telling about itself.'
+                 : 'Every port you inspected carries a cable.' };
+    }
+  }
+};
+
+/* The act we were dispatched to satisfy. No act, or an unknown one, is a hard stop. */
+const actRaw = new URLSearchParams(location.search).get('act') || '';
+const ENV = ENVS[actRaw];
+if (!ENV) {
+  $('boot').innerHTML =
+    'This sortie is dispatched by a mission.<br><br>'
+    + '<span style="color:#5d7a8a">Open it from a mission\'s inspection act on the Terran Gateway '
+    + 'so it knows what you were sent to look at. Flying an environment that does not match the '
+    + 'evidence would credit you with something you never saw.</span><br><br>'
+    + '<a class="btn" href="/arena/boxes/le-01-cold-horizon/gateway.html">Back to the gateway</a>';
+  throw new Error('inspection sortie opened without a known act: ' + actRaw);
+}
+const ACT = { mission: actRaw.split(':')[0], corrId: actRaw.split(':')[1] };
+
+const CFG = {
+  earthRadius:2400, earthCenter:new THREE.Vector3(0,-3050,-700),
+  sunDir:new THREE.Vector3(0.55,0.30,0.78).normalize(), starCount:7000, starRadius:44000,
+  tickMs:150, baseTicks:4, thrust:5.2, boostMul:2.35, maxFuel:100, fuelPerSec:3.1,
+  approachRange:40, collideDmg:17,
+  inspectSeconds:2.0,   // hold [F] this long
+  inspectRange:34       // and be this close: a walk-down means going and looking
+};
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(66, innerWidth/innerHeight, 0.1, 120000);
+const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const _earth = createEarth({ radius:CFG.earthRadius, center:CFG.earthCenter, sunDir:CFG.sunDir,
+                             tilt:new THREE.Euler(-0.92,0,0.28) });
+scene.add(_earth.group);
+scene.add(createStarfield({ count:CFG.starCount, radius:CFG.starRadius, sunDir:CFG.sunDir,
+                            uThermal:_earth.uniforms.uThermal }));
+const post = createPostChain(renderer);
+const compMat = post.material;
+
+scene.add(new THREE.AmbientLight(0x2a3a44, 1.0));
+const sun = new THREE.DirectionalLight(0xfff2e0, 2.1);
+sun.position.copy(CFG.sunDir).multiplyScalar(1000);
+scene.add(sun);
+
+/* ── THE STRUCTURE ────────────────────────────────────────────────────────────
+   Deliberately plain geometry. This is an inspection, and the answer must come
+   from getting close enough to read a label and follow a run, not from a shape
+   being obviously special at a distance. A target you can solve from the spawn
+   point is a diagram, not a walk-down. */
+const spine = new THREE.Mesh(
+  new THREE.CylinderGeometry(2.4, 2.4, 96, 12),
+  new THREE.MeshStandardMaterial({ color:0x8d9aa4, metalness:.85, roughness:.42 }));
+spine.rotation.z = Math.PI/2;
+scene.add(spine);
+
+const TARGETS = ENV.targets.map(t => {
+  const g = new THREE.Group();
+  g.position.set(t.pos[0], t.pos[1], t.pos[2]);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(3.4, 4.6, 5.2, 14),
+    new THREE.MeshStandardMaterial({ color:0xb8c4cc, metalness:.7, roughness:.35 }));
+  g.add(body);
+  // The run back to the spine. Following it IS the inspection.
+  const to = new THREE.Vector3(t.pos[0] * 0.15, 0, 0);
+  const from = g.position.clone();
+  const len = from.distanceTo(to);
+  const duct = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.55, 0.55, len, 8),
+    new THREE.MeshStandardMaterial({ color:0x55636d, metalness:.6, roughness:.6 }));
+  duct.position.copy(to.clone().sub(from).multiplyScalar(0.5));
+  duct.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),
+      to.clone().sub(from).normalize());
+  g.add(duct);
+  scene.add(g);
+  return Object.assign({}, t, { group:g, mesh:body, done:false });
+});
+
+const state = { running:true, inspected:[], over:false };
+let shakeAmt = 0, inspT = 0, holdF = false;
+
+const rsv = createRSV({
+  THREE, cfg:CFG, camera, renderer,
+  isRunning: () => state.running,
+  obstacles: () => [ new THREE.Vector3(0,0,0), ...TARGETS.map(t => t.group.position.clone()) ],
+  spawn: new THREE.Vector3(-96, 34, 86),
+  onDamage: () => { shakeAmt = Math.min(1, shakeAmt + 0.35);
+                    if (rsv.ship.hull <= 0 && state.running) finish(false, 'hull'); },
+  onRecallStart: () => { $('hFuel').classList.add('bad'); },
+  onRecallEnd:   () => { $('hFuel').classList.remove('bad'); },
+  onKey: (k, e) => {
+    if (k === 'f') { holdF = true; e.preventDefault(); }
+    if (k === 'escape' && document.pointerLockElement) document.exitPointerLock();
+  }
+});
+addEventListener('keyup', e => { if (e.key.toLowerCase() === 'f') { holdF = false; inspT = 0; } });
+const { ship } = rsv;
+
+/* What the reticle is on, by raycast against the real meshes. */
+const ray = new THREE.Raycaster();
+function aimed() {
+  ray.setFromCamera(new THREE.Vector2(0,0), camera);
+  const hit = ray.intersectObjects(TARGETS.map(t => t.mesh), false)[0];
+  if (!hit) return null;
+  return TARGETS.filter(t => t.mesh === hit.object)[0] || null;
+}
+
+function renderObjectives() {
+  $('oTitle').textContent = ENV.title;
+  $('oBrief').textContent = ENV.brief;
+  $('oList').innerHTML = TARGETS.map(t =>
+    '<div>' + (t.done ? '<span class="ok">[X] ' : '<span class="k">[ ] ')
+    + t.label + '</span>'
+    + (t.done ? '<div class="k" style="margin-left:14px">'
+                + (t.terminates ? 'terminates on ' + t.terminates
+                                : (t.populated ? 'cable present' : 'NO CABLE'))
+                + '</div>' : '')
+    + '</div>').join('');
+}
+
+function finish(win, why) {
+  if (state.over) return;
+  state.over = true; state.running = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const gw = '/arena/boxes/le-01-cold-horizon/gateway.html?m=' + ACT.mission;
+  if (!win) {
+    $('endTitle').textContent = 'SORTIE ENDED';
+    $('endBody').textContent = why === 'hull'
+      ? 'RSV-04 took too much structure damage to continue the walk-down. Nothing was established, '
+      + 'so nothing is credited. The structure is still there; fly it again.'
+      : 'The sortie ended before the walk-down was complete.';
+    $('endLinks').innerHTML = '<a class="btn" href="' + location.pathname + location.search + '">Fly it again</a> '
+                            + '<a class="btn" href="' + gw + '">Back to mission ' + ACT.mission + '</a>';
+  } else {
+    const f = ENV.finding(state.inspected);
+    /* CREDIT THE ACT. Only here, only after every target was actually inspected at
+       range. The act layer's storage is shared with the console acts. */
+    try {
+      const raw = localStorage.getItem('hexworth_le01_acts');
+      let acts = raw ? JSON.parse(raw) : {};
+      if (!acts || typeof acts !== 'object' || Array.isArray(acts)) acts = {};
+      acts[ACT.mission + ':' + ACT.corrId] = {
+        kind:'drone', at:new Date().toISOString(),
+        payload:{ flown:'lagrange-inspect', environment:ENV.title,
+                  inspected:state.inspected.map(t => t.id), finding:f.headline }
+      };
+      localStorage.setItem('hexworth_le01_acts', JSON.stringify(acts));
+    } catch (e) { /* storage unavailable: the flight still happened, credit just cannot persist */ }
+    $('endTitle').textContent = 'WALK-DOWN COMPLETE';
+    $('endBody').innerHTML = '<b>' + f.headline + '</b><br><br>' + f.detail
+      + '<br><br><span style="color:#5d7a8a">You observed this yourself, at range, on the '
+      + 'structure. That is why it corroborates: it shares no link, no clock and no signing '
+      + 'authority with the platform telling you the other story.</span>';
+    $('endLinks').innerHTML = '<a class="btn" href="' + gw + '">Return to mission ' + ACT.mission + '</a>';
+  }
+  $('end').style.display = 'flex';
+}
+
+let last = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+
+  if (state.running) {
+    rsv.issueCommands(now);
+    rsv.stepShip(dt, now);
+
+    const t = aimed();
+    const near = t && ship.pos.distanceTo(t.group.position) <= CFG.inspectRange;
+    $('tag').textContent = t
+      ? (t.done ? t.label + ' , inspected'
+                : (near ? t.label + ' , hold [F]' : t.label + ' , too far, close to ' + CFG.inspectRange + ' m'))
+      : '';
+    if (t && near && !t.done && holdF) {
+      inspT += dt;
+      $('bar').style.display = 'block';
+      $('barFill').style.width = Math.min(100, (inspT / CFG.inspectSeconds) * 100) + '%';
+      if (inspT >= CFG.inspectSeconds) {
+        t.done = true; inspT = 0; $('bar').style.display = 'none';
+        t.mesh.material.color.set(0x4aa3ff);
+        state.inspected.push(t);
+        renderObjectives();
+        if (TARGETS.every(x => x.done)) setTimeout(() => finish(true), 700);
+      }
+    } else {
+      inspT = 0; $('bar').style.display = 'none';
+    }
+
+    $('hRange').textContent = ship.pos.length().toFixed(0) + ' m';
+    $('hFuel').textContent  = Math.max(0, ship.fuel).toFixed(0) + '%';
+    $('hHull').textContent  = Math.max(0, ship.hull).toFixed(0) + '%';
+    $('hLag').textContent   = (rsv.linkTicks * CFG.tickMs / 1000).toFixed(2) + ' s';
+  }
+
+  shakeAmt = Math.max(0, shakeAmt - dt * 1.6);
+  if (compMat && compMat.uniforms) {
+    if (compMat.uniforms.uShake) compMat.uniforms.uShake.value = shakeAmt;
+    if (compMat.uniforms.uTime)  compMat.uniforms.uTime.value = now / 1000;
+  }
+  post.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight); post.resize(innerWidth, innerHeight);
+});
+
+$('boot').style.display = 'none';
+$('hud').style.display = '';
+renderObjectives();
+requestAnimationFrame(frame);
+
+/* ── QA SEAM ,  ?qa=1 AND a local host, both required ─────────────────────────
+   Same posture as the mission 1 sortie: binding it to localhost means the seam
+   cannot exist on production, so it can never be a way to credit an act without
+   flying. Verified: on hexworth.com this object is simply absent. */
+const QA_HOSTS = ['localhost','127.0.0.1','[::1]'];
+if (new URLSearchParams(location.search).get('qa') === '1' && QA_HOSTS.includes(location.hostname)) {
+  window.__LE_INSPECT_QA__ = {
+    env: () => ({ key: actRaw, title: ENV.title, targets: TARGETS.map(t => t.id) }),
+    inspect: (id) => {
+      const t = TARGETS.filter(x => x.id === id)[0];
+      if (!t || t.done) return false;
+      t.done = true; state.inspected.push(t); renderObjectives();
+      if (TARGETS.every(x => x.done)) finish(true);
+      return true;
+    },
+    snapshot: () => ({ running:state.running, over:state.over,
+                       done:TARGETS.filter(t => t.done).map(t => t.id),
+                       endTitle:$('endTitle').textContent })
+  };
+}
+</script>
+</body>
+</html>
