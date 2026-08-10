@@ -90,6 +90,36 @@ const ColdHorizonConfig = {
        A box may ship with unbuilt nodes; it may not ship with unbuilt nodes
        REACHABLE, or with flags seeded for content that does not exist.
        ═══════════════════════════════════════════════════════════════════ */
+    /* ── SORTIES ──────────────────────────────────────────────────────────────────
+       The flyable environments, declared ONCE here so the mission board can offer
+       "fly" as a first-class choice. Previously the only route to a sortie was a link
+       inside mission 1's card and the two walk-downs were reachable only from inside a
+       mission's evidence panel, which made flying look like a bonus attached to one
+       investigation rather than one of the two things this box is.
+
+       `mission` names the investigation the sortie feeds. Flying it satisfies that
+       mission's drone act, which is why the page carries the ?act= argument: the sortie
+       IS the act, whether it is launched from here or from the mission's evidence tile. */
+    sorties: [
+        /* This one sortie serves TWO missions and the card has to say so. It is mission 1's
+           flown phase, and the infrared reading it produces is literally what mission 12's
+           corroborator names ("your own infrared survey of the three panels"). Labelling it
+           "feeds mission 1" alone while the link credits 12:ir-survey would be a provenance
+           mismatch on the board of a box about provenance. */
+        { id: 'los', name: 'Line of Sight', mission: 1, satisfies: 12,
+          page: '../../../houses/cloud/games/cloud-cold-horizon.html?act=12:ir-survey',
+          blurb: 'Fly to HELIOS-7 and integrate the radiator panels on infrared yourself. '
+               + 'The platform says 41 C on three channels. Go and read it.' },
+        { id: 'antenna', name: 'Antenna Farm Walk-down', mission: 6,
+          page: '../../../houses/cloud/games/lagrange-inspect.html?act=6:ch-rf-topology',
+          blurb: 'Three fallback channels are listed as independent. Follow each feed to '
+               + 'the front end it actually terminates on.' },
+        { id: 'rack', name: 'Rack Cable Count', mission: 8,
+          page: '../../../houses/cloud/games/lagrange-inspect.html?act=8:cable-map',
+          blurb: 'The fabric controller reports a healthy topology. Count what is physically '
+               + 'plugged into the leaf switch, port by port.' }
+    ],
+
     zones: [
         { id: 'z0', name: 'Operator Thin Client', page: 'index.html',     status: 'active' },
         { id: 'z9', name: 'Platform Control',     page: 'telemetry.html', status: 'active' },
