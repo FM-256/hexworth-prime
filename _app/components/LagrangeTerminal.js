@@ -70,7 +70,8 @@ class LagrangeTerminal extends SecurityTerminal {
 
         /* Commands this console owns. Everything else falls through to
            SecurityTerminal (nmap, tcpdump, dig) and then to LinuxTerminal. */
-        this.spaceCommands = ['pass', 'tm', 'tc', 'frames', 'ranging', 'sdls', 'link', 'lehelp'];
+        this.spaceCommands = ['pass', 'tm', 'tc', 'frames', 'ranging', 'sdls', 'link', 'lehelp',
+                              'help', 'clear', 'whoami'];
 
         /* THE SORTIE HAND-OFF. A flown sortie leaves an observation in storage and the console
            adds it as a source. This is the two-phase mission shape: fly out and measure the
@@ -87,6 +88,32 @@ class LagrangeTerminal extends SecurityTerminal {
         if (this.sortie && this.sortie.observation) {
             this.platform.telemetry = this.platform.telemetry.concat([this.sortie.observation]);
         }
+    }
+
+    /* The inherited fallback says "This console provides security tooling. Try sechelp",
+       which is MISDIRECTION here: sechelp lists nmap and tcpdump, not the ground segment. A
+       student who typed `ls` was pointed at the wrong manual.
+
+       And it must not pretend to be a shell. This console has no filesystem, deliberately:
+       everything it reports arrived through a link, a clock and a signing authority, which is
+       the entire lesson. Inventing an `ls` over a fake directory would be the one thing this
+       box tells students never to trust, built into the console itself. So shell commands are
+       NAMED as shell commands and redirected, rather than faked or silently refused. */
+    _executeFallback(cmd, args, raw) {
+        if (!cmd) return '';
+        const SHELL = ['ls', 'pwd', 'cd', 'cat', 'less', 'more', 'head', 'tail', 'rm', 'cp',
+                       'mv', 'mkdir', 'touch', 'grep', 'find', 'ps', 'top', 'chmod', 'vi', 'nano'];
+        if (SHELL.indexOf(cmd) !== -1) {
+            return `<span class="lt-error">${this._escape(cmd)}: not a shell</span>\n` +
+                   `This is the ground segment console, not a host. It has no filesystem to ` +
+                   `list: everything here arrived over a link, on a clock, under a signing ` +
+                   `authority, and it is reported with all three.\n\n` +
+                   `Try <span class="lt-command">lehelp</span> for what this console does, or ` +
+                   `<span class="lt-command">tm</span> to read telemetry with its provenance.`;
+        }
+        return `<span class="lt-error">${this._escape(cmd)}: command not found</span>\n` +
+               `Try <span class="lt-command">lehelp</span> for the ground segment commands, or ` +
+               `<span class="lt-command">sechelp</span> for the network tooling.`;
     }
 
     /** The observation a flown sortie left behind, or null. Never throws: a console that
@@ -182,6 +209,14 @@ class LagrangeTerminal extends SecurityTerminal {
             case 'frames':  return this._cmdFrames(args);
             case 'ranging': return this._cmdRanging(args);
             case 'sdls':    return this._cmdSdls();
+            /* Commands the PROMPT owes the user. It renders `ir-lead@moc-jax:~$`, a Unix shell
+               prompt with a home directory in it, so a student types these before reading any
+               help text. They cost nothing and their absence read as a broken console. */
+            case 'help':    return this._cmdHelp();          // nobody guesses "lehelp" first
+            case 'clear':   return '__LE_CLEAR__';
+            case 'whoami':  return `${this.user || 'ir-lead'}\nIncident response lead, ` +
+                                   `delegated commercial operator authority. Not state authority, ` +
+                                   `and not the only certificate ASTRAEA-9 will accept.`;
             default:        return `lagrange: unknown command: ${cmd}`;
         }
     }
