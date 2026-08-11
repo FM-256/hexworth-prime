@@ -58,6 +58,69 @@ const AccessGuard = (function() {
 
     // Calculate base path from current location
     /** Calculate relative path from current page to _app root based on URL depth */
+    /* ── TOURIST VISIT CAP, ENFORCED WITHOUT WAITING FOR TouristVisa.js ──────────────
+       Mallory, 2026-08-11: the 3-house cap was DEAD CODE on every gated page, platform-wide.
+
+       The cause is a load-order impossibility, not a logic error. The auto-loader below appends
+       TouristVisa.js with document.head.appendChild(script), which is ASYNCHRONOUS: a dynamically
+       inserted external script cannot run before the currently-executing synchronous script
+       finishes. Every gated page then calls AccessGuard.require(...) synchronously in the very
+       next <script> tag. So at check time `typeof TouristVisa` is ALWAYS 'undefined' on first
+       paint, and the enforcement below it was wrapped in `if (typeof TouristVisa !== 'undefined')`
+       — so it never ran. Not "ran and permitted": never ran.
+
+       Proven on production: a tourist with 3/3 visits used browsed four more houses with no
+       redirect, and hexworth_tourist_visited never incremented.
+
+       THE FIX IS TO STOP DEPENDING ON THE LOAD RACE. The cap's entire state is two localStorage
+       keys, so AccessGuard can enforce it directly, synchronously, with no script to wait for.
+       TouristVisa.js keeps its richer role (banner, badge, remaining-visit UI) and stays the
+       source of truth for the constant; these read the SAME keys and the SAME limit, so the two
+       cannot disagree about whether a visit is allowed.
+
+       Deliberately duplicated rather than awaited: making require() async would change the
+       contract every one of the 4,000+ calling pages relies on, to fix a bug in a 3-visit
+       counter. */
+    var TOURIST_KEYS = { active: 'hexworth_tourist_active', visited: 'hexworth_tourist_visited' };
+    var TOURIST_MAX_VISITS = 3;      // must match MAX_VISITS in TouristVisa.js
+
+    function _touristVisited() {
+        try {
+            var raw = localStorage.getItem(TOURIST_KEYS.visited);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr : [];
+        } catch (e) { return []; }
+    }
+
+    /* Returns true if the visit is allowed. Mirrors TouristVisa.visitHouse exactly: revisiting a
+       house already seen is free, a new house is charged, and the cap refuses. */
+    function _touristVisit(houseId) {
+        if (!houseId) return true;
+        try {
+            if (localStorage.getItem(TOURIST_KEYS.active) !== 'true') return true;
+            var visited = _touristVisited();
+            if (visited.indexOf(houseId) !== -1) return true;       // already paid for
+            if (visited.length >= TOURIST_MAX_VISITS) return false;  // cap reached
+            visited.push(houseId);
+            localStorage.setItem(TOURIST_KEYS.visited, JSON.stringify(visited));
+            return true;
+        } catch (e) {
+            /* Storage unavailable (private mode, blocked). Fail OPEN: a visitor who cannot be
+               counted should still be able to look around. The cap is a funnel, not a security
+               boundary, and locking someone out of public content over a storage error is worse
+               than an uncounted visit. */
+            return true;
+        }
+    }
+
+    function _touristForceSort() {
+        if (typeof TouristVisa !== 'undefined' && typeof TouristVisa.forceSort === 'function') {
+            TouristVisa.forceSort();
+            return;
+        }
+        window.location.href = getBasePath() + 'components/tourist-sort-redirect.html';
+    }
+
     function getBasePath() {
         const path = window.location.pathname;
         const appIndex = path.indexOf('/_app/');
@@ -815,17 +878,17 @@ const AccessGuard = (function() {
                 if (isSorted()) {
                     authorized = true;
                 } else if (isTourist()) {
-                    // Tourist mode: allow through but track visit + inject banner
-                    if (typeof TouristVisa !== 'undefined') {
-                        var houseFromUrl = _detectHouseFromUrl();
-                        if (houseFromUrl) {
-                            var allowed = TouristVisa.visitHouse(houseFromUrl);
-                            if (!allowed) {
-                                // Limit reached — force sort
-                                TouristVisa.forceSort();
-                                return false;
-                            }
-                        }
+                    /* Tourist mode: allow through but track the visit.
+                       ⚠ THE CAP IS ENFORCED HERE, NOT VIA TouristVisa. This used to be wrapped
+                       in `if (typeof TouristVisa !== 'undefined')`, which is ALWAYS false at
+                       this point: the auto-loader appends that script asynchronously and this
+                       call runs synchronously in the next <script> tag, so the limit never ran
+                       on any gated page. _touristVisit reads the same two localStorage keys and
+                       needs nothing loaded. */
+                    var houseFromUrl = _detectHouseFromUrl();
+                    if (houseFromUrl && !_touristVisit(houseFromUrl)) {
+                        _touristForceSort();
+                        return false;
                     }
                     authorized = true;
                     // Defer badge/overlay injection until DOM is ready
@@ -842,16 +905,13 @@ const AccessGuard = (function() {
             case 'house':
                 // User must be in specific house (or any house if param is 'any')
                 if (!isSorted() && isTourist()) {
-                    // Tourist: allow read-only access to any house content
-                    if (typeof TouristVisa !== 'undefined') {
-                        var houseParam = param || _detectHouseFromUrl();
-                        if (houseParam && houseParam !== 'any') {
-                            var houseAllowed = TouristVisa.visitHouse(houseParam);
-                            if (!houseAllowed) {
-                                TouristVisa.forceSort();
-                                return false;
-                            }
-                        }
+                    /* Tourist: read-only access to house content, up to the cap.
+                       Same fix as the 'sorted' case: enforced directly rather than through
+                       TouristVisa, which is never loaded yet when this runs. */
+                    var houseParam = param || _detectHouseFromUrl();
+                    if (houseParam && houseParam !== 'any' && !_touristVisit(houseParam)) {
+                        _touristForceSort();
+                        return false;
                     }
                     authorized = true;
                     _scheduleTouristUI();
@@ -1187,6 +1247,7 @@ const AccessGuard = (function() {
 document.addEventListener('DOMContentLoaded', function() {
     AccessGuard.showIndicatorIfActive();
 });
+
 
 // ── Tourist Visa Auto-Loader ─────────────────────────────────
 // Dynamically load TouristVisa.js so AccessGuard can check tourist
