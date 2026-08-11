@@ -120,6 +120,17 @@ const ENVS = {
     brief: 'Three fallback channels are listed as independent. Inspect each feed and follow '
          + 'it to the front end it actually terminates on.',
     // Each target is a feed horn; `terminates` is what close inspection reveals.
+    /* THE FRONT ENDS ARE MODELLED, and that is the whole mission. The first build ran every
+       duct to the bare spine, so all four feeds visibly terminated in the SAME place: a player
+       who did what the brief says, fly out and look, would have concluded all four share a
+       chain, which is the opposite of the finding they then get credited with. The text told
+       you the answer and the geometry contradicted it. Now three ducts converge into KA-FE-1
+       and the omni runs to a physically separate S-FE-2, so following a run is a real act of
+       looking and the reveal is something you SAW rather than something you were told. */
+    frontEnds: [
+      { id: 'KA-FE-1', label: 'KA-FE-1',  pos: [ -8, 2, -6 ], size: [ 9, 7, 7 ], color: 0xb0603a },
+      { id: 'S-FE-2',  label: 'S-FE-2',   pos: [ 34, -6, 4 ], size: [ 6, 5, 5 ], color: 0x3a7ab0 }
+    ],
     targets: [
       { id: 'FEED-PRI',   label: 'Primary command feed',   pos: [ -34,  10, -18 ], terminates: 'KA-FE-1' },
       { id: 'FEED-BKP',   label: 'Backup command feed',    pos: [ -12,  16, -26 ], terminates: 'KA-FE-1' },
@@ -143,11 +154,18 @@ const ENVS = {
     title: 'RACK CABLE COUNT',
     brief: 'The fabric controller reports a healthy topology. Count what is physically plugged '
          + 'into the leaf switch, port by port.',
+    /* Same correction as mission 6. Every port used to draw an identical cable, so the one
+       that carries none looked exactly like the three that do, and the count you are sent to
+       make was impossible to make by looking. A populated port now has a cable running to the
+       leaf switch; port 14 has a bare socket and no cable. The gap IS the finding. */
+    frontEnds: [
+      { id: 'LEAF-SW', label: 'LEAF SWITCH', pos: [ -2, -18, 6 ], size: [ 40, 5, 8 ], color: 0x6b7a86 }
+    ],
     targets: [
-      { id: 'PORT-12', label: 'Leaf switch port 12', pos: [ -26,  4, -14 ], populated: true  },
-      { id: 'PORT-13', label: 'Leaf switch port 13', pos: [ -10,  4, -14 ], populated: true  },
+      { id: 'PORT-12', label: 'Leaf switch port 12', pos: [ -26,  4, -14 ], populated: true,  terminates: 'LEAF-SW' },
+      { id: 'PORT-13', label: 'Leaf switch port 13', pos: [ -10,  4, -14 ], populated: true,  terminates: 'LEAF-SW' },
       { id: 'PORT-14', label: 'Leaf switch port 14', pos: [   6,  4, -14 ], populated: false },
-      { id: 'PORT-15', label: 'Leaf switch port 15', pos: [  22,  4, -14 ], populated: true  }
+      { id: 'PORT-15', label: 'Leaf switch port 15', pos: [  22,  4, -14 ], populated: true,  terminates: 'LEAF-SW' }
     ],
     finding(seen) {
       const empty = seen.filter(t => !t.populated).map(t => t.id);
@@ -215,6 +233,39 @@ const spine = new THREE.Mesh(
 spine.rotation.z = Math.PI/2;
 scene.add(spine);
 
+/* A label you can read at inspection range. Canvas sprite rather than a texture asset: the
+   name on the box IS the evidence ("three feeds enter KA-FE-1"), so it has to be legible when
+   you get close, and it must not need a file that could go missing from the deploy. */
+function makeLabel(text, scale) {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = 'rgba(4,10,16,0.85)'; x.fillRect(0, 0, 256, 64);
+  x.strokeStyle = '#4aa3ff'; x.lineWidth = 3; x.strokeRect(2, 2, 252, 60);
+  x.fillStyle = '#cfe6f2'; x.font = 'bold 34px monospace';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 128, 34);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(c), depthTest: true, transparent: true }));
+  sp.scale.set(scale, scale * 0.25, 1);
+  return sp;
+}
+
+/* FRONT ENDS. Where a run actually ends, modelled and named, because "follow the feed to the
+   front end it terminates on" is only an instruction you can obey if the front ends exist. */
+const FE = {};
+(ENV.frontEnds || []).forEach(f => {
+  const box = new THREE.Mesh(
+    new THREE.BoxGeometry(f.size[0], f.size[1], f.size[2]),
+    new THREE.MeshStandardMaterial({ color:f.color, metalness:.6, roughness:.45 }));
+  box.position.set(f.pos[0], f.pos[1], f.pos[2]);
+  scene.add(box);
+  const lab = makeLabel(f.label, 16);
+  lab.position.set(f.pos[0], f.pos[1] + f.size[1] / 2 + 4, f.pos[2]);
+  scene.add(lab);
+  FE[f.id] = new THREE.Vector3(f.pos[0], f.pos[1], f.pos[2]);
+});
+
 const TARGETS = ENV.targets.map(t => {
   const g = new THREE.Group();
   g.position.set(t.pos[0], t.pos[1], t.pos[2]);
@@ -222,17 +273,33 @@ const TARGETS = ENV.targets.map(t => {
     new THREE.CylinderGeometry(3.4, 4.6, 5.2, 14),
     new THREE.MeshStandardMaterial({ color:0xb8c4cc, metalness:.7, roughness:.35 }));
   g.add(body);
-  // The run back to the spine. Following it IS the inspection.
-  const to = new THREE.Vector3(t.pos[0] * 0.15, 0, 0);
-  const from = g.position.clone();
-  const len = from.distanceTo(to);
-  const duct = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.55, 0.55, len, 8),
-    new THREE.MeshStandardMaterial({ color:0x55636d, metalness:.6, roughness:.6 }));
-  duct.position.copy(to.clone().sub(from).multiplyScalar(0.5));
-  duct.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),
-      to.clone().sub(from).normalize());
-  g.add(duct);
+
+  /* THE RUN IS THE EVIDENCE. It goes to the named front end, not to the nearest bit of spine,
+     so three of them visibly converge on one box and the omni visibly does not.
+
+     A target with populated === false gets NO run at all, just a bare socket. That gap is
+     mission 8's entire finding: a port the controller counts and no cable reaches. Drawing an
+     identical cable on every port, which is what the first build did, made the count the
+     player is sent to perform impossible to perform by looking. */
+  if (t.populated === false) {
+    const socket = new THREE.Mesh(
+      new THREE.TorusGeometry(1.6, 0.45, 8, 16),
+      new THREE.MeshStandardMaterial({ color:0x3b464e, metalness:.5, roughness:.75 }));
+    socket.rotation.x = Math.PI / 2;
+    socket.position.y = -3.2;
+    g.add(socket);
+  } else if (t.terminates && FE[t.terminates]) {
+    const to = FE[t.terminates].clone();
+    const from = g.position.clone();
+    const len = from.distanceTo(to);
+    const duct = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.55, 0.55, len, 8),
+      new THREE.MeshStandardMaterial({ color:0x55636d, metalness:.6, roughness:.6 }));
+    duct.position.copy(to.clone().sub(from).multiplyScalar(0.5));
+    duct.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),
+        to.clone().sub(from).normalize());
+    g.add(duct);
+  }
   scene.add(g);
   return Object.assign({}, t, { group:g, mesh:body, done:false });
 });
