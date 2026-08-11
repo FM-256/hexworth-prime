@@ -182,7 +182,11 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
        Same trap as reference_lexical_const_window_guard_trap. */
     if (typeof FirebaseAuth === 'undefined') return { skipped: 'FirebaseAuth not loaded' };
     FirebaseAuth.isSignedIn = () => true;
-    FirebaseAuth.getIdToken = async () => 'test-token';
+    /* Only isSignedIn needs stubbing. An earlier version also stubbed getIdToken, which the
+       component NEVER CALLS — it calls refreshToken(), and the real one returns null safely
+       when there is no currentUser, after which apiCall falls through to the X-Dev-Uid header
+       path that the stubbed fetch ignores anyway. Chris traced it. A stub for a method nobody
+       calls tells the next reader the wrong thing about how this component authenticates. */
     const json = (o) => Promise.resolve({ ok: true, status: 200, json: async () => o });
     window.fetch = (u, opt) => {
       const m = (opt && opt.method) || 'GET';
