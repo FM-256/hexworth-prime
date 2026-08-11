@@ -405,6 +405,81 @@ def reconcile(active_ids):
     return 200, {'checked': checked, 'deleted': deleted}
 
 
+def release(uid):
+    """Return this uid's slot to the pool. The pool had NO release path at all until now.
+
+    WHY THIS DID NOT EXIST, and why that was the real bug behind taskboard #275. claim() binds
+    hexworth_uid to a project and nothing ever unbound it. reconcile() only deletes stale
+    application credentials; it never touches the binding. The single line anywhere in this
+    system that sets hexworth_uid back to None lived in reclaim-idle-slots.py, a sweeper on the
+    WRONG HOST that had therefore never run once. So a slot was held for life: 50 slots was not
+    a concurrency limit, it was a lifetime cap on distinct users, students included.
+
+    OPERATOR POLICY, 2026-08-11: a slot is released when the student finishes the course, and
+    the student tears their own sandbox down as part of finishing.
+
+    ⚠ RELEASE ON THE LAST SANDBOX COURSE, NOT ANY COURSE. A binding is per-UID and this service
+    has no concept of a course at all, so one student holds one slot across every course they
+    take. Releasing when they finish course A would yank the slot they are still using for
+    course B, mid-lab, with their servers attached. Deciding "this uid has no sandbox course
+    still open" is a platform-side question; this endpoint only executes the decision.
+
+    ⚠ THE EMPTINESS GUARD IS THE SAFETY PROPERTY, not the caller's good intentions. Unbinding
+    does NOT free anything: the servers and volumes stay exactly where they are, the next
+    student to claim that slot inherits them, and they keep counting against the FLOOR_MB
+    headroom guard in claim(), so a recycled pool can report free slots while every claim
+    returns CLOUD_FULL. Refusing to release a slot that still holds anything is what keeps that
+    from happening, and it is also what makes a mis-targeted call harmless: the worst case is a
+    student with an empty slot re-claiming one.
+
+    Nothing here deletes a cloud resource. It clears a pointer. If the slot still holds work,
+    the work stays and so does the binding.
+    """
+    atok = admin_token()
+    if not atok:
+        return 500, {'error': 'KEYSTONE_ADMIN_AUTH_FAILED'}
+    if not uid:
+        return 400, {'error': 'UID_REQUIRED'}
+    with _lock:
+        projects = pool_projects(atok)
+        if projects is None:
+            return 500, {'error': 'KEYSTONE_LIST_FAILED'}
+        mine = [p for p in projects if p.get('hexworth_uid') == uid]
+        if not mine:
+            # Idempotent: releasing a uid that holds nothing is a no-op, not an error, because
+            # a completion event may be delivered more than once.
+            return 200, {'released': False, 'reason': 'NO_SLOT_BOUND'}
+        proj = mine[0]
+        slot = proj['name']
+
+        suid = _user_id(atok, slot)
+        creds = 0
+        if suid:
+            st, doc, _ = ks('GET', f'/v3/users/{suid}/application_credentials', token=atok)
+            creds = len((doc or {}).get('application_credentials') or [])
+        utok = _user_token(slot)
+        srv = vol = 0
+        if utok:
+            _s, sd = _os(utok, '/compute/v2.1', '/servers/detail')
+            srv = len((sd or {}).get('servers') or [])
+            _s, vd = _os(utok, '/volume/v3', '/volumes/detail')
+            vol = len((vd or {}).get('volumes') or [])
+        elif suid:
+            # Could not read the slot's own state. Refuse rather than guess: releasing a slot
+            # we cannot inspect is exactly how someone's work ends up under a stranger.
+            return 200, {'released': False, 'reason': 'SLOT_STATE_UNREADABLE', 'slot': slot}
+
+        if creds or srv or vol:
+            return 200, {'released': False, 'reason': 'SLOT_NOT_EMPTY', 'slot': slot,
+                         'creds': creds, 'servers': srv, 'volumes': vol}
+
+        st, _, _ = ks('PATCH', f"/v3/projects/{proj['id']}", token=atok,
+                      body={'project': {'hexworth_uid': None}})
+        if st != 200:
+            return 500, {'error': 'MAPPING_CLEAR_FAILED', 'slot': slot}
+        return 200, {'released': True, 'slot': slot}
+
+
 def verify(slot):
     """Authoritative cloud state for a slot, read SERVER-SIDE.
 
@@ -634,6 +709,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._reply(401, {'error': 'UID_TOKEN_MISMATCH'})
                 return
             self._reply(*claim(uid))
+            return
+        if self.path == '/release':
+            # AUTHED BY THE BRIDGE SECRET, NOT A STUDENT TOKEN, unlike /claim. Course
+            # completion is decided platform-side by a server reacting to an event, and that
+            # server does not hold the student's id_token. Accepting a uid from a
+            # secret-holding caller is therefore the only shape that works.
+
+            # That is only acceptable because release() refuses any slot that still holds
+            # credentials, servers or volumes. A mis-targeted call cannot strand anyone's
+            # work; the worst it can do is make a student with an empty slot claim a new one.
+            # If the guard is ever loosened, this route needs an id_token like /claim does.
+            self._reply(*release(b.get('uid')))
             return
         if self.path == '/reconcile':
             self._reply(*reconcile(b.get('active')))
