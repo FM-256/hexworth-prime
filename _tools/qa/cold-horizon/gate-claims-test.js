@@ -78,8 +78,25 @@ function deriveCases(spec) {
         }
         var correct = [];
         for (var k = 0; k + 1 < trap.length && k < 2; k++) correct.push([trap[k], trap[k + 1]]);
+
+        /* NEC[1], the independent witness, is the OTHER half of every gate and had ZERO
+           coverage: independenceOf only returns ok:true when the pair shares NO declared axis,
+           and neither `correct` (shares the trap) nor `distractor` (shares something else) can
+           ever produce that. So half the reveal-gate mechanism went undriven on all 12 missions
+           while the suite reported 36/36. Found by Chris driving the branch by hand. */
+        var disjoint = null;
+        outer2:
+        for (var a2 = 0; a2 < ids.length; a2++) {
+            for (var b2 = a2 + 1; b2 < ids.length; b2++) {
+                var p1 = S[ids[a2]].axes || {}, p2 = S[ids[b2]].axes || {};
+                var shares = Object.keys(p1).some(function (ax) {
+                    return p1[ax] !== undefined && p2[ax] === p1[ax];
+                });
+                if (!shares) { disjoint = [ids[a2], ids[b2]]; break outer2; }
+            }
+        }
         return { flag: flag, m: g.missionId, correct: correct, distractor: distractor,
-                 trapCount: trap.length };
+                 disjoint: disjoint, trapCount: trap.length };
     }).filter(function (c) { return c.correct.length > 0; });
 }
 
@@ -142,7 +159,9 @@ function earnedCorroborators() {
            reported green against a build with the bug still in it. */
         const opts = await page.evaluate(() =>
             Array.from(document.querySelectorAll('#srcA option')).map(o => o.value));
-        const pairs = (withDistractor ? [c.distractor] : []).concat(c.correct);
+        const pairs = withDistractor === 'independent'
+            ? [c.disjoint, c.disjoint]                      // same pair twice: must not resend
+            : (withDistractor ? [c.distractor] : []).concat(c.correct);
         const missing = [...new Set(pairs.flat())].filter(id => opts.indexOf(id) === -1);
         if (missing.length) { await page.close(); return { claims: [], missing }; }
 
@@ -162,20 +181,40 @@ function earnedCorroborators() {
 
     const CASES = deriveCases(SPEC);
     console.log(`  ${CASES.length} gated missions derived from the spec\n`);
-    let unpoisonable = 0;
+    let unpoisonable = 0, noWitness = 0;
 
     for (const c of CASES) {
         const gate = SPEC[c.flag];
         const nec0 = gate.necessaries[0];
         const spec = gate.findings[nec0];
-        const orderings = c.distractor ? [false, true] : [false];
+        const orderings = (c.distractor ? [false, true] : [false])
+            .concat(c.disjoint ? ['independent'] : []);
         if (!c.distractor) unpoisonable++;
+        if (!c.disjoint) noWitness++;
 
         for (const withDistractor of orderings) {
-            const label = withDistractor ? 'distractor first' : 'control';
+            const label = withDistractor === 'independent' ? 'independent witness'
+                        : withDistractor ? 'distractor first' : 'control';
             const { claims, missing } = await run(c, withDistractor);
             if (missing.length) {
                 t(`m${c.m} ${label}: sources selectable`, false, 'not in menu: ' + missing.join(', '));
+                continue;
+            }
+            /* The independent-witness run asserts a different thing: the NEC[1] claim is sent,
+               it verifies as a genuine distinct-axis finding, and clicking the SAME pair again
+               does NOT resend it. The resend guard existed only on the dependent branch. */
+            if (withDistractor === 'independent') {
+                const nec1 = gate.necessaries[1];
+                const forNec1 = claims.filter(p => p.findingId === nec1);
+                const spec1 = gate.findings[nec1];
+                t(`m${c.m} ${label}: the NEC[1] claim is sent`, forNec1.length > 0,
+                  `${forNec1.length} claim(s)`);
+                t(`m${c.m} ${label}: it VERIFIES as a distinct-axis finding`,
+                  forNec1.length > 0 && !!spec1
+                  && verifyFinding(spec1, { sources: forNec1[0].sources }, gate.sources).ok,
+                  forNec1.length ? JSON.stringify(forNec1[0].sources) : 'none');
+                t(`m${c.m} ${label}: clicking the same pair twice does NOT resend`,
+                  forNec1.length <= 1, `${forNec1.length} sent for 2 clicks`);
                 continue;
             }
             const forNec0 = claims.filter(p => p.findingId === nec0);
@@ -206,6 +245,7 @@ function earnedCorroborators() {
     }
     console.log(`\n  ${unpoisonable} of ${CASES.length} missions have NO poisonable pair at all `
               + `(no source shares a non-trap axis while differing on the trap axis).`);
+    console.log(`  ${noWitness} of ${CASES.length} missions have no fully disjoint pair to drive NEC[1].`);
 
     console.log(`\n=== page errors (${errors.length}) ===`);
     if (errors.length) console.log('  ' + [...new Set(errors)].join('\n  '));

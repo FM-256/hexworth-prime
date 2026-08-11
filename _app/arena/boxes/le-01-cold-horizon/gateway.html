@@ -376,13 +376,25 @@
        comparison the mission invited simply builds a different bucket the server declines. */
     var linkedBy = {};
     var sentSize = {};   // bucket key -> how many sources we last reported for it
+    var sentPairs = {};  // "a|b" sorted -> already reported as an independent pair
 
     function reportTest(a, b, res) {
         if (!NEC.length || typeof eng.reportFinding !== 'function') return;
         var flagId = missionEntry.flagId;
         if (res.ok) {
-            // Independent: this is the "could have failed on its own" witness.
-            if (NEC[1]) eng.reportFinding(flagId, { findingId: NEC[1], sources: [a, b] });
+            /* Independent: this is the "could have failed on its own" witness.
+
+               ⚠ DEDUPED, and it was not. The sentSize cache below covered only the dependent
+               branch, so re-testing the same independent pair fired an identical claim every
+               click, unconditionally, against recordMissionFinding, which has no rate limit of
+               its own unlike validateFlag. Same bug class the cache was added to fix, missed
+               because it sits in the OTHER branch. Chris found it by driving this path
+               directly; the harness never reached it at all, so 36/36 said nothing about it. */
+            var pairKey = [a, b].sort().join('|');
+            if (NEC[1] && !sentPairs[pairKey]) {
+                sentPairs[pairKey] = true;
+                eng.reportFinding(flagId, { findingId: NEC[1], sources: [a, b] });
+            }
             return;
         }
         var A = all.filter(function (s) { return s.id === a; })[0];
