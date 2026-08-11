@@ -594,39 +594,39 @@ const SandboxLauncher = (function() {
                 border-radius: 8px;
                 overflow: hidden;
                 background: #000;
-                /* Drag the bottom edge. Native, so it needs no drag maths and no listeners,
-                   and it survives a page the component knows nothing about. min-height stops
-                   a student shrinking it into a letterbox they cannot read. */
+                /* ⚠ THE WRAPPER OWNS THE HEIGHT, NOT THE IFRAME, and that is the whole fix.
+                   The first version put resize:vertical here and left the iframe on its own
+                   fixed clamp(). The two heights were decoupled, so dragging did nothing to the
+                   sandbox: smaller CLIPPED the iframe (overflow:hidden, no scrollbar to recover
+                   it) and larger just added dead black wrapper. Chris measured it — dragged
+                   824px -> 300px, iframe stayed 778px. A resize handle that resizes nothing is
+                   worse than no handle, because it looks like it worked. */
+                height: clamp(420px, 72vh, 1100px);
                 resize: vertical;
                 min-height: 260px;
             }
             .sandbox-launcher__iframe {
                 width: 100%;
-                /* WAS A HARDCODED 500px, which is why the sandbox was "static and small": on a
-                   1440p display roughly a third of the height was in use for a terminal, and no
-                   part of it responded to the viewport. clamp scales with the screen while
-                   staying readable on a laptop and not absurd on an ultrawide. */
-                height: clamp(420px, 72vh, 1100px);
+                /* Fills whatever the wrapper currently is: the clamp default, a dragged height,
+                   or the full display in fullscreen. One source of truth for the size. */
+                height: 100%;
                 border: none;
                 display: block;
             }
-            /* The wrapper is the fullscreen element, so the iframe must fill it rather than
-               keep its clamped height, or maximising would show a 72vh terminal on a black
-               field. 100% of a fullscreen parent is the whole display. */
+            /* The wrapper is the fullscreen element, so IT takes the display and the iframe
+               follows automatically. */
             .sandbox-launcher__iframe-wrap:fullscreen {
                 border-radius: 0;
                 border: none;
                 resize: none;
                 background: #000;
-            }
-            .sandbox-launcher__iframe-wrap:fullscreen .sandbox-launcher__iframe {
                 height: 100vh;
             }
             /* Fallback when the Fullscreen API is unavailable or refused. Deliberately NOT
                position:fixed: rule 5 / HEUR-008, fixed positioning breaks under
                body.style.filter, which shipped components set. This only grows the element in
                normal flow, so nothing can break it. */
-            .sandbox-launcher__iframe-wrap.is-tall .sandbox-launcher__iframe {
+            .sandbox-launcher__iframe-wrap.is-tall {
                 height: calc(100vh - 120px);
             }
             .sandbox-launcher__btn--maximize {

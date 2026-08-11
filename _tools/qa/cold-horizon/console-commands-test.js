@@ -124,6 +124,30 @@ function check(group, cmd, out) {
         check('prompt implies', c, await run(c));
     }
 
+    /* ── DOES THE HELP TEXT MATCH THE BEHAVIOUR? ──────────────────────────────────────
+       The population checks above ask "does this command answer". They cannot catch a console
+       whose help PROSE promises something the console refuses, because both halves pass on
+       their own: lehelp answers, and ls answers (with a refusal). Chris found exactly that —
+       _cmdHelp said "ls, cat, grep ... work as usual" while _executeFallback rejected all
+       three, which is the same "it lied about what works" bug this file was written for,
+       sitting inside the fix.
+
+       So: take every command name lehelp mentions in prose, run it, and fail on any that the
+       console then refuses. A manual that disagrees with the machine is a defect in the manual. */
+    console.log('\n--- help text vs actual behaviour ---\n');
+    const helpText = await run('lehelp');
+    const mentioned = [...new Set((helpText.match(/\b(ls|cat|grep|cd|pwd|head|tail|find|nmap|tcpdump|dig|whois|host|traceroute|nc|mtr|arp|route)\b/g) || []))];
+    if (!mentioned.length) {
+        console.log('  (lehelp mentions no tool names in prose)');
+    }
+    for (const c of mentioned) {
+        const out = await run(c === 'nmap' ? 'nmap 10.0.0.0/24' : c);
+        const refused = /not a shell|command not found/i.test(out);
+        if (refused) { fail++; console.log(`  FAIL  lehelp promises "${c}" but the console refuses it`); }
+        else { pass++; console.log(`  PASS  lehelp promises "${c}" and it works`); }
+        results.push({ group: 'help vs behaviour', cmd: c, dead: refused, out: '' });
+    }
+
     console.log(`\n=== page errors (${errors.length}) ===`);
     if (errors.length) console.log('  ' + [...new Set(errors)].join('\n  '));
 

@@ -235,7 +235,17 @@ class LagrangeTerminal extends SecurityTerminal {
             '  ranging              two-way ranging fix and the light-time floor',
             '  sdls                 Space Data Link Security state for this link',
             '',
-            'Linux and network tools (ls, cat, grep, nmap, tcpdump, dig) work as usual.',
+            /* WAS: "Linux and network tools (ls, cat, grep, nmap, tcpdump, dig) work as usual."
+               That sentence promised ls/cat/grep, which this console does NOT have and now
+               explicitly refuses. A student read the console's own manual, typed ls, and hit the
+               contradiction — the exact "it lied about what works" bug this whole change set was
+               opened to fix, recreated inside the fix. Chris caught it by driving lehelp and ls
+               in the same session and comparing them, which none of my three QC populations did:
+               they checked the bulleted commands and whether ls ANSWERS, never whether the prose
+               agreed with the behaviour. */
+            'Network tools (nmap, tcpdump, dig, whois, traceroute) work here too; ' +
+            'sechelp lists them. There is no filesystem: this is a ground segment ' +
+            'console, not a host.',
             '',
             'Two readings that agree are ONE reading if they share a link, a clock and',
             'a signer. Every output below tells you which.'

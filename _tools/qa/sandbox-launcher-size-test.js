@@ -44,6 +44,31 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
   t(`${label} maximize button present`, m.hasMax===true, m.label);
   t(`${label} wrapper is resizable`, m.resize==='vertical', m.resize);
   t(`${label} no page errors`, errs.length===0, errs.join('|')||'none');
+
+  /* ⚠ DOES DRAGGING ACTUALLY RESIZE THE SANDBOX? The first version of this feature put
+     resize:vertical on the WRAPPER while the iframe kept its own fixed clamp height. The two
+     were decoupled, so a drag changed the wrapper and left the sandbox exactly as it was:
+     smaller CLIPPED it (overflow:hidden, no scrollbar), larger added dead black space. It
+     looked like a working handle. Chris measured 824 -> 300 with the iframe stuck at 778.
+     So this simulates the drag by setting the wrapper height, and asserts the IFRAME followed. */
+  const drag = await p.evaluate(() => {
+    const wrap = document.querySelector('.sandbox-launcher__iframe-wrap');
+    const f = document.querySelector('.sandbox-launcher__iframe');
+    const before = Math.round(f.getBoundingClientRect().height);
+    wrap.style.height = '300px';
+    const smaller = Math.round(f.getBoundingClientRect().height);
+    /* RELATIVE to the current height, not an absolute 900px. The absolute value was smaller
+       than the 72vh default on a 1440p display, so the "bigger" assertion failed against
+       working code — the test asserting the wrong thing, again. */
+    wrap.style.height = (before + 200) + 'px';
+    const bigger = Math.round(f.getBoundingClientRect().height);
+    wrap.style.height = '';
+    return { before, smaller, bigger };
+  });
+  t(`${label} dragging SMALLER shrinks the iframe`, drag.smaller < drag.before,
+    `${drag.before}px -> ${drag.smaller}px`);
+  t(`${label} dragging BIGGER grows the iframe`, drag.bigger > drag.before,
+    `${drag.before}px -> ${drag.bigger}px`);
   await p.close();
  }
  console.log(`\n${pass}/${pass+fail} checks passed`);
