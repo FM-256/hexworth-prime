@@ -421,6 +421,7 @@ const SandboxLauncher = (function() {
            embedded/iframe contexts deny it): still a real improvement, still no fixed
            positioning. */
         const maximizeBtn = wrapper.querySelector('.sandbox-launcher__btn--maximize');
+        let priorInlineHeight = '';   // a drag's inline height, stashed across is-tall
         function isFull() {
             return document.fullscreenElement === iframeWrap;
         }
@@ -431,12 +432,22 @@ const SandboxLauncher = (function() {
         maximizeBtn.addEventListener('click', async () => {
             if (isFull()) { await document.exitFullscreen().catch(() => {}); return; }
             if (iframeWrap.classList.contains('is-tall')) {
-                iframeWrap.classList.remove('is-tall'); syncMaxLabel(); return;
+                iframeWrap.classList.remove('is-tall');
+                iframeWrap.style.height = priorInlineHeight;   // back to what they had dragged
+                syncMaxLabel(); return;
             }
             if (iframeWrap.requestFullscreen) {
                 try { await iframeWrap.requestFullscreen(); syncMaxLabel(); return; }
                 catch (e) { /* denied: fall through to the in-page tall mode */ }
             }
+            /* ⚠ A NATIVE RESIZE DRAG WRITES AN INLINE height ON THE WRAPPER, and an inline
+               style beats the .is-tall class rule in the cascade. So a student who dragged the
+               panel first and then hit Maximize got the class, the "Restore" label, and no size
+               change at all: the "looks like it worked" failure this component has now produced
+               twice. Stash the dragged height, clear it so the class can win, and put it back
+               on Restore rather than dumping them at the default. */
+            priorInlineHeight = iframeWrap.style.height || '';
+            iframeWrap.style.height = '';
             iframeWrap.classList.add('is-tall');
             syncMaxLabel();
             iframeWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -448,6 +459,7 @@ const SandboxLauncher = (function() {
         collapseBtn.addEventListener('click', () => {
             if (isFull()) document.exitFullscreen().catch(() => {});
             iframeWrap.classList.remove('is-tall');
+            iframeWrap.style.height = priorInlineHeight;
             syncMaxLabel();
             iframeWrap.style.display = 'none';
             iframe.src = '';
