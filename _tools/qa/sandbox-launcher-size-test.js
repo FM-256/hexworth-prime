@@ -164,6 +164,56 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
      this degrades to the old width. That is the pre-existing behaviour, not a regression, but a
      silent pass on an unsupported engine would be a lie. */
   if (!width.hasSel) console.log('    (note: :has() unsupported here, column spanning inactive)');
+
+  /* ⚠ DRIVE THE REAL BUTTONS, NOT THE CLASS. The width check above adds `is-embedded` by hand,
+     which proves the CSS rule and NOTHING about whether the app's own state machine applies and
+     removes it. It did not: `is-embedded` was added on launch and removed only by Minimize, so
+     Destroy and session expiry left an idle, empty card spanning every grid column forever.
+     Chris found it by clicking the buttons. Forcing the state you are trying to prove the app
+     reaches is the failure named in feedback_a_probe_that_alters_layout_measures_nothing.
+     fetch and FirebaseAuth are stubbed so launch/destroy resolve without a real sandbox. */
+  const lifecycle = await p.evaluate(async () => {
+    /* ⚠ MUTATE THE REAL BINDING, NOT window.FirebaseAuth. FirebaseAuth.js declares
+       `const FirebaseAuth = (function(){...})()` — a LEXICAL const that is NOT a window
+       property. Assigning window.FirebaseAuth creates a second, unrelated object; the
+       component's `FirebaseAuth.isSignedIn()` still calls the real one, returns false, and
+       the launch stops at "Sign in to launch a sandbox" having never fetched anything. My
+       first stub did exactly that and the test failed against working code.
+       Same trap as reference_lexical_const_window_guard_trap. */
+    if (typeof FirebaseAuth === 'undefined') return { skipped: 'FirebaseAuth not loaded' };
+    FirebaseAuth.isSignedIn = () => true;
+    FirebaseAuth.getIdToken = async () => 'test-token';
+    const json = (o) => Promise.resolve({ ok: true, status: 200, json: async () => o });
+    window.fetch = (u, opt) => {
+      const m = (opt && opt.method) || 'GET';
+      if (m === 'DELETE') return json({ ok: true });
+      if (/\/launch/.test(u)) return json({ sessionId: 'test-1', url: 'about:blank',
+                                            lab: 'Test', status: 'running', launchedAt: Date.now() });
+      return json({ status: 'running', url: 'about:blank' });
+    };
+    const root = document.querySelector('.sandbox-launcher');
+    const card = root.closest('.card');
+    const w = () => card ? Math.round(card.getBoundingClientRect().width) : 0;
+
+    document.querySelector('.sandbox-launcher__btn--launch').click();
+    await new Promise(r => setTimeout(r, 700));
+    const launched = { embedded: root.classList.contains('is-embedded'), cardW: w() };
+
+    const destroyBtn = document.querySelector('.sandbox-launcher__btn--destroy');
+    if (destroyBtn) destroyBtn.click();
+    await new Promise(r => setTimeout(r, 700));
+    const destroyed = { embedded: root.classList.contains('is-embedded'), cardW: w() };
+    return { launched, destroyed };
+  });
+  if (lifecycle.skipped) { console.log(`    (lifecycle skipped: ${lifecycle.skipped})`); }
+  else {
+  t(`${label} LAUNCH widens the card via the real button`,
+    lifecycle.launched.embedded === true && lifecycle.launched.cardW > 400,
+    `embedded=${lifecycle.launched.embedded} card=${lifecycle.launched.cardW}px`);
+  t(`${label} DESTROY releases the width again`,
+    lifecycle.destroyed.embedded === false && lifecycle.destroyed.cardW < lifecycle.launched.cardW,
+    `embedded=${lifecycle.destroyed.embedded} card=${lifecycle.launched.cardW}px -> ${lifecycle.destroyed.cardW}px`);
+  }
   await p.close();
  }
  /* ── CROSS-PAGE OVERRIDE SWEEP ────────────────────────────────────────────────────

@@ -328,6 +328,7 @@ const SandboxLauncher = (function() {
                 const secs = Math.floor((remaining % 60000) / 1000);
                 timerEl.textContent = `Session: ${mins}m ${secs}s remaining`;
                 if (remaining <= 0) {
+                    closeIframe();          // same cleanup as Destroy; see closeIframe()
                     updateUI('idle', 'Session expired');
                     // Session is gone — let the host clear any session-bound UI (e.g. the grader).
                     if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
@@ -397,8 +398,7 @@ const SandboxLauncher = (function() {
             updateUI('destroying', 'Shutting down...');
             try {
                 await destroy(session.sessionId);
-                iframeWrap.style.display = 'none';
-                iframe.src = '';
+                closeIframe();
                 updateUI('idle', 'Sandbox destroyed');
                 // Session is gone — let the host clear any session-bound UI (e.g. the grader).
                 if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
@@ -458,16 +458,17 @@ const SandboxLauncher = (function() {
            label would otherwise stay stuck on "Restore" after leaving fullscreen. */
         document.addEventListener('fullscreenchange', syncMaxLabel);
 
-        collapseBtn.addEventListener('click', () => {
+        /* ── ONE PLACE THAT CLOSES THE SANDBOX ────────────────────────────────────────
+           There are THREE ways a sandbox stops being on screen: the student minimises it,
+           they destroy it, or the session hits maxLifetimeMinutes and expires. Each one used
+           to unwind by hand, and `is-embedded` (which makes the Rig card span every grid
+           column) was removed by only ONE of them. Destroy and expiry left an idle, empty
+           card permanently spanning the full grid next to normal-width neighbours, on every
+           page load until the tab was reloaded. Chris reproduced it by clicking the real
+           buttons: afterDestroy { embedded: true, cardWidth: 1536 }.
+           Factored so a FOURTH way to close cannot repeat the same miss. */
+        function closeIframe() {
             if (isFull()) document.exitFullscreen().catch(() => {});
-            /* ⚠ ONLY UNWIND is-tall IF is-tall IS ACTUALLY ON. This line used to restore
-               priorInlineHeight unconditionally, and priorInlineHeight is written in exactly one
-               place: inside the Maximize handler. So the sequence "maximize once, restore, later
-               drag the panel to taste, hit Minimize" silently replaced the student's live drag
-               with a stale value from an unrelated earlier action. Chris reproduced it with real
-               pointer events: drag to 1164px, Minimize, height reset to "".
-               Same guard the Restore path already had, which I failed to carry one function
-               down while fixing the very bug it guards against. */
             if (iframeWrap.classList.contains('is-tall')) {
                 iframeWrap.classList.remove('is-tall');
                 iframeWrap.style.height = priorInlineHeight;
@@ -476,7 +477,9 @@ const SandboxLauncher = (function() {
             iframeWrap.style.display = 'none';
             wrapper.classList.remove('is-embedded');
             iframe.src = '';
-        });
+        }
+
+        collapseBtn.addEventListener('click', closeIframe);
 
         container.appendChild(wrapper);
         return wrapper;
