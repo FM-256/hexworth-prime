@@ -29,12 +29,19 @@
  * is reused or a mission is renamed. Distinct mission slugs is the property that actually means
  * "eighteen different missions were passed".
  *
- * ⚠ THIS FILE AWARDS A BADGE. IT DOES NOT RELEASE A SLOT. The release hop needs a route on bc1
- * that forwards to the bc2 claim service, because the claim service binds to a tailscale
- * address that Cloud Functions cannot reach, while bc1 is reachable from GCP (proven: that is
- * how awardMissionBadge calls /grade-for) and can reach bc2 (verified: HTTP 401 in 8 ms, the
- * bridge answering and correctly refusing an unauthenticated call). Until that route exists the
- * badge lands and no slot moves, which is the honest half-step: the record is the prerequisite.
+ * THE FULL CHAIN, all three hops now live: awardCourseBadge writes the badge, then relays
+ * through bc1 (service key) to the bc2 claim service (bridge secret), which applies the
+ * emptiness guard. Cloud Functions cannot reach bc2 directly because the claim service binds to
+ * a tailscale address; bc1 can, and GCP can reach bc1, which is how awardMissionBadge already
+ * calls /grade-for.
+ *
+ * ⚠ WHAT THIS RECYCLES, HONESTLY: only students who FINISH. Measured 2026-08-11, the pool was
+ * 4 of 50 bound with 18.5 GB free RAM, and claim() checks RAM before slots, so neither
+ * constraint was close to binding. A pool fills with people who START a course and stop, and
+ * completion-triggered release never fires for them. Their slot stays bound, and if they left
+ * servers running the emptiness guard correctly refuses forever. That case is unaddressed by
+ * design, and the leak that actually threatened the pool (QC runs minting a uid per run) was
+ * already closed separately by giving all 15 harnesses a FIXED QC identity.
  */
 'use strict';
 

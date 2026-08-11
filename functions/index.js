@@ -945,7 +945,7 @@ exports.addXP = onCall(cfOptions, async (request) => {
  */
 const courseBadges = require('./course-badges');
 
-exports.awardCourseBadge = onCall(cfOptions, async (request) => {
+exports.awardCourseBadge = onCall({ ...cfOptions, secrets: [sandboxServiceKeyIdx] }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
@@ -975,6 +975,35 @@ exports.awardCourseBadge = onCall(cfOptions, async (request) => {
         }, { merge: true });
         awarded.push({ badgeId: c.badgeId, name: c.name, missions: c.count });
         console.log(`[awardCourseBadge] ${uid} <- ${c.badgeId} (${c.count}/${c.requiresDistinctMissions} missions)`);
+
+        /* #275: the badge is the completion record, so this is the moment the student's
+           OpenStack pool slot can go back. Cloud Functions cannot reach the bc2 claim service
+           (tailscale), so this relays through bc1, which can: CF -> bc1 (service key) -> bc2
+           (bridge secret) -> emptiness guard.
+
+           AFTER the badge write and deliberately NON-FATAL. The badge is the thing the student
+           earned; a bridge that is down must never cost them the award, and the slot can be
+           released later by any other path. Releasing first would risk the inverse: a freed
+           slot with no record of why.
+
+           bc2 REFUSES any slot still holding credentials, servers or volumes, so a student who
+           has not torn their sandbox down keeps it, and this call simply reports that. Nothing
+           here deletes a cloud resource; it clears a pointer. */
+        if (c.sandboxCourse) {
+            try {
+                const rel = await fetch('https://sandbox.hexworth.tech/api/sandbox/release-slot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json',
+                               'x-service-key': sandboxServiceKeyIdx.value() },
+                    body: JSON.stringify({ uid }),
+                    signal: AbortSignal.timeout(30000),
+                });
+                const rd = await rel.json().catch(() => null);
+                console.log(`[awardCourseBadge] slot release for ${uid}: ${rel.status} ${JSON.stringify(rd)}`);
+            } catch (e) {
+                console.error(`[awardCourseBadge] slot release failed for ${uid} (badge stands): ${e.message}`);
+            }
+        }
     }
 
     return {
