@@ -98,6 +98,38 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
     `${seq.dragged}px -> ${seq.maxed}px`);
   t(`${label} Restore returns to the dragged height`, seq.restored === seq.dragged,
     `${seq.maxed}px -> ${seq.restored}px (dragged was ${seq.dragged}px)`);
+
+  /* ⚠ MINIMIZE IS PART OF THE SEQUENCE TOO, and skipping it is how a bug shipped. The suite
+     stopped at Restore, so nothing ever clicked Minimize after a drag. Minimize used to restore
+     the Maximize handler's stashed height UNCONDITIONALLY, which discarded a live drag and
+     stranded the student at a size from some earlier, unrelated action.
+     Two orderings, because only the second exposes a STALE stash: */
+  const minSeq = await p.evaluate(() => {
+    const wrap = document.querySelector('.sandbox-launcher__iframe-wrap');
+    const btnMax = document.querySelector('.sandbox-launcher__btn--maximize');
+    const btnMin = document.querySelector('.sandbox-launcher__btn--collapse');
+    const show = () => { wrap.style.display = ''; };
+
+    // A: drag, then Minimize, with NO Maximize anywhere in between.
+    show(); wrap.style.height = '400px';
+    btnMin.click(); show();
+    const afterPlainMinimize = wrap.style.height;
+
+    // B: a full maximize cycle FIRST (which writes the stash), then a fresh drag, then Minimize.
+    wrap.requestFullscreen = null;
+    wrap.style.height = '';
+    btnMax.click(); btnMax.click();            // stash is now '' from this cycle
+    show(); wrap.style.height = '640px';       // the student's deliberate, later drag
+    btnMin.click(); show();
+    const afterStaleStash = wrap.style.height;
+
+    wrap.style.height = ''; wrap.style.display = 'none';
+    return { afterPlainMinimize, afterStaleStash };
+  });
+  t(`${label} Minimize keeps a drag made without Maximize`,
+    minSeq.afterPlainMinimize === '400px', `height is "${minSeq.afterPlainMinimize}"`);
+  t(`${label} Minimize keeps a drag made AFTER a maximize cycle`,
+    minSeq.afterStaleStash === '640px', `height is "${minSeq.afterStaleStash}"`);
   await p.close();
  }
  /* ── CROSS-PAGE OVERRIDE SWEEP ────────────────────────────────────────────────────
@@ -120,7 +152,18 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
      return out;
    };
    const hosts = walk(APP, []).filter(f => fs.readFileSync(f, 'utf8').includes('SandboxLauncher'));
-   const offenders = hosts.filter(f => {
+   /* ⚠ EXTERNAL STYLESHEETS COUNT. The sweep walked .html only, so a rule in a linked .css
+      file would have sailed straight past the guarantee "no page may pin the iframe height".
+      Chris proved it by planting one on a devops lab: 0 offenders reported. No such file
+      exists today, which is exactly why it would go unnoticed when someone adds one. */
+   const cssFiles = (function walkCss(dir, out) {
+     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+       const fp = path.join(dir, e.name);
+       if (e.isDirectory()) walkCss(fp, out); else if (e.name.endsWith('.css')) out.push(fp);
+     }
+     return out;
+   })(APP, []);
+   const offenders = hosts.concat(cssFiles).filter(f => {
      /* Strip CSS and HTML comments FIRST. Without this the check flags prose: the Observatory
         fix carries a comment explaining the old rule, quoting
         `.sandbox-launcher__iframe { height:100% }`, and the scan matched the explanation of
@@ -132,7 +175,7 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
      return /\.sandbox-launcher__iframe(?!-wrap)[^{}]*\{[^}]*height\s*:/.test(css);
    }).map(f => path.relative(APP, f));
    if (offenders.length) { fail++; console.log(`  FAIL  ${offenders.length} page(s) pin the iframe height: ${offenders.join(', ')}`); }
-   else { pass++; console.log(`  PASS  none of the ${hosts.length} launcher-hosting pages pin the iframe height`); }
+   else { pass++; console.log(`  PASS  none of the ${hosts.length} hosting pages or ${cssFiles.length} stylesheets pin the iframe height`); }
  }
 
  console.log(`\n${pass}/${pass+fail} checks passed`);

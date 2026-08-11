@@ -458,8 +458,18 @@ const SandboxLauncher = (function() {
 
         collapseBtn.addEventListener('click', () => {
             if (isFull()) document.exitFullscreen().catch(() => {});
-            iframeWrap.classList.remove('is-tall');
-            iframeWrap.style.height = priorInlineHeight;
+            /* ⚠ ONLY UNWIND is-tall IF is-tall IS ACTUALLY ON. This line used to restore
+               priorInlineHeight unconditionally, and priorInlineHeight is written in exactly one
+               place: inside the Maximize handler. So the sequence "maximize once, restore, later
+               drag the panel to taste, hit Minimize" silently replaced the student's live drag
+               with a stale value from an unrelated earlier action. Chris reproduced it with real
+               pointer events: drag to 1164px, Minimize, height reset to "".
+               Same guard the Restore path already had, which I failed to carry one function
+               down while fixing the very bug it guards against. */
+            if (iframeWrap.classList.contains('is-tall')) {
+                iframeWrap.classList.remove('is-tall');
+                iframeWrap.style.height = priorInlineHeight;
+            }
             syncMaxLabel();
             iframeWrap.style.display = 'none';
             iframe.src = '';
