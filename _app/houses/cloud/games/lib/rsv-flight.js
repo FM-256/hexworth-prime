@@ -227,13 +227,30 @@ export function createRSV(opts) {
         ship.pos.addScaledVector(ship.vel, dt);
 
         /* --- collision: the station is a set of spheres. Bouncing rather than stopping keeps
-               it forgiving, and only a real closing speed does damage. */
-        const hitR = 6.0;
-        for (const c of obstacles()) {
+               it forgiving, and only a real closing speed does damage.
+
+               AN OBSTACLE MAY NOW CARRY ITS OWN RADIUS. It was a bare Vector3 with one global
+               6.0, special-cased to 4.2 at the origin by testing lengthSq() === 0, which is a
+               position doing the job of a property. That was fine while every obstacle was a
+               node of roughly one size, and wrong the moment lagrange-inspect wanted to add a
+               40 m long switch: one sphere around it is a huge invisible bubble, which reads
+               worse than the missing collision it replaces. A caller can pass
+               { pos, radius } and approximate a long box with several spheres along its axis.
+               A plain Vector3 still works and still means the old behaviour. */
+        for (const raw of obstacles()) {
+            const c = raw.pos || raw;
+            const r = (raw.radius !== undefined) ? raw.radius
+                    : (c.lengthSq() === 0 ? 4.2 : 6.0);
             const d = ship.pos.distanceTo(c);
-            const r = (c.lengthSq() === 0) ? 4.2 : hitR;
             if (d < r) {
-                const n = new THREE.Vector3().subVectors(ship.pos, c).normalize();
+                /* DEGENERATE CASE: dead centre. subVectors gives (0,0,0), normalize leaves it
+                   (0,0,0), and the ejection below then pushes the vehicle exactly nowhere, so
+                   it sits inside the obstacle forever with no way out. Vanishingly unlikely to
+                   be hit by float physics in play, and trivially reachable by a test or by a
+                   future mission that spawns a vehicle on top of a structure. Any direction is
+                   correct when every direction is equally out. Found while testing #309. */
+                const n = new THREE.Vector3().subVectors(ship.pos, c);
+                if (n.lengthSq() < 1e-9) n.set(0, 1, 0); else n.normalize();
                 ship.pos.copy(c).addScaledVector(n, r + 0.05);
                 const vn = ship.vel.dot(n);
                 if (vn < 0) {

@@ -254,6 +254,7 @@ function makeLabel(text, scale) {
 /* FRONT ENDS. Where a run actually ends, modelled and named, because "follow the feed to the
    front end it terminates on" is only an instruction you can obey if the front ends exist. */
 const FE = {};
+const FE_OBSTACLES = [];   // sphere approximations of the boxes, for collision
 (ENV.frontEnds || []).forEach(f => {
   const box = new THREE.Mesh(
     new THREE.BoxGeometry(f.size[0], f.size[1], f.size[2]),
@@ -264,6 +265,26 @@ const FE = {};
   lab.position.set(f.pos[0], f.pos[1] + f.size[1] / 2 + 4, f.pos[2]);
   scene.add(lab);
   FE[f.id] = new THREE.Vector3(f.pos[0], f.pos[1], f.pos[2]);
+
+  /* Approximate the box with spheres strung along whichever axis is longest.
+
+     ⚠ SPACING MUST BE <= r OR THE CHAIN HAS HOLES. The first version put one sphere per 1.4
+     radii and spread them from -span to +span, which for a 9 m box with r=3.5 produced exactly
+     TWO spheres, one at each END, and left the centre of the box uncovered. The box was solid
+     at its edges and hollow in the middle. Caught by probing dead centre and at a realistic
+     offset rather than only asserting the mission still completed. */
+  const half = [f.size[0]/2, f.size[1]/2, f.size[2]/2];
+  const longest = half.indexOf(Math.max(...half));
+  const others = half.filter((_, i) => i !== longest);
+  const r = Math.max(2.2, (others[0] + others[1]) / 2);
+  const span = half[longest];
+  const n = Math.max(1, Math.ceil((span * 2) / r) + 1);
+  for (let i = 0; i < n; i++) {
+    const tpos = n === 1 ? 0 : (-span + (2 * span) * (i / (n - 1)));
+    const c = new THREE.Vector3(f.pos[0], f.pos[1], f.pos[2]);
+    if (longest === 0) c.x += tpos; else if (longest === 1) c.y += tpos; else c.z += tpos;
+    FE_OBSTACLES.push({ pos: c, radius: r });
+  }
 });
 
 const TARGETS = ENV.targets.map(t => {
@@ -310,7 +331,18 @@ let shakeAmt = 0, inspT = 0, holdF = false;
 const rsv = createRSV({
   THREE, cfg:CFG, camera, renderer,
   isRunning: () => state.running,
-  obstacles: () => [ new THREE.Vector3(0,0,0), ...TARGETS.map(t => t.group.position.clone()) ],
+  /* #309. The front-end boxes were solid to the eye and empty to the vehicle: you could fly
+     straight through a labelled KA-FE-1 with no bounce. Cosmetic, because inspectRange is 34 m
+     so nobody completing the mission needs to be inside one, but a structure that is not there
+     when you touch it undermines a mission whose whole premise is that you went and looked.
+
+     A LONG BOX IS SEVERAL SPHERES, not one. The collision model is spherical, so wrapping the
+     40 m leaf switch in a single sphere would put an invisible bubble around it far larger
+     than the box, which reads worse than the gap it closes. Each box is approximated along its
+     longest axis instead, with a radius from its smaller dimensions. */
+  obstacles: () => [ new THREE.Vector3(0,0,0),
+                     ...TARGETS.map(t => t.group.position.clone()),
+                     ...FE_OBSTACLES ],
   spawn: new THREE.Vector3(-96, 34, 86),
   onDamage: () => { shakeAmt = Math.min(1, shakeAmt + 0.35);
                     if (rsv.ship.hull <= 0 && state.running) finish(false, 'hull'); },
@@ -453,6 +485,19 @@ if (new URLSearchParams(location.search).get('qa') === '1' && QA_HOSTS.includes(
       if (TARGETS.every(x => x.done)) finish(true);
       return true;
     },
+    /* Place the vehicle and step the physics once, so a test can observe a COLLISION rather
+       than infer it. Added because the first #309 probe I wrote was called collide.js and only
+       ever asserted the mission still completed: it could not have failed for the thing it was
+       named after. There is no other way to see a bounce from outside, since the ship is closed
+       over by the flight module. Localhost-only, like the rest of this seam. */
+    probeCollision: (pos, vel) => {
+        rsv.ship.pos.set(pos[0], pos[1], pos[2]);
+        rsv.ship.vel.set(vel[0], vel[1], vel[2]);
+        const before = rsv.ship.pos.clone();
+        rsv.stepShip(0.05, performance.now());
+        return { pushedOut: +rsv.ship.pos.distanceTo(before).toFixed(3) };
+    },
+    obstacleCount: () => FE_OBSTACLES.length,
     snapshot: () => ({ running:state.running, over:state.over,
                        done:TARGETS.filter(t => t.done).map(t => t.id),
                        endTitle:$('endTitle').textContent })
