@@ -924,6 +924,69 @@ exports.addXP = onCall(cfOptions, async (request) => {
  * rule exists for that subcollection, so it is CF-only by default-deny —
  * the tamper-evident record).
  */
+/**
+ * awardCourseBadge — issues a COURSE completion badge from server-issued mission proofs.
+ *
+ * Callable rather than a Firestore trigger on server_awards, deliberately: a trigger would fire
+ * on every mission award and re-scan the whole subcollection each time, and the client already
+ * knows the moment a mission badge lands, which is exactly when a course might have completed.
+ * The client can only ASK; it supplies no evidence and cannot influence the outcome.
+ *
+ * Nothing here trusts the caller. It counts distinct missions the SERVER awarded (each one
+ * re-graded against bc1 by awardMissionBadge, each proof in a subcollection with no client
+ * write rule) and awards only if the threshold is genuinely met. A client calling this in a
+ * loop gets the same answer as a client that never calls it.
+ *
+ * Idempotent: re-awarding writes the same badgeId with merge, and the response says whether
+ * this call is what awarded it, so the UI can celebrate once.
+ *
+ * See functions/course-badges.js for why exactly one course is registered, and for why this
+ * awards a badge but does not yet release the student's OpenStack slot (#275).
+ */
+const courseBadges = require('./course-badges');
+
+exports.awardCourseBadge = onCall(cfOptions, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Must be signed in.');
+    }
+    const uid = request.auth.uid;
+    const results = await courseBadges.evaluate(db, uid);
+    const awarded = [];
+
+    for (const c of results) {
+        if (!c.complete || c.alreadyAwarded) continue;
+        const userRef = db.doc(`users/${uid}`);
+        await userRef.set({
+            achievements: FieldValue.arrayUnion(c.badgeId),
+            updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        await db.doc(`users/${uid}/server_awards/${c.badgeId}`).set({
+            badgeId: c.badgeId,
+            course: c.courseId,
+            name: c.name,
+            /* The proof is recorded, not just the verdict. A later audit can re-derive this
+               award from the mission list without trusting that the count was right when it
+               ran, which is the same standard the mission awards themselves are held to. */
+            missions: c.missions,
+            missionCount: c.count,
+            required: c.requiresDistinctMissions,
+            source: 'server',
+            awardedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+        awarded.push({ badgeId: c.badgeId, name: c.name, missions: c.count });
+        console.log(`[awardCourseBadge] ${uid} <- ${c.badgeId} (${c.count}/${c.requiresDistinctMissions} missions)`);
+    }
+
+    return {
+        awarded: awarded.length > 0,
+        badges: awarded,
+        progress: results.map(c => ({ courseId: c.courseId, count: c.count,
+                                      required: c.requiresDistinctMissions,
+                                      complete: c.complete, held: c.alreadyAwarded }))
+    };
+});
+
+
 exports.awardMissionBadge = onCall({ ...cfOptions, secrets: [sandboxServiceKeyIdx] }, async (request) => {
     if (!request.auth) {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
