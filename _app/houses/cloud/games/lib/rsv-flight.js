@@ -71,17 +71,26 @@ export function createRSV(opts) {
     let thrustLevel = 0;              // 0..1, drives audio and exhaust
     let recalling = false;
 
-    addEventListener('keydown', e => {
+    /* ── LISTENERS, NAMED SO THEY CAN BE REMOVED ─────────────────────────────────────
+       These were anonymous, and createRSV returned no teardown. Safe while every mission is
+       its own page, because navigation forces a reload and the factory runs once per page
+       life. But this module exists so a SECOND flying mission is a config rather than a copy,
+       and the moment one mounts without a full reload the listeners stack: thrust applies
+       twice per key, [X] queues two cancel burns, every command double-pushes. Taskboard #307,
+       raised by Nancy on the extraction review, closed here before anything trips over it.
+
+       An anonymous handler cannot be removed, so each is a named reference. */
+    const onKeyDown = e => {
         const k = e.key.toLowerCase();
         keys[k] = true;
         if (k === ' ') e.preventDefault();
         if (k === 'x') killRel();
         onKey(k, e);                  // everything else belongs to the mission
-    });
-    addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+    };
+    const onKeyUp = e => { keys[e.key.toLowerCase()] = false; };
     // Losing focus mid-burn would otherwise leave a key stuck down and the vehicle thrusting
     // away from the station with nobody at the controls.
-    addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+    const onBlur = () => { for (const k in keys) keys[k] = false; };
 
     /* requestPointerLock returns a promise in current browsers and REJECTS when the call is not
        tied to a user gesture. Unguarded that surfaces as an uncaught page error, so it is
@@ -92,15 +101,37 @@ export function createRSV(opts) {
             if (p && typeof p.catch === 'function') p.catch(() => {});
         } catch (e) { /* pointer lock unavailable; mouse-look simply stays unlocked */ }
     }
-    renderer.domElement.addEventListener('click', () => {
+    const onClick = () => {
         if (isRunning() && !document.pointerLockElement) grabPointer();
-    });
-    addEventListener('mousemove', e => {
+    };
+    const onMouseMove = e => {
         if (document.pointerLockElement !== renderer.domElement) return;
         ship.yaw -= e.movementX * 0.0021;
         ship.pitch -= e.movementY * 0.0021;
         ship.pitch = THREE.MathUtils.clamp(ship.pitch, -1.52, 1.52);
-    });
+    };
+
+    addEventListener('keydown', onKeyDown);
+    addEventListener('keyup', onKeyUp);
+    addEventListener('blur', onBlur);
+    addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('click', onClick);
+
+    /** Remove every listener this instance registered. Idempotent: calling it twice is a
+        no-op rather than an error, because a caller unmounting defensively should not have to
+        track whether it already did. After destroy the instance is inert, and stepShip on a
+        destroyed instance simply moves a vehicle nobody is steering. */
+    let destroyed = false;
+    function destroy() {
+        if (destroyed) return;
+        destroyed = true;
+        removeEventListener('keydown', onKeyDown);
+        removeEventListener('keyup', onKeyUp);
+        removeEventListener('blur', onBlur);
+        removeEventListener('mousemove', onMouseMove);
+        renderer.domElement.removeEventListener('click', onClick);
+        for (const k in keys) keys[k] = false;   // never leave a key stuck down
+    }
 
     /** Body-relative basis from yaw/pitch. */
     function basis() {
@@ -222,6 +253,7 @@ export function createRSV(opts) {
 
     return {
         ship, keys, cmdQueue, basis, issueCommands, killRel, stepShip, grabPointer, damage,
+        destroy,
         get thrustLevel() { return thrustLevel; },
         get recalling() { return recalling; },
         get linkTicks() { return linkTicks; },
