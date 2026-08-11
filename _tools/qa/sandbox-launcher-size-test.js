@@ -130,6 +130,40 @@ const t=(n,c,d)=>{c?(pass++,console.log('  PASS  '+n+(d?'  -> '+d:''))):(fail++,
     minSeq.afterPlainMinimize === '400px', `height is "${minSeq.afterPlainMinimize}"`);
   t(`${label} Minimize keeps a drag made AFTER a maximize cycle`,
     minSeq.afterStaleStash === '640px', `height is "${minSeq.afterStaleStash}"`);
+
+  /* ⚠ WIDTH, WHICH THIS SUITE NEVER ONCE MEASURED. Every assertion above is vertical, and the
+     500 -> 778px numbers that justified the whole change are heights. The operator reported the
+     sandbox "in its small corner of the screen" AFTER all of it passed, and they were right:
+     the Rig lays cards out as repeat(auto-fill, minmax(360px, 1fr)) and the launcher mounts
+     inside one, so a running terminal rendered about 291px wide on a 1920 viewport. A tall
+     narrow strip passes every height check ever written.
+     A sandbox is a working surface, not a column: assert it uses a real share of the page. */
+  const width = await p.evaluate(() => {
+    const root = document.querySelector('.sandbox-launcher');
+    const wrap = document.querySelector('.sandbox-launcher__iframe-wrap');
+    const f = document.querySelector('.sandbox-launcher__iframe');
+    wrap.style.display = '';
+    const idle = Math.round(f.getBoundingClientRect().width);
+    root.classList.add('is-embedded');          // what launching a sandbox does
+    const open = Math.round(f.getBoundingClientRect().width);
+    root.classList.remove('is-embedded');
+    wrap.style.display = 'none';
+    /* Measure against the page CONTAINER, not the viewport. Pages cap content deliberately
+       (the Rig uses max-width:1600px), so on a 2560 display a correct full-width sandbox is
+       still only ~57% of the screen. Asserting against the viewport failed working code at
+       1440p and would push toward breaking a deliberate layout cap to satisfy a test. */
+    const host = root.closest('.wrap, main, body') || document.body;
+    const avail = Math.round(host.getBoundingClientRect().width);
+    return { idle, open, avail, vw: window.innerWidth,
+             hasSel: CSS.supports('selector(:has(*))') };
+  });
+  t(`${label} an OPEN sandbox uses most of its container`,
+    width.open >= width.avail * 0.8,
+    `${width.open}px of ${width.avail}px container (viewport ${width.vw})`);
+  /* Recorded rather than asserted: on an engine without :has() the card cannot span columns and
+     this degrades to the old width. That is the pre-existing behaviour, not a regression, but a
+     silent pass on an unsupported engine would be a lie. */
+  if (!width.hasSel) console.log('    (note: :has() unsupported here, column spanning inactive)');
   await p.close();
  }
  /* ── CROSS-PAGE OVERRIDE SWEEP ────────────────────────────────────────────────────

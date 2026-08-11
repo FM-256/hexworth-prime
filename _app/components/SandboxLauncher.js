@@ -312,6 +312,7 @@ const SandboxLauncher = (function() {
                         window.open(url, `sandbox-${labId}`);
                     } else {
                         iframeWrap.style.display = '';
+                        wrapper.classList.add('is-embedded');   // host pages widen for this
                         iframe.src = url;
                     }
                 };
@@ -377,6 +378,7 @@ const SandboxLauncher = (function() {
                         window.open(result.url, `sandbox-${labId}`);
                     } else {
                         iframeWrap.style.display = '';
+                        wrapper.classList.add('is-embedded');
                         iframe.src = result.url;
                     }
                 }
@@ -472,6 +474,7 @@ const SandboxLauncher = (function() {
             }
             syncMaxLabel();
             iframeWrap.style.display = 'none';
+            wrapper.classList.remove('is-embedded');
             iframe.src = '';
         });
 
