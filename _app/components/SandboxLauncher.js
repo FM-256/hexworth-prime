@@ -237,6 +237,7 @@ const SandboxLauncher = (function() {
                 <div class="sandbox-launcher__timer" style="display:none"></div>
                 <div class="sandbox-launcher__iframe-wrap" style="display:none">
                     <iframe class="sandbox-launcher__iframe"></iframe>
+                    <button class="sandbox-launcher__btn sandbox-launcher__btn--maximize" type="button">Maximize</button>
                     <button class="sandbox-launcher__btn sandbox-launcher__btn--collapse" type="button">Minimize</button>
                 </div>
             </div>
@@ -405,7 +406,49 @@ const SandboxLauncher = (function() {
         });
 
         // Collapse iframe
+        /* MAXIMIZE. The sandbox is a terminal or a desktop living inside an article column,
+           so its usable size was whatever was left over: a hardcoded 500px tall, capped by the
+           page's max-width. Fullscreen gives it the whole display, which is the only way the
+           thing being maximised is the SANDBOX rather than the page around it.
+
+           ⚠ FULLSCREEN API, NOT A position:fixed OVERLAY, and that is deliberate. Platform rule
+           5 / HEUR-008: position:fixed is broken whenever body.style.filter is set, and three
+           shipped components set it (FluxCapacitor, UserProfileModal, TenantShell). A
+           hand-rolled overlay would work everywhere until it silently did not. requestFullscreen
+           is outside the filtered stacking context entirely and cannot be broken that way.
+
+           Falls back to an in-page tall mode if the API is unavailable or refused (some
+           embedded/iframe contexts deny it): still a real improvement, still no fixed
+           positioning. */
+        const maximizeBtn = wrapper.querySelector('.sandbox-launcher__btn--maximize');
+        function isFull() {
+            return document.fullscreenElement === iframeWrap;
+        }
+        function syncMaxLabel() {
+            const on = isFull() || iframeWrap.classList.contains('is-tall');
+            maximizeBtn.textContent = on ? 'Restore' : 'Maximize';
+        }
+        maximizeBtn.addEventListener('click', async () => {
+            if (isFull()) { await document.exitFullscreen().catch(() => {}); return; }
+            if (iframeWrap.classList.contains('is-tall')) {
+                iframeWrap.classList.remove('is-tall'); syncMaxLabel(); return;
+            }
+            if (iframeWrap.requestFullscreen) {
+                try { await iframeWrap.requestFullscreen(); syncMaxLabel(); return; }
+                catch (e) { /* denied: fall through to the in-page tall mode */ }
+            }
+            iframeWrap.classList.add('is-tall');
+            syncMaxLabel();
+            iframeWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+        /* Escape and the browser's own fullscreen exit do not fire our click handler, so the
+           label would otherwise stay stuck on "Restore" after leaving fullscreen. */
+        document.addEventListener('fullscreenchange', syncMaxLabel);
+
         collapseBtn.addEventListener('click', () => {
+            if (isFull()) document.exitFullscreen().catch(() => {});
+            iframeWrap.classList.remove('is-tall');
+            syncMaxLabel();
             iframeWrap.style.display = 'none';
             iframe.src = '';
         });
@@ -551,12 +594,44 @@ const SandboxLauncher = (function() {
                 border-radius: 8px;
                 overflow: hidden;
                 background: #000;
+                /* Drag the bottom edge. Native, so it needs no drag maths and no listeners,
+                   and it survives a page the component knows nothing about. min-height stops
+                   a student shrinking it into a letterbox they cannot read. */
+                resize: vertical;
+                min-height: 260px;
             }
             .sandbox-launcher__iframe {
                 width: 100%;
-                height: 500px;
+                /* WAS A HARDCODED 500px, which is why the sandbox was "static and small": on a
+                   1440p display roughly a third of the height was in use for a terminal, and no
+                   part of it responded to the viewport. clamp scales with the screen while
+                   staying readable on a laptop and not absurd on an ultrawide. */
+                height: clamp(420px, 72vh, 1100px);
                 border: none;
                 display: block;
+            }
+            /* The wrapper is the fullscreen element, so the iframe must fill it rather than
+               keep its clamped height, or maximising would show a 72vh terminal on a black
+               field. 100% of a fullscreen parent is the whole display. */
+            .sandbox-launcher__iframe-wrap:fullscreen {
+                border-radius: 0;
+                border: none;
+                resize: none;
+                background: #000;
+            }
+            .sandbox-launcher__iframe-wrap:fullscreen .sandbox-launcher__iframe {
+                height: 100vh;
+            }
+            /* Fallback when the Fullscreen API is unavailable or refused. Deliberately NOT
+               position:fixed: rule 5 / HEUR-008, fixed positioning breaks under
+               body.style.filter, which shipped components set. This only grows the element in
+               normal flow, so nothing can break it. */
+            .sandbox-launcher__iframe-wrap.is-tall .sandbox-launcher__iframe {
+                height: calc(100vh - 120px);
+            }
+            .sandbox-launcher__btn--maximize {
+                margin-top: 0.5rem;
+                margin-right: 0.5rem;
             }
         `;
         document.head.appendChild(style);
