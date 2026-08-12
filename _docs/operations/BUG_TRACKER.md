@@ -31,6 +31,18 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-103 — the OpenStack course cannot be completed: a perfect student tops out at 11/13  ·  [P2]  ·  open
+- **Found:** 2026-08-12 · by self · answering the operator's "which levels have we completed already?"
+- **Area:** `_app/houses/cloud/openstack/index.html:628` (denominator) and `_app/houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html:409` (empty completion hook)
+- **Symptom:** a student who finishes every chapter, every lab and every quiz sees **11 / 13 completed, 85%**, and can never reach 100%. The hub tells them on the same page that they should "Complete all 13 activities to master the curriculum."
+- **Repro:** `node _tools/qa/openstack-hub-completion-test.js` walks all four chapters to completion; the final count it reads off the hub is 11, with every chapter card marked complete.
+- **Root cause:** two independent defects that happen to point the same way.
+  1. THE REVIEW RECORDS NOTHING. `cloud-openstack-comprehensive-review.html` loads ModuleProgress.js and its game config ends with `onComplete: function(results) { // Completion callback — ModuleProgress integration could go here }` — an empty function with a comment admitting the integration was never written. The hub checks `cloud['cloud-openstack-review'].completed`, which therefore nothing ever sets.
+  2. THE DENOMINATOR DOUBLE-COUNTS. `const total = 13; // 4 presentations + 3 labs + 4 quizzes + 1 review + 1 comprehensive` — but "the review" and "the comprehensive" are ONE activity, the comprehensive Jeopardy review, which the hub links once. updateProgress can only ever increment 12 times (7 presentations+labs, 4 quizzes, 1 review), and since the review is unrecordable the real ceiling is 11.
+- **Fix:** NOT FIXED, and it needs a decision rather than a patch: is the intended course 12 activities (wire the review's onComplete to `ModuleProgress.complete('cloud','cloud-openstack-review',{type:'review'})` and set total to 12), or 13 with a thirteenth activity that was never built? The hub's own copy promises 13. Do not just change the number until that is answered, or the course will claim 100% for work nobody defined.
+- **Verified:** n/a — open. The 11/13 ceiling is reproducible with the harness above.
+- **Related:** BUG-100, BUG-101 (the same hub; both fixed and live). This is a THIRD, independent defect in the same file and was invisible to both, because both were about repainting the count, not about whether the count can ever reach its own target.
+
 ### BUG-102 — post-verify's lab content-leak smoke fails deploys on a single stalled document fetch  ·  [P3]  ·  open
 - **Found:** 2026-08-12 · by self · after two consecutive deploys were flagged by the same check
 - **Area:** `_tools/smoke-lab-content-leaks.js` — `NAV_TIMEOUT = 30000`, single attempt per lab, no retry
