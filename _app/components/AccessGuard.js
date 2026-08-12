@@ -92,8 +92,16 @@ const AccessGuard = (function() {
         } catch (e) { return []; }
     }
 
-    /* Returns true if the visit is allowed. Mirrors TouristVisa.visitHouse exactly: revisiting a
-       house already seen is free, a new house is charged, and the cap refuses. */
+    /* Returns true if the visit is allowed: revisiting a house already seen is free, a new
+       house is charged, and the cap refuses.
+
+       ⚠ NOT a literal mirror of TouristVisa.visitHouse in ONE edge case, and the comment here
+       used to claim it was. For a caller who is NOT a tourist, visitHouse returns FALSE (it
+       answers "did I record a tourist visit") while this returns TRUE (it answers "may this
+       visit proceed"). Unreachable today, because every call site gates on isTourist()
+       synchronously first with no write in between, and Chris confirmed both paths behave
+       correctly. Written down because an inherited "mirrors exactly" comment is how the next
+       person justifies calling this from somewhere that guard does not hold. */
     function _touristVisit(houseId) {
         if (!houseId) return true;
         try {
