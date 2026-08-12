@@ -19,6 +19,12 @@ const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
 const BASE = 'http://localhost/api/sandbox';
 const sh = (cmd) => execSync(cmd, { encoding: 'utf8', timeout: 300000 });
 
+/* Tracked outside the async IIFE so the failure handler at the bottom can still reach a live
+   sandbox. Cleanup here sits at step 7 on the SUCCESS path only, so any fail() between the
+   instance create at step 3 and step 7 stranded e2e-proof -- and a stranded instance holds its
+   pool slot permanently, which is how 25 of 30 slots were lost before the 2026-08-03 purge. */
+let lastSid = null;
+
 async function post(url, body, headers) {
   const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
   return { status: r.status, data: await r.json().catch(() => null) };
@@ -58,6 +64,7 @@ async function post(url, body, headers) {
   if (l1.status !== 200) fail(`launch ${l1.status}: ${JSON.stringify(l1.data).slice(0, 300)}`);
   if (l1.data.cloudMode !== 'personal') fail(`expected cloudMode personal, got ${l1.data.cloudMode} (bridge down? pool empty?)`);
   const slot = l1.data.cloudSlot, sid1 = l1.data.sessionId;
+  lastSid = sid1;
   console.log(`2. launched personal cloud: slot=${slot} session=${sid1}`);
 
   const dex = (sid, cmd) => sh(`docker exec sandbox-${sid} sh -lc ${JSON.stringify(cmd)}`);
@@ -94,6 +101,7 @@ async function post(url, body, headers) {
   if (l2.status !== 200) fail(`relaunch ${l2.status}: ${JSON.stringify(l2.data).slice(0, 300)}`);
   if (l2.data.cloudSlot !== slot) fail(`sticky mapping broken: ${l2.data.cloudSlot} != ${slot}`);
   const sid2 = l2.data.sessionId;
+  lastSid = sid2;
   const seen = dex(sid2, 'openstack server list -f value -c Name').trim();
   if (!seen.includes('e2e-proof')) fail(`instance did not survive session teardown; server list: ${seen}`);
   console.log('5. relaunch: same slot, instance SURVIVED the container teardown');
@@ -116,4 +124,19 @@ async function post(url, body, headers) {
   // binding by hand after every run, that step was never performed, and it is precisely how the
   // pool filled with QC-held slots.
   console.log('E2E PASS');
-})().catch((e) => { console.error('E2E FAIL (throw):', e.message); process.exit(1); });
+})().catch(async (e) => {
+  console.error('E2E FAIL (throw):', e.message);
+  /* Sweep on the failure path too. Without this a failed run left e2e-proof running and its
+     pool slot was gone for good. Best-effort: the sandbox may already be torn down. */
+  if (lastSid) {
+    try {
+      const dx = (cmd) => sh(`docker exec sandbox-${lastSid} sh -lc ${JSON.stringify(cmd)}`);
+      dx('openstack server list -f value -c Name').trim().split('\n')
+        .map((n) => n.trim()).filter(Boolean)
+        .forEach((n) => { try { dx(`openstack server delete ${n} --wait`); } catch (err) { /* gone */ } });
+      console.error('   (swept leftover instances so the pool slot is not stranded)');
+    } catch (err) { /* sandbox already gone -- nothing to sweep */ }
+    await fetch(`${BASE}/destroy/${lastSid}`, { method: 'DELETE', headers: auth }).catch(() => {});
+  }
+  process.exit(1);
+});

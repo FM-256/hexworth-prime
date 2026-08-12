@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// aplus-mobile-troubleshoot-check.js -- regression gate for the CompTIA A+ Core 1
+// aplus-mobile-troubleshoot-check.js: regression gate for the CompTIA A+ Core 1
 // "Mobile Device Troubleshooting" lab after its rebuild from an 8-scenario
 // pick-the-answer quiz (selectAnswer(i) + chosenIndex === sc.correctIndex, with the
-// correct answer fixed at index 1 in 7 of 8 scenarios and no shuffle -- "always click
+// correct answer fixed at index 1 in 7 of 8 scenarios and no shuffle: "always click
 // B" scored 7/8) into a real "Mobile Device Diagnostics Bench" engine (CompTIA A+
 // 220-1101 Objective 5.5). The rebuild's whole point is that the student must
-// PERFORM the diagnosis on 9 distinct mobile faults -- investigate (gather
+// PERFORM the diagnosis on 9 distinct mobile faults: investigate (gather
 // evidence), establish a theory grounded in that evidence, test it, repair the
-// CONFIRMED cause, then verify + pick a real preventive measure -- not click one of
+// CONFIRMED cause, then verify + pick a real preventive measure, not click one of
 // four lettered buttons per scenario. It also adds a swollen-battery SAFETY case
 // where the correct fix is power-off-and-route-to-certified-service, never a
 // physical fix a student could try in the field.
 //
-// This loads the real lab HTML headless (no build step -- same file served to
+// This loads the real lab HTML headless (no build step: same file served to
 // students), stubs AccessGuard/ModuleProgress/AchievementManager/HexAIButton the
 // same way aplus-display-troubleshoot-check.js does, and drives the REAL exposed
 // globals (doGather/proceedFromGather/selectTheory/proceedFromTheory/runTest/
 // returnToTheory/proceedFromTest/selectFix/proceedFromFix/selectPreventive/
-// runVerify/submitCase/completeModule/resetLab, plus the CASES data array -- all
+// runVerify/submitCase/completeModule/resetLab, plus the CASES data array, all
 // plain `var`/function declarations in a classic <script>, so they land on window)
 // through the actual DOM/state path.
 //
@@ -27,7 +27,7 @@
 //      non-trivial feedback text; every theory's required evidence tags are actually
 //      produced by some gather action in that same case; and no two wrong-fix/wrong-
 //      preventive feedback strings across the whole lab are identical (proves no
-//      generic reused string could be silently false on a different case -- QC
+//      generic reused string could be silently false on a different case, QC
 //      Lesson 1).
 //   2. SWOLLEN-BATTERY SAFETY CASE: the correct fix text instructs powering off and
 //      routing to certified service (never "press/open/puncture"), and both wrong
@@ -44,12 +44,12 @@
 //      it, not just a disabled button), and ModuleProgress.complete must never fire.
 //   5. DIRECT-CALL BYPASS: every advance/select/submit/complete handler, called
 //      directly out of order (bypassing the UI entirely), is a no-op against its own
-//      real precondition -- including the "skip verify" bypass after legitimately
+//      real precondition, including the "skip verify" bypass after legitimately
 //      reaching the Verify phase, AND completeModule() called directly before every
 //      case is actually resolved (QC Lesson 2).
 //   6. DECOY THEORY: selecting a plausible-but-wrong theory (needs zero evidence) is
 //      allowed, but its test DISCONFIRMS it, rules it out, and sends the student back
-//      to Theory -- the ruled-out decoy can never be selected again, and the correct,
+//      to Theory. The ruled-out decoy can never be selected again, and the correct,
 //      evidence-grounded theory remains reachable.
 //   7. RENDERED wrong-path feedback: clicking an actual wrong-fix button and an actual
 //      wrong-preventive button in the live DOM renders exactly that case's own
@@ -183,7 +183,7 @@ async function load(pg) {
       c.theories.forEach(t => { if (t.test.confirms !== t.correct) issues.push('case ' + i + ' theory ' + t.id + ' test.confirms does not match correct flag'); });
     });
     // No two wrong-fix/wrong-preventive feedback strings are identical anywhere in the
-    // lab -- proves no generic reused string could be silently false on a different case.
+    // lab: proves no generic reused string could be silently false on a different case.
     const uniqueCount = new Set(allWrongFeedback).size;
     if (uniqueCount !== allWrongFeedback.length) issues.push('duplicate wrong-fix/preventive feedback strings detected (' + allWrongFeedback.length + ' total, ' + uniqueCount + ' unique)');
     return { issues, totalWrongFeedbackStrings: allWrongFeedback.length };
@@ -283,7 +283,7 @@ async function load(pg) {
   // exactly once via an explicit completeModule() call (this engine gates
   // the platform-completion signal behind a "Mark Complete" action distinct
   // from resolving the final case, and completeModule() itself re-checks
-  // that every case is actually resolved -- see QC-Lesson-2 section below).
+  // that every case is actually resolved, see QC-Lesson-2 section below).
   // ════════════════════════════════════════════════════════════════════
   console.log('\n=== Correct playthrough resolves all 9 cases and completes exactly once ===');
   const { pg: pgC, errs: errsC } = await newStubbedPage(b);
@@ -387,14 +387,14 @@ async function load(pg) {
   ok('completeModule() called with 0 cases resolved is a no-op (no completion signal fires)', afterCompleteAttempt.mpCalls === 0, afterCompleteAttempt);
 
   // Gather exactly 2 actions that satisfy the raw COUNT gate but are NOT the specific
-  // evidence tags the correct theory (case 0's t1) requires -- g3 is a pure red herring
+  // evidence tags the correct theory (case 0's t1) requires: g3 is a pure red herring
   // (evidence: null) in case 0's data, so it alone never satisfies any theory.
   const afterPartialGather = await pgW.evaluate(() => {
-    window.doGather('g2'); // produces 'brightness-maxed' -- only half of t1's requirement
+    window.doGather('g2'); // produces 'brightness-maxed', only half of t1's requirement
     window.doGather('g3'); // red herring, evidence: null
     window.proceedFromGather(); // count gate (2) is met, so this legitimately advances
     const phaseAfterProceed = window.currentPhase;
-    window.selectTheory('t1'); // the correct, evidence-grounded theory -- but its full evidence isn't on the board
+    window.selectTheory('t1'); // the correct, evidence-grounded theory, but its full evidence isn't on the board
     return { phaseAfterProceed, selectedTheoryId: window.selectedTheoryId };
   });
   ok('2 gather actions satisfy the raw COUNT gate (Investigate -> Theory legitimately unlocks)', afterPartialGather.phaseAfterProceed === 1, afterPartialGather);
@@ -465,7 +465,7 @@ async function load(pg) {
     out.mpCallsAfterBypass = window.__mpCalls.length;
     out.casesResolvedAfterBypass = window.labStats.casesResolved;
 
-    // completeModule() again, still 0 cases resolved -- must still no-op.
+    // completeModule() again, still 0 cases resolved: must still no-op.
     window.completeModule();
     out.completeModuleStillEarly = window.__mpCalls.length;
 
@@ -531,7 +531,7 @@ async function load(pg) {
     const ruledOutDecoy = !!window.ruledOut[decoyId];
     const stillNoConfirmedTheory = window.confirmedTheoryId === null;
 
-    // Student clicks "Re-establish a New Theory" -- must land back in Theory phase.
+    // Student clicks "Re-establish a New Theory": must land back in Theory phase.
     window.returnToTheory();
     const phaseAfterReturn = window.currentPhase; // should be back to 1 (Theory)
     const theoryClearedAfterReturn = window.selectedTheoryId === null;

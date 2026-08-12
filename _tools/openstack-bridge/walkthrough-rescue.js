@@ -197,6 +197,24 @@ async function post(url, body, headers) {
   console.log(`OPERATOR: null hexworth_uid on ${slot}`);
   console.log('WALKTHROUGH PASS 3/3 on BOTH runs (fresh seed AND returning student)');
   } finally {
+    /* TEARDOWN ON EVERY PATH, INCLUDING FAILURE.
+       Cleanup used to sit at the END OF THE TRY BLOCK, so a run that FAILED left its instance
+       behind -- and because the bridge binds a pool slot to a uid permanently, a stranded VM
+       consumed that slot for good. 25 of 30 slots were lost this way and had to be purged by
+       hand on 2026-08-03, after real students hit "cloud is at capacity".
+       Sweeping the whole project is safe: a harness owns one pool slot exclusively. It must run
+       BEFORE /destroy because it needs the sandbox container, and servers must go before
+       volumes because an attached volume refuses to delete. */
+    try {
+      const names = () => dex('openstack server list -f value -c Name').trim().split('\n')
+        .map((n) => n.trim()).filter(Boolean);
+      names().forEach((n) => { try { dex(`openstack server delete ${n}`); } catch (e) { /* already gone */ } });
+      for (let i = 0; i < 12 && names().length; i++) { sh('sleep 5'); }
+      dex('openstack volume list -f value -c Name').trim().split('\n')
+        .map((v) => v.trim()).filter(Boolean)
+        .forEach((v) => { try { dex(`openstack volume delete ${v}`); } catch (e) { /* still attached or gone */ } });
+    } catch (e) { /* sandbox already torn down -- nothing left to sweep */ }
+
     // Runs on the FAILING path too -- the whole point. The rescue-specific resource cleanup
     // above stays on the success path (it has its own best-effort try/catch and its own volume
     // names); only the PLATFORM teardown belongs here, matching walkthrough-project.js:188-191.

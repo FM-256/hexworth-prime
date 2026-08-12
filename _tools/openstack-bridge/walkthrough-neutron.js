@@ -140,6 +140,24 @@ async function post(url, body, headers) {
     await runLab(2);            // deliberately NO cleanup between
     console.log('WALKTHROUGH PASS: 4/4 twice, second run started from the first run\'s leftovers');
   } finally {
+    /* TEARDOWN ON EVERY PATH, INCLUDING FAILURE.
+       Cleanup used to sit at the END OF THE TRY BLOCK, so a run that FAILED left its instance
+       behind -- and because the bridge binds a pool slot to a uid permanently, a stranded VM
+       consumed that slot for good. 25 of 30 slots were lost this way and had to be purged by
+       hand on 2026-08-03, after real students hit "cloud is at capacity".
+       Sweeping the whole project is safe: a harness owns one pool slot exclusively. It must run
+       BEFORE /destroy because it needs the sandbox container, and servers must go before
+       volumes because an attached volume refuses to delete. */
+    try {
+      const names = () => dex('openstack server list -f value -c Name').trim().split('\n')
+        .map((n) => n.trim()).filter(Boolean);
+      names().forEach((n) => { try { dex(`openstack server delete ${n}`); } catch (e) { /* already gone */ } });
+      for (let i = 0; i < 12 && names().length; i++) { sh('sleep 5'); }
+      dex('openstack volume list -f value -c Name').trim().split('\n')
+        .map((v) => v.trim()).filter(Boolean)
+        .forEach((v) => { try { dex(`openstack volume delete ${v}`); } catch (e) { /* still attached or gone */ } });
+    } catch (e) { /* sandbox already torn down -- nothing left to sweep */ }
+
     // The QC account is deliberately NOT deleted -- see adversarial-wall.js:105-111. Deleting it
     // frees the email, so the next run's signUp mints a NEW uid and binds ANOTHER pool slot.
     // Self-inflicted leak, one per run per harness.

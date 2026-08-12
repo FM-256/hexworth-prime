@@ -38,7 +38,7 @@ const LABS = [
   { url: '/houses/shield/labs/linux/shield-linux-file-integrity.lab.html', root: true, redefines: true, payload: [] },
   { url: '/houses/shield/labs/linux/shield-linux-firewall.lab.html', root: true, redefines: true, payload: [] },
   { url: '/houses/shield/labs/linux/shield-linux-perms-drill.lab.html', root: true, redefines: true, payload: ['/root/.ssh', '/root/.ssh/id_rsa', '/root/.ssh/authorized_keys'] },
-  { url: '/dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html', root: true, redefines: true, payload: ['/root/.ssh/id_rsa', '/root/report.txt'] },
+  { url: '/dark-arts/vault/labs/linux/da-linux-post-exploitation.lab.html', root: true, redefines: true, payload: ['/root/.ssh/id_rsa', '/root/report.txt', '/root/.bashrc', '/root/.ssh/authorized_keys'] },
   // Non-root regression
   { url: '/houses/script/modules/linux-mastery/script-lm-09-copy-move.module.html', root: false },
   { url: '/houses/script/modules/linux-mastery/script-lm-10-viewing-files.module.html', root: false },
@@ -136,6 +136,11 @@ const lastLine = (s) => s.split('\n').map(x => x.trim()).filter(Boolean).pop() |
       if (lab.redefines) {
         const fsKeys = await page.evaluate(() => Object.keys(LinuxTerminal.getFs()));
         for (const orphan of ORPHANS) {
+          // Task 213: a lab that deliberately reseeds one of the generic-home
+          // paths (lists it in its own payload) makes that path lab-authored,
+          // not an orphan — e.g. da-linux-post-exploitation reseeds /root/.bashrc
+          // after task #205. Skip those instead of false-positive flagging.
+          if ((lab.payload || []).includes(orphan)) continue;
           if (fsKeys.includes(orphan)) r.problems.push(`ORPHAN reachable: ${orphan} still in fs after prune`);
         }
         // Payload survival — TWO independent checks (Chris gate): the key must

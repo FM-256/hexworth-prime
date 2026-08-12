@@ -59,6 +59,36 @@ printed in a `class="output">` span; ask for the value stated in a merge-result 
 - Per file: `new Function()` syntax on inline scripts; exactly one `completeModule` def + one
   `ModuleProgress.complete('code', '<correct-id>')`; ungated trigger REMOVED; button starts
   disabled; balanced nesting; no emoji.
+- **HUB-ID MATCH (mandatory — dead-tracker guard):** the id in `ModuleProgress.complete('code',
+  <id>)` MUST equal the id the language hub reads. The hub `<lang>/index.html` has a `MODULES`
+  array of `{ id, file }`; its `isCompleted(mod.id)` reads `hexworth_progress.code[mod.id]`.
+  The write-id must == the hub's `id` for that file (which == the filename stem). Some old
+  scroll-credit `MODULE_ID`s were TRUNCATED vs the filename (e.g. cpp `arm-cpp-06-templates`
+  vs hub `arm-cpp-06-templates-stl`) — if you find that, write the HUB/filename-stem id, NOT the
+  old truncated one, or completion never registers on the hub. Verify: for each module, grep the
+  hub for `file: '<stem>` and confirm its `id:` == what the module writes.
+- **COUNT-MATCH sub-check (Nancy, py-06):** beyond "answer string not in a comment", also confirm
+  a checkpoint's numeric answer doesn't coincidentally equal a printed result's COUNT/length/
+  cardinality for a related-but-different computation (a student could pattern-match the count
+  without doing the asked computation). Prefer inputs whose answer differs in magnitude from any
+  printed analogous result.
+- **NARRATED-CONCLUSION check (Nancy, rs-03 — scan CANNOT catch this):** a checkpoint must NOT
+  re-ask a question the module already ANSWERS IN PROSE/ENGLISH for the IDENTICAL scenario (same
+  variable, same call), even when no computed value is printed. rs-03 asked "is `transferred`
+  usable after `analyze(transferred)`?" and the module's own comment two lines below says
+  "transferred is now invalid" — no new input, the conclusion is narrated. The scan only matches
+  the ANSWER token in a comment, not an English restatement of the conclusion. FIX: present a
+  genuinely NEW scenario (rs-03: switched to `analyze(&payload)` borrow -> answer flips to 'yes',
+  testing borrow-vs-move). Rule: a yes/no or conceptual checkpoint needs a scenario the module
+  does not already resolve in words for that exact case.
+- **OUTCOME-VARIES check (Nancy, cs-04 — the scan CANNOT catch this):** for a boolean/small-set
+  answer (true/false, yes/no), the gameability scan pre-filters it as trivial, so it will NOT
+  flag it even when the answer is printed. Guard by hand: if the checkpoint tests an
+  input-INVARIANT rule (e.g. "two records with identical fields compared with == " is ALWAYS
+  true regardless of the literals), then swapping the literals is cosmetic and a student
+  transcribes the printed boolean. FIX: construct the input so the OUTCOME actually flips vs
+  what's printed (cs-04: make ScannedAt differ -> record == is now false, testing that ALL
+  fields participate). The answer must DEPEND on the specific input, not be a fixed rule-outcome.
 - DOM-shim (or equivalent) test one module end-to-end: empty input never passes, wrong answer
   no-lock/no-reveal, completeModule blocked pre-completion, unlocks only at all-pass.
 

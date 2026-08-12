@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-07-21 4:05:49 AM
+                    Scanned: 2026-08-12 4:29:24 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,29 +10,29 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5219 |
-| Directories | 1267 |
-| Content Files | 5219 |
-| Scan Duration | 495ms |
+| Files Scanned | 5285 |
+| Directories | 1283 |
+| Content Files | 5285 |
+| Scan Duration | 611ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2344 |
-| html | 1565 |
-| lab | 584 |
-| quiz | 507 |
-| applet | 219 |
+| presentation | 2369 |
+| html | 1591 |
+| lab | 587 |
+| quiz | 512 |
+| applet | 226 |
 
 ### ContentCatalog Validation
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 4282 |
-| Available | 4237 |
+| Total Modules | 4316 |
+| Available | 4271 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 3 |
+| Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -41,18 +41,18 @@
 | Severity | Count |
 |----------|-------|
 | Critical | 0 |
-| Suspect | 37 |
-| Warning | 967 |
-| Info | 703 |
-| **Total** | **13014** |
+| Suspect | 47 |
+| Warning | 982 |
+| Info | 549 |
+| **Total** | **14585** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3637 |
-| Not Ready | 17 |
-| Unknown | 1565 |
+| Ready | 3664 |
+| Not Ready | 30 |
+| Unknown | 1591 |
 
 
 ## FILE HIERARCHY
@@ -85,6 +85,9 @@
 │   ├── 📄 kahoot.html
 │   └── 📄 wheel.html
 ├── 📁 _lib
+├── 📁 _source
+│   └── 📁 fx
+│       └── 📄 cold-horizon-rupture.html
 ├── 📄 about.html
 ├── 📄 accept-invite.html
 ├── 📁 admin
@@ -99,7 +102,8 @@
 │   ├── 📄 dr-hex-quality.html
 │   ├── 📄 epaper-boards.html
 │   ├── 📄 observatory.html
-│   └── 📁 scripts
+│   ├── 📁 scripts
+│   └── 📄 sextant-cohorts.html
 ├── 📁 announcements
 │   └── 📍 index.html
 ├── 📁 arctic
@@ -395,6 +399,11 @@
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 forensics-05-email
 │   │   │   └── 📍 index.html
+│   │   ├── 📁 le-01-cold-horizon
+│   │   │   ├── 📄 console.html
+│   │   │   ├── 📄 gateway.html
+│   │   │   ├── 📍 index.html
+│   │   │   └── 📄 telemetry.html
 │   │   ├── 📁 nt1-network-troubleshoot
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 ops-01-operation-shadowgate
@@ -525,6 +534,7 @@
 │   │   │   └── 📍 index.html
 │   │   └── 📁 rev-05-android
 │   │       └── 📍 index.html
+│   ├── 📄 broadcast.html
 │   ├── 📄 discord-activity.html
 │   ├── 📁 engine
 │   ├── 📍 index.html
@@ -554,6 +564,7 @@
 ├── 📄 bot-knowledge-web.html
 ├── 📄 bot-knowledge.html
 ├── 📁 bot-widgets
+├── 📄 brand.html
 ├── 📁 career
 │   ├── 📄 career-paths.html
 │   ├── 📍 index.html
@@ -561,9 +572,10 @@
 │   ├── 📄 interview-prep.html
 │   ├── 📄 job-board.html
 │   ├── 📄 resume-builder.html
-│   └── 📄 salary-data.html
+│   ├── 📄 salary-data.html
+│   └── 📄 trajectory.html
 ├── ❓ career-quiz.html
-├── 📄 chris_qc_tile_grid_tmp.html
+├── 📄 catalog.html
 ├── 📁 components
 │   ├── 📁 analytics
 │   │   ├── 📄 attendance-heatmap.html
@@ -1259,6 +1271,12 @@
 │   │   │   │   ├── 📄 cx-gen-10.html
 │   │   │   │   └── 📍 index.html
 │   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 hexgrad-engine.lab.html
+│   │   │   │   ├── 🔬 hexmemory-rnn.lab.html
+│   │   │   │   ├── 🔬 hexnet-network.lab.html
+│   │   │   │   ├── 🔬 hextalk-bigram.lab.html
+│   │   │   │   └── 🔬 hextoken-vocabulary.lab.html
 │   │   │   ├── 📁 math
 │   │   │   │   ├── 📄 cx-math-01.html
 │   │   │   │   ├── 📄 cx-math-02.html
@@ -1557,6 +1575,20 @@
 │   │   │       ├── ❓ az900-ch02.quiz.html
 │   │   │       └── ❓ az900-ch03.quiz.html
 │   │   ├── 📄 careers.html
+│   │   ├── 📁 clf-c02
+│   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 labs [labs]
+│   │   │   │   ├── 🔬 clf-ch01-cloud-concepts.lab.html
+│   │   │   │   ├── 🔬 clf-ch02-core-services.lab.html
+│   │   │   │   └── 🔬 clf-ch03-security-billing.lab.html
+│   │   │   ├── 📁 presentations [presentations]
+│   │   │   │   ├── 📊 clf-ch01-cloud-concepts.presentation.html
+│   │   │   │   ├── 📊 clf-ch02-core-services.presentation.html
+│   │   │   │   └── 📊 clf-ch03-security-billing.presentation.html
+│   │   │   └── 📁 quizzes [quizzes]
+│   │   │       ├── ❓ clf-ch01.quiz.html
+│   │   │       ├── ❓ clf-ch02.quiz.html
+│   │   │       └── ❓ clf-ch03.quiz.html
 │   │   ├── 📁 cloud-essentials
 │   │   │   ├── 📁 exams
 │   │   │   │   ├── 📄 cb-final.exam.html
@@ -1591,6 +1623,16 @@
 │   │   │       └── ❓ cb-w4-troubleshoot.quiz.html
 │   │   ├── 📁 cse
 │   │   │   ├── 📍 index.html
+│   │   │   ├── 📁 instructor
+│   │   │   │   ├── 📄 cse-companion.html
+│   │   │   │   ├── 📄 cse-lecture-ch1.html
+│   │   │   │   ├── 📄 cse-lecture-ch2.html
+│   │   │   │   ├── 📄 cse-lecture-ch3.html
+│   │   │   │   ├── 📄 cse-lecture-ch4.html
+│   │   │   │   ├── 📄 cse-lecture-ch5.html
+│   │   │   │   ├── 📄 cse-lecture-ch6.html
+│   │   │   │   ├── 📄 cse-lecture-ch7.html
+│   │   │   │   └── 📄 cse-lecture-ch8.html
 │   │   │   └── 📁 reviews
 │   │   │       └── 📄 cloud-cse-comprehensive-review.html
 │   │   ├── 📁 games
@@ -1598,6 +1640,7 @@
 │   │   │   ├── 🔬 cloud-api-foundations-lab.applet.html
 │   │   │   ├── 📄 cloud-architect.html
 │   │   │   ├── 📄 cloud-aws-sts.html
+│   │   │   ├── 📄 cloud-cold-horizon.html
 │   │   │   ├── 📄 cloud-destroyer.applet.html
 │   │   │   ├── 📄 cloud-dont-check-the-bill.html
 │   │   │   ├── 📄 cloud-dont-lose-your-domain.html
@@ -1605,10 +1648,17 @@
 │   │   │   ├── 📄 cloud-hop-vertical.applet.html
 │   │   │   ├── 📄 cloud-hop.applet.html
 │   │   │   ├── 📄 cloud-iam-debugger.html
-│   │   │   └── 📄 cloud-text-adventure-whoami.html
+│   │   │   ├── 📄 cloud-text-adventure-whoami.html
+│   │   │   ├── 📄 cloud-the-nines.html
+│   │   │   ├── 📄 lagrange-inspect.html
+│   │   │   └── 📁 lib
 │   │   ├── 📁 incubator
 │   │   │   └── 📍 index.html
 │   │   ├── 📍 index.html
+│   │   ├── 📁 instructor
+│   │   │   ├── 📄 cse-lecture-combined.html
+│   │   │   ├── 📄 cse-lecture.html
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 🔬 cloud-architecture.lab.html
 │   │   │   ├── 🔬 cloud-aws-services.lab.html
@@ -1820,11 +1870,20 @@
 │   │   │       ├── ❓ ms900-ch02.quiz.html
 │   │   │       └── ❓ ms900-ch03.quiz.html
 │   │   ├── 📁 openstack
+│   │   │   ├── 📁 handouts
+│   │   │   │   ├── 📄 openstack-build-reference.html
+│   │   │   │   └── 📄 openstack-cli-cheatsheet.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 🔬 cloud-openstack-advanced-ops.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-cinder-live.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-install.lab.html
-│   │   │   │   └── 🔬 cloud-openstack-launch-vm.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-launch-chain-live.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-launch-vm.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-neutron-live.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-project-iac.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-rescue-live.lab.html
+│   │   │   │   └── 🔬 cloud-openstack-secgroup-live.lab.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 cloud-openstack-installation.presentation.html
 │   │   │   │   ├── 📊 cloud-openstack-intro-environment.presentation.html
@@ -1894,6 +1953,7 @@
 │   │   │   ├── ❓ cloud-cse-06.quiz.html
 │   │   │   ├── ❓ cloud-cse-07.quiz.html
 │   │   │   ├── ❓ cloud-cse-08.quiz.html
+│   │   │   ├── 📄 cloud-cse-final.exam.html
 │   │   │   ├── ❓ cloud-cse-module01.quiz.html
 │   │   │   ├── ❓ cloud-cse-module02.quiz.html
 │   │   │   ├── ❓ cloud-cse-module03.quiz.html
@@ -2667,7 +2727,6 @@
 │   │   ├── 📁 labs [labs]
 │   │   │   ├── 📁 dark-arts-ceh-01-recon [labs]
 │   │   │   │   └── 📍 index.html
-│   │   │   ├── 🔬 dark-arts-ceh-01.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-01.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-02.lab.html
 │   │   │   ├── 🔬 dark-arts-feh-03.lab.html
@@ -2844,7 +2903,8 @@
 │   │   │   │   ├── 📄 eth-jeopardy.review.html
 │   │   │   │   ├── 📄 eth-kahoot.review.html
 │   │   │   │   ├── 📄 eth-midterm.exam.html
-│   │   │   │   └── 📄 eth-wheel.review.html
+│   │   │   │   ├── 📄 eth-wheel.review.html
+│   │   │   │   └── 📍 index.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 📁 eth-l01-vw-emissions [labs]
@@ -3109,7 +3169,8 @@
 │   │   │       │   ├── 📄 df-58-tool-validation.module.html
 │   │   │       │   ├── 📄 df-59-live-vs-dead.module.html
 │   │   │       │   ├── 📄 df-60-advanced-capstone.module.html
-│   │   │       │   └── 📄 df-61-ai-generated-imagery.module.html
+│   │   │       │   ├── 📄 df-61-ai-generated-imagery.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 disk-forensics
 │   │   │       │   ├── 📄 df-11-file-systems.module.html
 │   │   │       │   ├── 📄 df-12-disk-imaging.module.html
@@ -3120,7 +3181,8 @@
 │   │   │       │   ├── 📄 df-17-mft-inodes.module.html
 │   │   │       │   ├── 📄 df-18-slack-space.module.html
 │   │   │       │   ├── 📄 df-19-write-blockers.module.html
-│   │   │       │   └── 📄 df-20-disk-capstone.module.html
+│   │   │       │   ├── 📄 df-20-disk-capstone.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 evidence-foundations
 │   │   │       │   ├── 📄 df-01-evidence-types.module.html
 │   │   │       │   ├── 📄 df-02-chain-of-custody.module.html
@@ -3131,7 +3193,8 @@
 │   │   │       │   ├── 📄 df-07-fourth-amendment.module.html
 │   │   │       │   ├── 📄 df-08-expert-witness.module.html
 │   │   │       │   ├── 📄 df-09-ethics.module.html
-│   │   │       │   └── 📄 df-10-evidence-capstone.module.html
+│   │   │       │   ├── 📄 df-10-evidence-capstone.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 log-timeline
 │   │   │       │   ├── 📄 df-41-windows-events.module.html
 │   │   │       │   ├── 📄 df-42-linux-logs.module.html
@@ -3142,7 +3205,8 @@
 │   │   │       │   ├── 📄 df-47-browser-forensics.module.html
 │   │   │       │   ├── 📄 df-48-email-headers.module.html
 │   │   │       │   ├── 📄 df-49-registry-forensics.module.html
-│   │   │       │   └── 📄 df-50-timeline-capstone.module.html
+│   │   │       │   ├── 📄 df-50-timeline-capstone.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       ├── 📁 memory-forensics
 │   │   │       │   ├── 📄 df-21-volatile-evidence.module.html
 │   │   │       │   ├── 📄 df-22-acquisition-tools.module.html
@@ -3153,7 +3217,8 @@
 │   │   │       │   ├── 📄 df-27-registry-extraction.module.html
 │   │   │       │   ├── 📄 df-28-network-connections.module.html
 │   │   │       │   ├── 🔬 df-29-workflow-lab.module.html
-│   │   │       │   └── 📄 df-30-memory-capstone.module.html
+│   │   │       │   ├── 📄 df-30-memory-capstone.module.html
+│   │   │       │   └── 📍 index.html
 │   │   │       └── 📁 network-forensics
 │   │   │           ├── 📄 df-31-packet-capture.module.html
 │   │   │           ├── 📄 df-32-wireshark.module.html
@@ -3164,7 +3229,8 @@
 │   │   │           ├── 📄 df-37-pcap-extraction.module.html
 │   │   │           ├── 📄 df-38-ids-correlation.module.html
 │   │   │           ├── 📄 df-39-wireless.module.html
-│   │   │           └── 📄 df-40-network-capstone.module.html
+│   │   │           ├── 📄 df-40-network-capstone.module.html
+│   │   │           └── 📍 index.html
 │   │   ├── 📁 games
 │   │   │   ├── 📄 eye-alert-triage.html
 │   │   │   ├── 📄 eye-detection-engineering.applet.html
@@ -3336,7 +3402,9 @@
 │   │   │   │   │   │   │   └── 📍 index.html
 │   │   │   │   │   │   ├── 📁 ch23-change-management [applets]
 │   │   │   │   │   │   │   └── 📍 index.html
-│   │   │   │   │   │   └── 📁 ch24-documentation [applets]
+│   │   │   │   │   │   ├── 📁 ch24-documentation [applets]
+│   │   │   │   │   │   │   └── 📍 index.html
+│   │   │   │   │   │   └── 📁 ch25-virtualization [applets]
 │   │   │   │   │   │       └── 📍 index.html
 │   │   │   │   │   ├── 📁 domains [applets]
 │   │   │   │   │   │   ├── 📁 operating-systems [applets]
@@ -3362,6 +3430,7 @@
 │   │   │   │   │   │   ├── 🔬 forge-security-fundamentals.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-system-tools.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-users-groups.lab.html
+│   │   │   │   │   │   ├── 🔬 forge-virtualization.lab.html
 │   │   │   │   │   │   ├── 🔬 forge-windows-editions.lab.html
 │   │   │   │   │   │   └── 🔬 forge-windows-settings.lab.html
 │   │   │   │   │   ├── 📁 presentations [presentations]
@@ -3376,6 +3445,7 @@
 │   │   │   │   │   │   ├── 📊 forge-security-fundamentals.presentation.html
 │   │   │   │   │   │   ├── 📊 forge-system-tools.presentation.html
 │   │   │   │   │   │   ├── 📊 forge-users-groups.presentation.html
+│   │   │   │   │   │   ├── 📊 forge-virtualization.presentation.html
 │   │   │   │   │   │   ├── 📊 forge-windows-editions.presentation.html
 │   │   │   │   │   │   └── 📊 forge-windows-settings.presentation.html
 │   │   │   │   │   ├── 📁 quizzes [quizzes]
@@ -3393,6 +3463,7 @@
 │   │   │   │   │   │   ├── ❓ forge-ch22.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-ch23.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-ch24.quiz.html
+│   │   │   │   │   │   ├── ❓ forge-ch25.quiz.html
 │   │   │   │   │   │   ├── ❓ forge-core2-midterm.quiz.html
 │   │   │   │   │   │   └── ❓ forge-core2-quiz-ch19-22.quiz.html
 │   │   │   │   │   ├── 📁 reference [applets]
@@ -3667,6 +3738,8 @@
 │   │   │   ├── 📄 forge-windows-edition-selector.tool.html
 │   │   │   └── 📄 forge-windows10-components.tool.html
 │   │   └── 📁 tutorials
+│   ├── 🏠 hub [house:hub]
+│   │   └── 📍 index.html
 │   ├── 🏠 key [house:key]
 │   │   ├── 📄 careers.html
 │   │   ├── 📁 games
@@ -3742,7 +3815,8 @@
 │   │   │   │   ├── 📄 ala-final.exam.html
 │   │   │   │   ├── 📄 ala-jeopardy.review.html
 │   │   │   │   ├── 📄 ala-kahoot.review.html
-│   │   │   │   └── 📄 ala-midterm.exam.html
+│   │   │   │   ├── 📄 ala-midterm.exam.html
+│   │   │   │   └── 📍 index.html
 │   │   │   ├── 📍 index.html
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 📁 ala-hunt1-website-down [labs]
@@ -5046,6 +5120,7 @@
 │   │   │   │   ├── 📄 pis-20.html
 │   │   │   │   └── 📄 pis-21.html
 │   │   │   ├── 📁 exams
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📄 pis-5th-grader.review.html
 │   │   │   │   ├── 📄 pis-final.exam.html
 │   │   │   │   ├── 📄 pis-jeopardy.review.html
@@ -5316,6 +5391,7 @@
 │   │   │   │   └── 📁 shield-sp-blueteam-vuln-triage [labs]
 │   │   │   │       └── 📍 index.html
 │   │   │   ├── 📁 lessons
+│   │   │   │   ├── 📍 index.html
 │   │   │   │   ├── 📄 shield-sp-cryptography.lesson.html
 │   │   │   │   ├── 📄 shield-sp-malware.lesson.html
 │   │   │   │   ├── 📄 shield-sp-social-engineering.lesson.html
@@ -5609,7 +5685,8 @@
 │       │   │   ├── 📄 ccna-22.module.html
 │       │   │   ├── 📄 ccna-23.module.html
 │       │   │   ├── 📄 ccna-24.module.html
-│       │   │   └── 📄 ccna-25.module.html
+│       │   │   ├── 📄 ccna-25.module.html
+│       │   │   └── 📍 index.html
 │       │   ├── 📁 quizzes [quizzes]
 │       │   │   ├── ❓ ccna-comprehensive.quiz.html
 │       │   │   ├── ❓ ccna-domain1.quiz.html
@@ -5742,6 +5819,7 @@
 │       │   ├── 📁 exams
 │       │   │   ├── 📄 final-practice.exam.html
 │       │   │   ├── 📄 flashcards.exam.html
+│       │   │   ├── 📍 index.html
 │       │   │   ├── 📄 jeopardy.review.html
 │       │   │   └── 📄 midterm.exam.html
 │       │   ├── 📍 index.html
@@ -5780,6 +5858,7 @@
 │       │   │   ├── 🔬 troubleshooting.lab.html
 │       │   │   └── 🔬 vlan-config.lab.html
 │       │   ├── 📁 modules [modules]
+│       │   │   ├── 📍 index.html
 │       │   │   ├── 📄 ne-01.html
 │       │   │   ├── 📄 ne-02.html
 │       │   │   ├── 📄 ne-03.html
@@ -6238,6 +6317,8 @@
 ├── 📄 pulse.html
 ├── 📄 quickstart.html
 ├── 📄 research.html
+├── 📁 rig
+│   └── 📍 index.html
 ├── 📁 scripts
 ├── 📁 shield
 │   └── 📁 districts
@@ -6485,7 +6566,8 @@
 ├── 📄 unauthorized.html
 ├── 📁 utils
 ├── 📁 vendor
-│   └── 📁 skulpt
+│   ├── 📁 skulpt
+│   └── 📁 three
 ├── 📄 vision.html
 ├── 📁 wall-of-shame
 │   └── 📍 index.html
@@ -6768,7 +6850,7 @@
 | ai-advanced-hub | applet | ✓ | 1 |
 | ai-automation-hub | presentation | ✓ | 0 |
 | ai-azure-openai-hub | presentation | ✓ | 0 |
-| index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | ai-agent-workflow.lab | presentation | ✓ | 0 |
 | ai-ethics-debate.lab | presentation | ✓ | 0 |
 | ai-fine-tuning.lab | presentation | ✓ | 0 |
@@ -6814,6 +6896,7 @@
 | capi-auth-08 | presentation | ✓ | 0 |
 | capi-auth-09 | presentation | ✓ | 0 |
 | capi-auth-10 | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | capi-cap-01 | presentation | ✓ | 0 |
 | capi-cap-02 | presentation | ✓ | 0 |
 | capi-cap-03 | presentation | ✓ | 0 |
@@ -6870,6 +6953,7 @@
 | capi-owasp-08 | presentation | ✓ | 0 |
 | capi-owasp-09 | presentation | ✓ | 0 |
 | capi-owasp-10 | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | capi-pen-01 | presentation | ✓ | 0 |
 | capi-pen-02 | presentation | ✓ | 0 |
 | capi-pen-03 | presentation | ✓ | 0 |
@@ -6923,6 +7007,16 @@
 | az900-ch01-quiz | quiz | ✓ | 0 |
 | az900-ch02-quiz | quiz | ✓ | 0 |
 | az900-ch03-quiz | quiz | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| clf-ch01-cloud-concepts.lab | lab | ✓ | 0 |
+| clf-ch02-core-services.lab | lab | ✓ | 0 |
+| clf-ch03-security-billing.lab | lab | ✓ | 0 |
+| clf-ch01-cloud-concepts.presentation | presentation | ✓ | 0 |
+| clf-ch02-core-services.presentation | presentation | ✓ | 0 |
+| clf-ch03-security-billing.presentation | presentation | ✓ | 0 |
+| clf-ch01-quiz | quiz | ✓ | 0 |
+| clf-ch02-quiz | quiz | ✓ | 0 |
+| clf-ch03-quiz | quiz | ✓ | 0 |
 | cb-final.exam | presentation | ✓ | 0 |
 | cb-midterm.exam | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
@@ -6950,15 +7044,29 @@
 | cb-w3-dr.quiz | presentation | ✓ | 0 |
 | cb-w4-monitoring.quiz | presentation | ✓ | 0 |
 | cb-w4-troubleshoot.quiz | presentation | ✓ | 0 |
+| cse-companion | presentation | ✓ | 1 |
+| cse-lecture-ch1 | presentation | ✓ | 1 |
+| cse-lecture-ch2 | presentation | ✓ | 1 |
+| cse-lecture-ch3 | presentation | ✓ | 1 |
+| cse-lecture-ch4 | presentation | ✓ | 1 |
+| cse-lecture-ch5 | presentation | ✓ | 1 |
+| cse-lecture-ch6 | presentation | ✓ | 1 |
+| cse-lecture-ch7 | presentation | ✓ | 1 |
+| cse-lecture-ch8 | presentation | ✓ | 1 |
 | cloud-cse-comprehensive-review | presentation | ✓ | 0 |
 | cloud-ad-attack-path.applet | presentation | ✓ | 0 |
 | cloud-api-foundations-lab.applet | applet | ✓ | 1 |
 | cloud-architect | presentation | ✓ | 0 |
+| cloud-cold-horizon | applet | ✓ | 1 |
 | cloud-destroyer.applet | applet | ✓ | 1 |
 | cloud-hop-vertical.applet | applet | ✓ | 1 |
 | cloud-hop.applet | applet | ✓ | 1 |
+| cloud-the-nines | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
+| cse-lecture-combined | presentation | ✓ | 1 |
+| cse-lecture | presentation | ✓ | 1 |
+| index | presentation | ✓ | 1 |
 | cloud-architecture.lab | lab | ✓ | 0 |
 | cloud-aws-services.lab | lab | ✓ | 0 |
 | cloud-cse-module01.lab | lab | ✓ | 0 |
@@ -7068,9 +7176,15 @@
 | ms900-ch01-quiz | quiz | ✓ | 0 |
 | ms900-ch02-quiz | quiz | ✓ | 0 |
 | ms900-ch03-quiz | quiz | ✓ | 0 |
+| openstack-cli-cheatsheet | applet | ✓ | 1 |
 | cloud-openstack-advanced-ops.lab | presentation | ✓ | 0 |
+| cloud-openstack-cinder-live.lab | presentation | ✓ | 0 |
 | cloud-openstack-install.lab | presentation | ✓ | 0 |
+| cloud-openstack-launch-chain-live.lab | presentation | ✓ | 0 |
 | cloud-openstack-launch-vm.lab | presentation | ✓ | 0 |
+| cloud-openstack-neutron-live.lab | presentation | ✓ | 0 |
+| cloud-openstack-rescue-live.lab | presentation | ✓ | 0 |
+| cloud-openstack-secgroup-live.lab | presentation | ✓ | 0 |
 | cloud-openstack-installation.presentation | presentation | ✓ | 0 |
 | cloud-openstack-intro-environment.presentation | presentation | ✓ | 0 |
 | cloud-openstack-operation.presentation | presentation | ✓ | 0 |
@@ -7099,6 +7213,11 @@
 | cloud-azure-fundamentals.presentation | presentation | ✓ | 0 |
 | cloud-cloud.presentation | presentation | ✓ | 0 |
 | cloud-concepts.presentation | presentation | ✓ | 0 |
+| cloud-cse-01-cloud-fundamentals.presentation | presentation | ✓ | 0 |
+| cloud-cse-02-identity-access-management.presentation | presentation | ✓ | 0 |
+| cloud-cse-03-data-protection-encryption.presentation | presentation | ✓ | 0 |
+| cloud-cse-04-network-security.presentation | presentation | ✓ | 0 |
+| cloud-cse-05-application-security.presentation | presentation | ✓ | 0 |
 | cloud-cse-06-security-monitoring-ir.presentation | presentation | ✓ | 0 |
 | cloud-cse-07-risk-assessment.presentation | presentation | ✓ | 0 |
 | cloud-cse-08-compliance-governance.presentation | presentation | ✓ | 0 |
@@ -7125,6 +7244,7 @@
 | cse-06 | quiz | ✓ | 0 |
 | cse-07 | quiz | ✓ | 0 |
 | cse-08 | quiz | ✓ | 0 |
+| cse-final | quiz | ✓ | 0 |
 | cse-module01 | quiz | ✓ | 0 |
 | cse-module02 | quiz | ✓ | 0 |
 | cse-module03 | quiz | ✓ | 0 |
@@ -7330,7 +7450,7 @@
 | arm-go-08-stdlib.module | presentation | ✓ | 0 |
 | arm-go-09-cli-cloud.module | presentation | ✓ | 0 |
 | arm-go-10-security.module | presentation | ✓ | 0 |
-| index | applet | ✓ | 1 |
+| index | presentation | ✓ | 0 |
 | arm-java-01-intro.module | presentation | ✓ | 0 |
 | arm-java-02-variables.module | presentation | ✓ | 0 |
 | arm-java-03-control-flow.module | presentation | ✓ | 0 |
@@ -8060,6 +8180,7 @@
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
+| index | presentation | ✓ | 0 |
 | forge-admin-tools.lab | lab | ✓ | 0 |
 | forge-change-management.lab | lab | ✓ | 0 |
 | forge-command-line.lab | lab | ✓ | 0 |
@@ -8073,6 +8194,7 @@
 | forge-security-fundamentals.lab | lab | ✓ | 0 |
 | forge-system-tools.lab | lab | ✓ | 0 |
 | forge-users-groups.lab | lab | ✓ | 0 |
+| forge-virtualization.lab | presentation | ✓ | 0 |
 | forge-windows-editions.lab | lab | ✓ | 0 |
 | forge-windows-settings.lab | lab | ✓ | 0 |
 | forge-admin-tools.presentation | presentation | ✓ | 0 |
@@ -8086,6 +8208,7 @@
 | forge-security-fundamentals.presentation | presentation | ✓ | 0 |
 | forge-system-tools.presentation | presentation | ✓ | 0 |
 | forge-users-groups.presentation | presentation | ✓ | 0 |
+| forge-virtualization.presentation | presentation | ✓ | 0 |
 | forge-windows-editions.presentation | presentation | ✓ | 0 |
 | forge-windows-settings.presentation | presentation | ✓ | 0 |
 | aplus-core2-ch19-22-applet | quiz | ✓ | 0 |
@@ -8102,6 +8225,7 @@
 | core2-ch22 | quiz | ✓ | 0 |
 | core2-ch23 | quiz | ✓ | 0 |
 | core2-ch24 | quiz | ✓ | 0 |
+| core2-ch25 | quiz | ✓ | 0 |
 | core2-midterm | quiz | ✓ | 0 |
 | core2-quiz-ch19-22 | quiz | ✓ | 0 |
 | forge-windows-shortcuts.applet | presentation | ✓ | 0 |
@@ -8881,7 +9005,6 @@
 | script-pipe-snake.applet | applet | ✓ | 1 |
 | script-shell-sprint.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| index | presentation | ✓ | 0 |
 | script-bash-arrays.lab | lab | ✓ | 0 |
 | script-bash-basics.lab | lab | ✓ | 0 |
 | script-bash-conditionals.lab | lab | ✓ | 0 |
@@ -9229,7 +9352,7 @@
 | pis-20 | quiz | ✓ | 0 |
 | pis-21 | quiz | ✓ | 0 |
 | pis-5th-grader.review | presentation | ✓ | 0 |
-| pis-final | quiz | ✓ | 0 |
+| pis-final-written | quiz | ✓ | 0 |
 | pis-jeopardy.review | presentation | ✓ | 0 |
 | pis-kahoot.review | presentation | ✓ | 0 |
 | pis-midterm | quiz | ✓ | 0 |
@@ -9455,6 +9578,7 @@
 | index | applet | ✓ | 1 |
 | siem | applet | ✓ | 1 |
 | workstation | applet | ✓ | 1 |
+| broadcast | applet | ✓ | 1 |
 | tournament-board | applet | ✓ | 1 |
 | bot-knowledge-ai | applet | ✓ | 1 |
 | bot-knowledge-cloud | applet | ✓ | 1 |
@@ -9701,8 +9825,6 @@
 | dark-network-forensics-lab.applet | applet | ✓ | 1 |
 | dark-osint-recon-lab.applet | lab | ✓ | 0 |
 | dark-slowloris-dos-lab.applet | applet | ✓ | 1 |
-| index | applet | ✓ | 1 |
-| dark-arts-ceh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-01.lab | presentation | ✓ | 0 |
 | dark-arts-feh-02.lab | lab | ✓ | 0 |
 | dark-arts-feh-03.lab | lab | ✓ | 0 |
@@ -10028,7 +10150,7 @@
 | web-subnet-siege.applet | applet | ✓ | 1 |
 | web-wireless-warzone.applet | applet | ✓ | 1 |
 | index | applet | ✓ | 1 |
-| index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | fl-final | quiz | ✓ | 0 |
 | fl-midterm | quiz | ✓ | 0 |
 | fl-w1-hardware.lab | lab | ✓ | 0 |
@@ -10247,7 +10369,7 @@
 | week3 | quiz | ✓ | 0 |
 | web-dns-resolver-race | presentation | ✓ | 0 |
 | web-subnet-siege | presentation | ✓ | 0 |
-| index | presentation | ✓ | 0 |
+| index | applet | ✓ | 1 |
 | web-interactive-network-simulatorv2.simulator | presentation | ✓ | 0 |
 | web-packet-tracer-lite-v3.simulator | presentation | ✓ | 0 |
 | web-acl.tool | presentation | ✓ | 0 |
@@ -10281,7 +10403,11 @@
 ## ISSUES DETECTED
 ══════════════════════════════════════════════════════════════════════
 
-### SUSPECT (37) — heuristic, needs review
+### SUSPECT (47) — heuristic, needs review
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/GameBriefing.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
 **[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
   File: `components/IntegrityLockscreen.js`
@@ -10303,9 +10429,25 @@
   File: `components/ObservatoryConsent.js`
   Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
 
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SandboxLauncher.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SandboxLauncher.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
+**[HEUR-008]** position:fixed in dynamically created element — breaks when body/ancestor has CSS transform or filter (e.g., dashboard easter-egg effects set body.style.filter)
+  File: `components/SandboxLauncher.js`
+  Fix: Use position:absolute with JS-calculated top/height from window.scrollY/innerHeight, or use a pre-existing static DOM element from the HTML
+
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `_games-lab/kahoot.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `_source/fx/cold-horizon-rupture.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `admin/ai-chat-test.html`
@@ -10326,6 +10468,14 @@
 **[HEUR-004]** console.log() in inline script (production hygiene)
   File: `arena/spectator.html`
   Fix: Remove console.log or replace with proper logging
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `components/profile/privacy-settings.html`
+  Fix: Remove commented-out code or restore it if needed
+
+**[HEUR-002]** Commented-out code reference (script or link tag in HTML comment)
+  File: `components/profile/profile.html`
+  Fix: Remove commented-out code or restore it if needed
 
 **[HEUR-001]** Excessive inline scripts: 12 <script> blocks without src (threshold: 8)
   File: `dark-arts/vault/bug-hunting/dojo/blue-belt.html`
@@ -10349,6 +10499,18 @@
 
 **[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
   File: `houses/cloud/az-104/labs/az104-ch05-networking.lab.html`
+  Fix: Add fallback: (parseInt(value, 10) || 0)
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/cloud/games/cloud-cold-horizon.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[UX-001]** Dynamic visual element inserted into DOM without scrollIntoView — content may appear off-screen after user action
+  File: `houses/cloud/games/lagrange-inspect.html`
+  Fix: Add element.scrollIntoView({ behavior: "smooth", block: "center" }) after insertion
+
+**[MATH-001]** Unguarded parseInt() in arithmetic — NaN will propagate if input is invalid
+  File: `houses/cloud/labs/cloud-cse-module07.lab.html`
   Fix: Add fallback: (parseInt(value, 10) || 0)
 
 **[HEUR-004]** console.log() in inline script (production hygiene)
@@ -10431,7 +10593,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (967)
+### WARNING (982)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `_games-lab/jeopardy.html`
@@ -10455,6 +10617,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `arena/boxes/ow-01-mole-hunt/workstation.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `arena/broadcast.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -12006,6 +12172,98 @@
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-companion.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-companion.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch1.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch1.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch2.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch2.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch3.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch3.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch4.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch4.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch5.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch5.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch6.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch6.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch7.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch7.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/cse/instructor/cse-lecture-ch8.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/cse/instructor/cse-lecture-ch8.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/instructor/cse-lecture-combined.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/instructor/cse-lecture-combined.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/instructor/cse-lecture.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/instructor/cse-lecture.html`
+  Fix: Add entry to content-registry.js
+
+**[TRACK-002]** Presentation has slides but no progress tracking
+  File: `houses/cloud/instructor/index.html`
+  Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
+
+**[TRACK-002]** Presentation has slides but no progress tracking
   File: `houses/cloud/modules/wsa/_compare/index.html`
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
@@ -12039,6 +12297,10 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/cloud/modules/wsa/instructor/week-03.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `houses/cloud/openstack/handouts/openstack-cli-cheatsheet.html`
   Fix: Add entry to content-registry.js
 
 **[TRACK-002]** Presentation has slides but no progress tracking
@@ -12966,18 +13228,6 @@
   Fix: Add saveProgress() call or ProgressManager.completeModule() to track completion
 
 **[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/labs/dark-arts-ceh-01.lab.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/presentations/dark-arts-ceh-01.presentation.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/dark-arts/quizzes/dark-arts-ceh-01.quiz.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
   File: `houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html`
   Fix: Add entry to content-registry.js
 
@@ -13067,10 +13317,6 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `houses/forge/md-101/reviews/forge-md101-midterm-review.html`
-  Fix: Add entry to content-registry.js
-
-**[REG-001]** Content file is not registered in content-registry.js
-  File: `houses/matrix/adv-linux/ala-final.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -14246,52 +14492,28 @@
   Fix: Create the file before setting status to 'available', or remove the dead href
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m05-containers/cloud-presentation.module.html`
+  File: `houses/ai/cortex/labs/hexgrad-engine.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m06-clustering/cloud-presentation.module.html`
+  File: `houses/ai/cortex/labs/hexmemory-rnn.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m08-dns/cloud-presentation.module.html`
+  File: `houses/ai/cortex/labs/hexnet-network.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m09-dhcp/cloud-presentation.module.html`
+  File: `houses/ai/cortex/labs/hextalk-bigram.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m10-group-policy/cloud-presentation.module.html`
+  File: `houses/ai/cortex/labs/hextoken-vocabulary.lab.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m11-iis/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m12-remote-desktop/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m13-certificate-services/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m14-advanced-networking/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m15-ad-sites/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m16-backup-recovery/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
-
-**[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
-  File: `houses/cloud/modules/wsa/m17-firewall-security/cloud-presentation.module.html`
-  Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
+**[HEUR-022]** Over-deep relative link: "../../../arena/boxes/le-01-cold-horizon/index.html" climbs 3 levels but file is only 1 level(s) deep in house — link escapes house directory
+  File: `houses/cloud/games/cloud-cold-horizon.html`
+  Fix: Reduce "../" depth to match file location (expected max 2 levels for house root)
 
 **[HEUR-024]** Page loads ModuleProgress.js but has no <a href="...index.html"> — completion overlay "Course Home" button will be missing
   File: `houses/matrix/adv-linux/ala-final.html`
@@ -14301,7 +14523,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (703)
+### INFO (549)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -14333,6 +14555,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `arena/boxes/ow-01-mole-hunt/workstation.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `arena/broadcast.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14472,6 +14698,10 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/ai/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/ai/tools/ai-flashcards.tool.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
@@ -14492,11 +14722,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/clf-c02/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/cloud-essentials/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/games/cloud-api-foundations-lab.applet.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-cold-horizon.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14512,7 +14750,19 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/games/cloud-the-nines.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/cloud/incubator/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/cloud/openstack/handouts/openstack-cli-cheatsheet.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14525,10 +14775,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/code/armory/compare.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/code/armory/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14593,10 +14839,6 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/dark-arts/games/dark-slowloris-dos-lab.applet.html`
-  Fix: Add ProgressManager.completeModule() if completion should be tracked
-
-**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/dark-arts/incubator/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14764,7 +15006,7 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
-  File: `houses/script/incubator/index.html`
+  File: `houses/script/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -14880,7 +15122,15 @@
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `houses/web/network-plus/index.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `houses/web/simulators/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
@@ -15324,30 +15574,6 @@
 **[LP-003]** Duplicate module ID 'key-lifecycle' found in 'security-plus-crypto' (also in 'cryptography-track')
   File: `./components/LearningPaths.js`
 
-**[LP-003]** Duplicate module ID 'eye-soc-operations' found in 'cysa-plus' (also in 'eye')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'eye-soc-simulator' found in 'cysa-plus' (also in 'eye')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'shield-risk-management' found in 'cysa-plus' (also in 'shield')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'shield-risk-analysis' found in 'cysa-plus' (also in 'security-plus')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'shield-incident-sim' found in 'cysa-plus' (also in 'security-plus')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-06-monitoring' found in 'cysa-plus' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-07-risk' found in 'cysa-plus' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-08-compliance' found in 'cysa-plus' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
 **[LP-003]** Duplicate module ID 'shield-security-pres' found in 'casp-plus' (also in 'security-plus')
   File: `./components/LearningPaths.js`
 
@@ -15364,9 +15590,6 @@
   File: `./components/LearningPaths.js`
 
 **[LP-003]** Duplicate module ID 'shield-incident-sim' found in 'casp-plus' (also in 'security-plus')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'shield-ir-forensics' found in 'casp-plus' (also in 'cysa-plus')
   File: `./components/LearningPaths.js`
 
 **[LP-003]** Duplicate module ID 'shield-crypto-intro' found in 'casp-plus' (also in 'shield')
@@ -15456,63 +15679,6 @@
 **[LP-003]** Duplicate module ID 'web-networking-final' found in 'ccna' (also in 'comptia-network')
   File: `./components/LearningPaths.js`
 
-**[LP-003]** Duplicate module ID 'cloud-concepts' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-models' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-fundamentals-pres' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-account' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-regions' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-security' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-compute' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-storage' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-architecture' found in 'aws-ccp' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-concepts' found in 'azure-fundamentals' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-models' found in 'azure-fundamentals' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-providers' found in 'azure-fundamentals' (also in 'aws-ccp')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-azure-fundamentals' found in 'azure-fundamentals' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-aws-quiz' found in 'azure-fundamentals' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-01-fundamentals' found in 'azure-fundamentals' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-02-iam' found in 'azure-fundamentals' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-03-encryption' found in 'azure-fundamentals' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cse-04-network' found in 'azure-fundamentals' (also in 'cse')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'cloud-architecture' found in 'azure-fundamentals' (also in 'cloud')
-  File: `./components/LearningPaths.js`
-
 **[LP-003]** Duplicate module ID 'code-git-basics' found in 'aws-developer' (also in 'code')
   File: `./components/LearningPaths.js`
 
@@ -15549,16 +15715,7 @@
 **[LP-003]** Duplicate module ID 'eye-soc-operations' found in 'security-operations' (also in 'eye')
   File: `./components/LearningPaths.js`
 
-**[LP-003]** Duplicate module ID 'cyberops-soc-overview' found in 'security-operations' (also in 'cysa-plus')
-  File: `./components/LearningPaths.js`
-
 **[LP-003]** Duplicate module ID 'eye-soc-simulator' found in 'security-operations' (also in 'eye')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'eye-soc-quiz' found in 'security-operations' (also in 'cysa-plus')
-  File: `./components/LearningPaths.js`
-
-**[LP-003]** Duplicate module ID 'eye-soc-lab' found in 'security-operations' (also in 'cysa-plus')
   File: `./components/LearningPaths.js`
 
 **[LP-003]** Duplicate module ID 'eye-siem-intro' found in 'security-operations' (also in 'eye')
@@ -15603,7 +15760,7 @@
 **[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3211 of 4282 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3221 of 4316 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
@@ -16422,526 +16579,6 @@
   File: `houses/code/algorithm-chamber/strings/ac-str-10.html`
   Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
 
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-02-registers.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-03-arithmetic.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-04-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-05-stack-functions.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-06-memory.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-07-syscalls.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-08-debugging.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-09-reverse-engineering.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/assembly/arm-asm-10-exploits.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-04-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-05-inheritance.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-06-templates-stl.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-07-memory.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-08-modern-cpp.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-09-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/cpp/arm-cpp-10-advanced.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-04-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-05-inheritance.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-06-collections.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-07-exceptions.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-08-async.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-09-aspnet.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/csharp/arm-cs-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-04-data-structures.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-05-interfaces.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-06-concurrency.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-07-errors-testing.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-08-stdlib.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-09-cli-cloud.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/go/arm-go-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-04-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-05-inheritance.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-06-collections.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-07-exceptions.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-08-threads.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-09-spring.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/java/arm-java-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-02-lua-basics.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-03-lua-apps.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-04-perl-basics.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-05-perl-text.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-06-perl-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-07-r-basics.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-08-r-analysis.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-09-r-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/lua-perl-r/arm-lpr-10-comparison.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-03-control.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-04-arrays.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-05-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-06-forms.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-07-pdo.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-08-sessions.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-09-modern.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/php/arm-php-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-02-cmdlets-pipeline.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-03-variables-types.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-04-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-05-objects.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-06-filesystem.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-07-active-directory.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-08-remoting.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-09-scripting.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/powershell/arm-ps-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-04-loops.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-05-functions.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-06-data-structures.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-07-strings-io.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-08-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-09-modules-packages.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python/arm-py-10-error-handling.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-01.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-02.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-03.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-04.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-05.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-06.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-07.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-08.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-09.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/python-graphics/pg-10.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-04-collections.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-05-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-06-blocks.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-07-file-io.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-08-regex.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-09-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/ruby/arm-rb-10-advanced.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-03-ownership.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-04-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-05-structs-enums.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-06-traits-generics.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-07-error-handling.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-08-collections.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-09-concurrency.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at 99.9% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/rust/arm-rs-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-01-intro.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-02-variables.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-03-control-flow.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-04-collections.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-05-oop.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-06-error-handling.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-07-concurrency.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-08-mobile-ui.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-09-networking.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
-**[HEUR-018]** ModuleProgress.complete fires on scroll at NaN% threshold (high threshold — effectively scroll-to-bottom; student-facing bug already mitigated, kept for visibility)
-  File: `houses/code/armory/swift-kotlin/arm-sk-10-security.module.html`
-  Fix: High-threshold scroll completion (>= 99%) is acceptable interim. Long-term: replace with explicit Mark Complete button for full intentionality.
-
 **[PATH-003]** Dynamic image path cannot be validated: /assets/images/icons/icon-
   File: `houses/forge/applets/comptia-aplus/core-1/labs/forge-display-troubleshoot.lab.html`
   Fix: Manual review required - path is constructed dynamically
@@ -16978,7 +16615,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (898)
+### Unregistered Content (907)
 
 | Path | Type | House |
 |------|------|-------|
@@ -16988,6 +16625,7 @@
 | admin/console.html | presentation | - |
 | arena/boxes/ow-01-mole-hunt/siem.html | applet | - |
 | arena/boxes/ow-01-mole-hunt/workstation.html | applet | - |
+| arena/broadcast.html | applet | - |
 | arena/tournament-board.html | applet | - |
 | bot-knowledge-ai.html | applet | - |
 | bot-knowledge-cloud.html | applet | - |
@@ -17371,10 +17009,22 @@
 | houses/cloud/api/rate-limiting/capi-rl-08.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-09.html | presentation | cloud |
 | houses/cloud/api/rate-limiting/capi-rl-10.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-companion.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch1.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch2.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch3.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch4.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch5.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch6.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch7.html | presentation | cloud |
+| houses/cloud/cse/instructor/cse-lecture-ch8.html | presentation | cloud |
+| houses/cloud/instructor/cse-lecture-combined.html | presentation | cloud |
+| houses/cloud/instructor/cse-lecture.html | presentation | cloud |
 | houses/cloud/modules/wsa/instructor/course-intro.html | presentation | cloud |
 | houses/cloud/modules/wsa/instructor/week-01.html | presentation | cloud |
 | houses/cloud/modules/wsa/instructor/week-02.html | presentation | cloud |
 | houses/cloud/modules/wsa/instructor/week-03.html | presentation | cloud |
+| houses/cloud/openstack/handouts/openstack-cli-cheatsheet.html | applet | cloud |
 | houses/code/algorithm-chamber/capstone/ac-cap-01.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-02.html | presentation | code |
 | houses/code/algorithm-chamber/capstone/ac-cap-03.html | presentation | code |
@@ -17604,9 +17254,6 @@
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-foundations.html | presentation | code |
 | houses/code/modules/python-hub/quizzes/pyh-quiz-stdlib-systems.html | presentation | code |
 | houses/code/python-for-it/upgrade-guide.html | applet | code |
-| houses/dark-arts/labs/dark-arts-ceh-01.lab.html | presentation | - |
-| houses/dark-arts/presentations/dark-arts-ceh-01.presentation.html | presentation | - |
-| houses/dark-arts/quizzes/dark-arts-ceh-01.quiz.html | quiz | - |
 | houses/divergent/cybersecurity-policy/_source/csp-final-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-midterm-mc.exam.html | presentation | divergent |
 | houses/divergent/cybersecurity-policy/_source/csp-w1-concepts.lab.html | presentation | divergent |
@@ -17629,7 +17276,6 @@
 | houses/forge/md-101/reviews/forge-md101-comprehensive-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-final-review.html | presentation | forge |
 | houses/forge/md-101/reviews/forge-md101-midterm-review.html | presentation | forge |
-| houses/matrix/adv-linux/ala-final.html | presentation | matrix |
 | houses/matrix/adv-linux/ala-post-test-review.html | presentation | matrix |
 | houses/matrix/adv-linux/exams/ala-jeopardy.review.html | presentation | matrix |
 | houses/matrix/adv-linux/exams/ala-kahoot.review.html | presentation | matrix |

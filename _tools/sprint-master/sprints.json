@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-07-11T04:37:13.862Z",
+    "lastUpdated": "2026-08-09T14:58:31.393Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z",
     "archivedCount": 488
@@ -27541,11 +27541,13 @@
       "priority": "high",
       "houses": [],
       "depends": [],
-      "commits": [],
-      "notes": "SCOPE EXPANDED + OPERATOR-APPROVED 2026-07-09: title item (lm-15 stall) was already fixed+live (212db8c5c, verified e2e). Real work: (P1) grading-honesty sweep — 11 modules complete tasks on erroring commands (ok computed, unused): lm-07/16/18/24/28/32/33/41 clear, lm-20/34 practice-intent review, lm-53 excluded (tour); lt-error confirmed the complete failure signal; task-shape catalog in session scratchpad. (P2) DECIDED keep engine-default practice files — 53-module audit clean. (P3) split: lm-15 replay migration first, LCM-3 helper fix separate w/ 46-consumer regression. (P4) replay adapters for 6 practice outliers. Nancy consult aligned; delivery branch->preview->honesty probes->Chris->prod.",
+      "commits": [
+        "ce72a7a98"
+      ],
+      "notes": "SCOPE EXPANDED + OPERATOR-APPROVED 2026-07-09: title item (lm-15 stall) was already fixed+live (212db8c5c, verified e2e). Real work: (P1) grading-honesty sweep — 11 modules complete tasks on erroring commands (ok computed, unused): lm-07/16/18/24/28/32/33/41 clear, lm-20/34 practice-intent review, lm-53 excluded (tour); lt-error confirmed the complete failure signal. (P2) DECIDED keep engine-default practice files — 53-module audit clean. (P3) split: lm-15 replay migration first, LCM-3 helper fix separate w/ 46-consumer regression. (P4) replay adapters for 6 practice outliers. DELIVERED 2026-07-11 (ce72a7a98, LIVE+prod-verified): lm-39 ssh-keygen honest sim — shared LinuxTerminal.js used state.currentUser.name (undefined; field is username) so printed hardcoded /home/student + wrote nothing to fs, making 'navigate ~/.ssh' uncompletable AND lm-39 sshdir grader completed off a FAILED ls (no && ok). Fix: real user, creates ~/.ssh+keypair atomically (no-clobber of pre-seeded lab keys, no lone-.pub on asymmetric seed), whitelisted -t, sshdir grader gated on && ok. Nancy PROCEED, Chris PASS (mutation-tested oracle), 14/14 harness stable 5x. Residual backlogged: engine models root home as /home/root not /root (no live grading impact). Nancy consult aligned; delivery branch->preview->honesty probes->Chris->prod.",
       "nexusKey": null,
       "created": "2026-07-09",
-      "updated": "2026-07-09",
+      "updated": "2026-07-11",
       "completed": null
     },
     {
@@ -27799,17 +27801,19 @@
       "id": "MON-2",
       "title": "External dead-man's-switch: off-neon watcher that alerts if neon monitoring goes dark",
       "series": "MON",
-      "status": "backlog",
+      "status": "done",
       "priority": "medium",
       "houses": [],
       "depends": [
         "MON-1"
       ],
-      "commits": [],
+      "commits": [
+        "f00a973d3"
+      ],
       "notes": "EXTERNAL DEAD-MAN'S-SWITCH for the neon monitoring stack. Closes the one known gap in the 2026-07-10 alerting build: the alerter (Prometheus/Alertmanager/ntfy) runs ON neon, so if neon itself dies the alerting dies silently with it. Need an OFF-neon watcher that screams if neon's monitoring goes dark.\n\nCONTEXT / READ FIRST: _docs/operations/monitoring-alerting.md (runbook), memory reference_monitoring_alerting.md, and the KBA 'Hexworth Monitoring & Alerting'. Stack lives at /home/eq/hexworth-monitoring on neon, mirrored in repo _tools/monitoring/. neon Tailscale IP 100.65.122.90. Prometheus host 9091, Alertmanager 100.65.122.90:9093, ntfy 100.65.122.90:8090 topic hexworth-alerts.\n\nDESIGN (pre-decided, account-free — do NOT stop to ask): cross-host heartbeat from bc1. The primary ntfy is on neon and dies with it, so the dead-man delivery path must NOT traverse neon. Approach:\n1. Stand up a SECOND tiny ntfy on bc1 (distinct compose project, e.g. /home/eq/hexworth-deadman on bc1), topic hexworth-deadman, bound to bc1's Tailscale interface (get bc1 IP via `tailscale ip -4` on bc1; verify 8090 free on bc1 first — pick another port if taken).\n2. Install a checker cron on bc1 (every 5 min): curl neon Prometheus http://100.65.122.90:9091/-/healthy AND Alertmanager http://100.65.122.90:9093/-/healthy. Keep a counter file; on 3 consecutive failures push a CRITICAL message to bc1's hexworth-deadman ntfy ('neon monitoring DOWN — <which endpoint> unreachable'). On recovery push a resolved message and reset the counter.\n3. (Stretch, optional) symmetry: have neon's stack also probe bc1/bc2 liveness so a dead bc1 is caught too. Not required for acceptance.\nALTERNATIVE (note only, do not build unless owner later asks): healthchecks.io SaaS is zero-maintenance and fully external, but needs an owner account/API key — that's why the self-hosted cross-check is the default.\n\nFILES: add under repo mirror _tools/monitoring/deadman/ : check-peer.sh (the cron script, dead-simple curl+counter, pure POSIX sh), deadman-compose.yml (bc1 second-ntfy), and a README. git add -f (tools is gitignored). Update _docs/operations/monitoring-alerting.md 'follow-ups' section to mark this done + how to operate. Update the KBA with the second (deadman) subscription steps.\n\nOWNER ACTION TO RECORD (not blocking the build): Frank subscribes his S25 to a SECOND ntfy subscription — server http://<bc1-tailscale-ip>:8090 topic hexworth-deadman. Document in KBA; leave a note in the completion summary so the operator does it.\n\nACCEPTANCE (must self-verify unsupervised, no questions):\na) bc1 second-ntfy up + reachable on bc1 Tailscale interface (curl 200). Checker cron installed and running; healthy state produces NO alert.\nb) FAILOVER TEST with neon monitoring fully stopped: on neon `docker stop prometheus alertmanager`. Within ~15 min bc1 detects 3 consecutive failures and pushes 'neon monitoring DOWN' to hexworth-deadman. Poll bc1 ntfy (http://<bc1-ip>:8090/hexworth-deadman/json?poll=1) and CONFIRM the message landed WHILE neon monitoring was down — this proves the delivery path does not depend on neon. Then `docker start prometheus alertmanager` on neon; confirm recovery/resolved message.\nc) No student sandbox containers on bc1 disturbed (lab-manager caveat — use a distinct compose project; never `docker compose down` the lab-manager stack).\n\nGOTCHAS: Zscaler can block Tailscale in some contexts (see reference_sandbox_infrastructure) — bc1->neon is server-to-server over the tailnet, should be fine, but if curl to 100.65.122.90 fails from bc1, diagnose the route before assuming neon is down. Keep the checker idempotent and quiet on success. Do NOT publish anything to production Firebase — this is self-hosted infra only, no deploy gate applies.",
       "created": "2026-07-11",
       "updated": "2026-07-11",
-      "completed": null
+      "completed": "2026-07-11"
     },
     {
       "id": "JCS-1",
@@ -27823,6 +27827,51 @@
       "notes": "ANCHOR ITEM for Frank's Job Campaign System (PERSONAL side project, NOT Hexworth student content). Added to the backlog for tracking; detailed phase tasks await the operator's plan of attack (do NOT decompose/build unprompted).\n\nWHAT IT IS: self-hosted agent pipeline (Python 3.11+/SQLite-WAL/cron + FastAPI dashboard) that discovers job postings from ATS APIs, scores fit + pre-registers interview odds, stages tailored materials for one-click HUMAN approval, watches a dedicated Gmail inbox via a Claude classifier, and calibrates odds from outcomes. Goal = low time-per-quality-app + calibration, NOT volume. PoC first; scale to product/SaaS if it proves out.\n\nCANONICAL SPEC: /home/eq/hexworth-shared/job campain stack/CAMPAIGN_SPEC.md.pdf (immutable). Work-area docs scaffolded there (architecture, data-model, state-machine, DECISIONS, open-questions, runbook). Memory: [[project_job_campaign_system]].\n\nHOSTING/ACCESS (DEC-003 DECIDED): app hosted ELSEWHERE on its own resources, fully decoupled from Hexworth. Hexworth side = ONLY a 'premium/special access' CARD in the Career Launchpad (_app/career/index.html) gated by a SERVER-SIDE entitlement (uid->job-campaign flag, TenantFilter-style) that resolves to a URL. NO client-side password (SEC-001 lesson). App has its own auth (CF Access like bc1).\n\nBLOCKED ON OWNER DECISIONS before P1 code (see DECISIONS.md / open-questions.md):\n- DEC-001 (open): confirm Claude model IDs the pipeline pins (spec says claude-sonnet-4-6 which is not current; current Sonnet=claude-sonnet-5, top=claude-opus-4-8; classifier claude-haiku-4-5 is valid).\n- DEC-002 (open): where the code repo lives (one repo in work-area / separate / on the deploy box).\n- Deploy box: recommended bc2 (idle Dell R630); confirm always-on. Owner prereqs: dedicated Gmail account + 20-email test set + profile.yaml/odds_v1.yaml priors.\n\nPHASES (spec 8): P1 discovery core (DB+db.py, GH/Lever/Ashby pollers, dedupe, fit scoring, dashboard panes 1-2). P2 intake+calibration (Gmail OAuth, inbox worker, state machine, ghost sweep, predictions, review queue). P3 staging (tailoring scaffolds, Playwright pre-fill Greenhouse+Lever, screenshots, knockout highlighting; NEVER auto-submits).\n\nHARD CONSTRAINTS: never auto-submits (human send gate); knockout Qs human-only; no LinkedIn scraping; dedicated Gmail only; fail-loud email classification. Pre-registration integrity: predictions.registered_at <= applications.applied_at.\n\nMARATHON-READINESS NOTE: NOT fully autonomous yet — gated on the owner decisions + prereqs above (model IDs, Gmail acct, test data, deploy box). Sequence those first in the plan of attack, then P1 discovery core is the first buildable slice.",
       "created": "2026-07-11",
       "updated": "2026-07-11",
+      "completed": null
+    },
+    {
+      "id": "ES-1151",
+      "title": "HEUR-035: Em-dash or double-hyphen used 8 time(s) in content (8 × &mdash; entit…",
+      "series": "ES",
+      "status": "backlog",
+      "priority": "high",
+      "houses": [],
+      "depends": [],
+      "commits": [],
+      "notes": "Auto-triaged by Nexus. Top files:\n- _games-lab/forge.html\n- _games-lab/health.html\n- _games-lab/index.html\n- _games-lab/wheel.html\n- admin/console.html\n- admin/course-tree.html\n- admin/sextant-cohorts.html\n- arena/boxes/f13-causal-loop/index.html\n- arena/boxes/ops-03-operation-mirror-strike/index.html\n- arena/boxes/ops-04-operation-steel-wall/index.html",
+      "nexusKey": "eduscan::HEUR-035",
+      "created": "2026-08-07",
+      "updated": "2026-08-07",
+      "completed": null
+    },
+    {
+      "id": "ES-1152",
+      "title": "HEUR-042: Correct answer is the longest option in 10/15 questions (66.7%), agai…",
+      "series": "ES",
+      "status": "backlog",
+      "priority": "high",
+      "houses": [],
+      "depends": [],
+      "commits": [],
+      "notes": "Auto-triaged by Nexus. Top files:\n- houses/ai/ai-900/quizzes/ai900-ch02.quiz.html\n- houses/ai/ai-900/quizzes/ai900-ch03.quiz.html\n- houses/ai/ai-900/quizzes/ai900-ch04.quiz.html\n- houses/ai/ai-900/quizzes/ai900-ch05.quiz.html\n- houses/ai/ai-900/quizzes/ai900-ch06.quiz.html\n- houses/ai/quizzes/ai-builder.quiz.html\n- houses/ai/quizzes/ai-foundations.quiz.html\n- houses/ai/quizzes/ai-security.quiz.html\n- houses/cloud/az-104/quizzes/az104-ch01.quiz.html\n- houses/cloud/az-104/quizzes/az104-ch02.quiz.html",
+      "nexusKey": "eduscan::HEUR-042",
+      "created": "2026-08-07",
+      "updated": "2026-08-07",
+      "completed": null
+    },
+    {
+      "id": "ES-1153",
+      "title": "HEUR-012: JS syntax error: Unexpected identifier 's'",
+      "series": "ES",
+      "status": "backlog",
+      "priority": "high",
+      "houses": [],
+      "depends": [],
+      "commits": [],
+      "notes": "Auto-triaged by Nexus. Top files:\n- arena/index.html",
+      "nexusKey": "eduscan::HEUR-012",
+      "created": "2026-08-09",
+      "updated": "2026-08-09",
       "completed": null
     }
   ]
