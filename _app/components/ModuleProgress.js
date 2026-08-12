@@ -1553,6 +1553,15 @@ const ModuleProgress = (function() {
         return removed;
     }
 
+    /* ⚠ BUG-099: THERE IS NO `init` HERE, AND 93 PAGES CALL ONE.
+       `_app/wireshark/**` and `_app/houses/eye/forensics/**` module pages do
+       `ModuleProgress.init({ moduleId, hubKey })` on load (e.g.
+       wireshark/sections/fundamentals/ws-01-interface-tour.module.html:1058) and every one of
+       them throws `TypeError: ModuleProgress.init is not a function`. Confirmed 2026-08-12
+       against git HEAD, so it predates the access-gate sweep that surfaced it.
+       DO NOT paper over it by aliasing init -> trackVisit: `hubKey` has no home in this API,
+       so what those pages want (bind a module to its course hub key, then register the visit)
+       is a design question. Decide the contract, then fix the component AND the 93 callers. */
     return {
         complete,
         reset,
