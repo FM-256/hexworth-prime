@@ -502,6 +502,12 @@ const AccessGuard = (function() {
 
     // Show floating countdown indicator
     function showMasterKeyIndicator() {
+        /* Same defer as the admin and god-mode badges: this appends to document.body, and
+           since 2026-08-12 the gate can run before <body> exists. */
+        if (!document.body) {
+            document.addEventListener('DOMContentLoaded', showMasterKeyIndicator);
+            return;
+        }
         // Remove existing indicator
         const existing = document.getElementById('master-key-indicator');
         if (existing) existing.remove();
@@ -730,15 +736,19 @@ const AccessGuard = (function() {
 
     // Show page content (after successful check)
     function showContent() {
-        // Remove both hide styles (preload and dynamic)
-        const preloadStyle = document.getElementById('access-guard-preload');
-        if (preloadStyle) {
-            preloadStyle.remove();
-        }
-        const hideStyle = document.getElementById('access-guard-hide');
-        if (hideStyle) {
-            hideStyle.remove();
-        }
+        /* ⚠ ALL of them, not the first one. This file's own auto-execute block appends an
+           #access-guard-preload style on load, and 25 pages ALSO hand-write an identical
+           <style id="access-guard-preload"> of their own, so two elements share the id and
+           getElementById returns only the earlier one. The leftover was invisible for years
+           because the belt-and-suspenders branch below set body.style.visibility inline,
+           which beats a stylesheet rule.
+           That mask disappears the moment the gate runs BEFORE <body>: document.body is
+           null, the inline fallback is skipped, and the surviving duplicate keeps the page
+           hidden permanently. Found 2026-08-12 on three Script house pages after the
+           Mallory audit moved require() into <head>: len 1377 to 0, no error, no redirect.
+           Removing every match makes the outcome independent of WHEN the gate runs. */
+        document.querySelectorAll('#access-guard-preload, #access-guard-hide')
+                .forEach(el => el.remove());
 
         // Also set inline styles if body exists (belt and suspenders)
         if (document.body) {
@@ -1034,6 +1044,15 @@ const AccessGuard = (function() {
 
     // Add a visual indicator when God Mode is active
     function addGodModeBadge() {
+        /* Defer until body exists, exactly as addFirebaseAdminBadge has always done. require()
+           now runs inside <head> on 118 pages (Mallory audit, 2026-08-12), so document.body is
+           null on the bypass paths and the appendChild below would throw. The content still
+           showed, because showContent() runs first, so the only symptom was staff losing
+           their badge and a console error: precisely the kind of thing nobody reports. */
+        if (!document.body) {
+            document.addEventListener('DOMContentLoaded', addGodModeBadge);
+            return;
+        }
         if (document.getElementById('god-mode-indicator')) return;
 
         const badge = document.createElement('div');
