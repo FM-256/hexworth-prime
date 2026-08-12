@@ -660,13 +660,32 @@
                 if (labId) labComplete = cloud[labId] && cloud[labId].completed;
                 const quizComplete = localStorage.getItem('hexworth_openstack_' + quizKey + '_quiz_score') !== null;
 
-                if (presComplete && labComplete && quizComplete) {
-                    card.classList.add('completed');
-                }
+                /* toggle, not add. This function can now run more than once (see the listeners
+                   below), and an add-only branch can only ever move a card INTO the completed
+                   state. A card whose progress was reset would keep a green border it no longer
+                   earns, and the count beside it would disagree with it. */
+                card.classList.toggle('completed', !!(presComplete && labComplete && quizComplete));
             });
         }
 
         updateProgress();
+
+        /* RE-RENDER ON RETURN TO THE PAGE.
+           updateProgress() used to run exactly once, at parse time, and the hub listened for
+           nothing. That is the whole of the "chapter 1 never marks complete" report: the student
+           path is hub -> Presentation -> Mark Module Complete -> Back, and Back restores this
+           page from the bfcache WITHOUT re-running scripts, so the hub still showed the progress
+           it computed before the student did the work. Reproduced 2026-08-12: the presentation
+           recorded cloud-openstack-intro correctly and the hub still read "2 / 13 completed"
+           with card 1 unmarked. Nothing was wrong with what the parts recorded.
+
+           pageshow covers it, and unlike DOMContentLoaded it fires on a bfcache restore too.
+           visibilitychange covers finishing a part in a second tab and switching back.
+           Both are cheap: updateProgress only reads localStorage and toggles classes. */
+        window.addEventListener('pageshow', updateProgress);
+        document.addEventListener('visibilitychange', function () {
+            if (!document.hidden) updateProgress();
+        });
     </script>
     <script src="../../../components/FluxCapacitor.js"></script>
 
