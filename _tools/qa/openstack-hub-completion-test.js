@@ -201,6 +201,64 @@ async function withRetry(label, fn, tries = 3) {
         [...document.querySelectorAll('.module-card')].map(c => c.classList.contains('completed')));
     check('every chapter remains complete at the end', finalStates.every(v => v === true),
           JSON.stringify(finalStates));
+
+    /* ── CROSS-DEVICE, every chapter (BUG-101) ────────────────────────────────────────────
+       The student finished on their laptop; this is the phone. localStorage is empty, the hub
+       renders zeros, and the cloud data arrives AFTER that render via
+       FirestoreManager.syncBidirectional, which deep-merges and then dispatches
+       hexworth:cloudSyncComplete.
+
+       The payload is not hand-written: it is the exact localStorage a real completed student
+       has, captured from the journey above. A hand-written blob could agree with the hub while
+       disagreeing with what the parts actually record, which is the whole class of bug this
+       file exists for.
+
+       The middle assertion is the control. Writing the merged data WITHOUT the event must NOT
+       repaint; otherwise a pass here would prove nothing about the listener. */
+    const cloudBlob = await page.evaluate(() => {
+        const out = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k === 'hexworth_progress' || /^hexworth_openstack_.*_quiz_(score|passed)$/.test(k)) {
+                out[k] = localStorage.getItem(k);
+            }
+        }
+        return out;
+    });
+    check('captured a real completed student from the journey',
+          Object.keys(cloudBlob).length >= chapters.length, `${Object.keys(cloudBlob).length} keys`);
+
+    console.log('\n--- cross-device: the same student on a second device ---');
+    const phone = await browser.newPage();
+    const phoneErrors = [];
+    phone.on('pageerror', e => phoneErrors.push(String(e.message).slice(0, 110)));
+    await phone.evaluateOnNewDocument(() => {
+        try {
+            localStorage.clear();
+            localStorage.setItem('hexworth_house', 'cloud');
+            localStorage.setItem('hexworth_sorted', 'true');
+        } catch (e) {}
+    });
+    await withRetry('hub load (second device)', () => phone.goto(HUB, NAV));
+    await settle(900);
+    const cards = () => phone.evaluate(() =>
+        [...document.querySelectorAll('.module-card')].map(c => c.classList.contains('completed')));
+
+    let st = await cards();
+    check('  a second device starts with every chapter incomplete', st.every(v => v === false), JSON.stringify(st));
+
+    await phone.evaluate(blob => { Object.keys(blob).forEach(k => localStorage.setItem(k, blob[k])); }, cloudBlob);
+    st = await cards();
+    check('  merged data ALONE does not repaint (control)', st.every(v => v === false), JSON.stringify(st));
+
+    await phone.evaluate(() => window.dispatchEvent(new CustomEvent('hexworth:cloudSyncComplete',
+        { detail: { addedToLocal: 11, addedToCloud: 0, totalModules: 11 } })));
+    await settle(500);
+    st = await cards();
+    check('  the sync event repaints EVERY chapter, with no reload', st.every(v => v === true), JSON.stringify(st));
+    check('  no page errors on the second device', phoneErrors.length === 0, phoneErrors[0]);
+    await phone.close();
+
     check('no page errors anywhere in the journey', errors.length === 0, errors[0]);
 
     console.log(`\n  ${pass}/${pass + fail} checks passed\n`);
