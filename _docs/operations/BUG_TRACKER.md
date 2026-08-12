@@ -31,6 +31,96 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-102 — post-verify's lab content-leak smoke fails deploys on a single stalled document fetch  ·  [P3]  ·  open
+- **Found:** 2026-08-12 · by self · after two consecutive deploys were flagged by the same check
+- **Area:** `_tools/smoke-lab-content-leaks.js` — `NAV_TIMEOUT = 30000`, single attempt per lab, no retry
+- **Symptom:** two deploys in a row shipped fine and then reported `post-verify FLAGGED divergence`, both on `[pis-l09-outbreak-detection] FAIL load — EXCEPTION: Navigation timeout of 30000 ms exceeded`. A deploy that succeeded is reported as suspect, and the operator is sent to the recovery runbook for nothing. Confluence regen is skipped as a side effect (post-verify exits 2).
+- **Repro:** run `node _tools/smoke-lab-content-leaks.js` repeatedly; it passes 10/10 on a re-run every time so far.
+- **Root cause:** NOT the lab page, measured rather than assumed. On production the page loads in ~2.0-2.4s (27-29 requests, zero non-200) and is FASTER than a control page (openstack hub, ~4.2s). When it fails, the request still in flight at timeout is the HTML document itself, so the stall is at document fetch, before any page code runs. Interleaved control test: pis-l09 hung 1/6, control 0/6. Several unrelated URLs (profile.html, ws-01, the deploy smoke) also timed out from this machine today and every retry succeeded. The weight of evidence is network/edge flakiness on document fetch, not page content. n is small and this is stated as the likely cause, not a proven one.
+- **Fix:** NOT FIXED. The proposed fix is one retry per lab before declaring failure, which removes this class of false failure without weakening the assertion (a genuinely leaking page fails both attempts). Deliberately not bundled into the OpenStack chapter 1 fix.
+- **Verified:** n/a — open.
+- **Related:** BUG-100 (the deploy that surfaced it the second time).
+
+### BUG-100 — OpenStack chapter 1 never marked complete: the hub rendered progress once and never again  ·  [P2]  ·  RESOLVED
+- **Found:** 2026-08-12 · by user · operator report, "chapter one is not marking complete when users complete all parts"
+- **Area:** `_app/houses/cloud/openstack/index.html` — `updateProgress()` (called once at parse time, line ~669)
+- **Symptom:** a student finishes a part of chapter 1, presses Back to the hub, and the hub still shows the old count with the chapter card unmarked. Only a manual reload showed the truth. Reproduced: the presentation recorded `cloud-openstack-intro` correctly and the hub still read "2 / 13 completed" with card 1 unmarked; reload showed "3 / 13" and the card marked.
+- **Repro:** hub -> card 1 Presentation -> Mark Module Complete -> browser Back. Automated as `_tools/qa/openstack-ch1-completion-test.js` (real clicks and real `goBack()`, not seeded storage).
+- **Root cause:** NOT the content. All three parts record exactly the keys the hub reads (`cloud-openstack-intro`, `cloud-openstack-install-lab`, `hexworth_openstack_lesson1_quiz_score`), and the quiz key bridge verifies 15/15 answers. The hub called `updateProgress()` once at parse time and listened for nothing — no `pageshow`, no `visibilitychange`, no `storage`, no `hexworth:progressRestored`. Back restores the page from the bfcache WITHOUT re-running scripts, so the hub kept displaying the progress it computed before the student did the work.
+- **Fix:** DEPLOYED 2026-08-12, verified on production (13/13 walking the student journey against hexworth.com). Two edits, one file: `pageshow` + `visibilitychange` re-render (`pageshow` is the one that matters, since unlike `DOMContentLoaded` it fires on a bfcache restore), and `classList.add` -> `classList.toggle`, because a function that can run repeatedly must be able to move a card out of completed as well as into it.
+- **Verified:** `_tools/qa/openstack-ch1-completion-test.js` 13/13, MUTATION TESTED (listeners removed -> 9/13, exit 1, failing exactly the four Back-repaint assertions; restored byte-identical -> 13/13). Chris PASS: reproduced the harness and the mutation independently, and traced every progress write path (`ModuleProgress.complete`, `FirestoreManager.syncBidirectional`, `reconcileProgressBootstrap`) to confirm nothing ever un-sets a completed flag, so the toggle's false branch cannot fire against real data.
+- **Related:** BUG-101. Chapters 2, 3 and 4 were checked and are NOT affected: the lab FILENAMES differ from the hub ids (`launch-vm.lab.html` vs `cloud-openstack-launch-lab`) but each lab's own `ModuleProgress.complete()` call matches the hub exactly.
+
+### BUG-101 — course hubs render progress local-only, so cross-device completion is invisible  ·  [P2]  ·  open
+- **Found:** 2026-08-12 · by self · while root-causing BUG-100
+- **Area:** 862 pages that read `hexworth_progress`, incl. every course hub; `_app/components/ProgressRestore.js`
+- **Symptom:** a student who completes work on one device does not see it reflected on a course hub on another. The hub reads `localStorage` synchronously, once. Cloud progress arrives later: `ModuleProgress` injects `FirestoreManager.js` on demand and calls `syncBidirectional` once auth is ready, always AFTER that render, and no hub listens for anything that would repaint.
+- **Repro:** complete a module signed in on browser A, open the same course hub signed in on browser B.
+- **Root cause:** `ProgressRestore.js` exists precisely for this — its own header says "drop this script on ANY page that shows progress-dependent UI" and it dispatches `hexworth:progressRestored` so the page can re-render. Adoption is 15 pages (the WSA cluster, one Forge lab, the tenant dashboards). Of the 862 pages that read `hexworth_progress`, ZERO load it. `_app/houses/cloud/modules/wsa/index.html:1238` is the one course hub that does it right.
+- **Fix:** NOT FIXED, and deliberately not bundled into BUG-100 — the operator scoped that to "only chapter one first". This is a platform sweep and wants its own design conversation: which pages, and whether the repaint is per-hub or a shared helper.
+- **Verified:** n/a — open. Counts re-derivable by grepping `hexworth_progress` and `ProgressRestore.js` under `_app`.
+- **Related:** BUG-100 (the same-device half of the same symptom).
+
+### BUG-099 — `ModuleProgress.init()` does not exist, and 93 module pages call it  ·  [P1]  ·  open
+- **Found:** 2026-08-12 · by self · in the Mallory finding-2 access-gate sweep (render A/B caught it as a page error, and I initially set it aside as "pre-existing, not mine")
+- **Area:** `_app/components/ModuleProgress.js` (exports) vs 93 `*.module.html` pages, e.g. `_app/wireshark/sections/fundamentals/ws-01-interface-tour.module.html:1058`
+- **Symptom:** every one of those pages throws `TypeError: ModuleProgress.init is not a function` on load. Whatever `init({moduleId, hubKey})` was meant to do — register the visit and bind the module to its course hub key — never happens, on any of them. Two whole courses are affected: Digital Forensics (`houses/eye/forensics/**`) and Wireshark (`wireshark/**`).
+- **Repro:** load `/wireshark/sections/fundamentals/ws-01-interface-tour.module.html`, open the console. Or: `grep -rl 'ModuleProgress\.init(' _app --include=*.html | wc -l` -> 93, then `grep -c 'init:' _app/components/ModuleProgress.js` -> 0.
+- **Root cause:** the component's public surface is `complete, reset, completeQuiz, getStats, getModuleProgress, isCompleted, updateStreak, trackVisit, migrateLegacyKey, copyLegacyKey, _goToDashboard, _ensureFirestoreReady`. There is no `init`, and there is only one `ModuleProgress*.js` in the tree, so nothing else could be supplying it. Either the method was removed without sweeping its callers, or the pages were authored against an API that never shipped.
+- **Fix:** NOT FIXED. Needs a decision before code: does `init` belong on the component (register visit + hub key), or should the 93 pages call the existing `trackVisit`? The `hubKey` argument has no obvious home in the current API, so this is a design question, not a rename.
+- **Verified:** breakage confirmed both ways — A/B against `git show HEAD:` proves it predates the access-gate sweep, and the export list proves the method is absent rather than shadowed.
+- **Related:** BUG-094. Found the same day as the access-gate work but entirely independent of it.
+
+### BUG-098 — the dash hygiene gate has never scanned `.js` or `.css`  ·  [P2]  ·  open
+- **Found:** 2026-08-12 · by Chris · reviewing the dash-gate scoping fix
+- **Area:** `_tools/eduscan/dash-hygiene-gate.js` — `EXTS = new Set(['.html', '.htm', '.md'])`
+- **Symptom:** the no-em-dash rule (`feedback_no_em_dashes`, in force since 2026-05-26) is unenforced on every `.js` and `.css` file on the platform, all of which ship to the browser and can render text. The gate reports "clean" on a change that adds em-dashes to a component.
+- **Repro:** Chris appended `// verify probe -- with a real dash` to `_app/components/AccessGuard.js` and ran the gate. It never saw the file.
+- **Root cause:** the extension allowlist predates the rule being applied to component source; HTML comments and inline JS were explicitly brought into scope on 2026-07-04, but standalone `.js`/`.css` never were.
+- **Fix:** NOT FIXED. Adding the extensions is one line, but it will pull a large pre-existing backlog into the report — which, now that the gate blocks on ADDED lines only, is exactly the case the new scoping handles cleanly. Should be done deliberately and measured first.
+- **Verified:** n/a — open.
+- **Related:** BUG-097.
+
+### BUG-097 — 1213 em-dashes in student-facing prose across 86 pages  ·  [P3]  ·  open
+- **Found:** 2026-08-12 · by scan (`dash-hygiene-gate.js`) · during the access-gate sweep
+- **Area:** 86 files under `_app/`, incl. `houses/ai/cortex/deep-learning/cx-dl-*.html`, `houses/code/algorithm-chamber/**`, `arena/spectator.html`, `dark-arts/**`
+- **Symptom:** a documented style rule is violated 1213 times in content students read. Specimen: `cx-dl-01.html:141` renders `Deep Learning &mdash; Module 1`.
+- **Repro:** `node _tools/eduscan/dash-hygiene-gate.js --whole-file`
+- **Root cause:** accumulated before the gate existed; the gate could not surface it because until 2026-08-12 it only ran against changed files and blocked on all of them, so it was either silent or overwhelming.
+- **Fix:** NOT FIXED, and deliberately not bundled into a security deploy. Each one needs a judgment call (comma / colon / period), not a find-and-replace — the gate's own message says do not swap one dash form for another. Wants its own pass, ideally per-course.
+- **Verified:** n/a — open. Count is re-derivable at any time with the command above.
+- **Related:** BUG-098. Made visible by the scoping fix in `dash-hygiene-gate.js` (2026-08-12), which now reports this backlog on every run instead of blocking on it.
+
+### BUG-096 — anything left in `_app/` is published, including debug probes  ·  [P2]  ·  open
+- **Found:** 2026-08-12 · by Chris · during the access-gate review
+- **Area:** `firebase.json` hosting `ignore` list
+- **Symptom:** `_app/` is the hosting `public` root and the ignore list covers backups, markdown and media but no probe/temp naming pattern. Two debug files sat publicly fetchable on hexworth.com, both returning 200: `/_chris_house_probe.html` and `/styles/_chris_r4_offender_tmp.css`. They had been there since 2026-08-11.
+- **Repro:** drop any `_probe.html` into `_app/`, deploy, fetch it.
+- **Root cause:** nothing prevents it. The files were untracked, so no git surface flagged them either.
+- **Fix:** the two files were archived to `_tools/archive/session-probes-2026-08-12/` and a deploy retired both URLs (now 404, verified). The PREVENTION is not fixed: no ignore pattern exists, so the next probe left in `_app/` ships again.
+- **Verified:** retirement verified against production (404 on both). Prevention: n/a — open.
+- **Related:** BUG-095.
+
+### BUG-095 — `const AccessGuard` is not on `window`, so double-inclusion is a SyntaxError  ·  [P3]  ·  open
+- **Found:** 2026-08-12 · by the repo QC hook · during the access-gate sweep
+- **Area:** `_app/components/AccessGuard.js:33` — `const AccessGuard = (function() { ... })();`
+- **Symptom:** two consequences, one live and one latent. (1) A page that loads `AccessGuard.js` twice throws `SyntaxError: Identifier 'AccessGuard' has already been declared` and the second script dies — a real hazard while hoisting the gate into `<head>`, since the old tag had to be removed rather than left in place. (2) Any guard written as `if (window.AccessGuard)` is permanently false, the documented lexical-const trap that produced 38 dead guards elsewhere on the platform.
+- **Repro:** add a second `<script src=".../AccessGuard.js">` to any gated page.
+- **Root cause:** top-level `const` creates a script-scope binding that is not a property of `window`.
+- **Fix:** NOT FIXED, deliberately. `window.AccessGuard = (function(){...})()` would satisfy both, and it is backwards compatible, but it changes the export style of a component on 4334 pages and does not belong inside a security fix. **Measured before deferring:** zero files in `_app` reference `window.AccessGuard`, so consequence (2) is latent, not live.
+- **Verified:** n/a — open. Zero-reference claim: `grep -rn "window\.AccessGuard" _app --include=*.html --include=*.js` -> 0.
+- **Related:** `reference_lexical_const_window_guard_trap`.
+
+### BUG-094 — 6 pages still run the access gate after `<body>` opens  ·  [P3]  ·  open
+- **Found:** 2026-08-12 · by Nancy · reviewing the access-gate hoist (she took my "9 skipped" number apart and showed 7 of the 9 were not exposure at all)
+- **Area:** `_app/_games-lab/{kahoot,fifth,jeopardy,wheel}.html`, `_app/path-view.html:457`, `_app/houses/web/simulators/web-interactive-network-simulatorv2.simulator.html`
+- **Symptom:** on these pages the gate is not hoisted into `<head>`, so the flash-of-gated-content window that BUG-094's parent sweep closed on 118 pages remains open here.
+- **Repro:** `node _tools/qa/access-guard-placement-test.js` reports 0 late for TOP-LEVEL gates; these are excluded because their call is nested (brace depth >= 1) or absent.
+- **Root cause:** the four `_games-lab` files wrap the call in `try/catch` with `onerror="window._accessGuardMissing=true"` by design, so they run with or without the guard. `path-view.html` calls `require('admin')` conditionally inside `renderPath()` and has no top-level gate at all. The simulator has no real gate — its apparent one is a `'<scr'+'ipt'` string inside a downloadable boilerplate generator.
+- **Fix:** NOT FIXED. Low priority: the `_games-lab` files are internal authoring tools, and `path-view.html` was never vulnerable to this class. Listed so the residual is named rather than implied to be zero.
+- **Verified:** n/a — open. The two that DID matter (`profile.html`, `privacy-settings.html`, both personal-data pages) were hand-fixed and deployed 2026-08-12.
+- **Related:** the access-gate hoist, deployed 2026-08-12.
+
 ### BUG-093 — 37 of 91 arcade games scroll sideways on a phone  ·  [P2]  ·  RESOLVED
 > **CLOSED 2026-08-02. 37 -> 0.** All 91 games measured on production: zero horizontal overflow
 > at 1024 or 390. Final evidence: `_docs/operations/evidence/game-hscroll-final-2026-08-02.txt`,

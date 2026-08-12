@@ -61,7 +61,15 @@ SKIP_DIRS = {
     # the live tree, so counting them as live orphans would mean the orphan number never
     # falls no matter how much tidying happens, and the archive would keep re-appearing as
     # a candidate for archiving.
-    '_archive',
+    #
+    # BOTH SPELLINGS, and the second one is why this comment is longer than it looks. Only
+    # '_archive' was listed, while the directory this repo actually archives into is
+    # '_tools/archive' with no underscore, so the rule had never once matched the thing it
+    # was written for: 79 archived scripts were being counted as live orphans. Found
+    # 2026-08-12 when archiving 69 probe files made the deploy report "+62 orphaned",
+    # i.e. tidying up made the tidiness metric worse. A rule that names the wrong surface
+    # is not a rule, it is a comment.
+    '_archive', 'archive',
 }
 
 # A script named in one of these is GATE-wired: it runs without anyone choosing to run it.

@@ -31,6 +31,29 @@
  *   `--all` exists for reporting and never blocks. The blocking path compares against the
  *   merge-base with the base ref AND includes the working tree, because deploy ships the
  *   working directory, not the commit (memory `feedback_review_receipt_covers_the_tree_not_the_commit`).
+ *
+ * WHY IT BLOCKS ON ADDED LINES, NOT ON WHOLE FILES  (2026-08-12)
+ *   The unit of scope used to be the FILE: touch a file at all, and every dash already in it
+ *   became yours. That is right for content work, where editing a deck means you can clean its
+ *   punctuation. It is wrong for a MECHANICAL SWEEP, and the security fix for Mallory's finding
+ *   2 is what proved it: moving one <script> tag into <head> on 119 pages put 86 files of
+ *   untouched student-facing prose into scope and reported 1213 occurrences, ZERO of them
+ *   written by the change. cx-dl-01.html is the specimen: its entire diff was the script hoist,
+ *   it carried 7 dashes, it carried the same 7 at HEAD, and every dash-bearing line in it was
+ *   byte-identical to HEAD.
+ *
+ *   A gate that fires on 1213 things nobody did is a gate someone disables, which is the exact
+ *   fate the "scoped to changed" design was written to avoid. So the scope is now the ADDED
+ *   LINE. Dashes on lines this branch introduces BLOCK. Dashes already on disk in a file you
+ *   merely touched are REPORTED and never block.
+ *
+ *   THIS DOES NOT WEAKEN THE CASE THE GATE WAS BUILT FOR. The A+ Core 2 deck that reached
+ *   production with 24 em-dashes was NEW content, and every line of a new or untracked file is
+ *   an added line, so it is still caught in full. What is given up is only "you edited a legacy
+ *   file, so you own its backlog", which was never the rule the memory states. The rule is
+ *   `feedback_no_em_dashes`: do not WRITE them.
+ *
+ *   `--whole-file` restores the old behaviour for anyone who wants the stricter sweep.
  */
 
 const { execSync } = require('child_process');
@@ -39,6 +62,13 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SCOPE_DIR = '_app/';
+/* ⚠ BUG-098: `.js` and `.css` HAVE NEVER BEEN SCANNED. Both ship to the browser and both can
+   render text, so the no-em-dash rule is simply unenforced there. Chris proved it on 2026-08-12
+   by appending `-- with a real dash` to _app/components/AccessGuard.js: the gate never saw the
+   file and reported clean. Adding the extensions is one line, but it pulls in an unmeasured
+   backlog, so it is a deliberate follow-up rather than a drive-by. Now that blocking is scoped
+   to ADDED lines, that backlog would report without blocking, which is what makes the change
+   safe to make. Do not "fix" this without measuring first. */
 const EXTS = new Set(['.html', '.htm', '.md']);
 
 /* Paths that are ALLOWED to contain the forms, because their job is to contain them. */
@@ -59,6 +89,7 @@ const FORMS = [
 const args = process.argv.slice(2);
 const ALL = args.includes('--all');
 const QUIET = args.includes('--quiet');
+const WHOLE_FILE = args.includes('--whole-file');
 const baseIdx = args.indexOf('--base');
 const BASE = baseIdx >= 0 ? args[baseIdx + 1] : null;
 
@@ -88,6 +119,49 @@ function changedFiles() {
     sh(`git diff --name-only HEAD -- ${SCOPE_DIR}`).split('\n').forEach(f => f && out.add(f));
     sh(`git ls-files --others --exclude-standard -- ${SCOPE_DIR}`).split('\n').forEach(f => f && out.add(f));
     return [...out];
+}
+
+/* Parse `git diff -U0` into file -> Set(line numbers that are NEW in the post-image).
+   Kept pure and separate from git so --selftest can prove the hunk arithmetic without a
+   repository fixture. The @@ header is the only source of truth here: `@@ -a,b +c,d @@` means
+   d lines starting at c exist in the new file, and an omitted d means exactly 1. A pure
+   deletion has d === 0 and must contribute nothing. */
+function parseAddedLines(diffText) {
+    const map = new Map();
+    let cur = null;
+    for (const line of String(diffText).split('\n')) {
+        if (line.startsWith('+++ ')) {
+            const p = line.slice(4).trim();
+            cur = (p === '/dev/null') ? null : p.replace(/^b\//, '');
+            if (cur && !map.has(cur)) map.set(cur, new Set());
+            continue;
+        }
+        if (line.startsWith('@@') && cur) {
+            const m = /@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(line);
+            if (!m) continue;
+            const start = Number(m[1]);
+            const count = m[2] === undefined ? 1 : Number(m[2]);
+            for (let i = 0; i < count; i++) map.get(cur).add(start + i);
+        }
+    }
+    return map;
+}
+
+/* Added lines across everything this branch introduces, with line numbers valid in the
+   WORKING TREE. `git diff <commit>` (no second commit) compares that commit to the working
+   tree, so committed-on-branch and uncommitted edits land in one pass and the numbers refer
+   to the file as it will actually deploy. */
+function addedLines() {
+    const base = resolveBase();
+    if (!base) return new Map();
+    const mb = sh(`git merge-base HEAD ${base}`) || base;
+    return parseAddedLines(sh(`git diff -U0 ${mb} -- ${SCOPE_DIR}`));
+}
+
+/* An untracked file has no post-image to diff against, and every line in it is new. */
+function untrackedFiles() {
+    return new Set(sh(`git ls-files --others --exclude-standard -- ${SCOPE_DIR}`)
+        .split('\n').filter(Boolean));
 }
 
 function allFiles(dir, acc = []) {
@@ -154,6 +228,45 @@ function selfTest() {
         console.log(`  ${ok ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'}  ignores ${name}${ok ? '' : '  <- FALSE POSITIVE'}`);
         ok ? pass++ : fail++;
     }
+    /* ── ATTRIBUTION ARITHMETIC ────────────────────────────────────────────────────────
+       The forms above decide WHAT a dash is; this decides WHOSE it is, and an off-by-one here
+       does not throw, it silently stops blocking a dash somebody really did add. Proven on
+       synthetic diff text so it needs no repository fixture and cannot rot. */
+    const DIFF = [
+        'diff --git a/_app/x.html b/_app/x.html',
+        '--- a/_app/x.html',
+        '+++ b/_app/x.html',
+        '@@ -10 +10 @@',                       // 1 line replaced at 10, count omitted means 1
+        '-old',
+        '+new',
+        '@@ -20,0 +21,3 @@',                   // 3 lines inserted starting at 21
+        '+a', '+b', '+c',
+        '@@ -40,2 +44,0 @@',                   // pure deletion: contributes NOTHING
+        '-gone', '-also gone',
+        'diff --git a/_app/y.html b/_app/y.html',
+        '--- a/_app/y.html',
+        '+++ /dev/null',                       // file deleted: never attributed
+        '@@ -1,2 +0,0 @@',
+        '-x', '-y'
+    ].join('\n');
+    const parsed = parseAddedLines(DIFF);
+    const xs = parsed.get('_app/x.html') || new Set();
+    const CASES = [
+        ['single-line hunk with omitted count', xs.has(10)],
+        ['inserted block start',                xs.has(21)],
+        ['inserted block middle',               xs.has(22)],
+        ['inserted block end',                  xs.has(23)],
+        ['does NOT over-run the block',        !xs.has(24)],
+        ['does NOT claim the line before',     !xs.has(20)],
+        ['pure deletion adds nothing',         !xs.has(44)],
+        ['exact added-line count is 4',         xs.size === 4],
+        ['deleted file is not attributed',     !parsed.has('_app/y.html')]
+    ];
+    for (const [name, ok] of CASES) {
+        console.log(`  ${ok ? '\x1b[32mPASS\x1b[0m' : '\x1b[31mFAIL\x1b[0m'}  attribution: ${name}`);
+        ok ? pass++ : fail++;
+    }
+
     console.log(`\n${pass} passed, ${fail} failed`);
     process.exit(fail ? 1 : 0);
 }
@@ -168,20 +281,59 @@ const EXPLICIT = checkIdx >= 0 ? args.slice(checkIdx + 1).filter(a => !a.startsW
 const files = EXPLICIT && EXPLICIT.length
     ? EXPLICIT.filter(f => fs.existsSync(path.join(ROOT, f)))
     : (ALL ? allFiles(path.join(ROOT, '_app')) : changedFiles()).filter(inScope);
-const offenders = [];
-let total = 0;
+/* WHOSE DASH IS IT. `--all`, `--check` and `--whole-file` keep the old every-line behaviour:
+   the first two are explicitly asking about whole files, and the third is the opt-in sweep.
+   The default blocking path attributes each hit to the line it sits on. */
+const ATTRIBUTE = !ALL && !WHOLE_FILE && !(EXPLICIT && EXPLICIT.length);
+const added = ATTRIBUTE ? addedLines() : new Map();
+const untracked = ATTRIBUTE ? untrackedFiles() : new Set();
+
+const offenders = [];      // dashes this branch WROTE. These block.
+const inherited = [];      // dashes already on disk in a file we merely touched. Reported.
+let total = 0, inheritedTotal = 0;
 for (const f of files) {
     const hits = scan(f);
-    if (hits.length) { offenders.push({ file: f, hits }); total += hits.reduce((s, h) => s + h.n, 0); }
+    if (!hits.length) continue;
+    if (!ATTRIBUTE) {
+        offenders.push({ file: f, hits });
+        total += hits.reduce((s, h) => s + h.n, 0);
+        continue;
+    }
+    /* A file with no entry in the diff map and no untracked marker is one the working tree
+       changed in a way git did not report as added lines (a pure deletion, or a mode change).
+       Nothing was introduced there, so nothing there blocks. */
+    const isNew = untracked.has(f);
+    const addedSet = added.get(f);
+    const mine = hits.filter(h => isNew || (addedSet && addedSet.has(h.line)));
+    const theirs = hits.filter(h => !(isNew || (addedSet && addedSet.has(h.line))));
+    if (mine.length)   { offenders.push({ file: f, hits: mine }); total += mine.reduce((s, h) => s + h.n, 0); }
+    if (theirs.length) { inherited.push({ file: f, hits: theirs }); inheritedTotal += theirs.reduce((s, h) => s + h.n, 0); }
 }
 
 const mode = EXPLICIT && EXPLICIT.length ? 'explicit --check list'
     : ALL ? 'ALL _app content (reporting only, never blocks)'
-    : `changed vs ${resolveBase() || 'working tree'}`;
+    : WHOLE_FILE ? `every line of changed files vs ${resolveBase() || 'working tree'}`
+    : `lines ADDED vs ${resolveBase() || 'working tree'}`;
 if (!QUIET) console.log(`dash-hygiene-gate: ${files.length} file(s) in scope [${mode}]`);
 
+/* The inherited backlog is stated EVERY run, pass or fail. It is not a finding against this
+   change, but silence would let it grow invisibly, and "the gate went quiet" must never be the
+   thing that hides it. Run with --whole-file to see it in full. */
+function reportInherited() {
+    if (!inherited.length) return;
+    console.log(`\x1b[2m  (${inheritedTotal} pre-existing occurrence(s) across ${inherited.length} `
+              + `touched file(s), not introduced by this change and not blocking. `
+              + `See them with --whole-file.)\x1b[0m`);
+}
+
 if (!offenders.length) {
-    console.log(`\x1b[32m✓\x1b[0m no em-dashes, entities or " -- " in changed _app content`);
+    /* The success line must describe THE MODE THAT JUST RAN. Only the default path is scoped to
+       added lines; --whole-file, --all and --check all read every line, and a message claiming
+       "ADDED" there would have the gate lying about its own coverage in exactly the direction
+       that makes a clean result look stronger than it is (Chris, 2026-08-12). */
+    console.log(`\x1b[32m✓\x1b[0m no em-dashes, entities or " -- " `
+              + `${ATTRIBUTE ? 'ADDED to' : 'in'} _app content`);
+    reportInherited();
     process.exit(0);
 }
 
@@ -194,7 +346,9 @@ for (const o of offenders) {
     if (o.hits.length > 12) console.log(`  ... and ${o.hits.length - 12} more line(s) in this file`);
 }
 console.log('');
-console.log(`${total} occurrence(s) across ${offenders.length} file(s).`);
+console.log(`${total} occurrence(s) across ${offenders.length} file(s)`
+          + `${ATTRIBUTE ? ', on lines this change ADDED' : ''}.`);
+reportInherited();
 
 if (ALL) {
     console.log('\x1b[2m--all is a report. Run without it to gate the deploy.\x1b[0m');

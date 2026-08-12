@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-08 00:17 · **1055 scripts** · 16 wired into a gate · 240 called by other code · 145 only mentioned in docs · 654 referenced by nothing · 465 not in git
+**Generated:** 2026-08-12 16:26 · **1072 scripts** · 16 wired into a gate · 245 called by other code · 147 only mentioned in docs · 664 referenced by nothing · 467 not in git
 
 ## Read this before writing a new script
 
@@ -193,7 +193,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `aplus-dns-config-check.js` | CALLED | 3 | 2026-07-04 | yes |  |
 | `aplus-hardware-diagnosis-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `aplus-mobile-sync-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
-| `aplus-mobile-troubleshoot-check.js` | CALLED | 1 | 2026-07-29 | yes |  |
+| `aplus-mobile-troubleshoot-check.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `aplus-printer-troubleshoot-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `aplus-protocol-analysis-check.js` | CALLED | 1 | 2026-07-04 | yes |  |
 | `aplus-psu-connectors-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
@@ -385,7 +385,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `orphan-cluster-analyzer.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 | `orphan-finder.js` | ORPHAN | 0 | 2026-04-30 | no |  |
 | `overlap-probe.js` | DOCS-ONLY | 0 | 2026-08-02 | yes |  |
-| `path-registry-disagreement.js` | CALLED | 1 | 2026-08-08 | no | PROBE, NEGATIVE RESULT: registry `paths:` is NOT a reachability signal |
+| `path-registry-disagreement.js` | CALLED | 1 | 2026-08-08 | yes | PROBE, NEGATIVE RESULT: registry `paths:` is NOT a reachability signal |
 | `placement-recommender.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 | `prog003-classifier.js` | DOCS-ONLY | 0 | 2026-05-09 | yes |  |
 | `progress-denominator-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
@@ -503,7 +503,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `openstack-quiz-live-e2e.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `openstack-quiz-render-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `openstack-quiz-server-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
-| `preview-link-check.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
+| `preview-link-check.js` | ORPHAN | 0 | 2026-08-10 | yes |  |
 | `qc-laptop-memory-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-laptop-memory-shot-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-overlay-probe-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
@@ -658,7 +658,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `conversation.py` | CALLED | 2 | 2026-06-04 | yes |  |
 | `drift_detector.py` | CALLED | 1 | 2026-05-30 | yes |  |
 | `help_levels.py` | CALLED | 1 | 2026-05-24 | yes |  |
-| `main.py` | CALLED | 9 | 2026-08-05 | yes |  |
+| `main.py` | CALLED | 10 | 2026-08-05 | yes |  |
 | `personas.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `rag.py` | CALLED | 2 | 2026-06-04 | yes |  |
 | `rag_seed.py` | CALLED | 2 | 2026-05-24 | yes |  |
@@ -776,7 +776,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `linux-root-home-harness.js` | CALLED | 1 | 2026-07-29 | yes |  |
+| `linux-root-home-harness.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `update-sitrep-auto.sh` | DOCS-ONLY | 0 | 2026-07-23 | no |  |
 
 ### `_tools/marathon/upload/armory-checkpoints` — 1 scripts, 0 referenced by nothing
@@ -904,29 +904,29 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `adversarial-chain.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `adversarial-cinder.js` | DOCS-ONLY | 0 | 2026-08-03 | yes |  |
-| `adversarial-neutron.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `adversarial-project.js` | CALLED | 3 | 2026-08-03 | yes |  |
-| `adversarial-rescue.js` | CALLED | 1 | 2026-08-03 | yes |  |
-| `adversarial-secgroup.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `adversarial-wall.js` | CALLED | 17 | 2026-08-03 | yes |  |
+| `adversarial-chain.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `adversarial-cinder.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
+| `adversarial-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `adversarial-project.js` | CALLED | 3 | 2026-08-11 | yes |  |
+| `adversarial-rescue.js` | CALLED | 1 | 2026-08-11 | yes |  |
+| `adversarial-secgroup.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `adversarial-wall.js` | CALLED | 17 | 2026-08-11 | yes |  |
 | `apply-bc1-patch.py` | ORPHAN | 0 | 2026-07-30 | yes |  |
-| `claim_service.py` | CALLED | 4 | 2026-07-31 | yes |  |
+| `claim_service.py` | CALLED | 4 | 2026-08-11 | yes |  |
 | `dump-slot-uids.py` | CALLED | 3 | 2026-07-31 | yes |  |
-| `e2e-stage3.js` | CALLED | 1 | 2026-08-03 | yes |  |
+| `e2e-stage3.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `ensure-second-network.sh` | ORPHAN | 0 | 2026-07-30 | yes |  |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
 | `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
 | `qc-lab.sh` | CALLED | 20 | 2026-07-31 | yes |  |
-| `reclaim-idle-slots.py` | CALLED | 4 | 2026-07-31 | yes |  |
-| `walkthrough-chain.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `walkthrough-cinder.js` | CALLED | 4 | 2026-08-03 | yes |  |
-| `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `walkthrough-project.js` | CALLED | 9 | 2026-08-03 | yes |  |
-| `walkthrough-rescue.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `walkthrough-secgroup.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `walkthrough-wall.js` | DOCS-ONLY | 0 | 2026-08-03 | yes |  |
+| `reclaim-idle-slots.py` | CALLED | 5 | 2026-07-31 | yes |  |
+| `walkthrough-chain.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `walkthrough-cinder.js` | CALLED | 4 | 2026-08-11 | yes |  |
+| `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `walkthrough-project.js` | CALLED | 9 | 2026-08-11 | yes |  |
+| `walkthrough-rescue.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `walkthrough-secgroup.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `walkthrough-wall.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 
 ### `_tools/operator-board/server` — 1 scripts, 0 referenced by nothing
 
@@ -941,31 +941,46 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `capture-tournament.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `gen-preview.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 
-### `_tools/qa` — 8 scripts, 2 referenced by nothing
+### `_tools/qa` — 14 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `access-guard-placement-test.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Asserts every page calling AccessGuard.require() runs it BEFORE <body> opens, and that a gated page still gates after the move. |
 | `check-render.js` | CALLED | 1 | 2026-08-03 | yes |  |
 | `cloud-games-skill-map-test.py` | ORPHAN | 0 | 2026-08-05 | yes |  |
+| `openstack-ch1-completion-test.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Walks OpenStack chapter 1 the way a student does (hub -> part -> finish -> Back) and asserts the hub marks the chapter complete only when all three parts are done. |
 | `probe-overflow.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
+| `render-ab-changed-pages.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Renders every changed _app page in a browser and A/Bs it against the SAME page served from git HEAD, so a regression is separated from a pre-existing bug. |
+| `sandbox-launcher-maximize-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Drives Maximize/Restore on the sandbox launcher, including the FALLBACK path taken when the Fullscreen API is unavailable or refused. |
+| `sandbox-launcher-size-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Measures the RENDERED sandbox iframe at three viewport sizes, so the launcher cannot silently go back to a fixed height on 35 pages. |
 | `serve.sh` | CALLED | 1 | 2026-08-03 | yes |  |
 | `tenant-pill-dismiss.test.js` | DOCS-ONLY | 0 | 2026-08-04 | yes |  |
 | `tenant-real-endpoint.test.js` | DOCS-ONLY | 0 | 2026-08-04 | yes |  |
 | `tenant-revocation-redirect.test.js` | DOCS-ONLY | 0 | 2026-08-04 | yes |  |
 | `tenant-white-label-separation.test.js` | DOCS-ONLY | 0 | 2026-08-04 | yes |  |
+| `tourist-visit-cap-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Proves the tourist 3-house visit cap actually stops a 4th house. |
 
-### `_tools/qa/cold-horizon` — 8 scripts, 3 referenced by nothing
+### `_tools/qa/cold-horizon` — 17 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `_chris_nec1_probe_tmp.js` | ORPHAN | 0 | 2026-08-10 | yes | _one-shot probe (leading underscore)_ |
+| `acts-test.js` | CALLED | 1 | 2026-08-10 | yes | Plays the LAGRANGE EDGE mission-act loop end to end: a corroborator starts LOCKED, the act is performed on its own surface, and the level then unlocks. |
+| `console-commands-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Types EVERY command the Lagrange ground segment console advertises, plus the shell commands its prompt implies, and reports which actually answer. |
+| `derive-flag-values.js` | CALLED | 1 | 2026-08-09 | yes | Derives le-01-cold-horizon flag values from missions-held.js so a seeded |
 | `drhex-button-test.js` | ORPHAN | 0 | 2026-08-05 | yes |  |
+| `gate-claims-test.js` | ORPHAN | 0 | 2026-08-10 | yes | Drives the REAL independence-test UI and checks every claim it sends against the REAL server verifier, including the distractor comparisons the missions invite. |
 | `gl-check.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
 | `hint-test.js` | ORPHAN | 0 | 2026-08-05 | yes |  |
-| `playthrough.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
+| `lagrange-terminal-test.js` | ORPHAN | 0 | 2026-08-10 | yes | Verifies the LAGRANGE EDGE ground-segment console: physics derivations, SDLS refusal, provenance on every telemetry read, and inheritance. |
+| `missions-test.js` | DOCS-ONLY | 0 | 2026-08-10 | yes | Verifies every built mission of le-01-cold-horizon: Act I (1,2,3) plus |
+| `playthrough.js` | CALLED | 1 | 2026-08-10 | yes |  |
+| `rsv-teardown-test.js` | CALLED | 1 | 2026-08-10 | yes | Proves createRSV().destroy() removes every listener, so mounting a second flying mission without a page reload cannot double-apply thrust (#307). |
 | `seam-host-test.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
 | `skill-map-test.js` | ORPHAN | 0 | 2026-08-05 | yes |  |
-| `strand-test.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
+| `strand-test.js` | CALLED | 1 | 2026-08-05 | yes |  |
 | `tracker-test.js` | DOCS-ONLY | 0 | 2026-08-05 | yes |  |
+| `walkdown-collision-test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves the walk-down front-end boxes are SOLID: drives the vehicle into each one and observes the ejection, dead centre and on a realistic approach. |
 
 ### `_tools/qa/cse-decks` — 2 scripts, 1 referenced by nothing
 
@@ -1003,7 +1018,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 10 scripts, 3 referenced by nothing
+### `_tools/rules-test` — 11 scripts, 4 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1016,6 +1031,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
 | `mallory-verify-users-create-2026-08-05.test.js` | ORPHAN | 0 | 2026-08-05 | no |  |
+| `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
@@ -1305,13 +1321,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `10__t08_bonus_sign_off__line2.sh` | ORPHAN | 0 | 2026-07-09 | no |  |
 | `11__t08_bonus_sign_off__line3.sh` | ORPHAN | 0 | 2026-07-09 | no |  |
 
-### `_tools/sandbox-missions/lab-manager` — 4 scripts, 2 referenced by nothing
+### `_tools/sandbox-missions/lab-manager` — 5 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `apply-catalog-mask.py` | ORPHAN | 0 | 2026-07-09 | yes |  |
 | `apply-mission-engine.py` | ORPHAN | 0 | 2026-07-09 | yes |  |
 | `apply-missions-endpoint.py` | DOCS-ONLY | 0 | 2026-07-09 | yes |  |
+| `apply-release-slot-route.py` | ORPHAN | 0 | 2026-08-11 | no |  |
 | `missions.js` | CALLED | 3 | 2026-07-09 | yes |  |
 
 ### `_tools/sandbox-missions/less-readingroom` — 3 scripts, 3 referenced by nothing
@@ -1674,7 +1691,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `task.js` | ORPHAN | 0 | 2026-07-23 | no |  |
+| `task.js` | ORPHAN | 0 | 2026-07-23 | yes |  |
 
 ### `_tools/tenant` — 1 scripts, 0 referenced by nothing
 
@@ -1697,7 +1714,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-22 scripts are referenced by nothing AND follow the leading-underscore
+23 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1706,6 +1723,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
+- `_tools/qa/cold-horizon/_chris_nec1_probe_tmp.js` · last modified 2026-08-10
 - `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
 - `_tools/sandbox-missions/cat-lost-notes/_test-checks.sh` · last modified 2026-07-09
 - `_tools/sandbox-missions/cat-lost-notes/_test-solution.sh` · last modified 2026-07-09
