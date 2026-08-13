@@ -345,6 +345,72 @@ async function withRetry(label, fn, tries = 3) {
           wrong.length ? wrong.map(w => `${w.where} says ${w.n}`).join('; ') + ` but total is ${done.total}`
                        : `only ${claims.length} claims found, expected at least 3`);
 
+    /* ⚠ CAPTURE THE COMPLETED STUDENT **BEFORE** ANY OTHER PAGE TOUCHES THIS ORIGIN.
+       localStorage is shared per origin across pages in one browser, so the failed-quiz page
+       below overwrites it. When this capture sat after that page, the "completed student"
+       blob was silently the 0% student and the cross-device phase failed for a reason that
+       had nothing to do with the code under test. Same trap as feedback_the_harness_carried_state. */
+    const cloudBlob = await page.evaluate(() => {
+        const out = {};
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k === 'hexworth_progress' || /^hexworth_openstack_.*_quiz_(score|passed)$/.test(k)) {
+                out[k] = localStorage.getItem(k);
+            }
+        }
+        return out;
+    });
+    check('captured a real completed student from the journey',
+          Object.keys(cloudBlob).length >= chapters.length, `${Object.keys(cloudBlob).length} keys`);
+
+    /* ── A FAILED QUIZ MUST NOT COMPLETE A CHAPTER (BUG-106) ─────────────────────────────
+       This harness reported 48/48 while the hub counted a quiz as done whether the student
+       passed or failed it, because finishQuiz() above always writes a PASSING score. It could
+       not see the defect it was covering. A student who scored 0 on all four quizzes got four
+       green cards and 11/12; with the review that is 100% with no correct quiz answer anywhere.
+
+       So: seed exactly what a 0% submission leaves behind, on a clean page, and require the
+       hub to refuse. Presentations and labs are seeded as genuinely done, so the only thing
+       standing between this student and a green card is the quiz gate. */
+    console.log('\n--- a student who FAILED every quiz ---');
+    const failPage = await browser.newPage();
+    const failErrors = [];
+    failPage.on('pageerror', e => failErrors.push(String(e.message).slice(0, 110)));
+    await failPage.evaluateOnNewDocument(() => {
+        try {
+            localStorage.clear();
+            localStorage.setItem('hexworth_house', 'cloud');
+            localStorage.setItem('hexworth_sorted', 'true');
+            localStorage.setItem('hexworth_progress', JSON.stringify({ cloud: {
+                'cloud-openstack-intro': { completed: true }, 'cloud-openstack-projects': { completed: true },
+                'cloud-openstack-install': { completed: true }, 'cloud-openstack-operation': { completed: true },
+                'cloud-openstack-install-lab': { completed: true }, 'cloud-openstack-launch-lab': { completed: true },
+                'cloud-openstack-advanced-lab': { completed: true },
+                // what ModuleProgress.completeQuiz writes for a FAILED quiz
+                'openstack-intro-quiz': { completed: false, score: 0 },
+                'openstack-projects-quiz': { completed: false, score: 0 },
+                'openstack-install-quiz': { completed: false, score: 0 },
+                'openstack-operation-quiz': { completed: false, score: 0 }
+            }}));
+            ['lesson1', 'lesson2', 'lesson3', 'lesson4'].forEach(k => {
+                localStorage.setItem('hexworth_openstack_' + k + '_quiz_score', '0');
+                localStorage.setItem('hexworth_openstack_' + k + '_quiz_passed', '0');
+            });
+        } catch (e) {}
+    });
+    await withRetry('hub load (failed-quiz student)', () => failPage.goto(HUB, NAV));
+    await settle(900);
+    const failed = await failPage.evaluate(() => ({
+        cards: [...document.querySelectorAll('.module-card')].map(c => c.classList.contains('completed')),
+        text: (document.getElementById('progressText') || {}).textContent || ''
+    }));
+    check('  0% on every quiz completes NO chapter', failed.cards.every(v => v === false),
+          JSON.stringify(failed.cards) + ' ' + failed.text.trim());
+    check('  and the counter credits only the presentations and labs (7)',
+          /\b7\s*\/\s*12\b/.test(failed.text), failed.text.trim());
+    check('  no page errors for the failing student', failErrors.length === 0, failErrors[0]);
+    await failPage.close();
+
     /* ── CROSS-DEVICE, every chapter (BUG-101) ────────────────────────────────────────────
        The student finished on their laptop; this is the phone. localStorage is empty, the hub
        renders zeros, and the cloud data arrives AFTER that render via
@@ -358,18 +424,6 @@ async function withRetry(label, fn, tries = 3) {
 
        The middle assertion is the control. Writing the merged data WITHOUT the event must NOT
        repaint; otherwise a pass here would prove nothing about the listener. */
-    const cloudBlob = await page.evaluate(() => {
-        const out = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k === 'hexworth_progress' || /^hexworth_openstack_.*_quiz_(score|passed)$/.test(k)) {
-                out[k] = localStorage.getItem(k);
-            }
-        }
-        return out;
-    });
-    check('captured a real completed student from the journey',
-          Object.keys(cloudBlob).length >= chapters.length, `${Object.keys(cloudBlob).length} keys`);
 
     console.log('\n--- cross-device: the same student on a second device ---');
     const phone = await browser.newPage();

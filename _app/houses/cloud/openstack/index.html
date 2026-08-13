@@ -667,10 +667,48 @@
 
             // Check quiz scores
             const quizKeys = ['lesson1', 'lesson2', 'lesson3', 'lesson4'];
-            quizKeys.forEach(key => {
-                const score = localStorage.getItem('hexworth_openstack_' + key + '_quiz_score');
-                if (score !== null) completed++;
-            });
+            /* Module ids ModuleProgress.completeQuiz writes, index-aligned with quizKeys above.
+               Note they are NOT prefixed 'cloud-' the way the presentation and lab ids are; that
+               is what the quiz pages actually pass. */
+            const quizIds = ['openstack-intro-quiz', 'openstack-projects-quiz',
+                             'openstack-install-quiz', 'openstack-operation-quiz'];
+
+            /* ⚠ DID THEY PASS, NOT DID THEY SUBMIT (BUG-106).
+               This asked `localStorage.getItem(..._quiz_score) !== null`, which is true for ANY
+               finished attempt including 0%. A student who scored 0 on all four quizzes got four
+               green chapter cards and 11/12, and with the review that is 100% with no correct
+               quiz answer anywhere. Reproduced, twice, before this was changed.
+
+               Two signals say "passed" and the hub was reading neither. Each quiz writes
+               `<STORE_KEY>_passed` on the line after `_score`, and ModuleProgress.completeQuiz
+               computes `passed = score >= passingScore` (70, which is also every quiz's own
+               PASS_PCT) and stores `completed: passed` into the SAME hexworth_progress object
+               this function already reads for presentations and labs.
+
+               Either signal is accepted, because either one alone means passed, and requiring
+               both would retract credit from a student whose structured record is missing for
+               some legacy reason. Neither is `_score !== null`, so a failure is never credited.
+               The CySA hub already gates this way (houses/eye/cysa/index.html). */
+            /* 70 is every openstack quiz's own PASS_PCT and ModuleProgress's default
+               passingScore. It is named here only for the legacy branch below; the two branches
+               above use the thresholds those systems already applied, rather than re-deciding. */
+            const QUIZ_PASS_PCT = 70;
+
+            function quizPassed(i) {
+                const rec = cloud[quizIds[i]];
+                if (rec && rec.completed) return true;                       // ModuleProgress already judged it
+                const passedFlag = localStorage.getItem('hexworth_openstack_' + quizKeys[i] + '_quiz_passed');
+                if (passedFlag !== null) return passedFlag === '1';          // the quiz already judged it
+                /* LEGACY ONLY: a score with neither judgement beside it. Found by an edge-case
+                   matrix, not by the main harness: a student holding `_score = 85` and nothing
+                   else would have LOST a chapter they had genuinely passed, which is a worse
+                   error than the one being fixed, because it takes away earned work. Judge it
+                   here rather than refuse it. A failing legacy score still fails. */
+                const score = localStorage.getItem('hexworth_openstack_' + quizKeys[i] + '_quiz_score');
+                return score !== null && Number(score) >= QUIZ_PASS_PCT;
+            }
+
+            quizKeys.forEach((key, i) => { if (quizPassed(i)) completed++; });
 
             // Check review
             const reviewDone = !!(cloud['cloud-openstack-review'] && cloud['cloud-openstack-review'].completed);
@@ -696,12 +734,13 @@
             document.querySelectorAll('.module-card').forEach((card, idx) => {
                 const presId = presIds[idx];
                 const labId = labIds[idx];
-                const quizKey = quizKeys[idx];
 
                 const presComplete = cloud[presId] && cloud[presId].completed;
                 let labComplete = !labId; // Lesson 4 has no lab
                 if (labId) labComplete = cloud[labId] && cloud[labId].completed;
-                const quizComplete = localStorage.getItem('hexworth_openstack_' + quizKey + '_quiz_score') !== null;
+                /* Same gate as the counter above, via the same helper, so a card and the number
+                   beside it can never disagree about what a quiz is worth. */
+                const quizComplete = quizPassed(idx);
 
                 /* toggle, not add. This function can now run more than once (see the listeners
                    below), and an add-only branch can only ever move a card INTO the completed
