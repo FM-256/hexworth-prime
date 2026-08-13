@@ -31,6 +31,27 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-106 — the OpenStack hub counts a FAILED quiz as completed  ·  [P1]  ·  open
+- **Found:** 2026-08-12 · by Nancy · full adversarial QC of the three shipped hub fixes
+- **Area:** `_app/houses/cloud/openstack/index.html:671` (counter) and `:704` (card completion)
+- **Symptom:** a student who scores **0% on all four quizzes** through the normal UI, with presentations and labs genuinely done, sees **all four chapter cards green and 11 / 12 completed**. Play the review, which has no threshold by design, and the course reads **100%**. No devtools and no spoofing: this is what failing looks like.
+- **Repro:** seed the exact keys a 0% submission writes (`_score='0'`, `_passed='0'`, and ModuleProgress's structured record with `completed:false`), load the hub. Reproduced independently twice, by Nancy and by me.
+- **Root cause:** the hub asks whether a score EXISTS, never whether it passed. `if (localStorage.getItem('hexworth_openstack_' + key + '_quiz_score') !== null) completed++`. The quiz pages write **three** signals on submit and the hub reads the only unconditional one: `_score` (always written), `_passed` ('1'/'0', written on the very next line, never read), and `ModuleProgress.completeQuiz(...)`, which already computes `passed = score >= passingScore` (default 70) and stores `completed: passed` into the structured `hexworth_progress` the hub ALREADY has in scope as `cloud[...]` (`ModuleProgress.js:729,741`). The correct signal is sitting in the same object the hub reads for presentations and labs.
+- **NOT platform convention.** `_app/houses/eye/cysa/index.html:741` does it correctly, reading the structured gated record rather than a raw key. This hub reads the wrong signal while the right one is available.
+- **Fix:** NOT FIXED, and it needs an operator decision before code, because the correct gate is RETRACTIVE: any student who previously "completed" a chapter on a failed quiz will see that chapter, and their course percentage, go backwards. Options: gate on `cloud[quizId].completed` (the structured record, matching the CySA hub), or gate on `_passed === '1'`. The first is better because it reuses the platform's own already-computed threshold instead of adding a second one.
+- **Verified:** n/a — open. The defect is reproducible with the script noted above.
+- ⚠ **MY HARNESS STRUCTURALLY CANNOT SEE THIS**, and its 48/48 is true and uninformative here: `finishQuiz()` in `_tools/qa/openstack-hub-completion-test.js` always writes `_score='100'` / `_passed='1'`, so it never simulates failure. Any fix must add a failing-quiz case, or the next green run will mean as little as this one did.
+- **Related:** BUG-103 (this is the completion state that fix made reachable), BUG-104 (same hub, completion granted too cheaply, but that one needs devtools and this one does not), BUG-105.
+
+### BUG-107 — two disagreeing definitions of the OpenStack course: the hub says 12, the dashboard says 7  ·  [P3]  ·  open
+- **Found:** 2026-08-12 · by Nancy · same QC pass
+- **Area:** `_app/components/LearningPaths.js:3092-3142` vs `_app/houses/cloud/openstack/index.html:658`
+- **Symptom:** the hub counts 12 activities. `LearningPaths.js` defines the `openstack` path as **7** modules (4 presentations + 3 labs, no quizzes, no review), and `dashboard.html:5790` renders that as "7 modules" on the student's own path card, which is the page they are likelier to see first.
+- **Root cause:** two independent enumerations of the same course, neither derived from the other.
+- **Fix:** NOT FIXED. Needs a decision on which is authoritative before either is changed. The hub's 12 is correctly derived from what is actually on the hub (verified: 3+3+3+2+1); the 7 omits the graded work entirely.
+- **Verified:** n/a — open.
+- **Related:** BUG-103. Also worth noting there: the six live-cloud labs and the capstone are linked on the hub, record NOTHING through ModuleProgress, and are in neither definition. Nobody has stated that exclusion is intentional.
+
 ### BUG-105 — cross-device quiz completion rides a debounced generic blob that quiz completion never triggers  ·  [P2]  ·  open
 - **Found:** 2026-08-12 · by Nancy · adversarial QC of the BUG-101 fix
 - **Area:** `_app/components/FirestoreManager.js:1540` (`_writeSyncBlob` at the tail of `syncBidirectional`), `_app/components/ModuleProgress.js:1621,1762` (60s per-uid debounce), `_app/houses/cloud/openstack/index.html:641` (the hub reads the raw key)
@@ -75,6 +96,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - ⚠ **READ BEFORE TRUSTING 100% ON THIS HUB.** This fix makes the course REACHABLE; it does not make it sound. Two open defects bear directly on the completion state it now lets a student reach:
   - **BUG-104**: the three module-card labs gate on `completedTasks.size`, never on WHICH tasks, so a student can reach a green card and count it toward this 12 with zero correct work, from devtools, today.
   - **BUG-105**: the quiz third of every chapter rides a debounced generic blob across devices, so the same 100% may not survive a device switch within any bounded time.
+  - **BUG-106 (P1, found AFTER this fix shipped)**: the hub counts a quiz as complete whether the student passed or failed it. Score 0% on all four and every chapter still goes green. The 100% this fix made reachable can therefore be reached with no correct quiz answers at all, through the normal UI.
   Neither is caused by this fix and neither is fixed by it. An operator authorising a deploy on the strength of "the course can now be completed" should know both.
 
 ### BUG-102 — post-verify's lab content-leak smoke fails deploys on a single stalled document fetch  ·  [P3]  ·  open
