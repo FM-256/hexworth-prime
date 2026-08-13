@@ -202,6 +202,91 @@ async function withRetry(label, fn, tries = 3) {
     check('every chapter remains complete at the end', finalStates.every(v => v === true),
           JSON.stringify(finalStates));
 
+    /* ── THE COURSE MUST BE FINISHABLE (BUG-103) ──────────────────────────────────────────
+       Chapters going green is not the same claim as the course reaching 100%. Before this fix
+       the comprehensive review recorded nothing (its onComplete was an empty function) and the
+       denominator counted that one review twice, so a student who did everything read 11/13 and
+       85% on a page telling them to complete all 13 activities.
+
+       So: play the review the way a student reaches it, from the hub's own link, then come back
+       and assert the counter reads N/N. The denominator is read off the page rather than
+       hardcoded here, because a test that asserts "12" would go green again the moment someone
+       edits the total to match a new miscount. */
+    console.log('\n--- the comprehensive review, and finishing the course ---');
+    await withRetry('review link', async () => {
+        await Promise.all([
+            page.waitForNavigation(NAV),
+            page.evaluate(() => document.querySelector('a.link-review').click())
+        ]);
+    });
+    await settle(900);
+
+    /* PLAY THE REVIEW FOR REAL. An earlier version of this check recorded the completion by
+       hand from the review page's context and asserted the source contained the call. Both
+       passed while the engine's onComplete had never once fired in a browser, which is the same
+       "structure is not behaviour" mistake that started this whole investigation. So it plays:
+       every clue, Final Jeopardy, and then the "See Final Results" button, because it is
+       render() from THAT last click which reaches showResults() and fires config.onComplete.
+       Missing that one click is what made my first playthrough report a false failure. */
+    const closeModal = async () => {
+        for (let t = 0; t < 20; t++) {
+            const gone = await page.evaluate(() => {
+                const c = document.querySelector('.review-continue-btn');
+                if (c) { c.click(); return false; }
+                return !document.getElementById('reviewModal');
+            });
+            if (gone) return true;
+            await settle(120);
+        }
+        return false;
+    };
+    let clues = 0;
+    for (let i = 0; i < 40; i++) {
+        if (!await page.evaluate(() => !!document.querySelector('.review-cell-active'))) break;
+        await page.evaluate(() => document.querySelector('.review-cell-active').click());
+        await settle(150);
+        if (await page.evaluate(() => { const o = document.querySelector('.review-modal-options .review-option-btn'); if (!o) return false; o.click(); return true; })) clues++;
+        await settle(200);
+        await closeModal();
+        await settle(120);
+    }
+    const board = await page.evaluate(() => (typeof ReviewEngine !== 'undefined' && ReviewEngine.getProgress) ? ReviewEngine.getProgress() : null);
+    check('  every clue on the board was answered', !!board && board.answered === board.total,
+          board ? `${board.answered}/${board.total}` : 'ReviewEngine.getProgress unavailable');
+    await settle(400);
+    await page.evaluate(() => { const o = document.querySelector('.review-modal-options .review-option-btn'); if (o) o.click(); });
+    await settle(500);
+    await page.evaluate(() => { const c = document.querySelector('.review-continue-btn'); if (c) c.click(); });
+    await settle(900);
+    const played = await page.evaluate(() =>
+        !!((JSON.parse(localStorage.getItem('hexworth_progress') || '{}').cloud || {})['cloud-openstack-review'] || {}).completed);
+    check('  PLAYING the review to the end records it (onComplete actually fires)', played === true);
+
+    await page.goBack(NAV);
+    await settle(900);
+    const beforeReview = { count: -1, text: 'played the review' };
+    await settle(300);
+    const done = await page.evaluate(() => {
+        const txt = (document.getElementById('progressText') || {}).textContent || '';
+        const m = txt.match(/(\d+)\s*\/\s*(\d+)/);
+        return { text: txt, done: m ? Number(m[1]) : -1, total: m ? Number(m[2]) : -1 };
+    });
+    check('  the review counts toward the total', done.done > beforeReview.count - 1 && done.done === done.total,
+          `${beforeReview.text} -> ${done.text}`);
+    check('  THE COURSE REACHES 100%: every activity done equals the advertised total',
+          done.done === done.total && done.total > 0, done.text);
+    const fs2 = require('fs');
+    const reviewSrc = fs2.readFileSync(path.resolve(ROOT,
+        'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'), 'utf8');
+    const hook = reviewSrc.slice(reviewSrc.indexOf('onComplete:'));
+    check('  the review page\'s onComplete actually records (not an empty function)',
+          /ModuleProgress\.complete\(\s*'cloud'\s*,\s*'cloud-openstack-review'/.test(hook),
+          'onComplete does not call ModuleProgress.complete with the id the hub reads');
+
+    const copy = await page.evaluate(() => document.body.innerText.match(/Complete all (\d+) activities/));
+    check('  the on-page copy names the same total the counter uses',
+          !!copy && Number(copy[1]) === done.total, copy ? `copy says ${copy[1]}, counter says ${done.total}` : 'copy not found');
+
     /* ── CROSS-DEVICE, every chapter (BUG-101) ────────────────────────────────────────────
        The student finished on their laptop; this is the phone. localStorage is empty, the hub
        renders zeros, and the cloud data arrives AFTER that render via
