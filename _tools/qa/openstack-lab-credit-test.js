@@ -62,6 +62,28 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
  });
  ck('a wrong answer does NOT credit task 1', t1bad===false, 'wrong answer credited');
  await p.close();
+ // 4. THE RETURNING STUDENT. Did all five tasks yesterday; comes back to an empty page.
+ //    restoreState() restores completedTasks but NOT the inputs, so if the fix re-validated at
+ //    FINISH time this student would be blocked, which is worse than the bug being fixed.
+ //    Seeded in evaluateOnNewDocument because it re-runs on every navigation: seeding between
+ //    loads gets wiped, which made an earlier version of this test report a false failure.
+ const back=await b.newPage();
+ let alerted=null;
+ back.on('dialog',async d=>{alerted=d.message(); await d.dismiss();});
+ await back.evaluateOnNewDocument(()=>{
+   localStorage.setItem('hexworth_house','cloud'); localStorage.setItem('hexworth_sorted','true');
+   localStorage.setItem('hexworth_openstack_lab1_tasks', JSON.stringify([1,2,3,4,5]));
+ });
+ await back.goto(`http://127.0.0.1:${port}${URL_}`,{waitUntil:'domcontentloaded'});
+ await new Promise(r=>setTimeout(r,900));
+ const rs=await back.evaluate(()=>({n:completedTasks.size, empty:(document.getElementById('ctrl-mgmt')||{}).value===''}));
+ ck('returning student keeps their five tasks', rs.n===5, 'restored '+rs.n);
+ ck('  with the inputs genuinely empty', rs.empty===true, 'inputs prefilled, case not exercised');
+ await back.evaluate(()=>completeModule());
+ await new Promise(r=>setTimeout(r,600));
+ ck('  and Finish is NOT blocked for them', await credited(back), 'blocked a legitimate student; alert='+alerted);
+ await back.close();
+
  await b.close(); srv.close();
  console.log(`\n  ${pass}/${pass+fail} checks passed`);
  process.exit(fail?1:0);
