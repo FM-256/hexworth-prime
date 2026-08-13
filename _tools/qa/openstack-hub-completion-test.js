@@ -290,9 +290,60 @@ async function withRetry(label, fn, tries = 3) {
           /ModuleProgress\.complete\(\s*'cloud'\s*,\s*'cloud-openstack-review'/.test(hook),
           'onComplete does not call ModuleProgress.complete with the id the hub reads');
 
-    const copy = await page.evaluate(() => document.body.innerText.match(/Complete all (\d+) activities/));
-    check('  the on-page copy names the same total the counter uses',
-          !!copy && Number(copy[1]) === done.total, copy ? `copy says ${copy[1]}, counter says ${done.total}` : 'copy not found');
+    /* EVERY number on the page that claims an activity count, not just the one phrase I happened
+       to check. The earlier version matched only "Complete all N activities" and went green while
+       the hero stat block still read "13 Activities" and the counter's own initial text still said
+       "0 / 13" (Chris found the first, the repo QC hook found the second). Verifying one instance
+       and assuming the rest of the page agrees is how a wrong number survives a fix aimed at it. */
+    const claims = await page.evaluate(() => {
+        const out = [];
+        const body = document.body.innerText || '';
+        const phrase = body.match(/Complete all (\d+) activities/i);
+        if (phrase) out.push({ where: 'about copy', n: Number(phrase[1]) });
+        // stat blocks: a bare number whose sibling label names activities
+        document.querySelectorAll('.exam-stat').forEach(st => {
+            const label = (st.querySelector('.label') || {}).textContent || '';
+            const value = (st.querySelector('.value') || {}).textContent || '';
+            if (/activit/i.test(label) && /^\s*\d+\s*$/.test(value)) {
+                out.push({ where: 'stat block "' + label.trim() + '"', n: Number(value) });
+            }
+        });
+        // the counter itself
+        const pt = (document.getElementById('progressText') || {}).textContent || '';
+        const m = pt.match(/\d+\s*\/\s*(\d+)/);
+        if (m) out.push({ where: 'progress counter', n: Number(m[1]) });
+        return out;
+    });
+    /* FIRST PAINT, which the runtime check structurally cannot see. updateProgress overwrites
+       the counter's text on load, so a stale literal in the markup is invisible to any assertion
+       that runs after settle(). Proven: restoring "0 / 13 completed" produced ZERO failures in
+       the runtime check. It is still wrong, because it is what the student reads for the instant
+       before the script runs, and it is what a reviewer reads in the source. So the raw HTML is
+       checked as shipped, against the `total` the script itself declares. */
+    const rawHtml = await new Promise((resolve, reject) => {
+        const lib = HUB.startsWith('https') ? require('https') : require('http');
+        lib.get(HUB, res => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(d)); })
+           .on('error', reject);
+    });
+    const declared = (rawHtml.match(/const total = (\d+)/) || [])[1];
+    const literals = [];
+    const initial = rawHtml.match(/id="progressText"[^>]*>\s*\d+\s*\/\s*(\d+)/);
+    if (initial) literals.push({ where: 'initial counter markup', n: Number(initial[1]) });
+    const heroStat = rawHtml.match(/id="activityCount"[^>]*>\s*(\d+)\s*</);
+    if (heroStat) literals.push({ where: 'hero stat markup', n: Number(heroStat[1]) });
+    const copyLit = rawHtml.match(/Complete all (\d+) activities/i);
+    if (copyLit) literals.push({ where: 'about copy markup', n: Number(copyLit[1]) });
+    const staleLit = literals.filter(l => String(l.n) !== String(declared));
+    check(`  no stale activity-count LITERAL in the shipped markup (${literals.length} checked, total=${declared})`,
+          !!declared && literals.length >= 3 && staleLit.length === 0,
+          staleLit.length ? staleLit.map(l => `${l.where} says ${l.n}`).join('; ') + ` but const total = ${declared}`
+                          : `declared=${declared}, literals found=${literals.length}`);
+
+    const wrong = claims.filter(c => c.n !== done.total);
+    check(`  EVERY activity-count on the page agrees with the counter (${claims.length} found)`,
+          claims.length >= 3 && wrong.length === 0,
+          wrong.length ? wrong.map(w => `${w.where} says ${w.n}`).join('; ') + ` but total is ${done.total}`
+                       : `only ${claims.length} claims found, expected at least 3`);
 
     /* ── CROSS-DEVICE, every chapter (BUG-101) ────────────────────────────────────────────
        The student finished on their laptop; this is the phone. localStorage is empty, the hub
