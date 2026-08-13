@@ -1112,7 +1112,72 @@ function updateProgress() {
     }
 }
 
+/* ── INDEPENDENT TASK VALIDATORS (BUG-104) ────────────────────────────────────
+   Each one answers "is task N actually correct on the page RIGHT NOW", reading the same
+   state its checkTaskN reads and touching no UI. They exist so credit can be re-derived
+   at the moment it is claimed instead of trusted from a counter.
+
+   ⚠ WHAT THIS DOES AND DOES NOT BUY. Before this, `completeModule()` gated on
+   `completedTasks.size < TOTAL_TASKS`, the SIZE of a Set and never WHICH tasks were in
+   it, so `markTaskComplete(97); ... markTaskComplete(101); completeModule()` awarded full
+   credit from the console with zero correct answers. Now markTaskComplete re-validates,
+   so calling it by hand does nothing unless the page genuinely holds a correct answer,
+   which means doing the work.
+   It does NOT make this unforgeable. completedTasks is persisted to localStorage and a
+   determined student can edit that directly. Nothing client-side can close that; only
+   server-side grading can, which is exactly what the Stage 4 live labs on this course
+   already do. This raises the floor from "type five numbers" to "tamper with storage",
+   and that limit is stated rather than papered over. */
+const TASK_VALIDATORS = {
+    1: function () {
+        const answers = { 'ctrl-mgmt': '10.0.0.11/24', 'ctrl-gw': '10.0.0.1',
+                          'comp-mgmt': '10.0.0.31/24', 'comp-gw': '10.0.0.1' };
+        return Object.entries(answers).every(function (pair) {
+            const el = document.getElementById(pair[0]);
+            if (!el) return false;
+            return el.value.trim().toLowerCase().replace(/\s/g, '') === pair[1].toLowerCase();
+        });
+    },
+    2: function () {
+        return typeof orderItems !== 'undefined' && typeof STEPS_CORRECT !== 'undefined'
+            && orderItems.length === STEPS_CORRECT.length
+            && orderItems.every(function (item, i) { return item === STEPS_CORRECT[i]; });
+    },
+    3: function () {
+        const fields = { 'ks-token': ['fernet'], 'ks-port': ['5000'],
+                         'ks-region': ['regionone', 'region1'], 'ks-dbpass': true, 'ks-adminpw': true };
+        return Object.entries(fields).every(function (pair) {
+            const el = document.getElementById(pair[0]);
+            if (!el) return false;
+            const val = el.value.trim().toLowerCase();
+            return pair[1] === true ? val.length >= 4 : pair[1].includes(val);
+        });
+    },
+    4: function () {
+        return typeof matchedPairs !== 'undefined' && typeof GLANCE_PAIRS !== 'undefined'
+            && matchedPairs.size === GLANCE_PAIRS.length;
+    },
+    5: function () {
+        const ctrlCol = document.getElementById('drop-controller');
+        const compCol = document.getElementById('drop-compute');
+        if (!ctrlCol || !compCol || typeof SERVICES === 'undefined') return false;
+        return SERVICES.every(function (svc) {
+            const chip = document.querySelector('[data-service="' + svc.name + '"]');
+            if (!chip) return false;
+            return svc.target === 'controller' ? ctrlCol.contains(chip) : compCol.contains(chip);
+        });
+    }
+};
+
+function taskIsActuallyDone(n) {
+    const v = TASK_VALIDATORS[n];
+    return typeof v === 'function' ? !!v() : false;
+}
+
 function markTaskComplete(n) {
+    /* Re-derive rather than trust the caller. checkTaskN calls this after its own check;
+       anything else calling it gets the same scrutiny, which is the point. */
+    if (!taskIsActuallyDone(n)) return;
     completedTasks.add(n);
     saveState();
     updateProgress();
@@ -1453,8 +1518,12 @@ function completeModule() {
     // gauntlet's free-credit button. completedTasks was already tracked and simply
     // never consulted.
     const TOTAL_TASKS = 5;
-    if (completedTasks.size < TOTAL_TASKS) {
-        alert('Complete all ' + TOTAL_TASKS + ' tasks first -- you have ' + completedTasks.size + '.');
+    /* WHICH tasks, not HOW MANY. `completedTasks.size < TOTAL_TASKS` was satisfied by any
+       five entries at all, including 97..101 (BUG-104). */
+    const missing = [];
+    for (let t = 1; t <= TOTAL_TASKS; t++) if (!completedTasks.has(t)) missing.push(t);
+    if (missing.length) {
+        alert('Complete all ' + TOTAL_TASKS + ' tasks first. Still outstanding: ' + missing.join(', ') + '.');
         return;
     }
     if (typeof ModuleProgress !== 'undefined') {
