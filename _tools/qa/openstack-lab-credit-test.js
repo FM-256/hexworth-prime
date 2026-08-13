@@ -84,6 +84,36 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
  ck('  and Finish is NOT blocked for them', await credited(back), 'blocked a legitimate student; alert='+alerted);
  await back.close();
 
+ // 5. THE SAME EXPLOIT, ACROSS ALL THREE MODULE-CARD LABS. The defect was identical in each
+ //    (completeModule gated on completedTasks.size), so the guard has to be proven in each.
+ //    Only the install lab's legitimate path is walked above; launch-vm and advanced-ops have
+ //    their own per-task legitimate checks recorded in the commit that hardened them.
+ const LABS=[['install','/houses/cloud/openstack/labs/cloud-openstack-install.lab.html','cloud-openstack-install-lab'],
+             ['launch-vm','/houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html','cloud-openstack-launch-lab'],
+             ['advanced-ops','/houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html','cloud-openstack-advanced-lab']];
+ for (const [name,url,moduleId] of LABS) {
+   const q=await b.newPage();
+   q.on('dialog',async d=>{await d.dismiss();});
+   /* ⚠ CLEAR FIRST. localStorage is shared per ORIGIN across pages in one browser, and the
+      returning-student case above deliberately seeds hexworth_openstack_lab1_tasks=[1..5].
+      Without this the install lab restores those five tasks and completeModule legitimately
+      succeeds, which reported a FALSE FAILURE of the guard. Third time this trap has bitten
+      this session (feedback_the_harness_carried_state). */
+   await q.evaluateOnNewDocument(()=>{
+     localStorage.clear();
+     localStorage.setItem('hexworth_house','cloud'); localStorage.setItem('hexworth_sorted','true');
+   });
+   await q.goto(`http://127.0.0.1:${port}${url}`,{waitUntil:'domcontentloaded'});
+   await new Promise(r=>setTimeout(r,900));
+   await q.evaluate(()=>{ for(let i=97;i<102;i++) markTaskComplete(i);
+                          for(let i=1;i<=5;i++) markTaskComplete(i); completeModule(); });
+   await new Promise(r=>setTimeout(r,300));
+   const got=await q.evaluate(id=>!!((JSON.parse(localStorage.getItem('hexworth_progress')||'{}').cloud||{})[id]||{}).completed, moduleId);
+   const n=await q.evaluate(()=>completedTasks.size);
+   ck(`${name}: console calls award no credit`, got===false && n===0, `credited=${got} set=${n}`);
+   await q.close();
+ }
+
  await b.close(); srv.close();
  console.log(`\n  ${pass}/${pass+fail} checks passed`);
  process.exit(fail?1:0);

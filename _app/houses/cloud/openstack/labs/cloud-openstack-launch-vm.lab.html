@@ -1158,7 +1158,89 @@ function updateProgress() {
     }
 }
 
+/* ── INDEPENDENT TASK VALIDATORS (BUG-104) ────────────────────────────────────
+   "Is task N actually correct on the page right now", read from the same state each
+   checkTaskN reads, touching no UI. Credit is re-derived at the moment it is claimed
+   instead of trusted from a counter, because completeModule used to gate on
+   completedTasks.size and markTaskComplete was a bare add(), so five console calls with
+   any numbers awarded the module.
+
+   ⚠ NOT UNFORGEABLE, and the limit is the same as the sibling labs: completedTasks
+   persists to localStorage and can be edited there. Only server-side grading closes
+   that, which the Stage 4 live labs on this course already do. This raises the floor
+   from "type five numbers" to "tamper with storage".
+
+   ⚠ Every threshold below is COPIED FROM THE CHECK IT MIRRORS, not tightened: task 2
+   requires 4 of 5 because checkTask2 does, task 5 requires 4 checkboxes and a >= 4 char
+   password because checkTask5 does. A validator stricter than its check would refuse
+   students who did the work, which is worse than the bug being fixed. */
+const TASK_VALIDATORS = {
+    1: function () {
+        /* ids are img-disk-fmt / img-cont-fmt. I first wrote the longer names from the
+           VARIABLE names in checkTask1 without checking the markup, which made this validator
+           refuse a student who had done task 1 correctly: the worse direction, and only caught
+           because the test asserts legitimate work still credits. */
+        const disk = document.getElementById('img-disk-fmt');
+        const cont = document.getElementById('img-cont-fmt');
+        const vis  = document.getElementById('img-visibility');
+        if (!disk || !cont || !vis) return false;
+        return disk.value === 'qcow2' && cont.value === 'bare' && vis.value === 'public';
+    },
+    2: function () {
+        const g = function (id) { const el = document.getElementById(id); return el ? el.value.trim() : null; };
+        const name = g('net-name'), cidr = g('net-cidr'), gw = g('net-gw'), ipv = g('net-ipv');
+        const dhcpEl = document.getElementById('net-dhcp');
+        if (name === null || cidr === null || gw === null || ipv === null || !dhcpEl) return false;
+        const dhcp = dhcpEl.value.trim().toLowerCase();
+        const score = [
+            name === 'selfservice' || name.length > 1,
+            /^172\.16\.\d+\.0\/24$/.test(cidr) || /^\d+\.\d+\.\d+\.0\/\d+$/.test(cidr),
+            /^172\.16\.\d+\.1$/.test(gw) || /^\d+\.\d+\.\d+\.\d+$/.test(gw),
+            dhcp === 'dhcp' || dhcp === '--dhcp',
+            ipv === '4'
+        ].filter(Boolean).length;
+        return score >= 4;   // same threshold checkTask2 uses
+    },
+    3: function () {
+        const rules = { ssh:  { dir: 'ingress', proto: 'tcp',  port: '22',  cidr: '0.0.0.0/0' },
+                        icmp: { dir: 'ingress', proto: 'icmp', port: 'any', cidr: '0.0.0.0/0' } };
+        let correct = 0;
+        for (const type of Object.keys(rules)) {
+            const e = rules[type];
+            const dir = document.getElementById('sg-' + type + '-dir');
+            const proto = document.getElementById('sg-' + type + '-proto');
+            const port = document.getElementById('sg-' + type + '-port');
+            const cidr = document.getElementById('sg-' + type + '-cidr');
+            if (!dir || !proto || !port || !cidr) return false;
+            if (dir.value === e.dir && proto.value === e.proto && port.value === e.port && cidr.value === e.cidr) correct++;
+        }
+        return correct === 2;
+    },
+    4: function () {
+        const answers = { 'srv-flavor': 'm1.nano', 'srv-image': 'cirros', 'srv-net': 'selfservice',
+                          'srv-sg': 'default', 'srv-key': 'mykey' };
+        return Object.entries(answers).every(function (pair) {
+            const el = document.getElementById(pair[0]);
+            return !!el && el.value === pair[1];
+        });
+    },
+    5: function () {
+        const pwEl = document.getElementById('cirros-pw');
+        if (!pwEl) return false;
+        const pw = pwEl.value.trim().toLowerCase();
+        const checked = document.querySelectorAll('.step-checkbox.checked').length;
+        const pwOk = pw === 'gocubsgo' || pw === 'cubswin:)' || pw.length >= 4;
+        return checked >= 4 && pwOk;   // same thresholds checkTask5 uses
+    }
+};
+
+function taskIsActuallyDone(n) {
+    const v = TASK_VALIDATORS[n];
+    return typeof v === 'function' ? !!v() : false;
+}
+
 function markTaskComplete(n) {
+    if (!taskIsActuallyDone(n)) return;
     completedTasks.add(n);
     saveState();
     updateProgress();
@@ -1345,8 +1427,11 @@ function completeModule() {
     // gauntlet's free-credit button. completedTasks was already tracked and simply
     // never consulted.
     const TOTAL_TASKS = 5;
-    if (completedTasks.size < TOTAL_TASKS) {
-        alert('Complete all ' + TOTAL_TASKS + ' tasks first -- you have ' + completedTasks.size + '.');
+    /* WHICH tasks, not HOW MANY: the old size check was satisfied by any five entries. */
+    const missing = [];
+    for (let t = 1; t <= TOTAL_TASKS; t++) if (!completedTasks.has(t)) missing.push(t);
+    if (missing.length) {
+        alert('Complete all ' + TOTAL_TASKS + ' tasks first. Still outstanding: ' + missing.join(', ') + '.');
         return;
     }
     if (typeof ModuleProgress !== 'undefined') {

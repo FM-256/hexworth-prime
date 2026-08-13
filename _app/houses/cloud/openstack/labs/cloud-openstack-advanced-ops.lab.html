@@ -938,7 +938,81 @@ function updateProgress() {
     }
 }
 
+/* ── INDEPENDENT TASK VALIDATORS (BUG-104) ────────────────────────────────────
+   "Is task N actually correct on the page right now", read from the same state each
+   checkTaskN reads, touching no UI. completeModule used to gate on completedTasks.size
+   and markTaskComplete was a bare add(), so five console calls with any numbers at all
+   awarded the module.
+
+   ⚠ THRESHOLDS ARE COPIED FROM THE CHECKS, NOT TIGHTENED. Tasks 2 and 4 pass at 4 of 5
+   and task 3 at 3 of 4 because their checks do. A validator stricter than its check
+   would refuse students who did the work, which is worse than the bug being fixed. On
+   the sibling lab I first wrote a validator from the VARIABLE names instead of the
+   markup and it refused a correct task 1; the ids below were read out of each check.
+
+   ⚠ NOT UNFORGEABLE: completedTasks persists to localStorage and can be edited there.
+   Only server-side grading closes that, as the Stage 4 live labs on this course do. */
+const TASK_VALIDATORS = {
+    1: function () {
+        const num = function (id) {
+            const el = document.getElementById(id);
+            return el ? parseFloat(el.value) : NaN;
+        };
+        const webVcpu = num('web-vcpu'), webRam = num('web-ram'), webDisk = num('web-disk');
+        const dbVcpu  = num('db-vcpu'),  dbRam  = num('db-ram'),  dbDisk  = num('db-disk');
+        const hpcVcpu = num('hpc-vcpu'), hpcRam = num('hpc-ram'), hpcDisk = num('hpc-disk');
+        const webOk = webVcpu >= 1 && webVcpu <= 4 && webRam >= 1024 && webRam <= 4096 && webDisk >= 10;
+        const dbOk  = dbVcpu >= 2 && dbRam >= 4096 && dbDisk >= 50;
+        const hpcOk = hpcVcpu >= 4 && hpcRam >= 2048 && hpcDisk >= 10;
+        return !!(webOk && dbOk && hpcOk && dbRam > webRam);
+    },
+    2: function () {
+        const answers = {
+            'vol-size':   function (v) { return /^\d+$/.test(v) && parseInt(v, 10) >= 1; },
+            'vol-list':   function (v) { return v.length > 0; },
+            'vol-attach': function (v) { return v.length > 0; },
+            'vol-fs':     function (v) { return ['ext4', 'xfs'].includes(v); },
+            'vol-mount':  function (v) { return v.length > 0; }
+        };
+        let correct = 0;
+        for (const id of Object.keys(answers)) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            if (answers[id](el.value.trim().toLowerCase())) correct++;
+        }
+        return correct >= 4;   // same threshold checkTask2 uses
+    },
+    3: function () {
+        let correct = 0;
+        for (const id of ['topo-q1', 'topo-q2', 'topo-q3', 'topo-q4']) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            if (el.value && el.classList.contains('correct')) correct++;
+        }
+        return correct >= 3;   // same threshold checkTask3 uses
+    },
+    4: function () {
+        let correct = 0;
+        for (const id of ['snap-create', 'snap-status', 'snap-img', 'snap-list', 'snap-del']) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            if (el.value && el.classList.contains('correct')) correct++;
+        }
+        return correct >= 4;   // same threshold checkTask4 uses
+    },
+    5: function () {
+        if (typeof mcState === 'undefined') return false;
+        return [mcState[1], mcState[2], mcState[3]].filter(Boolean).length === 3;
+    }
+};
+
+function taskIsActuallyDone(n) {
+    const v = TASK_VALIDATORS[n];
+    return typeof v === 'function' ? !!v() : false;
+}
+
 function markTaskComplete(n) {
+    if (!taskIsActuallyDone(n)) return;
     completedTasks.add(n);
     saveState();
     updateProgress();
@@ -1136,8 +1210,11 @@ function completeModule() {
     // gauntlet's free-credit button. completedTasks was already tracked and simply
     // never consulted.
     const TOTAL_TASKS = 5;
-    if (completedTasks.size < TOTAL_TASKS) {
-        alert('Complete all ' + TOTAL_TASKS + ' tasks first -- you have ' + completedTasks.size + '.');
+    /* WHICH tasks, not HOW MANY. */
+    const missing = [];
+    for (let t = 1; t <= TOTAL_TASKS; t++) if (!completedTasks.has(t)) missing.push(t);
+    if (missing.length) {
+        alert('Complete all ' + TOTAL_TASKS + ' tasks first. Still outstanding: ' + missing.join(', ') + '.');
         return;
     }
     if (typeof ModuleProgress !== 'undefined') {
