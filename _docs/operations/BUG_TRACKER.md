@@ -39,7 +39,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Repro:** not reproduced end to end. Needs two real signed-in sessions against Firestore, which is exactly what no test in this session could do.
 - **Fix:** NOT FIXED. Options, needs a decision: have the hub read the same representation ModuleProgress already syncs (kills the dual representation), or have `completeQuiz` trigger the blob write, or accept and DOCUMENT it as best-effort. Do not close BUG-101 as "cross-device done" on the strength of the listener alone.
 - **Verified:** n/a — open. What IS proven: the listener fires and repaints (BUG-101, 40/40 incl. production). What is NOT proven: that the payload arrives in bounded time in the real signed-in flow.
-- **Related:** BUG-101. The listener fix is sound and necessary; this is the payload half, and my own verification could not see it because the harness captured its own localStorage rather than round-tripping the blob.
+- **Related:** BUG-101. The listener fix is sound and necessary; this is the payload half, and my own verification could not see it because the harness captured its own localStorage rather than round-tripping the blob. Also **BUG-103**: four of the twelve activities that make up the course's 100% are quizzes, so on a second device that figure can read 8/12 for an unbounded time even though the student finished everything.
 
 ### BUG-104 — lab completion gate counts tasks instead of checking which ones, so it is spoofable from the console  ·  [P2]  ·  open
 - **Found:** 2026-08-12 · by Nancy · adversarial QC of the OpenStack hub fixes
@@ -49,7 +49,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Root cause:** `markTaskComplete(n)` is a bare `completedTasks.add(n)` with no validation of its own; all correctness lives in `checkTask1()`..`checkTaskN()`, which nothing forces you through. The 2026-08-03 FLEET FIX closed the "credit with zero tasks" hole by adding a count check, which was the right direction and stopped one step short of checking membership.
 - **Fix:** NOT FIXED. `completeModule()` should require every id in `1..TOTAL_TASKS` to be present, not merely a matching count. One line per lab, but it touches graded content, so it wants a walkthrough re-run afterwards to confirm a legitimate student still completes.
 - **Verified:** n/a — open. Pre-existing and unrelated to this session's three fixes; surfaced because the QA harness drives `markTaskComplete` directly and Nancy asked what that implies about the real gate.
-- **Related:** the same defect family as the unconditional `completeModule` fixed 2026-08-03, and the WSA gauntlet free-credit button.
+- **Related:** the same defect family as the unconditional `completeModule` fixed 2026-08-03, and the WSA gauntlet free-credit button. Also **BUG-103**: since that fix the OpenStack course can reach 100%, and this gate is one of the twelve activities that number counts, so spoofing it inflates a course-completion figure rather than just one card.
 
 ### BUG-103 — the OpenStack course cannot be completed: a perfect student tops out at 11/13  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-08-12 · by self · answering the operator's "which levels have we completed already?"
@@ -71,6 +71,10 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **QC rounds:** Chris BLOCKED twice, on the residual hero-stat 13 and then on this tracker entry still reading NOT FIXED. A Chris PASS will be recorded here when one exists, dated to when it happens.
 - ⚠ **A RUNTIME CHECK CANNOT SEE A FIRST-PAINT DEFECT.** Restoring `0 / 13 completed` produced ZERO failures, because `updateProgress` overwrites that text before any assertion runs. The harness now also fetches the shipped HTML and checks its literals against the `const total` the script declares. That mutation now fails where it previously failed nothing.
 - **Related:** BUG-100, BUG-101 (the same hub; both fixed and live). This is a THIRD, independent defect in the same file and was invisible to both, because both were about repainting the count, not about whether the count can ever reach its own target.
+- ⚠ **READ BEFORE TRUSTING 100% ON THIS HUB.** This fix makes the course REACHABLE; it does not make it sound. Two open defects bear directly on the completion state it now lets a student reach:
+  - **BUG-104**: the three module-card labs gate on `completedTasks.size`, never on WHICH tasks, so a student can reach a green card and count it toward this 12 with zero correct work, from devtools, today.
+  - **BUG-105**: the quiz third of every chapter rides a debounced generic blob across devices, so the same 100% may not survive a device switch within any bounded time.
+  Neither is caused by this fix and neither is fixed by it. An operator authorising a deploy on the strength of "the course can now be completed" should know both.
 
 ### BUG-102 — post-verify's lab content-leak smoke fails deploys on a single stalled document fetch  ·  [P3]  ·  open
 - **Found:** 2026-08-12 · by self · after two consecutive deploys were flagged by the same check
