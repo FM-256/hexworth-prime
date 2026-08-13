@@ -175,6 +175,17 @@ async function withRetry(label, fn, tries = 3) {
         for (let n = 0; n < ch.parts.length; n++) {
             const part = ch.parts[n];
             await withRetry(`${ch.name} ${part} link`, async () => {
+                /* ⚠ A STALLED NAVIGATION LEAVES US SOMEWHERE ELSE. The first version of this
+                   retry just clicked again, but after a stall the document is no longer the hub,
+                   so `.module-card[i]` is undefined and the retry died with
+                   "Cannot read properties of undefined (reading 'querySelector')" instead of
+                   retrying anything. Only production ever stalled, so only production found it.
+                   Get back to the hub first, then click. */
+                const onHub = await page.evaluate(() => !!document.querySelector('.module-card'));
+                if (!onHub) {
+                    await page.goto(HUB, NAV);
+                    await settle(700);
+                }
                 await Promise.all([
                     page.waitForNavigation(NAV),
                     page.evaluate((i, k) => document.querySelectorAll('.module-card')[i]

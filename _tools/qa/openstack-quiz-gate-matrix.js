@@ -32,7 +32,13 @@ const CASES=[
  {n:'never attempted',                     score:null, passed:null,struct:false, want:false},
 ];
 (async()=>{
- await new Promise(r=>srv.listen(0,'127.0.0.1',r)); const port=srv.address().port;
+ /* BASE=https://hexworth.com runs the same matrix against production. Without this the
+    harness silently ignored BASE and answered about the local tree, which is not the
+    question anyone asks after a deploy. */
+ const BASE=process.env.BASE?process.env.BASE.replace(/\/$/,''):null;
+ let origin;
+ if(BASE){ origin=BASE; } else { await new Promise(r=>srv.listen(0,'127.0.0.1',r)); origin='http://127.0.0.1:'+srv.address().port; }
+ console.log('  base:',origin);
  const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--disable-setuid-sandbox']});
  let bad=0;
  for(const c of CASES){
@@ -46,7 +52,7 @@ const CASES=[
      if(cfg.score!==null) localStorage.setItem('hexworth_openstack_lesson1_quiz_score',cfg.score);
      if(cfg.passed!==null) localStorage.setItem('hexworth_openstack_lesson1_quiz_passed',cfg.passed);
    },c);
-   await p.goto(`http://127.0.0.1:${port}/houses/cloud/openstack/index.html`,{waitUntil:'domcontentloaded'});
+   await p.goto(`${origin}/houses/cloud/openstack/index.html`,{waitUntil:'domcontentloaded',timeout:60000});
    await new Promise(r=>setTimeout(r,700));
    const got=await p.evaluate(()=>document.querySelectorAll('.module-card')[0].classList.contains('completed'));
    const ok=got===c.want;
@@ -54,7 +60,7 @@ const CASES=[
    console.log(`  ${ok?'PASS':'FAIL'}  ${c.n.padEnd(42)} -> complete=${got} (want ${c.want})`);
    await p.close();
  }
- await b.close(); srv.close();
+ await b.close(); if(!BASE) srv.close();
  console.log(`\n  ${CASES.length-bad}/${CASES.length} edge cases correct`);
  process.exit(bad?1:0);
 })().catch(e=>{console.error('ERR '+e.message);process.exit(1);});
