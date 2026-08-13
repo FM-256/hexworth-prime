@@ -275,6 +275,13 @@ async function withRetry(label, fn, tries = 3) {
           `${beforeReview.text} -> ${done.text}`);
     check('  THE COURSE REACHES 100%: every activity done equals the advertised total',
           done.done === done.total && done.total > 0, done.text);
+    /* The review is the only activity with no card, so before this it was possible to finish it
+       and have NOTHING on the page change except a number. */
+    check('  the review itself is marked done, not just counted',
+          await page.evaluate(() => {
+              const r = document.querySelector('.review-section');
+              return !!(r && r.classList.contains('completed'));
+          }), 'review section has no completed state');
     const fs2 = require('fs');
     const reviewSrc = fs2.readFileSync(path.resolve(ROOT,
         'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'), 'utf8');
