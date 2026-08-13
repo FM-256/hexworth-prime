@@ -3096,29 +3096,22 @@ class LearningPaths {
             color: '#0ea5e9',
             courseHref: 'houses/cloud/openstack/index.html',
             modules: [
+                /* CHAPTER ORDER, and all TWELVE activities (BUG-107). This listed 7: the four
+                   presentations and three labs, with the quizzes and the review missing, so the
+                   dashboard rendered "7 modules" for a course whose own hub says 12 and whose
+                   copy tells students to complete all 12. Two definitions of the same course,
+                   neither derived from the other, and the one on the dashboard is the one a
+                   student is likelier to meet first.
+
+                   Ordered by chapter rather than by type so getNextIncompleteModule walks the
+                   course the way the hub presents it. Quiz ids are NOT `cloud-` prefixed: that
+                   is what ModuleProgress.completeQuiz records, verified at runtime rather than
+                   read off the call, and completion here resolves against completedModules. */
                 {
                     id: 'cloud-openstack-intro',
                     title: 'Introduction & Environment',
                     type: 'presentation',
                     href: 'houses/cloud/openstack/presentations/cloud-openstack-intro-environment.presentation.html'
-                },
-                {
-                    id: 'cloud-openstack-projects',
-                    title: 'OpenStack Projects',
-                    type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/cloud-openstack-projects.presentation.html'
-                },
-                {
-                    id: 'cloud-openstack-install',
-                    title: 'OpenStack Installation',
-                    type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/cloud-openstack-installation.presentation.html'
-                },
-                {
-                    id: 'cloud-openstack-operation',
-                    title: 'OpenStack Operation',
-                    type: 'presentation',
-                    href: 'houses/cloud/openstack/presentations/cloud-openstack-operation.presentation.html'
                 },
                 {
                     id: 'cloud-openstack-install-lab',
@@ -3127,16 +3120,64 @@ class LearningPaths {
                     href: 'houses/cloud/openstack/labs/cloud-openstack-install.lab.html'
                 },
                 {
+                    id: 'openstack-intro-quiz',
+                    title: 'Quiz: Introduction & Environment',
+                    type: 'quiz',
+                    href: 'houses/cloud/openstack/quizzes/cloud-openstack-intro-quiz.quiz.html'
+                },
+                {
+                    id: 'cloud-openstack-projects',
+                    title: 'OpenStack Projects',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-projects.presentation.html'
+                },
+                {
                     id: 'cloud-openstack-launch-lab',
                     title: 'Lab: Launch Virtual Machine',
                     type: 'lab',
                     href: 'houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html'
                 },
                 {
+                    id: 'openstack-projects-quiz',
+                    title: 'Quiz: OpenStack Projects',
+                    type: 'quiz',
+                    href: 'houses/cloud/openstack/quizzes/cloud-openstack-projects-quiz.quiz.html'
+                },
+                {
+                    id: 'cloud-openstack-install',
+                    title: 'OpenStack Installation',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-installation.presentation.html'
+                },
+                {
                     id: 'cloud-openstack-advanced-lab',
                     title: 'Lab: Advanced Operations',
                     type: 'lab',
                     href: 'houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html'
+                },
+                {
+                    id: 'openstack-install-quiz',
+                    title: 'Quiz: OpenStack Installation',
+                    type: 'quiz',
+                    href: 'houses/cloud/openstack/quizzes/cloud-openstack-install-quiz.quiz.html'
+                },
+                {
+                    id: 'cloud-openstack-operation',
+                    title: 'OpenStack Operation',
+                    type: 'presentation',
+                    href: 'houses/cloud/openstack/presentations/cloud-openstack-operation.presentation.html'
+                },
+                {
+                    id: 'openstack-operation-quiz',
+                    title: 'Quiz: OpenStack Operation',
+                    type: 'quiz',
+                    href: 'houses/cloud/openstack/quizzes/cloud-openstack-operation-quiz.quiz.html'
+                },
+                {
+                    id: 'cloud-openstack-review',
+                    title: 'Comprehensive Jeopardy Review',
+                    type: 'review',
+                    href: 'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'
                 }
             ]
         },

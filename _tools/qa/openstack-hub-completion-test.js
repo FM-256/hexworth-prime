@@ -147,10 +147,23 @@ async function withRetry(label, fn, tries = 3) {
         });
         check('    the lab refuses credit at 1 of its tasks', refusedAtPartial === true,
               refusedAtPartial === null ? 'lab does not use the markTaskComplete/completeModule shape' : 'credit granted early');
-        await page.evaluate(() => {
-            for (let i = 1; i <= 12; i++) { try { markTaskComplete(i); } catch (e) {} }
-            completeModule();
+        /* ⚠ SEAM, AND WHY IT IS HERE. This used to call markTaskComplete(1..12) and completeModule(),
+           which worked only because lab credit could be forged. BUG-104 closed that: markTaskComplete
+           now re-derives each task against the page, so a harness that fills in nothing is correctly
+           refused, and this test went 51/51 -> 34/51 the moment the hole shut. The fix breaking the
+           test is the fix working.
+           Filling in five correct answers for three labs of different shapes belongs in the LAB
+           tests, not here: this file is about whether the HUB repaints and counts. So it records the
+           module exactly as the lab does on success, and the lab's own gate, including the refusal
+           above, is covered by _tools/qa/openstack-lab-credit-test.js (12/12 across all three labs). */
+        const labId = await page.evaluate(() => {
+            const m = document.documentElement.innerHTML.match(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/);
+            return m ? m[1] : null;
         });
+        check('    the lab names the module id it records', !!labId, String(labId));
+        await page.evaluate(id => {
+            if (id) ModuleProgress.complete('cloud', id, { type: 'lab' });
+        }, labId);
         await settle(700);
         return true;
     }
