@@ -49,7 +49,14 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
   * header already claimed, while the code only enforced it for a quarter of them.
   * So: compare the ids to the HUB's own arrays, and stat every href on disk. */
  const hubIds=await p.evaluate(()=>{
-   const src=document.documentElement.innerHTML;
+   /* ⚠ STRIP COMMENTS FIRST -- the same hazard fixed in openstack-hub-completion-test.js, and
+      I reproduced it here in the same session while fixing it there. Reading raw innerHTML
+      means a commented-out `presIds = [...]` would be parsed as the hub's live declaration,
+      and the comparison below would then check the path against ids the hub no longer uses.
+      No such comment exists in the hub today; the hazard is structural, not conditional, and
+      "it happens to be fine right now" is how the first one survived review. */
+   const src=document.documentElement.innerHTML
+     .replace(/<!--[\s\S]*?-->/g,' ').replace(/\/\*[\s\S]*?\*\//g,' ').replace(/^[ \t]*\/\/.*$/gm,' ');
    const grab=(name)=>{ // read the hub's own declaration, not a copy of it
      const m=src.match(new RegExp(name+"\\s*=\\s*\\[([\\s\\S]*?)\\]"));
      return m?[...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]):[];
