@@ -6,6 +6,7 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
+#   3.2 Hub links       : every hub href resolves to a real file — NO bypass (BUG-115)
 #   3.3 Completion      : module progress records + OpenStack course completable — NO bypass
 #   3.4 Quiz shuffle   : option shuffling live on the OpenStack quizzes — NO bypass (BUG-111)
 #   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)
@@ -399,6 +400,17 @@ fi
 # Trap covers EXIT, INT, TERM, HUP. SIGKILL leaves stale lock; post-verify
 # staleness check (>30 min) handles that case.
 trap 'rm -f "$LOCK_FILE"' EXIT INT TERM HUP
+
+# ── Gate 3.2: HUB LINK INTEGRITY ─────────────────────────────────────────────
+# BUG-115: the forensics hub linked TWELVE modules that do not exist, confirmed 404 on
+# production. The IDS matched throughout, so every id-based check passed while a quarter of
+# the course was unreachable. Third instance today of two enumerations of one course
+# disagreeing (BUG-107, the ws-pa-01/ws-07 split, this).
+echo -e "\n${YELLOW}Gate 3.2: hub link integrity${NC}"
+if ! node "$(dirname "$0")/_tools/qa/hub-href-integrity-test.js"; then
+    echo -e "${RED}ABORT: a course hub links a module file that does not exist.${NC}"
+    exit 1
+fi
 
 # ── Gate 3.3: COURSE COMPLETION KEEPERS ──────────────────────────────────────
 # Chris, 2026-08-14: both of these are stamped `@catalog status GATE` and NOTHING invoked

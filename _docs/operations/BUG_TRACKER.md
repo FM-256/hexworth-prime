@@ -102,14 +102,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - ⚠ **The harness first reported `InstantQuizGrader undefined` on all four quizzes.** That was AccessGuard doing its job — the pages are gated and the document never parsed past the guard, leaving only `TouristVisa.js` in the DOM. Seeding a sorted student fixed it. Worth knowing before reading a future failure of this file as a quiz defect.
 - **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
 
-### BUG-115 — the Digital Forensics hub links 12 modules that do not exist, and hides one that does  ·  [P2]  ·  open
+### BUG-115 — the Digital Forensics hub links 12 modules that do not exist, and hides one that does  ·  [P2]  ·  FIXED + GATED, not deployed
 - **Found:** 2026-08-14 · by Chris · deploy gate review of the BUG-099 fix
 - **Area:** `_app/houses/eye/forensics/ForensicsData.js`
 - **Symptom:** **12 hrefs 404.** e.g. `:84` points at `sections/evidence-foundations/df-05-cfaa-laws.module.html`; the file on disk is `df-05-cfaa-federal-laws.module.html`. Same shape for df-06, df-10, df-20, df-30, df-40, df-41, df-46, df-48, df-50, df-57, df-60. Separately, **`df-61-ai-generated-imagery.module.html` exists and calls `init('df-61')` but the hub never lists it** — an unreachable module.
 - ⚠ **Pre-existing, but BUG-099 changes its urgency.** `git log` shows `ForensicsData.js` untouched since well before the last deployed commit, so these links have been dead for a while. Until today the forensics hub showed 0% progress permanently and was largely inert; the BUG-099 fix makes it *functional*, which makes twelve dead links the next thing a student meets. Fixing one surfaced the next.
 - **Not a progress defect:** the module **ids** match, so `init()` records correctly and the hub counts correctly. It is purely the `href` filenames that drift — the same two-enumerations family as BUG-107 and the `ws-pa-01`/`ws-07` split.
-- **Fix:** not fixed. Align the 12 hrefs to the files on disk (or rename the files), and either list df-61 on the hub or retire it. Worth a generated check so href drift cannot recur.
-- **Verified:** n/a — open. Chris cross-checked every hub entry against the file it hrefs with his own parser; Wireshark came back 32/32 aligned, forensics did not.
+- **Fix:** **FIXED 2026-08-14.** All 12 hrefs rewritten to the files that actually exist, **derived from disk rather than hand-typed**: each dead href was matched to the single `df-NN-*.module.html` on disk carrying the same number, and the rewrite REFUSED any case that was ambiguous or already correct. All 12 resolved 1:1, so nothing was guessed. Verified: 12 lines changed, **every changed line an `href`**, and the module `id` list is byte-identical before and after — so progress recording and hub counting are untouched.
+- **GATED so it cannot recur:** `_tools/qa/hub-href-integrity-test.js` (NEW, keeper) reads each hub's own data file and stats every href it declares. Wired into `deploy.sh` as **Gate 3.2, no bypass**. Ablation-tested: reverting one href to the broken name fails the gate. It also reports the OTHER direction — modules on disk that no hub lists — which is how `df-61` shows up without needing a human to notice.
+- **`df-61` is still unlisted** and remains a decision, not a defect: adding it to the curriculum is a content call. The gate now reports it on every run so it cannot be quietly forgotten.
+- **Verified on PRODUCTION before fixing, not just locally:** all 62 non-empty hrefs were fetched from hexworth.com and **exactly 12 returned 404**, reproducing Chris's list precisely. After the fix, 63/63 resolve on disk and the gate passes 4/4 across both hubs.
 - **Related:** BUG-099 (which surfaced it), BUG-107, BUG-109.
 
 ### BUG-114 — a LIVE graded question keys an unverifiable statistic, contradicted by another key in the same course  ·  [P1]  ·  open

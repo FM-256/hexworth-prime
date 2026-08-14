@@ -81,14 +81,14 @@ const ForensicsData = {
                     id: 'df-05',
                     title: 'CFAA & Federal Computer Crime Laws',
                     subtitle: 'Legal boundaries and criminal statutes',
-                    href: 'sections/evidence-foundations/df-05-cfaa-laws.module.html',
+                    href: 'sections/evidence-foundations/df-05-cfaa-federal-laws.module.html',
                     isNew: true
                 },
                 {
                     id: 'df-06',
                     title: 'ECPA & Stored Communications',
                     subtitle: 'Wiretap, pen register, and SCA analysis',
-                    href: 'sections/evidence-foundations/df-06-ecpa.module.html',
+                    href: 'sections/evidence-foundations/df-06-ecpa-wiretap.module.html',
                     isNew: true
                 },
                 {
@@ -116,7 +116,7 @@ const ForensicsData = {
                     id: 'df-10',
                     title: 'Evidence Preservation Capstone',
                     subtitle: 'Full documentation and preservation lab',
-                    href: 'sections/evidence-foundations/df-10-capstone.module.html',
+                    href: 'sections/evidence-foundations/df-10-evidence-capstone.module.html',
                     isNew: true,
                     isCapstone: true
                 }
@@ -200,7 +200,7 @@ const ForensicsData = {
                     id: 'df-20',
                     title: 'Disk Forensics Capstone',
                     subtitle: 'Full disk forensics investigation lab',
-                    href: 'sections/disk-forensics/df-20-capstone.module.html',
+                    href: 'sections/disk-forensics/df-20-disk-capstone.module.html',
                     isNew: true,
                     isCapstone: true
                 }
@@ -284,7 +284,7 @@ const ForensicsData = {
                     id: 'df-30',
                     title: 'Memory Analysis Capstone',
                     subtitle: 'Full investigation from memory dump',
-                    href: 'sections/memory-forensics/df-30-capstone.module.html',
+                    href: 'sections/memory-forensics/df-30-memory-capstone.module.html',
                     isNew: true,
                     isCapstone: true
                 }
@@ -368,7 +368,7 @@ const ForensicsData = {
                     id: 'df-40',
                     title: 'Network Forensics Capstone',
                     subtitle: 'Full network investigation lab',
-                    href: 'sections/network-forensics/df-40-capstone.module.html',
+                    href: 'sections/network-forensics/df-40-network-capstone.module.html',
                     isNew: true,
                     isCapstone: true,
                     crossLink: '/houses/eye/applets/cyberops/week7/labs/eye-network-forensics.lab.html'
@@ -389,7 +389,7 @@ const ForensicsData = {
                     id: 'df-41',
                     title: 'Windows Event Log Architecture',
                     subtitle: 'Security, System, Application, Sysmon',
-                    href: 'sections/log-timeline/df-41-windows-eventlog.module.html',
+                    href: 'sections/log-timeline/df-41-windows-events.module.html',
                     isNew: true
                 },
                 {
@@ -424,7 +424,7 @@ const ForensicsData = {
                     id: 'df-46',
                     title: 'SIEM Integration for Forensics',
                     subtitle: 'Splunk/ELK query patterns',
-                    href: 'sections/log-timeline/df-46-siem-forensics.module.html',
+                    href: 'sections/log-timeline/df-46-siem-integration.module.html',
                     isNew: true
                 },
                 {
@@ -438,7 +438,7 @@ const ForensicsData = {
                     id: 'df-48',
                     title: 'Email Header Analysis',
                     subtitle: 'SMTP trace, SPF, DKIM, ARC',
-                    href: 'sections/log-timeline/df-48-email-analysis.module.html',
+                    href: 'sections/log-timeline/df-48-email-headers.module.html',
                     isNew: true
                 },
                 {
@@ -452,7 +452,7 @@ const ForensicsData = {
                     id: 'df-50',
                     title: 'Timeline Reconstruction Capstone',
                     subtitle: 'Reconstruct full attack timeline',
-                    href: 'sections/log-timeline/df-50-capstone.module.html',
+                    href: 'sections/log-timeline/df-50-timeline-capstone.module.html',
                     isNew: true,
                     isCapstone: true
                 }
@@ -514,7 +514,7 @@ const ForensicsData = {
                     id: 'df-57',
                     title: 'Incident Response Integration',
                     subtitle: 'NIST 800-61R2 lifecycle alignment',
-                    href: 'sections/advanced-forensics/df-57-ir-integration.module.html',
+                    href: 'sections/advanced-forensics/df-57-incident-response.module.html',
                     isNew: true,
                     crossLink: '/houses/shield/labs/shield-ir-forensics.lab.html'
                 },
@@ -536,7 +536,7 @@ const ForensicsData = {
                     id: 'df-60',
                     title: 'Advanced Capstone Investigation',
                     subtitle: 'Full multi-source investigation lab',
-                    href: 'sections/advanced-forensics/df-60-capstone.module.html',
+                    href: 'sections/advanced-forensics/df-60-advanced-capstone.module.html',
                     isNew: true,
                     isCapstone: true
                 }
