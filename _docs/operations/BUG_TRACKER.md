@@ -211,7 +211,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** n/a — open. Counts re-derivable by grepping `hexworth_progress` and `ProgressRestore.js` under `_app`.
 - **Related:** BUG-100 (the same-device half of the same symptom).
 
-### BUG-099 — `ModuleProgress.init()` does not exist, and 93 module pages call it  ·  [P1]  ·  open
+### BUG-099 — `ModuleProgress.init()` does not exist, and 93 module pages call it  ·  [P1]  ·  FIXED, not deployed
 - **Found:** 2026-08-12 · by self · in the Mallory finding-2 access-gate sweep (render A/B caught it as a page error, and I initially set it aside as "pre-existing, not mine")
 - **Area:** `_app/components/ModuleProgress.js` (exports) vs 93 `*.module.html` pages, e.g. `_app/wireshark/sections/fundamentals/ws-01-interface-tour.module.html:1058`
 - **Symptom:** every one of those pages throws `TypeError: ModuleProgress.init is not a function` on load. Whatever `init({moduleId, hubKey})` was meant to do — register the visit and bind the module to its course hub key — never happens, on any of them. Two whole courses are affected: Digital Forensics (`houses/eye/forensics/**`) and Wireshark (`wireshark/**`).
@@ -220,6 +220,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Fix:** NOT FIXED. Needs a decision before code: does `init` belong on the component (register visit + hub key), or should the 93 pages call the existing `trackVisit`? The `hubKey` argument has no obvious home in the current API, so this is a design question, not a rename.
 - **Verified:** breakage confirmed both ways — A/B against `git show HEAD:` proves it predates the access-gate sweep, and the export list proves the method is absent rather than shadowed.
 - **Related:** BUG-094. Found the same day as the access-gate work but entirely independent of it.
+
+- **Fix:** `init({moduleId, hubKey})` implemented in `_app/components/ModuleProgress.js` and exported. It resolves the hub key from an explicit `hubKey`, else from the page's own path, and **otherwise refuses to write** — `houseId: 'eye'` (7 callers) is ambiguous because Eye owns both affected courses, and writing a module into the wrong course's store would be silent and worse than not writing it. Idempotent; a re-visit keeps the first timestamp.
+- **THE DAMAGE WAS BIGGER THAN THE TITLE.** It was never just a console error: `WiresharkEngine._loadProgress()` reads `hexworth_wireshark_progress` to render the hub, and **nothing on the platform wrote that key** (0 `setItem`). Wireshark and Digital Forensics showed 0% progress permanently, and the hub's bars could never move.
+- ⚠ **A SECOND DEFECT, found only because the test asserted the HUB MOVES rather than "no TypeError".** Six protocol-analysis pages passed a `moduleId` the hub had never heard of: the page said `ws-pa-01`, `WiresharkData.js` calls that same `href` `ws-07`. Two enumerations of one course disagreeing — the same class as BUG-107 and BUG-109. Realigned all six to the hub's ids, which are authoritative because the hub renders progress from them. A "no TypeError" check would have passed while those six stayed uncountable forever.
+- ⚠ **OPERATOR DECISION OWED (pedagogy, not a bug):** those pages carry **no completion trigger at all** — `init` is their only `ModuleProgress` call — so either opening a module completes it or nothing ever does. The fix restores the intended behaviour (opening records it). If you want a real gate, add a Mark Complete button calling `completeModule()` and change `_isComplete` to check `.completed` rather than truthiness.
+- **Verified:** `_tools/qa/module-init-progress-test.js` (NEW, keeper) 6/6, and **ablation-tested**: un-exporting `init` drops the hub to 0 and fails the gate. It asserts the hub's counter actually moves, not merely that the error is gone.
+- **Related:** BUG-107, BUG-109 (the same two-enumerations-disagree family).
 
 ### BUG-098 — the dash hygiene gate has never scanned `.js` or `.css`  ·  [P2]  ·  open
 - **Found:** 2026-08-12 · by Chris · reviewing the dash-gate scoping fix

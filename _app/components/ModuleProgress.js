@@ -1553,16 +1553,61 @@ const ModuleProgress = (function() {
         return removed;
     }
 
-    /* ⚠ BUG-099: THERE IS NO `init` HERE, AND 93 PAGES CALL ONE.
-       `_app/wireshark/**` and `_app/houses/eye/forensics/**` module pages do
-       `ModuleProgress.init({ moduleId, hubKey })` on load (e.g.
-       wireshark/sections/fundamentals/ws-01-interface-tour.module.html:1058) and every one of
-       them throws `TypeError: ModuleProgress.init is not a function`. Confirmed 2026-08-12
-       against git HEAD, so it predates the access-gate sweep that surfaced it.
-       DO NOT paper over it by aliasing init -> trackVisit: `hubKey` has no home in this API,
-       so what those pages want (bind a module to its course hub key, then register the visit)
-       is a design question. Decide the contract, then fix the component AND the 93 callers. */
+    /* BUG-099 RESOLVED. 93 pages across two courses called `ModuleProgress.init({moduleId,
+       hubKey})` and it did not exist -- not a regression, an integration that never happened:
+       `init:` was NEVER in this file (git log -S confirms). Every one of those pages threw
+       TypeError on load, and the real damage was worse than a console error:
+       WiresharkEngine._loadProgress() READS `hexworth_wireshark_progress` and renders the hub's
+       bars from it, and NOTHING WROTE THAT KEY (0 setItem platform-wide). Both Wireshark and
+       Digital Forensics showed 0% progress permanently.
+
+       THE CONTRACT, decided rather than aliased (my 2026-08-12 note said not to paper over it):
+       these two courses keep a COURSE-LOCAL progress store keyed by moduleId, separate from
+       hexworth_progress, and WiresharkEngine._isComplete(id) treats ANY truthy entry as
+       complete. Those pages carry NO completion trigger of any kind -- init is their only
+       ModuleProgress call -- so either opening a module completes it or nothing ever does.
+       This restores the intended behaviour: opening a module records it.
+
+       ⚠ OPERATOR DECISION OWED, and it is a pedagogy call, not a bug: "opened" counting as
+       "complete" is weak for anything graded. It is defensible for these reference/reading
+       modules and it is what the architecture already assumes, but if you want a real gate the
+       fix is a Mark Complete button on the module pages calling completeModule() below --
+       at which point _isComplete should check `.completed` rather than truthiness.
+
+       ⚠ IT REFUSES TO GUESS A KEY. `houseId: 'eye'` (7 callers) is ambiguous -- Eye owns BOTH
+       affected courses -- so the key is resolved from an explicit hubKey, else from the page's
+       own path, and otherwise NOT AT ALL. Writing a module into the wrong course's store would
+       be worse than not writing it, and would be invisible. */
+    function init(options) {
+        const opts = options || {};
+        const moduleId = opts.moduleId;
+        if (!moduleId) { console.warn('[ModuleProgress.init] no moduleId; nothing recorded'); return null; }
+
+        let hubKey = opts.hubKey;
+        if (!hubKey) {
+            // Derive from where the page actually lives. Never from houseId, which is ambiguous.
+            const path = (typeof location !== 'undefined' && location.pathname) || '';
+            if (path.indexOf('/wireshark/') !== -1) hubKey = 'hexworth_wireshark_progress';
+            else if (path.indexOf('/forensics/') !== -1) hubKey = 'hexworth_forensics_progress';
+        }
+        if (!hubKey) {
+            console.warn('[ModuleProgress.init] cannot resolve a hub key for "' + moduleId +
+                         '"; refusing to guess. Pass hubKey explicitly.');
+            return null;
+        }
+
+        let store = {};
+        try { store = JSON.parse(localStorage.getItem(hubKey) || '{}') || {}; } catch (e) { store = {}; }
+        // Idempotent and never downgrades: a module already recorded keeps its first timestamp.
+        if (!store[moduleId]) {
+            store[moduleId] = { completed: true, at: new Date().toISOString() };
+            try { localStorage.setItem(hubKey, JSON.stringify(store)); } catch (e) {}
+        }
+        return { moduleId: moduleId, hubKey: hubKey, entry: store[moduleId] };
+    }
+
     return {
+        init,
         complete,
         reset,
         completeQuiz,
