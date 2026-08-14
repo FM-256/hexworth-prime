@@ -57,8 +57,20 @@ const SOURCES = [
             for (const m of src.matchAll(ent)) {
                 const [, house, href] = m;
                 if (!rel(href)) continue;
+                /* ⚠ status IS PART OF THE CONTRACT, and ignoring it manufactures 42 fake defects.
+                   A `coming-soon` entry is a ROADMAP PLACEHOLDER: its href names content that is
+                   deliberately not built yet, and NOTHING renders it as a followable link.
+                   HouseRenderer.openModule() (:1864) alerts "coming soon" instead of navigating;
+                   ContentCatalog.search() defaults to `status: 'available'` (:4891); ContentDiscovery
+                   (:620), ProgressManager (:725), XPMasterLedger (:254) and CompletionStamp (:105)
+                   all filter the same way. Browser-verified: 45 coming-soon entries, ZERO reachable
+                   as a clickable link. I first reported these as live 404s students hit today. They
+                   are not, and "a link that does not resolve" was the wrong question to ask of them —
+                   the right one is whether anything can FOLLOW it. */
+                const st = (m[0].match(/["']?status["']?:\s*["']([^"']+)["']/) || [])[1] || 'available';
                 if (!(house in base)) { out.push({ href, resolved: null, house }); continue; }
-                out.push({ href, house, resolved: norm(href.startsWith('/') ? href.slice(1) : base[house] + href) });
+                const resolved = norm(href.startsWith('/') ? href.slice(1) : base[house] + href);
+                out.push({ href, house, resolved, status: st });
             }
             return out;
         }
@@ -162,15 +174,29 @@ if (process.argv.includes('--list-known')) {
 }
 
 let totalHrefs = 0, stillKnown = [];
+/* Roadmap accounting, reported not asserted: `roadmap` = coming-soon entries whose content is not
+   built (the expected, healthy state), `readyToShip` = coming-soon entries whose content now EXISTS
+   and could be flipped to available. */
+const roadmap = [], readyToShip = [];
 for (const s of SOURCES) {
     let items;
     try { items = s.collect(); } catch (e) { ck(`${s.name}: readable`, false, e.message); continue; }
     totalHrefs += items.length;
 
     const unresolvable = items.filter(i => i.resolved === null);
-    const dead = items.filter(i => i.resolved !== null && !exists(i.resolved) && !known.has(i.resolved));
-    const muted = items.filter(i => i.resolved !== null && !exists(i.resolved) && known.has(i.resolved));
+    /* Roadmap entries are held to a DIFFERENT contract, checked separately below. */
+    const live = items.filter(i => (i.status || 'available') !== 'coming-soon');
+    const soon = items.filter(i => (i.status || 'available') === 'coming-soon');
+    const dead = live.filter(i => i.resolved !== null && !exists(i.resolved) && !known.has(i.resolved));
+    const muted = live.filter(i => i.resolved !== null && !exists(i.resolved) && known.has(i.resolved));
     stillKnown.push(...muted.map(i => i.resolved));
+
+    /* THE CHECK THAT ACTUALLY GUARDS THE ROADMAP. A placeholder is harmless while nothing renders
+       it; it becomes a 404 the moment someone flips status to 'available' and forgets the content.
+       That flip is exactly what the `dead` check above catches, because flipping the status moves
+       the entry out of `soon` and into `live`. Nothing extra to assert here — only to report. */
+    roadmap.push(...soon.filter(i => i.resolved !== null && !exists(i.resolved)).map(i => i.resolved));
+    readyToShip.push(...soon.filter(i => i.resolved !== null && exists(i.resolved)).map(i => i.resolved));
 
     ck(`${s.name}: declares hrefs at all`, items.length > 0, `${items.length} hrefs`);
     // An href whose base cannot be determined is NOT a pass — it is an unmeasured href.
@@ -212,6 +238,19 @@ if (stillKnown.length) {
     [...new Set(stillKnown)].sort().slice(0, 8).forEach(k => console.log(`          ${k}`));
     if (new Set(stillKnown).size > 8) console.log(`          … and ${new Set(stillKnown).size - 8} more ` +
                                                   `(node ${path.basename(__filename)} --list-known)`);
+}
+
+/* Reported, never failed. A coming-soon href pointing at content that does not exist yet is the
+   ROADMAP WORKING AS DESIGNED, not a defect — nothing renders it as a followable link. Printing it
+   keeps the roadmap visible without pretending it is breakage. */
+if (roadmap.length) {
+    console.log(`\n  ROADMAP  ${roadmap.length} coming-soon entr(ies) point at content not yet built ` +
+                `— by design, and not reachable as a link.`);
+}
+if (readyToShip.length) {
+    console.log(`  READY    ${readyToShip.length} coming-soon entr(ies) whose content now EXISTS ` +
+                `— flip status to 'available' to expose them:`);
+    [...new Set(readyToShip)].sort().slice(0, 6).forEach(r => console.log(`             ${r}`));
 }
 
 console.log(`\n  ${pass}/${pass + fail} checks passed across ${SOURCES.length} data files, ` +
