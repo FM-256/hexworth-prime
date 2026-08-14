@@ -106,11 +106,20 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Found:** 2026-08-14 · by Chris · QC of the em-dash sweep
 - **Area:** `_tools/eduscan/dash-hygiene-gate.js` (`FORMS`)
 - **Symptom:** the `" -- "` form requires a space on BOTH sides, so a double hyphen ending a wrapped comment line is invisible. The gate reported **clean** on `ModuleProgress.js` and `houses/cloud/openstack/index.html` while four such occurrences remained in them, and I cited that clean run as evidence the sweep was complete. My own `grep -oE ' -- '` had the identical blind spot, which is why my count said 79 when the true total was 83.
-- ⚠ **THE FIX IS NOT A SIXTH REGEX. I tried, and it arms 243 false positives across 104 files.** Adding `/ --$/gm` closes the gap and immediately breaks content where a trailing `--` is correct and load-bearing:
-  - `dark-arts/vault/sql-injection-lab.html`, `Try: ' UNION SELECT 1,2,3 --` and four more. The trailing `--` **is the lesson**: it is SQL comment syntax being taught.
-  - `dark-arts/vault/bug-hunting/labs/bh-lab-*.html`, **31** `// -- Section Name --` ASCII dividers across 18 lab files (measured, not estimated).
-  - `admin/console.html:2777`, `Last scan: --`, a pre-scan UI placeholder.
-  None block today, because the gate is scoped to CHANGED files. But the next unrelated edit to any of those 104 files produces a spurious `DEPLOY BLOCKED` on lines that were always correct. The gate's own header states it is scoped to changes precisely so legacy debt cannot become *"permanent noise that someone disables"*, arming 243 latent false blocks is that failure, prepaid.
+- ⚠ **THE FIX IS NOT A SIXTH REGEX. I tried, and it arms 243 false positives across 104 files.** Adding `/ --$/gm` closes the gap and immediately breaks content where a trailing `--` is correct and load-bearing. **Measured distribution, not characterised** (the earlier version of this bullet said "31 dividers across 18 lab files", which reads as spread across 18 when it is concentrated in 3; rebuilt from the per-file counts after that was the fourth misleading figure found in this entry):
+
+  | count | file | why the `--` is correct there |
+  |---|---|---|
+  | 25 | `houses/shield/security-plus/labs/pbq-malware-identification.lab.html` | command output samples |
+  | 13 | `dark-arts/vault/bug-hunting/labs/bh-lab-full-scope.html` | `// -- Section Name --` dividers |
+  | 10 | `dark-arts/vault/bug-hunting/labs/bh-lab-report.html` | same divider idiom |
+  | 9 ×5 | `houses/forge/md-101/labs/forge-md101-m0{1..5}-*.lab.html` | same divider idiom |
+  | 8 | `dark-arts/vault/sql-injection-lab.html` | **the `--` is the lesson**: SQL comment syntax, e.g. `Try: ' UNION SELECT 1,2,3 --` |
+  | 8 | `dark-arts/vault/bug-hunting/labs/bh-lab-source.html` | same divider idiom |
+  | 1 | `admin/console.html:2777` | `Last scan: --`, a pre-scan UI placeholder |
+
+  The ten heaviest files carry 109 of 243 (44%); the remaining 94 files carry 134. So it is neither one bad file nor an even spread, and any "restrict it to directory X" fix fails: the largest contributor is a Shield security-plus lab, not the dark-arts content the first three specimens came from.
+  None block today, because the gate is scoped to CHANGED files. But the next unrelated edit to any of those 104 files produces a spurious `DEPLOY BLOCKED` on lines that were always correct. The gate's own header states it is scoped to changes precisely so legacy debt cannot become *"permanent noise that someone disables"*, and arming 243 latent false blocks is that failure, prepaid.
 - ⚠ **A SEVENTH FORM IS ALSO UNCOVERED, AND ITS TRAP IS AN ORDER OF MAGNITUDE WORSE.** `--` at the START of a wrapped line matches none of the six. Measured over the gate's real scope, which is **`_app/` only** (`.html/.htm/.md`, excluding `_archive` and `node_modules`: 5,414 files; the same extensions repo-wide total 15,563, so the scope matters):
   | naive pattern | files | occurrences |
   |---|---|---|
