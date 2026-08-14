@@ -40,10 +40,11 @@
  * ⚠ EACH FILE RESOLVES ITS HREFS DIFFERENTLY, AND GUESSING THE BASE IS HOW YOU GET A FAKE NUMBER.
  * Resolving ContentCatalog against `houses/<house>/` reported 558 dead. The real base comes from
  * its own HOUSES table, where `matrix` maps to `operator/` and `forensics` to `houses/eye/forensics/`
- * — the true count is 42. A wrong base does not fail loudly, it invents work. So every base below
- * is READ FROM THE CONSUMING CODE, and the resolver is validated against production: all 42
- * ContentCatalog entries this predicts dead return HTTP 404 on hexworth.com, and the 66 it flagged
- * in LearningPaths return HTTP 200 once corrected.
+ * — the true count that day was 42. A wrong base does not fail loudly, it invents work. So every
+ * base below is READ FROM THE CONSUMING CODE, and the resolver was validated against production on
+ * 2026-08-14: every entry it predicted dead returned HTTP 404 on hexworth.com, and the 66 it
+ * flagged in LearningPaths returned HTTP 200 once corrected. Those numbers are DATED EVIDENCE of
+ * one run, not a description of the tree today — the distinction this file keeps having to relearn.
  */
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -68,12 +69,16 @@ const SOURCES = [
                 base[m[1]] = m[2];
             }
             const out = [];
-            // Both quote styles: this file has 711 double-quoted hrefs a single-quote regex misses.
+            /* Both quote styles. ContentCatalog mixes single- and double-quoted hrefs, so a
+               single-quote-only regex silently misses a large share of them — the failure is
+               invisible because the ones it DOES see all pass. No count here on purpose: it would
+               describe a file this test does not own and would drift the moment that file is
+               re-quoted, which is the exact defect this gate's header records. */
             const ent = /\{[^{}]*?["']?house["']?:\s*["'](\w[\w-]*)["'][^{}]*?["']?href["']?:\s*["']([^"']+)["'][^{}]*?\}/gs;
             for (const m of src.matchAll(ent)) {
                 const [, house, href] = m;
                 if (!rel(href)) continue;
-                /* ⚠ status IS PART OF THE CONTRACT, and ignoring it manufactures 42 fake defects.
+                /* ⚠ status IS PART OF THE CONTRACT, and ignoring it manufactures fake defects.
                    A `coming-soon` entry is a ROADMAP PLACEHOLDER: its href names content that is
                    deliberately not built yet, and NOTHING renders it as a followable link.
                    HouseRenderer.openModule() (:1864) alerts "coming soon" instead of navigating;
