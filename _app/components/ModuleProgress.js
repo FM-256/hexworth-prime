@@ -54,7 +54,7 @@ const ModuleProgress = (function() {
     const MODULES_COMPLETED_KEY = 'hexworth_modules_completed'; // Lifetime module count
     const QUIZZES_PASSED_KEY = 'hexworth_quizzes_passed';       // Lifetime passed-quiz count
 
-    // Cached promise for Firestore dependency loading — initialized once on first sync
+    // Cached promise for Firestore dependency loading, initialized once on first sync
     let firestoreSyncReady = null; // Promise that resolves when deps are loaded
 
     /**
@@ -75,7 +75,7 @@ const ModuleProgress = (function() {
             if (queue.length > 50) queue.splice(0, queue.length - 50);
             localStorage.setItem(key, JSON.stringify(queue));
         } catch (e) {
-            // Silent fail — activity logging is non-critical
+            // Silent fail: activity logging is non-critical
         }
     }
 
@@ -97,7 +97,7 @@ const ModuleProgress = (function() {
      *
      * Exists because two separate places need it and one of them lives in a DIFFERENT top-level
      * IIFE (reconcileProgressBootstrap, further down this file). That IIFE cannot see
-     * `firestoreSyncReady` or `ensureFirestoreDeps` — they are locals of this one — so it was
+     * `firestoreSyncReady` or `ensureFirestoreDeps`: they are locals of this one, so it was
      * throwing `ReferenceError: firestoreSyncReady is not defined` on every auth-state change,
      * silently killing the cloud pull on sign-in (BUG-072). It reaches this via the exported
      * `_ensureFirestoreReady` instead.
@@ -135,7 +135,7 @@ const ModuleProgress = (function() {
             'ProgressManager.js'
         ];
 
-        // Load each dependency sequentially (order matters — ProgressManager needs FirebaseAuth)
+        // Load each dependency sequentially (order matters: ProgressManager needs FirebaseAuth)
         for (const dep of deps) {
             if (document.querySelector(`script[src*="${dep}"]`)) continue;
             await new Promise((resolve, reject) => {
@@ -178,7 +178,7 @@ const ModuleProgress = (function() {
      *   - 'lab'  -> completeLab
      *   - other  -> completeModule
      *
-     * The compound ID "{houseId}-{moduleId}" is constructed here — callers
+     * The compound ID "{houseId}-{moduleId}" is constructed here. Callers
      * pass the short moduleId only.
      *
      * @param {string} houseId - House slug
@@ -222,7 +222,7 @@ const ModuleProgress = (function() {
      */
     function tryClassProgressSync(moduleId, moduleType, metadata) {
         try {
-            // Build payload — tenant/class info is optional. The CF looks up
+            // Build payload. Tenant/class info is optional. The CF looks up
             // the student's enrollment from Firestore (enrollments/{uid}) if
             // not provided. This eliminates the localStorage dependency.
             var payload = {
@@ -231,7 +231,7 @@ const ModuleProgress = (function() {
                 score: metadata && metadata.score != null ? metadata.score : undefined
             };
 
-            // Include tenant/class if available in storage (speeds up CF — skips lookup)
+            // Include tenant/class if available in storage (speeds up CF, skips lookup)
             var tenantRaw = sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant_slug');
             if (tenantRaw) {
                 try { payload.tenantSlug = JSON.parse(tenantRaw).slug; } catch(e) { payload.tenantSlug = tenantRaw; }
@@ -283,7 +283,7 @@ const ModuleProgress = (function() {
                 }
             }
         } catch (e) {
-            // Silent fail — localStorage progress is already saved
+            // Silent fail: localStorage progress is already saved
         }
     }
 
@@ -339,7 +339,7 @@ const ModuleProgress = (function() {
     // ═══════════════════════════════════════════════════════════════
     // STRUCTURED FORMAT BRIDGE
     // HouseProgressPanel reads from progress.houses[houseId].modulesCompleted
-    // and progress.completedModules — the structured format that
+    // and progress.completedModules, the structured format that
     // ProgressManager writes. ModuleProgress historically only wrote
     // flat format (progress[houseId][moduleId] = { completed: true }).
     // These bridge functions ensure both formats stay in sync so
@@ -353,7 +353,7 @@ const ModuleProgress = (function() {
      * completions, awards diminishing XP (50% decay per repeat).
      *
      * This exists because module pages load ModuleProgress but NOT
-     * ProgressManager — yet the dashboard reads the structured format.
+     * ProgressManager, yet the dashboard reads the structured format.
      * Without this bridge, completing a module wouldn't update XP or
      * house progress until the student returned to the dashboard.
      *
@@ -420,7 +420,7 @@ const ModuleProgress = (function() {
                 if (!progress.labsCompleted.includes(moduleId)) progress.labsCompleted.push(moduleId);
             }
 
-            // Award full XP (mirrors ProgressManager.XP_REWARDS — keep in sync!)
+            // Award full XP (mirrors ProgressManager.XP_REWARDS, keep in sync!)
             const XP_BY_TYPE = {
                 presentation: 100, tool: 100, applet: 100,
                 quiz: 100, lab: 500, module: 1000
@@ -435,7 +435,7 @@ const ModuleProgress = (function() {
             progress.xp = (Number(progress.xp) || 0) + xpReward;
             progress.level = calculateLevelFromXP(progress.xp);
         } else {
-            // Repeat completion — quizzes are one-and-done (no re-farming XP)
+            // Repeat completion: quizzes are one-and-done (no re-farming XP)
             if (moduleType === 'quiz') return;
 
             // Non-quiz repeat: award diminishing XP using exponential decay
@@ -525,7 +525,7 @@ const ModuleProgress = (function() {
      *   8. Queue activity event for dashboard feed
      *   9. Handle Arctic path auto-navigation (if applicable)
      *
-     * IMPORTANT — Argument order convention: (houseId, moduleId, ...).
+     * IMPORTANT: Argument order convention: (houseId, moduleId, ...).
      * This matches the Firestore compound ID format "{house}-{module}" and is
      * consistent across ModuleProgress, FirestoreManager, and ProgressManager.
      * The `moduleId` here is the SHORT key (e.g. "security-quiz"), NOT the
@@ -549,7 +549,7 @@ const ModuleProgress = (function() {
     function complete(houseId, moduleId, options = {}) {
         const { silent = false, returnToDashboard = true, returnUrl = null, timeSpent = 0, type = 'presentation' } = options;
 
-        // FAIL LOUDLY, BEFORE ANY WRITE. Prospective guard only -- after BUG-045 there is
+        // FAIL LOUDLY, BEFORE ANY WRITE. Prospective guard only. After BUG-045 there is
         // exactly ZERO one-arg caller left in the repo (grepped), so this protects against a
         // future regression, not a current fragility. It deliberately BAILS rather than
         // substituting a placeholder: the BUG-045 shape wrote a bad bucket, synced an undefined
@@ -573,7 +573,7 @@ const ModuleProgress = (function() {
         // Check if this is first completion ever (for 'first_module' achievement)
         const isFirstModule = !hasCompletedAnyModule(progress);
 
-        // Save this module's progress (flat format — the legacy format still
+        // Save this module's progress (flat format, the legacy format still
         // read by quiz UIs and older pages)
         const now = new Date().toISOString();
         progress[houseId][moduleId] = {
@@ -599,7 +599,7 @@ const ModuleProgress = (function() {
         tryClassProgressSync(moduleId, type || 'presentation', {});
 
         // Push to user's Firestore profile (cross-device sync)
-        // Only on first completion — CF FieldValue.increment isn't diminishing-aware
+        // Only on first completion: CF FieldValue.increment isn't diminishing-aware
         if (isFirstCompletion) {
             pushToUserProfile(houseId, moduleId, type || 'presentation');
         }
@@ -614,8 +614,8 @@ const ModuleProgress = (function() {
         // of this file decrements the counter by EXACTLY ONE per module, with the comment
         // "the lifetime counter only ever increments, so undo exactly one". That is only
         // correct if a module contributes exactly one increment. Complete a lab twice and
-        // reset it, and the counter keeps a phantom module that no reset can ever remove --
-        // the student's stats panel reports more modules completed than they have completed,
+        // reset it, and the counter keeps a phantom module that no reset can ever remove.
+        // The student's stats panel reports more modules completed than they have completed,
         // permanently, with no way back.
         //
         // Fixed HERE rather than in the labs. An audit
@@ -664,8 +664,8 @@ const ModuleProgress = (function() {
         // Arctic is a guided learning path that auto-navigates between modules.
         // If the student came FROM an Arctic path, the next destination was
         // stashed in localStorage by the Arctic navigator. We honor it here
-        // but ONLY if the current module is actually in an Arctic path —
-        // prevents stale hexworth_arctic_next values from hijacking unrelated modules.
+        // but ONLY if the current module is actually in an Arctic path.
+        // Prevents stale hexworth_arctic_next values from hijacking unrelated modules.
         if (returnToDashboard || returnUrl) {
             let arcticDest = null;
             try {
@@ -682,7 +682,7 @@ const ModuleProgress = (function() {
                 }
             } catch (e) { /* ignore */ }
 
-            // Only auto-navigate for Arctic paths — everything else gets the overlay
+            // Only auto-navigate for Arctic paths. Everything else gets the overlay
             if (arcticDest) {
                 const navigateFn = () => { window.location.href = arcticDest; };
                 if (silent) {
@@ -710,7 +710,7 @@ const ModuleProgress = (function() {
      *   - Shows pass/fail notification instead of completion overlay
      *   - Auto-navigates to returnUrl/dashboard on pass (not on fail)
      *
-     * Same (houseId, moduleId) convention as complete() — see note there.
+     * Same (houseId, moduleId) convention as complete(). See note there.
      *
      * @param {string} houseId - The house ID
      * @param {string} quizId - The SHORT quiz key (no house prefix)
@@ -735,7 +735,7 @@ const ModuleProgress = (function() {
         // Check if this is first passing quiz ever (for 'first_quiz' achievement)
         const isFirstQuiz = passed && !hasPassedAnyQuiz(progress);
 
-        // Save quiz progress (flat format) — written even on failure for attempt tracking
+        // Save quiz progress (flat format), written even on failure for attempt tracking
         const now = new Date().toISOString();
         progress[houseId][quizId] = {
             completed: passed,
@@ -746,7 +746,7 @@ const ModuleProgress = (function() {
         };
 
         // Bridge to ProgressManager structured format (XP, levels, house progress)
-        // Only on pass — failed quizzes don't earn XP or stamps
+        // Only on pass: failed quizzes don't earn XP or stamps
         if (passed) {
             bridgeStructuredProgress(progress, houseId, quizId, 'quiz', { score });
             bridgeCompletionStamp(houseId, quizId, score);
@@ -761,7 +761,7 @@ const ModuleProgress = (function() {
         // Sync to tenant class progress (if enrolled)
         tryClassProgressSync(quizId, 'quiz', { score: score });
 
-        // Push to user's Firestore profile (cross-device sync) — only on pass
+        // Push to user's Firestore profile (cross-device sync), only on pass
         if (passed) {
             pushToUserProfile(houseId, quizId, 'quiz', { score });
         }
@@ -795,7 +795,7 @@ const ModuleProgress = (function() {
             queueActivityEvent('module_complete', { moduleId: quizId, title: `${quizTitle} (${score}%)` });
         }
 
-        // Return to destination if passed — wait for Firestore sync first (max 8s timeout)
+        // Return to destination if passed. Wait for Firestore sync first (max 8s timeout)
         // On failure, the student stays on the quiz page to retry
         if ((returnToDashboard || returnUrl) && passed) {
             const navigateFn = returnUrl
@@ -816,7 +816,7 @@ const ModuleProgress = (function() {
      * Check if user has completed any module (any house, any type).
      * Used to detect the very first completion for the 'first_module' achievement.
      *
-     * Scans the flat progress format — looks for any object with completed: true
+     * Scans the flat progress format, looks for any object with completed: true
      * inside any house sub-object. Skips non-house keys (arrays, primitives)
      * that exist at the top level of the progress blob.
      *
@@ -838,7 +838,7 @@ const ModuleProgress = (function() {
      * Check if user has passed any quiz (any house).
      * Used to detect the very first quiz pass for the 'first_quiz' achievement.
      *
-     * Differentiates quizzes from modules by checking for a 'score' property —
+     * Differentiates quizzes from modules by checking for a 'score' property:
      * only quiz records include a score field.
      *
      * @param {object} progress - The full progress object
@@ -856,7 +856,7 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Check for the 'explorer' achievement — awarded when a student has
+     * Check for the 'explorer' achievement, awarded when a student has
      * completed at least one module in every core house.
      *
      * Only checks the 7 core academic houses (web, shield, forge, script,
@@ -930,7 +930,7 @@ const ModuleProgress = (function() {
      *
      * Scrapes the current page's DOM for navigation buttons (Next Module,
      * Course Home) so the completion overlay can offer contextual choices.
-     * This avoids hardcoding nav URLs — each module page defines its own
+     * This avoids hardcoding nav URLs: each module page defines its own
      * navigation via .nav-btn links in a footer.
      *
      * @returns {{ nextUrl: string|null, nextLabel: string|null, courseHomeUrl: string|null, indexUrl: string|null }}
@@ -952,7 +952,7 @@ const ModuleProgress = (function() {
             }
         });
 
-        // Look for index.html link (course home) — used as "Course Home" button
+        // Look for index.html link (course home), used as "Course Home" button
         const allLinks = document.querySelectorAll('a[href]');
         allLinks.forEach(a => {
             const href = a.getAttribute('href') || '';
@@ -961,7 +961,7 @@ const ModuleProgress = (function() {
             }
         });
 
-        // Use detected indexUrl as courseHomeUrl (no blind directory guess —
+        // Use detected indexUrl as courseHomeUrl (no blind directory guess,
         // that was removed per QC-20 to prevent broken links)
         if (result.indexUrl) {
             result.courseHomeUrl = result.indexUrl;
@@ -978,7 +978,7 @@ const ModuleProgress = (function() {
      * function that does not exist anywhere in this file, so completeQuiz() threw a
      * ReferenceError on the first notification of every quiz page (BUG-074). The score and
      * the Firestore sync survived because they happen earlier, but the activity-feed event
-     * and the return-to-destination navigation were skipped -- a passing student was never
+     * and the return-to-destination navigation were skipped: a passing student was never
      * sent back to their hub.
      */
     function ensureProgressStyles() {
@@ -1116,13 +1116,13 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Show the completion overlay — a modal with navigation choices.
+     * Show the completion overlay, a modal with navigation choices.
      *
      * Displays a centered card with up to 4 buttons:
-     *   1. "Next: [Module Name]" — only if a next link was found in the page nav
-     *   2. "Stay & Explore" — dismisses the overlay, keeps the student on the page
-     *   3. "Course Home" — only if an index.html link was found on the page
-     *   4. "Dashboard" — suppressed inside course hubs (hub isolation pattern)
+     *   1. "Next: [Module Name]", only if a next link was found in the page nav
+     *   2. "Stay & Explore", dismisses the overlay, keeps the student on the page
+     *   3. "Course Home", only if an index.html link was found on the page
+     *   4. "Dashboard", suppressed inside course hubs (hub isolation pattern)
      *
      * Injects its own CSS on first call (styles are shared with quiz notification).
      * The overlay is a fixed-position backdrop with blur effect.
@@ -1146,7 +1146,7 @@ const ModuleProgress = (function() {
         // Build action buttons based on what's available
         let actionsHtml = '';
 
-        // Next Module (if available — scraped from the page's nav footer)
+        // Next Module (if available, scraped from the page's nav footer)
         if (nav.nextUrl) {
             const label = nav.nextLabel || 'Next Module';
             actionsHtml += `<a href="${nav.nextUrl}" class="mp-btn mp-btn-next">Next: ${label} &rarr;</a>`;
@@ -1159,7 +1159,7 @@ const ModuleProgress = (function() {
             // climbs, index.html) whose semantics are "return", not "next". Neutral "Continue"
             // label so a lab/quiz target is never mislabeled a "module". WARNING to future editors:
             // if you author a same-dir content-file returnUrl that means "go back / review", this
-            // fallback will wrongly present it as forward — do not rely on returnUrl for back-nav.
+            // fallback will wrongly present it as forward. Do not rely on returnUrl for back-nav.
             const curFile = (window.location.pathname.split('/').pop() || '');
             const ruPath = returnUrl.split(/[?#]/)[0];
             if (/^[^/]+\.(?:module|lab|quiz)\.html$/i.test(ruPath) && ruPath !== curFile) {
@@ -1167,7 +1167,7 @@ const ModuleProgress = (function() {
             }
         }
 
-        // Stay & Explore (always available — dismisses overlay)
+        // Stay & Explore (always available, dismisses overlay)
         actionsHtml += '<button class="mp-btn mp-btn-stay" onclick="this.closest(\'.mp-overlay\').remove()">Stay &amp; Explore</button>';
 
         // Course Home (if detected on the page)
@@ -1176,7 +1176,7 @@ const ModuleProgress = (function() {
             actionsHtml += `<a href="${courseUrl}" class="mp-btn mp-btn-course">Course Home</a>`;
         }
 
-        // Dashboard — suppressed inside course hubs (hub isolation pattern:
+        // Dashboard, suppressed inside course hubs (hub isolation pattern:
         // self-contained directories like network-plus/ should not link out)
         var isInsideHub = /\/network-plus\/(?:modules|labs|presentations|quizzes|exams|tools)\//.test(window.location.pathname);
         if (!isInsideHub) {
@@ -1228,7 +1228,7 @@ const ModuleProgress = (function() {
 
         document.body.appendChild(notification);
 
-        // Auto-dismiss failure notifications — pass notifications stay
+        // Auto-dismiss failure notifications. Pass notifications stay
         // because the page will navigate away after Firestore sync
         if (!passed) {
             setTimeout(() => notification.remove(), 3000);
@@ -1236,7 +1236,7 @@ const ModuleProgress = (function() {
     }
 
     /**
-     * Get current user stats — streak, lifetime counts, and full progress blob.
+     * Get current user stats, streak, lifetime counts, and full progress blob.
      * Used by the dashboard stats panel and profile page.
      *
      * @returns {{ streak: number, modulesCompleted: number, quizzesPassed: number, progress: object }}
@@ -1286,7 +1286,7 @@ const ModuleProgress = (function() {
      * Call from any module/lab page to record the user's last location.
      *
      * The dashboard's "Continue Learning" card reads hexworth_last_visited
-     * to show a quick-resume link. This is separate from completion tracking —
+     * to show a quick-resume link. This is separate from completion tracking:
      * it fires on page load (via auto-track below), not on completion.
      *
      * @param {string} houseId - House slug (e.g. 'script', 'shield')
@@ -1296,8 +1296,15 @@ const ModuleProgress = (function() {
      */
     function trackVisit(houseId, moduleId, meta) {
         try {
-            // Extract a clean title from document.title (strip site name suffix)
-            var title = document.title.split('|')[0].split(' — ')[0].trim();
+            /* Extract a clean title from document.title (strip site name suffix).
+               ⚠ THE SEPARATOR BELOW IS DATA, NOT PUNCTUATION. 856 pages put U+2014 in their
+               <title> as a separator, and this splits on it. The no-em-dash style rule is
+               about prose and does not reach a delimiter: "fixing" this one silently breaks
+               title extraction on all 856. Written as the escape \u2014 rather than the
+               literal character, so the source carries no em dash for a reader or a linter to
+               trip over, and so the intent reads as a code point instead of typography. Same
+               class as the beep-code glyph in the A+ lab, where the dash carried meaning. */
+            var title = document.title.split('|')[0].split(' \u2014 ')[0].trim();
             var entry = {
                 houseId: houseId,
                 moduleId: moduleId,
@@ -1322,7 +1329,7 @@ const ModuleProgress = (function() {
      * any lost progress.
      *
      * Idempotent: deletes the old key after migrating, so subsequent calls are
-     * no-ops. Safe to call from multiple module pages — each call only affects
+     * no-ops. Safe to call from multiple module pages: each call only affects
      * the new key passed in.
      *
      * Migrates BOTH formats (flat + structured completedModules array) plus
@@ -1340,7 +1347,7 @@ const ModuleProgress = (function() {
             const houseBlock = progress[houseId];
             if (!houseBlock || !houseBlock[oldKey]) return false;
 
-            // Skip if new key already has data — don't clobber
+            // Skip if new key already has data. Don't clobber
             if (houseBlock[newKey]) {
                 delete houseBlock[oldKey];
                 localStorage.setItem(PROGRESS_KEY, JSON.stringify(progress));
@@ -1393,14 +1400,14 @@ const ModuleProgress = (function() {
      * + a new completion stamp. The source key is preserved so subsequent
      * copies can read it.
      *
-     * IMPORTANT — what this does NOT touch (deliberately):
+     * IMPORTANT: what this does NOT touch (deliberately):
      *   - progress.completedModules array. That array drives count-based
      *     consumers (FirestoreManager sync, instructor dashboards, badges,
      *     XP totals). Pushing newKey here would inflate "modules completed"
      *     metrics across the platform. The student officially completed ONE
      *     module under the legacy key; the secondary keys get progress-bar
      *     visual credit only.
-     *   - progress.houses[houseId].modulesCompleted array — same reason.
+     *   - progress.houses[houseId].modulesCompleted array, same reason.
      *
      * Order-of-operations contract: when used alongside migrateLegacyKey
      * for the same oldKey, ALL copyLegacyKey calls MUST run before any
@@ -1421,7 +1428,7 @@ const ModuleProgress = (function() {
             const houseBlock = progress[houseId];
             if (!houseBlock || houseBlock[oldKey] === undefined) return 'no-source';
 
-            // Strict undefined check — don't overwrite an existing entry even
+            // Strict undefined check. Don't overwrite an existing entry even
             // if its value is falsy (e.g., a partially-initialized record with
             // percentComplete: 0). Any truthy/falsy non-undefined value means
             // the key has been touched and we must not clobber.
@@ -1462,7 +1469,7 @@ const ModuleProgress = (function() {
      * distinct house/module keys into ONE blob, so clearing by key covers all of them.
      *
      * THE LEGACY VARIANTS ARE NOT OPTIONAL. The CLH course hub copies old keys forward
-     * into the canonical one and its own comment says "Never deletes old keys -- only
+     * into the canonical one and its own comment says "Never deletes old keys, only
      * copies forward". Clear the canonical key alone and the next hub visit RESURRECTS
      * the completion. That regression shipped once already on CLH-030.
      *
@@ -1475,7 +1482,7 @@ const ModuleProgress = (function() {
      * @param {Object} [opts]   {alsoClear: ['extra-key']} for ranks/achievements the
      *                          caller explicitly wants gone. Empty by default: a rank
      *                          earned across many modules is not this module's to erase.
-     * @returns {Object} {cleared, keys, stamps} -- what was actually removed
+     * @returns {Object} {cleared, keys, stamps}: what was actually removed
      */
     function reset(houseId, moduleId, opts) {
         opts = opts || {};
@@ -1502,7 +1509,7 @@ const ModuleProgress = (function() {
         // These were left behind, and it was already a bug before #296 touched this file:
         // bridgeStructuredProgress() gates full XP and every array push on
         // `!progress.completedModules.includes(moduleId)`. So resetting a module and then
-        // redoing it awarded NO XP and re-added nothing -- the module was reset everywhere a
+        // redoing it awarded NO XP and re-added nothing. The module was reset everywhere a
         // student can see, and still "already completed" everywhere the awarding logic looks.
         //
         // #296 made it matter twice over: the lifetime counter is now gated on the same
@@ -1543,7 +1550,7 @@ const ModuleProgress = (function() {
         });
         try { localStorage.setItem('hexworth_completion_stamps', JSON.stringify(stamps)); } catch (_) {}
 
-        // The lifetime counter only ever increments, so undo exactly one -- and only if
+        // The lifetime counter only ever increments, so undo exactly one, and only if
         // this module really was complete, or repeated resets would drive it negative.
         if (wasComplete) {
             const n = parseInt(localStorage.getItem(MODULES_COMPLETED_KEY) || '0', 10);
@@ -1554,7 +1561,7 @@ const ModuleProgress = (function() {
     }
 
     /* BUG-099 RESOLVED. 93 pages across two courses called `ModuleProgress.init({moduleId,
-       hubKey})` and it did not exist -- not a regression, an integration that never happened:
+       hubKey})` and it did not exist. Not a regression, an integration that never happened:
        `init:` was NEVER in this file (git log -S confirms). Every one of those pages threw
        TypeError on load, and the real damage was worse than a console error:
        WiresharkEngine._loadProgress() READS `hexworth_wireshark_progress` and renders the hub's
@@ -1564,18 +1571,18 @@ const ModuleProgress = (function() {
        THE CONTRACT, decided rather than aliased (my 2026-08-12 note said not to paper over it):
        these two courses keep a COURSE-LOCAL progress store keyed by moduleId, separate from
        hexworth_progress, and WiresharkEngine._isComplete(id) treats ANY truthy entry as
-       complete. Those pages carry NO completion trigger of any kind -- init is their only
-       ModuleProgress call -- so either opening a module completes it or nothing ever does.
+       complete. Those pages carry NO completion trigger of any kind. init is their only
+       ModuleProgress call, so either opening a module completes it or nothing ever does.
        This restores the intended behaviour: opening a module records it.
 
        ⚠ OPERATOR DECISION OWED, and it is a pedagogy call, not a bug: "opened" counting as
        "complete" is weak for anything graded. It is defensible for these reference/reading
        modules and it is what the architecture already assumes, but if you want a real gate the
-       fix is a Mark Complete button on the module pages calling completeModule() below --
+       fix is a Mark Complete button on the module pages calling completeModule() below,
        at which point _isComplete should check `.completed` rather than truthiness.
 
-       ⚠ IT REFUSES TO GUESS A KEY. `houseId: 'eye'` (7 callers) is ambiguous -- Eye owns BOTH
-       affected courses -- so the key is resolved from an explicit hubKey, else from the page's
+       ⚠ IT REFUSES TO GUESS A KEY. `houseId: 'eye'` (7 callers) is ambiguous: Eye owns BOTH
+       affected courses, so the key is resolved from an explicit hubKey, else from the page's
        own path, and otherwise NOT AT ALL. Writing a module into the wrong course's store would
        be worse than not writing it, and would be invisible. */
     function init(options) {
@@ -1633,12 +1640,12 @@ if (typeof window !== 'undefined') {
 // ── Reconcile drift between completion_stamps and hexworth_progress ──
 // Two stores accumulate completion data:
 //   - hexworth_completion_stamps: single writer (CompletionStamp._save), no race
-//   - hexworth_progress: 12 writers using read-mutate-write — races can drop updates
+//   - hexworth_progress: 12 writers using read-mutate-write, races can drop updates
 // When drift happens stamps stays correct and progress lags. The progress UI
 // reads hexworth_progress, so the lag is visible to students. This unions the
 // two stores so the UI reflects what the user actually completed.
 //
-// Eager (not lazy) — runs on every page load. Idempotent: when there's no drift
+// Eager (not lazy), runs on every page load. Idempotent: when there's no drift
 // the function early-returns without touching localStorage. When drift exists,
 // it patches both stores and fires a fire-and-forget cloud sync so the user
 // profile and class_progress doc reflect the merged state.
@@ -1793,7 +1800,7 @@ if (typeof window !== 'undefined') {
 
             // Always-pull: even when local has zero drift to push, we want to
             // pull cloud → local. This is the cache-cleared / new-device case
-            // — local is empty, reconcile finds no patches, tryCloudPush's
+            // local is empty, reconcile finds no patches, tryCloudPush's
             // pendingCloudSync gate skips the sync, and cloud progress never
             // gets pulled. Fix that here unconditionally, with a per-uid
             // debounce to suppress token-refresh / multi-tab amplification.

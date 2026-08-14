@@ -83,7 +83,17 @@ const FORMS = [
     { re: /&mdash;/gi,  label: '&mdash;' },
     { re: /&#8212;/g,   label: '&#8212;' },
     { re: /&#x2014;/gi, label: '&#x2014;' },
-    { re: / -- /g,      label: '" -- "' }
+    { re: / -- /g,      label: '" -- "' },
+    /* ⚠ AND THE SAME DASH AT A LINE WRAP. " -- " above requires a TRAILING space, so a double
+       hyphen ending a wrapped comment line was INVISIBLE and this gate reported a false clean.
+       Found 2026-08-14 by Chris, after it passed two files still carrying four of them.
+       The space-on-BOTH-sides rule stays, because it is what keeps `<!--`, `-->`, `i--`,
+       `--flag` and `var(--muted)` out without an exclusion list. Requiring a space BEFORE and
+       end-of-line AFTER preserves exactly that property: `<!--` and `i--` have a non-space
+       character in front, and `-->` is not at a line end.
+       memory `feedback_check_the_detector_before_the_data`: a clean 0 from a detector that
+       structurally cannot see the case is not a pass. */
+    { re: / --$/gm,     label: '" --" at end of line' }
 ];
 
 const args = process.argv.slice(2);
@@ -214,6 +224,7 @@ function selfTest() {
         ['long flag',     'run ./deploy.sh --strict --skip-smoke to bypass'],
         ['hyphen word',   'a real-time multi-factor check on a well-known host'],
         ['en dash',       'pages 10–14 use an en dash, which is allowed'],
+        ['html close',    'a comment terminator -->'],
         ['minus in js',   'const d = a - b; const e = a-- - --b;']
     ];
     const hit = (s) => FORMS.some(f => { f.re.lastIndex = 0; return f.re.test(s); });
