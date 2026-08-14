@@ -19,7 +19,20 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const APP = path.resolve(__dirname, '../../_app');
-const strip = t => t.replace(/<!--[\s\S]*?-->/g, ' ');
+/* ⚠ USE THE SHARED, ORDER-AWARE STRIP. The hand-rolled version here did two things wrong and
+   the second one HID DEFECTS in a security gate:
+     1. It replaced HTML comments with a single space, changing every offset after them, while
+        this file measures brace depth BY POSITION. stripNonCode is length-preserving.
+     2. Below, it stripped `//` comments BEFORE blanking string literals, so a URL in a string
+        opened a fake comment that ate the rest of the line. Proven: for
+        `const API = 'https://api.example.com'; if (isSorted) { AccessGuard.require('admin'); }`
+        the old order made the CALL VANISH ENTIRELY -- a page with a genuinely late gate would
+        simply not be counted. A gate that fails by hiding is the worst kind.
+   _tools/eduscan/utils/strip-noncode.js blanks JS string CONTENTS first, then JS comments, and
+   only then HTML comments, which is the order its own header documents as load-bearing.
+   BUG-113 tracks the other hand-rolled variants; do not write a new one. */
+const { stripNonCode } = require('../eduscan/utils/strip-noncode.js');
+const strip = stripNonCode;
 
 /* Calls nested inside a function are CONDITIONAL and must not be hoisted; path-view.html calls
    require('admin') from inside a handler. Those are legitimately not top-level and are excluded
@@ -39,8 +52,9 @@ function topLevelRequireAfterBody(src) {
            brace depth from the comment's position reported depth 0 and flagged a correctly
            nested call as a top-level offender. Third time today a checker has confused a
            comment about code for the code. */
-        const code = m[2]
-            .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
+        // Already neutralized by stripNonCode above -- strings blanked, then comments, in the
+        // safe order. Re-stripping here is what introduced the URL-eats-the-line bug.
+        const code = m[2];
         const i = code.indexOf('AccessGuard.require(');
         if (i === -1) continue;
         let pre = code.slice(0, i)
