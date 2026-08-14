@@ -6,6 +6,7 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
+#   3.3 Completion      : module progress records + OpenStack course completable — NO bypass
 #   3.4 Quiz shuffle   : option shuffling live on the OpenStack quizzes — NO bypass (BUG-111)
 #   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)
 #   4. firebase deploy --only hosting
@@ -398,6 +399,23 @@ fi
 # Trap covers EXIT, INT, TERM, HUP. SIGKILL leaves stale lock; post-verify
 # staleness check (>30 min) handles that case.
 trap 'rm -f "$LOCK_FILE"' EXIT INT TERM HUP
+
+# ── Gate 3.3: COURSE COMPLETION KEEPERS ──────────────────────────────────────
+# Chris, 2026-08-14: both of these are stamped `@catalog status GATE` and NOTHING invoked
+# either — "GATE means something runs it automatically" is this repo's own catalog rule, so
+# they were citing an authority they did not have. Wired rather than downgraded, because both
+# guard live student-facing completion:
+#   module-init-progress   BUG-099 — 93 pages record progress and the Wireshark hub MOVES
+#   openstack-hub-completion BUG-100/103/104/106/107 — a student can finish the course
+echo -e "\n${YELLOW}Gate 3.3: course completion keepers${NC}"
+if ! node "$(dirname "$0")/_tools/qa/module-init-progress-test.js"; then
+    echo -e "${RED}ABORT: module progress is not recording — two courses would show 0% forever.${NC}"
+    exit 1
+fi
+if ! node "$(dirname "$0")/_tools/qa/openstack-hub-completion-test.js"; then
+    echo -e "${RED}ABORT: the OpenStack course cannot be completed by a student.${NC}"
+    exit 1
+fi
 
 # ── Gate 3.4: QUIZ SHUFFLE INTEGRITY ─────────────────────────────────────────
 # BUG-111 + Karl 2026-08-14: the OpenStack answer keys are 80% index-1 with zero index-3 in
