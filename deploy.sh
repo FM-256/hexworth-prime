@@ -6,6 +6,7 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
+#   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)
 #   4. firebase deploy --only hosting
 #   5. Post-verify     : nexus refresh + EduScan + log-spike check — --skip-post-verify bypass (with reason)
 #   6. Confluence inventory regen (post-deploy, NON-BLOCKING — never aborts deploy)
@@ -396,6 +397,19 @@ fi
 # Trap covers EXIT, INT, TERM, HUP. SIGKILL leaves stale lock; post-verify
 # staleness check (>30 min) handles that case.
 trap 'rm -f "$LOCK_FILE"' EXIT INT TERM HUP
+
+# ── Gate 3.5: DEPLOY SURFACE ─────────────────────────────────────────────────
+# BUG-096: _app/ IS the hosting root, so anything left there ships. Two debug probes sat
+# publicly fetchable on hexworth.com at 200 for a day. This fails the deploy if any file that
+# Firebase would actually serve is untracked by git and not explicitly allowlisted.
+# NO BYPASS FLAG, deliberately: every other gate here has one, and a bypass is exactly how a
+# probe reaches production. If it fires, archive the file or `git add` it — both take seconds.
+echo -e "\n${YELLOW}Gate 3.5: deploy surface${NC}"
+if ! python3 "$(dirname "$0")/_tools/deploy/deploy-surface-gate.py"; then
+    echo -e "${RED}ABORT: untracked files would be published from _app/.${NC}"
+    echo -e "${RED}Archive them (cp to _tools/archive/, verify with cmp) or git add them.${NC}"
+    exit 1
+fi
 
 npx firebase deploy --only hosting
 

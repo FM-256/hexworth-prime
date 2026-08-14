@@ -248,14 +248,17 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** n/a — open. Count is re-derivable at any time with the command above.
 - **Related:** BUG-098. Made visible by the scoping fix in `dash-hygiene-gate.js` (2026-08-12), which now reports this backlog on every run instead of blocking on it.
 
-### BUG-096 — anything left in `_app/` is published, including debug probes  ·  [P2]  ·  open
+### BUG-096 — anything left in `_app/` is published, including debug probes  ·  [P2]  ·  PREVENTION BUILT, not deployed
 - **Found:** 2026-08-12 · by Chris · during the access-gate review
 - **Area:** `firebase.json` hosting `ignore` list
 - **Symptom:** `_app/` is the hosting `public` root and the ignore list covers backups, markdown and media but no probe/temp naming pattern. Two debug files sat publicly fetchable on hexworth.com, both returning 200: `/_chris_house_probe.html` and `/styles/_chris_r4_offender_tmp.css`. They had been there since 2026-08-11.
 - **Repro:** drop any `_probe.html` into `_app/`, deploy, fetch it.
 - **Root cause:** nothing prevents it. The files were untracked, so no git surface flagged them either.
-- **Fix:** the two files were archived to `_tools/archive/session-probes-2026-08-12/` and a deploy retired both URLs (now 404, verified). The PREVENTION is not fixed: no ignore pattern exists, so the next probe left in `_app/` ships again.
-- **Verified:** retirement verified against production (404 on both). Prevention: n/a — open.
+- **Fix:** the two files were archived and a deploy retired both URLs (404, verified) on 2026-08-12. **The PREVENTION is now built (2026-08-14):** `_tools/deploy/deploy-surface-gate.py`, wired into `deploy.sh` as **Gate 3.5 with no bypass flag** — every other gate has one, and a bypass is exactly how a probe reaches production.
+- ⚠⚠ **THE OBVIOUS FIX WOULD HAVE BEEN THE MOST DAMAGING CHANGE AVAILABLE.** The instinct is to add `**/_*` to the hosting ignore, since every probe was underscore-prefixed. **Do not.** `_app/_lib/` and `_app/_games-lab/` are underscore-prefixed *directories* holding live content — `_lib/HexAI.js` returns HTTP 200 and is **referenced by 2,473 pages**. That pattern would have delisted the entire HexAI feature platform-wide to prevent a debug file. Checked before writing anything.
+- **What it keys on instead:** a probe is UNTRACKED, real content is TRACKED. `_lib` has 5 tracked files and `_games-lab` 123, so the gate cannot touch them however they are named — and it catches debris no naming rule would have predicted, which is the standing weakness of an ignore list. It applies the hosting ignore list first, so files Firebase already excludes are not reported.
+- ⚠ **A SECOND, WORSE FINDING.** The gate immediately surfaced **7 files that ship but are not in git** — a CTF gate zip, a lecture video, a Python-lab data file among them, all verified live at HTTP 200. They exist on **one disk**. A deploy from a fresh clone would not have them and would **REMOVE them from production**. They are allowlisted so the gate protects against new debris rather than blocking on old state, and the allowlist reports them on every run precisely so they cannot be forgotten. Tracking or relocating them is owed work.
+- **Verified:** `_tools/deploy/test-deploy-surface-gate.py` **11/11**, run against a throwaway repo fixture via `--root` so proving a DEPLOY gate never requires mutating the live hosting surface (and `rm` is denied under the never-destroy rule, so a stray mutation could not be cleaned up). Cases include the original incident, debris with no underscore, the `_lib` trap in **both** directions, hosting-ignored files, the allowlist, and a wrong hosting root.
 - **Related:** BUG-095.
 
 ### BUG-095 — `const AccessGuard` is not on `window`, so double-inclusion is a SyntaxError  ·  [P3]  ·  open
