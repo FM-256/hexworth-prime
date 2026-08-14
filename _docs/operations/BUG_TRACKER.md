@@ -102,7 +102,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - ⚠ **The harness first reported `InstantQuizGrader undefined` on all four quizzes.** That was AccessGuard doing its job — the pages are gated and the document never parsed past the guard, leaving only `TouristVisa.js` in the DOM. Seeding a sorted student fixed it. Worth knowing before reading a future failure of this file as a quiz defect.
 - **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
 
-### BUG-116 — the link-integrity gate covered 2% of the platform while reporting "4/4 passed"  ·  [P2]  ·  108 FIXED, 42 BASELINED, gate broadened
+### BUG-116 — the link-integrity gate covered 2% of the platform while reporting "4/4 passed"  ·  [P2]  ·  DEPLOYED 2026-08-14 · 108 FIXED + VERIFIED LIVE, 42 BASELINED (operator decision)
 - **Found:** 2026-08-14 · by Chris · blocking review of the BUG-115 fix
 - **Area:** `_tools/qa/hub-href-integrity-test.js`, `_app/components/LearningPaths.js`, `_app/components/ContentCatalog.js`
 - **Symptom:** the gate written to prevent BUG-115 read **two** data files, printed `4/4 checks passed`, and `deploy.sh` described it as *"every hub href resolves to a real file."* Five more files declare hrefs. Real coverage was **95 of 5,727** — about 2%. Chris: *"nobody checked whether the other ~4600 hrefs currently contain a live BUG-115-shaped defect."* They did.
@@ -113,9 +113,10 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - ⚠ **A wrong resolution base invents work rather than hiding it.** Resolving ContentCatalog against `houses/<house>/` reported **558** dead. Its real bases come from its own `HOUSES` table, where `matrix` → `operator/` and `forensics` → `houses/eye/forensics/`; the true count is 42. Every base in the gate is now read from the consuming code and cited in a comment. A near-identical error was caught in review before it shipped: parsing `SignalData` by line shape would have read *project* ids as *section* ids and fabricated 47 dead links.
 - **Fix:** gate broadened to all 7 data files / 5,727 hrefs, each with its base derived from the consumer. It also fails if a baselined entry comes back to life, so the baseline cannot rot into a list of things that are fine. Ablation-tested on three separate paths (a newly-covered SignalData href, a newly-covered LearningPaths href, and a resurrected baseline entry); all three fail correctly and all fixtures restored byte-identical. `deploy.sh` gate 3.2 now states its true scope.
 - **Open:** the 42 baselined links are 404s a student can hit **today**. Forge intro-computers and Shield PIS each need a build-or-delist decision.
+- **DEPLOYED 2026-08-14.** Verified as above: 689/689 declared URLs return 200 on production.
 - **Related:** BUG-115 (which it was written for), BUG-107, BUG-109, BUG-099.
 
-### BUG-115 — the Digital Forensics hub links 12 modules that do not exist  ·  [P2]  ·  FIXED + GATED, not deployed
+### BUG-115 — the Digital Forensics hub links 12 modules that do not exist  ·  [P2]  ·  DEPLOYED + VERIFIED LIVE 2026-08-14
 - **Found:** 2026-08-14 · by Chris · deploy gate review of the BUG-099 fix
 - **Area:** `_app/houses/eye/forensics/ForensicsData.js`
 - **Symptom:** **12 hrefs 404.** e.g. `:84` points at `sections/evidence-foundations/df-05-cfaa-laws.module.html`; the file on disk is `df-05-cfaa-federal-laws.module.html`. Same shape for df-06, df-10, df-20, df-30, df-40, df-41, df-46, df-48, df-50, df-57, df-60. (Chris also flagged `df-61-ai-generated-imagery.module.html` as unlisted; see the correction below — it is NOT unreachable.)
@@ -125,7 +126,8 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **GATED so it cannot recur:** `_tools/qa/hub-href-integrity-test.js` (NEW, keeper) reads each hub's own data file and stats every href it declares. Wired into `deploy.sh` as **Gate 3.2, no bypass**. Ablation-tested: reverting one href to the broken name fails the gate. It also reports the OTHER direction — modules on disk that no hub lists — which is how `df-61` shows up without needing a human to notice.
 - ⚠ **CORRECTION — `df-61` is NOT unreachable, and I reported that it was.** The first version of the gate looked at two data files, found `df-61` on disk and unlisted in the forensics hub, and I repeated its conclusion. `ContentCatalog.js` links it, and it returns **HTTP 200 on production**. It is absent from the forensics hub's own module list but reachable via catalog and search. The broadened gate, which reads all seven data files, correctly reports **zero** orphans. A detector narrower than its claim does not merely miss things — it asserts false ones.
 - **Verified on PRODUCTION before fixing, not just locally:** all **63** hrefs (no empties, no duplicates — an earlier note said 62, which was wrong) were fetched from hexworth.com and **exactly 12 returned 404**, reproducing Chris's list precisely. After the fix, 63/63 resolve and Chris independently re-derived the same 12 from production.
-- **Related:** BUG-099 (which surfaced it), BUG-107, BUG-109.
+- **DEPLOYED 2026-08-14 and verified ON PRODUCTION, not assumed.** The deployed `ForensicsData.js` and `LearningPaths.js` were fetched back from hexworth.com and are byte-identical to the local files. Every href both files declare — **689 unique URLs** — was then fetched from production: **689/689 returned HTTP 200**, zero non-200. That is the whole claim, measured rather than inferred from a green deploy log.
+- **Related:** BUG-099 (which surfaced it), BUG-107, BUG-109, BUG-116 (its gate's own scope defect).
 
 ### BUG-114 — a LIVE graded question keys an unverifiable statistic, contradicted by another key in the same course  ·  [P1]  ·  open
 - **Found:** 2026-08-14 · by Karl · Mode 2 structural QC of the generated CloudMaster solution docs

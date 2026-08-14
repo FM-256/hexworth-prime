@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-12 16:26 · **1072 scripts** · 16 wired into a gate · 245 called by other code · 147 only mentioned in docs · 664 referenced by nothing · 467 not in git
+**Generated:** 2026-08-14 16:01 · **1082 scripts** · 21 wired into a gate · 247 called by other code · 149 only mentioned in docs · 665 referenced by nothing · 465 not in git
 
 ## Read this before writing a new script
 
@@ -39,6 +39,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|
 | `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
+| `_tools/deploy/deploy-surface-gate.py` | `deploy.sh` | yes | Blocks debris in the hosting surface: deployable files git does not track. |
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/answer-balance-audit.js` | `deploy.sh` | yes | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
@@ -50,6 +51,10 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
+| `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
+| `_tools/qa/module-init-progress-test.js` | `deploy.sh` | yes | Proves the Wireshark/Forensics module pages record progress and the hub moves. |
+| `_tools/qa/openstack-hub-completion-test.js` | `deploy.sh` | yes | Walks EVERY OpenStack chapter the way a student does (hub -> part -> finish -> Back) and asserts each card marks complete only when all of ITS parts are done. |
+| `_tools/qa/quiz-shuffle-integrity-test.js` | `deploy.sh` | yes | Proves option shuffling is live on the OpenStack quizzes and cannot silently regress. |
 | `_tools/qa/skill-map-audit.py` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/seo/ping-indexnow.py` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/smoke-lab-content-leaks.js` | `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
@@ -86,7 +91,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `glob-dotfilter-ablation.js` | ORPHAN | 0 | 2026-07-12 | no |  |
 | `hash-quiz-answers.js` | DOCS-ONLY | 0 | 2026-02-14 | no |  |
 | `honest-button-test.js` | ORPHAN | 0 | 2026-07-10 | no |  |
-| `instant-quiz-grader-test.js` | CALLED | 1 | 2026-07-31 | yes |  |
+| `instant-quiz-grader-test.js` | CALLED | 2 | 2026-07-31 | yes |  |
 | `linux-replay-honest-button-test.js` | ORPHAN | 0 | 2026-07-11 | yes |  |
 | `linux-terminal-cp-honesty-test.js` | ORPHAN | 0 | 2026-07-12 | yes |  |
 | `linux-terminal-grep-honesty-test.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
@@ -237,7 +242,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `build-aplus-core1-final.js` | DOCS-ONLY | 0 | 2026-07-29 | yes |  |
 
-### `_tools/confluence` — 6 scripts, 3 referenced by nothing
+### `_tools/confluence` — 7 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -245,7 +250,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `attach-screenshots.py` | ORPHAN | 0 | 2026-05-25 | no |  |
 | `build_hub_inventory.js` | CALLED | 1 | 2026-05-05 | yes |  |
 | `fix-az104-answer-letters.py` | ORPHAN | 0 | 2026-08-04 | yes |  |
-| `publish-solution.py` | CALLED | 1 | 2026-06-11 | yes |  |
+| `generate-quiz-solution.js` | DOCS-ONLY | 0 | 2026-08-14 | yes | Generates a quiz solutions doc DERIVED from the live HTML + Firestore key. |
+| `publish-solution.py` | CALLED | 2 | 2026-06-11 | yes |  |
 | `publish-wsa.py` | ORPHAN | 0 | 2026-06-25 | yes |  |
 
 ### `_tools/covers` — 10 scripts, 3 referenced by nothing
@@ -263,7 +269,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `gen_sprite.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `promote_backdrop.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 
-### `_tools/deploy` — 10 scripts, 7 referenced by nothing
+### `_tools/deploy` — 11 scripts, 7 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -272,6 +278,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `is-it-live.sh` | DOCS-ONLY | 0 | 2026-07-30 | yes |  |
 | `prove-verifiers-discriminate.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `restore-holdouts-2026-08-01.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
+| `test-deploy-surface-gate.py` | DOCS-ONLY | 0 | 2026-08-14 | yes | Proves the deploy-surface gate catches debris and does not flag real content. |
 | `verify-2026-08-01-deploy.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `verify-api-capstone-pair.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `verify-api-card.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
@@ -555,7 +562,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `drift.js` | DOCS-ONLY | 0 | 2026-02-06 | yes |  |
 | `patterns.js` | DOCS-ONLY | 0 | 2026-04-26 | yes |  |
 | `remediation.js` | DOCS-ONLY | 0 | 2026-02-06 | yes |  |
-| `strip-noncode.js` | CALLED | 8 | 2026-07-23 | yes |  |
+| `strip-noncode.js` | CALLED | 10 | 2026-07-23 | yes |  |
 | `verification.js` | CALLED | 1 | 2026-03-20 | yes |  |
 
 ### `_tools/eduscan/validators` — 5 scripts, 1 referenced by nothing
@@ -941,16 +948,19 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `capture-tournament.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `gen-preview.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 
-### `_tools/qa` — 14 scripts, 5 referenced by nothing
+### `_tools/qa` — 17 scripts, 6 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `access-guard-placement-test.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Asserts every page calling AccessGuard.require() runs it BEFORE <body> opens, and that a gated page still gates after the move. |
+| `_chris_r5_old_harness_tmp.js` | ORPHAN | 0 | 2026-08-14 | no | Walks EVERY OpenStack chapter the way a student does (hub -> part -> finish -> Back) and asserts each card marks complete only when all of ITS parts are done. |
+| `access-guard-placement-test.js` | CALLED | 1 | 2026-08-14 | yes | Asserts every page calling AccessGuard.require() runs it BEFORE <body> opens, and that a gated page still gates after the move. |
 | `check-render.js` | CALLED | 1 | 2026-08-03 | yes |  |
 | `cloud-games-skill-map-test.py` | ORPHAN | 0 | 2026-08-05 | yes |  |
-| `openstack-ch1-completion-test.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Walks OpenStack chapter 1 the way a student does (hub -> part -> finish -> Back) and asserts the hub marks the chapter complete only when all three parts are done. |
+| `openstack-lab-credit-test.js` | CALLED | 2 | 2026-08-13 | yes | Tries to get lab credit WITHOUT doing the lab, and checks real work still counts. |
+| `openstack-path-agreement-test.js` | DOCS-ONLY | 0 | 2026-08-14 | yes | Asserts the OpenStack learning path and the course hub agree on what the course IS. |
+| `openstack-quiz-gate-matrix.js` | DOCS-ONLY | 0 | 2026-08-12 | yes | Every data shape a quiz can leave behind, against the hub's pass/fail gate. |
 | `probe-overflow.js` | ORPHAN | 0 | 2026-08-03 | yes |  |
-| `render-ab-changed-pages.js` | DOCS-ONLY | 0 | 2026-08-12 | no | Renders every changed _app page in a browser and A/Bs it against the SAME page served from git HEAD, so a regression is separated from a pre-existing bug. |
+| `render-ab-changed-pages.js` | DOCS-ONLY | 0 | 2026-08-12 | yes | Renders every changed _app page in a browser and A/Bs it against the SAME page served from git HEAD, so a regression is separated from a pre-existing bug. |
 | `sandbox-launcher-maximize-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Drives Maximize/Restore on the sandbox launcher, including the FALLBACK path taken when the Fullscreen API is unavailable or refused. |
 | `sandbox-launcher-size-test.js` | ORPHAN | 0 | 2026-08-11 | yes | Measures the RENDERED sandbox iframe at three viewport sizes, so the launcher cannot silently go back to a fixed height on 35 pages. |
 | `serve.sh` | CALLED | 1 | 2026-08-03 | yes |  |
@@ -1684,7 +1694,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `ForensicsData.js` | CALLED | 1 | 2026-03-18 | no |  |
+| `ForensicsData.js` | CALLED | 2 | 2026-03-18 | no |  |
 | `ForensicsEngine.js` | CALLED | 1 | 2026-03-18 | no |  |
 
 ### `_tools/taskboard` — 1 scripts, 1 referenced by nothing
@@ -1714,7 +1724,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-23 scripts are referenced by nothing AND follow the leading-underscore
+24 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1723,6 +1733,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
+- `_tools/qa/_chris_r5_old_harness_tmp.js` · last modified 2026-08-14
 - `_tools/qa/cold-horizon/_chris_nec1_probe_tmp.js` · last modified 2026-08-10
 - `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
 - `_tools/sandbox-missions/cat-lost-notes/_test-checks.sh` · last modified 2026-07-09
