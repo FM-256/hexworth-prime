@@ -102,16 +102,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - ⚠ **The harness first reported `InstantQuizGrader undefined` on all four quizzes.** That was AccessGuard doing its job — the pages are gated and the document never parsed past the guard, leaving only `TouristVisa.js` in the DOM. Seeding a sorted student fixed it. Worth knowing before reading a future failure of this file as a quiz defect.
 - **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
 
-### BUG-120 — the dash-hygiene gate cannot see a `--` at a line wrap, and the obvious fix arms 245 false blocks  ·  [P3]  ·  open, needs context awareness not a pattern
+### BUG-120 — the dash-hygiene gate cannot see a `--` at a line wrap, and the obvious fix arms 243 false blocks  ·  [P3]  ·  open, needs context awareness not a pattern
 - **Found:** 2026-08-14 · by Chris · QC of the em-dash sweep
 - **Area:** `_tools/eduscan/dash-hygiene-gate.js` (`FORMS`)
 - **Symptom:** the `" -- "` form requires a space on BOTH sides, so a double hyphen ending a wrapped comment line is invisible. The gate reported **clean** on `ModuleProgress.js` and `houses/cloud/openstack/index.html` while four such occurrences remained in them, and I cited that clean run as evidence the sweep was complete. My own `grep -oE ' -- '` had the identical blind spot, which is why my count said 79 when the true total was 83.
-- ⚠ **THE FIX IS NOT A SIXTH REGEX. I tried, and it arms 245 false positives across 105 files.** Adding `/ --$/gm` closes the gap and immediately breaks content where a trailing `--` is correct and load-bearing:
+- ⚠ **THE FIX IS NOT A SIXTH REGEX. I tried, and it arms 243 false positives across 104 files.** Adding `/ --$/gm` closes the gap and immediately breaks content where a trailing `--` is correct and load-bearing:
   - `dark-arts/vault/sql-injection-lab.html` — `Try: ' UNION SELECT 1,2,3 --` and four more. The trailing `--` **is the lesson**: it is SQL comment syntax being taught.
   - `dark-arts/vault/bug-hunting/labs/bh-lab-*.html` — roughly 30 `// -- Section Name --` ASCII dividers.
   - `admin/console.html:2777` — `Last scan: --`, a pre-scan UI placeholder.
-  None block today, because the gate is scoped to CHANGED files. But the next unrelated edit to any of those 105 files produces a spurious `DEPLOY BLOCKED` on lines that were always correct. The gate's own header states it is scoped to changes precisely so legacy debt cannot become *"permanent noise that someone disables"* — arming 245 latent false blocks is that failure, prepaid.
-- ⚠ **A SEVENTH FORM IS ALSO UNCOVERED, AND ITS TRAP IS AN ORDER OF MAGNITUDE WORSE.** `--` at the START of a wrapped line matches none of the six. Measured over the gate's real extension set (`.html/.htm/.md`, 5,414 files):
+  None block today, because the gate is scoped to CHANGED files. But the next unrelated edit to any of those 104 files produces a spurious `DEPLOY BLOCKED` on lines that were always correct. The gate's own header states it is scoped to changes precisely so legacy debt cannot become *"permanent noise that someone disables"* — arming 245 latent false blocks is that failure, prepaid.
+- ⚠ **A SEVENTH FORM IS ALSO UNCOVERED, AND ITS TRAP IS AN ORDER OF MAGNITUDE WORSE.** `--` at the START of a wrapped line matches none of the six. Measured over the gate's real scope, which is **`_app/` only** (`.html/.htm/.md`, excluding `_archive` and `node_modules`: 5,414 files; the same extensions repo-wide total 15,563, so the scope matters):
   | naive pattern | files | occurrences |
   |---|---|---|
   | `^\s*--` literal | **1,922** | **20,151** |
@@ -119,7 +119,32 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   | `^\s*--(?![A-Za-z0-9-])`, excluding CSS-var syntax | 74 | 180 |
 
   **CSS custom property declarations are the dominant false-positive class and would bite first.** The residual 74 files are the SQL teaching content and log-format bullets (`-- Impact observed`, `-- Contact:`). Decisive detail: `houses/cloud/openstack/index.html`, one of the two files this very round edited, carries **15** such CSS declarations, so a naive seventh form would have blocked this commit on lines nobody wrote as prose.
-- ⚠ **AND THE FIRST VERSION OF THIS ENTRY SAID "15 files", WHICH I NEVER MEASURED.** I lifted the figure from the review that found the problem instead of deriving it, and it was wrong by roughly two orders of magnitude for the literal pattern. Putting an unverified count into the one artifact whose purpose is to stop unverified counts is the same defect the entry documents, one level up. The gate's own header already says *"Do not 'fix' this without measuring first"*; the instruction existed and I did not follow it. Numbers above are measured, and the command that produces them is in this entry so the next reader can re-derive rather than trust.
+- ⚠ **AND THE FIRST VERSION OF THIS ENTRY SAID "15 files", WHICH I NEVER MEASURED.** I lifted the figure from the review that found the problem instead of deriving it, and it was wrong by roughly two orders of magnitude for the literal pattern. Putting an unverified count into the one artifact whose purpose is to stop unverified counts is the same defect the entry documents, one level up. The gate's own header already says *"Do not 'fix' this without measuring first"*; the instruction existed and I did not follow it. Numbers above are measured, and the script that produces them is below so the next reader re-derives rather than trusts.
+- ⚠ **AND THE 243/104 FIGURE ABOVE WAS ITSELF WRONG UNTIL THIS ROUND, IN A SECOND WAY.** It read 245/105 because I took the FILE count from a grep over `--include=*.html --include=*.md` and the OCCURRENCE count from a grep over `--include=*.html` alone: two different scopes, reported as one measurement. Re-derived consistently it is 243 occurrences across 104 files. Mixing the scope of two commands and presenting the pair as a single figure is its own failure mode, and it survived one round of correcting a *different* number four lines away.
+- **Re-derive everything in this entry with:**
+  ```python
+# python3 repro.py, run from the repo root. Reproduces every figure in this entry.
+import re
+from pathlib import Path
+
+exts = {'.html', '.htm', '.md'}
+files = [p for p in Path('_app').rglob('*')
+         if p.suffix.lower() in exts and p.is_file()
+         and not any(x in p.parts for x in ('_archive', 'node_modules'))]
+
+for name, rx in [('sixth form  " --" at EOL',  r' --$'),
+                 ('seventh     ^ -- literal',  r'^\s*--'),
+                 ('  of which  CSS custom prop', r'^\s*--[A-Za-z0-9-]+\s*:'),
+                 ('seventh     excl CSS-var',  r'^\s*--(?![A-Za-z0-9-])')]:
+    c = re.compile(rx, re.M)
+    nf = no = 0
+    for f in files:
+        hits = c.findall(f.read_text(errors='replace'))
+        if hits:
+            nf += 1
+            no += len(hits)
+    print(f'{name:30s} {nf:5d} files {no:7d} occurrences')
+```
 - **Status: the regex fix was REVERTED, deliberately.** Preserved in commit `509b65681` and archived at `_tools/archive/emdash-sweep-2026-08-14/dash-hygiene-gate.js.eol-attempt`, with a `-->` selftest case that is worth keeping if this is ever done properly. A gate that blocks the SQL lab's own payload text is worse than one that misses some dashes, because the first gets disabled and the second does not.
 - ⚠ **AND THE SELFTEST IS WHY THIS SHIPPED PAST ME.** It proves 6 catches and 8 non-matches against **synthetic strings**, and passed 23/23 on my change. It has never been run against the real corpus, where the counterexamples live. A selftest built only from cases its author already thought of cannot discover the case they did not. Same shape as [[feedback_detector_keyed_on_the_wrong_surface]]: two fixtures, and the second one has to come from the tree.
 - **Fix (needs a decision, not a patch):** distinguishing prose from a code sample requires context the regex does not have. Options: (a) restrict the eol form to files with no `<code>`/`<pre>` blocks, (b) run it as a REPORT that never blocks, accepting that HEUR-035 at LOW already proved a non-blocking rule stops nothing, (c) leave the gap documented and rely on review. Do not add form seven without the corpus check first.
