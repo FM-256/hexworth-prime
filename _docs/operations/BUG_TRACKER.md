@@ -73,23 +73,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** n/a — open. Chris observed it while rendering `path-view.html?path=openstack`.
 - **Related:** BUG-107, BUG-109.
 
-### BUG-110 — four live server-graded OpenStack quizzes have NO Confluence solution page  ·  [P2]  ·  open
+### BUG-110 — four live server-graded OpenStack quizzes have NO Confluence solution page  ·  [P2]  ·  DOCS GENERATED, publication pending approval
 - **Found:** 2026-08-14 · by Bridget · three-way sync audit of the cloudmaster quizzes
 - **Area:** Confluence Quiz Solutions Manual (page id `2981889`) · `_app/houses/cloud/openstack/quizzes/*.quiz.html`
 - **Symptom:** all four quizzes (`cloud-openstack-{intro,projects,install,operation}-quiz`) grade server-side against Firestore `quiz_keys`, and **no solution page exists for any of them**. 435 children under the Solutions Manual, zero OpenStack; CQL on all four grading ids returns only the Course & Hub Inventory page.
 - **Why it matters:** there is no instructor-facing artifact stating the correct answers, and no Karl-audited citation trail. **Every other Cloud-house course has one** (CSE, AWS, AZ-104, MS-102, PL-300, MS-900, WSA). It also means the three-way audit can only ever be a two-way one: absence of a third source is not agreement between three.
 - **Root cause:** the quizzes were built and their keys machine-extracted (`3527d7588`, 2026-07-31) without the Solutions Manual step.
-- **Fix:** not fixed. Author solution pages and run Karl over the citations. Deliberately NOT done under the current deploy freeze.
-- **Verified:** n/a — open. Bridget's audit is read-only.
+- **Fix:** **GENERATED 2026-08-14, NOT PUBLISHED.** All four docs now exist at `~/hexworth-shared/Solutions/CloudMaster/*-SOLUTIONS.md`, in the house format used by the WSA solution manuals.
+- ⚠ **GENERATED, NOT HAND-AUTHORED, AND THAT IS THE DESIGN.** `_tools/confluence/generate-quiz-solution.js` (NEW) derives each doc from the two sources that already exist and are verified: the page's own `questions` array (read as a VALUE in a browser, never regex-parsed out of the HTML) and the live `quiz_keys/{quizId}` document including its stored `explanations`. A hand-typed key would have been a **fourth enumeration** of the same facts with nothing keeping it in step — precisely the family that produced BUG-107, BUG-109 and the `ws-pa-01`/`ws-07` split in BUG-099. The doc says on its face that it is derived and must be regenerated rather than edited.
+- **It refuses rather than guesses:** it aborts if the page's `QUIZ_ID` disagrees with the requested id, if the key is malformed, or if the answer count and question count disagree.
+- **PUBLICATION IS A SEPARATE, DELIBERATE STEP** and is NOT done: pushing to Confluence is an outward-facing write, and Karl has not yet audited the citations. Publish with `_tools/confluence/publish-solution.py` once approved.
+- **Verified:** all four generated, 15 questions each, all 15 explanations carried through per quiz. **Independent cross-check:** the generated key arrays reproduce Bridget's skew figures exactly — install 12×index-1, operation 12×index-1 with zero index-3 — which is two separate tools reaching the same live keys by different paths.
 - **Related:** BUG-111, BUG-112. The answer keys themselves are CORRECT (60/60), so this is an evidence gap, not a grading defect.
 
-### BUG-111 — OpenStack answer-index distribution is skewed; the shuffle is load-bearing for integrity  ·  [P2]  ·  open
+### BUG-111 — OpenStack answer-index distribution is skewed; the shuffle is load-bearing for integrity  ·  [P2]  ·  GATED, not deployed
 - **Found:** 2026-08-14 · by Bridget · same audit
 - **Area:** Firestore `quiz_keys/cloud-openstack-install-quiz` and `…-operation-quiz`; mitigated by `_app/components/InstantQuizGrader.js`
 - **Symptom:** in authored order, **install is 80% index-1** (12 of 15) and **operation is 80% index-1 with zero index-3**. intro 0/7/7/1, projects 0/9/6/0. That is the "click B every time" shape BUG-067 was filed for.
 - **Why it is not currently exploitable:** `InstantQuizGrader` applies a per-question Fisher-Yates permutation before render, so the student never sees authored order. **This makes the shuffle load-bearing for assessment integrity rather than an anti-cheat nicety.** If anyone reverts these quizzes to static rendering, two of the four become trivially passable without knowledge.
-- **Fix:** not fixed. Either rebalance the keys, or treat the shuffle as a hard requirement with a gate asserting it cannot regress. The second is cheaper and covers future quizzes too.
-- **Verified:** n/a — latent risk, not present drift. Shuffle verified sound: index-based (duplicate option text cannot collide), permutation cached per question, and fails CLOSED — `startQuiz()` throws before the start screen is hidden if the grader fails to load.
+- **Fix:** **GATED 2026-08-14.** `_tools/qa/quiz-shuffle-integrity-test.js` (NEW, keeper) asserts on all four quizzes that `InstantQuizGrader.js` loads, no option is lost or duplicated in the display order, every displayed option round-trips back to the original that produced it, and **the options are genuinely reordered for the student**. It does NOT re-test the permutation math — `_tools/instant-quiz-grader-test.js` already does that with an ablation — it asserts the thing that was unguarded: that these four PAGES actually route through it, on their own question data.
+- **The keys themselves are NOT rebalanced.** Re-keying means a production Firestore write plus a fresh Bridget/Karl verification of every changed answer, which is not something to do under a freeze with a class sitting the course. The gate makes the regression impossible to ship silently, which was the actual risk; rebalancing remains owed.
+- **Verified:** **17/17**, and **ablation-tested**: replacing the permutation with the identity mapping (the exact regression this bug warns about) makes the reorder assertion fail as designed. Shuffle independently confirmed sound: index-based (duplicate option text cannot collide), permutation cached per question, and fails CLOSED — `startQuiz()` calls `create()` *before* hiding the start screen, so a missing grader shows no questions at all.
+- ⚠ **The harness first reported `InstantQuizGrader undefined` on all four quizzes.** That was AccessGuard doing its job — the pages are gated and the document never parsed past the guard, leaving only `TouristVisa.js` in the DOM. Seeding a sorted student fixed it. Worth knowing before reading a future failure of this file as a quiz defect.
 - **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
 
 ### BUG-113 — 12+ hand-rolled comment-stripping regexes across `_tools/`, each with its own blind spot  ·  [P2]  ·  open
