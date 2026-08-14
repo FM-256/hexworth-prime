@@ -208,7 +208,7 @@ for (const s of SOURCES) {
 }
 
 /* ── REDIRECT STUBS ───────────────────────────────────────────────────────────────────────────
-   BUG-118. 74 `<meta http-equiv="refresh">` stubs exist so a direct directory URL lands on the
+   BUG-118. 72 `<meta http-equiv="refresh">` stubs exist so a direct directory URL lands on the
    hub instead of erroring (added in bulk by 0a845715b). FIVE of them pointed at a parent with no
    index.html, so the page returned 200 and then threw the student onto a 404 — e.g.
    /houses/shield/labs/linux/ redirected to /houses/shield/labs/, which does not exist.
