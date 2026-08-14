@@ -22,8 +22,8 @@
  * every data file that declares hrefs and names its own blind spots below.
  *
  * ⚠ AND THIS COMMENT USED TO CARRY THE COUNTS, WHICH IS ITS OWN BUG — THREE OF THEM, ALL WRONG.
- * It said ArcticData had 79 hrefs (it has never had fewer than 359 — the number was wrong the day
- * it was typed), that 45 entries were coming-soon (42 — it went stale the moment three were
+ * It said ArcticData had 79 hrefs (on 2026-08-14 that source resolved 359 — so the number was
+ * wrong the day it was typed, not merely stale), that 45 entries were coming-soon (42 — it went stale the moment three were
  * flipped to available), and that 74 redirect stubs existed (72 — that was a raw `grep -rl` count
  * including two quizzes that merely TEACH the meta-refresh tag). Every one of those numbers was
  * printed correctly by this script at the same moment the comment beside it lied.
@@ -70,8 +70,8 @@ const SOURCES = [
             }
             const out = [];
             /* Both quote styles. ContentCatalog mixes single- and double-quoted hrefs, so a
-               single-quote-only regex silently misses a large share of them — the failure is
-               invisible because the ones it DOES see all pass. No count here on purpose: it would
+               single-quote-only regex silently misses the double-quoted ones ENTIRELY — and the
+               failure is invisible, because every href it does see passes. No count here on purpose: it would
                describe a file this test does not own and would drift the moment that file is
                re-quoted, which is the exact defect this gate's header records. */
             const ent = /\{[^{}]*?["']?house["']?:\s*["'](\w[\w-]*)["'][^{}]*?["']?href["']?:\s*["']([^"']+)["'][^{}]*?\}/gs;
