@@ -1,72 +1,219 @@
 #!/usr/bin/env node
 /*
- * @catalog what    Fails if any course hub links a module file that does not exist on disk.
- * @catalog run     node _tools/qa/hub-href-integrity-test.js
+ * @catalog what    Fails if any course data file links a file that does not exist on disk.
+ * @catalog run     node _tools/qa/hub-href-integrity-test.js [--list-known]
  * @catalog status  GATE
  *
- * WHY (BUG-115). The Digital Forensics hub linked TWELVE modules that do not exist — it asked
- * for `df-05-cfaa-laws.module.html` while the file on disk is `df-05-cfaa-federal-laws.module.html`,
- * and eleven more of the same shape. Confirmed 404 on production, not just locally.
+ * WHY (BUG-115, then BUG-116). The Digital Forensics hub linked TWELVE modules that do not exist —
+ * it asked for `df-05-cfaa-laws.module.html` while the file on disk is
+ * `df-05-cfaa-federal-laws.module.html`, and eleven more of the same shape. Confirmed 404 on
+ * production, not just locally.
  *
  * ⚠ THE IDS MATCHED THE WHOLE TIME, WHICH IS WHY NOTHING CAUGHT IT. Progress recorded correctly
  * and the hub counted correctly; only the FILENAMES drifted. Every id-based check on the platform
- * passed while a quarter of the course was unreachable. That is the third instance today of two
- * enumerations of one course disagreeing — BUG-107 (hub 12 / path 7), the `ws-pa-01` vs `ws-07`
- * split in BUG-099, and this. The family is always the same: two lists, neither derived from the
- * other, and a checker that only ever compares one of them to itself.
+ * passed while a quarter of the course was unreachable. Same family as BUG-107 (hub said 12, path
+ * said 7) and the `ws-pa-01`/`ws-07` split in BUG-099: two lists, neither derived from the other,
+ * and a checker that only ever compares one of them to itself.
  *
- * ⚠ IT WAS ALSO INVISIBLE UNTIL SOMETHING ELSE WAS FIXED. That hub showed 0% progress forever and
- * was largely inert, so nobody followed its links. Fixing BUG-099 made it functional, which made
- * twelve dead links the next thing a student would meet. Fixing one defect promotes the next.
+ * ⚠ THE FIRST VERSION OF THIS GATE COVERED TWO FILES AND PRINTED "4/4 PASSED". That reads as
+ * platform coverage and was not: three MORE data files declare hrefs — ContentCatalog (4,315
+ * entries), LearningPaths (730) and ArcticData (79). Between them they held 108 more broken links,
+ * none of which the two-file version could see. A gate's headline number is a claim about scope,
+ * so this one now covers every data file that declares hrefs and names its own blind spots below.
  *
- * It reads each hub's OWN data file for the hrefs it declares, then stats them. No page needs to
- * render and no id is trusted: a link either resolves to a file or it does not.
+ * ⚠ EACH FILE RESOLVES ITS HREFS DIFFERENTLY, AND GUESSING THE BASE IS HOW YOU GET A FAKE NUMBER.
+ * Resolving ContentCatalog against `houses/<house>/` reported 558 dead. The real base comes from
+ * its own HOUSES table, where `matrix` maps to `operator/` and `forensics` to `houses/eye/forensics/`
+ * — the true count is 42. A wrong base does not fail loudly, it invents work. So every base below
+ * is READ FROM THE CONSUMING CODE, and the resolver is validated against production: all 42
+ * ContentCatalog entries this predicts dead return HTTP 404 on hexworth.com, and the 66 it flagged
+ * in LearningPaths return HTTP 200 once corrected.
  */
 'use strict';
 const fs = require('fs'), path = require('path');
 const APP = path.resolve(__dirname, '../../_app');
+const KNOWN = path.join(__dirname, 'hub-href-known-dead.txt');
+const rd = f => fs.readFileSync(path.join(APP, f), 'utf8');
+const exists = p => { try { return fs.statSync(path.join(APP, p)).isFile(); } catch { return false; } };
+const norm = p => path.posix.normalize(p);
+const rel = h => !/^(https?:|#|\/\/)/.test(h) && h.trim() !== '';
 
-/* Hubs that declare their modules in a data file, with the directory their hrefs are relative to.
-   Add a hub here when it gains one; a hub NOT listed is simply unchecked, which the summary says
-   out loud rather than implying full coverage. */
-const HUBS = [
-    { name: 'Digital Forensics', data: 'houses/eye/forensics/ForensicsData.js', rel: 'houses/eye/forensics' },
-    { name: 'Wireshark',         data: 'wireshark/WiresharkData.js',            rel: 'wireshark' },
+/* Every source of hrefs, each with the base its CONSUMER actually applies. The `why` is the file
+   and line that proves the base, so a future reader can re-check it instead of trusting this. */
+const SOURCES = [
+    {
+        name: 'ContentCatalog',
+        why: 'ContentCatalog.js:4935 — fullHref = HOUSES[module.house].basePath + module.href',
+        collect() {
+            const src = rd('components/ContentCatalog.js');
+            // basePath is per-house and is NOT houses/<house>/ for all of them.
+            const base = {};
+            for (const m of src.matchAll(/['"]?(\w[\w-]*)['"]?\s*:\s*\{[^{}]*?basePath:\s*'([^']*)'/gs)) {
+                base[m[1]] = m[2];
+            }
+            const out = [];
+            // Both quote styles: this file has 711 double-quoted hrefs a single-quote regex misses.
+            const ent = /\{[^{}]*?["']?house["']?:\s*["'](\w[\w-]*)["'][^{}]*?["']?href["']?:\s*["']([^"']+)["'][^{}]*?\}/gs;
+            for (const m of src.matchAll(ent)) {
+                const [, house, href] = m;
+                if (!rel(href)) continue;
+                if (!(house in base)) { out.push({ href, resolved: null, house }); continue; }
+                out.push({ href, house, resolved: norm(href.startsWith('/') ? href.slice(1) : base[house] + href) });
+            }
+            return out;
+        }
+    },
+    {
+        name: 'LearningPaths',
+        why: 'LearningPaths.js:6286 resolveModuleHref returns the href unchanged, so it is ' +
+             'root-relative to the rendering page (path-view.html sits at the site root)',
+        collect() {
+            return [...rd('components/LearningPaths.js').matchAll(/href:\s*['"]([^'"]+)['"]/g)]
+                .map(m => m[1]).filter(rel).map(href => ({ href, resolved: norm(href) }));
+        }
+    },
+    {
+        name: 'ArcticData',
+        why: 'consumed by _app/arctic/districts/<district>/index.html, where the hrefs\' ' +
+             '../../../ resolves to the site root',
+        collect() {
+            return [...rd('arctic/ArcticData.js').matchAll(/href:\s*['"]([^'"]+)['"]/g)]
+                .map(m => m[1]).filter(rel)
+                .map(href => ({ href, resolved: norm(path.posix.join('arctic/districts/x', href)) }));
+        }
+    },
+    /* ForgeData and SignalData were MISSED by my first sweep and found by Chris. I had filtered the
+       candidate files to those declaring `.module.html` hrefs; these two link plain `.html`, so a
+       filter meant to find hubs quietly excluded two of them. The lesson is the filter, not the
+       files: narrowing the search by a property of the EXAMPLE rather than of the CLASS is how a
+       sweep reports full coverage over a subset. Both carry bare filenames resolved against their
+       own section directory — proven by ForgeData.js:100 (`id: 'foundation'` +
+       `href: 'do-1-what-is-devops.html'`) landing on sections/foundation/do-1-what-is-devops.html. */
+    ...[
+        { name: 'ForgeData (DevOps)', root: 'houses/code/devops', file: 'houses/code/devops/ForgeData.js' },
+        { name: 'SignalData (hardware)', root: 'signal', file: 'signal/SignalData.js' },
+    ].map(cfg => ({
+        name: cfg.name,
+        why: `${path.basename(cfg.file)} — bare filenames resolved against ${cfg.root}/sections/<section.id>/`,
+        collect() {
+            /* ⚠ THE OBVIOUS PARSE IS WRONG, and it fails by INVENTING dead links rather than
+               missing them. My first version took "an id alone on its line" to mean a section id.
+               That holds for ForgeData, whose modules are one-liners, and is false for SignalData,
+               whose projects are multi-line objects — so `id: 'sg-01'` (SignalData.js:432) would
+               overwrite the section and resolve to sections/sg-01/ instead of sections/foundations/,
+               fabricating 47 dead links. Caught in review before it ran.
+
+               So key on STRUCTURE instead: a section id is whichever id most recently preceded the
+               `projects:`/`modules:` array that an href sits inside. Project ids appear after that
+               boundary, so they can never be mistaken for it. Base confirmed by the real consumer:
+               SignalData.js:1944 stamps `_sourceSection: section.id` and SignalEngine.js:717 builds
+               `'../../sections/' + p._sourceSection + '/' + p.href`. */
+            const out = [];
+            let lastId = null, section = null;
+            const tok = /id:\s*['"]([^'"]+)['"]|(?:projects|modules)\s*:\s*\[|href:\s*['"]([^'"]+)['"]/g;
+            for (const m of rd(cfg.file).matchAll(tok)) {
+                if (m[1] !== undefined) { lastId = m[1]; continue; }
+                if (m[2] === undefined) { section = lastId; continue; }   // hit projects:/modules: [
+                if (!rel(m[2])) continue;
+                out.push(section === null
+                    ? { href: m[2], resolved: null, house: '(href before any section)' }
+                    : { href: m[2], resolved: norm(`${cfg.root}/sections/${section}/${m[2]}`) });
+            }
+            return out;
+        }
+    })),
+    {
+        name: 'Digital Forensics hub',
+        why: 'hrefs are written relative to _app/houses/eye/forensics/',
+        collect() {
+            return [...rd('houses/eye/forensics/ForensicsData.js').matchAll(/href:\s*['"]([^'"]+)['"]/g)]
+                .map(m => m[1]).filter(rel)
+                .map(href => ({ href, resolved: norm('houses/eye/forensics/' + href) }));
+        }
+    },
+    {
+        name: 'Wireshark hub',
+        why: 'hrefs are written relative to _app/wireshark/',
+        collect() {
+            return [...rd('wireshark/WiresharkData.js').matchAll(/href:\s*['"]([^'"]+)['"]/g)]
+                .map(m => m[1]).filter(rel)
+                .map(href => ({ href, resolved: norm('wireshark/' + href) }));
+        }
+    },
 ];
+
+/* KNOWN-DEAD BASELINE. These are links to content that was never built — not filename drift, so
+   they cannot be repointed at anything. Carried explicitly so this gate blocks NEW breakage today
+   instead of waiting on a content decision, and PRINTED on every run so the debt stays visible.
+   A baseline nobody sees is just a suppression. Entries are removed as the content ships or the
+   links are delisted; a stale entry (now-alive) FAILS, so this file cannot rot silently. */
+const known = new Set(
+    fs.existsSync(KNOWN)
+        ? fs.readFileSync(KNOWN, 'utf8').split('\n').map(s => s.trim()).filter(s => s && !s.startsWith('#'))
+        : []
+);
 
 let pass = 0, fail = 0;
 const ck = (n, c, d) => { c ? pass++ : fail++; console.log(`  ${c ? 'PASS' : 'FAIL'}  ${n}${c ? '' : '  -> ' + d}`); };
 
-for (const hub of HUBS) {
-    const dataPath = path.join(APP, hub.data);
-    if (!fs.existsSync(dataPath)) { ck(`${hub.name}: data file exists`, false, hub.data); continue; }
-    const src = fs.readFileSync(dataPath, 'utf8');
-    const hrefs = [...src.matchAll(/href:\s*'([^']+)'/g)].map(m => m[1]);
-    const dead = hrefs.filter(h => !fs.existsSync(path.join(APP, hub.rel, h)));
-    ck(`${hub.name}: declares modules at all`, hrefs.length > 0, `${hrefs.length} hrefs`);
-    ck(`${hub.name}: all ${hrefs.length} hrefs resolve to a file`, dead.length === 0,
-       `${dead.length} dead: ${dead.slice(0, 4).join(', ')}${dead.length > 4 ? ' …' : ''}`);
-
-    /* THE OTHER DIRECTION, which is how df-61 was found: a module that exists, records progress,
-       and no hub lists. Unreachable content is a quieter failure than a dead link and nothing
-       else looks for it. Reported, not failed — an unlisted module may be deliberate. */
-    const linked = new Set(hrefs.map(h => path.basename(h)));
-    const onDisk = [];
-    const secDir = path.join(APP, hub.rel, 'sections');
-    if (fs.existsSync(secDir)) {
-        for (const d of fs.readdirSync(secDir)) {
-            const full = path.join(secDir, d);
-            if (!fs.statSync(full).isDirectory()) continue;
-            for (const f of fs.readdirSync(full)) if (f.endsWith('.module.html')) onDisk.push(f);
-        }
-    }
-    const orphans = onDisk.filter(f => !linked.has(f));
-    if (orphans.length) {
-        console.log(`  NOTE  ${hub.name}: ${orphans.length} module(s) on disk that the hub does not list ` +
-                    `— unreachable to a student: ${orphans.slice(0, 4).join(', ')}`);
-    }
+if (process.argv.includes('--list-known')) {
+    console.log([...known].sort().join('\n'));
+    process.exit(0);
 }
 
-console.log(`\n  ${pass}/${pass + fail} checks passed  (${HUBS.length} hubs checked; ` +
-            `a hub not listed in HUBS is NOT covered)`);
+let totalHrefs = 0, stillKnown = [];
+for (const s of SOURCES) {
+    let items;
+    try { items = s.collect(); } catch (e) { ck(`${s.name}: readable`, false, e.message); continue; }
+    totalHrefs += items.length;
+
+    const unresolvable = items.filter(i => i.resolved === null);
+    const dead = items.filter(i => i.resolved !== null && !exists(i.resolved) && !known.has(i.resolved));
+    const muted = items.filter(i => i.resolved !== null && !exists(i.resolved) && known.has(i.resolved));
+    stillKnown.push(...muted.map(i => i.resolved));
+
+    ck(`${s.name}: declares hrefs at all`, items.length > 0, `${items.length} hrefs`);
+    // An href whose base cannot be determined is NOT a pass — it is an unmeasured href.
+    ck(`${s.name}: every href has a resolvable base`, unresolvable.length === 0,
+       `${unresolvable.length} with an unknown house key: ${[...new Set(unresolvable.map(i => i.house))].join(', ')}`);
+    ck(`${s.name}: all ${items.length} hrefs resolve to a file`, dead.length === 0,
+       `${dead.length} dead: ${[...new Set(dead.map(i => i.resolved))].slice(0, 6).join(', ')}` +
+       `${dead.length > 6 ? ' …' : ''}`);
+}
+
+/* A baseline entry that has come back to life must be removed, or the file slowly becomes a list
+   of things that are fine — and then it will mute a real regression. */
+const resurrected = [...known].filter(exists);
+ck(`baseline is current (no known-dead entry has come back to life)`, resurrected.length === 0,
+   `${resurrected.length} now exist and must be removed from ${path.basename(KNOWN)}: ${resurrected.slice(0, 4).join(', ')}`);
+
+/* THE OTHER DIRECTION, which is how df-61 was found: a module that exists, records progress, and
+   no hub lists. Unreachable content is a quieter failure than a dead link and nothing else looks
+   for it. Reported, not failed — an unlisted module may be deliberate. */
+const linked = new Set();
+for (const s of SOURCES) { try { s.collect().forEach(i => i.resolved && linked.add(path.basename(i.resolved))); } catch {} }
+const orphans = [];
+const walk = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name);
+    if (e.isDirectory()) walk(f);
+    else if (e.name.endsWith('.module.html') && !linked.has(e.name)) orphans.push(path.relative(APP, f));
+} };
+walk(path.join(APP, 'houses'));
+if (orphans.length) {
+    console.log(`\n  NOTE  ${orphans.length} .module.html file(s) under houses/ that NO data file links ` +
+                `— unreachable to a student:`);
+    orphans.slice(0, 10).forEach(o => console.log(`          ${o}`));
+    if (orphans.length > 10) console.log(`          … and ${orphans.length - 10} more`);
+}
+
+if (stillKnown.length) {
+    console.log(`\n  ⚠ ${stillKnown.length} link(s) muted by the known-dead baseline — content that was ` +
+                `never built. Students see these as 404s TODAY:`);
+    [...new Set(stillKnown)].sort().slice(0, 8).forEach(k => console.log(`          ${k}`));
+    if (new Set(stillKnown).size > 8) console.log(`          … and ${new Set(stillKnown).size - 8} more ` +
+                                                  `(node ${path.basename(__filename)} --list-known)`);
+}
+
+console.log(`\n  ${pass}/${pass + fail} checks passed across ${SOURCES.length} data files, ` +
+            `${totalHrefs} hrefs resolved`);
 process.exit(fail ? 1 : 0);
