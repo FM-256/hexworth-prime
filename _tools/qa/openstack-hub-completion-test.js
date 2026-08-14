@@ -163,10 +163,21 @@ async function withRetry(label, fn, tries = 3) {
            at 36/51. It traded away coverage of "the lab silently stopped recording" -- the exact
            defect ee9ee8105 exists to prevent -- and it was the fifth comment-vs-code false
            positive of this work.
-           Strip block comments, line comments and HTML comments first, then require exactly ONE
-           remaining call: two matches means the page changed shape and this scrape is no longer
-           reading what it thinks it is, which must fail loudly rather than silently pick the
-           first. */
+           Strip HTML comments, block comments and FULL-LINE `//` comments (a TRAILING `//` is
+           NOT stripped -- 5 exist in the hub and 1/2/7 in the three labs; direction is
+           fail-loud, so that is acceptable), then require exactly one DISTINCT id.
+
+           ⚠ THE COMMENT USED TO SAY "exactly ONE remaining call" AND THE CODE DOES NOT DO THAT.
+           It asserts on `[...new Set(all)].length`, deduped BY ID, so two legitimate calls with
+           the same id pass; `count` is reported and never asserted. Chris caught me reasoning
+           about behaviour my own gate did not have. Corrected rather than "fixed", because
+           dedup-by-id is the behaviour I actually want.
+           Checked the premise before keeping the constraint: 0 of 592 lab files platform-wide
+           have two literal `ModuleProgress.complete('cloud','…')` calls, so it refuses nothing
+           today. The real fragility is elsewhere -- 530 lab files use the VARIABLE form
+           `ModuleProgress.complete('cloud', moduleId, …)`, including six -live labs on this same
+           hub. Convert a chapter lab to that shape and this scrape finds zero ids and fails on
+           correct code. Fail-loud and not currently triggered, but that is where it will break. */
         const labScrape = await page.evaluate(() => {
             const stripped = document.documentElement.innerHTML
                 .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
@@ -327,10 +338,33 @@ async function withRetry(label, fn, tries = 3) {
     const fs2 = require('fs');
     const reviewSrc = fs2.readFileSync(path.resolve(ROOT,
         'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'), 'utf8');
-    const hook = reviewSrc.slice(reviewSrc.indexOf('onComplete:'));
+    /* ⚠ SLICED TO EOF AND READ COMMENTS. The old version took everything after the first
+       `onComplete:` to the END OF FILE and regexed it raw, so the match could come from
+       anywhere later in the document -- including a comment. Chris replaced the real call with
+       `// BUG-103 used to do: ModuleProgress.complete('cloud', 'cloud-openstack-review');`,
+       this repo's own house comment style, and the line printed PASS on a review that records
+       NOTHING. The runtime playthrough above still catches that case, so it was not a false
+       green overall, but a gate line asserting PASS while its claim is false is
+       feedback_never_write_an_unearned_pass living inside the gate itself.
+       Now: strip comments, and bound the slice to the onComplete BODY rather than to EOF. */
+    const reviewClean = reviewSrc
+        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ');
+    const hookStart = reviewClean.indexOf('onComplete:');
+    // brace-match the handler body so a later, unrelated call cannot satisfy this assertion
+    let hook = '';
+    if (hookStart !== -1) {
+        const open = reviewClean.indexOf('{', hookStart);
+        if (open !== -1) {
+            let depth = 0;
+            for (let i = open; i < reviewClean.length; i++) {
+                if (reviewClean[i] === '{') depth++;
+                else if (reviewClean[i] === '}') { depth--; if (depth === 0) { hook = reviewClean.slice(open, i + 1); break; } }
+            }
+        }
+    }
     check('  the review page\'s onComplete actually records (not an empty function)',
           /ModuleProgress\.complete\(\s*'cloud'\s*,\s*'cloud-openstack-review'/.test(hook),
-          'onComplete does not call ModuleProgress.complete with the id the hub reads');
+          `onComplete body (${hook.length} chars) does not call ModuleProgress.complete with the id the hub reads`);
 
     /* EVERY number on the page that claims an activity count, not just the one phrase I happened
        to check. The earlier version matched only "Complete all N activities" and went green while
@@ -367,14 +401,31 @@ async function withRetry(label, fn, tries = 3) {
         lib.get(HUB, res => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(d)); })
            .on('error', reject);
     });
-    const declared = (rawHtml.match(/const total = (\d+)/) || [])[1];
+    /* ⚠⚠ THIS CHECK WAS A FALSE GREEN AND CHRIS PROVED IT, ~200 lines below the comment-hazard
+       I had just fixed in this same file. It regexed RAW markup and took the FIRST match, so
+       the realistic regression -- bump a literal, leave the old one commented out above it --
+       produced a full 54/54 exit 0 while the hub's first paint read "0 / 13 completed" on a
+       12-activity course. That is the BUG-103 defect verbatim, sailing through the gate built
+       to catch it. Reproduced independently before fixing.
+       TWO changes: strip comments first, and collect ALL occurrences rather than the first. A
+       SECOND live `id="progressText"` in shipped markup is itself a defect, so duplicates are
+       reported rather than silently shadowed by whichever came first. */
+    const cleanHtml = rawHtml
+        .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
+        .replace(/^[ \t]*\/\/.*$/gm, ' ');     // FULL-LINE JS comments (trailing // are NOT stripped)
+    const declared = (cleanHtml.match(/const total = (\d+)/) || [])[1];
     const literals = [];
-    const initial = rawHtml.match(/id="progressText"[^>]*>\s*\d+\s*\/\s*(\d+)/);
-    if (initial) literals.push({ where: 'initial counter markup', n: Number(initial[1]) });
-    const heroStat = rawHtml.match(/id="activityCount"[^>]*>\s*(\d+)\s*</);
-    if (heroStat) literals.push({ where: 'hero stat markup', n: Number(heroStat[1]) });
-    const copyLit = rawHtml.match(/Complete all (\d+) activities/i);
-    if (copyLit) literals.push({ where: 'about copy markup', n: Number(copyLit[1]) });
+    const collect = (re, where) => {
+        for (const m of cleanHtml.matchAll(re)) literals.push({ where, n: Number(m[1]) });
+    };
+    collect(/id="progressText"[^>]*>\s*\d+\s*\/\s*(\d+)/g, 'initial counter markup');
+    collect(/id="activityCount"[^>]*>\s*(\d+)\s*</g, 'hero stat markup');
+    collect(/Complete all (\d+) activities/gi, 'about copy markup');
+    const dupes = [...new Set(literals.map(l => l.where))]
+        .filter(w => literals.filter(l => l.where === w).length > 1);
+    check('  each activity-count literal appears exactly ONCE in live markup',
+          dupes.length === 0, `duplicated: ${dupes.join(', ')}`);
     const staleLit = literals.filter(l => String(l.n) !== String(declared));
     check(`  no stale activity-count LITERAL in the shipped markup (${literals.length} checked, total=${declared})`,
           !!declared && literals.length >= 3 && staleLit.length === 0,

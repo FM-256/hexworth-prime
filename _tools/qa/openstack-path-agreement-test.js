@@ -48,23 +48,23 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
   * 5/5. Agreeing on a number is worth nothing if the items are wrong -- which this file's own
   * header already claimed, while the code only enforced it for a quarter of them.
   * So: compare the ids to the HUB's own arrays, and stat every href on disk. */
+ /* ⚠ READ THE LIVE VALUES, NEVER THE MARKUP. Two earlier versions of this regexed the hub's
+    HTML for `presIds = [...]`. Chris ruled that a violation of
+    feedback_no_regex_html_parsing_in_security_validator, and the reason is the failure MODE:
+    a regex over HTML fails by HIDING. A stale commented-out declaration is silently read as
+    the live one, and the comparison then runs against ids the hub no longer uses -- a green
+    result meaning nothing. Stripping comments narrows the window; it does not change the class.
+    So it reads the VALUES instead. presIds/labIds/quizIds/reviewId are top-level `const` in the
+    hub's script, reachable through the SCOPE CHAIN inside page.evaluate. quizIds and reviewId
+    were function-local and are hoisted in this commit specifically so this read is possible.
+    ⚠ They are NOT on `window` -- `'presIds' in window` is false. Top-level `const` is lexical,
+    not a window property (reference_lexical_const_window_guard_trap). Read them bare. */
  const hubIds=await p.evaluate(()=>{
-   /* ⚠ STRIP COMMENTS FIRST -- the same hazard fixed in openstack-hub-completion-test.js, and
-      I reproduced it here in the same session while fixing it there. Reading raw innerHTML
-      means a commented-out `presIds = [...]` would be parsed as the hub's live declaration,
-      and the comparison below would then check the path against ids the hub no longer uses.
-      No such comment exists in the hub today; the hazard is structural, not conditional, and
-      "it happens to be fine right now" is how the first one survived review. */
-   const src=document.documentElement.innerHTML
-     .replace(/<!--[\s\S]*?-->/g,' ').replace(/\/\*[\s\S]*?\*\//g,' ').replace(/^[ \t]*\/\/.*$/gm,' ');
-   const grab=(name)=>{ // read the hub's own declaration, not a copy of it
-     const m=src.match(new RegExp(name+"\\s*=\\s*\\[([\\s\\S]*?)\\]"));
-     return m?[...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]):[];
-   };
-   const ids=[...grab('presIds'),...grab('labIds'),...grab('quizIds')];
-   if(src.includes("cloud['cloud-openstack-review']")) ids.push('cloud-openstack-review');
-   return ids;
+   try { return [...presIds, ...labIds, ...quizIds, reviewId]; }
+   catch (e) { return { unreachable: String(e.message) }; }
  });
+ ck('  the hub exposes its ids as live values, not markup', Array.isArray(hubIds), JSON.stringify(hubIds));
+ if(!Array.isArray(hubIds)){ console.log(`\n  ${pass}/${pass+fail} checks passed`); await b.close(); srv.close(); process.exit(1); }
  ck('  the hub declares all 12 of its own ids', hubIds.length===12, `${hubIds.length}: ${hubIds.join(',')}`);
  const missing=pathInfo.ids.filter(id=>!hubIds.includes(id));
  const extra=hubIds.filter(id=>!pathInfo.ids.includes(id));
