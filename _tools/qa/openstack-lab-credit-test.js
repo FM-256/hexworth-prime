@@ -88,10 +88,12 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
  //    (completeModule gated on completedTasks.size), so the guard has to be proven in each.
  //    Only the install lab's legitimate path is walked above; launch-vm and advanced-ops have
  //    their own per-task legitimate checks recorded in the commit that hardened them.
- const LABS=[['install','/houses/cloud/openstack/labs/cloud-openstack-install.lab.html','cloud-openstack-install-lab'],
-             ['launch-vm','/houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html','cloud-openstack-launch-lab'],
-             ['advanced-ops','/houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html','cloud-openstack-advanced-lab']];
- for (const [name,url,moduleId] of LABS) {
+ // 4th element is the lab's OWN task-storage key, read from each lab file rather than guessed:
+ // seeding the wrong key would silently restore nothing and the positive case would test itself.
+ const LABS=[['install','/houses/cloud/openstack/labs/cloud-openstack-install.lab.html','cloud-openstack-install-lab','hexworth_openstack_lab1_tasks'],
+             ['launch-vm','/houses/cloud/openstack/labs/cloud-openstack-launch-vm.lab.html','cloud-openstack-launch-lab','hexworth_openstack_lab2_tasks'],
+             ['advanced-ops','/houses/cloud/openstack/labs/cloud-openstack-advanced-ops.lab.html','cloud-openstack-advanced-lab','hexworth_openstack_lab3_tasks']];
+ for (const [name,url,moduleId,tasksKey] of LABS) {
    const q=await b.newPage();
    q.on('dialog',async d=>{await d.dismiss();});
    /* ⚠ CLEAR FIRST. localStorage is shared per ORIGIN across pages in one browser, and the
@@ -112,6 +114,31 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
    const n=await q.evaluate(()=>completedTasks.size);
    ck(`${name}: console calls award no credit`, got===false && n===0, `credited=${got} set=${n}`);
    await q.close();
+
+   /* ⚠ BOTH DIRECTIONS, IN EVERY LAB. Chris blocked the first version here: only the install
+      lab had its POSITIVE path asserted, so commenting out launch-vm's own
+      ModuleProgress.complete left this keeper 12/12 green AND the hub harness 54/54 green on a
+      lab that awarded nothing. A guard proven only to REFUSE is half a guard -- the other half,
+      "and it still credits a student who did the work", is the half that catches a fix which
+      locks legitimate students out. That failure mode is not hypothetical: my first launch-vm
+      validator used ids invented from variable names and refused a correct student. */
+   const r=await b.newPage();
+   let blockedMsg=null;
+   r.on('dialog',async d=>{blockedMsg=d.message(); await d.dismiss();});
+   await r.evaluateOnNewDocument(key=>{
+     localStorage.clear();
+     localStorage.setItem('hexworth_house','cloud'); localStorage.setItem('hexworth_sorted','true');
+     localStorage.setItem(key, JSON.stringify([1,2,3,4,5]));   // a returning student
+   }, tasksKey);
+   await r.goto(`http://127.0.0.1:${port}${url}`,{waitUntil:'domcontentloaded'});
+   await new Promise(r2=>setTimeout(r2,900));
+   const restored=await r.evaluate(()=>completedTasks.size);
+   await r.evaluate(()=>completeModule());
+   await new Promise(r2=>setTimeout(r2,600));
+   const creditedBack=await r.evaluate(id=>!!((JSON.parse(localStorage.getItem('hexworth_progress')||'{}').cloud||{})[id]||{}).completed, moduleId);
+   ck(`${name}: a returning student who DID the work still gets credit`,
+      restored===5 && creditedBack===true, `restored=${restored} credited=${creditedBack} alert=${blockedMsg}`);
+   await r.close();
  }
 
  await b.close(); srv.close();

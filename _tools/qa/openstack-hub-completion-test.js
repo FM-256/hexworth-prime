@@ -156,11 +156,29 @@ async function withRetry(label, fn, tries = 3) {
            tests, not here: this file is about whether the HUB repaints and counts. So it records the
            module exactly as the lab does on success, and the lab's own gate, including the refusal
            above, is covered by _tools/qa/openstack-lab-credit-test.js (12/12 across all three labs). */
-        const labId = await page.evaluate(() => {
-            const m = document.documentElement.innerHTML.match(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/);
-            return m ? m[1] : null;
+        /* ⚠ COMMENT-SAFE, AND EXACTLY ONE MATCH. Chris blocked the first version of this scrape:
+           it regexed over raw innerHTML, so it also matched COMMENTED-OUT code. Commenting out
+           the install lab's real ModuleProgress.complete line left this harness 54/54 GREEN on a
+           lab that recorded nothing, where the pre-BUG-104 harness had caught the same mutation
+           at 36/51. It traded away coverage of "the lab silently stopped recording" -- the exact
+           defect ee9ee8105 exists to prevent -- and it was the fifth comment-vs-code false
+           positive of this work.
+           Strip block comments, line comments and HTML comments first, then require exactly ONE
+           remaining call: two matches means the page changed shape and this scrape is no longer
+           reading what it thinks it is, which must fail loudly rather than silently pick the
+           first. */
+        const labScrape = await page.evaluate(() => {
+            const stripped = document.documentElement.innerHTML
+                .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
+                .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
+                .replace(/^[ \t]*\/\/.*$/gm, ' ');     // JS line comments
+            const all = [...stripped.matchAll(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/g)]
+                .map(m => m[1]);
+            return { ids: [...new Set(all)], count: all.length };
         });
-        check('    the lab names the module id it records', !!labId, String(labId));
+        const labId = labScrape.ids.length === 1 ? labScrape.ids[0] : null;
+        check('    the lab names EXACTLY ONE module id, in live code not a comment',
+              labId !== null, JSON.stringify(labScrape));
         await page.evaluate(id => {
             if (id) ModuleProgress.complete('cloud', id, { type: 'lab' });
         }, labId);

@@ -42,6 +42,34 @@ let pass=0,fail=0; const ck=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'PASS':
  ck('  and it includes the quizzes and the review', pathInfo.types.filter(t=>t==='quiz').length===4 && pathInfo.types.includes('review'),
     JSON.stringify(pathInfo.types));
 
+ /* ⚠ CHRIS BLOCKED THE FIRST VERSION HERE, and he was right: it compared TOTALS and TYPE
+  * COUNTS and then walked chapter 1, which is 3 of 12 ids. Mutating a quiz id to
+  * `openstack-operation-quiz-WRONG` with an href of `DOES-NOT-EXIST.quiz.html` still passed
+  * 5/5. Agreeing on a number is worth nothing if the items are wrong -- which this file's own
+  * header already claimed, while the code only enforced it for a quarter of them.
+  * So: compare the ids to the HUB's own arrays, and stat every href on disk. */
+ const hubIds=await p.evaluate(()=>{
+   const src=document.documentElement.innerHTML;
+   const grab=(name)=>{ // read the hub's own declaration, not a copy of it
+     const m=src.match(new RegExp(name+"\\s*=\\s*\\[([\\s\\S]*?)\\]"));
+     return m?[...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]):[];
+   };
+   const ids=[...grab('presIds'),...grab('labIds'),...grab('quizIds')];
+   if(src.includes("cloud['cloud-openstack-review']")) ids.push('cloud-openstack-review');
+   return ids;
+ });
+ ck('  the hub declares all 12 of its own ids', hubIds.length===12, `${hubIds.length}: ${hubIds.join(',')}`);
+ const missing=pathInfo.ids.filter(id=>!hubIds.includes(id));
+ const extra=hubIds.filter(id=>!pathInfo.ids.includes(id));
+ ck('  EVERY path id exists on the hub (no invented ids)', missing.length===0, `path-only: ${missing.join(',')}`);
+ ck('  and the hub has no id the path omits', extra.length===0, `hub-only: ${extra.join(',')}`);
+
+ // Every href must resolve to a real file. A path entry pointing at nothing is a 404 for a
+ // student, and no amount of id agreement catches it.
+ const hrefs=await p.evaluate(()=>LearningPaths.getPathOverview('openstack',[]).modules.map(m=>m.href));
+ const dead=hrefs.filter(h=>!fs.existsSync(path.join(ROOT,h)));
+ ck('  every path href resolves to a file on disk', dead.length===0, `dead: ${dead.join(', ')}`);
+
  // a student does chapter 1 for real: presentation, lab, quiz
  const prog=await p.evaluate(()=>{
    ModuleProgress.complete('cloud','cloud-openstack-intro');
