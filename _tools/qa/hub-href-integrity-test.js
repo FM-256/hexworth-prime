@@ -16,10 +16,26 @@
  * and a checker that only ever compares one of them to itself.
  *
  * ⚠ THE FIRST VERSION OF THIS GATE COVERED TWO FILES AND PRINTED "4/4 PASSED". That reads as
- * platform coverage and was not: three MORE data files declare hrefs — ContentCatalog (4,315
- * entries), LearningPaths (730) and ArcticData (79). Between them they held 108 more broken links,
- * none of which the two-file version could see. A gate's headline number is a claim about scope,
- * so this one now covers every data file that declares hrefs and names its own blind spots below.
+ * platform coverage and was not: three MORE data files declare hrefs — ContentCatalog,
+ * LearningPaths and ArcticData. Between them they held 108 more broken links that the two-file
+ * version could not see. A gate's headline number is a claim about scope, so this one now covers
+ * every data file that declares hrefs and names its own blind spots below.
+ *
+ * ⚠ AND THIS COMMENT USED TO CARRY THE COUNTS, WHICH IS ITS OWN BUG — THREE OF THEM, ALL WRONG.
+ * It said ArcticData had 79 hrefs (it has never had fewer than 359 — the number was wrong the day
+ * it was typed), that 45 entries were coming-soon (42 — it went stale the moment three were
+ * flipped to available), and that 74 redirect stubs existed (72 — that was a raw `grep -rl` count
+ * including two quizzes that merely TEACH the meta-refresh tag). Every one of those numbers was
+ * printed correctly by this script at the same moment the comment beside it lied.
+ *   THE RULE: **prose states invariants, the script reports quantities.** A count transcribed by
+ *   hand into a comment is a claim nothing re-evaluates. Counts describing a PAST INCIDENT (the 12
+ *   dead forensics links, the 108, the 558 a wrong base invented) are kept deliberately — those are
+ *   evidence of what one run found on one date and cannot rot. Counts describing the CURRENT TREE
+ *   are banned from prose here.
+ *   `assertDocumentedCounts()` at the bottom enforces the ONE form that actually bit us — a count
+ *   in parentheses after a source name, `ArcticData (79)` — by re-deriving it. It is deliberately
+ *   narrow: it cannot police every sentence, and pretending otherwise would be one more claim
+ *   wider than its evidence. The rest is discipline, and the incident above is why.
  *
  * ⚠ EACH FILE RESOLVES ITS HREFS DIFFERENTLY, AND GUESSING THE BASE IS HOW YOU GET A FAKE NUMBER.
  * Resolving ContentCatalog against `houses/<house>/` reported 558 dead. The real base comes from
@@ -63,7 +79,7 @@ const SOURCES = [
                    HouseRenderer.openModule() (:1864) alerts "coming soon" instead of navigating;
                    ContentCatalog.search() defaults to `status: 'available'` (:4891); ContentDiscovery
                    (:620), ProgressManager (:725), XPMasterLedger (:254) and CompletionStamp (:105)
-                   all filter the same way. Browser-verified: 45 coming-soon entries, ZERO reachable
+                   all filter the same way. Browser-verified: EVERY coming-soon entry, ZERO reachable
                    as a clickable link. I first reported these as live 404s students hit today. They
                    are not, and "a link that does not resolve" was the wrong question to ask of them —
                    the right one is whether anything can FOLLOW it. */
@@ -174,6 +190,9 @@ if (process.argv.includes('--list-known')) {
 }
 
 let totalHrefs = 0, stillKnown = [];
+/* Per-source live counts, captured so `assertDocumentedCounts()` can re-derive anything this
+   file's own comments claim about the current tree. */
+const liveCounts = {};
 /* Roadmap accounting, reported not asserted: `roadmap` = coming-soon entries whose content is not
    built (the expected, healthy state), `readyToShip` = coming-soon entries whose content now EXISTS
    and could be flipped to available. */
@@ -182,6 +201,7 @@ for (const s of SOURCES) {
     let items;
     try { items = s.collect(); } catch (e) { ck(`${s.name}: readable`, false, e.message); continue; }
     totalHrefs += items.length;
+    liveCounts[s.name.split(' ')[0]] = items.length;   // key on the bare source name
 
     const unresolvable = items.filter(i => i.resolved === null);
     /* Roadmap entries are held to a DIFFERENT contract, checked separately below. */
@@ -208,7 +228,7 @@ for (const s of SOURCES) {
 }
 
 /* ── REDIRECT STUBS ───────────────────────────────────────────────────────────────────────────
-   BUG-118. 72 `<meta http-equiv="refresh">` stubs exist so a direct directory URL lands on the
+   BUG-118. The `<meta http-equiv="refresh">` stubs exist so a direct directory URL lands on the
    hub instead of erroring (added in bulk by 0a845715b). FIVE of them pointed at a parent with no
    index.html, so the page returned 200 and then threw the student onto a 404 — e.g.
    /houses/shield/labs/linux/ redirected to /houses/shield/labs/, which does not exist.
@@ -291,6 +311,37 @@ if (readyToShip.length) {
                 `— flip status to 'available' to expose them:`);
     [...new Set(readyToShip)].sort().slice(0, 6).forEach(r => console.log(`             ${r}`));
 }
+
+/* THE ONE FORM OF STALE-COUNT BUG THAT ACTUALLY BIT US, now re-derived instead of trusted.
+   This file's header once read `ArcticData (79)` when ArcticData has never had fewer than 359 —
+   wrong the day it was typed, and invisible to a grep for the OTHER wrong number I already knew
+   about. So: any parenthesised count written immediately after a source name, anywhere in this
+   file, must equal what that source actually yields.
+
+   ⚠ DELIBERATELY NARROW, AND SAYING SO IS THE POINT. It cannot police every sentence, and a check
+   that claimed to would be one more assertion wider than its evidence — which is the defect this
+   whole block exists to record. It catches `Name (123)`; prose discipline covers the rest. */
+function assertDocumentedCounts() {
+    /* Backtick spans are stripped first: a count inside `ArcticData (79)` is being QUOTED as the
+       example of the bug, not asserted as fact. Without this the check fails on the very sentences
+       that document it — which is how the first version behaved, caught in review. Same distinction
+       Chris drew about the surviving "74" references: narrating a wrong number is not claiming it. */
+    const self = fs.readFileSync(__filename, 'utf8').replace(/`[^`]*`/g, '');
+    /* ⚠ BIND THE COUNT TO THE WORD DIRECTLY BEFORE IT, nothing looser. The first version allowed
+       up to 30 characters between the source name and the parenthesis, so "LearningPaths and
+       ArcticData (79)" was charged to LearningPaths — and then the CORRECT ArcticData count failed
+       too, because it was compared against the wrong source's total. A checker that fails on right
+       answers is worse than no checker; the ablation caught it only because I ran the
+       must-PASS direction as well as the must-FAIL one. */
+    const wrong = [];
+    for (const m of self.matchAll(/(\w+)\s*\((\d[\d,]*)\)/g)) {
+        if (!(m[1] in liveCounts)) continue;          // not a source name — not ours to police
+        const claimed = Number(m[2].replace(/,/g, ''));
+        if (claimed !== liveCounts[m[1]]) wrong.push(`${m[1]} documented as ${m[2]}, actually ${liveCounts[m[1]]}`);
+    }
+    ck('no comment in this file documents a stale per-source count', wrong.length === 0, wrong.join('; '));
+}
+assertDocumentedCounts();
 
 console.log(`\n  ${pass}/${pass + fail} checks passed across ${SOURCES.length} data files, ` +
             `${totalHrefs} hrefs resolved`);
