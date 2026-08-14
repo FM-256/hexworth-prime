@@ -36,6 +36,8 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 
 const args = process.argv.slice(2);
 const quizId = args.find(a => !a.startsWith('--'));
+const verIdx = args.indexOf('--verified-by');
+const verifiedBy = verIdx !== -1 ? args[verIdx + 1] : null;
 const outIdx = args.indexOf('--out');
 if (outIdx !== -1 && !args[outIdx + 1]) {
     console.error('ERROR: --out given with no path.');
@@ -123,6 +125,23 @@ function pageFor(id) {
     L.push(`**Questions:** ${html.questions.length}`);
     L.push(`**Pass Threshold:** ${key.passingScore}%`);
     L.push(`**Last Updated:** ${today}`);
+    /* KARL'S BLOCKER (Mode 2, 2026-08-14): the doc recorded PROVENANCE but no VERIFICATION LEVEL,
+       and those are different claims. "Derived from the live key" says the doc matches Firestore;
+       it says nothing about whether Firestore is RIGHT. Bridget cleared these 60/60 three ways on
+       2026-08-14 and that finding appeared nowhere in the artifact it validates, so an instructor
+       or an accreditor reading this in six months had no way to learn it happened. Stamped as a
+       parameter so it survives regeneration rather than being re-typed. */
+    L.push(`**Verification:** ${verifiedBy || 'NOT VERIFIED — no reviewer recorded. Do not publish.'}`);
+    /* ⚠ SCOPE STATED HONESTLY, also per Karl. These docs carry NO citations and have not been
+       Karl-audited per question. Left implicit, the doc's tone ("the Firestore key that actually
+       grades the student", "DERIVED, never transcribed") reads MORE authoritative than a
+       hand-written page while carrying LESS evidence. In a grade dispute that asymmetry is the
+       hazard, not the missing URLs. */
+    L.push('**Citations:** none. Rationales come from the Firestore `explanations` shown to ' +
+           'students; they are not externally sourced and have not been citation-audited. ' +
+           'Four required slots from the KBA standard are absent from this format entirely: ' +
+           'distractor analysis, citation, standard/section, verification level per question. ' +
+           'Raising that ceiling means extending the generator, NOT hand-editing the output.');
     L.push('**Status:** GENERATED — do not hand-edit. Answers come from the live Firestore key; ' +
            'question text and options are read from the quiz page at runtime. Regenerate with ' +
            `\`node _tools/confluence/generate-quiz-solution.js ${quizId}\`.`);
@@ -136,8 +155,9 @@ function pageFor(id) {
     L.push('');
     L.push('⚠ **This document is DERIVED, never transcribed.** A hand-typed key would be a fourth ' +
            'copy of the same facts with nothing keeping it in step — the failure family behind ' +
-           'BUG-107, BUG-109 and BUG-099. If it disagrees with the quiz, regenerate it; do not ' +
-           'edit it.');
+           'BUG-107 (hub said 12, path said 7) and BUG-109 (a hand-maintained second ' +
+           'enumeration across 29 courses). If it disagrees with the quiz, regenerate it; do ' +
+           'not edit it.');
     L.push('');
     L.push(`Key array: \`[${key.answers.join(', ')}]\``);
     L.push('', '---', '');

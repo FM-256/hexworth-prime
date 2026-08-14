@@ -6,6 +6,7 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
+#   3.4 Quiz shuffle   : option shuffling live on the OpenStack quizzes — NO bypass (BUG-111)
 #   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)
 #   4. firebase deploy --only hosting
 #   5. Post-verify     : nexus refresh + EduScan + log-spike check — --skip-post-verify bypass (with reason)
@@ -397,6 +398,18 @@ fi
 # Trap covers EXIT, INT, TERM, HUP. SIGKILL leaves stale lock; post-verify
 # staleness check (>30 min) handles that case.
 trap 'rm -f "$LOCK_FILE"' EXIT INT TERM HUP
+
+# ── Gate 3.4: QUIZ SHUFFLE INTEGRITY ─────────────────────────────────────────
+# BUG-111 + Karl 2026-08-14: the OpenStack answer keys are 80% index-1 with zero index-3 in
+# authored order, so the shuffle is what stands between them and being trivially passable.
+# BUG-067 already happened once on these exact four pages. Karl's note: a gate guarding an
+# exploitability cliff belongs in the deploy chain, not the run-it-by-hand tier.
+echo -e "\n${YELLOW}Gate 3.4: quiz shuffle integrity${NC}"
+if ! node "$(dirname "$0")/_tools/qa/quiz-shuffle-integrity-test.js"; then
+    echo -e "${RED}ABORT: option shuffling is not live on the OpenStack quizzes.${NC}"
+    echo -e "${RED}Two of the four become passable by picking the same index every time.${NC}"
+    exit 1
+fi
 
 # ── Gate 3.5: DEPLOY SURFACE ─────────────────────────────────────────────────
 # BUG-096: _app/ IS the hosting root, so anything left there ships. Two debug probes sat
