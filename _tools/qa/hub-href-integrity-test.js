@@ -207,6 +207,45 @@ for (const s of SOURCES) {
        `${dead.length > 6 ? ' …' : ''}`);
 }
 
+/* ── REDIRECT STUBS ───────────────────────────────────────────────────────────────────────────
+   BUG-118. 74 `<meta http-equiv="refresh">` stubs exist so a direct directory URL lands on the
+   hub instead of erroring (added in bulk by 0a845715b). FIVE of them pointed at a parent with no
+   index.html, so the page returned 200 and then threw the student onto a 404 — e.g.
+   /houses/shield/labs/linux/ redirected to /houses/shield/labs/, which does not exist.
+
+   ⚠ NO HREF-BASED CHECK CAN SEE THIS. The link is a meta refresh, not an href in a data file, so
+   everything above is structurally blind to it. The course-tree crawler found it because it walks
+   pages the way a student does; that is the whole argument for keeping both kinds of check.
+
+   ⚠ IT PARSES THE <head> ONLY, AND THAT IS THE ENTIRE DIFFICULTY. Two MicroPython/ESP32 quizzes
+   TEACH the meta refresh tag: `<meta http-equiv="refresh" content="5">` appears inside a question
+   string in the body. A naive file-wide grep reads those as self-reloading quiz pages — a false
+   alarm I nearly filed. Same string-vs-markup trap that cost five review rounds on BUG-107. */
+const REDIR = /<meta[^>]+http-equiv=["']?refresh["']?[^>]*content=["']([^"']+)["']/i;
+const stubs = [];
+const scan = d => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const f = path.join(d, e.name);
+    if (e.isDirectory()) { if (!['node_modules', '_archive', '_source'].includes(e.name)) scan(f); }
+    else if (e.name.endsWith('.html')) {
+        const src = fs.readFileSync(f, 'utf8');
+        const head = src.slice(0, (src.search(/<\/head>/i) + 1) || 4000);   // HEAD ONLY
+        const m = head.match(REDIR);
+        if (!m) continue;
+        const u = (m[1].match(/url\s*=\s*(.+?)\s*$/i) || [])[1];
+        if (!u) continue;                       // `content="5"` with no url = a plain reload, not a redirect
+        const url = u.trim().replace(/^['"]|['"]$/g, '');
+        if (/^(https?:|\/\/)/.test(url)) continue;
+        const from = path.relative(APP, path.dirname(f));
+        const tgt = url.startsWith('/') ? path.posix.normalize(url.slice(1))
+                                        : path.posix.normalize(path.posix.join(from, url));
+        stubs.push({ file: path.relative(APP, f), tgt });
+    }
+} };
+scan(APP);
+const deadRedirects = stubs.filter(s => !exists(s.tgt) && !exists(path.posix.join(s.tgt, 'index.html')));
+ck(`all ${stubs.length} redirect stubs point at a page that exists`, deadRedirects.length === 0,
+   deadRedirects.map(s => `${s.file} -> ${s.tgt}`).slice(0, 5).join('; '));
+
 /* A baseline entry that has come back to life must be removed, or the file slowly becomes a list
    of things that are fine — and then it will mute a real regression. */
 const resurrected = [...known].filter(exists);
