@@ -45,6 +45,24 @@ const server = http.createServer((req, res) => {
     });
 });
 
+/* ⚠ ONE STRIP, USED EVERYWHERE. There were THREE copies of this regex trio in this file and
+   ONE HAD DIVERGED: the review scrape omitted the HTML-comment rule, and Chris turned that
+   single missing line into a live false green -- an HTML wiring note containing an
+   `onComplete:` block was brace-matched as if it were the real handler, so the gate printed
+   PASS on a review that recorded nothing. Exactly the defect the round-2 fix was for,
+   reproduced through the one comment syntax that copy could not see.
+   There is a fourth variant in _tools/qa/access-guard-placement-test.js:22,43, so the
+   divergence is already platform-wide; this file at least is now single-source.
+   Stripping happens in NODE, never inside page.evaluate, so browser and node scope cannot
+   drift apart either. Trailing `//` comments are deliberately NOT stripped: direction is
+   fail-loud, and 5 exist in the hub. */
+function stripComments(src) {
+    return String(src)
+        .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
+        .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
+        .replace(/^[ \t]*\/\/.*$/gm, ' ');     // FULL-LINE JS comments only
+}
+
 let pass = 0, fail = 0;
 function check(name, cond, detail) {
     if (cond) { pass++; console.log(`  PASS  ${name}`); }
@@ -178,15 +196,10 @@ async function withRetry(label, fn, tries = 3) {
            `ModuleProgress.complete('cloud', moduleId, …)`, including six -live labs on this same
            hub. Convert a chapter lab to that shape and this scrape finds zero ids and fails on
            correct code. Fail-loud and not currently triggered, but that is where it will break. */
-        const labScrape = await page.evaluate(() => {
-            const stripped = document.documentElement.innerHTML
-                .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
-                .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
-                .replace(/^[ \t]*\/\/.*$/gm, ' ');     // JS line comments
-            const all = [...stripped.matchAll(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/g)]
-                .map(m => m[1]);
-            return { ids: [...new Set(all)], count: all.length };
-        });
+        const labHtml = await page.evaluate(() => document.documentElement.innerHTML);
+        const labAll = [...stripComments(labHtml)
+            .matchAll(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/g)].map(m => m[1]);
+        const labScrape = { ids: [...new Set(labAll)], count: labAll.length };
         const labId = labScrape.ids.length === 1 ? labScrape.ids[0] : null;
         check('    the lab names EXACTLY ONE module id, in live code not a comment',
               labId !== null, JSON.stringify(labScrape));
@@ -347,8 +360,9 @@ async function withRetry(label, fn, tries = 3) {
        green overall, but a gate line asserting PASS while its claim is false is
        feedback_never_write_an_unearned_pass living inside the gate itself.
        Now: strip comments, and bound the slice to the onComplete BODY rather than to EOF. */
-    const reviewClean = reviewSrc
-        .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^[ \t]*\/\/.*$/gm, ' ');
+    // ⚠ THIS is the copy that diverged and produced a false green: it stripped JS comments but
+    // not HTML ones, and the file it reads is HTML. Now the shared helper, so it cannot recur.
+    const reviewClean = stripComments(reviewSrc);
     const hookStart = reviewClean.indexOf('onComplete:');
     // brace-match the handler body so a later, unrelated call cannot satisfy this assertion
     let hook = '';
@@ -410,11 +424,19 @@ async function withRetry(label, fn, tries = 3) {
        TWO changes: strip comments first, and collect ALL occurrences rather than the first. A
        SECOND live `id="progressText"` in shipped markup is itself a defect, so duplicates are
        reported rather than silently shadowed by whichever came first. */
-    const cleanHtml = rawHtml
-        .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
-        .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
-        .replace(/^[ \t]*\/\/.*$/gm, ' ');     // FULL-LINE JS comments (trailing // are NOT stripped)
-    const declared = (cleanHtml.match(/const total = (\d+)/) || [])[1];
+    const cleanHtml = stripComments(rawHtml);
+    /* ⚠ THE REFERENCE VALUE WAS ITSELF A FIRST-MATCH SCRAPE. In the same edit where I converted
+       three .match() first-hits to matchAll, THIS one -- the number every literal below is
+       compared against -- stayed .match(). Chris added a helper containing `const total = 12;`
+       above updateProgress() and regressed the real declaration to 13: the check PASSED and
+       reported total=12 while the code declared 13. The anchor lied and every comparison built
+       on it inherited the lie. This must read source (first paint is a source property), so the
+       value-read fix used in the path keeper is not available -- matchAll plus a
+       must-be-unique assertion is. */
+    const totalDecls = [...cleanHtml.matchAll(/const total = (\d+)/g)].map(m => m[1]);
+    check('  the hub declares `const total` exactly ONCE',
+          totalDecls.length === 1, `found ${totalDecls.length}: ${totalDecls.join(', ')}`);
+    const declared = totalDecls.length === 1 ? totalDecls[0] : undefined;
     const literals = [];
     const collect = (re, where) => {
         for (const m of cleanHtml.matchAll(re)) literals.push({ where, n: Number(m[1]) });
@@ -422,9 +444,15 @@ async function withRetry(label, fn, tries = 3) {
     collect(/id="progressText"[^>]*>\s*\d+\s*\/\s*(\d+)/g, 'initial counter markup');
     collect(/id="activityCount"[^>]*>\s*(\d+)\s*</g, 'hero stat markup');
     collect(/Complete all (\d+) activities/gi, 'about copy markup');
-    const dupes = [...new Set(literals.map(l => l.where))]
-        .filter(w => literals.filter(l => l.where === w).length > 1);
-    check('  each activity-count literal appears exactly ONCE in live markup',
+    /* ⚠ NARROWED: this fired on CORRECT markup. Chris added a <meta name="description"> reading
+       "Complete all 12 activities" -- right number, valid HTML, no defect -- and the check
+       FAILED. It was conflating two unlike things: a repeated id= attribute, which is invalid
+       HTML and a real defect, and a prose phrase appearing twice, which is not. Only the id
+       scrapes are asserted unique now; a repeated prose phrase is still caught by the stale-value
+       comparison below if its number is wrong, which is the case that actually matters. */
+    const ID_SCRAPES = ['initial counter markup', 'hero stat markup'];
+    const dupes = ID_SCRAPES.filter(w => literals.filter(l => l.where === w).length > 1);
+    check('  each id-based activity count appears exactly ONCE in live markup',
           dupes.length === 0, `duplicated: ${dupes.join(', ')}`);
     const staleLit = literals.filter(l => String(l.n) !== String(declared));
     check(`  no stale activity-count LITERAL in the shipped markup (${literals.length} checked, total=${declared})`,
