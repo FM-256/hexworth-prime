@@ -73,6 +73,34 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** n/a — open. Chris observed it while rendering `path-view.html?path=openstack`.
 - **Related:** BUG-107, BUG-109.
 
+### BUG-110 — four live server-graded OpenStack quizzes have NO Confluence solution page  ·  [P2]  ·  open
+- **Found:** 2026-08-14 · by Bridget · three-way sync audit of the cloudmaster quizzes
+- **Area:** Confluence Quiz Solutions Manual (page id `2981889`) · `_app/houses/cloud/openstack/quizzes/*.quiz.html`
+- **Symptom:** all four quizzes (`cloud-openstack-{intro,projects,install,operation}-quiz`) grade server-side against Firestore `quiz_keys`, and **no solution page exists for any of them**. 435 children under the Solutions Manual, zero OpenStack; CQL on all four grading ids returns only the Course & Hub Inventory page.
+- **Why it matters:** there is no instructor-facing artifact stating the correct answers, and no Karl-audited citation trail. **Every other Cloud-house course has one** (CSE, AWS, AZ-104, MS-102, PL-300, MS-900, WSA). It also means the three-way audit can only ever be a two-way one: absence of a third source is not agreement between three.
+- **Root cause:** the quizzes were built and their keys machine-extracted (`3527d7588`, 2026-07-31) without the Solutions Manual step.
+- **Fix:** not fixed. Author solution pages and run Karl over the citations. Deliberately NOT done under the current deploy freeze.
+- **Verified:** n/a — open. Bridget's audit is read-only.
+- **Related:** BUG-111, BUG-112. The answer keys themselves are CORRECT (60/60), so this is an evidence gap, not a grading defect.
+
+### BUG-111 — OpenStack answer-index distribution is skewed; the shuffle is load-bearing for integrity  ·  [P2]  ·  open
+- **Found:** 2026-08-14 · by Bridget · same audit
+- **Area:** Firestore `quiz_keys/cloud-openstack-install-quiz` and `…-operation-quiz`; mitigated by `_app/components/InstantQuizGrader.js`
+- **Symptom:** in authored order, **install is 80% index-1** (12 of 15) and **operation is 80% index-1 with zero index-3**. intro 0/7/7/1, projects 0/9/6/0. That is the "click B every time" shape BUG-067 was filed for.
+- **Why it is not currently exploitable:** `InstantQuizGrader` applies a per-question Fisher-Yates permutation before render, so the student never sees authored order. **This makes the shuffle load-bearing for assessment integrity rather than an anti-cheat nicety.** If anyone reverts these quizzes to static rendering, two of the four become trivially passable without knowledge.
+- **Fix:** not fixed. Either rebalance the keys, or treat the shuffle as a hard requirement with a gate asserting it cannot regress. The second is cheaper and covers future quizzes too.
+- **Verified:** n/a — latent risk, not present drift. Shuffle verified sound: index-based (duplicate option text cannot collide), permutation cached per question, and fails CLOSED — `startQuiz()` throws before the start screen is hidden if the grader fails to load.
+- **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
+
+### BUG-112 — quiz_keys documents carry no `updatedAt`, so grading-source staleness is unprovable  ·  [P3]  ·  open
+- **Found:** 2026-08-14 · by Bridget · same audit
+- **Area:** Firestore `quiz_keys/*` (all four OpenStack docs; likely platform-wide)
+- **Symptom:** the docs have `answers`, `questionCount`, `passingScore`, `revealToAll`, `explanations` — and **no timestamp**. A future audit cannot distinguish a freshly-seeded key from one that has drifted from its HTML for months.
+- **Why it mattered here:** Bridget could only close the staleness question because the extraction script's provenance is auditable in git (`3527d7588`, 2026-07-31T13:17:32-04:00). That is good tooling, not a property of the data — the same audit on a hand-seeded key would have been unresolvable.
+- **Fix:** not fixed. Whatever seeds `quiz_keys` should stamp `serverTimestamp()`.
+- **Verified:** n/a — open.
+- **Related:** BUG-110, BUG-111.
+
 ### BUG-109 — LearningPaths.js is a hand-maintained second enumeration: 5 courses omit their quizzes, 8 omit their review  ·  [P2]  ·  open
 - **Found:** 2026-08-13 · by Chris · QC of `a1cddce05`, answering "is this one course or many?"
 - **Area:** `_app/components/LearningPaths.js` — all **29** paths carrying a `courseHref`
