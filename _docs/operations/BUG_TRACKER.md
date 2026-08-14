@@ -92,6 +92,16 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Verified:** n/a — latent risk, not present drift. Shuffle verified sound: index-based (duplicate option text cannot collide), permutation cached per question, and fails CLOSED — `startQuiz()` throws before the start screen is hidden if the grader fails to load.
 - **Related:** BUG-067 (the original test-wiseness finding), BUG-110.
 
+### BUG-113 — 12+ hand-rolled comment-stripping regexes across `_tools/`, each with its own blind spot  ·  [P2]  ·  open
+- **Found:** 2026-08-14 · by Chris · round-4 review of the BUG-107 harnesses
+- **Area:** `_tools/` — 12 files contain their own `replace(/<!--[\s\S]*?-->/g, …)` variant (Chris counted 17 including JS-comment-only variants). The hardened single source already exists: `_tools/eduscan/utils/strip-noncode.js`.
+- **Symptom:** every hand-rolled variant is a partial re-implementation of a parser, and each has a different blind spot. Confirmed live in one of them: `_tools/qa/access-guard-placement-test.js:22,43,46` strips **all** `//` including inside strings and URLs, so it corrupts `"https://…"` — the opposite failure from the one that bit the OpenStack harness, which missed HTML comments entirely.
+- **Why the shared one is right:** `strip-noncode.js:15-19` documents the ordering that makes it safe — *"inside inline `<script>` blocks, JS string literals are blanked FIRST (so `//` inside `"https://…"` is not misread as a comment start, and a fake `<!--` … cannot fool the HTML-comment pass), THEN JS line/block comments … Only after script bodies are neutralized is it safe to strip HTML comments."* The hand-rolled variants violate one or both rules.
+- **Root cause:** the search-the-catalog rule not being followed — a new strip gets written each time instead of the existing one being found. I did exactly this in `openstack-hub-completion-test.js` and it cost four review rounds.
+- **Fix:** not fixed. Two options: migrate all variants to `strip-noncode.js`, or (better where possible) delete the need — read parsed values rather than source text, as the BUG-107 harnesses now do. **Do not** hand-roll a 13th.
+- **Verified:** n/a — open. Count reproduced with `grep -rln "replace(/<!--" _tools/` = 12 files.
+- **Related:** BUG-107 (where this surfaced). The lesson is recorded in `openstack-hub-completion-test.js`'s header.
+
 ### BUG-112 — quiz_keys documents carry no `updatedAt`, so grading-source staleness is unprovable  ·  [P3]  ·  open
 - **Found:** 2026-08-14 · by Bridget · same audit
 - **Area:** Firestore `quiz_keys/*` (all four OpenStack docs; likely platform-wide)

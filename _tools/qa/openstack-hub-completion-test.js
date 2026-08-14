@@ -45,23 +45,16 @@ const server = http.createServer((req, res) => {
     });
 });
 
-/* ⚠ ONE STRIP, USED EVERYWHERE. There were THREE copies of this regex trio in this file and
-   ONE HAD DIVERGED: the review scrape omitted the HTML-comment rule, and Chris turned that
-   single missing line into a live false green -- an HTML wiring note containing an
-   `onComplete:` block was brace-matched as if it were the real handler, so the gate printed
-   PASS on a review that recorded nothing. Exactly the defect the round-2 fix was for,
-   reproduced through the one comment syntax that copy could not see.
-   There is a fourth variant in _tools/qa/access-guard-placement-test.js:22,43, so the
-   divergence is already platform-wide; this file at least is now single-source.
-   Stripping happens in NODE, never inside page.evaluate, so browser and node scope cannot
-   drift apart either. Trailing `//` comments are deliberately NOT stripped: direction is
-   fail-loud, and 5 exist in the hub. */
-function stripComments(src) {
-    return String(src)
-        .replace(/<!--[\s\S]*?-->/g, ' ')      // HTML comments
-        .replace(/\/\*[\s\S]*?\*\//g, ' ')     // JS block comments
-        .replace(/^[ \t]*\/\/.*$/gm, ' ');     // FULL-LINE JS comments only
-}
+/* ⚠ THERE IS NO COMMENT-STRIPPER IN THIS FILE, AND THERE MUST NOT BE ONE.
+   Four review rounds all blocked on one thing: a regex asked to answer questions that need a
+   PARSER. Full-line //, then HTML comments, then trailing //, then a string containing '/*'
+   that ate 26 lines of live code. Chris, round 4: "there is no round 5 that ends this, because
+   the list is the grammar of two languages." The source scrapes are gone, replaced by reads of
+   things the browser already parsed.
+   If you ever need to neutralise comments here, do NOT write another regex --
+   _tools/eduscan/utils/strip-noncode.js is the hardened single source and is order-aware
+   (string literals blanked FIRST, then JS comments, only then HTML comments). I wrote another
+   variant of it here without searching the catalog, the rule that exists to prevent this. */
 
 let pass = 0, fail = 0;
 function check(name, cond, detail) {
@@ -139,6 +132,9 @@ async function withRetry(label, fn, tries = 3) {
             title: (c.querySelector('h3') || {}).textContent || '',
             parts: ['presentation', 'lab', 'quiz'].filter(k => !!c.querySelector('a.link-' + k))
         })));
+    /* Captured HERE, on the hub, because finishLab() runs on the LAB page where the hub's
+       globals are out of scope. Index-aligned with the chapter cards, the hub's own convention. */
+    const hubLabIds = await page.evaluate(() => (typeof labIds !== 'undefined' ? labIds : null));
     console.log(`\n--- ${chapters.length} chapters found on the hub ---`);
     chapters.forEach(c => console.log(`  ${c.name}: ${c.parts.join(', ')}`));
 
@@ -152,7 +148,7 @@ async function withRetry(label, fn, tries = 3) {
         await settle(800);
         return true;
     }
-    async function finishLab() {
+    async function finishLab(chIdx) {
         /* Prove the gate REFUSES before satisfying it. Without this the test would pass just as
            happily against a lab that hands out credit for nothing, which is a defect this repo
            has actually shipped before (the unconditional completeModule, fixed 2026-08-03). */
@@ -174,35 +170,15 @@ async function withRetry(label, fn, tries = 3) {
            tests, not here: this file is about whether the HUB repaints and counts. So it records the
            module exactly as the lab does on success, and the lab's own gate, including the refusal
            above, is covered by _tools/qa/openstack-lab-credit-test.js (12/12 across all three labs). */
-        /* ⚠ COMMENT-SAFE, AND EXACTLY ONE MATCH. Chris blocked the first version of this scrape:
-           it regexed over raw innerHTML, so it also matched COMMENTED-OUT code. Commenting out
-           the install lab's real ModuleProgress.complete line left this harness 54/54 GREEN on a
-           lab that recorded nothing, where the pre-BUG-104 harness had caught the same mutation
-           at 36/51. It traded away coverage of "the lab silently stopped recording" -- the exact
-           defect ee9ee8105 exists to prevent -- and it was the fifth comment-vs-code false
-           positive of this work.
-           Strip HTML comments, block comments and FULL-LINE `//` comments (a TRAILING `//` is
-           NOT stripped -- 5 exist in the hub and 1/2/7 in the three labs; direction is
-           fail-loud, so that is acceptable), then require exactly one DISTINCT id.
-
-           ⚠ THE COMMENT USED TO SAY "exactly ONE remaining call" AND THE CODE DOES NOT DO THAT.
-           It asserts on `[...new Set(all)].length`, deduped BY ID, so two legitimate calls with
-           the same id pass; `count` is reported and never asserted. Chris caught me reasoning
-           about behaviour my own gate did not have. Corrected rather than "fixed", because
-           dedup-by-id is the behaviour I actually want.
-           Checked the premise before keeping the constraint: 0 of 592 lab files platform-wide
-           have two literal `ModuleProgress.complete('cloud','…')` calls, so it refuses nothing
-           today. The real fragility is elsewhere -- 530 lab files use the VARIABLE form
-           `ModuleProgress.complete('cloud', moduleId, …)`, including six -live labs on this same
-           hub. Convert a chapter lab to that shape and this scrape finds zero ids and fails on
-           correct code. Fail-loud and not currently triggered, but that is where it will break. */
-        const labHtml = await page.evaluate(() => document.documentElement.innerHTML);
-        const labAll = [...stripComments(labHtml)
-            .matchAll(/ModuleProgress\.complete\('cloud',\s*'([^']+)'/g)].map(m => m[1]);
-        const labScrape = { ids: [...new Set(labAll)], count: labAll.length };
-        const labId = labScrape.ids.length === 1 ? labScrape.ids[0] : null;
-        check('    the lab names EXACTLY ONE module id, in live code not a comment',
-              labId !== null, JSON.stringify(labScrape));
+        /* THE LAB'S MODULE ID, READ AS A VALUE. This scraped the lab's markup, which is why it
+           kept breaking: it could not tell live code from a comment, and could not see the
+           VARIABLE form 530 lab files use. The hub hoists labIds at index.html:642 precisely so
+           a harness reads the value -- its own comment says "a harness reads the VALUE, never
+           the markup". The assertion that a lab "names exactly one id in live code" is GONE
+           deliberately: not answerable without a parser, and whether the lab actually RECORDS is
+           proven by openstack-lab-credit-test.js, which drives the real thing both directions. */
+        const labId = hubLabIds ? hubLabIds[chIdx] : null;
+        check('    the hub names a lab module id for this chapter', !!labId, String(labId));
         await page.evaluate(id => {
             if (id) ModuleProgress.complete('cloud', id, { type: 'lab' });
         }, labId);
@@ -248,7 +224,7 @@ async function withRetry(label, fn, tries = 3) {
                 ]);
             });
             await settle(800);
-            await finisher[part]();
+            await finisher[part](ch.idx);
 
             await page.goBack(NAV);
             await settle(900);
@@ -348,37 +324,13 @@ async function withRetry(label, fn, tries = 3) {
               const r = document.querySelector('.review-section');
               return !!(r && r.classList.contains('completed'));
           }), 'review section has no completed state');
-    const fs2 = require('fs');
-    const reviewSrc = fs2.readFileSync(path.resolve(ROOT,
-        'houses/cloud/openstack/reviews/cloud-openstack-comprehensive-review.html'), 'utf8');
-    /* ⚠ SLICED TO EOF AND READ COMMENTS. The old version took everything after the first
-       `onComplete:` to the END OF FILE and regexed it raw, so the match could come from
-       anywhere later in the document -- including a comment. Chris replaced the real call with
-       `// BUG-103 used to do: ModuleProgress.complete('cloud', 'cloud-openstack-review');`,
-       this repo's own house comment style, and the line printed PASS on a review that records
-       NOTHING. The runtime playthrough above still catches that case, so it was not a false
-       green overall, but a gate line asserting PASS while its claim is false is
-       feedback_never_write_an_unearned_pass living inside the gate itself.
-       Now: strip comments, and bound the slice to the onComplete BODY rather than to EOF. */
-    // ⚠ THIS is the copy that diverged and produced a false green: it stripped JS comments but
-    // not HTML ones, and the file it reads is HTML. Now the shared helper, so it cannot recur.
-    const reviewClean = stripComments(reviewSrc);
-    const hookStart = reviewClean.indexOf('onComplete:');
-    // brace-match the handler body so a later, unrelated call cannot satisfy this assertion
-    let hook = '';
-    if (hookStart !== -1) {
-        const open = reviewClean.indexOf('{', hookStart);
-        if (open !== -1) {
-            let depth = 0;
-            for (let i = open; i < reviewClean.length; i++) {
-                if (reviewClean[i] === '{') depth++;
-                else if (reviewClean[i] === '}') { depth--; if (depth === 0) { hook = reviewClean.slice(open, i + 1); break; } }
-            }
-        }
-    }
-    check('  the review page\'s onComplete actually records (not an empty function)',
-          /ModuleProgress\.complete\(\s*'cloud'\s*,\s*'cloud-openstack-review'/.test(hook),
-          `onComplete body (${hook.length} chars) does not call ModuleProgress.complete with the id the hub reads`);
+    /* ⚠ THE onComplete SOURCE SCRAPE IS DELETED, NOT REPAIRED. It read the review file's TEXT to
+       assert the handler records, and it wrote an unearned PASS in three consecutive review
+       rounds: first by slicing to EOF, then through an HTML comment, then through a trailing //
+       comment. The runtime playthrough above proves the STRONGER claim -- it plays the review
+       and checks the hub moved -- and Chris's mutation showed the playthrough catching the exact
+       defect the scrape missed. A check strictly dominated by another, contributing only false
+       passes and false failures, is not worth repairing. */
 
     /* EVERY number on the page that claims an activity count, not just the one phrase I happened
        to check. The earlier version matched only "Complete all N activities" and went green while
@@ -410,55 +362,42 @@ async function withRetry(label, fn, tries = 3) {
        the runtime check. It is still wrong, because it is what the student reads for the instant
        before the script runs, and it is what a reviewer reads in the source. So the raw HTML is
        checked as shipped, against the `total` the script itself declares. */
-    const rawHtml = await new Promise((resolve, reject) => {
-        const lib = HUB.startsWith('https') ? require('https') : require('http');
-        lib.get(HUB, res => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(d)); })
-           .on('error', reject);
-    });
-    /* ⚠⚠ THIS CHECK WAS A FALSE GREEN AND CHRIS PROVED IT, ~200 lines below the comment-hazard
-       I had just fixed in this same file. It regexed RAW markup and took the FIRST match, so
-       the realistic regression -- bump a literal, leave the old one commented out above it --
-       produced a full 54/54 exit 0 while the hub's first paint read "0 / 13 completed" on a
-       12-activity course. That is the BUG-103 defect verbatim, sailing through the gate built
-       to catch it. Reproduced independently before fixing.
-       TWO changes: strip comments first, and collect ALL occurrences rather than the first. A
-       SECOND live `id="progressText"` in shipped markup is itself a defect, so duplicates are
-       reported rather than silently shadowed by whichever came first. */
-    const cleanHtml = stripComments(rawHtml);
-    /* ⚠ THE REFERENCE VALUE WAS ITSELF A FIRST-MATCH SCRAPE. In the same edit where I converted
-       three .match() first-hits to matchAll, THIS one -- the number every literal below is
-       compared against -- stayed .match(). Chris added a helper containing `const total = 12;`
-       above updateProgress() and regressed the real declaration to 13: the check PASSED and
-       reported total=12 while the code declared 13. The anchor lied and every comparison built
-       on it inherited the lie. This must read source (first paint is a source property), so the
-       value-read fix used in the path keeper is not available -- matchAll plus a
-       must-be-unique assertion is. */
-    const totalDecls = [...cleanHtml.matchAll(/const total = (\d+)/g)].map(m => m[1]);
-    check('  the hub declares `const total` exactly ONCE',
-          totalDecls.length === 1, `found ${totalDecls.length}: ${totalDecls.join(', ')}`);
-    const declared = totalDecls.length === 1 ? totalDecls[0] : undefined;
-    const literals = [];
-    const collect = (re, where) => {
-        for (const m of cleanHtml.matchAll(re)) literals.push({ where, n: Number(m[1]) });
-    };
-    collect(/id="progressText"[^>]*>\s*\d+\s*\/\s*(\d+)/g, 'initial counter markup');
-    collect(/id="activityCount"[^>]*>\s*(\d+)\s*</g, 'hero stat markup');
-    collect(/Complete all (\d+) activities/gi, 'about copy markup');
-    /* ⚠ NARROWED: this fired on CORRECT markup. Chris added a <meta name="description"> reading
-       "Complete all 12 activities" -- right number, valid HTML, no defect -- and the check
-       FAILED. It was conflating two unlike things: a repeated id= attribute, which is invalid
-       HTML and a real defect, and a prose phrase appearing twice, which is not. Only the id
-       scrapes are asserted unique now; a repeated prose phrase is still caught by the stale-value
-       comparison below if its number is wrong, which is the case that actually matters. */
-    const ID_SCRAPES = ['initial counter markup', 'hero stat markup'];
-    const dupes = ID_SCRAPES.filter(w => literals.filter(l => l.where === w).length > 1);
-    check('  each id-based activity count appears exactly ONCE in live markup',
-          dupes.length === 0, `duplicated: ${dupes.join(', ')}`);
-    const staleLit = literals.filter(l => String(l.n) !== String(declared));
-    check(`  no stale activity-count LITERAL in the shipped markup (${literals.length} checked, total=${declared})`,
-          !!declared && literals.length >= 3 && staleLit.length === 0,
-          staleLit.length ? staleLit.map(l => `${l.where} says ${l.n}`).join('; ') + ` but const total = ${declared}`
-                          : `declared=${declared}, literals found=${literals.length}`);
+    /* FIRST PAINT, READ BY LETTING THE BROWSER PARSE IT WITH JS OFF.
+       updateProgress() overwrites the counter on load, so a stale literal in the markup is
+       invisible to any assertion running after settle() -- it is still wrong, because it is what
+       the student reads for the instant before the script runs.
+       This used to fetch raw HTML and regex it, and four review rounds of blocks all came out of
+       that one decision. THE BROWSER'S OWN HTML PARSER IS THE COMMENT STRIPPER: with JavaScript
+       disabled the DOM holds exactly what paints and nothing that is commented out, so there is
+       no strip to get wrong, no ordering bug, and no 17th variant of a regex. The comparison
+       value is READ AT RUNTIME rather than scraped from `const total`, which also retires the
+       uniqueness assertion that failed on a legitimate second `total` in another scope -- the
+       hub already has one at index.html:884. */
+    const paintPage = await browser.newPage();
+    await paintPage.setJavaScriptEnabled(false);
+    await withRetry('first paint', () => paintPage.goto(HUB, NAV));
+    const paint = await paintPage.evaluate(() => ({
+        counters:   [...document.querySelectorAll('#progressText')].map(n => n.textContent.trim()),
+        activities: [...document.querySelectorAll('#activityCount')].map(n => n.textContent.trim()),
+        prose:      [...document.body.innerText.matchAll(/Complete all (\d+) activities/gi)]
+                        .map(m => Number(m[1]))
+    }));
+    await paintPage.close();
+
+    // A duplicate id is invalid HTML and a real defect; the parsed DOM reports it directly.
+    check('  each activity-count id appears exactly ONCE in the painted DOM',
+          paint.counters.length === 1 && paint.activities.length === 1,
+          `#progressText x${paint.counters.length}, #activityCount x${paint.activities.length}`);
+
+    const painted = [
+        ...paint.counters.map(t => Number((t.match(/\d+\s*\/\s*(\d+)/) || [])[1])),
+        ...paint.activities.map(Number),
+        ...paint.prose
+    ].filter(n => Number.isFinite(n));
+    const stalePaint = painted.filter(n => n !== done.total);
+    check(`  every activity count in FIRST PAINT matches the runtime total (${painted.length} found, total=${done.total})`,
+          painted.length >= 3 && done.total > 0 && stalePaint.length === 0,
+          `painted=[${painted.join(', ')}] but runtime total is ${done.total}`);
 
     const wrong = claims.filter(c => c.n !== done.total);
     check(`  EVERY activity-count on the page agrees with the counter (${claims.length} found)`,
