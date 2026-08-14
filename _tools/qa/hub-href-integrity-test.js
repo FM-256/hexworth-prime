@@ -326,10 +326,26 @@ function assertDocumentedCounts() {
        example of the bug, not asserted as fact. Without this the check fails on the very sentences
        that document it — which is how the first version behaved, caught in review. Same distinction
        Chris drew about the surviving "74" references: narrating a wrong number is not claiming it. */
-    const self = fs.readFileSync(__filename, 'utf8').replace(/`[^`]*`/g, '');
-    /* ⚠ BIND THE COUNT TO THE WORD DIRECTLY BEFORE IT, nothing looser. The first version allowed
-       up to 30 characters between the source name and the parenthesis, so "LearningPaths and
-       ArcticData (79)" was charged to LearningPaths — and then the CORRECT ArcticData count failed
+    /* ⚠ THE PREVIOUS VERSION STRIPPED QUOTED SPANS ACROSS THE WHOLE FILE, AND ITS OWN
+       IMPLEMENTATION LINE BROKE IT. That line held three raw backtick characters, which flipped
+       the running pair-parity from even to odd, so every line after it was stripped wrongly and
+       the check silently passed on an injected stale claim. Chris proved it by injecting one, not
+       by reading the code. A checker whose source text corrupts its own scan is worse than none.
+       Two changes close it: only COMMENT text is scanned (prose is the only place this risk
+       lives, and code is no longer able to desync it), and the delimiter is built from a char
+       code so this function contributes no literal backticks to the text it reads. */
+    const BT = String.fromCharCode(96);
+    const src = fs.readFileSync(__filename, 'utf8');
+    const comments = [
+        ...src.matchAll(/\/\*[\s\S]*?\*\//g),      // block comments
+        ...src.matchAll(/(?<!:)\/\/[^\n]*/g),      // line comments; (?<!:) so https:// is not one
+    ].map(m => m[0]).join('\n');
+    // Drop quoted spans: `ArcticData (79)` in the header is the EXAMPLE of the bug, not a claim.
+    const self = comments.replace(new RegExp(BT + '[^' + BT + ']*' + BT, 'g'), ' ');
+
+    /* ⚠ BIND THE COUNT TO THE WORD DIRECTLY BEFORE IT, nothing looser. An earlier version allowed
+       up to 30 characters between the source name and the parenthesis, so `LearningPaths and
+       ArcticData (79)` was charged to LearningPaths — and then the CORRECT ArcticData count failed
        too, because it was compared against the wrong source's total. A checker that fails on right
        answers is worse than no checker; the ablation caught it only because I ran the
        must-PASS direction as well as the must-FAIL one. */

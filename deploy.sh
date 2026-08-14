@@ -6,8 +6,8 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
-#   3.2 Hub links       : every href in all 7 course data files resolves to a real file
-#                         (5,727 hrefs) — NO bypass (BUG-115, BUG-116)
+#   3.2 Hub links       : every href in every course data file resolves to a real file, and
+#                         every redirect stub lands somewhere — NO bypass (BUG-115/116/118)
 #   3.3 Completion      : module progress records + OpenStack course completable — NO bypass
 #   3.4 Quiz shuffle   : option shuffling live on the OpenStack quizzes — NO bypass (BUG-111)
 #   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)
@@ -409,10 +409,17 @@ trap 'rm -f "$LOCK_FILE"' EXIT INT TERM HUP
 #
 # ⚠ SCOPE IS THE WHOLE POINT OF THIS GATE, so state it truthfully. The first version checked
 # TWO data files and printed "4/4 passed", which reads as platform coverage and was not --
-# it saw 95 of the platform's 5,727 declared hrefs, and 108 more were broken outside its
-# view (BUG-116). It now covers all 7 files that declare hrefs. 42 links to content that was
-# never built are carried in _tools/qa/hub-href-known-dead.txt and PRINTED on every run.
-echo -e "\n${YELLOW}Gate 3.2: course link integrity (7 data files)${NC}"
+# it saw 95 hrefs, and 108 more were broken outside its view (BUG-116). It now covers all 7
+# files that declare hrefs, and prints its own totals -- do not transcribe them here.
+#
+# ⚠ THIS COMMENT ITSELF CARRIED A FALSE CLAIM, caught in review. It said "42 links to content
+# that was never built are carried in hub-href-known-dead.txt and PRINTED on every run". That
+# file is EMPTY, and correctly so: the 42 is the ROADMAP count of coming-soon entries, read
+# from ContentCatalog's status field -- an entirely different code path from the known-dead
+# baseline. Wrong number AND wrong mechanism, in the one place a reader checks what the gate
+# does. The lesson is the same one BUG-118 records: prose states invariants, the script
+# reports quantities.
+echo -e "\n${YELLOW}Gate 3.2: course link integrity${NC}"   # the script prints its own totals
 if ! node "$(dirname "$0")/_tools/qa/hub-href-integrity-test.js"; then
     echo -e "${RED}ABORT: a course hub links a module file that does not exist.${NC}"
     exit 1
