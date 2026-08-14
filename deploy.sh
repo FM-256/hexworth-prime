@@ -6,8 +6,10 @@
 #   1.5 Chris gate     : recorded Chris purpose+bar QC PASS must match HEAD — --skip-chris bypass (with reason)
 #   2. Nexus gate      : static-analysis quality scan — --force bypass
 #   3. Smoke gate      : real-browser pre-render check (Puppeteer) — --skip-smoke bypass
-#   3.2 Hub links       : every href in every course data file resolves to a real file, and
-#                         every redirect stub lands somewhere — NO bypass (BUG-115/116/118)
+#   3.2 Hub links       : every LIVE href in every course data file resolves to a real file,
+#                         and every redirect stub lands somewhere — NO bypass (BUG-115/116/118).
+#                         'Live' is load-bearing: coming-soon roadmap entries are excluded by
+#                         design, because nothing renders them as a followable link.
 #   3.3 Completion      : module progress records + OpenStack course completable — NO bypass
 #   3.4 Quiz shuffle   : option shuffling live on the OpenStack quizzes — NO bypass (BUG-111)
 #   3.5 Deploy surface : nothing ships from _app/ that git does not track — NO bypass (BUG-096)

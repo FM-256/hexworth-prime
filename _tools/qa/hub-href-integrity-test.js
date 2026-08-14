@@ -32,10 +32,10 @@
  *   dead forensics links, the 108, the 558 a wrong base invented) are kept deliberately — those are
  *   evidence of what one run found on one date and cannot rot. Counts describing the CURRENT TREE
  *   are banned from prose here.
- *   `assertDocumentedCounts()` at the bottom enforces the ONE form that actually bit us — a count
- *   in parentheses after a source name, `ArcticData (79)` — by re-deriving it. It is deliberately
- *   narrow: it cannot police every sentence, and pretending otherwise would be one more claim
- *   wider than its evidence. The rest is discipline, and the incident above is why.
+ *   This is enforced by DISCIPLINE, not by a checker. I built one and removed it — see the note
+ *   above `console.log` at the bottom for why five rounds of it never became sound. Claiming a
+ *   guarantee I cannot keep would be one more assertion wider than its evidence, which is the
+ *   exact defect recorded here.
  *
  * ⚠ EACH FILE RESOLVES ITS HREFS DIFFERENTLY, AND GUESSING THE BASE IS HOW YOU GET A FAKE NUMBER.
  * Resolving ContentCatalog against `houses/<house>/` reported 558 dead. The real base comes from
@@ -190,9 +190,6 @@ if (process.argv.includes('--list-known')) {
 }
 
 let totalHrefs = 0, stillKnown = [];
-/* Per-source live counts, captured so `assertDocumentedCounts()` can re-derive anything this
-   file's own comments claim about the current tree. */
-const liveCounts = {};
 /* Roadmap accounting, reported not asserted: `roadmap` = coming-soon entries whose content is not
    built (the expected, healthy state), `readyToShip` = coming-soon entries whose content now EXISTS
    and could be flipped to available. */
@@ -201,7 +198,6 @@ for (const s of SOURCES) {
     let items;
     try { items = s.collect(); } catch (e) { ck(`${s.name}: readable`, false, e.message); continue; }
     totalHrefs += items.length;
-    liveCounts[s.name.split(' ')[0]] = items.length;   // key on the bare source name
 
     const unresolvable = items.filter(i => i.resolved === null);
     /* Roadmap entries are held to a DIFFERENT contract, checked separately below. */
@@ -312,52 +308,24 @@ if (readyToShip.length) {
     [...new Set(readyToShip)].sort().slice(0, 6).forEach(r => console.log(`             ${r}`));
 }
 
-/* THE ONE FORM OF STALE-COUNT BUG THAT ACTUALLY BIT US, now re-derived instead of trusted.
-   This file's header once read `ArcticData (79)` when ArcticData has never had fewer than 359 —
-   wrong the day it was typed, and invisible to a grep for the OTHER wrong number I already knew
-   about. So: any parenthesised count written immediately after a source name, anywhere in this
-   file, must equal what that source actually yields.
-
-   ⚠ DELIBERATELY NARROW, AND SAYING SO IS THE POINT. It cannot police every sentence, and a check
-   that claimed to would be one more assertion wider than its evidence — which is the defect this
-   whole block exists to record. It catches `Name (123)`; prose discipline covers the rest. */
-function assertDocumentedCounts() {
-    /* Backtick spans are stripped first: a count inside `ArcticData (79)` is being QUOTED as the
-       example of the bug, not asserted as fact. Without this the check fails on the very sentences
-       that document it — which is how the first version behaved, caught in review. Same distinction
-       Chris drew about the surviving "74" references: narrating a wrong number is not claiming it. */
-    /* ⚠ THE PREVIOUS VERSION STRIPPED QUOTED SPANS ACROSS THE WHOLE FILE, AND ITS OWN
-       IMPLEMENTATION LINE BROKE IT. That line held three raw backtick characters, which flipped
-       the running pair-parity from even to odd, so every line after it was stripped wrongly and
-       the check silently passed on an injected stale claim. Chris proved it by injecting one, not
-       by reading the code. A checker whose source text corrupts its own scan is worse than none.
-       Two changes close it: only COMMENT text is scanned (prose is the only place this risk
-       lives, and code is no longer able to desync it), and the delimiter is built from a char
-       code so this function contributes no literal backticks to the text it reads. */
-    const BT = String.fromCharCode(96);
-    const src = fs.readFileSync(__filename, 'utf8');
-    const comments = [
-        ...src.matchAll(/\/\*[\s\S]*?\*\//g),      // block comments
-        ...src.matchAll(/(?<!:)\/\/[^\n]*/g),      // line comments; (?<!:) so https:// is not one
-    ].map(m => m[0]).join('\n');
-    // Drop quoted spans: `ArcticData (79)` in the header is the EXAMPLE of the bug, not a claim.
-    const self = comments.replace(new RegExp(BT + '[^' + BT + ']*' + BT, 'g'), ' ');
-
-    /* ⚠ BIND THE COUNT TO THE WORD DIRECTLY BEFORE IT, nothing looser. An earlier version allowed
-       up to 30 characters between the source name and the parenthesis, so `LearningPaths and
-       ArcticData (79)` was charged to LearningPaths — and then the CORRECT ArcticData count failed
-       too, because it was compared against the wrong source's total. A checker that fails on right
-       answers is worse than no checker; the ablation caught it only because I ran the
-       must-PASS direction as well as the must-FAIL one. */
-    const wrong = [];
-    for (const m of self.matchAll(/(\w+)\s*\((\d[\d,]*)\)/g)) {
-        if (!(m[1] in liveCounts)) continue;          // not a source name — not ours to police
-        const claimed = Number(m[2].replace(/,/g, ''));
-        if (claimed !== liveCounts[m[1]]) wrong.push(`${m[1]} documented as ${m[2]}, actually ${liveCounts[m[1]]}`);
-    }
-    ck('no comment in this file documents a stale per-source count', wrong.length === 0, wrong.join('; '));
-}
-assertDocumentedCounts();
+/* ⚠ THERE IS NO AUTOMATED CHECK HERE, AND THE ABSENCE IS THE DECISION.
+   I added `assertDocumentedCounts()` to re-derive any count written next to a source name in a
+   comment. It took five review rounds and never became sound. Each fix exposed the next piece of
+   JavaScript it could not lex: backtick pair-parity broken by the checker's OWN implementation
+   line; then narration in double quotes read as a claim; then a single stray backtick in a comment
+   silently swallowing 370 characters including a planted false claim; then `case 1://comment`
+   glued to a colon, invisible to the line-comment pattern; and an exemption anyone could invoke by
+   wrapping a claim in backticks.
+   That is a regex asked to do a lexer's job, and it is the SECOND time today — `3bdbf7a80`
+   ("BUG-107 round 5: stop parsing with regexes. Let the browser do it.") is the same lesson, from
+   this morning. An unsound checker that can emit PASS is worse than none: it manufactures
+   confidence exactly where the evidence is weakest, which is the defect this whole file documents.
+   So the guarantee is the smaller, honest one: NO COUNT DESCRIBING THE CURRENT TREE APPEARS IN
+   THIS FILE'S PROSE. Counts of a PAST INCIDENT are kept — the 12 dead forensics links, the 108,
+   the 558 a wrong base invented — because those record what one run found on one date and cannot
+   rot. Every live quantity is printed by the script below and nowhere else.
+   If this is ever worth enforcing, it needs a real tokenizer that tracks string, template, regex
+   and comment state — not another pattern. */
 
 console.log(`\n  ${pass}/${pass + fail} checks passed across ${SOURCES.length} data files, ` +
             `${totalHrefs} hrefs resolved`);
