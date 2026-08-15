@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-08-12 4:29:24 PM
+                    Scanned: 2026-08-15 8:11:02 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,14 +13,14 @@
 | Files Scanned | 5285 |
 | Directories | 1283 |
 | Content Files | 5285 |
-| Scan Duration | 611ms |
+| Scan Duration | 554ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2369 |
-| html | 1591 |
+| presentation | 2370 |
+| html | 1590 |
 | lab | 587 |
 | quiz | 512 |
 | applet | 226 |
@@ -30,7 +30,7 @@
 | Metric | Value |
 |--------|-------|
 | Total Modules | 4316 |
-| Available | 4271 |
+| Available | 4274 |
 | Missing Hrefs (CAT-001) | 0 |
 | Undeclared Files (CAT-002) | 0 |
 | Empty Hrefs (CAT-003) | 0 |
@@ -43,16 +43,16 @@
 | Critical | 0 |
 | Suspect | 47 |
 | Warning | 982 |
-| Info | 549 |
-| **Total** | **14585** |
+| Info | 541 |
+| **Total** | **14578** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3664 |
+| Ready | 3665 |
 | Not Ready | 30 |
-| Unknown | 1591 |
+| Unknown | 1590 |
 
 
 ## FILE HIERARCHY
@@ -7193,6 +7193,7 @@
 | openstack-intro-quiz | quiz | ✓ | 0 |
 | openstack-operation-quiz | quiz | ✓ | 0 |
 | openstack-projects-quiz | quiz | ✓ | 0 |
+| cloud-openstack-comprehensive-review | presentation | ✓ | 0 |
 | index | applet | ✓ | 1 |
 | pl300-ch01-prepare-data.lab | presentation | ✓ | 0 |
 | pl300-ch02-model-data.lab | presentation | ✓ | 0 |
@@ -9935,9 +9936,9 @@
 | ws-04 | applet | ✓ | 1 |
 | ws-05 | applet | ✓ | 1 |
 | ws-06 | applet | ✓ | 1 |
-| ws-pa-01 | applet | ✓ | 1 |
-| ws-pa-03 | applet | ✓ | 1 |
-| ws-pa-04 | applet | ✓ | 1 |
+| ws-07 | applet | ✓ | 1 |
+| ws-09 | applet | ✓ | 1 |
+| ws-10 | applet | ✓ | 1 |
 | ws-14 | applet | ✓ | 1 |
 | ws-16 | applet | ✓ | 1 |
 | current | applet | ✓ | 1 |
@@ -14523,7 +14524,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (549)
+### INFO (541)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -15734,30 +15735,6 @@
   File: `./components/LearningPaths.js`
 
 **[LP-003]** Duplicate module ID 'eye-hunt-workbench' found in 'security-operations' (also in 'eye')
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'shield': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'shield' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'web': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'web' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'forge': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'forge' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'script': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'script' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'cloud': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'cloud' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'code': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'code' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'key': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'key' as path segment)
-  File: `./components/LearningPaths.js`
-
-**[ASGN-002]** Path 'eye': resolver uses fallback branch (expected for house paths — relative hrefs don't contain 'eye' as path segment)
   File: `./components/LearningPaths.js`
 
 **[TAG-002]** 3221 of 4316 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.

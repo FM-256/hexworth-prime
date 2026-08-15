@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-14 16:01 · **1082 scripts** · 21 wired into a gate · 247 called by other code · 149 only mentioned in docs · 665 referenced by nothing · 465 not in git
+**Generated:** 2026-08-14 20:08 · **1085 scripts** · 21 wired into a gate · 247 called by other code · 151 only mentioned in docs · 666 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -948,10 +948,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `capture-tournament.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `gen-preview.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 
-### `_tools/qa` — 17 scripts, 6 referenced by nothing
+### `_tools/qa` — 20 scripts, 7 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `_chris_ablation_tmp2.js` | ORPHAN | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
+| `_chris_ablation_tmp5.js` | DOCS-ONLY | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
+| `_chris_ablation_tmp5b.js` | DOCS-ONLY | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
 | `_chris_r5_old_harness_tmp.js` | ORPHAN | 0 | 2026-08-14 | no | Walks EVERY OpenStack chapter the way a student does (hub -> part -> finish -> Back) and asserts each card marks complete only when all of ITS parts are done. |
 | `access-guard-placement-test.js` | CALLED | 1 | 2026-08-14 | yes | Asserts every page calling AccessGuard.require() runs it BEFORE <body> opens, and that a gated page still gates after the move. |
 | `check-render.js` | CALLED | 1 | 2026-08-03 | yes |  |
@@ -1694,7 +1697,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `ForensicsData.js` | CALLED | 2 | 2026-03-18 | no |  |
+| `ForensicsData.js` | CALLED | 5 | 2026-03-18 | no |  |
 | `ForensicsEngine.js` | CALLED | 1 | 2026-03-18 | no |  |
 
 ### `_tools/taskboard` — 1 scripts, 1 referenced by nothing
@@ -1724,7 +1727,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-24 scripts are referenced by nothing AND follow the leading-underscore
+25 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1733,6 +1736,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
+- `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
 - `_tools/qa/_chris_r5_old_harness_tmp.js` · last modified 2026-08-14
 - `_tools/qa/cold-horizon/_chris_nec1_probe_tmp.js` · last modified 2026-08-10
 - `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
