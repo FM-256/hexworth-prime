@@ -169,7 +169,7 @@ When a team forms, add `_quality_reports/runtime/oncall_schedule` Firestore doc:
 ```
 {
   "schedule": [
-    { "from": "2026-05-04T00:00Z", "to": "2026-05-11T00:00Z", "recipient": "f.mora80@..." },
+    { "from": "2026-05-04T00:00Z", "to": "2026-05-11T00:00Z", "recipient": "<operator>@..." },
     ...
   ]
 }

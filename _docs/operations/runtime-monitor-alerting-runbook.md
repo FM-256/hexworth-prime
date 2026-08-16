@@ -38,7 +38,7 @@ transient blips every deploy causes.
 | Firestore — latest | `_quality_reports/runtime_latest` | overwritten each run; full report + alert fields |
 | Firestore — history | `_quality_reports/runtime_history` | rolling array, last ~48 runs (≈12h) |
 | Pulse panel | `_app/pulse.html` → "Site Health — Live Uptime" | admin-gated; `onSnapshot`, real-time |
-| Email channel | `projects/hexworth-prime/notificationChannels/4299692991827864061` | → f.mora80@gmail.com |
+| Email channel | `projects/hexworth-prime/notificationChannels/4299692991827864061` | → <operator-email — see hexworth-infra-private> |
 | Alerting policy | `projects/hexworth-prime/alertPolicies/9716215672966082096` | "sustained failures", ≥2 failed runs / 45 min |
 
 Reads are gated by the existing `firestore.rules` rule `match /_quality_reports/{reportId} {

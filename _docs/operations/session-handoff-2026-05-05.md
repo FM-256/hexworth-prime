@@ -72,7 +72,7 @@ Multiple EduScan validators tightened to suppress false positives without losing
 ### Production safety net — verified live end-to-end
 
 - ✅ Runtime monitor (Cloud Run job): every 15 min, all 5 cycles passing
-- ✅ Alert policy `runtime-monitor WARN`: enabled, will email f.mora80@gmail.com on failure
+- ✅ Alert policy `runtime-monitor WARN`: enabled, will email <operator-email — see hexworth-infra-private> on failure
 - ✅ GCP cost budget ($30/mo, 50/100/110% thresholds): active on Firebase Payment account `0123C4-A62FA8-F61316`
 - ✅ Smoke gate in `./deploy.sh`: 3 deploys today, all green
 - ✅ Confluence inventory post-deploy hook: bug fixed; future deploys log cleanly

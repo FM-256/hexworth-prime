@@ -141,7 +141,7 @@ gcloud logging read 'resource.type="cloud_run_job" AND resource.labels.job_name=
 
 Deploy + scheduler details: `_tools/runtime-monitor/DEPLOY.md`.
 
-**Email alert MVP (shipped 2026-05-05):** Cloud Monitoring log-based metric `runtime_monitor_failure` (counts cycles where `jsonPayload.allPassed=false`) wired to alert policy `runtime-monitor WARN — failures detected in last 30 min`. Threshold: any failure in rolling 30-min window. Notification: email to `f.mora80@gmail.com`. Auto-close: 30 min. Full design (Phase A/B/C) in `_docs/operations/sym-3-tiered-alerts-design.md`; Phases B (Cloud Function watcher + push notifications) and C (PAGE-tier email via SendGrid) deferred.
+**Email alert MVP (shipped 2026-05-05):** Cloud Monitoring log-based metric `runtime_monitor_failure` (counts cycles where `jsonPayload.allPassed=false`) wired to alert policy `runtime-monitor WARN — failures detected in last 30 min`. Threshold: any failure in rolling 30-min window. Notification: email to `<operator-email — see hexworth-infra-private>`. Auto-close: 30 min. Full design (Phase A/B/C) in `_docs/operations/sym-3-tiered-alerts-design.md`; Phases B (Cloud Function watcher + push notifications) and C (PAGE-tier email via SendGrid) deferred.
 
 #### Cost Monitor (shipped 2026-05-05)
 GCP Cloud Billing budget alert at $30/month for the `hexworth-prime` project, attached to the Firebase Payment billing account (`0123C4-A62FA8-F61316`). Three thresholds:
@@ -217,7 +217,7 @@ Visual catalog of all 125 webp icons. Searchable grid, click-to-copy paths, refe
 Ubuntu 24.04 box. Always on. The warehouse, the scraper farm, the AI workbench. The laptop stays lean — bc1 does the heavy lifting.
 
 **Connection:**
-- `ssh bc1` — works from anywhere (Tailscale mesh VPN, IP `100.96.136.114`)
+- `ssh bc1` — works from anywhere (Tailscale mesh VPN, IP `<bc1-addr>`)
 - LAN IP: `192.168.1.176` (home network only)
 - User: `eq1`, passwordless sudo, Docker-ready
 - Runtime: Python 3.12, Node 22, full dev toolchain

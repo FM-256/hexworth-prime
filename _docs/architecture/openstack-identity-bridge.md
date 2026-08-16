@@ -61,7 +61,7 @@ uses for flavor/server-create calls) takes its endpoint from the TOKEN CATALOG, 
 clouds.yaml `*_endpoint_override` -- and the catalog advertised `http://192.168.122.62/...`
 (VM-internal, unreachable from bc1). Correct-path fix, the same one a production cloud uses: the
 PUBLIC interface endpoints now advertise the reachable bridge address
-(`http://100.125.36.2:8080/...`, all 7 services; archive of prior URLs at
+(`http://<bc2-addr>:8080/...`, all 7 services; archive of prior URLs at
 `bc2:~/endpoint-archive/`). Verified in-VM admin flows still work (the VM reaches the bridge
 address in 9ms) and container creates reach Nova. Endpoint overrides remain in clouds.yaml as
 belt-and-suspenders but are no longer load-bearing.

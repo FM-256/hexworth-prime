@@ -206,7 +206,7 @@ firebase deploy --only functions:hexAiChat,functions:hexAiChatStream,functions:h
 
 1. Visit `https://hexworth.com/admin/ai-chat-test.html` in a browser, signed in as the operator Google account.
 2. The "Bridge Health" card should show:
-   - `Signed in as: f.mora80@gmail.com`
+   - `Signed in as: <operator-email — see hexworth-infra-private>`
    - `CF bridge: ok`
    - `Orchestrator: ok v0.3.0` (or higher)
 3. Type a question, click **Ask (blocking)**. Response appears within ~5–25 seconds (CPU inference on hexclass is slow).

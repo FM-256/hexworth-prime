@@ -2,7 +2,7 @@
 
 > Live as of 2026-05-23 — moved home from Keiser room 214.
 > Hostname: `hexworthclassroom` (alias `hexclass`)
-> Owner: f.mora80@gmail.com
+> Owner: <operator-email — see hexworth-infra-private>
 
 ## Hardware
 

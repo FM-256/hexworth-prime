@@ -22,7 +22,7 @@ Network boot server on neon-server enabling rapid OS deployment across lab machi
 | NICs | 4x Gigabit (eno1-eno4) |
 | Docker | 29.3.0 (running) |
 | dnsmasq | Installed (base) |
-| Tailscale | 100.65.122.90 |
+| Tailscale | <bc3-addr> |
 | LAN IP | 192.168.1.243 (eno1) |
 | SSH | Port 2222, user: eq |
 
@@ -192,5 +192,5 @@ New sprint items:
 ---
 
 *Scoped: 2026-03-22*
-*Server: neon-server (100.65.122.90)*
+*Server: neon-server (<bc3-addr>)*
 *SSH: port 2222, user eq*

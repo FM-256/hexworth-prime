@@ -505,4 +505,4 @@ prune ones that no longer apply.
 
 ---
 
-*v1.0 · 2026-05-25 · Operator: f.mora80@gmail.com*
+*v1.0 · 2026-05-25 · Operator: <operator-email — see hexworth-infra-private>*

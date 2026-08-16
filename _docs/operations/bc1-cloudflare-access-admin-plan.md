@@ -3,7 +3,7 @@
 **Status:** COMPLETE + VERIFIED 2026-07-02. Browse `https://bc1.hexworth.tech` from anywhere (incl. the Zscaler-blocked Keiser office) → Cloudflare Access email-OTP gate → Cockpit. Two auth layers (Access identity + Cockpit PAM).
 - DONE: Cockpit installed + active on bc1, socket OVERRIDDEN to listen ONLY on 127.0.0.1:9090 + 172.18.0.1:9090 (sandbox-net gateway; override at `/etc/systemd/system/cockpit.socket.d/listen-local-only.conf`) — NOT exposed on LAN. NOTE: the plan's `https://localhost:9090` ingress service was WRONG for a containerized cloudflared (container loopback ≠ host); implemented as `https://172.18.0.1:9090` instead.
 - DONE: tunnel is local-config. `~/.cloudflared/config.yml`: `bc1.hexworth.tech` → Cockpit (`https://172.18.0.1:9090`), `bc1-traefik.hexworth.tech` → `http://traefik:8080`, sandbox rule unchanged. Backups `config.yml.bak-2026-07-02`, `config.yml.bak-2026-07-02-traefik`.
-- DONE (via API token `bc1-access-admin`, scopes Access:Apps+Policies / Access:Orgs-IdPs-Groups / Zone DNS, expires 2026-12-31): created self-hosted Access app **"bc1 Admin"** (id `d4989a71-4175-4e93-80dc-67ca832c4940`), domains `bc1.hexworth.tech` + `bc1-traefik.hexworth.tech`, session 24h, Allow policy = f.mora80@gmail.com + jorden@hexworth.com (login method = one-time-PIN email; the account's only IdP).
+- DONE (via API token `bc1-access-admin`, scopes Access:Apps+Policies / Access:Orgs-IdPs-Groups / Zone DNS, expires 2026-12-31): created self-hosted Access app **"bc1 Admin"** (id `d4989a71-4175-4e93-80dc-67ca832c4940`), domains `bc1.hexworth.tech` + `bc1-traefik.hexworth.tech`, session 24h, Allow policy = <operator-email — see hexworth-infra-private> + jorden@hexworth.com (login method = one-time-PIN email; the account's only IdP).
 - DONE: proxied CNAMEs `bc1.hexworth.tech` + `bc1-traefik.hexworth.tech` → `2809c48c-...cfargotunnel.com`. Verified: both return **HTTP 302 → hexworth.cloudflareaccess.com/cdn-cgi/access/login** (gate in front, Cockpit never bare). sandbox.hexworth.tech API still 401 (healthy) after cloudflared restart.
 - **GOTCHA (locked):** Cloudflare Universal SSL cert is `*.hexworth.tech` + `hexworth.tech` — ONE level only. `bc1.hexworth.tech` ✓ but a THIRD-level host like `traefik.bc1.hexworth.tech` has NO cert → TLS fails (HTTP 000). Fix = use single-level hostnames (`bc1-traefik.hexworth.tech`), or buy Advanced Certificate Manager for `*.bc1`. We chose single-level. Any future bc1 admin surface MUST be `bc1-<name>.hexworth.tech`, not `<name>.bc1.hexworth.tech`.
 - SECURITY NOTE: the `bc1-access-admin` token value appeared in a chat message during setup — bounded risk (scoped to Access+DNS, not global; expires 2026-12-31) but consider rolling it for hygiene.
@@ -38,7 +38,7 @@ Cockpit is already the pattern on **neon-server** (runs on :9090). It gives, in 
 
 ## Prerequisites
 - Cloudflare dashboard access to the **hexworth.tech** zone + **Zero Trust** (Access). (Free plan covers this; Access is free ≤50 users.)
-- Admin emails for the allowlist: **f.mora80@gmail.com**, **jorden@hexworth.com** (same as the sandbox lab-manager `ADMIN_EMAILS`).
+- Admin emails for the allowlist: **<operator-email — see hexworth-infra-private>**, **jorden@hexworth.com** (same as the sandbox lab-manager `ADMIN_EMAILS`).
 - Shell on bc1 (do this step from home / a non-Zscaler device the first time).
 
 ## Steps (tonight, from a machine that CAN reach bc1)
@@ -85,7 +85,7 @@ Cloudflare dashboard → **Zero Trust → Access → Applications → Add an app
   - `traefik.bc1.hexworth.tech`    → traefik dashboard (step 5)
   - *(add any sandbox admin UI here later)*
   - Or simplest: one wildcard domain **`*.bc1.hexworth.tech`** to cover them all at once.
-- **Policy:** Action `Allow` · Include → **Emails**: `f.mora80@gmail.com`, `jorden@hexworth.com`
+- **Policy:** Action `Allow` · Include → **Emails**: `<operator-email — see hexworth-infra-private>`, `jorden@hexworth.com`
 - (Recommended) Require → **MFA / one of the listed identity providers**; enable email OTP as the login method if no SSO is configured.
 - Save. Access now challenges every request to any `*.bc1.hexworth.tech` (and `bc1.hexworth.tech`) before it reaches the origin.
 
@@ -135,7 +135,7 @@ passes HTTPS, no Tailscale required.
 | Access app | `bc1 SSH`, id `5dab1047-32d1-45e7-935f-a9128416807e` |
 | Policy | SINGLE policy `1f232cd7-...`, `decision=non_identity` (Service Auth) — `allow` would 302 to login |
 | Service token | `bc1-ssh`, id `e40906ac-...`, expires 2027-07-10; secret ONLY in `~/.config/cloudflare/bc1-ssh-token.env` (600) on the operator workstation |
-| Client | `Host bc1-cf` in `~/.ssh/config` — ProxyCommand sources the env file (secrets never in argv), `HostKeyAlias 100.96.136.114` pins bc1's known host key |
+| Client | `Host bc1-cf` in `~/.ssh/config` — ProxyCommand sources the env file (secrets never in argv), `HostKeyAlias <bc1-addr>` pins bc1's known host key |
 | sshd precondition | key-only enforced BEFORE exposure: `/etc/ssh/sshd_config.d/00-hexworth-lockdown.conf` (PasswordAuthentication no, PermitRootLogin no, AllowUsers eq1) |
 
 **Gotchas earned:**

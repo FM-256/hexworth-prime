@@ -30,7 +30,7 @@ Every value below was read directly off bc2. Nothing was changed.
 | NIC count | `eno1` (192.168.1.212), `eno2` (192.168.1.192), **`eno3` and `eno4` present with no address**, plus `tailscale0`, `docker0` | Two free physical NICs. Kolla-Ansible's hard 2-NIC requirement is satisfiable, and DevStack has a dedicated NIC available for `br-ex`. This was previously an open blocker. |
 | Nested virtualization | `/sys/module/kvm_intel/parameters/nested` = **`Y`**; `kvm_intel` + `kvm` loaded | Already on. The recommended VM-wrapped design gets full KVM speed with **no host module reload required**. |
 | Current occupancy | 0 Docker containers, load average 0.03, up 8 days, no libvirt VMs (libvirt not installed) | bc2 is genuinely idle. The VM can be sized generously. |
-| Existing roles | `tailscaled`, `node_exporter`, `docker` all active. Listening: `:22`, `:9100` (node_exporter), `:631` (cups), systemd-resolved stubs | Roles to preserve: SSH jump host to hexclass, Prometheus scrape on :9100, Tailscale node 100.125.36.2. |
+| Existing roles | `tailscaled`, `node_exporter`, `docker` all active. Listening: `:22`, `:9100` (node_exporter), `:631` (cups), systemd-resolved stubs | Roles to preserve: SSH jump host to hexclass, Prometheus scrape on :9100, Tailscale node <bc2-addr>. |
 | Hardware | Xeon E5-2680 v3 (Haswell-EP), 48 CPUs, VT-x, `/dev/kvm` present, 31GB RAM (~29GB free), 6.1TB free on `/` | RAM is the binding constraint. Disk and CPU are not. |
 
 ---
@@ -304,7 +304,7 @@ What exists: keystone project `demo-readonly` + user `student-view` with PROJECT
 only (assignment table shows System=empty; cross-project canary instance invisible;
 `--all-projects` and writes both 403 — transcript in session record). `canary-admin-project`
 instance KEPT DELIBERATELY as a standing regression trip-wire for future role changes.
-`openstack-api-bridge.service` on bc2: socat bound ONLY to the tailscale IP (100.125.36.2:8080 ->
+`openstack-api-bridge.service` on bc2: socat bound ONLY to the tailscale IP (<bc2-addr>:8080 ->
 VM:80), Restart=always/RestartSec=3, zero iptables changes. **THE CREDENTIAL SCOPE IS THE SECURITY
 CONTROL, NOT THE NETWORK BIND** — every tailnet peer can reach the combined API/Horizon vhost; what
 they hold determines what they can do (Nancy's framing, verbatim, accepted risk: the tailnet peer
@@ -609,7 +609,7 @@ Measured, not assumed, before designing lab 2. From a lab container on `sandbox-
 
 | Target | Result |
 |---|---|
-| OpenStack API via the tailnet bridge (`100.125.36.2:8080`) | **REACHABLE** |
+| OpenStack API via the tailnet bridge (`<bc2-addr>:8080`) | **REACHABLE** |
 | The VM's own interface (`192.168.122.62`) | unreachable |
 | Instance data plane / subnet gateway (`192.168.233.1`) | **unreachable** |
 

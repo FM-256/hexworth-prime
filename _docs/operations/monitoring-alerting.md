@@ -31,10 +31,10 @@ blind:
 | Component | Role | Exposure |
 |-----------|------|----------|
 | `prometheus` | scrape + rule eval | host **9091** (remapped; 9090 is Cockpit's) |
-| `alertmanager` | routing/dedup/notify | `100.65.122.90:9093` (Tailscale only) |
+| `alertmanager` | routing/dedup/notify | `<bc3-addr>:9093` (Tailscale only) |
 | `docker-restart-exporter` | container restart/health from the Docker API | internal 9101 |
 | `webhook-ntfy` | formats Alertmanager JSON → readable ntfy | internal 9099 |
-| `ntfy` | notification bus (operator subscribes) | `100.65.122.90:8090` (Tailscale only) |
+| `ntfy` | notification bus (operator subscribes) | `<bc3-addr>:8090` (Tailscale only) |
 | `node_exporter` | host CPU/mem/disk (neon; bc1/bc2 scraped by IP) | 9100 |
 | `grafana` | dashboards | host 3000 |
 | `loki` / `promtail` | log aggregation | 3100 |
@@ -72,7 +72,7 @@ chain one layer up (`up{job="prometheus"|"alertmanager"} == 0`) is caught.
 
 **Subscribe to alerts (do this once, per device):** install the ntfy app (or open
 in a browser) and subscribe to topic `hexworth-alerts` at
-`http://100.65.122.90:8090` while on Tailscale. That is where alerts land.
+`http://<bc3-addr>:8090` while on Tailscale. That is where alerts land.
 
 **Change any config:** edit under `_tools/monitoring/config/` in this repo, then:
 ```
@@ -132,7 +132,7 @@ suppression, and a decision log at each host's state dir. Files + full runbook:
 and the honest residuals: live-host-dead-cron and both-hosts-down are out of scope).
 
 **Owner action pending:** subscribe the S25 to a SECOND ntfy — server
-`http://100.96.136.114:8090` (bc1 Tailscale IP), topic `hexworth-deadman` — this is
+`http://<bc1-addr>:8090` (bc1 Tailscale IP), topic `hexworth-deadman` — this is
 the channel that fires only when neon's monitoring itself is dark.
 
 ## Known follow-ups (not yet done)

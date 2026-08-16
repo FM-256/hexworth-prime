@@ -27,7 +27,7 @@ Before any gcloud command, confirm environment:
 
 ```bash
 gcloud config get-value project   # MUST print: hexworth-prime
-gcloud config get-value account   # MUST print: f.mora80@gmail.com
+gcloud config get-value account   # MUST print: <operator-email — see hexworth-infra-private>
 gcloud auth list                  # confirm active credential is correct
 ```
 

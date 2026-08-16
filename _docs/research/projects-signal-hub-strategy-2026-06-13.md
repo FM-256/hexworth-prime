@@ -1,6 +1,6 @@
 # Projects & Signal Hub — Revamp Strategy
 
-*Filed: 2026-06-13 · Owner: operator (f.mora80) · Status: plan converged, execution pending*
+*Filed: 2026-06-13 · Owner: operator (operator — see hexworth-infra-private) · Status: plan converged, execution pending*
 
 ## TLDR
 
