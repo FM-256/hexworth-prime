@@ -93,7 +93,12 @@ def scan(paths: list[str], emails: set[str], ips: set[str],
             continue
         low = txt.lower()
         found = [e for e in emails if e in low]
-        # match the local-part too: "operator (f.mora80)" carries the same identity as the address
+        # Match the bare local-part too: a byline like "Owner: operator (<local-part>)" carries
+        # the same identity as the full address, and a redaction pass keyed on the '@' form
+        # walks straight past it -- which is exactly what happened on 2026-08-16.
+        # ⚠ NEVER write a real identifier into this file as an example. A scanner that hardcodes
+        # what it hunts publishes it on first commit; this comment previously did that, and the
+        # gate caught itself.
         found += [e.split("@")[0] for e in emails
                   if e.split("@")[0] not in [x.split("@")[0] for x in found]
                   and e.split("@")[0] in low]
@@ -128,9 +133,14 @@ def main() -> int:
     hard, exempt = scan(paths, emails, ips, known=known)
 
     def mask(v: str) -> str:
+        """Never print a full identifier. The REPORT must not become the leak."""
         if "@" in v:
             return v[:2] + "***@" + v.split("@")[1]
-        return re.sub(r"\.\d{1,3}\.\d{1,3}$", ".x.x", v)
+        if re.fullmatch(r"\d{1,3}(?:\.\d{1,3}){3}", v):
+            return re.sub(r"\.\d{1,3}\.\d{1,3}$", ".x.x", v)
+        # bare local-part: masked too. It printed in full on first run, which would have piped a
+        # real identifier into CI logs and terminal scrollback.
+        return v[:2] + "***"
 
     if exempt:
         # Printed IN FULL, never truncated. Truncating the backlog is how a backlog rots: the

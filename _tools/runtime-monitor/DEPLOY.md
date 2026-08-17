@@ -47,7 +47,7 @@ Per CLAUDE.md Rule #10, GCP resource creation needs explicit per-operation autho
 ### 0. Verify environment
 ```bash
 gcloud config get-value project   # should print: hexworth-prime
-gcloud config get-value account   # should print: f.mora80@gmail.com
+gcloud config get-value account   # should print: <operator-email — see hexworth-infra-private>
 gcloud services list --enabled | grep -E "(run|cloudbuild|cloudscheduler|containerregistry)"
 ```
 
