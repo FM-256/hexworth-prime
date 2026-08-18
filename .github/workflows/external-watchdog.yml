@@ -1,0 +1,97 @@
+# External watchdog — the only check that survives the site losing power.
+#
+# WHY THIS RUNS ON GITHUB AND NOT ON A HEXWORTH BOX
+#   Every other monitor is on-premises: Prometheus, Alertmanager, Grafana and BOTH ntfy
+#   instances run on neon and bc1. The mutual dead-man (neon <-> bc1) is well built, but both
+#   halves share one power circuit. On 2026-08-18 the site lost power twice; the monitoring
+#   stack went dark at exactly the moment it was needed and nobody was told anything.
+#
+#   A watcher inside the failure domain reports SILENCE, not an outage. This one is outside it.
+#
+# WHAT IT CAN AND CANNOT SEE
+#   It only checks PUBLIC endpoints, because it has no tailnet access — and it must not have
+#   any. That is a feature: it sees exactly what a student on the internet sees.
+#   It cannot see OpenStack, PXE, the shares, or any host metric. The on-prem service probe
+#   covers those; this covers "is Hexworth reachable from the outside world at all".
+#
+# ⚠ THIS IS A POLLER, NOT YET A TRUE DEAD-MAN'S SWITCH.
+#   If the site is down, this fires. If THIS stops running (workflow disabled, Actions quota,
+#   repo archived), nothing fires and the silence looks like health — the same failure it was
+#   built to fix, moved one level out. Closing that needs a free healthchecks.io-style endpoint
+#   this workflow pings on success, which alerts when the pings STOP. See the README beside it.
+#
+# NO SECRETS IN THIS FILE. The ntfy topic is a repository secret: a public ntfy.sh topic is
+# readable and writable by anyone who knows its name, so the name is the only thing protecting
+# it. This repo is PUBLIC.
+
+name: external-watchdog
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # GitHub's practical floor; delays of a few minutes are normal
+  workflow_dispatch: {}       # so it can be tested on demand
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe public endpoints
+        id: probe
+        run: |
+          set -u
+          FAILURES=""
+
+          # Each check states what GOOD means. Reading these wrong invents outages:
+          #   /health   -> 200 (it is a health endpoint)
+          #   /list     -> 401 (alive AND enforcing auth; a 200 here would be a SECURITY problem)
+          check() {
+            local name="$1" url="$2" want="$3"
+            local code
+            code=$(curl -sS -o /dev/null -m 20 -w '%{http_code}' "$url" 2>/dev/null || echo "000")
+            if [ "$code" = "$want" ]; then
+              echo "  OK   $name ($code)"
+            else
+              echo "  FAIL $name (got $code, want $want)"
+              FAILURES="${FAILURES}${name} got ${code} want ${want}; "
+            fi
+          }
+
+          check "site"                 "https://hexworth.com/"                             200
+          check "sandbox-api"          "https://sandbox.hexworth.tech/api/sandbox/health"  200
+          check "sandbox-auth"         "https://sandbox.hexworth.tech/api/sandbox/list"    401
+
+          if [ -n "$FAILURES" ]; then
+            echo "failures=$FAILURES" >> "$GITHUB_OUTPUT"
+            echo "status=fail" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=ok" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Alert on failure
+        if: steps.probe.outputs.status == 'fail'
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_EXTERNAL_TOPIC }}
+        run: |
+          if [ -z "${NTFY_TOPIC:-}" ]; then
+            echo "::error::NTFY_EXTERNAL_TOPIC secret is not set — cannot alert. Fix this NOW:"
+            echo "::error::an unset secret means this watchdog fails silently, which is the exact"
+            echo "::error::condition it exists to prevent."
+            exit 1
+          fi
+          curl -sS -m 20 \
+            -H "Title: Hexworth unreachable from the internet" \
+            -H "Priority: urgent" \
+            -H "Tags: rotating_light" \
+            -d "External watchdog (GitHub, off-site) could not reach Hexworth.
+          ${{ steps.probe.outputs.failures }}
+          This check runs outside your power domain, so it still works when the site is dark.
+          If everything looks fine locally, suspect DNS, Cloudflare, or the uplink." \
+            "https://ntfy.sh/${NTFY_TOPIC}"
+
+      - name: Fail the run so it is visible in the Actions tab
+        if: steps.probe.outputs.status == 'fail'
+        run: exit 1

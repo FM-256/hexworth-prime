@@ -1,0 +1,182 @@
+#!/usr/bin/env bash
+# Hexworth service probe — asks whether things WORK, not whether hosts are up.
+#
+# WHY THIS EXISTS
+#   On 2026-08-18 the platform had two outages in one day. Both were invisible to every existing
+#   check, because every existing check was about HOSTS and CONTAINERS:
+#
+#     · A tailnet ACL omission killed the OpenStack API for 4 days. Lab pages 200, sandbox API
+#       200, host up 28 days, bridge logging success, containers all healthy. Every student lab
+#       hung. Nothing alerted, because nothing asked "can a student get a token".
+#     · A power loss left the OpenStack VM shut off. bc2 rebooted cleanly, every systemd unit
+#       came back green, and the entire cloud stayed down underneath them.
+#
+#   Both were "the layer below reported healthy". This probe asks the user's question instead.
+#
+# DESIGN RULES, each earned the same day
+#   1. RUNS ON bc1, NOT ON WHAT IT WATCHES. A probe on bc2 that checks OpenStack goes down with
+#      bc2 and reports nothing — which is silence, not an alarm. bc1 is covered in turn by neon's
+#      check-bc1.sh and by the external dead-man's switch.
+#   2. A CHECK THAT COULD NOT RUN IS NOT A PASS, AND NOT A FAILURE EITHER. Every probe emits
+#      _up (the verdict) AND _checked (did we actually get an answer). A curl that times out
+#      because the prober's own network is broken must not read as "the service is down" — that
+#      is how a broken instrument becomes a false outage.
+#   3. NEVER HANG. Every external call has an explicit timeout. A monitoring script that blocks
+#      forever stops reporting, and stopped reporting looks exactly like healthy.
+#   4. WRITE ATOMICALLY. Prometheus may scrape mid-write; a half-written .prom file is a parse
+#      error that silently drops every metric in it. Write .tmp, then mv.
+#   5. READ RESPONSES CAREFULLY. mysql answering "Access denied" is HEALTHY — it accepted the
+#      connection. 302 from grafana and 404 from loki's root are healthy. A probe that demands
+#      200 everywhere invents outages. Each check below states what "good" means for that service.
+#
+# @catalog what    probe real service behaviour and expose it to prometheus via node_exporter
+# @catalog run     _tools/monitoring/probe/service-probe.sh   (cron: every 2 min on bc1)
+# @catalog status  GATE
+
+set -u
+
+TEXTFILE_DIR="${TEXTFILE_DIR:-/var/lib/node_exporter/textfile_collector}"
+OUT="${TEXTFILE_DIR}/hexworth_services.prom"
+TMP="${OUT}.$$.tmp"
+
+# Endpoints. Addresses come from the environment so this file can live in a PUBLIC repo.
+KEYSTONE="${HEXWORTH_KEYSTONE_URL:-}"          # e.g. http://<bc2>:8080/identity
+PXE_HOST="${HEXWORTH_PXE_URL:-}"               # e.g. http://<neon>/
+SANDBOX_API="${HEXWORTH_SANDBOX_API:-https://sandbox.hexworth.tech/api/sandbox}"
+SITE="${HEXWORTH_SITE:-https://hexworth.com/}"
+SHARE_PATH="${HEXWORTH_SHARE:-/mnt/neon-shared}"
+CURL_T="${HEXWORTH_PROBE_TIMEOUT:-10}"
+
+emit() { printf '%s\n' "$1" >> "$TMP"; }
+
+# check <name> <expected-desc> <command...>
+#   The command must print the observed value on stdout and exit 0 when the service is HEALTHY,
+#   exit 1 when it is genuinely DOWN, and exit 2 when the check itself could not run.
+run_check() {
+  local name="$1"; shift
+  local start end dur rc out
+  start=$(date +%s.%N)
+  out=$("$@" 2>/dev/null); rc=$?
+  end=$(date +%s.%N)
+  dur=$(awk "BEGIN{printf \"%.3f\", $end - $start}")
+
+  case "$rc" in
+    0) emit "hexworth_probe_up{service=\"$name\"} 1"
+       emit "hexworth_probe_checked{service=\"$name\"} 1" ;;
+    1) emit "hexworth_probe_up{service=\"$name\"} 0"
+       emit "hexworth_probe_checked{service=\"$name\"} 1" ;;
+    *) # Rule 2: could not run. Report UNKNOWN, never a verdict.
+       emit "hexworth_probe_up{service=\"$name\"} 0"
+       emit "hexworth_probe_checked{service=\"$name\"} 0" ;;
+  esac
+  emit "hexworth_probe_duration_seconds{service=\"$name\"} $dur"
+}
+
+# ── the checks ────────────────────────────────────────────────────────────────────────────────
+
+# keystone: ANY HTTP response means the API is answering. 300 is what version discovery returns
+# and is correct — demanding 200 here would report a permanent false outage.
+chk_keystone() {
+  [ -n "$KEYSTONE" ] || return 2
+  local code
+  code=$(curl -sS -o /dev/null -m "$CURL_T" -w '%{http_code}' "$KEYSTONE" 2>/dev/null) || return 1
+  [ "$code" = "000" ] && return 1
+  return 0
+}
+
+# The student's real question: can an OpenStack token be issued? This is the check that would
+# have caught BOTH of the 2026-08-18 outages, and the only one that proves the whole chain
+# (tailnet grant -> socat -> VM -> keystone) is intact.
+chk_openstack_token() {
+  [ -n "$KEYSTONE" ] || return 2
+  command -v docker >/dev/null 2>&1 || return 2
+  local img c
+  img=$(docker images --format '{{.Repository}}:{{.Tag}}' 2>/dev/null | grep -m1 'openstack-cli') || return 2
+  [ -n "$img" ] || return 2
+  # A running student container is not required; use a throwaway so the probe never disturbs one.
+  timeout $((CURL_T * 3)) docker run --rm --network sandbox-net "$img" \
+      curl -sS -o /dev/null -m "$CURL_T" -w '%{http_code}' "$KEYSTONE" 2>/dev/null | grep -qE '^[1-5]' || return 1
+  return 0
+}
+
+# sandbox API: 401 on an unauthenticated call is HEALTHY — it proves the API is up AND enforcing
+# auth. 200 would actually be alarming here.
+chk_sandbox_api() {
+  local code
+  code=$(curl -sS -o /dev/null -m "$CURL_T" -w '%{http_code}' "${SANDBOX_API}/health" 2>/dev/null) || return 1
+  [ "$code" = "200" ] && return 0
+  [ "$code" = "000" ] && return 1
+  return 1
+}
+
+chk_sandbox_auth_enforced() {
+  local code
+  code=$(curl -sS -o /dev/null -m "$CURL_T" -w '%{http_code}' "${SANDBOX_API}/list" 2>/dev/null) || return 1
+  [ "$code" = "401" ] && return 0      # correct: alive and refusing anonymous access
+  [ "$code" = "000" ] && return 1
+  return 1
+}
+
+# PXE: the boot content is served by nginx on :8080 (NOT :80 — that is a different vhost).
+# "Something answered" is not sufficient: apache2 won the port-80 boot race on 2026-08-18 and the
+# host kept serving a placeholder while PXE was dead. So this asserts the INDEX CONTENT, which
+# only the real PXE root produces.
+#   ⚠ Must use a LAN address. neon is multi-homed (four LAN NICs) and the tailnet grant does not
+#   include its web ports — correctly, since PXE is a LAN service. Probing the tailnet address
+#   returns 000 and looks like an outage.
+chk_pxe() {
+  [ -n "$PXE_HOST" ] || return 2
+  local body
+  body=$(curl -sS -m "$CURL_T" "$PXE_HOST" 2>/dev/null) || return 1
+  printf '%s' "$body" | grep -qi 'Apache2 Ubuntu Default Page' && return 1   # apache squatting
+  # ⚠ REQUIRE THE AUTOINDEX SIGNATURE, not just the directory names. A first version grepped for
+  # 'images|menus|kickstart' and PASSED when pointed at hexworth.com, whose HTML contains
+  # /assets/images/ paths. A detector that accepts the wrong page is worse than no detector: it
+  # reports healthy for a service it never reached. Caught by deliberately aiming it at a page
+  # that should fail.
+  printf '%s' "$body" | grep -qiE '<title>Index of|<h1>Index of' || return 1
+  printf '%s' "$body" | grep -qiE 'images/|menus/|kickstart/' || return 1
+  return 0
+}
+
+chk_site() {
+  local code
+  code=$(curl -sS -o /dev/null -m "$CURL_T" -w '%{http_code}' "$SITE" 2>/dev/null) || return 1
+  [ "$code" = "200" ] && return 0
+  return 1
+}
+
+chk_share() {
+  [ -d "$SHARE_PATH" ] || return 2
+  mountpoint -q "$SHARE_PATH" 2>/dev/null || return 1
+  timeout "$CURL_T" ls "$SHARE_PATH" >/dev/null 2>&1 || return 1   # mounted but hung counts as down
+  return 0
+}
+
+# ── run ───────────────────────────────────────────────────────────────────────────────────────
+
+mkdir -p "$TEXTFILE_DIR" 2>/dev/null
+: > "$TMP"
+
+emit '# HELP hexworth_probe_up 1 = service behaving correctly, 0 = down OR not checked (see _checked)'
+emit '# TYPE hexworth_probe_up gauge'
+emit '# HELP hexworth_probe_checked 1 = the probe got a real answer. 0 = the CHECK failed, which is not a verdict about the service.'
+emit '# TYPE hexworth_probe_checked gauge'
+emit '# HELP hexworth_probe_duration_seconds how long the check took'
+emit '# TYPE hexworth_probe_duration_seconds gauge'
+
+run_check site                  chk_site
+run_check sandbox_api           chk_sandbox_api
+run_check sandbox_auth_enforced chk_sandbox_auth_enforced
+run_check keystone              chk_keystone
+run_check openstack_token       chk_openstack_token
+run_check pxe                   chk_pxe
+run_check neon_share            chk_share
+
+emit '# HELP hexworth_probe_last_run_timestamp_seconds unix time of the last completed probe run'
+emit '# TYPE hexworth_probe_last_run_timestamp_seconds gauge'
+emit "hexworth_probe_last_run_timestamp_seconds $(date +%s)"
+
+# Rule 4: atomic swap. A partial .prom is a parse error that drops EVERY metric in the file.
+mv -f "$TMP" "$OUT"
+chmod 644 "$OUT" 2>/dev/null

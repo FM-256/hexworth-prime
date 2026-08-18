@@ -1,0 +1,114 @@
+# Alerts for the service probe. Add to prometheus rule_files alongside rules/alerts.yml.
+#
+# THE RULE THAT SHAPES ALL OF THESE: `hexworth_probe_up == 0` is ambiguous on its own — it means
+# "down OR we could not check". So every service alert is gated on `hexworth_probe_checked == 1`.
+# Without that gate, a prober whose own network broke would page you about a healthy platform,
+# and a few of those trains people to ignore the alerts.
+#
+# The unrunnable case gets its OWN alert (ProbeCannotCheck) at lower urgency, because "we are
+# blind" is a real condition that must be visible — just not the same condition as "it is down".
+
+groups:
+  - name: hexworth-services
+    rules:
+
+      # ── the one that would have caught both 2026-08-18 outages ────────────────────────────
+      - alert: OpenStackTokenUnavailable
+        expr: hexworth_probe_up{service="openstack_token"} == 0 and hexworth_probe_checked{service="openstack_token"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Students cannot get an OpenStack token — every live lab is hanging"
+          description: >-
+            The full chain (tailnet grant -> socat -> DevStack VM -> keystone) is broken
+            somewhere. Labs will still LAUNCH and hand the student a terminal; every openstack
+            command then hangs. Check, in order: is the VM running on bc2 (`virsh domstate`),
+            does the tailnet grant still include tcp:8080, is socat listening.
+
+      - alert: KeystoneDown
+        expr: hexworth_probe_up{service="keystone"} == 0 and hexworth_probe_checked{service="keystone"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpenStack keystone is not answering"
+
+      # ── student-facing ────────────────────────────────────────────────────────────────────
+      - alert: SiteDown
+        expr: hexworth_probe_up{service="site"} == 0 and hexworth_probe_checked{service="site"} == 1
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "hexworth.com is not returning 200"
+
+      - alert: SandboxApiDown
+        expr: hexworth_probe_up{service="sandbox_api"} == 0 and hexworth_probe_checked{service="sandbox_api"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The sandbox API is not healthy — no lab can start"
+
+      # An API that stops enforcing auth is worse than one that is down.
+      - alert: SandboxAuthNotEnforced
+        expr: hexworth_probe_up{service="sandbox_auth_enforced"} == 0 and hexworth_probe_checked{service="sandbox_auth_enforced"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sandbox API did not return 401 to an anonymous request"
+          description: >-
+            Either the API is down, or it has stopped requiring authentication. The second is a
+            security incident, not an outage. Check which before assuming an outage.
+
+      # ── infrastructure services ───────────────────────────────────────────────────────────
+      - alert: PxeDown
+        expr: hexworth_probe_up{service="pxe"} == 0 and hexworth_probe_checked{service="pxe"} == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "PXE boot is not being served"
+          description: >-
+            Most likely apache2 won the port-80 boot race on neon again. nginx owns the pxe site;
+            apache2 serving its default page counts as DOWN here, because the host answers while
+            PXE does not work. `systemctl disable --now apache2 && systemctl start nginx`.
+
+      - alert: NeonShareUnavailable
+        expr: hexworth_probe_up{service="neon_share"} == 0 and hexworth_probe_checked{service="neon_share"} == 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "/mnt/neon-shared is not mounted or is hung"
+          description: >-
+            CIFS mounts do not retry once failed. After neon reboots, remount on bc1, bc2 and bc4.
+
+      # ── the meta-alerts: is the probe itself trustworthy? ──────────────────────────────────
+      - alert: ProbeCannotCheck
+        expr: hexworth_probe_checked == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Probe cannot evaluate {{ $labels.service }} — we are BLIND, not necessarily broken"
+          description: >-
+            The check could not run (missing config, docker image, or the prober's own network).
+            This is NOT a statement that the service is down. Fix the probe before trusting any
+            green from it.
+
+      # Silence is the failure mode that killed monitoring on 2026-08-18: neon lost power and the
+      # whole stack went quiet rather than alerting. Stale metrics must page.
+      - alert: ProbeStopped
+        expr: time() - hexworth_probe_last_run_timestamp_seconds > 900
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The service probe has not run for 15 minutes — monitoring is blind"
+          description: >-
+            No probe results are arriving. Assume nothing about service health until this clears.
+            A monitor that has stopped reporting looks exactly like a monitor reporting healthy,
+            which is why this alert exists.
