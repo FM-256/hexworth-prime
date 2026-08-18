@@ -1,7 +1,12 @@
 # Power-loss recovery — 2026-08-18
 
-**Outcome:** all five servers up and now able to survive a reboot unattended.
-Two real defects found, both of which would have kept a machine down indefinitely.
+**Outcome:** all five servers up, all services verified responding, and the estate can now
+survive a reboot unattended.
+
+**FOUR defects found.** Two would have kept a machine down indefinitely (1 and 2). Two were
+still down *after* every host reported healthy (3 and 4) — which is the point of this document:
+"all servers are up" and "all services are up" are different claims, and only the second one
+matters to a student.
 
 > Node addresses, MACs and SSH details are NOT in this file. This repo is PUBLIC.
 > They live in `~/hexworth-infra-private/compute-nodes-inventory.md`.
@@ -107,3 +112,75 @@ over the tailnet — while its LAN address answered SSH instantly and the host h
 - **UPS** when affordable. With the above in place it buys clean shutdowns and rides out brief
   dips, rather than being the only thing standing between a power blip and a manual recovery.
 - 205 packages pending upgrade on neon — unrelated backlog, not urgent.
+
+---
+
+# Service-level sweep (same day, after the hosts were up)
+
+"All five servers are up" was true and **not the same as "all services are up."** A sweep found
+three things still down after every host reported healthy.
+
+## Defect 3 — nginx lost a boot race for port 80, and PXE was down
+
+`nginx.service` was `failed` on neon:
+
+```
+nginx: [emerg] bind() to 0.0.0.0:80 failed (98: Address already in use)
+```
+
+The config was valid. **apache2 had taken port 80 first.** Whichever service wins that race at
+boot keeps the port; before the reboot nginx happened to win, after it apache2 did.
+
+It matters because of what each serves:
+
+| | sites-enabled | serving |
+|---|---|---|
+| nginx | `default`, **`pxe`** | the PXE boot server |
+| apache2 | `000-default.conf` | the stock "Apache2 Ubuntu Default Page" |
+
+So PXE boot had been down since the reboot while the machine served a placeholder page. apache2
+is now `disable`d and nginx holds :80, so the race cannot recur.
+
+## Defect 4 — the CIFS share was failed on three hosts
+
+`mnt-neon-shared.mount` was `failed` on bc1, bc2 and bc4 — collateral from neon being down.
+Remounted on all three; the mounts do not retry on their own once they have failed.
+
+## Method note: "failed units" is not a service check
+
+`systemctl --state=failed` only catches what systemd noticed AND flagged. It will not catch a
+service that is stopped, disabled, or running-but-not-answering. Two checks that did work:
+
+1. **Containers stopped and staying stopped** (excluding ephemeral sandboxes). Only 4–7 week old
+   debris on bc1; nothing from the power loss.
+2. **Probing each service for a real response**, not a process state. Every container with a
+   published port was hit over HTTP; the internal-only ones were probed from inside their own
+   network namespace.
+
+Reading the results needs care — several healthy services do not return 200:
+
+| Service | Response | Meaning |
+|---|---|---|
+| prometheus, grafana | 302 | redirect to `/graph` and `/login` — normal |
+| loki | 404 on `/` | loki has no root route — normal |
+| mysql | `Access denied ... using password: NO` | **healthy** — it accepted the connection and rejected a credential-less ping. Connection refused would be the failure. |
+| postgres | `accepting connections` | healthy |
+| redis | `PONG` | healthy |
+
+An "error" that proves the service is alive is not an outage. Treating that mysql line as a
+failure would have sent someone debugging a working database.
+
+## ⚠ Structural finding — the monitor shares a power domain with the monitored
+
+prometheus, alertmanager, grafana, ntfy, webhook-ntfy and loki **all run on neon**, which was
+down for hours. The monitoring stack went blind at exactly the moment it was needed, and it was
+also the last machine to come back.
+
+This matters for the service-monitor work: a down-detector that dies with the thing it watches
+reports nothing rather than reporting an outage. Whatever gets built needs either an off-site
+component or a dead-man's-switch that alerts on **silence**, not on a failed check.
+
+## Benign failures, left alone
+
+`systemd-networkd-wait-online` / `NetworkManager-wait-online` (always fail on multi-homed hosts)
+and `openipmi` (no IPMI hardware present). Three across the estate, none affecting service.
