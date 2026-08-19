@@ -86,6 +86,24 @@ async function seed() {
                 migratedAt: entry.migratedAt || new Date().toISOString()
             };
 
+            /* Competition boxes declare `deliveryDisabled: true` here, in box_flags.json — the
+             * authoritative source — so the control travels with the box definition instead of
+             * being a manual Firestore edit somebody has to remember. deliverFlag refuses to
+             * disclose a value when it is set (functions/index.js), which is what stops a signed-in
+             * caller collecting flags straight from the console without doing the work.
+             *
+             * Written explicitly rather than spread from `entry`, so a stray key in box_flags.json
+             * can never become a registry field nobody reviewed.
+             *
+             * Only ever set TRUE from here. If the source omits it the field is left alone rather
+             * than written false, because the batch uses { merge: true } and writing false would
+             * silently RE-ENABLE disclosure on a box someone had locked down by hand — a reseed
+             * quietly undoing a security decision is exactly the kind of regression that hides.
+             */
+            if (entry.deliveryDisabled === true) {
+                docData.deliveryDisabled = true;
+            }
+
             // Add dispatch aliases if applicable
             const aliasConfig = DISPATCH_ALIASES[boxId];
             if (aliasConfig) {

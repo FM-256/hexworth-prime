@@ -559,6 +559,40 @@ exports.deliverFlag = onCall(cfOptions, async (request) => {
         throw new HttpsError('not-found', 'Box not found.');
     }
 
+    /* ── COMPETITION BOXES NEVER HAVE FLAG VALUES DISCLOSED ────────────────────────────────
+     * This function hands the caller a flag VALUE and checks only that they are signed in.
+     * That is deliberate for teaching: BoxEngine pre-fetches every flag on page load
+     * (BoxEngine.js:99-106) so VS/CoOp can validate against a local cache, and labs display
+     * "you found FLAG{...}" as the reward. LagrangeEngine's header already names the cost —
+     * 231 boxes hand a student every answer before they do anything — and correctly grades it
+     * SPOILER-class rather than forgery-class, because captures are still compared server-side
+     * by validateFlag.
+     *
+     * For a RANKED competition that distinction collapses: seeing the flag IS having it, so a
+     * spoiler is a forgery. boxId and flagId both live in client-side config, so anyone signed
+     * in can call this directly and collect a box's flags without opening the investigation.
+     *
+     * Registry docs may therefore set `deliveryDisabled: true`. Those boxes disclose nothing;
+     * the player must submit what they worked out and validateFlag judges it — the pattern
+     * le-01-cold-horizon already proves. Enforced HERE, server-side, because a client-side
+     * rule is a request rather than a control.
+     *
+     * OPT-IN, not default-on, and that is a considered choice: flipping all 231 boxes would
+     * silently break VS/CoOp's cache validation and remove the reward text from teaching labs.
+     * Competition content opts in; teaching content is untouched.
+     */
+    /* Any truthy value blocks, not a strict === true. The seeder only ever writes a real
+     * boolean, but the realistic way this field gets set in a hurry is a human editing the
+     * Firestore doc during an event — and `"true"` typed as a string would sail past a strict
+     * check and leave disclosure ON, on the one box somebody was trying to lock down. A
+     * security control must fail CLOSED on an ambiguous value. Caught by testing the guard
+     * against a string, not by reading it.
+     */
+    if (flagDoc.data().deliveryDisabled) {
+        throw new HttpsError('permission-denied',
+            'This box does not disclose flag values. Submit the flag you worked out instead.');
+    }
+
     const flags = flagDoc.data().flags || {};
     const flagText = flags[flagId];
     if (!flagText) {
