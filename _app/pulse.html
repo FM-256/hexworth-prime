@@ -2615,7 +2615,10 @@
                 r = (await callHealth()).data;
             } catch (e) {
                 // permission-denied is expected for non-admins; say so rather than looking broken.
-                var msg = (e && e.code === 'functions/permission-denied')
+                // BOTH forms. _app/accept-invite.html:324 already defends against the bare
+                // code, which means someone hit it here before; omitting it would relearn that.
+                var code = (e && e.code) || '';
+                var msg = (code === 'functions/permission-denied' || code === 'permission-denied')
                     ? 'Admin privileges required.'
                     : 'Could not reach the service probe.';
                 setBadge('Unavailable', '#f59e0b');
@@ -2639,18 +2642,35 @@
             var up = svcs.filter(function (s) { return s.state === 'up'; }).length;
 
             var state, color;
-            if (r.stale) { state = 'STALE'; color = '#f59e0b'; }
+            // ⚠ EMPTY IS NOT HEALTHY. A fresh payload carrying zero services means the probe
+            // reported nothing — a malformed or truncated file parses fine and yields []. Falling
+            // through to UP would draw "0 of 0 up" in exactly the same green as "7 of 7 up",
+            // which is the precise failure this panel exists to prevent. Checked BEFORE stale,
+            // because no-data is a stronger statement than old-data.
+            if (!svcs.length) { state = 'NO DATA'; color = '#f59e0b'; }
+            else if (r.stale) { state = 'STALE'; color = '#f59e0b'; }
             else if (down > 0) { state = 'DOWN'; color = '#ef4444'; }
             else if (blind > 0) { state = 'PARTIAL'; color = '#a78bfa'; }
             else { state = 'UP'; color = '#22c55e'; }
             setBadge(state, color);
 
+            if (!svcs.length) {
+                summary.innerHTML = '<strong style="color:#f59e0b">NO DATA</strong> — the probe replied but listed no services. Treat this as broken monitoring, not as a healthy platform.';
+                targetsEl.innerHTML = '';
+                return;
+            }
+
+            // The function clamps a negative age to 0, so a clock ahead of the server reads as
+            // "just now". skewed=true is how it tells us that happened, rather than absorbing it
+            // into the most reassuring possible value.
+            var skewed = r.clockSkew === true;
             var mins = Math.round((r.ageSeconds || 0) / 60);
             summary.innerHTML = '<strong style="color:' + color + '">' + state + '</strong> — ' +
                 up + ' of ' + svcs.length + ' up' +
                 (blind ? ' · ' + blind + ' not checked' : '') +
                 ' · probed ' + (r.ageSeconds < 90 ? 'just now' : mins + 'm ago') +
-                (r.stale ? ' · <span style="color:#f59e0b">the probe has stopped — nothing below is current</span>' : '');
+                (r.stale ? ' · <span style="color:#f59e0b">the probe has stopped — nothing below is current</span>' : '') +
+                (skewed ? ' · <span style="color:#f59e0b">clock skew detected — the age above is not trustworthy</span>' : '');
 
             targetsEl.innerHTML = svcs.map(function (s) {
                 var c = stateColor(s.state);

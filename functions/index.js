@@ -160,10 +160,21 @@ exports.getServiceHealth = onCall(
         return { reachable: false, error: String(err).slice(0, 120), services: [], stale: true };
     }
 
-    const ageSeconds = Math.max(0, Math.floor(Date.now() / 1000) - (payload.generated_at || 0));
+    // ⚠ CLAMPING HIDES CLOCK SKEW, so report it instead of absorbing it. If bc1's clock runs
+    // ahead of this function's, the raw age goes NEGATIVE and Math.max would turn that into
+    // "probed just now" — the most reassuring possible reading of a condition we cannot actually
+    // vouch for. bc1 lost power twice on 2026-08-18, which is exactly when clocks jump.
+    const rawAge = Math.floor(Date.now() / 1000) - (payload.generated_at || 0);
+    const clockSkew = rawAge < -30;              // small negatives are ordinary scheduling jitter
+    const ageSeconds = Math.max(0, rawAge);
+    const services = Array.isArray(payload.services) ? payload.services : [];
     return {
         reachable: true,
-        services: Array.isArray(payload.services) ? payload.services : [],
+        services,
+        // An empty list from a parseable payload is a BROKEN PROBE, not a healthy platform. The
+        // caller must be able to tell those apart without inferring it from services.length.
+        empty: services.length === 0,
+        clockSkew,
         generatedAt: payload.generated_at || null,
         generatedIso: payload.generated_iso || null,
         probeHost: payload.probe_host || null,
