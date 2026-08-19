@@ -419,6 +419,7 @@ const SandboxLauncher = (function() {
                 timerEl.textContent = `Session: ${mins}m ${secs}s remaining`;
                 if (remaining <= 0) {
                     closeIframe();          // same cleanup as Destroy; see closeIframe()
+                    clearConsolePanel();    // session END — the backend has rotated the password
                     updateUI('idle', 'Session expired');
                     // Session is gone — let the host clear any session-bound UI (e.g. the grader).
                     if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
@@ -494,6 +495,7 @@ const SandboxLauncher = (function() {
             try {
                 await destroy(session.sessionId);
                 closeIframe();
+                clearConsolePanel();    // session END — the backend has rotated the password
                 updateUI('idle', 'Sandbox destroyed');
                 // Session is gone — let the host clear any session-bound UI (e.g. the grader).
                 if (typeof options.onEnd === 'function') { try { options.onEnd(labId); } catch (e) { /* ignore */ } }
@@ -573,12 +575,24 @@ const SandboxLauncher = (function() {
             wrapper.classList.remove('is-embedded');
             iframe.src = '';
 
-            // Remove the console credentials with the session. Destroy and max-lifetime expiry
-            // both land here, and the backend rotates the Horizon password at teardown — so a
-            // panel left on the page would keep showing a dead password next to a live-looking
-            // "Open the web console" link, inviting exactly the click that now 401s. The panel is
-            // a sibling of `wrapper` on the host container, so clearing the iframe never touched
-            // it. Caught by review, not by testing: the happy path looks perfect.
+        }
+
+        /**
+         * Drop the console credentials when the SESSION ends — deliberately NOT inside
+         * closeIframe().
+         *
+         * Those are two different events sharing one function. Destroy and max-lifetime expiry end
+         * the session, and the backend rotates the Horizon password at teardown, so a panel left
+         * up would show a dead password beside a live-looking link. Minimize does NOT end
+         * anything: collapseBtn also calls closeIframe(), state stays 'running', the timer keeps
+         * counting, and the container is still alive on the server.
+         *
+         * A first attempt put this inside closeIframe() and so wiped a working student's
+         * credentials the moment they minimised the terminal, recoverable only by destroying the
+         * sandbox — trading one bug for a worse one. Keep it keyed to session end, not to the
+         * iframe closing.
+         */
+        function clearConsolePanel() {
             const stalePanel = container.querySelector('.sandbox-console-panel');
             if (stalePanel) stalePanel.remove();
         }
