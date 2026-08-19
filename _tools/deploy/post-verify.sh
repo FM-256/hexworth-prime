@@ -336,31 +336,34 @@ echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then
     echo -e "  ${DIM}skipped (non-hosting deploy — lab content unchanged)${NC}"
 elif [[ "$DRY_RUN" == 1 ]]; then
-    echo -e "  ${DIM}DRY-RUN: would run smoke-lab-content-leaks.js${NC}"
+    echo -e "  ${DIM}DRY-RUN: would run smoke-lab-content-leaks-remote.sh (executes on bc1, not here)${NC}"
 elif [[ "${SKIP_LAB_SMOKE:-0}" == 1 ]]; then
     echo -e "  ${YELLOW}⚠ skipped (SKIP_LAB_SMOKE=1 — reason: ${SKIP_LAB_SMOKE_REASON:-unspecified})${NC}"
 else
     # Preflight: confirm puppeteer is resolvable. If not, this is infra, not
     # regression — YELLOW warn + INFRA_FAIL=1, do NOT set DIVERGENCE.
-    if ! node -e "require('puppeteer')" >/dev/null 2>&1; then
-        echo -e "  ${YELLOW}⚠ puppeteer not resolvable — skipping (run 'npm i puppeteer' in repo root)${NC}"
-        INFRA_FAIL=1
+    # ⚠ RUNS ON bc1, NOT HERE. Headless Chrome under WSL2 on this deploy host stalled roughly
+    # half of all runs with 30s navigation timeouts on a randomly different lab, while curl on
+    # the same machine fetched those pages 12/12 under 1.4s and bc1 ran the identical smoke 4/4
+    # clean. Three real defects in the smoke were fixed first (see its header); this is the
+    # residual, and it was the environment. The wrapper NEVER falls back to local — a silent
+    # fallback would reintroduce the flake and leave nobody able to say which environment
+    # produced a given result. It exits 2 when bc1 is unreachable, which the branches below
+    # already treat as infrastructure rather than as a regression.
+    SMOKE_OUTPUT=$("$REPO_ROOT/_tools/smoke-lab-content-leaks-remote.sh" 2>&1)
+    SMOKE_EXIT=$?
+    if [[ "$SMOKE_EXIT" == 0 ]]; then
+        # Print the trailing summary line only — full output is noisy
+        echo -e "  ${GREEN}✓${NC} $(echo "$SMOKE_OUTPUT" | grep -E '══ [0-9]+ PASS' | tail -1)"
+    elif [[ "$SMOKE_EXIT" == 1 ]]; then
+        echo -e "  ${RED}✗ lab content-leak smoke flagged regression(s):${NC}"
+        echo "$SMOKE_OUTPUT" | sed 's/^/      /'
+        DIVERGENCE=1
     else
-        SMOKE_OUTPUT=$(node "$REPO_ROOT/_tools/smoke-lab-content-leaks.js" 2>&1)
-        SMOKE_EXIT=$?
-        if [[ "$SMOKE_EXIT" == 0 ]]; then
-            # Print the trailing summary line only — full output is noisy
-            echo -e "  ${GREEN}✓${NC} $(echo "$SMOKE_OUTPUT" | grep -E '══ [0-9]+ PASS' | tail -1)"
-        elif [[ "$SMOKE_EXIT" == 1 ]]; then
-            echo -e "  ${RED}✗ lab content-leak smoke flagged regression(s):${NC}"
-            echo "$SMOKE_OUTPUT" | sed 's/^/      /'
-            DIVERGENCE=1
-        else
-            # Exit code 2 or other = infra failure (puppeteer launch, network)
-            echo -e "  ${YELLOW}⚠ lab smoke infra failure (exit=$SMOKE_EXIT):${NC}"
-            echo "$SMOKE_OUTPUT" | tail -10 | sed 's/^/      /'
-            INFRA_FAIL=1
-        fi
+        # Exit code 2 or other = infra failure (puppeteer launch, network)
+        echo -e "  ${YELLOW}⚠ lab smoke infra failure (exit=$SMOKE_EXIT):${NC}"
+        echo "$SMOKE_OUTPUT" | tail -10 | sed 's/^/      /'
+        INFRA_FAIL=1
     fi
 fi
 echo ""
