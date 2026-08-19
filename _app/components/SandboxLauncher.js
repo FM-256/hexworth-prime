@@ -205,6 +205,91 @@ const SandboxLauncher = (function() {
 
     // ── UI Rendering ────────────────────────────────────────────
 
+    /**
+     * Show the OpenStack web-console (Horizon) credentials after a personal-cloud launch.
+     *
+     * WHY A PASSWORD IS SHOWN AT ALL. The CLI gets an application credential the student never
+     * sees or types. Horizon cannot consume one — its login form takes username/password — so
+     * the web console needs a typeable secret. It is safe to display because its lifetime IS the
+     * session: the bridge rotates it at claim and again at teardown, so a screenshot is dead as
+     * soon as the lab is reaped.
+     *
+     * The fetch mints an HttpOnly cookie that the /dashboard gate checks on every request.
+     * Without it the console 401s, so this runs BEFORE the student can click through. It is
+     * awaited rather than fired-and-forgotten so the link is never shown as ready while the
+     * gate would still reject it.
+     */
+    async function showConsolePanel(host, result) {
+        if (!host || !result || !result.horizonPassword) return;   // not a personal-cloud launch
+
+        // Mint the browser cookie for the gate. A failure here must not hide the credentials —
+        // the student can still reach the console after a retry — but it MUST be visible,
+        // otherwise the console just 401s and looks broken for no stated reason.
+        let gateOk = true;
+        try {
+            // credentials:'include' is REQUIRED, not defensive: the lab page is hexworth.com and
+            // this API is sandbox.hexworth.tech, so without it the browser discards the Set-Cookie
+            // and the console 401s for a student who did everything right. apiCall() does not send
+            // credentials (nothing else here needs them), so this call is made directly.
+            const token = (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn())
+                ? await FirebaseAuth.refreshToken() : null;
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const r = await fetch(CONFIG.apiBase + '/console-session',
+                { method: 'POST', headers: headers, credentials: 'include' });
+            if (!r.ok) gateOk = false;
+        } catch (e) {
+            gateOk = false;
+        }
+
+        const old = host.querySelector('.sandbox-console-panel');
+        if (old) old.remove();
+
+        const panel = document.createElement('div');
+        panel.className = 'sandbox-console-panel';
+        panel.style.cssText = 'margin-top:1rem;padding:1rem;border:1px solid rgba(255,255,255,.18);' +
+            'border-radius:8px;background:rgba(255,255,255,.04);font-size:.92rem;line-height:1.55';
+
+        const heading = document.createElement('strong');
+        heading.textContent = 'Web console (Horizon)';
+        panel.appendChild(heading);
+
+        const note = document.createElement('div');
+        note.style.cssText = 'margin:.35rem 0 .6rem;opacity:.8';
+        note.textContent = gateOk
+            ? 'These credentials work for this session only and stop working when the lab ends.'
+            : 'Console access could not be prepared. Relaunch the lab, and tell your instructor if it keeps happening.';
+        panel.appendChild(note);
+
+        // textContent throughout: the slot name and password are server-supplied strings and
+        // must never be parsed as markup.
+        const rows = [['User', result.horizonUser], ['Password', result.horizonPassword]];
+        rows.forEach(function (pair) {
+            const row = document.createElement('div');
+            const label = document.createElement('span');
+            label.style.cssText = 'display:inline-block;min-width:5.5rem;opacity:.75';
+            label.textContent = pair[0];
+            const value = document.createElement('code');
+            value.style.cssText = 'user-select:all;word-break:break-all';
+            value.textContent = pair[1] || '';
+            row.appendChild(label);
+            row.appendChild(value);
+            panel.appendChild(row);
+        });
+
+        if (gateOk && result.horizonUrl) {
+            const link = document.createElement('a');
+            link.href = result.horizonUrl;
+            link.target = 'hexworth-openstack-console';
+            link.rel = 'noopener';
+            link.textContent = 'Open the web console';
+            link.style.cssText = 'display:inline-block;margin-top:.7rem;font-weight:600';
+            panel.appendChild(link);
+        }
+
+        host.appendChild(panel);
+    }
+
     function renderButton(container, labId, options = {}) {
         const info = LAB_INFO[labId];
         if (!info) return;
@@ -369,6 +454,11 @@ const SandboxLauncher = (function() {
                 if (typeof options.onLaunch === 'function') {
                     try { options.onLaunch(labId, result); } catch (e) { /* ignore */ }
                 }
+
+                // Web console panel. Lives HERE and not on the lab pages because six OpenStack
+                // labs call this same launcher — a panel copied into each is the same fix six
+                // times, and the seventh lab would silently not have it.
+                try { await showConsolePanel(container, result); } catch (e) { /* never break launch */ }
 
                 const session = _activeSessions[labId];
                 session.pollTimer = startTimer(session.launchedAt);
