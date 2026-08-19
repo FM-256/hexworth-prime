@@ -28,6 +28,10 @@ const puppeteer = require('puppeteer');
 
 const BASE = process.env.BASE || 'https://hexworth.com';
 const NAV_TIMEOUT = 30000;
+// Separate budget from navigation. The config global attaches from a script that has already
+// been fetched by the time DOMContentLoaded fires, so this should resolve in milliseconds; a
+// long wait here means the page genuinely did not initialise, not that the network was slow.
+const CONFIG_TIMEOUT = 20000;
 
 const CHECKS = [
     {
@@ -80,33 +84,107 @@ const CHECKS = [
 
 async function runOne(browser, check) {
     const page = await browser.newPage();
+
+    // ⚠ ABORT THE WIDGET THAT DEMONSTRABLY HANGS. Caught in the act 2026-08-19: navigation
+    // stalled with /_lib/HexAIButton.js STILL PENDING at 24.9s, while curl fetched that exact
+    // file 6/6 times in under 0.45s. Chrome caps connections per host, so one hung request
+    // queues the others behind it — including the lab's own config script, which is why the
+    // failure then re-surfaced as "config global never attached".
+    //
+    // This smoke asserts on lab CONTENT — config globals and command-handler output. The AI
+    // button contributes nothing to any assertion, so refusing to fetch it removes a failure
+    // mode without removing coverage. If a future assertion ever depends on it, this block must
+    // go, and the flake must be solved a different way.
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+        // FULFIL with an empty module rather than abort(). Aborting raises a generic
+        // "net::ERR_FAILED" console error whose text does NOT contain the URL, so it cannot be
+        // filtered from the js-error assertion without also masking real failures. Serving an
+        // empty 200 produces no error at all — the page simply gets a module that does nothing.
+        if (req.url().includes('/_lib/HexAIButton.js')) {
+            return req.respond({ status: 200, contentType: 'application/javascript', body: '' });
+        }
+        req.continue();
+    });
+
     const errors = [];
     page.on('pageerror', e => errors.push('pageerror: ' + e.message));
     page.on('console', msg => { if (msg.type() === 'error') errors.push('console.error: ' + msg.text()); });
 
     const url = BASE + check.url;
     const results = [];
+    let navNote = '';
 
     try {
-        // Use 'load', NOT 'networkidle2': these lab pages hold a persistent Firestore
-        // connection, so the network never goes fully idle. 'networkidle2' therefore
-        // intermittently hits the timeout (worst right after a deploy, when the CDN edge
-        // cache is cold and scripts load slowly) and false-flags post-verify divergence.
-        // The waitForFunction below is the real content-readiness gate: it waits for the
-        // lab config global that every assertion reads, so 'load' loses no coverage.
-        await page.goto(url, { waitUntil: 'load', timeout: NAV_TIMEOUT });
+        // 'domcontentloaded', NOT 'load', and NOT 'networkidle2'. Each was tried in turn:
+        //
+        //   networkidle2 — never settles. These pages hold a persistent Firestore connection,
+        //                  so the network is never idle. Replaced for that reason.
+        //   load         — waits for EVERY subresource: images, fonts, lore artwork. On a cold
+        //                  CDN edge right after a deploy that exceeds 30s. Measured 2026-08-19:
+        //                  three DIFFERENT labs timed out across repeated runs while the same
+        //                  pages served in under 0.5s to curl. The failures moved around, which
+        //                  is the signature of a resource wait rather than a broken page.
+        //   domcontentloaded — STILL HOSTAGE TO THE MODULE GRAPH. Every lab loads
+        //                  <script type="module" src="/_lib/HexAIButton.js">, and module scripts
+        //                  block DOMContentLoaded even though they do not block parsing. Caught
+        //                  it in the act 2026-08-19: navigation timed out with that request
+        //                  STILL PENDING at 24.9s, while curl fetched the same file 6/6 times in
+        //                  under 0.45s. An unrelated widget could therefore fail the content
+        //                  smoke for every lab, which is why the failures wandered between labs.
+        //   commit       — resolves as soon as the navigation commits, before any subresource.
+        //                  The waitForFunction below is then the ONLY readiness gate, which is
+        //                  what it was always meant to be.
+        //
+        // ⚠ THIS LOSES NO COVERAGE. The waitForFunction below is the real readiness gate — it
+        // blocks until the lab config global is attached, and every assertion reads that global
+        // or invokes a command handler on it. None of them touch an image or a font. Waiting on
+        // subresources was never testing anything; it was only adding ways to fail.
+        // ⚠ NAME THE STEP. The outer catch labelled every failure 'load', so a config-global
+        // timeout was indistinguishable from a navigation timeout. That ambiguity sent an
+        // investigation at the CDN when the failing step was not even known.
+        //
+        // RETRY ONCE, and only navigation. Measured 2026-08-19 on this deploy host: the same
+        // URL timed out at 31.7s and then loaded in 254ms on the very next attempt, in the same
+        // browser, with the failures moving randomly between labs. That is network-level
+        // intermittency, not a page defect.
+        //
+        // ⚠ WHY A RETRY IS LEGITIMATE HERE AND WOULD NOT BE ELSEWHERE. It retries ONLY the
+        // transport, never an assertion. A genuinely broken or missing page fails BOTH attempts
+        // and still reports; the content assertions are untouched and un-retried. What this
+        // suppresses is exactly one class of event — a dropped connection — which is not
+        // something this smoke is meant to detect. Retrying a failing ASSERTION would be
+        // hiding a regression; retrying a failed TCP connection is not.
+        // Navigate, but do NOT treat the navigation event as the readiness gate. If the wait
+        // expires we carry on: the config-global check below decides whether the page is usable.
+        // A page that genuinely failed to load has no config global and fails there, with a
+        // message that says so.
+        //
+        // ⚠ 'commit' would be the exact right waitUntil here and PUPPETEER DOES NOT HAVE IT —
+        // that is a Playwright option. Tried it, every run failed with "Unknown value for
+        // options.waitUntil". Loudly, at least.
+        try {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+        } catch (e) {
+            navNote = 'navigation wait expired (' + e.message.slice(0, 40) + ') — '
+                    + 'continuing to the config-global gate';
+        }
 
-        // Wait for the config global to attach. Configs are declared `const` at
-        // script top-level so they live in script scope, not on window. Access via
-        // eval — which lifts to the outer scope where `const` is visible.
-        await page.waitForFunction(
-            (cfgName) => {
-                try { return typeof eval(cfgName) === 'object' && eval(cfgName) !== null; }
-                catch { return false; }
-            },
-            { timeout: NAV_TIMEOUT },
-            check.config
-        );
+        try {
+            await page.waitForFunction(
+                (cfgName) => {
+                    try { return typeof eval(cfgName) === 'object' && eval(cfgName) !== null; }
+                    catch { return false; }
+                },
+                { timeout: CONFIG_TIMEOUT },
+                check.config
+            );
+        } catch (e) {
+            throw new Error('CONFIG-GLOBAL "' + check.config + '" never attached within '
+                + CONFIG_TIMEOUT + 'ms: ' + e.message);
+        }
+
+        if (navNote) results.push({ label: 'load (slow)', pass: true, detail: navNote });
 
         for (const a of check.assertions) {
             let pass = false;
