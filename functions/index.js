@@ -26,6 +26,11 @@ const sandboxServiceKeyIdx = defineSecret('SANDBOX_SERVICE_KEY');
 // Sextant trajectory pepper — bound to withdrawFromObservatory so a withdrawal can
 // recompute a learner's cohort token and purge their tokenized Plane-B points.
 const sextantPepper = defineSecret('SEXTANT_PEPPER');
+// Basic-auth credential ("user:pass") for the service-probe status endpoint on bc1. A secret
+// because a browser cannot hold it — see getServiceHealth. The URL below is NOT secret; it is a
+// public hostname whose contents are protected by that credential.
+const serviceStatusCredential = defineSecret('SERVICE_STATUS_CREDENTIAL');
+const SERVICE_STATUS_URL_DEFAULT = 'https://sandbox.hexworth.tech/status.json';
 
 initializeApp();
 const db = getFirestore();
@@ -102,6 +107,71 @@ exports.verifyAdmin = onCall(cfOptions, async (request) => {
     }
     const isAdmin = request.auth.token.admin === true;
     return { admin: isAdmin };
+});
+
+/**
+ * getServiceHealth — the SLA view for the Pulse dashboard.
+ *
+ * WHY A FUNCTION AND NOT A DIRECT FETCH FROM THE BROWSER
+ *   The probe runs on bc1 and publishes its results over the tunnel that already serves
+ *   sandbox.hexworth.tech. That endpoint is protected by basic auth, and a browser cannot hold
+ *   that credential — anything shipped to the client is public. So the credential lives here,
+ *   server-side, and the ADMIN CHECK is the platform's own `requireAdmin`: the same allowlist and
+ *   custom claim that gate every other admin operation. No second auth system to keep in step.
+ *
+ *   The alternative designs were worse. Writing to Firestore from bc1 would put a write
+ *   credential on the host that runs student sandbox containers — the least-trusted box on the
+ *   estate. Making the endpoint public would mean "gated" was decorative.
+ *
+ * WHAT IT RETURNS
+ *   `stale` is computed here rather than trusted from the payload, because the failure this
+ *   whole system exists for is SILENCE: a probe that stopped reporting looks exactly like a probe
+ *   reporting healthy. If the data is old, the UI must be able to say so even when every service
+ *   in it reads "up".
+ */
+exports.getServiceHealth = onCall(
+    { ...cfOptions, secrets: [serviceStatusCredential] },
+    async (request) => {
+    requireAdmin(request);
+
+    // URL is not secret (it is a public hostname); the CREDENTIAL is, so it goes through
+    // Secret Manager like LIVEKIT_API_KEY and SEXTANT_PEPPER rather than a plain env var.
+    const url = process.env.SERVICE_STATUS_URL || SERVICE_STATUS_URL_DEFAULT;
+    const cred = serviceStatusCredential.value();          // "user:pass"
+    if (!url || !cred) {
+        // Fail loudly. A monitoring endpoint that silently returns nothing is the defect.
+        throw new HttpsError('failed-precondition',
+            'SERVICE_STATUS_URL / SERVICE_STATUS_CREDENTIAL are not configured.');
+    }
+
+    let payload;
+    try {
+        const res = await fetch(url, {
+            headers: { Authorization: 'Basic ' + Buffer.from(cred).toString('base64') },
+            signal: AbortSignal.timeout(10000),
+        });
+        if (!res.ok) {
+            // Distinguish "the probe host is unreachable" from "the services are down". They are
+            // different problems and must not render the same way.
+            return { reachable: false, httpStatus: res.status, services: [], stale: true };
+        }
+        payload = await res.json();
+    } catch (err) {
+        return { reachable: false, error: String(err).slice(0, 120), services: [], stale: true };
+    }
+
+    const ageSeconds = Math.max(0, Math.floor(Date.now() / 1000) - (payload.generated_at || 0));
+    return {
+        reachable: true,
+        services: Array.isArray(payload.services) ? payload.services : [],
+        generatedAt: payload.generated_at || null,
+        generatedIso: payload.generated_iso || null,
+        probeHost: payload.probe_host || null,
+        ageSeconds,
+        // cron is every 2 min; 300s means the probe itself has stopped and NOTHING below is
+        // trustworthy, however green it looks.
+        stale: ageSeconds > 300,
+    };
 });
 
 // ─── QC-4: Gate Completion Verification ──────────────────────────

@@ -38,6 +38,12 @@ set -u
 TEXTFILE_DIR="${TEXTFILE_DIR:-/var/lib/node_exporter/textfile_collector}"
 OUT="${TEXTFILE_DIR}/hexworth_services.prom"
 TMP="${OUT}.$$.tmp"
+# Second output, for the Pulse dashboard. Served over the EXISTING public path
+# (traefik -> cloudflared -> sandbox.hexworth.tech) and read by an ADMIN-GATED Cloud Function,
+# so no credential of any kind lives on this host. See _docs/operations/service-monitor.md.
+JSON_DIR="${JSON_DIR:-/home/eq1/hexworth-status}"
+JSON_OUT="${JSON_DIR}/status.json"
+JSON_TMP="${JSON_OUT}.$$.tmp"
 
 # Endpoints. Addresses come from the environment so this file can live in a PUBLIC repo.
 KEYSTONE="${HEXWORTH_KEYSTONE_URL:-}"          # e.g. http://<bc2>:8080/identity
@@ -70,7 +76,14 @@ run_check() {
        emit "hexworth_probe_checked{service=\"$name\"} 0" ;;
   esac
   emit "hexworth_probe_duration_seconds{service=\"$name\"} $dur"
+
+  # same three states as the metrics: up / down / blind. Kept identical on purpose — two
+  # renderings of one truth must not be able to disagree.
+  local state
+  case "$rc" in 0) state=up ;; 1) state=down ;; *) state=blind ;; esac
+  RESULTS="${RESULTS}{\"service\":\"$name\",\"state\":\"$state\",\"seconds\":$dur},"
 }
+RESULTS=""
 
 # ── the checks ────────────────────────────────────────────────────────────────────────────────
 
@@ -180,3 +193,11 @@ emit "hexworth_probe_last_run_timestamp_seconds $(date +%s)"
 # Rule 4: atomic swap. A partial .prom is a parse error that drops EVERY metric in the file.
 mv -f "$TMP" "$OUT"
 chmod 644 "$OUT" 2>/dev/null
+
+# ── the Pulse feed ────────────────────────────────────────────────────────────────────────────
+# Same atomic-write rule as the .prom: a reader must never see a half-written document.
+mkdir -p "$JSON_DIR" 2>/dev/null
+printf '{"generated_at":%s,"generated_iso":"%s","probe_host":"%s","services":[%s]}\n' \
+  "$(date +%s)" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(hostname)" "${RESULTS%,}" > "$JSON_TMP"
+mv -f "$JSON_TMP" "$JSON_OUT"
+chmod 644 "$JSON_OUT" 2>/dev/null
