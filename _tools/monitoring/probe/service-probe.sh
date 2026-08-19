@@ -97,9 +97,20 @@ chk_keystone() {
   return 0
 }
 
-# The student's real question: can an OpenStack token be issued? This is the check that would
-# have caught BOTH of the 2026-08-18 outages, and the only one that proves the whole chain
-# (tailnet grant -> socat -> VM -> keystone) is intact.
+# Proves the NETWORK PATH to keystone from inside the sandbox network is intact:
+# tailnet grant -> socat -> VM -> keystone. That is what caught the 2026-08-18 outages.
+#
+# ⚠ IT DOES NOT ISSUE A TOKEN, despite the name. It is an unauthenticated GET that passes on any
+# HTTP status. An earlier version of this comment claimed it proved token issuance; on 2026-08-19
+# nova-compute sat dead for 15 HOURS while this check stayed green, because keystone really was
+# answering the whole time. The check was true; the claim above it was not. Students got
+# "No valid host was found" while the monitor showed seven of seven up.
+#
+# Proving a student can LAUNCH something needs credentials (read os-services, or ask placement for
+# allocation candidates). bc1 holds none by design. bc2 does, and is already scraped, so that check
+# belongs there as a textfile collector — see
+# _docs/operations/openstack-nova-compute-outage-2026-08-19.md. Until it exists, this metric means
+# "keystone answers HTTP from the sandbox network" and nothing more. Do not read it as "labs work".
 chk_openstack_token() {
   [ -n "$KEYSTONE" ] || return 2
   command -v docker >/dev/null 2>&1 || return 2
