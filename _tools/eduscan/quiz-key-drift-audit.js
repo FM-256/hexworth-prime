@@ -79,6 +79,26 @@ const KNOWN_AUTHORED_ROTATIONS = {
     'fl-final': '(Q1-Q6 = 443 / SYN,SYN-ACK,ACK / UDP / IMAP / 3389 / destination port)'
 };
 
+/**
+ * A key with zero HTML callsites cannot be reached by a student, so its drift harms nobody and
+ * must not compete for attention with drift on a live quiz. Read from the XREF-002 audit rather
+ * than recomputed here — that tool already scans all 5245 HTML files and is the authority.
+ * Missing or stale report: treat everything as reachable, which over-reports rather than
+ * under-reports. Regenerate with `node _tools/eduscan/quiz-key-callsite-audit.js`.
+ */
+function loadOrphans() {
+    const p = path.join(__dirname, '..', 'reports', 'QUIZ_KEY_CALLSITE_AUDIT.json');
+    if (!fs.existsSync(p)) return { set: new Set(), available: false };
+    try {
+        const rep = JSON.parse(fs.readFileSync(p, 'utf8'));
+        const ids = rep.orphanIds || rep.orphans || rep.orphan_ids || [];
+        const list = Array.isArray(ids) ? ids.map(o => (typeof o === 'string' ? o : o.quizId || o.id)) : [];
+        return { set: new Set(list.filter(Boolean)), available: list.length > 0 };
+    } catch {
+        return { set: new Set(), available: false };
+    }
+}
+
 function answersOf(entry) {
     if (Array.isArray(entry)) return entry;
     if (entry && typeof entry === 'object') return entry.answers || entry.key || null;
@@ -104,6 +124,7 @@ function isRotation(a, tolerance = 1) {
         process.exit(2);
     }
     const registry = JSON.parse(fs.readFileSync(REGISTRY, 'utf8'));
+    const orphans = loadOrphans();
 
     if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
     const snap = await admin.firestore().collection('quiz_keys').get();
@@ -153,11 +174,22 @@ function isRotation(a, tolerance = 1) {
         console.log('');
     }
 
-    if (other.length) {
-        console.log(`  DRIFT NEEDING ADJUDICATION (${other.length}) — neither side is mechanically identifiable.`);
+    const reachable = other.filter(d => !orphans.set.has(d.quizId));
+    const unreachable = other.filter(d => orphans.set.has(d.quizId));
+
+    if (reachable.length) {
+        console.log(`  DRIFT NEEDING ADJUDICATION (${reachable.length}) — neither side is mechanically identifiable.`);
         console.log(`  Do NOT bulk-push these; compare each question against its explanation first.`);
-        for (const d of other) console.log(`    ${d.quizId}  (${d.positionsDiffering} position(s) differ)`);
+        console.log(`  Alignment matters: parse questions POSITIONALLY. A regex that skips a question with an`);
+        console.log(`  embedded apostrophe shifts every later index and adjudicates the wrong question.`);
+        for (const d of reachable) console.log(`    ${d.quizId}  (${d.positionsDiffering} position(s) differ)`);
         console.log('');
+    }
+
+    if (unreachable.length) {
+        console.log(`  Drift on ORPHAN keys (${unreachable.length}) — zero HTML callsites, so no student can`);
+        console.log(`  reach them and the drift harms nobody. Left in place deliberately; we archive, not delete.`);
+        console.log(`    ${unreachable.map(d => d.quizId).join(', ')}\n`);
     }
 
     if (rotationInSync.length) {
@@ -174,8 +206,14 @@ function isRotation(a, tolerance = 1) {
 
     if (!drift.length) console.log('  no drift: every live key matches the authored registry.\n');
 
+    // Non-zero only for what a human must ACT on: drift a student can actually hit, a placeholder
+    // in production, or a rotation nobody has read yet. Orphan drift is reported and does not fail
+    // — a gate that stays red over unreachable keys trains people to ignore it, which is how the
+    // placeholder keys survived in the first place.
     const unverified = rotationInSync.filter(id => !KNOWN_AUTHORED_ROTATIONS[id]);
-    process.exit(drift.length || unverified.length ? 1 : 0);
+    const actionable = machine.length + reachable.length + unverified.length;
+    if (!actionable) console.log('  nothing actionable: no reachable drift, no placeholder keys, no unread rotations.\n');
+    process.exit(actionable ? 1 : 0);
 })().catch(err => {
     console.error(`  audit failed: ${err.message}`);
     process.exit(2);
