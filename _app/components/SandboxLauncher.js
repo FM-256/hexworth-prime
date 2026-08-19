@@ -261,9 +261,14 @@ const SandboxLauncher = (function() {
             : 'Console access could not be prepared. Relaunch the lab, and tell your instructor if it keeps happening.';
         panel.appendChild(note);
 
-        // textContent throughout: the slot name and password are server-supplied strings and
-        // must never be parsed as markup.
-        const rows = [['User', result.horizonUser], ['Password', result.horizonPassword]];
+        // Only show credentials that can actually be used. If the gate cookie failed to mint,
+        // the console will 401 no matter what is typed, so printing a username and password
+        // beside "could not be prepared" would read as live and send the student to a login
+        // form that cannot succeed. Say what happened instead, and show nothing usable.
+        // textContent throughout: these are server-supplied strings and must never be markup.
+        const rows = gateOk
+            ? [['User', result.horizonUser], ['Password', result.horizonPassword]]
+            : [];
         rows.forEach(function (pair) {
             const row = document.createElement('div');
             const label = document.createElement('span');
@@ -567,6 +572,15 @@ const SandboxLauncher = (function() {
             iframeWrap.style.display = 'none';
             wrapper.classList.remove('is-embedded');
             iframe.src = '';
+
+            // Remove the console credentials with the session. Destroy and max-lifetime expiry
+            // both land here, and the backend rotates the Horizon password at teardown — so a
+            // panel left on the page would keep showing a dead password next to a live-looking
+            // "Open the web console" link, inviting exactly the click that now 401s. The panel is
+            // a sibling of `wrapper` on the host container, so clearing the iframe never touched
+            // it. Caught by review, not by testing: the happy path looks perfect.
+            const stalePanel = container.querySelector('.sandbox-console-panel');
+            if (stalePanel) stalePanel.remove();
         }
 
         collapseBtn.addEventListener('click', closeIframe);

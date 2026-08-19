@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/FirebaseAuth.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <script src="../../../../components/SandboxLauncher.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Lab: The Web Console - OpenStack - House of the Cloud</title>
+    <style>
+        :root {
+            --cloud-primary: #0ea5e9; --cloud-secondary: #38bdf8; --cloud-accent: #7dd3fc;
+            --cloud-dark: #0c4a6e; --text-primary: #e0f2fe; --text-secondary: #7dafd4;
+            --bg-main: #060b14; --bg-card: #080f1e;
+            --border-color: rgba(14, 165, 233, 0.14); --success: #22c55e; --warn: #f59e0b;
+            --danger: #ef4444;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, #071a2b 100%);
+            color: var(--text-primary); line-height: 1.6; min-height: 100vh; padding: 20px;
+        }
+        .wrap { max-width: 1600px; margin: 0 auto; }
+        .header {
+            padding: 30px 34px; border-radius: 14px; margin-bottom: 22px;
+            background: linear-gradient(135deg, #7f1d1d 0%, var(--cloud-primary) 100%);
+        }
+        .header .crumb a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.85rem; }
+        .header h1 { font-size: 1.9rem; margin-top: 8px; }
+        .header .sub { opacity: 0.95; margin-top: 6px; max-width: 1000px; }
+        /* FULL-WIDTH BANNER LAYOUT (operator trial, 2026-07-31). The two-column split
+           made the page an open book, and it was also the source of the overlap bug --
+           .cmd blocks fought the adjacent column for width. One column means nothing to
+           overflow INTO, so the fix is structural rather than a min-width patch. Every
+           section is now the same full-bleed width as the three header banners. */
+        .cols { display: block; }
+        .cols > div { display: block; }
+        /* OVERLAP FIX (operator reported it live on the rescue lab): a grid item defaults
+           to min-width:auto, so it refuses to shrink below its widest child. The .cmd
+           blocks are wider than the left column, so instead of scrolling they EXPANDED
+           the column and ran underneath the Lab Objectives panel -- command text and
+           objective text drawn on top of each other. .cmd already had overflow-x:auto;
+           it could never take effect until the track was allowed to shrink. */
+        .cols > *, .step > * { min-width: 0; }
+        .cmd { max-width: 100%; }
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 22px 24px; margin-bottom: 20px;
+        }
+        .card h2 { color: var(--cloud-accent); font-size: 1.05rem; letter-spacing: 0.05em; margin-bottom: 10px; }
+        .card p { color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 10px; }
+        .card p strong { color: var(--text-primary); }
+        code {
+            background: rgba(14, 165, 233, 0.1); border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 1px 6px; font-size: 0.86em; color: var(--cloud-accent);
+            /* Multi-word inline code (`az vm disk detach`) was splitting across a line
+               break, leaving half the phrase on each line with its own border and
+               background -- it reads as overlapping, broken text. Operator spotted it on
+               the live rescue lab. nowrap keeps a command intact; inline-block stops the
+               border rendering as two ragged halves if it ever must wrap. */
+            white-space: nowrap; display: inline-block; max-width: 100%;
+        }
+        .brief {
+            border-left: 3px solid var(--danger); background: rgba(239, 68, 68, 0.07);
+            border-radius: 8px; padding: 14px 18px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 0.9rem;
+        }
+        .brief strong { color: #fca5a5; }
+        .mode-note {
+            border-left: 3px solid var(--warn); background: rgba(245, 158, 11, 0.07);
+            border-radius: 8px; padding: 12px 16px; margin-bottom: 18px;
+            color: var(--text-secondary); font-size: 0.88rem;
+        }
+        .mode-note strong { color: var(--warn); }
+        .lab-monitor { border: 1px solid var(--border-color); border-left: 3px solid var(--cloud-primary);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(14,165,233,0.07), rgba(8,15,30,0.5));
+            padding: 16px 18px; margin-bottom: 16px; }
+        .lab-monitor__head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+        .lab-monitor__head strong { color: var(--cloud-accent); letter-spacing: 0.04em; }
+        .lab-monitor__count { color: var(--text-secondary); font-size: 0.82rem; }
+        .lab-monitor__sub { color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 12px; }
+        .lab-monitor__list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+        .lab-monitor__list li { display: grid; grid-template-columns: 22px 1fr; gap: 10px;
+            padding: 10px 12px; background: rgba(6, 11, 20, 0.55);
+            border: 1px solid var(--border-color); border-radius: 8px; }
+        .lab-monitor__mark { width: 18px; height: 18px; }
+        .lab-monitor__list li.pass { border-color: rgba(34, 197, 94, 0.45); }
+        .lab-monitor__task { color: var(--text-primary); font-size: 0.9rem; }
+        .lab-monitor__state { font-size: 0.78rem; letter-spacing: 0.08em; text-transform: uppercase; }
+        .lab-monitor__state.pass { color: var(--success); }
+        .lab-monitor__state.fail { color: var(--text-secondary); }
+        .lab-monitor__msg { color: var(--text-secondary); font-size: 0.85rem; margin-top: 12px; }
+        .lab-monitor__msg.done { color: var(--success); font-weight: 600; }
+        .steps { counter-reset: step; }
+        .step { display: grid; grid-template-columns: 40px 1fr; gap: 12px; margin-bottom: 16px; }
+        .step::before {
+            counter-increment: step; content: counter(step);
+            width: 32px; height: 32px; border-radius: 50%; background: var(--cloud-dark);
+            display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff;
+        }
+        .step h3 { font-size: 0.98rem; color: var(--text-primary); margin-bottom: 4px; }
+        .step p { color: var(--text-secondary); font-size: 0.88rem; margin-bottom: 6px; }
+        .cmd { background: rgba(6, 11, 20, 0.7); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 10px 14px; margin: 6px 0;
+            font-family: 'Consolas', monospace; font-size: 0.84rem; color: var(--cloud-accent);
+            overflow-x: auto; white-space: pre; }
+        .footer { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 0.9rem; }
+        .footer a { color: var(--cloud-accent); }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header class="header">
+        <div class="crumb"><a href="../index.html">&larr; OpenStack Cloud Platform</a></div>
+        <h1>Live Lab: The Web Console</h1>
+        <div class="sub">Every other lab here hands you a command. This one hands you a project and
+        asks what is in it. That is the question you will actually face on your first day on
+        somebody else's cloud, and it is the one question the command line answers worst. You will
+        read your project through the web console, then prove every number you read using the
+        terminal &mdash; and decide, with evidence, which door is right for which job.</div>
+    </header>
+
+    <div class="brief"><strong>One project, two doors.</strong> The console is not a simulator and
+    not a copy. It calls the same OpenStack API your <code>openstack</code> commands call, against
+    the same project. Every figure you read in the browser can be confirmed from the terminal,
+    because there is only one cloud underneath.</div>
+
+    <div class="mode-note"><strong>This lab works in either mode.</strong> It reads your project
+    rather than rebuilding it, so it runs whether you got a personal cloud or the shared read-only
+    view. The launcher tells you which you have. In read-only mode the numbers are the shared
+    project's rather than your own &mdash; the skill is identical.</div>
+
+    <div class="mode-note"><strong>Your console password is temporary, and that is deliberate.</strong>
+    When you launch, a panel appears with a username and password for the web console. That
+    password is generated for this session and is <em>rotated when your lab ends</em> &mdash; so a
+    screenshot of it is worthless afterwards and there is no long-lived password to leak. Do not
+    save it expecting it to work tomorrow; launch again and read the new one.
+    <br><br>
+    Your terminal never needs it. The terminal is authenticated with an <em>application
+    credential</em> injected for you, which you never see or type. The console cannot use that kind
+    of credential &mdash; its login form wants a username and password &mdash; which is the whole
+    reason a typeable password exists at all.</div>
+
+    <div class="card">
+        <h2>Live Cloud Terminal</h2>
+        <div id="console-launcher"></div>
+        <p id="mode-msg" style="margin-top:.6rem;opacity:.85"></p>
+    </div>
+
+    <div class="card">
+        <h2>Mission Steps</h2>
+
+        <div class="step"><div>
+            <strong>1. Launch, then open the console.</strong> Start the lab above. When it is
+            running, a panel shows <em>User</em> and <em>Password</em> and a link reading
+            <em>Open the web console</em>. Open it in a second tab and keep the terminal tab &mdash;
+            the whole lab is spent moving between them.
+            <br><br>
+            Sign in with the username and password from the panel. If the console rejects them, the
+            usual cause is that your lab ended and the password rotated: relaunch and read the new
+            one.
+        </div></div>
+
+        <div class="step"><div>
+            <strong>2. Read your limits, then prove them.</strong> Go to
+            <em>Project &rarr; Compute &rarr; Overview</em>. This screen is the console at its
+            best: quota drawn as bars &mdash; instances, vCPUs, RAM, volumes &mdash; used against
+            limit, in one glance.
+            <br><br>
+            Write down your vCPU limit and your RAM limit. Now prove them from the terminal:
+            <div class="cmd">openstack limits show --absolute</div>
+            Find <code>maxTotalCores</code> and <code>maxTotalRAMSize</code> in that output. They
+            are the same numbers. The console did not compute anything special &mdash; it asked
+            this API and drew a bar.
+            <br><br>
+            Ask yourself which form you would rather read at 2am during an incident, and which you
+            would rather put in a script. That is the entire lesson, discovered rather than told.
+        </div></div>
+
+        <div class="step"><div>
+            <strong>3. See the shape of the network.</strong> Go to
+            <em>Project &rarr; Network &rarr; Network Topology</em>. You get a diagram: networks,
+            subnets, routers and any instances, drawn as a graph.
+            <br><br>
+            There is no command that prints this. The closest you can get is to assemble it
+            yourself from separate lists:
+            <div class="cmd">openstack network list</div>
+            <div class="cmd">openstack subnet list</div>
+            <div class="cmd">openstack router list</div>
+            Every object in the diagram appears in those three outputs. The console added no
+            information &mdash; it added <em>arrangement</em>, and arrangement is what tells you
+            whether a subnet is actually attached to a router or merely exists.
+        </div></div>
+
+        <div class="step"><div>
+            <strong>4. Inspect one instance both ways.</strong> If your project has an instance, go
+            to <em>Project &rarr; Compute &rarr; Instances</em> and click its name. Read the
+            <em>Overview</em> tab, then the <em>Log</em> tab, then <em>Action Log</em>.
+            <br><br>
+            Now the terminal equivalents:
+            <div class="cmd">openstack server list</div>
+            <div class="cmd">openstack server show &lt;name&gt;</div>
+            <div class="cmd">openstack console log show &lt;name&gt;</div>
+            The Action Log is worth noticing: it is a history of who did what to this instance and
+            when. When a machine changes unexpectedly and nobody admits to it, that page is often
+            where the answer is.
+            <br><br>
+            If your project has no instances, say so and move on &mdash; an empty project is itself
+            a finding, and knowing how to establish "there is nothing here" is the point of step 5.
+        </div></div>
+
+        <div class="step"><div>
+            <strong>5. Write the handover you would want to receive.</strong> In four or five lines,
+            describe this project to an imaginary colleague taking it over: how many vCPUs and how
+            much RAM it may use, how much is in use, what networks exist and whether they are
+            routed, and what is running.
+            <br><br>
+            Then note, honestly, which facts you got faster from the console and which from the
+            terminal. There is no single right answer, and an engineer who claims one door is
+            always correct has usually only used one.
+        </div></div>
+    </div>
+
+    <div class="card">
+        <h2>Why this transfers</h2>
+        <p>Every major cloud is built this way. AWS has a console and a CLI; Azure has a portal and
+        <code>az</code>; Google has a console and <code>gcloud</code>. In all of them the web
+        interface is a client of the same API the command line uses, and in all of them the same
+        trade-off applies.</p>
+        <p><strong>The console wins at orientation.</strong> Unfamiliar service, inherited project,
+        "what is even in here" &mdash; a screen you can browse beats a command you must already
+        know the name of. Quota bars and topology diagrams are read faster than JSON, and the
+        console is discoverable: the form tells you what the options are.</p>
+        <p><strong>The command line wins at repetition and proof.</strong> Anything done more than
+        once, handed to a colleague, or shown to an auditor is a command, a script, a pipeline.
+        Clicking is not reviewable, not repeatable, and does not scale past one person.</p>
+        <p>Engineers who only click stall the first time they must do something fifty times.
+        Engineers who refuse to open a console lose an afternoon to a question a quota page answers
+        in one screen. Use both, deliberately.</p>
+    </div>
+
+    <div class="card">
+        <h2>If something goes wrong</h2>
+        <p><strong>The console rejects your password.</strong> Your session password rotates when
+        the lab ends. Relaunch and use the new password from the panel.</p>
+        <p><strong>The console link gives an error instead of a login form.</strong> Your browser is
+        no longer authorised to reach the console. Relaunching the lab is what grants that access,
+        so relaunch and try again.</p>
+        <p><strong>A page in the console is empty.</strong> That is data, not a fault. An empty
+        Instances list means the project has no servers &mdash; record it and continue.</p>
+        <p><strong>The numbers differ between console and terminal.</strong> Check you are reading
+        the same project name in both, then refresh the console. The console shows what it fetched
+        when the page loaded; it does not update itself.</p>
+    </div>
+
+    <div class="footer">
+        <a href="../index.html">&larr; Back to OpenStack Cloud Platform</a>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var moduleId = 'cloud-openstack-console';
+        var completed = false;
+
+        SandboxLauncher.renderButton(document.getElementById('console-launcher'), 'openstack-cli', {
+            onLaunch: function (labId, result) {
+                // The credentials panel itself is rendered by SandboxLauncher, which is shared by
+                // every OpenStack lab, so it is deliberately not duplicated here.
+                var note = document.getElementById('mode-msg');
+                if (!note) return;
+                note.textContent = (result && result.cloudMode === 'personal')
+                    ? 'Personal project ' + (result.cloudSlot || '') + ' — the figures you read are your own.'
+                    : 'Read-only mode — you are reading the shared project. Every step still works.';
+            },
+            extraActions: [
+                {
+                    label: 'Field Guide', visibleWhen: 'always',
+                    onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
+                },
+                {
+                    // BUG-054: several labs loaded ModuleProgress and never called it, so
+                    // finishing them recorded nothing against the student's progress.
+                    label: 'Mark Complete', visibleWhen: 'running',
+                    onClick: function () {
+                        if (completed) return;
+                        completed = true;
+                        if (typeof ModuleProgress !== 'undefined' && ModuleProgress.complete) {
+                            ModuleProgress.complete('cloud', moduleId, { returnToDashboard: false, type: 'lab' });
+                        }
+                    }
+                }
+            ]
+        });
+    })();
+</script>
+</body>
+</html>
