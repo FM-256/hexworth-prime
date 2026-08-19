@@ -28,7 +28,19 @@ const fs = require('fs');
 const path = require('path');
 const admin = require('firebase-admin');
 
-const SPEC = path.join(__dirname, 'mission-gates.generated.json');
+/* --spec <file> seeds a DIFFERENT gate document. Added 2026-08-19 for the qualifier's
+ * competition boxes, whose gates are hand-authored rather than generated: their sources ARE the
+ * spec (evidence artifacts with axes), so there is no mission data to generate them from. The
+ * warning above still stands for GENERATED specs — do not hand-edit those, they drift.
+ *
+ * --disarm follows --spec too, so a competition gate can be rolled back the same way and by the
+ * same command as the one it was armed with. A rollback path that only works for one box is not
+ * a rollback path.
+ */
+const specIdx = process.argv.indexOf('--spec');
+const SPEC = specIdx !== -1 && process.argv[specIdx + 1]
+    ? path.resolve(process.argv[specIdx + 1])
+    : path.join(__dirname, 'mission-gates.generated.json');
 const ARM = process.argv.includes('--arm');
 const DISARM = process.argv.includes('--disarm');
 
@@ -42,18 +54,40 @@ const db = admin.firestore();
 
 (async () => {
     if (DISARM) {
-        const ref = db.doc('mission_gates/le-01-cold-horizon');
+        /* Resolve the target from the SPEC, never a hardcoded id.
+         *
+         * This branch used to delete mission_gates/le-01-cold-horizon unconditionally. Once
+         * --spec existed, `--disarm --spec <competition-gate>` would have deleted the WRONG live
+         * box's gate and printed a success message — silently un-gating Lagrange while the
+         * operator believed they had rolled back the qualifier. Caught in review.
+         *
+         * The spec file must exist here for the same reason: it is the only statement of which
+         * document to remove, and a mistyped path must fail before a delete, not after.
+         */
+        if (!fs.existsSync(SPEC)) {
+            console.error(`Cannot disarm: spec not found at ${SPEC}`);
+            console.error('The spec names the document to remove. Refusing to guess.');
+            process.exit(1);
+        }
+        const targetId = JSON.parse(fs.readFileSync(SPEC, 'utf8')).boxId;
+        if (!targetId) {
+            console.error('Cannot disarm: spec has no boxId.');
+            process.exit(1);
+        }
+        const ref = db.doc(`mission_gates/${targetId}`);
         const before = await ref.get();
-        if (!before.exists) { console.log('Already disarmed: no gate document.'); process.exit(0); }
+        if (!before.exists) { console.log(`Already disarmed: no gate document for ${targetId}.`); process.exit(0); }
         /* We do not destroy. The document is generated and reproducible, but capture it
-           anyway: an incident is the worst moment to discover a file was not kept. */
+           anyway: an incident is the worst moment to discover a file was not kept.
+           Namespaced by boxId so disarming a second box cannot overwrite the first one's
+           archive — the copy you need is always the one that just got clobbered. */
         const stamp = before.data();
-        const backup = path.join(__dirname, 'mission-gates.disarmed-backup.json');
+        const backup = path.join(__dirname, `mission-gates.disarmed-backup.${targetId}.json`);
         fs.writeFileSync(backup, JSON.stringify(stamp, null, 2));
         console.log(`Archived the live document to ${backup}`);
         await ref.delete();
-        console.log('DISARMED. mission_gates/le-01-cold-horizon deleted.');
-        console.log('validateFlag fails open again; every mission behaves as it did before arming.');
+        console.log(`DISARMED. mission_gates/${targetId} deleted.`);
+        console.log('validateFlag fails open again for that box; everything else is unchanged.');
         process.exit(0);
     }
 
@@ -88,6 +122,14 @@ const db = admin.firestore();
         gates
     });
     console.log(`\nARMED. Wrote mission_gates/${spec.boxId} with ${ids.length} gates.`);
-    console.log('Verify one mission by hand NOW. Rollback: node functions/seed-mission-gates.js --disarm');
+    /* Echo the SPEC back in the rollback command. This line used to print a bare `--disarm`,
+     * which was correct only while one box existed. With --spec, a bare --disarm falls back to
+     * the generated Lagrange spec — so an operator following this tool's own printed instruction
+     * after arming a competition box would have disarmed le-01-cold-horizon instead, and been
+     * told it succeeded. A rollback hint that names the wrong target is worse than none. */
+    const specArg = SPEC === path.join(__dirname, 'mission-gates.generated.json')
+        ? ''
+        : ` --spec ${path.relative(path.join(__dirname, '..'), SPEC)}`;
+    console.log(`Verify one mission by hand NOW. Rollback: node functions/seed-mission-gates.js${specArg} --disarm`);
     process.exit(0);
 })().catch(e => { console.error('SEED ERROR: ' + e.message); process.exit(1); });

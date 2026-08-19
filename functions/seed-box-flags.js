@@ -19,6 +19,18 @@ const { getFirestore } = require('firebase-admin/firestore');
 // ── Parse args ──────────────────────────────────────────────────
 const DRY_RUN = process.argv.includes('--dry-run');
 
+/* --only <boxId> narrows the write to a single box. Added 2026-08-19: seeding one competition
+ * box previously rewrote all 242 registry documents. The batch is idempotent, so that was safe
+ * rather than harmful — but a production write should touch what it means to touch, and a
+ * 242-document blast radius makes the audit trail useless for answering "what did that run
+ * change?". Absent, behaviour is unchanged: every box is seeded. */
+const onlyIdx = process.argv.indexOf('--only');
+const ONLY = onlyIdx !== -1 ? process.argv[onlyIdx + 1] : null;
+if (onlyIdx !== -1 && (!ONLY || ONLY.startsWith('--'))) {
+    console.error('ERROR: --only requires a boxId. Refusing to run: a valueless --only would seed ALL boxes.');
+    process.exit(1);
+}
+
 // ── Dispatch alias map (scenario IDs -> canonical config flag ID) ──
 const DISPATCH_ALIASES = {
     'nt1-network-troubleshoot': {
@@ -52,8 +64,16 @@ async function seed() {
     }
 
     const boxFlags = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    const boxIds = Object.keys(boxFlags);
+    let boxIds = Object.keys(boxFlags);
     console.log(`Loaded ${boxIds.length} boxes from box_flags.json`);
+    if (ONLY) {
+        if (!boxFlags[ONLY]) {
+            console.error(`ERROR: --only ${ONLY} is not in box_flags.json.`);
+            process.exit(1);
+        }
+        boxIds = [ONLY];
+        console.log(`--only ${ONLY}: seeding 1 box, leaving the other ${Object.keys(boxFlags).length - 1} untouched`);
+    }
 
     if (DRY_RUN) {
         console.log('\n=== DRY RUN -- no writes will be made ===\n');
