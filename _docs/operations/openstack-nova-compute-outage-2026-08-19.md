@@ -119,6 +119,48 @@ repair**. Nothing had been launched between the fix and the report, which is why
 and "already fixed" were both true-looking. Check the timestamps against the fix time before
 concluding a repair did not hold.
 
+## Second casualty of the same power loss: every guest stayed stopped
+
+**Found 2026-08-19 by a user report**, a day after the compute fix, and it was a separate defect.
+Six of seven student instances were `SHUTOFF`. Students returning to their persistent project
+found a stopped server and no explanation.
+
+Nova does not restart guests when the compute host boots. `resume_guests_state_on_host_boot`
+defaults to **False**, so everything running when the power died came back stopped and stayed
+stopped. Same shape as the missing `Restart=` policies: no auto-recovery, silent until somebody
+trips over it.
+
+**Telling a casualty from an intentional stop.** The discriminator is the `updated` timestamp, not
+the status. All seven casualties changed at `2026-08-19T12:58:1x`, the moment nova-compute came
+back and reconciled the guests it found stopped. Two other `SHUTOFF` instances
+(`demo-instance`, `canary-admin-project`) last changed `2026-07-29` — stopped deliberately weeks
+earlier. Starting those would have silently overridden somebody's intent, so they were left alone.
+
+Fixed: the seven were started, and `resume_guests_state_on_host_boot = True` was written under
+`[DEFAULT]` in **`/etc/nova/nova-cpu.conf`** — the file `devstack@n-cpu` actually loads. Putting it
+in `nova.conf` would look right and do nothing.
+
+⚠ `HTTP 202` from the start action means ACCEPTED, not started. A status check moments later
+showed five still `SHUTOFF` and I nearly reported a partial failure; the log said
+`num_task_powering-on: 7`. They were mid-transition. All seven reached `ACTIVE`. Same trap as
+reading nova-compute's state before its heartbeat lands — wait for the transition, then judge.
+
+## Emergency access, 2026-08-19, and why it was reverted
+
+The operator network blocks the whole `tailscale.com` domain (controlplane, api and login all
+reset while ordinary HTTPS works), so the admin node could not come online and bc2 — which is
+tailnet-only — was unreachable. bc1 stays reachable over the cloudflared tunnel.
+
+With explicit operator approval, `tcp:22` was added to the existing `bc1 -> bc2` grant, the work
+was done through bc1, and the ACL was **restored byte-for-byte immediately after** (verified by
+re-fetching and diffing, plus confirming `bc1 -> bc2:22` is blocked again while 9711/8080 still
+work).
+
+This is worth resisting by default. bc1 is the internet-facing host; bc2 holds the OpenStack admin
+credential and the bridge secret, and the segmentation exists precisely to stop one reaching the
+other. It was justified here only because a user-visible outage could not otherwise be fixed, and
+it was reverted in the same session rather than left "temporarily" in place.
+
 ## Still open
 
 - 9 instances remain `SHUTOFF` from the power-loss reboot. Nothing was deleted or restarted —
