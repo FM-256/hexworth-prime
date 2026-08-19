@@ -87,13 +87,21 @@ def parse_questions(path):
 
 
 def quantity_of(s):
-    """The single quantity an option expresses, or None if it is not a bare quantity."""
+    """The single quantity an option expresses, or None if it is not a quantity.
+
+    Accepts a LEADING number even when explanatory text follows, because real distractor sets
+    mix bare numerals with annotated ones:
+
+        "20 encrypted peers"
+        "6 encrypted peers (plus up to 14 unencrypted, 20 total)"   <- the correct one
+
+    An earlier version required the whole option to be a bare quantity, so the annotated option
+    returned None, the explanation's "only 6" matched nothing, and the question was written off
+    as NUMERIC-AMBIGUOUS — silently missing a live wrong key that Nancy found by hand.
+    """
     t = s.strip().lower().replace(',', '')
-    m = re.fullmatch(r'(?:about|approx\.?|approximately|up to|max(?:imum)? of)?\s*'
-                     r'(\d+(?:\.\d+)?)\s*'
-                     r'(bits?|bytes?|kb|mb|gb|hours?|minutes?|days?|seconds?|ms|v|volts?|%|'
-                     r'accounts?|users?|peers?|teams?|days|pins?)?\s*'
-                     r'(?:\(.*\))?', t)
+    m = re.match(r'^(?:about|approx\.?|approximately|up to|max(?:imum)? of)?\s*'
+                 r'(\d+(?:\.\d+)?)\b', t)
     if m:
         return float(m.group(1))
     if t in NUM_WORDS:
@@ -188,7 +196,7 @@ def main():
             # VERBATIM/NUMERIC are near-conclusive; OVERLAP is a hint and is segregated below so
             # it can never be mistaken for one. Its floor is a MARGIN over the runner-up, not a
             # raw score — a high score every option shares proves nothing.
-            floor = 0.7 if method in ('VERBATIM', 'NUMERIC') else 0.35
+            floor = 0.7 if method in ('VERBATIM', 'NUMERIC') else 0.10
             if pred is not None and pred != key and conf >= floor:
                 findings.append({
                     'quizId': quiz_id,
