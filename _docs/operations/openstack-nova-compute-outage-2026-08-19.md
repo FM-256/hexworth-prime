@@ -99,8 +99,22 @@ guest agent and had never SSH'd to the VM. The key path is recorded in
 `_docs/operations/openstack-sandbox-scoping.md:292`; searching that file first would have saved a
 detour through `virsh`, port scans and credential hunting.
 
+## Confirmed resolved
+
+The operator relaunched from the student session at 13:17:18Z and it succeeded — `server-a`
+`ACTIVE` on `openstack-vm`, power state running, **ERROR count 0**, all three compute services up.
+
+Worth recording why the screenshot was confusing: `student-03` had retried `server-a` four times
+(Aug 18 23:36, Aug 19 12:17, 12:47, 12:49), deleting between attempts, so the ID in the report did
+not match the ERROR instance visible to admin — the photographed one was already deleted. All four
+attempts landed inside the outage window; the last failed at 12:49:32, **eight minutes before the
+repair**. Nothing had been launched between the fix and the report, which is why "still broken"
+and "already fixed" were both true-looking. Check the timestamps against the fix time before
+concluding a repair did not hold.
+
 ## Still open
 
-- The bc2-side compute-liveness check described above does not exist yet.
-- 9 instances are `SHUTOFF` and 1 is `ERROR` (`server-a`, from the failed scheduling). Nothing was
-  deleted or restarted — that is an operator call.
+- The bc2-side compute-liveness check described above does not exist yet. Until it does,
+  `openstack_token: up` means "keystone answers HTTP", not "a student can launch a lab".
+- 9 instances remain `SHUTOFF` from the power-loss reboot. Nothing was deleted or restarted —
+  that is an operator call.
