@@ -1,0 +1,80 @@
+# Alerts for openstack-compute-probe.sh (runs on bc2, scraped via node_exporter :9100).
+# Install alongside service-alerts.yml in prometheus rule_files (/etc/prometheus/rules/ on neon).
+#
+# WHY THESE EXIST
+# nova-compute was dead for 15 hours on 2026-08-19 and every alert stayed silent, because every
+# check was about whether keystone answered HTTP. Students got "No valid host was found" while
+# the dashboard showed seven of seven green. These rules alert on the thing the student actually
+# experiences: whether a lab can be scheduled.
+#
+# EVERY RULE IS GATED ON _checked == 1.
+# An ungated rule cannot tell "compute is down" from "the probe could not reach OpenStack", and
+# would page for a dead credential at 03:00. The BLIND condition gets its own, slower alert — not
+# silence, because a probe that cannot see is also a failure, just a different one.
+
+groups:
+  - name: openstack-compute
+    rules:
+      # The outage of 2026-08-19, expressed exactly. nova accepts the boot request and then has
+      # nowhere to put it, so this is a total inability to launch labs, not a degradation.
+      - alert: NovaComputeDown
+        expr: hexworth_openstack_up{check="nova_compute"} == 0 and hexworth_openstack_checked{check="nova_compute"} == 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "nova-compute is down — no student can launch an OpenStack lab"
+          description: >-
+            nova-compute is not 'up'+'enabled'. Scheduler and conductors can be perfectly healthy
+            while this is false; the symptom students see is "No valid host was found. There are
+            not enough hosts available." Check `systemctl status devstack@n-cpu` on the OpenStack
+            VM (ssh -i /home/eq1/openstack-stage1/stage1_key stack@<vm>, FROM bc2 only). Since
+            2026-08-19 all devstack units carry Restart=on-failure, so if this fires the service
+            is failing repeatedly rather than having died once — read the journal, do not just
+            restart. Runbook: _docs/operations/openstack-nova-compute-outage-2026-08-19.md
+
+      # Compute can be up while placement has nothing to offer (inventory not reported, capacity
+      # genuinely exhausted, or a resource provider missing). Same student-visible symptom.
+      - alert: OpenStackNoPlacementCapacity
+        expr: hexworth_openstack_up{check="placement_capacity"} == 0 and hexworth_openstack_checked{check="placement_capacity"} == 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "placement offers no host for even a 1vcpu/128MB VM"
+          description: >-
+            The scheduler cannot place the smallest possible instance. Compare against
+            hexworth_openstack_placement_candidates. NOTE -1 means UNKNOWN, not zero — the probe
+            reports -1 when placement returns an error document, because
+            /placement/allocation_candidates 404s without an OpenStack-API-Version header and a
+            naive parse reads that as "no capacity". Check real inventory before assuming a full
+            cluster.
+
+      # A probe that cannot see is a failure too — just a slower-burning one. Longer `for` so a
+      # transient credential blip or a restart does not page.
+      - alert: OpenStackProbeBlind
+        expr: hexworth_openstack_checked{check="nova_compute"} == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenStack compute probe is blind — it cannot evaluate compute health"
+          description: >-
+            The probe ran but could not authenticate or reach the API, so compute health is
+            UNKNOWN, not healthy. Usual causes: admin-auth.env unreadable/rotated, the OpenStack
+            VM unreachable from bc2, or keystone down. While this fires, treat every other
+            OpenStack metric as stale — including a green NovaComputeDown.
+
+      # If the cron stops, the series freezes at its last value and every rule above evaluates
+      # against a stale truth. Without this, a dead probe looks exactly like a healthy cloud.
+      - alert: OpenStackProbeStopped
+        expr: time() - hexworth_openstack_probe_timestamp_seconds > 900
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpenStack compute probe has not reported in 15m (cron */2 on bc2)"
+          description: >-
+            Metrics are frozen, so compute health is unknown regardless of what the other series
+            say. Check the bc2 crontab and that /var/lib/node_exporter/textfile_collector is
+            writable by eq1. A stale green is the failure mode this whole probe exists to prevent.

@@ -52,7 +52,14 @@ allocation candidates. Both need credentials, which bc1 does not hold. bc2 does
 (`/home/eq1/openstack-stage1/admin-auth.env`) and is already scraped by Prometheus, so the honest
 home for a compute-liveness check is a bc2-side textfile collector, not bc1.
 
-**Until that exists, treat `openstack_token: up` as meaning "Keystone answers HTTP", nothing more.**
+**That check now exists** — `_tools/monitoring/probe/openstack-compute-probe.sh`, cron `*/2` on
+bc2, exported via a node_exporter textfile collector (which had to be enabled: the unit shipped
+without one, so there was nowhere for a service-level metric to land). Alerts in
+`openstack-compute-alerts.yml`, loaded on neon. It reports `nova-compute` liveness and whether
+placement can actually place a 1vcpu/128MB VM.
+
+`openstack_token: up` on the bc1 probe still means only "Keystone answers HTTP" — that check was
+never the problem, its description was. Read the bc2 metrics for launch capability.
 
 ## Fix applied
 
@@ -114,7 +121,24 @@ concluding a repair did not hold.
 
 ## Still open
 
-- The bc2-side compute-liveness check described above does not exist yet. Until it does,
-  `openstack_token: up` means "keystone answers HTTP", not "a student can launch a lab".
 - 9 instances remain `SHUTOFF` from the power-loss reboot. Nothing was deleted or restarted —
   that is an operator call.
+
+## The compute check, and how it was proved
+
+Verified end to end: probe -> textfile -> node_exporter -> prometheus -> rules loaded and healthy
+(`hexworth_openstack_up{check="nova_compute"} = 1` queried from prometheus itself).
+
+Both failure modes were tested WITHOUT taking compute down on live students:
+
+```
+parser fed a DOWN nova-compute fixture   -> exit 1   (detects the outage)
+parser fed an UP fixture                 -> exit 0
+probe pointed at an unreachable host     -> checked=0, i.e. BLIND, not DOWN
+placement error document                 -> -1 (unknown), NOT 0
+```
+
+Those last two are the ones that matter. A probe that reports "down" when it simply cannot see
+pages people at 03:00 for a rotated credential; a parser that reads a 404 as "0 candidates"
+reports a full cluster when nothing is wrong. Both mistakes were made during this very incident
+before the probe existed, which is why each has a dedicated test and a `_checked` metric.
