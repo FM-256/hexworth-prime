@@ -433,6 +433,23 @@
         </div>
 
         <!-- ════════════════════════════════════════════════ -->
+        <!-- SERVICE HEALTH — INFRASTRUCTURE SLA (bc1 service probe) -->
+        <!--                                                              -->
+        <!-- Sibling to the uptime panel above, NOT a replacement. That one watches PUBLIC URLs  -->
+        <!-- via the runtime monitor. This one watches what the runtime monitor cannot see:      -->
+        <!-- OpenStack token issuance, PXE, the CIFS share, and whether the sandbox API still    -->
+        <!-- ENFORCES auth. Two outages on 2026-08-18 were invisible to every public-URL check.  -->
+        <!-- ════════════════════════════════════════════════ -->
+        <div class="panel" id="servicePanel">
+            <div class="panel-header">
+                <span class="panel-title">Service Health — Infrastructure</span>
+                <span class="panel-badge badge-stale" id="serviceBadge">Loading</span>
+            </div>
+            <p id="serviceSummary" style="margin:0 0 12px;color:var(--text-muted,#8892a8);font-size:0.85rem;"></p>
+            <div id="serviceTargets" style="display:flex;flex-direction:column;gap:6px;"></div>
+        </div>
+
+        <!-- ════════════════════════════════════════════════ -->
         <!-- SATURATION BANNER (Slice 3d) — hidden unless triggered -->
         <!-- ════════════════════════════════════════════════ -->
         <div id="saturationBanner" style="display:none;grid-column:1/-1;padding:12px 16px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:var(--pulse-red);font-size:0.85rem;line-height:1.5;">
@@ -2535,6 +2552,122 @@
             function (s) { renderHistory(s.exists() ? (s.data().runs || []) : []); },
             function () { /* history is best-effort */ });
     })();
+
+    // ── SERVICE HEALTH — INFRASTRUCTURE SLA ────────────────────────────────────────────────
+    // Reads the bc1 service probe through the ADMIN-GATED getServiceHealth callable. The probe
+    // publishes to a basic-auth endpoint on the existing cloudflared tunnel; the credential lives
+    // in the Cloud Function because a browser cannot hold one.
+    //
+    // ⚠ STALE IS RENDERED SEPARATELY FROM DOWN, and "blind" separately from both. A probe that
+    // stopped reporting looks exactly like a probe reporting healthy — that is the failure this
+    // whole system exists for, so the UI must never collapse the three into one colour.
+    (async function initServicePanel() {
+        var badge = document.getElementById('serviceBadge');
+        var summary = document.getElementById('serviceSummary');
+        var targetsEl = document.getElementById('serviceTargets');
+        if (!badge || !summary || !targetsEl) return;
+
+        function waitForApp() {
+            return new Promise(function (res) {
+                (function poll() {
+                    if (window.firebaseApp && typeof window.firebaseApp.getApps === 'function' && window.firebaseApp.getApps().length) return res();
+                    setTimeout(poll, 200);
+                })();
+            });
+        }
+        await waitForApp();
+
+        var fnMod;
+        try {
+            fnMod = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js');
+        } catch (e) {
+            badge.textContent = 'Unavailable';
+            summary.textContent = 'Could not load the functions SDK.';
+            return;
+        }
+        var functions = fnMod.getFunctions(window.firebaseApp.getApps()[0], 'us-central1');
+        var callHealth = fnMod.httpsCallable(functions, 'getServiceHealth');
+
+        function setBadge(text, color) {
+            badge.textContent = text;
+            badge.style.background = color + '22';
+            badge.style.color = color;
+            badge.style.borderColor = color + '55';
+        }
+
+        // Same three states as the metrics and the Grafana panel. One truth, three renderings —
+        // they must not be able to disagree.
+        function stateColor(s) {
+            if (s === 'up') return '#22c55e';
+            if (s === 'down') return '#ef4444';
+            return '#a78bfa';                    // blind: the check could not run
+        }
+        function stateLabel(s) {
+            if (s === 'up') return 'UP';
+            if (s === 'down') return 'DOWN';
+            return 'BLIND';
+        }
+        function prettyName(n) { return String(n || '?').replace(/_/g, ' '); }
+
+        async function refresh() {
+            var r;
+            try {
+                r = (await callHealth()).data;
+            } catch (e) {
+                // permission-denied is expected for non-admins; say so rather than looking broken.
+                var msg = (e && e.code === 'functions/permission-denied')
+                    ? 'Admin privileges required.'
+                    : 'Could not reach the service probe.';
+                setBadge('Unavailable', '#f59e0b');
+                summary.textContent = msg;
+                targetsEl.innerHTML = '';
+                return;
+            }
+
+            if (!r || r.reachable === false) {
+                // The PROBE HOST is unreachable. That is not the same as the services being down,
+                // and must not be drawn as if it were.
+                setBadge('NO DATA', '#f59e0b');
+                summary.innerHTML = '<strong style="color:#f59e0b">PROBE UNREACHABLE</strong> — the monitor on bc1 could not be contacted. This says nothing about the services themselves.';
+                targetsEl.innerHTML = '';
+                return;
+            }
+
+            var svcs = r.services || [];
+            var down = svcs.filter(function (s) { return s.state === 'down'; }).length;
+            var blind = svcs.filter(function (s) { return s.state === 'blind'; }).length;
+            var up = svcs.filter(function (s) { return s.state === 'up'; }).length;
+
+            var state, color;
+            if (r.stale) { state = 'STALE'; color = '#f59e0b'; }
+            else if (down > 0) { state = 'DOWN'; color = '#ef4444'; }
+            else if (blind > 0) { state = 'PARTIAL'; color = '#a78bfa'; }
+            else { state = 'UP'; color = '#22c55e'; }
+            setBadge(state, color);
+
+            var mins = Math.round((r.ageSeconds || 0) / 60);
+            summary.innerHTML = '<strong style="color:' + color + '">' + state + '</strong> — ' +
+                up + ' of ' + svcs.length + ' up' +
+                (blind ? ' · ' + blind + ' not checked' : '') +
+                ' · probed ' + (r.ageSeconds < 90 ? 'just now' : mins + 'm ago') +
+                (r.stale ? ' · <span style="color:#f59e0b">the probe has stopped — nothing below is current</span>' : '');
+
+            targetsEl.innerHTML = svcs.map(function (s) {
+                var c = stateColor(s.state);
+                var dot = '<span style="width:9px;height:9px;border-radius:50%;flex:0 0 auto;background:' + c + ';"></span>';
+                var secs = (typeof s.seconds === 'number') ? s.seconds.toFixed(2) + 's' : '--';
+                return '<div style="display:flex;align-items:center;gap:10px;font-size:0.82rem;">' + dot +
+                    '<span style="flex:0 0 190px;text-transform:capitalize;">' + prettyName(s.service) + '</span>' +
+                    '<span style="flex:0 0 62px;color:' + c + ';font-weight:600;">' + stateLabel(s.state) + '</span>' +
+                    '<span style="color:var(--text-muted,#8892a8);">' + secs + '</span>' +
+                    '</div>';
+            }).join('') || '<div style="color:var(--text-muted,#8892a8);font-size:0.82rem;">No services reported.</div>';
+        }
+
+        await refresh();
+        setInterval(refresh, 120000);   // matches the probe's own 2-minute cadence
+    })();
+
     </script>
 </body>
 </html>
