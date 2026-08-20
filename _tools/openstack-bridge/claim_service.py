@@ -28,7 +28,7 @@ Endpoints (JSON; all require X-Bridge-Secret):
   GET  /slot/<uid>                        -> {slot} | 404       (Fork E read path)
   GET  /health                            -> {ok, free_ram_mb, slots_used}   (secret required)
 """
-import json, os, re, socket, threading, time, urllib.error, urllib.request
+import json, os, re, secrets, socket, threading, time, urllib.error, urllib.request
 # Transport note (Nancy): the listener is deliberately plaintext HTTP. It binds the
 # tailnet IP only; WireGuard encrypts the path bc1<->bc2. No TLS is layered on top.
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -159,6 +159,29 @@ def free_ram_mb(atok):
 
 
 # ── Core operations ─────────────────────────────────────────────────────────────
+def token_after_rotation(slot, pw, attempts=4):
+    """Issue a project-scoped token that SURVIVES the password change just made.
+
+    Keystone writes a revocation event when a password changes, and those events carry only
+    SECOND resolution. A token issued in the same wall-clock second as the change is judged
+    to predate the revocation and is rejected with 401 on first use. Critically, the token
+    REQUEST still succeeds - the token is born dead - so the failure is invisible at auth
+    time and surfaces downstream. That is exactly how this appeared in production on
+    2026-08-20: every claim reported APP_CRED_CREATE_FAILED while auth looked healthy, and
+    all 14 claimed slots ended up mapped to a student with zero credentials.
+
+    Sleeping past the second boundary is the fix; USING the token is the proof. A token that
+    authenticates but 401s on use is worse than no token at all, so this never returns one it
+    has not exercised against a real call.
+    """
+    for _ in range(attempts):
+        time.sleep(1.0 - (time.time() % 1.0) + 0.15)
+        utok, _ = token_for(slot, pw, slot)
+        if utok and ks('GET', '/v3/auth/projects', token=utok)[0] == 200:
+            return utok
+    return None
+
+
 def claim(uid):
     atok = admin_token()
     if not atok:
@@ -185,10 +208,16 @@ def claim(uid):
             if st != 200:
                 return 500, {'error': 'MAPPING_WRITE_FAILED'}
     slot = proj['name']
-    pw = _read_env(POOL_STORE).get(slot)
+    # Rotate FIRST, then authenticate with the new value. Doing it in this order means the
+    # password handed to the student is the one now in Keystone, and any password from a prior
+    # session is already dead before this claim returns — including one a previous student may
+    # still have on screen. A rotation failure is fatal to the claim on purpose: handing out a
+    # CLI credential while the Horizon half silently kept an old password is the exact split-brain
+    # this design exists to avoid.
+    pw = rotate_password(atok, slot)
     if not pw:
-        return 500, {'error': 'POOL_PASSWORD_MISSING', 'slot': slot}
-    utok, _ = token_for(slot, pw, slot)
+        return 500, {'error': 'PASSWORD_ROTATE_FAILED', 'slot': slot}
+    utok = token_after_rotation(slot, pw)
     if not utok:
         return 500, {'error': 'POOL_USER_AUTH_FAILED', 'slot': slot}
     st, doc, _ = ks('POST', f'/v3/users/{_user_id(atok, slot)}/application_credentials',
@@ -199,8 +228,12 @@ def claim(uid):
     if st != 201:
         return 500, {'error': 'APP_CRED_CREATE_FAILED', 'status': st}
     ac = doc['application_credential']
+    # horizon_* is the web-console half. The CLI still uses the app credential and the student
+    # never sees it; only this password is ever displayed, once, because a human has to type it
+    # into a login form. Its lifetime is the session's — see rotate_password().
     return 200, {'slot': slot, 'project': slot, 'cred_id': ac['id'],
-                 'cred_secret': ac['secret']}
+                 'cred_secret': ac['secret'],
+                 'horizon_user': slot, 'horizon_password': pw, 'horizon_domain': 'Default'}
 
 
 # ── Seed engine (Stage 4): create a genuinely broken state to REPAIR ────────────
@@ -370,6 +403,58 @@ def _user_id(atok, name):
     return uid
 
 
+def _write_pool_store(values):
+    """Rewrite POOL_STORE atomically, 0600, preserving every slot we did not touch.
+
+    tmp+rename because a torn write here locks the bridge out of a slot: it authenticates AS
+    the pool user, so a half-written store means POOL_PASSWORD_MISSING on the next claim.
+    """
+    tmp = POOL_STORE + '.tmp'
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w') as f:
+        for k in sorted(values):
+            f.write(f'{k}={values[k]}\n')
+    os.replace(tmp, POOL_STORE)
+
+
+def rotate_password(atok, slot):
+    """Set a fresh random Keystone password on the pool user; return it. None on failure.
+
+    This is the "temporary passwords" half of the identity bridge (design doc fork B): an
+    application credential is strictly better for the CLI, but HORIZON CANNOT CONSUME ONE --
+    its login form takes username/password/region and has no app-cred path (verified against
+    the live form 2026-08-19). So the web console needs a human-typeable secret, and the only
+    way that stays safe is to make its lifetime equal the session's.
+
+    Rotation happens at BOTH ends: a fresh value at claim, and another at teardown that nobody
+    is ever told. So a password a student saw is dead the moment their lab is reaped, and a
+    screenshot of it is worthless afterwards.
+
+    ORDER MATTERS: Keystone first, store second. If the store write fails after Keystone
+    accepted the change, this slot's password is unknown to us -- but NOT lost, because admin
+    can always reset it, which is exactly what the next claim does. The failure is therefore
+    self-healing on retry. The reverse order would leave the store claiming a password Keystone
+    never accepted, which fails closed but stays broken until a human intervenes.
+    """
+    uid = _user_id(atok, slot)
+    if not uid:
+        return None
+    pw = secrets.token_urlsafe(18)
+    st, _, _ = ks('PATCH', f'/v3/users/{uid}', token=atok,
+                  body={'user': {'password': pw}})
+    if st != 200:
+        return None
+    try:
+        store = _read_env(POOL_STORE)
+        store[slot] = pw
+        _write_pool_store(store)
+    except Exception:
+        # Keystone already took it. Report failure so the caller does not hand out a password
+        # the bridge itself can no longer use; the next claim resets it via admin.
+        return None
+    return pw
+
+
 def delete_cred(slot, cred_id):
     if not POOL_RE.match(slot or ''):
         return 400, {'error': 'BAD_SLOT'}
@@ -381,7 +466,13 @@ def delete_cred(slot, cred_id):
         return 404, {'error': 'NO_SUCH_USER'}
     st, _, _ = ks('DELETE', f'/v3/users/{uid}/application_credentials/{cred_id}', token=atok)
     # 404 counts as deleted (proven idempotent 2026-07-30: first 204, repeat 404)
-    return 200, {'deleted': True, 'status': st}
+
+    # Kill the Horizon half too. Deleting only the app credential would revoke the CLI while
+    # leaving the web password the student was shown fully valid — they could keep using the
+    # console after their lab was reaped, and a screenshot would stay live indefinitely. The
+    # new value is discarded deliberately: nobody needs it, and the next claim rotates again.
+    rotated = rotate_password(atok, slot) is not None
+    return 200, {'deleted': True, 'status': st, 'password_rotated': rotated}
 
 
 def reconcile(active_ids):
