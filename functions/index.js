@@ -6980,6 +6980,25 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
     if (!chSnap.exists) throw new HttpsError('not-found', 'Challenge not found.');
     const challenge = chSnap.data();
 
+    /* A challenge the admin has not revealed is NOT solvable, and this is the only place that
+     * can enforce it. `visible` was filtered in client JS only (tournament-board.html), while
+     * firestore.rules grants `allow read: if true` on the whole challenges subcollection — so an
+     * UNAUTHENTICATED Firestore REST GET returns a hidden challenge's title, description, hints
+     * and flagHash, and this function then happily credited it. Proven in an adversarial audit:
+     * a hidden challenge was read with no token at all, then scored for full points while every
+     * other team could not see it existed. That turns a phased reveal into a head start for
+     * whoever probes the API first.
+     *
+     * Refused as not-found rather than permission-denied: confirming "this id exists but is
+     * hidden" is itself the reveal, and lets someone enumerate the unreleased set.
+     *
+     * Missing `visible` is treated as VISIBLE, so existing challenges that predate the field
+     * keep working — this must not retroactively hide live content.
+     */
+    if (challenge.visible === false) {
+        throw new HttpsError('not-found', 'Challenge not found.');
+    }
+
     // Hash the submitted flag with the challenge's salt
     const submittedHash = 'sha256:' + crypto
         .createHash('sha256')
@@ -7010,14 +7029,68 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
     // 7. If correct — update team score, challenge solveCount, tournament stats
     if (correct) {
-        const pointsAwarded = challenge.currentPoints || challenge.points || 0;
+        /* ── THE CREDIT CLAIM IS A TRANSACTION, NOT A READ-THEN-WRITE ──────────────────────
+         * The already-solved check at step 3 and the score write below used to be separated by
+         * several awaits, with no transaction anywhere. Two teammates submitting the same
+         * correct flag within milliseconds BOTH read "not yet solved" and BOTH credited.
+         * Proven live: a two-member team scored 1500 for two challenges worth 1000.
+         *
+         * It was also invisible. `solves` uses arrayUnion, which de-duplicates the id, so the
+         * team's solves array looked correct and only the score was wrong — nobody reading the
+         * board would see it.
+         *
+         * solveCount had the same defect independently: read-modify-write meant a raced pair
+         * recorded ONE solve, and currentPoints was then computed from that undercount, so the
+         * dynamic-decay curve was wrong for every later solver of that challenge too.
+         *
+         * All of it now happens inside one transaction that RE-READS the team and challenge.
+         * The transaction's own read of solves is the authoritative check: the loser of a race
+         * sees the winner's write and aborts. Same serialization pattern ctfJoinTeam already
+         * uses correctly for rosterLocks.
+         */
+        const teamRef = tRef.collection('teams').doc(userTeamId);
+        let pointsAwarded = 0;
 
-        // Update team
-        await tRef.collection('teams').doc(userTeamId).update({
-            score: FieldValue.increment(pointsAwarded),
-            solves: FieldValue.arrayUnion(challengeId),
-            lastSolveTime: FieldValue.serverTimestamp()
-        });
+        try {
+            pointsAwarded = await db.runTransaction(async (tx) => {
+                const [teamNow, chNow] = await Promise.all([tx.get(teamRef), tx.get(chRef)]);
+
+                const solvesNow = (teamNow.exists && teamNow.data().solves) || [];
+                if (solvesNow.includes(challengeId)) {
+                    // Someone else on this team won the race. Not an error the player caused.
+                    const e = new Error('ALREADY_SOLVED'); e.code = 'ALREADY_SOLVED'; throw e;
+                }
+
+                const chData = chNow.exists ? chNow.data() : {};
+                const award = chData.currentPoints || chData.points || 0;
+
+                tx.update(teamRef, {
+                    score: FieldValue.increment(award),
+                    solves: FieldValue.arrayUnion(challengeId),
+                    lastSolveTime: FieldValue.serverTimestamp()
+                });
+
+                // Derived INSIDE the transaction from the value just read, so concurrent solves
+                // of the same challenge by DIFFERENT teams cannot both compute from one count.
+                const newSolveCount = (chData.solveCount || 0) + 1;
+                const chUpdate = { solveCount: newSolveCount };
+                if (tournament.scoringModel === 'dynamic' && tournament.dynamicConfig) {
+                    const cfg = tournament.dynamicConfig;
+                    const initial = cfg.initialPoints || 500;
+                    const floor = cfg.minPoints || 50;
+                    const decay = cfg.decayRate || 0.85;
+                    chUpdate.currentPoints = Math.max(floor, Math.floor(initial * Math.pow(decay, newSolveCount)));
+                }
+                tx.update(chRef, chUpdate);
+
+                return award;
+            });
+        } catch (e) {
+            if (e && e.code === 'ALREADY_SOLVED') {
+                throw new HttpsError('already-exists', 'Your team already solved this challenge.');
+            }
+            throw e;
+        }
 
         // Record individual flag capture + sync profile
         await db.doc(`users/${uid}/flag_captures/${tournamentId}_${challengeId}`).set({
@@ -7029,20 +7102,10 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         // Server-authoritative recompute of BOTH counters — see _recomputeCtfStats.
         await _recomputeCtfStats(uid);
 
-        // Update challenge solve count
-        const newSolveCount = (challenge.solveCount || 0) + 1;
-        const chUpdate = { solveCount: newSolveCount };
-
-        // Dynamic scoring: recalculate currentPoints
-        if (tournament.scoringModel === 'dynamic' && tournament.dynamicConfig) {
-            const cfg = tournament.dynamicConfig;
-            const initial = cfg.initialPoints || 500;
-            const floor = cfg.minPoints || 50;
-            const decay = cfg.decayRate || 0.85;
-            chUpdate.currentPoints = Math.max(floor, Math.floor(initial * Math.pow(decay, newSolveCount)));
-        }
-
-        await chRef.update(chUpdate);
+        /* solveCount and currentPoints are now written INSIDE the transaction above, derived
+         * from the value read there. The read-modify-write that used to live here is deleted,
+         * not kept alongside it: running both would increment twice and re-corrupt the decay
+         * curve this fix exists to protect. */
 
         // Update tournament stats
         await tRef.update({
@@ -7068,18 +7131,30 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         // Firestore live feed (in-platform tournament board reads this)
         tRef.collection('notifications').add(wirePayload).catch(() => {});
 
-        // Discord webhook (external feed)
-        sendWireNotification({
-            title: 'FLAG CAPTURED',
-            color: 3066993,
-            fields: [
-                { name: 'Team', value: teamName, inline: true },
-                { name: 'Challenge', value: challengeId, inline: true },
-                { name: 'Points', value: '+' + pointsAwarded + ' (Total: ' + teamScore + ')', inline: true }
-            ],
-            footer: { text: 'Hexworth Prime // The Wire' },
-            timestamp: new Date().toISOString()
-        }).catch(() => {});
+        /* Discord webhook (external feed) — SILENCED DURING A FREEZE.
+         *
+         * `frozen` is a deliberate endgame mechanic: the board, podium and broadcast all stop
+         * showing standings so the final placings are a surprise. This webhook fired
+         * unconditionally, posting team, challenge, points and RUNNING TOTAL to Discord — so
+         * anyone watching that channel saw exactly what the freeze exists to hide, and had a
+         * live-score advantage over everyone honouring it in-platform.
+         *
+         * The in-platform notifications feed above is left alone: the board applies the freeze
+         * itself when rendering, and that feed is also what the post-freeze reveal replays.
+         */
+        if (tournament.status !== 'frozen') {
+            sendWireNotification({
+                title: 'FLAG CAPTURED',
+                color: 3066993,
+                fields: [
+                    { name: 'Team', value: teamName, inline: true },
+                    { name: 'Challenge', value: challengeId, inline: true },
+                    { name: 'Points', value: '+' + pointsAwarded + ' (Total: ' + teamScore + ')', inline: true }
+                ],
+                footer: { text: 'Hexworth Prime // The Wire' },
+                timestamp: new Date().toISOString()
+            }).catch(() => {});
+        }
 
         return {
             correct: true,
