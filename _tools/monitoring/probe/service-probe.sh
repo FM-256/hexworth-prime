@@ -51,6 +51,9 @@ PXE_HOST="${HEXWORTH_PXE_URL:-}"               # e.g. http://<neon>/
 SANDBOX_API="${HEXWORTH_SANDBOX_API:-https://sandbox.hexworth.tech/api/sandbox}"
 SITE="${HEXWORTH_SITE:-https://hexworth.com/}"
 SHARE_PATH="${HEXWORTH_SHARE:-/mnt/neon-shared}"
+# Prometheus lives on neon's LAN address, on a NON-obvious port. Unset = the check reports
+# BLIND rather than down, which is the honest state for "not configured here".
+PROM_URL="${HEXWORTH_PROM_URL:-}"
 CURL_T="${HEXWORTH_PROBE_TIMEOUT:-10}"
 
 emit() { printf '%s\n' "$1" >> "$TMP"; }
@@ -141,6 +144,28 @@ chk_sandbox_auth_enforced() {
   return 1
 }
 
+# Prometheus, checked FROM HERE because it cannot check itself.
+#
+# 2026-08-20: prometheus sat Exited(255) on neon after a power loss until a human went looking.
+# Nothing went red, and nothing could have: with prometheus down no rules evaluate, so the one
+# component whose absence disables every alert is the one component alerting cannot cover. bc1 is
+# a different host, which is the whole point of asking from here.
+#
+# ⚠ ASSERT THAT PROMETHEUS ANSWERED, NOT THAT SOMETHING DID. During that incident
+# `curl :9090/-/healthy` returned 200 from COCKPIT-TLS, which owns 9090 on that host, while
+# prometheus (published on 9091) was dead. A port check aimed at the obvious number reported the
+# outage as healthy. That is the same failure chk_pxe below was written for, and it still cost
+# real diagnosis time. So this matches the BODY text: a wrong service on the right port fails.
+#
+# LAN address, like PXE: the tailnet grant deliberately does not include neon's web ports.
+chk_prometheus() {
+  [ -n "$PROM_URL" ] || return 2
+  local body
+  body=$(curl -sS -m "$CURL_T" "${PROM_URL%/}/-/healthy" 2>/dev/null) || return 1
+  printf '%s' "$body" | grep -qi 'Prometheus Server is Healthy' || return 1
+  return 0
+}
+
 # PXE: the boot content is served by nginx on :8080 (NOT :80 — that is a different vhost).
 # "Something answered" is not sufficient: apache2 won the port-80 boot race on 2026-08-18 and the
 # host kept serving a placeholder while PXE was dead. So this asserts the INDEX CONTENT, which
@@ -148,6 +173,7 @@ chk_sandbox_auth_enforced() {
 #   ⚠ Must use a LAN address. neon is multi-homed (four LAN NICs) and the tailnet grant does not
 #   include its web ports — correctly, since PXE is a LAN service. Probing the tailnet address
 #   returns 000 and looks like an outage.
+
 chk_pxe() {
   [ -n "$PXE_HOST" ] || return 2
   local body
@@ -192,6 +218,7 @@ emit '# TYPE hexworth_probe_duration_seconds gauge'
 run_check site                  chk_site
 run_check sandbox_api           chk_sandbox_api
 run_check sandbox_auth_enforced chk_sandbox_auth_enforced
+run_check prometheus            chk_prometheus
 run_check keystone              chk_keystone
 run_check openstack_token       chk_openstack_token
 run_check pxe                   chk_pxe
