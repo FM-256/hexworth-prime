@@ -171,6 +171,30 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    /* Mission gates — the server's copy of what a player must have FOUND before a flag counts.
+       Admin reads for authoring; no client access at all. Cloud Functions use the admin SDK
+       (assertGateSatisfied / recordMissionFinding) and bypass rules.
+
+       This block was MISSING. The collection was protected only by FIRESTORE'S IMPLICIT DEFAULT
+       — an unmatched path is denied — and NOT by any rule in this file: there is no
+       `match /{document=**}` catch-all here at all (the only occurrence of that string is inside
+       the mission_progress comment above, which describes one loosely). An adversarial audit
+       confirmed reads were already refused (403), so nothing was exposed.
+
+       It is written out for the reason mission_progress states: an explicit "no client access"
+       survives someone later adding a permissive catch-all, and a silent default does not.
+       mission_progress could carry that warning precisely BECAUSE it had a block to attach it
+       to; this collection had nowhere to put one.
+
+       Client read access here would defeat the whole gate. The doc contains every source, its
+       axes and each finding's expected value — enough to satisfy any gate without doing the
+       investigation, and on a badly-designed box (one whose flag equals an axis value) enough
+       to read the answer straight out. */
+    match /mission_gates/{boxId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     // ── Hexworth Observatory (research-consent house) ──
     // Consent records — the operator's copy of each participant's signed consent.
     // A student creates/updates their own doc (doc id == their uid); owner or admin reads.
