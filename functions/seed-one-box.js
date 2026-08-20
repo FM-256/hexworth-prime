@@ -33,10 +33,28 @@ async function main() {
     // Initialize firebase-admin (ADC) and write the registry doc (merge-safe).
     initializeApp();
     const db = getFirestore();
-    await db.doc(`flag_registry/${BOX_ID}`).set({
+    /* Carry deliveryDisabled, exactly as seed-box-flags.js does.
+     *
+     * This tool did not, and that is a silent hole rather than a visible one: merge:true means
+     * running it over an ALREADY-locked box leaves the field intact, so nothing breaks today.
+     * The exposure is the FIRST seed of a new competition box — an operator reaching for this
+     * tool instead of `seed-box-flags.js --only`, plausibly mid-event under time pressure,
+     * would create the registry doc with no deliveryDisabled at all. deliverFlag's guard is
+     * then simply false and the box discloses its flag to anyone signed in, while this tool
+     * prints "Write OK" and a readback of the flags. Found by adversarial audit, by source.
+     *
+     * Two tools that both seed flag_registry must agree on every security-relevant field, or
+     * the safe one is only safe when someone remembers which is which.
+     *
+     * TRUE only, never false: the write is merged, and writing false here would silently
+     * re-enable disclosure on a box locked down by hand.
+     */
+    const payload = {
         flags: entry.flags, registryId: BOX_ID,
         source: 'seed-one-box.js', seededAt: FieldValue.serverTimestamp()
-    }, { merge: true });
+    };
+    if (entry.deliveryDisabled === true) payload.deliveryDisabled = true;
+    await db.doc(`flag_registry/${BOX_ID}`).set(payload, { merge: true });
     // Read back to confirm the write landed.
     const snap = await db.doc(`flag_registry/${BOX_ID}`).get();
     console.log('\nWrite OK. Readback flags:', JSON.stringify(snap.data().flags));

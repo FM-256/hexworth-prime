@@ -77,7 +77,19 @@ function verifyFinding(spec, claim, sources) {
         if (spec.value && first !== spec.value) {
             return { ok: false, reason: `that is a different ${axis}` };
         }
-        return { ok: true, reason: `all share ${axis}=${first}` };
+        /* Confirm WITHOUT echoing the value. recordMissionFinding returns this string to the
+         * caller as `detail`, so anything named here is disclosed to anyone who can make one
+         * successful claim. On qual-w1-lockout the shared sourceIp IS the box's flag, so the
+         * old `all share ${axis}=${first}` handed the answer back in the success response —
+         * proven live by an adversarial audit, one call, no corroborator, no second finding.
+         * The disclosure guard on deliverFlag was never the only writer of that guarantee.
+         *
+         * The player loses nothing: they named these sources, so they can already read the
+         * shared value in the box. Confirmation is the useful part, not the echo. Kept
+         * value-free for EVERY box rather than gated per-box, because the next competition box
+         * whose axis happens to equal its flag would otherwise reintroduce this silently.
+         */
+        return { ok: true, reason: `all ${claimed.length} named sources share ${axis}` };
     }
 
     if (spec.type === 'distinct-axis') {
@@ -87,7 +99,10 @@ function verifyFinding(spec, claim, sources) {
         const a = valueOf(claimed[0]), b = valueOf(claimed[1]);
         if (a === undefined || b === undefined) return { ok: false, reason: `sources carry no ${axis}` };
         if (a === b) return { ok: false, reason: `those two share ${axis}=${a}` };
-        return { ok: true, reason: `${axis} differs: ${a} vs ${b}` };
+        // Same rule as shared-axis above: confirm, do not echo. On this box the values are
+        // collector names rather than the flag, so it was a lesser leak — but "lesser leak"
+        // is not a property worth relying on when the next box's axes are unknown.
+        return { ok: true, reason: `${axis} differs between the two named sources` };
     }
 
     return { ok: false, reason: `unsupported finding type: ${spec.type}` };

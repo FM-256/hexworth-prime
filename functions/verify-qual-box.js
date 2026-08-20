@@ -63,6 +63,26 @@ if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
             false);
     }
 
+    /* A competition flag must not equal any value the gate handles.
+     *
+     * qual-w1-lockout's flag WAS its shared-axis value, so verifyFinding's success reason
+     * ("all share sourceIp=192.168.1.150") returned the answer to anyone who made one valid
+     * claim. The echo is fixed at source, but the underlying design error was making the secret
+     * identical to a value the system passes around in several places — and the next box would
+     * repeat it. Check the property, not just the one instance.
+     */
+    if (g && reg.exists) {
+        const flagVals = Object.values(reg.data().flags || {}).map(v => String(v).toLowerCase());
+        const axisVals = [];
+        Object.values(g.sources || {}).forEach(s =>
+            Object.values(s.axes || {}).forEach(v => axisVals.push(String(v).toLowerCase())));
+        Object.values(g.findings || {}).forEach(f => {
+            if (f.value !== undefined) axisVals.push(String(f.value).toLowerCase());
+        });
+        const collide = flagVals.filter(f => axisVals.includes(f));
+        check('flag value is not a gate axis value', collide.length ? collide.join(',') : 'no collision', 'no collision');
+    }
+
     const le = await db.doc('mission_gates/le-01-cold-horizon').get();
     check('le-01 gate untouched', le.exists, true);
 
