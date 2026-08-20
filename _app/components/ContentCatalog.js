@@ -2027,6 +2027,14 @@ const ContentCatalog = (function() {
         // ungradeable (the cloud leaves no trace when it refuses you), so this grades a REPAIR
         // instead -- real server-side state, compared against seeded ids the student cannot forge.
         { house: 'cloud', id: 'cloud-openstack-rescue-live', title: 'Live Lab: Rescue the Data', description: 'Inherit a real broken cloud: a data volume trapped on an unwanted server with your quota fully consumed. Reclaim the quota without losing the data', icon: '/assets/images/icons/icon-microscope.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-rescue-live.lab.html', tags: ['live', 'troubleshooting', 'openstack', 'real-engine', 'seeded'], category: 'openstack' },
+        // Web console lab (2026-08-19), registered 2026-08-20. It shipped live and linked from the
+        // hub but was NEVER catalogued, so it was invisible to every ContentCatalog-driven surface
+        // -- learning path, module counts, typed projection -- and reachable only by knowing the
+        // URL. That is the identical omission recorded three lines below for the capstone; second
+        // time in this house, which is why the lab recipe says catalogue it in the same commit that
+        // ships it. Not a live-engine lab in the graded sense: it reads a project rather than
+        // building one, so it carries no 'real-engine' tag.
+        { house: 'cloud', id: 'cloud-openstack-console', title: 'Live Lab: The Web Console', description: 'Every other lab hands you a command. This one hands you a project and asks what is in it: read your quota, network shape and running machines through the web console, prove every number from the terminal, then decide with evidence which door suits which job', icon: '/assets/images/icons/icon-desktop.webp', status: 'available', components: ['lab'], href: 'openstack/labs/cloud-openstack-console.lab.html', tags: ['live', 'openstack', 'horizon', 'orientation'], category: 'openstack' },
         // Stage 4 CAPSTONE (2026-07-31). Registered by hand per the lab recipe -- the five
         // live labs were catalogued and this one was not, so it was invisible to every
         // ContentCatalog-driven surface including the Cloud Master hub's typed projection.
