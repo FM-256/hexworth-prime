@@ -83,6 +83,30 @@ if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
         check('flag value is not a gate axis value', collide.length ? collide.join(',') : 'no collision', 'no collision');
     }
 
+    /* ONE MECHANISM MUST OWN CREDIT.
+     *
+     * Two independent systems can write a capture for a box:
+     *   validateFlag  -> consults mission_gates, refuses a correct answer without the findings
+     *   ctfSubmitFlag -> tournaments/{id}/challenges/{cid}, knows NOTHING about mission_gates
+     *
+     * If this box is also registered as a tournament challenge, the gate is decorative: a
+     * competitor submits the right string through the tournament path and is credited on a bare
+     * guess. Every control in this file would still report green while the ranking was decided
+     * by whoever guessed fastest.
+     *
+     * Raised by adversarial audit as a forward risk, not a present defect — nothing wires them
+     * together today. It is checked mechanically because "remember not to wire both" is the kind
+     * of instruction that survives exactly until someone is setting up an event at speed.
+     */
+    const chSnap = await db.collectionGroup('challenges').get();
+    const dualCredit = [];
+    chSnap.forEach(doc => {
+        const d = doc.data() || {};
+        const refs = doc.id === BOX || d.boxId === BOX || d.registryId === BOX;
+        if (refs) dualCredit.push(doc.ref.path);
+    });
+    check('not ALSO a tournament challenge', dualCredit.length ? dualCredit.join(' ') : 'none', 'none');
+
     const le = await db.doc('mission_gates/le-01-cold-horizon').get();
     check('le-01 gate untouched', le.exists, true);
 
