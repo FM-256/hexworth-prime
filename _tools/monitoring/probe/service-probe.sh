@@ -215,7 +215,54 @@ emit '# TYPE hexworth_probe_checked gauge'
 emit '# HELP hexworth_probe_duration_seconds how long the check took'
 emit '# TYPE hexworth_probe_duration_seconds gauge'
 
+# ── the lab pipeline: the checks that would have caught 2026-08-20 ────────────────────────────
+# WHY THESE EXIST. On 2026-08-20 every personal-cloud claim failed for roughly six hours with
+# APP_CRED_CREATE_FAILED and NOTHING alerted. It surfaced only because students reported that the
+# demo server "looked stopped". Every check above was green the whole time: keystone answered, the
+# sandbox API answered, the bridge's own /health answered with free RAM. Health of the PARTS is not
+# health of the PIPELINE, which is the same lesson nova-compute taught on 2026-08-19. These assert
+# the outcome a student actually depends on: that claims and seeds are not failing.
+#
+# ⚠ NO TRAFFIC READS AS UP. That is a real limitation, stated rather than hidden: these count
+# failures inside a window, and a quiet window has nothing to fail in it. They catch a BREAKAGE
+# quickly; they do NOT prove the pipeline works when nobody is using it. Never read green here as
+# "claims work" — read it as "nothing has failed recently".
+LOGWIN="${HEXWORTH_LOG_WINDOW:-20m}"
+
+# Reads lab-manager's own log rather than re-running a claim, because a synthetic claim would
+# consume a real pool slot and rotate a real student's password on every probe cycle.
+_lab_log() {
+    command -v docker >/dev/null 2>&1 || return 2
+    docker ps --format '{{.Names}}' 2>/dev/null | grep -qx lab-manager || return 2
+    timeout "$CURL_T" docker logs --since "$LOGWIN" lab-manager 2>&1 || return 2
+}
+
+# GOOD = zero claim failures in the window. Any failure is a real student who could not get their
+# personal cloud, so there is no acceptable non-zero rate to tolerate here.
+chk_lab_claims() {
+    local log fails
+    log=$(_lab_log) || return 2
+    fails=$(printf '%s\n' "$log" | grep -c 'claim failed')
+    printf '%s claim failures in %s\n' "$fails" "$LOGWIN"
+    [ "$fails" -gt 0 ] && return 1
+    return 0
+}
+
+# GOOD = zero seed FAULTS in the window. PROJECT_NOT_EMPTY is deliberately NOT counted: that is a
+# 409 refusal describing the student's own project state, working exactly as designed, and paging
+# on it would train everyone to ignore this check.
+chk_lab_seed() {
+    local log fails
+    log=$(_lab_log) || return 2
+    fails=$(printf '%s\n' "$log" | grep -c -e '\[seed\] failed' -e '\[seed\] unreachable')
+    printf '%s seed faults in %s\n' "$fails" "$LOGWIN"
+    [ "$fails" -gt 0 ] && return 1
+    return 0
+}
+
 run_check site                  chk_site
+run_check lab_claims            chk_lab_claims
+run_check lab_seed              chk_lab_seed
 run_check sandbox_api           chk_sandbox_api
 run_check sandbox_auth_enforced chk_sandbox_auth_enforced
 run_check prometheus            chk_prometheus
