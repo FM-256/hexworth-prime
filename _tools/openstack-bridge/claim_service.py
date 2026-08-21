@@ -196,7 +196,10 @@ def claim(uid):
             return 500, {'error': 'KEYSTONE_LIST_FAILED'}
         mine = [p for p in projects if p.get('hexworth_uid') == uid]
         if mine:
+            # This uid ALREADY holds this slot: a re-claim, not a hand-over. Load-bearing for
+            # the rotation decision below - see the comment there.
             proj = mine[0]
+            fresh_assignment = False
         else:
             free_slots = sorted((p for p in projects if not p.get('hexworth_uid')),
                                 key=lambda p: p['name'])
@@ -207,17 +210,54 @@ def claim(uid):
                           body={'project': {'hexworth_uid': uid}})
             if st != 200:
                 return 500, {'error': 'MAPPING_WRITE_FAILED'}
+            # Slot is changing hands. A PREVIOUS student may still have its password on screen.
+            fresh_assignment = True
     slot = proj['name']
-    # Rotate FIRST, then authenticate with the new value. Doing it in this order means the
-    # password handed to the student is the one now in Keystone, and any password from a prior
-    # session is already dead before this claim returns — including one a previous student may
-    # still have on screen. A rotation failure is fatal to the claim on purpose: handing out a
-    # CLI credential while the Horizon half silently kept an old password is the exact split-brain
-    # this design exists to avoid.
-    pw = rotate_password(atok, slot)
-    if not pw:
-        return 500, {'error': 'PASSWORD_ROTATE_FAILED', 'slot': slot}
-    utok = token_after_rotation(slot, pw)
+    # ROTATE ONLY ON A FRESH ASSIGNMENT.
+    #
+    # Rotation exists to kill a password a DIFFERENT student may still be holding, so it is
+    # required when a slot changes hands, and again at teardown (see delete_cred). Neither of
+    # those is a re-claim. When the SAME uid re-claims a slot it already owns there is no other
+    # student to protect against, and the only thing a rotation accomplishes is invalidating the
+    # console password THIS student is currently typing.
+    #
+    # That was a live defect, not a theoretical one. claim() runs on every launch, so re-launching
+    # the TERMINAL silently killed the student's Horizon session - and cloud-openstack-console.lab.html
+    # tells them, in step 1, to keep the console open in a SECOND TAB and work between the two.
+    # Measured on bc1 2026-08-20: student-11 re-claimed 5 times, student-13 and student-05 3 times
+    # each, one pair 23 seconds apart. Every one of those killed a working console login. The lab
+    # page told them the password only changes "when your lab ends", which is not what this did.
+    #
+    # Rotating FIRST and authenticating with the new value is still correct on the fresh path, for
+    # the reason the previous comment here gave: it guarantees the password handed out is the one
+    # now in Keystone, so the Horizon half can never silently keep an older value than the CLI half.
+    # The CLI is unaffected by any of this either way - it uses an application credential, never
+    # this password.
+    if fresh_assignment:
+        pw = rotate_password(atok, slot)
+        if not pw:
+            return 500, {'error': 'PASSWORD_ROTATE_FAILED', 'slot': slot}
+        utok = token_after_rotation(slot, pw)
+    else:
+        # Re-claim: hand back the password already live in Keystone so an open console tab keeps
+        # working. token_after_rotation is reused rather than a bare token_for because its real
+        # value is the second half - it USES the token before returning it. A stored password that
+        # no longer authenticates must be discovered here, not downstream.
+        try:
+            pw = _read_env(POOL_STORE).get(slot)
+        except Exception:
+            pw = None  # store unreadable: fall through to the rotate path, never throw
+        utok = token_after_rotation(slot, pw) if pw else None
+        if not utok:
+            # Either nothing is stored for this slot, or the store has drifted from Keystone.
+            # Rotating is the documented self-heal for exactly that state (see rotate_password:
+            # "admin can always reset it, which is exactly what the next claim does"). A student
+            # who gets no working credential is worse off than one whose console tab needs a
+            # fresh login, so this fails toward issuing a usable password.
+            pw = rotate_password(atok, slot)
+            if not pw:
+                return 500, {'error': 'PASSWORD_ROTATE_FAILED', 'slot': slot}
+            utok = token_after_rotation(slot, pw)
     if not utok:
         return 500, {'error': 'POOL_USER_AUTH_FAILED', 'slot': slot}
     st, doc, _ = ks('POST', f'/v3/users/{_user_id(atok, slot)}/application_credentials',
