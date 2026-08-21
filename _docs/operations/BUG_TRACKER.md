@@ -31,6 +31,65 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-121 — two OpenStack labs tell the student to pick a network, on a cloud where two of the three visible choices silently fail  ·  [P1]  ·  FIX STAGED, NOT DEPLOYED
+- **Found:** 2026-08-20 · by user (Frank, live student report + terminal screenshot) · student hard-blocked on lab 3
+- **Area:** `_app/houses/cloud/openstack/labs/cloud-openstack-secgroup-live.lab.html:172` and `cloud-openstack-launch-chain-live.lab.html:146,161-165`
+- **Symptom:** student ran the lab's own instruction with the most obvious-looking network name:
+  `openstack server create --image cirros-0.6.3-x86_64-disk --flavor m1.nano --network public --security-group web-sg guard-vm`.
+  Create returned `BUILD`, the instance went to `ERROR`, and `openstack server reboot guard-vm` then returned
+  `409 ConflictException: Cannot 'reboot' instance ... while it is in vm_state error`. The student could not finish the lab:
+  check 4 requires `web-sg` attached to a **running** server, which is unreachable while the VM is in ERROR.
+- **Repro:** any pool slot with no network of its own (34 of 50 at time of writing). `openstack network list` returns exactly three
+  entries and the lab says `--network <NETWORK-NAME>` with no guidance on which.
+- **Root cause:** BOTH labs left the network as an unguided fill-in-the-blank, on a cloud where **two of the three visible options fail**:
+  - `public` — `router:external=True, shared=False`. A tenant cannot create a port on it, but Neutron lists external networks to every
+    project (that is how a router is given a gateway), so it is visible and looks correct. Nova fault, read from the live API:
+    `Build of instance ... aborted: Failed to allocate the network(s), not rescheduling.` It fails LATE — accepted, `BUILD`, then `ERROR`.
+  - `lab-net` — a **deliberate decoy** (`_tools/openstack-bridge/ensure-second-network.sh:23`, subnet created `--no-dhcp`) that exists so
+    `--network` cannot be omitted. It accepts the attachment and yields `ACTIVE` with **no address**, failing check 16 silently.
+    Already documented at `_docs/handouts/openstack-build-reference.md:37,109,341` and encoded in `walkthrough-chain.js:115`.
+  Meanwhile `rescue-live:231` and `cinder-live:212,233` had already hardcoded the working answer (`--network shared`). The convention
+  existed; these two labs simply did not follow it.
+- **Fix (staged, this change):** `secgroup-live:172` → `--network shared` (network is incidental to a security-group lab), plus prose on why
+  `public` fails late and that an ERROR instance cannot be rebooted — delete and recreate is the only exit. `launch-chain-live` KEEPS its
+  placeholder deliberately (that lab's stated lesson is "look before you boot"), and instead names BOTH traps explicitly and points at
+  `shared`. An earlier draft of this fix used `openstack network list --internal` and claimed it "leaves only the networks you can actually
+  boot onto" — **that was false**, because `lab-net` is also non-external, and it was withdrawn. No flag separates usable from listed here;
+  only naming the traps does.
+- **Verified:** `--internal`/`--external`/`--share` each executed against this cloud (openstackclient 9.0.0) before being written into a lab;
+  `shared` proven bootable from existing state with nothing created — 6 servers ACTIVE on `shared`, 0 ever on `public`; HTML tag balance
+  parsed clean on both files. Cloud state after the student self-recovered: 0 ERROR instances, `guard-vm` ACTIVE on a new id.
+- **Caught in review:** Nancy PAUSE and Chris BLOCK **independently** found the same `lab-net` gap in the first draft. Two reviewers
+  converging on one omission is the reason that draft did not ship.
+- **FOLLOW-UP, not fixed here:** four proof harnesses select the network with `openstack network list -f value -c Name | head -1`
+  (`walkthrough-chain.js:80`, `walkthrough-secgroup.js:80`, `adversarial-chain.js:98`, `adversarial-secgroup.js:102`) — unfiltered and
+  order-dependent. Production is stricter than its own validator: `claim_service.py:365-367` prefers `name=='shared'` first. If Neutron ever
+  orders `public` or `lab-net` first, the harnesses build a broken VM themselves and would not catch a regression of this exact bug class.
+  Also `adversarial-chain.js:176-179` still asserts "this cloud has exactly one tenant network", which is stale — there are three.
+  ⚠ **The fix is NARROW, not open-ended: two of the six harnesses already do it correctly.** `walkthrough-rescue.js:153` and
+  `walkthrough-cinder.js:114,134` hardcode `--network shared`, matching their labs. All six share the same last-touch commit (2026-08-12
+  16:40:43), so this is not older tooling that predates the convention — it is an inconsistency written the same day as the harnesses that
+  got it right. Whoever picks this up has the pattern to copy two files over. (Found by Nancy on re-review, not by me.)
+- **FOLLOW-UP — `shared` has NO recreate path, and this change deepens the dependency.** `lab-net` has `ensure-second-network.sh`:
+  idempotent, explicit about why it exists, and flagged as MUST-RE-RUN after each DevStack rebuild. `shared` has nothing. Nothing under
+  `_tools/openstack-bridge/` (checked `provision-pool.sh`, `reclaim-idle-slots.py`, and the rest of the directory) creates, verifies or
+  restores it — it is out-of-band state, present only because it was provisioned once outside this repo. `claim_service.py:365-367` treats
+  its absence as fatal (`SEED_NO_NETWORK`) but does not create it. This fix moves `shared` from a 2-lab dependency (rescue, cinder) to a
+  3-lab dependency (adds secgroup) plus the seed path, with no new guardrail. If `shared` ever goes missing from a pool slot, nothing
+  in-repo detects or recreates it and every one of those labs fails closed with no diagnosis path pointing at the real cause.
+  DevStack is rebuilt from snapshot each term, which is exactly when this would bite.
+- **FOLLOW-UP — house sequencing is incoherent, recorded so it is not rediscovered from scratch.** Per `_app/houses/cloud/openstack/index.html:511-525`,
+  `cinder-live` is Stage 4 lab 1 — the FIRST live lab — and it already hardcodes `--network shared` with no discovery framing, BEFORE
+  `launch-chain-live` (lab 2) teaches "look before you boot". So the house-wide story ("discover once in launch-chain, then other labs may
+  hand you the answer") does not actually hold; it was already broken by cinder being sequenced first, and this change does not alter that.
+  Not a bug — no check fails, no student is blocked — but it is a curriculum-design question that deserves its own pass rather than being
+  folded into a P1 unblock.
+- **FOLLOW-UP — asymmetric recovery text (Chris, non-blocking).** In `launch-chain-live` step 3, `public` gets an explicit inline recovery
+  ("delete it and create it again with `--network shared`"); `lab-net` does not repeat it, leaving the student to connect it back to step 2's
+  generic "Start clean". Deliberately NOT changed in this commit: both reviewers passed the text as diffed, and editing after a PASS would
+  ship a line neither of them read. Worth a one-line polish on the next pass through this file.
+- **Related:** BUG-058 (same directory, checks that cannot fail).
+
 ### BUG-106 — the OpenStack hub counts a FAILED quiz as completed  ·  [P1]  ·  RESOLVED
 - **Found:** 2026-08-12 · by Nancy · full adversarial QC of the three shipped hub fixes
 - **Area:** `_app/houses/cloud/openstack/index.html:671` (counter) and `:704` (card completion)
