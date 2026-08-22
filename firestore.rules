@@ -15,10 +15,59 @@ service cloud.firestore {
       );
     }
 
+    // NOTE: an isHandler() helper (request.auth.token.handler == true || isAdmin()) was written
+    // and emulator-tested for the users/{userId} GET tightening, then REMOVED rather than
+    // shipped unused. Phase 2 restores it -- see the two-phase note in users/{userId} below for
+    // why the GET half is held back and what has to happen first.
+
     // Users collection — authenticated users can read/write their own doc
     // Cloud Functions (setAdminClaim, addXP, recordProgress) use admin SDK (bypasses rules)
     match /users/{userId} {
-      allow read: if request.auth != null;
+      /* WAS: `allow read: if request.auth != null;` -- fixed 2026-08-21.
+         In Firestore `read` grants GET *and* LIST, so that single line let ANY signed-in
+         account enumerate the entire users collection and read every document in it. The
+         documents carry `email` and `displayName` (see the create allowlist below), and
+         anonymous sign-in is enabled because it is how students join a class -- so the
+         practical effect was that anybody at all could list every student's name and email
+         address. The comment directly above this block has always said "read/write their own
+         doc"; the rule was simply broader than its own stated intent.
+
+         Found on 2026-08-21 while assessing the blast radius of student UIDs that had been
+         committed to this PUBLIC repo. The UIDs turned out to be a footnote: enumeration
+         meant an attacker never needed one.
+
+         Split deliberately rather than tightened to self-only, because two instructor
+         surfaces legitimately read OTHER users' docs and would otherwise break:
+           _app/js/handler-dashboard.js:4279            (_fetchGlobalProfile)
+           _app/components/analytics/attendance-heatmap.html:396
+         Both use .doc(uid).get() -- a GET. NOTHING client-side lists this collection; the one
+         `.collection('users').get()` in the tree is admin-SDK Cloud Function code, which
+         bypasses rules entirely. So LIST can be closed to everyone but admin without
+         breaking a single caller.
+
+         ⚠ SHIPPED IN TWO PHASES, ON PURPOSE. PHASE 1 (this change) closes LIST only.
+         The GET half was written, tested and then HELD BACK, because a read-only production
+         count found it would silently break real instructors:
+
+             distinct tenants/{id}.adminUids uids : 4
+             accountType=handler (would keep access) : 1
+             accountType=<none>  (would LOSE access) : 3
+
+         redeemInvite (functions/index.js:5493) grants tenant-instructor access by adding the
+         uid to tenants/{id}.adminUids and writes NOTHING else -- no custom claim, no
+         accountType, no role. grantHandler writes both. So a tenant-invited instructor is
+         invisible to any claim-based check, and rules cannot rescue them: adminUids membership
+         is per-tenant and rules cannot iterate tenants to discover which one they administer.
+         Worse, handler-dashboard.js:4300 try/catches the read and falls back to roster data
+         with only a console.warn, so those three would have degraded SILENTLY.
+
+         PHASE 2, once redeemInvite also grants the claim and existing tenant admins are
+         backfilled: restore
+             allow get: if request.auth != null && (request.auth.uid == userId || isHandler());
+         with the isHandler() helper. Until then GET stays as it was -- no regression, and the
+         mass-enumeration hole is closed regardless, which is the part that made this severe. */
+      allow get: if request.auth != null;
+      allow list: if isAdmin();
 
       // Users can create their own doc (first sign-in) -- but never with a role.
       // Nancy 2026-08-03: `role` became a TRUST ANCHOR when AccessGuard's instructor level
