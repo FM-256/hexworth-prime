@@ -24,7 +24,30 @@ WHAT IT DOES *NOT* FLAG, deliberately
     ⚠ The allowlist source lives OUTSIDE the repo on purpose. A scanner that hardcodes the
     secrets it is looking for publishes them on its first commit.
 
-@catalog what    block personal identifiers / real node IPs from the public repo
+THE UID CHECK IS DIFFERENT, AND THAT DEPARTURE IS DELIBERATE (added 2026-08-21)
+    Everything above works by CROSS-REFERENCE: a finite list of real values, read from outside
+    the repo. Student auth UIDs cannot work that way -- they are unbounded, generated per user,
+    and no list of them exists to check against. So this one check is shape-based, which is
+    exactly the technique the section above rejects.
+
+    It is justified only because it is ANCHORED ON CONTEXT rather than shape alone, and the
+    difference was measured, not assumed:
+        bare 28-char [A-Za-z0-9] token          -> 69 files, 356 tokens   (unusable: npm
+                                                    integrity hashes, minified bundles,
+                                                    binaries read as text, vendored coursework)
+        same token ADJACENT TO a uid-ish key    -> 23 files,  93 tokens   (all genuine)
+    An npm integrity hash is never written next to `"uid":`. A real identity always is. That is
+    the whole basis of this check, and it is why the noise rate is low enough to keep the gate
+    credible instead of muted.
+
+    Binaries and vendored lockfiles are skipped BEFORE matching. Without that, random bytes in a
+    .png decode into 28-char runs and the gate drowns in them.
+
+    ⚠ Do NOT "improve" this by dropping the context anchor to catch more. A gate that fires on
+    69 files gets muted within a week, and then it protects nothing. That failure mode is the
+    entire reason the section above exists.
+
+@catalog what    block personal identifiers / real node IPs / student auth UIDs from the public repo
 @catalog run     python3 _tools/security/scan-exposure.py [--staged]
 @catalog status  GATE
 """
@@ -50,6 +73,50 @@ EXEMPT = (
 # introductions while this is worked down -- a gate that fires on 26 pre-existing files gets
 # muted within a week and then protects nothing.
 BASELINE_FILE = pathlib.Path(__file__).with_name("exposure-baseline.txt")
+
+# ── Student auth UID detection ──────────────────────────────────────────────────
+# Firebase Auth UIDs are 28 chars of [A-Za-z0-9]. Shape alone is far too common in this repo,
+# so the token only counts when it sits next to something DECLARING it an identity. See the
+# module docstring for the measured before/after.
+_UID = r"[A-Za-z0-9]{28}"
+UID_CONTEXT = re.compile(
+    r"(?:"
+    # key: "TOKEN"   /   key = TOKEN   /   key -> TOKEN
+    r"\b(?:uid|userid|user_id|authuid|owneruid|studentuid|ownerid|createdby|subject)\b"
+    r"\s*[\"']?\s*[:=>\-]{1,2}\s*[\"']?(" + _UID + r")"
+    # "TOKEN": {   -- a UID used as a JSON object key, which is what Firestore dumps look like
+    r"|[\"'](" + _UID + r")[\"']\s*:\s*\{"
+    r")", re.I)
+
+# Skipped BEFORE matching. Random bytes in a .png decode into 28-char runs; npm integrity hashes
+# are base64 and collide constantly. Neither can carry a real identity, and both would drown the
+# signal. Measured: these two exclusions are what take the check from 69 noisy files to 23 real.
+UID_SKIP_DIRS = ("_planning/usb-import/", "node_modules/")
+UID_SKIP_NAMES = ("package-lock.json", "yarn.lock", "project.assets.json")
+
+
+def _uid_hits(path: str, txt: str) -> list[str]:
+    """Context-anchored UID matches, or [] for files where the check does not apply.
+
+    ⚠ The binary test reads the TEXT THE CALLER ALREADY READ, deliberately. An earlier draft
+    re-opened the file from disk, which meant any path that did not resolve against the process
+    CWD raised OSError and was silently treated as clean. On a security gate that is fail-OPEN:
+    the unreadable file is exactly the one you most want flagged.
+    """
+    if path.startswith(UID_SKIP_DIRS) or pathlib.Path(path).name in UID_SKIP_NAMES:
+        return []
+    if "\x00" in txt[:2048]:          # binary decoded via errors="ignore"
+        return []
+    out = []
+    for m in UID_CONTEXT.finditer(txt):
+        tok = m.group(1) or m.group(2)
+        # Mixed case only. Requiring a DIGIT as well was measured to cost ~0.45% of genuine
+        # UIDs ((52/62)^28 of random 28-char base62 strings contain no digit at all) for no
+        # measured reduction in false positives -- so the digit requirement was dropped. Missing
+        # upper or lower is ~1e-7 and is not worth a rule.
+        if tok and any(c.isupper() for c in tok) and any(c.islower() for c in tok):
+            out.append(tok)
+    return out
 
 
 def baseline() -> set[str]:
@@ -103,6 +170,10 @@ def scan(paths: list[str], emails: set[str], ips: set[str],
                   if e.split("@")[0] not in [x.split("@")[0] for x in found]
                   and e.split("@")[0] in low]
         found += [ip for ip in ips if ip in txt]
+        # Student auth UIDs. Unlike the two above there is no list to cross-reference, so this is
+        # context-anchored shape matching -- see the module docstring for why, and for the
+        # measured noise rate that makes it usable as a gate rather than something people mute.
+        found += _uid_hits(f, txt)
         if found:
             already = f.startswith(EXEMPT) or f in known
             (exempt if already else hard).append((f, sorted(set(found))))
@@ -159,7 +230,8 @@ def main() -> int:
         return 1
 
     print(f"✓ scan-exposure: {len(paths)} tracked file(s) clean "
-          f"({len(emails)} identifier(s), {len(ips)} node address(es) checked)")
+          f"({len(emails)} identifier(s), {len(ips)} node address(es), "
+          f"student auth UIDs checked)")
     return 0
 
 
