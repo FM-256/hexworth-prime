@@ -184,18 +184,24 @@ tripwire_stats/{docId}:
 
 ### Audit Script
 ```bash
-# Check hackerman's full state
-node functions/hackerman-audit.js
+# Check a user's full state
+node functions/hackerman-audit.js <uid>
 ```
 
 ### Reset Script (Option 3: Server-validated recalculation)
 ```bash
 # Dry run first
-node functions/hackerman-reset.js --dry-run
+node functions/hackerman-reset.js <uid> --dry-run
 
 # Live reset
-node functions/hackerman-reset.js
+node functions/hackerman-reset.js <uid>
 ```
+
+> **The uid became an argument on 2026-08-21.** It used to be hardcoded, which published a real
+> student's Firebase UID in this PUBLIC repo and made both tools single-use. The reset script is
+> destructive, so it now refuses to run without a uid and aborts before any write if the uid does
+> not resolve to an existing profile — a mistyped argument must not reset the wrong student.
+> The uid these were originally pinned to is in `~/hexworth-infra-private/`.
 
 Resets XP/level from server-validated gates + flags + scores only. Wipes sync blob, filters achievements, logs reset event.
 

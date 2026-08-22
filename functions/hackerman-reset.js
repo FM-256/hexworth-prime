@@ -5,13 +5,24 @@
  * Wipes: XP, level, modulesCompleted, labsCompleted, fake achievements, streak inflation
  * Recalculates: XP from server-validated gates + flags + scores only
  *
- * Usage: node hackerman-reset.js [--dry-run]
+ * Usage: node hackerman-reset.js <uid> [--dry-run]
+ *
+ * ⚠ THE UID IS NOW AN ARGUMENT (2026-08-21). It was hardcoded, which published a real student's
+ * Firebase UID in a PUBLIC repo. Taking it as an argument fixes that, but it also means THIS
+ * DESTRUCTIVE TOOL CAN NOW BE POINTED AT THE WRONG PERSON, which was impossible before. Two
+ * guards below exist for exactly that: the uid is required with no default, and a uid that does
+ * not resolve to an existing profile aborts before any write. Run --dry-run first.
  */
 const admin = require('firebase-admin');
 admin.initializeApp({ projectId: 'hexworth-prime' });
 const db = admin.firestore();
 
-const uid = '51ps4GhN2Td9UEswkgXri194t9i1';
+// First non-flag argument, so it cannot be confused with --dry-run.
+const uid = process.argv.slice(2).find(a => !a.startsWith('--'));
+if (!uid) {
+    console.error('usage: node hackerman-reset.js <uid> [--dry-run]');
+    process.exit(1);
+}
 const DRY_RUN = process.argv.includes('--dry-run');
 
 // XP rates (match XPCalculator.js)
@@ -41,6 +52,13 @@ async function main() {
 
     // 1. Read current state
     const profile = await db.collection('users').doc(uid).get();
+    // ABORT before any write if the uid does not resolve. Previously the uid was hardcoded and
+    // always valid, so profile.data() being undefined could not happen; now a mistyped argument
+    // would reach the wipe below with `current` undefined.
+    if (!profile.exists) {
+        console.error(`No such user: ${uid} — aborting before any write.`);
+        process.exit(1);
+    }
     const current = profile.data();
     console.log('BEFORE:');
     console.log('  XP:', current.xp, '| Level:', current.level);

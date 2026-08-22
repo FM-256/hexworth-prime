@@ -1,11 +1,31 @@
+/**
+ * Hackerman Audit — read a single user's server-validated progress.
+ *
+ * Usage: node hackerman-audit.js <uid>
+ *
+ * The uid was hardcoded until 2026-08-21. That published a real student's Firebase UID in a
+ * PUBLIC repo (caught by _tools/security/scan-exposure.py's UID check) and made a documented
+ * tool single-use at the same time. Taking it as an argument fixes both.
+ */
 const admin = require('firebase-admin');
 admin.initializeApp({ projectId: 'hexworth-prime' });
 const db = admin.firestore();
-const uid = '51ps4GhN2Td9UEswkgXri194t9i1';
+
+// First non-flag argument. No default: a tool that reads student records must never guess
+// whose records to read.
+const uid = process.argv.slice(2).find(a => !a.startsWith('--'));
+if (!uid) {
+    console.error('usage: node hackerman-audit.js <uid>');
+    process.exit(1);
+}
 
 async function main() {
     // Get profile
     const profile = await db.collection('users').doc(uid).get();
+    if (!profile.exists) {
+        console.error(`No such user: ${uid}`);
+        process.exit(1);
+    }
     const d = profile.data();
     console.log('=== PROFILE SUMMARY ===');
     console.log('Callsign:', d.callsign);
