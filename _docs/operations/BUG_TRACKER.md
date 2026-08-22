@@ -31,7 +31,24 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  OPEN, BLOCKS BUG-122 PHASE 2
+### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  RESOLVED 2026-08-22, DEPLOYED + VERIFIED
+- **Fix:** `69c3af8c8`. Read the existing claims first, then
+  `handler: isAdmin || existingClaims.handler === true`. `admin` stays DERIVED so dropping an
+  address from the allowlist still downgrades an ex-admin; only `handler` is preserved, and it
+  stays revocable because `adminSetRole` writes `handler:false` explicitly and this reads that
+  back. The read sits BEFORE the write, so a `getUser()` failure throws without stomping anything.
+- **Test:** `_tools/rules-test/setadminclaim-preserves-handler.test.js` fires the REAL callable
+  against the functions+firestore+auth emulators. 7/7, both directions — the grant survives AND an
+  ex-admin is still downgraded, since "preserve everything" would have been the wrong fix.
+  Mutation-tested: restoring `handler: isAdmin` fails exactly the two preservation assertions with
+  `{"admin":false,"handler":false}` and nothing else.
+- **Deployed + verified:** `firebase deploy --only functions:setAdminClaim` via the smoke wrapper.
+  gcloud reports revision `2026-08-22T05:19:56Z ACTIVE`, which POST-DATES commit `05:17:40Z`.
+- ⚠ **This does NOT unblock BUG-122 phase 2.** The three at-risk tenant instructors hold no
+  `handler` claim at all, so preserving a claim they never had changes nothing for them. Phase 2
+  still needs `redeemInvite` to grant the claim, plus a backfill.
+
+### BUG-123 (original report) — [P1] — kept for the diagnosis
 - **Found:** 2026-08-21 · by Chris · re-review of the BUG-122 phase-1 rules change
 - **Area:** `functions/index.js:63-97` (`setAdminClaim`), called from `_app/components/FirebaseAuth.js:329,510,558,622`
 - **Symptom:** a non-admin who holds `handler: true` loses it on their **next sign-in**, silently.
