@@ -31,6 +31,68 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  OPEN, BLOCKS BUG-122 PHASE 2
+- **Found:** 2026-08-21 · by Chris · re-review of the BUG-122 phase-1 rules change
+- **Area:** `functions/index.js:63-97` (`setAdminClaim`), called from `_app/components/FirebaseAuth.js:329,510,558,622`
+- **Symptom:** a non-admin who holds `handler: true` loses it on their **next sign-in**, silently.
+- **Root cause:** `setAdminClaim` runs on EVERY standard sign-in (Google, email, and account-link flows all
+  call it and then force-refresh the token) and unconditionally writes
+  `setCustomUserClaims(uid, { admin: isAdmin, handler: isAdmin })`, where `isAdmin` is a fresh check
+  against a 2-address hardcoded allowlist. For any non-admin handler that evaluates to
+  `handler: false`, stomping whatever `grantHandler()` granted.
+- ⚠ **THE SAME BUG WAS FIXED THREE LINES BELOW AND MISSED HERE.** The comment at `index.js:78-82`
+  records repairing exactly this stomping pattern for the Firestore `role` field on 2026-08-03
+  ("PRESERVE AN INSTRUCTOR GRANT"). The custom-claim write immediately above it was left as-is.
+- **Consequences beyond the rules work:** `handler` gates five production Cloud Functions including
+  `gradeEDTSubmission` (`index.js:7564`), which `handler-dashboard.js` itself calls. If a non-admin
+  instructor's claim is wiped at login, grading access goes with it. NOT yet investigated — it may be
+  that every current handler is also an admin, which would mask this entirely.
+- **Blocks:** BUG-122 phase 2. Tightening `users/{userId}` GET to `isHandler()` cannot be safe while
+  the claim it depends on erases itself. It also means BUG-122's measured "1 of 4 keeps access" is
+  probably optimistic and the real at-risk population is 4 of 4.
+- **Not fixed here.** Needs a decision: make `setAdminClaim` preserve an existing `handler` grant
+  (mirroring what the `role` fix did), or stop deriving claims on every sign-in.
+
+### BUG-122 — any signed-in account could enumerate the entire users collection and read every student's email  ·  [P0]  ·  PHASE 1 DEPLOYED, PHASE 2 BLOCKED
+- **Found:** 2026-08-21 · by self · assessing the blast radius of student UIDs committed to the PUBLIC repo (BUG-121 work)
+- **Area:** `firestore.rules` `match /users/{userId}`
+- **Symptom:** `allow read: if request.auth != null;`. In Firestore `read` grants **GET *and* LIST**, so any
+  signed-in account could list the whole collection and read every document. Those docs carry `email`
+  and `displayName`, and **anonymous sign-in is enabled because it is how students join a class**. Net
+  effect: anybody at all could enumerate every student's name and email address.
+- **The leaked UIDs were a footnote.** This was found while assessing BUG-121; enumeration meant an
+  attacker never needed a UID at all.
+- **The rule was broader than its own stated intent** — the comment above the block has always read
+  "authenticated users can read/write their own doc".
+- **PHASE 1, DEPLOYED `9b5970b15`:** `allow list: if isAdmin();`. Nothing client-side lists this
+  collection — the only `.collection('users').get()` in the tree is admin-SDK Cloud Function code that
+  bypasses rules, and the only query-shaped reads are in `_app/admin/console.html`, which gates entry on
+  `FirebaseAuth.isAdmin()`. Enumeration closed with zero callers affected. Verified live: `firebase
+  deploy` reported "already up to date" on a second run, i.e. the deployed ruleset matches the file.
+- **PHASE 2, WRITTEN AND TESTED BUT HELD BACK:**
+  `allow get: if request.auth != null && (request.auth.uid == userId || isHandler());`
+  Nancy blocked it; a read-only production count proved her right. `redeemInvite`
+  (`index.js:5493`) grants tenant-instructor access via `arrayUnion` into `tenants/{id}.adminUids` and
+  writes **nothing else** — no claim, no `accountType`, no `role` — while `grantHandler` writes both.
+  Measured: 4 distinct tenant-admin uids, 1 with `accountType=handler`, **3 with nothing**, who would
+  have lost profile access. And `handler-dashboard.js:4309` try/catches the read and falls back to
+  roster data with only a `console.warn`, so they would have degraded **silently**.
+  Rules cannot rescue them: `adminUids` is per-tenant and rules cannot iterate tenants.
+  Also blocked by **BUG-123** — the claim erases itself on sign-in.
+- ⚠ **MY FIRST MEASUREMENT OF THIS WAS WORTHLESS.** It bucketed every `auth.getUser()` error as "no auth
+  account", so `auth/insufficient-permission` (that service account cannot read Firebase Auth at all)
+  came back looking like a clean zero. Re-measured through Firestore user docs instead.
+- **Test:** `_tools/rules-test/users-read-scope.test.js`, 11 assertions, emulator, both directions.
+  Mutation-tested: reopening LIST turns exactly the 3 list assertions red. The two GET cases are
+  labelled `PHASE1 KNOWN-OPEN` and assert the still-exposed behaviour deliberately, so the file cannot
+  be misread as proof GET is fixed.
+- **FOLLOW-UP:** five other collections still carry `allow read: if request.auth != null` —
+  `observatory_classes`, `challenge_leaderboard`, `game_scores`, `leaderboards`, `rings`. Spot-checked
+  as game/leaderboard data rather than PII, so lower severity, but genuinely unexamined.
+- **FOLLOW-UP:** `HANDLER_CODE_HASH` (`index.js:735`) is a static, unrevocable shared secret with no
+  usage tracking, unlike the dynamic `handler_codes` beside it. Pre-existing; phase 2 would raise its
+  stakes by making `handler` the sole gate on student PII.
+
 ### BUG-121 — two OpenStack labs tell the student to pick a network, on a cloud where two of the three visible choices silently fail  ·  [P1]  ·  FIX STAGED, NOT DEPLOYED
 - **Found:** 2026-08-20 · by user (Frank, live student report + terminal screenshot) · student hard-blocked on lab 3
 - **Area:** `_app/houses/cloud/openstack/labs/cloud-openstack-secgroup-live.lab.html:172` and `cloud-openstack-launch-chain-live.lab.html:146,161-165`
