@@ -69,9 +69,29 @@ exports.setAdminClaim = onCall(cfOptions, async (request) => {
     const email = request.auth.token.email || '';
     const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
 
+    // PRESERVE AN INSTRUCTOR GRANT ON THE CLAIM TOO (2026-08-21). The Firestore `role` write
+    // below was fixed for exactly this on 2026-08-03; the CLAIM write up here was left deriving
+    // `handler` from the admin allowlist, so it kept doing what that fix stopped. Because this
+    // function runs on EVERY standard sign-in (signInWithGoogle, signInWithEmail,
+    // createAccountWithEmail, linkWithGoogle -- FirebaseAuth.js:329,510,558,622, each followed by
+    // a forced token refresh), any NON-ADMIN holding handler:true lost it at their next login,
+    // silently. `handler` gates five Cloud Functions including gradeEDTSubmission, so the claim
+    // that grants grading was erasing itself on the way in.
+    //
+    // Found by Chris while re-reviewing the users/{userId} rules fix, which had proposed making
+    // this claim the sole gate on student PII -- resting a security boundary on a value that
+    // deletes itself.
+    //
+    // `admin` stays DERIVED on purpose: removing an address from the allowlist must still
+    // downgrade an ex-admin on their next sign-in. Only `handler` is preserved, and it remains
+    // revocable -- adminSetRole writes handler:false explicitly, which this then reads back as
+    // false. Read BEFORE the write, so a getUser() failure throws without having stomped
+    // anything; the client already tolerates this call failing (FirebaseAuth.js:346).
+    const existingClaims = (await getAuth().getUser(uid)).customClaims || {};
+
     await getAuth().setCustomUserClaims(uid, {
         admin: isAdmin,
-        handler: isAdmin
+        handler: isAdmin || existingClaims.handler === true
     });
 
     // Also write to Firestore user doc for client-side cache reads.
