@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-14 20:08 · **1085 scripts** · 21 wired into a gate · 247 called by other code · 151 only mentioned in docs · 666 referenced by nothing · 468 not in git
+**Generated:** 2026-08-22 21:50 · **1102 scripts** · 21 wired into a gate · 256 called by other code · 160 only mentioned in docs · 665 referenced by nothing · 470 not in git
 
 ## Read this before writing a new script
 
@@ -57,11 +57,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/qa/quiz-shuffle-integrity-test.js` | `deploy.sh` | yes | Proves option shuffling is live on the OpenStack quizzes and cannot silently regress. |
 | `_tools/qa/skill-map-audit.py` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/seo/ping-indexnow.py` | `deploy.sh` | yes | _(no header)_ |
-| `_tools/smoke-lab-content-leaks.js` | `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
+| `_tools/smoke-lab-content-leaks-remote.sh` | `_tools/deploy/post-verify.sh` | yes | run the lab content-leak smoke on bc1, where headless Chrome is reliable |
 
 ## Everything else, by directory
 
-### `_tools` — 92 scripts, 75 referenced by nothing
+### `_tools` — 93 scripts, 75 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -146,6 +146,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc_subnet_tmp.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc_subnet_tmp2.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `secplus-quiz-gen.js` | DOCS-ONLY | 0 | 2026-06-27 | yes |  |
+| `smoke-lab-content-leaks.js` | CALLED | 1 | 2026-08-18 | yes |  |
 | `sql-engine-strict-wip.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `test-heur-030.js` | ORPHAN | 0 | 2026-05-17 | no |  |
 | `touristvisa-idempotency-test.js` | ORPHAN | 0 | 2026-07-12 | yes |  |
@@ -326,7 +327,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 84 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 87 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -334,6 +335,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `armsql-garbage-audit.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `armsql-generative-adversary.js` | ORPHAN | 0 | 2026-08-01 | no |  |
 | `armsql-negative-fixtures.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
+| `audit-broken-key-attempts.js` | DOCS-ONLY | 0 | 2026-08-19 | yes | READ-ONLY. Counts student attempts on quizzes whose answer key was wrong, |
 | `box-asset-existence-audit.js` | CALLED | 2 | 2026-05-23 | yes |  |
 | `box-content-catalog-orphan.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-decoy-provenance-lint.js` | CALLED | 1 | 2026-05-23 | yes |  |
@@ -398,7 +400,9 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `progress-denominator-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `qc-snapshot-slide.js` | DOCS-ONLY | 0 | 2026-06-07 | no |  |
 | `quiz-011-allowlist-add.js` | ORPHAN | 0 | 2026-05-09 | yes |  |
-| `quiz-key-callsite-audit.js` | CALLED | 4 | 2026-05-08 | yes |  |
+| `quiz-key-callsite-audit.js` | CALLED | 5 | 2026-05-08 | yes |  |
+| `quiz-key-content-audit.py` | DOCS-ONLY | 0 | 2026-08-19 | yes | Flags questions where the answer key disagrees with the explanation text that |
+| `quiz-key-drift-audit.js` | CALLED | 1 | 2026-08-19 | yes | Detects quiz answer keys in production that drift from functions/quiz_keys.json, |
 | `quiz-key-strict-orphan-audit.js` | DOCS-ONLY | 0 | 2026-05-09 | yes |  |
 | `recount-classes.js` | CALLED | 1 | 2026-07-31 | yes |  |
 | `run-cat-006.js` | CALLED | 1 | 2026-05-04 | yes |  |
@@ -585,7 +589,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `runtime.js` | DOCS-ONLY | 0 | 2026-02-16 | no |  |
 | `slide-overflow-b.js` | CALLED | 1 | 2026-06-07 | yes |  |
 | `slide-overflow.js` | CALLED | 1 | 2026-05-06 | yes |  |
-| `smoke.js` | DOCS-ONLY | 0 | 2026-02-20 | yes |  |
+| `smoke.js` | CALLED | 1 | 2026-02-20 | yes |  |
 
 ### `_tools/eduscan/validators/impact` — 3 scripts, 1 referenced by nothing
 
@@ -827,6 +831,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc-hextoken.sh` | ORPHAN | 0 | 2026-07-30 | yes |  |
 | `qc-js-checks.js` | CALLED | 2 | 2026-08-01 | yes |  |
 
+### `_tools/monitoring/boot-audit` — 2 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `boot-survivability-audit.sh` | CALLED | 1 | 2026-08-20 | no | audit whether a host's services survive a power cut or a crash (read-only) |
+| `test-boot-audit.sh` | DOCS-ONLY | 0 | 2026-08-20 | no | prove every boot-audit check can go RED (mutation test, two fixtures each) |
+
 ### `_tools/monitoring/config` — 2 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
@@ -838,8 +849,22 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `check-bc1.sh` | CALLED | 1 | 2026-07-11 | yes |  |
+| `check-bc1.sh` | CALLED | 2 | 2026-07-11 | yes |  |
 | `check-peer.sh` | CALLED | 2 | 2026-07-11 | yes |  |
+
+### `_tools/monitoring/neon` — 2 scripts, 1 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `ensure-monitoring-up.sh` | DOCS-ONLY | 0 | 2026-08-19 | yes | Ensures prometheus (and its siblings) are running on neon. Belt-and-braces over docker's restart policy, which demonstrably failed once. |
+| `move-cifs-creds-out-of-fstab.sh` | ORPHAN | 0 | 2026-08-20 | yes | Rewrites the neon-share fstab entry to use credentials=<file 0600> instead of inline username=/password=, which are world-readable in /etc/fstab (mode 644). |
+
+### `_tools/monitoring/probe` — 2 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `openstack-compute-probe.sh` | CALLED | 1 | 2026-08-19 | yes | Probes nova-compute liveness and placement capacity, emits node_exporter |
+| `service-probe.sh` | CALLED | 2 | 2026-08-20 | yes | probe real service behaviour and expose it to prometheus via node_exporter |
 
 ### `_tools/nexus` — 5 scripts, 1 referenced by nothing
 
@@ -907,32 +932,35 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 23 scripts, 10 referenced by nothing
+### `_tools/openstack-bridge` — 26 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `adversarial-chain.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `adversarial-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-cinder.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
 | `adversarial-project.js` | CALLED | 3 | 2026-08-11 | yes |  |
 | `adversarial-rescue.js` | CALLED | 1 | 2026-08-11 | yes |  |
-| `adversarial-secgroup.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `adversarial-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-wall.js` | CALLED | 17 | 2026-08-11 | yes |  |
 | `apply-bc1-patch.py` | ORPHAN | 0 | 2026-07-30 | yes |  |
-| `claim_service.py` | CALLED | 4 | 2026-08-11 | yes |  |
+| `claim_service.py` | CALLED | 5 | 2026-08-21 | yes |  |
 | `dump-slot-uids.py` | CALLED | 3 | 2026-07-31 | yes |  |
 | `e2e-stage3.js` | CALLED | 1 | 2026-08-11 | yes |  |
-| `ensure-second-network.sh` | ORPHAN | 0 | 2026-07-30 | yes |  |
+| `ensure-second-network.sh` | CALLED | 1 | 2026-07-30 | yes |  |
+| `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-22 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
 | `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
 | `qc-lab.sh` | CALLED | 20 | 2026-07-31 | yes |  |
 | `reclaim-idle-slots.py` | CALLED | 5 | 2026-07-31 | yes |  |
-| `walkthrough-chain.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-22 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
+| `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
+| `walkthrough-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-cinder.js` | CALLED | 4 | 2026-08-11 | yes |  |
 | `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
 | `walkthrough-project.js` | CALLED | 9 | 2026-08-11 | yes |  |
-| `walkthrough-rescue.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
-| `walkthrough-secgroup.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
+| `walkthrough-rescue.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
+| `walkthrough-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-wall.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 
 ### `_tools/operator-board/server` — 1 scripts, 0 referenced by nothing
@@ -948,13 +976,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `capture-tournament.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `gen-preview.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 
-### `_tools/qa` — 20 scripts, 7 referenced by nothing
+### `_tools/qa` — 20 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_ablation_tmp2.js` | ORPHAN | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
-| `_chris_ablation_tmp5.js` | DOCS-ONLY | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
-| `_chris_ablation_tmp5b.js` | DOCS-ONLY | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
+| `_chris_ablation_tmp5.js` | ORPHAN | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
+| `_chris_ablation_tmp5b.js` | ORPHAN | 0 | 2026-08-14 | no | Fails if any course data file links a file that does not exist on disk. |
 | `_chris_r5_old_harness_tmp.js` | ORPHAN | 0 | 2026-08-14 | no | Walks EVERY OpenStack chapter the way a student does (hub -> part -> finish -> Back) and asserts each card marks complete only when all of ITS parts are done. |
 | `access-guard-placement-test.js` | CALLED | 1 | 2026-08-14 | yes | Asserts every page calling AccessGuard.require() runs it BEFORE <body> opens, and that a gated page still gates after the move. |
 | `check-render.js` | CALLED | 1 | 2026-08-03 | yes |  |
@@ -1031,7 +1059,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 11 scripts, 4 referenced by nothing
+### `_tools/rules-test` — 13 scripts, 4 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1045,7 +1073,9 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
 | `mallory-verify-users-create-2026-08-05.test.js` | ORPHAN | 0 | 2026-08-05 | no |  |
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
+| `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+| `users-read-scope.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
 
@@ -1673,10 +1703,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `search-all.py` | DOCS-ONLY | 0 | 2026-06-04 | yes |  |
 
-### `_tools/security` — 1 scripts, 0 referenced by nothing
+### `_tools/security` — 3 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `scan-exposure.py` | CALLED | 2 | 2026-08-21 | yes |  |
+| `test-uid-detection.py` | ORPHAN | 0 | 2026-08-21 | yes | two-sided test for scan-exposure's student-UID detection |
 | `verify-gate-completion.js` | DOCS-ONLY | 0 | 2026-07-28 | yes |  |
 
 ### `_tools/slide-splitter` — 1 scripts, 0 referenced by nothing
@@ -1727,7 +1759,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-25 scripts are referenced by nothing AND follow the leading-underscore
+27 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1737,6 +1769,8 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
 - `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
+- `_tools/qa/_chris_ablation_tmp5.js` · last modified 2026-08-14
+- `_tools/qa/_chris_ablation_tmp5b.js` · last modified 2026-08-14
 - `_tools/qa/_chris_r5_old_harness_tmp.js` · last modified 2026-08-14
 - `_tools/qa/cold-horizon/_chris_nec1_probe_tmp.js` · last modified 2026-08-10
 - `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
