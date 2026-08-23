@@ -31,7 +31,9 @@
 # @catalog status  TOOL
 set -euo pipefail
 
-NAME=ubuntu-24.04-sprint
+# Overridable SO THE BUILD PATH CAN BE EXERCISED without touching the live image. A build script
+# whose DO branch has never run is not a tested script -- only its skip branch would be.
+NAME=${SPRINT_IMAGE_NAME:-ubuntu-24.04-sprint}
 BASE_URL=https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64.img
 BASE=/tmp/ubuntu-24.04-minimal.img
 OUT=/tmp/${NAME}.img
@@ -66,7 +68,7 @@ cleanup() {
   sudo umount "$MNT/dev/pts" 2>/dev/null
   for d in dev proc sys; do sudo umount "$MNT/$d" 2>/dev/null; done
   sudo umount "$MNT" 2>/dev/null
-  sudo qemu-nbd --disconnect /dev/nbd0 >/dev/null 2>&1
+  [ -n "${NBD:-}" ] && sudo qemu-nbd --disconnect "$NBD" >/dev/null 2>&1
 }
 trap cleanup EXIT
 
@@ -77,20 +79,44 @@ echo "  [2] working copy grown to 4G (the base is sized to its content)"
 cp -f "$BASE" "$OUT"; qemu-img resize "$OUT" 4G >/dev/null
 
 echo "  [3] map as a block device"
-sudo modprobe nbd max_part=8
-sudo qemu-nbd --disconnect /dev/nbd0 >/dev/null 2>&1 || true
-sudo qemu-nbd --connect=/dev/nbd0 "$OUT"; sleep 2
-sudo partprobe /dev/nbd0 2>/dev/null || true
-PART=$(lsblk -lno NAME /dev/nbd0 | awk 'NR>1{print $1; exit}')
-[ -z "$PART" ] && { echo "  ✗ no partition on /dev/nbd0"; exit 1; }
+# Bugs that ONLY showed up once the DO path was actually exercised, all four real:
+#   1. A prior run can leave a device CONNECTED (it reads 0B); connecting over it yields no
+#      partition table.
+#   2. Partitions appear a few seconds AFTER connect -- a fixed `sleep` is a coin flip.
+#   3. This image has FOUR partitions (p1 root 2.5G, p14 4M, p15/p16); "first row" can pick 4M.
+#   4. ⚠ AN INDIVIDUAL nbd DEVICE CAN WEDGE. After repeated connect/disconnect cycles /dev/nbd0
+#      accepted a connect but never exposed partitions, while /dev/nbd1 worked instantly on the
+#      same image. So do NOT hardcode a device -- find one that demonstrably works.
+sudo modprobe nbd max_part=15
+
+NBD=""; PART=""; SZ=0
+for n in 0 1 2 3 4 5 6 7; do
+  DEV=/dev/nbd$n
+  cur=$(lsblk -bdno SIZE "$DEV" 2>/dev/null | tr -dc "0-9" || true)
+  if [ -n "$cur" ] && [ "$cur" -ne 0 ]; then continue; fi     # in use by someone else
+  sudo qemu-nbd --connect="$DEV" "$OUT" 2>/dev/null || continue
+  for i in $(seq 1 8); do
+    sudo partprobe "$DEV" >/dev/null 2>&1 || true
+    # `|| true` REQUIRED: under `set -o pipefail` a not-yet-ready lsblk makes this assignment
+    # non-zero and `set -e` kills the script SILENTLY mid-poll. That is exactly what happened.
+    SZ=$(lsblk -bdno SIZE "${DEV}p1" 2>/dev/null | tr -dc "0-9" || true)
+    if [ -n "$SZ" ] && [ "$SZ" -gt 1000000000 ]; then NBD="$DEV"; PART="${DEV}p1"; break; fi
+    sleep 1
+  done
+  if [ -n "$PART" ]; then break; fi
+  sudo qemu-nbd --disconnect "$DEV" >/dev/null 2>&1 || true    # wedged or unusable: try the next
+  echo "  $DEV did not expose a root partition, trying the next"
+done
+if [ -z "$PART" ]; then echo "  ✗ no usable nbd device found (tried nbd0-7). All wedged or busy."; exit 1; fi
+echo "  using $PART ($((SZ/1073741824))GB root)"
 
 echo "  [4] grow the filesystem"
-sudo growpart /dev/nbd0 1 >/dev/null 2>&1 || true
-sudo e2fsck -fp "/dev/$PART" >/dev/null 2>&1 || true
-sudo resize2fs "/dev/$PART" >/dev/null 2>&1 || true
+sudo growpart "$NBD" 1 >/dev/null 2>&1 || true
+sudo e2fsck -fp "$PART" >/dev/null 2>&1 || true
+sudo resize2fs "$PART" >/dev/null 2>&1 || true
 
 echo "  [5] chroot with bc2's OWN resolver"
-sudo mkdir -p "$MNT"; sudo mount "/dev/$PART" "$MNT"
+sudo mkdir -p "$MNT"; sudo mount "$PART" "$MNT"
 for d in dev proc sys; do sudo mount --bind "/$d" "$MNT/$d"; done
 sudo mount --bind /dev/pts "$MNT/dev/pts" 2>/dev/null || true
 sudo rm -f "$MNT/etc/resolv.conf"; sudo cp /etc/resolv.conf "$MNT/etc/resolv.conf"
@@ -114,7 +140,7 @@ for b in nginx nmap ping curl sftp python3; do
   sudo chroot "$MNT" bash -c "command -v $b >/dev/null 2>&1" || { echo "  ✗ MISSING $b"; miss=1; }
 done
 sudo chroot "$MNT" python3 -c 'import flask' 2>/dev/null || { echo "  ✗ MISSING flask"; miss=1; }
-[ "$miss" -eq 0 ] && echo "  all baked binaries present" || { echo "  ✗ refusing to upload an incomplete image"; exit 1; }
+if [ "$miss" -eq 0 ]; then echo "  all baked binaries present"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
 
 sudo truncate -s0 "$MNT/etc/machine-id"
 sudo rm -f "$MNT"/etc/ssh/ssh_host_* 2>/dev/null || true
