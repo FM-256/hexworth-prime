@@ -45,6 +45,16 @@ export OS_AUTH_URL=http://192.168.122.62/identity OS_IDENTITY_API_VERSION=3 \
 
 rc=0
 
+# ── 0. the SPRINT image (packages baked in; students have no egress) ─────────
+# Delegated so the build lives in one place. Idempotent: exits early if already in glance.
+if ! openstack image show ubuntu-24.04-sprint -f value -c status 2>/dev/null | grep -q active; then
+  echo "  [do]    ubuntu-24.04-sprint missing -- run build-sprint-image.sh on bc2 to create it"
+  echo "          (not auto-run here: it needs sudo/qemu-nbd on bc2, not the DevStack VM)"
+  rc=1
+else
+  echo "  [skip]  ubuntu-24.04-sprint already active"
+fi
+
 # ── 1. the image ─────────────────────────────────────────────────────────────
 st=$(openstack image show "$IMAGE_NAME" -f value -c status 2>/dev/null || true)
 if [ "$st" = active ]; then

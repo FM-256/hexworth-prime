@@ -4,9 +4,13 @@
 Both are fixed, and both revert when DevStack is rebuilt. Run one script to fix, one to check.
 
 ```
-bash _tools/openstack-bridge/sprint-preflight.sh 20      # read-only. Is it ready for 20 students?
-bash _tools/openstack-bridge/ensure-sprint-ready.sh      # idempotent. Make it ready.
+bash _tools/openstack-bridge/sprint-preflight.sh 30      # read-only. Ready for 30 students?
+bash _tools/openstack-bridge/build-sprint-image.sh       # builds ubuntu-24.04-sprint if absent
+bash _tools/openstack-bridge/ensure-sprint-ready.sh      # idempotent. Quota + base image.
 ```
+
+**Students boot `ubuntu-24.04-sprint`, never `ubuntu-24.04-minimal`.** The minimal image will
+strand a class: instances have no internet, so nothing can be installed on the day.
 
 Both run **on bc2**. Preflight changes nothing and is safe five minutes before class.
 
@@ -36,12 +40,62 @@ QEMU *process* on the hypervisor, which counts allocated guest pages, not guest 
 
 ---
 
+## ⚠ THE BLOCKER THAT SHAPES EVERYTHING: instances have no internet
+
+Measured end-to-end on 2026-08-23 from inside a booted instance:
+
+```
+archive.ubuntu.com -> HTTP 000
+dns=FAIL
+apt-update=OK                          <- LIES. exits 0 having fetched nothing
+apt-install=FAIL: Unable to locate package nginx / nmap / iputils-ping
+```
+
+Root cause: `shared-subnet` declares a gateway at `192.168.233.1`, but **no router has an
+interface on it** and `dns_nameservers` is empty. It is an isolated L2 segment. The DevStack host
+itself has internet (HTTP 200) — NAT is available and simply not wired up.
+
+This is why peer-to-peer works and `apt` does not: **peer traffic is L2 within `shared`; egress is
+L3 and was never built.**
+
+⚠⚠ **`apt update` exits 0 with no network.** It fetches nothing and reports success; the failure
+only surfaces later as "Unable to locate package". This trap bit twice in one day — once inside
+student instances, once inside the libguestfs appliance during the image build. **Never read a
+clean `apt update` as proof of connectivity.** Assert that package lists actually arrived.
+
+### The answer: bake the packages, do not fix egress
+
+`build-sprint-image.sh` produces `ubuntu-24.04-sprint` with nginx, flask, nmap, ping, curl and
+sftp preinstalled. Verified in a booted instance with **zero apt calls**:
+
+```
+have nginx · nmap · ping · curl · sftp · python3 · flask 3.0.2
+M1  nginx=active, page served
+M3  flask-health={"status":"healthy"}
+M4  port8080=bindable
+```
+
+Baking is also **more repeatable than fixing egress**: the image is a fixed artifact, so class N+1
+behaves exactly like class N and no mirror has to be reachable on the day.
+
+**Why the build uses qemu-nbd + chroot and not `virt-customize --install`:** the libguestfs
+appliance has no DNS on this host (measured: `dns=FAIL`, every apt candidate empty), and because
+of the trap above it fails late and misleadingly, naming a different arbitrary pair of "missing"
+packages each run. The chroot uses bc2's own working resolver. `universe` is already enabled in
+the base image — that was never the problem, and "fixing" it wasted a build.
+
+Wiring egress instead (`router add subnet` + a resolver) remains the better long-term answer, but
+it changes topology on a segment with live instances and grants student VMs outbound internet —
+a posture decision, not a config detail.
+
+---
+
 ## ⚠ This reverts on every DevStack rebuild
 
 DevStack is rebuilt from snapshot each term. That wipes the Glance image and the per-project
 quotas, exactly as `ensure-second-network.sh` already warns for the `lab-net` decoy.
 
-**After any rebuild, re-run `ensure-sprint-ready.sh` or the sprint silently reverts** to a
+**After any rebuild, re-run `build-sprint-image.sh` AND `ensure-sprint-ready.sh`, or the sprint silently reverts** to a
 cirros-only cloud with a 192MB quota. It fails in a confusing way: students see either a BusyBox
 prompt or `No valid host was found`, neither of which points at the cause.
 
@@ -130,11 +184,13 @@ A check that has never failed has not been tested. `sprint-preflight.sh` takes `
 `SPRINT_FLAVOR` overrides for exactly this reason:
 
 ```bash
-bash sprint-preflight.sh 999                       # capacity check must FAIL
-SPRINT_IMAGE=no-such-image bash sprint-preflight.sh 20   # image check must FAIL
+bash sprint-preflight.sh 999                                  # capacity must FAIL
+SPRINT_IMAGE=no-such-image bash sprint-preflight.sh 20        # base image must FAIL
+SPRINT_BAKED=no-such-sprint-image bash sprint-preflight.sh 30 # SPRINT image must FAIL
 ```
 
-Both were run on 2026-08-22 and both produced the expected failures with a non-zero exit.
+All three were run and all three produced the expected failure with a non-zero exit, while the
+unmutated run stayed at `0 failure(s)`.
 
 ---
 

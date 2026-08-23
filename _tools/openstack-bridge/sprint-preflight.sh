@@ -23,6 +23,7 @@ CLASS=${1:-20}
 # "proving the preflight works" section.
 IMAGE=${SPRINT_IMAGE:-ubuntu-24.04-minimal}
 FLAVOR=${SPRINT_FLAVOR:-ds512M}
+BAKED=${SPRINT_BAKED:-ubuntu-24.04-sprint}   # overridable so THIS check can be proven to fail too
 KEY=${STAGE1_KEY:-$HOME/openstack-stage1/stage1_key}
 VMADDR=${STAGE1_VM:-192.168.122.62}
 ADMIN_ENV=${ADMIN_ENV:-$HOME/openstack-stage1/admin-auth.env}
@@ -32,7 +33,7 @@ set -a; . "$ADMIN_ENV"; set +a
 
 ssh -i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=no "stack@$VMADDR" \
   "U='$OS_ADMIN_USER' P='$OS_ADMIN_PASS' PR='$OS_ADMIN_PROJECT' \
-   IMAGE='$IMAGE' FLAVOR='$FLAVOR' CLASS='$CLASS' bash -s" <<'REMOTE'
+   IMAGE='$IMAGE' FLAVOR='$FLAVOR' BAKED='$BAKED' CLASS='$CLASS' bash -s" <<'REMOTE'
 set -uo pipefail
 export OS_AUTH_URL=http://192.168.122.62/identity OS_IDENTITY_API_VERSION=3 \
        OS_USERNAME="$U" OS_PASSWORD="$P" OS_PROJECT_NAME="$PR" \
@@ -52,6 +53,15 @@ if [ "$st" = active ]; then ok "$IMAGE active (min_ram=${mr}MB min_disk=${md}GB)
 else no "$IMAGE is '${st:-absent}'. Students get cirros, which has no apt/systemd/python. Run ensure-sprint-ready.sh"; fi
 [ "$vis" = public ] && ok "image is public (every student project can boot it)" \
   || no "image visibility is '${vis:-?}' -- student projects cannot see it"
+
+echo "=== 1b. the SPRINT image (packages baked in -- the one students actually use) ==="
+sst=$(openstack image show "$BAKED" -f value -c status 2>/dev/null)
+svis=$(openstack image show "$BAKED" -f value -c visibility 2>/dev/null)
+if [ "$sst" = active ] && [ "$svis" = public ]; then
+  ok "$BAKED active + public (nginx/flask/nmap preinstalled)"
+else
+  no "$BAKED is '${sst:-absent}'/'${svis:-?}'. WITHOUT IT NO MISSION CAN BUILD -- instances have no internet, so apt cannot install anything. Run build-sprint-image.sh on bc2."
+fi
 
 echo "=== 2. flavor fits the image ==="
 fr=$(openstack flavor show "$FLAVOR" -f value -c ram 2>/dev/null || echo 0)
@@ -99,7 +109,9 @@ echo "=== KNOWN TRAPS (not failures -- brief the class) ==="
 echo "  - ICMP does not pass even with a correct icmp ingress rule; tcp does. Use nmap -Pn."
 echo "  - Floating IPs are 172.24.4.0/24 (DevStack default) and are NOT routable off the VM host."
 echo "    Peer verification must be VM->VM on 'shared', never via a floating IP."
-echo "  - Ubuntu MINIMAL HAS curl. It does NOT have nmap or iputils-ping (measured)."
+echo "  - Students have NO INTERNET. apt/pip CANNOT work. Use ubuntu-24.04-sprint, which has"
+echo "    nginx, flask, nmap and ping baked in. ubuntu-24.04-minimal is the BASE and will"
+echo "    strand a class -- it has curl but no nginx/nmap/ping and no way to get them."
 echo "  - WARNING: apt update EXITS 0 even with no internet -- it fetches nothing and reports"
 echo "    success. The failure surfaces later as 'Unable to locate package'. A clean apt"
 echo "    update is NOT proof of egress."
