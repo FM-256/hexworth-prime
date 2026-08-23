@@ -30,27 +30,30 @@ You do not have to discover these every time. In your personal cloud they are fi
 
 | Thing | Value | Why it matters |
 |-------|-------|----------------|
-| Flavor | `m1.nano` | 1 vCPU, 192 MB RAM, 1 GB disk. The *only* flavor that fits your quota. |
-| Image | `cirros-0.6.3-x86_64-disk` | A tiny Linux built for testing. Confirm with `openstack image list`. |
+| Flavor | `m1.nano` **or** `ds512M` | Depends on your image — see the table below. |
+| Image | `cirros-0.6.3-x86_64-disk` **or** `ubuntu-24.04-minimal` | CirrOS for quick API labs; Ubuntu when a lab installs software. |
 | Tenant network | `shared` | Already exists, DHCP on. Use it when a lab just needs a server on *some* network. |
-| External network | `public` | The way out. Router gateways and floating IPs come from here. |
+| External network | `public` | The way out. Router gateways come from here. **You cannot boot a server onto it** — see below. |
 | Decoy network | `lab-net` | Exists to make `--network` mandatory. **Do not boot onto it** — see below. |
-| Quota | 1 instance, 1 core, 192 MB | **One server at a time.** See below. |
+| Quota | 1 instance, 1 core, 512 MB | **One server at a time.** See below. |
 
-**Why `m1.nano` and nothing else.** Your quota caps RAM at 192 MB, and `m1.nano` is exactly
-192 MB. Every other flavor on the cloud is larger, so every other flavor is rejected at create
-time. These are the ones you will see listed, and the reason each fails:
+**Pick the flavor that matches your image** (updated 2026-08-22 — the quota was raised from
+192 MB to 512 MB so that labs which install packages are possible).
 
-| Flavor | RAM | Fits the 192 MB quota? |
-|--------|-----|------------------------|
-| `m1.nano` | 192 MB | **Yes — use this** |
-| `m1.micro` | 256 MB | No |
-| `cirros256` | 256 MB | No |
-| `m1.tiny` | 512 MB | No |
-| `m1.small` and larger | 2 GB+ | No |
+| Flavor | RAM | Disk | Use it for |
+|--------|-----|------|------------|
+| `m1.nano` | 192 MB | 1 GB | `cirros` only. Fine for labs that just exercise the API. |
+| `ds512M` | 512 MB | 5 GB | **`ubuntu-24.04-minimal`.** Anything that runs `apt`, a web server or Python. |
+| `m1.micro` / `cirros256` | 256 MB | 1 GB | Within quota, but the 1 GB disk is too small for Ubuntu. |
+| `m1.tiny` | 512 MB | 1 GB | RAM fits, **disk does not** — Ubuntu needs 3 GB minimum. |
+| `m1.small` and larger | 2 GB+ | — | Over quota. Rejected at create time. |
 
-There is also exactly one bootable image, `cirros-0.6.3-x86_64-disk`, so if `image list` shows
-you something else, ask your instructor before using it.
+⚠ **The disk matters as much as the RAM.** `ubuntu-24.04-minimal` declares `min_disk 3`, so
+`m1.nano`, `m1.micro` and `m1.tiny` are all rejected for it despite two of them having enough
+RAM. If a create fails and the RAM looks fine, check the disk.
+
+⚠ **Ubuntu *minimal* ships without common tools.** `curl`, `nmap` and `ping` are not installed.
+Install what your lab needs: `sudo apt update && sudo apt install -y curl nmap iputils-ping`.
 
 **The one-instance rule shapes everything.** Your quota allows exactly one running server. If a
 lab asks you to launch a second one, you must delete the first. If a previous attempt left a
