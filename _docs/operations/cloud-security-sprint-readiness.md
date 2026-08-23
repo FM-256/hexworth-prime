@@ -29,8 +29,10 @@ Every build command in the packet — `apt install nginx`, `python3-venv`, `pip 
 `m1.nano`, `m1.micro` and `m1.tiny` all have a **1GB disk**, so all three are excluded — the RAM
 is not the only constraint. `ds512M` is the smallest flavor that fits.
 
-**Do not try to shrink the flavor to fit more students.** Measured: Ubuntu 24.04 minimal's real
-`rss` is **446MB of 512MB**. There is no headroom. That idea was tested and dropped on evidence.
+**`ds512M` is the floor because of DISK, not RAM.** The image needs `min_disk 3`; `m1.tiny` has
+512MB RAM and only 1GB disk, so it is rejected. Measured inside a running guest: Ubuntu 24.04
+minimal uses **136MB of 458MB** available. (An earlier note here said `rss=446MB` — that was the
+QEMU *process* on the hypervisor, which counts allocated guest pages, not guest usage.)
 
 ---
 
@@ -117,7 +119,8 @@ These are correct behaviour, not faults, and each one costs an hour if discovere
 | `--network lab-net` | `ACTIVE` with **no address** | Deliberate decoy: its subnet was created `--no-dhcp` so that `--network` cannot be omitted. |
 | `ping` fails | "I allowed ICMP and it still fails" | ICMP does not pass even with a correct `icmp` ingress rule, while tcp/22 through the same group works. **Unresolved.** The existing secgroup lab already uses `nmap -Pn`, which skips ICMP discovery. |
 | floating IP | "my peer can't load my page" | Floating IPs are `172.24.4.0/24`, the DevStack default, and bc2 has no interface on that range. **Peer verification must be VM→VM on `shared`.** The v2 packet assumes floating IPs and needs this edit. |
-| missing tools | `curl: command not found` | Ubuntu **minimal** strips tooling. Labs must `apt install curl nmap iputils-ping`. |
+| missing tools | `nmap: command not found` | `curl` IS present in ubuntu-24.04-minimal — **measured**. `nmap` and `iputils-ping` are not. |
+| `apt update` succeeds, install fails | `Unable to locate package nginx` | **`apt update` exits 0 even with no internet** — it fetches nothing and reports success. The install is where it surfaces. Do not read a clean `apt update` as proof of egress. |
 
 ---
 

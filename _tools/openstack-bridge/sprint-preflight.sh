@@ -99,7 +99,10 @@ echo "=== KNOWN TRAPS (not failures -- brief the class) ==="
 echo "  - ICMP does not pass even with a correct icmp ingress rule; tcp does. Use nmap -Pn."
 echo "  - Floating IPs are 172.24.4.0/24 (DevStack default) and are NOT routable off the VM host."
 echo "    Peer verification must be VM->VM on 'shared', never via a floating IP."
-echo "  - Ubuntu MINIMAL ships without curl/nmap/ping: labs must apt install them."
+echo "  - Ubuntu MINIMAL HAS curl. It does NOT have nmap or iputils-ping (measured)."
+echo "  - WARNING: apt update EXITS 0 even with no internet -- it fetches nothing and reports"
+echo "    success. The failure surfaces later as 'Unable to locate package'. A clean apt"
+echo "    update is NOT proof of egress."
 echo
 echo "SUMMARY: $fail failure(s), $warn warning(s)"
 exit $([ "$fail" -gt 0 ] && echo 1 || echo 0)
