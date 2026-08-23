@@ -335,7 +335,10 @@ the lab becomes unrunnable until you delete by ID instead of name. Check with
 |--------------|---------------|------------|
 | `403 Forbidden` | Your role cannot write here. | You are in the read-only demo. Launch the lab for a personal cloud. |
 | `Quota exceeded` on server create | You already have a server. | `openstack server list`, delete the leftover, retry. |
-| `No valid host was found` | Nothing can fit the flavor you asked for. | Use `m1.nano`. Larger flavors exceed your 192 MB. |
+| `No valid host was found` | Nothing can fit the flavor you asked for. | Use `m1.nano` (cirros) or `ds512M` (Ubuntu). Anything larger exceeds your 512 MB quota. |
+| Ubuntu create rejected, RAM looks fine | The **disk** is too small, not the memory. | `m1.tiny` has 512 MB but only 1 GB disk; the image needs 3 GB. Use `ds512M`. |
+| Server is `ACTIVE` but has no address | You booted onto `lab-net`, the decoy. | Delete it and relaunch with `--network shared`. |
+| `Failed to allocate the network(s)`, then `ERROR` | You booted onto `public`. | `public` is external and cannot be attached to. An ERROR instance **cannot be rebooted** — delete it and recreate with `--network shared`. |
 | `Multiple ... found` / ambiguous name | Two objects share that name. | List with IDs and delete by ID, not name. |
 | Router or network `in use` | Something is still attached. | Follow the teardown order above, both router sides. |
 | Volume delete refused | Volume is `in-use`. | `server remove volume` first, wait for `available`. |
