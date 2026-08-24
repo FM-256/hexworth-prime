@@ -38,6 +38,17 @@ from pathlib import Path
 
 APP = Path(__file__).resolve().parents[2] / "_app"
 
+# (check id, token) pairs that are NOT defects, each with the reason it is not one. Without this
+# the same two lines reappear on every run and the tool trains you to skim past its own output.
+# Keyed on the exact token, so if one of these ever shows up as a genuine student requirement
+# somewhere else, it is still reported. Reviewed 2026-08-24 by reading the check source.
+NOT_A_DEFECT = {
+    (20, "::/0"): "IPv6 twin of 0.0.0.0/0 inside a NEGATIVE condition: the check FAILS you if a "
+                  "rule is world-open. The page documents 0.0.0.0/0. No student ever types ::/0.",
+    (22, "string"): "from `typeof sb.cidr === 'string'`, an internal type guard, not a value a "
+                    "student produces.",
+}
+
 
 def parse_checks(src: str):
     """Every { id: N, desc: ..., cmd: ... } block, found by balancing braces."""
@@ -162,7 +173,9 @@ def main():
         for p in owners:
             txt = page_text(p)
             # a group counts as documented if ANY of its alternatives appears
-            unmet = [g for g in groups if not any(alt in txt for alt in g)]
+            unmet = [g for g in groups
+                     if not any(alt in txt for alt in g)
+                     and not any((c["id"], alt) in NOT_A_DEFECT for alt in g)]
             if unmet:
                 findings += 1
                 print(f"  CHECK {c['id']:>3}  {p.name}")
@@ -170,6 +183,8 @@ def main():
                 for g in unmet[:4]:
                     print(f"     absent : {' OR '.join(sorted(g)[:3])}")
     print(f"\n  candidates to read: {findings}")
+    if NOT_A_DEFECT:
+        print(f"  ({len(NOT_A_DEFECT)} known non-defect(s) suppressed; see NOT_A_DEFECT for why)")
 
 
 if __name__ == "__main__":
