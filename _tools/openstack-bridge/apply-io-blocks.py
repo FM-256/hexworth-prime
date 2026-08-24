@@ -44,10 +44,16 @@ PAGE_PAIRS = {
  "cloud-openstack-launch-chain-live.lab.html": [
    # Both of these lines live in the SAME command block, and one io block can only follow a
    # block, so they are stated together rather than silently dropping the second.
+   #
+   # NO invented fallback. An earlier version said a wrong flavor meant "the create fell back to
+   # a default". OpenStack does no such thing: an unknown flavor fails the create outright, and
+   # this page's own next paragraph already teaches that a wrong flavor lands in ERROR. The
+   # flavor is hardcoded here, so the only way it differs is that someone edited the line.
    ("openstack server show chain-vm -f value -c addresses  # must not be empty",
     "an address on a network (check 16), and flavor m1.nano (check 15)",
     "an empty address means you booted with no network: the disk runs and nothing can reach it. "
-    "A different flavor means the create fell back to a default"),
+    "The flavor is hardcoded in the command above, so a different one means it was edited: "
+    "re-run with --flavor m1.nano exactly"),
  ],
  "cloud-openstack-neutron-live.lab.html": [
    ("openstack router show lab5-router -f value -c external_gateway_info",
