@@ -57,6 +57,13 @@ STUDENT_REPLACE = [
     # the checklist bullet -- the copy a code-block sweep cannot see
     (72, "flask.__version__", f"☐ Confirm Flask is present: {FLASK_CHECK}"),
     (81, "flask.__version__", f"{FLASK_CHECK}  # 1. confirm flask is present"),
+    # Egress was wired 2026-08-24 (router + DNS + NAT on the DevStack host), so these two lines
+    # became false. Phrased as "you do not NEED to install" rather than "you cannot": everything is
+    # baked in, so a class never depends on a package mirror being reachable on the day.
+    (18, "have no internet",
+     "# You do not need to install anything: it is all baked into ubuntu-24.04-sprint."),
+    (80, "both need internet",
+     "# No venv and no pip needed: flask is already installed system-wide."),
     (83, "/path/to/project3_api.py", "cp /opt/sprint-assets/project3_api.py app.py           # 3. copy the supplied API"),
     (84, "python3 app.py", "tmux new -s api                                        # 4. open a tmux session"),
     (86, "SECOND terminal", "# 6. detach from tmux with  Ctrl+b  then  d , then prove it locally:"),
@@ -112,10 +119,10 @@ STUDENT_INSERT_AFTER = [
 # ── instructor runbook ───────────────────────────────────────────────────────
 RUNBOOK_REPLACE = [
     (28, "sudo apt update", "# nginx, curl, nmap and ping are ALREADY BAKED INTO ubuntu-24.04-sprint."),
-    (29, "apt install -y nginx", "# Instances have NO internet, so apt cannot work. Do not try to install."),
+    (29, "apt install -y nginx", "# Nothing here needs installing. Do not spend class time on apt."),
     (30, "apt install -y curl nmap", "# The lab assets are already on the instance, in /opt/sprint-assets/"),
     (32, "sudo cp project1_index.html", "cp /opt/sprint-assets/project1_index.html ~/"),
-    (94, "sudo apt update", "# flask is ALREADY INSTALLED system-wide. No venv and no pip: both need internet."),
+    (94, "sudo apt update", "# flask is ALREADY INSTALLED system-wide. No venv and no pip needed."),
     (95, "apt install -y python3-venv", FLASK_CHECK),
     (96, "apt install -y curl", "mkdir -p ~/cloud-api && cd ~/cloud-api"),
     (97, "mkdir -p ~/cloud-api", "cp /opt/sprint-assets/project3_api.py app.py"),
@@ -128,6 +135,20 @@ RUNBOOK_REPLACE = [
     (117, "python3 project4_honeypot.py", "tmux new -s honeypot     # ONE console only: tmux gives you the second shell"),
     (119, "# Second terminal", "# Second shell: detach tmux with Ctrl+b then d, then:"),
     (124, "chmod +x project4_generate_traffic.sh", "cp /opt/sprint-assets/project4_generate_traffic.sh ."),
+    # PHASE C -- the same impossible instruction that was fixed in the student packet and left
+    # here. Quota is ONE instance and volumes are project-scoped, so VM #2 cannot coexist with
+    # VM #1 and cannot be the partner's. Hand-verified 2026-08-24: delete VM #1, create a new
+    # instance, reattach, mount WITHOUT mkfs, proof.txt intact.
+    (53, "+---- detach ----> NOVA VM #2",
+     "      +-- detach --> [ VM #1 DELETED ] -- attach --> NOVA VM #2 -- mount --> SAME FILES"),
+    (75, "detach the Cinder volume from VM #1, attach it to VM #2",
+     "Unmount the filesystem cleanly, detach the Cinder volume, then DELETE VM #1 outright. Quota is "
+     "ONE instance per student and a Cinder volume cannot cross projects, so VM #2 can be neither a "
+     "second simultaneous instance nor the partner's. Create a new instance, attach the same volume, "
+     "mount it WITHOUT reformatting, and read proof.txt. Deleting the compute is what makes the point: "
+     "the data outlives it."),
+    (81, "openstack server add volume <VM2> cloud-drop",
+     "openstack server delete <VM1>          # quota is ONE instance: VM #1 must go first"),
     (152, "Distribute the lab asset ZIP",
      "☐ The lab assets are BAKED INTO the image at /opt/sprint-assets/. The ZIP is a reference copy; "
      "students do not need to transfer anything."),
@@ -142,13 +163,18 @@ RUNBOOK_REPLACE = [
      "every student's instance to every other student on 'shared'. Scope it to the one partner, and take "
      "the rule back out when the mission is done."),
     (153, "Verify package repository access",
-     "☐ Do NOT expect package installs to work. Instances have no egress by design; every needed "
-     "package is baked into ubuntu-24.04-sprint. Re-run build-sprint-image.sh after a DevStack rebuild."),
+     "☐ Instances DO have internet as of 2026-08-24 (a router on shared-subnet, DNS, and NAT on the "
+     "DevStack host). Do not depend on it in class: every package the missions need is baked into "
+     "ubuntu-24.04-sprint. Re-run BOTH build-sprint-image.sh and wire-egress.sh after a DevStack "
+     "rebuild from snapshot, because the rebuild discards both."),
 ]
 RUNBOOK_INSERT_BEFORE = []
 RUNBOOK_INSERT_AFTER = [
     (117, "python3 project4_honeypot.py", ["python3 project4_honeypot.py"]),
     (124, "chmod +x project4_generate_traffic.sh", ["chmod +x project4_generate_traffic.sh"]),
+    (81, "openstack server add volume <VM2> cloud-drop",
+     ["openstack server create <VM2> --image ubuntu-24.04-sprint --flavor ds512M --network shared",
+      "openstack server add volume <VM2> cloud-drop"]),
 ]
 
 JOBS = [(name, STUDENT_REPLACE, STUDENT_INSERT_BEFORE, STUDENT_INSERT_AFTER) for name in STUDENT_DOCS]

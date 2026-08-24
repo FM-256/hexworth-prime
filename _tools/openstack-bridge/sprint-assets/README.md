@@ -4,7 +4,12 @@ This package is built for an instructor-authorized OpenStack classroom.
 
 ## Files
 - `project1_index.html`: Nginx page for Project 1.
-- `project2_cinder_guest_setup.sh`: optional guest helper for formatting and mounting a newly attached EMPTY Cinder volume.
+- `project2_cinder_guest_setup.sh`: optional guest helper that formats and mounts a newly
+  attached EMPTY Cinder volume. **Read it before you run it.** It asks you to type FORMAT,
+  and that typed word is the ONLY guard: it then runs `mkfs.ext4 -F`, which does not check
+  whether the device already holds data. It also creates a `clouddrop` user and appends an
+  `/etc/fstab` entry. Confirm the device with `lsblk` first. `mkfs` on the wrong device is
+  not reversible.
 - `project3_api.py`: Flask API for Project 3.
 - `project4_honeypot.py`: dependency-free training honeypot. It intentionally does not log submitted passwords.
 - `project4_generate_traffic.sh`: controlled suspicious-looking traffic generator for Project 4.
@@ -22,13 +27,15 @@ This package is built for an instructor-authorized OpenStack classroom.
 ## Safety
 Scanning and generated traffic must remain inside the instructor-approved lab scope. Do not expose the training honeypot to unapproved networks.
 
-## Boot the `ubuntu-24.04-sprint` image, and do NOT try to install anything
-
-Your instance has **no internet**. `apt install` cannot work and will only waste your time:
-the `shared` network is an isolated segment with no route out, on purpose.
+## Boot the `ubuntu-24.04-sprint` image. You should not need to install anything.
 
 Everything the four projects need is already in the image: nginx, python3-flask, nmap, ping,
-curl, and both the SSH client and server.
+curl, nano, tmux, and both the SSH client and server.
+
+Instances do have internet access (wired 2026-08-24: a router on `shared-subnet`, DNS, and NAT
+on the cloud host). Do not build the class around it. Packages are baked in so that a lab never
+depends on a package mirror being reachable on the day, and so every student gets an identical
+starting point.
 
 ## Where these files are ON your instance
 
