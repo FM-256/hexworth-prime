@@ -155,6 +155,14 @@ CREATE_TARGETS = [
 ]
 
 
+def norm(path: str) -> str:
+    """One canonical spelling, so ~/project/x and /home/student/project/x compare equal."""
+    t = path.strip().strip("'\"").rstrip(";")
+    if t.startswith("~/"):
+        t = "/home/student/" + t[2:]
+    return t
+
+
 def created_by(line: str):
     """Every path this line actually brings into being."""
     out = set()
@@ -237,12 +245,23 @@ def self_consistency_audit(pages):
                 if line.strip().startswith("#"):
                     continue
                 for t in created_by(line):
-                    made.add(t.rstrip("'\"").rsplit("/", 1)[-1])
+                    made.add(norm(t))
                 for rx in CONSUMERS:
                     for t in rx.findall(line):
-                        used.setdefault(t.rstrip("'\"").rsplit("/", 1)[-1], t)
-        for base, shown in used.items():
-            if base not in made:
+                        used.setdefault(norm(t), t)
+        made_bases = {m.rsplit("/", 1)[-1] for m in made}
+        for full, shown in used.items():
+            if full in made:
+                continue                      # created at the SAME path: fine
+            base = full.rsplit("/", 1)[-1]
+            if base in made_bases:
+                # A same-named file is created SOMEWHERE ELSE. That is the stale-path bug, not a
+                # pass. Reported explicitly rather than silently accepted, which is what keying
+                # on basename alone used to do: a page creating ~/scratch/apply.py while running
+                # ~/project/apply.py scored clean.
+                findings.append((p.name, f"{shown}  (a file named {base} is created, but at a "
+                                          f"DIFFERENT path)"))
+            else:
                 findings.append((p.name, shown))
     return findings
 
