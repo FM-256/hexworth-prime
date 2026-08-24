@@ -207,21 +207,32 @@ def creation_audit(checks, pages):
             if c["id"] not in ids:
                 continue
             blocks = cmd_blocks(p.read_text(errors="replace"))
+            made = set()
+            for b in blocks:
+                for line in b.split("\n"):
+                    if line.strip().startswith("#"):
+                        continue
+                    made |= {norm(t) for t in created_by(line)}
             for path in needed:
-                forms = {path, path.replace("/home/student/", "~/"), path.rsplit("/", 1)[-1]}
-                created = any(
-                    any(t.rstrip("'\"") in forms or t.rstrip("'\"").endswith("/" + path.rsplit("/", 1)[-1])
-                        for t in created_by(line))
-                    for b in blocks for line in b.split("\n")
-                )
-                if not created:
-                    findings.append((c["id"], p.name, path, c["desc"]))
+                want = norm(path)
+                if want in made:
+                    continue
+                # No basename fallback. This used to accept ANY created file whose NAME matched,
+                # so a page creating ~/scratch/apply.py satisfied a check reading
+                # ~/project/apply.py. Its sibling was made path-aware and this one was not: the
+                # same escape hatch, surviving because I fixed only the function I was looking at.
+                base = want.rsplit("/", 1)[-1]
+                elsewhere = sorted(m for m in made if m.rsplit("/", 1)[-1] == base)
+                note = f"  (a file named {base} IS created, but at {elsewhere[0]})" if elsewhere else ""
+                findings.append((c["id"], p.name, path + note, c["desc"]))
     return findings
 
 
 # Paths a command CONSUMES. These must already exist when the line runs.
 CONSUMERS = [
-    re.compile(r"\b(?:cat|less|head|tail|source|\.)\s+([^\s;|&)]+)"),
+    # `cat > f` / `cat >> f` CREATE f; only a bare `cat f` reads one. Without this guard the
+    # regex captured ">" as the filename and emitted a nonsense finding on any heredoc block.
+    re.compile(r"\b(?:cat|less|head|tail|source|\.)\s+(?![>&])([^\s;|&)]+)"),
     re.compile(r"\bpython3?\s+([^\s;|&)-][^\s;|&)]*\.py)"),
     re.compile(r"\bbash\s+([^\s;|&)]+\.sh)"),
     re.compile(r"\./([^\s;|&)]+\.sh)"),
