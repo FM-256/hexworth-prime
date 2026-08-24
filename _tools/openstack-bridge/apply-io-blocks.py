@@ -51,6 +51,16 @@ PAIRS = [
     ("curl http://127.0.0.1:5000/health",
      '{"status":"healthy"}',
      "connection refused means the app died when you closed the terminal: run it inside tmux"),
+    # Mission 4's "prove the block worked" is the page's climax and the closest analog to the
+    # silent failures this whole feature exists to prevent. It was left as prose while Mission 1's
+    # cosmetic check got two boxes: an inversion of risk, not a curated shortlist. The wording is
+    # grounded in a measurement taken the same day, not theory: with a leftover broad rule in
+    # place the partner still got HTTP 200 while the block looked applied; after removing every
+    # matching rule the retry returned HTTP 000, stopped at Neutron before reaching the guest.
+    ("openstack security group rule delete &lt;RULE_ID&gt;",
+     "the partner's retry fails immediately, and honeypot.log gains NO new lines",
+     "traffic still arriving means a BROADER rule still allows it: list every rule on that port, "
+     "not just the one you added last"),
     ("cat /srv/clouddrop/proof.txt",
      "Cinder survived",
      "no such file means you mounted the wrong device, or reformatted the volume and destroyed it"),
@@ -63,6 +73,12 @@ def build(html: str) -> str:
     for anchor, expect, ifnot in PAIRS:
         if anchor not in html:
             print(f"  ANCHOR MISSING, skipped: {anchor[:52]}")
+            continue
+        # Already applied? Re-running must be a no-op, not a second box. Without this the
+        # anchor still matches after the first run and every invocation stacks another block.
+        at = html.index(anchor + "</div>") + len(anchor) + 6
+        if 'class="io"' in html[at:at + 60]:
+            print(f"  already has an io block, skipped: {anchor[:44]}")
             continue
         # The io block is a SIBLING that follows the closed cmd div. An earlier version tried to
         # split the cmd block and left `<div class="cmd" style="display:none">` hanging open,
