@@ -286,6 +286,10 @@ def claim(uid):
 # Seeding runs as the POOL USER (never admin), so a scenario can only ever create what
 # the student themselves could create -- a seed can never grant privilege or exceed quota.
 SCENARIOS = ('orphaned-volume',)
+# The image the rescue-lab seed boots. It MUST be named, never taken by list position: Glance
+# returns newest-first, so before this existed the lab booted whatever image had most recently
+# been uploaded to the cloud. Overridable for a term where cirros is rebuilt under another name.
+SEED_IMAGE = os.environ.get('SEED_IMAGE', 'cirros-0.6.3-x86_64-disk')
 
 
 def _os(utok, service, path, method='GET', body=None):
@@ -395,6 +399,27 @@ def seed(slot, scenario):
         flav = [f for f in ((doc or {}).get('flavors') or []) if f.get('name') == 'm1.nano']
         if not imgs or not flav:
             return 500, {'error': 'SEED_NO_IMAGE_OR_FLAVOR'}
+        # NAME the image, and verify it FITS the flavor. This used to be imgs[0], which trusted
+        # Glance's default ordering -- newest first. That made the Rescue lab's boot image
+        # whatever had been uploaded to this cloud most recently, by anyone, for any reason.
+        #
+        # Measured 2026-08-24: a newly built ubuntu-24.04-sprint (min_ram 512, min_disk 4) took
+        # position 0, and since the seed hard-codes the tiny m1.nano flavor (192MB / 1GB), every
+        # student launch failed -- "Could not build this lab environment" -- for a lab whose
+        # image had not changed. Nothing in the lab was broken; an unrelated upload moved it.
+        #
+        # The flavor here is fixed and very small, so the image is chosen to fit it. The
+        # name-match is the intended path; the fits-the-flavor scan is the safety net for a term
+        # where cirros has been renamed or rebuilt.
+        f_ram = flav[0].get('ram') or 0
+        f_disk = flav[0].get('disk') or 0
+        img = (next((i for i in imgs if i.get('name') == SEED_IMAGE), None)
+               or next((i for i in imgs
+                        if (i.get('min_ram') or 0) <= f_ram
+                        and (i.get('min_disk') or 0) <= f_disk), None))
+        if not img:
+            return 500, {'error': 'SEED_NO_IMAGE_FITS_FLAVOR',
+                         'flavor': flav[0].get('name'), 'ram': f_ram, 'disk': f_disk}
         # A network MUST be named explicitly. Two shared networks exist on this cloud (the
         # second was added so lab 2 could teach that --network is mandatory), and Nova
         # refuses a create that does not say which one to use. The seed never specified one,
@@ -408,7 +433,7 @@ def seed(slot, scenario):
         if not pick:
             return 500, {'error': 'SEED_NO_NETWORK'}
         st, doc = _os(utok, '/compute/v2.1', '/servers', 'POST',
-                      {'server': {'name': 'ghost-srv', 'imageRef': imgs[0]['id'],
+                      {'server': {'name': 'ghost-srv', 'imageRef': img['id'],
                                   'flavorRef': flav[0]['id'],
                                   'networks': [{'uuid': pick['id']}]}})
         if st not in (200, 202):
