@@ -229,8 +229,43 @@
                     count as the same one. Not the same IDs &mdash; those change. Not the same
                     addresses &mdash; those change too. What survives is <em>shape</em>: how many
                     networks, what address ranges, what is allowed in, what runs where.</p>
-                    <p>Your manifest stores <strong>intent</strong>, never state. Two rules make it
-                    portable, and check 25 enforces both:</p>
+                    <p><strong>How you actually do this.</strong> You are going to dump your cloud
+                    as JSON in the next step and it will be full of fields. You need a rule for every
+                    one of them, and there are only three. Every line of your manifest is one of these
+                    decisions:</p>
+                    <ul>
+                        <li><strong>DROP an identity.</strong> Any <code>id</code>, any UUID, any
+                        address the cloud generated for you. It was minted by this deployment, it
+                        dies with this deployment, and it means nothing on any other provider.</li>
+                        <li><strong>TRANSLATE a provider fact.</strong> <code>flavor: m1.nano</code>
+                        is a fact about OpenStack. <code>"size": "small"</code> is a fact about your
+                        architecture, and it is still true on AWS, on Azure, and on a rack in your
+                        basement. Same for the image: the name, never the UUID.</li>
+                        <li><strong>KEEP a decision you made.</strong> What you named the network,
+                        the CIDR you chose, which port you allowed and from where. Nobody generated
+                        those. You decided them, and they ARE the intent.</li>
+                    </ul>
+                    <p>Field by field, that is the whole job. What survives the three rules is your
+                    manifest:</p>
+                    <div class="cmd">WHERE IT COMES FROM        FIELD YOU SEE            RULE        WHAT YOU WRITE
+------------------------   ----------------------   ---------   ----------------------
+network list -f json       "ID"                     DROP        nothing
+network list -f json       "Name": "proj-net"       KEEP        "name": "proj-net"
+network list -f json       "Subnets": ["8f3c..."]   DROP        nothing, but go read
+                                                                that subnet for its range
+subnet list -f json        "Subnet": "10.77.0.0/24" KEEP        "cidr": "10.77.0.0/24"
+subnet list -f json        "Network": "a91e..."     DROP        nothing
+server list -f json        "Flavor": "m1.nano"      TRANSLATE   "size": "small"
+server list -f json        "Image": "cirros-0.6..." TRANSLATE   "image": "cirros"
+server list -f json        "Networks": {"proj-net"  KEEP the    "networks": ["proj-net"]
+                             : ["10.77.0.8"]}       NAME only   (the address is generated)</div>
+                    <p>Note the two traps in that table. The CIDR is not called
+                    <code>cidr</code> in the listing: <code>subnet list</code> reports it under a
+                    column named <code>Subnet</code>, and you rename it on the way into the
+                    manifest. And <code>Networks</code> on a server carries both the name you chose
+                    and the address the cloud assigned: keep the first, drop the second.</p>
+                    <p>Check 25 enforces the first two rules directly: a UUID anywhere fails it, and
+                    a <code>size</code> starting with <code>m1.</code> fails it.</p>
                     <div class="cmd">"size": "small"        # NOT "flavor": "m1.nano"
 "image": "cirros"      # NOT an image UUID
 
@@ -292,6 +327,50 @@ nano ~/project/stack.json
 
 # Prove it is valid JSON before you go on. Silence means it parsed:
 python3 -c "import json; json.load(open('/home/student/project/stack.json'))"</div>
+                    <p><strong>A worked example, start to finish.</strong> This is one project,
+                    not yours: the names and ranges will differ. What transfers is the shape of the
+                    output and which fields survive the three rules.</p>
+                    <div class="cmd">$ openstack network list -f json
+[ { "ID": "a91e2c44-7d1f-4b03-9e51-2c6b8ad10f42",
+    "Name": "proj-net",
+    "Subnets": [ "7d1f0a93-4c28-4e77-b1aa-9f0e2d334c15" ] } ]
+
+$ openstack subnet list -f json
+[ { "ID": "7d1f0a93-4c28-4e77-b1aa-9f0e2d334c15",
+    "Name": "proj-subnet",
+    "Network": "a91e2c44-7d1f-4b03-9e51-2c6b8ad10f42",
+    "Subnet": "10.77.0.0/24" } ]
+
+$ openstack server list -f json
+[ { "ID": "c30b7e15-2f44-4a90-8d6c-51b7e0a9c778",
+    "Name": "proj-vm",
+    "Status": "ACTIVE",
+    "Networks": { "proj-net": [ "10.77.0.8" ] },
+    "Image": "cirros-0.6.3-x86_64-disk",
+    "Flavor": "m1.nano" } ]</div>
+                    <p>Now walk it field by field. Three IDs go in the bin because they are
+                    identities. <code>Flavor</code> and <code>Image</code> get translated because
+                    they are OpenStack facts. The names, the range and the port you allowed are
+                    yours, so they stay. <code>10.77.0.8</code> goes too: the cloud handed that out,
+                    you did not choose it. What is left is the manifest:</p>
+                    <div class="cmd">{
+  "manifest_version": 1,
+  "name": "proj",
+  "networks": [
+    { "name": "proj-net",
+      "subnets": [ { "name": "proj-subnet", "cidr": "10.77.0.0/24" } ] }
+  ],
+  "servers": [
+    { "name": "proj-vm",
+      "size": "small",
+      "image": "cirros",
+      "networks": [ "proj-net" ] }
+  ]
+}</div>
+                    <p>Every value above came from the listings, and nothing in it is a UUID. That
+                    is the whole exercise. Your own manifest will also carry the security groups you
+                    built, read the same way from <code>security group rule list -f json</code>.</p>
+
                     <p><strong>The path matters.</strong> CHECK 25 reads
                     <code>~/project/stack.json</code> and nothing else. A perfect manifest saved
                     anywhere else, or under any other name, reads to the grader as no manifest at
@@ -329,6 +408,24 @@ openstack router delete &lt;your-router&gt;
 openstack subnet delete &lt;your-subnet&gt;
 openstack network delete &lt;your-network&gt;
 openstack security group delete &lt;your-sg&gt;        # NOT 'default'</div>
+                    <p><strong>What each of those prints.</strong> A successful delete says
+                    NOTHING and returns you to the prompt. That silence is the success signal, and
+                    it is why you verify with a list afterwards instead of trusting the absence of
+                    an error. The two failures you will actually hit look like this:</p>
+                    <div class="cmd">$ openstack server delete proj-vm
+$                                        &lt;-- no output. That is success.
+
+$ openstack server delete proj-vm        &lt;-- running it twice
+No server with a name or ID of 'proj-vm' exists.
+                                         &lt;-- already gone, not a new problem
+
+$ openstack network delete proj-net      &lt;-- while a subnet or router port remains
+Failed to delete network with name or ID 'proj-net': ...
+1 of 1 networks failed to delete.
+                                         &lt;-- the ORDER was wrong, not the command</div>
+                    <p>That last one is the whole reason the order above exists. Neutron refuses to
+                    delete a network that still holds a port, and the router interface IS a port, so
+                    the router has to let go of the subnet before the network will go.</p>
                     <p>Then confirm it is really gone. This is the state CHECK 27 will be judged
                     against, so read the output rather than assuming:</p>
                     <div class="cmd">openstack server list        # empty when you are done
@@ -348,6 +445,38 @@ openstack router list        # empty</div>
                     describes. Roughly forty lines of Python. You cannot consult the old
                     environment &mdash; it does not exist any more. The manifest is the only thing
                     that survived, which is the entire point.</p>
+                    <p><strong>What the applier has to do, and how to find each piece.</strong>
+                    You are not being asked to invent anything. Every action it takes is a command
+                    you have already run by hand in this course, and the CLI is the fastest way to
+                    see the exact arguments and output before you automate them.</p>
+                    <div class="cmd">READ THE MANIFEST      python3: json.load(open(sys.argv[1]))
+
+FOR EACH network       does it exist?   openstack network list -f json
+                       create it        openstack network create &lt;name&gt;
+FOR EACH subnet        create it        openstack subnet create &lt;name&gt; \
+                                          --network &lt;net&gt; --subnet-range &lt;cidr&gt;
+FOR EACH server        size -&gt; flavor   openstack flavor list -f json
+                       create it        openstack server create &lt;name&gt; \
+                                          --image &lt;image&gt; --flavor &lt;flavor&gt; \
+                                          --network &lt;net&gt;</div>
+                    <p>The <code>size</code> to flavor step is the one people miss. Your manifest
+                    says <code>"size": "small"</code> on purpose, and something has to turn that
+                    back into a flavor this cloud actually has. Run the listing and decide the
+                    mapping yourself:</p>
+                    <div class="cmd">$ openstack flavor list -f json
+[ { "ID": "1", "Name": "m1.tiny",  "RAM": 512,  "Disk": 1,  "VCPUs": 1 },
+  { "ID": "2", "Name": "m1.small", "RAM": 2048, "Disk": 20, "VCPUs": 1 }, ... ]</div>
+                    <p>That table is the portable part of your design: <code>small</code> means
+                    whatever this provider calls small, and on the next provider it will mean
+                    something else, while your manifest never changes.</p>
+                    <p><strong>Idempotence is one pattern, applied everywhere.</strong> Before you
+                    create anything, ask whether it is already there. That single habit is what
+                    makes RUN 2 a no-op and satisfies CHECK 28:</p>
+                    <div class="cmd">names = [n["Name"] for n in json.loads(list_output)]
+if wanted not in names:
+    create(wanted)          # RUN 1 takes this path
+else:
+    print("unchanged")      # RUN 2 takes this path, and prints something 28 can see</div>
                     <div class="cmd"># You write this file. It does not exist yet:
 nano ~/project/apply.py
 
