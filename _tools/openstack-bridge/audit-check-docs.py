@@ -138,6 +138,79 @@ def fn_requirements(fn: str):
     return groups
 
 
+# What a line CREATES, by target, not by "a creating verb appeared somewhere on this line".
+#
+# The first version asked whether a line contained both a creating token and the filename. That
+# passes a mutation it must fail: deleting `nano ~/project/stack.json` from the capstone left
+#   { ...; python3 ~/project/apply.py ~/project/stack.json; } > ~/project/apply-twice.txt
+# which has a `>` and the word stack.json on the same line, so the audit called stack.json
+# "created" while it was only ever READ there. A redirect to a different file is not creation of
+# this one. Targets are now extracted and compared.
+CREATE_TARGETS = [
+    re.compile(r">>?\s*([^\s;|&)]+)"),                       # redirect target
+    re.compile(r"\b(?:nano|vim?|touch|tee)\s+([^\s;|&)]+)"),  # editor / tee target
+    re.compile(r"\b(?:cp|mv)\s+\S+\s+([^\s;|&)]+)"),         # copy / move destination
+    re.compile(r"\bcurl\s+-o\s*([^\s;|&)]+)"),
+    re.compile(r"\bwget\s+-O\s*([^\s;|&)]+)"),
+]
+
+
+def created_by(line: str):
+    """Every path this line actually brings into being."""
+    out = set()
+    for rx in CREATE_TARGETS:
+        out |= set(rx.findall(line))
+    return out
+
+
+def cmd_blocks(raw: str):
+    """Everything a student is shown to TYPE, in any of the markups the pages actually use.
+
+    Reading only `<div class="cmd">` reported two false positives against the OpenStack hub,
+    which puts its commands in `<div class="lab-monitor__how">Try: <code>...</code></div>`. The
+    instructions were right there. Narrowing an extractor to one page's convention and then
+    reporting on seven pages is how an audit invents defects.
+
+    Including every `<code>` stays precise because a match ALSO requires a CREATORS verb on the
+    same line, so a bare `<code>~/notes/servers.txt</code>` mention still counts as prose.
+    """
+    out = [html.unescape(m) for m in re.findall(r'<div class="cmd">(.*?)</div>', raw, re.S)]
+    out += [html.unescape(m) for m in re.findall(r'<code[^>]*>(.*?)</code>', raw, re.S)]
+    out += [html.unescape(m) for m in re.findall(r'class="lab-monitor__how">(.*?)</div>', raw, re.S)]
+    return out
+
+
+def creation_audit(checks, pages):
+    """Every file a grader READS must be CREATED by an instruction the page actually gives.
+
+    This is the gap the token audit cannot see. On 2026-08-24 the IaC capstone graded
+    ~/project/stack.json while the page only ever mentioned the path: no step told anyone to
+    write it, and step 4 then ran an applier against a file nobody had been asked to create.
+    A filename appearing in prose, or inside a command that READS it, is not an instruction.
+    """
+    findings = []
+    for c in checks:
+        if c["kind"] != "cmd":
+            continue
+        needed = set(re.findall(r"/home/student/[A-Za-z0-9_./-]+", expand(c["cmd"])))
+        if not needed:
+            continue
+        for p, ids in pages.items():
+            if c["id"] not in ids:
+                continue
+            blocks = cmd_blocks(p.read_text(errors="replace"))
+            for path in needed:
+                forms = {path, path.replace("/home/student/", "~/"), path.rsplit("/", 1)[-1]}
+                created = any(
+                    any(t.rstrip("'\"") in forms or t.rstrip("'\"").endswith("/" + path.rsplit("/", 1)[-1])
+                        for t in created_by(line))
+                    for b in blocks for line in b.split("\n")
+                )
+                if not created:
+                    findings.append((c["id"], p.name, path, c["desc"]))
+    return findings
+
+
 def page_text(p: Path) -> str:
     raw = p.read_text(errors="replace")
     return html.unescape(re.sub(r"<[^>]+>", " ", raw)) + " " + raw
@@ -183,6 +256,15 @@ def main():
                 for g in unmet[:4]:
                     print(f"     absent : {' OR '.join(sorted(g)[:3])}")
     print(f"\n  candidates to read: {findings}")
+
+    print("\n  === does the page TELL the student to create every file it is graded on? ===")
+    created = creation_audit(checks, pages)
+    for cid, page, path, desc in created:
+        print(f"  CHECK {cid:>3}  {page}")
+        print(f"     graded on : {path}")
+        print(f"     desc      : {desc[:70]}")
+        print(f"     PROBLEM   : no command block on that page creates it")
+    print(f"  files graded but never created by an instruction: {len(created)}")
     if NOT_A_DEFECT:
         print(f"  ({len(NOT_A_DEFECT)} known non-defect(s) suppressed; see NOT_A_DEFECT for why)")
 
