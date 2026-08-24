@@ -64,6 +64,21 @@ STUDENT_REPLACE = [
     (105, "# In another terminal", "# 4. detach from tmux with:  Ctrl+b  then  d"),
     (106, "tail -f honeypot.log", "tail -f ~/honeypot.log                        # 5. watch the log fill up"),
     (108, "Authorized partner only", "# 6. On your PARTNER's instance (authorized partner only):"),
+    # SSH scoping. The lab image accepts PASSWORDS (Mission 2 cannot work otherwise), so a
+    # subnet-wide TCP/22 rule would let any student reach any other student's sudo account.
+    # Quota is ONE instance, and a Cinder volume cannot cross projects -- so "VM #2" cannot be a
+    # second simultaneous VM, and it cannot be the partner's either. The student DELETES VM #1 and
+    # creates a new instance. Verified by hand 2026-08-24: the volume mounted without mkfs on the
+    # new instance and proof.txt read back intact. The lesson is stronger this way: the data
+    # outlives the compute entirely.
+    (40, "Attach the same Cinder volume to VM #2",
+     "\u2610 DELETE VM #1 (your quota is ONE instance, so VM #2 cannot exist until VM #1 is gone), "
+     "create a new instance, and attach the SAME volume to it."),
+    (56, "# Detach and reattach",
+     "# Detach, DELETE VM #1, then reattach to a NEW instance (quota is ONE instance)"),
+    (37, "Use SFTP from an approved peer",
+     "\u2610 Allow TCP/22 from your PARTNER'S IP ONLY (a /32 rule), then use SFTP from that peer. "
+     "Never open 22 to the whole subnet: this lab image accepts passwords."),
 ]
 STUDENT_INSERT_BEFORE = [
     (104, "python3 project4_honeypot.py",
@@ -89,6 +104,9 @@ STUDENT_INSERT_AFTER = [
     (108, "Authorized partner only",
      ["cp /opt/sprint-assets/project4_generate_traffic.sh ~/",
       "chmod +x ~/project4_generate_traffic.sh"]),
+    (57, "openstack server remove volume <VM1> cloud-drop",
+     ["openstack server delete <VM1>          # quota is ONE instance: VM #1 must go first",
+      "openstack server create <VM2> --image ubuntu-24.04-sprint --flavor ds512M --network shared"]),
 ]
 
 # ── instructor runbook ───────────────────────────────────────────────────────
@@ -113,6 +131,16 @@ RUNBOOK_REPLACE = [
     (152, "Distribute the lab asset ZIP",
      "☐ The lab assets are BAKED INTO the image at /opt/sprint-assets/. The ZIP is a reference copy; "
      "students do not need to transfer anything."),
+    (34, "partner's private IP or the 'shared' subnet",
+     "Add a Neutron security-group rule for TCP/80 from the partner's private IP as a /32. Do NOT use "
+     "the whole 'shared' subnet, and never 0.0.0.0/0. Do NOT associate a floating IP for this: on this "
+     "cloud they are 172.24.4.0/24 and unreachable from another student's machine. Peer verification is "
+     "instance-to-instance on 'shared'."),
+    (73, "Allow TCP/22 only from the approved client source",
+     "Allow TCP/22 from the partner's IP as a /32 ONLY. The lab image enables SSH password authentication "
+     "so that Mission 2's peer SFTP can work at all, which means a subnet-wide TCP/22 rule would expose "
+     "every student's instance to every other student on 'shared'. Scope it to the one partner, and take "
+     "the rule back out when the mission is done."),
     (153, "Verify package repository access",
      "☐ Do NOT expect package installs to work. Instances have no egress by design; every needed "
      "package is baked into ubuntu-24.04-sprint. Re-run build-sprint-image.sh after a DevStack rebuild."),

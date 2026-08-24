@@ -198,11 +198,25 @@ done
 SRV_IP=$(osrun "$SRV_SLOT" "openstack server show $SRV_NAME -f value -c addresses" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 echo "  server status=$S"
 
-# The security-group rules the packet has the student create.
+# The security-group rules the packet has the student create -- scoped to the PARTNER'S /32,
+# which is what the packet and runbook now require. This harness previously opened the whole
+# 192.168.233.0/24. That was not what students are told to build, so the tight rule was never
+# actually tested; and because the image enables SSH password auth for Mission 2, a subnet-wide
+# TCP/22 rule would let any student reach any other student's sudo account.
+PEER_IP=$(osrun "$PEER_SLOT" "openstack server show $PEER_NAME -f value -c addresses" 2>/dev/null \
+          | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+if [ -n "$PEER_IP" ]; then
+  SCOPE="$PEER_IP/32"
+else
+  # The peer does not exist yet on the first pass. Fall back, but say so loudly rather than
+  # silently widening the rule and calling it a pass.
+  SCOPE="192.168.233.0/24"
+  echo "    ⚠ peer not up yet -- falling back to $SCOPE for this pass (NOT what students build)"
+fi
 for p in 22 80 5000 8080; do
   osrun "$SRV_SLOT" "openstack security group rule create --ingress --protocol tcp --dst-port $p \
-    --remote-ip 192.168.233.0/24 default -f value -c id" >/dev/null 2>&1 \
-    && echo "    opened tcp/$p" || echo "    tcp/$p already open"
+    --remote-ip $SCOPE default -f value -c id" >/dev/null 2>&1 \
+    && echo "    opened tcp/$p from $SCOPE" || echo "    tcp/$p already open"
 done
 
 # Mission 2 infrastructure: the volume the student attaches.
