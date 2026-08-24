@@ -211,6 +211,42 @@ def creation_audit(checks, pages):
     return findings
 
 
+# Paths a command CONSUMES. These must already exist when the line runs.
+CONSUMERS = [
+    re.compile(r"\b(?:cat|less|head|tail|source|\.)\s+([^\s;|&)]+)"),
+    re.compile(r"\bpython3?\s+([^\s;|&)-][^\s;|&)]*\.py)"),
+    re.compile(r"\bbash\s+([^\s;|&)]+\.sh)"),
+    re.compile(r"\./([^\s;|&)]+\.sh)"),
+]
+
+
+def self_consistency_audit(pages):
+    """Within ONE page: does it run anything it never told the student to create?
+
+    apply.py was referenced three times in the capstone (`python3 ~/project/apply.py ...`) and
+    no step ever said to write it. The check-driven audit could not see it, because no CHECK
+    reads apply.py: only the page's own commands do. Same defect as stack.json, invisible to a
+    tool that only looks at what the grader touches.
+    """
+    findings = []
+    for p in sorted(pages):
+        blocks = cmd_blocks(p.read_text(errors="replace"))
+        made, used = set(), {}
+        for b in blocks:
+            for line in b.split("\n"):
+                if line.strip().startswith("#"):
+                    continue
+                for t in created_by(line):
+                    made.add(t.rstrip("'\"").rsplit("/", 1)[-1])
+                for rx in CONSUMERS:
+                    for t in rx.findall(line):
+                        used.setdefault(t.rstrip("'\"").rsplit("/", 1)[-1], t)
+        for base, shown in used.items():
+            if base not in made:
+                findings.append((p.name, shown))
+    return findings
+
+
 def page_text(p: Path) -> str:
     raw = p.read_text(errors="replace")
     return html.unescape(re.sub(r"<[^>]+>", " ", raw)) + " " + raw
@@ -265,6 +301,14 @@ def main():
         print(f"     desc      : {desc[:70]}")
         print(f"     PROBLEM   : no command block on that page creates it")
     print(f"  files graded but never created by an instruction: {len(created)}")
+
+    print("\n  === does a page RUN anything it never told the student to write? ===")
+    self_c = self_consistency_audit(pages)
+    for page, path in self_c:
+        print(f"  {page}")
+        print(f"     runs      : {path}")
+        print(f"     PROBLEM   : no command on that page creates it")
+    print(f"  files run but never created: {len(self_c)}")
     if NOT_A_DEFECT:
         print(f"  ({len(NOT_A_DEFECT)} known non-defect(s) suppressed; see NOT_A_DEFECT for why)")
 
