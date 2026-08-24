@@ -41,6 +41,9 @@ MNT=/mnt/sprintimg
 KEY=${STAGE1_KEY:-$HOME/openstack-stage1/stage1_key}
 VMADDR=${STAGE1_VM:-192.168.122.62}
 ADMIN_ENV=${ADMIN_ENV:-$HOME/openstack-stage1/admin-auth.env}
+# The lab assets baked into /opt/sprint-assets. Defaults to the copy that sits beside this script
+# so a fresh clone works; SPRINT_ASSETS overrides it when the assets are staged elsewhere on bc2.
+ASSETS=${SPRINT_ASSETS:-$(cd "$(dirname "$0")" && pwd)/sprint-assets}
 
 # nginx           Mission 1
 # nmap ping       the scan / verify steps
@@ -53,6 +56,13 @@ ADMIN_ENV=${ADMIN_ENV:-$HOME/openstack-stage1/admin-auth.env}
 # cloud images do), so the image had the sftp CLIENT and no sshd. A four-mission end-to-end run
 # caught it: the server reported sshd=inactive and Mission 2 could not work at all.
 PKGS="nginx nmap iputils-ping python3-flask openssh-server openssh-client curl ca-certificates"
+
+# Checked BEFORE the expensive chroot build, not at the point of use: a missing asset dir should
+# cost a second, not a full apt install and image convert.
+for a in project1_index.html project2_cinder_guest_setup.sh project3_api.py \
+         project4_generate_traffic.sh project4_honeypot.py README.md; do
+  [ -s "$ASSETS/$a" ] || { echo "✗ lab asset missing: $ASSETS/$a"; echo "  copy _tools/openstack-bridge/sprint-assets/ to bc2, or set SPRINT_ASSETS"; exit 2; }
+done
 
 [ -r "$ADMIN_ENV" ] || { echo "✗ cannot read $ADMIN_ENV -- run this on bc2"; exit 2; }
 set -a; . "$ADMIN_ENV"; set +a
@@ -153,9 +163,37 @@ sudo chroot "$MNT" /bin/bash -c "
   if ! grep -q '^manage_etc_hosts' /etc/cloud/cloud.cfg; then
     echo 'manage_etc_hosts: true' >> /etc/cloud/cloud.cfg
   fi
+  # MISSION 2 CANNOT WORK WITHOUT THIS, measured: sshd -T reported passwordauthentication=no on a
+  # booted instance. The mission says 'use SFTP from an approved peer', but Ubuntu cloud images set
+  # ssh_pwauth false, and a peer has no way to obtain the target's private key -- so the peer had
+  # NO usable authentication method at all and the mission was undoable as written.
+  #
+  # Passwords, not keys, because the student's only access is the Horizon noVNC console: pasting a
+  # public key through noVNC is exactly the kind of step that eats a class period. The student sets
+  # the password themselves with 'sudo passwd ubuntu' -- no credential is baked into the image.
+  # Acceptable here because 'shared' is an isolated segment with no route off the cloud; on a
+  # routable network this would not be.
+  if ! grep -q '^ssh_pwauth' /etc/cloud/cloud.cfg; then
+    echo 'ssh_pwauth: true' >> /etc/cloud/cloud.cfg
+  fi
   echo '<h1>MY CLOUD IS ALIVE</h1><p>Student/Team: CHANGE ME</p>' > /var/www/html/index.html
   apt-get clean
 "
+
+# ── the LAB ASSETS themselves ────────────────────────────────────────────────
+# The packet says `cp project1_index.html ...` and `python3 project4_honeypot.py`. Nothing ever
+# put those files on the instance. There is NO egress, and students reach the instance only
+# through the Horizon noVNC console -- so there is no scp, no wget, and no clipboard worth
+# trusting for a 43-line python file. Every mission's first command was "No such file or
+# directory" for a student, and my own end-to-end test never caught it because the test harness
+# injected the assets via cloud-init: it handed itself the key the student is not given.
+# Baking them is the same argument as baking the packages: a fixed artifact, no network on the day.
+echo "  [5b] bake the lab assets into /opt/sprint-assets"
+[ -d "$ASSETS" ] || { echo "  ✗ asset dir $ASSETS not found on this host -- copy sprint-assets/ to bc2 first"; exit 1; }
+sudo mkdir -p "$MNT/opt/sprint-assets"
+sudo cp -f "$ASSETS"/project*.* "$ASSETS"/README.md "$MNT/opt/sprint-assets/"
+sudo chmod 0644 "$MNT"/opt/sprint-assets/*
+sudo chmod 0755 "$MNT"/opt/sprint-assets/*.sh    # the generator is run as ./project4_generate_traffic.sh
 
 echo "  [6] verify the binaries are REALLY present, not just that apt exited 0"
 miss=0
@@ -170,9 +208,39 @@ for svc in nginx ssh; do
     && echo "  enabled at boot: $svc" \
     || { echo "  ✗ $svc installed but NOT enabled at boot"; miss=1; }
 done
+# The assets are what the packet's very first command reaches for. "Present" is not enough --
+# a truncated copy fails at student time, so the python must actually compile and the shell
+# scripts must actually parse.
+for a in project1_index.html project2_cinder_guest_setup.sh project3_api.py \
+         project4_generate_traffic.sh project4_honeypot.py README.md; do
+  sudo test -s "$MNT/opt/sprint-assets/$a" \
+    && echo "  asset: $a" \
+    || { echo "  ✗ MISSING or EMPTY asset $a"; miss=1; }
+done
+for p in project3_api.py project4_honeypot.py; do
+  # ast.parse, NOT py_compile. py_compile writes __pycache__ *by design* and ignores
+  # PYTHONDONTWRITEBYTECODE (that variable governs import-time caching, not an explicit compile).
+  # The first attempt used it and shipped a __pycache__ into the students' pristine asset dir --
+  # measured on the image, the same debris that shipped inside the v2 zip. ast.parse writes nothing.
+  sudo chroot "$MNT" python3 -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" "/opt/sprint-assets/$p" 2>/dev/null \
+    || { echo "  ✗ asset $p does not compile inside the image"; miss=1; }
+done
+for s in project2_cinder_guest_setup.sh project4_generate_traffic.sh; do
+  sudo chroot "$MNT" bash -n "/opt/sprint-assets/$s" 2>/dev/null \
+    || { echo "  ✗ asset $s is not valid shell"; miss=1; }
+  sudo test -x "$MNT/opt/sprint-assets/$s" \
+    || { echo "  ✗ asset $s is not executable (packet runs it as ./$s)"; miss=1; }
+done
 sudo grep -q '^manage_etc_hosts: true' "$MNT/etc/cloud/cloud.cfg" \
   && echo "  cloud-init will write /etc/hosts (kills the sudo hostname warning)" \
   || { echo "  ✗ manage_etc_hosts not set -- every sudo will warn"; miss=1; }
+sudo grep -q '^ssh_pwauth: true' "$MNT/etc/cloud/cloud.cfg" \
+  && echo "  ssh password auth enabled (Mission 2 peer SFTP is impossible without it)" \
+  || { echo "  ✗ ssh_pwauth not set -- Mission 2 peer SFTP cannot authenticate"; miss=1; }
+# The asset dir the student is told to treat as pristine must not contain build debris.
+sudo test -d "$MNT/opt/sprint-assets/__pycache__" \
+  && { echo "  ✗ __pycache__ left in /opt/sprint-assets (verification wrote it)"; miss=1; } \
+  || echo "  asset dir clean (no __pycache__)"
 if [ "$miss" -eq 0 ]; then echo "  all baked binaries present AND enabled"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
 
 sudo truncate -s0 "$MNT/etc/machine-id"

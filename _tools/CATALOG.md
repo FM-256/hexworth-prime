@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-22 21:50 · **1102 scripts** · 21 wired into a gate · 256 called by other code · 160 only mentioned in docs · 665 referenced by nothing · 470 not in git
+**Generated:** 2026-08-24 07:42 · **1109 scripts** · 21 wired into a gate · 262 called by other code · 160 only mentioned in docs · 666 referenced by nothing · 474 not in git
 
 ## Read this before writing a new script
 
@@ -835,8 +835,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `boot-survivability-audit.sh` | CALLED | 1 | 2026-08-20 | no | audit whether a host's services survive a power cut or a crash (read-only) |
-| `test-boot-audit.sh` | DOCS-ONLY | 0 | 2026-08-20 | no | prove every boot-audit check can go RED (mutation test, two fixtures each) |
+| `boot-survivability-audit.sh` | CALLED | 1 | 2026-08-20 | yes | audit whether a host's services survive a power cut or a crash (read-only) |
+| `test-boot-audit.sh` | DOCS-ONLY | 0 | 2026-08-20 | yes | prove every boot-audit check can go RED (mutation test, two fixtures each) |
 
 ### `_tools/monitoring/config` — 2 scripts, 0 referenced by nothing
 
@@ -932,7 +932,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 26 scripts, 5 referenced by nothing
+### `_tools/openstack-bridge` — 29 scripts, 6 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -944,16 +944,19 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `adversarial-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-wall.js` | CALLED | 17 | 2026-08-11 | yes |  |
 | `apply-bc1-patch.py` | ORPHAN | 0 | 2026-07-30 | yes |  |
+| `build-sprint-image.sh` | CALLED | 3 | 2026-08-24 | yes | build+upload ubuntu-24.04-sprint (nginx/flask/nmap baked in, no egress needed) |
 | `claim_service.py` | CALLED | 5 | 2026-08-21 | yes |  |
 | `dump-slot-uids.py` | CALLED | 3 | 2026-07-31 | yes |  |
 | `e2e-stage3.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `ensure-second-network.sh` | CALLED | 1 | 2026-07-30 | yes |  |
-| `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-22 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
+| `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-23 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
+| `patch-sprint-packet.py` | ORPHAN | 0 | 2026-08-24 | no | patch the student sprint packet's command blocks (positional, verified) |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
 | `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
 | `qc-lab.sh` | CALLED | 20 | 2026-07-31 | yes |  |
 | `reclaim-idle-slots.py` | CALLED | 5 | 2026-07-31 | yes |  |
-| `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-22 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
+| `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-23 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
+| `sprint-student-walkthrough.sh` | CALLED | 1 | 2026-08-24 | no | cold-run the sprint packet's literal commands on fresh instances; no asset injection |
 | `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
 | `walkthrough-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-cinder.js` | CALLED | 4 | 2026-08-11 | yes |  |
@@ -962,6 +965,15 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `walkthrough-rescue.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-wall.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
+
+### `_tools/openstack-bridge/sprint-assets` — 4 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `project2_cinder_guest_setup.sh` | CALLED | 1 | 2026-08-24 | no |  |
+| `project3_api.py` | CALLED | 3 | 2026-08-24 | no |  |
+| `project4_generate_traffic.sh` | CALLED | 3 | 2026-08-24 | no |  |
+| `project4_honeypot.py` | CALLED | 3 | 2026-08-24 | no |  |
 
 ### `_tools/operator-board/server` — 1 scripts, 0 referenced by nothing
 
