@@ -119,6 +119,26 @@
     </div>
 
     <div class="card">
+        <h2>YOU NEED TWO DIFFERENT TERMINALS. KNOW WHICH IS WHICH.</h2>
+        <p>Half the commands in this sprint run <strong>on your instance</strong> and half run
+        <strong>against the cloud</strong>. They are not the same shell, and typing one in the other
+        is the most common way to get stuck here.</p>
+        <ul>
+            <li><strong>The OpenStack CLI terminal</strong>, launched below. Everything starting with
+            <code>openstack</code> goes here: volumes, attach and detach, creating and deleting
+            instances, security-group rules. This terminal is already authenticated as your project.
+            The <code>openstack</code> client is NOT installed on your instance, so these commands
+            cannot be run there.</li>
+            <li><strong>Your instance's own console</strong>, opened from Horizon. Everything that
+            touches the machine itself goes here: <code>nginx</code>, <code>nano</code>,
+            <code>tmux</code>, <code>python3</code>, <code>mount</code>, <code>curl</code>,
+            <code>nmap</code>, <code>sftp</code>.</li>
+        </ul>
+        <div id="sprint-launcher"></div>
+        <p id="sprint-launcher-msg" style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 10px;"></p>
+    </div>
+
+    <div class="card">
         <h2>ONE CONSOLE, TWO SHELLS</h2>
         <p>You reach your instance through the Horizon web console, and several missions need one
         thing running while you watch another. That is what <code>tmux</code> is for:</p>
@@ -172,13 +192,23 @@ nmap -Pn -p 22,80 &lt;YOUR_PRIVATE_IP&gt;   # -Pn: ICMP is closed by default her
 openstack server add volume &lt;VM1&gt; cloud-drop
 
 # inside VM1, AFTER confirming which device is the new empty one:
-lsblk
+lsblk                            # WHICH device is the new empty one?
+
 sudo mkfs.ext4 /dev/vdb          # EXAMPLE DEVICE. Verify yours first.
 sudo mkdir -p /srv/clouddrop
 sudo mount /dev/vdb /srv/clouddrop
 echo "Cinder survived" | sudo tee /srv/clouddrop/proof.txt</div>
-                <p><strong>Format only the new empty volume.</strong> Running <code>mkfs</code> on
-                the wrong device destroys it. Check <code>lsblk</code> before you type.</p>
+                <p><strong>Format only the new empty volume.</strong> This is the one step in the
+                sprint that cannot be undone: <code>mkfs</code> on the wrong device destroys what is
+                on it. Read <code>lsblk</code> first and be certain which device is the 1G one you
+                just attached.</p>
+                <p>There is a supplied helper,
+                <code>/opt/sprint-assets/project2_cinder_guest_setup.sh</code>, which asks you to
+                type FORMAT before it proceeds and then also creates a <code>clouddrop</code> user
+                and an <code>/etc/fstab</code> entry so the mount survives a reboot. Read it before
+                you run it. Be aware it formats with <code>mkfs.ext4 -F</code>, so the typed
+                confirmation is the ONLY thing standing between you and a wiped device: it does not
+                check whether the device already holds data.</p>
             </div></div>
             <div class="step"><div>
                 <h3>Take a file from your partner over SFTP</h3>
@@ -316,6 +346,35 @@ openstack security group rule delete &lt;RULE_ID&gt;</div>
     </div>
 
     </div></div>
+
+    <script>
+    // Missions 2 and 4 issue `openstack` commands. That client is NOT on the guest image
+    // (build-sprint-image.sh PKGS), so the ONLY place those commands can run is the sandbox
+    // terminal this launcher provisions, exactly as every sibling live lab does. The first
+    // version of this page shipped six openstack commands with no launcher at all: the same
+    // "told to run something they cannot reach" bug the whole sprint rewrite exists to remove.
+    if (typeof SandboxLauncher !== 'undefined') {
+        var msg = document.getElementById('sprint-launcher-msg');
+        function note(t) { if (msg) msg.textContent = t; }
+        SandboxLauncher.renderButton(document.getElementById('sprint-launcher'), 'openstack-cli', {
+            onLaunch: function (labId, result) {
+                var mode = result && result.cloudMode;
+                note(mode === 'personal'
+                    ? 'Personal cloud ready (project ' + (result.cloudSlot || 'assigned') + '). Run every openstack command here. Your resources persist between sessions.'
+                    : mode === 'read-only'
+                        ? 'Read-only mode: no personal project was free, so Missions 2 and 4 cannot be completed this session. Everything is still explorable. Try again later.'
+                        : 'Terminal ready. Run every openstack command here.');
+            },
+            onEnd: function () { note('Session ended. Your cloud resources are still there; relaunch to continue.'); },
+            extraActions: [
+                {
+                    label: 'Field Guide', visibleWhen: 'always',
+                    onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
+                }
+            ]
+        });
+    }
+    </script>
 
     <div class="footer">
         <a href="../index.html">Back to OpenStack Cloud Platform</a>
