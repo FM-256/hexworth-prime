@@ -146,6 +146,13 @@ sudo chroot "$MNT" /bin/bash -c "
       fi
     done
   done
+  # Every sudo on these instances printed 'sudo: unable to resolve host <name>: Temporary failure
+  # in name resolution' -- there is no DNS here and nothing maps the instance's own hostname.
+  # Harmless, but a student sees it on EVERY command and will ask. cloud-init writes the entry
+  # itself when told to, which handles the per-instance hostname it cannot know at build time.
+  if ! grep -q '^manage_etc_hosts' /etc/cloud/cloud.cfg; then
+    echo 'manage_etc_hosts: true' >> /etc/cloud/cloud.cfg
+  fi
   echo '<h1>MY CLOUD IS ALIVE</h1><p>Student/Team: CHANGE ME</p>' > /var/www/html/index.html
   apt-get clean
 "
@@ -163,6 +170,9 @@ for svc in nginx ssh; do
     && echo "  enabled at boot: $svc" \
     || { echo "  ✗ $svc installed but NOT enabled at boot"; miss=1; }
 done
+sudo grep -q '^manage_etc_hosts: true' "$MNT/etc/cloud/cloud.cfg" \
+  && echo "  cloud-init will write /etc/hosts (kills the sudo hostname warning)" \
+  || { echo "  ✗ manage_etc_hosts not set -- every sudo will warn"; miss=1; }
 if [ "$miss" -eq 0 ]; then echo "  all baked binaries present AND enabled"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
 
 sudo truncate -s0 "$MNT/etc/machine-id"
