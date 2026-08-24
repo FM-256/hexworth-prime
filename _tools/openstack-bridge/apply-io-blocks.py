@@ -23,7 +23,58 @@ import re
 import sys
 from pathlib import Path
 
-PAGE = Path("_app/houses/cloud/openstack/labs/cloud-openstack-security-sprint.lab.html")
+LABS = Path("_app/houses/cloud/openstack/labs")
+
+# Every EXPECT below is taken from what the GRADER asserts, or from a string the page itself
+# tells the student to write. None of them is my own guess about behaviour: that is the mistake
+# that put "fails immediately" on the sprint page when a security-group drop is a timeout.
+#
+# Most of these pages already carry a primitive expectation in a comment ("# WAIT for: ACTIVE").
+# What none of them carries is the DIAGNOSIS: what the wrong answer means. That is the half that
+# saves a student twenty minutes of looking at the wrong layer, so it is the half worth adding.
+PAGE_PAIRS = {
+ "cloud-openstack-cinder-live.lab.html": [
+   ("openstack volume show lab-vol -f value -c status   # WAIT for: in-use",
+    "in-use  (check 4 reads this exact state out of attach-proof.txt)",
+    "still available means the attach did not take; error usually means the server was not ACTIVE yet"),
+   ("openstack volume show lab-vol -f value -c status   # WAIT for: available (detach is not ",
+    "available  (check 5 reads this state out of detach-proof.txt)",
+    "still in-use means the detach has not finished: it is not instant, wait and ask again"),
+ ],
+ "cloud-openstack-launch-chain-live.lab.html": [
+   # Both of these lines live in the SAME command block, and one io block can only follow a
+   # block, so they are stated together rather than silently dropping the second.
+   ("openstack server show chain-vm -f value -c addresses  # must not be empty",
+    "an address on a network (check 16), and flavor m1.nano (check 15)",
+    "an empty address means you booted with no network: the disk runs and nothing can reach it. "
+    "A different flavor means the create fell back to a default"),
+ ],
+ "cloud-openstack-neutron-live.lab.html": [
+   ("openstack router show lab5-router -f value -c external_gateway_info",
+    "a network_id, not None  (check 23 needs the gateway AND a subnet interface)",
+    "None means the external gateway was never set: the router exists but leads nowhere"),
+   ("openstack server show lab5-vm -f value -c addresses   # must show lab5-net",
+    "lab5-net  (check 24 wants a machine actually ON your network)",
+    "a shared network here means you built lab5-net and then booted somewhere else"),
+ ],
+ "cloud-openstack-secgroup-live.lab.html": [
+   ("openstack server show guard-vm -f value -c security_groups   # web-sg must appear",
+    "web-sg  (check 20 tests that the group is ATTACHED, not merely created)",
+    "only 'default' means the rule you wrote guards nothing: it exists, on no machine"),
+ ],
+ "cloud-openstack-rescue-live.lab.html": [
+   ("openstack volume show orphan-vol -f value -c status   # WAIT for: available",
+    "available  (the volume outlived the server, which is the whole lesson)",
+    "in-use means the detach has not finished, or you deleted the server without detaching first"),
+ ],
+ "cloud-openstack-project-iac.lab.html": [
+   ("openstack server list        # empty when you are done",
+    "no rows at all  (check 27 compares what is standing against your pre-destroy baseline)",
+    "a server still listed means teardown is incomplete, and 27 will judge you against a stack that never died"),
+ ],
+}
+
+PAGE = LABS / "cloud-openstack-security-sprint.lab.html"
 
 CSS = """        /* command / expected-output pairs. EXPECT carries the invariant ONLY: no UUIDs,
            no addresses, no timestamps, because those drift and a stale expectation is a lie
@@ -81,22 +132,24 @@ def build(html: str) -> str:
         if anchor not in html:
             print(f"  ANCHOR MISSING, skipped: {anchor[:52]}")
             continue
-        # Already applied? Re-running must be a no-op, not a second box. Without this the
-        # anchor still matches after the first run and every invocation stacks another block.
-        at = html.index(anchor + "</div>") + len(anchor) + 6
-        if 'class="io"' in html[at:at + 60]:
+        # The anchor is not always the LAST line of its command block. On most lab pages it sits
+        # mid-block, so the io block must go after the block's CLOSING tag, not after the anchor
+        # line. Assuming anchor+"</div>" existed crashed on the first page that was not the
+        # sprint, which is what happens when a helper is written against a single example.
+        a_at = html.index(anchor)
+        close = html.index("</div>", a_at) + len("</div>")
+        if 'class="io"' in html[close:close + 60]:
             print(f"  already has an io block, skipped: {anchor[:44]}")
             continue
         # The io block is a SIBLING that follows the closed cmd div. An earlier version tried to
         # split the cmd block and left `<div class="cmd" style="display:none">` hanging open,
         # which took div balance from 57/57 to 73/69 and would have nested every later section
         # inside a hidden div. Append after the closer; never reopen.
-        block = (f"{anchor}</div>\n"
-                 f'                <div class="io">\n'
-                 f'                    <div class="io__expect"><span class="io__label">EXPECT</span>{expect}</div>\n'
-                 f'                    <div class="io__ifnot"><span class="io__label">IF NOT</span>{ifnot}</div>\n'
-                 f'                </div>')
-        html = html.replace(anchor + "</div>", block, 1)
+        io = ('\n                <div class="io">\n'
+              f'                    <div class="io__expect"><span class="io__label">EXPECT</span>{expect}</div>\n'
+              f'                    <div class="io__ifnot"><span class="io__label">IF NOT</span>{ifnot}</div>\n'
+              '                </div>')
+        html = html[:close] + io + html[close:]
     return html
 
 
@@ -113,7 +166,38 @@ def audit(html: str) -> int:
     return bad
 
 
+def apply_to(path: Path, pairs, write: bool) -> bool:
+    """Apply one page's pairs. Returns True if anything changed."""
+    global PAIRS
+    saved, PAIRS = PAIRS, pairs
+    try:
+        src = path.read_text()
+        out = build(src)
+        if audit(out):
+            print(f"  {path.name}: REFUSING, an expectation would go stale")
+            return False
+        if out.count("<div") != out.count("</div>"):
+            print(f"  {path.name}: REFUSING, div balance broken")
+            return False
+        from html.parser import HTMLParser
+        HTMLParser().feed(out)
+        changed = out != src
+        if write and changed:
+            path.write_text(out)
+        print(f"  {path.name}: {out.count('class=\"io__expect\"')} pair(s), "
+              f"divs {out.count('<div')}/{out.count('</div>')}"
+              f"{' WRITTEN' if (write and changed) else ' (no change)'}")
+        return changed
+    finally:
+        PAIRS = saved
+
+
 if __name__ == "__main__":
+    if "--all" in sys.argv:
+        w = "--write" in sys.argv
+        for name, pairs in PAGE_PAIRS.items():
+            apply_to(LABS / name, pairs, w)
+        sys.exit(0)
     src = PAGE.read_text()
     out = build(src)
     if audit(out):
