@@ -69,9 +69,14 @@ PAGE_PAIRS = {
     "only 'default' means the rule you wrote guards nothing: it exists, on no machine"),
  ],
  "cloud-openstack-rescue-live.lab.html": [
+   # NO claim about what happens if you delete a server without detaching. Nothing in this repo
+   # confirms it, and adversarial-rescue.js documents the OPPOSITE outcome (volume gone, data
+   # loss) for that exact scenario, in a cheat whose body was never implemented. So neither
+   # outcome has been observed on this cloud. Hedged like the cinder-live pair instead of picking
+   # a side: the third time today I stated a mechanism I had not measured.
    ("openstack volume show orphan-vol -f value -c status   # WAIT for: available",
     "available  (the volume outlived the server, which is the whole lesson)",
-    "in-use means the detach has not finished, or you deleted the server without detaching first"),
+    "still in-use means the detach has not finished: it is not instant, wait and ask again"),
  ],
  "cloud-openstack-project-iac.lab.html": [
    ("openstack server list        # empty when you are done",
