@@ -46,8 +46,13 @@ ADMIN_ENV=${ADMIN_ENV:-$HOME/openstack-stage1/admin-auth.env}
 # nmap ping       the scan / verify steps
 # python3-flask   Mission 3 -- system-wide, because `pip install flask` needs PyPI, a SECOND
 #                 egress dependency the missions cannot satisfy
-# openssh-client  Mission 2 sftp
-PKGS="nginx nmap iputils-ping python3-flask openssh-client curl ca-certificates"
+# openssh-server  Mission 2 -- the student's own instance is the SFTP TARGET
+# openssh-client  Mission 2 -- and it is also the peer doing the uploading
+#
+# ⚠ openssh-SERVER was missed in the first build. ubuntu-24.04-MINIMAL does not ship it (standard
+# cloud images do), so the image had the sftp CLIENT and no sshd. A four-mission end-to-end run
+# caught it: the server reported sshd=inactive and Mission 2 could not work at all.
+PKGS="nginx nmap iputils-ping python3-flask openssh-server openssh-client curl ca-certificates"
 
 [ -r "$ADMIN_ENV" ] || { echo "✗ cannot read $ADMIN_ENV -- run this on bc2"; exit 2; }
 set -a; . "$ADMIN_ENV"; set +a
@@ -129,7 +134,18 @@ sudo chroot "$MNT" /bin/bash -c "
   n=\$(ls /var/lib/apt/lists/*Packages* 2>/dev/null | wc -l)
   [ \"\$n\" -gt 0 ] || { echo '  ✗ apt fetched NO package lists (update lied) -- aborting'; exit 1; }
   apt-get install -y -qq $PKGS
-  systemctl enable nginx >/dev/null 2>&1 || true
+  # WARNING: systemctl enable is a NO-OP in a chroot -- it prints 'Running in chroot, ignoring
+  # request' and does nothing. The build printed that twice and it was missed, which is how the
+  # first image shipped with openssh-server INSTALLED but sshd never starting. Link by hand.
+  mkdir -p /etc/systemd/system/multi-user.target.wants
+  for svc in nginx ssh; do
+    for base in /usr/lib/systemd/system /lib/systemd/system; do
+      if [ -f \"\$base/\$svc.service\" ]; then
+        ln -sf \"\$base/\$svc.service\" /etc/systemd/system/multi-user.target.wants/\$svc.service
+        break
+      fi
+    done
+  done
   echo '<h1>MY CLOUD IS ALIVE</h1><p>Student/Team: CHANGE ME</p>' > /var/www/html/index.html
   apt-get clean
 "
@@ -140,7 +156,14 @@ for b in nginx nmap ping curl sftp python3; do
   sudo chroot "$MNT" bash -c "command -v $b >/dev/null 2>&1" || { echo "  ✗ MISSING $b"; miss=1; }
 done
 sudo chroot "$MNT" python3 -c 'import flask' 2>/dev/null || { echo "  ✗ MISSING flask"; miss=1; }
-if [ "$miss" -eq 0 ]; then echo "  all baked binaries present"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
+sudo test -x "$MNT/usr/sbin/sshd" || { echo "  ✗ MISSING sshd (openssh-server)"; miss=1; }
+# A binary that is present but never started is the sshd bug all over again. Assert ENABLEMENT.
+for svc in nginx ssh; do
+  sudo test -L "$MNT/etc/systemd/system/multi-user.target.wants/$svc.service" \
+    && echo "  enabled at boot: $svc" \
+    || { echo "  ✗ $svc installed but NOT enabled at boot"; miss=1; }
+done
+if [ "$miss" -eq 0 ]; then echo "  all baked binaries present AND enabled"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
 
 sudo truncate -s0 "$MNT/etc/machine-id"
 sudo rm -f "$MNT"/etc/ssh/ssh_host_* 2>/dev/null || true
