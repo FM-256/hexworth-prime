@@ -1,21 +1,31 @@
 #!/usr/bin/env python3
-"""Rewrite the sprint packet's command blocks so a student can type them and have them work.
+"""Rewrite the sprint documents so a student (or instructor) can type what they say and have it work.
 
 WHY POSITIONAL, NOT TEXT-KEYED
-    A text-keyed replacement corrupted Mission 3 on 2026-08-23: Mission 1 and Mission 3 contained
+    A text-keyed replacement corrupted Mission 3 on 2026-08-23: Missions 1 and 3 contained
     identical source lines, so Mission 1's replacement text landed in Mission 3 as well. Every
-    edit here is addressed by paragraph INDEX, and the script verifies the expected text is at
-    that index before touching it. If the document shifts, it refuses rather than guessing.
+    edit here is addressed by paragraph INDEX **and** carries an expected substring that is
+    verified before anything is written. If the document shifts, it refuses rather than guessing.
 
-WHAT IT FIXES (all measured on a cold instance, see sprint-student-walkthrough.sh)
-    * The packet told students to `cp project1_index.html` / `python3 project4_honeypot.py` for
-      files that were on NO instance. Assets are now baked at /opt/sprint-assets/ and the packet
-      points there.
-    * Mission 2 said "use SFTP from an approved peer" and never said how the peer authenticates.
-      sshd reported passwordauthentication=no, so it was undoable. Steps added.
+    EVERY edit type carries an anchor -- including insertions. An earlier version verified only
+    REPLACE and INSERT_BEFORE, which left the 8-line Mission 2 SFTP block (the fix for the mission
+    measured as undoable) as the single unverified splice in the patch. That is exactly the
+    silent-corruption vector this file claims to have closed.
+
+WHAT IT FIXES (all measured on a cold instance; see sprint-student-walkthrough.sh)
+    * Assets: the packet referenced project files that were on NO instance. They are now baked at
+      /opt/sprint-assets/ and both documents point there.
+    * Mission 2 never said how the peer AUTHENTICATES; sshd had passwordauthentication=no.
     * `print(flask.__version__)` emits a DeprecationWarning that reads like an error to a student.
+      It appeared TWICE in the student packet -- once in a code block, once inside a checklist
+      bullet. Prose hides commands; grep the saved text, do not trust a code-block sweep.
+    * "In a SECOND terminal" was impossible: access is a single noVNC console and neither tmux nor
+      screen was installed. tmux is now baked in and the documents teach detaching.
+    * The INSTRUCTOR RUNBOOK still carried the ORIGINAL bug untouched -- `/path/to/` placeholders,
+      `apt install`, `python3 -m venv`, `pip install flask`, and `python app.py` (Ubuntu 24.04 has
+      no bare `python`). It was never in scope until Chris caught it.
 
-@catalog what    patch the student sprint packet's command blocks (positional, verified)
+@catalog what    patch the sprint student packet + instructor runbook (positional, anchored)
 @catalog run     python3 _tools/openstack-bridge/patch-sprint-packet.py [--check]
 @catalog status  TOOL
 """
@@ -27,85 +37,98 @@ from docx import Document
 from docx.text.paragraph import Paragraph
 
 SHARE = Path.home() / "hexworth-shared" / "openstack"
-TARGETS = [
+
+STUDENT_DOCS = [
     "OpenStack_Cloud_Security_Sprint_Student_Missions_v2.docx",
     "OpenStack_Cloud_Security_Sprint_Student_Missions_v2 (1).docx",
     "OpenStack_Cloud_Security_Sprint_Student_Missions_v2 (2).docx",
 ]
+RUNBOOK = "OpenStack_Cloud_Security_Sprint_Instructor_Runbook_v2.docx"
 
-# (index, expected_substring_at_that_index, new_text)
-REPLACE = [
-    (19, "# 1. Start the web server:",  "# Your project files are ALREADY on the instance, in /opt/sprint-assets/"),
+FLASK_CHECK = "python3 -c \"import flask; print('flask is installed')\""
+
+# ── student packet ───────────────────────────────────────────────────────────
+STUDENT_REPLACE = [
+    (19, "# 1. Start the web server:", "# Your project files are ALREADY on the instance, in /opt/sprint-assets/"),
     (20, "systemctl enable --now nginx", "sudo systemctl enable --now nginx                      # 1. start the web server"),
-    (21, "sudo cp project1_index.html",  "cp /opt/sprint-assets/project1_index.html ~/          # 2. copy the page to your home"),
-    (22, "curl http://127.0.0.1",        "curl http://127.0.0.1                                 # 5. prove it works LOCALLY first"),
-    (24, "PARTNER",                      "# 6. Now from your PARTNER's instance (peers reach you on 'shared'):"),
-    (81, "flask.__version__",            "python3 -c \"import flask; print('flask is installed')\"  # 1. confirm flask is present"),
-    (83, "/path/to/project3_api.py",     "cp /opt/sprint-assets/project3_api.py app.py           # 3. copy the supplied API"),
-    (104, "python3 project4_honeypot.py", "python3 project4_honeypot.py                  # 2. run it (leave this terminal open)"),
-    (105, "# In another terminal",        "# 3. In a SECOND terminal on your own instance, watch the log:"),
-    (106, "tail -f honeypot.log",         "tail -f ~/honeypot.log"),
-    (108, "Authorized partner only",      "# 4. On your PARTNER's instance (authorized partner only):"),
+    (21, "sudo cp project1_index.html", "cp /opt/sprint-assets/project1_index.html ~/          # 2. copy the page to your home"),
+    (22, "curl http://127.0.0.1", "curl http://127.0.0.1                                 # 5. prove it works LOCALLY first"),
+    (24, "PARTNER", "# 6. Now from your PARTNER's instance (peers reach you on 'shared'):"),
+    # the checklist bullet -- the copy a code-block sweep cannot see
+    (72, "flask.__version__", f"☐ Confirm Flask is present: {FLASK_CHECK}"),
+    (81, "flask.__version__", f"{FLASK_CHECK}  # 1. confirm flask is present"),
+    (83, "/path/to/project3_api.py", "cp /opt/sprint-assets/project3_api.py app.py           # 3. copy the supplied API"),
+    (84, "python3 app.py", "tmux new -s api                                        # 4. open a tmux session"),
+    (86, "SECOND terminal", "# 6. detach from tmux with  Ctrl+b  then  d , then prove it locally:"),
+    (104, "python3 project4_honeypot.py", "tmux new -s honeypot                          # 2. open a tmux session"),
+    (105, "# In another terminal", "# 4. detach from tmux with:  Ctrl+b  then  d"),
+    (106, "tail -f honeypot.log", "tail -f ~/honeypot.log                        # 5. watch the log fill up"),
+    (108, "Authorized partner only", "# 6. On your PARTNER's instance (authorized partner only):"),
 ]
-
-# (index_to_insert_after, [new lines])  -- applied bottom-up so earlier indices stay valid
-INSERT_AFTER = [
-    (21, ["nano ~/project1_index.html                             # 3. put YOUR name in it",
-          "sudo cp ~/project1_index.html /var/www/html/index.html # 4. publish it"]),
-    # Mission 2: the SFTP half of the mission had no commands at all.
-    (64, ["",
-          "# SFTP DROP: your partner uploads a file to YOUR instance.",
-          "# On YOUR instance, give the ubuntu account a password your partner can use:",
-          "sudo passwd ubuntu",
-          "",
-          "# Then, on your PARTNER's instance:",
-          "sftp ubuntu@<YOUR_PRIVATE_IP>",
-          "# at the sftp> prompt:   put <your-file>      then:   bye"]),
-    (108, ["cp /opt/sprint-assets/project4_generate_traffic.sh ~/",
-           "chmod +x ~/project4_generate_traffic.sh"]),
-]
-
-# (index, expected_substring, [lines]) -- inserted BEFORE the anchor.
-# Needed because an inserted paragraph clones the STYLE of the one it is cloned from. Anchoring
-# Mission 4's first line to "the paragraph before the command" cloned prose (index 103 is the
-# "PAIR UP -- REQUIRED" line), and the command silently rendered as body text instead of code.
-# Cloning the command paragraph itself is what keeps the Code style.
-INSERT_BEFORE = [
+STUDENT_INSERT_BEFORE = [
     (104, "python3 project4_honeypot.py",
      ["cd ~ && cp /opt/sprint-assets/project4_honeypot.py .   # 1. copy the honeypot"]),
 ]
+STUDENT_INSERT_AFTER = [
+    (21, "sudo cp project1_index.html",
+     ["nano ~/project1_index.html                             # 3. put YOUR name in it",
+      "sudo cp ~/project1_index.html /var/www/html/index.html # 4. publish it"]),
+    (64, "cat /srv/clouddrop/proof.txt",
+     ["",
+      "# SFTP DROP: your partner uploads a file to YOUR instance.",
+      "# On YOUR instance, give the ubuntu account a password your partner can use:",
+      "sudo passwd ubuntu",
+      "",
+      "# Then, on your PARTNER's instance:",
+      "sftp ubuntu@<YOUR_PRIVATE_IP>",
+      "# at the sftp> prompt:   put <your-file>      then:   bye"]),
+    (84, "python3 app.py",
+     ["python3 app.py                                         # 5. run it inside tmux"]),
+    (104, "python3 project4_honeypot.py",
+     ["python3 project4_honeypot.py                  # 3. run it inside tmux"]),
+    (108, "Authorized partner only",
+     ["cp /opt/sprint-assets/project4_generate_traffic.sh ~/",
+      "chmod +x ~/project4_generate_traffic.sh"]),
+]
+
+# ── instructor runbook ───────────────────────────────────────────────────────
+RUNBOOK_REPLACE = [
+    (28, "sudo apt update", "# nginx, curl, nmap and ping are ALREADY BAKED INTO ubuntu-24.04-sprint."),
+    (29, "apt install -y nginx", "# Instances have NO internet, so apt cannot work. Do not try to install."),
+    (30, "apt install -y curl nmap", "# The lab assets are already on the instance, in /opt/sprint-assets/"),
+    (32, "sudo cp project1_index.html", "cp /opt/sprint-assets/project1_index.html ~/"),
+    (94, "sudo apt update", "# flask is ALREADY INSTALLED system-wide. No venv and no pip: both need internet."),
+    (95, "apt install -y python3-venv", FLASK_CHECK),
+    (96, "apt install -y curl", "mkdir -p ~/cloud-api && cd ~/cloud-api"),
+    (97, "mkdir -p ~/cloud-api", "cp /opt/sprint-assets/project3_api.py app.py"),
+    (98, "python3 -m venv", "tmux new -s api          # ONE console only: tmux is how you get a second shell"),
+    (99, "source .venv/bin/activate", "python3 app.py           # run inside tmux, then detach: Ctrl+b then d"),
+    (100, "pip install flask", "# NOTE: python3, not python -- Ubuntu 24.04 has no bare 'python' command."),
+    (101, "/path/to/project3_api.py", "curl http://127.0.0.1:5000/health"),
+    (102, "python app.py", "# then, from the PARTNER's instance, after allowing TCP/5000:"),
+    (116, "/path/to/project4_honeypot.py", "cp /opt/sprint-assets/project4_honeypot.py ."),
+    (117, "python3 project4_honeypot.py", "tmux new -s honeypot     # ONE console only: tmux gives you the second shell"),
+    (119, "# Second terminal", "# Second shell: detach tmux with Ctrl+b then d, then:"),
+    (124, "chmod +x project4_generate_traffic.sh", "cp /opt/sprint-assets/project4_generate_traffic.sh ."),
+    (152, "Distribute the lab asset ZIP",
+     "☐ The lab assets are BAKED INTO the image at /opt/sprint-assets/. The ZIP is a reference copy; "
+     "students do not need to transfer anything."),
+    (153, "Verify package repository access",
+     "☐ Do NOT expect package installs to work. Instances have no egress by design; every needed "
+     "package is baked into ubuntu-24.04-sprint. Re-run build-sprint-image.sh after a DevStack rebuild."),
+]
+RUNBOOK_INSERT_BEFORE = []
+RUNBOOK_INSERT_AFTER = [
+    (117, "python3 project4_honeypot.py", ["python3 project4_honeypot.py"]),
+    (124, "chmod +x project4_generate_traffic.sh", ["chmod +x project4_generate_traffic.sh"]),
+]
+
+JOBS = [(name, STUDENT_REPLACE, STUDENT_INSERT_BEFORE, STUDENT_INSERT_AFTER) for name in STUDENT_DOCS]
+JOBS.append((RUNBOOK, RUNBOOK_REPLACE, RUNBOOK_INSERT_BEFORE, RUNBOOK_INSERT_AFTER))
 
 
-def insert_after(par: Paragraph, text: str) -> Paragraph:
-    """Clone a paragraph (keeping its Code style) and put `text` in the clone."""
-    new_el = copy.deepcopy(par._p)
-    par._p.addnext(new_el)
-    np = Paragraph(new_el, par._parent)
-    for r in np.runs[1:]:
-        r._element.getparent().remove(r._element)
-    if np.runs:
-        np.runs[0].text = text
-    else:
-        np.add_run(text)
-    return np
-
-
-def insert_before(par: Paragraph, text: str) -> Paragraph:
-    """Clone a paragraph and put the clone ABOVE it, so the clone inherits that paragraph's style."""
-    new_el = copy.deepcopy(par._p)
-    par._p.addprevious(new_el)
-    np = Paragraph(new_el, par._parent)
-    for r in np.runs[1:]:
-        r._element.getparent().remove(r._element)
-    if np.runs:
-        np.runs[0].text = text
-    else:
-        np.add_run(text)
-    return np
-
-
-def set_text(par: Paragraph, text: str) -> None:
-    """Replace a paragraph's text without disturbing its style."""
+def _retext(par: Paragraph, text: str) -> None:
+    """Set a paragraph's text, keeping its first run's formatting and dropping the rest."""
     for r in par.runs[1:]:
         r._element.getparent().remove(r._element)
     if par.runs:
@@ -114,12 +137,29 @@ def set_text(par: Paragraph, text: str) -> None:
         par.add_run(text)
 
 
-def patch(path: Path, check_only: bool) -> bool:
+def _clone(par: Paragraph, text: str, after: bool) -> Paragraph:
+    """Clone a paragraph so the copy inherits ITS style, then place it beside the original.
+
+    Style comes from the paragraph cloned, which is why insertions anchor on the command
+    paragraph itself: anchoring on the prose line above once produced a command rendered as
+    body text, invisible in the code block a student reads.
+    """
+    new_el = copy.deepcopy(par._p)
+    (par._p.addnext if after else par._p.addprevious)(new_el)
+    np = Paragraph(new_el, par._parent)
+    _retext(np, text)
+    return np
+
+
+def patch(path: Path, replace, ins_before, ins_after, check_only: bool) -> bool:
     doc = Document(str(path))
     paras = doc.paragraphs
 
-    # Verify EVERY anchor before changing anything -- a half-applied patch is worse than none.
-    anchors = [(i, e) for i, e, _ in REPLACE] + [(i, e) for i, e, _ in INSERT_BEFORE]
+    # Verify EVERY anchor -- replacements and both insertion kinds -- before writing anything.
+    # A half-applied patch is worse than none.
+    anchors = ([(i, e) for i, e, _ in replace]
+               + [(i, e) for i, e, _ in ins_before]
+               + [(i, e) for i, e, _ in ins_after])
     for idx, expect in anchors:
         if idx >= len(paras):
             print(f"  ✗ {path.name}: index {idx} out of range ({len(paras)} paragraphs)")
@@ -132,29 +172,24 @@ def patch(path: Path, check_only: bool) -> bool:
         print(f"  ✓ {path.name}: all {len(anchors)} anchors match")
         return True
 
-    # Replacements first: they address ORIGINAL indices, so nothing may have shifted yet.
-    for idx, _, new in REPLACE:
-        set_text(paras[idx], new)
+    for idx, _, new in replace:
+        _retext(paras[idx], new)
 
-    # Then every insertion, bottom-up across BOTH lists together -- a higher index processed first
-    # cannot disturb a lower one. Mixing the two lists in separate passes would corrupt the order.
-    inserts = ([(idx, "after", lines) for idx, lines in INSERT_AFTER]
-               + [(idx, "before", lines) for idx, _, lines in INSERT_BEFORE])
-    for idx, where, lines in sorted(inserts, key=lambda t: -t[0]):
-        if where == "after":
-            for line in reversed(lines):
-                insert_after(paras[idx], line)
-        else:
-            for line in lines:                       # before-inserts keep natural order
-                insert_before(paras[idx], line)
+    # Insertions bottom-up across BOTH lists together: a higher index handled first cannot
+    # disturb a lower one. Separate passes per list would corrupt the ordering.
+    jobs = ([(i, True, lines) for i, _, lines in ins_after]
+            + [(i, False, lines) for i, _, lines in ins_before])
+    for idx, after, lines in sorted(jobs, key=lambda t: -t[0]):
+        for line in (reversed(lines) if after else lines):
+            _clone(paras[idx], line, after)
 
     doc.save(str(path))
-    n_ins = sum(len(l) for _, l in INSERT_AFTER) + sum(len(l) for _, _, l in INSERT_BEFORE)
-    print(f"  ✓ {path.name}: {len(REPLACE)} replaced, {n_ins} inserted")
+    n = sum(len(l) for _, _, l in ins_after) + sum(len(l) for _, _, l in ins_before)
+    print(f"  ✓ {path.name}: {len(replace)} replaced, {n} inserted")
     return True
 
 
 if __name__ == "__main__":
     check = "--check" in sys.argv
-    ok = all(patch(SHARE / name, check) for name in TARGETS)
+    ok = all(patch(SHARE / name, r, b, a, check) for name, r, b, a in JOBS)
     sys.exit(0 if ok else 1)

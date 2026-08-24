@@ -55,7 +55,15 @@ ASSETS=${SPRINT_ASSETS:-$(cd "$(dirname "$0")" && pwd)/sprint-assets}
 # ⚠ openssh-SERVER was missed in the first build. ubuntu-24.04-MINIMAL does not ship it (standard
 # cloud images do), so the image had the sftp CLIENT and no sshd. A four-mission end-to-end run
 # caught it: the server reported sshd=inactive and Mission 2 could not work at all.
-PKGS="nginx nmap iputils-ping python3-flask openssh-server openssh-client curl ca-certificates"
+#
+# ⚠ nano AND tmux were BOTH missing from the first asset-baked build, and both were introduced by
+# my own packet edits. ubuntu-24.04-MINIMAL ships NO editor at all -- measured on the built image:
+# nano, vi, vim, ed all absent. Mission 1 step 3 says "nano ~/project1_index.html", so every
+# student would have hit "nano: command not found" one command after the bug this whole effort
+# exists to fix. tmux is the same story from the other direction: Mission 4 tells the student to
+# watch the log "in a SECOND terminal", but the only access is a single noVNC console and neither
+# tmux nor screen was present, so there was no second terminal to be had.
+PKGS="nginx nmap iputils-ping python3-flask openssh-server openssh-client curl ca-certificates nano tmux"
 
 # Checked BEFORE the expensive chroot build, not at the point of use: a missing asset dir should
 # cost a second, not a full apt install and image convert.
@@ -191,13 +199,20 @@ sudo chroot "$MNT" /bin/bash -c "
 echo "  [5b] bake the lab assets into /opt/sprint-assets"
 [ -d "$ASSETS" ] || { echo "  ✗ asset dir $ASSETS not found on this host -- copy sprint-assets/ to bc2 first"; exit 1; }
 sudo mkdir -p "$MNT/opt/sprint-assets"
-sudo cp -f "$ASSETS"/project*.* "$ASSETS"/README.md "$MNT/opt/sprint-assets/"
+# Copy an EXACT list, never a glob. `project*.*` would sweep an editor .bak, a merge .orig or any
+# other stray in the staging dir straight into the dir students are told is pristine.
+for a in project1_index.html project2_cinder_guest_setup.sh project3_api.py \
+         project4_generate_traffic.sh project4_honeypot.py README.md; do
+  sudo cp -f "$ASSETS/$a" "$MNT/opt/sprint-assets/$a"
+done
 sudo chmod 0644 "$MNT"/opt/sprint-assets/*
 sudo chmod 0755 "$MNT"/opt/sprint-assets/*.sh    # the generator is run as ./project4_generate_traffic.sh
 
 echo "  [6] verify the binaries are REALLY present, not just that apt exited 0"
 miss=0
-for b in nginx nmap ping curl sftp python3; do
+# nano/tmux are in this list because the PACKET NAMES THEM. Anything a student is told to type
+# has to be asserted here -- that is the whole lesson of the openssh-server miss.
+for b in nginx nmap ping curl sftp python3 nano tmux; do
   sudo chroot "$MNT" bash -c "command -v $b >/dev/null 2>&1" || { echo "  ✗ MISSING $b"; miss=1; }
 done
 sudo chroot "$MNT" python3 -c 'import flask' 2>/dev/null || { echo "  ✗ MISSING flask"; miss=1; }
@@ -238,9 +253,14 @@ sudo grep -q '^ssh_pwauth: true' "$MNT/etc/cloud/cloud.cfg" \
   && echo "  ssh password auth enabled (Mission 2 peer SFTP is impossible without it)" \
   || { echo "  ✗ ssh_pwauth not set -- Mission 2 peer SFTP cannot authenticate"; miss=1; }
 # The asset dir the student is told to treat as pristine must not contain build debris.
-sudo test -d "$MNT/opt/sprint-assets/__pycache__" \
-  && { echo "  ✗ __pycache__ left in /opt/sprint-assets (verification wrote it)"; miss=1; } \
-  || echo "  asset dir clean (no __pycache__)"
+# Assert nothing EXTRA shipped, not just that the six expected files are there. Checking only for
+# what should be present cannot catch what should not be.
+extra=$(sudo ls -A "$MNT/opt/sprint-assets" | grep -vxE 'project1_index.html|project2_cinder_guest_setup.sh|project3_api.py|project4_generate_traffic.sh|project4_honeypot.py|README.md' || true)
+if [ -n "$extra" ]; then
+  echo "  ✗ unexpected files in /opt/sprint-assets: $(echo "$extra" | tr '\n' ' ')"; miss=1
+else
+  echo "  asset dir clean (exactly the 6 expected files, no debris)"
+fi
 if [ "$miss" -eq 0 ]; then echo "  all baked binaries present AND enabled"; else echo "  ✗ refusing to upload an incomplete image"; exit 1; fi
 
 sudo truncate -s0 "$MNT/etc/machine-id"
