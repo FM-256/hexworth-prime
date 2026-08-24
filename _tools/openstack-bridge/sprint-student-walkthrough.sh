@@ -33,6 +33,7 @@ VMADDR=${STAGE1_VM:-192.168.122.62}
 POOL=${POOL_CREDS:-$HOME/openstack-stage1/pool-credentials.env}
 SRV_NAME=${SRV_NAME:-sprint-check-server}
 PEER_NAME=${PEER_NAME:-sprint-check-peer}
+PEER_PORT=${PEER_PORT:-sprint-check-peer-port}
 # Throwaway password for the Mission 2 SFTP check, generated per run and never written to the
 # repo. It stands in for what the student types at 'sudo passwd ubuntu'. The instances holding it
 # are deleted at the start of the next run.
@@ -77,6 +78,26 @@ for pair in "$SRV_SLOT:$SRV_NAME" "$PEER_SLOT:$PEER_NAME"; do
     echo "    no prior $name in $slot"
   fi
 done
+
+# Remove the security-group rules and the reserved port from the LAST run. Without this the
+# pool's default security group accumulates ingress rules run after run, on live roster slots,
+# and every rule outlives the test that needed it. Only IDs this harness recorded are touched --
+# nothing pre-existing is guessed at or removed.
+RULEFILE=${RULEFILE:-$HOME/.sprint-walkthrough-rules}
+if [ -s "$RULEFILE" ]; then
+  n=0
+  while read -r slot rid; do
+    [ -z "${rid:-}" ] && continue
+    osrun "$slot" "openstack security group rule delete $rid" >/dev/null 2>&1 && n=$((n+1))
+  done < "$RULEFILE"
+  { echo "=== rules removed $(date -u +%FT%TZ): $n ==="; cat "$RULEFILE"; } >> "$INVENTORY"
+  : > "$RULEFILE"
+  echo "    removed $n security-group rule(s) left by the previous run"
+else
+  echo "    no recorded security-group rules to clean"
+fi
+osrun "$PEER_SLOT" "openstack port delete $PEER_PORT" >/dev/null 2>&1 \
+  && echo "    removed the previous reserved peer port"
 
 # ── the SERVER's user-data: the packet's literal commands, nothing else ──────
 # Note what is NOT here: no app source, no honeypot source, no html. Only /opt/sprint-assets.
@@ -203,20 +224,38 @@ echo "  server status=$S"
 # 192.168.233.0/24. That was not what students are told to build, so the tight rule was never
 # actually tested; and because the image enables SSH password auth for Mission 2, a subnet-wide
 # TCP/22 rule would let any student reach any other student's sudo account.
-PEER_IP=$(osrun "$PEER_SLOT" "openstack server show $PEER_NAME -f value -c addresses" 2>/dev/null \
+# The peer's IP has to be known BEFORE the rules are written, and the peer instance cannot exist
+# yet because its user-data needs the server's IP. Reserving a PORT first breaks that circle:
+# Neutron assigns the address now, the rules are scoped to it, and the peer boots onto that same
+# port later.
+#
+# The previous version looked up the peer instance here -- ~90 lines before it was created, and
+# right after teardown had deleted any prior one. So the lookup ALWAYS returned empty and the
+# "first pass only" fallback opened 22/80/5000/8080 to the entire 192.168.233.0/24 on the pool's
+# default security group, on every single run, and never narrowed it. These are live roster
+# slots, so a student handed one inherited an instance pre-exposed on exactly the ports Mission 2
+# teaches them to restrict -- with password auth enabled. There is no fallback now: no port
+# means no rules and a hard exit, because a silently widened rule is worse than a failed test.
+osrun "$PEER_SLOT" "openstack port show $PEER_PORT -f value -c id" >/dev/null 2>&1 \
+  || osrun "$PEER_SLOT" "openstack port create --network shared $PEER_PORT -f value -c id" >/dev/null 2>&1
+PEER_IP=$(osrun "$PEER_SLOT" "openstack port show $PEER_PORT -f value -c fixed_ips" 2>/dev/null \
           | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-if [ -n "$PEER_IP" ]; then
-  SCOPE="$PEER_IP/32"
-else
-  # The peer does not exist yet on the first pass. Fall back, but say so loudly rather than
-  # silently widening the rule and calling it a pass.
-  SCOPE="192.168.233.0/24"
-  echo "    ⚠ peer not up yet -- falling back to $SCOPE for this pass (NOT what students build)"
-fi
+[ -n "$PEER_IP" ] || { echo "✗ could not reserve a port for the peer -- refusing to open subnet-wide rules"; exit 1; }
+SCOPE="$PEER_IP/32"
+echo "    peer address reserved; rules will be scoped to a single /32"
+
+# Every rule this harness creates is recorded so teardown can remove exactly those and nothing
+# else. Leaving them behind is what polluted the pool's default security group.
+RULEFILE=${RULEFILE:-$HOME/.sprint-walkthrough-rules}
 for p in 22 80 5000 8080; do
-  osrun "$SRV_SLOT" "openstack security group rule create --ingress --protocol tcp --dst-port $p \
-    --remote-ip $SCOPE default -f value -c id" >/dev/null 2>&1 \
-    && echo "    opened tcp/$p from $SCOPE" || echo "    tcp/$p already open"
+  rid=$(osrun "$SRV_SLOT" "openstack security group rule create --ingress --protocol tcp --dst-port $p \
+    --remote-ip $SCOPE default -f value -c id" 2>/dev/null | tr -d '\r' | tail -1)
+  if [ -n "$rid" ]; then
+    echo "$SRV_SLOT $rid" >> "$RULEFILE"
+    echo "    opened tcp/$p from the peer /32 (recorded for cleanup)"
+  else
+    echo "    tcp/$p already open"
+  fi
 done
 
 # Mission 2 infrastructure: the volume the student attaches.
@@ -295,7 +334,7 @@ UD
 echo "--- booting PEER in $PEER_SLOT ---"
 scp -q -i "$KEY" -o BatchMode=yes -o StrictHostKeyChecking=no /tmp/sw-peer.sh "stack@$VMADDR:/tmp/sw-peer.sh"
 osrun "$PEER_SLOT" "openstack server show $PEER_NAME >/dev/null 2>&1 || openstack server create $PEER_NAME \
-  --image $IMAGE --flavor $FLAVOR --network shared --user-data /tmp/sw-peer.sh -f value -c id >/dev/null"
+  --image $IMAGE --flavor $FLAVOR --port $PEER_PORT --user-data /tmp/sw-peer.sh -f value -c id >/dev/null"
 for i in $(seq 1 40); do
   PS=$(osrun "$PEER_SLOT" "openstack server show $PEER_NAME -f value -c status" 2>/dev/null | tr -d '\r')
   { [ "$PS" = ACTIVE ] || [ "$PS" = ERROR ]; } && break
