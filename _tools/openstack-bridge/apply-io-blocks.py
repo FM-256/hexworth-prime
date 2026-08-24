@@ -57,8 +57,15 @@ PAIRS = [
     # grounded in a measurement taken the same day, not theory: with a leftover broad rule in
     # place the partner still got HTTP 200 while the block looked applied; after removing every
     # matching rule the retry returned HTTP 000, stopped at Neutron before reaching the guest.
+    #
+    # NO TEMPORAL CLAIM. An earlier version said the retry "fails immediately". A security-group
+    # block is a silent DROP, which presents as a TIMEOUT, and the page itself teaches two
+    # missions earlier that `filtered` means the security group has not allowed your partner:
+    # the slow case. project4_generate_traffic.sh passes no --max-time and was never instrumented
+    # for timing, so there was no measurement behind the word. Saying "times out or is refused"
+    # is true in both environments and consistent with what the page already taught.
     ("openstack security group rule delete &lt;RULE_ID&gt;",
-     "the partner's retry fails immediately, and honeypot.log gains NO new lines",
+     "the partner's retry times out or is refused, and honeypot.log gains NO new lines",
      "traffic still arriving means a BROADER rule still allows it: list every rule on that port, "
      "not just the one you added last"),
     ("cat /srv/clouddrop/proof.txt",
