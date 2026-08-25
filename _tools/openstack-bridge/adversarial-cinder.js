@@ -116,6 +116,19 @@ async function post(url, body, headers) {
     return (gr.results || []).filter((r) => [3, 4, 5, 6].includes(Number(r.id)));
   };
 
+  // ── CHEAT 0: grade the UNTOUCHED tenant. Nothing done, so nothing may pass. ──
+  // Added 2026-08-25 alongside the BUG-058 fix. Until then this gate aborted at cheat A, so
+  // stage 3 never ran and nobody had ever observed check 3 FAIL -- it was reported as
+  // "may accept EVERYTHING" the moment the gate could reach that far. Preflight has just
+  // proven the tenant is clean, so this costs one grade call and hands every check in the
+  // lab its negative observation.
+  console.log('cheat 0: grade a clean tenant -- nothing done, nothing may pass');
+  const r0 = await grade();
+  r0.forEach((c) => console.log(`  check ${c.id}: ${c.pass ? 'PASS' : 'fail'}`));
+  const zeroPass = r0.filter((c) => c.pass);
+  if (zeroPass.length) fail(`CLEAN TENANT SCORED ${zeroPass.length} check(s): ${zeroPass.map((c) => c.id).join(',')}`);
+  console.log('  clean tenant rejected by all four checks');
+
   // ── CHEAT A: five-command shortcut with echoed evidence ──
   console.log('cheat A: create volume, ONE server, attach, echo both proofs (no delete cycle)');
   dex('openstack volume create --size 1 lab-vol');

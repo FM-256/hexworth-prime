@@ -28,7 +28,7 @@ Endpoints (JSON; all require X-Bridge-Secret):
   GET  /slot/<uid>                        -> {slot} | 404       (Fork E read path)
   GET  /health                            -> {ok, free_ram_mb, slots_used}   (secret required)
 """
-import json, os, re, secrets, socket, threading, time, urllib.error, urllib.request
+import calendar, json, os, re, secrets, socket, threading, time, urllib.error, urllib.request
 # Transport note (Nancy): the listener is deliberately plaintext HTTP. It binds the
 # tailnet IP only; WireGuard encrypts the path bc1<->bc2. No TLS is layered on top.
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -636,6 +636,101 @@ def release(uid):
         return 200, {'released': True, 'slot': slot}
 
 
+_PID_CACHE = {}      # slot -> (project_id, expires_at); projects change only at term reset
+_ATOK_CACHE = [None, 0]   # [token, expires_at]; Keystone tokens outlive this TTL comfortably
+
+
+def _cached_admin_token(ttl=1500):
+    """Admin token, reused across /verify calls. Issued per-call this would add a Keystone
+    round trip to every Check My Work, and /verify is the hot path for every cloud lab."""
+    now = time.time()
+    if _ATOK_CACHE[0] and now < _ATOK_CACHE[1]:
+        return _ATOK_CACHE[0]
+    tok = admin_token()
+    if tok:
+        _ATOK_CACHE[0], _ATOK_CACHE[1] = tok, now + ttl
+    return tok
+
+
+def _slot_project_id(slot, atok, ttl=3600):
+    """Project id for a pool slot. Slot name IS the project name (see claim())."""
+    hit = _PID_CACHE.get(slot)
+    if hit and time.time() < hit[1]:
+        return hit[0]
+    for p in (pool_projects(atok) or []):
+        _PID_CACHE[p['name']] = (p['id'], time.time() + ttl)
+    hit = _PID_CACHE.get(slot)
+    return hit[0] if hit else None
+
+
+def _deleted_servers(slot, window_h=24, cap=8):
+    """Servers this slot created and then DELETED, with the times they attached a volume.
+
+    WHY THIS EXISTS (BUG-058). The cinder lab's check 6 claims to prove "the volume outlived
+    its first server". Nothing in the end state can prove that: attaching is not history
+    bearing, so any final arrangement is reachable by a five-command shortcut that never
+    detaches anything. Cinder drops its attachment rows on detach and Nova empties
+    volumes_attached on delete (both measured 2026-07-31), which is why the check was
+    downgraded to a timestamp comparison that every shortcut passes.
+
+    Nova does keep one thing: the instance row for a deleted server, and its ACTION log.
+    So "you attached a volume to a server that no longer exists" IS answerable, server-side,
+    from state the student cannot reach. That is the missing witness.
+
+    TWO MEASURED TRAPS, both of which would have produced a confidently wrong grade:
+
+      1. `deleted=True` is admin-only and Nova SILENTLY IGNORES it for a project user --
+         asked with student-48's own token it returned that slot's LIVE ACTIVE server
+         (measured 2026-08-25). A grader trusting the user token would read a running
+         server as a deleted one. Hence the admin token, and hence the explicit
+         status == 'DELETED' filter rather than trusting the query parameter to have been
+         honoured at all.
+      2. Nova keeps deleted-instance rows FOREVER, and a slot is recycled between students,
+         so this list carries other people's runs. It is returned raw, timestamps included;
+         anchoring it to the volume under test is the CALLER's job (check 6 requires the
+         attach to postdate the volume's own creation). release() refuses a non-empty slot,
+         so a recycled slot never carries a volume, which is what makes that anchor sound.
+
+    Returns (list, ok). `ok` is False when the history could not be read, so a check can tell
+    "no history" apart from "history unavailable" instead of silently failing an honest
+    student on an infrastructure blip.
+    """
+    atok = _cached_admin_token()
+    if not atok:
+        return [], False
+    pid = _slot_project_id(slot, atok)
+    if not pid:
+        return [], False
+    st, doc = _os(atok, '/compute/v2.1',
+                  f'/servers/detail?all_tenants=1&deleted=True&tenant_id={pid}&limit=20')
+    if st != 200 or doc is None:
+        return [], False
+    cutoff = time.time() - window_h * 3600
+    out = []
+    for s in (doc.get('servers') or []):
+        # Trust the STATUS, not the filter: see trap 1 above.
+        if s.get('status') != 'DELETED' or s.get('tenant_id') != pid:
+            continue
+        try:
+            born = calendar.timegm(time.strptime(s.get('created', ''), '%Y-%m-%dT%H:%M:%SZ'))
+        except (ValueError, TypeError):
+            continue
+        if born < cutoff:
+            continue     # someone else's term, or debris; bounds the action calls below
+        out.append({'id': s.get('id'), 'name': s.get('name'), 'created': s.get('created'),
+                    'terminated_at': s.get('OS-SRV-USG:terminated_at'), 'attach_volume_at': []})
+    out.sort(key=lambda d: d['created'], reverse=True)
+    out = out[:cap]
+    for d in out:
+        sta, adoc = _os(atok, '/compute/v2.1', f'/servers/{d["id"]}/os-instance-actions')
+        if sta != 200 or adoc is None:
+            return out, False    # partial history is worse than none: say so
+        d['attach_volume_at'] = sorted(
+            a.get('start_time') for a in (adoc.get('instanceActions') or [])
+            if a.get('action') == 'attach_volume' and a.get('start_time'))
+    return out, True
+
+
 def verify(slot):
     """Authoritative cloud state for a slot, read SERVER-SIDE.
 
@@ -775,9 +870,12 @@ def verify(slot):
                           'expires_at': c.get('expires_at')}
                          for c in (ac.get('application_credentials') or [])]
 
+    hist, hist_ok = _deleted_servers(slot)
+
     return 200, {'slot': slot, 'servers': servers, 'volumes': volumes,
                  'security_groups': groups, 'networks': networks, 'routers': routers,
-                 'app_creds': app_creds}
+                 'app_creds': app_creds,
+                 'deleted_servers': hist, 'deleted_servers_ok': hist_ok}
 
 
 def slot_of(uid):
