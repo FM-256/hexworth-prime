@@ -84,15 +84,27 @@ def treat(html: str):
     notes.append("css injected")
 
     # 2. the terminal card becomes the dock
-    m = re.search(r'<div class="card">\s*\n\s*<h2>Live Cloud Terminal</h2>', html)
-    if not m:
-        return html, ["NO 'Live Cloud Terminal' card: refusing"]
-    html = html[:m.start()] + m.group(0).replace('<div class="card">', '<div class="card term-dock">', 1) + html[m.end():]
-    notes.append("term-dock marked")
+    # Find the card by the LAUNCHER it contains, not by a heading string. Matching
+    # "<h2>Live Cloud Terminal</h2>" refused the sprint page, whose terminal card is headed
+    # differently: the heading is decoration, the launcher div is the thing that matters.
+    lm = re.search(r'<div id="[a-z0-9-]*launcher"></div>', html)
+    if not lm:
+        return html, ["NO launcher div: refusing"]
+    card_start = html.rfind('<div class="card', 0, lm.start())
+    if card_start == -1:
+        return html, ["launcher is not inside a card: refusing"]
+    open_tag = html[card_start:html.index('>', card_start) + 1]
+    if 'term-dock' not in open_tag:
+        html = html[:card_start] + open_tag.replace('class="card', 'class="card term-dock', 1) + html[card_start + len(open_tag):]
+    notes.append("term-dock marked (found via the launcher)")
 
     lines = html.split("\n")
 
     # 3. move the objectives panel into a sticky second column
+    # TWO SHAPES. Some labs wrap the objectives in <div class="lab-monitor" id="..."> before the
+    # steps; others have no wrapper at all and run __head / __sub / __list / __msg as bare
+    # siblings INSIDE the steps card, after the steps. Assuming one shape is why four of six
+    # labs refused. Detected, not assumed.
     try:
         start = next(i for i, l in enumerate(lines) if re.search(r'class="lab-monitor" id="', l))
         # Search AFTER the panel starts. `lab-monitor__msg` also appears in the CSS near the top
@@ -102,7 +114,19 @@ def treat(html: str):
         msg = next(i for i in range(start, len(lines)) if 'lab-monitor__msg' in lines[i])
         end = next(i for i in range(msg, len(lines)) if lines[i].strip() == "</div>")
     except StopIteration:
-        return "\n".join(lines), notes + ["NO objectives panel found: refusing"]
+        # shape B: bare siblings, head through msg inclusive
+        try:
+            start = next(i for i, l in enumerate(lines) if 'class="lab-monitor__head"' in l)
+            end = next(i for i in range(start, len(lines)) if 'lab-monitor__msg" id=' in lines[i])
+            notes.append("shape B panel (bare siblings, no wrapper)")
+        except StopIteration:
+            # Some pages genuinely have no objectives panel (the sprint is a guide; the console
+            # lab has no checks). They still want the typography and the dock. That has to be
+            # ASKED FOR, so a missing panel on a page that should have one still aborts.
+            if "--no-panel" in sys.argv:
+                notes.append("no objectives panel (explicitly allowed): css + dock only")
+                return "\n".join(lines), notes
+            return "\n".join(lines), notes + ["NO objectives panel found: refusing"]
     panel = lines[start:end + 1]
     rest = lines[:start] + lines[end + 1:]
     body = next(i for i, l in enumerate(rest) if "</body>" in l)
