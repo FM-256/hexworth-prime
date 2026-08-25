@@ -144,22 +144,32 @@
             .cols > .side { position: sticky; top: 20px; max-height: calc(100vh - 40px);
                             overflow-y: auto; }
         }
-        /* The dock pins from 1000px, NOT 1500px, and this lab is why (Chris, 2026-08-25).
-           Step 2 tells the student to press "Record the attachment" BESIDE THE TERMINAL, and
-           that press is the one irreversible moment here: once server-a is deleted the cloud
-           cannot be asked what the volume was attached to. Rendered and measured, the button
-           sat 901px above the viewport at 1366x768 and 835px above at 1440x900 -- two of the
-           commonest school-laptop widths -- while the prose said it was beside them. The
-           instruction was false exactly where being wrong costs the most.
-           The two-column grid still needs 1500px (it needs room for the side panel); the DOCK
-           does not, because the single column has nothing competing with it.
-           The pin, the cap and the hidden heading stay ONE trade and switch together: pinning
-           without the cap leaves a 648px terminal nailed across the viewport. */
-        @media (min-width: 1000px) {
+        /* The dock pins only from 1500px, and an attempt to lower it to 1000px is recorded here
+           so it is not retried (Chris, 2026-08-25). The goal was reaching the "Record the
+           attachment" button, which sat 901px above the viewport at 1366x768. Pinning the dock
+           lower DID bring the button on screen -- and then the open terminal, 497px tall, or
+           65% of a 768px viewport, painted straight over the paragraph that explains the press.
+           elementFromPoint on that instruction returned the iframe.
+           It cannot be tuned away: the dock carries 237px of furniture beyond the terminal, so
+           even with the height clamp winning it is 437px, still 57% of that screen. A pinned
+           terminal is not viable at laptop heights.
+           The control moved to the instruction instead of the instruction chasing the control:
+           Step 2 now carries its own wired button. */
+        @media (min-width: 1500px) {
             .term-dock { position: sticky; top: 10px; z-index: 5; }
             .term-dock > h2 { display: none; }
-            .term-dock .sandbox-launcher__iframe-wrap { height: clamp(200px, 26vh, 420px); }
+            .term-dock .sandbox-launcher__iframe-wrap { height: clamp(200px, 26vh, 420px); min-height: 0; }
         }
+        /* Step 2's own Record control, so the press is reachable at EVERY width without
+           depending on where the terminal happens to be. */
+        .btn-record {
+            display: inline-block; margin: 4px 0 2px; padding: 10px 18px; cursor: pointer;
+            font-family: inherit; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em;
+            color: var(--cloud-dark, #05202c); background: var(--cloud-accent, #38bdf8);
+            border: none; border-radius: 8px;
+        }
+        .btn-record:hover { filter: brightness(1.08); }
+        .btn-record:disabled { opacity: 0.6; cursor: default; }
         .term-dock { padding: 12px 16px; }
         /* The sticky boundary ends where the steps end, so the terminal cannot ride down over
            the closing section. */
@@ -243,12 +253,13 @@ openstack volume show lab-vol -f value -c status   # WAIT for: in-use</div>
                 </div>
                     <p>Capture the evidence while it is attached:</p>
                     <div class="cmd">openstack volume show lab-vol -f json > ~/notes/attach-proof.txt</div>
-                    <p>Now press <strong>Record the attachment</strong> beside the terminal. You
-                    do not write this one: the grader reads the live cloud itself and notes which
-                    volume is on which server, right now, while it is still true. The moment you
-                    delete that server the fact is gone from the cloud for good, so it has to be
-                    taken <em>before</em>, and by something you do not control. That recording is
-                    what CHECK 6 is judged against.</p>
+                    <p>Now press <strong>Record the attachment</strong>, the button just below.
+                    You do not write this one: the grader reads the live cloud itself and notes
+                    which volume is on which server, right now, while it is still true. The moment
+                    you delete that server the fact is gone from the cloud for good, so it has to
+                    be taken <em>before</em>, and by something you do not control. That recording
+                    is what CHECK 6 is judged against.</p>
+                    <button type="button" id="record-attach" class="btn-record">Record the attachment</button>
                     <div class="io">
                         <div class="io__expect"><span class="io__label">EXPECT</span>Recorded: lab-vol is on server-a</div>
                         <div class="io__ifnot"><span class="io__label">IF NOT</span>"not attached" means the attach has not landed yet: wait for in-use, then press it again</div>
@@ -438,6 +449,28 @@ openstack server add volume server-b lab-vol</div>
             }
         }
 
+        // Step 2's own Record button. It exists because the control used to live only beside
+        // the terminal, and at 1366x768 that put it 901px above the instruction telling students
+        // to press it -- at the one step of this lab that cannot be undone. Pinning the terminal
+        // lower fixed the distance and created a worse problem: the open terminal is 65% of that
+        // viewport and painted over the instruction itself. So the button came to the text.
+        //
+        // recordAttach expects the ctx SandboxLauncher hands its actions ({sessionId, panel}).
+        // A DOM listener passes a MouseEvent, which has neither, and the function would
+        // short-circuit to "Launch the terminal first" forever -- looking like a dead button on
+        // a step where a missed press costs the student the lab. So the ctx is built here from
+        // the live session, and `panel` is omitted deliberately: recordAttach guards every use
+        // of it, and the objectives card is the surface this page already writes results to.
+        var recordBtn = document.getElementById('record-attach');
+        if (recordBtn) {
+            recordBtn.addEventListener('click', function () {
+                var sessions = (typeof SandboxLauncher !== 'undefined' && SandboxLauncher.getActiveSessions)
+                    ? SandboxLauncher.getActiveSessions() : {};
+                var s = sessions && sessions['openstack-cli'];
+                recordAttach({ sessionId: s && s.sessionId, panel: null });
+            });
+        }
+
         var checkBusy = false;
         async function checkMyWork(ctx) {
             var msg = document.getElementById('cinder-monitor-msg');
@@ -488,9 +521,9 @@ openstack server add volume server-b lab-vol</div>
                     label: 'Field Guide', visibleWhen: 'always',
                     onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
                 },
-                // Label matches the Step 2 prose word for word. It sits BEFORE Check My Work
-                // because that is the order the lab uses it in, and the recording has to happen
-                // while server-a is still alive -- afterwards the cloud cannot be asked.
+                // Also offered beside the terminal, for a student already working there. The
+                // one in Step 2 is the one the prose points at; this is a convenience, not the
+                // primary route.
                 { label: 'Record the attachment', visibleWhen: 'running', onClick: recordAttach },
                 { label: 'Check My Work', visibleWhen: 'running', onClick: checkMyWork }
             ]
