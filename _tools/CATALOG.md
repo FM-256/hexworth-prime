@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-24 23:39 · **1115 scripts** · 21 wired into a gate · 265 called by other code · 163 only mentioned in docs · 666 referenced by nothing · 468 not in git
+**Generated:** 2026-08-25 08:17 · **1118 scripts** · 21 wired into a gate · 266 called by other code · 165 only mentioned in docs · 666 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -932,7 +932,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 35 scripts, 6 referenced by nothing
+### `_tools/openstack-bridge` — 38 scripts, 6 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -955,14 +955,17 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `ensure-second-network.sh` | CALLED | 1 | 2026-07-30 | yes |  |
 | `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-23 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
 | `fix-dock-order.py` | ORPHAN | 0 | 2026-08-24 | yes | move a lab's terminal card above its steps card and wrap both in .work-zone |
+| `office-reachability-check.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | prove the lab surfaces are reachable from an arbitrary network, no tailscale |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
 | `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
 | `qc-lab.sh` | CALLED | 20 | 2026-07-31 | yes |  |
 | `reclaim-idle-slots.py` | CALLED | 5 | 2026-07-31 | yes |  |
+| `setup-novnc-console.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | rebuild the public noVNC console route (bc2 bridge, bc1 proxy, VM apache, nova) |
 | `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-23 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
 | `sprint-student-walkthrough.sh` | CALLED | 2 | 2026-08-24 | yes | cold-run the sprint packet's literal commands on fresh instances; no asset injection |
 | `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
+| `verify-novnc-console.js` | CALLED | 1 | 2026-08-25 | yes | verify the Horizon instance console end to end in a real browser |
 | `walkthrough-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `walkthrough-cinder.js` | CALLED | 4 | 2026-08-24 | yes |  |
 | `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
