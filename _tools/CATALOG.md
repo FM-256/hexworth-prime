@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-24 12:42 · **1112 scripts** · 21 wired into a gate · 264 called by other code · 161 only mentioned in docs · 666 referenced by nothing · 469 not in git
+**Generated:** 2026-08-24 23:39 · **1115 scripts** · 21 wired into a gate · 265 called by other code · 163 only mentioned in docs · 666 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -932,19 +932,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 32 scripts, 6 referenced by nothing
+### `_tools/openstack-bridge` — 35 scripts, 6 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `adversarial-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
-| `adversarial-cinder.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
+| `adversarial-cinder.js` | DOCS-ONLY | 0 | 2026-08-24 | yes |  |
 | `adversarial-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
 | `adversarial-project.js` | CALLED | 3 | 2026-08-11 | yes |  |
-| `adversarial-rescue.js` | CALLED | 1 | 2026-08-11 | yes |  |
+| `adversarial-rescue.js` | CALLED | 2 | 2026-08-11 | yes |  |
 | `adversarial-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-wall.js` | CALLED | 17 | 2026-08-11 | yes |  |
 | `apply-bc1-patch.py` | ORPHAN | 0 | 2026-07-30 | yes |  |
-| `audit-check-docs.py` | ORPHAN | 0 | 2026-08-24 | no | find checks grading on requirements the lab page never documents |
+| `apply-io-blocks.py` | DOCS-ONLY | 0 | 2026-08-24 | yes |  |
+| `apply-lab-layout.py` | CALLED | 1 | 2026-08-24 | yes | apply the proven layout treatment to one OpenStack lab page |
+| `audit-check-docs.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | find checks grading on requirements the lab page never documents |
 | `build-sprint-image.sh` | CALLED | 4 | 2026-08-24 | yes | build+upload ubuntu-24.04-sprint (nginx/flask/nmap baked in, no egress needed) |
 | `claim_service.py` | CALLED | 5 | 2026-08-24 | yes |  |
 | `dump-slot-uids.py` | CALLED | 3 | 2026-07-31 | yes |  |
@@ -952,6 +954,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `egress-host-nat.sh` | CALLED | 1 | 2026-08-24 | yes | host half of egress: br-ex address + MASQUERADE + a unit that survives reboot |
 | `ensure-second-network.sh` | CALLED | 1 | 2026-07-30 | yes |  |
 | `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-23 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
+| `fix-dock-order.py` | ORPHAN | 0 | 2026-08-24 | yes | move a lab's terminal card above its steps card and wrap both in .work-zone |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
 | `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
@@ -961,7 +964,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `sprint-student-walkthrough.sh` | CALLED | 2 | 2026-08-24 | yes | cold-run the sprint packet's literal commands on fresh instances; no asset injection |
 | `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
 | `walkthrough-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
-| `walkthrough-cinder.js` | CALLED | 4 | 2026-08-11 | yes |  |
+| `walkthrough-cinder.js` | CALLED | 4 | 2026-08-24 | yes |  |
 | `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
 | `walkthrough-project.js` | CALLED | 9 | 2026-08-11 | yes |  |
 | `walkthrough-rescue.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
@@ -975,7 +978,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `project2_cinder_guest_setup.sh` | CALLED | 1 | 2026-08-24 | yes |  |
 | `project3_api.py` | CALLED | 3 | 2026-08-24 | yes |  |
-| `project4_generate_traffic.sh` | CALLED | 3 | 2026-08-24 | yes |  |
+| `project4_generate_traffic.sh` | CALLED | 4 | 2026-08-24 | yes |  |
 | `project4_honeypot.py` | CALLED | 3 | 2026-08-24 | yes |  |
 
 ### `_tools/operator-board/server` — 1 scripts, 0 referenced by nothing
