@@ -61,6 +61,13 @@ CSS = """        /* ---- layout treatment (see _tools/openstack-bridge/apply-lab
         /* The sticky boundary ends where the steps end, so the terminal cannot ride down over
            the closing section. */
         .work-zone { position: relative; }
+        /* These pages say "check 4 reads this exact state" in their own prose while the panel
+           shows no numbers anywhere. Two vocabularies with no bridge. */
+        .lab-monitor__id {
+            display: inline-block; font-size: 0.72rem; letter-spacing: 0.08em; font-weight: 700;
+            color: var(--cloud-dark); background: var(--cloud-accent);
+            border-radius: 4px; padding: 1px 7px; margin-right: 8px; vertical-align: 2px;
+        }
 """
 
 
@@ -115,7 +122,28 @@ def treat(html: str):
         notes.append("work-zone wraps dock + steps")
     else:
         notes.append("no closing card found; work-zone not needed")
-    return "\n".join(rest), notes
+
+    # 5. badge each objective with its check id.
+    # This was hand-applied to the first lab AFTER the script ran, which is exactly the drift
+    # this script exists to prevent: the tool would have been run five more times, exited 0 each
+    # time, and silently left the defect in place, because nothing errors for a step that was
+    # never implemented. Encoded here so one run produces the whole treatment.
+    out = "\n".join(rest)
+    badged = 0
+    for cid in re.findall(r'data-check="(\d+)"', out):
+        marker = f'<li class="fail" data-check="{cid}">'
+        if marker not in out:
+            continue
+        i = out.index(marker)
+        j = out.index('<div class="lab-monitor__task">', i)
+        if 'lab-monitor__id' in out[j:j + 120]:
+            continue
+        out = (out[:j]
+               + f'<div class="lab-monitor__task"><span class="lab-monitor__id">CHECK {cid}</span>'
+               + out[j + len('<div class="lab-monitor__task">'):])
+        badged += 1
+    notes.append(f"badged {badged} objective(s) with their check ids")
+    return out, notes
 
 
 if __name__ == "__main__":
@@ -128,6 +156,13 @@ if __name__ == "__main__":
     print(f"  div balance: {out.count('<div')}/{out.count('</div')} -> {'OK' if ok else 'BROKEN'}")
     if not ok:
         sys.exit("  refusing to write: div balance broken")
+    # A note that says "refusing" must actually refuse. The first version printed it and then
+    # exited 0, so a partial treatment (css + dock, no panel move, no badges) would have been
+    # written to four of the five remaining labs and looked like a success. Silent partial
+    # application is the drift this script exists to prevent.
+    refusals = [n for n in notes if "refusing" in n or "NO " in n]
+    if refusals:
+        sys.exit(f"  ABORT: {refusals[0]} -- nothing written, this page needs a different shape")
     if "--write" in sys.argv:
         p.write_text(out)
         print("  WRITTEN")
