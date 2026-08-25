@@ -18,44 +18,39 @@
 **Manual section updated:** 2026-08-25 07:30 EDT, after a FULL SUITE run. Newest block first; older dated blocks follow below.
 first, then 08-23 (process/tools), then 08-22 (capacity/image), then 08-21, then 08-20.
 
-## NOW: all green + debris cleanup STARTED, deliberately incomplete (2026-08-25 08:20)
+## NOW: PROVEN FROM THE OFFICE, tailscale offline (2026-08-25 09:00)
 
-Everything from the full suite is GREEN and deployed: 6 lab QC gates, Sprint 4 missions on
-student creds, Horizon login, the noVNC console (fixed today), off-tailscale reachability 7/7,
-all 7 deploy stages. Details in the blocks below.
+The two issues the operator named are both closed, and the office one is no longer an argument
+from DNS records -- it was measured ON the office network with `tailscale status` reporting
+**msi ... offline**.
 
-### DEBRIS CLEANUP -- 2 slots done, 16 DELIBERATELY NOT TOUCHED
-Operator asked to clean the debris slots. Inventory documented FIRST (the rule: test data is
-deletable once documented) -> `_tools/openstack-bridge/debris-inventory-2026-08-25.json`,
-18 slots holding 17 servers and 18 volumes at the time of capture.
+### The full student journey, executed from the office
+1. Firebase sign-in: OK
+2. Launch lab: 200, session created
+3. **Cloud slot assigned from bc2: student-20, mode=personal** -- this is the load-bearing one.
+   MY access to bc2 is gone from here, but bc1->bc2 is server-side and still works, which is
+   exactly what a student depends on.
+4. Horizon credentials issued; console-session cookie minted: 200
+5. Horizon login in a real browser: LOGGED IN
+6. Created `office-test-vm`, opened the Console tab: **websocket 101, stays open,
+   "Connected to QEMU", live boot log**. Screenshot taken. Instance and session cleaned up after.
 
-**Cleaned:** `student-48`, `student-49` -- both UNBOUND to any Firebase uid, and both are the
-sprint harness's own fixed slots which it destroys and recreates every run. Now 0 servers,
-0 volumes each. Script: `_tools/openstack-bridge/clean-debris.py` (detaches before deleting,
-polls for available, refuses without an explicit slot allow-list).
+`office-reachability-check.sh` also passes 7/7 here.
 
-**STOPPED THERE ON PURPOSE.** Every slot student-01..17 IS BOUND to a Firebase uid. I did not
-resolve which of those uids are QC harness identities (`*@hexworth-smoke.local`, 15 of them
-exist) versus real people. A bound slot may hold a student's in-progress lab work and that loss
-is permanent, so name-based guessing ("lab-vol looks like test data") is not good enough.
+### What is NOT reachable from the office (mine, not a student's)
+**bc2 is tailscale-only** -- `ssh bc2` times out. So the claim service, the DevStack VM, nova
+config and the rest of the debris cleanup all wait until back on the tailnet. bc1 stays
+reachable through its Cloudflare tunnel (`ssh bc1-cf`), and bc1 can drive OpenStack, which is
+how the office console test was set up at all.
 
-**`student-01` holds `Killa-B` -- the OPERATOR'S OWN instance. Do not delete.**
-
-**To finish:** resolve each bound uid by signing in as the 15 QC identities (emails and fixed
-passwords are in the `adversarial-*.js` / `walkthrough-*.js` harnesses on bc1) and match uids
-against `dump-slot-uids.py` output. Any slot whose uid is a QC identity is debris; anything else
-is a real user. Then:
-`python3 clean-debris.py student-NN,student-MM` on bc2.
-
-### ACCESS NOTE -- operator moved to the office
-bc2 is reached over TAILSCALE, which does not work from the office, so the claim service and the
-DevStack VM are unreachable from there. bc1 stays reachable via its Cloudflare tunnel
-(`ssh bc1-cf`). Anything needing bc2 -- the rest of this cleanup, claim/verify, nova config --
-waits until back on the tailnet.
-
-Students are unaffected: everything they touch is public through Cloudflare/Firebase, proven via
-eth0 with no exit node. Confirm on site with
-`bash _tools/openstack-bridge/office-reachability-check.sh` (7 checks, no credentials).
+### DEBRIS CLEANUP -- 2 done, 16 deliberately NOT touched
+Inventory documented first -> `_tools/openstack-bridge/debris-inventory-2026-08-25.json`
+(no uids in it; this repo is public and the exposure gate caught the first attempt).
+Cleaned `student-48`/`student-49`: unbound, and the sprint harness's own slots.
+**Every slot student-01..17 is BOUND to a uid and was left alone** -- a bound slot may hold real
+student work. `student-01` holds the operator's `Killa-B`.
+To finish: resolve bound uids against the 15 `*@hexworth-smoke.local` QC identities, then
+`python3 clean-debris.py <confirmed slots>` on bc2. Needs tailnet.
 
 
 ### 1. Horizon instance console -- FIXED, and yes it WAS an IP issue
