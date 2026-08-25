@@ -37,6 +37,30 @@ NAME=${SPRINT_IMAGE_NAME:-ubuntu-24.04-sprint}
 BASE_URL=https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64.img
 BASE=/tmp/ubuntu-24.04-minimal.img
 OUT=/tmp/${NAME}.img
+
+# ── DO NOT RUN THIS WHILE THE CLOUD IS SERVING STUDENTS ────────────────────────
+# On 2026-08-25 this script was run during a live class and took the whole cloud down.
+# The DevStack VM is allocated 26G of bc2's 31G, so the host has ~5G of headroom. This build
+# adds qemu-nbd, a chroot running apt, and a 4G image write; that tipped the host over, the OOM
+# killer chose the largest process, and the largest process is the VM. Every student's CLI died
+# at once with "Remote end closed connection without response".
+#
+#   Aug 25 11:17:36 bc2 systemd: machine.slice: killed by the OOM killer
+#   Aug 25 11:17:36 bc2 systemd-machined: Machine qemu-2-openstack-stage1 terminated
+#
+# The guard refuses by default when the VM is running. Building means either taking the cloud
+# down deliberately, or accepting that risk explicitly with ALLOW_LIVE_BUILD=1.
+if command -v virsh >/dev/null 2>&1 && sudo virsh list --state-running --name 2>/dev/null | grep -q openstack-stage1; then
+  avail=$(free -m | awk '/^Mem:/{print $7}')
+  if [ "${ALLOW_LIVE_BUILD:-0}" != "1" ]; then
+    echo "✗ REFUSING: the DevStack VM is running and this build has taken the cloud down before."
+    echo "  Host available memory: ${avail} MiB. The VM holds 26G of 31G; this build needs the rest."
+    echo "  Shut the VM down first, or re-run with ALLOW_LIVE_BUILD=1 if you accept killing the cloud."
+    exit 3
+  fi
+  echo "  ⚠ ALLOW_LIVE_BUILD=1: building while the cloud is live (${avail} MiB available). This has OOM'd the VM before."
+fi
+
 MNT=/mnt/sprintimg
 KEY=${STAGE1_KEY:-$HOME/openstack-stage1/stage1_key}
 VMADDR=${STAGE1_VM:-192.168.122.62}
@@ -280,6 +304,14 @@ sudo grep -q '^manage_etc_hosts: true' "$MNT/etc/cloud/cloud.cfg" \
 sudo grep -q '^ssh_pwauth: true' "$MNT/etc/cloud/cloud.cfg" \
   && echo "  ssh password auth enabled (Mission 2 peer SFTP is impossible without it)" \
   || { echo "  ✗ ssh_pwauth not set -- Mission 2 peer SFTP cannot authenticate"; miss=1; }
+  # Console autologin is the difference between a startable lab and a login prompt with no
+  # possible answer, so it is asserted rather than assumed. BOTH gettys are checked: covering
+  # one and trusting the other is exactly how this would ship half-working.
+  for g in getty@tty1 serial-getty@ttyS0; do
+    sudo grep -q -- '--autologin ubuntu' "$MNT/etc/systemd/system/$g.service.d/autologin.conf" 2>/dev/null \
+      && echo "  console autologin set for $g" \
+      || { echo "  ✗ $g has no autologin -- students cannot reach a shell through noVNC"; miss=1; }
+  done
 # The asset dir the student is told to treat as pristine must not contain build debris.
 # Assert nothing EXTRA shipped, not just that the six expected files are there. Checking only for
 # what should be present cannot catch what should not be.
