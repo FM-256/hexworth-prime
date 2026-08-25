@@ -184,6 +184,34 @@ sudo chroot "$MNT" /bin/bash -c "
   if ! grep -q '^ssh_pwauth' /etc/cloud/cloud.cfg; then
     echo 'ssh_pwauth: true' >> /etc/cloud/cloud.cfg
   fi
+
+  # ── CONSOLE AUTOLOGIN ──────────────────────────────────────────────────────
+  # Without this the sprint is UNSTARTABLE, measured live 2026-08-25. The note above says the
+  # student's only access is the Horizon noVNC console AND that they set their own password with
+  # 'sudo passwd ubuntu'. Both are true, and together they deadlock: the console shows
+  # 'ubuntu login:', Ubuntu cloud images ship that account with a LOCKED password, and there is
+  # no shell in which to run passwd. Students sat at a prompt with no possible answer and tried
+  # their Horizon credentials, which belong to a different system entirely.
+  #
+  # Autologin rather than a baked password, for two reasons. A password cannot be TYPED reliably
+  # here anyway: Linux never echoes it and noVNC drops the occasional keystroke, so a typo and a
+  # dropped key are indistinguishable. And baking a shared credential is precisely what the note
+  # above refused to do -- this keeps that refusal while making the console usable. The student
+  # can still run 'sudo passwd ubuntu' once they have a shell, which is what Mission 2 needs.
+  #
+  # BOTH gettys: noVNC shows the graphical console (tty1) while the console-log API reads the
+  # serial one (ttyS0), and which one a student lands on depends on the image's console=
+  # setting. Covering one and assuming the other is how this silently half-works.
+  #
+  # Reaching this console already requires a Horizon login AND the console gate cookie, and
+  # 'shared' has no route off the cloud. On a routable network this would not be acceptable.
+  mkdir -p /etc/systemd/system/getty@tty1.service.d /etc/systemd/system/serial-getty@ttyS0.service.d
+  { echo '[Service]'; echo 'ExecStart='; \
+    echo 'ExecStart=-/sbin/agetty --autologin ubuntu --noclear %I \$TERM'; } \
+    > /etc/systemd/system/getty@tty1.service.d/autologin.conf
+  { echo '[Service]'; echo 'ExecStart='; \
+    echo 'ExecStart=-/sbin/agetty --autologin ubuntu --keep-baud 115200,38400,9600 %I \$TERM'; } \
+    > /etc/systemd/system/serial-getty@ttyS0.service.d/autologin.conf
   echo '<h1>MY CLOUD IS ALIVE</h1><p>Student/Team: CHANGE ME</p>' > /var/www/html/index.html
   apt-get clean
 "
