@@ -119,6 +119,17 @@ async function post(url, body, headers) {
     // page line: `openstack volume show lab-vol -f value -c status   # WAIT for: in-use`
     for (let i = 0; i < 12; i++) { if (dex('openstack volume show lab-vol -f value -c status').trim() === 'in-use') break; sh('sleep 5'); }
     dex('mkdir -p ~/notes && openstack volume show lab-vol -f json > ~/notes/attach-proof.txt');
+    // page line: "press Record the attachment beside the terminal". The grader reads the live
+    // cloud and writes down which volume is on which server; check 6 is judged against it.
+    // This is the ONLY moment it can be taken -- after server-a is deleted the cloud cannot be
+    // asked -- so a harness that skipped it would report an uncompletable lab as broken code.
+    const rec = await (await fetch(`${BASE}/baseline/${sid}`, {
+      method: 'POST',
+      headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kind: 'attach' }),
+    })).json();
+    if (!rec || !rec.ok) fail(`attach witness NOT recorded: ${(rec && rec.error) || 'no response'}`);
+    console.log(`  witness recorded: ${rec.recorded.volume} on ${rec.recorded.server}`);
 
     console.log('lab step 3: detach, capture, delete server-a');
     dex('openstack server remove volume server-a lab-vol');

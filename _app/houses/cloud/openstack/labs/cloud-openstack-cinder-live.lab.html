@@ -231,6 +231,16 @@ openstack volume show lab-vol -f value -c status   # WAIT for: in-use</div>
                 </div>
                     <p>Capture the evidence while it is attached:</p>
                     <div class="cmd">openstack volume show lab-vol -f json > ~/notes/attach-proof.txt</div>
+                    <p>Now press <strong>Record the attachment</strong> beside the terminal. You
+                    do not write this one: the grader reads the live cloud itself and notes which
+                    volume is on which server, right now, while it is still true. The moment you
+                    delete that server the fact is gone from the cloud for good, so it has to be
+                    taken <em>before</em>, and by something you do not control. That recording is
+                    what CHECK 6 is judged against.</p>
+                    <div class="io">
+                        <div class="io__expect"><span class="io__label">EXPECT</span>Recorded: lab-vol is on server-a</div>
+                        <div class="io__ifnot"><span class="io__label">IF NOT</span>"not attached" means the attach has not landed yet: wait for in-use, then press it again</div>
+                    </div>
                 </div></div>
                 <div class="step"><div>
                     <h3>Detach, capture, and destroy the server</h3>
@@ -253,11 +263,12 @@ openstack server delete server-a</div>
                     <div class="cmd">openstack server create --flavor m1.nano --image &lt;IMAGE&gt; --network shared server-b
 openstack server show server-b -f value -c status  # wait for: ACTIVE
 openstack server add volume server-b lab-vol</div>
-                    <p>Now press <strong>Check My Work</strong> beside the terminal. Check 6 reads
-                    the cloud's own records, not your notes: lab-vol must be attached
-                    <strong>right now</strong> to a server that still exists, and you must have
-                    built a server, attached a volume to it, and <strong>deleted</strong> it since
-                    you created lab-vol. Skipping the delete-and-rebuild cannot satisfy it.</p>
+                    <p>Now press <strong>Check My Work</strong> beside the terminal. Check 6 is
+                    judged against the recording the grader took in Step 2, not against your
+                    notes: the <em>same</em> volume it wrote down must be attached to a
+                    <strong>different</strong> server now, and the server it wrote down must be
+                    <strong>gone</strong>. Nothing shorter than the detach, the delete and the
+                    re-attach reaches that state.</p>
                 </div></div>
             </div>
         </div>
@@ -307,7 +318,7 @@ openstack server add volume server-b lab-vol</div>
                     <li class="fail" data-check="6">
                         <img class="lab-monitor__mark" src="/assets/images/icons/icon-checkbox.webp" alt="" onerror="this.style.visibility='hidden'">
                         <div>
-                            <div class="lab-monitor__task"><span class="lab-monitor__id">CHECK 6</span>lab-vol is attached <strong>right now</strong> to a server you built, and a server you attached a volume to has since been <strong>deleted</strong>. Graded from the cloud's own record of the server you deleted, not from your notes.</div>
+                            <div class="lab-monitor__task"><span class="lab-monitor__id">CHECK 6</span>The volume <strong>you recorded</strong> is attached to a <strong>different</strong> server now, and the server you recorded it on is <strong>gone</strong>. Judged against the grader's own recording, taken while the volume was still attached, not from your notes.</div>
                             <div class="lab-monitor__state fail" data-state>Not yet</div>
                         </div>
                     </li>
@@ -374,6 +385,41 @@ openstack server add volume server-b lab-vol</div>
             } catch (e) { /* never let an award failure break the lab UI */ }
         }
 
+        // Step 2's attach witness (BUG-058). CHECK 6 claims the volume outlived a server, and
+        // nothing in the END state can show that: attaching keeps no history, so any final
+        // arrangement is reachable directly. The grader therefore writes down what it can see
+        // while it is still true -- which volume is on which server -- reading the live cloud
+        // itself. Nothing here is trusted from the container, and the student can neither read
+        // nor edit the record. Soft failures return HTTP 200 with ok:false, so read `ok`
+        // rather than waiting for a throw.
+        var recordBusy = false;
+        async function recordAttach(ctx) {
+            var msg = document.getElementById('cinder-monitor-msg');
+            if (!msg) return;
+            if (ctx.panel) ctx.panel.style.display = '';
+            var both = function (cls, text) {
+                msg.className = cls; msg.textContent = text;
+                if (ctx.panel) ctx.panel.textContent = text;
+            };
+            if (!ctx.sessionId) { both('lab-monitor__msg', 'Launch the terminal first, then record the attachment.'); return; }
+            if (recordBusy) { both('lab-monitor__msg', 'Still recording, one moment.'); return; }
+            recordBusy = true;
+            both('lab-monitor__msg', 'Reading the live cloud and recording the attachment...');
+            try {
+                var r = await SandboxLauncher.recordBaseline(ctx.sessionId, 'attach');
+                if (r && r.ok && r.recorded) {
+                    both('lab-monitor__msg done', 'Recorded: ' + r.recorded.volume + ' is on ' +
+                        r.recorded.server + '. Now detach it, delete that server, and give the volume to a new one.');
+                } else {
+                    both('lab-monitor__msg', (r && r.error) || 'Could not record the attachment just now.');
+                }
+            } catch (e) {
+                both('lab-monitor__msg', 'Could not record right now. Make sure your terminal is still running, then try again.');
+            } finally {
+                recordBusy = false;
+            }
+        }
+
         var checkBusy = false;
         async function checkMyWork(ctx) {
             var msg = document.getElementById('cinder-monitor-msg');
@@ -392,7 +438,10 @@ openstack server add volume server-b lab-vol</div>
                 var results = (r && r.results) || [];
                 var passed = paintMonitor(results);
                 if (passed === 4) {
-                    both('lab-monitor__msg done', '4 / 4 complete. A server you built is gone; the volume is still here, attached to another one. Lab complete.');
+                    // This line asserts IDENTITY -- that THIS volume outlived THAT server -- and
+                    // it is only allowed back because the Step 2 recording now proves it. It was
+                    // removed on 2026-08-25 when the check could not, and re-earned the same day.
+                    both('lab-monitor__msg done', '4 / 4 complete. The volume outlived its server, and the grader watched it happen. Lab complete.');
                     awardOnce('cloud-openstack-cinder-live');
                 } else {
                     both('lab-monitor__msg', passed + ' / 4 complete. Work the unfinished step, then check again.');
@@ -421,6 +470,10 @@ openstack server add volume server-b lab-vol</div>
                     label: 'Field Guide', visibleWhen: 'always',
                     onClick: function () { window.open('../handouts/openstack-cli-cheatsheet.html', 'openstack-field-guide'); }
                 },
+                // Label matches the Step 2 prose word for word. It sits BEFORE Check My Work
+                // because that is the order the lab uses it in, and the recording has to happen
+                // while server-a is still alive -- afterwards the cloud cannot be asked.
+                { label: 'Record the attachment', visibleWhen: 'running', onClick: recordAttach },
                 { label: 'Check My Work', visibleWhen: 'running', onClick: checkMyWork }
             ]
         });

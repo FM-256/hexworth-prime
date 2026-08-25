@@ -636,141 +636,25 @@ def release(uid):
         return 200, {'released': True, 'slot': slot}
 
 
-_PID_CACHE = {}      # slot -> (project_id, expires_at); projects change only at term reset
-_ATOK_CACHE = [None, 0]   # [token, expires_at]; Keystone tokens outlive this TTL comfortably
-
-
-def _cached_admin_token(ttl=1500):
-    """Admin token, reused across /verify calls. Issued per-call this would add a Keystone
-    round trip to every Check My Work, and /verify is the hot path for every cloud lab."""
-    now = time.time()
-    if _ATOK_CACHE[0] and now < _ATOK_CACHE[1]:
-        return _ATOK_CACHE[0]
-    tok = admin_token()
-    if tok:
-        _ATOK_CACHE[0], _ATOK_CACHE[1] = tok, now + ttl
-    return tok
-
-
-def _slot_project_id(slot, atok, ttl=3600):
-    """Project id for a pool slot. Slot name IS the project name (see claim())."""
-    hit = _PID_CACHE.get(slot)
-    if hit and time.time() < hit[1]:
-        return hit[0]
-    for p in (pool_projects(atok) or []):
-        _PID_CACHE[p['name']] = (p['id'], time.time() + ttl)
-    hit = _PID_CACHE.get(slot)
-    return hit[0] if hit else None
-
-
-def _deleted_servers(slot, floor_epoch=None, cap=12):
-    """Servers this slot created and then DELETED, with the times they attached a volume.
-
-    WHY THIS EXISTS (BUG-058). The cinder lab's check 6 claims to prove "the volume outlived
-    its first server". Nothing in the end state can prove that: attaching is not history
-    bearing, so any final arrangement is reachable by a five-command shortcut that never
-    detaches anything. Cinder drops its attachment rows on detach and Nova empties
-    volumes_attached on delete (both measured 2026-07-31), which is why the check was
-    downgraded to a timestamp comparison that every shortcut passes.
-
-    Nova does keep one thing: the instance row for a deleted server, and its ACTION log.
-    So "you attached A VOLUME to a server that no longer exists" IS answerable, server-side,
-    from state the student cannot reach.
-
-    KNOWN LIMIT, AND IT IS LOAD BEARING -- READ BEFORE TRUSTING THIS (Nancy, 2026-08-25).
-    The action log records THAT an attach happened, never WHICH VOLUME. Measured, all four
-    against the admin API on this cloud:
-        os-instance-actions detail   -> no volume id in the action or its events
-        os-volume_attachments        -> 404 once the instance is deleted
-        servers/{id} detail          -> 404 once the instance is deleted
-        Cinder /attachments (3.27+)  -> current records only; a detached one is simply gone
-                                        (max microversion here is 3.71, so no newer path)
-    So a student CAN still beat a check built on this by attaching a THROWAWAY volume to the
-    server they delete, then attaching the real one elsewhere. That costs more work than the
-    honest path and exercises the same operations, but it is a real bypass and no wording
-    here should pretend otherwise. Anything graded on this witness must claim only "a server
-    you built, with a volume attached, was deleted" -- NOT "the volume outlived ITS first
-    server". Binding the volume identity needs a different witness (a seeded first server, as
-    the Rescue lab does, or a grader-side observation ledger); that call is with the operator.
-
-    TWO MEASURED TRAPS, both of which would have produced a confidently wrong grade:
-
-      1. `deleted=True` is admin-only and Nova SILENTLY IGNORES it for a project user --
-         asked with student-48's own token it returned that slot's LIVE ACTIVE server
-         (measured 2026-08-25). A grader trusting the user token would read a running
-         server as a deleted one. Hence the admin token, and hence the explicit
-         status == 'DELETED' filter rather than trusting the query parameter to have been
-         honoured at all.
-      2. Nova keeps deleted-instance rows FOREVER, and a slot is recycled between students,
-         so this list carries other people's runs. It is returned raw, timestamps included;
-         anchoring it to the volume under test is the CALLER's job (check 6 requires the
-         attach to postdate the volume's own creation). release() refuses a non-empty slot,
-         so a recycled slot never carries a volume, which is what makes that anchor sound.
-
-    `floor_epoch` is a RELEVANCE floor (oldest volume the slot still holds), not a wall-clock
-    window: a window measured back from now silently ages an honest student's first server out
-    of the list once they return the next day, and there is no way back in.
-
-    Returns (list, ok). `ok` is False when the history could not be read, so a check can tell
-    "no history" apart from "history unavailable" instead of silently failing an honest
-    student on an infrastructure blip.
-    """
-    atok = _cached_admin_token()
-    if not atok:
-        return [], False
-    pid = _slot_project_id(slot, atok)
-    if not pid:
-        return [], False
-    st, doc = _os(atok, '/compute/v2.1',
-                  f'/servers/detail?all_tenants=1&deleted=True&tenant_id={pid}&limit=20')
-    if st in (401, 403):
-        # The cached token is dead before its TTL -- rotated out of band, or Keystone's real
-        # lifetime is shorter than assumed. Without this, the same dead token is handed out for
-        # the rest of the TTL and every history-backed check fails closed platform-wide, with
-        # nothing distinguishing "no history" from "the credential died". Drop it and retry once.
-        _ATOK_CACHE[0], _ATOK_CACHE[1] = None, 0
-        atok = _cached_admin_token()
-        if not atok:
-            return [], False
-        st, doc = _os(atok, '/compute/v2.1',
-                      f'/servers/detail?all_tenants=1&deleted=True&tenant_id={pid}&limit=20')
-    if st != 200 or doc is None:
-        return [], False
-    # RELEVANCE FLOOR, not a wall-clock window. The first version filtered to servers created
-    # in the last 24h, computed fresh on every call -- so a student who built their first
-    # server on Friday and clicked Check My Work on Monday had it age permanently out of the
-    # list, with no retry and no way back in. The floor instead comes from the student's own
-    # volumes (the oldest one they still hold): a deleted server only matters here if it could
-    # have attached a volume that exists, and none can predate the oldest volume. Time passing
-    # never moves this line. Falls back to 24h only when the slot holds no volumes at all, in
-    # which case no volume-related check can pass anyway.
-    cutoff = floor_epoch if floor_epoch is not None else (time.time() - 24 * 3600)
-    out = []
-    for s in (doc.get('servers') or []):
-        # Trust the STATUS, not the filter: see trap 1 above.
-        if s.get('status') != 'DELETED' or s.get('tenant_id') != pid:
-            continue
-        try:
-            born = calendar.timegm(time.strptime(s.get('created', ''), '%Y-%m-%dT%H:%M:%SZ'))
-        except (ValueError, TypeError):
-            continue
-        if born < cutoff:
-            continue     # someone else's term, or debris; bounds the action calls below
-        out.append({'id': s.get('id'), 'name': s.get('name'), 'created': s.get('created'),
-                    'terminated_at': s.get('OS-SRV-USG:terminated_at'), 'attach_volume_at': []})
-    # OLDEST first. Sorting newest-first and truncating evicted exactly the wrong server: the
-    # one built FIRST for this lab is the one check 6 needs, and it is the first to fall off
-    # the end once a student churns servers on other labs in the same slot.
-    out.sort(key=lambda d: d['created'])
-    out = out[:cap]
-    for d in out:
-        sta, adoc = _os(atok, '/compute/v2.1', f'/servers/{d["id"]}/os-instance-actions')
-        if sta != 200 or adoc is None:
-            return out, False    # partial history is worse than none: say so
-        d['attach_volume_at'] = sorted(
-            a.get('start_time') for a in (adoc.get('instanceActions') or [])
-            if a.get('action') == 'attach_volume' and a.get('start_time'))
-    return out, True
+# ── Nova deleted-instance history: MEASURED, then retired ──────────────────────
+# /verify briefly carried `deleted_servers` (Nova keeps the instance row and its action log for
+# a server the student deleted) as the witness for the Cinder lab's check 6. It is off the hot
+# path now because it could never answer the actual question, and keeping it cost EVERY lab on
+# the platform an admin token plus up to nine extra Nova calls on EVERY Check My Work.
+#
+# The findings are kept because they were expensive and someone will be tempted again:
+#   - `deleted=True` is ADMIN ONLY and Nova SILENTLY IGNORES it for a project user. Asked with
+#     student-48's own token it returned that slot's LIVE ACTIVE server, which a grader would
+#     have read as a deleted one. Never trust that filter was honoured; check the status field.
+#   - the action log records THAT a volume was attached and never WHICH. Measured four ways:
+#     the action detail carries no volume id, and os-volume_attachments, servers/{id} and
+#     Cinder's /attachments all lose the record once the instance is deleted or the volume is
+#     detached (Cinder maxes out at microversion 3.71 here, so there is no newer path to try).
+#   - so nothing readable on this cloud, end state or history, can bind a PAST attachment to a
+#     particular volume.
+# check 6 uses a grader-side ATTACH WITNESS instead -- the same ledger the capstone's check 27
+# uses: the grader records {volume_id, server_id} while the volume is still attached, naming
+# the volume precisely because the cloud will not.
 
 
 def verify(slot):
@@ -912,21 +796,9 @@ def verify(slot):
                           'expires_at': c.get('expires_at')}
                          for c in (ac.get('application_credentials') or [])]
 
-    # The floor for deleted-server history: the oldest volume this slot still holds. A deleted
-    # server is only relevant to a volume check if it could have attached a volume that exists.
-    _born = []
-    for v in volumes:
-        try:
-            _born.append(calendar.timegm(time.strptime(
-                (v.get('created_at') or '').split('.')[0].rstrip('Z'), '%Y-%m-%dT%H:%M:%S')))
-        except (ValueError, TypeError):
-            continue
-    hist, hist_ok = _deleted_servers(slot, floor_epoch=(min(_born) if _born else None))
-
     return 200, {'slot': slot, 'servers': servers, 'volumes': volumes,
                  'security_groups': groups, 'networks': networks, 'routers': routers,
-                 'app_creds': app_creds,
-                 'deleted_servers': hist, 'deleted_servers_ok': hist_ok}
+                 'app_creds': app_creds}
 
 
 def slot_of(uid):

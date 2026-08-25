@@ -146,6 +146,36 @@ async function post(url, body, headers) {
   if (r.find((c) => c.id === 6 && c.pass)) fail('CHEAT A BEAT CHECK 6 -- the shortcut still passes');
   if (r.find((c) => c.id === 4 && c.pass) || r.find((c) => c.id === 5 && c.pass)) fail('CHEAT A: echoed evidence accepted');
   console.log(`  cheat A rejected (scored ${aPass}/4, checks 4/5/6 all refused)`);
+  // ── CHEAT C: the throwaway-volume swap, which beat the PREVIOUS witness ──
+  // Nancy, 2026-08-25: Nova's action log records THAT a server attached a volume, never WHICH.
+  // So a student could attach a junk volume to the server they delete, attach lab-vol somewhere
+  // else, and score a check that claims lab-vol outlived a server. The suite had never generated
+  // this input, which is why it survived a dedicated review. It runs here now.
+  console.log('cheat C: witness a JUNK volume, then attach lab-vol elsewhere (the identity swap)');
+  dex('openstack volume create --size 1 junk-vol');
+  for (let i = 0; i < 12; i++) { if (dex('openstack volume show junk-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+  dex('openstack server add volume cheat-srv junk-vol');
+  for (let i = 0; i < 12; i++) { if (dex('openstack volume show junk-vol -f value -c status').trim() === 'in-use') break; sh('sleep 5'); }
+  // Record while the JUNK volume is the one attached -- the swap the old witness could not see.
+  const cRec = await (await fetch(`${BASE}/baseline/${sid}`, {
+  method: 'POST',
+  headers: { ...auth, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ kind: 'attach' }),
+  })).json();
+  // The witness names lab-vol specifically, so with lab-vol NOT attached it must refuse outright.
+  if (cRec && cRec.ok) {
+  console.log(`  (witness accepted while junk-vol held the server: recorded ${cRec.recorded && cRec.recorded.volume})`);
+  } else {
+  console.log(`  witness refused, as it should: ${cRec && cRec.error}`);
+  }
+  r = await grade();
+  r.forEach((c) => console.log(`  check ${c.id}: ${c.pass ? 'PASS' : 'fail'}`));
+  if (r.find((c) => c.id === 6 && c.pass)) fail('CHEAT C BEAT CHECK 6 -- the throwaway-volume swap still passes');
+  console.log('  cheat C rejected (check 6 is bound to the volume ID that was recorded)');
+  dex('openstack server remove volume cheat-srv junk-vol');
+  for (let i = 0; i < 12; i++) { if (dex('openstack volume show junk-vol -f value -c status').trim() === 'available') break; sh('sleep 5'); }
+  dex('openstack volume delete junk-vol');
+
 
   // ── CHEAT B: real json, but captured once and reused; still no delete cycle ──
   console.log('cheat B: genuine volume json (real uuid) reused for both proofs, still one server');
