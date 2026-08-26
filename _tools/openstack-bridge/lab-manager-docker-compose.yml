@@ -1,0 +1,159 @@
+version: "3.9"
+
+services:
+  # ── Reverse Proxy ──────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.7.6
+    container_name: traefik
+    environment:
+      - DOCKER_API_VERSION=1.44
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=sandbox-net
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.transport.respondingTimeouts.readTimeout=0s
+      - --entrypoints.web.transport.respondingTimeouts.writeTimeout=0s
+      - --entrypoints.web.transport.respondingTimeouts.idleTimeout=300s
+      - --log.level=INFO
+    ports:
+      - "80:80"
+      - "8080:8080"   # Traefik dashboard (local only — behind tunnel)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sandbox-net
+    labels:
+      - "sablier.enable=false"
+
+  # ── Cloudflare Tunnel ──────────────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ${HOME}/.cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ${HOME}/.cloudflared/2809c48c-5898-4c24-90fe-7c967696b4cb.json:/etc/cloudflared/credentials.json:ro
+    networks:
+      - sandbox-net
+    depends_on:
+      - traefik
+
+  # ── Idle Container Manager ────────────────────────────────────
+  sablier:
+    image: acouvreur/sablier:1.8
+    container_name: sablier
+    restart: unless-stopped
+    command:
+      - start
+      - --provider.name=docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - sandbox-net
+
+  # ── Lab Manager API ───────────────────────────────────────────
+  lab-manager:
+    build: ./lab-manager
+    container_name: lab-manager
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-sa.json
+      - CONTAINER_NETWORK=sandbox-net
+      - SANDBOX_DOMAIN=${SANDBOX_DOMAIN}
+      - MAX_CONTAINERS_PER_USER=${MAX_CONTAINERS_PER_USER:-2}
+      - IDLE_TIMEOUT_MINUTES=${IDLE_TIMEOUT_MINUTES:-15}
+      - MAX_LIFETIME_MINUTES=${MAX_LIFETIME_MINUTES:-120}
+      - MAX_TOTAL_CONTAINERS=${MAX_TOTAL_CONTAINERS:-40}
+      # Capacity split (Frank 2026-07-30): free-play capped so labs keep >=28 of 40.
+      - FREE_PLAY_CAP=${FREE_PLAY_CAP:-12}
+      - SANDBOX_SERVICE_KEY=${SANDBOX_SERVICE_KEY}
+      # Stage 3 bridge (per-student OpenStack credentials via bc2 claim service)
+      - OS_BRIDGE_URL=${OS_BRIDGE_URL}
+      - OS_BRIDGE_SECRET=${OS_BRIDGE_SECRET}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Durable store for capstone pre-destroy baselines. The container has no other
+      # writable mount, so anything written inside is lost on every rebuild -- and rebuilds
+      # happen on every grader change. Deliberately OFF the OpenStack API surface so a
+      # student's restricted app credential cannot read or edit it.
+      #
+      # KEY = FIREBASE UID, *not* OpenStack project id and *not* slot. The 30-slot pool is
+      # reclaimed and reassigned (see reclaim-idle-slots.py), so a project-id or slot key
+      # would hand a stale baseline to the next student who inherits that slot. A uid is
+      # never reused. An earlier version of this comment said "project id"; that design was
+      # reviewed and rejected before anything read this directory.
+      #
+      # NOTHING WRITES HERE YET. The baseline capture design is still under review
+      # (BUG-055/BUG-056); this mount exists so the store has somewhere to live when it
+      # lands. An empty directory is inert -- do not infer from its presence that the
+      # capture is implemented.
+      - ./lab-manager/data:/app/data
+    networks:
+      - sandbox-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lab-manager.rule=PathPrefix(`/api/sandbox`)"
+      - "traefik.http.routers.lab-manager.entrypoints=web"
+      - "traefik.http.services.lab-manager.loadbalancer.server.port=3000"
+      - "sablier.enable=false"
+
+
+  # ── Horizon (OpenStack dashboard) front ────────────────────────────────────
+  # Fronts Horizon on the DevStack VM via the bc2 tailnet forward. Gated by the SAME console
+  # cookie as the noVNC route below: anonymous requests get 401 from lab-manager's forwardAuth.
+  horizon-proxy:
+    image: nginx:alpine
+    container_name: horizon-proxy
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/hexworth-sandbox/horizon-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [sandbox-net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.horizon.rule=Host(`sandbox.hexworth.tech`) && PathPrefix(`/dashboard`)"
+      - "traefik.http.routers.horizon.entrypoints=web"
+      - "traefik.http.routers.horizon.middlewares=horizon-auth,horizon-ratelimit"
+      - "traefik.http.services.horizon.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.horizon-auth.forwardauth.address=http://lab-manager:3000/api/sandbox/console-auth"
+      - "traefik.http.middlewares.horizon-auth.forwardauth.authResponseHeaders=X-Console-Uid"
+      - "traefik.http.middlewares.horizon-ratelimit.ratelimit.average=30"
+      - "traefik.http.middlewares.horizon-ratelimit.ratelimit.burst=60"
+
+  # ── noVNC instance-console front ───────────────────────────────────────────
+  # TWO routers on purpose. The PAGE is served under /novnc, but noVNC builds its websocket as
+  # protocol://host + '/' + path and Horizon passes path="?token=...", so the socket always dials
+  # the ROOT with a token query no matter what prefix the page sits under. The second router
+  # matches exactly that and re-adds the prefix. Covering only /novnc leaves a console that loads
+  # and never paints.
+  vnc-proxy:
+    image: nginx:alpine
+    container_name: vnc-proxy
+    restart: unless-stopped
+    volumes:
+      - ${HOME}/hexworth-sandbox/vnc-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [sandbox-net]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vnc.rule=Host(`sandbox.hexworth.tech`) && PathPrefix(`/novnc`)"
+      - "traefik.http.routers.vnc.entrypoints=web"
+      - "traefik.http.routers.vnc.middlewares=horizon-auth@docker,horizon-ratelimit@docker"
+      - "traefik.http.routers.vnc.service=vnc"
+      - "traefik.http.routers.vncws.rule=Host(`sandbox.hexworth.tech`) && Path(`/`) && QueryRegexp(`token`, `.+`)"
+      - "traefik.http.routers.vncws.entrypoints=web"
+      - "traefik.http.routers.vncws.middlewares=vnc-addprefix,horizon-auth@docker"
+      - "traefik.http.routers.vncws.service=vnc"
+      - "traefik.http.middlewares.vnc-addprefix.addprefix.prefix=/novnc"
+      - "traefik.http.services.vnc.loadbalancer.server.port=80"
+
+networks:
+  sandbox-net:
+    name: sandbox-net
+    driver: bridge
