@@ -31,6 +31,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-233 — the free-play cap does not hold under a simultaneous burst  ·  [P2]  ·  open
+- **Found:** 2026-08-26 · by self · running the 34-way sandbox concurrency test
+- **Area:** bc1 `lab-manager/server.js:1036-1045` (`countRunningFreePlay` at :917, `FREE_PLAY_CAP` at :23)
+- **Symptom:** `FREE_PLAY_CAP=32`, yet **34 simultaneous free-play launches all succeeded** and
+  the guard never fired — zero `[capacity]` lines in the logs. The cap is a reserve: free-play is
+  held at 32 of `MAX_TOTAL=40` so graded lab work always has 8+ containers. A burst can eat into
+  that reserve, and the code comment (`server.js:19`) names the **cell-sigma final exam** as
+  drawing from the same pool.
+- **Repro:** `node _tools/openstack-bridge/concurrency-test.js 34` on bc1 (labId `openstack-cli`,
+  which is in `FREE_PLAY_LABS`, so every launch counts as free-play). 34/34 launch, 0 refusals.
+- **Root cause:** check-then-act with no lock. Every request calls `countRunningFreePlay()`,
+  which asks Docker for *running* containers, before any of those 34 containers has started —
+  so all 34 read a count below the cap and all 34 pass. Sequentially the cap works; concurrently
+  it is advisory. `MAX_TOTAL` at `:1024` has the identical shape and was simply not reached (34
+  < 40), so the harder ceiling is untested and likely races the same way.
+- **Fix:** none yet. Options: reserve a slot under a mutex before creating the container (the
+  claim service already does exactly this for pool slots — `claim_service.py:193`), or count
+  intent (created + starting) rather than only `status: running`. **Not fixed unilaterally —
+  this changes launch behaviour for every lab and needs a decision.**
+- **Verified:** breach confirmed, not inferred — `docker exec lab-manager printenv
+  FREE_PLAY_CAP` = 32, 34 launches returned 200, and `docker logs --since 25m lab-manager |
+  grep -c capacity` = 0. Contained: no student was affected; the test released everything.
+- **Related:** `_docs/operations/openstack-cloud-durability.md` (pool section) · BUG-058
+
 ### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  RESOLVED 2026-08-22, DEPLOYED + VERIFIED
 - **Fix:** `69c3af8c8`. Read the existing claims first, then
   `handler: isAdmin || existingClaims.handler === true`. `admin` stays DERIVED so dropping an
