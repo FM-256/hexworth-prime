@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-25 08:17 · **1118 scripts** · 21 wired into a gate · 266 called by other code · 165 only mentioned in docs · 666 referenced by nothing · 468 not in git
+**Generated:** 2026-08-26 13:12 · **1133 scripts** · 21 wired into a gate · 268 called by other code · 176 only mentioned in docs · 668 referenced by nothing · 469 not in git
 
 ## Read this before writing a new script
 
@@ -932,7 +932,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 38 scripts, 6 referenced by nothing
+### `_tools/openstack-bridge` — 53 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -943,31 +943,46 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `adversarial-rescue.js` | CALLED | 2 | 2026-08-11 | yes |  |
 | `adversarial-secgroup.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
 | `adversarial-wall.js` | CALLED | 17 | 2026-08-11 | yes |  |
+| `allow-peer-icmp.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | allow ICMP between student instances on the shared lab subnet |
 | `apply-bc1-patch.py` | ORPHAN | 0 | 2026-07-30 | yes |  |
 | `apply-io-blocks.py` | DOCS-ONLY | 0 | 2026-08-24 | yes |  |
 | `apply-lab-layout.py` | CALLED | 1 | 2026-08-24 | yes | apply the proven layout treatment to one OpenStack lab page |
 | `audit-check-docs.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | find checks grading on requirements the lab page never documents |
-| `build-sprint-image.sh` | CALLED | 4 | 2026-08-24 | yes | build+upload ubuntu-24.04-sprint (nginx/flask/nmap baked in, no egress needed) |
-| `claim_service.py` | CALLED | 5 | 2026-08-24 | yes |  |
-| `dump-slot-uids.py` | CALLED | 3 | 2026-07-31 | yes |  |
+| `build-sprint-image.sh` | CALLED | 4 | 2026-08-25 | yes | build+upload ubuntu-24.04-sprint (nginx/flask/nmap baked in, no egress needed) |
+| `claim_service.py` | CALLED | 7 | 2026-08-24 | yes |  |
+| `clean-debris.py` | CALLED | 1 | 2026-08-25 | yes |  |
+| `concurrency-test.js` | DOCS-ONLY | 0 | 2026-08-26 | yes | fire N simultaneous launches, prove every one gets its own slot |
+| `dump-slot-uids.py` | CALLED | 5 | 2026-07-31 | yes |  |
 | `e2e-stage3.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `egress-host-nat.sh` | CALLED | 1 | 2026-08-24 | yes | host half of egress: br-ex address + MASQUERADE + a unit that survives reboot |
 | `ensure-second-network.sh` | CALLED | 1 | 2026-07-30 | yes |  |
 | `ensure-sprint-ready.sh` | CALLED | 1 | 2026-08-23 | yes | make the cloud sprint-ready: ubuntu image + per-slot quota (idempotent) |
 | `fix-dock-order.py` | ORPHAN | 0 | 2026-08-24 | yes | move a lab's terminal card above its steps card and wrap both in .work-zone |
+| `fix-horizon-panel.py` | DOCS-ONLY | 0 | 2026-08-25 | yes |  |
+| `img-cleanup-tests.sh` | ORPHAN | 0 | 2026-08-26 | yes | delete this session's test instances by exact name |
+| `img-restore-img.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | restore the canonical sprint image name after a failed rebuild |
+| `img-snap2.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | snapshot a prepared instance into a candidate sprint image |
+| `img-swap.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | promote a VERIFIED candidate image into the canonical name |
+| `img-verify-candidate.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | boot a candidate image and prove autologin before promoting it |
+| `lab-manager-server.js` | ORPHAN | 0 | 2026-08-25 | no |  |
 | `office-reachability-check.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | prove the lab surfaces are reachable from an arbitrary network, no tailscale |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
+| `pool-capacity.sh` | CALLED | 1 | 2026-08-26 | yes | true pool capacity: slots total/bound/free, and how many instances the host can run |
 | `preflight.js` | ORPHAN | 0 | 2026-08-02 | yes |  |
-| `provision-pool.sh` | CALLED | 5 | 2026-07-30 | yes |  |
-| `qc-lab.sh` | CALLED | 20 | 2026-07-31 | yes |  |
-| `reclaim-idle-slots.py` | CALLED | 5 | 2026-07-31 | yes |  |
+| `provision-pool.sh` | CALLED | 6 | 2026-08-26 | yes |  |
+| `qc-lab.sh` | CALLED | 21 | 2026-07-31 | yes |  |
+| `reclaim-idle-slots.py` | CALLED | 8 | 2026-07-31 | yes |  |
+| `restart-audit.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | audit whether every layer of the cloud restarts after a power cut |
 | `setup-novnc-console.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | rebuild the public noVNC console route (bc2 bridge, bc1 proxy, VM apache, nova) |
 | `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-23 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
 | `sprint-student-walkthrough.sh` | CALLED | 2 | 2026-08-24 | yes | cold-run the sprint packet's literal commands on fresh instances; no asset injection |
 | `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
 | `verify-novnc-console.js` | CALLED | 1 | 2026-08-25 | yes | verify the Horizon instance console end to end in a real browser |
+| `vm-novnc-url.py` | DOCS-ONLY | 0 | 2026-08-26 | yes |  |
+| `vm-novnc.py` | DOCS-ONLY | 0 | 2026-08-26 | yes |  |
+| `vm-origin.py` | DOCS-ONLY | 0 | 2026-08-26 | yes |  |
 | `walkthrough-chain.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
-| `walkthrough-cinder.js` | CALLED | 4 | 2026-08-24 | yes |  |
+| `walkthrough-cinder.js` | CALLED | 5 | 2026-08-24 | yes |  |
 | `walkthrough-neutron.js` | ORPHAN | 0 | 2026-08-11 | yes |  |
 | `walkthrough-project.js` | CALLED | 9 | 2026-08-11 | yes |  |
 | `walkthrough-rescue.js` | DOCS-ONLY | 0 | 2026-08-11 | yes |  |
@@ -1393,7 +1408,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `apply-mission-engine.py` | ORPHAN | 0 | 2026-07-09 | yes |  |
 | `apply-missions-endpoint.py` | DOCS-ONLY | 0 | 2026-07-09 | yes |  |
 | `apply-release-slot-route.py` | ORPHAN | 0 | 2026-08-11 | no |  |
-| `missions.js` | CALLED | 3 | 2026-07-09 | yes |  |
+| `missions.js` | CALLED | 4 | 2026-07-09 | yes |  |
 
 ### `_tools/sandbox-missions/less-readingroom` — 3 scripts, 3 referenced by nothing
 
