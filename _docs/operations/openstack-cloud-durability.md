@@ -145,3 +145,45 @@ Confirm from any network with `bash _tools/openstack-bridge/office-reachability-
 gate correctly refuses it here because it carries a real node address and this repo is public.
 It therefore has no version history: a rebuild of that host loses it. Its home should be the
 private infra repo.
+
+---
+
+## Where each piece of today's configuration lives
+
+Asked "is everything documented?", the answer was no until this section existed. Checked, not
+assumed.
+
+| Change | Recorded in |
+|---|---|
+| Console autologin in the image | `build-sprint-image.sh` (asserted on both gettys) |
+| Apache `/novnc/` proxy on the VM | `vm-novnc.py` |
+| Nova `novncproxy_base_url` -> public | `vm-novnc-url.py` |
+| Nova `[console] allowed_origins` | `vm-origin.py` |
+| bc2 noVNC tailnet bridge | `openstack-vnc-bridge.service` (addresses parameterised) |
+| bc1 console front + routers | `lab-manager-docker-compose.yml` (`vnc-proxy`, `horizon-proxy`) |
+| Image snapshot / verify / promote / restore | `img-snap2.sh`, `img-verify-candidate.sh`, `img-swap.sh`, `img-restore-img.sh` |
+| Peer ICMP on the shared subnet | `allow-peer-icmp.sh` |
+| Restart posture audit | `restart-audit.sh` |
+| Reachability from any network | `office-reachability-check.sh` |
+| Browser-based console verification | `verify-novnc-console.js` |
+| Horizon panel fix (credentials on reload) | `fix-horizon-panel.py` |
+| Live-build guard | inside `build-sprint-image.sh` |
+
+### Deliberately NOT in this repo
+
+- **`lab-manager/server.js`** — the grader for every cloud lab. Carries a real node address and
+  this repo is public, so the exposure gate refuses it. It has **no version history anywhere**
+  and would be lost with bc1. Its home is the private infra repo. This is the largest remaining
+  gap in the platform.
+- **Node addresses** — every script takes them from `hexworth-infra-private/openstack.env`.
+- **`FREE_PLAY_CAP=32`** — lives in bc1's `.env`. The compose default is still `12`, which is
+  what throttled the class on 2026-08-25 while 28 container slots sat idle. A fresh host build
+  will come up at 12 unless the `.env` is restored with it.
+
+### A trap worth naming
+
+`restart-audit.sh` and `setup-novnc-console.sh` both *check* that
+`openstack-vnc-bridge` is running. That reads as coverage. Neither contained the unit, so the
+audit would have reported a missing service with no way to restore it. **A check is not a
+backup.** If a script asserts something exists, the thing it asserts should be recoverable from
+the same repo.
