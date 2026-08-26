@@ -48,8 +48,16 @@ for i in $(seq -w 1 "$POOL"); do
     echo "HEALED $U: password was unstored, reset + stored"
   fi
   V "openstack role add --project $U --user $U member" || true
-  # quota: 1 instance / 1 core / 192MB (m1.nano only; quota-legal worst case 5.8GB flavor-RAM)
-  V "openstack quota set --instances 1 --cores 1 --ram 192 $U"
+  # quota: 1 instance / 1 core / 512MB.
+  # 192 was the ORIGINAL number, chosen when m1.nano and CirrOS were the only things that ran
+  # here. `ubuntu-24.04-sprint` declares a 512MB minimum, so a 192MB quota makes the Cloud
+  # Security Sprint impossible: the create is refused outright with "Flavor's memory is too
+  # small for requested image". The live slots were raised to 512 at some point and this script
+  # was not, so re-running it -- the documented way to add slots or reset a term -- would have
+  # silently downgraded every EMPTY slot back to 192 and broken the sprint for those students.
+  # It errors instead of downgrading on slots already using 512, which is the only reason this
+  # was caught rather than shipped.
+  V "openstack quota set --instances 1 --cores 1 --ram 512 $U"
 done
 
 echo "pool of $POOL provisioned; passwords in $STORE (0600)"
