@@ -1,0 +1,27 @@
+# noVNC console bridge on bc2. Forwards the tailnet to the DevStack VM's console proxy.
+#
+# WHY IT EXISTS: Horizon hands the browser a console URL. Before 2026-08-25 that URL pointed at
+# the VM's PRIVATE address, which no student browser can route to -- the console page loaded and
+# the screen simply never painted. The public path now runs
+#   browser -> cloudflared -> traefik -> vnc-proxy (bc1) -> THIS BRIDGE -> VM apache /novnc/
+#
+# ADDRESSES ARE NOT IN THIS FILE. This repo is public. Substitute from the private infra env
+# (hexworth-infra-private/openstack.env: BC2_TS, VM) when installing:
+#   sed -e "s/<BC2-TAILNET>/$BC2_TS/" -e "s/<VM-ADDR>/$VM/" openstack-vnc-bridge.service \
+#     | sudo tee /etc/systemd/system/openstack-vnc-bridge.service
+#   sudo systemctl daemon-reload && sudo systemctl enable --now openstack-vnc-bridge
+#
+# Binds the tailnet address ONLY, exactly like openstack-api-bridge: invisible off-tailnet and
+# no iptables changes. The security control is the console gate on bc1, not this bind.
+[Unit]
+Description=OpenStack noVNC bridge: tailscale-only forward to the DevStack VM console proxy
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/socat TCP4-LISTEN:6080,bind=<BC2-TAILNET>,fork,reuseaddr TCP4:<VM-ADDR>:6080
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
