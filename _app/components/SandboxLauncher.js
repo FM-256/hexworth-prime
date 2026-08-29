@@ -188,7 +188,7 @@ const SandboxLauncher = (function() {
     // has always recorded, so every existing caller is unchanged. 'attach' is the Cinder lab's
     // attach witness (BUG-058): the grader reads the live cloud and writes down which volume
     // sat on which server, because nothing in the end state can prove that later.
-    // The two labs cannot be told apart server-side -- every OpenStack lab shares one labId --
+    // The two labs cannot be told apart server-side: every OpenStack lab shares one labId,
     // so the kind is named here rather than inferred.
     async function recordBaseline(sessionId, kind) {
         return apiCall('POST', `/baseline/${sessionId}`, kind ? { kind } : undefined);

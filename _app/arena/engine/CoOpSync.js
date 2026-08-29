@@ -113,7 +113,7 @@ const CoOpSync = (function() {
                 // above, so it ran only for users who had to be signed in anonymously. The
                 // first call at line ~78 happens BEFORE `waitForAuth()` resolves, and
                 // `_getPlayerId()` falls back to a localStorage `anon_*` id when
-                // `FirebaseAuth.getUser()` has not populated `currentUser` yet -- an ordinary
+                // `FirebaseAuth.getUser()` has not populated `currentUser` yet, which is an ordinary
                 // Firebase timing gap. So an ALREADY-SIGNED-IN student who lost that race kept
                 // the `anon_*` id for the whole session, because `isSignedIn()` was true and
                 // the correction never ran. The comment at line ~77 already promised identity
