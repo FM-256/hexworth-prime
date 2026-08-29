@@ -26,6 +26,7 @@
  * on a preview channel, and that gap is reported rather than papered over.
  */
 const puppeteer = require('puppeteer');
+const http = require('http');
 
 const SDK = 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
 const APP = 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
@@ -36,6 +37,23 @@ const COUNT = 450;   // > 400 on purpose: forces the chunking loop to run twice
 // test elsewhere (_tools/rules-test/*). What is under test HERE is the SDK write path itself, so
 // this run installs permissive rules on the emulator first, via its own admin REST endpoint.
 // This touches the emulator only; production rules are never involved.
+// Serves a blank page so the browser has a REAL http origin.
+//
+// SELF-CONTAINED ON PURPOSE (Chris, 2026-08-29). The first version hardcoded
+// http://127.0.0.1:8901 and never started anything there — it silently depended on a server
+// left running by hand in another terminal. Chris killed that process, re-ran the exact
+// documented command, and got ERR_CONNECTION_REFUSED. A tool whose @catalog run line does not
+// actually work is worse than no tool, because the next person concludes the code is broken.
+function startHost() {
+  return new Promise((resolve) => {
+    const srv = http.createServer((_, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<!doctype html><title>runtime proof host</title><body>ok</body>');
+    });
+    srv.listen(0, '127.0.0.1', () => resolve({ srv, port: srv.address().port }));
+  });
+}
+
 async function openEmulatorRules() {
   const body = {
     rules: {
@@ -51,6 +69,7 @@ async function openEmulatorRules() {
 
 (async () => {
   await openEmulatorRules();
+  const host = await startHost();   // ephemeral port: cannot collide with anything
   // protocolTimeout raised: 450 documents over two batch commits from a real browser to the
   // emulator legitimately exceeds puppeteer's 30s default for a single evaluate() call. The
   // first run hit that and reported a timeout, which is a harness limit, not a code failure.
@@ -66,7 +85,7 @@ async function openEmulatorRules() {
   // surfaced as a protocol TIMEOUT rather than an error, because the SDK retries a failed
   // channel indefinitely rather than rejecting. A hang that looks like slowness is worth
   // naming: it cost two runs before the console errors revealed ERR_FAILED on the Write channel.
-  await page.goto('http://127.0.0.1:8901/', { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto(`http://127.0.0.1:${host.port}/`, { waitUntil: 'domcontentloaded', timeout: 20000 });
 
   const result = await page.evaluate(async (sdk, appSdk, count) => {
     const { initializeApp } = await import(appSdk);
@@ -153,5 +172,6 @@ async function openEmulatorRules() {
 
   console.log(`\n  ${pass} passed, ${fail} failed`);
   await browser.close();
+  host.srv.close();
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error('  FAILED:', e.message); process.exit(1); });
