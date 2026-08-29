@@ -1,0 +1,21 @@
+const puppeteer=require('puppeteer'),http=require('http'),fs=require('fs'),path=require('path');
+const ROOT=path.resolve('_app');
+const MIME={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json'};
+const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.endsWith('/'))p+='index.html';
+fs.readFile(path.join(ROOT,p),(e,b)=>{if(e){r.writeHead(404);return r.end('404');}
+r.writeHead(200,{'Content-Type':MIME[path.extname(p)]||'application/octet-stream'});r.end(b);});});
+(async()=>{await new Promise(r=>srv.listen(0,'127.0.0.1',r));const port=srv.address().port;
+const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--disable-setuid-sandbox']});
+const p=await b.newPage();
+const missing=[];
+p.on('requestfailed',r=>missing.push('FAILED '+r.url()));
+p.on('response',r=>{if(r.status()>=400)missing.push(r.status()+' '+r.url());});
+p.on('pageerror',e=>console.log('[pageerror]',e.message.slice(0,160)));
+const target=`http://127.0.0.1:${port}/houses/cloud/openstack/quizzes/cloud-openstack-install-quiz.quiz.html`;
+await p.goto(target,{waitUntil:'domcontentloaded'});
+await new Promise(r=>setTimeout(r,900));
+console.log('FINAL URL :',p.url());
+console.log('REDIRECTED:',p.url()!==target);
+console.log('4xx/failed:',JSON.stringify(missing,null,1));
+console.log('title     :',await p.title());
+await b.close();srv.close();})();

@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-08-15 8:11:02 PM
+                    Scanned: 2026-08-29 5:24:11 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5285 |
-| Directories | 1283 |
-| Content Files | 5285 |
-| Scan Duration | 554ms |
+| Files Scanned | 5288 |
+| Directories | 1284 |
+| Content Files | 5288 |
+| Scan Duration | 693ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2370 |
-| html | 1590 |
+| presentation | 2371 |
+| html | 1592 |
 | lab | 587 |
 | quiz | 512 |
 | applet | 226 |
@@ -29,10 +29,10 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 4316 |
-| Available | 4274 |
+| Total Modules | 4317 |
+| Available | 4275 |
 | Missing Hrefs (CAT-001) | 0 |
-| Undeclared Files (CAT-002) | 0 |
+| Undeclared Files (CAT-002) | 1 |
 | Empty Hrefs (CAT-003) | 0 |
 
 
@@ -44,15 +44,15 @@
 | Suspect | 47 |
 | Warning | 982 |
 | Info | 541 |
-| **Total** | **14578** |
+| **Total** | **14579** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3665 |
+| Ready | 3666 |
 | Not Ready | 30 |
-| Unknown | 1590 |
+| Unknown | 1592 |
 
 
 ## FILE HIERARCHY
@@ -524,6 +524,8 @@
 │   │   │   ├── 📄 financial.html
 │   │   │   ├── 📍 index.html
 │   │   │   └── 📄 loadboard.html
+│   │   ├── 📁 qual-w1-lockout
+│   │   │   └── 📍 index.html
 │   │   ├── 📁 rev-01-strings-basics
 │   │   │   └── 📍 index.html
 │   │   ├── 📁 rev-02-disassembly
@@ -1877,13 +1879,15 @@
 │   │   │   ├── 📁 labs [labs]
 │   │   │   │   ├── 🔬 cloud-openstack-advanced-ops.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-cinder-live.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-console.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-install.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-launch-chain-live.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-launch-vm.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-neutron-live.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-project-iac.lab.html
 │   │   │   │   ├── 🔬 cloud-openstack-rescue-live.lab.html
-│   │   │   │   └── 🔬 cloud-openstack-secgroup-live.lab.html
+│   │   │   │   ├── 🔬 cloud-openstack-secgroup-live.lab.html
+│   │   │   │   └── 🔬 cloud-openstack-security-sprint.lab.html
 │   │   │   ├── 📁 presentations [presentations]
 │   │   │   │   ├── 📊 cloud-openstack-installation.presentation.html
 │   │   │   │   ├── 📊 cloud-openstack-intro-environment.presentation.html
@@ -7179,6 +7183,7 @@
 | openstack-cli-cheatsheet | applet | ✓ | 1 |
 | cloud-openstack-advanced-ops.lab | presentation | ✓ | 0 |
 | cloud-openstack-cinder-live.lab | presentation | ✓ | 0 |
+| cloud-openstack-console.lab | presentation | ✓ | 0 |
 | cloud-openstack-install.lab | presentation | ✓ | 0 |
 | cloud-openstack-launch-chain-live.lab | presentation | ✓ | 0 |
 | cloud-openstack-launch-vm.lab | presentation | ✓ | 0 |
@@ -15737,7 +15742,7 @@
 **[LP-003]** Duplicate module ID 'eye-hunt-workbench' found in 'security-operations' (also in 'eye')
   File: `./components/LearningPaths.js`
 
-**[TAG-002]** 3221 of 4316 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
+**[TAG-002]** 3221 of 4317 catalog modules have no tags. Discoverability hole — these modules won't surface in tag-based search or topic filtering. Sample: eye-wireshark-training, eye-packet-analyzer, eye-traffic-lab.
   File: `components/ContentCatalog.js`
   Fix: Add tags to high-traffic modules first (per house: top 10 by completion). Bulk back-fill not necessary if existing search/filter UX surfaces ids and titles.
 
