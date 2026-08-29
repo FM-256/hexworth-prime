@@ -304,15 +304,31 @@
         //    accent, so a malicious color cannot inject extra style declarations. ──
         function sanitizeColor(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : '#22d3ee'; }
 
-        // ── Which teams to DISPLAY. While 'frozen', hard-freeze the board: capture the
-        //    standings at the first frozen observation and keep showing that snapshot
-        //    (ignoring live updates) until status leaves 'frozen'; at 'ended' the snapshot
-        //    is dropped and the true final standings are revealed. If the operator opens
-        //    the page AFTER a freeze already began, we snapshot from first sight (the
-        //    pre-freeze board is not recoverable), which still stops any further movement. ──
+        // ── Which teams to DISPLAY while 'frozen'.
+        //
+        //    THE AUTHORITY IS `frozenStandings` ON THE TOURNAMENT DOC, captured once by the
+        //    admin console at the moment of freezing. Every surface renders that same array,
+        //    so the Big Screen, the podium and a student's own tab cannot disagree.
+        //
+        //    This page previously did its own per-client capture: whatever it happened to see
+        //    when it first noticed the freeze. Play legitimately continues during a freeze, so
+        //    two viewers who opened at different moments held two different "final" boards --
+        //    and this is the page the platform's own source calls the produced projector
+        //    display. TOURN-08 fixed the podium and left this one behind; Nancy caught that the
+        //    claim "every page renders that one array" was false while broadcast still had it.
+        //
+        //    The per-client capture survives ONLY as a fallback for a tournament frozen before
+        //    the snapshot existed. Inconsistent between viewers, but still frozen, which beats
+        //    showing a live board under a frozen banner. It stops applying the moment a
+        //    snapshot is present. ──
         function displayTeams() {
-            var st = state.info ? (state.info.status || '') : '';
+            var info = state.info || {};
+            var st = info.status || '';
             if (st === 'frozen') {
+                if (Array.isArray(info.frozenStandings) && info.frozenStandings.length) {
+                    state.frozenTeams = null;          // authoritative wins; drop any local capture
+                    return info.frozenStandings;
+                }
                 if (!state.frozenTeams && state.teams.length) state.frozenTeams = state.teams.slice();
                 return state.frozenTeams || state.teams;
             }
