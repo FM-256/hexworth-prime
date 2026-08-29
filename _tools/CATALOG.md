@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-26 13:12 · **1133 scripts** · 21 wired into a gate · 268 called by other code · 176 only mentioned in docs · 668 referenced by nothing · 469 not in git
+**Generated:** 2026-08-29 00:34 · **1135 scripts** · 21 wired into a gate · 269 called by other code · 177 only mentioned in docs · 668 referenced by nothing · 469 not in git
 
 ## Read this before writing a new script
 
@@ -932,7 +932,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 53 scripts, 8 referenced by nothing
+### `_tools/openstack-bridge` — 54 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -948,10 +948,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `apply-io-blocks.py` | DOCS-ONLY | 0 | 2026-08-24 | yes |  |
 | `apply-lab-layout.py` | CALLED | 1 | 2026-08-24 | yes | apply the proven layout treatment to one OpenStack lab page |
 | `audit-check-docs.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | find checks grading on requirements the lab page never documents |
+| `bc2-connect.sh` | DOCS-ONLY | 0 | 2026-08-29 | yes | stdio proxy to bc2 that survives ISP prefix rotation and DHCP changes |
 | `build-sprint-image.sh` | CALLED | 4 | 2026-08-25 | yes | build+upload ubuntu-24.04-sprint (nginx/flask/nmap baked in, no egress needed) |
 | `claim_service.py` | CALLED | 7 | 2026-08-24 | yes |  |
 | `clean-debris.py` | CALLED | 1 | 2026-08-25 | yes |  |
-| `concurrency-test.js` | DOCS-ONLY | 0 | 2026-08-26 | yes | fire N simultaneous launches, prove every one gets its own slot |
+| `concurrency-test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | fire N simultaneous launches, prove every one gets its own slot |
 | `dump-slot-uids.py` | CALLED | 5 | 2026-07-31 | yes |  |
 | `e2e-stage3.js` | CALLED | 1 | 2026-08-11 | yes |  |
 | `egress-host-nat.sh` | CALLED | 1 | 2026-08-24 | yes | host half of egress: br-ex address + MASQUERADE + a unit that survives reboot |
@@ -973,7 +974,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc-lab.sh` | CALLED | 21 | 2026-07-31 | yes |  |
 | `reclaim-idle-slots.py` | CALLED | 8 | 2026-07-31 | yes |  |
 | `restart-audit.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | audit whether every layer of the cloud restarts after a power cut |
-| `setup-novnc-console.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | rebuild the public noVNC console route (bc2 bridge, bc1 proxy, VM apache, nova) |
+| `setup-novnc-console.sh` | CALLED | 1 | 2026-08-25 | yes | rebuild the public noVNC console route (bc2 bridge, bc1 proxy, VM apache, nova) |
 | `sprint-preflight.sh` | DOCS-ONLY | 0 | 2026-08-23 | yes | read-only: is the cloud ready to run the Cloud Security Sprint? |
 | `sprint-student-walkthrough.sh` | CALLED | 2 | 2026-08-24 | yes | cold-run the sprint packet's literal commands on fresh instances; no asset injection |
 | `test-claim-rotation.py` | ORPHAN | 0 | 2026-08-21 | yes | prove claim() rotates on fresh assignment and NOT on re-claim, and self-heals |
@@ -1095,12 +1096,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 13 scripts, 4 referenced by nothing
+### `_tools/rules-test` — 14 scripts, 4 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+| `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
