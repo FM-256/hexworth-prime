@@ -275,6 +275,15 @@
 
         let timerInterval = null;
         let teamsUnsub = null;
+
+        // TOURN-08: how many teams the live listener subscribes to.
+        // 50 is well above any realistic contender count (a tournament caps at 200 teams of
+        // up to 10) while bounding what a score change re-sends to every projector in the room.
+        const PODIUM_LIMIT = 50;
+
+        // Standings captured at the first 'frozen' observation, then shown unchanged until the
+        // status leaves 'frozen'. null whenever the board is live. See displayTeams().
+        let frozenTeams = null;
         let tournamentUnsub = null;
 
         // ── Load tournament and subscribe ──
@@ -349,8 +358,15 @@
 
             if (teamsUnsub) teamsUnsub();
 
+            // TOURN-08: bound the listener.
+            //
+            // This subscribed to EVERY team with no limit, live, so each score change re-sent
+            // the whole field to every viewer. Invisible at six teams; after TOURN-01 a
+            // tournament can hold 200, and this page is the one on a classroom projector.
+            // A podium shows a podium: the leaders, not the roster. PODIUM_LIMIT is generous
+            // enough that nobody in contention is cut off.
             teamsUnsub = db.collection('tournaments').doc(tournamentId)
-                .collection('teams').orderBy('score', 'desc')
+                .collection('teams').orderBy('score', 'desc').limit(PODIUM_LIMIT)
                 .onSnapshot(snap => {
                     renderLeaderboard(snap, t);
                 });
@@ -373,9 +389,29 @@
             // helper failed to load. See /components/CtfStandings.js.
             const rawTeams = [];
             snap.forEach(d => rawTeams.push({ id: d.id, ...d.data() }));
-            const teams = (window.CtfStandings && window.CtfStandings.rankTeams)
+            const ranked = (window.CtfStandings && window.CtfStandings.rankTeams)
                 ? window.CtfStandings.rankTeams(rawTeams)
                 : rawTeams;
+
+            // TOURN-08: a REAL freeze, not a caption.
+            //
+            // The frozen branch below only ever prepended a banner while this listener kept
+            // pushing live scores, so the documented "final standings are a surprise" promise
+            // was false on the one page most likely to be projected in the room. broadcast.html
+            // already does this correctly; the podium never got it.
+            //
+            // Capture the standings at the first 'frozen' observation and keep showing that
+            // snapshot until the status leaves 'frozen'. Opening the page mid-freeze snapshots
+            // from first sight (the pre-freeze board is not recoverable), which still stops any
+            // further movement. At 'ended' the snapshot is dropped and the true result appears.
+            let teams;
+            if (status === 'frozen') {
+                if (!frozenTeams && ranked.length) frozenTeams = ranked.slice();
+                teams = frozenTeams || ranked;
+            } else {
+                frozenTeams = null;
+                teams = ranked;
+            }
 
             let html = '';
 

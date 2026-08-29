@@ -7163,12 +7163,41 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
                 // of the same challenge by DIFFERENT teams cannot both compute from one count.
                 const newSolveCount = (chData.solveCount || 0) + 1;
                 const chUpdate = { solveCount: newSolveCount };
-                if (tournament.scoringModel === 'dynamic' && tournament.dynamicConfig) {
-                    const cfg = tournament.dynamicConfig;
-                    const initial = cfg.initialPoints || 500;
-                    const floor = cfg.minPoints || 50;
+                /* ── DYNAMIC SCORING (TOURN-05, fixed 2026-08-29) ──────────────────────────
+                 * Two defects, and the second is why the first could not be fixed by writing
+                 * a config document.
+                 *
+                 * 1. IT REQUIRED `tournament.dynamicConfig` TO EXIST. The admin console never
+                 *    wrote one, so a tournament set to `dynamic` silently scored FLAT STATIC
+                 *    points forever. The live "Special Event" is in exactly that state: the
+                 *    board still shows points, they simply never decay, and nothing looks
+                 *    wrong from the UI. The guard is gone — `dynamic` now means dynamic, and
+                 *    the config is optional tuning rather than a switch. That fixes existing
+                 *    tournaments with no data migration.
+                 *
+                 * 2. IT DECAYED FROM A TOURNAMENT-WIDE `initialPoints` (default 500), IGNORING
+                 *    each challenge's authored value. Special Event's challenges are worth 60
+                 *    and 90; merely writing a config would have made them jump to ~425 on the
+                 *    first solve. Dynamic scoring would have OVERWRITTEN what the admin
+                 *    authored, which is worse than not decaying at all. It now decays from the
+                 *    challenge's own `points`, so a 60-point challenge stays a 60-point
+                 *    challenge that gets cheaper as more teams solve it.
+                 *
+                 * The award for THIS solver was read before this block, so the current team
+                 * gets the pre-decay value and later teams get less. That is the point of
+                 * dynamic scoring.
+                 */
+                if (tournament.scoringModel === 'dynamic') {
+                    const cfg = tournament.dynamicConfig || {};
+                    const base = chData.points || 0;
                     const decay = cfg.decayRate || 0.85;
-                    chUpdate.currentPoints = Math.max(floor, Math.floor(initial * Math.pow(decay, newSolveCount)));
+                    // An explicit minPoints stays absolute for backward compatibility; without
+                    // one the floor is a FRACTION of the authored value, because a flat floor
+                    // of 50 is meaningless on a 60-point challenge and punitive on a 500.
+                    const floor = (typeof cfg.minPoints === 'number')
+                        ? cfg.minPoints
+                        : Math.max(1, Math.floor(base * 0.2));
+                    chUpdate.currentPoints = Math.max(floor, Math.floor(base * Math.pow(decay, newSolveCount)));
                 }
                 tx.update(chRef, chUpdate);
 
