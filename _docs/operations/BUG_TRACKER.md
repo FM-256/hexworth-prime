@@ -31,6 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-234 — an arena member can write any field, including the other team's state  ·  [P2]  ·  open
+- **Found:** 2026-08-29 · by Nancy · reviewing the BUG-233-adjacent `arena_sessions` fix
+- **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` · `_app/arena/engine/CoOpSync.js`
+- **Symptom:** the membership fix closes OUTSIDER access (a stranger writing a room they never
+  joined). It places no restriction on WHICH fields a member may write. So an alpha player can
+  overwrite `teams.bravo.state`, forge the opponent's progress, or flip `winner` in their own
+  favour mid-match. Cheating-scope, not outsider-scope.
+- **Repro:** join any VS room, then `updateDoc(ref, { 'teams.bravo.state': {...} })` or
+  `{ winner: 'alpha' }`. Membership is trivially obtained — a room code is the ticket, by design.
+- **Root cause:** the rule's trust boundary is membership, and inside a room every field is
+  equally writable. Deliberate for this fix: `surrender()` (CoOpSync.js:938) legitimately sets
+  `winner`/`status` from a NON-host, so host-only would have broken VS mode, and "deny the
+  attack" that breaks the legitimate path is half a rule.
+- **Fix:** not attempted. Needs field-level scoping — a member may write their own player entry
+  and their own team's state; `winner`/`status` need a rule that permits surrender without
+  permitting a unilateral win. Likely wants `request.resource.data.diff(resource.data)
+  .affectedKeys()`, which is a bigger change than the outsider fix and deserves its own review.
+- **Verified:** not a regression — the pre-fix rule allowed strictly more (any signed-in user
+  could do all of this without joining at all).
+- **Related:** the `arena_sessions` membership fix (2026-08-29) · commit 9ec369431 (the
+  2026-08-04 sweep that first recorded this collection)
+
 ### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  RESOLVED 2026-08-22, DEPLOYED + VERIFIED
 - **Fix:** `69c3af8c8`. Read the existing claims first, then
   `handler: isAdmin || existingClaims.handler === true`. `admin` stays DERIVED so dropping an

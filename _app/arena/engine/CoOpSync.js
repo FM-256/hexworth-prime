@@ -105,10 +105,29 @@ const CoOpSync = (function() {
                     } catch (anonErr) {
                         console.warn('[CO-OP] Anonymous sign-in failed:', anonErr.message);
                     }
-                    _playerId = _getPlayerId();
-                    _playerName = _getPlayerName();
-                    console.log('%c[CO-OP] Auth ready: ' + _playerId, 'color: #2ecc71');
                 }
+
+                // Re-derive identity on EVERY path, not just the anonymous one.
+                //
+                // FIXED 2026-08-29. This pair used to live INSIDE the `!isSignedIn()` branch
+                // above, so it ran only for users who had to be signed in anonymously. The
+                // first call at line ~78 happens BEFORE `waitForAuth()` resolves, and
+                // `_getPlayerId()` falls back to a localStorage `anon_*` id when
+                // `FirebaseAuth.getUser()` has not populated `currentUser` yet -- an ordinary
+                // Firebase timing gap. So an ALREADY-SIGNED-IN student who lost that race kept
+                // the `anon_*` id for the whole session, because `isSignedIn()` was true and
+                // the correction never ran. The comment at line ~77 already promised identity
+                // "may update after auth resolves"; it only did on one branch.
+                //
+                // Harmless while the rules ignored identity. NOT harmless now: arena_sessions
+                // keys players by this id and the update rule requires
+                // `request.auth.uid in players`, so a mis-keyed player would have every
+                // heartbeat and state sync denied mid-game. Predicted in 9ec369431 (2026-08-04)
+                // before either half was written: "a uid-membership rule would lock out a
+                // legitimately racing player."
+                _playerId = _getPlayerId();
+                _playerName = _getPlayerName();
+                console.log('%c[CO-OP] Auth ready: ' + _playerId, 'color: #2ecc71');
             }
         } catch (authError) {
             console.error('[CO-OP] Auth setup failed:', authError.message);

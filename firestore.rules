@@ -398,17 +398,79 @@ service cloud.firestore {
       }
     }
 
-    // Arena Co-Op sessions — authenticated users can create, join, and sync state
+    // Arena Co-Op / VS sessions — authenticated users can create, join, and sync state
+    //
+    // FIXED 2026-08-29. `allow update: if request.auth != null` was scoped by nothing, so ANY
+    // signed-in user could write ANY session. Paired with `allow read: if request.auth != null`
+    // — which permits LISTING every session id — one account could enumerate every live room
+    // and, in games it had never joined, flip `status` to 'disbanded'/'completed', overwrite
+    // `winner`, or corrupt the shared `state` every player renders from.
+    //
+    // THE BOUNDARY IS MEMBERSHIP, because that is the boundary the game itself has: a room code
+    // admits you, and everything after is a member acting inside their own room. Host-only
+    // status transitions were considered and REJECTED — `surrender()` (CoOpSync.js:933) sets
+    // `winner` and `status` from a NON-host team member, so host-only would break VS mode.
+    // "Deny the attack" is only half a rule; the half that breaks users is the other one.
+    //
+    // BOTH DOCUMENT SHAPES are handled because the engine writes two (CoOpSync.js:166-200):
+    // co-op keeps `players` at the top level, VS nests `teams.alpha|bravo.players`. Players are
+    // keyed by `_getPlayerId()`, which returns the Firebase uid for any signed-in user
+    // (CoOpSync.js:956-961) — so `uid in players` is a real identity check, not a convention.
     match /arena_sessions/{sessionId} {
+      // Already in this room?
+      function isMember() {
+        return ('players' in resource.data && request.auth.uid in resource.data.players)
+            || ('teams' in resource.data
+                && ((request.auth.uid in resource.data.teams.alpha.players)
+                 || (request.auth.uid in resource.data.teams.bravo.players)));
+      }
+      // Joining. Open by design — the room code is the ticket — but the write must land the
+      // caller IN the room, so an update from someone who does not end up a member is refused.
+      function isJoining() {
+        return ('players' in request.resource.data
+                && request.auth.uid in request.resource.data.players)
+            || ('teams' in request.resource.data
+                && ((request.auth.uid in request.resource.data.teams.alpha.players)
+                 || (request.auth.uid in request.resource.data.teams.bravo.players)));
+      }
+
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      allow update: if request.auth != null && (isMember() || isJoining());
+      // NOTE: this can never match. Sessions carry neither `hostUid` nor `createdBy` — see the
+      // creation payload at CoOpSync.js:153-200 — so delete is effectively denied to everyone.
+      // Left as-is deliberately: teardown goes through `status: 'disbanded'` (CoOpSync.js:641),
+      // nothing calls delete, and widening it would add a destructive path nobody asked for.
       allow delete: if request.auth != null && (resource.data.hostUid == request.auth.uid || resource.data.createdBy == request.auth.uid);
 
       // Activity log subcollection
+      // Activity log.
+      //
+      // FIXED 2026-08-29 alongside the parent. Subcollection rules do NOT inherit the parent
+      // match's conditions, so scoping `update` above while leaving this bare would have closed
+      // the door and left the window open one collection down: a stranger could forge entries
+      // into a room they never joined, with any `player`/`playerId` they liked. Proven in
+      // mallory-sweep-2026-08-04.test.js, which recorded exactly that.
+      //
+      // Two checks, and they close different things:
+      //   playerId == uid   stops IDENTITY forgery (writing an entry as somebody else). Free.
+      //   isSessionMember   stops writing into a room you are not in. Costs one document read
+      //                     per entry -- acceptable because logActivity fires on join, start,
+      //                     disband and surrender (CoOpSync.js:620), not per frame.
+      // A missing or malformed parent makes get() error, which denies. That is the safe
+      // direction: the log is an audit trail, and a lost entry beats a forged one.
+      function isSessionMember(sid) {
+        let s = get(/databases/$(database)/documents/arena_sessions/$(sid)).data;
+        return ('players' in s && request.auth.uid in s.players)
+            || ('teams' in s
+                && ((request.auth.uid in s.teams.alpha.players)
+                 || (request.auth.uid in s.teams.bravo.players)));
+      }
       match /activity/{activityId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null;
+        allow create: if request.auth != null
+          && request.resource.data.playerId == request.auth.uid
+          && isSessionMember(sessionId);
       }
     }
 
