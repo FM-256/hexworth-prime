@@ -25,17 +25,29 @@
 // drift between the two is visible in a diff rather than silently untested.
 function makeFreeze() {
   let frozenTeams = null;
-  return function step(status, ranked) {
+  // `tournament` carries frozenStandings once the admin console has captured it.
+  return function step(status, ranked, tournament) {
+    const t = tournament || {};
     let teams;
-    if (status === 'frozen') {
+    if (status === 'frozen' && Array.isArray(t.frozenStandings) && t.frozenStandings.length) {
+      teams = t.frozenStandings;          // AUTHORITATIVE: identical for every viewer
+      frozenTeams = null;
+    } else if (status === 'frozen') {
       if (!frozenTeams && ranked.length) frozenTeams = ranked.slice();
-      teams = frozenTeams || ranked;
+      teams = frozenTeams || ranked;      // legacy pre-snapshot fallback
     } else {
       frozenTeams = null;
       teams = ranked;
     }
     return teams;
   };
+}
+
+// Tolerant of both shapes: a live team doc carries solves as an ARRAY, the stored snapshot as
+// a COUNT. Reading it as an array only rendered every frozen team as 0 solves.
+function solveCount(t) {
+  if (typeof t.solves === 'number') return t.solves;
+  return Array.isArray(t.solves) ? t.solves.length : 0;
 }
 
 const names = (t) => t.map((x) => x.id).join(',');
@@ -81,6 +93,28 @@ const old = (status, ranked) => ranked;
 old('frozen', A);
 chk('the OLD render-live behaviour FAILS the freeze assertion (test can fail)',
     names(old('frozen', B)) !== 'alpha,bravo', 'old code moves the board mid-freeze');
+
+// ── THE DEFECT THE PER-CLIENT CAPTURE STILL HAD: two viewers, two different boards.
+//    This is what the server-side snapshot exists to kill, so it is asserted directly.
+const SNAP = { frozenStandings: [{ id: 'alpha', score: 300, solves: 4 }, { id: 'bravo', score: 100, solves: 1 }] };
+const viewerEarly = makeFreeze();   // had the page open before the freeze
+const viewerLate  = makeFreeze();   // opened it two minutes into the freeze
+viewerEarly('active', A);
+chk('WITHOUT a snapshot, two viewers capture DIFFERENT boards (the bug)',
+    names(viewerEarly('frozen', A)) !== names(makeFreeze()('frozen', B)),
+    'early=alpha,bravo late=bravo,alpha');
+chk('WITH the snapshot, both viewers show the SAME board',
+    names(viewerLate('frozen', B, SNAP)) === names(makeFreeze()('frozen', A, SNAP)),
+    'both render frozenStandings');
+chk('the snapshot wins over whatever the viewer happens to be seeing',
+    names(makeFreeze()('frozen', B, SNAP)) === 'alpha,bravo', 'B arrived live but A was frozen');
+chk('ending drops the snapshot and reveals the truth',
+    names(makeFreeze()('ended', B, SNAP)) === 'bravo,alpha');
+
+// solves shape: the snapshot stores a count, a live doc an array. Both must render.
+chk('solve count reads a stored COUNT (frozen snapshot)', solveCount({ solves: 4 }) === 4);
+chk('solve count reads a live ARRAY', solveCount({ solves: ['a', 'b', 'c'] }) === 3);
+chk('solve count survives a missing field', solveCount({}) === 0);
 
 console.log(`\n  ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

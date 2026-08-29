@@ -4087,10 +4087,6 @@
                                 <input type="number" class="ac-form-input" id="ctfDuration" value="120" min="15" max="1440">
                             </div>
                             <div class="ac-form-group">
-                                <label class="ac-form-label">Scoreboard Freeze (last N minutes)</label>
-                                <input type="number" class="ac-form-input" id="ctfFreeze" value="30" min="0" max="120">
-                            </div>
-                            <div class="ac-form-group">
                                 <label class="ac-form-label">Description</label>
                                 <textarea class="ac-form-input" id="ctfDescription" rows="2" placeholder="Tournament description..."></textarea>
                             </div>
@@ -10977,7 +10973,6 @@
             document.getElementById('ctfMaxTeamSize').value = '4';
             document.getElementById('ctfMaxTeams').value = '32';
             document.getElementById('ctfDuration').value = '120';
-            document.getElementById('ctfFreeze').value = '30';
             document.getElementById('ctfDescription').value = '';
             renderChallengeList();
             ctfShowView('ctfCreateView');
@@ -11146,7 +11141,6 @@
                     maxTeamSize: clampInt(document.getElementById('ctfMaxTeamSize').value, 1, 10, 4),
                     maxTeams: clampInt(document.getElementById('ctfMaxTeams').value, 2, 200, 32),
                     duration: parseInt(document.getElementById('ctfDuration').value) || 120,
-                    freezeMinutes: parseInt(document.getElementById('ctfFreeze').value) || 30,
                     createdBy: FirebaseAuth.getUser().uid,
                     createdAt: serverTimestamp(),
                     teamCount: 0,
@@ -11930,12 +11924,51 @@
             if (!confirm('Are you sure you want to ' + (labels[newStatus] || newStatus) + '?')) return;
 
             try {
-                const { doc, updateDoc, serverTimestamp } = _firestoreModule;
+                const { doc, updateDoc, serverTimestamp, getDocs, collection, query, orderBy, deleteField } = _firestoreModule;
                 const updates = { status: newStatus };
 
                 // Record startTime when going active
                 if (newStatus === 'active') {
                     updates.startTime = serverTimestamp();
+                }
+
+                /* ── TOURN-05b: CAPTURE THE FROZEN BOARD ONCE, HERE ──────────────────────
+                 * Freezing used to write nothing but `status`. Each viewing page then decided
+                 * for itself what "frozen" meant by capturing whatever it happened to see at
+                 * the moment it first observed the freeze — so the frozen board was a
+                 * PER-VIEWER artefact. A student who had the podium open since before the
+                 * freeze and an instructor who opened the projector two minutes later held two
+                 * different "final" boards, while both read a banner promising the standings
+                 * were settled. Play legitimately continues during a freeze (that is what a
+                 * scoreboard freeze IS), so scores really do move underneath.
+                 *
+                 * Captured once, at the moment of freezing, onto the tournament document.
+                 * Every page renders that one array, so there is exactly one frozen board.
+                 * Ranked here rather than at render time so the stored order IS the answer.
+                 * Only the fields the boards display are kept, to stay well clear of the 1MiB
+                 * document limit at 200 teams.
+                 */
+                if (newStatus === 'frozen') {
+                    const tSnap = await getDocs(query(
+                        collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
+                    const raw = tSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                    const ranked = (window.CtfStandings && window.CtfStandings.rankTeams)
+                        ? window.CtfStandings.rankTeams(raw) : raw;
+                    updates.frozenAt = serverTimestamp();
+                    updates.frozenStandings = ranked.map(t => ({
+                        id: t.id,
+                        name: t.name || '',
+                        color: t.color || '',
+                        score: t.score || 0,
+                        solves: Array.isArray(t.solves) ? t.solves.length : 0,
+                        memberNames: Array.isArray(t.memberNames) ? t.memberNames.slice(0, 12) : [],
+                    }));
+                } else {
+                    // Leaving frozen — by unfreezing OR by ending — drops the snapshot, so the
+                    // reveal shows the real result and a later freeze captures fresh rather
+                    // than resurrecting a stale board.
+                    updates.frozenStandings = deleteField();
+                    updates.frozenAt = deleteField();
                 }
 
                 await updateDoc(doc(db, 'tournaments', id), updates);

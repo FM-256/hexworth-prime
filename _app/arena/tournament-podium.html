@@ -372,6 +372,17 @@
                 });
         }
 
+        // Solve count, tolerant of BOTH shapes this page receives.
+        // A LIVE team document carries `solves` as an array of challenge ids; the frozen
+        // snapshot written by the admin console stores it already reduced to a COUNT, because
+        // storing 200 teams' full solve arrays would bloat the tournament document. Reading it
+        // as an array only would render every team as 0 solves on the frozen board -- on the
+        // projector page, which is the one this whole change exists to fix.
+        function solveCount(t) {
+            if (typeof t.solves === 'number') return t.solves;
+            return Array.isArray(t.solves) ? t.solves.length : 0;
+        }
+
         function renderLeaderboard(snap, tournament) {
             const content = document.getElementById('podiumContent');
             const status = tournament.status || 'draft';
@@ -393,19 +404,27 @@
                 ? window.CtfStandings.rankTeams(rawTeams)
                 : rawTeams;
 
-            // TOURN-08: a REAL freeze, not a caption.
+            // TOURN-08: a REAL freeze, and ONE board for everybody.
             //
-            // The frozen branch below only ever prepended a banner while this listener kept
-            // pushing live scores, so the documented "final standings are a surprise" promise
-            // was false on the one page most likely to be projected in the room. broadcast.html
-            // already does this correctly; the podium never got it.
+            // Two defects, fixed in order of severity. The branch below only ever prepended a
+            // banner while this listener kept pushing live scores, so "final standings are a
+            // surprise" was false on the page most likely to be projected. Fixing that with a
+            // per-client capture then left a subtler problem: each viewer froze whatever THEY
+            // first saw, so a student who had the page open before the freeze and an instructor
+            // who opened it two minutes later held different "final" boards, both believing
+            // theirs was authoritative. Play continues during a freeze — that is what a
+            // scoreboard freeze is — so the scores genuinely do diverge.
             //
-            // Capture the standings at the first 'frozen' observation and keep showing that
-            // snapshot until the status leaves 'frozen'. Opening the page mid-freeze snapshots
-            // from first sight (the pre-freeze board is not recoverable), which still stops any
-            // further movement. At 'ended' the snapshot is dropped and the true result appears.
+            // The authority is now `tournament.frozenStandings`, captured ONCE by the admin
+            // console at the moment of freezing. Every viewer renders the same array.
             let teams;
-            if (status === 'frozen') {
+            if (status === 'frozen' && Array.isArray(tournament.frozenStandings) && tournament.frozenStandings.length) {
+                teams = tournament.frozenStandings;
+                frozenTeams = null;
+            } else if (status === 'frozen') {
+                // A tournament frozen BEFORE this change has no snapshot. Fall back to the
+                // per-client capture rather than showing a live board under a frozen banner:
+                // inconsistent between viewers, but still frozen, which is the lesser wrong.
                 if (!frozenTeams && ranked.length) frozenTeams = ranked.slice();
                 teams = frozenTeams || ranked;
             } else {
@@ -470,7 +489,7 @@
                 html += escHtml(t.name || 'Unnamed');
                 html += '</td>';
                 html += '<td class="podium-score">' + num(t.score) + '</td>';
-                html += '<td>' + (Array.isArray(t.solves) ? t.solves.length : 0) + '</td>';
+                html += '<td>' + solveCount(t) + '</td>';
                 html += '<td style="color:var(--text-dim);">' + lastSolve + '</td>';
                 html += '</tr>';
             });
@@ -487,7 +506,7 @@
             h += '<div class="podium-place-rank">#' + place + '</div>';
             h += '<div class="podium-place-name">' + escHtml(team.name || 'Unnamed') + '</div>';
             h += '<div class="podium-place-score">' + num(team.score) + ' pts</div>';
-            h += '<div class="podium-place-solves">' + (Array.isArray(team.solves) ? team.solves.length : 0) + ' solves</div>';
+            h += '<div class="podium-place-solves">' + solveCount(team) + ' solves</div>';
             h += '</div>';
             h += '<div class="podium-pedestal"></div>';
             h += '</div>';
