@@ -434,9 +434,110 @@ service cloud.firestore {
                  || (request.auth.uid in request.resource.data.teams.bravo.players)));
       }
 
+      // ── BUG-234: WHICH fields a member may write ────────────────────────────────────
+      // Membership above stops OUTSIDERS. It does not stop a member from writing anything they
+      // like inside a room they legitimately joined, and a room code is the only ticket needed
+      // to become a member -- so an alpha player could overwrite bravo's state, forge the
+      // opponent's progress, or hand themselves the win. These checks scope the write itself.
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+
+      // `boxId`, `mode`, `config` and `createdAt` describe WHICH lab this is and are set once
+      // at creation. Nothing in CoOpSync.js ever updates them, so a write that touches one is
+      // not gameplay -- it is someone repointing a live session at different content.
+      function onlyMutableTopLevel() {
+        return changed().hasOnly(['players', 'state', 'teams', 'status', 'winner']);
+      }
+
+      // NOT SCOPED: co-op `players`. The obvious rule -- "a member may write only their own
+      // entry" -- was written, and then REJECTED because it breaks host migration:
+      // _handleHostMigration (CoOpSync.js:810-812) demotes the stale host and promotes a
+      // replacement in ONE transaction, so two player entries legitimately change and the
+      // writer may be neither of them. Rules cannot express "every changed entry differs only
+      // in isHost", so a correct-looking constraint here would have silently broken recovery
+      // from a host disconnect -- a worse outcome than the gap it closes. Co-op is
+      // collaborative (teammates, not opponents), and player-eviction was not among the harms
+      // BUG-234 named. Left open deliberately, recorded rather than papered over.
+      //
+      // This does NOT apply to VS: host migration reads the top-level `players` map, which VS
+      // docs do not have (CoOpSync.js:169-188), so it never runs there -- which is what makes
+      // the per-player constraint below safe for teams and unsafe for co-op.
+
+      // VS: each team is either untouched, or it is the team the caller is in (or joining) and
+      // the only player entry that moved is their own. A team's `state` may change freely for
+      // its own members -- that is the shared scoreboard they are collaborating on -- but the
+      // OPPOSING team's map must come through byte-identical.
+      //
+      // TIGHTENED after Nancy reproduced a working attack against the first version (2026-08-29).
+      // That version accepted the write if the caller ended up in the team's players map, which
+      // an attacker satisfies by ADDING THEMSELVES — so an alpha player could self-join bravo
+      // and rewrite `teams.bravo.state` in the very same write, and freely thereafter as a
+      // genuine member. The join clause introduced to permit legitimate joins re-opened the
+      // exact harm the rule existed to close. Two independent guards now stop it:
+      //
+      //   notDualMember()  you may not end up on BOTH teams. This kills the laundering route at
+      //                    the root: an alpha player cannot become a bravo member at all. The
+      //                    client never supported dual membership either (joinSession picks one
+      //                    team, CoOpSync.js:268-274) — it was merely UI convention, and a raw
+      //                    updateDoc bypassed it because rules were the only enforcement layer.
+      //   state guard      a team's `state` may change only if the caller was ALREADY on that
+      //                    team in `resource.data`. Joining and editing are decoupled, so even
+      //                    if a future edit re-opened dual membership this write still fails.
+      function vsTeamOk(t) {
+        return request.resource.data.teams[t] == resource.data.teams[t]
+            || (request.resource.data.teams[t].players.diff(resource.data.teams[t].players)
+                  .affectedKeys().hasOnly([request.auth.uid])
+                && (request.resource.data.teams[t].state == resource.data.teams[t].state
+                    || request.auth.uid in resource.data.teams[t].players));
+      }
+      function notDualMember() {
+        return !(request.auth.uid in request.resource.data.teams.alpha.players
+                 && request.auth.uid in request.resource.data.teams.bravo.players);
+      }
+      function vsTeamsOk() {
+        return !('teams' in changed())
+            || (vsTeamOk('alpha') && vsTeamOk('bravo') && notDualMember());
+      }
+
+      // Only the four values the client actually writes (CoOpSync.js: waiting/active/
+      // completed/disbanded). Keeps a member from parking a room in an undefined state.
+      function statusOk() {
+        return !('status' in changed())
+            || request.resource.data.status in ['waiting', 'active', 'completed', 'disbanded'];
+      }
+
+      // A winner may be declared ONCE and never changed.
+      //
+      // The first draft required the winner to be the OTHER team, reasoning from surrender()
+      // (CoOpSync.js:952, "Sets the other team as winner"). That was wrong and would have
+      // broken the primary way a VS match ends: submitFlag (CoOpSync.js:544-546) sets
+      // `winner = _teamId` -- the writer's OWN team -- when they capture the last flag first.
+      // I had grepped every writer of `status` and not of `winner`. Both real writers are
+      // legitimate, and they disagree about whose team gets named, so "which team" cannot be
+      // the invariant.
+      //
+      // What IS invariant is that submitFlag only writes a winner when there is none yet
+      // (`!data.winner`, inside a transaction). Enforcing exactly that server-side makes the
+      // decided result immutable: the losing side cannot overwrite a finished match, which is
+      // the theft BUG-234 named. `get('winner', null)` tolerates co-op docs, which have no
+      // such field, instead of erroring into a deny for the wrong reason.
+      //
+      // STILL POSSIBLE, and out of scope here: a member declaring a win they did not earn,
+      // because completion is computed client-side. Closing that needs server-side flag
+      // validation, which is the same root cause as the BoxEngine flag-prefetch finding.
+      function winnerOk() {
+        return !('winner' in changed())
+            || (request.resource.data.winner in ['alpha', 'bravo']
+                && resource.data.get('winner', null) == null);
+      }
+
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if request.auth != null && (isMember() || isJoining());
+      allow update: if request.auth != null
+        && (isMember() || isJoining())
+        && onlyMutableTopLevel()
+        && vsTeamsOk()
+        && statusOk()
+        && winnerOk();
       // NOTE: this can never match. Sessions carry neither `hostUid` nor `createdBy` — see the
       // creation payload at CoOpSync.js:153-200 — so delete is effectively denied to everyone.
       // Left as-is deliberately: teardown goes through `status: 'disbanded'` (CoOpSync.js:641),

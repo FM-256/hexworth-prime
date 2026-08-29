@@ -31,6 +31,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-235 — a co-op member can rewrite a teammate's player entry  ·  [P3]  ·  open (language-limited)
+- **Found:** 2026-08-29 · by Nancy · reviewing the BUG-234 field-scoping fix
+- **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` — co-op `players` is deliberately unscoped
+- **Symptom:** in a CO-OP room, a member can write another real player's `players.<uid>` entry —
+  flip their `isHost`, blank their `online`, or spoof their `name`. VS is unaffected: the
+  per-team rule restricts the players sub-map to the caller's own key.
+- **Root cause, and why it is not simply fixed:** the obvious rule ("only your own entry may
+  change") was written and then **removed**, because `_handleHostMigration`
+  (`CoOpSync.js:810-812`) demotes the stale host and promotes a replacement in ONE transaction —
+  two entries change and the writer may be neither. Recovering from a host disconnect is worth
+  more than this gap. The precise rule would be "every changed entry differs only in `isHost`",
+  which **Firestore Rules cannot express**: its map primitives are `hasAll`/`hasAny`/`hasOnly`/
+  `diff`/`size`, with no quantifier for iterating a dynamic key set. Nancy independently
+  confirmed no such pattern exists anywhere in this 1260-line ruleset.
+- **Fix:** needs a different shape, not a cleverer predicate. Options: move host migration into a
+  Cloud Function (so the rule can forbid client writes to other players entirely), or record
+  host as a single top-level `hostUid` field rather than a per-player `isHost` flag, making the
+  migration a one-key write.
+- **Verified:** not a regression — the pre-2026-08-29 rule allowed any signed-in user to do this
+  without even joining the room.
+- **Severity:** P3. Co-op is collaborative (teammates, not opponents), and the harm is nuisance
+  or confusion rather than falsified competitive results. VS, where opposition exists, is scoped.
+- **Related:** BUG-234 · the `arena_sessions` membership fix (2026-08-29)
+
 ### BUG-234 — an arena member can write any field, including the other team's state  ·  [P2]  ·  open
 - **Found:** 2026-08-29 · by Nancy · reviewing the BUG-233-adjacent `arena_sessions` fix
 - **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` · `_app/arena/engine/CoOpSync.js`
