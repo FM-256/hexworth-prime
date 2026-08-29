@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": 1,
-    "lastUpdated": "2026-08-29T18:50:36.686Z",
+    "lastUpdated": "2026-08-29T21:24:32.701Z",
     "migratedFrom": "SPRINT_BACKLOG.md",
     "migratedAt": "2026-02-21T16:29:10.805Z",
     "archivedCount": 488
@@ -27912,52 +27912,52 @@
       "id": "TOURN-03",
       "title": "Security HIGH: joinCode enforces nothing -- anyone incl. anonymous can join",
       "series": "TOURN",
-      "status": "in-progress",
+      "status": "done",
       "priority": "critical",
       "houses": [
         "arena"
       ],
       "depends": [],
       "commits": [],
-      "notes": "Mallory, proven in the emulator. ctfJoinTeam (functions/index.js:7217) never reads a joinCode -- the parameter does not exist. tournament-lobby.html has no code prompt. The ONLY use of joinCode anywhere is as a salt ingredient (console.html:11108). Meanwhile firestore.rules:1225 is 'allow read: if true', so an UNAUTHENTICATED client can list every tournament and read the plaintext code. An 'invite only' event was discovered with no prior link and its code read with zero auth. The only real participation control is request.auth != null, which anonymous sign-in satisfies -- so roster slots could be filled by disposable accounts before a class arrives. Fix: require + verify joinCode server-side in ctfJoinTeam, and stop storing it in a world-readable document. Taskboard #316.",
+      "notes": "DEPLOYED + VERIFIED 2026-08-29. Nancy APPROVED after 2 rounds (she caught that the gate logic had never executed, and an orphaned-tournament case that would have silently reopened the finding). Deployed in her ruled order: rules -> hosting -> functions. LIVE VERIFICATION: an authenticated request with a wrong join code against a live joinable tournament returns 403 PERMISSION_DENIED. Emulator: 9/9 on the gate, and 3/6 against the pre-fix function so the test discriminates. Four files: ctfJoinTeam verifies the code and fails closed; rules add admin-only private/{docId}; console writes the code there, keeps only hasJoinCode public, and uses 128-bit random salts (the old salt was joinCode+chId on a world-readable doc, which published the code verbatim); lobby prompts.",
       "nexusKey": null,
       "created": "2026-08-29",
       "updated": "2026-08-29",
-      "completed": null
+      "completed": "2026-08-29"
     },
     {
       "id": "TOURN-04",
       "title": "Integrity: submission rate limit has TWO independent bypasses",
       "series": "TOURN",
-      "status": "backlog",
+      "status": "done",
       "priority": "high",
       "houses": [
         "arena"
       ],
       "depends": [],
       "commits": [],
-      "notes": "The 10s limit is scoped to team+challenge. (1) ROTATE CHALLENGES -- measured against PRODUCTION: one user pushed 12 guesses across 12 challenges in 922ms, ~13/s unbounded. (2) CHECK-THEN-ACT RACE -- Mallory, emulator: five teammates submitting the same challenge simultaneously, all five accepted, the limit held for zero of five (functions/index.js:6979-6995 reads the last submission then writes several awaits later, nothing serializes). Together the anti-guessing throttle is decorative, and it is what makes a weak flag guessable ONLINE as well as offline. Fix: make the limit per-USER, and serialize it in a transaction the way the credit claim already is. Taskboard #317.",
+      "notes": "DEPLOYED 2026-08-29. Nancy APPROVED after verifying empirically, not by reading: 20 concurrent submissions from one user gave accepted=8 throttled=12 storedCount=8, so no double-count under real retry contention and the exactly-1-of-5 result is Firestore OCC rather than luck. A/B: pre-fix 12/12 accepted and 5/5 raced; fixed 8+4 throttled and exactly 1 of 5. Both her asks applied before deploy: the 'sliding window' comment corrected to FIXED (she proved a ~16-request boundary burst by rewinding windowStart), and exhausted transaction retries now map to resource-exhausted instead of a raw internal. RESIDUALS she found, low severity: budget is spent before the challenge-exists check, so a stale challengeId burns a slot; and there is no admin reset path for rateLimits (60s max wait, no UI renders it).",
       "nexusKey": null,
       "created": "2026-08-29",
       "updated": "2026-08-29",
-      "completed": null
+      "completed": "2026-08-29"
     },
     {
       "id": "TOURN-05",
       "title": "Scoring: a LIVE tournament is set to dynamic with no dynamicConfig",
       "series": "TOURN",
-      "status": "backlog",
+      "status": "done",
       "priority": "high",
       "houses": [
         "arena"
       ],
       "depends": [],
       "commits": [],
-      "notes": "'Special Event' (QQBfFUcDdbTvy3UIKgzz) has scoringModel='dynamic' and NO dynamicConfig field. functions/index.js:7097 guards the decay branch on BOTH, so it never fires: every solve awards flat static points forever, silently. The board still shows points so nothing looks wrong from the UI. Fix: write dynamicConfig at creation when scoringModel='dynamic' (console.html:11084), or refuse to save that combination. Also decide what to do about the existing live doc. Taskboard #318.",
+      "notes": "DEPLOYED 2026-08-29. Two defects: the decay branch required dynamicConfig to exist (console never wrote one, so dynamic tournaments scored flat static in silence), and it decayed from a tournament-wide initialPoints ignoring each challenge's authored value. Dropping the guard fixes existing tournaments with NO migration; decaying from chData.points stops a 60-point challenge jumping to 425. A/B 11/11 vs 4/8 pre-fix. Nancy caught 'sliding window' mislabel on the sibling rate limit and a falsy-zero on decayRate.",
       "nexusKey": null,
       "created": "2026-08-29",
       "updated": "2026-08-29",
-      "completed": null
+      "completed": "2026-08-29"
     },
     {
       "id": "TOURN-06",
@@ -27997,18 +27997,18 @@
       "id": "TOURN-08",
       "title": "Display: podium freeze is cosmetic, and it streams every team unlimited",
       "series": "TOURN",
-      "status": "backlog",
+      "status": "done",
       "priority": "medium",
       "houses": [
         "arena"
       ],
       "depends": [],
       "commits": [],
-      "notes": "Two defects on the page most likely to be on a classroom projector. (1) FREEZE: tournament-podium.html only prepends a warning div while the live listener keeps updating, so the 'final placings are a surprise' guarantee is false. broadcast.html:307-321 ALREADY implements a real hard freeze that snapshots standings -- the fix exists in this codebase and was never applied here. (2) NO LIMIT: podium:353 subscribes to orderBy('score','desc') with no .limit(), live, so every score change re-sends every team to every viewer. Taskboard #320.",
+      "notes": "DEPLOYED 2026-08-29. Podium freeze was cosmetic (banner over a live listener); now renders tournament.frozenStandings, captured once by ctfTransition at freeze time. broadcast.html (the platform's designated Big Screen) got the same treatment after Nancy caught that I had claimed 'every page renders that one array' without checking it. Listener bounded at 200 = the hard cap on maxTeams, so bounded without truncating. freezeMinutes removed as dead config. 16/16.",
       "nexusKey": null,
       "created": "2026-08-29",
       "updated": "2026-08-29",
-      "completed": null
+      "completed": "2026-08-29"
     },
     {
       "id": "TOURN-09",
@@ -28045,6 +28045,23 @@
       "updated": "2026-08-29",
       "completed": null,
       "notes": "Raised by Nancy reviewing TOURN-01. _app/admin/console.html deleteTournament() only does deleteDoc on the tournament doc -- it never removes teams, challenges, submissions or rosterLocks. PRE-EXISTING, but TOURN-01 amplifies the orphan ceiling 33x: a deleted tournament used to strand at most 6 team docs, now up to 200. Realistic trigger: an admin deletes a mis-configured tournament and recreates it before a class. Harmless to the new tournament (addDoc gives a fresh id) but it is unbounded Firestore debris with no cleanup path. Fix: recursive delete of the subcollections, ideally in a Cloud Function so it is not 200+ client round trips. Note _tools/tournament/benchmark-tournament.js --cleanup already implements exactly this paging-delete pattern and can be lifted."
+    },
+    {
+      "id": "TOURN-11",
+      "title": "Rate limit spends budget before the challenge-exists check",
+      "series": "TOURN",
+      "status": "backlog",
+      "priority": "low",
+      "houses": [
+        "arena"
+      ],
+      "depends": [],
+      "commits": [],
+      "nexusKey": null,
+      "created": "2026-08-29",
+      "updated": "2026-08-29",
+      "completed": null,
+      "notes": "Nancy, reviewing TOURN-04. The throttle transaction runs at step 4, BEFORE the challenge is loaded at step 5, so a typo'd or stale challengeId consumes real per-user budget for a request that can never succeed. She PROVED it: 8 submissions to nonexistent challenge ids all failed downstream, yet the stored count still reached 8. Self-inflicted and per-uid, not exploitable against another user, which is why it is low severity. Fix: check challenge existence before committing the rate-limit transaction (already-solved is correctly checked first already). SECOND ITEM, same area: there is no admin reset path for rateLimits/* -- it is denied to every client and no Cloud Function clears it, so a mis-tuned limit has no remedy faster than waiting out the 60s window. Low stakes at 60s, worth knowing."
     }
   ]
 }

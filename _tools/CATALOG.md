@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 02:14 · **1136 scripts** · 21 wired into a gate · 270 called by other code · 177 only mentioned in docs · 668 referenced by nothing · 468 not in git
+**Generated:** 2026-08-29 18:09 · **1148 scripts** · 21 wired into a gate · 271 called by other code · 186 only mentioned in docs · 670 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -1096,13 +1096,16 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 15 scripts, 4 referenced by nothing
+### `_tools/rules-test` — 19 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
+| `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+| `ctf-joincode-gate.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
+| `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
@@ -1114,6 +1117,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+| `tournament-joincode.test.js` | ORPHAN | 0 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
@@ -1782,6 +1786,19 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
+
+### `_tools/tournament` — 8 scripts, 1 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `benchmark-tournament.js` | CALLED | 1 | 2026-08-29 | yes | production benchmark: team/challenge scale, submission latency, breaking point |
+| `broadcast-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of broadcast.html's frozen board and its three consumers |
+| `inspect-tournaments.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
+| `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
+| `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
+| `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
+| `roster-browser-check.js` | ORPHAN | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
+| `writebatch-runtime-proof.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | runtime proof that console.html's batched team-roster write works |
 
 ### `_tools/walkthrough-pdf` — 1 scripts, 0 referenced by nothing
 
