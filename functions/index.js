@@ -7278,8 +7278,26 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
         if (supplied.toLowerCase() !== expectedCode.trim().toLowerCase()) {
             throw new HttpsError('permission-denied', 'That join code is not correct for this tournament.');
         }
+    } else if (tournament.hasJoinCode === true) {
+        /* THE TOURNAMENT SAYS IT HAS A CODE AND WE CANNOT FIND ONE — REFUSE.
+         *
+         * Nancy, 2026-08-29: creation is two round trips. `addDoc` writes the tournament with
+         * hasJoinCode:true, then a second `setDoc` writes private/config. A network blip between
+         * them leaves a tournament that ADVERTISES a code, has no private doc, and no legacy
+         * public field either (that write was removed). Falling through to "no code configured,
+         * open as before" would silently reopen the exact hole this whole change closes, while
+         * the admin console still displays "set (see Manage)".
+         *
+         * Enforced HERE rather than by rolling back in the browser, because a client-side
+         * rollback cannot cover a tab that was closed mid-write. The server refuses on the
+         * INTENT recorded in the document, which survives any client failure.
+         */
+        console.error(`[ctfJoinTeam] tournament ${tournamentId} declares hasJoinCode but no code exists — refusing all joins. Re-save the join code in the admin console.`);
+        throw new HttpsError('failed-precondition',
+            'This tournament is not fully configured yet. Ask your instructor to re-save its join code.');
     } else {
-        // No code configured anywhere: the tournament never had one. Open, as before.
+        // No code configured and none claimed: the tournament genuinely never had one. Open,
+        // as it was before this change.
         console.warn(`[ctfJoinTeam] tournament ${tournamentId} has NO join code at all — joining is ungated.`);
     }
 
