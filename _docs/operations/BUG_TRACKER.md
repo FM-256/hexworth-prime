@@ -31,30 +31,6 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-233 — the free-play cap does not hold under a simultaneous burst  ·  [P2]  ·  open
-- **Found:** 2026-08-26 · by self · running the 34-way sandbox concurrency test
-- **Area:** bc1 `lab-manager/server.js:1036-1045` (`countRunningFreePlay` at :917, `FREE_PLAY_CAP` at :23)
-- **Symptom:** `FREE_PLAY_CAP=32`, yet **34 simultaneous free-play launches all succeeded** and
-  the guard never fired — zero `[capacity]` lines in the logs. The cap is a reserve: free-play is
-  held at 32 of `MAX_TOTAL=40` so graded lab work always has 8+ containers. A burst can eat into
-  that reserve, and the code comment (`server.js:19`) names the **cell-sigma final exam** as
-  drawing from the same pool.
-- **Repro:** `node _tools/openstack-bridge/concurrency-test.js 34` on bc1 (labId `openstack-cli`,
-  which is in `FREE_PLAY_LABS`, so every launch counts as free-play). 34/34 launch, 0 refusals.
-- **Root cause:** check-then-act with no lock. Every request calls `countRunningFreePlay()`,
-  which asks Docker for *running* containers, before any of those 34 containers has started —
-  so all 34 read a count below the cap and all 34 pass. Sequentially the cap works; concurrently
-  it is advisory. `MAX_TOTAL` at `:1024` has the identical shape and was simply not reached (34
-  < 40), so the harder ceiling is untested and likely races the same way.
-- **Fix:** none yet. Options: reserve a slot under a mutex before creating the container (the
-  claim service already does exactly this for pool slots — `claim_service.py:193`), or count
-  intent (created + starting) rather than only `status: running`. **Not fixed unilaterally —
-  this changes launch behaviour for every lab and needs a decision.**
-- **Verified:** breach confirmed, not inferred — `docker exec lab-manager printenv
-  FREE_PLAY_CAP` = 32, 34 launches returned 200, and `docker logs --since 25m lab-manager |
-  grep -c capacity` = 0. Contained: no student was affected; the test released everything.
-- **Related:** `_docs/operations/openstack-cloud-durability.md` (pool section) · BUG-058
-
 ### BUG-123 — `setAdminClaim` wipes the `handler` claim on every sign-in, for exactly the people who need it  ·  [P1]  ·  RESOLVED 2026-08-22, DEPLOYED + VERIFIED
 - **Fix:** `69c3af8c8`. Read the existing claims first, then
   `handler: isAdmin || existingClaims.handler === true`. `admin` stays DERIVED so dropping an
@@ -3190,6 +3166,79 @@ _From the 2026-07-21 verify-first triage of the marathon backlog (38 items → 1
 ---
 
 ## Resolved
+
+### BUG-233 — the free-play cap does not hold under a simultaneous burst  ·  [P2]  ·  RESOLVED 2026-08-29, DEPLOYED + VERIFIED
+- **Fix:** deployed to bc1 `lab-manager/server.js` (md5 `a72f01ff…`; prior file archived at
+  `_backups/server.js.pre-bug233-2026-08-29T03-32-59Z`, md5 `f3ff7d4d…`). Not in git by design.
+  Two parts:
+  1. **Admission control.** An async lock serialises count-then-reserve, and a `_reservations`
+     map counts launches that are admitted but not yet visible to Docker. Released explicitly
+     after `container.start()`, on response `'finish'` for early returns, and swept at
+     `RESERVATION_TTL_MS = SEED_TIMEOUT_MS + 180000` as a backstop.
+  2. **Reclassification.** `openstack-cli` moved OUT of `FREE_PLAY_LABS` (unconditional) and
+     INTO `CONTEXT_FREE_PLAY_LABS` (caller-declared). Nine course pages launch it missionless
+     as graded work; The Rig launches it with `freePlay:true` as practice. It needed to be in
+     the set that can tell those apart.
+- **Verified on the live service, after deploy:**
+  - `node concurrency-test.js 34` → **34/34, 34 distinct slots, 10.1s, no double-assignment**
+    (a class can start; coursework is not charged to the practice cap)
+  - `node concurrency-test.js 34 --freeplay` → **32 admitted, 2 refused `FREE_PLAY_CAPACITY`**,
+    reproducible across two runs (the cap now actually fires; it previously admitted all 34
+    with zero log lines)
+  - `node _tools/rules-test/freeplay-classification.test.js` → exits 1 against the pre-fix file
+    naming `openstack-cli` and all 9 missionless launch sites; exits 0 against the deployed file
+- **Three defects were caught before shipping, two of them mine:**
+  - Nancy caught the first draft releasing the reservation on the response `'close'` event. A
+    client disconnect does not stop the handler, so the container still starts — un-counting a
+    container that was about to exist. Harness: that variant runs **33** against a cap of 32.
+  - I caught my own TTL bug: `/seed` has a 420s timeout and runs *between* admission and
+    `container.start()`, but the sweep was 120s, so a slow seeded launch would have had its own
+    reservation reclaimed mid-flight. TTL is now **derived** from `SEED_TIMEOUT_MS` and the seed
+    call site reads the same constant, so the two cannot drift.
+  - **The one that nearly shipped:** I told Nancy The Rig does not offer `openstack-cli`, having
+    grepped `_app/rig/index.html` for `"openstack"`. Wrong surface — The Rig never names labs in
+    its source, it projects `getBrowsableLabs()` (`rig/index.html:150`) and hands each id to
+    `renderButton(mount, id, {freePlay:true})` (`:178`). `openstack-cli` is `browsable:true`.
+    Removing it from `FREE_PLAY_LABS` *without* adding it to `CONTEXT_FREE_PLAY_LABS` would have
+    left Rig practice launches **uncapped**, competing with a graded class for all 40 slots —
+    worse than the bug being fixed.
+- **Regression cover:** `_tools/rules-test/freeplay-classification.test.js` (cross-repo
+  invariant; exit 2 = could-not-verify, never a silent pass) and
+  `_tools/openstack-bridge/concurrency-test.js --freeplay`.
+- **NOT closed by this fix — named, not silently absorbed:** with `FREE_PLAY_CAP=32` of
+  `MAX_TOTAL=40`, coursework has a guaranteed floor of only **8** concurrent slots when practice
+  is saturated. This fix makes the cap *enforce*; it does not make the *split* sufficient for a
+  34-seat class under contention. That is a capacity decision for the operator.
+  **Do NOT "fix" it by lowering `FREE_PLAY_CAP` to the code default of 12** — 12 is what
+  throttled the 2026-08-25 class while 28 slots sat idle
+  (`openstack-cloud-durability.md:244`). A warning to that effect now sits at the constant.
+- **Related:** BUG-058 · `_docs/operations/openstack-cloud-durability.md`
+
+
+
+### BUG-233 (original report) — [P2] — kept for the diagnosis
+- **Found:** 2026-08-26 · by self · running the 34-way sandbox concurrency test
+- **Area:** bc1 `lab-manager/server.js:1036-1045` (`countRunningFreePlay` at :917, `FREE_PLAY_CAP` at :23)
+- **Symptom:** `FREE_PLAY_CAP=32`, yet **34 simultaneous free-play launches all succeeded** and
+  the guard never fired — zero `[capacity]` lines in the logs. The cap is a reserve: free-play is
+  held at 32 of `MAX_TOTAL=40` so graded lab work always has 8+ containers. A burst can eat into
+  that reserve, and the code comment (`server.js:19`) names the **cell-sigma final exam** as
+  drawing from the same pool.
+- **Repro:** `node _tools/openstack-bridge/concurrency-test.js 34` on bc1 (labId `openstack-cli`,
+  which is in `FREE_PLAY_LABS`, so every launch counts as free-play). 34/34 launch, 0 refusals.
+- **Root cause:** check-then-act with no lock. Every request calls `countRunningFreePlay()`,
+  which asks Docker for *running* containers, before any of those 34 containers has started —
+  so all 34 read a count below the cap and all 34 pass. Sequentially the cap works; concurrently
+  it is advisory. `MAX_TOTAL` at `:1024` has the identical shape and was simply not reached (34
+  < 40), so the harder ceiling is untested and likely races the same way.
+- **Fix:** none yet. Options: reserve a slot under a mutex before creating the container (the
+  claim service already does exactly this for pool slots — `claim_service.py:193`), or count
+  intent (created + starting) rather than only `status: running`. **Not fixed unilaterally —
+  this changes launch behaviour for every lab and needs a decision.**
+- **Verified:** breach confirmed, not inferred — `docker exec lab-manager printenv
+  FREE_PLAY_CAP` = 32, 34 launches returned 200, and `docker logs --since 25m lab-manager |
+  grep -c capacity` = 0. Contained: no student was affected; the test released everything.
+- **Related:** `_docs/operations/openstack-cloud-durability.md` (pool section) · BUG-058
 
 ### BUG-037 -- 8 house pages render an EMPTY Courses grid: cartridge-fy shipped without the HubRegistry include  ·  P1  ·  resolved
 - **Found:** 2026-07-28 · by self (verified by Nancy) · during north-star step-1 build, tracing how the forge precedent loads HubRegistry

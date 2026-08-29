@@ -135,6 +135,45 @@ whole pool, and counts what it gets.
 loudly on in-use slots (`Quota limit 192 ... must be >= already used 512`) but would have
 silently downgraded every empty one. Now 512.
 
+### The cap that did not hold (BUG-233, fixed 2026-08-29)
+
+Extending the pool fixed `POOL_EXHAUSTED`. It also exposed a second, quieter failure: the
+**practice cap did not hold under a burst at all.** `FREE_PLAY_CAP=32`, and 34 simultaneous
+launches all succeeded with **zero refusals and not one log line**.
+
+Check-then-act. Every request called `countRunningFreePlay()` → Docker's *running* list before
+any of the burst's containers existed, so all 34 read the same pre-burst number and all passed.
+A cap that only holds when requests arrive one at a time is not a cap, and a class arrives
+together.
+
+Two changes, both required:
+
+1. **Admission control** — a lock serialises count-then-reserve, and a reservation map counts
+   launches that are admitted but not yet visible to Docker. Cost is negligible: serialising 34
+   `listContainers` calls measures **46ms**, against 22ms concurrent.
+2. **`openstack-cli` was reclassified** — out of `FREE_PLAY_LABS` (unconditional), into
+   `CONTEXT_FREE_PLAY_LABS` (caller-declared). Nine course pages launch it missionless as graded
+   work; The Rig launches it with `freePlay:true` as practice. It has BOTH paths, so it belongs
+   in the set that can tell them apart.
+
+Verified on the live service: `concurrency-test.js 34` → **34/34** (a class starts);
+`concurrency-test.js 34 --freeplay` → **32 admitted, 2 refused**, reproducibly (the cap fires).
+
+**The trap that nearly shipped.** Removing `openstack-cli` from `FREE_PLAY_LABS` *without*
+adding it to `CONTEXT_FREE_PLAY_LABS` would have left Rig practice launches **uncapped** —
+worse than the original bug. I missed it by grepping `_app/rig/index.html` for `"openstack"`
+and finding nothing: The Rig never names labs in its source, it projects `getBrowsableLabs()`
+and hands each id to `renderButton(mount, id, {freePlay:true})`. The detector was keyed on the
+wrong surface. `_tools/rules-test/freeplay-classification.test.js` now automates that
+cross-repo trace, because **neither repo can see the invariant alone** — the classification
+sets live in `server.js` (not in this repo, by design) and the browsable registry lives here,
+so no CI on either side can catch the next drift.
+
+**Do NOT lower `FREE_PLAY_CAP` to the code default of 12.** See the note at the bottom of this
+document: 12 is what throttled the 2026-08-25 class. The residual gap is that 32 of 40 leaves
+coursework a floor of 8 under contention — the fix makes the cap *enforce*, it does not make
+the *split* right, and that is a capacity decision.
+
 ### The test is a file now, and it costs no slots
 
 `node _tools/openstack-bridge/concurrency-test.js [N]` on bc1. It uses **N fixed identities**,
