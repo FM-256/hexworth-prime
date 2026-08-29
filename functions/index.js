@@ -7001,7 +7001,15 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
      * rateLimits/* is Cloud-Functions-only at the rules layer; no client can read its own
      * budget, let alone reset it.
      */
-    const RL_USER_WINDOW_MS = 60000;   // per-user sliding window
+    // FIXED window, not sliding, and the distinction is not pedantry (Nancy, 2026-08-29).
+    // The counter resets to `now` once the window expires, which is the classic
+    // boundary-burst counter: she proved it by rewinding windowStart and landing 8 more
+    // immediately, so the true worst case is ~16 requests straddling a boundary, not 8.
+    // Called "sliding" in the first draft, which mis-described the guarantee to whoever read
+    // it next. Accepted deliberately: the attacker still waits out ~50s to set it up, and the
+    // bug this replaces was ~13/s UNBOUNDED. If 8/60s is ever needed as a hard ceiling rather
+    // than an amortised average, this has to become a real sliding log of timestamps.
+    const RL_USER_WINDOW_MS = 60000;
     const RL_USER_MAX = 8;             // generous for real play, useless for brute force
     const RL_TEAM_CHALLENGE_MS = 10000; // unchanged from the original rule
 
@@ -7042,6 +7050,15 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         if (e && e.code === 'RL_USER') {
             throw new HttpsError('resource-exhausted',
                 `Too many attempts. Wait ${e.retryIn || 60} seconds before submitting again.`);
+        }
+        // Firestore retries a contended transaction a finite number of times (default 5). If
+        // that is exhausted under a heavier burst than the 5-way case tested, the error is
+        // neither RL_PAIR nor RL_USER and used to fall through as a raw `internal` — a student
+        // mid-event would see an unexplained failure during exactly the contention this limit
+        // exists for. Map it to the same retryable answer the throttle gives.
+        if (e && (e.code === 10 || e.code === 'ABORTED' || /transaction|contention|too much contention/i.test(String(e.message || '')))) {
+            console.warn('[ctfSubmitFlag] rate-limit transaction exhausted retries:', e.message);
+            throw new HttpsError('resource-exhausted', 'Server busy. Try that again in a moment.');
         }
         throw e;
     }
