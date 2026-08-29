@@ -46,8 +46,9 @@ the live page.
 
 ## Testing
 
-Nine suites, all runnable and catalogued. Every one was checked for **non-vacuity** — it must
-fail against the pre-fix code, or it proves nothing.
+Nine suites built for this sprint, all runnable and catalogued. Every one was checked for
+**non-vacuity** — it must fail against the pre-fix code, or it proves nothing. A tenth,
+`ctf-join-concurrency.test.js`, predates this work (BUG-024/026) and still passes 10/10.
 
 | Suite | Result | Discriminates because |
 |---|---|---|
@@ -83,8 +84,8 @@ node _tools/tournament/benchmark-tournament.js --cleanup <id>  # remove benchmar
 ```
 
 Benchmark data created during the audit was removed: **1,759 documents** across three QCBENCH
-tournaments, manifests retained under `_tools/openstack-bridge/bench-manifests/`, both real
-tournaments verified untouched.
+tournaments, manifests retained under `_tools/tournament/bench-manifests/` (three files, now
+tracked), both real tournaments verified untouched.
 
 ---
 
