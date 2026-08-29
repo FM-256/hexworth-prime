@@ -222,6 +222,75 @@ existed left students with no image at all and a class that could not start.
 
 ---
 
+## `ssh bc2` kept dying, and it was never sshd
+
+Admin access to bc2 dropped repeatedly on 2026-08-28/29 — working, failing, recovering — while
+the cloud itself stayed perfectly healthy. It blocked verification work twice.
+
+**It was name resolution, not the host.** bc2's uptime showed no reboot, ports 8080/9711
+answered throughout, and `tailscale ping bc2` returned in 1ms the whole time. bc1 had **no
+`~/.ssh/config` at all**, so `bc2` resolved through the router's DNS to a *global IPv6 address
+under an ISP-delegated prefix* — and the ISP rotated the prefix. Measured side by side:
+
+| Source | Prefix |
+|---|---|
+| Router DNS still returned | the **old** ISP-delegated /64 |
+| Tailscale was actually reaching | a **different** ISP-delegated /64 |
+
+(Values redacted deliberately — they identify the site, and what matters is only that the two
+did not match. Compare them yourself with `getent hosts bc2` against `tailscale ping bc2`.)
+
+Every SSH went to an address nobody was listening on any more and timed out. Nothing was
+broken; the map was stale.
+
+**Tailscale is not a fallback for this.** Its ACL permits only 8080 and 9711 between these
+hosts, so port 22 over the tailnet times out *by policy* — measured, and consistent with the
+note in `setup-novnc-console.sh`. Opening 22 there needs the Tailscale admin console, which is
+the operator's to do. The fix below uses only what is already available.
+
+**The fix:** `~/.ssh/config` on bc1 now routes `bc2` through
+`_tools/openstack-bridge/bc2-connect.sh` (installed at `~/bin/bc2-connect`), which tries each
+candidate address in order and connects to the first that answers:
+
+1. **LAN IPv4** — readable, routable, unaffected by ISP prefixes
+2. **second NIC** — bc2 is dual-homed, so one port going down is survivable
+3. **link-local IPv6** — derived from the MAC via EUI-64, so it *cannot* rotate and needs no
+   DHCP server, router, or DNS. It is the only address that still worked during the outage.
+
+The DNS name is deliberately absent from that list: resolving `bc2` is the thing that broke.
+Addresses live in `~/hexworth-infra-private/openstack.env` as `BC2_ADDRS`, never in this repo.
+
+To restore on a fresh bc1 (neither file is in git — only the script is):
+
+```
+install -m755 _tools/openstack-bridge/bc2-connect.sh ~/bin/bc2-connect
+printf "BC2_ADDRS='<lan-ipv4> <lan-ipv4-2> <link-local>%%<iface>'\n" >> ~/hexworth-infra-private/openstack.env
+cat >> ~/.ssh/config <<'EOF'
+Host bc2
+    User eq1
+    ProxyCommand ~/bin/bc2-connect %p
+    StrictHostKeyChecking accept-new
+    ServerAliveInterval 15
+    ServerAliveCountMax 4
+EOF
+chmod 600 ~/.ssh/config
+```
+
+Find the link-local with `ip neigh show dev <iface>` on bc1 — it is derived from bc2's MAC, so
+it is the same one every time.
+
+**Verified, including the parts that are easy to leave untested:**
+
+```
+ssh bc2                                            -> reaches bc2
+BC2_ADDRS='192.0.2.1 192.0.2.2 fe80::…%eno1' ssh bc2  -> falls through to link-local, reaches bc2
+BC2_ADDRS='192.0.2.1 192.0.2.2' ssh bc2            -> fails FAST with the addresses it tried
+```
+
+The middle line is the one that matters: an untested fallback is decoration. An exported
+`BC2_ADDRS` deliberately overrides the file so that path can be exercised without unplugging a
+NIC — the first draft sourced the file last and silently clobbered the override.
+
 ## Access when Tailscale is blocked
 
 bc2 is tailscale-only. **Zscaler runs as a client on the operator's laptop**, so it intercepts on
@@ -265,6 +334,7 @@ assumed.
 | Image snapshot / verify / promote / restore | `img-snap2.sh`, `img-verify-candidate.sh`, `img-swap.sh`, `img-restore-img.sh` |
 | Peer ICMP on the shared subnet | `allow-peer-icmp.sh` (re-run after extending the pool) |
 | Pool capacity, both ceilings | `pool-capacity.sh` |
+| `ssh bc2` address fallback | `bc2-connect.sh` (+ bc1 `~/.ssh/config`, `BC2_ADDRS` in infra env) |
 | N-way simultaneous launch proof | `concurrency-test.js` |
 | Per-slot quota (512MB, was 192) | `provision-pool.sh` |
 | Restart posture audit | `restart-audit.sh` |
