@@ -11037,7 +11037,20 @@
                 html += '<td style="font-weight:600;">' + escHtml(name) + '</td>';
                 html += '<td><span class="ctf-status ctf-status-' + status + '">' + status.toUpperCase() + '</span></td>';
                 html += '<td style="font-family:\'Courier New\',monospace; letter-spacing:1px;">' + escHtml(code) + '</td>';
-                html += '<td>' + teamCount + (t.maxTeams ? '/' + t.maxTeams : '') + '</td>';
+                // TOURN-02: show what a tournament can ACTUALLY hold, not what maxTeams claims.
+                // This read `teamCount + '/' + maxTeams`, so an admin who set 32 saw "6/32" —
+                // a denominator that was never reachable, because only six teams were ever
+                // created. TOURN-01 fixes new tournaments; tournaments created BEFORE that fix
+                // still hold six, so the honest number is the roster that exists times the
+                // per-team cap. The maxTeams denominator is shown only when it is still unmet,
+                // and labelled as the target rather than the capacity.
+                const seats = teamCount * (t.maxTeamSize || 4);
+                const shortfall = (t.maxTeams && t.maxTeams > teamCount)
+                    ? ' <span style="color:var(--ac-text-muted);">(of ' + t.maxTeams + ' requested)</span>'
+                    : '';
+                html += '<td>' + teamCount + ' team' + (teamCount === 1 ? '' : 's') + shortfall
+                     + '<br><span style="color:var(--ac-text-muted); font-size:0.8rem;">'
+                     + seats + ' player seats</span></td>';
                 html += '<td>' + (t.scoringModel === 'dynamic' ? 'Dynamic' : 'Static') + '</td>';
                 html += '<td style="color:var(--ac-text-muted); font-size:0.8rem;">' + created + '</td>';
                 html += '<td>';
@@ -11081,8 +11094,22 @@
                     joinCode: joinCode,
                     boardStyle: document.getElementById('ctfBoardStyle').value,
                     scoringModel: document.getElementById('ctfScoring').value,
-                    maxTeamSize: parseInt(document.getElementById('ctfMaxTeamSize').value) || 4,
-                    maxTeams: parseInt(document.getElementById('ctfMaxTeams').value) || 32,
+                    // CLAMPED AT THE READ (Nancy, 2026-08-29). The inputs carry min/max
+                    // attributes, but this form is submitted by `onclick="saveTournament()"`
+                    // (line 4113) rather than a real form submit, so the browser never
+                    // validates them and `.checkValidity()` is never called. Whatever is typed
+                    // was stored verbatim and forever.
+                    //   maxTeams: an admin typing 3200 stored 3200. buildTeamRoster caps team
+                    //   CREATION at 200, so the class still worked — but the list row would
+                    //   then read "(of 3200 requested)" permanently, a claim that can never
+                    //   become true.
+                    //   maxTeamSize: worse, and load-bearing. `|| 4` does NOT rescue a negative,
+                    //   because -5 is truthy. ctfJoinTeam then does `members.length >= maxSize`,
+                    //   and `0 >= -5` is true — so EVERY team reports full before anyone joins,
+                    //   and a class cannot start. One field over from the roster work, same root
+                    //   cause, so it is fixed in the same pass rather than filed for later.
+                    maxTeamSize: clampInt(document.getElementById('ctfMaxTeamSize').value, 1, 10, 4),
+                    maxTeams: clampInt(document.getElementById('ctfMaxTeams').value, 2, 200, 32),
                     duration: parseInt(document.getElementById('ctfDuration').value) || 120,
                     freezeMinutes: parseInt(document.getElementById('ctfFreeze').value) || 30,
                     createdBy: FirebaseAuth.getUser().uid,
@@ -11114,28 +11141,34 @@
                     });
                 }
 
-                // Create default teams
-                const defaultTeams = [
-                    { id: 'team-red',     name: 'Red Cell',      color: '#ef4444' },
-                    { id: 'team-blue',    name: 'Blue Shield',   color: '#3b82f6' },
-                    { id: 'team-green',   name: 'Green Ops',     color: '#22c55e' },
-                    { id: 'team-gold',    name: 'Gold Strike',   color: '#f59e0b' },
-                    { id: 'team-purple',  name: 'Purple Haze',   color: '#a855f7' },
-                    { id: 'team-cyan',    name: 'Cyan Storm',    color: '#06b6d4' }
-                ];
-                for (const team of defaultTeams) {
-                    await setDoc(doc(db, 'tournaments', tRef.id, 'teams', team.id), {
-                        name: team.name,
-                        color: team.color,
-                        captain: null,
-                        members: [],
-                        memberNames: [],
-                        score: 0,
-                        solves: [],
-                        hintPenalty: 0,
-                        lastSolveTime: null,
-                        createdAt: serverTimestamp()
-                    });
+                // Create the team roster — as many teams as maxTeams actually asks for.
+                //
+                // FIXED 2026-08-29 (TOURN-01). This was a hardcoded six-item literal, so every
+                // tournament held exactly six teams no matter what `maxTeams` said — and
+                // `maxTeams`, settable to 200 in the form above, was read by NOTHING here. The
+                // real ceiling was 6 x maxTeamSize = 24 players while the console advertised
+                // "6/32". Measured in _docs/operations/tournament-qc-2026-08-29.md.
+                const defaultTeams = buildTeamRoster(tournamentData.maxTeams);
+
+                // Batched. 200 sequential setDoc round trips from a browser reads as a hang, and
+                // Firestore caps a batch at 500 writes, so chunk well under it.
+                for (let i = 0; i < defaultTeams.length; i += 400) {
+                    const batch = _firestoreModule.writeBatch(db);
+                    for (const team of defaultTeams.slice(i, i + 400)) {
+                        batch.set(doc(db, 'tournaments', tRef.id, 'teams', team.id), {
+                            name: team.name,
+                            color: team.color,
+                            captain: null,
+                            members: [],
+                            memberNames: [],
+                            score: 0,
+                            solves: [],
+                            hintPenalty: 0,
+                            lastSolveTime: null,
+                            createdAt: serverTimestamp()
+                        });
+                    }
+                    await batch.commit();
                 }
 
                 // Update tournament with team count
@@ -11148,6 +11181,62 @@
                 showToast('Failed to create: ' + e.message, 'danger');
             }
         };
+
+        // Clamp a numeric form field to the range its own min/max advertises.
+        // Needed because these forms submit via onclick, so the browser never enforces the
+        // attributes. Returns `dflt` for blank/NaN; otherwise pins into [lo, hi] so a stored
+        // value can never contradict what the input claimed to accept.
+        function clampInt(raw, lo, hi, dflt) {
+            const n = parseInt(raw, 10);
+            if (!Number.isFinite(n)) return dflt;
+            return Math.min(hi, Math.max(lo, n));
+        }
+
+        // ── Team roster generation (TOURN-01) ──────────────────────────────
+        // The canonical six keep their EXACT ids, names and colours, so tournaments created
+        // before 2026-08-29 and anything reading those ids are unchanged. Past six, teams are
+        // generated, because a hand-written literal cannot serve a maxTeams of 200.
+        const NAMED_TEAMS = [
+            { id: 'team-red',    name: 'Red Cell',      color: '#ef4444' },
+            { id: 'team-blue',   name: 'Blue Shield',   color: '#3b82f6' },
+            { id: 'team-green',  name: 'Green Ops',     color: '#22c55e' },
+            { id: 'team-gold',   name: 'Gold Strike',   color: '#f59e0b' },
+            { id: 'team-purple', name: 'Purple Haze',   color: '#a855f7' },
+            { id: 'team-cyan',   name: 'Cyan Storm',    color: '#06b6d4' },
+            { id: 'team-orange', name: 'Orange Vector', color: '#f97316' },
+            { id: 'team-pink',   name: 'Pink Signal',   color: '#ec4899' },
+            { id: 'team-lime',   name: 'Lime Breach',   color: '#84cc16' },
+            { id: 'team-teal',   name: 'Teal Anchor',   color: '#14b8a6' },
+            { id: 'team-indigo', name: 'Indigo Watch',  color: '#6366f1' },
+            { id: 'team-amber',  name: 'Amber Relay',   color: '#d97706' }
+        ];
+
+        // Emits HEX, never hsl(). Every public renderer whitelists team.color against
+        // /^#[0-9a-fA-F]{3,8}$/ before it reaches an inline style, so an hsl() string would be
+        // silently dropped and those teams would render unstyled.
+        function hslToHex(h, s, l) {
+            s /= 100; l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))));
+            return '#' + [f(0), f(8), f(4)].map(v => v.toString(16).padStart(2, '0')).join('');
+        }
+
+        function buildTeamRoster(count) {
+            const n = Math.max(1, Math.min(parseInt(count, 10) || 6, 200));
+            const out = [];
+            for (let i = 0; i < n; i++) {
+                if (i < NAMED_TEAMS.length) { out.push(NAMED_TEAMS[i]); continue; }
+                // Golden-angle hue rotation keeps colours visually distinct at ANY count,
+                // instead of cycling a short palette and repeating every N teams.
+                out.push({
+                    id: 'team-' + String(i + 1).padStart(3, '0'),
+                    name: 'Squad ' + String(i + 1).padStart(2, '0'),
+                    color: hslToHex(Math.round((i * 137.508) % 360), 62, 55)
+                });
+            }
+            return out;
+        }
 
         // ── Flag Hashing ──
         // SHA-256 hash of salt:flag — flags never stored in plaintext
