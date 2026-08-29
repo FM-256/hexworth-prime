@@ -6916,6 +6916,23 @@ exports.c2DecommissionDevice = onCall(cfOptions, async (request) => {
 
 async function sendWireNotification(embed) {
     if (!DISCORD_WEBHOOK_URL) return;
+    /* NEVER POST FROM AN EMULATOR RUN (Nancy, 2026-08-29).
+     *
+     * The emulator loads functions/.env, so DISCORD_WEBHOOK_URL is populated there and this
+     * fired for real on every test solve. Running the tournament test suites sent fake
+     * "FLAG CAPTURED" messages to the live channel, several of which Discord rate-limited with
+     * 429s — proving beyond doubt they were reaching the real API and not a dead URL. Nancy hit
+     * it herself simply by reproducing my documented @catalog run command, which is exactly how
+     * it should have been caught and exactly how often it will happen again without this guard.
+     *
+     * A test that writes to a channel real people watch is a test with a blast radius. The
+     * emulator sets FUNCTIONS_EMULATOR=true; FIRESTORE_EMULATOR_HOST is belt-and-braces for a
+     * harness that talks to the emulator without the functions runtime setting the first.
+     */
+    if (process.env.FUNCTIONS_EMULATOR === 'true' || process.env.FIRESTORE_EMULATOR_HOST) {
+        console.log('[wire] emulator run — notification suppressed:', (embed && embed.title) || '(no title)');
+        return;
+    }
     try {
         const response = await fetch(DISCORD_WEBHOOK_URL, {
             method: 'POST',
@@ -7190,7 +7207,11 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
                 if (tournament.scoringModel === 'dynamic') {
                     const cfg = tournament.dynamicConfig || {};
                     const base = chData.points || 0;
-                    const decay = cfg.decayRate || 0.85;
+                    // Same `typeof` guard as minPoints below, and for the same reason. `||`
+                    // clobbers an explicit 0, and this commit fixed exactly that bug two lines
+                    // down while leaving it here — caught by Nancy. decayRate 0 is meaningful
+                    // (collapse to the floor on the first solve) and must not become 0.85.
+                    const decay = (typeof cfg.decayRate === 'number') ? cfg.decayRate : 0.85;
                     // An explicit minPoints stays absolute for backward compatibility; without
                     // one the floor is a FRACTION of the authored value, because a flat floor
                     // of 50 is meaningless on a 60-point challenge and punitive on a 500.

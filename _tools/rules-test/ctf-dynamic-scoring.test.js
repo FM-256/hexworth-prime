@@ -128,6 +128,36 @@ const currentPoints = async (tRef, cid) => (await tRef.collection('challenges').
       naive <= 60, `currentPoints=${naive}, must stay <= its authored 60`);
 
 
+  // ── 8. decayRate: 0 must be HONOURED, not clobbered to 0.85 by `||`.
+  //    The same falsy-zero bug this commit fixed for minPoints was left on decayRate; Nancy
+  //    caught it. Zero means "collapse to the floor on the first solve", which is a legitimate
+  //    setting, and it is unreachable from the UI today only because the console hardcodes
+  //    0.85 — a landmine for whoever adds a control or edits a config by hand.
+  const uZ = [await identity(), await identity()];
+  const tZ = await seed('dynamic', { decayRate: 0 }, [{ id: 'cz', points: 100 }], uZ.map((x) => x.uid));
+  await submit(uZ[0].token, TID, 'cz', 'HEX{cz}');
+  const zeroed = await currentPoints(tZ, 'cz');
+  chk('decayRate 0 collapses to the floor instead of silently becoming 0.85',
+      zeroed === 20, `currentPoints=${zeroed} (0.85 would give 85, floor of 100 is 20)`);
+
+  // ── NON-VACUITY, in the file rather than in a commit message (Nancy, concern 5).
+  //    The prose A/B claimed 4/8 against the pre-fix function; that claim lived only in a
+  //    commit body, in a file whose own history includes two harness mistakes. This recomputes
+  //    the OLD formula directly and asserts it disagrees with the shipped one, so the suite
+  //    itself demonstrates it can distinguish them.
+  const oldFormula = (cfg, chPoints, solveCount) => {
+      if (!cfg) return chPoints;                    // old code required a config to decay at all
+      const initial = cfg.initialPoints || 500;     // tournament-wide base, ignoring chPoints
+      const floorAbs = cfg.minPoints || 50;
+      const d = cfg.decayRate || 0.85;
+      return Math.max(floorAbs, Math.floor(initial * Math.pow(d, solveCount)));
+  };
+  chk('OLD formula would not decay at all with no config (test can fail)',
+      oldFormula(null, 60, 1) === 60, `old=${oldFormula(null, 60, 1)} vs shipped 51`);
+  chk('OLD formula would put a 60-point challenge at 425 with the naive config (test can fail)',
+      oldFormula({ initialPoints: 500, minPoints: 50, decayRate: 0.85 }, 60, 1) === 425,
+      `old=${oldFormula({ initialPoints: 500, minPoints: 50, decayRate: 0.85 }, 60, 1)}`);
+
   console.log(`\n  ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 })().catch((e) => { console.error('  FAILED:', e.message); process.exit(1); });
