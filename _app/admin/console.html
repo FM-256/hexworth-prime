@@ -11025,7 +11025,11 @@
             let count = 0;
             _ctfTournaments.forEach(t => {
                 const name = t.name || 'Untitled';
-                const code = t.joinCode || '--';
+                // Post-TOURN-03 the code lives in a private subdoc, so the list column shows
+                // whether one is SET rather than its value. Fetching 200 private docs to render
+                // a table would be wasteful, and the list is not where an instructor reads a
+                // code out — the manage panel is, and that fetches the real value.
+                const code = t.joinCode || (t.hasJoinCode ? 'set (see Manage)' : '--');
                 if (filter && !name.toLowerCase().includes(filter) && !code.toLowerCase().includes(filter)) return;
                 count++;
 
@@ -11091,7 +11095,16 @@
                     name: name,
                     description: document.getElementById('ctfDescription').value.trim(),
                     status: 'draft',
-                    joinCode: joinCode,
+                    // TOURN-03: the join code is NOT a field here any more. This document is
+                    // `allow read: if true` so the podium and lobby work pre-auth, and Firestore
+                    // rules can hide a DOCUMENT but never a FIELD — so a code stored here was
+                    // published, not protected. An audit read an "invite only" event's plaintext
+                    // code with no authentication at all. It now lives in the private subdoc
+                    // written just below, which rules deny to every client.
+                    //
+                    // `hasJoinCode` is kept public on purpose: the lobby needs to know whether
+                    // to PROMPT for a code, and that is not a secret.
+                    hasJoinCode: !!joinCode,
                     boardStyle: document.getElementById('ctfBoardStyle').value,
                     scoringModel: document.getElementById('ctfScoring').value,
                     // CLAMPED AT THE READ (Nancy, 2026-08-29). The inputs carry min/max
@@ -11121,18 +11134,42 @@
 
                 const tRef = await addDoc(collection(db, 'tournaments'), tournamentData);
 
+                // The join code, where clients cannot read it. ctfJoinTeam reads this with the
+                // admin SDK, which bypasses rules; `match /private/{docId}` denies every client
+                // including this one, so it is written here by the admin's own session at
+                // creation time and never read back by the browser.
+                await setDoc(doc(db, 'tournaments', tRef.id, 'private', 'config'), {
+                    joinCode: joinCode,
+                    createdAt: serverTimestamp(),
+                });
+
                 // Write challenges as subcollection
                 for (let i = 0; i < _ctfChallenges.length; i++) {
                     const ch = _ctfChallenges[i];
                     const chId = 'ch-' + String(i + 1).padStart(2, '0');
+                    // 128 bits from the CSPRNG, unique per challenge.
+                    const chSalt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+                        .map(b => b.toString(16).padStart(2, '0')).join('');
                     await setDoc(doc(db, 'tournaments', tRef.id, 'challenges', chId), {
                         title: ch.title,
                         category: ch.category,
                         description: ch.description,
                         points: ch.points,
                         currentPoints: ch.points,
-                        flagHash: await hashFlag(joinCode + '-' + chId, ch.flag),
-                        flagSalt: joinCode + '-' + chId,
+                        // TOURN-03: the salt is RANDOM, not derived from the join code.
+                        //
+                        // It used to be `joinCode + '-' + chId`, and flagSalt is stored on the
+                        // challenge doc, which is `allow read: if true`. So every challenge
+                        // published the join code verbatim: strip the '-ch-NN' suffix and you
+                        // have it. Moving the code into a private doc would have achieved
+                        // nothing while this line stood, and gating ctfJoinTeam on a code
+                        // anyone can read is theatre.
+                        //
+                        // A random salt is also simply correct: a salt exists to make identical
+                        // flags hash differently, and one derived from a value shared by every
+                        // challenge in the tournament did that job poorly.
+                        flagHash: await hashFlag(chSalt, ch.flag),
+                        flagSalt: chSalt,
                         boxId: ch._boxId || null,
                         solveCount: 0,
                         hints: ch.hints || [],
@@ -11655,8 +11692,25 @@
                 statusEl.className = 'ctf-status ctf-status-' + status;
                 statusEl.textContent = status.toUpperCase();
 
-                // Join code + share links
-                document.getElementById('ctfEditJoinCode').textContent = t.joinCode || '--';
+                // Join code + share links.
+                // TOURN-03 moved the code to tournaments/{id}/private/config, which rules
+                // expose to admins only. `t.joinCode` still works for tournaments created
+                // before that change, so both are read: the private doc first, the legacy
+                // public field as fallback. Without this the manage view would show '--' for
+                // every new tournament and an instructor would have no code to read out.
+                const codeEl = document.getElementById('ctfEditJoinCode');
+                codeEl.textContent = t.joinCode || '…';
+                (async () => {
+                    try {
+                        const { doc: _doc, getDoc: _getDoc } = _firestoreModule;
+                        const priv = await _getDoc(_doc(db, 'tournaments', id, 'private', 'config'));
+                        if (priv.exists() && priv.data().joinCode) codeEl.textContent = priv.data().joinCode;
+                        else if (!t.joinCode) codeEl.textContent = '--';
+                    } catch (e) {
+                        // Admin-only read; a failure here is not worth breaking the panel over.
+                        if (!t.joinCode) codeEl.textContent = '--';
+                    }
+                })();
                 const baseUrl = window.location.origin;
                 document.getElementById('ctfEditPodiumLink').href = baseUrl + '/arena/tournament-podium.html?id=' + id;
                 document.getElementById('ctfEditLobbyLink').href = baseUrl + '/arena/tournament-lobby.html?id=' + id;

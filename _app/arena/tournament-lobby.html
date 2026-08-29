@@ -505,10 +505,27 @@
                 return;
             }
 
+            // TOURN-03: ask for the join code when the tournament has one.
+            //
+            // There was no prompt here at all, and ctfJoinTeam did not accept a code, so the
+            // "join code" gated nothing: anyone who could list the public tournaments
+            // collection could join any event they found, and anonymous sign-in satisfied the
+            // only real check. The server is the gate — this input just carries the value to
+            // it. A wrong code is refused by the Cloud Function, never here, so nothing about
+            // this prompt is worth bypassing.
+            //
+            // `hasJoinCode` is a public boolean on the tournament doc; the code itself is not
+            // readable by anyone but an admin.
+            let joinCode = '';
+            if (tournamentData.hasJoinCode || tournamentData.joinCode) {
+                joinCode = (window.prompt('Enter the join code for ' + (tournamentData.name || 'this tournament') + ':') || '').trim();
+                if (!joinCode) { toast('A join code is required for this tournament.', 'error'); return; }
+            }
+
             try {
                 // Server-validated self-join (Cloud Function). Teams are admin-write-only at the
                 // rules layer (BUG-024); the CF binds the joiner's name to their uid server-side.
-                await firebase.functions().httpsCallable('ctfJoinTeam')({ tournamentId, teamId });
+                await firebase.functions().httpsCallable('ctfJoinTeam')({ tournamentId, teamId, joinCode });
                 myTeamId = teamId;
                 toast('Joined ' + team.name + '!', 'success');
                 await loadTournament();

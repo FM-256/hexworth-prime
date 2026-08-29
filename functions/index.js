@@ -7216,7 +7216,7 @@ async function _resolveUserName(uid, token) {
 
 exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
-    const { tournamentId, teamId } = request.data || {};
+    const { tournamentId, teamId, joinCode } = request.data || {};
     if (!tournamentId || !teamId) throw new HttpsError('invalid-argument', 'tournamentId and teamId are required.');
     // Validate the path segments — the CF is the sole write authority now (BUG-024), so it must
     // enforce the slug shape itself (a '/' in teamId would change the Firestore path depth). Same
@@ -7232,6 +7232,55 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
     const tournament = tSnap.data();
     if (tournament.status !== 'lobby' && tournament.status !== 'active') {
         throw new HttpsError('failed-precondition', 'Team registration is closed for this tournament.');
+    }
+
+    /* ── THE JOIN CODE IS NOW A GATE (TOURN-03, 2026-08-29) ────────────────────────────────
+     * It previously gated NOTHING. This function did not accept a joinCode parameter at all,
+     * the lobby page had no prompt for one, and the only use of the value anywhere in the
+     * system was as a salt ingredient. Participation was controlled solely by
+     * `request.auth != null` — which anonymous sign-in satisfies — so anyone who listed the
+     * public `tournaments` collection could join any event they found. Proven in an audit: an
+     * "invite only" tournament was discovered with no prior link and joined with no code.
+     *
+     * READ FROM THE PRIVATE DOC, NOT THE TOURNAMENT DOC. `tournaments/{id}` is
+     * `allow read: if true` so the podium and lobby work pre-auth; a code stored there is
+     * published, not secret. The authoritative copy lives at `tournaments/{id}/private/config`,
+     * which rules deny to every client (Cloud Functions use the admin SDK and bypass rules).
+     *
+     * TOURNAMENTS CREATED BEFORE THIS FIX have no private doc. They fall back to the legacy
+     * public field so a live event does not break the moment this deploys — and that fallback
+     * is deliberately NOT a silent one: it logs, so the gap is visible rather than permanent.
+     * Those tournaments are no more exposed than they were yesterday; new ones are gated.
+     */
+    let expectedCode = null;
+    let codeSource = 'none';
+    try {
+        const privSnap = await tRef.collection('private').doc('config').get();
+        if (privSnap.exists && privSnap.data().joinCode) {
+            expectedCode = String(privSnap.data().joinCode);
+            codeSource = 'private';
+        }
+    } catch (e) {
+        // A read failure must not silently downgrade to the public value — that would turn an
+        // outage into an auth bypass. Fail closed.
+        console.error('[ctfJoinTeam] private config read failed:', e.message);
+        throw new HttpsError('internal', 'Could not verify the join code. Try again.');
+    }
+    if (expectedCode === null && tournament.joinCode) {
+        expectedCode = String(tournament.joinCode);
+        codeSource = 'legacy-public';
+        console.warn(`[ctfJoinTeam] tournament ${tournamentId} has no private config; falling back to the PUBLIC joinCode. Re-save it in the admin console to close this.`);
+    }
+    if (expectedCode !== null) {
+        const supplied = typeof joinCode === 'string' ? joinCode.trim() : '';
+        // Case-insensitive: the admin console accepts any case and students retype these by
+        // hand off a projector. Comparing case-sensitively would reject correct codes.
+        if (supplied.toLowerCase() !== expectedCode.trim().toLowerCase()) {
+            throw new HttpsError('permission-denied', 'That join code is not correct for this tournament.');
+        }
+    } else {
+        // No code configured anywhere: the tournament never had one. Open, as before.
+        console.warn(`[ctfJoinTeam] tournament ${tournamentId} has NO join code at all — joining is ungated.`);
     }
 
     // One team per user: reject if already on a DIFFERENT team in this tournament.

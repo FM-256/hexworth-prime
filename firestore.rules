@@ -1262,6 +1262,26 @@ service cloud.firestore {
       match /rosterLocks/{uid} {
         allow read, write: if false;
       }
+
+      // Private tournament config — the join code, and anything else that must not be public.
+      //
+      // ADDED 2026-08-29 (TOURN-03). The parent `tournaments/{id}` is `allow read: if true` so
+      // the podium and lobby work pre-auth, which means a secret stored on that document is
+      // published rather than protected — an audit read an "invite only" event's plaintext code
+      // with no authentication at all. Firestore rules cannot hide a FIELD, only a document, so
+      // the secret has to live somewhere else: here.
+      //
+      // ADMIN-ONLY, not nobody. The first draft was `allow read, write: if false`, which was
+      // wrong in both directions: it denied the admin console's own write when creating a
+      // tournament, and it denied the manage view the read it needs to show an instructor the
+      // code they are about to read out to a class. A rule that blocks the legitimate path is
+      // half a rule.
+      //
+      // What matters is that STUDENTS cannot read it, and they cannot: isAdmin() gates both
+      // verbs. ctfJoinTeam reads it with the admin SDK, which bypasses rules entirely.
+      match /private/{docId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // ─── Hub Registry (dynamic, admin-created hubs) ────────────────
