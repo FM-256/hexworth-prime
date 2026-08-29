@@ -38,6 +38,14 @@ const { execSync } = require('child_process');
 const API_KEY = 'AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M';
 const BASE = 'http://localhost/api/sandbox';
 const N = parseInt(process.argv[2] || '20', 10);
+// --freeplay launches the way THE RIG does (freePlay:true), which is what the practice cap
+// applies to. Without it, launches look like the course pages: coursework, capped only by
+// MAX_TOTAL. Both are worth running and they prove different halves of BUG-233:
+//   plain      -> a whole class can start (the cap must NOT throttle coursework)
+//   --freeplay -> the cap actually FIRES (it must refuse past FREE_PLAY_CAP)
+// Before the fix, --freeplay would have been meaningless for openstack-cli: it sat in the
+// server's unconditional FREE_PLAY_LABS, so every launch counted as practice either way.
+const FREE_PLAY = process.argv.includes('--freeplay');
 // Firebase policy on this project caps passwords at 10 characters; a longer one fails signUp
 // with PASSWORD_DOES_NOT_MEET_REQUIREMENTS and then signIn cannot work either, because the
 // account was never created (walkthrough-cinder.js:51-53).
@@ -83,8 +91,8 @@ const post = (u, b, h) => req('POST', u, b, h);
     const t0 = Date.now();
     const results = await Promise.all(ids.map(async (id) => {
       try {
-        const r = await post(`${BASE}/launch`, { labId: 'openstack-cli' },
-          { Authorization: `Bearer ${id.token}` });
+        const body = FREE_PLAY ? { labId: 'openstack-cli', freePlay: true } : { labId: 'openstack-cli' };
+        const r = await post(`${BASE}/launch`, body, { Authorization: `Bearer ${id.token}` });
         return { id, status: r.status, data: r.data };
       } catch (e) {
         return { id, status: 0, data: { error: String(e && e.message) } };
@@ -93,19 +101,25 @@ const post = (u, b, h) => req('POST', u, b, h);
     const secs = ((Date.now() - t0) / 1000).toFixed(1);
 
     // ── 3. Classify. Record every success for cleanup BEFORE any assertion can throw.
-    const ok = [], exhausted = [], full = [], other = [];
+    const ok = [], exhausted = [], full = [], capped = [], other = [];
     for (const r of results) {
       const err = r.data && r.data.error;
+      // The practice-cap refusal carries its marker in `code`, not `error` -- classify it
+      // explicitly or it lands in "other" and a WORKING cap reads as an unexplained failure.
+      const code = r.data && r.data.code;
       if (r.status === 200 && r.data && r.data.cloudSlot) {
         ok.push(r);
         bound.push({ uid: r.id.uid, sid: r.data.sessionId, token: r.id.token });
-      } else if (err === 'POOL_EXHAUSTED') exhausted.push(r);
+      } else if (code === 'FREE_PLAY_CAPACITY') capped.push(r);
+      else if (err === 'POOL_EXHAUSTED') exhausted.push(r);
       else if (err === 'CLOUD_FULL') full.push(r);
       else other.push(r);
     }
 
     console.log('');
+    console.log(`  mode             : ${FREE_PLAY ? 'FREE-PLAY (as The Rig launches)' : 'COURSEWORK (as the course pages launch)'}`);
     console.log(`  launched OK      : ${ok.length}/${N}   (${secs}s wall clock)`);
+    console.log(`  FREE_PLAY_CAPACITY: ${capped.length}   (practice cap refused -- the BUG-233 guard)`);
     console.log(`  POOL_EXHAUSTED   : ${exhausted.length}   (no free slot -- extend the pool)`);
     console.log(`  CLOUD_FULL       : ${full.length}   (no hypervisor RAM -- delete instances)`);
     console.log(`  other failures   : ${other.length}`);
@@ -128,8 +142,25 @@ const post = (u, b, h) => req('POST', u, b, h);
     console.log('  no double-assignment');
 
     console.log('');
-    if (ok.length === N) console.log(`  PASS -- a class of ${N} can all start at once.`);
-    else console.log(`  FAIL -- only ${ok.length} of ${N} could start.`);
+    // The verdict is MODE-DEPENDENT, and conflating the two reports a working cap as a
+    // failure. In coursework mode every launch must succeed -- that is a class starting. In
+    // free-play mode being refused past the cap is the CORRECT behaviour and the whole point
+    // of BUG-233; what must not happen is a refusal of any OTHER kind, or a silent success
+    // past the cap.
+    if (FREE_PLAY) {
+      const accounted = ok.length + capped.length === N;
+      if (accounted && capped.length > 0) {
+        console.log(`  PASS -- the practice cap fired: ${ok.length} admitted, ${capped.length} refused, none leaked past it.`);
+      } else if (accounted) {
+        console.log(`  PASS -- all ${ok.length} admitted; the cap was never reached (raise N above FREE_PLAY_CAP to exercise it).`);
+      } else {
+        console.log(`  FAIL -- ${N - ok.length - capped.length} launch(es) failed for reasons OTHER than the cap.`);
+      }
+    } else if (ok.length === N) {
+      console.log(`  PASS -- a class of ${N} can all start at once.`);
+    } else {
+      console.log(`  FAIL -- only ${ok.length} of ${N} could start.`);
+    }
 
   } finally {
     // ── Cleanup. Runs on success AND failure. Destroy each session, then hand the slot back,
