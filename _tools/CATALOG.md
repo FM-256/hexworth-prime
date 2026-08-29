@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 00:34 · **1135 scripts** · 21 wired into a gate · 269 called by other code · 177 only mentioned in docs · 668 referenced by nothing · 469 not in git
+**Generated:** 2026-08-29 02:14 · **1136 scripts** · 21 wired into a gate · 270 called by other code · 177 only mentioned in docs · 668 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -1096,17 +1096,18 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 14 scripts, 4 referenced by nothing
+### `_tools/rules-test` — 15 scripts, 4 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
+| `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
-| `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
+| `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
 | `mallory-verify-users-create-2026-08-05.test.js` | ORPHAN | 0 | 2026-08-05 | no |  |
