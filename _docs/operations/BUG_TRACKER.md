@@ -55,7 +55,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   or confusion rather than falsified competitive results. VS, where opposition exists, is scoped.
 - **Related:** BUG-234 · the `arena_sessions` membership fix (2026-08-29)
 
-### BUG-234 — an arena member can write any field, including the other team's state  ·  [P2]  ·  open
+### BUG-234 — an arena member can write any field, including the other team's state  ·  [P2]  ·  RESOLVED 2026-08-29, DEPLOYED + VERIFIED
 - **Found:** 2026-08-29 · by Nancy · reviewing the BUG-233-adjacent `arena_sessions` fix
 - **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` · `_app/arena/engine/CoOpSync.js`
 - **Symptom:** the membership fix closes OUTSIDER access (a stranger writing a room they never
