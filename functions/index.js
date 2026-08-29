@@ -6976,22 +6976,74 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         throw new HttpsError('already-exists', 'Your team already solved this challenge.');
     }
 
-    // 4. Rate limiting — max 1 submission per team per challenge per 10 seconds
-    const recentSubs = await tRef.collection('submissions')
-        .where('teamId', '==', userTeamId)
-        .where('challengeId', '==', challengeId)
-        .orderBy('timestamp', 'desc')
-        .limit(1)
-        .get();
+    /* ── 4. RATE LIMITING (TOURN-04, rewritten 2026-08-29) ────────────────────────────────
+     * The old rule was "max 1 submission per team per challenge per 10 seconds", implemented
+     * as a query followed several awaits later by a write. It had TWO independent bypasses,
+     * both proven rather than theorised:
+     *
+     *   1. IT WAS SCOPED TO team+challenge, so rotating the challenge escaped it entirely.
+     *      Measured against PRODUCTION: one user pushed 12 guesses across 12 challenges in
+     *      922ms, roughly 13/s, unbounded. That is an online brute-force channel.
+     *   2. IT WAS CHECK-THEN-ACT, with nothing serialising concurrent callers. Measured in the
+     *      emulator: five teammates submitting the same challenge simultaneously were ALL
+     *      accepted; the limit held for zero of five.
+     *
+     * Both are closed here, and they need different mechanisms because they are different
+     * attacks. A per-user budget does nothing about five DIFFERENT users racing one challenge,
+     * and a per-team+challenge lock does nothing about one user rotating targets. So both
+     * counters are read and written inside ONE transaction, which is also what makes them
+     * immune to the race: the loser of a concurrent pair re-reads and sees the winner's write.
+     *
+     * The counters live in their own docs rather than being derived from the submissions
+     * collection, because a query cannot be transactional against documents that do not exist
+     * yet — which is precisely why the original was racy.
+     *
+     * rateLimits/* is Cloud-Functions-only at the rules layer; no client can read its own
+     * budget, let alone reset it.
+     */
+    const RL_USER_WINDOW_MS = 60000;   // per-user sliding window
+    const RL_USER_MAX = 8;             // generous for real play, useless for brute force
+    const RL_TEAM_CHALLENGE_MS = 10000; // unchanged from the original rule
 
-    if (!recentSubs.empty) {
-        const lastSub = recentSubs.docs[0].data();
-        if (lastSub.timestamp) {
-            const lastTime = lastSub.timestamp.toDate ? lastSub.timestamp.toDate().getTime() : 0;
-            if (Date.now() - lastTime < 10000) {
-                throw new HttpsError('resource-exhausted', 'Too fast. Wait 10 seconds between attempts.');
+    const rlUserRef = tRef.collection('rateLimits').doc(`u_${uid}`);
+    const rlPairRef = tRef.collection('rateLimits').doc(`tc_${userTeamId}_${challengeId}`);
+
+    try {
+        await db.runTransaction(async (tx) => {
+            const [uSnap, pSnap] = await Promise.all([tx.get(rlUserRef), tx.get(rlPairRef)]);
+            const now = Date.now();
+
+            // (a) Same team, same challenge, inside the cooldown. Serialised, so a burst of
+            //     teammates cannot all read "no recent submission" and all proceed.
+            const lastPair = pSnap.exists ? (pSnap.data().lastAt || 0) : 0;
+            if (now - lastPair < RL_TEAM_CHALLENGE_MS) {
+                const e = new Error('RL_PAIR'); e.code = 'RL_PAIR'; throw e;
             }
+
+            // (b) Per-USER window, which the old rule had no concept of. This is the one that
+            //     stops challenge rotation.
+            const u = uSnap.exists ? uSnap.data() : {};
+            let windowStart = u.windowStart || 0;
+            let count = u.count || 0;
+            if (now - windowStart >= RL_USER_WINDOW_MS) { windowStart = now; count = 0; }
+            if (count >= RL_USER_MAX) {
+                const e = new Error('RL_USER'); e.code = 'RL_USER';
+                e.retryIn = Math.ceil((RL_USER_WINDOW_MS - (now - windowStart)) / 1000);
+                throw e;
+            }
+
+            tx.set(rlPairRef, { lastAt: now, teamId: userTeamId, challengeId }, { merge: true });
+            tx.set(rlUserRef, { windowStart, count: count + 1, lastAt: now }, { merge: true });
+        });
+    } catch (e) {
+        if (e && e.code === 'RL_PAIR') {
+            throw new HttpsError('resource-exhausted', 'Too fast. Wait 10 seconds between attempts on this challenge.');
         }
+        if (e && e.code === 'RL_USER') {
+            throw new HttpsError('resource-exhausted',
+                `Too many attempts. Wait ${e.retryIn || 60} seconds before submitting again.`);
+        }
+        throw e;
     }
 
     // 5. Load challenge and verify flag
