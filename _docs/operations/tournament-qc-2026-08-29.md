@@ -68,7 +68,7 @@ bug: fix the capacity ceiling first and this becomes relevant, not before.
 - The composite index the rate-limit query needs (`teamId`+`challengeId`+`timestamp desc`)
   **exists** in `firestore.indexes.json` — its absence would have made every submission throw.
 
-**One scaling defect that is real today:** `tournament-podium.html:354` subscribes to
+**One scaling defect that is real today:** `tournament-podium.html:353` subscribes to
 `orderBy('score','desc')` with **no `.limit()`**, live. Every score change re-sends every team
 to every viewer. Harmless at 6 teams, quadratic-feeling at any real size.
 
@@ -188,17 +188,40 @@ unauthenticated. Phased reveal is cosmetic; the scoring half is protected, the c
 
 ---
 
-## Recommended order
+## Findings at a glance
 
-1. **Capacity** — 6 teams is the binding constraint on every real event. Generate teams from
-   `maxTeams`, or stop displaying a ceiling that cannot be reached.
-2. **Join code** — make `ctfJoinTeam` require and verify it, and stop storing it in a
-   world-readable document.
-3. **Rate limit** — make it per-user and serialize it; two independent bypasses currently exist.
-4. **`dynamicConfig`** — either write it at creation when `scoringModel: 'dynamic'`, or refuse to
-   save that combination.
-5. **Flag authoring** — change the console's example flags to high-entropy tokens.
-6. **Podium** — port the working freeze from `broadcast.html`, and add a `.limit()`.
+| # | Sev | Area | Finding | Proven where | Task |
+|---|---|---|---|---|---|
+| 1 | **HIGH** | Access | Join code enforces nothing; anyone incl. anonymous can join any tournament | emulator | #316 |
+| 2 | **HIGH** | Capacity | Only 6 teams exist (hardcoded); `maxTeams` is dead config — real cap 24 users | production | #315 |
+| 3 | MED | Integrity | Rate limit has two independent bypasses (rotate challenge · race teammates) | production + emulator | #317 |
+| 4 | MED | Scoring | "Special Event" set to `dynamic` with no `dynamicConfig` — decay never fires | production | #318 |
+| 5 | MED | Secrecy | Offline flag cracking practical for the console's own example flag format | emulator | — |
+| 6 | MED | Secrecy | Hidden challenges fully readable pre-auth; phased reveal is cosmetic | source | #319 |
+| 7 | LOW | Display | Podium streams all teams unlimited, and its freeze is cosmetic | source | #320 |
+| 8 | LOW | Display | Unbounded display name (50,000 chars) reaches the public team doc | emulator | — |
+
+Findings 5 and 8 have no task: 5 is an authoring-practice change rather than a code defect, and
+8 is bounded to layout disruption on one team. Raise them if either becomes load-bearing.
+
+## Recommendations
+
+Ordered by what unblocks the most. **Capacity first** — it is the only finding that limits what
+an event can be, and it makes the latency curve moot until it moves.
+
+| # | Do this | Where | Effort | Why it ranks here |
+|---|---|---|---|---|
+| 1 | Generate teams from `maxTeams` at creation, **or** stop rendering an unreachable ceiling | `console.html:11118`, `:11040` | S–M | 24 players caps every real event. The one-line display fix removes the misleading "6/32" immediately, even before the real fix |
+| 2 | Require and verify `joinCode` in `ctfJoinTeam`; stop storing it in a world-readable doc | `index.js:7217`, `rules:1225` | M | Participation is currently ungated for anyone who can list the collection — including anonymous sessions |
+| 3 | Make the rate limit **per-user** and serialize it in a transaction | `index.js:6979-6995` | M | Two proven bypasses; this is also what makes weak flags online-guessable |
+| 4 | Write `dynamicConfig` at creation, or refuse to save `dynamic` without it | `console.html:11084`, `index.js:7097` | S | A live tournament is silently mis-scoring right now |
+| 5 | Replace the console's example flags with high-entropy tokens | `console.html:3931`, `:4006` | S | Turns finding 5 from practical to infeasible without touching the hashing scheme |
+| 6 | Gate challenge reads on `visible`, or document reveal as presentation-only | `firestore.rules` challenges block | S–M | Decide which it is; today the code implies one thing and the rules do another |
+| 7 | Port the working freeze from `broadcast.html:307-321`; add `.limit()` to the podium query | `tournament-podium.html:353` | S | The fix already exists in this codebase and was never applied to the projector page |
+| 8 | *Later:* index team membership instead of scanning all teams per call | `index.js:6959`, `:7238` | M–L | Only matters once capacity moves past ~100 teams. Do not do this first |
+
+**Nothing here requires a rewrite.** Seven of eight are contained changes, and item 7's fix is
+already written elsewhere in the repo.
 
 ## Tools, so this is repeatable
 
