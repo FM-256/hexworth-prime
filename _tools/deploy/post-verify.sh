@@ -331,6 +331,34 @@ PY
 fi
 echo ""
 
+# ── Check 4f: careers-page track links match the course catalog ──────
+# BLOCKING, unlike 4e. _app/components/HouseTracks.js is GENERATED from
+# _app/data/course-trees/*.json and puts 54 course links on the 13 careers.html pages. If a
+# track moves or is renamed, the catalog updates and the committed component does not, so the
+# careers pages keep pointing at URLs that no longer resolve. Nothing else notices: the links
+# are in a generated file nobody re-reads, on pages nobody edits.
+#
+# This re-derives from the catalog and compares. It does NOT trust the committed file, which is
+# the whole point -- a gate that reads the artifact it is gating proves nothing.
+echo "[4f/5] Careers track links vs course catalog"
+if [[ "$DRY_RUN" == 1 ]]; then
+    echo -e "  ${DIM}DRY-RUN: would run gen-house-tracks.js --check${NC}"
+else
+    HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
+    HT_RC=$?
+    echo "$HT_OUT" | head -3 | sed 's/^/  /'
+    if [[ $HT_RC -ne 0 ]]; then
+        echo -e "  ${YELLOW}! careers pages link to a catalog that has moved under them${NC}"
+        # Naming only the regenerator, not the browser suite. The catalog derives its "wiring"
+        # column by scanning for script paths, so mentioning the suite here would list it as
+        # GATE when nothing actually invokes it -- and the catalog's one guarantee is that a
+        # script cannot lie about having a caller. Re-run the suite by hand after regenerating.
+        echo -e "  ${DIM}fix: node _tools/career/gen-house-tracks.js${NC}"
+        DIVERGENCE=1
+    fi
+fi
+echo ""
+
 # ── Check 5: Lab content-leak browser smoke (hosting deploys only) ───
 echo "[5/5] Lab content-leak browser smoke"
 if [[ "$HOSTING_ONLY" != 1 ]]; then

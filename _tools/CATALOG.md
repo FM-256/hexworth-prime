@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 18:09 · **1148 scripts** · 21 wired into a gate · 271 called by other code · 186 only mentioned in docs · 670 referenced by nothing · 468 not in git
+**Generated:** 2026-08-29 20:06 · **1150 scripts** · 22 wired into a gate · 271 called by other code · 189 only mentioned in docs · 668 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -37,6 +37,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Invoked by | In git | What |
 |---|---|---|---|
+| `_tools/career/gen-house-tracks.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/components/HouseTracks.js: the house -> course-track map that puts real content links on the 13 careers.html pages. Derived from the generated course-trees catalog, never hand-maintained. |
 | `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/deploy-surface-gate.py` | `deploy.sh` | yes | Blocks debris in the hosting surface: deployable files git does not track. |
@@ -242,6 +243,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `build-aplus-core1-final.js` | DOCS-ONLY | 0 | 2026-07-29 | yes |  |
+
+### `_tools/career` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `house-tracks.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Drives HouseTracks.js in a real browser on all 13 careers.html pages and asserts the links mount, are visible, are keyboard-reachable, and resolve to files that exist. Also asserts the honest-omission case (House of the Key). |
 
 ### `_tools/confluence` — 7 scripts, 3 referenced by nothing
 
@@ -1096,7 +1103,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 19 scripts, 5 referenced by nothing
+### `_tools/rules-test` — 19 scripts, 4 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1117,7 +1124,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
-| `tournament-joincode.test.js` | ORPHAN | 0 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
+| `tournament-joincode.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
@@ -1787,7 +1794,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
 
-### `_tools/tournament` — 8 scripts, 1 referenced by nothing
+### `_tools/tournament` — 8 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1797,7 +1804,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
 | `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
 | `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
-| `roster-browser-check.js` | ORPHAN | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
+| `roster-browser-check.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
 | `writebatch-runtime-proof.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | runtime proof that console.html's batched team-roster write works |
 
 ### `_tools/walkthrough-pdf` — 1 scripts, 0 referenced by nothing
