@@ -92,3 +92,9 @@ over approximated salary bands. Superseded by `_tools/career/house-tracks.test.j
 screenshots nothing but re-derives that card's salary band from its source careers.html and
 fails on drift. Original still at repo root as `_chris_shot_matrix_tmp.js` (untracked); removal
 is the operator's call.
+
+## chris_reverify_salary.js
+**Question it answered:** does house-tracks.test.js genuinely re-derive salary bands from source,
+or does it only agree with the values committed the same day? Chris ran it against a worktree at
+the blocked commit 633d9e5db and confirmed it fails there with the corrected values. Superseded
+by the suite itself. Original at repo root as `_chris_reverify_tmp.js` (untracked).
