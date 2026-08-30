@@ -186,7 +186,15 @@ function expected() {
 
             chk('career-paths: no page errors', errs.length === 0, errs[0]);
             chk('career-paths: window.HouseTracks exposed', cp.hasGlobal);
-            chk('career-paths: renders its 10 house cards', cp.cards === 10, `got ${cp.cards}`);
+            // 13, matching the 13 careers.html pages /career/ links. It was 10 for as long as
+            // this page existed; Matrix, Divergent and Signal were simply never added.
+            chk('career-paths: renders all 13 house cards', cp.cards === 13, `got ${cp.cards}`);
+            for (const h of ['Matrix', 'Divergent', 'Signal']) {
+                chk(`career-paths: ${h} card present`, !!cp.byHouse[h]);
+                chk(`career-paths: ${h} card links its courses`,
+                    ((cp.byHouse[h] || {}).hrefs || []).length > 0,
+                    JSON.stringify((cp.byHouse[h] || {}).hrefs));
+            }
 
             const da = cp.byHouse['Dark Arts'] || {};
             chk('career-paths: Dark Arts card links Bug Hunting',
@@ -198,10 +206,13 @@ function expected() {
             chk('career-paths: Key card shows no fabricated links',
                 ((cp.byHouse['Key'] || {}).hrefs || []).length === 0);
 
+            // Derive the id from the displayed name rather than keeping a hand-written map. A
+            // 10-entry map here silently yielded TRACKS[undefined] for every house added later,
+            // which reported correct cards as mismatched. Deriving also cross-checks the page's
+            // own `id` field: get one wrong there and this comparison fails.
             let mismatched = [];
             for (const [name, got] of Object.entries(cp.byHouse)) {
-                const id = { 'Shield': 'shield', 'Dark Arts': 'dark-arts', 'Eye': 'eye', 'Cloud': 'cloud',
-                    'Forge': 'forge', 'Web': 'web', 'Code': 'code', 'Key': 'key', 'Script': 'script', 'AI': 'ai' }[name];
+                const id = name.toLowerCase().replace(/\s+/g, '-');
                 const want = TRACKS[id] || [];
                 if (JSON.stringify(got.hrefs) !== JSON.stringify(want)) mismatched.push(name);
             }
