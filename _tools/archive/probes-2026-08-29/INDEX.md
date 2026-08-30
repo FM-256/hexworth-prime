@@ -98,3 +98,9 @@ is the operator's call.
 or does it only agree with the values committed the same day? Chris ran it against a worktree at
 the blocked commit 633d9e5db and confirmed it fails there with the corrected values. Superseded
 by the suite itself. Original at repo root as `_chris_reverify_tmp.js` (untracked).
+
+## chris_eye_card_check.js
+**Question it answered:** does the Eye card render its 6-step roadmap without overflow, and is
+Eye the only card with 6 steps? Chris wrote it while blocking 8c4b92e10 over a roadmap that
+implied a promotion path Eye's own PATHS array contradicts. Answer: yes to both; the card is back
+to 5 steps. Original at `_tools/career/_chris_eye_card_check_tmp.js` (untracked, gitignored).
