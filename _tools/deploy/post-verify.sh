@@ -344,6 +344,18 @@ echo "[4f/5] Careers track links vs course catalog"
 if [[ "$DRY_RUN" == 1 ]]; then
     echo -e "  ${DIM}DRY-RUN: would run gen-house-tracks.js --check${NC}"
 else
+    # Salary bands on career-paths.html must still equal the min/max of the roles each card
+    # names, read from that house's own careers.html. These were hand-authored and unverified
+    # until 2026-08-29, when a card shipped a $185K ceiling above a $210K role it listed.
+    SAL_OUT="$(node "$REPO_ROOT/_tools/career/audit-card-salaries.js" 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$SAL_OUT" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! a career card's salary no longer matches its source careers.html${NC}"
+        DIVERGENCE=1
+    else
+        echo "$SAL_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'
