@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- Access Control: baseline tier, matching the 145 of 171 apps that require it -->
+    <!-- Access Control: the baseline tier that the large majority of manifest apps declare -->
     <script src="../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -84,8 +84,20 @@
     var history = [];
     var hIdx = -1;
 
+    // Escapes quotes too, because esc() is used inside href="..." where &lt; and &gt; are not the
+    // only way out of the context. A value containing a double quote could otherwise close the
+    // attribute and inject another one.
     function esc(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Only ever navigate to a same-origin absolute path. The manifest is generated from
+    // build-time literals today, so this is defence in depth rather than a live hole, but
+    // window.location.href will happily execute a javascript: URL and nothing upstream of here
+    // guarantees it never sees one.
+    function safeEntry(e) {
+        return typeof e === 'string' && /^\/[^/\\]/.test(e) ? e : null;
     }
     function say(html, cls) {
         var d = document.createElement('div');
@@ -101,7 +113,9 @@
     function fmtRows(list, note) {
         if (!list.length) return say('nothing matched.', 'muted');
         var rows = list.map(function (a) {
-            return '<tr><td><a class="app" href="' + esc(a.entry) + '">' + esc(a.id) + '</a></td>' +
+            var href = safeEntry(a.entry);
+            return '<tr><td>' + (href ? '<a class="app" href="' + esc(href) + '">' + esc(a.id) + '</a>'
+                                      : '<span class="err">' + esc(a.id) + '</span>') + '</td>' +
                    '<td class="muted">' + esc(a.category) + '</td>' +
                    '<td>' + esc(a.name || '') + '</td></tr>';
         }).join('');
@@ -158,11 +172,16 @@
             if (!a) {
                 var near = APPS.filter(function (x) { return x.id.indexOf(arg) === 0; }).slice(0, 6);
                 say('no app called ' + esc(arg) + '.', 'err');
-                if (near.length) say('did you mean: ' + near.map(function (x) { return x.id; }).join(', '), 'muted');
+                if (near.length) say('did you mean: ' + near.map(function (x) { return esc(x.id); }).join(', '), 'muted');
                 return;
             }
-            say('launching ' + esc(a.name || a.id) + ' ' + esc(a.entry), 'ok');
-            window.location.href = a.entry;
+            var dest = safeEntry(a.entry);
+            if (!dest) {
+                return say('refusing to launch ' + esc(a.id) + ': entry is not a same-origin path (' +
+                           esc(a.entry) + ')', 'err');
+            }
+            say('launching ' + esc(a.name || a.id) + ' ' + esc(dest), 'ok');
+            window.location.href = dest;
         },
         clear: function () { out.innerHTML = ''; }
     };
@@ -197,7 +216,7 @@
             return acc.slice(0, i);
         });
         cmd.value = prefix + lcp;
-        say(hits.slice(0, 40).join('   '), 'muted');
+        say(hits.slice(0, 40).map(esc).join('   '), 'muted');
     }
 
     cmd.addEventListener('keydown', function (e) {
@@ -206,7 +225,11 @@
             say('<span class="echo">hex&gt; ' + esc(line) + '</span>');
             if (line.trim()) { history.push(line); hIdx = history.length; }
             cmd.value = '';
-            try { exec(line); } catch (err) { say('error: ' + esc(err.message), 'err'); }
+            // Students see a plain message; the detail goes to the console for whoever debugs it.
+            try { exec(line); } catch (err) {
+                say('something went wrong running that.', 'err');
+                if (window.console) console.error('hex shell:', err);
+            }
         } else if (e.key === 'Tab') {
             e.preventDefault(); complete();
         } else if (e.key === 'ArrowUp') {
@@ -237,8 +260,9 @@
         })
         .catch(function (e) {
             // Say what is actually wrong. A shell that fails silently is worse than no shell.
-            say('could not load /data/hex-apps.json: ' + esc(e.message), 'err');
-            say('regenerate with: node _tools/hexos/gen-app-manifest.js', 'muted');
+            say('could not load the app list.', 'err');
+            say('reload the page. if it keeps happening, tell your instructor.', 'muted');
+            if (window.console) console.error('hex shell: manifest load failed', e);
         });
 })();
 </script>
