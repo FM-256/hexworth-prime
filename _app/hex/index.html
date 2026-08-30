@@ -199,27 +199,103 @@
         COMMANDS[verb](arg);
     }
 
-    function complete() {
-        var v = cmd.value;
-        var m = /^(\s*(?:run|info)\s+)(\S*)$/.exec(v);
-        var prefix = m ? m[1] : '';
-        var frag = m ? m[2] : v.trim();
-        if (!frag) return;
-        var pool = m ? APPS.map(function (a) { return a.id; })
-                     : Object.keys(COMMANDS).concat(APPS.map(function (a) { return a.id; }));
-        var hits = pool.filter(function (x) { return x.indexOf(frag) === 0; });
-        if (!hits.length) return;
-        if (hits.length === 1) { cmd.value = prefix + hits[0] + ' '; return; }
-        // Extend to the longest common prefix, then show the options.
-        var lcp = hits.reduce(function (acc, s) {
-            var i = 0; while (i < acc.length && i < s.length && acc[i] === s[i]) i++;
+    // Tab completion state, so repeated Tab cycles through candidates instead of re-computing
+    // the same longest-common-prefix and appearing to do nothing.
+    var tabState = null;
+
+    /** What is completable at this point in the line, and from which pool. */
+    function completionContext(v) {
+        var m = /^(\s*)(\S*)$/.exec(v);
+        if (m) {
+            // Still typing the first word: commands AND app ids, since a bare app name launches.
+            return { prefix: m[1], frag: m[2],
+                     pool: Object.keys(COMMANDS).concat(APPS.map(function (a) { return a.id; })) };
+        }
+        var r = /^(\s*(\S+)\s+)(.*)$/.exec(v);
+        if (!r) return null;
+        var verb = r[2], frag = r[3];
+        if (/\s/.test(frag)) return null;          // past the first argument, nothing to complete
+        if (verb === 'run' || verb === 'info') {
+            return { prefix: r[1], frag: frag, pool: APPS.map(function (a) { return a.id; }) };
+        }
+        if (verb === 'ls') {
+            // ls takes a category or a house, so complete from exactly those.
+            var vals = {};
+            APPS.forEach(function (a) { vals[a.category] = 1; if (a.house) vals[a.house] = 1; });
+            return { prefix: r[1], frag: frag, pool: Object.keys(vals).sort() };
+        }
+        if (verb === 'search') {
+            // search is free text, but ids and houses are the useful starting points.
+            var pool = APPS.map(function (a) { return a.id; });
+            APPS.forEach(function (a) { if (a.house && pool.indexOf(a.house) === -1) pool.push(a.house); });
+            return { prefix: r[1], frag: frag, pool: pool };
+        }
+        return null;
+    }
+
+    /**
+     * Prefix matches first; if none, fall back to substring. Typing "hunting" should find
+     * bug-hunting, because a student who remembers half a name should not have to remember which
+     * half, and prefix-only completion punishes them for guessing the wrong end.
+     */
+    function candidates(pool, frag) {
+        // Empty fragment keeps the pool's own order. Sorting alphabetically buried every command
+        // behind 189 app ids starting with "adv-linux", so Tab on a blank line answered a question
+        // nobody asked.
+        if (!frag) return pool.slice();
+        var pre = pool.filter(function (x) { return x.indexOf(frag) === 0; }).sort();
+        if (pre.length) return pre;
+        return pool.filter(function (x) { return x.indexOf(frag) !== -1; }).sort();
+    }
+
+    function longestCommonPrefix(list) {
+        return list.reduce(function (acc, s) {
+            var i = 0;
+            while (i < acc.length && i < s.length && acc[i] === s[i]) i++;
             return acc.slice(0, i);
         });
-        cmd.value = prefix + lcp;
-        say(hits.slice(0, 40).map(esc).join('   '), 'muted');
+    }
+
+    function complete() {
+        // Repeated Tab on an unchanged line cycles through the candidates.
+        if (tabState && tabState.line === cmd.value) {
+            tabState.idx = (tabState.idx + 1) % tabState.hits.length;
+            cmd.value = tabState.prefix + tabState.hits[tabState.idx];
+            tabState.line = cmd.value;
+            return;
+        }
+
+        var ctx = completionContext(cmd.value);
+        if (!ctx) return;
+        var hits = candidates(ctx.pool, ctx.frag);
+
+        if (!hits.length) {
+            // Say so. Silence is indistinguishable from a broken key.
+            return say('no completion for ' + esc(ctx.frag || '(empty)'), 'muted');
+        }
+        if (hits.length === 1) {
+            cmd.value = ctx.prefix + hits[0] + ' ';
+            tabState = null;
+            return;
+        }
+
+        // Extend to the longest common prefix when that actually adds characters, then list.
+        var lcp = longestCommonPrefix(hits);
+        if (lcp.length > ctx.frag.length) cmd.value = ctx.prefix + lcp;
+
+        var SHOWN = 60;
+        say(hits.slice(0, SHOWN).map(esc).join('   ') +
+            (hits.length > SHOWN
+                ? '\n' + (hits.length - SHOWN) + ' more not shown; type another character or use search'
+                : ''), 'muted');
+
+        // Arm cycling from the current line so the next Tab steps through the list.
+        tabState = { line: cmd.value, prefix: ctx.prefix, hits: hits, idx: -1 };
     }
 
     cmd.addEventListener('keydown', function (e) {
+        // Any key that is not Tab ends the cycle, so completion never fights the user's typing.
+        if (e.key !== 'Tab') tabState = null;
         if (e.key === 'Enter') {
             var line = cmd.value;
             say('<span class="echo">hex&gt; ' + esc(line) + '</span>');
@@ -231,7 +307,7 @@
                 if (window.console) console.error('hex shell:', err);
             }
         } else if (e.key === 'Tab') {
-            e.preventDefault(); complete();
+            e.preventDefault(); complete(); return;
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             if (hIdx > 0) cmd.value = history[--hIdx];
