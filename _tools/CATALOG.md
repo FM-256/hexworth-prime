@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 23:04 · **1153 scripts** · 23 wired into a gate · 271 called by other code · 189 only mentioned in docs · 670 referenced by nothing · 470 not in git
+**Generated:** 2026-08-30 00:26 · **1155 scripts** · 23 wired into a gate · 272 called by other code · 191 only mentioned in docs · 669 referenced by nothing · 470 not in git
 
 ## Read this before writing a new script
 
@@ -245,12 +245,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `build-aplus-core1-final.js` | DOCS-ONLY | 0 | 2026-07-29 | yes |  |
 
-### `_tools/career` — 3 scripts, 2 referenced by nothing
+### `_tools/career` — 5 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_eye_card_check_tmp.js` | ORPHAN | 0 | 2026-08-29 | no | _one-shot probe (leading underscore)_ |
-| `_chris_eye_recheck2_tmp.js` | ORPHAN | 0 | 2026-08-29 | no | _one-shot probe (leading underscore)_ |
+| `_chris_eye_recheck2_tmp.js` | DOCS-ONLY | 0 | 2026-08-29 | no | _one-shot probe (leading underscore)_ |
+| `build-cve-labs.js` | DOCS-ONLY | 0 | 2026-08-30 | yes | One-shot scaffold for the 3 CVE Evaluation labs. Same status as build-cve-track.js: the emitted HTML is the source of truth afterwards. |
+| `build-cve-track.js` | CALLED | 1 | 2026-08-30 | yes | One-shot scaffold that emitted the 8 CVE Evaluation modules with a single consistent shell. The generated HTML is the source of truth afterwards; this is kept as provenance, NOT as a live generator. Do not re-run over edited pages. |
 | `house-tracks.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Drives HouseTracks.js in a real browser on all 13 careers.html pages and asserts the links mount, are visible, are keyboard-reachable, and resolve to files that exist. Also asserts the honest-omission case (House of the Key). |
 
 ### `_tools/confluence` — 7 scripts, 3 referenced by nothing
@@ -373,7 +375,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `card-shot-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-live-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
-| `catalog-reachability-audit.js` | CALLED | 3 | 2026-07-31 | yes |  |
+| `catalog-reachability-audit.js` | CALLED | 4 | 2026-07-31 | yes |  |
 | `check-overflow-file.js` | ORPHAN | 0 | 2026-06-16 | yes |  |
 | `classify-overflow.js` | ORPHAN | 0 | 2026-06-07 | yes |  |
 | `dead-progress-key-audit.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
@@ -529,7 +531,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc-laptop-memory-shot-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-overlay-probe-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc-soho-rescue-TEMP.js` | ORPHAN | 0 | 2026-07-20 | no |  |
-| `reachability-walk.js` | CALLED | 8 | 2026-07-31 | yes |  |
+| `reachability-walk.js` | CALLED | 9 | 2026-07-31 | yes |  |
 | `screenshot-forge-QC.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `shot_nancy_tmp.js` | ORPHAN | 0 | 2026-07-31 | no |  |
 | `stack_probe_nancy_tmp.js` | ORPHAN | 0 | 2026-07-31 | no |  |
@@ -1825,7 +1827,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-29 scripts are referenced by nothing AND follow the leading-underscore
+28 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1833,7 +1835,6 @@ being mistaken for working tooling; the files keep existing. Read one before mov
 it — a leading underscore is a naming convention, not evidence that a script is dead.
 
 - `_tools/career/_chris_eye_card_check_tmp.js` · last modified 2026-08-29
-- `_tools/career/_chris_eye_recheck2_tmp.js` · last modified 2026-08-29
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
 - `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14

@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-08-30 11:05:21 PM
+                    Scanned: 2026-08-30 1:40:57 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5288 |
-| Directories | 1284 |
-| Content Files | 5288 |
-| Scan Duration | 671ms |
+| Files Scanned | 5301 |
+| Directories | 1290 |
+| Content Files | 5301 |
+| Scan Duration | 2619ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
-| presentation | 2371 |
-| html | 1592 |
+| presentation | 2382 |
+| html | 1594 |
 | lab | 587 |
 | quiz | 512 |
 | applet | 226 |
@@ -42,17 +42,17 @@
 |----------|-------|
 | Critical | 0 |
 | Suspect | 47 |
-| Warning | 982 |
+| Warning | 993 |
 | Info | 541 |
-| **Total** | **14579** |
+| **Total** | **14592** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3666 |
+| Ready | 3677 |
 | Not Ready | 30 |
-| Unknown | 1592 |
+| Unknown | 1594 |
 
 
 ## FILE HIERARCHY
@@ -84,6 +84,9 @@
 │   ├── 📄 jeopardy.html
 │   ├── 📄 kahoot.html
 │   └── 📄 wheel.html
+├── 📁 _gatetest
+│   ├── 📍 index.html
+│   └── 📁 index_probe
 ├── 📁 _lib
 ├── 📁 _source
 │   └── 📁 fx
@@ -700,6 +703,22 @@
 │       ├── 📄 ceh-attack-reference.html
 │       ├── 🔬 cloud-hacking-lab.html
 │       ├── 🔬 csrf-attack-lab.html
+│       ├── 📁 cve-evaluator
+│       │   ├── 📍 index.html
+│       │   ├── 📁 labs [labs]
+│       │   │   ├── 🔬 cve-lab-overfit.html
+│       │   │   ├── 🔬 cve-lab-rubric.html
+│       │   │   └── 🔬 cve-lab-sabotage.html
+│       │   ├── 📁 modules [modules]
+│       │   │   ├── 📄 cve-mod-d1-two-part-verification.html
+│       │   │   ├── 📄 cve-mod-d2-regression-tests.html
+│       │   │   ├── 📄 cve-mod-d3-deterministic-assertions.html
+│       │   │   ├── 📄 cve-mod-d4-test-overfitting.html
+│       │   │   ├── 📄 cve-mod-d5-environment-and-ci.html
+│       │   │   ├── 📄 cve-mod-f1-sabotage-drill.html
+│       │   │   ├── 📄 cve-mod-f2-patch-archaeology.html
+│       │   │   └── 📄 cve-mod-f3-rubric-writing.html
+│       │   └── 📁 quizzes [quizzes]
 │       ├── 📄 cyber-kill-chain.html
 │       ├── 📁 dojo
 │       │   ├── 📄 challenge.html
@@ -9681,6 +9700,17 @@
 | ceh-attack-reference | presentation | ✓ | 0 |
 | cloud-hacking-lab | lab | ✓ | 0 |
 | csrf-attack-lab | lab | ✓ | 0 |
+| cve-lab-overfit | presentation | ✓ | 0 |
+| cve-lab-rubric | presentation | ✓ | 0 |
+| cve-lab-sabotage | presentation | ✓ | 0 |
+| cve-mod-d1-two-part-verification | presentation | ✓ | 0 |
+| cve-mod-d2-regression-tests | presentation | ✓ | 0 |
+| cve-mod-d3-deterministic-assertions | presentation | ✓ | 0 |
+| cve-mod-d4-test-overfitting | presentation | ✓ | 0 |
+| cve-mod-d5-environment-and-ci | presentation | ✓ | 0 |
+| cve-mod-f1-sabotage-drill | presentation | ✓ | 0 |
+| cve-mod-f2-patch-archaeology | presentation | ✓ | 0 |
+| cve-mod-f3-rubric-writing | presentation | ✓ | 0 |
 | cyber-kill-chain | presentation | ✓ | 0 |
 | index | presentation | ✓ | 0 |
 | dos-ddos-lab | presentation | ✓ | 0 |
@@ -10599,7 +10629,7 @@
   File: `houses/web/network-plus/quizzes/ch7-20.quiz.html`
   Fix: Consider extracting inline scripts to external .js files
 
-### WARNING (982)
+### WARNING (993)
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `_games-lab/jeopardy.html`
@@ -10991,6 +11021,50 @@
 
 **[REG-001]** Content file is not registered in content-registry.js
   File: `dark-arts/vault/bug-hunting/tools/bh-tool-reference.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/labs/cve-lab-overfit.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/labs/cve-lab-rubric.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/labs/cve-lab-sabotage.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-d1-two-part-verification.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-d2-regression-tests.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-d3-deterministic-assertions.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-d4-test-overfitting.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-d5-environment-and-ci.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-f1-sabotage-drill.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-f2-patch-archaeology.html`
+  Fix: Add entry to content-registry.js
+
+**[REG-001]** Content file is not registered in content-registry.js
+  File: `dark-arts/vault/cve-evaluator/modules/cve-mod-f3-rubric-writing.html`
   Fix: Add entry to content-registry.js
 
 **[REG-001]** Content file is not registered in content-registry.js
@@ -16597,7 +16671,7 @@
 ## REGISTRY GAPS
 ══════════════════════════════════════════════════════════════════════
 
-### Unregistered Content (907)
+### Unregistered Content (918)
 
 | Path | Type | House |
 |------|------|-------|
@@ -16696,6 +16770,17 @@
 | dark-arts/vault/bug-hunting/tools/bh-tool-methodology.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-mobile.html | presentation | - |
 | dark-arts/vault/bug-hunting/tools/bh-tool-reference.html | presentation | - |
+| dark-arts/vault/cve-evaluator/labs/cve-lab-overfit.html | presentation | - |
+| dark-arts/vault/cve-evaluator/labs/cve-lab-rubric.html | presentation | - |
+| dark-arts/vault/cve-evaluator/labs/cve-lab-sabotage.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-d1-two-part-verification.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-d2-regression-tests.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-d3-deterministic-assertions.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-d4-test-overfitting.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-d5-environment-and-ci.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-f1-sabotage-drill.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-f2-patch-archaeology.html | presentation | - |
+| dark-arts/vault/cve-evaluator/modules/cve-mod-f3-rubric-writing.html | presentation | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-00.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-01.html | lab | - |
 | dark-arts/vault/wifi-arsenal/labs/wifi-lab-02.html | lab | - |
