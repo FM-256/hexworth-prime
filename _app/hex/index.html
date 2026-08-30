@@ -110,6 +110,21 @@
         out.appendChild(d);
         window.scrollTo(0, document.body.scrollHeight);
     }
+    /**
+     * True once the manifest has loaded. Before that, APPS is [] and every place lookup fails,
+     * so cd would say "no such place: dark-arts" -- an assertion that is FALSE. The fetch handler
+     * in this file already states the principle: say what is actually wrong. cd was not obeying it.
+     */
+    var manifestState = 'loading';   // 'loading' | 'ready' | 'failed'
+
+    function notReady() {
+        if (manifestState === 'ready') return false;
+        say(manifestState === 'failed'
+            ? 'the app list failed to load, so there is nowhere to go yet. reload the page.'
+            : 'the app list is still loading. try again in a moment.', 'warn');
+        return true;
+    }
+
     function setPrompt() {
         document.getElementById('ps1').innerHTML = cwd ? 'hex:' + esc(cwd) + '&gt;' : 'hex&gt;';
     }
@@ -123,7 +138,7 @@
     /** Every valid cd target: the houses and categories that actually exist in the manifest. */
     function places() {
         var v = {};
-        APPS.forEach(function (a) { v[a.category] = 1; if (a.house) v[a.house] = 1; });
+        APPS.forEach(function (a) { if (a.category) v[a.category] = 1; if (a.house) v[a.house] = 1; });
         return Object.keys(v).sort();
     }
 
@@ -147,7 +162,9 @@
         help: function () {
             say(
                 '<span class="ok">run</span> &lt;app&gt;        launch an app by name\n' +
-                '<span class="ok">ls</span> [what]        list apps. what = a category, a house, or blank for all\n' +
+                '<span class="ok">ls</span> [what]        list apps. what = a category or a house. ' +
+                (cwd ? 'blank lists what is in <span class="ok">' + esc(cwd) + '</span>'
+                     : 'blank lists everything') + '\n' +
                 '<span class="ok">search</span> &lt;term&gt;    match id, name or house\n' +
                 '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
                 '<span class="ok">cd</span> &lt;house|category&gt;  scope into a house. cd .. to leave\n' +
@@ -210,22 +227,33 @@
             window.location.href = dest;
         },
         cd: function (arg) {
+            if (notReady()) return;
             if (!arg || arg === '/' || arg === '..' || arg === '~') {
                 cwd = null; setPrompt();
                 return say('now at the top. ' + APPS.length + ' apps in scope.', 'muted');
             }
             if (places().indexOf(arg) === -1) {
-                var near = places().filter(function (p) { return p.indexOf(arg) !== -1; });
+                // Same philosophy as run's did-you-mean: prefix first, infix as the fallback.
+                var all = places();
+                var near = all.filter(function (p) { return p.indexOf(arg) === 0; });
+                if (!near.length) near = all.filter(function (p) { return p.indexOf(arg) !== -1; });
                 say('no such place: ' + esc(arg), 'err');
                 if (near.length) say('did you mean: ' + near.map(esc).join(', '), 'muted');
                 else say('try <span class="ok">cd</span> then Tab to see where you can go', 'muted');
                 return;
             }
             cwd = arg; setPrompt();
-            say('now in ' + esc(cwd) + '. ' + scope().length + ' apps in scope. ' +
+            // Say whether this is a house or a category. The manifest has a CATEGORY literally
+            // named "house" (the 14 house-index pages), so `cd house` is legal and means something
+            // completely different from `cd shield`. Unlabelled, that is a trap.
+            var isHouse = APPS.some(function (a) { return a.house === cwd; });
+            var isCat = APPS.some(function (a) { return a.category === cwd; });
+            var kind = (isHouse && isCat) ? 'house and category' : isHouse ? 'house' : 'category';
+            say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
                 '<span class="muted">cd .. to go back.</span>', 'ok');
         },
         pwd: function () {
+            if (notReady()) return;
             say(cwd ? esc(cwd) + '  (' + scope().length + ' apps)' : '/  (all ' + APPS.length + ' apps)');
         },
         clear: function () { out.innerHTML = ''; }
@@ -296,9 +324,18 @@
         // behind 189 app ids starting with "adv-linux", so Tab on a blank line answered a question
         // nobody asked.
         if (!frag) return pool.slice();
-        var pre = pool.filter(function (x) { return x.indexOf(frag) === 0; }).sort();
-        if (pre.length) return pre;
-        return pool.filter(function (x) { return x.indexOf(frag) !== -1; }).sort();
+        // Commands rank ahead of app ids at every stage, not only on a blank line. Sorting the
+        // merged pool alphabetically put pwd 9th behind platform-* ids the moment you typed "p",
+        // which undid the whole reason the empty-line branch exists.
+        var cmds = Object.keys(COMMANDS);
+        var rank = function (list) {
+            var c = list.filter(function (x) { return cmds.indexOf(x) !== -1; }).sort();
+            var a = list.filter(function (x) { return cmds.indexOf(x) === -1; }).sort();
+            return c.concat(a);
+        };
+        var pre = pool.filter(function (x) { return x.indexOf(frag) === 0; });
+        if (pre.length) return rank(pre);
+        return rank(pool.filter(function (x) { return x.indexOf(frag) !== -1; }));
     }
 
     function longestCommonPrefix(list) {
@@ -382,6 +419,7 @@
         .then(function (j) {
             APPS = j.apps || [];
             META = j;
+            manifestState = 'ready';
             say('<span class="ok">hex shell</span> <span class="muted">' + APPS.length +
                 ' apps from the manifest</span>');
             say('<span class="muted">type <span class="ok">help</span>, or an app name to launch it. ' +
@@ -389,6 +427,7 @@
         })
         .catch(function (e) {
             // Say what is actually wrong. A shell that fails silently is worse than no shell.
+            manifestState = 'failed';
             say('could not load the app list.', 'err');
             say('reload the page. if it keeps happening, tell your instructor.', 'muted');
             if (window.console) console.error('hex shell: manifest load failed', e);
