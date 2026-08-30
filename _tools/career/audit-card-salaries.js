@@ -71,6 +71,13 @@ function extractCerts(html) {
         out.push({ title: m[1], certs: [...m[2].matchAll(/'([^']+)'/g)].map(x => x[1]) });
     }
     // HTML families: a title element, then a "Key certifications" label, then chip/tag spans.
+    //
+    // KNOWN FRAGILITY (harmless today, do not be surprised by it): on the houses that render
+    // role cards from a JS array at runtime (Eye, Forge) this also matches the unrendered
+    // template-literal boilerplate, yielding junk entries titled `${r.title}`. It cannot affect
+    // output because the JS-family loop above pushes the real entries first and `.find()` takes
+    // them, and no real role name prefix-matches that string. If this file is reworked, drop
+    // matches whose title contains "${" rather than relying on ordering.
     const RE = /(?:career-role-title|role-title|fc-role-title)"[^>]*>([^<]{3,70})<[\s\S]{0,1800}?Key certifications?<\/div>\s*<div[^>]*>([\s\S]{0,700}?)<\/div>/gi;
     for (const m of html.matchAll(RE)) {
         out.push({ title: m[1].replace(/&amp;/g, '&').trim(),
