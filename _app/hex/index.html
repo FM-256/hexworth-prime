@@ -83,6 +83,10 @@
     var META = {};
     var history = [];
     var hIdx = -1;
+    // Current working context: a house or a category. Scopes ls and completion the way a working
+    // directory scopes a shell. run stays global, because a shell lets you run an absolute path
+    // from anywhere and forcing a cd before every launch would be worse than no cd at all.
+    var cwd = null;
 
     // Escapes quotes too, because esc() is used inside href="..." where &lt; and &gt; are not the
     // only way out of the context. A value containing a double quote could otherwise close the
@@ -106,6 +110,23 @@
         out.appendChild(d);
         window.scrollTo(0, document.body.scrollHeight);
     }
+    function setPrompt() {
+        document.getElementById('ps1').innerHTML = cwd ? 'hex:' + esc(cwd) + '&gt;' : 'hex&gt;';
+    }
+
+    /** Apps visible from the current context. */
+    function scope() {
+        if (!cwd) return APPS;
+        return APPS.filter(function (a) { return a.house === cwd || a.category === cwd; });
+    }
+
+    /** Every valid cd target: the houses and categories that actually exist in the manifest. */
+    function places() {
+        var v = {};
+        APPS.forEach(function (a) { v[a.category] = 1; if (a.house) v[a.house] = 1; });
+        return Object.keys(v).sort();
+    }
+
     function byId(id) {
         return APPS.filter(function (a) { return a.id === id; })[0];
     }
@@ -129,11 +150,16 @@
                 '<span class="ok">ls</span> [what]        list apps. what = a category, a house, or blank for all\n' +
                 '<span class="ok">search</span> &lt;term&gt;    match id, name or house\n' +
                 '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
+                '<span class="ok">cd</span> &lt;house|category&gt;  scope into a house. cd .. to leave\n' +
+                '<span class="ok">pwd</span>               where you are\n' +
                 '<span class="ok">clear</span>             clear the screen\n\n' +
                 '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
             );
         },
         ls: function (arg) {
+            // Inside a context, bare ls lists what is here rather than re-showing the whole
+            // platform. That is the entire reason cd exists.
+            if (!arg && cwd) return fmtRows(scope(), scope().length + ' in ' + cwd);
             if (!arg) {
                 var cats = {};
                 APPS.forEach(function (a) { cats[a.category] = (cats[a.category] || 0) + 1; });
@@ -183,6 +209,25 @@
             say('launching ' + esc(a.name || a.id) + ' ' + esc(dest), 'ok');
             window.location.href = dest;
         },
+        cd: function (arg) {
+            if (!arg || arg === '/' || arg === '..' || arg === '~') {
+                cwd = null; setPrompt();
+                return say('now at the top. ' + APPS.length + ' apps in scope.', 'muted');
+            }
+            if (places().indexOf(arg) === -1) {
+                var near = places().filter(function (p) { return p.indexOf(arg) !== -1; });
+                say('no such place: ' + esc(arg), 'err');
+                if (near.length) say('did you mean: ' + near.map(esc).join(', '), 'muted');
+                else say('try <span class="ok">cd</span> then Tab to see where you can go', 'muted');
+                return;
+            }
+            cwd = arg; setPrompt();
+            say('now in ' + esc(cwd) + '. ' + scope().length + ' apps in scope. ' +
+                '<span class="muted">cd .. to go back.</span>', 'ok');
+        },
+        pwd: function () {
+            say(cwd ? esc(cwd) + '  (' + scope().length + ' apps)' : '/  (all ' + APPS.length + ' apps)');
+        },
         clear: function () { out.innerHTML = ''; }
     };
 
@@ -215,8 +260,16 @@
         if (!r) return null;
         var verb = r[2], frag = r[3];
         if (/\s/.test(frag)) return null;          // past the first argument, nothing to complete
+        if (verb === 'cd') {
+            return { prefix: r[1], frag: frag, pool: places() };
+        }
         if (verb === 'run' || verb === 'info') {
-            return { prefix: r[1], frag: frag, pool: APPS.map(function (a) { return a.id; }) };
+            // Inside a context, complete what is here first; fall through to everything so an
+            // app outside the current scope is still reachable without cd-ing back out.
+            var here = scope().map(function (a) { return a.id; });
+            var all = APPS.map(function (a) { return a.id; });
+            var pool = here.concat(all.filter(function (x) { return here.indexOf(x) === -1; }));
+            return { prefix: r[1], frag: frag, pool: pool };
         }
         if (verb === 'ls') {
             // ls takes a category or a house, so complete from exactly those.
