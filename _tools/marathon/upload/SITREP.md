@@ -19,7 +19,7 @@
 at 6/9 and fully documented. OpenStack cloud shipped.
 
 
-## ★ NOW — wire the career paths to the actual course content (2026-08-29)
+## ★ SHIPPED and verified live — careers pages now link to the courses (2026-08-29)
 
 **Operator directive: "get it done."** Doing the one fix I recommended after auditing the
 career surfaces.
@@ -47,7 +47,7 @@ separately confirmed `career/index.html` is what `_app/index.html`, `products.ht
 `dashboard.html` link to. `career-paths.html` is reached by none of them and its array is
 missing Matrix, Divergent and Signal. **The 13 per-house `careers.html` were the real target.**
 
-**BUILT (commit `0d13fec08`), NOT DEPLOYED:**
+**DEPLOYED (commit `0d13fec08`), verified on production:**
 | File | What |
 |---|---|
 | `_tools/career/gen-house-tracks.js` | GATE. Generates the map from `course-trees/*.json`. `--check` fails on drift |
@@ -67,6 +67,12 @@ alphabetical. Crawl breadth is not importance. See
 mount, per-house hrefs) · non-vacuity A/B against a HEAD worktree fails 15 · dash gate clean via
 explicit `--check` (the default changed-lines run was a FALSE GREEN because the new file was
 untracked and out of scope).
+
+**LIVE.** `./deploy.sh` clean, post-verify PASSED. Verified on hexworth.com in a real browser:
+**13/13 pages render, 0 failed** · Shield leads with CompTIA Security+ · Cloud 11 links · Key
+correctly renders nothing · hrefs exactly `/dark-arts/vault/{bug-hunting,ehe,wifi-arsenal}/`.
+A click-through lands on the tourist-visa prompt when signed OUT: that is the pre-existing
+AccessGuard on the target page, not a bad link.
 
 **Gates: Nancy PAUSE (target was wrong, she was right) then addressed · Chris PASS, confirmed
 against the 54-track state on re-ask.** His first verdict cited a pre-fix "46/46"; challenging it
