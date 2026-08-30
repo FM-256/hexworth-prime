@@ -58,6 +58,72 @@ function extractRoles(html) {
     return out.map(r => ({ ...r, title: r.title.replace(/&amp;/g, '&').trim() }));
 }
 
+/**
+ * Certifications per role. Three markup families again, and the label case differs ("Key
+ * Certifications" vs "Key certifications"), which is why a case-sensitive first attempt found
+ * ZERO certs on Shield and Dark Arts. A zero here means the parser missed, not that a house has
+ * no certs, so extractCerts is reported per house by the caller.
+ */
+function extractCerts(html) {
+    const out = [];
+    // JS family: title: '...' ... certs: ['a','b']
+    for (const m of html.matchAll(/title: *'([^']+)'[\s\S]{0,900}?certs: *\[([^\]]*)\]/g)) {
+        out.push({ title: m[1], certs: [...m[2].matchAll(/'([^']+)'/g)].map(x => x[1]) });
+    }
+    // HTML families: a title element, then a "Key certifications" label, then chip/tag spans.
+    const RE = /(?:career-role-title|role-title|fc-role-title)"[^>]*>([^<]{3,70})<[\s\S]{0,1800}?Key certifications?<\/div>\s*<div[^>]*>([\s\S]{0,700}?)<\/div>/gi;
+    for (const m of html.matchAll(RE)) {
+        out.push({ title: m[1].replace(/&amp;/g, '&').trim(),
+            certs: [...m[2].matchAll(/>([^<]{2,52})</g)].map(x => x[1].trim()) });
+    }
+    return out;
+}
+
+/**
+ * Some source "cert" chips are prose, not certifications: "Not cert-driven", "No single dominant
+ * cert", "(typical) MS or PhD in math, CS, or physics". Naming one on a card would advertise a
+ * credential that does not exist, so they are skipped when picking a card's cert.
+ */
+function isRealCert(c) {
+    if (!c || c.length < 2 || c.length > 46) return false;
+    if (/^\(|^(no|not|none|typical|varies|n\/a)\b/i.test(c)) return false;
+    if (/\bor\b.*\bdegree\b|PhD|Master'?s/i.test(c)) return false;
+    // Advisory phrasing that sits in the same chip list but names no credential:
+    // "Portfolio of board projects", "NIST PQC standards literacy", "CSSLP optional".
+    if (/\b(portfolio|literacy|experience|optional|preferred|helpful|background|projects)\b/i.test(c)) return false;
+    return /[A-Z0-9]/.test(c);
+}
+
+/**
+ * A card's certs = the primary certification of each role it names, deduped.
+ *
+ * One per named role rather than a union or a top-N: every entry is then traceable to a role
+ * printed on the same card, and there is no cap to silently drop the important one (the mistake
+ * that removed CompTIA Security+ from Shield's course list earlier today). A role whose chips are
+ * all advisory prose contributes nothing rather than a fabricated credential.
+ */
+function deriveCerts(namedRoles, rolesWithCerts) {
+    const seen = new Set();
+    const out = [];
+    for (const named of namedRoles) {
+        const n = normalize(named);
+        // Same hazard matchRole() guards: a name normalising to "" makes startsWith("") true for
+        // every role, so the card would inherit an unrelated role's credential by array position.
+        if (!n) continue;
+        const hit = rolesWithCerts.find(r => titleVariants(r.title).some(v => normalize(v) === n))
+            || rolesWithCerts.find(r => titleVariants(r.title).some(v => normalize(v).startsWith(n) || n.startsWith(normalize(v))));
+        if (!hit) continue;
+        for (const c of hit.certs.filter(isRealCert)) {
+            // "OSCP + OSEP" and "OSEP", or "CompTIA Security+ (SY0-701)" and "CompTIA Security+
+            // baseline", are the same credential twice on one card. Key on the first token.
+            const key = normalize(c).slice(0, 12);
+            if (seen.has(key)) continue;
+            seen.add(key); out.push(c); break;   // primary cert only, then next role
+        }
+    }
+    return out;
+}
+
 /** "Data Protection Officer (GDPR / CCPA)" and "Data Protection Officer" should match. */
 function normalize(s) {
     return s.toLowerCase().replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]/g, '');
@@ -110,13 +176,14 @@ const stripMilestoneSuffix = s => s.replace(/\s+(Role|Position)$/i, '');
 function cards() {
     const page = fs.readFileSync(PAGE, 'utf8');
     const out = [];
-    const re = /name: '([^']+)',\s*\n\s*id: '([^']+)',[\s\S]*?careers: \[([^\]]+)\][\s\S]*?salary: '([^']+)'[\s\S]*?roadmap: \[([\s\S]*?)\n\s*\]\n\s*\}/g;
+    const re = /name: '([^']+)',\s*\n\s*id: '([^']+)',[\s\S]*?careers: \[([^\]]+)\][\s\S]*?salary: '([^']+)',\s*\n\s*certs: \[([^\]]*)\][\s\S]*?roadmap: \[([\s\S]*?)\n\s*\]\n\s*\}/g;
     for (const m of page.matchAll(re)) {
         out.push({
             name: m[1], id: m[2],
             roles: [...m[3].matchAll(/'([^']+)'/g)].map(x => x[1]),
             salary: m[4],
-            steps: [...m[5].matchAll(/step: '([^']+)'/g)].map(x => x[1]).filter(s => JOB_NOUN.test(s)),
+            certs: [...m[5].matchAll(/'([^']+)'/g)].map(x => x[1]),
+            steps: [...m[6].matchAll(/step: '([^']+)'/g)].map(x => x[1]).filter(s => JOB_NOUN.test(s)),
         });
     }
     return out;
@@ -134,7 +201,8 @@ function main() {
         const rel = sourceFor(c.id);
         const file = path.join(APP, rel);
         if (!fs.existsSync(file)) { report.push({ ...c, error: 'no source page' }); continue; }
-        const roles = extractRoles(fs.readFileSync(file, 'utf8'));
+        const html = fs.readFileSync(file, 'utf8');
+        const roles = extractRoles(html);
 
         const matched = c.roles.map(r => ({ named: r, hit: matchRole(r, roles) }));
         const missing = matched.filter(m => !m.hit).map(m => m.named);
@@ -146,6 +214,15 @@ function main() {
             .filter(s => !matchRole(s, roles))
             .map(s => `roadmap: ${s}`);
         missing.push(...badSteps);
+
+        // certs: must equal what the named roles' own "Key certifications" chips say. Before this
+        // check, 7 of 13 cards listed a credential appearing NOWHERE on their source page, and
+        // Forge advertised CompTIA Security+ for the one house with no security role at all.
+        const wantCerts = deriveCerts(c.roles, extractCerts(html));
+        const haveCerts = c.certs;
+        if (JSON.stringify(haveCerts) !== JSON.stringify(wantCerts)) {
+            missing.push(`certs: have [${haveCerts.join(', ')}] want [${wantCerts.join(', ')}]`);
+        }
         let derived = null;
         if (!missing.length && matched.length) {
             const lo = Math.min(...matched.map(m => m.hit.lo));
@@ -173,4 +250,8 @@ function main() {
     process.exitCode = report.every(r => r.ok) ? 0 : 1;
 }
 
-main();
+// Only audit when run directly, so a test can require the extractors without triggering a run
+// (and without the exit code of an audit becoming the exit code of the test).
+if (require.main === module) main();
+
+module.exports = { extractRoles, extractCerts, isRealCert, deriveCerts, matchRole, normalize, cards, sourceFor };
