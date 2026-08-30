@@ -58,6 +58,10 @@ const BASELINE = path.join(REPO, '_tools/hexos/unregistered-baseline.json');
  */
 const PLATFORM_APPS = [
     { id: 'hex',          name: 'Hex Shell',        entry: '/hex/index.html',     house: null,        category: 'platform', verb: 'open' },
+    { id: 'funding',      name: 'Funding Hub',      entry: '/funding/index.html',       house: null, category: 'platform', verb: 'open' },
+    { id: 'join',         name: 'Join a Session',   entry: '/join/index.html',          house: null, category: 'platform', verb: 'open' },
+    { id: 'wall-of-shame', name: 'Wall of Shame',   entry: '/wall-of-shame/index.html', house: null, category: 'platform', verb: 'open' },
+    { id: 'games-lab',    name: 'Game Review Lab',  entry: '/_games-lab/index.html',    house: null, category: 'platform', verb: 'open' },
     { id: 'arena',        name: 'The Arena',        entry: '/arena/index.html',   house: 'dark-arts', category: 'platform', verb: 'open' },
     { id: 'career',       name: 'Career Launchpad', entry: '/career/index.html',  house: null,        category: 'platform', verb: 'open' },
     { id: 'games',        name: 'The Arcade',       entry: '/games.html',         house: null,        category: 'platform', verb: 'play' },
@@ -85,7 +89,7 @@ const PLATFORM_APPS = [
 const CONTAINER_SLUGS = new Set(['modules', 'labs', 'quizzes', 'reviews', 'presentations', 'tools',
     'applets', 'gates', 'certs', 'instructor', 'exams', 'simulators', 'solutions', 'handouts',
     'speaker-notes', 'assets', 'data', 'components', 'config', 'vendor', '_lib', '_archive',
-    'sections', 'chapters', 'weeks', 'backups', '_backups']);
+    'sections', 'weeks', 'backups', '_backups', 'chapters', 'core-1', 'core-2']);
 
 /** Every index.html under _app, so nothing is out of scope by construction. */
 function allIndexPages() {
@@ -129,9 +133,17 @@ function classify(rel) {
 
     const parts = rel.split('/').filter(Boolean);
     const slug = parts[parts.length - 2] || '';
+    // Check every ancestor, not just the immediate parent. The A+ chapters live at
+    // .../core-1/chapters/ch01-motherboards/index.html, so the parent is the chapter name and a
+    // parent-only test never sees the word "chapters" at all.
+    const inContainer = parts.slice(0, -1).some(function (seg) { return CONTAINER_SLUGS.has(seg); });
     const guarded = /AccessGuard\.require\(/.test(bare);
+    // Container path wins over size. A guarded 200-line A+ chapter page under .../applets/... is
+    // course CONTENT, and testing size first classified 28 of them as apps before the container
+    // test ever ran. Same precedence bug as testing redirect before renderer.
+    if (inContainer) return { kind: 'container', why: 'inside a container path segment' };
     // Substance beats slug: dark-arts/vault/dojo is 2274 gated lines and was excluded purely
-    // because the word "dojo" sounded like a section.
+    // because the word "dojo" sounded like a section. No container segment in its path.
     if (guarded && lines >= 150) return { kind: 'app', why: 'guarded standalone, ' + lines + ' lines' };
     if (CONTAINER_SLUGS.has(slug)) return { kind: 'container', why: 'container slug "' + slug + '"' };
     if (lines < 60) return { kind: 'container', why: lines + ' lines, no guard, no renderer' };
