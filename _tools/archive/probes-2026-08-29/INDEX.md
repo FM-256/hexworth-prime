@@ -104,3 +104,10 @@ by the suite itself. Original at repo root as `_chris_reverify_tmp.js` (untracke
 Eye the only card with 6 steps? Chris wrote it while blocking 8c4b92e10 over a roadmap that
 implied a promotion path Eye's own PATHS array contradicts. Answer: yes to both; the card is back
 to 5 steps. Original at `_tools/career/_chris_eye_card_check_tmp.js` (untracked, gitignored).
+
+## chris_reverify_tmp.js / chris_shot_matrix_tmp.js / chris_eye_recheck2.js
+**Question they answered:** Chris's own re-verification probes across the career-card rounds,
+covering the salary re-derivation A/B, the Matrix card render, and Eye's PATHS/DOMAINS track data.
+All superseded by `_tools/career/audit-card-salaries.js` and `house-tracks.test.js`. Originals
+remain at repo root and under `_tools/career/`; `rm` is denied by policy, so clearing them is the
+operator's call.
