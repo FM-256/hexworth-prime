@@ -158,6 +158,93 @@
         say('<table>' + rows + '</table>' + (note ? '<span class="muted">' + esc(note) + '</span>' : ''));
     }
 
+    /**
+     * Manual pages. `help` is the one-line reminder; `man` is the page you read when the reminder
+     * is not enough. Kept as data rather than prose inside each command so the two can never
+     * disagree about what a command does, which is the drift that made `help` ship a false
+     * statement about `ls` the moment `cd` existed.
+     */
+    var MANUAL = {
+        run: {
+            synopsis: 'run <app>',
+            desc: 'Launch an app by its id. The id is what `ls` shows in the first column.\n' +
+                  'A bare app name does the same thing, so `arena` and `run arena` are identical.\n' +
+                  'run is GLOBAL: it reaches any app from anywhere, including one outside your\n' +
+                  'current cd context, the way an absolute path works in a real shell.',
+            examples: ['run arena', 'run bug-hunting', 'arena'],
+            see: ['ls', 'search', 'info', 'cd']
+        },
+        ls: {
+            synopsis: 'ls [house|category]',
+            desc: 'List apps.\n' +
+                  'With no argument at the top level, shows the categories and how many are in each.\n' +
+                  'With no argument inside a cd context, lists what is in that context.\n' +
+                  'With an argument, lists that house or category, and IGNORES your context, so\n' +
+                  '`ls cloud` shows cloud whether or not you are somewhere else.',
+            examples: ['ls', 'ls dark-arts', 'ls cert-prep'],
+            see: ['cd', 'search', 'run']
+        },
+        search: {
+            synopsis: 'search <term>',
+            desc: 'Find apps whose id, name or house contains the term. Case-insensitive.\n' +
+                  'search is GLOBAL and ignores your cd context on purpose, so you can find\n' +
+                  'something elsewhere without leaving where you are.\n' +
+                  'It matches the manifest text only. A word that appears in no field finds\n' +
+                  'nothing even if the topic is covered: "bounty" finds nothing because the track\n' +
+                  'is named Bug Hunting Dojo.',
+            examples: ['search linux', 'search security', 'search dark-arts'],
+            see: ['ls', 'run', 'info']
+        },
+        info: {
+            synopsis: 'info <app>',
+            desc: 'Show one app\'s full record from the manifest: where it lives, which house owns\n' +
+                  'it, its category, and the clientGuard it declares.\n' +
+                  'clientGuard is what the PAGE declares, not enforcement. AccessGuard is browser\n' +
+                  'JavaScript, so an unauthenticated request still receives the page. Real\n' +
+                  'enforcement lives in the Firestore rules, not here.',
+            examples: ['info cve-evaluator', 'info arena'],
+            see: ['run', 'ls']
+        },
+        cd: {
+            synopsis: 'cd [house|category|..]',
+            desc: 'Scope the session to a house or a category. The prompt shows where you are, bare\n' +
+                  '`ls` lists what is here, and Tab completes what is nearby first.\n' +
+                  '`cd ..`, `cd /`, `cd ~` or a bare `cd` returns to the top.\n' +
+                  'Note that the manifest has a CATEGORY named "house" as well as 14 actual houses,\n' +
+                  'so `cd house` and `cd shield` are different things. cd tells you which kind you\n' +
+                  'entered.',
+            examples: ['cd dark-arts', 'cd cert-prep', 'cd ..'],
+            see: ['pwd', 'ls', 'run']
+        },
+        pwd: {
+            synopsis: 'pwd',
+            desc: 'Print where you are and how many apps are in scope. At the top it reports /\n' +
+                  'and the full count.',
+            examples: ['pwd'],
+            see: ['cd']
+        },
+        man: {
+            synopsis: 'man [command]',
+            desc: 'Show the manual page for a command. With no argument, lists what is documented.\n' +
+                  'Given an app id rather than a command, man shows that app\'s record, because\n' +
+                  'that is almost certainly what you wanted.',
+            examples: ['man', 'man cd', 'man run'],
+            see: ['help']
+        },
+        help: {
+            synopsis: 'help',
+            desc: 'One line per command. Use `man <command>` when one line is not enough.',
+            examples: ['help'],
+            see: ['man']
+        },
+        clear: {
+            synopsis: 'clear',
+            desc: 'Clear the screen. Does not change your context or history.',
+            examples: ['clear'],
+            see: ['cd']
+        }
+    };
+
     var COMMANDS = {
         help: function () {
             say(
@@ -169,6 +256,7 @@
                 '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
                 '<span class="ok">cd</span> &lt;house|category&gt;  scope into a house. cd .. to leave\n' +
                 '<span class="ok">pwd</span>               where you are\n' +
+                '<span class="ok">man</span> [command]     the full manual page for a command\n' +
                 '<span class="ok">clear</span>             clear the screen\n\n' +
                 '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
             );
@@ -252,6 +340,32 @@
             say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
                 '<span class="muted">cd .. to go back.</span>', 'ok');
         },
+        man: function (arg) {
+            if (!arg) {
+                var names = Object.keys(MANUAL).sort();
+                say('manual pages: ' + names.map(function (n) {
+                    return '<span class="ok">' + esc(n) + '</span>';
+                }).join('   '));
+                return say('<span class="muted">man &lt;command&gt; for a page. ' +
+                           'man &lt;app&gt; shows that app instead.</span>');
+            }
+            var m = MANUAL[arg];
+            if (!m) {
+                // An app id is a reasonable thing to type after `man`. Do the useful thing.
+                if (byId(arg)) return COMMANDS.info(arg);
+                say('no manual page for ' + esc(arg), 'err');
+                var near = Object.keys(MANUAL).filter(function (n) { return n.indexOf(arg) === 0; });
+                return say(near.length ? 'did you mean: ' + near.map(esc).join(', ')
+                                       : 'try <span class="ok">man</span> for the list', 'muted');
+            }
+            say('<span class="info">NAME</span>\n    ' + esc(arg));
+            say('<span class="info">SYNOPSIS</span>\n    ' + esc(m.synopsis));
+            say('<span class="info">DESCRIPTION</span>\n' +
+                m.desc.split('\n').map(function (l) { return '    ' + esc(l); }).join('\n'));
+            say('<span class="info">EXAMPLES</span>\n' +
+                m.examples.map(function (e) { return '    <span class="ok">' + esc(e) + '</span>'; }).join('\n'));
+            say('<span class="info">SEE ALSO</span>\n    ' + m.see.map(esc).join(', '));
+        },
         pwd: function () {
             if (notReady()) return;
             say(cwd ? esc(cwd) + '  (' + scope().length + ' apps)' : '/  (all ' + APPS.length + ' apps)');
@@ -288,6 +402,11 @@
         if (!r) return null;
         var verb = r[2], frag = r[3];
         if (/\s/.test(frag)) return null;          // past the first argument, nothing to complete
+        if (verb === 'man') {
+            // Commands first, then app ids, since man falls through to an app record.
+            return { prefix: r[1], frag: frag,
+                     pool: Object.keys(MANUAL).sort().concat(APPS.map(function (a) { return a.id; })) };
+        }
         if (verb === 'cd') {
             return { prefix: r[1], frag: frag, pool: places() };
         }
