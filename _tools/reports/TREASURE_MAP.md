@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-08-30 1:40:57 AM
+                    Scanned: 2026-08-30 6:09:19 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5301 |
-| Directories | 1290 |
-| Content Files | 5301 |
-| Scan Duration | 2619ms |
+| Files Scanned | 5302 |
+| Directories | 1291 |
+| Content Files | 5302 |
+| Scan Duration | 519ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 2382 |
-| html | 1594 |
+| html | 1595 |
 | lab | 587 |
 | quiz | 512 |
 | applet | 226 |
@@ -44,7 +44,7 @@
 | Suspect | 47 |
 | Warning | 993 |
 | Info | 541 |
-| **Total** | **14592** |
+| **Total** | **14593** |
 
 ### Sync Status
 
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 3677 |
 | Not Ready | 30 |
-| Unknown | 1594 |
+| Unknown | 1595 |
 
 
 ## FILE HIERARCHY
@@ -1118,6 +1118,8 @@
 ├── 📄 gallery.html
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
+├── 📁 hex
+│   └── 📍 index.html
 ├── 📁 hive
 │   ├── 📁 engine
 │   ├── 📍 index.html

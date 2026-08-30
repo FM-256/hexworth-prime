@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-30 00:26 · **1155 scripts** · 23 wired into a gate · 272 called by other code · 191 only mentioned in docs · 669 referenced by nothing · 470 not in git
+**Generated:** 2026-08-30 18:08 · **1156 scripts** · 24 wired into a gate · 273 called by other code · 190 only mentioned in docs · 669 referenced by nothing · 470 not in git
 
 ## Read this before writing a new script
 
@@ -51,6 +51,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
+| `_tools/hexos/gen-app-manifest.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
@@ -371,7 +372,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-walkthrough-flag-audit.js` | CALLED | 1 | 2026-06-21 | yes |  |
 | `box-walkthrough-flag-drift.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `bug048-classify.js` | CALLED | 1 | 2026-07-29 | yes |  |
-| `card-click-probe.js` | DOCS-ONLY | 0 | 2026-07-31 | yes |  |
+| `card-click-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
 | `card-shot-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-live-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
