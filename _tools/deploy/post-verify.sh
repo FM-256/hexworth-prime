@@ -377,6 +377,18 @@ else
         echo "$HXU_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # The hex shell's manual pages must cover exactly its commands, and no app id may shadow a
+    # command name. Three false statements about behaviour shipped from that one file in a single
+    # session; this catches the mechanical subset before a human has to.
+    HM_OUT="$(node "$REPO_ROOT/_tools/hexos/hex-manual-check.js" 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$HM_OUT" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! hex shell manual pages have drifted from its commands${NC}"
+        DIVERGENCE=1
+    else
+        echo "$HM_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'

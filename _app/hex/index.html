@@ -164,6 +164,11 @@
      * disagree about what a command does, which is the drift that made `help` ship a false
      * statement about `ls` the moment `cd` existed.
      */
+    // Stated once, used by both `info` at runtime and `man info`.
+    var GUARD_CAVEAT = 'clientGuard is what the page DECLARES, not enforcement. AccessGuard is ' +
+        'browser JS, so an unauthenticated request still receives the page. Real enforcement is ' +
+        'in firestore.rules.';
+
     var MANUAL = {
         run: {
             synopsis: 'run <app>',
@@ -198,17 +203,16 @@
         info: {
             synopsis: 'info <app>',
             desc: 'Show one app\'s full record from the manifest: where it lives, which house owns\n' +
-                  'it, its category, and the clientGuard it declares.\n' +
-                  'clientGuard is what the PAGE declares, not enforcement. AccessGuard is browser\n' +
-                  'JavaScript, so an unauthenticated request still receives the page. Real\n' +
-                  'enforcement lives in the Firestore rules, not here.',
+                  'it, its category, and the clientGuard it declares.\n' + GUARD_CAVEAT,
             examples: ['info cve-evaluator', 'info arena'],
             see: ['run', 'ls']
         },
         cd: {
             synopsis: 'cd [house|category|..]',
-            desc: 'Scope the session to a house or a category. The prompt shows where you are, bare\n' +
-                  '`ls` lists what is here, and Tab completes what is nearby first.\n' +
+            desc: 'Scope the session to a house or a category. The prompt shows where you are and\n' +
+                  'bare `ls` lists what is here. Tab after `cd` offers every house and category,\n' +
+                  'not just nearby ones; it is `run` and `info` whose completion prefers what is\n' +
+                  'in scope.\n' +
                   '`cd ..`, `cd /`, `cd ~` or a bare `cd` returns to the top.\n' +
                   'Note that the manifest has a CATEGORY named "house" as well as 14 actual houses,\n' +
                   'so `cd house` and `cd shield` are different things. cd tells you which kind you\n' +
@@ -241,7 +245,7 @@
             synopsis: 'clear',
             desc: 'Clear the screen. Does not change your context or history.',
             examples: ['clear'],
-            see: ['cd']
+            see: ['help', 'man']
         }
     };
 
@@ -293,8 +297,9 @@
             }).join('');
             say('<table>' + rows + '</table>');
             if (a.clientGuard && a.clientGuard !== 'public') {
-                say('clientGuard is what the page DECLARES, not enforcement. AccessGuard is browser JS: ' +
-                    'an unauthenticated request still receives the page. Real enforcement is in firestore.rules.', 'muted');
+                // Read from MANUAL so the runtime message and `man info` cannot drift apart. Two
+                // hand-kept copies of one claim is the drift this table was supposed to end.
+                say(esc(GUARD_CAVEAT), 'muted');
             }
         },
         run: function (arg) {
@@ -349,6 +354,9 @@
                 return say('<span class="muted">man &lt;command&gt; for a page. ' +
                            'man &lt;app&gt; shows that app instead.</span>');
             }
+            // PRECEDENCE: a manual page wins over an app of the same name. Safe only while no
+            // app id equals a command name, which is true today (checked by hex-manual-check.js)
+            // and would otherwise make `man <that-id>` silently show the wrong thing forever.
             var m = MANUAL[arg];
             if (!m) {
                 // An app id is a reasonable thing to type after `man`. Do the useful thing.
