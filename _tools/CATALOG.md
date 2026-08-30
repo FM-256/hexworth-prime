@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 21:00 · **1150 scripts** · 22 wired into a gate · 271 called by other code · 189 only mentioned in docs · 668 referenced by nothing · 468 not in git
+**Generated:** 2026-08-29 21:27 · **1150 scripts** · 22 wired into a gate · 271 called by other code · 189 only mentioned in docs · 668 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
