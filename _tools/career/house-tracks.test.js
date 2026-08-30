@@ -152,6 +152,75 @@ function expected() {
         }
         chk('every track URL resolves to a real index.html', missing.length === 0, missing.join(', '));
 
+        // ── career-paths.html ────────────────────────────────────────────────
+        // Different consumer, different failure mode. This page renders every house at once and
+        // reads window.HouseTracks instead of self-mounting. Its cards are click-to-toggle divs
+        // with no tabindex and no keydown handler, so the assertion that matters is that the
+        // links are visible WITHOUT any click: anything inside .roadmap-panel is unreachable
+        // without a mouse.
+        {
+            const page = await browser.newPage();
+            const errs = [];
+            page.on('pageerror', e => errs.push(e.message));
+            await page.goto(`http://127.0.0.1:${PORT}/career/career-paths.html`, { waitUntil: 'networkidle0' });
+
+            const cp = await page.evaluate(() => {
+                const cards = [...document.querySelectorAll('.house-card')];
+                const byHouse = {};
+                cards.forEach(c => {
+                    const name = c.querySelector('.house-card-name').textContent.trim();
+                    const links = [...c.querySelectorAll('.track-links a')];
+                    byHouse[name] = {
+                        hrefs: links.map(a => new URL(a.href).pathname),
+                        n: links.length,
+                        // Visible with NO click; the panel is still closed at this point.
+                        // length>0 is load-bearing: [].every() is true, so without it this
+                        // assertion passes on a page that renders no links at all.
+                        visible: links.length > 0 && links.every(a => a.getBoundingClientRect().height > 0),
+                        // Same trap inverted: [].some() is false, so require links to exist.
+                        outsidePanel: links.length > 0 && links.every(a => !a.closest('.roadmap-panel')),
+                    };
+                });
+                return { cards: cards.length, byHouse, hasGlobal: !!window.HouseTracks };
+            });
+
+            chk('career-paths: no page errors', errs.length === 0, errs[0]);
+            chk('career-paths: window.HouseTracks exposed', cp.hasGlobal);
+            chk('career-paths: renders its 10 house cards', cp.cards === 10, `got ${cp.cards}`);
+
+            const da = cp.byHouse['Dark Arts'] || {};
+            chk('career-paths: Dark Arts card links Bug Hunting',
+                (da.hrefs || []).includes('/dark-arts/vault/bug-hunting/'), JSON.stringify(da.hrefs));
+            chk('career-paths: Dark Arts card actually rendered links', da.n > 0, `n=${da.n}`);
+            chk('career-paths: links visible WITHOUT clicking the card', da.visible === true);
+            chk('career-paths: links are NOT inside the mouse-only roadmap panel',
+                da.outsidePanel === true);
+            chk('career-paths: Key card shows no fabricated links',
+                ((cp.byHouse['Key'] || {}).hrefs || []).length === 0);
+
+            let mismatched = [];
+            for (const [name, got] of Object.entries(cp.byHouse)) {
+                const id = { 'Shield': 'shield', 'Dark Arts': 'dark-arts', 'Eye': 'eye', 'Cloud': 'cloud',
+                    'Forge': 'forge', 'Web': 'web', 'Code': 'code', 'Key': 'key', 'Script': 'script', 'AI': 'ai' }[name];
+                const want = TRACKS[id] || [];
+                if (JSON.stringify(got.hrefs) !== JSON.stringify(want)) mismatched.push(name);
+            }
+            chk('career-paths: every card matches the generated map (no private copy)',
+                mismatched.length === 0, mismatched.join(', '));
+
+            // Clicking a course link must navigate, not collapse the card.
+            const toggled = await page.evaluate(() => {
+                const card = [...document.querySelectorAll('.house-card')]
+                    .find(c => c.querySelector('.track-links a'));
+                const a = card.querySelector('.track-links a');
+                a.addEventListener('click', ev => ev.preventDefault(), { once: true });
+                a.click();
+                return card.querySelector('.roadmap-panel').classList.contains('open');
+            });
+            chk('career-paths: clicking a course link does not toggle the card', toggled === false);
+            await page.close();
+        }
+
         // The specific gap this work exists to close. Assert on what the PAGE rendered, not on
         // the data file -- reading TRACKS here would pass even with zero pages wired, which is
         // exactly the vacuous check the A/B run exposed.

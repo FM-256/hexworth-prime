@@ -36,8 +36,19 @@
  *     implies no ranking and cannot drop anything.
  *
  * A house with no qualifying track gets NO entry, and the component renders nothing for it.
- * That is intentional: House of the Key has 52 HTML files but a 3-node link tree, so it has a
- * content-wiring problem that a fabricated nav link would hide rather than fix.
+ * That is intentional, and the reason is now precisely understood. House of the Key crawls to
+ * exactly 3 nodes: `houses/key/index.html` -> `houses/key/careers.html` -> back. The crawler
+ * follows STATIC hrefs only; it is not JS-aware. Key's hub statically links nothing but its
+ * careers page, and its 50 ContentCatalog entries hang off cards that only exist after
+ * HouseRenderer runs. Every other house's tracks cascade through static section indexes
+ * (bug-hunting reaches 115 nodes from 4 raw hrefs via modules/index.html and dojo/index.html).
+ *
+ * So Key is not a false negative to patch around. A student CAN reach that content; a crawler
+ * cannot, and neither can anything else that reads links. The fix is static section indexes in
+ * the Key hub, after which Key qualifies here automatically with no change to this file.
+ * Sourcing Key's link from HubRegistry instead was considered and rejected: HubRegistry carries
+ * no crawled node count and no broken-link ratio, so that one link would be the only one on the
+ * platform that `--check` could not falsify against rot.
  */
 
 const fs = require('fs');
@@ -147,6 +158,10 @@ function render(byHouse) {
  *
  * Self-mounting: include one script tag before <hex-ai-button> and nothing else. The house is
  * derived from the URL, so there is no per-page data to keep in sync.
+ *
+ * Also exposed as window.HouseTracks for pages that are not a single house's careers page and
+ * so cannot use the self-mount (career-paths.html renders one card per house). Consumers read
+ * this map; they must never carry their own copy, which is the drift this file exists to end.
  */
 (function () {
     'use strict';
@@ -226,6 +241,10 @@ ${data}
         if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
         else document.body.appendChild(section);
     }
+
+    // Read-only view for pages that render many houses at once and cannot use the self-mount.
+    // Frozen so a consumer cannot mutate the shared map out from under another consumer.
+    window.HouseTracks = Object.freeze(TRACKS);
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', mount);

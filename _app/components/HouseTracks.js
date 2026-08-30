@@ -15,6 +15,10 @@
  *
  * Self-mounting: include one script tag before <hex-ai-button> and nothing else. The house is
  * derived from the URL, so there is no per-page data to keep in sync.
+ *
+ * Also exposed as window.HouseTracks for pages that are not a single house's careers page and
+ * so cannot use the self-mount (career-paths.html renders one card per house). Consumers read
+ * this map; they must never carry their own copy, which is the drift this file exists to end.
  */
 (function () {
     'use strict';
@@ -171,6 +175,10 @@
         if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
         else document.body.appendChild(section);
     }
+
+    // Read-only view for pages that render many houses at once and cannot use the self-mount.
+    // Frozen so a consumer cannot mutate the shared map out from under another consumer.
+    window.HouseTracks = Object.freeze(TRACKS);
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', mount);
