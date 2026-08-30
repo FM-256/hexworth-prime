@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-29 21:27 · **1150 scripts** · 22 wired into a gate · 271 called by other code · 189 only mentioned in docs · 668 referenced by nothing · 468 not in git
+**Generated:** 2026-08-29 22:34 · **1151 scripts** · 23 wired into a gate · 271 called by other code · 189 only mentioned in docs · 668 referenced by nothing · 468 not in git
 
 ## Read this before writing a new script
 
@@ -37,6 +37,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Invoked by | In git | What |
 |---|---|---|---|
+| `_tools/career/audit-card-salaries.js` | `_tools/deploy/post-verify.sh` | yes | Re-derives every career-paths.html card's salary band from that house's own careers.html and reports card-vs-source drift plus any role a card names that its source page does not have. |
 | `_tools/career/gen-house-tracks.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/components/HouseTracks.js: the house -> course-track map that puts real content links on the 13 careers.html pages. Derived from the generated course-trees catalog, never hand-maintained. |
 | `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
