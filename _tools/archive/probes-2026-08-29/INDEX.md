@@ -84,3 +84,11 @@ Visual evidence captured alongside the probes above: `_chris_overlap_1366.png`, 
 - **`_hz_console_tmp.js`**, **`_office_e2e_tmp.js`**, **`_student_path_tmp.js`**,
   **`_newstudent_tmp.js`** — full student-journey drivers. These are the shape that should become
   a permanent suite rather than being re-derived each time the question comes up again.
+
+## chris_shot_matrix.js
+**Question it answered:** does the Matrix card on career-paths.html render without horizontal
+overflow at 1180px? Written by the Chris QC agent on 2026-08-29 while blocking commit 633d9e5db
+over approximated salary bands. Superseded by `_tools/career/house-tracks.test.js`, which
+screenshots nothing but re-derives that card's salary band from its source careers.html and
+fails on drift. Original still at repo root as `_chris_shot_matrix_tmp.js` (untracked); removal
+is the operator's call.

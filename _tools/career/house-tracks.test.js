@@ -262,6 +262,68 @@ function expected() {
                 /<title>Security 101 - Microsoft Security Foundations/.test(src('houses/shield/security-101/index.html')));
         }
 
+        // ── Salary provenance ────────────────────────────────────────────────
+        // The first version of the three new cards carried APPROXIMATED bands, and Matrix ended
+        // up claiming a $185K ceiling while listing Security Architect ($210K) and Red Team Lead
+        // ($200K) on the same card. Nothing caught it: no assertion here read the source pages,
+        // so the number could say anything. This re-derives each band from that house's own
+        // careers.html and fails on any drift, which makes fabricated pay data impossible to
+        // ship quietly. The three pages use three different markups, hence three parsers.
+        {
+            const page = await browser.newPage();
+            await page.goto(`http://127.0.0.1:${PORT}/career/career-paths.html`, { waitUntil: 'networkidle0' });
+            const cards = await page.evaluate(() => {
+                const out = {};
+                document.querySelectorAll('.house-card').forEach(c => {
+                    out[c.querySelector('.house-card-name').textContent.trim()] = {
+                        salary: c.querySelector('.salary-range').textContent.replace(/[^0-9,$-]/g, ''),
+                        roles: [...c.querySelectorAll('.career-list li')].map(li => li.textContent.trim()),
+                    };
+                });
+                return out;
+            });
+            await page.close();
+
+            /** Every "$NNNK to $NNNK" (or "-") in a source page, paired with the nearest title. */
+            function rolesWithBands(html) {
+                const out = [];
+                // Signal + Divergent: a title element, then a salary element inside the block.
+                for (const m of html.matchAll(/(?:career-role-title|role-title)">([^<]+)<\/div>[\s\S]{0,900}?(?:career-role-salary|class="salary)[^>]*>\$(\d{2,3})K\s*(?:to|-)\s*\$(\d{2,3})K/g)) {
+                    out.push({ title: m[1].replace(/&amp;/g, '&').trim(), lo: +m[2], hi: +m[3] });
+                }
+                // Matrix: a JS ROLES array of { title, salary }.
+                for (const m of html.matchAll(/title: *'([^']+)'[\s\S]{0,400}?salary: *'\$(\d{2,3})K to \$(\d{2,3})K/g)) {
+                    out.push({ title: m[1].trim(), lo: +m[2], hi: +m[3] });
+                }
+                return out;
+            }
+
+            const SOURCES = {
+                Matrix: 'houses/matrix/careers.html',
+                Divergent: 'houses/divergent/careers.html',
+                Signal: 'signal/careers.html',
+            };
+
+            for (const [house, rel] of Object.entries(SOURCES)) {
+                const card = cards[house];
+                const bands = rolesWithBands(fs.readFileSync(path.join(APP, rel), 'utf8'));
+                chk(`${house}: source page parsed for role bands`, bands.length >= 5, `got ${bands.length}`);
+
+                const matched = card.roles.map(r => bands.find(b => b.title.startsWith(r) || r.startsWith(b.title)));
+                chk(`${house}: every role named on the card exists on its careers page`,
+                    matched.every(Boolean),
+                    card.roles.filter((_, i) => !matched[i]).join(', '));
+
+                if (matched.every(Boolean)) {
+                    const lo = Math.min(...matched.map(m => m.lo));
+                    const hi = Math.max(...matched.map(m => m.hi));
+                    const want = `$${lo},000-$${hi},000`;
+                    chk(`${house}: salary band is the true min/max of its named roles`,
+                        card.salary === want, `card=${card.salary} derived=${want}`);
+                }
+            }
+        }
+
         // The specific gap this work exists to close. Assert on what the PAGE rendered, not on
         // the data file -- reading TRACKS here would pass even with zero pages wired, which is
         // exactly the vacuous check the A/B run exposed.
