@@ -81,6 +81,13 @@ const MAX_BROKEN_RATIO = 0.02;
  * stops matching and the run FAILS rather than quietly winning over the new title. An override
  * that can outlive its own justification is exactly the silent drift this generator exists to
  * prevent, so it is made falsifiable like everything else here.
+ *
+ * SCOPE, AND THE ONLY REASON THIS MAP IS ALLOWED TO EXIST: entries are for disambiguating two
+ * titles that read as DUPLICATES side by side. They are NOT for general clarity, branding, or
+ * because a name is merely opaque. "First Watch" and "Principles of Information Security" sit
+ * on this same Shield card and are arguably opaque; they collide with nothing, so they get no
+ * entry. Relax that and this becomes a hand-written label map -- the fourth such map on a
+ * platform where the first three all drifted apart, which is what this generator replaced.
  */
 const LABEL_OVERRIDES = {
     'houses--shield--ms-security': {
