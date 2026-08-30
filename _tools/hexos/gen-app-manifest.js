@@ -62,6 +62,19 @@ const PLATFORM_APPS = [
     { id: 'join',         name: 'Join a Session',   entry: '/join/index.html',          house: null, category: 'platform', verb: 'open' },
     { id: 'wall-of-shame', name: 'Wall of Shame',   entry: '/wall-of-shame/index.html', house: null, category: 'platform', verb: 'open' },
     { id: 'games-lab',    name: 'Game Review Lab',  entry: '/_games-lab/index.html',    house: null, category: 'platform', verb: 'open' },
+    { id: 'az-900-cloud',      name: 'AZ-900 Azure Fundamentals', entry: '/houses/cloud/az-900/index.html',  house: 'cloud', category: 'cert-prep', verb: 'open' },
+    { id: 'clf-c02-cloud',     name: 'AWS Cloud Practitioner',    entry: '/houses/cloud/clf-c02/index.html', house: 'cloud', category: 'cert-prep', verb: 'open' },
+    { id: 'algorithms',        name: 'Algorithms',                entry: '/houses/code/algorithms/index.html', house: 'code', category: 'course', verb: 'open' },
+    { id: 'code-cortex',       name: 'The Code Cortex',           entry: '/houses/code/cortex/index.html',   house: 'code',  category: 'course', verb: 'open' },
+    { id: 'server-management', name: 'Server Management',         entry: '/houses/forge/server-management/index.html', house: 'forge', category: 'course', verb: 'open' },
+    { id: 'cloud-incubator', name: 'Cloud Incubator', entry: '/houses/cloud/incubator/index.html', house: 'cloud', category: 'incubator', verb: 'open' },
+    { id: 'code-incubator', name: 'Code Incubator', entry: '/houses/code/incubator/index.html', house: 'code', category: 'incubator', verb: 'open' },
+    { id: 'dark-arts-incubator', name: 'Dark Arts Incubator', entry: '/houses/dark-arts/incubator/index.html', house: 'dark-arts', category: 'incubator', verb: 'open' },
+    { id: 'eye-incubator', name: 'Eye Incubator', entry: '/houses/eye/incubator/index.html', house: 'eye', category: 'incubator', verb: 'open' },
+    { id: 'forge-incubator', name: 'Forge Incubator', entry: '/houses/forge/incubator/index.html', house: 'forge', category: 'incubator', verb: 'open' },
+    { id: 'script-incubator', name: 'Script Incubator', entry: '/houses/script/incubator/index.html', house: 'script', category: 'incubator', verb: 'open' },
+    { id: 'shield-incubator', name: 'Shield Incubator', entry: '/houses/shield/incubator/index.html', house: 'shield', category: 'incubator', verb: 'open' },
+    { id: 'web-incubator', name: 'Web Incubator', entry: '/houses/web/incubator/index.html', house: 'web', category: 'incubator', verb: 'open' },
     { id: 'arena',        name: 'The Arena',        entry: '/arena/index.html',   house: 'dark-arts', category: 'platform', verb: 'open' },
     { id: 'career',       name: 'Career Launchpad', entry: '/career/index.html',  house: null,        category: 'platform', verb: 'open' },
     { id: 'games',        name: 'The Arcade',       entry: '/games.html',         house: null,        category: 'platform', verb: 'play' },
@@ -89,7 +102,8 @@ const PLATFORM_APPS = [
 const CONTAINER_SLUGS = new Set(['modules', 'labs', 'quizzes', 'reviews', 'presentations', 'tools',
     'applets', 'gates', 'certs', 'instructor', 'exams', 'simulators', 'solutions', 'handouts',
     'speaker-notes', 'assets', 'data', 'components', 'config', 'vendor', '_lib', '_archive',
-    'sections', 'weeks', 'backups', '_backups', 'chapters', 'core-1', 'core-2']);
+    'sections', 'weeks', 'backups', '_backups', 'chapters', 'core-1', 'core-2',
+    'capstone', 'challenges', 'security-guide', 'hubs']);
 
 /** Every index.html under _app, so nothing is out of scope by construction. */
 function allIndexPages() {
@@ -113,7 +127,10 @@ function classify(rel) {
     const f = path.join(APP, rel.replace(/^\//, ''));
     let src;
     try { src = fs.readFileSync(f, 'utf8'); } catch (e) { return { kind: 'unreadable', why: 'could not read' }; }
-    const lines = src.split('\n').length;
+    // Substance = whichever of line count or byte size is larger in signal. A single-line or
+    // minified page has lines=1 while carrying real content, and a line-count-only test called a
+    // 300-element probe a container. Bytes cannot be defeated by removing newlines.
+    const lines = Math.max(src.split('\n').length, Math.floor(src.length / 60));
     const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
     // An alias redirects at LOAD. Detected by behaviour AND size, never by name: a 1000-line hub
@@ -146,7 +163,7 @@ function classify(rel) {
     // because the word "dojo" sounded like a section. No container segment in its path.
     if (guarded && lines >= 150) return { kind: 'app', why: 'guarded standalone, ' + lines + ' lines' };
     if (CONTAINER_SLUGS.has(slug)) return { kind: 'container', why: 'container slug "' + slug + '"' };
-    if (lines < 60) return { kind: 'container', why: lines + ' lines, no guard, no renderer' };
+    if (lines < 80) return { kind: 'container', why: lines + ' lines, no renderer' };
     return { kind: 'app', why: lines + ' lines' + (guarded ? ', guarded' : '') };
 }
 
@@ -242,9 +259,15 @@ function build() {
  */
 function unregistered(apps) {
     const known = new Set(apps.map(a => a.entry));
+    // Directory prefixes of registered apps. A page beneath one is content INSIDE that app, the
+    // way modules are inside a course: bug-hunting/dojo is the belt system within the registered
+    // Bug Hunting track, not a second app competing for the same name in `run`.
+    const appDirs = apps.map(a => a.entry.replace(/index\.html$/, '')).filter(d => d !== '/');
     const missing = [], excluded = [];
     for (const rel of allIndexPages()) {
         if (known.has(rel)) continue;
+        const owner = appDirs.find(d => rel.startsWith(d));
+        if (owner) { excluded.push({ rel: rel, kind: 'container', why: 'content inside ' + owner }); continue; }
         const c = classify(rel);
         if (c.kind === 'app') missing.push({ rel: rel, why: c.why });
         else excluded.push({ rel: rel, kind: c.kind, why: c.why });
