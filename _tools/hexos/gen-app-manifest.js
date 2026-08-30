@@ -6,7 +6,7 @@
  * @catalog what    launchable on Hexworth. Both the `run` CLI and the icon grid read this and
  * @catalog what    nothing else. Also reports launchable surfaces that are NOT registered.
  * @catalog run     node _tools/hexos/gen-app-manifest.js [--check] [--unregistered]
- * @catalog status  TOOL   (not yet wired into post-verify; GATE only once it is)
+ * @catalog status  GATE
  *
  * WHY THIS EXISTS
  * ---------------
@@ -45,6 +45,10 @@ const path = require('path');
 const REPO = path.resolve(__dirname, '../..');
 const APP = path.join(REPO, '_app');
 const OUT = path.join(APP, 'data/hex-apps.json');
+// Known-unregistered surfaces at the time the gate was wired. The gate blocks anything NOT in this
+// list, so it starts protecting immediately instead of waiting on a triage backlog. THIS LIST
+// SHOULD ONLY EVER SHRINK; adding to it is how a gate quietly stops gating.
+const BASELINE = path.join(REPO, '_tools/hexos/unregistered-baseline.json');
 
 /**
  * Launchable surfaces HubRegistry genuinely does not carry. Started at nine; five were duplicates
@@ -56,19 +60,82 @@ const PLATFORM_APPS = [
     { id: 'arena',        name: 'The Arena',        entry: '/arena/index.html',   house: 'dark-arts', category: 'platform', verb: 'open' },
     { id: 'career',       name: 'Career Launchpad', entry: '/career/index.html',  house: null,        category: 'platform', verb: 'open' },
     { id: 'games',        name: 'The Arcade',       entry: '/games.html',         house: null,        category: 'platform', verb: 'play' },
+    { id: 'hub',          name: 'The Hub',          entry: '/houses/hub/index.html', house: null,     category: 'platform', verb: 'open' },
+    { id: 'workshop',     name: 'The Workshop',     entry: '/workshop/index.html',  house: null,      category: 'platform', verb: 'open' },
+    { id: 'oasis',        name: 'The Oasis',        entry: '/oasis/index.html',     house: null,      category: 'platform', verb: 'open' },
+    { id: 'rig',          name: 'The Rig',          entry: '/rig/index.html',       house: null,      category: 'platform', verb: 'open' },
+    { id: 'hive',         name: 'The Hive',         entry: '/hive/index.html',      house: null,      category: 'platform', verb: 'open' },
+    { id: 'dispatch',     name: 'Dispatch',         entry: '/dispatch/index.html',  house: null,      category: 'platform', verb: 'open' },
+    { id: 'tenant',       name: 'Tenant Console',   entry: '/tenant/index.html',    house: null,      category: 'platform', verb: 'open' },
+    { id: 'operator',     name: 'Operator Console', entry: '/operator/index.html',  house: null,      category: 'platform', verb: 'open' },
+    { id: 'announcements', name: 'Announcements',   entry: '/announcements/index.html', house: null,  category: 'platform', verb: 'open' },
+    { id: 'dojo',         name: 'The Dojo',         entry: '/dark-arts/vault/dojo/index.html', house: 'dark-arts', category: 'track', verb: 'open' },
     { id: 'cve-evaluator', name: 'CVE Evaluation',  entry: '/dark-arts/vault/cve-evaluator/index.html', house: 'dark-arts', category: 'track', verb: 'open' },
 ];
 
-/** Directories whose index.html is a launchable surface, for the unregistered scan. */
-const SCAN_GLOBS = ['houses/*/index.html', 'dark-arts/vault/*/index.html', 'arena/index.html', 'signal/index.html'];
+/**
+ * Container slugs, used ONLY as a tiebreaker. The scan no longer relies on a glob list.
+ *
+ * SCAN_GLOBS was a hand-kept pair of globs plus exclusions: the same hand-maintained-list disease
+ * this tool exists to cure, split across two variables. It was one level deep, missed 16+ real
+ * surfaces (workshop, oasis, rig, the whole arctic/districts system), and flagged alias stubs while
+ * missing the real hub at the same name. Replaced with a full sweep plus classification by EVIDENCE.
+ */
+const CONTAINER_SLUGS = new Set(['modules', 'labs', 'quizzes', 'reviews', 'presentations', 'tools',
+    'applets', 'gates', 'certs', 'instructor', 'exams', 'simulators', 'solutions', 'handouts',
+    'speaker-notes', 'assets', 'data', 'components', 'config', 'vendor', '_lib', '_archive',
+    'sections', 'chapters', 'weeks', 'backups', '_backups']);
 
-/** Slugs under a scanned directory that are containers, not launchable apps. */
-// Slugs that are content CONTAINERS rather than launchable apps. Deliberately does NOT include
-// 'dojo' or 'incubator': dark-arts/vault/dojo is a 2274-line gated standalone, and the incubators
-// are 500-990 line pages. Both were excluded here on the strength of the directory NAME sounding
-// like a section, which is the same eyeball-not-evidence mistake this tool exists to catch.
-const NOT_APPS = new Set(['modules', 'labs', 'quizzes', 'reviews', 'presentations', 'tools',
-    'applets', 'gates', 'certs', 'instructor', 'exams', 'simulators']);
+/** Every index.html under _app, so nothing is out of scope by construction. */
+function allIndexPages() {
+    const out = [];
+    (function walk(dir) {
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) walk(full);
+            else if (e.name === 'index.html') out.push('/' + path.relative(APP, full).split(path.sep).join('/'));
+        }
+    })(APP);
+    return out.sort();
+}
+
+/**
+ * Classify by what a page DOES, not where it sits or what its directory is called.
+ * Returns { kind, why } so every exclusion is auditable instead of a silent allow-list.
+ */
+function classify(rel) {
+    const f = path.join(APP, rel.replace(/^\//, ''));
+    let src;
+    try { src = fs.readFileSync(f, 'utf8'); } catch (e) { return { kind: 'unreadable', why: 'could not read' }; }
+    const lines = src.split('\n').length;
+    const bare = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+    // An alias redirects at LOAD. Detected by behaviour AND size, never by name: a 1000-line hub
+    // with a location.href inside a click handler is not a stub, and an earlier version of this
+    // check mislabelled dark-arts and web exactly that way by testing redirect before renderer.
+    const topRedirect = /http-equiv=["']refresh/i.test(bare)
+        || /<script>[^<]{0,600}?location\.(replace|href)\s*[=(]/i.test(bare.replace(/\n/g, ' '));
+    if (lines < 120 && topRedirect) return { kind: 'alias', why: 'redirects at load, ' + lines + ' lines' };
+
+    if (/HouseRenderer\.init/.test(bare)) return { kind: 'app', why: 'HouseRenderer' };
+    if (/CertPathRenderer\.init/.test(bare)) return { kind: 'app', why: 'CertPathRenderer' };
+
+    // CTF boxes are content inside the Arena app, the way modules are content inside a course.
+    // Registering 16 of them as top-level apps would make `run` ambiguous and the grid unusable.
+    if (/^\/arena\/boxes\//.test(rel)) return { kind: 'container', why: 'Arena box content' };
+    if (rel === '/index.html') return { kind: 'container', why: 'site root, not an app' };
+
+    const parts = rel.split('/').filter(Boolean);
+    const slug = parts[parts.length - 2] || '';
+    const guarded = /AccessGuard\.require\(/.test(bare);
+    // Substance beats slug: dark-arts/vault/dojo is 2274 gated lines and was excluded purely
+    // because the word "dojo" sounded like a section.
+    if (guarded && lines >= 150) return { kind: 'app', why: 'guarded standalone, ' + lines + ' lines' };
+    if (CONTAINER_SLUGS.has(slug)) return { kind: 'container', why: 'container slug "' + slug + '"' };
+    if (lines < 60) return { kind: 'container', why: lines + ' lines, no guard, no renderer' };
+    return { kind: 'app', why: lines + ' lines' + (guarded ? ', guarded' : '') };
+}
 
 function readHubRegistry() {
     // Execute the module and use its own API. A regex over the source silently dropped 22 of 144
@@ -128,6 +195,25 @@ function build() {
             source: 'HubRegistry',
         });
     }
+    // Derived hubs: any page whose own code calls HouseRenderer/CertPathRenderer is a hub by
+    // construction. Deriving beats hand-listing, but ONLY for the renderer-backed cases: Nancy
+    // showed houses/hub calls neither, so it stays an explicit PLATFORM_APPS entry rather than
+    // being silently dropped by a rule that only understands two renderers.
+    for (const rel of allIndexPages()) {
+        if (seen.has(rel)) continue;
+        const c = classify(rel);
+        if (c.kind !== 'app' || !/Renderer$/.test(c.why)) continue;
+        const parts = rel.split('/').filter(Boolean);
+        const id = parts[parts.length - 2];
+        seen.set(rel, {
+            id: id, name: id.replace(/(^|-)(\w)/g, (m, a, b) => (a ? ' ' : '') + b.toUpperCase()),
+            house: parts[0] === 'houses' ? id : null,
+            category: c.why === 'HouseRenderer' ? 'house' : 'cert-prep',
+            entry: rel, verb: 'open', clientGuard: permissionFor(rel),
+            status: 'available', source: 'derived:' + c.why,
+        });
+    }
+
     for (const p of PLATFORM_APPS) {
         if (seen.has(p.entry)) { notes.push(`${p.id}: already in HubRegistry, PLATFORM_APPS entry is redundant`); continue; }
         seen.set(p.entry, { ...p, clientGuard: permissionFor(p.entry), status: 'available', source: 'PLATFORM_APPS' });
@@ -137,23 +223,20 @@ function build() {
     return { apps, notes };
 }
 
-/** Launchable index.html files that no manifest entry points at. This is the omission detector. */
+/**
+ * Launchable pages no manifest entry points at. The omission detector, now over a full sweep.
+ * Also returns the excluded set with reasons, so a clean run can be audited rather than trusted.
+ */
 function unregistered(apps) {
     const known = new Set(apps.map(a => a.entry));
-    const found = [];
-    const add = rel => { if (fs.existsSync(path.join(APP, rel)) && !known.has('/' + rel)) found.push('/' + rel); };
-    for (const g of SCAN_GLOBS) {
-        if (!g.includes('*')) { add(g); continue; }
-        const [dir, , file] = g.split('/');
-        const base = path.join(APP, g.split('/*')[0]);
-        if (!fs.existsSync(base)) continue;
-        for (const slug of fs.readdirSync(base)) {
-            if (NOT_APPS.has(slug)) continue;
-            const rel = path.join(g.split('/*')[0], slug, 'index.html');
-            add(rel);
-        }
+    const missing = [], excluded = [];
+    for (const rel of allIndexPages()) {
+        if (known.has(rel)) continue;
+        const c = classify(rel);
+        if (c.kind === 'app') missing.push({ rel: rel, why: c.why });
+        else excluded.push({ rel: rel, kind: c.kind, why: c.why });
     }
-    return found;
+    return { missing: missing, excluded: excluded };
 }
 
 function main() {
@@ -170,11 +253,34 @@ function main() {
     }, null, 2) + '\n';
 
     if (process.argv.includes('--unregistered')) {
-        const miss = unregistered(apps);
-        console.log(`manifest: ${apps.length} apps`);
-        if (!miss.length) { console.log('no unregistered launchable surfaces'); return; }
-        console.log(`\n${miss.length} LAUNCHABLE SURFACE(S) NOT IN THE MANIFEST:`);
-        miss.forEach(m => console.log('  ' + m));
+        const res = unregistered(apps);
+        const swept = allIndexPages().length;
+        console.log(`swept ${swept} index.html pages; manifest has ${apps.length} apps`);
+        console.log(`excluded ${res.excluded.length} (alias or container), by evidence not by glob`);
+        if (process.argv.includes('--show-excluded')) {
+            res.excluded.forEach(e => console.log(`    [${e.kind}] ${e.rel}  (${e.why})`));
+        }
+        let base = [];
+        if (fs.existsSync(BASELINE)) base = JSON.parse(fs.readFileSync(BASELINE, 'utf8')).known || [];
+        const baseSet = new Set(base);
+        const fresh = res.missing.filter(m => !baseSet.has(m.rel));
+        const healed = base.filter(b => !res.missing.some(m => m.rel === b));
+
+        if (process.argv.includes('--write-baseline')) {
+            fs.writeFileSync(BASELINE, JSON.stringify({
+                note: 'Known-unregistered launchable surfaces. Only ever shrink this list.',
+                written: 'by gen-app-manifest.js --write-baseline',
+                count: res.missing.length, known: res.missing.map(m => m.rel),
+            }, null, 2) + '\n');
+            console.log(`baseline written: ${res.missing.length} known-unregistered`);
+            return;
+        }
+
+        console.log(`known-unregistered baseline: ${base.length}`);
+        if (healed.length) console.log(`  ${healed.length} baseline entrie(s) now registered; shrink the baseline`);
+        if (!fresh.length) { console.log('no NEW unregistered launchable surfaces'); return; }
+        console.log(`\n${fresh.length} NEW LAUNCHABLE SURFACE(S) NOT IN THE MANIFEST:`);
+        fresh.forEach(m => console.log(`  ${m.rel}  (${m.why})`));
         console.log('\nAdd each to HubRegistry (if it is a course hub) or to PLATFORM_APPS.');
         process.exitCode = 1;
         return;

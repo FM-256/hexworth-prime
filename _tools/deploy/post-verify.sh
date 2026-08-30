@@ -356,6 +356,27 @@ else
         echo "$SAL_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # HEXOS-0: the app manifest must match its sources, and no NEW launchable surface may appear
+    # unregistered. The second is the omission detector: it is what would have caught Bug Hunting
+    # being invisible. Baselined at 88 known-unregistered so it blocks new debt without failing on
+    # the existing backlog; that baseline should only ever shrink.
+    HX_OUT="$(node "$REPO_ROOT/_tools/hexos/gen-app-manifest.js" --check 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$HX_OUT" | tail -3 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! hex-apps.json no longer matches HubRegistry + PLATFORM_APPS${NC}"
+        DIVERGENCE=1
+    else
+        echo "$HX_OUT" | tail -1 | sed 's/^/  /'
+    fi
+    HXU_OUT="$(node "$REPO_ROOT/_tools/hexos/gen-app-manifest.js" --unregistered 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$HXU_OUT" | tail -5 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! a launchable surface exists that no registry knows about${NC}"
+        DIVERGENCE=1
+    else
+        echo "$HXU_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'
