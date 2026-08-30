@@ -178,6 +178,33 @@ a real gap in that house's career content and worth the operator's attention.
 
 **Not re-derived (editorial, not factual claims):** `tags:`, `icon:`, `color:`. Chris agreed.
 
+**EYE now shows the house ceiling (operator request), LIVE.** `careers:` gained Director of Threat
+Operations, so `salary:` is **$65,000-$240,000**; certs gained CISSP; domain moved off "OSINT"
+(no named role covers it and the page titles itself Monitoring/Detection/Forensics/IR).
+
+**Two more Chris blocks, both about a claim no checker of mine can make.** My roadmap chained
+Senior Forensics Investigator (mid, `forensics` track) to Director of Threat Operations
+(executive, `soc` track), then after the first fix chained Threat Intelligence Analyst (entry,
+`cti`) to the same executive terminal. Eye's own `DOMAINS`/`PATHS` support neither. The roadmap
+renders as a numbered list with connecting lines, so it reads as a promotion path.
+**Naming real roles is not the same as claiming a real progression between them** -- the auditor
+checks the first and has no notion of track or tier, so it cannot check the second.
+Roadmap now ends on Senior Threat Intelligence Analyst, the in-track continuation. All 13 cards
+back to exactly 5 steps.
+**The ceiling rides on `salary:`, which renders on the COLLAPSED card**, so the ladder never had
+to terminate on the ceiling role.
+
+**Only Eye and Forge define track data at all** (Chris verified); Forge's is clean and the other
+eleven have no ladder to contradict.
+
+**OPERATOR HOUSEKEEPING:** three QC probe originals remain (`_chris_reverify_tmp.js` and
+`_chris_shot_matrix_tmp.js` at repo root, `_tools/career/_chris_eye_recheck2_tmp.js`). All copied
+byte-identical into `_tools/archive/probes-2026-08-29/` and indexed; `rm` is denied by policy.
+Repo root is NOT gitignored, so a `git add -A` would catch the two root files.
+
+**SOURCE-DATA INCONSISTENCY, not touched:** Eye names one role two ways, `Senior Threat
+Intelligence Analyst` in `DOMAINS` vs `Senior CTI Analyst` in `PATHS`.
+
 **Parser lesson, twice in one day:** a case-SENSITIVE label match found ZERO certs on Shield and
 Dark Arts. A clean zero was the parser both times, never missing data.
 
