@@ -76,6 +76,10 @@ function titleVariants(title) {
 
 function matchRole(named, roles) {
     const n = normalize(named);
+    // normalize() drops parenthesised text and punctuation, so a step like "(Analyst)" becomes
+    // "". Every string startsWith("") is true, which would silently match EVERY role and span a
+    // salary band across unrelated ones. An unmatchable name is a miss, not a wildcard.
+    if (!n) return null;
     const hit = pred => roles.filter(r => titleVariants(r.title).some(v => pred(normalize(v))));
     let best = hit(v => v === n);
     if (!best.length) best = hit(v => v.startsWith(n) || n.startsWith(v));
@@ -85,12 +89,35 @@ function matchRole(named, roles) {
         titles: best.map(r => r.title) };
 }
 
+/**
+ * A roadmap step is a MILESTONE ("Foundations", "Hardening") or a JOB CLAIM ("Red Team Lead").
+ * Only job claims have to name a real role. Detected by the trailing noun rather than by a
+ * hand-kept allowlist, so a new card is covered without editing this file.
+ *
+ * This check exists because the salary fix was scoped to `careers:` and stopped there, while the
+ * `roadmap:` array one field below still promised "Cryptographer" and "PKI Engineer" for House of
+ * the Key -- the exact two titles the commit message cited as the platform mis-selling that
+ * house. Fixing one field and not the one beside it is why this is now enforced.
+ */
+// Matched ANYWHERE in the step, not anchored to the last word: "Director of Cryptographic
+// Engineering" ends in "Engineering" and an end-anchored test skipped it, which is precisely the
+// House of the Key claim this check exists for.
+const JOB_NOUN = /\b(Analyst|Engineer|Architect|Lead|Officer|Administrator|Sysadmin|Tester|Researcher|Developer|Director|Consultant|Manager|Operator|Specialist|Investigator|Hunter|Responder|Reviewer|Hacker|Pentester)\b/i;
+
+/** "GRC Analyst Role" is a milestone phrasing of the real role "GRC Analyst". */
+const stripMilestoneSuffix = s => s.replace(/\s+(Role|Position)$/i, '');
+
 function cards() {
     const page = fs.readFileSync(PAGE, 'utf8');
     const out = [];
-    const re = /name: '([^']+)',\s*\n\s*id: '([^']+)',[\s\S]*?careers: \[([^\]]+)\][\s\S]*?salary: '([^']+)'/g;
+    const re = /name: '([^']+)',\s*\n\s*id: '([^']+)',[\s\S]*?careers: \[([^\]]+)\][\s\S]*?salary: '([^']+)'[\s\S]*?roadmap: \[([\s\S]*?)\n\s*\]\n\s*\}/g;
     for (const m of page.matchAll(re)) {
-        out.push({ name: m[1], id: m[2], roles: [...m[3].matchAll(/'([^']+)'/g)].map(x => x[1]), salary: m[4] });
+        out.push({
+            name: m[1], id: m[2],
+            roles: [...m[3].matchAll(/'([^']+)'/g)].map(x => x[1]),
+            salary: m[4],
+            steps: [...m[5].matchAll(/step: '([^']+)'/g)].map(x => x[1]).filter(s => JOB_NOUN.test(s)),
+        });
     }
     return out;
 }
@@ -111,6 +138,14 @@ function main() {
 
         const matched = c.roles.map(r => ({ named: r, hit: matchRole(r, roles) }));
         const missing = matched.filter(m => !m.hit).map(m => m.named);
+
+        // Roadmap steps that are job claims are held to the same bar as `careers:`. The
+        // milestone suffix is stripped first, so "GRC Analyst Role" is checked as "GRC Analyst".
+        const badSteps = c.steps
+            .map(stripMilestoneSuffix)
+            .filter(s => !matchRole(s, roles))
+            .map(s => `roadmap: ${s}`);
+        missing.push(...badSteps);
         let derived = null;
         if (!missing.length && matched.length) {
             const lo = Math.min(...matched.map(m => m.hit.lo));
