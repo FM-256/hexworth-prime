@@ -64,6 +64,35 @@ const BLOCK = new Set(['applets', 'reviews', 'exams', 'modules', 'hubs', 'simula
 const MIN_NODES = 40;
 const MAX_BROKEN_RATIO = 0.02;
 
+/**
+ * DISPLAY-LABEL OVERRIDES. Careers-page labels only. The course's own <title> is NOT touched.
+ *
+ * Shield offers two genuinely different courses whose real titles are both truthful and, side
+ * by side in one list, nearly indistinguishable:
+ *   houses/shield/ms-security   "Microsoft Security-101"                      -> Entra ID,
+ *       Defender for Endpoint/Office/Cloud, Sentinel, KQL, Purview. Microsoft's PRODUCTS.
+ *   houses/shield/security-101  "Security 101 - Microsoft Security Foundations" -> IAM, network,
+ *       endpoint, data, cloud, secops, governance. Vendor-neutral, aligned with Microsoft's
+ *       open-source Security-101 curriculum.
+ * A student picking between those two pills cannot tell which is which. Renaming a course is a
+ * durable-name change touching 19 files; annotating the rendered label costs one line here.
+ *
+ * `when` is the CURRENT cleaned title and is enforced. If a source title changes, the override
+ * stops matching and the run FAILS rather than quietly winning over the new title. An override
+ * that can outlive its own justification is exactly the silent drift this generator exists to
+ * prevent, so it is made falsifiable like everything else here.
+ */
+const LABEL_OVERRIDES = {
+    'houses--shield--ms-security': {
+        when: 'Microsoft Security-101',
+        use: 'Microsoft Security-101 (product stack)',
+    },
+    'houses--shield--security-101': {
+        when: 'Security 101 - Microsoft Security Foundations',
+        use: 'Security 101 (fundamentals)',
+    },
+};
+
 /** Strip the house/branding suffix a crawled <title> carries, and decode entities. */
 function cleanTitle(raw) {
     let t = String(raw || '');
@@ -109,7 +138,23 @@ function collect() {
             continue;
         }
 
-        const title = cleanTitle(d.title) || slug;
+        let title = cleanTitle(d.title) || slug;
+
+        // Apply a display-label override, but only while it still describes the source it was
+        // written against. A stale override is a decision that needs remaking, not a default.
+        const ov = LABEL_OVERRIDES[key];
+        if (ov) {
+            if (title !== ov.when) {
+                console.error(`STALE LABEL OVERRIDE for ${key}`);
+                console.error(`  expected source title: ${JSON.stringify(ov.when)}`);
+                console.error(`  actual source title:   ${JSON.stringify(title)}`);
+                console.error('  The course was renamed. Re-decide the label in LABEL_OVERRIDES');
+                console.error('  (or delete the entry if the new title is already unambiguous).');
+                process.exit(2);
+            }
+            title = ov.use;
+        }
+
         const url = '/' + d.hub.replace(/index\.html$/, '');
         (byHouse[house] = byHouse[house] || []).push({ slug, title, url, nodes });
     }

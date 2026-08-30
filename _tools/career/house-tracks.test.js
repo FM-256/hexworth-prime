@@ -221,6 +221,36 @@ function expected() {
             await page.close();
         }
 
+        // Shield's two confusable courses must be distinguishable in the rendered list, and the
+        // disambiguation must live in the LABEL ONLY -- the courses' own <title> tags are not
+        // ours to rename (that string spans 19 files).
+        {
+            const shield = rendered['shield'] || [];
+            const page = await browser.newPage();
+            await page.goto(`http://127.0.0.1:${PORT}/houses/shield/careers.html`, { waitUntil: 'networkidle0' });
+            const labels = await page.evaluate(() =>
+                [...document.querySelectorAll('#house-tracks a')].map(a => a.textContent.trim()));
+            await page.close();
+
+            chk('shield: both confusable courses still listed',
+                shield.includes('/houses/shield/ms-security/') &&
+                shield.includes('/houses/shield/security-101/'));
+            chk('shield: product-stack course labelled distinctly',
+                labels.includes('Microsoft Security-101 (product stack)'), JSON.stringify(labels));
+            chk('shield: fundamentals course labelled distinctly',
+                labels.includes('Security 101 (fundamentals)'), JSON.stringify(labels));
+            chk('shield: no two labels are identical',
+                new Set(labels).size === labels.length, JSON.stringify(labels));
+
+            // The source titles must be UNCHANGED. If a future edit "fixes" the confusion by
+            // renaming the course instead, this fails and the 19-file blast radius is visible.
+            const src = f => fs.readFileSync(path.join(APP, f), 'utf8');
+            chk('shield: ms-security course <title> untouched',
+                /<title>Microsoft Security-101/.test(src('houses/shield/ms-security/index.html')));
+            chk('shield: security-101 course <title> untouched',
+                /<title>Security 101 - Microsoft Security Foundations/.test(src('houses/shield/security-101/index.html')));
+        }
+
         // The specific gap this work exists to close. Assert on what the PAGE rendered, not on
         // the data file -- reading TRACKS here would pass even with zero pages wired, which is
         // exactly the vacuous check the A/B run exposed.

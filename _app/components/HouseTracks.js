@@ -87,10 +87,10 @@
         { title: "Cyber Law & Policy Framework", url: "/houses/shield/cyber-framework/" },
         { title: "First Watch", url: "/houses/shield/intro-security/" },
         { title: "Microsoft Security Operations Analyst", url: "/houses/shield/sc-200/" },
-        { title: "Microsoft Security-101", url: "/houses/shield/ms-security/" },
+        { title: "Microsoft Security-101 (product stack)", url: "/houses/shield/ms-security/" },
         { title: "Principles of Information Security", url: "/houses/shield/infosec/" },
         { title: "SC-900", url: "/houses/shield/sc-900/" },
-        { title: "Security 101 - Microsoft Security Foundations", url: "/houses/shield/security-101/" }
+        { title: "Security 101 (fundamentals)", url: "/houses/shield/security-101/" }
     ],
     "signal": [
         { title: "The Signal Toolkit", url: "/signal/toolkit/" }
