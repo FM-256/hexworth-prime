@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: baseline tier, matching the 145 of 171 apps that require it -->
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Hex shell: launch anything on Hexworth by name. run arena, ls, search.">
+    <title>hex shell</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-terminal.webp">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #08090c; --fg: #c8d3d5; --dim: #5e6b70; --accent: #4ade80;
+            --accent2: #38bdf8; --warn: #fbbf24; --err: #f87171; --line: rgba(255,255,255,.07);
+        }
+        body {
+            background: var(--bg); color: var(--fg); min-height: 100vh;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px; line-height: 1.65; padding: 0 0 40px;
+        }
+        .bar {
+            position: sticky; top: 0; z-index: 10; background: rgba(8,9,12,.95);
+            border-bottom: 1px solid var(--line); padding: 10px 18px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            backdrop-filter: blur(8px);
+        }
+        .bar .t { color: var(--accent); letter-spacing: .06em; }
+        .bar a { color: var(--dim); text-decoration: none; font-size: 12px; }
+        .bar a:hover, .bar a:focus-visible { color: var(--accent2); }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 18px; }
+        #out { white-space: pre-wrap; word-break: break-word; }
+        .row { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+        .ps1 { color: var(--accent); flex: 0 0 auto; }
+        #cmd {
+            flex: 1 1 auto; background: transparent; border: 0; outline: 0;
+            color: var(--fg); font: inherit; caret-color: var(--accent);
+        }
+        .muted { color: var(--dim); }
+        .ok { color: var(--accent); }
+        .info { color: var(--accent2); }
+        .warn { color: var(--warn); }
+        .err { color: var(--err); }
+        .echo { color: var(--dim); }
+        a.app { color: var(--accent2); text-decoration: none; }
+        a.app:hover, a.app:focus-visible { text-decoration: underline; }
+        table { border-collapse: collapse; margin: 4px 0 10px; }
+        td { padding: 1px 16px 1px 0; vertical-align: top; }
+        .hint { color: var(--dim); font-size: 12px; margin-top: 14px; }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <span class="t">hex shell</span>
+        <a href="/">back to Hexworth</a>
+    </div>
+    <div class="wrap">
+        <div id="out"></div>
+        <div class="row">
+            <span class="ps1" id="ps1">hex&gt;</span>
+            <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false"
+                   aria-label="Hex shell command" autofocus>
+        </div>
+        <p class="hint">Tab completes. Up and Down walk history. Try <span class="ok">help</span>.</p>
+    </div>
+
+<script>
+/**
+ * Hex shell. Resolves a name to an entry and launches it.
+ *
+ * Reads /data/hex-apps.json and NOTHING else. No hardcoded entry point lives here, which is the
+ * whole point: a registry nothing launches from drifts silently, while a registry the launcher
+ * depends on breaks loudly. If an app is missing from this shell, the manifest is wrong, and
+ * post-verify check 4f fails on exactly that.
+ */
+(function () {
+    'use strict';
+
+    var out = document.getElementById('out');
+    var cmd = document.getElementById('cmd');
+    var APPS = [];
+    var META = {};
+    var history = [];
+    var hIdx = -1;
+
+    function esc(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function say(html, cls) {
+        var d = document.createElement('div');
+        if (cls) d.className = cls;
+        d.innerHTML = html;
+        out.appendChild(d);
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+    function byId(id) {
+        return APPS.filter(function (a) { return a.id === id; })[0];
+    }
+
+    function fmtRows(list, note) {
+        if (!list.length) return say('nothing matched.', 'muted');
+        var rows = list.map(function (a) {
+            return '<tr><td><a class="app" href="' + esc(a.entry) + '">' + esc(a.id) + '</a></td>' +
+                   '<td class="muted">' + esc(a.category) + '</td>' +
+                   '<td>' + esc(a.name || '') + '</td></tr>';
+        }).join('');
+        say('<table>' + rows + '</table>' + (note ? '<span class="muted">' + esc(note) + '</span>' : ''));
+    }
+
+    var COMMANDS = {
+        help: function () {
+            say(
+                '<span class="ok">run</span> &lt;app&gt;        launch an app by name\n' +
+                '<span class="ok">ls</span> [what]        list apps. what = a category, a house, or blank for all\n' +
+                '<span class="ok">search</span> &lt;term&gt;    match id, name or house\n' +
+                '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
+                '<span class="ok">clear</span>             clear the screen\n\n' +
+                '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
+            );
+        },
+        ls: function (arg) {
+            if (!arg) {
+                var cats = {};
+                APPS.forEach(function (a) { cats[a.category] = (cats[a.category] || 0) + 1; });
+                var rows = Object.keys(cats).sort().map(function (c) {
+                    return '<tr><td class="info">' + esc(c) + '</td><td class="muted">' + cats[c] + '</td></tr>';
+                }).join('');
+                say('<table>' + rows + '</table><span class="muted">' + APPS.length +
+                    ' apps. <span class="ok">ls &lt;category&gt;</span> or <span class="ok">ls &lt;house&gt;</span> to narrow.</span>');
+                return;
+            }
+            var hit = APPS.filter(function (a) { return a.category === arg || a.house === arg; });
+            fmtRows(hit, hit.length + ' in ' + arg);
+        },
+        search: function (arg) {
+            if (!arg) return say('search what?', 'warn');
+            var q = arg.toLowerCase();
+            fmtRows(APPS.filter(function (a) {
+                return (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase().indexOf(q) !== -1;
+            }));
+        },
+        info: function (arg) {
+            var a = byId(arg);
+            if (!a) return say('no app called ' + esc(arg) + '. try <span class="ok">search ' + esc(arg) + '</span>', 'err');
+            var rows = Object.keys(a).map(function (k) {
+                return '<tr><td class="muted">' + esc(k) + '</td><td>' + esc(a[k]) + '</td></tr>';
+            }).join('');
+            say('<table>' + rows + '</table>');
+            if (a.clientGuard && a.clientGuard !== 'public') {
+                say('clientGuard is what the page DECLARES, not enforcement. AccessGuard is browser JS: ' +
+                    'an unauthenticated request still receives the page. Real enforcement is in firestore.rules.', 'muted');
+            }
+        },
+        run: function (arg) {
+            if (!arg) return say('run what? try <span class="ok">ls</span>', 'warn');
+            var a = byId(arg);
+            if (!a) {
+                var near = APPS.filter(function (x) { return x.id.indexOf(arg) === 0; }).slice(0, 6);
+                say('no app called ' + esc(arg) + '.', 'err');
+                if (near.length) say('did you mean: ' + near.map(function (x) { return x.id; }).join(', '), 'muted');
+                return;
+            }
+            say('launching ' + esc(a.name || a.id) + ' ' + esc(a.entry), 'ok');
+            window.location.href = a.entry;
+        },
+        clear: function () { out.innerHTML = ''; }
+    };
+
+    function exec(line) {
+        var parts = line.trim().split(/\s+/);
+        var verb = parts.shift();
+        var arg = parts.join(' ');
+        if (!verb) return;
+        // A bare app name is a launch. `arena` should do what `run arena` does.
+        if (!COMMANDS[verb] && byId(verb)) return COMMANDS.run(verb);
+        if (!COMMANDS[verb]) {
+            return say(esc(verb) + ': not a command. try <span class="ok">help</span>', 'err');
+        }
+        COMMANDS[verb](arg);
+    }
+
+    function complete() {
+        var v = cmd.value;
+        var m = /^(\s*(?:run|info)\s+)(\S*)$/.exec(v);
+        var prefix = m ? m[1] : '';
+        var frag = m ? m[2] : v.trim();
+        if (!frag) return;
+        var pool = m ? APPS.map(function (a) { return a.id; })
+                     : Object.keys(COMMANDS).concat(APPS.map(function (a) { return a.id; }));
+        var hits = pool.filter(function (x) { return x.indexOf(frag) === 0; });
+        if (!hits.length) return;
+        if (hits.length === 1) { cmd.value = prefix + hits[0] + ' '; return; }
+        // Extend to the longest common prefix, then show the options.
+        var lcp = hits.reduce(function (acc, s) {
+            var i = 0; while (i < acc.length && i < s.length && acc[i] === s[i]) i++;
+            return acc.slice(0, i);
+        });
+        cmd.value = prefix + lcp;
+        say(hits.slice(0, 40).join('   '), 'muted');
+    }
+
+    cmd.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+            var line = cmd.value;
+            say('<span class="echo">hex&gt; ' + esc(line) + '</span>');
+            if (line.trim()) { history.push(line); hIdx = history.length; }
+            cmd.value = '';
+            try { exec(line); } catch (err) { say('error: ' + esc(err.message), 'err'); }
+        } else if (e.key === 'Tab') {
+            e.preventDefault(); complete();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (hIdx > 0) cmd.value = history[--hIdx];
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (hIdx < history.length - 1) cmd.value = history[++hIdx];
+            else { hIdx = history.length; cmd.value = ''; }
+        }
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('a')) cmd.focus();
+    });
+
+    fetch('/data/hex-apps.json')
+        .then(function (r) {
+            if (!r.ok) throw new Error('manifest returned HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function (j) {
+            APPS = j.apps || [];
+            META = j;
+            say('<span class="ok">hex shell</span> <span class="muted">' + APPS.length +
+                ' apps from the manifest</span>');
+            say('<span class="muted">type <span class="ok">help</span>, or an app name to launch it. ' +
+                'try <span class="ok">run arena</span>.</span>');
+        })
+        .catch(function (e) {
+            // Say what is actually wrong. A shell that fails silently is worse than no shell.
+            say('could not load /data/hex-apps.json: ' + esc(e.message), 'err');
+            say('regenerate with: node _tools/hexos/gen-app-manifest.js', 'muted');
+        });
+})();
+</script>
+
+    <script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

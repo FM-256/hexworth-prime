@@ -57,6 +57,7 @@ const BASELINE = path.join(REPO, '_tools/hexos/unregistered-baseline.json');
  * claim that the registry lacks something, and that claim should be hard to make.
  */
 const PLATFORM_APPS = [
+    { id: 'hex',          name: 'Hex Shell',        entry: '/hex/index.html',     house: null,        category: 'platform', verb: 'open' },
     { id: 'arena',        name: 'The Arena',        entry: '/arena/index.html',   house: 'dark-arts', category: 'platform', verb: 'open' },
     { id: 'career',       name: 'Career Launchpad', entry: '/career/index.html',  house: null,        category: 'platform', verb: 'open' },
     { id: 'games',        name: 'The Arcade',       entry: '/games.html',         house: null,        category: 'platform', verb: 'play' },
