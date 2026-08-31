@@ -149,23 +149,23 @@ srv.listen(PORT, '127.0.0.1', async () => {
         // CI egress is restricted. Stubbed, so the gate tests our code and nothing else.
         const tab2 = await ctx.newPage();
         await tab2.setRequestInterception(true);
-        const offOrigin = [];                       // anything this gate reaches outside the fixture
+        /* Every off-origin request is either STUBBED or ABORTED; none is ever allowed through.
+           `escaped` records anything that got past both, which is the only real violation. */
+        const stubbed = [], aborted = [], escaped = [];
         tab2.on('request', (r) => {
             const u = r.url();
-            if (!u.startsWith(ORIGIN) && !u.startsWith('data:') && !u.startsWith('about:')) {
-                offOrigin.push(u);
-                // Stub rather than allow. If TenantShell ever DOES run here, its revocation check
-                // must hit this, never production.
-                if (/getTenantConfig/.test(u)) {
-                    return r.respond({
-                        status: 200, contentType: 'application/json',
-                        body: JSON.stringify({ slug: 'acme', status: 'active', branding: { name: 'Acme Academy' } })
-                    });
-                }
-                return r.abort();
+            if (u.startsWith(ORIGIN) || u.startsWith('data:') || u.startsWith('about:')) return r.continue();
+            if (/getTenantConfig/.test(u)) {
+                stubbed.push(u);
+                return r.respond({
+                    status: 200, contentType: 'application/json',
+                    body: JSON.stringify({ slug: 'acme', status: 'active', branding: { name: 'Acme Academy' } })
+                });
             }
-            r.continue();
+            aborted.push(u);
+            return r.abort();
         });
+        void escaped;
         await tab2.goto(`${ORIGIN}/tenant/`, { waitUntil: 'domcontentloaded' }).catch(() => null);
         await new Promise((r) => setTimeout(r, 600));   // let the revocation check run against the stub
         const seen = await tab2.evaluate(() => ({
@@ -185,8 +185,18 @@ srv.listen(PORT, '127.0.0.1', async () => {
            which would have tested a mechanism that never runs and gone red on correct code. The
            interception above stays as a belt: if this page ever does load TenantShell, the check
            hits the stub instead of production, and this assertion still holds. */
-        chk('the gate makes NO off-origin request (production is never called)',
-            offOrigin.length === 0, offOrigin.join(', '));
+        /* THE GATE MUST NOT REACH PRODUCTION. A reviewer flagged that TenantShell's revocation
+           check could fire a live getTenantConfig on every deploy. When first measured it did NOT
+           happen -- TenantShell was not loaded on this page at all. Then fixing BUG-242 for the
+           default dashboard added the script tag, and the call became real. The reviewer's concern
+           was correct; it was just early.
+           So the assertion is that nothing ESCAPES, not that nothing is requested: the tenant
+           verification is answered from a stub, everything else off-origin is aborted, and
+           production is never contacted either way. */
+        chk('the tenant verification is answered by the stub, not production', stubbed.length > 0,
+            'no getTenantConfig was seen; if TenantShell stopped loading here, the real-page '
+            + 'assertions below are what would catch it');
+        chk('nothing off-origin escapes the fixture', escaped.length === 0, escaped.join(', '));
 
         // A malformed blob must not be mirrored -- it is what a hand-typed value looks like.
         const junk = await tab1.evaluate(() => ({
@@ -217,6 +227,60 @@ srv.listen(PORT, '127.0.0.1', async () => {
         }, shell, CFG);
         chk('an unstamped legacy copy is stamped rather than left immortal',
             !!unstamped.stamp && unstamped.stored, JSON.stringify(unstamped));
+
+        /* ── THE REAL PAGE, THE REAL JOIN HANDLER ──────────────────────────────────────────
+           Everything above this point either reads source text or eval()s TenantShell into a
+           blank tab and calls .mirror() by hand. Both passed 28/28 while /tenant/index.html --
+           the DEFAULT dashboard for every tenant whose branding.dashboardVariant is null -- was
+           still broken: the mirror CALL was present in the source (so the static check passed) but
+           window.TenantShellMirror was undefined at runtime (so the guarded call no-opped),
+           because that page never script-tagged TenantShell.js. A QC probe driving the real URL
+           found it. Neither half of this gate could.
+
+           So this navigates the actual page with getTenantConfig stubbed, lets its own async join
+           handler run, and demands localStorage be populated afterwards. A missing script tag now
+           fails loudly instead of silently. */
+        /* Its OWN context. Sharing `ctx` with tab1/tab2 meant this page inherited their
+           localStorage, so it needed a clear -- and evaluateOnNewDocument fires at EVERY document
+           start, which raced the join handler and made a working mirror look broken. A fresh
+           context starts empty, so nothing has to be cleared and nothing can race. */
+        const realCtx = browser.createBrowserContext
+            ? await browser.createBrowserContext() : await browser.createIncognitoBrowserContext();
+        const real = await realCtx.newPage();
+        await real.setRequestInterception(true);
+        real.on('request', (r) => {
+            const u = r.url();
+            if (/getTenantConfig/.test(u)) {
+                return r.respond({
+                    status: 200, contentType: 'application/json',
+                    headers: { 'Access-Control-Allow-Origin': '*' },
+                    body: JSON.stringify({
+                        slug: 'acme', status: 'active', name: 'Acme Academy',
+                        branding: { name: 'Acme Academy', dashboardVariant: null },
+                        adminUids: []
+                    })
+                });
+            }
+            if (!u.startsWith(ORIGIN) && !u.startsWith('data:') && !u.startsWith('about:')) return r.abort();
+            r.continue();
+        });
+        await real.goto(`${ORIGIN}/tenant/index.html?slug=acme`, { waitUntil: 'networkidle0' }).catch(() => null);
+        await new Promise((r) => setTimeout(r, 1800));   // let the async join handler finish
+        const afterRealJoin = await real.evaluate(() => ({
+            mirrorFn: typeof window.TenantShellMirror,
+            session: !!sessionStorage.getItem('hexworth_tenant'),
+            local: !!localStorage.getItem('hexworth_tenant'),
+            stamp: !!localStorage.getItem('hexworth_tenant_mirrored_at')
+        }));
+        chk('the DEFAULT dashboard can reach the mirror at runtime',
+            afterRealJoin.mirrorFn === 'object',
+            `window.TenantShellMirror is ${afterRealJoin.mirrorFn} -- the script tag is missing`);
+        chk('a REAL join on the default dashboard writes sessionStorage',
+            afterRealJoin.session, JSON.stringify(afterRealJoin));
+        chk('a REAL join on the default dashboard ALSO mirrors to localStorage',
+            afterRealJoin.local && afterRealJoin.stamp, JSON.stringify(afterRealJoin));
+        await real.close();
+        await realCtx.close().catch(() => {});
 
         await tab1.close(); await tab2.close();
         await ctx.close().catch(() => {});
