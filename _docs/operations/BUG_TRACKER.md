@@ -61,7 +61,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-236 (the false comment that hid this). Correcting that comment does NOT close
   this; the comment lie and the cross-tab gap are separate defects.
 
-### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  fixed-not-deployed
+### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  resolved
 - **Found:** 2026-08-31 · by self · surveying per-user state for HEXOS-4 (home directory)
 - **Area:** `functions/index.js:1254-1259` (`recordProgress`, case `'quiz'`) vs
   `functions/account-merge.js:83-85` (`mergeQuizzes`) vs `_app/components/FirestoreManager.js:725`
@@ -89,7 +89,10 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-240 · `users/{uid}/quiz_attempts` (`functions/index.js:2134`) is the
   full ledger and is unaffected, so no data is destroyed — only the summary field is wrong.
 
-### BUG-240 — an account merge silently drops 14 of at least 17 user subcollections  ·  [P1]  ·  fixed-not-deployed
+- **DEPLOYED 2026-08-31.** `recordProgress` redeployed 17:13:38Z, confirmed via
+  `gcloud functions describe` (not deploy output). The summary-field fix is live for all future
+  submissions. The historical-overwrite backfill remains undone and is still its own decision.
+### BUG-240 — an account merge silently drops 14 of at least 17 user subcollections  ·  [P1]  ·  fixed in code, never exercised
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `functions/account-merge.js:193-203`
 - **Symptom:** when two accounts are merged, the surviving account keeps gates, flag captures and
@@ -123,7 +126,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   sweeping in top-level collections; both detectors were wrong before this one was right.
 - **Related:** BUG-241 · `feedback_check_the_detector_before_the_data`
 
-### BUG-239 — gate provenance is recorded server-side, then flattened on restore  ·  [P1]  ·  fixed-not-deployed
+### BUG-239 — gate provenance is recorded server-side, then flattened on restore  ·  [P1]  ·  resolved
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `_app/components/FirestoreManager.js` `_restoreGateProgress` ·
   `functions/index.js:260-271`
@@ -145,6 +148,9 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   "the vault ended up trusting forged progress". The field was added to prevent a known incident;
   the consumer then discards it.
 
+- **DEPLOYED 2026-08-31.** Verified live: `GATE_VERIFIED_SUFFIX` is present in the served
+  `/components/FirestoreManager.js`, and the streak `Math.max` is still present in the same served
+  file (checked because a fix in this slate nearly removed it).
 ### BUG-238 — completedModules unions SHORT local ids with COMPOUND cloud ids  ·  [P2]  ·  open
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `_app/components/ModuleProgress.js:405` (short) vs `:195` (compound) ·
@@ -165,7 +171,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   (`ModuleProgress.js:1658`, `XPCalculator.js:25`, `FirestoreManager.js:1377`, `:1595`), so an id
   valid to one filter is garbage to another. Not separately logged; it is the same root defect.
 
-### BUG-237 — the updateStreak Cloud Function has no caller, and Math.max pins the loser  ·  [P2]  ·  fixed-not-deployed
+### BUG-237 — the updateStreak Cloud Function has no caller, and Math.max pins the loser  ·  [P2]  ·  fixed-not-deployed (BLOCKED: orphan still deployed)
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `functions/index.js:1282` (`exports.updateStreak`) ·
   `_app/components/ModuleProgress.js:894-916` · `_app/components/FirestoreManager.js:1408-1409`
@@ -185,7 +191,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Still open:** nothing. The remaining single definition is the client's.
 - **Verified:** CF exists at the cited line; no client caller found, 2026-08-31.
 
-### BUG-236 — a comment asserts both storages are written; only 1 of 12 writers does  ·  [P3]  ·  fixed-not-deployed (comment only — see BUG-242)
+- **PARTIALLY DEPLOYED 2026-08-31.** The source no longer exports it, but the FUNCTION IS
+  STILL LIVE in the project (`updateStreak`, us-central1, last updated 2026-08-20).
+  `firebase deploy --only functions` ABORTS on this: Firebase found a deployed function
+  absent from source and refuses to delete non-interactively. Deleting a deployed cloud
+  resource is an operator decision, so it was not done. Until then, a full functions
+  deploy keeps aborting. To finish:
+  `firebase functions:delete updateStreak --region us-central1`
+### BUG-236 — a comment asserts both storages are written; only 1 of 12 writers does  ·  [P3]  ·  resolved
 - **Found:** 2026-08-31 · by Nancy · HEXOS-5 PWA review
 - **Area:** `_app/components/TenantShell.js:60`
 - **Symptom:** the comment states "The tenant config is cached in sessionStorage AND localStorage
@@ -211,6 +224,9 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **PARTIAL FIX 2026-08-31:** the comment is corrected. This closes the false claim ONLY.
   The live cross-tab breakage the false comment concealed is BUG-242 and remains OPEN.
 
+- **DEPLOYED 2026-08-31.** Verified live in the served `/components/TenantShell.js`. Note the old
+  false sentence still appears in the file as a QUOTATION inside the correction that names it as
+  wrong; a naive grep for it returns a hit. BUG-242 is unaffected and still open.
 ### BUG-235 — a co-op member can rewrite a teammate's player entry  ·  [P3]  ·  open (language-limited)
 - **Found:** 2026-08-29 · by Nancy · reviewing the BUG-234 field-scoping fix
 - **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` — co-op `players` is deliberately unscoped
