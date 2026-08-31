@@ -241,6 +241,11 @@
         try {
             localStorage.removeItem('hexworth_tenant');
             localStorage.removeItem('hexworth_tenant_slug');
+            // Clear the cross-tab stamp too, so the three purge sites keep ONE definition of
+            // "what gets cleared". Orphaning it is inert today (the TTL only runs when the blob
+            // itself is present) but two divergent cleanup lists is how the next person adding a
+            // tenant key inherits the wrong precedent. BUG-242.
+            localStorage.removeItem('hexworth_tenant_mirrored_at');
             localStorage.removeItem(SHELL_HIDDEN_KEY);
         } catch (e) {}
         stripTenantChrome(reason);

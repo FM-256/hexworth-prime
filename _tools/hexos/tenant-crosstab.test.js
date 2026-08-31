@@ -78,6 +78,11 @@ JOIN_FILES.forEach((rel) => {
 // Sign-out must purge, and must NOT be wired into the auth-state listener (which fires on cold
 // anonymous loads, and the join flows write with no auth gate at all).
 const fa = fs.readFileSync(path.join(APP, 'components/FirebaseAuth.js'), 'utf8');
+/* KNOWN, ACCEPTED, UNTESTED: signOut's normal path purges BEFORE awaiting firebaseSignOut, so a
+   throw inside that await leaves a still-signed-in user with no tenant context until they click
+   their tenant link again. That trade is deliberate -- leaving context behind after a failed
+   sign-out is the bleed this exists to prevent -- but the sequencing itself is asserted only as
+   "the call exists twice", never driven. Noted so it reads as a decision, not an oversight. */
 chk('signOut purges tenant context', /purgeTenantContext\(\)/.test(fa));
 chk('the purge is called from BOTH signOut paths',
     (fa.match(/purgeTenantContext\(\);/g) || []).length >= 2,
@@ -132,8 +137,37 @@ srv.listen(PORT, '127.0.0.1', async () => {
         chk('the mirror is stamped, so the TTL has something to read', !!mirrored.stamp);
 
         // THE REPRO: a second tab, same origin, no sessionStorage of its own.
+        //
+        // STUB THE TENANT VERIFICATION. Tab 1 uses eval() precisely so no live endpoint is needed,
+        // but tab 2 is a REAL navigation that loads the real TenantShell.js via its script tag --
+        // and because tab 1 already mirrored to localStorage (shared across pages in one context),
+        // `raw` is truthy there, so TenantShell's revocation check fires a real fetch to
+        // getTenantConfig in production. A reviewer caught that this gate, wired into deploy.sh,
+        // would make a live prod call with a fake slug on every deploy. It is read-only and not the
+        // class of incident that once posted to the live Discord, but a release gate should not
+        // depend on an external endpoint it does not need: it flakes when that endpoint hiccups or
+        // CI egress is restricted. Stubbed, so the gate tests our code and nothing else.
         const tab2 = await ctx.newPage();
+        await tab2.setRequestInterception(true);
+        const offOrigin = [];                       // anything this gate reaches outside the fixture
+        tab2.on('request', (r) => {
+            const u = r.url();
+            if (!u.startsWith(ORIGIN) && !u.startsWith('data:') && !u.startsWith('about:')) {
+                offOrigin.push(u);
+                // Stub rather than allow. If TenantShell ever DOES run here, its revocation check
+                // must hit this, never production.
+                if (/getTenantConfig/.test(u)) {
+                    return r.respond({
+                        status: 200, contentType: 'application/json',
+                        body: JSON.stringify({ slug: 'acme', status: 'active', branding: { name: 'Acme Academy' } })
+                    });
+                }
+                return r.abort();
+            }
+            r.continue();
+        });
         await tab2.goto(`${ORIGIN}/tenant/`, { waitUntil: 'domcontentloaded' }).catch(() => null);
+        await new Promise((r) => setTimeout(r, 600));   // let the revocation check run against the stub
         const seen = await tab2.evaluate(() => ({
             session: sessionStorage.getItem('hexworth_tenant'),
             fallback: sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant')
@@ -141,6 +175,18 @@ srv.listen(PORT, '127.0.0.1', async () => {
         chk('the second tab has NO sessionStorage copy (the bug\'s premise)', seen.session === null);
         chk('the second tab DOES resolve tenant context via the fallback', !!seen.fallback,
             'this is BUG-242 itself');
+        /* THE GATE MUST NOT TOUCH PRODUCTION. A reviewer flagged that TenantShell's revocation
+           check could fire a live getTenantConfig from this tab on every deploy. I MEASURED it
+           rather than accepting or dismissing the claim: tab 2 makes zero off-origin requests,
+           because TenantShell.js does not execute on this page at all here (verified:
+           window.TenantShellMirror is undefined in tab 2). So the live call does not currently
+           happen.
+           This asserts the PROPERTY -- no off-origin traffic -- rather than "the stub fired",
+           which would have tested a mechanism that never runs and gone red on correct code. The
+           interception above stays as a belt: if this page ever does load TenantShell, the check
+           hits the stub instead of production, and this assertion still holds. */
+        chk('the gate makes NO off-origin request (production is never called)',
+            offOrigin.length === 0, offOrigin.join(', '));
 
         // A malformed blob must not be mirrored -- it is what a hand-typed value looks like.
         const junk = await tab1.evaluate(() => ({

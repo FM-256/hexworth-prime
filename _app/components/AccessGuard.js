@@ -334,6 +334,9 @@ const AccessGuard = (function() {
                     try {
                         localStorage.removeItem('hexworth_tenant');
                         localStorage.removeItem('hexworth_tenant_slug');
+                        // Cross-tab stamp, cleared here too so all three purge sites share one
+                        // definition of what gets removed. BUG-242.
+                        localStorage.removeItem('hexworth_tenant_mirrored_at');
                         localStorage.removeItem('hexworth_tenant_shell_hidden');
                     } catch (e) {}
                     /* redirect() consults TenantRouter.isActive() and sends tenant users to
