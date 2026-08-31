@@ -475,7 +475,8 @@ for hg in \
     "corpus content preservation|node _tools/hexos/corpus-preservation.test.js" \
     "dead entries|node _tools/hexos/dead-entry-gate.js" \
     "safeEntry drift + origin escape|node _tools/hexos/safe-entry.test.js" \
-    "PWA scope + tenant precedence|node _tools/hexos/pwa.test.js"; do
+    "PWA scope + tenant precedence|node _tools/hexos/pwa.test.js" \
+    "home directory is read-only|node _tools/hexos/home-directory.test.js"; do
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
     # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
     # always 0. That produced a gate that could never block once already in this file.
