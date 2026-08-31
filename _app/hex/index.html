@@ -604,8 +604,26 @@
             if (t.error) return say(t.error, t.cls || 'err');
             say('stopping ' + esc(t.labId) + '...', 'muted');
             return SL.destroy(t.sessionId).then(function () {
+                // Same discipline as restart's settlement, and it belongs here for the same
+                // reason: this chain can outlive its watchdog, a later chain can legitimately
+                // relaunch the lab, and then this settles and reports the slot released while a
+                // fresh box is running. Both reviewers found this independently; one reproduced
+                // "stopped arctic. its slot is back in the pool." printing while arctic was live
+                // on a new session. I had claimed every settlement point was guarded, having
+                // checked only restart, and said so without scoping the claim.
+                if (procGen !== gen) {
+                    return say('an earlier stop of ' + esc(t.labId) + ' finished after it was '
+                        + 'superseded. run <span class="ok">ps</span> for the real state.', 'muted');
+                }
                 say('stopped ' + esc(t.labId) + '. its slot is back in the pool.', 'ok');
             }).catch(function (e) {
+                // The failure narration goes stale the same way: "could not stop X" invites a
+                // retry, and a later chain may already have stopped or replaced X. Guarded
+                // deliberately rather than left because the success path looked like the only one.
+                if (procGen !== gen) {
+                    return say('an earlier stop of ' + esc(t.labId) + ' failed after it was '
+                        + 'superseded. run <span class="ok">ps</span> for the real state.', 'muted');
+                }
                 say('could not stop ' + esc(t.labId) + ': ' + esc(errText(e)), 'err');
                 say('run <span class="ok">ps</span> to see whether it is still up.', 'muted');
             });

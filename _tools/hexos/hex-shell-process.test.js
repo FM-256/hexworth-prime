@@ -5,9 +5,9 @@
  * @catalog what    Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html
  * @catalog what    and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs.
  * @catalog run     node _tools/hexos/hex-shell-process.test.js
- * @catalog note    Wired into post-verify check 4f. THREE concurrency bugs have shipped from
- * @catalog note    this lock across five review rounds; a suite only a human remembers to run
- * @catalog note    is not coverage that survives the next edit.
+ * @catalog note    Pre-deploy gate 3.7 in deploy.sh, plus post-verify check 4f. This lock has
+ * @catalog note    produced a new concurrency defect in every review round it has been through;
+ * @catalog note    a suite only a human remembers to run is not coverage that survives an edit.
  * @catalog status  GATE
  *
  * WHY THIS EXISTS, AND WHY IT LOADS THE ACTUAL PAGE
@@ -460,6 +460,52 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('a FAILED chain does not clear a flag it never set', launch5.length === 1, 'launches=' + JSON.stringify(launch5));
     chk('  -> the third attempt is refused as still outstanding', /still outstanding/i.test(out5), out5.slice(0, 130));
     await pg5.close();
+
+    // ── A superseded STOP must not narrate the box either ──────────────────────────────
+    // The pg2 fixture races stop against a stop of a DIFFERENT lab, so its stale settlement is
+    // cosmetically harmless and gets wiped before any assertion sees it. Point the race at the
+    // SAME lab and the stale chain claims the slot is back in the pool while a fresh box runs.
+    // Both reviewers found this; one reproduced it. Nothing in the suite covered it.
+    const pg6 = await b.newPage();
+    let live6 = fixture().filter(x => x.labId === 'arctic');
+    await pg6.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
+    await pg6.setRequestInterception(true);
+    pg6.on('request', r => {
+        const u = r.url(), m = r.method();
+        if (/AccessGuard\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
+        if (/FirebaseAuth\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body:
+            'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},isSignedIn:function(){return true;},refreshToken:function(){return Promise.resolve("t");}};' });
+        if (/sandbox\.hexworth\.tech/.test(u)) {
+            if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
+            const J = (o, ms) => setTimeout(() => r.respond({ status: 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), ms);
+            if (/\/list/.test(u)) return J({ sandboxes: live6 }, 50);
+            const d = u.match(/\/destroy\/([^/?]+)/);
+            // Lands server-side at once; the RESPONSE is what is slow.
+            if (d) { live6 = live6.filter(x => x.sessionId !== d[1]); return J({ status: 'destroyed' }, 4000); }
+            if (/\/launch/.test(u)) {
+                live6.push({ sessionId: 'sess-fresh', labId: 'arctic', lab: 'Arctic', status: 'running', ageMinutes: 0, url: 'https://x/' });
+                return J({ sessionId: 'sess-fresh', url: 'https://x/' }, 50);
+            }
+            return J({}, 50);
+        }
+        r.continue();
+    });
+    await pg6.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
+    await new Promise(r => setTimeout(r, 700));
+    const type6 = async (cmd) => { await pg6.click('#cmd'); await pg6.type('#cmd', cmd); await pg6.keyboard.press('Enter'); };
+
+    await type6('stop arctic');                       // gen1; destroy response takes 4000ms
+    await new Promise(r => setTimeout(r, 1400));      // watchdog fired at 1000ms
+    await type6('restart arctic');                    // gen2 relaunches the SAME lab, legitimately
+    await new Promise(r => setTimeout(r, 1200));
+    await pg6.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await new Promise(r => setTimeout(r, 2600));      // gen1's stale destroy settles ~4100ms
+    const stale6 = await pg6.evaluate(() => document.getElementById('out').innerText);
+    chk('a superseded STOP does not claim the slot is back in the pool',
+        !/slot is back in the pool/i.test(stale6), stale6.slice(0, 140));
+    chk('  -> it says it was superseded instead', /superseded/i.test(stale6) || stale6.trim() === '', stale6.slice(0, 140));
+    await pg6.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
     await b.close(); srv.close();

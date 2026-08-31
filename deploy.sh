@@ -383,11 +383,13 @@ fi
 # Same reasoning as 3.6, and for the same reason it is duplicated rather than left to
 # post-verify: post-verify runs AFTER the upload, so it would report a shipped session race
 # rather than prevent one. ps/stop/restart drive a real container scheduler with real per-user
-# capacity, and FOUR separate concurrency bugs shipped from their in-flight lock across six
-# review rounds: a double-fire race, a watchdog that could wedge the lock for the life of the
-# tab, a watchdog whose recovery path reopened the race it was built beside, and a superseded
-# chain that launched a second box after the student's own sanctioned retry. Every one was
-# caught by a reviewer driving the page. None was caught by a gate, because until now the suite
+# capacity, and their in-flight lock has produced a NEW concurrency defect in every review
+# round it has been through: a double-fire race, a watchdog that could wedge the lock for the
+# life of the tab, a watchdog whose recovery path reopened the race it was built beside, a
+# failed chain that cleared state it never set, and superseded chains narrating boxes they no
+# longer spoke for. No tally is written here on purpose: three different hardcoded counts had
+# already drifted apart across two files before a reviewer noticed. Every one of those defects
+# was caught by a reviewer driving the page, none by a gate, because until recently the suite
 # was only wired into post-verify.
 # Blocks on ANY non-zero, including a missing puppeteer: puppeteer is a declared dependency in
 # package.json and the smoke gate already relies on it, so its absence is a broken environment,
@@ -412,8 +414,9 @@ if [ "$FORCE" = true ]; then
     # is how conventions rot, and a skip nobody reads is the actual problem.
     echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands ${YELLOW}[SKIPPED]${NC} — --force flag set"
     echo -e "  ${YELLOW}! ps/stop/restart drive real containers and real per-user capacity.${NC}"
-    echo -e "  ${YELLOW}! FOUR concurrency bugs have shipped from that lock; this suite is what${NC}"
-    echo -e "  ${YELLOW}! catches a fifth. Run it by hand before trusting this deploy:${NC}"
+    echo -e "  ${YELLOW}! Every review round of that lock has found a new concurrency defect.${NC}"
+    echo -e "  ${YELLOW}! This suite is what catches the next one. Run it before trusting${NC}"
+    echo -e "  ${YELLOW}! this deploy:${NC}"
     echo -e "  ${YELLOW}!   node _tools/hexos/hex-shell-process.test.js${NC}"
     echo ""
 else
