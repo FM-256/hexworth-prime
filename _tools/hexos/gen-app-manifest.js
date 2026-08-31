@@ -59,6 +59,10 @@ const BASELINE = path.join(REPO, '_tools/hexos/unregistered-baseline.json');
 const PLATFORM_APPS = [
     { id: 'hex',          name: 'Hex Shell',        entry: '/hex/index.html',     house: null,        category: 'platform', verb: 'open' },
     { id: 'hex-apps',     name: 'Hex OS Launcher',  entry: '/hex/apps.html',      house: null,        category: 'platform', verb: 'open' },
+    // HEXOS-4. Registered here so the projection is actually ADDRESSABLE -- a QC gate blocked
+    // the phase for shipping a module nothing rendered, and a page nothing links to is the
+    // same defect one layer up. `run home` in the shell, and an icon in the launcher grid.
+    { id: 'home',         name: 'Home Directory',   entry: '/home.html',          house: null,        category: 'platform', verb: 'open' },
     { id: 'funding',      name: 'Funding Hub',      entry: '/funding/index.html',       house: null, category: 'platform', verb: 'open' },
     { id: 'join',         name: 'Join a Session',   entry: '/join/index.html',          house: null, category: 'platform', verb: 'open' },
     { id: 'wall-of-shame', name: 'Wall of Shame',   entry: '/wall-of-shame/index.html', house: null, category: 'platform', verb: 'open' },

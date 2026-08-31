@@ -181,5 +181,24 @@ let emptyErr = null;
 try { HD.build(); HD.build({}); } catch (e) { emptyErr = e.message; }
 chk('build() survives absent/partial sources', emptyErr === null, emptyErr);
 
+// ---- 6. THE PAGE MUST EXIST AND MUST CONSUME THE MODULE ----
+// A projection nothing renders is not "addressable", which is the word the scope doc uses. A QC
+// gate blocked this work for exactly that: steps 1-2 shipped and step 3, the page, did not, while
+// the commit said "HEXOS-4 built". So the phase's own deliverable is asserted here.
+const PAGE = path.join(REPO, '_app/home.html');
+chk('the home directory page exists', fs.existsSync(PAGE),
+    'HomeDirectory.js with no consumer is not a finished phase');
+if (fs.existsSync(PAGE)) {
+    const page = fs.readFileSync(PAGE, 'utf8');
+    chk('the page loads the projection module', /components\/HomeDirectory\.js/.test(page));
+    chk('the page actually calls build()', /HomeDirectory\.build\(/.test(page));
+    chk('the page renders conflicts, not just values', /isConflict\(|conflicts/.test(page));
+    // The read-only guarantee has to hold at the consumer too, or the module's purity is moot.
+    chk('the page writes to no store',
+        !/\.setItem\s*\(|setDoc\s*\(|updateDoc\s*\(|addDoc\s*\(/.test(page),
+        'the page must read the projection, never write state');
+    chk('the page is access-gated', /AccessGuard/.test(page));
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;

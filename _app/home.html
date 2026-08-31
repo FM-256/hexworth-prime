@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Directory</title>
+    <meta name="description" content="Every record Hexworth holds for you, with the sources named and any disagreements shown rather than hidden.">
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-terminal.webp">
+
+    <!-- HEXOS-4 step 3. The projection is HomeDirectory.js, which reads and never writes; this
+         page is its only consumer. Loading order matters: FirebaseAuth resolves the user,
+         FirestoreManager reads the server records, XPCalculator supplies the recomputed XP that
+         the projection treats as authoritative over the stored value. -->
+    <script src="/components/AccessGuard.js"></script>
+    <script src="/components/FirebaseAuth.js" defer></script>
+    <script src="/components/XPCalculator.js" defer></script>
+    <script src="/components/HomeDirectory.js" defer></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #0a0a0f; --panel: #12121a; --line: rgba(255,255,255,0.09);
+            --ink: #e6e6ea; --dim: #8b8b99; --accent: #22d3ee;
+            --server: #34d399; --derived: #a78bfa; --local: #8b8b99; --warn: #fbbf24;
+        }
+        body {
+            background: var(--bg); color: var(--ink);
+            font: 15px/1.6 Inter, system-ui, -apple-system, sans-serif;
+            padding: 2rem 1.25rem 4rem;
+        }
+        .wrap { max-width: 940px; margin: 0 auto; }
+        h1 { font-size: 1.6rem; font-weight: 650; letter-spacing: -0.01em; }
+        .sub { color: var(--dim); margin-top: 0.4rem; max-width: 62ch; }
+        .grid {
+            display: grid; gap: 0.75rem; margin-top: 1.75rem;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        }
+        .card {
+            background: var(--panel); border: 1px solid var(--line);
+            border-radius: 10px; padding: 1rem 1.1rem;
+        }
+        .card.conflict { border-color: rgba(251,191,36,0.5); }
+        .label { color: var(--dim); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+        .value { font-size: 1.9rem; font-weight: 600; margin-top: 0.3rem; font-variant-numeric: tabular-nums; }
+        .tag {
+            display: inline-block; font-size: 0.68rem; text-transform: uppercase;
+            letter-spacing: 0.05em; padding: 0.1rem 0.45rem; border-radius: 4px;
+            border: 1px solid currentColor; margin-top: 0.5rem;
+        }
+        .tag.server  { color: var(--server); }
+        .tag.derived { color: var(--derived); }
+        .tag.local   { color: var(--local); }
+        .other {
+            margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--line);
+            font-size: 0.85rem; color: var(--warn);
+        }
+        .other .n { font-variant-numeric: tabular-nums; font-weight: 600; }
+        .note { color: var(--dim); font-size: 0.8rem; margin-top: 0.4rem; }
+        .banner {
+            margin-top: 1.5rem; padding: 0.9rem 1.1rem; border-radius: 10px;
+            border: 1px solid rgba(251,191,36,0.45); background: rgba(251,191,36,0.06);
+            font-size: 0.9rem;
+        }
+        .banner.clean { border-color: rgba(52,211,153,0.4); background: rgba(52,211,153,0.06); }
+        .muted { color: var(--dim); }
+        a { color: var(--accent); }
+        @media (prefers-reduced-motion: no-preference) { .card { transition: border-color 0.15s; } }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>Home Directory</h1>
+    <p class="sub">
+        Every record Hexworth holds for you, with the source of each one named. Where two systems
+        disagree, both numbers are shown. Nothing on this page is computed from your answers, and
+        nothing on this page writes anything back.
+    </p>
+
+    <div id="state" class="banner muted">Loading your records…</div>
+    <div id="conflicts"></div>
+    <div id="grid" class="grid"></div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // Gated like any other signed-in surface. Nothing here is sensitive to another user, but the
+    // records are the student's own and there is no reason to render them for a stranger.
+    if (window.AccessGuard && AccessGuard.require) { AccessGuard.require('free'); }
+
+    var stateEl = document.getElementById('state');
+    var gridEl = document.getElementById('grid');
+    var conflictEl = document.getElementById('conflicts');
+
+    function esc(s) {
+        return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function render(model) {
+        var facts = model.facts || {};
+        var keys = Object.keys(facts);
+        gridEl.innerHTML = keys.map(function (k) {
+            var f = facts[k];
+            var conflicted = window.HomeDirectory.isConflict(f);
+            return '<div class="card' + (conflicted ? ' conflict' : '') + '">'
+                + '<div class="label">' + esc(f.label) + '</div>'
+                + '<div class="value">' + esc(f.value === null ? '—' : f.value) + '</div>'
+                + '<span class="tag ' + esc(f.authority) + '">' + esc(f.authority) + '</span>'
+                + (conflicted
+                    ? '<div class="other">Also recorded as <span class="n">' + esc(f.otherValue)
+                      + '</span> by the ' + esc(f.otherAuthority) + ' source'
+                      + (f.bug ? ' (' + esc(f.bug) + ')' : '') + '.</div>'
+                    : '')
+                + (f.note ? '<div class="note">' + esc(f.note) + '</div>' : '')
+                + '</div>';
+        }).join('');
+
+        var n = (model.conflicts || []).length;
+        conflictEl.className = 'banner' + (n === 0 ? ' clean' : '');
+        conflictEl.innerHTML = n === 0
+            ? 'Every source agrees. Nothing to reconcile.'
+            : '<strong>' + n + ' record' + (n === 1 ? '' : 's') + ' disagree between sources.</strong> '
+              + 'That is shown rather than resolved on purpose: picking one silently is how these '
+              + 'differences went unnoticed. The value on each card is the authoritative one.';
+
+        if (model.transcript && !model.transcript.exists) {
+            conflictEl.innerHTML += '<div class="note">Transcript: not built yet — '
+                + esc(model.transcript.reason) + '.</div>';
+        }
+        stateEl.style.display = 'none';
+    }
+
+    function fail(msg) {
+        stateEl.className = 'banner';
+        stateEl.textContent = msg;
+    }
+
+    // Gather, then project. Every read is best-effort: a student who has never touched a
+    // subsystem legitimately has no document there, and that must render as zero rather than as
+    // an error. Nothing here writes.
+    async function load() {
+        if (!window.HomeDirectory) { return fail('Home Directory module failed to load.'); }
+        var user = null;
+        try {
+            user = window.FirebaseAuth ? await FirebaseAuth.waitForAuth() : null;
+        } catch (e) { /* fall through to the signed-out message */ }
+        if (!user) { return fail('Sign in to see your records.'); }
+
+        var src = { profile: null, serverAwards: [], gates: [], quizAttempts: [], flagCaptures: 0, local: {}, derivedXp: null };
+
+        try {
+            if (window.FirestoreManager && FirestoreManager.getUserProfile) {
+                src.profile = await FirestoreManager.getUserProfile(user.uid);
+            }
+        } catch (e) { /* profile unreadable; the projection treats it as absent */ }
+
+        try {
+            var raw = localStorage.getItem('hexworth_streak');
+            if (raw !== null) src.local.streak = parseInt(raw, 10);
+        } catch (e) { /* storage blocked */ }
+
+        try {
+            if (window.XPCalculator && XPCalculator.recalculate) {
+                src.derivedXp = XPCalculator.recalculate();
+            }
+        } catch (e) { /* leaves stored xp as the shown value, flagged as server rather than derived */ }
+
+        try { render(window.HomeDirectory.build(src)); }
+        catch (e) { fail('Could not assemble your records: ' + e.message); }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () { setTimeout(load, 0); });
+    } else { setTimeout(load, 0); }
+})();
+</script>
+</body>
+</html>
