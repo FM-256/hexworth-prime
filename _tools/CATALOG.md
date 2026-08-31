@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 03:46 · **1164 scripts** · 28 wired into a gate · 274 called by other code · 190 only mentioned in docs · 672 referenced by nothing · 474 not in git
+**Generated:** 2026-08-31 03:47 · **1164 scripts** · 29 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 473 not in git
 
 ## Read this before writing a new script
 
@@ -52,6 +52,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
+| `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -740,14 +741,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 4 scripts, 4 referenced by nothing
+### `_tools/hexos` — 3 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
-| `dead-entry-gate.test.js` | ORPHAN | 0 | 2026-08-31 | no | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 

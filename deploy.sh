@@ -463,6 +463,7 @@ HEXOS_FAILED=""
 for hg in \
     "manifest drift|node _tools/hexos/gen-app-manifest.js --check" \
     "manual/prose/link coverage|node _tools/hexos/hex-manual-check.js" \
+    "dead-entry scanner|node _tools/hexos/dead-entry-gate.test.js" \
     "dead entries|node _tools/hexos/dead-entry-gate.js" \
     "safeEntry drift + origin escape|node _tools/hexos/safe-entry.test.js"; do
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
