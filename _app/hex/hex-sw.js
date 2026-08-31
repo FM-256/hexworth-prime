@@ -1,5 +1,5 @@
 /**
- * hex-sw.js — NOT REGISTERED. DO NOT REGISTER IT. Kept for HEXOS-5b.
+ * hex-sw.js. NOT REGISTERED. DO NOT REGISTER IT. Kept for HEXOS-5b.
  *
  * ============================ READ THIS BEFORE WIRING IT UP ============================
  * Nothing registers this file, and that is deliberate. It is retained because the caching
@@ -12,7 +12,7 @@
  * worker scoped to '/hex/' becomes the controller for the two Hex OS pages and tenant-sw
  * stops seeing those navigations. Verified in a browser, not inferred: a root worker's
  * injection stops the moment a narrower worker registers, and it stops even if the narrower
- * worker's fetch handler does nothing at all -- the controller is chosen by scope, not by
+ * worker's fetch handler does nothing at all: the controller is chosen by scope, not by
  * behaviour. So "register it but pass through" is NOT a safe middle ground.
  *
  * WHY A GUARD DOES NOT RESCUE IT. The first attempt shipped a load-time check: read
@@ -28,19 +28,22 @@
  *
  * WHAT HEXOS-5b SHOULD DO INSTEAD. Only one worker can control a page, so Hex OS offline
  * caching belongs IN the single root-scoped worker that already controls every page, beside
- * the tenant injection -- not in a second worker competing for these two paths. The cache
+ * the tenant injection, not in a second worker competing for these two paths. The cache
  * strategy below transfers as-is; the registration does not.
  *
  * Nothing was lost by removing it. Chrome's Page.getInstallabilityErrors returns [] for /hex/
  * with no worker registered, so the PWA still installs. Offline launch is the only casualty.
  * =====================================================================================
  *
- * SCOPE IS THE WHOLE SAFETY STORY. This file lives at /hex/ and is registered with
- * { scope: '/hex/' }, so it controls /hex/* and nothing else. It must never be moved to the root
- * or registered with scope '/': tenant-sw.js already registers at scope '/' (see
- * _app/tenant/index.html), and a second root-scoped worker would evict it, taking tenant routing
- * down platform-wide. A worker cannot claim a scope above its own path, so keeping this file
- * inside /hex/ makes that mistake structurally impossible rather than merely discouraged.
+ * Everything below this line describes the design AS IT WOULD BEHAVE IF REGISTERED. It is not
+ * registered. Read it as the spec for HEXOS-5b, not as a description of what is running.
+ *
+ * SCOPE. This file lives at /hex/, so the narrowest scope it could ever claim is '/hex/'. That
+ * placement is deliberate: a worker cannot claim a scope above its own path, which makes
+ * "accidentally becomes a root worker and evicts tenant-sw.js" structurally impossible rather
+ * than merely discouraged. Note this protects only the WIDENING direction. It does nothing about
+ * the failure that actually matters here, which runs the other way: at '/hex/' it would be
+ * NARROWER than tenant-sw.js at '/', and the narrower scope wins. See the header.
  *
  * NETWORK-FIRST, DELIBERATELY. A cache-first worker is how a PWA ships a bug that outlives the
  * fix: students keep getting yesterday's shell no matter how many times we deploy. Every request
@@ -89,8 +92,8 @@ self.addEventListener('fetch', (event) => {
     if (req.method !== 'GET') return;
 
     const url = new URL(req.url);
-    // Same-origin only, and only inside this worker's own scope. Everything else -- lab pages,
-    // course content, the sandbox API -- is left entirely alone, so nothing this worker does can
+    // Same-origin only, and only inside this worker's own scope. Everything else, meaning lab
+    // pages, course content and the sandbox API, is left alone, so nothing this worker does can
     // serve a student a stale version of anything outside Hex OS.
     if (url.origin !== self.location.origin) return;
     const inScope = url.pathname.startsWith('/hex/') || url.pathname === '/data/hex-apps.json';
