@@ -315,7 +315,7 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 const { recomputeCtfStats } = require('./ctf-stats');
 // The single definition of which quiz score is the student's score. Extracted for the same
 // reason as recomputeCtfStats above: this fact had three implementations that disagreed.
-const { shouldReplaceStoredScore } = require('./quiz-score-policy');
+const { shouldReplaceStoredScore, buildQuizUpdate } = require('./quiz-score-policy');
 const _recomputeCtfStats = (uid) => recomputeCtfStats(db, FieldValue, uid);
 
 /* ── #306: THE REVEAL GATE, ENFORCED ──────────────────────────────────────────────
@@ -1304,16 +1304,19 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
             const prior = snap.exists ? (snap.data().quizzes || {})[itemId] : null;
             const priorScore = prior && typeof prior.score === 'number' ? prior.score : null;
 
-            if (shouldReplaceStoredScore(priorScore, quizScore)) {
-                updates[`quizzes.${itemId}`] = {
-                    score: quizScore,
-                    passedAt: new Date().toISOString()
-                };
-            }
-            // A lower score still records the attempt: houseProgress.quizzesPassed and
-            // updatedAt are in `updates` either way, and users/{uid}/quiz_attempts already
-            // holds the full ledger. Only the best-score SUMMARY is protected here.
-            tx.update(userRef, updates);
+            /* EVERY ATTEMPT BUILDS ITS OWN PAYLOAD. `updates` must never be mutated here:
+               Firestore re-invokes this same closure on a contention retry, so a quizzes field
+               set by an aborted attempt would still be present on the next one and would commit
+               against a freshly-read higher score -- reintroducing the exact race this
+               transaction exists to prevent. buildQuizUpdate returns a new object each call, so
+               that state cannot exist. */
+            const txUpdates = buildQuizUpdate(updates, itemId, priorScore, quizScore,
+                new Date().toISOString());
+
+            // A lower score still records the attempt: houseProgress.quizzesPassed and updatedAt
+            // are in the payload either way, and users/{uid}/quiz_attempts already holds the full
+            // ledger. Only the best-score SUMMARY is protected here.
+            tx.update(userRef, txUpdates);
         });
     }
 

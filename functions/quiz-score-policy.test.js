@@ -18,14 +18,19 @@
  * callable would fire real webhooks -- that has already posted fake flags to the live Discord for
  * hours once. These tests exercise the pure policy function directly, plus a source-level check
  * that index.js has not quietly gone back to writing the field without consulting it. A
- * behavioural test of the transaction belongs in an emulator run with .env neutralised, and is
- * NOT claimed here.
+ * behavioural test of the transaction belongs in an emulator run with .env neutralised.
+ *
+ * WHAT IS AND IS NOT COVERED HERE. The RETRY SEQUENCE is covered: buildQuizUpdate is pure, so
+ * calling it twice with the two reads a contention retry would see reproduces the exact scenario
+ * that broke the first version of this fix, without a database. What is NOT covered is that
+ * Firestore actually retries the way this assumes, or that tx.update commits what we hand it --
+ * that needs the emulator, and is not claimed.
  */
 
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { shouldReplaceStoredScore } = require('./quiz-score-policy');
+const { shouldReplaceStoredScore, buildQuizUpdate } = require('./quiz-score-policy');
 
 let pass = 0, fail = 0;
 const chk = (name, cond, detail) => {
@@ -56,6 +61,33 @@ chk('non-numeric new score is never written', shouldReplaceStoredScore(50, '90')
 chk('a corrupt prior score does not block a good new one',
     shouldReplaceStoredScore(NaN, 70) === true);
 
+// ---- THE RETRY BUG, which the first version of this fix actually had ----
+// Firestore re-invokes a transaction callback on contention WITHOUT resetting anything the
+// closure captured. The original fix mutated a shared `updates` object, so an aborted attempt
+// left its quizzes field behind and the retry committed it over a freshly-read higher score --
+// the exact race the transaction was added to prevent. These simulate that sequence.
+const base = { updatedAt: 'SERVER_TS', 'houseProgress.web.quizzesPassed': 'INC(1)' };
+
+const attempt1 = buildQuizUpdate(base, 'quiz-x', null, 60, 't1');   // no prior -> writes 60
+chk('attempt 1 (no prior score) writes the score',
+    attempt1['quizzes.quiz-x'] && attempt1['quizzes.quiz-x'].score === 60,
+    JSON.stringify(attempt1));
+
+// ...that attempt aborts. A concurrent higher submission lands. The SAME closure runs again.
+const attempt2 = buildQuizUpdate(base, 'quiz-x', 95, 60, 't2');
+chk('RETRY after a concurrent 95 does NOT carry attempt 1\'s stale 60',
+    !('quizzes.quiz-x' in attempt2),
+    'stale key survived the retry: ' + JSON.stringify(attempt2));
+
+chk('the retry still writes the non-score fields',
+    attempt2.updatedAt === 'SERVER_TS' && attempt2['houseProgress.web.quizzesPassed'] === 'INC(1)',
+    JSON.stringify(attempt2));
+
+chk('the shared base object is never mutated', !('quizzes.quiz-x' in base),
+    'buildQuizUpdate mutated its input, which is how the retry bug worked: ' + JSON.stringify(base));
+
+chk('two calls return independent objects', attempt1 !== attempt2);
+
 // ---- The wiring: index.js must actually USE this, not reimplement it ----
 // Without this, the policy module could be perfect and recordProgress could still overwrite --
 // which is precisely the shape of the original bug (a correct rule stated in two places and
@@ -63,24 +95,31 @@ chk('a corrupt prior score does not block a good new one',
 const idx = fs.readFileSync(path.join(__dirname, 'index.js'), 'utf8');
 chk('index.js imports the shared policy',
     /require\('\.\/quiz-score-policy'\)/.test(idx));
-chk('recordProgress guards the quizzes write with the policy',
-    /if \(shouldReplaceStoredScore\(priorScore, quizScore\)\) \{/.test(idx),
+chk('recordProgress builds its payload through the shared policy',
+    /buildQuizUpdate\(updates, itemId, priorScore, quizScore,/.test(idx),
     'the write is not gated by the shared decision');
+chk('recordProgress does NOT mutate the shared updates object inside the transaction',
+    !/runTransaction\(async \(tx\) => \{[\s\S]*?updates\[`quizzes/.test(idx),
+    'mutating the captured object is the retry bug');
+chk('the transaction commits the per-attempt payload, not the shared object',
+    /tx\.update\(userRef, txUpdates\)/.test(idx));
 
-// The unconditional assignment must be gone. Match an assignment to quizzes.{itemId} that is NOT
-// preceded within a few lines by the policy call.
-const quizWrites = idx.match(/updates\[`quizzes\.\$\{itemId\}`\]\s*=/g) || [];
-chk('exactly one place writes the quizzes summary field', quizWrites.length === 1,
-    `${quizWrites.length} writers found`);
-const guardIdx = idx.indexOf('shouldReplaceStoredScore(priorScore, quizScore)');
-const writeIdx = idx.indexOf('updates[`quizzes.${itemId}`] =');
-chk('that write sits INSIDE the policy guard, not before it',
-    guardIdx !== -1 && writeIdx !== -1 && writeIdx > guardIdx && (writeIdx - guardIdx) < 200,
-    `guard@${guardIdx} write@${writeIdx}`);
+// index.js must not write the summary field ITSELF any more. The only writer is buildQuizUpdate
+// in quiz-score-policy.js -- that is what makes the policy unavoidable rather than merely
+// available. Note this counts writes in index.js only; the policy module's own write is expected.
+const directWrites = idx.match(/\[`quizzes\.\$\{itemId\}`\]\s*=/g) || [];
+chk('index.js contains NO direct write to the quizzes summary field',
+    directWrites.length === 0,
+    `${directWrites.length} direct writer(s) in index.js; the policy module must be the only one`);
+
+const pol = fs.readFileSync(path.join(__dirname, 'quiz-score-policy.js'), 'utf8');
+const polWrites = pol.match(/payload\[`quizzes\.\$\{itemId\}`\]\s*=/g) || [];
+chk('the policy module is the single writer', polWrites.length === 1,
+    `${polWrites.length} writer(s) in quiz-score-policy.js`);
 
 // The transaction matters: a read-then-write would let a slower lower submission land last.
-chk('the compare-and-write runs in a transaction',
-    /runTransaction\(async \(tx\) => \{[\s\S]{0,600}?shouldReplaceStoredScore/.test(idx),
+chk('the payload is built INSIDE the transaction, from that attempt\'s own read',
+    /runTransaction\(async \(tx\) => \{[\s\S]{0,900}?buildQuizUpdate\(/.test(idx),
     'a plain read-then-write loses a race between two submissions');
 
 console.log(`\n  ${pass}/${pass + fail} passed`);

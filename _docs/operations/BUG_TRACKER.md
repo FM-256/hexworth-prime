@@ -61,7 +61,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-236 (the false comment that hid this). Correcting that comment does NOT close
   this; the comment lie and the cross-tab gap are separate defects.
 
-### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  open
+### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-08-31 · by self · surveying per-user state for HEXOS-4 (home directory)
 - **Area:** `functions/index.js:1254-1259` (`recordProgress`, case `'quiz'`) vs
   `functions/account-merge.js:83-85` (`mergeQuizzes`) vs `_app/components/FirestoreManager.js:725`
@@ -75,7 +75,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   intended policy is clearly best-score; the primary writer just does not implement it.
   `ModuleProgress.completeQuiz` calls this only on a pass (`:766-768`), so a failed retake is
   harmless — it is specifically a passing retake that destroys the better result.
-- **Fix:** not applied. `recordProgress` should compare before assigning, matching `mergeQuizzes`.
+- **Fix:** `d8e4e85a8` + retry-safety follow-up. The policy moved into
+  `functions/quiz-score-policy.js` (one module, imported -- the `ctf-stats.js` remedy for the
+  same drift). `recordProgress` compares inside a transaction and builds its payload with
+  `buildQuizUpdate`, which returns a NEW object per attempt: the first cut mutated a shared
+  object, and a Firestore retry would have committed an aborted attempt's stale lower score
+  over a freshly-read higher one, reintroducing this exact race. Caught by Nancy, covered by
+  a retry-sequence test. Best-score is a DEFAULT, not a settled question.
+- **Still open:** scores already overwritten are NOT restored. They are recoverable from
+  `users/{uid}/quiz_attempts`; that backfill is a production data write and its own decision.
   Needs a decision first: is the contract best-score or latest-score? Whichever it is, all three
   sites must state it identically, and the losing scores should remain recoverable from
   `users/{uid}/quiz_attempts`, which already records every submission.
@@ -84,7 +92,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-240 · `users/{uid}/quiz_attempts` (`functions/index.js:2134`) is the
   full ledger and is unaffected, so no data is destroyed — only the summary field is wrong.
 
-### BUG-240 — an account merge silently drops 14 of at least 17 user subcollections  ·  [P1]  ·  open
+### BUG-240 — an account merge silently drops 14 of at least 17 user subcollections  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `functions/account-merge.js:193-203`
 - **Symptom:** when two accounts are merged, the surviving account keeps gates, flag captures and
@@ -103,7 +111,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `edt_resets`, `flag_attempts`, `flag_deliveries`, `gate_attempts`, `lab_attempts`,
   `mission_attempts`, `mission_completions`, `mission_progress`, `pfi_attempts`, `quiz_attempts`,
   `server_awards`.
-- **Fix:** not applied. Enumerate the source's subcollections at runtime rather than naming them,
+- **Fix:** `d8e4e85a8`. Enumerates via `listCollections()`, default COPY, with an explicit
+  SKIP map carrying a reason per entry. `sync` is skipped because copying uid-A's
+  localStorage blob into uid-B contaminates B's next restore -- step 8 already deletes A's
+  copy for that reason. The skip-list is built on what a collection DOES, not name shape,
+  because `_attempts` would wrongly catch the quiz/mission/lab ledgers.
+- **NOT YET RUN against production accounts.** Editing the script is safe; running it is a
+  direct admin-SDK production write needing its own authorization. Original text follows:
+  enumerate the source's subcollections at runtime rather than naming them,
   so the set cannot go stale. Attempt/rate-limit collections may be deliberately droppable, but
   that should be an explicit skip-list with reasons, not an accident of omission.
 - **Verified:** the three `copySubcollection` calls read directly. The 17-name inventory is a
@@ -113,7 +128,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   sweeping in top-level collections; both detectors were wrong before this one was right.
 - **Related:** BUG-241 · `feedback_check_the_detector_before_the_data`
 
-### BUG-239 — gate provenance is recorded server-side, then flattened on restore  ·  [P1]  ·  open
+### BUG-239 — gate provenance is recorded server-side, then flattened on restore  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `_app/components/FirestoreManager.js` `_restoreGateProgress` ·
   `functions/index.js:260-271`
@@ -124,8 +139,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   where `source` is `'client-attested'` for gates 6-8. The restore path reads only completion and
   writes a bare `'true'` string into localStorage. The distinction survives in Firestore and dies
   at the browser boundary.
-- **Fix:** not applied. Restore should carry provenance, and anything gating real content should
-  require `verified === true` rather than the flattened flag.
+- **Fix:** `d8e4e85a8`. `_restoreGateProgress` now writes `gate{N}_verified` beside the
+  existing flag. **Zero consumers changed, deliberately:** gates 6-8 are client-attested by
+  design and their `verified` is false permanently, so requiring `verified === true` anywhere
+  would lock every completer of those gates out forever.
+- **Still open:** whether client attestation should gate vault content at all. That is a
+  product decision about the vault's trust model, not a bug fix.
 - **Verified:** both sides read directly, 2026-08-31.
 - **Note:** the comment at `functions/index.js:259-261` states this distinction exists *because*
   "the vault ended up trusting forged progress". The field was added to prevent a known incident;
@@ -151,7 +170,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   (`ModuleProgress.js:1658`, `XPCalculator.js:25`, `FirestoreManager.js:1377`, `:1595`), so an id
   valid to one filter is garbage to another. Not separately logged; it is the same root defect.
 
-### BUG-237 — the updateStreak Cloud Function has no caller, and Math.max pins the loser  ·  [P2]  ·  open
+### BUG-237 — the updateStreak Cloud Function has no caller, and Math.max pins the loser  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-08-31 · by self · same survey
 - **Area:** `functions/index.js:1282` (`exports.updateStreak`) ·
   `_app/components/ModuleProgress.js:894-916` · `_app/components/FirestoreManager.js:1408-1409`
@@ -163,11 +182,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   invocation of `updateStreak` returns nothing — so the server field is stale, while
   `syncBidirectional` merges with `Math.max(cloud, local)`. Once the stale server value is the
   higher one, it can never be lowered.
-- **Fix:** not applied. Either wire the CF and make it authoritative, or delete it and let the
-  client own the field. Two definitions merged by `max` is the worst of the three options.
+- **Fix:** `d8e4e85a8`. The orphaned CF is deleted and archived at
+  `functions/_archive/updateStreak-orphaned-2026-08-31.js`. **`Math.max` was KEPT.** Removing
+  it was my original proposal and Nancy rejected it as the most dangerous item in the slate:
+  it is cross-device reconciliation, and dropping it would let a month-idle device sync its
+  stale 0 over a real 10-day streak. Silent, no error.
+- **Still open:** nothing. The remaining single definition is the client's.
 - **Verified:** CF exists at the cited line; no client caller found, 2026-08-31.
 
-### BUG-236 — a comment asserts both storages are written; only 1 of 12 writers does  ·  [P3]  ·  open
+### BUG-236 — a comment asserts both storages are written; only 1 of 12 writers does  ·  [P3]  ·  fixed-not-deployed (comment only — see BUG-242)
 - **Found:** 2026-08-31 · by Nancy · HEXOS-5 PWA review
 - **Area:** `_app/components/TenantShell.js:60`
 - **Symptom:** the comment states "The tenant config is cached in sessionStorage AND localStorage
@@ -176,9 +199,14 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   cross tabs.
 - **Root cause:** the comment described the lobby enrollment path and was never revisited when the
   dashboard join paths were added.
-- **Fix:** not applied. Either correct the comment, or make the dashboards write both so the
-  documented contract becomes true. The second is preferable — code elsewhere reads
-  `sessionStorage.getItem(...) || localStorage.getItem(...)` expecting the fallback to be real.
+- **Fix:** `d8e4e85a8` — the comment now states which storage each of the twelve join paths
+  actually writes. The other option, making the ten dashboards write localStorage so the
+  documented contract becomes true, was REVIEWED AND REJECTED: on a shared or lab machine a
+  localStorage blob outlives the browser session, and because the tenant re-check fails open on a
+  network error it could render one student's tenant branding into the next student's session.
+  Note my own first justification for rejecting it was wrong — I claimed it would reopen the
+  2026-08-04 revocation hole, and Nancy showed `verifyTenantStillActive` does not branch on
+  storage source, so it would not. The shared-machine argument is the real one.
 - **Verified:** grepped every writer, 2026-08-31, independently by Nancy, Chris and self.
 - **Why a P3 comment is worth an entry:** it cost a full review cycle today. The first HEXOS-5
   tenant guard relied on that localStorage fallback for its cross-tab case, and the confidence to

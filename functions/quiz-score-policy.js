@@ -56,4 +56,39 @@ function shouldReplaceStoredScore(priorScore, newScore) {
     return newScore >= priorScore;
 }
 
-module.exports = { shouldReplaceStoredScore };
+/**
+ * Build the update payload for one quiz write attempt.
+ *
+ * RETURNS A NEW OBJECT, ALWAYS. This exists because the first version of the fix mutated a shared
+ * `updates` object inside a Firestore transaction callback. Firestore re-invokes that same closure
+ * on a contention retry without resetting anything, so:
+ *
+ *   attempt 1  prior=null  -> decides WRITE, sets updates['quizzes.X'] = {score: 60}
+ *              ...commit aborts, another write landed on users/{uid} first
+ *   attempt 2  prior=95    -> decides SKIP, so the `if` body never runs
+ *                            ...but updates['quizzes.X'] = {score: 60} is STILL THERE from
+ *                            attempt 1, and commits, overwriting the 95.
+ *
+ * The retry path therefore reintroduced the exact race BUG-241 was written to close. Copying the
+ * object at the call site would fix it, but only until someone forgets; returning a fresh object
+ * from a pure function makes the stale-key state unrepresentable. The same idiom is used by
+ * submitScore's top-10 transaction in index.js, which rebuilds its payload from the fresh read on
+ * every attempt rather than carrying anything in from outside.
+ *
+ * @param {object} baseUpdates  fields written regardless of the score decision (updatedAt,
+ *                              houseProgress counters). Not mutated.
+ * @param {string} itemId       the quiz id
+ * @param {number|null} priorScore  score currently stored, or null if none
+ * @param {number} newScore     the score just submitted
+ * @param {string} nowIso       timestamp for passedAt, passed in so this stays pure
+ * @returns {object}            a new payload; includes the quizzes field only if it should be written
+ */
+function buildQuizUpdate(baseUpdates, itemId, priorScore, newScore, nowIso) {
+    const payload = Object.assign({}, baseUpdates);
+    if (shouldReplaceStoredScore(priorScore, newScore)) {
+        payload[`quizzes.${itemId}`] = { score: newScore, passedAt: nowIso };
+    }
+    return payload;
+}
+
+module.exports = { shouldReplaceStoredScore, buildQuizUpdate };
