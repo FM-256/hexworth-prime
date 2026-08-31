@@ -187,7 +187,15 @@
             // at least says something is broken. A reviewer caught the asymmetry.
             if (!d || !Array.isArray(d.apps)) throw new Error('the app list is malformed: no "apps" array');
             if (!d.apps.length) throw new Error('the app list is empty');
-            APPS = d.apps.slice().sort(function (x, y) { return x.name.localeCompare(y.name); });
+            // Isolate a bad ROW; do not let it take the page down. A row missing `name` used to
+            // throw inside .then() on undefined.localeCompare, reject the chain, and replace the
+            // entire launcher with a raw JS error for every student. One malformed row out of 190
+            // was a total outage, while the very next lines already knew how to drop a row with a
+            // bad `entry` and report the count.
+            var malformed = d.apps.filter(function (a) { return !a || typeof a.name !== 'string' || !a.id; });
+            APPS = d.apps.filter(function (a) { return a && typeof a.name === 'string' && a.id; })
+                         .sort(function (x, y) { return x.name.localeCompare(y.name); });
+            if (!APPS.length) throw new Error('every row in the app list is malformed');
             var counts = {}, order = [];
             APPS.forEach(function (a) {
                 if (!counts[a.category]) { counts[a.category] = 0; order.push(a.category); }
@@ -212,6 +220,7 @@
             var noIcon = APPS.filter(function (a) { return !a.icon; }).length;
             var bad = APPS.filter(function (a) { return !safeEntry(a.entry); }).length;
             note.textContent = APPS.length + ' apps from the same manifest the shell reads. '
+                + (malformed.length ? malformed.length + ' row(s) dropped as malformed. ' : '')
                 + noIcon + ' have no icon and show an initial instead'
                 + (bad ? '; ' + bad + ' have an entry this page refuses to link' : '')
                 + '. clientGuard shown on a tile is what the page DECLARES, not enforcement.';

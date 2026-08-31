@@ -44,14 +44,31 @@ const APP = path.join(REPO, '_app');
 const MANIFEST = path.join(APP, 'data/hex-apps.json');
 const BASELINE = path.join(REPO, '_tools/hexos/unreached-baseline.json');
 
-/** Every .html file under _app, so inbound links can be scanned once rather than per app. */
-function allHtml(dir, out) {
+/**
+ * Every .html AND .js file under _app.
+ *
+ * The .js half is not optional and its absence was not a small gap. An earlier version scanned
+ * HTML only, and a reviewer traced the result: LearningPaths.js, HouseRenderer.js, HubRegistry.js
+ * and ArcticData.js build the platform's dominant navigation for the `course` and `cert-prep`
+ * categories, and dashboard.html loads LearningPaths.js directly. So about 18 of the 21 entries
+ * this gate called "unreached" were scanner blindness, and I wrote them into a baseline file
+ * whose own text asserts "nothing links to" them.
+ *
+ * The second-order damage was worse than the mislabelling. Baselining a false positive removes
+ * regression protection for that entry permanently: delete aws-ccp from LearningPaths.js next
+ * month and the gate reports no change, because it was already "known unreached" for an
+ * unrelated reason. The category most likely to break was the category with zero coverage.
+ *
+ * Literal string sweep, not execution. A href assembled from variables at runtime is still
+ * invisible, and that residue is what the baseline is legitimately for.
+ */
+function allSource(dir, out) {
     out = out || [];
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === '_archive') continue;
         const p = path.join(dir, e.name);
-        if (e.isDirectory()) allHtml(p, out);
-        else if (e.name.endsWith('.html')) out.push(p);
+        if (e.isDirectory()) allSource(p, out);
+        else if (e.name.endsWith('.html') || e.name.endsWith('.js')) out.push(p);
     }
     return out;
 }
@@ -75,11 +92,15 @@ function main() {
     // /x/index.html?a=1 all count as reaching the same entry: a link that works in a browser
     // must count as a link here, or the gate manufactures unreachability that does not exist.
     const linked = new Set();
-    for (const f of allHtml(APP)) {
+    for (const f of allSource(APP)) {
         const html = fs.readFileSync(f, 'utf8');
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.
-        const re = /href\s*=\s*["']([^"']+)["']/g;
+        // In .js, a path lives in a string literal or an object field (courseHref, entry, url),
+        // not in an href= attribute. Sweep quoted strings that look like site paths as well.
+        const re = f.endsWith('.js')
+            ? /["'`]((?:\/|(?:houses|labs|games|arcade|dark-arts|cloud|signal|career)\/)[^"'`\s]*\.html|\/[A-Za-z0-9_\-\/]+\/)["'`]/g
+            : /href\s*=\s*["']([^"']+)["']/g;
         let m;
         while ((m = re.exec(html))) {
             let h = m[1].split('?')[0].split('#')[0];

@@ -224,25 +224,26 @@ function main() {
     const GRID = path.join(REPO, '_app/hex/apps.html');
     if (fs.existsSync(GRID)) {
         const grid = fs.readFileSync(GRID, 'utf8');
-        const rendered = new Set();
-        const rx = /\ba\.([a-zA-Z]+)/g;
-        let g2;
-        while ((g2 = rx.exec(grid))) rendered.add(g2[1]);
-        // Strip comments FIRST, then look for the field name in what remains. An earlier version
-        // matched single-quoted strings with /'[^']{12,}'/ and found nothing: quote pairing runs
-        // sequentially across the file, so one apostrophe inside any comment offsets every
-        // subsequent pair. It reported clean while the false claim sat in plain sight. That is a
-        // detector keyed on the wrong surface, which is the failure this gate exists to catch,
-        // committed inside the gate. Stripping comments is the same technique keysOf() already
-        // uses here, and it also stops THIS file's own explanatory prose from self-triggering.
+        // Comments stripped FIRST, then BOTH halves read the same text. An earlier version built
+        // `rendered` from raw source while `lying` used the stripped body: an asymmetric
+        // comparison in which a future comment reading "a.tenantAssignable is intentionally not
+        // rendered" would poison `rendered` and permanently suppress detection of that field.
+        // That is the same wrong-surface bug this check exists to catch, moved to the other side.
         const body = grid
             .replace(/<!--[\s\S]*?-->/g, '')
             .replace(/\/\*[\s\S]*?\*\//g, '')
             .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+        const rendered = new Set();
+        const rx = /\ba\.([a-zA-Z]+)/g;
+        let g2;
+        while ((g2 = rx.exec(body))) rendered.add(g2[1]);
         const MANIFEST_FIELDS = ['clientGuard', 'tenantAssignable', 'sublabel', 'verb', 'source'];
         const lying = MANIFEST_FIELDS.filter(function (f) {
             if (rendered.has(f)) return false;              // it is rendered; any claim is true
-            const total = (body.match(new RegExp(f, 'g')) || []).length;
+            // \b on both ends: 'source' is a substring of resource, outsource, sourced. It does
+            // not fire today only because that word happens not to appear, which is silence by
+            // luck rather than by design.
+            const total = (body.match(new RegExp('\\b' + f + '\\b', 'g')) || []).length;
             return total > 0;                                // named in live code, never rendered
         });
         if (lying.length) {
