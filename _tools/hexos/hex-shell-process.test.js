@@ -314,6 +314,70 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('  -> exactly one arctic session survives', (ps3.match(/arctic/g) || []).length === 1, ps3.slice(0, 120));
     await pg3.close();
 
+    // ── The MIRROR leg: a slow LAUNCH, not a slow destroy ──────────────────────────────
+    // The slow-destroy fixture above passes even with the launch leg unguarded, so it could not
+    // have caught this. Here destroy is fast and launch is the slow leg, and a session becomes
+    // listable only once provisioned (ack time == visibility time, the realistic model; the
+    // fixture above uses optimistic-destroy instead). The watchdog fires while launch() is in
+    // flight, the student retries, list() cannot see the not-yet-provisioned box, and the retry
+    // takes the "launching it fresh" branch. Without launchPending that issues a SECOND launch.
+    const pg4 = await b.newPage();
+    let live4 = fixture().filter(x => x.labId === 'arctic');
+    const launch4 = [];
+    await pg4.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
+    await pg4.setRequestInterception(true);
+    pg4.on('request', r => {
+        const u = r.url(), m = r.method();
+        if (/AccessGuard\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
+        if (/FirebaseAuth\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body:
+            'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},isSignedIn:function(){return true;},refreshToken:function(){return Promise.resolve("t");}};' });
+        if (/sandbox\.hexworth\.tech/.test(u)) {
+            if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
+            const J = (o, ms) => setTimeout(() => r.respond({ status: 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), ms);
+            if (/\/list/.test(u)) return J({ sandboxes: live4 }, 50);
+            const d = u.match(/\/destroy\/([^/?]+)/);
+            if (d) { live4 = live4.filter(x => x.sessionId !== d[1]); return J({ status: 'destroyed' }, 50); }
+            if (/\/launch/.test(u)) {
+                const id = 'sess-slow-' + (launch4.length + 1);
+                launch4.push(id);
+                // Becomes visible ONLY on ack, like a real provision.
+                setTimeout(() => {
+                    live4.push({ sessionId: id, labId: 'arctic', lab: 'Arctic', status: 'running', ageMinutes: 0, url: 'https://x/' });
+                    r.respond({ status: 200, headers: CORS, contentType: 'application/json',
+                                body: JSON.stringify({ sessionId: id, url: 'https://x/' }) });
+                }, 3000);
+                return;
+            }
+            return J({}, 50);
+        }
+        r.continue();
+    });
+    await pg4.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
+    await new Promise(r => setTimeout(r, 700));
+    const type4 = async (cmd) => { await pg4.click('#cmd'); await pg4.type('#cmd', cmd); await pg4.keyboard.press('Enter'); };
+
+    await type4('restart arctic');                    // destroy fast, launch slow (3000ms)
+    await new Promise(r => setTimeout(r, 1500));      // watchdog fired at 1000ms
+    await pg4.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type4('restart arctic');                    // the retry, while launch is outstanding
+    await new Promise(r => setTimeout(r, 900));
+    const out4 = await pg4.evaluate(() => document.getElementById('out').innerText);
+    chk('a retry during an outstanding LAUNCH does not double-launch', launch4.length === 1, 'launches=' + JSON.stringify(launch4));
+    chk('  -> and says why, rather than silently doing nothing', /still outstanding/i.test(out4), out4.slice(0, 120));
+    await new Promise(r => setTimeout(r, 2600));      // first launch finally acks
+    // Assert on the SETTLEMENT message before clearing it. Omitting this is how the settlement
+    // guard first shipped unfalsifiable: removing it still passed, because nothing read what the
+    // superseded chain printed. A guard no assertion can see is the recurring defect in this file.
+    const settle4 = await pg4.evaluate(() => document.getElementById('out').innerText);
+    chk('  -> a superseded launch does not claim "restarted from clean state"',
+        !/from clean state/i.test(settle4) && /superseded/i.test(settle4), settle4.slice(-140));
+    const ps4 = await (async () => { await pg4.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+        await type4('ps'); await new Promise(r => setTimeout(r, 800));
+        return pg4.evaluate(() => document.getElementById('out').innerText); })();
+    chk('  -> exactly one arctic session exists afterwards', (ps4.match(/arctic/g) || []).length === 1, ps4.slice(0, 120));
+    await pg4.close();
+
     console.log(`\n  ${pass}/${pass + fail} passed`);
     await b.close(); srv.close();
     process.exitCode = fail ? 1 : 0;

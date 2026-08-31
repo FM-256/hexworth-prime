@@ -379,6 +379,36 @@ else
     exit 1
 fi
 
+# ── Gate 3.7: Hex shell process commands (BLOCKING, and deliberately PRE-deploy) ──
+# Same reasoning as 3.6, and for the same reason it is duplicated rather than left to
+# post-verify: post-verify runs AFTER the upload, so it would report a shipped session race
+# rather than prevent one. ps/stop/restart drive a real container scheduler with real per-user
+# capacity, and FOUR separate concurrency bugs shipped from their in-flight lock across six
+# review rounds: a double-fire race, a watchdog that could wedge the lock for the life of the
+# tab, a watchdog whose recovery path reopened the race it was built beside, and a superseded
+# chain that launched a second box after the student's own sanctioned retry. Every one was
+# caught by a reviewer driving the page. None was caught by a gate, because until now the suite
+# was only wired into post-verify.
+# Blocks on ANY non-zero, including a missing puppeteer: puppeteer is a declared dependency in
+# package.json and the smoke gate already relies on it, so its absence is a broken environment,
+# not a valid state to deploy from.
+# Runs unconditionally. A conditional skip keyed on "did shell files change" is one more
+# thing that can be wrong, and the suite costs ~35s against a deploy that uploads the site.
+echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands (ps/stop/restart)..."
+# Capture, THEN test the status. `if node ... | tail -3` would take tail's exit status, which is
+# always 0, producing a gate that can never block. That is the exact defect class this suite
+# exists to catch, and it was written into this gate on the first attempt.
+HEXPROC_OUT="$(node _tools/hexos/hex-shell-process.test.js 2>&1)"
+HEXPROC_RC=$?
+echo "$HEXPROC_OUT" | tail -3 | sed 's/^/  /'
+if [[ $HEXPROC_RC -ne 0 ]]; then
+    echo -e "${RED}DEPLOY BLOCKED${NC}: the hex shell's session commands regressed."
+    echo "These drive real containers and real per-user capacity. Full output:"
+    echo "  node _tools/hexos/hex-shell-process.test.js"
+    exit 1
+fi
+echo ""
+
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
 echo -e "${BOLD}[4/7]${NC} Deploying to Firebase..."
 echo ""

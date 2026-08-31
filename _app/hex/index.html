@@ -204,6 +204,19 @@
     // so it can never collide with a value the launch API might return.
     var SUPERSEDED = {};
 
+    // labId -> true while a launch for it is outstanding. This deliberately SURVIVES the
+    // watchdog. The watchdog frees the lock so the shell stops refusing forever, but the request
+    // it gave up waiting for is still running. If launch() is the slow leg, a retry cannot see
+    // the not-yet-provisioned session in list() and would launch a SECOND one: two live sessions
+    // for one lab, the same failure as the slow-destroy case but through the mirror leg.
+    // Guarding the launch CALL did not cover this, because the second launch is issued by a
+    // different, legitimate invocation rather than by the superseded chain.
+    // Tradeoff, stated rather than hidden: a launch that truly never settles leaves this set, and
+    // restart for that ONE lab keeps refusing until the page is reloaded. That is a bounded,
+    // visible, single-lab refusal, and it is preferable to silently consuming a second capacity
+    // slot the student did not ask for and cannot see.
+    var launchPending = {};
+
     function clearProc(gen) {
         if (procGen !== gen) return;
         procBusy = null;
@@ -634,11 +647,31 @@
                     say('run <span class="ok">ps</span> to see what is actually running.', 'muted');
                     return SUPERSEDED;
                 }
+                if (launchPending[t.labId]) {
+                    say('a launch for ' + esc(t.labId) + ' is still outstanding from an earlier '
+                        + 'restart, so this one did NOT start a second box.', 'warn');
+                    say('run <span class="ok">ps</span> in a moment to see it. Reload the page if '
+                        + 'it never appears.', 'muted');
+                    return SUPERSEDED;
+                }
+                launchPending[t.labId] = true;
                 return SL.launch(t.labId);
             }).then(function (res) {
-                if (res === SUPERSEDED) return;
+                if (res === SUPERSEDED) return;   // never set launchPending on this path
+                delete launchPending[t.labId];
+                // Guard the SETTLEMENT, not only the call. If launch() was the slow leg, the
+                // watchdog has already fired and a later invocation owns the lab; claiming
+                // "restarted from clean state" here would describe a box this chain no longer
+                // speaks for, and possibly one a later restart has since replaced.
+                if (procGen !== gen) {
+                    say('an earlier restart of ' + esc(t.labId) + ' finished after it was '
+                        + 'superseded. Its box may still be running.', 'warn');
+                    return say('run <span class="ok">ps</span> and stop anything you did not '
+                        + 'expect.', 'muted');
+                }
                 say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
             }).catch(function (e) {
+                delete launchPending[t.labId];
                 say('restart failed: ' + esc(errText(e)), 'err');
                 // Two different states, two different truths. Saying "stopped and NOT relaunched"
                 // for a destroy that never succeeded is a false claim about the student's box.
