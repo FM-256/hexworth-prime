@@ -48,7 +48,14 @@ function keysOf(src, declaration) {
         else if (src[j] === '}') { depth--; if (depth === 0) { end = j; break; } }
     }
     if (end === -1) throw new Error('unbalanced braces after ' + declaration);
-    const body = src.slice(i + 1, end);
+    // Strip comments BEFORE extracting keys. Without this, prose like "why resolve() exists:"
+    // inside a comment is read as a key named `exists`, and the gate reports a command with no
+    // manual page that does not exist. Same comments-read-as-code bug already fixed once today in
+    // the manifest generator's guard reader; a detector that misreads its input invents findings,
+    // which costs exactly as much trust as missing real ones.
+    const body = src.slice(i + 1, end)
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
     // Only keys at depth 1 of this literal, so nested objects do not leak in.
     const keys = [];
     let d = 0;
