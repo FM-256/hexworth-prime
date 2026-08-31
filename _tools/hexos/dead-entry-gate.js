@@ -77,6 +77,24 @@ function allSource(dir, out) {
 
 
 
+
+/**
+ * The two enforcement DECISIONS, extracted so they can be tested.
+ *
+ * Both branches previously lived inline in main(), which meant each was verified exactly once by
+ * hand and covered by nothing that runs again. A reviewer's point: a refactor next month could
+ * revert either to "printed, not checked" and no test would go red. That is the same shape as the
+ * defect this gate exists to catch, one layer in, which is why these are units now.
+ */
+function newFellBackFiles(seen, known) {
+    return (seen || []).filter(f => (known || []).indexOf(f) === -1);
+}
+
+function placeholderJustifications(confirmed) {
+    return Object.keys(confirmed || {})
+        .filter(id => /^UNJUSTIFIED/.test(String(confirmed[id])));
+}
+
 /** Available? Resolved once. Absence is a reported condition, not a silent downgrade. */
 let esprima = null;
 try { esprima = require('esprima'); } catch (e) { /* reported by the caller */ }
@@ -407,8 +425,7 @@ function main() {
     // writes that string whether or not anyone looked, so without something reading it back a
     // baseline full of placeholders would pass forever. It now fails the gate, which is the whole
     // difference between a marker and a speed bump.
-    const placeholder = Object.keys(confirmedNow)
-        .filter(id => /^UNJUSTIFIED/.test(String(confirmedNow[id])));
+    const placeholder = placeholderJustifications(confirmedNow);
     if (placeholder.length) {
         console.error('baseline entr(ies) recorded with a placeholder instead of a reason:');
         placeholder.forEach(id => console.error(`  ${id}`));
@@ -462,23 +479,40 @@ function main() {
     // Two entries in an earlier draft of this audit were MY tool's false positives, not defects:
     // an HTML comment containing a commented-out <script> confused a naive extractor, and a
     // type="module" script was judged by a non-module parser. Both are corrected above.
-    const KNOWN_FELLBACK = [
-        // Trimmed to the 10 that ACTUALLY fall back. Fixing the three broken files made them
-        // tokenisable, and the list still held their names: a recorded set that no longer matches
-        // reality is the same stale-count problem this work has hit repeatedly, just wearing paths
-        // instead of digits. The gate would have passed with them listed, which is why it needed
-        // checking rather than assuming.
-        '/arena/discord-sdk.js',
-        '/components/CryptoAppletRenderer.js',
-        '/components/profile/privacy-settings.html',
-        '/houses/ai/tools/ai-cost-calculator.tool.html',
-        '/houses/ai/tools/ai-llm-comparison.tool.html',
-        '/houses/ai/tools/ai-tokenizer.tool.html',
-        '/houses/key/labs/key-encryption-dh-rsa.lab.html',
-        '/houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html',
-        '/scripts/merge-registry.js',
-        '/scripts/migrate-to-content-registry.js',
-    ];
+    // A MAP, not a list, so each entry carries its own reason. The unreached baseline already
+    // enforced exactly this discipline one function away, and a reviewer's argument for carrying
+    // it here proved itself immediately: while this was a bare array under a shared comment, a
+    // WRONG cause ("modern syntax esprima 4 rejects") shipped as its justification and hid two
+    // genuinely broken student labs for a full round. A per-file reason is a place the mistake
+    // has to be written down, where someone can see it and disagree.
+    const KNOWN_FELLBACK = {
+        '/arena/discord-sdk.js':
+            'NOT a parse limit. 66 bytes reading "Not found: /@discord/embedded-app-sdk@2.4.1/..." '
+            + 'a 404 page saved as .js by a failed vendor download. No page loads it. Needs a '
+            + 're-download or a removal decision from the operator, not a code fix.',
+        '/components/CryptoAppletRenderer.js':
+            'BigInt literal (1n). Genuine esprima 4 limit; V8 parses it fine.',
+        '/components/profile/privacy-settings.html':
+            'Numeric separators / ES2018+ syntax. Genuine esprima 4 limit; V8 parses it fine.',
+        '/houses/ai/tools/ai-cost-calculator.tool.html':
+            'Numeric separators (1_000_000). Genuine esprima 4 limit; V8 parses it fine.',
+        '/houses/ai/tools/ai-llm-comparison.tool.html':
+            'Numeric separators. Genuine esprima 4 limit; V8 parses it fine.',
+        '/houses/ai/tools/ai-tokenizer.tool.html':
+            'Numeric separators. Genuine esprima 4 limit; V8 parses it fine.',
+        '/houses/key/labs/key-encryption-dh-rsa.lab.html':
+            'type="module" script using import. Legal in a browser; esprima tokenises it as a '
+            + 'script. My first audit called this BROKEN by judging a module with a non-module '
+            + 'parser, which was my error, not the file\'s.',
+        '/houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html':
+            'BigInt literals in the crypto maths. Genuine esprima 4 limit; V8 parses it fine.',
+        '/scripts/merge-registry.js':
+            'Shebang line (#!). Node strips it; esprima does not. Build script, not shipped.',
+        '/scripts/migrate-to-content-registry.js':
+            'esprima 4 misreads `stats.houses[house].new / h.total` as the `new` keyword followed '
+            + 'by a regex opener. The same keyword-vs-division ambiguity esprima exposed in my own '
+            + 'hand-rolled scanner. Build script, not shipped.',
+    };
     const newUnparsed = unparsedFiles.filter(f => !(f in KNOWN_UNPARSED));
     if (unparsedFiles.length) {
         console.log(`  note: ${unparsedFiles.length} file(s) contain a dead block that could not ` +
@@ -497,8 +531,7 @@ function main() {
         // The gate built to catch "a claim of coverage the code does not back up" had that exact
         // shape of gap inside it. Same mechanism as KNOWN_UNPARSED now: a recorded set, and a NEW
         // member fails.
-        const newFellBack = (stripDead.fellBackFiles || [])
-            .filter(f => KNOWN_FELLBACK.indexOf(f) === -1);
+        const newFellBack = newFellBackFiles(stripDead.fellBackFiles, Object.keys(KNOWN_FELLBACK));
         if (newFellBack.length) {
             console.error('\nNEW file(s) whose comments now survive un-stripped:');
             newFellBack.forEach(f => console.error(`  ${f}`));
@@ -537,4 +570,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { resolveEntry, stripDead, stripDeadBlocks };
+module.exports = { resolveEntry, stripDead, stripDeadBlocks, newFellBackFiles, placeholderJustifications };

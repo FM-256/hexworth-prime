@@ -44,7 +44,7 @@ const src = fs.readFileSync(GATE, 'utf8');
 // stripDead() with a regex and eval'd it standalone, which broke the moment it gained a helper,
 // and more importantly it tested a COPY: a function lifted out of its module is not the function
 // that runs. Requiring it exercises the real thing, dependencies included.
-const { stripDead } = require('./dead-entry-gate.js');
+const { stripDead, newFellBackFiles, placeholderJustifications } = require('./dead-entry-gate.js');
 assert(typeof stripDead === 'function', 'dead-entry-gate.js must export stripDead');
 
 const TARGET = 'houses/dead-entry-probe/index.html';
@@ -217,6 +217,36 @@ console.log(`    ${ok ? 'ok  ' : 'FAIL'} an unparseable dead block is counted, n
     console.log(`    ${ok ? 'ok  ' : 'FAIL'} without esprima: strips nothing AND counts it` +
         (ok ? '' : `  <- kept=${kept.includes('dead-entry-probe')} counted=${counted}`));
     fs.unlinkSync(tmp);
+}
+
+// ── The two ENFORCEMENT branches ──────────────────────────────────────────────────────
+// Each was verified exactly once, by hand, and covered by nothing that runs again. A reviewer's
+// point: a refactor could revert either to "printed, not checked" and no test would go red, which
+// is this gate's own defect class one layer in. My single manual check of the first one was also
+// worthless the first time I ran it -- from /tmp, where path resolution broke, so it exited 1 for
+// the wrong reason and I nearly recorded that as proof.
+const ENFORCE = [
+    ['a NEW fellback file is caught',
+        () => newFellBackFiles(['/a.js', '/b.js'], ['/a.js']).length === 1],
+    ['a recorded fellback file is NOT caught',
+        () => newFellBackFiles(['/a.js'], ['/a.js']).length === 0],
+    ['an empty recorded set means every file is new',
+        () => newFellBackFiles(['/a.js', '/b.js'], []).length === 2],
+    ['missing inputs do not throw or silently pass',
+        () => newFellBackFiles(undefined, undefined).length === 0],
+    ['an UNJUSTIFIED placeholder is caught',
+        () => placeholderJustifications({ join: 'UNJUSTIFIED: added with --i-have-checked-each.' }).length === 1],
+    ['a real written reason is accepted',
+        () => placeholderJustifications({ join: 'Kahoot-style PIN entry, reached by typed URL.' }).length === 0],
+    ['one placeholder among real reasons is still caught',
+        () => placeholderJustifications({ a: 'real reason here', b: 'UNJUSTIFIED: x' }).length === 1],
+];
+console.log('  enforcement branches:');
+for (const [name, fn] of ENFORCE) {
+    let ok = false;
+    try { ok = fn() === true; } catch (e) { ok = false; }
+    ok ? pass++ : fail++;
+    console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${name}`);
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed`);
