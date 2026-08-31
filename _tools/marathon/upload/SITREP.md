@@ -23,20 +23,30 @@ at 6/9 and fully documented. OpenStack cloud shipped.
 
 **Marathon Stream 4.** Scope `_docs/architecture/hex-os-scope.md`. Board: taskboard 321-328.
 
-### HEXOS-5 — commit `60509d818`, NOT YET DEPLOYED
-Hex OS installs to a Chromebook/tablet with a real icon and no browser chrome. **Chris PASS.**
-Nancy still reviewing at time of writing; the tree is frozen until she returns. Do not deploy on
-the strength of Chris alone — both gates are required.
+### HEXOS-5 — commit `ec39eb248`, NOT YET DEPLOYED, awaiting re-review
+Hex OS installs to a Chromebook/tablet with a real icon and no browser chrome. **Manifest only —
+there is deliberately no service worker.** Chris PASSED the earlier worker-based revision;
+**that pass does NOT carry over**, it is a different design and both gates must re-run.
 
-**The defect that mattered was the opposite of the one I guarded against.** I scoped the worker to
-`/hex/` so it could not evict `tenant-sw.js` (scope `/`). Reading that file rather than assuming,
-the real risk ran the other way: it injects `TenantRouter` + `TenantShell` into every navigation
-outside `/tenant/` and `/admin/`, and that injection IS the white-label guarantee. Longest-scope-
-wins means a `/hex/` worker outranks `/` on exactly the two Hex OS pages, so a tenant's students
-would have silently started seeing raw Hexworth branding. **Verified empirically** in an isolated
-two-worker harness, not inferred from the spec: the root worker's injection stops the moment a
-narrower worker registers. Fix: a tenant session refuses the PWA and stands down any worker
-installed before the user joined. Tenant students lose offline/installable Hex OS only.
+**Why there is no worker.** `tenant-sw.js` is registered at scope `/` and injects `TenantRouter`
++ `TenantShell` into every navigation outside `/tenant/` and `/admin/` — that injection IS the
+white-label guarantee. Scope matching prefers the LONGEST match, so any worker at `/hex/` becomes
+the controller for the two Hex OS pages and tenant-sw stops seeing them. It stops **even if the
+narrower worker's fetch handler does nothing**: the controller is chosen by scope, not behaviour.
+Tenant students would have silently started seeing raw Hexworth branding.
+
+**A load-time guard was tried and Nancy killed it, correctly.** The controller for a navigation is
+resolved BEFORE the destination document's scripts run, so on the load where the guard detects the
+tenant, the page had already been served uninjected — it only protects the NEXT load. Its cross-tab
+half could not fire either: `hexworth_tenant` reaches localStorage from **1 of 12** writers
+(`lobby.html`); the ten dashboards and `tenant/index.html` write sessionStorage only, which does not
+cross tabs. `TenantShell.js:60` claims both are written — **that comment is wrong**, and believing it
+is where the guard's confidence came from.
+
+**Nothing was traded away.** Chrome's `Page.getInstallabilityErrors` returns `[]` for `/hex/` with no
+worker registered — asserted in the gate, not assumed. Offline launch is the only casualty, and it
+was always the weak half since every lab launch needs the network. `hex-sw.js` is KEPT with a
+do-not-register header; offline belongs in the single root worker that already controls every page.
 
 ### LIVE, verified by parsing production rather than trusting deploy output
 | | |
@@ -75,13 +85,15 @@ judged; and "ES2018+ syntax" asserted twice while two labs sat dead behind it.
 
 ### NEXT
 1. **Nancy verdict on HEXOS-5**, then deploy. Do not deploy on Chris alone.
-2. **HEXOS-5b, already traced, not yet built.** Offline the shell runs `help`/`ls`/`search` across
-   all 190 apps, but `ps` degrades, because `hex-sw.js` returns early for out-of-scope URLs and so
-   never caches the shell's own `/components/*.js`. **Measured, not assumed**: a `/hex/`-scoped
-   worker DOES intercept out-of-scope subresources — scope limits which PAGES it controls, not
-   which URLs it may cache. Caching them is safe (only pages this worker controls are affected)
-   and would also fix AccessGuard failing to load offline, which currently renders the cached
-   shell ungated. Same client-side-gate limitation as always, not a new hole, but worth closing.
+2. **HEXOS-5b — offline, done properly.** Only ONE worker can control a page, so Hex OS offline
+   caching belongs IN the root-scoped worker that already controls every page, beside the tenant
+   injection — never in a second worker competing for `/hex/`. Two measured facts carry over:
+   a scoped worker DOES intercept out-of-scope subresources (scope limits which PAGES it controls,
+   not which URLs it may cache), so `/components/*.js` can be cached; and offline the shell ran
+   `help`/`ls`/`search` across all 190 apps while `ps` degraded, because those component scripts
+   were never cached. Caching them would also fix AccessGuard failing to load offline, which
+   renders the cached shell ungated — the same client-side-gate limitation as always, not a new
+   hole, but worth closing. `hex-sw.js`'s cache strategy transfers as-is; its registration does not.
 3. **HEXOS-4** (home directory) unifies ModuleProgress + badges + transcript into one per-user
    object; touches student data, so a state survey ran first.
 4. **HEXOS-6** (bootable image) is justified only by radios — monitor mode, USB, serial, SDR.
