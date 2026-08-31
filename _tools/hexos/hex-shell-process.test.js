@@ -86,6 +86,15 @@ const srv = http.createServer((q, r) => {
     r.end(fs.readFileSync(f));
 });
 
+// A stale process holding this port otherwise crashes the harness with an uncaught exception,
+// so the failure a tired operator sees at 2am is a raw stack trace rather than a clean verdict.
+srv.on('error', (e) => {
+    console.error(`  harness could not start on port ${PORT}: ${e.code || e.message}`);
+    console.error('  a previous run may still be holding it. This is a harness fault, not a');
+    console.error('  regression in the shell, but it is still a failure: nothing was verified.');
+    process.exit(1);
+});
+
 srv.listen(PORT, '127.0.0.1', async () => {
     let live = fixture();
     let sawFirebaseAuth = false;
@@ -377,6 +386,67 @@ srv.listen(PORT, '127.0.0.1', async () => {
         return pg4.evaluate(() => document.getElementById('out').innerText); })();
     chk('  -> exactly one arctic session exists afterwards', (ps4.match(/arctic/g) || []).length === 1, ps4.slice(0, 120));
     await pg4.close();
+
+    // ── A chain that FAILED must not clear a flag it never set ────────────────────────
+    // Until this fixture, no test in this file simulated a rejection at all: every mock
+    // returned 2xx, so "33/33" covered the happy and slow-happy surface only. A reviewer found
+    // the gap by inspection. Sequence: gen1's destroy is slow and then FAILS, so gen1 never
+    // reaches `launchPending = true`; meanwhile gen2 legitimately takes the lab and its launch
+    // is outstanding. gen1's catch must not delete gen2's entry, or a third retry starts a
+    // second box.
+    const pg5 = await b.newPage();
+    let live5 = fixture().filter(x => x.labId === 'arctic');
+    const launch5 = [];
+    let destroyCalls = 0;
+    await pg5.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
+    await pg5.setRequestInterception(true);
+    pg5.on('request', r => {
+        const u = r.url(), m = r.method();
+        if (/AccessGuard\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
+        if (/FirebaseAuth\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body:
+            'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},isSignedIn:function(){return true;},refreshToken:function(){return Promise.resolve("t");}};' });
+        if (/sandbox\.hexworth\.tech/.test(u)) {
+            if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
+            const J = (o, ms, st) => setTimeout(() => r.respond({ status: st || 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), ms);
+            if (/\/list/.test(u)) return J({ sandboxes: live5 }, 50);
+            const d = u.match(/\/destroy\/([^/?]+)/);
+            if (d) {
+                destroyCalls++;
+                // FIRST destroy is slow and then FAILS. Second succeeds fast.
+                if (destroyCalls === 1) return J({ error: 'Failed to destroy sandbox' }, 2500, 500);
+                live5 = live5.filter(x => x.sessionId !== d[1]);
+                return J({ status: 'destroyed' }, 50);
+            }
+            if (/\/launch/.test(u)) {
+                const id = 'sess-rej-' + (launch5.length + 1);
+                launch5.push(id);
+                setTimeout(() => {
+                    live5.push({ sessionId: id, labId: 'arctic', lab: 'Arctic', status: 'running', ageMinutes: 0, url: 'https://x/' });
+                    r.respond({ status: 200, headers: CORS, contentType: 'application/json',
+                                body: JSON.stringify({ sessionId: id, url: 'https://x/' }) });
+                }, 3000);
+                return;
+            }
+            return J({}, 50);
+        }
+        r.continue();
+    });
+    await pg5.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
+    await new Promise(r => setTimeout(r, 700));
+    const type5 = async (cmd) => { await pg5.click('#cmd'); await pg5.type('#cmd', cmd); await pg5.keyboard.press('Enter'); };
+
+    await type5('restart arctic');                    // gen1: destroy slow, then 500
+    await new Promise(r => setTimeout(r, 1400));      // gen1 watchdog fired at 1000
+    await type5('restart arctic');                    // gen2: destroy fast, launch slow, owns the flag
+    await new Promise(r => setTimeout(r, 1500));      // gen1's destroy rejects at ~2550
+    await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type5('restart arctic');                    // gen3, after gen2's watchdog freed the lock
+    await new Promise(r => setTimeout(r, 900));
+    const out5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    chk('a FAILED chain does not clear a flag it never set', launch5.length === 1, 'launches=' + JSON.stringify(launch5));
+    chk('  -> the third attempt is refused as still outstanding', /still outstanding/i.test(out5), out5.slice(0, 130));
+    await pg5.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
     await b.close(); srv.close();

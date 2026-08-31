@@ -392,8 +392,21 @@ fi
 # Blocks on ANY non-zero, including a missing puppeteer: puppeteer is a declared dependency in
 # package.json and the smoke gate already relies on it, so its absence is a broken environment,
 # not a valid state to deploy from.
-# Runs unconditionally. A conditional skip keyed on "did shell files change" is one more
-# thing that can be wrong, and the suite costs ~35s against a deploy that uploads the site.
+# Honours --force, unlike 3.6, and the asymmetry is deliberate. 3.6 is a deterministic file
+# scan with no external process: nothing about the environment can make it wrong, so it has no
+# bypass. 3.7 drives real Chromium across five pages against multi-second real-clock margins
+# that are validated on two machines and NOT under CI load. Making an environment-dependent
+# check un-bypassable would let a Chromium download failure block an unrelated hotfix. FORCE
+# already guards exactly this class here (Nexus, hub-registry, dash-hygiene, pool-draw) and
+# deliberately does not guard 3.6, so this follows the existing convention rather than
+# weakening it. Using --force to silence a gate that has found a real defect is a different
+# act entirely, and remains wrong.
+# No change-detection skip: that is one more thing that can be wrong, and the suite costs ~35s
+# against a deploy that uploads the whole site.
+if [ "$FORCE" = true ]; then
+    echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands ${YELLOW}[SKIPPED]${NC} — --force flag set"
+    echo ""
+else
 echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands (ps/stop/restart)..."
 # Capture, THEN test the status. `if node ... | tail -3` would take tail's exit status, which is
 # always 0, producing a gate that can never block. That is the exact defect class this suite
@@ -408,6 +421,7 @@ if [[ $HEXPROC_RC -ne 0 ]]; then
     exit 1
 fi
 echo ""
+fi
 
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
 echo -e "${BOLD}[4/7]${NC} Deploying to Firebase..."

@@ -387,6 +387,8 @@
                   'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
                   'outside the lab is gone.\n' +
                   'One stop or restart runs at a time; a second is refused rather than queued.\n' +
+                  'A restart is also refused while an earlier launch of the same lab is still\n' +
+                  'outstanding, so a slow launch cannot be turned into two boxes by retrying.\n' +
                   'If a request goes unanswered for 90 seconds the shell stops waiting and says so.\n' +
                   'If this shell does not know how to launch the lab, restart refuses BEFORE\n' +
                   'destroying anything, rather than leaving you with no box and no way back.\n' +
@@ -627,6 +629,7 @@
             }
             // Not running is not an error for restart: a fresh start is what was asked for.
             var destroyed = false;
+            var iSetLaunchPending = false;   // only this chain may clear what this chain set
             var step = t.sessionId
                 ? SL.destroy(t.sessionId).then(function () {
                       destroyed = true;
@@ -655,10 +658,11 @@
                     return SUPERSEDED;
                 }
                 launchPending[t.labId] = true;
+                iSetLaunchPending = true;
                 return SL.launch(t.labId);
             }).then(function (res) {
                 if (res === SUPERSEDED) return;   // never set launchPending on this path
-                delete launchPending[t.labId];
+                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
                 // Guard the SETTLEMENT, not only the call. If launch() was the slow leg, the
                 // watchdog has already fired and a later invocation owns the lab; claiming
                 // "restarted from clean state" here would describe a box this chain no longer
@@ -671,7 +675,13 @@
                 }
                 say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
             }).catch(function (e) {
-                delete launchPending[t.labId];
+                // ONLY the chain that set this may clear it. A chain whose destroy() REJECTS
+                // never reached the assignment above, and deleting unconditionally here would
+                // clear the entry a LATER, legitimate chain owns while its launch is still
+                // outstanding, letting a third retry start a second box. That is the same
+                // duplicate-session bug launchPending exists to prevent, reopened through the
+                // error leg. The success path already had this condition; the catch did not.
+                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
                 say('restart failed: ' + esc(errText(e)), 'err');
                 // Two different states, two different truths. Saying "stopped and NOT relaunched"
                 // for a destroy that never succeeded is a false claim about the student's box.
