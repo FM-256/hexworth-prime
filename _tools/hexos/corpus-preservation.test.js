@@ -26,7 +26,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { stripDead } = require('./dead-entry-gate.js');
+const { stripDead, scanJs } = require('./dead-entry-gate.js');
 
 const APP = path.resolve(__dirname, '../../_app');
 
@@ -36,7 +36,12 @@ function walk(dir, out) {
         if (e.name.startsWith('.') || e.name === 'node_modules' || e.name === '_archive') continue;
         const p = path.join(dir, e.name);
         if (e.isDirectory()) walk(p, out);
-        else if (e.name.endsWith('.html')) out.push(p);
+        // .js TOO. dead-entry-gate's own main() runs stripDead over .js via allSource(), so a
+        // sweep limited to .html cannot see a defect in the path that reads them. A reviewer found
+        // the regex-literal desync in _app/scripts/migrate-to-content-registry.js, a .js file this
+        // sweep was structurally unable to reach, and the unit fixture caught it while this gate
+        // stayed green.
+        else if (e.name.endsWith('.html') || e.name.endsWith('.js')) out.push(p);
     }
     return out;
 }
@@ -84,7 +89,8 @@ for (const f of files) {
         // while the broken stripper was restored. A detector keyed on the wrong surface, inside
         // the gate written to catch that. Verified: with that version, reverting the fix did not
         // fail this test.
-        const inScript = scriptRanges(src).some(r => at >= r[0] && at < r[1]);
+        const isJsFile = f.endsWith('.js');
+        const inScript = isJsFile || scriptRanges(src).some(r => at >= r[0] && at < r[1]);
         let legitimate;
         if (inScript) {
             // FAIL CLOSED when the file needed the fallback stripper. This classifier's own
@@ -95,8 +101,31 @@ for (const f of files) {
             // judge shares the defendant's blind spot, the judge must not acquit.
             if (usedFallback) legitimate = false;
             else {
-                const line = src.slice(src.lastIndexOf('\n', at) + 1, at);
-                legitimate = /(^|[^:])\/\//.test(line);
+                // Ask ESPRIMA, which is INDEPENDENT of the scanner being judged.
+                //
+                // Two wrong answers preceded this. First a hand-written `//` test, which reported
+                // JSDoc usage examples in TenantRouter.js and TenantShell.js as content loss the
+                // moment this sweep began reading .js. Then the shared scanner itself, which made
+                // judge and defendant share a blind spot: removing regex awareness broke BOTH, so
+                // they agreed and this gate stayed green while the unit fixture went red. That is
+                // the exact failure a reviewer named at the start of this round, reintroduced by
+                // my fix for it. esprima is a separate implementation, so a defect in the fallback
+                // scanner shows up here instead of being mirrored.
+                const region = isJsFile
+                    ? [0, src.length]
+                    : (scriptRanges(src).find(r => at >= r[0] && at < r[1]) || [0, src.length]);
+                const code = src.slice(region[0], region[1]);
+                const rel = at - region[0];
+                let ranges = null;
+                try {
+                    ranges = require('esprima').tokenize(code, { comment: true, range: true })
+                        .filter(function (t) { return t.type === 'LineComment' || t.type === 'BlockComment'; })
+                        .map(function (t) { return t.range; });
+                } catch (e) { ranges = null; }
+                // esprima cannot read it either: fail closed rather than guess.
+                legitimate = ranges === null
+                    ? false
+                    : ranges.some(function (r) { return rel >= r[0] && rel < r[1]; });
             }
         } else {
             // In markup: look for an enclosing <!-- --> considering MARKUP ONLY, with script
@@ -109,7 +138,57 @@ for (const f of files) {
     }
 }
 
-console.log('  swept ' + files.length + ' html files');
+// THE OPPOSITE DIRECTION, asked directly rather than by pattern.
+// The first version of this check looked for a quoted .html path inside a `//` line, which was
+// too narrow to see the real case: a reviewer's regex-literal desync left whole comments standing
+// in a file whose comments contain no such path. So ask esprima for every comment range in the
+// SOURCE, then check whether that comment's text is still present in the stripped output. A
+// comment that survives means any path inside it counts as a live link, which can mask a real
+// orphan. esprima is independent of the scanner being judged, which is the point.
+let survivors = 0;
+let fallbackSkipped = 0;
+const survivorFiles = [];
+for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8');
+    const out = stripDead(src, f);
+    const regions = f.endsWith('.js') ? [[0, src.length]] : scriptRanges(src);
+    for (const [a, b] of regions) {
+        const code = src.slice(a, b);
+        let comments;
+        try {
+            comments = require('esprima').tokenize(code, { comment: true, range: true })
+                .filter(function (t) { return t.type === 'LineComment' || t.type === 'BlockComment'; });
+        } catch (e) {
+            // STRUCTURAL LIMIT, stated rather than engineered around. On a file esprima cannot
+            // tokenise, there is no independent authority on what is a comment, so this check
+            // cannot judge the fallback stripper's output. That is exactly where the fallback
+            // runs, so this sweep is blind to fallback-path comment bugs BY CONSTRUCTION.
+            // I tried three times to make it see them. The reachable coverage is:
+            //   - unit fixtures in dead-entry-gate.test.js exercise the fallback directly, and
+            //     they DO catch the regex-literal desync (39/40 when it is reverted)
+            //   - the corpus href-loss sweep above still covers the deletion direction here,
+            //     because the classifier fails closed on fallback files
+            // What is NOT covered: a comment SURVIVING in a fallback file. Say so rather than
+            // let a green run imply otherwise.
+            fallbackSkipped++;
+            continue;
+        }
+        for (const c of comments) {
+            const text = code.slice(c.range[0], c.range[1]).trim();
+            if (text.length < 25) continue;                     // too short to identify reliably
+            // Must be UNIQUE in the source, or a substring match cannot tell which instance
+            // survived. Decorative separators like `// ────────` repeat dozens of times and
+            // produced a false positive on admin/audit-tool.html before this guard.
+            if (src.indexOf(text) !== src.lastIndexOf(text)) continue;
+            if (out.indexOf(text) !== -1) {
+                survivors++;
+                if (survivorFiles.length < 6) survivorFiles.push(path.relative(APP, f) + '  ' + text.slice(0, 55).replace(/\n/g, ' '));
+            }
+        }
+    }
+}
+
+console.log('  swept ' + files.length + ' html and js files');
 console.log('  ok   ' + commented + ' href(s) removed because they were commented out');
 
 if (losses.length) {
@@ -122,4 +201,21 @@ if (losses.length) {
     process.exitCode = 1;
 } else {
     console.log('  ok   0 href(s) removed from live markup');
+}
+
+if (survivors) {
+    console.error('  FAIL ' + survivors + ' commented-out path(s) SURVIVED stripping:');
+    survivorFiles.forEach(function (l) { console.error('    ' + l); });
+    console.error('');
+    console.error('  A path left inside a comment is counted as a real inbound link, which can');
+    console.error('  mask a genuine orphan. That is the over-matching direction.');
+    process.exitCode = 1;
+} else {
+    console.log('  ok   0 commented-out path(s) survived stripping');
+}
+if (fallbackSkipped) {
+    console.log('  note: ' + fallbackSkipped + ' region(s) could not be independently checked for');
+    console.log('        surviving comments, because esprima cannot tokenise them. That is the');
+    console.log('        same set the fallback stripper runs on. Unit fixtures cover it; this');
+    console.log('        sweep structurally cannot.');
 }

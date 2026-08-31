@@ -135,6 +135,22 @@ const CASES = [
     ['real comment in a fallback file is still stripped',
         `<script>let b = 1n;\n// href = "/${TARGET}"\nvar a = 1;</script>`,                    false],
 
+    // REGEX LITERAL CONTAINING QUOTES, in a fallback file. A reviewer broke the string-aware
+    // scanner with exactly this and found it LIVE in _app/scripts/migrate-to-content-registry.js:
+    // `/['"]/` has both quote characters inside a character class, the tracker read the `'` as a
+    // string opener, desynced, and 18 real `//` comments survived un-stripped. A surviving
+    // comment means a commented-out path counts as a live link.
+    // The tokenised path had ALREADY solved regex-vs-division; the new scanner inherited none of
+    // it. Both now share one scanner.
+    ['regex with quotes then a dead href',
+        `<script>let b = 1n;\nconst re = /['"]/;\n// href = "/${TARGET}"\nvar a = 1;</script>`,   false],
+    ['regex with quotes then a LIVE href',
+        `<script>let b = 1n;\nconst re = /['"]/;\nel.href = "/${TARGET}";</script>`,              true],
+    ['regex char class with a slash',
+        `<script>let b = 1n;\nconst re = /[/'"]/;\nel.href = "/${TARGET}";</script>`,             true],
+    ['division after an identifier is not a regex',
+        `<script>let b = 1n;\nconst r = total / count;\nel.href = "/${TARGET}";</script>`,        true],
+
     // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
     // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
