@@ -368,12 +368,12 @@ const FirebaseAuth = (function() {
      * A tenant experience is a branded wrapper over a Hexworth session, so it must not outlive
      * that session. Until now nothing cleared it: signOut() removed the cached user and left
      * hexworth_tenant in BOTH storages, so on a shared or lab machine the next person to use the
-     * browser inherited the previous student's tenant branding -- and, because AccessGuard reads
+     * browser inherited the previous student's tenant branding, and, because AccessGuard reads
      * this same blob to waive sorting quizzes and Dark Arts gates, their content waiver too. That
      * gap predates the cross-tab work and affected every lobby-joined student.
      *
      * DELIBERATELY NOT IN handleAuthStateChange. That listener's null branch fires on ANY
-     * transition to no-user, including the very first callback on a cold anonymous load -- and
+     * transition to no-user, including the very first callback on a cold anonymous load, and
      * the eleven tenant join flows write their config with no auth gate at all (verified: no
      * waitForAuth, no currentUser check, anywhere above the write). Purging there would delete
      * the blob on the same page load that created it, breaking the join for every legitimate
@@ -412,7 +412,7 @@ const FirebaseAuth = (function() {
 
         // Purge BEFORE awaiting Firebase: if firebaseSignOut throws, the session may still be
         // torn down, and leaving tenant context behind on a failed sign-out is the exact bleed
-        // this exists to prevent. Clearing early is safe -- re-entry re-derives it from
+        // this exists to prevent. Clearing early is safe: re-entry re-derives it from
         // enrollments/{uid}, which is written server-side.
         purgeTenantContext();
 

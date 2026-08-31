@@ -102,7 +102,7 @@
        an age check to each.
        Bounds the case nothing else catches: a student removed from a tenant that is still active.
        They never sign out, so (1) does not fire, and the tenant still resolves, so the 404 purge
-       does not either. Only the sessionStorage copy is left alone -- it dies with the tab anyway,
+       does not either. Only the sessionStorage copy is left alone: it dies with the tab anyway,
        and is written by the join flow that just verified the tenant. */
     var MIRROR_TTL_MS = 12 * 60 * 60 * 1000;   // 12h: longer than a class, shorter than a loan
     try {
@@ -113,7 +113,7 @@
                 /* UNSTAMPED, OR CORRUPT. Two ways to get here, and both must age out rather than
                    be exempt: lobby.html has always written this key WITHOUT a stamp (:706, :822),
                    and a garbage value parses to NaN. A first cut tested `if (stamp && ...)`, which
-                   is falsy for BOTH -- so the TTL would have skipped exactly the blob that
+                   is falsy for BOTH, so the TTL would have skipped exactly the blob that
                    predates it and the one that was tampered with. Stamp it on first sighting so
                    the clock starts now; that is later than the true write time, which errs toward
                    keeping a legitimate student's context rather than cutting it short.

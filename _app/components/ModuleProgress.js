@@ -1884,8 +1884,8 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
 (function() {
     try {
         /* Reads the localStorage fallback too, matching the two other auto-loaders
-           (AccessGuard.js and FirebaseAuth.js). Without it this one -- which exists for
-           standalone labs that load ModuleProgress but not AccessGuard -- was the only
+           (AccessGuard.js and FirebaseAuth.js). Without it this one, which exists for
+           standalone labs that load ModuleProgress but not AccessGuard, was the only
            gate that could not see cross-tab tenant context, so a tenant student's branding
            stayed broken on exactly those pages while everything else looked fixed.
            BUG-242. */
