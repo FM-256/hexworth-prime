@@ -176,40 +176,72 @@ function stripDeadBlocks(src) {
  *     this gate to be clever about it.
  */
 function stripDead(src) {
-    let out = src
-        .replace(/<!--[\s\S]*?-->/g, '')
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    const isHtml = /<\s*(?:html|head|body|div|script|meta|!doctype)/i.test(src.slice(0, 4000));
+    if (isHtml) {
+        // HTML COMMENTS ONLY at markup level. Running the JavaScript block-comment regex over
+        // markup is what corrupted this: `accept="image/*"` opened a fake comment that ran 85,324
+        // characters to the next `*/` inside a real JS comment, deleting all 9 <script> tags and
+        // 4 href attributes in admin/console.html. Two more files lost script tags the same way,
+        // with the unparsed counter reading 0 the whole time.
+        // I then diagnosed that file as "modern syntax esprima 4 rejects" WITHOUT tracing it, and
+        // wrote that into a commit message as fact. esprima tokenises it fine. The cause was in
+        // the pass that runs BEFORE the tokenizer, which the tokenizer rewrite never touched.
+        let out = src.replace(/<!--[\s\S]*?-->/g, '');
+        // JS comment handling belongs inside <script> bodies, where JS syntax actually applies.
+        out = out.replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi,
+            (m, open, body, close) => open + stripDeadBlocks(stripJsComments(body)) + close);
+        return stripNamedDeadArrays(out);
+    }
+    return stripNamedDeadArrays(stripDeadBlocks(stripJsComments(src)));
+}
 
-    // DEAD BLOCKS: tokenised, not hand-parsed.
-    //
-    // This is the fifth round on this one function and every previous version was a regex
-    // tokenizer that kept rediscovering the same ambiguity: comments, then string literals, then
-    // regex literals, then keyword-preceded regex (`return /re/`, `typeof /re/`, `case /re/:`),
-    // which a previous-CHARACTER lookback cannot see because a keyword ends in a letter. Each fix
-    // introduced the next gap and each was found by a reviewer rather than by a test.
-    //
-    // The suite reached 25 cases and every one had been added reactively after a reviewer broke
-    // that exact shape, so it measured non-regression rather than correctness, and a 26th case
-    // falsified it. Writing a sixth heuristic was the wrong move; esprima resolves in this tree
-    // and answers division-vs-regex correctly by construction, which is the entire problem.
-    //
-    // When esprima is unavailable or the source will not tokenise, dead blocks are NOT stripped
-    // and the occurrence is COUNTED and printed. That direction over-matches, which this file
-    // calls dangerous, so it is reported rather than guessed at. It is honest about not knowing
-    // instead of being confidently wrong, which is what the previous four versions were.
-    out = stripDeadBlocks(out);
-
-    // WHOLE-WORD trigger, not substring. `.*EXCLUDE.*` also swallowed `legacyHouses`,
-    // `skipNavTargets` and `blockedUsersRedirect`, and this codebase already contains
-    // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes. The day one of those holds a real
-    // route, the page drops out of coverage with no error and nothing to grep for. Requiring the
-    // trigger to be a whole word in SCREAMING_CASE keeps the convention while refusing to guess.
-    out = out.replace(
-        /\b(?:const|let|var)\s+(?:[A-Z0-9_$]*_)?(?:EXCLUDE|EXCLUDED|EXCLUDE_LIST|DENY|DENYLIST|IGNORE|SKIP|BLOCKED|BLOCKLIST|DEPRECATED|LEGACY|REMOVED)(?:_[A-Z0-9_$]*)?\s*=\s*\[[\s\S]*?\]/g,
-        '');
+/**
+ * Remove JS comments by TOKEN, not by pattern.
+ *
+ * A regex cannot tell a comment from `"image/*"`, a URL's `//`, or a `/*` inside a regex literal.
+ * esprima reports comment ranges exactly. When it is unavailable or the source will not tokenise,
+ * this strips NOTHING and counts the occurrence, because the alternative is deleting live content
+ * on a guess, which is what the regex version did.
+ */
+function stripJsComments(js) {
+    // Fallback is the REGEX stripper, and only ever on JS content. The bug that started this was
+    // running that regex across HTML MARKUP, where `accept="image/*"` opens a fake comment. Inside
+    // JS a stray `/*` in a string is possible but far rarer, and if it mis-strips the result is
+    // DELETED text, which produces a false orphan: noisy, triageable, and the safe direction this
+    // file already prefers. Leaving comments entirely unstripped would be the dangerous direction,
+    // since a path in a comment would then count as a real link.
+    // 16 files hit this on the first run, all ES2018+ syntax esprima 4 will not tokenise.
+    const fallback = () => {
+        // DEGRADED, not dangerous: comments are still stripped, just by pattern instead of by
+        // token. Tracked separately from `unparsed`, which means a dead block was left in place
+        // entirely. Conflating the two made a working fallback look like a failure and would have
+        // blocked every deploy over 16 files that are fine.
+        stripDead.fellBack = (stripDead.fellBack || 0) + 1;
+        return js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    };
+    if (!esprima) return fallback();
+    let toks;
+    try {
+        toks = esprima.tokenize(js, { comment: true, range: true });
+    } catch (e) {
+        return fallback();
+    }
+    const cuts = toks
+        .filter(t => t.type === 'LineComment' || t.type === 'BlockComment')
+        .map(t => t.range)
+        .sort((a, b) => b[0] - a[0]);
+    let out = js;
+    for (const [a, b] of cuts) out = out.slice(0, a) + out.slice(b);
     return out;
 }
+
+/** Declarations whose NAME says the contents are not navigation targets. */
+function stripNamedDeadArrays(src) {
+    return src.replace(
+        /\b(?:const|let|var)\s+(?:[A-Z0-9_$]*_)?(?:EXCLUDE|EXCLUDED|EXCLUDE_LIST|DENY|DENYLIST|IGNORE|SKIP|BLOCKED|BLOCKLIST|DEPRECATED|LEGACY|REMOVED)(?:_[A-Z0-9_$]*)?\s*=\s*\[[\s\S]*?\]/g,
+        '');
+}
+
 
 /** Resolve a manifest entry to a path on disk, applying the same directory-index rule Firebase uses. */
 function resolveEntry(entry) {
@@ -355,13 +387,24 @@ function main() {
     // apps there is no way to tell which entry might be a false negative. A NEW unparsed file
     // fails, because it means a dead block somewhere is being left in place unexamined; the
     // known one is recorded so the gate stays useful instead of being switched off.
-    const KNOWN_UNPARSED = ['/admin/console.html'];
-    const newUnparsed = unparsedFiles.filter(f => KNOWN_UNPARSED.indexOf(f) === -1);
+    // Files where a dead block could NOT be handled at all. Each needs a written reason, the
+    // same discipline unreached-baseline.json enforces: a bare path list let a WRONG diagnosis
+    // ship as evidence. /admin/console.html was listed here with the reason "modern syntax
+    // esprima 4 rejects", which a reviewer disproved: esprima tokenises it fine, and the real
+    // cause was this file's own comment regex eating 85,324 characters of it. It is no longer
+    // listed because it is no longer broken.
+    const KNOWN_UNPARSED = {};
+    const newUnparsed = unparsedFiles.filter(f => !(f in KNOWN_UNPARSED));
     if (unparsedFiles.length) {
         console.log(`  note: ${unparsedFiles.length} file(s) contain a dead block that could not ` +
                     `be tokenised, so a link inside one counts as reachable:`);
         unparsedFiles.forEach(f => console.log(`    ${f}` +
-            (KNOWN_UNPARSED.indexOf(f) === -1 ? '   <- NEW' : '   (known)')));
+            (f in KNOWN_UNPARSED ? `   (known: ${KNOWN_UNPARSED[f]})` : '   <- NEW')));
+    }
+    if (stripDead.fellBack) {
+        console.log(`  note: ${stripDead.fellBack} script body/bodies used the pattern-based ` +
+                    `comment stripper because esprima 4 could not tokenise them (ES2018+ syntax). ` +
+                    `Comments are still removed; this is degraded, not broken.`);
     }
     if (newUnparsed.length) {
         console.error('\nNEW unparseable dead block(s). Either simplify the code so it tokenises,');

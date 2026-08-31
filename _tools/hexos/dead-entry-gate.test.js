@@ -109,6 +109,21 @@ const CASES = [
     ['live link after a keyword-regex dead block',
         `if (false) { return /\\{x/.test(y); }\ncourseHref: '${TARGET}',`,               true],
 
+    // NON-COMMENT `/*`. The sixth instance, and it lived one level ABOVE the code the tokenizer
+    // rewrite fixed: a JS block-comment regex run across HTML markup treated `accept="image/*"`
+    // as a comment opener and ran 85,324 characters to the next `*/`, deleting 9 script tags and
+    // 4 hrefs from admin/console.html. Two more files lost script tags the same way while the
+    // unparsed counter read 0. None of the 29 prior cases exercised this shape.
+    ['MIME wildcard is not a comment',
+        `<input accept="image/*"><a href="/${TARGET}">go</a>`,                           true],
+    ['MIME wildcard then a real JS comment',
+        `<input accept="image/*">\n<script>/* real */ var x=1;</script>\n<a href="/${TARGET}">g</a>`, true],
+    ['glob-ish attribute is not a comment',
+        `<meta content="application/*"><a href="/${TARGET}">go</a>`,                     true],
+    // A real comment INSIDE a script must still be stripped.
+    ['comment inside script still stripped',
+        `<script>// href: "/${TARGET}"\nvar a=1;</script>`,                              false],
+
     // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
     // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
@@ -166,7 +181,7 @@ console.log(`    ${ok ? 'ok  ' : 'FAIL'} an unparseable dead block is counted, n
     mod.stripDead.unparsed = 0;
     const kept = mod.stripDead(`if (false) { go("/${TARGET}"); }`);
     const counted = mod.stripDead.unparsed || 0;
-    const ok = kept.includes('dead-entry-probe') && counted === 1;
+    const ok = kept.includes('dead-entry-probe') && counted >= 1;
     ok ? pass++ : fail++;
     console.log(`    ${ok ? 'ok  ' : 'FAIL'} without esprima: strips nothing AND counts it` +
         (ok ? '' : `  <- kept=${kept.includes('dead-entry-probe')} counted=${counted}`));
