@@ -26,7 +26,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { stripDead, scanJs } = require('./dead-entry-gate.js');
+const { stripDead } = require('./dead-entry-gate.js');
 
 const APP = path.resolve(__dirname, '../../_app');
 
@@ -101,8 +101,14 @@ for (const f of files) {
     // of `entry: "/foo.html"` in a .js file would have corrupted exactly what the gate depends on
     // while this sweep reported clean. A safety net woven to a different pattern than the thing
     // it catches is not a safety net.
+    // The gate's FULL .js alternation, copied rather than paraphrased. An earlier version dropped
+    // its second branch, `\/[A-Za-z0-9_\-\/]+\/` (a bare directory path like "/houses/cloud/"),
+    // and ORed in an `href=` match the gate's .js branch never uses. So a deletion of a
+    // directory-style path would have been invisible to this sweep in both src and out: silence,
+    // not a caught regression. That is the same "net woven to a different pattern than the thing
+    // it catches" defect this file was written to close, surviving in the file that closed it.
     const PAT = f.endsWith('.js')
-        ? /["'`](?:\/|(?:houses|labs|games|arcade|dark-arts|cloud|signal|career)\/)[^"'`\s]*\.html["'`]|href\s*=\s*["'][^"']*["']/g
+        ? /["'`]((?:\/|(?:houses|labs|games|arcade|dark-arts|cloud|signal|career)\/)[^"'`\s]*\.html|\/[A-Za-z0-9_\-\/]+\/)["'`]/g
         : /href\s*=\s*["'][^"']*["']/g;
     const A = src.match(PAT) || [];
     const B = out.match(PAT) || [];

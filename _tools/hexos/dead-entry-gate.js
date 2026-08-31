@@ -306,7 +306,12 @@ function main() {
         // false positives someone must triage, while over-matching silently reports an
         // unreachable page as reached and removes the very coverage the gate exists to give.
         const before = stripDead.unparsed || 0;
+        const fbBefore = stripDead.fellBack || 0;
         const html = stripDead(fs.readFileSync(f, 'utf8'), f);
+        if ((stripDead.fellBack || 0) > fbBefore) {
+            stripDead.fellBackFiles = stripDead.fellBackFiles || [];
+            stripDead.fellBackFiles.push('/' + path.relative(APP, f));
+        }
         if ((stripDead.unparsed || 0) > before) unparsedFiles.push('/' + path.relative(APP, f));
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.
@@ -387,6 +392,11 @@ function main() {
         return;
     }
 
+    // NAME the comment-survival set, do not merely count it. I described this as "a declared
+    // blind spot on a NAMED, printed set of files" three times while the code printed only a
+    // number. A reviewer checked the output instead of the claim. The dead-block counter one
+    // function away already kept a filename array; this one did not, and a count that grows next
+    // month tells nobody which file to look at.
     let known = [], confirmedNow = {};
     if (fs.existsSync(BASELINE)) {
         const b = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
@@ -434,6 +444,10 @@ function main() {
             (f in KNOWN_UNPARSED ? `   (known: ${KNOWN_UNPARSED[f]})` : '   <- NEW')));
     }
     if (stripDead.fellBack) {
+        if (stripDead.fellBackFiles && stripDead.fellBackFiles.length) {
+            console.log('  comment-survival blind spot, by file:');
+            stripDead.fellBackFiles.forEach(f => console.log(`    ${f}`));
+        }
         console.log(`  note: ${stripDead.fellBack} script body/bodies could not be tokenised, so ` +
                     `their comments were LEFT IN PLACE. A path inside one of those comments counts ` +
                     `as a live link here and could mask an orphan. Causes vary and are not all ` +
