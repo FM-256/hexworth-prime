@@ -226,6 +226,35 @@
             examples: ['cd dark-arts', 'cd cert-prep', 'cd ..'],
             see: ['pwd', 'ls', 'run']
         },
+        ps: {
+            synopsis: 'ps',
+            desc: 'List your running lab sessions.\n' +
+                  'Most apps are PAGES, not processes: `run` navigates to them and there is nothing\n' +
+                  'to list. Only labs that spawn a real container appear here.',
+            examples: ['ps'],
+            see: ['stop', 'restart', 'run']
+        },
+        stop: {
+            synopsis: 'stop <session-id>',
+            desc: 'End a running lab session and release its slot back to the pool.\n' +
+                  'Takes a SESSION id from `ps`, not an app id. Asking to stop an app that is a\n' +
+                  'page tells you so rather than pretending to stop it.\n' +
+                  'Use this when a lab has frozen, or when you are finished and want the slot back\n' +
+                  'for someone else.',
+            examples: ['ps', 'stop 4f2a9c'],
+            see: ['ps', 'restart']
+        },
+        restart: {
+            synopsis: 'restart <session-id>',
+            desc: 'Destroy a session and launch it again from clean state. Use it when a lab is\n' +
+                  'wedged and you want a fresh start rather than a rescue.\n' +
+                  'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
+                  'outside the lab is gone.\n' +
+                  'If the destroy succeeds and the relaunch fails you are left with nothing running,\n' +
+                  'and the shell says so instead of implying it recovered.',
+            examples: ['restart 4f2a9c'],
+            see: ['ps', 'stop']
+        },
         pwd: {
             synopsis: 'pwd',
             desc: 'Print where you are and how many apps are in scope. At the top it reports /\n' +
@@ -266,6 +295,9 @@
                 '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
                 '<span class="ok">cd</span> &lt;house|category&gt;  scope into a house. cd .. to leave\n' +
                 '<span class="ok">pwd</span>               where you are\n' +
+                '<span class="ok">ps</span>                your running lab sessions\n' +
+                '<span class="ok">stop</span> &lt;session&gt;     end a lab session, free its slot\n' +
+                '<span class="ok">restart</span> &lt;session&gt;  destroy and relaunch from clean state\n' +
                 '<span class="ok">man</span> [command]     the full manual page for a command\n' +
                 '<span class="ok">clear</span>             clear the screen\n\n' +
                 '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
@@ -355,6 +387,70 @@
             say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
                 '<span class="muted">cd .. to go back.</span>', 'ok');
         },
+        /**
+         * PROCESS COMMANDS. run navigates; most apps are pages and have nothing to stop. Only
+         * lab sessions are real processes, owned by SandboxLauncher, which holds the API and the
+         * auth. Everything here delegates to it and says so plainly when an app is not a process.
+         */
+        ps: function () {
+            if (!window.SandboxLauncher) return say('session manager is not loaded on this page.', 'err');
+            say('checking for running sessions...', 'muted');
+            window.SandboxLauncher.list().then(function (r) {
+                var rows = (r && (r.sessions || r.data || r)) || [];
+                if (!rows.length || !rows.map) return say('nothing running.', 'muted');
+                if (!rows.length) return say('nothing running.', 'muted');
+                say('<table>' + rows.map(function (x) {
+                    return '<tr><td class="info">' + esc(x.sessionId || x.id || '?') + '</td>' +
+                           '<td>' + esc(x.mission || x.lab || '') + '</td>' +
+                           '<td class="muted">' + esc(x.status || '') + '</td></tr>';
+                }).join('') + '</table><span class="muted">stop &lt;id&gt; to end one.</span>');
+            }).catch(function (e) {
+                say('could not list sessions: ' + esc(e && e.message ? e.message : 'request failed'), 'err');
+            });
+        },
+        stop: function (arg) {
+            if (!arg) return say('stop what? try <span class="ok">ps</span>', 'warn');
+            // Reads the manifest via byId() to tell a page from a session. Unguarded, a
+            // stalled manifest makes byId() return nothing, so an app id would be treated
+            // as a session id and fire a destroy against the pool. Wrong ANSWER, not just
+            // wrong wording.
+            if (notReady()) return;
+            if (!window.SandboxLauncher) return say('session manager is not loaded on this page.', 'err');
+            // An app id is not a session id. Say so rather than pretending to stop a web page.
+            var app = byId(arg);
+            if (app) {
+                return say(esc(app.id) + ' is a page, not a running process. There is nothing to ' +
+                           'stop. Use <span class="ok">ps</span> to see real lab sessions.', 'warn');
+            }
+            say('stopping ' + esc(arg) + '...', 'muted');
+            window.SandboxLauncher.destroy(arg).then(function () {
+                say('stopped ' + esc(arg) + '.', 'ok');
+            }).catch(function (e) {
+                say('could not stop ' + esc(arg) + ': ' + esc(e && e.message ? e.message : 'request failed'), 'err');
+            });
+        },
+        restart: function (arg) {
+            if (!arg) return say('restart what? try <span class="ok">ps</span>', 'warn');
+            // Reads the manifest via byId() to tell a page from a session. Unguarded, a
+            // stalled manifest makes byId() return nothing, so an app id would be treated
+            // as a session id and fire a destroy against the pool. Wrong ANSWER, not just
+            // wrong wording.
+            if (notReady()) return;
+            if (!window.SandboxLauncher) return say('session manager is not loaded on this page.', 'err');
+            if (byId(arg)) {
+                return say(esc(arg) + ' is a page, not a running process. Reload it with ' +
+                           '<span class="ok">run ' + esc(arg) + '</span>.', 'warn');
+            }
+            say('restarting ' + esc(arg) + ' (destroy, then fresh launch)...', 'muted');
+            window.SandboxLauncher.destroy(arg).then(function () {
+                return window.SandboxLauncher.launch(arg);
+            }).then(function () {
+                say('restarted ' + esc(arg) + ' from clean state.', 'ok');
+            }).catch(function (e) {
+                say('restart failed: ' + esc(e && e.message ? e.message : 'request failed'), 'err');
+                say('the session may be stopped but not relaunched. run <span class="ok">ps</span> to check.', 'muted');
+            });
+        },
         man: function (arg) {
             if (!arg) {
                 var names = Object.keys(MANUAL).sort();
@@ -369,6 +465,12 @@
             // and would otherwise make `man <that-id>` silently show the wrong thing forever.
             var m = MANUAL[arg];
             if (!m) {
+                // Guard placed HERE, not at the top: MANUAL is static data, so `man cd` must keep
+                // working when the manifest is down. Only the app fallthrough reads APPS, and
+                // without this guard `man arena` says "no manual page for arena" while the list is
+                // still loading, which is the same falsehood this session fixed in five other
+                // commands. Chris caught that man was the sixth.
+                if (notReady()) return;
                 // An app id is a reasonable thing to type after `man`. Do the useful thing.
                 if (byId(arg)) return COMMANDS.info(arg);
                 say('no manual page for ' + esc(arg), 'err');

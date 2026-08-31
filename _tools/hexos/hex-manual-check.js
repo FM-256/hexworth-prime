@@ -22,9 +22,10 @@
  * nothing was watching.
  *
  * WHAT THIS CAN AND CANNOT DO
- *   CAN: prove every command has a page, no page documents a command that does not exist, and no
- *        app id shadows a command name (which would make `man <id>` silently show the wrong thing
- *        forever, since MANUAL is checked before byId).
+ *   CAN: prove every command has a page, no page documents a command that does not exist, no app
+ *        id shadows a command name (which would make `man <id>` silently show the wrong thing
+ *        forever, since MANUAL is checked before byId), and that every command reading the
+ *        manifest calls notReady() first.
  *   CANNOT: prove a page's PROSE describes what the code does. Nothing can, short of a human or a
  *        behavioural test. So this narrows the surface rather than eliminating it, and saying so
  *        plainly matters more than the check itself.
@@ -82,13 +83,41 @@ function main() {
         }
     }
 
+    // Every command that reads the manifest must call notReady() first. Without it, a stalled or
+    // failed fetch makes the command assert that something does not exist, when the true fact is
+    // that the list has not arrived. Five commands were fixed by hand, a reviewer found a sixth
+    // (man), and this audit immediately found a seventh and eighth (stop, restart) that had been
+    // written the same hour. Finding them one at a time by review does not scale; this does.
+    const cmdBlock = (function () {
+        const start = src.indexOf('var COMMANDS = {');
+        let i = src.indexOf('{', start), d = 0;
+        for (let j = i; j < src.length; j++) {
+            if (src[j] === '{') d++;
+            else if (src[j] === '}') { d--; if (d === 0) return src.slice(i + 1, j); }
+        }
+        return '';
+    })();
+    const marks = [];
+    const re = /(\w+): function \([^)]*\) \{/g;
+    let mm;
+    while ((mm = re.exec(cmdBlock))) marks.push({ name: mm[1], at: mm.index });
+    const unguarded = marks.filter(function (mk, k) {
+        const seg = cmdBlock.slice(mk.at, (marks[k + 1] || { at: cmdBlock.length }).at);
+        return /\bAPPS\b|byId\(|scope\(|places\(/.test(seg) && !/notReady\(\)/.test(seg);
+    }).map(function (x) { return x.name; });
+    if (unguarded.length) {
+        problems.push('command(s) read the manifest without a notReady() guard, so they will ' +
+            'assert non-existence while it is still loading: ' + unguarded.join(', '));
+    }
+
     if (problems.length) {
         console.error('HEX MANUAL DRIFT');
         problems.forEach(p => console.error('  ' + p));
         console.error('\nFix _app/hex/index.html so MANUAL and COMMANDS describe the same set.');
         process.exit(1);
     }
-    console.log(`OK: ${commands.length} commands, ${manual.length} manual pages, no shadowed app ids.`);
+    console.log(`OK: ${commands.length} commands, ${manual.length} manual pages, ` +
+        `no shadowed app ids, all manifest readers guarded.`);
 }
 
 if (require.main === module) main();
