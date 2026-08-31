@@ -18,8 +18,8 @@
  *
  *   // Show resume prompt
  *   CheckpointSave.promptResume('file-ops', containerSelector, {
- *       onResume: (data) => { /* restore state */ },
- *       onStartFresh: () => { /* clear and start over */ }
+ *       onResume: (data) => { ...restore state... },
+ *       onStartFresh: () => { ...clear and start over... }
  *   });
  */
 const CheckpointSave = (function() {

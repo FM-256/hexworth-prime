@@ -437,15 +437,38 @@ function main() {
     // listed because it is no longer broken.
     const KNOWN_UNPARSED = {};
 
-    // Files whose script bodies esprima 4 cannot tokenise, so their comments survive. Causes were
-    // TRACED, not assumed: a reviewer caught "ES2018+ syntax" being wrong for the very file this
-    // round is named after. Two distinct causes, printed by the tracer:
-    //   Unexpected token ILLEGAL    BigInt literals and numeric separators
-    //   Invalid regular expression  esprima 4 misreading `.new /` as keyword-then-regex, which is
-    //                               the same keyword-ambiguity class it exposed in my own scanner
+    // Files whose script bodies esprima 4 cannot tokenise, so their comments survive.
+    //
+    // Causes RE-AUDITED with V8 (vm.Script), not esprima, after a reviewer traced two of these to
+    // genuinely broken student-facing labs that I had characterised as tokenizer limitations. The
+    // earlier claim of "two distinct causes" was wrong in the same way "ES2018+ syntax" was wrong
+    // before it: asserted from one tool's error strings rather than checked against a real parser.
+    //
+    // What the V8 audit actually found across these files:
+    //   2 genuinely broken labs, now FIXED. sc900-ch01 and sc900-ch02 each had a regex literal
+    //     split across a real newline; ch02 also had a second CMD_RESPONSES body spliced in with
+    //     its opening key destroyed. Their script blocks never parsed, so init() never ran and a
+    //     student opening either lab got a dead page. Both are linked from the SC-900 hub.
+    //   1 real bug in an unused component, now FIXED. CheckpointSave.js had a nested block comment
+    //     inside JSDoc, whose inner close ended the comment early. No page loads it, so no student
+    //     impact, but the file could never have parsed.
+    //   1 failed vendor download, NOT a parse limitation: arena/discord-sdk.js is 66 bytes reading
+    //     "Not found: /@discord/embedded-app-sdk@2.4.1/...". No page loads it. Left in place under
+    //     the never-destroy rule; it needs a re-download or removal decision, not a code fix.
+    //   the rest are true esprima-4 limits: BigInt literals, numeric separators, and one file
+    //     where esprima misreads `.new /` as keyword-then-regex, which is the same ambiguity class
+    //     it exposed in my own hand-rolled scanner.
+    //
+    // Two entries in an earlier draft of this audit were MY tool's false positives, not defects:
+    // an HTML comment containing a commented-out <script> confused a naive extractor, and a
+    // type="module" script was judged by a non-module parser. Both are corrected above.
     const KNOWN_FELLBACK = [
+        // Trimmed to the 10 that ACTUALLY fall back. Fixing the three broken files made them
+        // tokenisable, and the list still held their names: a recorded set that no longer matches
+        // reality is the same stale-count problem this work has hit repeatedly, just wearing paths
+        // instead of digits. The gate would have passed with them listed, which is why it needed
+        // checking rather than assuming.
         '/arena/discord-sdk.js',
-        '/components/CheckpointSave.js',
         '/components/CryptoAppletRenderer.js',
         '/components/profile/privacy-settings.html',
         '/houses/ai/tools/ai-cost-calculator.tool.html',
@@ -453,8 +476,6 @@ function main() {
         '/houses/ai/tools/ai-tokenizer.tool.html',
         '/houses/key/labs/key-encryption-dh-rsa.lab.html',
         '/houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html',
-        '/houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html',
-        '/houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html',
         '/scripts/merge-registry.js',
         '/scripts/migrate-to-content-registry.js',
     ];
