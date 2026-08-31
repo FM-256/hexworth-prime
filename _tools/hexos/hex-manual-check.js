@@ -179,6 +179,40 @@ function main() {
             + 'fixture in hex-shell-process.test.js. Update this count deliberately.');
     }
 
+    // INVARIANT: every student-facing link to /hex/ must be covered by the visibility check
+    // that hides it from an unsorted visitor. Named across three review rounds and deferred
+    // twice before being written down.
+    //
+    // Matched by DESTINATION PATH, not by exact href string, because that is the failure this
+    // exists to prevent: the removal selector is `.hb-link[href="/hex/"]`, which silently stops
+    // matching the moment someone appends `?utm=...` or adds a third entry point on another
+    // surface. Nothing would fail loudly; the "link visible to a visitor who cannot use it" bug
+    // would just quietly reopen.
+    //
+    // CANNOT prove the check runs before paint, or that a NEW surface elsewhere in _app is
+    // covered. Scoped to dashboard.html, which is the only page carrying these entry points
+    // today, and that scoping is itself the assumption to re-test if a second page gains one.
+    const DASH = path.join(REPO, '_app/dashboard.html');
+    if (fs.existsSync(DASH)) {
+        const dash = fs.readFileSync(DASH, 'utf8');
+        // Anchors only, and not the selector string inside the removal script itself.
+        const anchors = dash.match(/<a\s[^>]*href="\/hex\/[^"]*"[^>]*>/g) || [];
+        const uncovered = anchors.filter(a =>
+            !/class="[^"]*\b(hexos-callout|hb-link)\b/.test(a));
+        if (uncovered.length) {
+            problems.push('link(s) to /hex/ in dashboard.html are NOT covered by the ' +
+                'unsorted-visitor removal selector, so an unsorted student would see a link ' +
+                'that bounces them: ' + uncovered.map(a => a.slice(0, 70)).join(' | '));
+        }
+        // A query string defeats the exact-href selector even on a covered element.
+        const q = anchors.filter(a => /href="\/hex\/[^"]*\?/.test(a));
+        if (q.length) {
+            problems.push('link(s) to /hex/ carry a query string, which the removal selector ' +
+                '`.hb-link[href="/hex/"]` matches by exact string and will therefore MISS: ' +
+                q.map(a => a.slice(0, 70)).join(' | '));
+        }
+    }
+
     if (problems.length) {
         console.error('HEX MANUAL DRIFT');
         problems.forEach(p => console.error('  ' + p));
