@@ -22,6 +22,7 @@ Originals remain at repo root. Nothing here was destroyed; these are copies.
 | `_chris_cd_xss_*.js`, `_chris_bare_cd_probe_tmp.js` | Does `cd` escape user input, and does a bare app name dispatch safely? | Yes to both. |
 | `_chris_verify_redirect*.js` | Is the unsorted redirect synchronous? | **No.** It runs on `DOMContentLoaded` and defers navigation 400ms, so the exposure is seconds, not instant. |
 | `_chris_probe_outer_tmp.js` | Is the narrow-viewport failure real? | No. A puppeteer-only `outerWidth - innerWidth` artefact tripping `TripWire.js`. |
+| `_se_browser_verify.js` | Does the PATCHED safeEntry actually stop the offsite navigation in a browser? | **Yes, 8/8.** All 7 control chars resolve to 127.0.0.1, not evil.example.com; legitimate entries unaffected. Written because the bug was proven in a browser and the fix had only been proven with `.test()`. |
 | `check_repro*.js`, `test_repro*.html`, `repro*.png` | Older, unrelated to this review; kept together rather than sorted apart. | n/a |
 
 ## Why this set exists at all
