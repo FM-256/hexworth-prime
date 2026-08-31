@@ -58,6 +58,7 @@ const BASELINE = path.join(REPO, '_tools/hexos/unregistered-baseline.json');
  */
 const PLATFORM_APPS = [
     { id: 'hex',          name: 'Hex Shell',        entry: '/hex/index.html',     house: null,        category: 'platform', verb: 'open' },
+    { id: 'hex-apps',     name: 'Hex OS Launcher',  entry: '/hex/apps.html',      house: null,        category: 'platform', verb: 'open' },
     { id: 'funding',      name: 'Funding Hub',      entry: '/funding/index.html',       house: null, category: 'platform', verb: 'open' },
     { id: 'join',         name: 'Join a Session',   entry: '/join/index.html',          house: null, category: 'platform', verb: 'open' },
     { id: 'wall-of-shame', name: 'Wall of Shame',   entry: '/wall-of-shame/index.html', house: null, category: 'platform', verb: 'open' },
@@ -257,6 +258,22 @@ function build() {
  * Launchable pages no manifest entry points at. The omission detector, now over a full sweep.
  * Also returns the excluded set with reasons, so a clean run can be audited rather than trusted.
  */
+// The omission sweep below walks index.html files. A launchable page under ANY other filename
+// is structurally invisible to it, which is how /hex/apps.html shipped unregistered while
+// --unregistered reported "no NEW unregistered launchable surfaces". Widening the sweep to all
+// .html would flood it with fragments and partials, so this checks the one directory that
+// actually has non-index launchables. If a second such directory appears, add it here rather
+// than assuming the sweep covers it.
+function unregisteredHexPages(apps) {
+    const dir = path.join(APP, 'hex');
+    if (!fs.existsSync(dir)) return [];
+    const known = new Set(apps.map(a => a.entry));
+    return fs.readdirSync(dir)
+        .filter(f => f.endsWith('.html'))
+        .map(f => '/hex/' + f)
+        .filter(e => !known.has(e));
+}
+
 function unregistered(apps) {
     const known = new Set(apps.map(a => a.entry));
     // Directory prefixes of registered apps. A page beneath one is content INSIDE that app, the
@@ -314,6 +331,18 @@ function main() {
 
         console.log(`known-unregistered baseline: ${base.length}`);
         if (healed.length) console.log(`  ${healed.length} baseline entrie(s) now registered; shrink the baseline`);
+        // Non-index launchables under /hex/, which the index.html sweep above cannot see. Checked
+        // BEFORE the early return, or the pass branch exits first and this never runs: that early
+        // return is exactly why /hex/apps.html shipped unregistered under a clean report.
+        const hexMissing = unregisteredHexPages(apps);
+        if (hexMissing.length) {
+            console.log(`\n${hexMissing.length} UNREGISTERED page(s) under /hex/ that the ` +
+                        `index.html sweep cannot see:`);
+            hexMissing.forEach(e => console.log(`  ${e}`));
+            console.log('\nAdd each to PLATFORM_APPS, or the launcher and the shell disagree.');
+            process.exitCode = 1;
+            return;
+        }
         if (!fresh.length) { console.log('no NEW unregistered launchable surfaces'); return; }
         console.log(`\n${fresh.length} NEW LAUNCHABLE SURFACE(S) NOT IN THE MANIFEST:`);
         fresh.forEach(m => console.log(`  ${m.rel}  (${m.why})`));
