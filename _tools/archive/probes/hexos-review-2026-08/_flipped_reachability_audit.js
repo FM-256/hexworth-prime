@@ -1,6 +1,15 @@
 // For each app that FLIPPED from unreached to reached, show the exact file:line that reaches it,
 // so "21 became 2" is a claim about the apps and not about the scanner's permissiveness.
+// NOTE, added after a reviewer checked this artifact rather than the claim it was cited for:
+// the original version used its OWN inline comment-only strip, so it never exercised the gate's
+// real stripDead() and could not show what it was offered as proof of. It now extracts stripDead
+// from the shipped gate, the same way the gate's own test does.
 const fs=require('fs'),path=require('path');
+const GATE=path.resolve(__dirname,'../../../hexos/dead-entry-gate.js');
+const gsrc=fs.existsSync(GATE)?fs.readFileSync(GATE,'utf8'):'';
+const gm=gsrc.match(/function stripDead\(src\) \{[\s\S]*?\n\}/);
+const stripDead=gm?new Function('src','return ('+gm[0]+')(src)')
+                  :(x=>x.replace(/\/\*[\s\S]*?\*\//g,'').replace(/(^|[^:])\/\/[^\n]*/g,'$1'));
 const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
 const FLIPPED=['aws-ccp','aws-developer','azure-fundamentals','casp-plus','cmmc','comptia-linux',
  'cryptography-track','security-plus-crypto','security-operations','devops-fundamentals',
@@ -19,7 +28,7 @@ for(const id of FLIPPED){
   const hits=[];
   for(const f of files){
     const raw=fs.readFileSync(f,'utf8');
-    const stripped=raw.replace(/<!--[\s\S]*?-->/g,'').replace(/\/\*[\s\S]*?\*\//g,'').replace(/(^|[^:])\/\/[^\n]*/g,'$1');
+    const stripped=stripDead(raw);
     if(f===path.join(APP,a.entry.replace(/^\//,'')))continue;      // its own page
     const inLive=stripped.includes(target), inRaw=raw.includes(target);
     if(inLive)hits.push({f:path.relative(APP,f),live:true});
