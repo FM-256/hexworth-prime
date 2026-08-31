@@ -8,9 +8,11 @@
  * What gets merged:
  *   - modulesCompleted, labsCompleted, achievements (array union)
  *   - quizzes (merge, keep highest score per quiz)
- *   - gate completions (subcollection copy)
- *   - flag captures (subcollection copy)
- *   - score submissions (subcollection copy)
+ *   - EVERY subcollection under users/{uid}, enumerated at runtime, except an explicit
+ *     SKIP list with a stated reason per entry (see step 5). It previously copied only
+ *     gates, flag_captures and score_submissions by name and silently dropped the rest,
+ *     including server_awards -- the tamper-evident badge proofs, which cannot be
+ *     re-derived from client state. BUG-240.
  *   - XP recalculated from merged state
  *   - streak (take max)
  *   - gamesPlayed, ctfBoxesPwned, ctfFlagsCaptured (take max)
@@ -191,14 +193,52 @@ async function main() {
     const level = calculateLevel(xp);
 
     // 5. Copy subcollections
+    //
+    // ENUMERATED, NOT NAMED. This used to call copySubcollection three times with literal names
+    // -- 'gates', 'flag_captures', 'score_submissions' -- and silently dropped everything else the
+    // student had earned. Among the casualties was users/{uid}/server_awards, the tamper-evident
+    // badge proof store, which is precisely the record that CANNOT be re-derived from client
+    // state. It was an allowlist that nobody updated when a new subcollection shipped, so it went
+    // stale by default rather than by decision. BUG-240.
+    //
+    // Default is now COPY. Anything not copied must appear in SKIP with a reason, and every
+    // collection encountered is printed either way, so a merge can never quietly lose something.
+    // The asymmetry is deliberate: copying a cooldown doc is a nuisance, losing a ledger is
+    // permanent.
+    //
+    // Do NOT build this skip-list from name shape. "_attempts" looks like a rate limiter but
+    // quiz_attempts, mission_attempts and lab_attempts are ledgers of what the student actually
+    // did -- HEXOS-4 treats quiz_attempts as the authoritative record of every submission. Skip on
+    // what a collection DOES, not what it is called.
+    const SKIP = {
+        sync: 'device cache, not a user fact. Copying uid-A\'s localStorage blob into uid-B '
+            + 'contaminates B\'s next restore with A\'s local state, and step 8 below already '
+            + 'DELETES A\'s copy for exactly that reason (ghost re-sync).',
+        flag_attempts: 'rate-limit / cooldown bookkeeping for validateFlag. Carries no earned '
+            + 'fact; importing it would import a stale cooldown.',
+        gate_attempts: 'rate-limit / cooldown bookkeeping for gate submission. Same reasoning.',
+        activation_attempts: 'rate-limit / cooldown bookkeeping. Same reasoning.'
+    };
+
     console.log('=== SUBCOLLECTION MERGE ===');
-    const gateResult = await copySubcollection(uidA, uidB, 'gates');
-    console.log('  Gates: copied', gateResult.copied, '| skipped', gateResult.skipped);
+    const sourceCollections = await db.collection('users').doc(uidA).listCollections();
+    console.log('  uid-A has', sourceCollections.length, 'subcollection(s)');
 
-    const flagResult = await copySubcollection(uidA, uidB, 'flag_captures');
-    console.log('  Flag captures: copied', flagResult.copied, '| skipped', flagResult.skipped);
+    const copyResults = {};
+    for (const col of sourceCollections) {
+        const name = col.id;
+        if (SKIP[name]) {
+            console.log(`  ${name}: SKIPPED -- ${SKIP[name]}`);
+            continue;
+        }
+        const res = await copySubcollection(uidA, uidB, name);
+        copyResults[name] = res;
+        console.log(`  ${name}: copied ${res.copied} | skipped ${res.skipped}`);
+    }
 
-    const scoreResult = await copySubcollection(uidA, uidB, 'score_submissions');
+    // The dry-run CTF line below needs the flag-capture count. Absent reads as zero rather than
+    // throwing, because a student may legitimately never have captured a flag.
+    const flagResult = copyResults.flag_captures || { copied: 0, skipped: 0 };
 
     /* Recompute the CTF counters from the MERGED capture set. This runs AFTER the
        flag_captures copy above, so it sees the union of both accounts. Capture doc ids are
@@ -216,7 +256,6 @@ async function main() {
         const caps = await db.collection('users').doc(uidB).collection('flag_captures').get();
         console.log(`  [DRY] would recompute CTF from ${caps.size} existing + ${flagResult.copied || 0} copied captures`);
     }
-    console.log('  Score submissions: copied', scoreResult.copied, '| skipped', scoreResult.skipped);
     console.log();
 
     // 6. Report

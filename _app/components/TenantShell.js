@@ -57,11 +57,31 @@
 
     // ── Revocation: an inactive tenant must leave NO trace on the student ──
     //
-    // The tenant config is cached in sessionStorage AND localStorage at join time and was
-    // never re-checked. Deactivating a tenant, and even removing the student from the class
-    // and the tenant, changed only Firestore — nothing server-side can reach a browser's
-    // localStorage, which persists across reboots indefinitely. So the shell and the
-    // re-enter pill kept rendering from a snapshot forever. Reported 2026-08-04.
+    // The tenant config is cached at join time and was never re-checked. Deactivating a tenant,
+    // and even removing the student from the class and the tenant, changed only Firestore —
+    // nothing server-side can reach a browser's storage, and the localStorage copy in particular
+    // persists across reboots indefinitely. So the shell and the re-enter pill kept rendering
+    // from a snapshot forever. Reported 2026-08-04.
+    //
+    // WHICH STORAGE, PRECISELY (this comment used to get it wrong, BUG-236). It previously said
+    // the config is cached in "sessionStorage AND localStorage at join time". That is true of
+    // exactly ONE of twelve join paths: _app/lobby.html, which writes both. The ten tenant
+    // dashboards, tenant/index.html and tenant/instructor.html write sessionStorage ONLY. So the
+    // `sessionStorage.getItem(...) || localStorage.getItem(...)` fallback used here and in
+    // AccessGuard, FirebaseAuth, ModuleProgress and TenantRouter is lobby-only in practice, and
+    // for everyone else there is nothing behind the `||`.
+    //
+    // That has a live consequence which is NOT fixed by correcting this comment: sessionStorage
+    // does not cross tabs, so a student who joined through a dashboard and opens content in a NEW
+    // TAB has no tenant context there — losing branding, and losing the sorting-quiz waiver that
+    // AccessGuard grants white-label students. Tracked separately; see BUG-242.
+    //
+    // Do NOT "fix" that by making the dashboards write localStorage too. The verification below
+    // is storage-source-agnostic and would still run, so it would not reopen the 2026-08-04 hole
+    // — but on a SHARED or LAB machine a localStorage blob outlives the browser session and, when
+    // the network check fails open (see the flaky-wifi note below), can render one student's
+    // tenant branding into the next student's session. sessionStorage dying with the tab is a
+    // property worth keeping.
     //
     // Operator ruling: "if the tenant is inactive no pill should be present for anybody."
     //

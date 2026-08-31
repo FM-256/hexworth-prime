@@ -31,6 +31,36 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-242 — a dashboard-joined tenant student loses their white-label bypass in a new tab  ·  [P1]  ·  open
+- **Found:** 2026-08-31 · by Nancy · reviewing the BUG-236 fix slate
+- **Area:** `_app/components/AccessGuard.js:815-821` · `_app/components/TenantShell.js:52` ·
+  `_app/components/TenantRouter.js:53` · `_app/components/ModuleProgress.js:235` ·
+  `_app/components/FirebaseAuth.js:718` · `_app/components/AccessGuard.js:1299`
+- **Symptom:** a white-label student who joined through a tenant dashboard (not the lobby) opens
+  any content in a NEW TAB and silently loses tenant context there. They lose tenant branding, and
+  they lose the bypass that lets white-label students skip sorting quizzes and Dark Arts gates —
+  so they are asked to complete progression mechanics that **do not exist in their experience**.
+- **Repro:** join via `_app/tenant/dashboard-*.html` (any of the ten) or `tenant/index.html`. Open
+  a gated module in a new tab. `sessionStorage` is empty in that tab and `localStorage` was never
+  written, so `tenantData` is null and the bypass does not fire.
+- **Root cause:** every consumer uses `sessionStorage.getItem('hexworth_tenant') ||
+  localStorage.getItem('hexworth_tenant')`, and the fallback is empty for 11 of 12 join paths.
+  `_app/lobby.html:706,822` is the only writer of the localStorage copy. The code states the
+  dependency in its own comment at `AccessGuard.js:816-817` — "Lobby.html writes to both; this
+  ensures tenant bypass survives new-tab navigation where sessionStorage is empty" — which is
+  true of the lobby and false of everything else.
+- **Fix:** NOT applied, and deliberately not folded into the BUG-236 comment fix. The obvious
+  remedy (make the ten dashboards write localStorage too) was reviewed and rejected for now: on a
+  shared or lab machine a localStorage blob outlives the browser session, and because the tenant
+  re-check fails open on a network error, it can render one student's tenant branding into the
+  next student's session. A safer shape is likely a short-lived, server-rechecked cross-tab
+  handoff rather than an indefinite localStorage copy. Needs a decision.
+- **Verified:** every writer and every consumer grepped and read, 2026-08-31, independently by
+  Nancy and self. Nancy first cited `AccessGuard.js:699-736` for the waiver; the actual site is
+  `815-840` — the finding is real, the line reference was off.
+- **Related:** BUG-236 (the false comment that hid this). Correcting that comment does NOT close
+  this; the comment lie and the cross-tab gap are separate defects.
+
 ### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  open
 - **Found:** 2026-08-31 · by self · surveying per-user state for HEXOS-4 (home directory)
 - **Area:** `functions/index.js:1254-1259` (`recordProgress`, case `'quiz'`) vs
@@ -155,6 +185,8 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   do so came from this comment. A false comment is a defect with a blast radius.
 - **Related:** the same class of defect was found and fixed in `_app/hex/hex-sw.js` in commit
   `50625f1a5`, where a stale block still claimed the worker "is registered".
+- **PARTIAL FIX 2026-08-31:** the comment is corrected. This closes the false claim ONLY.
+  The live cross-tab breakage the false comment concealed is BUG-242 and remains OPEN.
 
 ### BUG-235 — a co-op member can rewrite a teammate's player entry  ·  [P3]  ·  open (language-limited)
 - **Found:** 2026-08-29 · by Nancy · reviewing the BUG-234 field-scoping fix

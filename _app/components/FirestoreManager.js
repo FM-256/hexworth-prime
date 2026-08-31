@@ -75,6 +75,8 @@ const FirestoreManager = (function() {
     // Gate localStorage keys (not in LOCALSTORAGE_KEYS because they use a different pattern)
     const GATE_STORAGE_PREFIX = 'gate';
     const GATE_STORAGE_SUFFIX = '_complete';
+    // Provenance written beside _complete, never instead of it. See _restoreGateProgress.
+    const GATE_VERIFIED_SUFFIX = '_verified';
     const DARK_ARTS_UNLOCKED_KEY = 'dark_arts_unlocked';
 
     // ─── Bulk localStorage Sync (Cross-Device Persistence) ───────────
@@ -121,6 +123,31 @@ const FirestoreManager = (function() {
                     const gateNum = data.gateNumber || parseInt(gateDoc.id.replace('gate', ''));
                     if (gateNum) {
                         localStorage.setItem(`${GATE_STORAGE_PREFIX}${gateNum}${GATE_STORAGE_SUFFIX}`, 'true');
+
+                        /* CARRY THE PROVENANCE. The server deliberately records WHETHER a gate was
+                           validated server-side (`verified`, `source`) because, per the comment in
+                           `completeGate` in functions/index.js, "a reader that cannot tell the two
+                           apart is how the vault ended up trusting forged progress" -- cited by
+                           symbol, not line, because line numbers drift. This restore used to
+                           write only the bare 'true' above, flattening a server-verified gate and a
+                           client-attested one into the same value. BUG-239.
+
+                           NO CONSUMER CHANGES, ON PURPOSE. Gates 6-8 are client-attested BY DESIGN
+                           (they validate multi-step work in the browser), and their `verified` is
+                           false permanently -- nothing will ever flip it. So requiring
+                           verified===true anywhere that currently reads gate{N}_complete would
+                           permanently lock every gate 6-8 completer out of content they legitimately
+                           finished. The ~12 existing readers are untouched and keep reading the same
+                           flag they always did; this only ADDS a field beside it.
+
+                           Whether client attestation should gate vault content at all is a real
+                           question about the vault's trust model. It is a product decision, not a
+                           bug fix, and it is deliberately not made here. */
+                        localStorage.setItem(
+                            `${GATE_STORAGE_PREFIX}${gateNum}${GATE_VERIFIED_SUFFIX}`,
+                            data.verified === true ? 'true' : 'false'
+                        );
+
                         gatesRestored++;
                         if (gateNum > maxGate) maxGate = gateNum;
                     }

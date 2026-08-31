@@ -313,6 +313,9 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 // The CTF counter definition lives in ctf-stats.js so account-merge.js uses the IDENTICAL
 // logic. Three conflicting notions of "pwned" previously existed in this codebase.
 const { recomputeCtfStats } = require('./ctf-stats');
+// The single definition of which quiz score is the student's score. Extracted for the same
+// reason as recomputeCtfStats above: this fact had three implementations that disagreed.
+const { shouldReplaceStoredScore } = require('./quiz-score-policy');
 const _recomputeCtfStats = (uid) => recomputeCtfStats(db, FieldValue, uid);
 
 /* ── #306: THE REVEAL GATE, ENFORCED ──────────────────────────────────────────────
@@ -1236,6 +1239,10 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
         updatedAt: FieldValue.serverTimestamp()
     };
 
+    // Set by the 'quiz' branch. When non-null, the write below runs in a transaction so the
+    // stored score can be compared before it is replaced. See BUG-241 in that branch.
+    let quizScore = null;
+
     switch (type) {
         case 'module':
             updates.modulesCompleted = FieldValue.arrayUnion(itemId);
@@ -1252,11 +1259,28 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
             break;
 
         case 'quiz':
-            const numScore = parseInt(score) || 0;
-            updates[`quizzes.${itemId}`] = {
-                score: numScore,
-                passedAt: new Date().toISOString()
-            };
+            /* BEST SCORE WINS, and this used to be an unconditional overwrite.
+               A student who retook a quiz and passed again with a LOWER score had their better
+               result replaced, because this assigned quizzes.{itemId} with no comparison. The two
+               other implementations of this same merge both keep the higher and say so --
+               mergeQuizzes (account-merge.js) and mergeQuizScores (FirestoreManager.js) -- so
+               best-score was already the intended contract everywhere except the write path
+               students actually take. BUG-241.
+
+               DEFAULT POLICY, NOT A CLOSED PEDAGOGICAL QUESTION. Best-score is the right default
+               for a teaching platform: a student who retakes to revise should not be punished for
+               practising. But an assessment of record may legitimately want latest-score, and an
+               instructor may need the most recent attempt. If that is wanted, the answer is a
+               per-quiz policy field rather than a different global default. See BUG-241.
+
+               The comparison is done in a transaction rather than a read-then-write because two
+               submissions racing would otherwise let the lower one land last and win. Only the
+               quiz path pays for the transaction; every other type keeps the plain update.
+
+               FORWARD-LOOKING ONLY. This cannot restore a score already overwritten. Those are
+               recoverable from users/{uid}/quiz_attempts, which recorded every submission, but
+               that is a backfill over production data and is deliberately not done here. */
+            quizScore = parseInt(score) || 0;
             if (house) {
                 updates[`houseProgress.${house}.quizzesPassed`] = FieldValue.increment(1);
             }
@@ -1270,56 +1294,40 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
             throw new HttpsError('invalid-argument', 'Unknown progress type.');
     }
 
-    await userRef.update(updates);
+    if (quizScore === null) {
+        await userRef.update(updates);
+    } else {
+        // Quiz: compare against the stored score inside a transaction, so a slower submission
+        // cannot land after a faster one and overwrite the higher result. BUG-241.
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(userRef);
+            const prior = snap.exists ? (snap.data().quizzes || {})[itemId] : null;
+            const priorScore = prior && typeof prior.score === 'number' ? prior.score : null;
+
+            if (shouldReplaceStoredScore(priorScore, quizScore)) {
+                updates[`quizzes.${itemId}`] = {
+                    score: quizScore,
+                    passedAt: new Date().toISOString()
+                };
+            }
+            // A lower score still records the attempt: houseProgress.quizzesPassed and
+            // updatedAt are in `updates` either way, and users/{uid}/quiz_attempts already
+            // holds the full ledger. Only the best-score SUMMARY is protected here.
+            tx.update(userRef, updates);
+        });
+    }
 
     return { success: true, type, itemId };
 });
 
-/**
- * updateStreak — Server-side streak tracking.
- * Called once per day when student visits dashboard.
- */
-exports.updateStreak = onCall(cfOptions, async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Must be signed in.');
-    }
+/* exports.updateStreak was REMOVED 2026-08-31. It had no caller anywhere in _app, and it
+   computed a streak from users/{uid}.lastLoginDate while the client computes a different one
+   from hexworth_last_study -- two definitions of one fact, the dead one waiting to be wired up
+   wrong. Archived with its reasoning at functions/_archive/updateStreak-orphaned-2026-08-31.js.
+   BUG-237. Note the Math.max(local, cloud) in FirestoreManager.syncBidirectional was KEPT: it is
+   cross-device streak reconciliation, not part of this defect, and removing it would silently
+   destroy a real streak when a long-idle device syncs. */
 
-    const uid = request.auth.uid;
-    const userRef = db.doc(`users/${uid}`);
-    const userDoc = await userRef.get();
-
-    if (!userDoc.exists) {
-        throw new HttpsError('not-found', 'User profile not found.');
-    }
-
-    const data = userDoc.data();
-    const lastLogin = data.lastLoginDate || null;
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-
-    if (lastLogin === today) {
-        // Already logged in today
-        return { streak: data.streak || 0, alreadyUpdated: true };
-    }
-
-    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-    let newStreak;
-
-    if (lastLogin === yesterday) {
-        // Consecutive day — increment
-        newStreak = (data.streak || 0) + 1;
-    } else {
-        // Streak broken — reset to 1
-        newStreak = 1;
-    }
-
-    await userRef.update({
-        streak: newStreak,
-        lastLoginDate: today,
-        updatedAt: FieldValue.serverTimestamp()
-    });
-
-    return { streak: newStreak, alreadyUpdated: false };
-});
 
 // ─── Server-Side XP Derivation ──────────────────────────────────
 // Ported from migrate-xp.js. Recalculates XP from merged completion
