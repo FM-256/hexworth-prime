@@ -87,10 +87,23 @@ function allSource(dir, out) {
  * triages; over-matching silently reports an unreachable page as reached and removes the only
  * coverage that exists.
  *
- * WHAT THIS STILL CANNOT DO, and it is a real residue rather than a formality: a path inside a
- * function nothing ever calls, or behind a condition that is false at runtime but not literally
- * `false`, still counts as a link. Catching that needs reachability analysis, not text. If this
- * gate ever reports zero unreached across the whole platform, suspect this limitation first.
+ * WHAT THIS STILL CANNOT DO. Real residue, not formality, and listed in both directions because
+ * an earlier version of this note disclosed only the harmless one:
+ *
+ *   UNDER-matching (safe: produces noise a human triages)
+ *     A path inside a function nothing ever calls, or behind a condition false at runtime but not
+ *     literally `false`, still counts as a link. That needs reachability analysis, not text. If
+ *     this gate ever reports zero unreached platform-wide, suspect this first.
+ *
+ *   OVER-matching (dangerous: silently removes coverage)
+ *     The dead-block scan is text, not a parser. It skips string and template literals when
+ *     depth-counting, and bails without deleting anything if the depth never balances, but a
+ *     regex literal containing a brace is NOT skipped and could still desync it.
+ *     The EXCLUDE/DENY/IGNORE/SKIP name list is a CONVENTION, not a guarantee. An array named
+ *     LEGACY_HOUSES holding a route that is still served would be stripped, and that page would
+ *     drop out of coverage with no error and nothing to grep for. Whole-word SCREAMING_CASE
+ *     matching narrows this; it does not close it. Prefer renaming such an array over trusting
+ *     this gate to be clever about it.
  */
 function stripDead(src) {
     let out = src
@@ -102,18 +115,37 @@ function stripDead(src) {
     out = out.replace(/\bif\s*\(\s*(?:false|0)\s*\)\s*\{/g, 'if(0){\u0000');
     let i;
     while ((i = out.indexOf('\u0000')) !== -1) {
-        let depth = 1, j = i + 1;
+        // Depth counting must SKIP string and template literals. Counting every literal brace
+        // desyncs on `if (false) { const s = "{"; }`: the counter never finds its close, runs off
+        // the end, and the removal eats every live link after it. A reviewer reproduced exactly
+        // that and it over-matches, which this file calls the dangerous direction. Stray braces in
+        // error messages, templates and CSS-in-JS are ordinary, not adversarial.
+        let depth = 1, j = i + 1, quote = null;
         while (j < out.length && depth > 0) {
-            if (out[j] === '{') depth++;
-            else if (out[j] === '}') depth--;
+            const c = out[j];
+            if (quote) {
+                if (c === '\\') { j += 2; continue; }
+                if (c === quote) quote = null;
+            } else if (c === '"' || c === "'" || c === '`') {
+                quote = c;
+            } else if (c === '{') depth++;
+            else if (c === '}') depth--;
             j++;
         }
-        out = out.slice(0, i) + out.slice(j);
+        // Unbalanced after skipping literals means the parse is untrustworthy. Drop only the
+        // marker and keep the text, because a wrong guess here DELETES real links.
+        out = depth === 0 ? out.slice(0, i) + out.slice(j)
+                          : out.slice(0, i) + out.slice(i + 1);
     }
 
     // Declarations whose NAME says the contents are not navigation targets.
+    // WHOLE-WORD trigger, not substring. `.*EXCLUDE.*` also swallowed `legacyHouses`,
+    // `skipNavTargets` and `blockedUsersRedirect`, and this codebase already contains
+    // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes. The day one of those holds a real
+    // route, the page drops out of coverage with no error and nothing to grep for. Requiring the
+    // trigger to be a whole word in SCREAMING_CASE keeps the convention while refusing to guess.
     out = out.replace(
-        /\b(?:const|let|var)\s+[A-Za-z0-9_$]*(?:EXCLUDE|EXCLUDED|DENY|IGNORE|SKIP|BLOCKED|BLOCKLIST|DEPRECATED|LEGACY|REMOVED)[A-Za-z0-9_$]*\s*=\s*\[[\s\S]*?\]/gi,
+        /\b(?:const|let|var)\s+(?:[A-Z0-9_$]*_)?(?:EXCLUDE|EXCLUDED|EXCLUDE_LIST|DENY|DENYLIST|IGNORE|SKIP|BLOCKED|BLOCKLIST|DEPRECATED|LEGACY|REMOVED)(?:_[A-Z0-9_$]*)?\s*=\s*\[[\s\S]*?\]/g,
         '');
     return out;
 }
@@ -227,8 +259,25 @@ function main() {
         return;
     }
 
-    let known = [];
-    if (fs.existsSync(BASELINE)) known = JSON.parse(fs.readFileSync(BASELINE, 'utf8')).known || [];
+    let known = [], confirmedNow = {};
+    if (fs.existsSync(BASELINE)) {
+        const b = JSON.parse(fs.readFileSync(BASELINE, 'utf8'));
+        known = b.known || [];
+        confirmedNow = b.confirmed || {};
+    }
+    // The UNJUSTIFIED marker is CONSUMED, not decorative. A reviewer's point: --i-have-checked-each
+    // writes that string whether or not anyone looked, so without something reading it back a
+    // baseline full of placeholders would pass forever. It now fails the gate, which is the whole
+    // difference between a marker and a speed bump.
+    const placeholder = Object.keys(confirmedNow)
+        .filter(id => /^UNJUSTIFIED/.test(String(confirmedNow[id])));
+    if (placeholder.length) {
+        console.error('baseline entr(ies) recorded with a placeholder instead of a reason:');
+        placeholder.forEach(id => console.error(`  ${id}`));
+        console.error('\nReplace each with why that page is deliberately unlinked, or fix the page');
+        console.error('so it is reachable. A baseline of placeholders passes forever and covers nothing.');
+        process.exit(1);
+    }
     const newlyUnreached = unreached.filter(a => known.indexOf(a.id) === -1);
 
     console.log(`swept ${apps.length} apps: ${broken.length} broken, ${unreached.length} unreached ` +

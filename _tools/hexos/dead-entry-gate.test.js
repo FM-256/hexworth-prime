@@ -63,6 +63,31 @@ const CASES = [
     // Nested braces inside a dead branch must not swallow the code that follows it.
     ['if(false) then live link',
         `if (false) { if (a) { b(); } }\ncourseHref: '${TARGET}',`,                     true],
+    // A lone brace inside a STRING in a dead block desynced the depth counter, which then ran
+    // off the end and deleted every live link after it. Over-matching, the dangerous direction,
+    // and the nested-brace case above could not catch it: that proves CODE braces nest, not that
+    // string braces are skipped. Error messages and CSS-in-JS carry stray braces routinely.
+    ['dead block with "{" in a string',
+        `if (false) { const s = "{"; }\ncourseHref: '${TARGET}',`,                      true],
+    ['dead block with "}" in a string',
+        `if (false) { warn("missing }"); }\nhubHref: '/${TARGET}',`,                    true],
+    ['dead block with a template brace',
+        'if (false) { t(`${x}`); }\ncourseHref: \'' + TARGET + '\',',                 true],
+    // THIS is the case that isolates literal-awareness. A `"}"` inside the dead block closes the
+    // depth counter EARLY for a literal-blind scanner, so removal stops mid-block and the dead
+    // link after it survives and gets counted as real. The three cases above do NOT prove
+    // literal-awareness: they pass either way, because the unbalanced-depth guard rescues them.
+    // I nearly recorded them as proof of a fix they never exercised.
+    ['dead block, "}" closes counter early',
+        `if (false) { const s = "}"; go("/${TARGET}"); }`,                              false],
+
+    // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
+    // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
+    // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
+    ['camelCase legacyHouses survives',
+        `const legacyHouses = ['${TARGET}'];`,                                          true],
+    ['camelCase skipNavTargets survives',
+        `const skipNavTargets = ['/${TARGET}'];`,                                        true],
 ];
 
 let pass = 0, fail = 0;
