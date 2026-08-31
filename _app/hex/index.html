@@ -5,6 +5,11 @@
     <!-- Access Control: the baseline tier that the large majority of manifest apps declare -->
     <script src="../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- Session owner for ps/stop/restart. Was MISSING: an earlier edit anchored to a script tag
+         that exists in the module template and not here, and .replace() silently did nothing, so
+         every process command hit "session manager not available" for every student. A stub in the
+         test harness hid it completely. -->
+    <script src="../components/SandboxLauncher.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hex shell: launch anything on Hexworth by name. run arena, ls, search.">
     <title>hex shell</title>
@@ -143,26 +148,37 @@
      */
     function resolveProcess(arg, allowStopped) {
         var SL = window.SandboxLauncher;
-        var active = (SL && SL.getActiveSessions) ? SL.getActiveSessions() : {};
-        if (active[arg]) return { labId: arg, sessionId: active[arg].sessionId };
-        for (var labId in active) {
-            if (active[labId] && active[labId].sessionId === arg) {
-                return { labId: labId, sessionId: arg };
+        if (!SL) return Promise.resolve({ error: 'the session manager is not available.' });
+        return SL.list().then(function (r) {
+            // See the contract note in `ps`. Key is `sandboxes`; fields are sessionId/labId/status.
+            var rows = (r && r.sandboxes) || [];
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].labId === arg || rows[i].sessionId === arg) {
+                    return { labId: rows[i].labId, sessionId: rows[i].sessionId,
+                             status: rows[i].status };
+                }
             }
-        }
-        var known = SL && SL.LAB_INFO && SL.LAB_INFO[arg];
-        if (known) {
-            if (allowStopped) return { labId: arg, sessionId: null };
-            return { error: esc(arg) + ' is a lab, but it is not running. ' +
-                     '<span class="ok">run ' + esc(arg) + '</span> starts it.', cls: 'warn' };
-        }
-        // A manifest app that is not a lab is a page. Say that rather than pretending.
-        if (byId(arg)) {
-            return { error: esc(arg) + ' is a page, not a running process. There is nothing to stop; ' +
-                     'just navigate away.', cls: 'warn' };
-        }
-        return { error: 'no lab or session called ' + esc(arg) + '. ' +
-                 '<span class="ok">ps</span> lists what is running.' };
+            if (SL.LAB_INFO && SL.LAB_INFO[arg]) {
+                if (allowStopped) return { labId: arg, sessionId: null, status: 'none' };
+                return { error: esc(arg) + ' is a lab, but you have nothing running for it. ' +
+                         '<span class="ok">run ' + esc(arg) + '</span> starts it.', cls: 'warn' };
+            }
+            // stop/restart already call notReady() before reaching here, but this runs AFTER an
+            // await: the manifest can finish or fail in the window between their check and this
+            // line. Re-check rather than trust the caller's older answer.
+            if (manifestState !== 'ready') {
+                return { error: 'still loading the app list, so I cannot tell whether ' + esc(arg) +
+                         ' is a page or a typo. Try again in a moment.', cls: 'warn' };
+            }
+            if (byId(arg)) {
+                return { error: esc(arg) + ' is a page, not a running process. There is nothing ' +
+                         'to stop; just navigate away.', cls: 'warn' };
+            }
+            return { error: 'no lab or session called ' + esc(arg) + '. ' +
+                     '<span class="ok">ps</span> lists what is running.' };
+        }).catch(function (e) {
+            return { error: 'could not reach the session manager: ' + esc(errText(e)) };
+        });
     }
 
     function setPrompt() {
@@ -262,7 +278,11 @@
         },
         ps: {
             synopsis: 'ps',
-            desc: 'List your running lab sessions.\n' +
+            desc: 'List your lab sessions, with status and age.\n' +
+                  'This asks the lab service, not this browser tab, so a lab you started from its\n' +
+                  'own page or on another device still shows up here.\n' +
+                  'A session can be `stopped` and still hold its slot; `restart` gives you a fresh\n' +
+                  'box, `stop` releases the slot.\n' +
                   'Most apps are PAGES, not processes: `run` navigates to them and there is nothing\n' +
                   'to list. Only labs that spawn a real container appear here.',
             examples: ['ps'],
@@ -285,6 +305,8 @@
                   'A lab that is not running is not an error: it just launches.\n' +
                   'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
                   'outside the lab is gone.\n' +
+                  'If this shell does not know how to launch the lab, restart refuses BEFORE\n' +
+                  'destroying anything, rather than leaving you with no box and no way back.\n' +
                   'If the destroy succeeds and the relaunch fails you are left with nothing running,\n' +
                   'and the shell says so instead of implying it recovered.',
             examples: ['restart linux-sandbox'],
@@ -436,16 +458,41 @@
         ps: function () {
             var SL = window.SandboxLauncher;
             if (!SL) return say('the session manager is not available on this page.', 'err');
-            var active = SL.getActiveSessions ? SL.getActiveSessions() : {};
-            var labs = Object.keys(active);
-            if (!labs.length) return say('nothing running.', 'muted');
-            say('<table>' + labs.map(function (labId) {
-                var x = active[labId] || {};
-                return '<tr><td class="info">' + esc(labId) + '</td>' +
-                       '<td class="muted">' + esc(x.sessionId || '?') + '</td>' +
-                       '<td>' + esc(x.status || 'running') + '</td></tr>';
-            }).join('') + '</table>' +
-                '<span class="muted">stop or restart takes either name above.</span>');
+            // SERVER truth, not this page's memory. SandboxLauncher's _activeSessions is closure
+            // state populated only by launches made in THIS document, and `run` navigates away,
+            // so the shell's copy is empty by construction.
+            say('checking...', 'muted');
+            SL.list().then(function (r) {
+            // Response contract is NOT guessed. Read from the lab-manager source on bc1,
+            // /home/eq1/hexworth-sandbox/lab-manager/server.js:1475 (GET /api/sandbox/list):
+            //   { sandboxes: [ { sessionId, labId, lab, status:'running'|'stopped',
+            //                    ageMinutes, url } ] }
+            // An earlier revision triangulated `r.sessions || r.data || r` and `x.labId || x.lab`.
+            // Every one of those guesses was wrong. The key is `sandboxes`, and the test that
+            // "proved" it green used a mock I had invented, so it could not have failed. `lab` is
+            // a human display NAME, not an id, so it is never a fallback for labId.
+                var rows = (r && r.sandboxes) || [];
+                if (!rows.length) {
+                    return say('nothing running. <span class="muted">' +
+                        '<span class="ok">run &lt;lab&gt;</span> starts one.</span>', 'muted');
+                }
+                say('<table>' + rows.map(function (x) {
+                    var stopped = x.status === 'stopped';
+                    return '<tr><td class="info">' + esc(x.labId) + '</td>' +
+                           '<td class="' + (stopped ? 'warn' : 'ok') + '">' + esc(x.status) + '</td>' +
+                           '<td class="muted">' + (typeof x.ageMinutes === 'number'
+                                ? esc(String(x.ageMinutes)) + 'm' : '') + '</td>' +
+                           '<td class="muted">' + esc(x.sessionId) + '</td></tr>';
+                }).join('') + '</table>' +
+                    '<span class="muted">stop or restart takes the lab name or the session id.' +
+                    (rows.some(function (x) { return x.status === 'stopped'; })
+                        ? ' A <span class="warn">stopped</span> one still holds its slot; ' +
+                          '<span class="ok">restart</span> gives you a fresh box.' : '') +
+                    '</span>');
+            }).catch(function (e) {
+                say('could not reach the session manager: ' + esc(errText(e)), 'err');
+                say('that is the lab service, not this shell. Your labs may still be running.', 'muted');
+            });
         },
 
         stop: function (arg) {
@@ -453,14 +500,15 @@
             if (!SL) return say('the session manager is not available on this page.', 'err');
             if (!arg) return say('stop what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            var t = resolveProcess(arg);
+            resolveProcess(arg).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             say('stopping ' + esc(t.labId) + '...', 'muted');
-            SL.destroy(t.sessionId).then(function () {
+            return SL.destroy(t.sessionId).then(function () {
                 say('stopped ' + esc(t.labId) + '. its slot is back in the pool.', 'ok');
             }).catch(function (e) {
                 say('could not stop ' + esc(t.labId) + ': ' + esc(errText(e)), 'err');
                 say('run <span class="ok">ps</span> to see whether it is still up.', 'muted');
+            });
             });
         },
 
@@ -469,13 +517,26 @@
             if (!SL) return say('the session manager is not available on this page.', 'err');
             if (!arg) return say('restart what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            var t = resolveProcess(arg, true);
+            resolveProcess(arg, true).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
+            // PRE-FLIGHT BEFORE DESTROYING. resolveProcess returns the SERVER's labId, and the
+            // server can know a lab this client's LAB_INFO does not (newly added there, or a
+            // stale cached component here). launch() throws `Unknown lab` locally in that case --
+            // AFTER the destroy has already succeeded. That ordering turns "give me a fresh box"
+            // into "your box is gone and I cannot make another", which is the one outcome a
+            // student running restart on a frozen lab must never get. Refuse up front instead:
+            // nothing is destroyed, and `stop` plus the lab's own page still works.
+            if (!SL.LAB_INFO || !SL.LAB_INFO[t.labId]) {
+                say('this shell does not know how to launch ' + esc(t.labId) + ', so restarting it '
+                    + 'would destroy the box without being able to bring it back.', 'err');
+                return say('nothing was changed. Use <span class="ok">stop ' + esc(arg) + '</span> '
+                    + 'and start it from its own page.', 'muted');
+            }
             // Not running is not an error for restart: a fresh start is what was asked for.
             var step = t.sessionId
                 ? SL.destroy(t.sessionId).then(function () { say('stopped. relaunching...', 'muted'); })
                 : Promise.resolve(say(esc(t.labId) + ' was not running. launching it fresh...', 'muted'));
-            step.then(function () {
+            return step.then(function () {
                 return SL.launch(t.labId);
             }).then(function () {
                 say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
@@ -484,6 +545,7 @@
                 // Do not imply recovery. The destroy may have succeeded and the launch not.
                 say('it may now be stopped and NOT relaunched. run <span class="ok">ps</span> to check, ' +
                     'then <span class="ok">restart</span> again.', 'warn');
+            });
             });
         },
 
@@ -535,6 +597,10 @@
         var arg = parts.join(' ');
         if (!verb) return;
         // A bare app name is a launch. `arena` should do what `run arena` does.
+        // Reads APPS outside the COMMANDS table, so the gate's audit could not see it and Nancy
+        // found it by hand. Without this, a bare app name during the load window answers
+        // "not a command" rather than "still loading".
+        if (!COMMANDS[verb] && notReady()) return;
         if (!COMMANDS[verb] && byId(verb)) return COMMANDS.run(verb);
         if (!COMMANDS[verb]) {
             return say(esc(verb) + ': not a command. try <span class="ok">help</span>', 'err');

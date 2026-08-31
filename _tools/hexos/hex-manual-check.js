@@ -117,6 +117,47 @@ function main() {
             'assert non-existence while it is still loading: ' + unguarded.join(', '));
     }
 
+    // Manifest reads OUTSIDE the COMMANDS table. The audit above only ever walked cmdBlock, so
+    // the dispatcher's own bare-name lookup in exec(), `if (!COMMANDS[verb] && byId(verb))`,
+    // was structurally invisible to it. Nancy found that ninth reader by hand, which is precisely
+    // what this gate exists to stop being necessary. A detector scoped to one region cannot report
+    // on the region it does not read, and its clean output looks identical either way.
+    const outside = src.slice(0, src.indexOf('var COMMANDS = {')) +
+                    src.slice(src.indexOf('var COMMANDS = {') + cmdBlock.length);
+    const fnRe = /function (\w+)\s*\([^)]*\)\s*\{/g;
+    let fm;
+    const leaks = [];
+    while ((fm = fnRe.exec(outside))) {
+        let i = outside.indexOf('{', fm.index), d = 0, end = outside.length;
+        for (let j = i; j < outside.length; j++) {
+            if (outside[j] === '{') d++;
+            else if (outside[j] === '}') { d--; if (d === 0) { end = j; break; } }
+        }
+        const body = outside.slice(fm.index, end)
+            .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+        // notReady/byId/scope are the accessors themselves; they may read APPS by definition.
+        if (['notReady', 'byId', 'scope', 'places'].indexOf(fm[1]) !== -1) continue;
+        // The harm is ASSERTING a falsehood while the list is loading, not reading it. A silent
+        // reader (Tab completion) offering fewer candidates for a moment tells the student
+        // nothing untrue, and forcing notReady() on it would print a message on every keystroke.
+        // So the trigger is: reads the manifest AND emits user-facing text. Verified against both
+        // fixtures, rather than assuming which side of the line each falls on: completionContext
+        // emits neither say() nor an error: field, and resolveProcess emits five.
+        const speaks = /\bsay\(|\berror:/.test(body);
+        // Two legitimate spellings of the same invariant. notReady() both checks and prints, which
+        // is right for a command; a function that RETURNS its error text for a caller to render
+        // must consult manifestState directly or it would print twice. Accept either, since the
+        // invariant is "consulted readiness before asserting", not "called one specific helper".
+        const guarded = /notReady\(\)|manifestState/.test(body);
+        if (/\bAPPS\b|byId\(|scope\(|places\(/.test(body) && speaks && !guarded) {
+            leaks.push(fm[1]);
+        }
+    }
+    if (leaks.length) {
+        problems.push('function(s) OUTSIDE the COMMANDS table read the manifest without a ' +
+            'notReady() guard: ' + leaks.join(', '));
+    }
+
     if (problems.length) {
         console.error('HEX MANUAL DRIFT');
         problems.forEach(p => console.error('  ' + p));
@@ -124,7 +165,7 @@ function main() {
         process.exit(1);
     }
     console.log(`OK: ${commands.length} commands, ${manual.length} manual pages, ` +
-        `no shadowed app ids, all manifest readers guarded.`);
+        `no shadowed app ids, all manifest readers guarded (inside AND outside COMMANDS).`);
 }
 
 if (require.main === module) main();
