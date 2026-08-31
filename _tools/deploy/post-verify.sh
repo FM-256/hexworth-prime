@@ -340,7 +340,7 @@ echo ""
 #
 # This re-derives from the catalog and compares. It does NOT trust the committed file, which is
 # the whole point -- a gate that reads the artifact it is gating proves nothing.
-echo "[4f/5] Careers track links vs course catalog"
+echo "[4f/5] Careers, manifest, hex shell and dead-entry gates"
 if [[ "$DRY_RUN" == 1 ]]; then
     echo -e "  ${DIM}DRY-RUN: would run gen-house-tracks.js --check${NC}"
 else

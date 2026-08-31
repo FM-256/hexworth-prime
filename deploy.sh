@@ -436,6 +436,53 @@ fi
 echo ""
 fi
 
+# ── Gate 3.8: Hex OS structural gates (BLOCKING, PRE-deploy) ──
+# Same argument as 3.7, and it is the codebase's own: post-verify runs AFTER the upload, so it
+# would report a shipped open redirect rather than prevent one. safeEntry decides whether a
+# manifest row becomes a clickable link; a reviewer proved it could be defeated by a control
+# character and navigate a student off the platform, in the DEPLOYED shell. A regression to that
+# function must not be something we learn about from a post-deploy report.
+# These four are cheap and deterministic (no browser except safe-entry, which needs one):
+#   gen-app-manifest --check   the manifest still matches its sources
+#   hex-manual-check           manual pages, guards, /hex/ link coverage, prose-vs-code claims
+#   dead-entry-gate            no app points at a missing file; no NEW app is unreachable
+#   safe-entry.test            the two safeEntry copies have not drifted; no vector escapes origin
+# Honours --force for the same reason 3.7 does: safe-entry drives real Chromium, and an
+# environment failure must not block an unrelated hotfix. The skip says what it gives up.
+if [ "$FORCE" = true ]; then
+    echo -e "${BOLD}[3.8/7]${NC} Hex OS structural gates ${YELLOW}[SKIPPED]${NC} — --force flag set"
+    echo -e "  ${YELLOW}! includes the safeEntry open-redirect guard and the dead-entry gate.${NC}"
+    echo -e "  ${YELLOW}! Run before trusting this deploy:${NC}"
+    echo -e "  ${YELLOW}!   node _tools/hexos/safe-entry.test.js && node _tools/hexos/dead-entry-gate.js${NC}"
+    echo ""
+else
+echo -e "${BOLD}[3.8/7]${NC} Hex OS structural gates..."
+HEXOS_FAILED=""
+for hg in \
+    "manifest drift|node _tools/hexos/gen-app-manifest.js --check" \
+    "manual/prose/link coverage|node _tools/hexos/hex-manual-check.js" \
+    "dead entries|node _tools/hexos/dead-entry-gate.js" \
+    "safeEntry drift + origin escape|node _tools/hexos/safe-entry.test.js"; do
+    HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
+    # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
+    # always 0. That produced a gate that could never block once already in this file.
+    HG_OUT="$(eval "$HG_CMD" 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo -e "  ${RED}FAIL${NC} $HG_NAME"
+        echo "$HG_OUT" | tail -4 | sed 's/^/    /'
+        HEXOS_FAILED="yes"
+    else
+        echo "$HG_OUT" | tail -1 | sed 's/^/  /'
+    fi
+done
+if [ -n "$HEXOS_FAILED" ]; then
+    echo -e "${RED}DEPLOY BLOCKED${NC}: a Hex OS structural gate failed."
+    echo "These cover real containers, real capacity, and an open-redirect guard."
+    exit 1
+fi
+echo ""
+fi
+
 # ── Gate 4: Firebase deploy (with deploy-in-progress lock for post-verify) ──
 echo -e "${BOLD}[4/7]${NC} Deploying to Firebase..."
 echo ""
