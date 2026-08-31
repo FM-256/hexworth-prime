@@ -81,6 +81,20 @@ const CASES = [
     ['dead block, "}" closes counter early',
         `if (false) { const s = "}"; go("/${TARGET}"); }`,                              false],
 
+    // REGEX LITERALS. Third instance of the same over-match in this one function, and the shape
+    // with zero coverage until a reviewer found it: `/\{abc/` pushes depth up with no matching
+    // close, the counter never balances, and the non-destructive fallback then leaves the whole
+    // dead block in place to be counted as a real link.
+    ['regex with escaped brace',
+        `if (false) { const re = /\\{abc/; go("/${TARGET}"); }`,                        false],
+    ['regex char class with brace',
+        `if (false) { const re = /[{]/; go("/${TARGET}"); }`,                            false],
+    // Division must NOT be mistaken for a regex, or the skip runs past the block end.
+    ['division is not a regex',
+        `if (false) { const x = a / b; go("/${TARGET}"); }`,                             false],
+    ['live link after a regex dead block',
+        `if (false) { const re = /\\{x/; }\ncourseHref: '${TARGET}',`,                  true],
+
     // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
     // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
@@ -112,6 +126,18 @@ for (const rel of ['components/HubRegistry.js', 'components/LearningPaths.js']) 
     ok ? pass++ : fail++;
     console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${rel} survives stripping`);
 }
+
+// An unparseable dead block must be COUNTED, not silently resolved. Neither resolution is safe
+// (deleting removes live links, keeping counts a dead one as real), so the gate reports instead
+// of guessing. Locking that here means a future change to the fallback cannot quietly make it
+// worse, which is what happened the last three times.
+const sdSrc = src.match(/function stripDead\(src\) \{[\s\S]*?\n\}/)[0];
+const counted = new Function(
+    'return (function () { ' + sdSrc +
+    ' stripDead("if (false) { `${"); return stripDead.unparsed || 0; })()')();
+const ok = counted >= 1;
+ok ? pass++ : fail++;
+console.log(`    ${ok ? 'ok  ' : 'FAIL'} an unparseable dead block is counted, not guessed at`);
 
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;

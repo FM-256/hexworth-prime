@@ -97,8 +97,12 @@ function allSource(dir, out) {
  *
  *   OVER-matching (dangerous: silently removes coverage)
  *     The dead-block scan is text, not a parser. It skips string and template literals when
- *     depth-counting, and bails without deleting anything if the depth never balances, but a
- *     regex literal containing a brace is NOT skipped and could still desync it.
+ *     depth-counting, and now skips regex literals too, after a reviewer found `/\{abc/` desyncing
+ *     it: the counter never balanced, the non-destructive fallback left the dead block in place,
+ *     and a dead href inside it counted as real. Division-vs-regex is decided by a conservative
+ *     heuristic, so an unusual shape can still be misread. When the depth does not balance the
+ *     scan now deletes NOTHING and COUNTS the occurrence, and the gate prints that count, because
+ *     the failure that bit this file three times was a wrong answer given quietly.
  *     The EXCLUDE/DENY/IGNORE/SKIP name list is a CONVENTION, not a guarantee. An array named
  *     LEGACY_HOUSES holding a route that is still served would be stripped, and that page would
  *     drop out of coverage with no error and nothing to grep for. Whole-word SCREAMING_CASE
@@ -120,22 +124,51 @@ function stripDead(src) {
         // the end, and the removal eats every live link after it. A reviewer reproduced exactly
         // that and it over-matches, which this file calls the dangerous direction. Stray braces in
         // error messages, templates and CSS-in-JS are ordinary, not adversarial.
-        let depth = 1, j = i + 1, quote = null;
+        let depth = 1, j = i + 1, quote = null, prev = '';
         while (j < out.length && depth > 0) {
             const c = out[j];
             if (quote) {
                 if (c === '\\') { j += 2; continue; }
                 if (c === quote) quote = null;
-            } else if (c === '"' || c === "'" || c === '`') {
-                quote = c;
-            } else if (c === '{') depth++;
+                j++;
+                continue;
+            }
+            if (c === '"' || c === "'" || c === '`') { quote = c; j++; continue; }
+            // REGEX LITERALS. `/\{abc/` pushes depth up with no matching close, the counter never
+            // balances, and the fallback then leaves the whole dead block in place to be counted
+            // as a real link. Third instance of over-matching in this one function.
+            // Division-vs-regex is genuinely ambiguous in JS. The conservative test: a `/` starts
+            // a regex only where a value cannot already be complete, i.e. after an operator,
+            // opener, comma, or statement start. Getting it wrong costs a skipped span, not a
+            // deleted link, because an unbalanced result deletes nothing and is REPORTED.
+            if (c === '/' && out[j + 1] !== '/' && out[j + 1] !== '*'
+                && /[({[,;=:!&|?+\-*%~^<>]|^$/.test(prev)) {
+                j++;
+                while (j < out.length && out[j] !== '/' && out[j] !== '\n') {
+                    if (out[j] === '\\') j++;
+                    else if (out[j] === '[') { while (j < out.length && out[j] !== ']') j++; }
+                    j++;
+                }
+                j++;
+                continue;
+            }
+            if (c === '{') depth++;
             else if (c === '}') depth--;
+            if (!/\s/.test(c)) prev = c;
             j++;
         }
-        // Unbalanced after skipping literals means the parse is untrustworthy. Drop only the
-        // marker and keep the text, because a wrong guess here DELETES real links.
-        out = depth === 0 ? out.slice(0, i) + out.slice(j)
-                          : out.slice(0, i) + out.slice(i + 1);
+        // Unbalanced after skipping literals means this text cannot be parsed by these rules.
+        // Neither resolution is safe: deleting to the end removes real links and manufactures
+        // orphans; keeping the text counts a DEAD link as real and silently removes coverage.
+        // So do the non-destructive thing AND record it, because the failure that has bitten this
+        // file three times is a wrong answer given quietly. A reported unknown is triageable; a
+        // silent guess is what produced two retractions.
+        if (depth === 0) {
+            out = out.slice(0, i) + out.slice(j);
+        } else {
+            out = out.slice(0, i) + out.slice(i + 1);
+            stripDead.unparsed = (stripDead.unparsed || 0) + 1;
+        }
     }
 
     // Declarations whose NAME says the contents are not navigation targets.
@@ -282,6 +315,12 @@ function main() {
 
     console.log(`swept ${apps.length} apps: ${broken.length} broken, ${unreached.length} unreached ` +
                 `(${known.length} baselined, ${newlyUnreached.length} new)`);
+    // Visible at runtime, not only in a test. If this is ever non-zero, some dead block could not
+    // be parsed by these rules and was left in place, so a link inside it may be counted as real.
+    if (stripDead.unparsed) {
+        console.log(`  note: ${stripDead.unparsed} dead block(s) could not be parsed and were ` +
+                    `left in place; a link inside one would count as reachable.`);
+    }
 
     let bad = false;
     if (broken.length) {
