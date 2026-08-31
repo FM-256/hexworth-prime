@@ -152,8 +152,31 @@
      * detail that makes a shell feel hostile.
      * allowStopped: restart is happy with a lab that is not currently running.
      */
-    var procBusy = null;   // command name currently mutating a session, or null
-    function clearProc() { procBusy = null; }
+    var procBusy = null;    // command name currently mutating a session, or null
+    var procTimer = null;   // watchdog, see below
+    var PROC_TIMEOUT_MS = 90000;
+
+    function holdProc(name) {
+        procBusy = name;
+        // SandboxLauncher.apiCall() uses fetch() with no timeout and no AbortController, so a
+        // request that never settles leaves the chain pending forever and this lock held for the
+        // life of the tab. Without a watchdog the fix for the double-fire race would itself become
+        // a way to permanently disable both commands, which is worse than the race it closes.
+        // Releasing here does NOT cancel the in-flight request; it only stops the shell from
+        // refusing forever, and says so rather than implying the operation was cancelled.
+        procTimer = setTimeout(function () {
+            if (procBusy !== name) return;
+            procBusy = null;
+            procTimer = null;
+            say(esc(name) + ' has not answered in 90 seconds, so the shell is no longer waiting on '
+                + 'it. The request may still be running.', 'warn');
+            say('run <span class="ok">ps</span> to see the real state before trying again.', 'muted');
+        }, PROC_TIMEOUT_MS);
+    }
+    function clearProc() {
+        procBusy = null;
+        if (procTimer) { clearTimeout(procTimer); procTimer = null; }
+    }
 
     function resolveProcess(arg, allowStopped) {
         var SL = window.SandboxLauncher;
@@ -305,7 +328,9 @@
                   'Use this when a lab has frozen, or when you are finished and want the slot back\n' +
                   'for someone else.\n' +
                   'One stop or restart runs at a time. A second one is refused rather than queued,\n' +
-                  'because two overlapping requests can leave a duplicate session behind.',
+                  'because two overlapping requests can leave a duplicate session behind.\n' +
+                  'If a request goes unanswered for 90 seconds the shell stops waiting and says so.\n' +
+                  'That does not cancel it, so check `ps` before trying again.',
             examples: ['ps', 'stop linux-sandbox'],
             see: ['ps', 'restart']
         },
@@ -317,6 +342,7 @@
                   'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
                   'outside the lab is gone.\n' +
                   'One stop or restart runs at a time; a second is refused rather than queued.\n' +
+                  'If a request goes unanswered for 90 seconds the shell stops waiting and says so.\n' +
                   'If this shell does not know how to launch the lab, restart refuses BEFORE\n' +
                   'destroying anything, rather than leaving you with no box and no way back.\n' +
                   'If the destroy succeeds and the relaunch fails you are left with nothing running,\n' +
@@ -516,7 +542,7 @@
             }
             if (!arg) return say('stop what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            procBusy = 'stop';
+            holdProc('stop');
             resolveProcess(arg).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             say('stopping ' + esc(t.labId) + '...', 'muted');
@@ -538,7 +564,7 @@
             }
             if (!arg) return say('restart what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            procBusy = 'restart';
+            holdProc('restart');
             resolveProcess(arg, true).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             // PRE-FLIGHT BEFORE DESTROYING. resolveProcess returns the SERVER's labId, and the

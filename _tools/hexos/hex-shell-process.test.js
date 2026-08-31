@@ -41,6 +41,12 @@
  * the precise blind spot that let ps/stop/restart ship dead: a mock cannot fail the thing it is
  * not checking. hex/index.html was the only one of 38 SandboxLauncher pages missing that tag.
  *
+ * NOT COVERED BY THIS SUITE, stated plainly rather than left to be discovered: the 90s watchdog
+ * that releases the in-flight lock when a request never settles. fetch() in SandboxLauncher.apiCall
+ * has no timeout, so a stalled connection would otherwise hold the lock for the life of the tab.
+ * The mock always answers, and a 90s test would dominate the run, so the watchdog is verified by
+ * reading the code only. Treat it as unverified behaviour if you change it.
+ *
  * The `server-only-lab` case is a regression guard for a genuinely destructive ordering bug: restart
  * destroyed the box and THEN discovered it could not relaunch it, because the server may know a lab
  * this client's LAB_INFO does not. "Your box is gone and I cannot make another" is the one outcome a
@@ -177,10 +183,18 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('  -> and destroys exactly once', win.filter(c => /DELETE/.test(c)).length === 1, win.join('|'));
     chk('  -> second press is refused, not queued',
         /already running/i.test(await pg.evaluate(() => document.getElementById('out').innerText)), '');
-    chk('  -> lock RELEASED afterwards (not wedged)',
-        await pg.evaluate(() => typeof procBusy === 'undefined' ? 'n/a' : procBusy) !== 'restart', 'still locked');
     o = await run('ps');
     chk('  -> no orphaned duplicate session', (o.match(/db-sql/g) || []).length === 1, o);
+
+    // Lock release is checked by OUTCOME, because the harness cannot see the variable. procBusy is
+    // declared inside the page's IIFE and never attached to window, so an earlier version of this
+    // check, `typeof procBusy === 'undefined' ? 'n/a' : procBusy) !== 'restart'`, read undefined in
+    // every case and evaluated true whether the lock was held or not. It was written specifically to
+    // answer "is the lock released?" and could not have failed. A later command being ACCEPTED is an
+    // observable consequence of release, and it does fail if the lock wedges.
+    o = await run('stop db-sql');
+    chk('lock RELEASED: a later command is accepted, not refused',
+        !/already running/i.test(o) && /stopping|stopped|nothing|no lab/i.test(o), o);
 
     chk('every request carried a Bearer token', unauth.length === 0, unauth.join('|'));
     const html = await pg.evaluate(() => document.getElementById('out').innerHTML);
