@@ -436,6 +436,28 @@ function main() {
     // cause was this file's own comment regex eating 85,324 characters of it. It is no longer
     // listed because it is no longer broken.
     const KNOWN_UNPARSED = {};
+
+    // Files whose script bodies esprima 4 cannot tokenise, so their comments survive. Causes were
+    // TRACED, not assumed: a reviewer caught "ES2018+ syntax" being wrong for the very file this
+    // round is named after. Two distinct causes, printed by the tracer:
+    //   Unexpected token ILLEGAL    BigInt literals and numeric separators
+    //   Invalid regular expression  esprima 4 misreading `.new /` as keyword-then-regex, which is
+    //                               the same keyword-ambiguity class it exposed in my own scanner
+    const KNOWN_FELLBACK = [
+        '/arena/discord-sdk.js',
+        '/components/CheckpointSave.js',
+        '/components/CryptoAppletRenderer.js',
+        '/components/profile/privacy-settings.html',
+        '/houses/ai/tools/ai-cost-calculator.tool.html',
+        '/houses/ai/tools/ai-llm-comparison.tool.html',
+        '/houses/ai/tools/ai-tokenizer.tool.html',
+        '/houses/key/labs/key-encryption-dh-rsa.lab.html',
+        '/houses/shield/applets/crypto/hashing_steganography/shield-encryption-task.applet.html',
+        '/houses/shield/sc-900/labs/sc900-ch01-concepts.lab.html',
+        '/houses/shield/sc-900/labs/sc900-ch02-entra-id.lab.html',
+        '/scripts/merge-registry.js',
+        '/scripts/migrate-to-content-registry.js',
+    ];
     const newUnparsed = unparsedFiles.filter(f => !(f in KNOWN_UNPARSED));
     if (unparsedFiles.length) {
         console.log(`  note: ${unparsedFiles.length} file(s) contain a dead block that could not ` +
@@ -447,6 +469,22 @@ function main() {
         if (stripDead.fellBackFiles && stripDead.fellBackFiles.length) {
             console.log('  comment-survival blind spot, by file:');
             stripDead.fellBackFiles.forEach(f => console.log(`    ${f}`));
+        }
+        // ENFORCED, not just printed. A reviewer found that the sibling counter (unparsed) had a
+        // baseline and hard-failed while this one, the subject of the whole contract change, was
+        // observability-only: the set could grow from 13 to 50 and the gate would keep exiting 0.
+        // The gate built to catch "a claim of coverage the code does not back up" had that exact
+        // shape of gap inside it. Same mechanism as KNOWN_UNPARSED now: a recorded set, and a NEW
+        // member fails.
+        const newFellBack = (stripDead.fellBackFiles || [])
+            .filter(f => KNOWN_FELLBACK.indexOf(f) === -1);
+        if (newFellBack.length) {
+            console.error('\nNEW file(s) whose comments now survive un-stripped:');
+            newFellBack.forEach(f => console.error(`  ${f}`));
+            console.error('\nA path inside a comment in one of these counts as a live link and can');
+            console.error('mask an orphan. Either make the file tokenise, or add it to');
+            console.error('KNOWN_FELLBACK in this file with the reason it cannot.');
+            bad = true;
         }
         console.log(`  note: ${stripDead.fellBack} script body/bodies could not be tokenised, so ` +
                     `their comments were LEFT IN PLACE. A path inside one of those comments counts ` +

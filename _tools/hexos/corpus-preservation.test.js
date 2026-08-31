@@ -109,7 +109,12 @@ for (const f of files) {
     // it catches" defect this file was written to close, surviving in the file that closed it.
     const PAT = f.endsWith('.js')
         ? /["'`]((?:\/|(?:houses|labs|games|arcade|dark-arts|cloud|signal|career)\/)[^"'`\s]*\.html|\/[A-Za-z0-9_\-\/]+\/)["'`]/g
-        : /href\s*=\s*["'][^"']*["']/g;
+        // HTML branch copied byte-for-byte from the gate as well. A reviewer diffed the WHOLE
+        // pattern rather than only the branch that broke last time, and found this one still
+        // paraphrased: `*` where the gate has `+`, non-capturing where the gate captures. Inert
+        // today, since an empty href fails the gate's own check anyway, but it is the same
+        // copied-vs-paraphrased drift that finding was about.
+        : /href\s*=\s*["']([^"']+)["']/g;
     const A = src.match(PAT) || [];
     const B = out.match(PAT) || [];
     for (const a of A) {
