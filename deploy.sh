@@ -444,11 +444,19 @@ fi
 # manifest row becomes a clickable link; a reviewer proved it could be defeated by a control
 # character and navigate a student off the platform, in the DEPLOYED shell. A regression to that
 # function must not be something we learn about from a post-deploy report.
-# These four are cheap and deterministic (no browser except safe-entry, which needs one):
+# The list below is the loop's own; the loop is the count. (It said "these four" while running
+# six, which is why this now describes the set instead of sizing it.) Most are cheap and
+# deterministic; safe-entry and pwa drive real Chromium:
 #   gen-app-manifest --check   the manifest still matches its sources
 #   hex-manual-check           manual pages, guards, /hex/ link coverage, prose-vs-code claims
 #   dead-entry-gate            no app points at a missing file; no NEW app is unreachable
 #   safe-entry.test            the two safeEntry copies have not drifted; no vector escapes origin
+#   pwa.test                   the PWA worker stays scoped to /hex/, stays network-first, and
+#                              stands down for a tenant session. That last one is why it blocks
+#                              rather than reports: a worker at '/hex/' outranks tenant-sw.js at
+#                              '/', which would silently stop the white-label injection for a
+#                              tenant's students. A post-deploy report of that is a report of a
+#                              live branding leak in somebody else's classroom.
 # Honours --force for the same reason 3.7 does: safe-entry drives real Chromium, and an
 # environment failure must not block an unrelated hotfix. The skip says what it gives up.
 if [ "$FORCE" = true ]; then
@@ -466,7 +474,8 @@ for hg in \
     "dead-entry scanner|node _tools/hexos/dead-entry-gate.test.js" \
     "corpus content preservation|node _tools/hexos/corpus-preservation.test.js" \
     "dead entries|node _tools/hexos/dead-entry-gate.js" \
-    "safeEntry drift + origin escape|node _tools/hexos/safe-entry.test.js"; do
+    "safeEntry drift + origin escape|node _tools/hexos/safe-entry.test.js" \
+    "PWA scope + tenant precedence|node _tools/hexos/pwa.test.js"; do
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
     # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
     # always 0. That produced a gate that could never block once already in this file.

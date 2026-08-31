@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 09:51 · **1165 scripts** · 30 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 473 not in git
+**Generated:** 2026-08-31 10:51 · **1166 scripts** · 31 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 474 not in git
 
 ## Read this before writing a new script
 
@@ -57,6 +57,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_tools/hexos/pwa.test.js` | `deploy.sh` | **NO** | Proves the Hex OS PWA in a real browser: the manifest parses, the worker registers scoped to /hex/, it never claims the site root, and it is network-first so a deployed fix is never outlived by a cached bug. |
 | `_tools/hexos/safe-entry.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
