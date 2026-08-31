@@ -93,7 +93,19 @@ function main() {
     // must count as a link here, or the gate manufactures unreachability that does not exist.
     const linked = new Set();
     for (const f of allSource(APP)) {
-        const html = fs.readFileSync(f, 'utf8');
+        // Comments stripped FIRST, in both file types. Without this the sweep counts a path
+        // inside a commented-out block, an `if (false)` branch, or an EXCLUDE_LIST as a real
+        // inbound link, marking an app reachable when nothing reaches it. A reviewer proved all
+        // four shapes match. This is the same comment-stripping already applied to the prose
+        // detector in hex-manual-check during this same round; not applying it here was the
+        // lesson learned one file away and not carried across.
+        // Over-matching is the DANGEROUS direction for this gate: under-matching produces noisy
+        // false positives someone must triage, while over-matching silently reports an
+        // unreachable page as reached and removes the very coverage the gate exists to give.
+        const html = fs.readFileSync(f, 'utf8')
+            .replace(/<!--[\s\S]*?-->/g, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.
         // In .js, a path lives in a string literal or an object field (courseHref, entry, url),

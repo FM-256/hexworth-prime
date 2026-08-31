@@ -424,8 +424,10 @@ echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands (ps/stop/restart)..."
 # Capture, THEN test the status. `if node ... | tail -3` would take tail's exit status, which is
 # always 0, producing a gate that can never block. That is the exact defect class this suite
 # exists to catch, and it was written into this gate on the first attempt.
-HEXPROC_OUT="$(node _tools/hexos/hex-shell-process.test.js 2>&1)"
-HEXPROC_RC=$?
+# Assignment as the if-condition, for the errexit reason documented in 3.8 below. As a bare
+# assignment this died on the failing substitution before printing anything.
+HEXPROC_RC=0
+HEXPROC_OUT="$(node _tools/hexos/hex-shell-process.test.js 2>&1)" || HEXPROC_RC=$?
 echo "$HEXPROC_OUT" | tail -3 | sed 's/^/  /'
 if [[ $HEXPROC_RC -ne 0 ]]; then
     echo -e "${RED}DEPLOY BLOCKED${NC}: the hex shell's session commands regressed."
@@ -466,13 +468,19 @@ for hg in \
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
     # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
     # always 0. That produced a gate that could never block once already in this file.
-    HG_OUT="$(eval "$HG_CMD" 2>&1)"
-    if [[ $? -ne 0 ]]; then
+    # The assignment IS the condition. A BARE `OUT="$(cmd)"` is NOT exempt from errexit, so
+    # under `set -euo pipefail` (line 44) the script dies on the failing substitution before the
+    # next line runs: no FAIL label, no captured output, no DEPLOY BLOCKED message. It still
+    # aborts, but by accident of set -e rather than by this logic, and every diagnostic below
+    # would be dead code. Found by a reviewer injecting a failing member into the real loop; my
+    # own check had extracted the loop into a fixture WITHOUT set -e, so it could not reproduce
+    # the environment it was testing. Gate 3.7 above has the identical flaw and is fixed too.
+    if HG_OUT="$(eval "$HG_CMD" 2>&1)"; then
+        echo "$HG_OUT" | tail -1 | sed 's/^/  /'
+    else
         echo -e "  ${RED}FAIL${NC} $HG_NAME"
         echo "$HG_OUT" | tail -4 | sed 's/^/    /'
         HEXOS_FAILED="yes"
-    else
-        echo "$HG_OUT" | tail -1 | sed 's/^/  /'
     fi
 done
 if [ -n "$HEXOS_FAILED" ]; then
