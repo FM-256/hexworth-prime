@@ -84,9 +84,6 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   a retry-sequence test. Best-score is a DEFAULT, not a settled question.
 - **Still open:** scores already overwritten are NOT restored. They are recoverable from
   `users/{uid}/quiz_attempts`; that backfill is a production data write and its own decision.
-  Needs a decision first: is the contract best-score or latest-score? Whichever it is, all three
-  sites must state it identically, and the losing scores should remain recoverable from
-  `users/{uid}/quiz_attempts`, which already records every submission.
 - **Verified:** all three code paths read directly, 2026-08-31. Not yet reproduced against a live
   account — the read is unambiguous but the student-facing claim deserves an actual retake test.
 - **Related:** BUG-240 · `users/{uid}/quiz_attempts` (`functions/index.js:2134`) is the
@@ -117,10 +114,8 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   copy for that reason. The skip-list is built on what a collection DOES, not name shape,
   because `_attempts` would wrongly catch the quiz/mission/lab ledgers.
 - **NOT YET RUN against production accounts.** Editing the script is safe; running it is a
-  direct admin-SDK production write needing its own authorization. Original text follows:
-  enumerate the source's subcollections at runtime rather than naming them,
-  so the set cannot go stale. Attempt/rate-limit collections may be deliberately droppable, but
-  that should be an explicit skip-list with reasons, not an accident of omission.
+  direct admin-SDK production write and needs its own authorization. No merge has been run
+  with the new enumeration, so this is fixed in code and unexercised in practice.
 - **Verified:** the three `copySubcollection` calls read directly. The 17-name inventory is a
   FLOOR, not a total: it comes from the unambiguous `users/${uid}/<sub>` path form in
   `functions/*.js`. `sync` is written through a different form and is also not copied, so the
