@@ -76,6 +76,7 @@
 </header>
 <div class="cats" id="cats" role="group" aria-label="Filter by category"></div>
 <main>
+    <p class="sec" id="count" aria-live="polite" aria-atomic="true"></p>
     <div id="out"><p class="empty">loading the app list...</p></div>
     <p class="note" id="note"></p>
 </main>
@@ -131,7 +132,9 @@
             + icon
             + '<span class="nm">' + esc(a.name) + '</span>'
             + (a.sublabel ? '<span class="sub">' + esc(a.sublabel) + '</span>' : '')
-            + '<span class="tag">' + esc(a.house || a.category) + (a.status === 'workshop' ? ' · workshop' : '') + '</span>'
+            + '<span class="tag">' + esc(a.house || a.category)
+                + (a.clientGuard ? ' · ' + esc(a.clientGuard) : '')
+                + (a.status === 'workshop' ? ' · workshop' : '') + '</span>'
             + '</a>';
     }
 
@@ -154,7 +157,12 @@
                 html += '<p class="sec">recent</p><div class="grid">' + rec.map(tile).join('') + '</div>';
             }
         }
-        html += '<p class="sec">' + (q || cat !== 'all' ? list.length + ' match' + (list.length === 1 ? '' : 'es') : 'all apps · ' + list.length) + '</p>';
+        // The count lives OUTSIDE the replaced region and is a live region, so a screen reader
+        // hears the result of a filter or keystroke. Announcing the grid itself would read out
+        // every tile.
+        document.getElementById('count').textContent =
+            (q || cat !== 'all') ? list.length + ' match' + (list.length === 1 ? '' : 'es')
+                                 : 'all apps · ' + list.length;
         html += list.length
             ? '<div class="grid">' + list.map(tile).join('') + '</div>'
             : '<p class="empty">nothing matches. Try a house name, a course code, or clear the filter.</p>';
@@ -172,7 +180,14 @@
     fetch('/data/hex-apps.json', { cache: 'no-cache' })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (d) {
-            APPS = (d.apps || []).slice().sort(function (x, y) { return x.name.localeCompare(y.name); });
+            // A 200 carrying a malformed or empty body is NOT the same as "no results", and the
+            // previous version collapsed them: `d.apps || []` swallowed a renamed key, then the
+            // page printed "nothing matches. Try a house name" with no filter active. That is
+            // wrong advice during total data loss, and worse than the fetch-failure path which
+            // at least says something is broken. A reviewer caught the asymmetry.
+            if (!d || !Array.isArray(d.apps)) throw new Error('the app list is malformed: no "apps" array');
+            if (!d.apps.length) throw new Error('the app list is empty');
+            APPS = d.apps.slice().sort(function (x, y) { return x.name.localeCompare(y.name); });
             var counts = {}, order = [];
             APPS.forEach(function (a) {
                 if (!counts[a.category]) { counts[a.category] = 0; order.push(a.category); }

@@ -213,6 +213,41 @@ function main() {
         }
     }
 
+    // apps.html was invisible to this gate, and that is exactly how a false sentence shipped on
+    // it: the footer claimed tiles displayed clientGuard while tile() never read that field. The
+    // gate built to catch false prose in this file family did not read the newest member.
+    // This cannot verify prose either. What it CAN do is catch the mechanical half: a claim that
+    // names a manifest field the renderer never touches.
+    const GRID = path.join(REPO, '_app/hex/apps.html');
+    if (fs.existsSync(GRID)) {
+        const grid = fs.readFileSync(GRID, 'utf8');
+        const rendered = new Set();
+        const rx = /\ba\.([a-zA-Z]+)/g;
+        let g2;
+        while ((g2 = rx.exec(grid))) rendered.add(g2[1]);
+        // Strip comments FIRST, then look for the field name in what remains. An earlier version
+        // matched single-quoted strings with /'[^']{12,}'/ and found nothing: quote pairing runs
+        // sequentially across the file, so one apostrophe inside any comment offsets every
+        // subsequent pair. It reported clean while the false claim sat in plain sight. That is a
+        // detector keyed on the wrong surface, which is the failure this gate exists to catch,
+        // committed inside the gate. Stripping comments is the same technique keysOf() already
+        // uses here, and it also stops THIS file's own explanatory prose from self-triggering.
+        const body = grid
+            .replace(/<!--[\s\S]*?-->/g, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+        const MANIFEST_FIELDS = ['clientGuard', 'tenantAssignable', 'sublabel', 'verb', 'source'];
+        const lying = MANIFEST_FIELDS.filter(function (f) {
+            if (rendered.has(f)) return false;              // it is rendered; any claim is true
+            const total = (body.match(new RegExp(f, 'g')) || []).length;
+            return total > 0;                                // named in live code, never rendered
+        });
+        if (lying.length) {
+            problems.push('apps.html names manifest field(s) it never renders, so the page ' +
+                'describes a feature it does not have: ' + lying.join(', '));
+        }
+    }
+
     if (problems.length) {
         console.error('HEX MANUAL DRIFT');
         problems.forEach(p => console.error('  ' + p));

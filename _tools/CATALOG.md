@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 02:33 · **1163 scripts** · 26 wired into a gate · 274 called by other code · 190 only mentioned in docs · 673 referenced by nothing · 474 not in git
+**Generated:** 2026-08-31 03:17 · **1163 scripts** · 26 wired into a gate · 274 called by other code · 190 only mentioned in docs · 673 referenced by nothing · 473 not in git
 
 ## Read this before writing a new script
 
@@ -746,7 +746,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `dead-entry-gate.js` | ORPHAN | 0 | 2026-08-31 | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
-| `safe-entry.test.js` | ORPHAN | 0 | 2026-08-31 | no | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
+| `safe-entry.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
