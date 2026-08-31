@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 04:25 · **1164 scripts** · 29 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 473 not in git
+**Generated:** 2026-08-31 04:35 · **1165 scripts** · 30 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 474 not in git
 
 ## Read this before writing a new script
 
@@ -51,6 +51,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
+| `_tools/hexos/corpus-preservation.test.js` | `deploy.sh` | **NO** | Sweeps every HTML file under _app and fails if stripDead() removes an href that was NOT inside a comment. Catches content deletion the unit tests cannot. |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
 | `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |

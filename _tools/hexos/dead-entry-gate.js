@@ -186,10 +186,23 @@ function stripDead(src) {
         // I then diagnosed that file as "modern syntax esprima 4 rejects" WITHOUT tracing it, and
         // wrote that into a commit message as fact. esprima tokenises it fine. The cause was in
         // the pass that runs BEFORE the tokenizer, which the tokenizer rewrite never touched.
-        let out = src.replace(/<!--[\s\S]*?-->/g, '');
-        // JS comment handling belongs inside <script> bodies, where JS syntax actually applies.
-        out = out.replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi,
-            (m, open, body, close) => open + stripDeadBlocks(stripJsComments(body)) + close);
+        // SPLIT FIRST, then apply each layer's rules to its own segment. The previous version
+        // stripped HTML comments across the WHOLE file before isolating scripts, so a JS string
+        // containing the literal text '<!--' opened a fake comment that ran forward to the next
+        // real '-->'. A reviewer swept all 5,303 HTML files and found 15 losing content that way;
+        // shield-web-security-headers-lab.applet.html lost 5,174 characters and its only nav href
+        // because a lab script checks `line.startsWith('<!--')`.
+        // That is the mirror image of the bug this function was rewritten to fix, with the
+        // delimiter roles swapped, and the asymmetry was the cause: the JS pass was confined to
+        // script bodies while the HTML pass was not confined to markup.
+        const SCRIPT = /(<script\b[^>]*>)([\s\S]*?)(<\/script\s*>)/gi;
+        let out = '', last = 0, m;
+        while ((m = SCRIPT.exec(src))) {
+            out += src.slice(last, m.index).replace(/<!--[\s\S]*?-->/g, '');   // markup only
+            out += m[1] + stripDeadBlocks(stripJsComments(m[2])) + m[3];        // script only
+            last = m.index + m[0].length;
+        }
+        out += src.slice(last).replace(/<!--[\s\S]*?-->/g, '');
         return stripNamedDeadArrays(out);
     }
     return stripNamedDeadArrays(stripDeadBlocks(stripJsComments(src)));
