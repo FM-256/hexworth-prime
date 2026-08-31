@@ -31,6 +31,131 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  open
+- **Found:** 2026-08-31 · by self · surveying per-user state for HEXOS-4 (home directory)
+- **Area:** `functions/index.js:1254-1259` (`recordProgress`, case `'quiz'`) vs
+  `functions/account-merge.js:83-85` (`mergeQuizzes`) vs `_app/components/FirestoreManager.js:725`
+  (`mergeQuizScores`)
+- **Symptom:** a student who retakes a quiz, passes again, but scores LOWER than before has their
+  better score replaced. The grade the platform reports is the most recent pass, not the best one.
+- **Repro:** pass a quiz at 95. Retake, pass at 72. `users/{uid}.quizzes.{itemId}` now reads 72.
+- **Root cause:** THREE policies for the same fact, and only one of them is on the write path
+  students actually take. `recordProgress` assigns unconditionally: it sets
+  `quizzes.{itemId}` to `{ score, passedAt }` with no comparison against the stored value. Both merge paths explicitly keep the higher (`// Keep highest score`), so the
+  intended policy is clearly best-score; the primary writer just does not implement it.
+  `ModuleProgress.completeQuiz` calls this only on a pass (`:766-768`), so a failed retake is
+  harmless — it is specifically a passing retake that destroys the better result.
+- **Fix:** not applied. `recordProgress` should compare before assigning, matching `mergeQuizzes`.
+  Needs a decision first: is the contract best-score or latest-score? Whichever it is, all three
+  sites must state it identically, and the losing scores should remain recoverable from
+  `users/{uid}/quiz_attempts`, which already records every submission.
+- **Verified:** all three code paths read directly, 2026-08-31. Not yet reproduced against a live
+  account — the read is unambiguous but the student-facing claim deserves an actual retake test.
+- **Related:** BUG-240 · `users/{uid}/quiz_attempts` (`functions/index.js:2134`) is the
+  full ledger and is unaffected, so no data is destroyed — only the summary field is wrong.
+
+### BUG-240 — an account merge silently drops 14 of at least 17 user subcollections  ·  [P1]  ·  open
+- **Found:** 2026-08-31 · by self · same survey
+- **Area:** `functions/account-merge.js:193-203`
+- **Symptom:** when two accounts are merged, the surviving account keeps gates, flag captures and
+  score submissions, and loses everything else the student earned — including **server-issued
+  badges** (`server_awards`), quiz attempt history (`quiz_attempts`), mission completions
+  (`mission_completions`, `mission_progress`, `mission_attempts`) and every lab/challenge/EDT/PFI
+  attempt record. `server_awards` is the tamper-evident proof store, so the loss is of exactly the
+  records that cannot be re-derived from client state.
+- **Repro:** merge an account that holds a `server_awards/{badgeId}` doc. The doc does not appear
+  under the surviving uid.
+- **Root cause:** `copySubcollection` is called exactly three times, by name — `gates`,
+  `flag_captures`, `score_submissions`. There is no enumeration of the source account's
+  subcollections, so anything added since this file was written is invisible to it. It is an
+  allowlist that nobody updates when a new subcollection ships.
+- **Not carried across (14):** `activation_attempts`, `challenge_attempts`, `edt_attempts`,
+  `edt_resets`, `flag_attempts`, `flag_deliveries`, `gate_attempts`, `lab_attempts`,
+  `mission_attempts`, `mission_completions`, `mission_progress`, `pfi_attempts`, `quiz_attempts`,
+  `server_awards`.
+- **Fix:** not applied. Enumerate the source's subcollections at runtime rather than naming them,
+  so the set cannot go stale. Attempt/rate-limit collections may be deliberately droppable, but
+  that should be an explicit skip-list with reasons, not an accident of omission.
+- **Verified:** the three `copySubcollection` calls read directly. The 17-name inventory is a
+  FLOOR, not a total: it comes from the unambiguous `users/${uid}/<sub>` path form in
+  `functions/*.js`. `sync` is written through a different form and is also not copied, so the
+  real gap is larger. A first attempt at this count returned 4, and a second returned 88 by
+  sweeping in top-level collections; both detectors were wrong before this one was right.
+- **Related:** BUG-241 · `feedback_check_the_detector_before_the_data`
+
+### BUG-239 — gate provenance is recorded server-side, then flattened on restore  ·  [P1]  ·  open
+- **Found:** 2026-08-31 · by self · same survey
+- **Area:** `_app/components/FirestoreManager.js` `_restoreGateProgress` ·
+  `functions/index.js:260-271`
+- **Symptom:** a gate cleared by client attestation becomes indistinguishable from one validated
+  by the server. Restore writes `gate{N}_complete = 'true'` for both, discarding the `verified`
+  and `source` fields the Cloud Function deliberately recorded.
+- **Root cause:** the server stores `{ completed, completedAt, gateNumber, verified, source }`,
+  where `source` is `'client-attested'` for gates 6-8. The restore path reads only completion and
+  writes a bare `'true'` string into localStorage. The distinction survives in Firestore and dies
+  at the browser boundary.
+- **Fix:** not applied. Restore should carry provenance, and anything gating real content should
+  require `verified === true` rather than the flattened flag.
+- **Verified:** both sides read directly, 2026-08-31.
+- **Note:** the comment at `functions/index.js:259-261` states this distinction exists *because*
+  "the vault ended up trusting forged progress". The field was added to prevent a known incident;
+  the consumer then discards it.
+
+### BUG-238 — completedModules unions SHORT local ids with COMPOUND cloud ids  ·  [P2]  ·  open
+- **Found:** 2026-08-31 · by self · same survey
+- **Area:** `_app/components/ModuleProgress.js:405` (short) vs `:195` (compound) ·
+  `_app/components/FirestoreManager.js:1392-1396` (the union)
+- **Symptom:** one completion can be represented twice under two different ids, inflating
+  progress counts and XP.
+- **Root cause:** `bridgeStructuredProgress` pushes the SHORT `moduleId` into
+  `progress.completedModules`, while `pushToUserProfile` sends `${houseId}-${moduleId}` to
+  `recordProgress`, which `arrayUnion`s the COMPOUND id into `users/{uid}.modulesCompleted`. The
+  sync then unions both namespaces as if they were one. An `_isValidId` filter drops short ids
+  whose first segment is not a known house, but a short id that happens to start with a house-like
+  segment passes and is written to the cloud as though it were compound.
+- **Fix:** not applied. Needs one id convention, plus a migration — the historical damage is on
+  record at `_app/components/XPCalculator.js:29-34` ("942+ garbage entries inflated XP by 10-30K
+  per user"), so this has already fired once.
+- **Verified:** all three sites read directly, 2026-08-31.
+- **Related:** four different house vocabularies are used as filters on this same data
+  (`ModuleProgress.js:1658`, `XPCalculator.js:25`, `FirestoreManager.js:1377`, `:1595`), so an id
+  valid to one filter is garbage to another. Not separately logged; it is the same root defect.
+
+### BUG-237 — the updateStreak Cloud Function has no caller, and Math.max pins the loser  ·  [P2]  ·  open
+- **Found:** 2026-08-31 · by self · same survey
+- **Area:** `functions/index.js:1282` (`exports.updateStreak`) ·
+  `_app/components/ModuleProgress.js:894-916` · `_app/components/FirestoreManager.js:1408-1409`
+- **Symptom:** two different definitions of "streak" exist and the sync keeps whichever is
+  numerically larger, permanently. A student's streak can be stuck at a value neither definition
+  currently justifies.
+- **Root cause:** the CF computes a streak from `users/{uid}.lastLoginDate`; the client computes a
+  different one from `hexworth_last_study`. Nothing calls the CF — grepping `_app` for a callable
+  invocation of `updateStreak` returns nothing — so the server field is stale, while
+  `syncBidirectional` merges with `Math.max(cloud, local)`. Once the stale server value is the
+  higher one, it can never be lowered.
+- **Fix:** not applied. Either wire the CF and make it authoritative, or delete it and let the
+  client own the field. Two definitions merged by `max` is the worst of the three options.
+- **Verified:** CF exists at the cited line; no client caller found, 2026-08-31.
+
+### BUG-236 — a comment asserts both storages are written; only 1 of 12 writers does  ·  [P3]  ·  open
+- **Found:** 2026-08-31 · by Nancy · HEXOS-5 PWA review
+- **Area:** `_app/components/TenantShell.js:60`
+- **Symptom:** the comment states "The tenant config is cached in sessionStorage AND localStorage
+  at join time". Only `_app/lobby.html:706,822` writes `localStorage`. The ten tenant dashboards,
+  `tenant/index.html` and `tenant/instructor.html` write `sessionStorage` only, which does not
+  cross tabs.
+- **Root cause:** the comment described the lobby enrollment path and was never revisited when the
+  dashboard join paths were added.
+- **Fix:** not applied. Either correct the comment, or make the dashboards write both so the
+  documented contract becomes true. The second is preferable — code elsewhere reads
+  `sessionStorage.getItem(...) || localStorage.getItem(...)` expecting the fallback to be real.
+- **Verified:** grepped every writer, 2026-08-31, independently by Nancy, Chris and self.
+- **Why a P3 comment is worth an entry:** it cost a full review cycle today. The first HEXOS-5
+  tenant guard relied on that localStorage fallback for its cross-tab case, and the confidence to
+  do so came from this comment. A false comment is a defect with a blast radius.
+- **Related:** the same class of defect was found and fixed in `_app/hex/hex-sw.js` in commit
+  `50625f1a5`, where a stale block still claimed the worker "is registered".
+
 ### BUG-235 — a co-op member can rewrite a teammate's player entry  ·  [P3]  ·  open (language-limited)
 - **Found:** 2026-08-29 · by Nancy · reviewing the BUG-234 field-scoping fix
 - **Area:** `firestore.rules` `match /arena_sessions/{sessionId}` — co-op `players` is deliberately unscoped
