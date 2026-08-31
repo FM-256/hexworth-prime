@@ -363,6 +363,36 @@ const FirebaseAuth = (function() {
     }
 
     /**
+     * Drop tenant context on sign-out. BUG-242.
+     *
+     * A tenant experience is a branded wrapper over a Hexworth session, so it must not outlive
+     * that session. Until now nothing cleared it: signOut() removed the cached user and left
+     * hexworth_tenant in BOTH storages, so on a shared or lab machine the next person to use the
+     * browser inherited the previous student's tenant branding -- and, because AccessGuard reads
+     * this same blob to waive sorting quizzes and Dark Arts gates, their content waiver too. That
+     * gap predates the cross-tab work and affected every lobby-joined student.
+     *
+     * DELIBERATELY NOT IN handleAuthStateChange. That listener's null branch fires on ANY
+     * transition to no-user, including the very first callback on a cold anonymous load -- and
+     * the eleven tenant join flows write their config with no auth gate at all (verified: no
+     * waitForAuth, no currentUser check, anywhere above the write). Purging there would delete
+     * the blob on the same page load that created it, breaking the join for every legitimate
+     * student. Only a deliberate sign-out should clear it, which is what this function is.
+     *
+     * Called from BOTH signOut() paths. The !auth fallback clears storage inline while the normal
+     * path delegates to Firebase and returns, so a single call site would leave the blob alive
+     * whenever the SDK failed to load.
+     */
+    function purgeTenantContext() {
+        try { sessionStorage.removeItem('hexworth_tenant'); } catch (e) {}
+        try {
+            localStorage.removeItem('hexworth_tenant');
+            localStorage.removeItem('hexworth_tenant_mirrored_at');
+            localStorage.removeItem('hexworth_tenant_slug');
+        } catch (e) {}
+    }
+
+    /**
      * Sign out
      */
     async function signOut() {
@@ -373,11 +403,18 @@ const FirebaseAuth = (function() {
             localStorage.removeItem(config.storageKeys.user);
             localStorage.removeItem(config.storageKeys.isAdmin);
             localStorage.removeItem(config.storageKeys.isInstructor);
+            purgeTenantContext();
             window.dispatchEvent(new CustomEvent('firebaseAuthStateChanged', {
                 detail: { user: null, isAdmin: false }
             }));
             return;
         }
+
+        // Purge BEFORE awaiting Firebase: if firebaseSignOut throws, the session may still be
+        // torn down, and leaving tenant context behind on a failed sign-out is the exact bleed
+        // this exists to prevent. Clearing early is safe -- re-entry re-derives it from
+        // enrollments/{uid}, which is written server-side.
+        purgeTenantContext();
 
         try {
             const { signOut: firebaseSignOut } = window.firebaseAuth;

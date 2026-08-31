@@ -1883,7 +1883,13 @@ document.addEventListener('DOMContentLoaded', function autoTrackVisit() {
 // prevent double-loading if both ModuleProgress and AccessGuard are present.
 (function() {
     try {
-        if (sessionStorage.getItem('hexworth_tenant')) {
+        /* Reads the localStorage fallback too, matching the two other auto-loaders
+           (AccessGuard.js and FirebaseAuth.js). Without it this one -- which exists for
+           standalone labs that load ModuleProgress but not AccessGuard -- was the only
+           gate that could not see cross-tab tenant context, so a tenant student's branding
+           stayed broken on exactly those pages while everything else looked fixed.
+           BUG-242. */
+        if (sessionStorage.getItem('hexworth_tenant') || localStorage.getItem('hexworth_tenant')) {
             if (typeof TenantRouter === 'undefined' && !window.__tenantRouterRequested) {
                 window.__tenantRouterRequested = true;
                 var r = document.createElement('script');

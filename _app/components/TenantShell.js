@@ -46,6 +46,90 @@
     // which would otherwise render from stale locals after the storage purge.
     var revoked = false;
 
+    /* ── Cross-tab mirror (BUG-242) ──────────────────────────────────────────────────────
+       sessionStorage does not cross tabs, and eleven of the twelve join paths write ONLY
+       sessionStorage. A student who joined through a tenant dashboard and then opened a gated
+       module in a NEW TAB therefore had no tenant context there: no branding, and no waiver of
+       the sorting quiz and Dark Arts gates that do not exist in their experience.
+
+       THIS IS EXPORTED, AND IT IS DEFINED ABOVE THE EARLY RETURN BELOW, DELIBERATELY. This file
+       is a parser-blocking <script> near the top of every tenant page, so on a FIRST join it
+       executes and exits before the page's own async join handler has fetched the config and
+       written it. A mirror placed inside the normal flow below would never fire on exactly the
+       page the bug is reported from. So the join handlers call this explicitly after their write.
+       A reviewer found this by reading the script order; the design before it looked correct and
+       would have shipped inert on the reported repro.
+
+       NOT A SECURITY MECHANISM, and nothing here should be described as one. Nothing in this path
+       checks identity: the async verification confirms a tenant EXISTS, not that this user belongs
+       to it, so a hand-written key already grants the same waiver. This restores a broken feature
+       for legitimate students and bounds accidental bleed between students on a shared machine.
+
+       THE PERSISTED COPY IS BOUNDED BY THREE THINGS, all of which exist:
+         1. FirebaseAuth.purgeTenantContext(), called from both signOut() paths, clears it at the
+            same moment it clears the auth session this wrapper belongs to.
+         2. The TTL enforced on read below, which ages out a student who was removed from a still
+            active tenant and therefore never triggers a sign-out or a 404.
+         3. purgeTenantAndStrip() further down, which already clears both storages when the async
+            verification finds the tenant deleted or renamed.
+       An earlier draft of this comment claimed (1) before it had been written. That is the exact
+       defect BUG-236 is filed for, in the file BUG-236 is filed against. */
+    function mirrorTenantForCrossTab(config) {
+        try {
+            var payload = (typeof config === 'string') ? config : JSON.stringify(config);
+            if (!payload) return false;
+            // Must at least parse and name a tenant. A malformed blob is worse than none: it is
+            // what a hand-typed value looks like, and the read paths already reject it.
+            var parsed = JSON.parse(payload);
+            if (!parsed || typeof parsed.slug !== 'string' || !parsed.slug.trim()) return false;
+            localStorage.setItem('hexworth_tenant', payload);
+            // Stamped so staleness can be bounded. Sign-out purges this, but a student REMOVED
+            // from a still-active tenant keeps the same uid and would otherwise carry the blob
+            // indefinitely; the timestamp is what lets a reader age it out.
+            localStorage.setItem('hexworth_tenant_mirrored_at', String(Date.now()));
+            return true;
+        } catch (e) {
+            return false;   // storage blocked or quota exceeded: cross-tab is a convenience
+        }
+    }
+    // Exported before any early return, so a join page whose tenant context does not yet exist can
+    // still reach it. window.TenantShellToggle is assigned far below and is NOT available here.
+    window.TenantShellMirror = { mirror: mirrorTenantForCrossTab };
+
+    /* TTL on the mirrored copy, enforced HERE because this is the one file that runs on every
+       tenant page and can purge for all of the read sites at once. Consumers read the key
+       directly; removing it is therefore how the bound actually reaches them, rather than adding
+       an age check to each.
+       Bounds the case nothing else catches: a student removed from a tenant that is still active.
+       They never sign out, so (1) does not fire, and the tenant still resolves, so the 404 purge
+       does not either. Only the sessionStorage copy is left alone -- it dies with the tab anyway,
+       and is written by the join flow that just verified the tenant. */
+    var MIRROR_TTL_MS = 12 * 60 * 60 * 1000;   // 12h: longer than a class, shorter than a loan
+    try {
+        var persisted = localStorage.getItem('hexworth_tenant');
+        if (persisted) {
+            var stamp = parseInt(localStorage.getItem('hexworth_tenant_mirrored_at') || '', 10);
+            if (!(stamp > 0)) {
+                /* UNSTAMPED, OR CORRUPT. Two ways to get here, and both must age out rather than
+                   be exempt: lobby.html has always written this key WITHOUT a stamp (:706, :822),
+                   and a garbage value parses to NaN. A first cut tested `if (stamp && ...)`, which
+                   is falsy for BOTH -- so the TTL would have skipped exactly the blob that
+                   predates it and the one that was tampered with. Stamp it on first sighting so
+                   the clock starts now; that is later than the true write time, which errs toward
+                   keeping a legitimate student's context rather than cutting it short.
+
+                   NOTE this is a behaviour change for lobby-joined students, whose localStorage
+                   copy previously lived forever. It now expires 12h after first sighting, after
+                   which a new tab falls back to no tenant context until they pass through a tenant
+                   page again. That is the intended bound, not a side effect. */
+                localStorage.setItem('hexworth_tenant_mirrored_at', String(Date.now()));
+            } else if ((Date.now() - stamp) > MIRROR_TTL_MS) {
+                localStorage.removeItem('hexworth_tenant');
+                localStorage.removeItem('hexworth_tenant_mirrored_at');
+            }
+        }
+    } catch (e) { /* storage blocked; the read below simply finds nothing */ }
+
     // ── Check for tenant context ─────────────────────────
     var raw = null;
     try {
