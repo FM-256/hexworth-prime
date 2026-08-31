@@ -5,7 +5,10 @@
  * @catalog what    Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html
  * @catalog what    and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs.
  * @catalog run     node _tools/hexos/hex-shell-process.test.js
- * @catalog status  TOOL
+ * @catalog note    Wired into post-verify check 4f. THREE concurrency bugs have shipped from
+ * @catalog note    this lock across five review rounds; a suite only a human remembers to run
+ * @catalog note    is not coverage that survives the next edit.
+ * @catalog status  GATE
  *
  * WHY THIS EXISTS, AND WHY IT LOADS THE ACTUAL PAGE
  * ------------------------------------------------
@@ -209,9 +212,9 @@ srv.listen(PORT, '127.0.0.1', async () => {
     // watchdog, a later command takes the lock, and the FIRST request's late settlement must
     // NOT release the later command's lock. Fails against an unguarded clearProc.
     const pg2 = await b.newPage();
-    const slow = { 'sess-abc': 2600, 'sess-frz': 9000 };
+    const slow = { 'sess-abc': 4000, 'sess-frz': 12000 };
     let live2 = fixture();
-    await pg2.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 2000; });
+    await pg2.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 3000; });
     await pg2.setRequestInterception(true);
     pg2.on('request', r => {
         const u = r.url(), m = r.method();
@@ -235,26 +238,81 @@ srv.listen(PORT, '127.0.0.1', async () => {
     const text2 = () => pg2.evaluate(() => document.getElementById('out').innerText);
 
     // Timing is load-bearing and each number is chosen, not guessed:
-    //   t=0     stop arctic   -> gen1. Its destroy answers at 2600ms.
-    //   t=2000  gen1 watchdog fires and releases the lock (this is correct behaviour).
-    //   t=2300  stop db-sql   -> gen2 takes the lock. Its destroy answers at 9000ms, and
-    //                            gen2's own watchdog would not fire until t=4300.
-    //   t=2600  gen1's ORPHANED request finally settles. Its release must no-op.
-    //   t=2900  restart arctic MUST be refused, because gen2 still holds the lock.
+    //   t=0     stop arctic   -> gen1. Its destroy answers at 4000ms.
+    //   t=3000  gen1 watchdog fires and releases the lock (correct behaviour).
+    //   t=3300  stop db-sql   -> gen2 takes the lock. Its destroy answers at 12000ms, so
+    //                            gen2's own watchdog would not fire until t=6300.
+    //   t=4000  gen1's ORPHANED request settles. Its release must no-op.
+    //   t=4500  restart arctic MUST be refused, because gen2 still holds the lock.
+    // Margins are deliberately wide, not merely passing: the assertion at t=4500 sits 1800ms
+    // clear of gen2's watchdog at t=6300, and the stale settle at t=4000 sits 700ms clear of
+    // gen2 taking the lock. A reviewer measured the previous version at ~300ms of slack and
+    // called it tuned-to-this-machine, which was fair.
     // A first attempt used an 800ms timeout, and gen2's own watchdog fired before the
     // assertion, so the test failed for a legitimate release rather than the stale one.
     await type2('stop arctic');
-    await new Promise(r => setTimeout(r, 2300));
+    await new Promise(r => setTimeout(r, 3300));
     chk('watchdog fires on a stalled request', /no longer waiting/i.test(await text2()), (await text2()).slice(-90));
     await pg2.evaluate(() => { document.getElementById('out').innerHTML = ''; });
-    await type2('stop db-sql');                       // gen2 takes the lock, in flight until 9000ms
-    await new Promise(r => setTimeout(r, 700));       // past 2600ms: gen1's orphan settles
+    await type2('stop db-sql');                       // gen2 takes the lock, in flight until 12000ms
+    await new Promise(r => setTimeout(r, 1200));      // past 4000ms: gen1's orphan settles
     await pg2.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type2('restart arctic');                    // must be REFUSED: db-sql is still in flight
     await new Promise(r => setTimeout(r, 400));
     const after = await text2();
     chk('a stale settle does NOT free a later command\'s lock', /already running/i.test(after), after.slice(0, 110));
     await pg2.close();
+
+    // ── Orphaned restart must not relaunch after a sanctioned retry ────────────────────
+    // The watchdog does NOT cancel the in-flight request, and `restart` is TWO mutations.
+    // So: slow destroy trips the watchdog, the student follows the shell's own advice and
+    // retries, the retry legitimately relaunches, and then the ORIGINAL chain's destroy lands
+    // and would launch a second time. Two live sessions for one lab from one intent, with
+    // every individual message truthful. Found by a reviewer's probe, not by reading.
+    const pg3 = await b.newPage();
+    let live3 = fixture();
+    const launchLog = [];
+    await pg3.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
+    await pg3.setRequestInterception(true);
+    pg3.on('request', r => {
+        const u = r.url(), m = r.method();
+        if (/AccessGuard\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
+        if (/FirebaseAuth\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body:
+            'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},isSignedIn:function(){return true;},refreshToken:function(){return Promise.resolve("t");}};' });
+        if (/sandbox\.hexworth\.tech/.test(u)) {
+            if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
+            const J = (o, ms) => setTimeout(() => r.respond({ status: 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), ms);
+            if (/\/list/.test(u)) return J({ sandboxes: live3 }, 60);
+            const d = u.match(/\/destroy\/([^/?]+)/);
+            // Takes effect server-side IMMEDIATELY; only the RESPONSE is slow. That is what
+            // makes the student's `ps` show the lab already gone, which is what invites the retry.
+            if (d) { live3 = live3.filter(x => x.sessionId !== d[1]); return J({ status: 'destroyed' }, 3000); }
+            if (/\/launch/.test(u)) {
+                const id = 'sess-relaunch-' + (launchLog.length + 1);
+                launchLog.push(id);
+                live3.push({ sessionId: id, labId: 'arctic', lab: 'Arctic', status: 'running', ageMinutes: 0, url: 'https://x/' });
+                return J({ sessionId: id, url: 'https://x/' }, 60);
+            }
+            return J({}, 60);
+        }
+        r.continue();
+    });
+    await pg3.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
+    await new Promise(r => setTimeout(r, 700));
+    const type3 = async (cmd) => { await pg3.click('#cmd'); await pg3.type('#cmd', cmd); await pg3.keyboard.press('Enter'); };
+
+    await type3('restart arctic');                    // gen1; destroy responds at ~3000ms
+    await new Promise(r => setTimeout(r, 1400));      // watchdog fired at 1000ms
+    chk('watchdog releases a slow restart', /no longer waiting/i.test(await pg3.evaluate(() => document.getElementById('out').innerText)), '');
+    await type3('restart arctic');                    // gen2: the sanctioned retry
+    await new Promise(r => setTimeout(r, 2600));      // gen1's destroy now lands
+    chk('an orphaned restart does NOT relaunch a second time', launchLog.length === 1, 'launches=' + JSON.stringify(launchLog));
+    const ps3 = await (async () => { await pg3.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+        await type3('ps'); await new Promise(r => setTimeout(r, 900));
+        return pg3.evaluate(() => document.getElementById('out').innerText); })();
+    chk('  -> exactly one arctic session survives', (ps3.match(/arctic/g) || []).length === 1, ps3.slice(0, 120));
+    await pg3.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
     await b.close(); srv.close();

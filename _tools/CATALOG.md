@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-30 22:36 · **1158 scripts** · 25 wired into a gate · 274 called by other code · 190 only mentioned in docs · 669 referenced by nothing · 470 not in git
+**Generated:** 2026-08-30 22:49 · **1158 scripts** · 26 wired into a gate · 274 called by other code · 190 only mentioned in docs · 668 referenced by nothing · 470 not in git
 
 ## Read this before writing a new script
 
@@ -53,6 +53,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
 | `_tools/hexos/gen-app-manifest.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
+| `_tools/hexos/hex-shell-process.test.js` | `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
@@ -736,12 +737,6 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `registry.py` | CALLED | 1 | 2026-05-24 | yes |  |
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
-
-### `_tools/hexos` — 1 scripts, 1 referenced by nothing
-
-| Script | Wiring | Called by | Modified | In git | What |
-|---|---|---|---|---|---|
-| `hex-shell-process.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 

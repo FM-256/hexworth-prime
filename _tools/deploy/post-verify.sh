@@ -389,6 +389,25 @@ else
         echo "$HM_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # The hex shell's process commands (ps/stop/restart) drive a real container scheduler, and
+    # THREE separate concurrency bugs shipped from their in-flight lock across five review
+    # rounds: a double-fire race, a watchdog that could wedge the lock permanently, and a
+    # watchdog whose own recovery path reopened the race it was built beside. Each was caught by
+    # a reviewer, not by a gate. Every one of those is now a falsifiable assertion, so run them
+    # here rather than trusting that whoever edits that file next reads the header first.
+    # Needs a browser; skipped rather than failed where puppeteer is absent (exit 2).
+    HS_OUT="$(node "$REPO_ROOT/_tools/hexos/hex-shell-process.test.js" 2>&1)"
+    HS_RC=$?
+    if [[ $HS_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- hex shell process suite SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $HS_RC -ne 0 ]]; then
+        echo "$HS_OUT" | grep -E "FAIL|passed" | tail -5 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! hex shell ps/stop/restart regressed${NC}"
+        DIVERGENCE=1
+    else
+        echo "$HS_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'

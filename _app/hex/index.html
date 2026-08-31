@@ -160,6 +160,11 @@
     // always answers, and "cannot be tested" is not an acceptable position for concurrency
     // code. This is a configuration value, not a state hook. It exposes no internals, which
     // is why it ships where a `procBusy` accessor deliberately does not.
+    // Read ONCE at parse time, which bounds the exposure more tightly than first described: a
+    // devtools console after load cannot change it, since PROC_TIMEOUT_MS is already bound.
+    // Only a pre-parse injection (extension or userscript) can set it, and the worst such an
+    // actor achieves is a shorter or longer watchdog on their OWN session. Anyone able to inject
+    // pre-parse can already call SandboxLauncher directly, so this adds no reachable capability.
     var PROC_TIMEOUT_MS = (typeof window.HEX_PROC_TIMEOUT_MS === 'number')
         ? window.HEX_PROC_TIMEOUT_MS : 90000;
 
@@ -195,6 +200,10 @@
     // double-mutation race this lock exists to close, while the manual told the student a
     // retry was safe. Found independently by both reviewers; the watchdog callback already
     // had an ownership guard and this did not.
+    // Sentinel for a chain that was superseded mid-flight. An object identity, not a string,
+    // so it can never collide with a value the launch API might return.
+    var SUPERSEDED = {};
+
     function clearProc(gen) {
         if (procGen !== gen) return;
         procBusy = null;
@@ -608,12 +617,26 @@
             var step = t.sessionId
                 ? SL.destroy(t.sessionId).then(function () {
                       destroyed = true;
+                      if (procGen !== gen) return;   // superseded; a later restart owns this lab
                       say('stopped. relaunching...', 'muted');
                   })
                 : Promise.resolve(say(esc(t.labId) + ' was not running. launching it fresh...', 'muted'));
             return step.then(function () {
+                // GUARD THE MUTATION, not just the lock. restart is TWO mutations, and the
+                // watchdog explicitly does not cancel the in-flight request. So after a timeout
+                // the student follows this shell's own advice, retries, and that retry legitimately
+                // relaunches; then THIS chain's slow destroy lands and would launch a SECOND time.
+                // Two live sessions for one lab, from one intent, each step reporting truthfully.
+                // Guarding clearProc fixed the bookkeeping and left this untouched.
+                if (procGen !== gen) {
+                    say('this restart was superseded while it was waiting, so ' + esc(t.labId)
+                        + ' was NOT launched again.', 'warn');
+                    say('run <span class="ok">ps</span> to see what is actually running.', 'muted');
+                    return SUPERSEDED;
+                }
                 return SL.launch(t.labId);
-            }).then(function () {
+            }).then(function (res) {
+                if (res === SUPERSEDED) return;
                 say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
             }).catch(function (e) {
                 say('restart failed: ' + esc(errText(e)), 'err');
