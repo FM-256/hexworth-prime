@@ -73,6 +73,51 @@ function allSource(dir, out) {
     return out;
 }
 
+
+/**
+ * Remove text that contains paths which are NOT links.
+ *
+ * Comments were only half of it, and saying "all four shapes are fixed" after stripping comments
+ * was wrong: a reviewer proved it by breaking the real inbound link to /wall-of-shame/, dropping
+ * a file containing only an `if (false)` branch and an EXCLUDE_LIST array, and watching the gate
+ * still call the page reachable. `if (false) { ... }` and `const EXCLUDE_LIST = [...]` are live,
+ * syntactically valid code; no comment regex can touch them.
+ *
+ * Over-matching is the dangerous direction for this gate. Under-matching yields noise a human
+ * triages; over-matching silently reports an unreachable page as reached and removes the only
+ * coverage that exists.
+ *
+ * WHAT THIS STILL CANNOT DO, and it is a real residue rather than a formality: a path inside a
+ * function nothing ever calls, or behind a condition that is false at runtime but not literally
+ * `false`, still counts as a link. Catching that needs reachability analysis, not text. If this
+ * gate ever reports zero unreached across the whole platform, suspect this limitation first.
+ */
+function stripDead(src) {
+    let out = src
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+    // `if (false) { ... }` and `if (0) { ... }`, brace-matched so nested blocks survive intact.
+    out = out.replace(/\bif\s*\(\s*(?:false|0)\s*\)\s*\{/g, 'if(0){\u0000');
+    let i;
+    while ((i = out.indexOf('\u0000')) !== -1) {
+        let depth = 1, j = i + 1;
+        while (j < out.length && depth > 0) {
+            if (out[j] === '{') depth++;
+            else if (out[j] === '}') depth--;
+            j++;
+        }
+        out = out.slice(0, i) + out.slice(j);
+    }
+
+    // Declarations whose NAME says the contents are not navigation targets.
+    out = out.replace(
+        /\b(?:const|let|var)\s+[A-Za-z0-9_$]*(?:EXCLUDE|EXCLUDED|DENY|IGNORE|SKIP|BLOCKED|BLOCKLIST|DEPRECATED|LEGACY|REMOVED)[A-Za-z0-9_$]*\s*=\s*\[[\s\S]*?\]/gi,
+        '');
+    return out;
+}
+
 /** Resolve a manifest entry to a path on disk, applying the same directory-index rule Firebase uses. */
 function resolveEntry(entry) {
     if (typeof entry !== 'string' || !entry.startsWith('/')) return null;
@@ -102,10 +147,7 @@ function main() {
         // Over-matching is the DANGEROUS direction for this gate: under-matching produces noisy
         // false positives someone must triage, while over-matching silently reports an
         // unreachable page as reached and removes the very coverage the gate exists to give.
-        const html = fs.readFileSync(f, 'utf8')
-            .replace(/<!--[\s\S]*?-->/g, '')
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+        const html = stripDead(fs.readFileSync(f, 'utf8'));
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.
         // In .js, a path lives in a string literal or an object field (courseHref, entry, url),
@@ -149,11 +191,37 @@ function main() {
     }
 
     if (args.includes('--baseline')) {
+        // PRESERVE the per-entry justifications and refuse to bulk-baseline blind.
+        // An earlier version rewrote this file wholesale with a weaker note and dropped the
+        // `confirmed` object entirely, so running the tool's own documented recovery command
+        // reverted the review discipline that the note asked for. A reviewer found that the
+        // safety documentation did not survive the tool's normal use path, which is worse than
+        // it being unenforced: it actively undid itself.
+        const prev = fs.existsSync(BASELINE)
+            ? JSON.parse(fs.readFileSync(BASELINE, 'utf8')) : { confirmed: {} };
+        const confirmed = prev.confirmed || {};
+        const added = unreached.map(a => a.id).filter(id => !(id in confirmed));
+        if (added.length && !args.includes('--i-have-checked-each')) {
+            console.error(`refusing to baseline ${added.length} entr(ies) with no justification:`);
+            added.forEach(id => console.error(`  ${id}`));
+            console.error('\nEach one is either a real orphan to FIX or a by-design page. Confirm');
+            console.error('individually, add a line per id under "confirmed" in');
+            console.error(`  ${path.relative(REPO, BASELINE)}`);
+            console.error('then re-run with --i-have-checked-each.');
+            console.error('\nBulk-baselining is how 19 scanner false positives were once recorded');
+            console.error('as fact, which silently removed regression cover for every one of them.');
+            process.exitCode = 1;
+            return;
+        }
+        added.forEach(id => { confirmed[id] = 'UNJUSTIFIED: added with --i-have-checked-each.'; });
         fs.writeFileSync(BASELINE, JSON.stringify({
-            note: 'Apps that exist but nothing links to. NEW ones fail the gate; these are the ' +
-                  'population that predates it. Shrinking this list is the point; growing it is a bug.',
+            note: prev.note || ('Apps deliberately reachable only by a typed URL or the hex shell. '
+                + 'Each entry must be INDIVIDUALLY confirmed by-design, not swept in because a '
+                + 'scan reported it. Baselining a false positive silently removes regression '
+                + 'protection for that entry forever.'),
             known: unreached.map(a => a.id).sort(),
-            count: unreached.length
+            count: unreached.length,
+            confirmed
         }, null, 2) + '\n');
         console.log(`wrote baseline: ${unreached.length} unreached app(s)`);
         return;

@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+/**
+ * dead-entry-gate.test.js
+ *
+ * @catalog what    Locks the dead-entry gate's link scanner: which text counts as an inbound link
+ * @catalog what    and which does not. Every shape here was a live over-match at some point.
+ * @catalog run     node _tools/hexos/dead-entry-gate.test.js
+ * @catalog status  GATE
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * The gate shipped twice with the scanner wrong, in opposite directions, and neither had a test.
+ *
+ *   v1 under-matched: it read HTML only, so LearningPaths.js and HubRegistry.js -- which build
+ *   most of the platform's navigation -- were invisible. 19 of 21 reported orphans were false,
+ *   and I wrote them into a baseline asserting nothing linked to them.
+ *
+ *   v2 over-matched: sweeping .js counted any path-shaped string as a link, including one inside
+ *   a comment, an `if (false)` branch, or an EXCLUDE_LIST.
+ *
+ *   v3 fixed comments and I reported all four shapes closed. Two reviewers independently
+ *   disproved that in the same round: `if (false) {...}` and `const EXCLUDE_LIST = [...]` are
+ *   live, syntactically valid code, and no comment regex can touch them. One proved it against
+ *   the real gate by breaking the genuine link to /wall-of-shame/ and watching it still be
+ *   called reachable.
+ *
+ * The verification for each of those rounds lived in a session and vanished. This file is that
+ * verification made durable, which is the standard this project already applies to probes.
+ *
+ * OVER-MATCHING IS THE DANGEROUS DIRECTION. Under-matching produces noise a human triages.
+ * Over-matching silently reports an unreachable page as reached, removing the only coverage
+ * this gate provides, which is exactly how a real orphan (comptia-network) went unnoticed.
+ */
+
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const assert = require('assert');
+
+const GATE = path.resolve(__dirname, 'dead-entry-gate.js');
+const src = fs.readFileSync(GATE, 'utf8');
+
+// Exercise the SHIPPED implementation, not a restatement of it.
+const m = src.match(/function stripDead\(src\) \{[\s\S]*?\n\}/);
+assert(m, 'stripDead() not found in dead-entry-gate.js');
+const stripDead = new Function('src', 'return (' + m[0] + ')(src)');
+
+const TARGET = 'houses/dead-entry-probe/index.html';
+
+const CASES = [
+    // [name, source text, should the path survive as a real link?]
+    ['live href attribute',      `<a href="/${TARGET}">go</a>`,                         true],
+    ['live courseHref field',    `courseHref: '${TARGET}',`,                            true],
+    ['live hubHref field',       `hubHref: '/${TARGET}',`,                              true],
+    ['line-comment href',        `// href: '/${TARGET}',`,                              false],
+    ['block-comment href',       `/* href: "/${TARGET}" */`,                            false],
+    ['html comment',             `<!-- <a href="/${TARGET}">old</a> -->`,               false],
+    ['if (false) branch',        `if (false) { link.href = "/${TARGET}"; }`,            false],
+    ['if (0) branch',            `if (0) { go("/${TARGET}"); }`,                        false],
+    ['EXCLUDE_LIST array',       `const EXCLUDE_LIST = ["/${TARGET}"];`,                false],
+    ['DEPRECATED_ROUTES array',  `const DEPRECATED_ROUTES = ['/${TARGET}'];`,           false],
+    ['legacy skip list',         `var SKIP_PATHS = ["/${TARGET}", "/x/"];`,             false],
+    // Nested braces inside a dead branch must not swallow the code that follows it.
+    ['if(false) then live link',
+        `if (false) { if (a) { b(); } }\ncourseHref: '${TARGET}',`,                     true],
+];
+
+let pass = 0, fail = 0;
+console.log('  which text counts as an inbound link:');
+for (const [name, text, shouldSurvive] of CASES) {
+    const survived = stripDead(text).includes('dead-entry-probe');
+    const ok = survived === shouldSurvive;
+    ok ? pass++ : fail++;
+    console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${name.padEnd(24)} ` +
+        `${survived ? 'counts as a link' : 'ignored'}` +
+        `${ok ? '' : `  <- expected ${shouldSurvive ? 'counts as a link' : 'ignored'}`}`);
+}
+
+// The scanner must still see the real navigation sources. If this breaks, the gate has swung
+// back to under-matching and will manufacture orphans, which is how v1 produced a bad baseline.
+const APP = path.resolve(__dirname, '../../_app');
+for (const rel of ['components/HubRegistry.js', 'components/LearningPaths.js']) {
+    const f = path.join(APP, rel);
+    if (!fs.existsSync(f)) continue;
+    const kept = stripDead(fs.readFileSync(f, 'utf8'));
+    const ok = kept.includes('houses/') && kept.length > fs.readFileSync(f, 'utf8').length * 0.5;
+    ok ? pass++ : fail++;
+    console.log(`    ${ok ? 'ok  ' : 'FAIL'} ${rel} survives stripping`);
+}
+
+console.log(`\n  ${pass}/${pass + fail} passed`);
+process.exitCode = fail ? 1 : 0;
