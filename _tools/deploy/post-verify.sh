@@ -396,6 +396,31 @@ else
     # a reviewer, not by a gate. Every one of those is now a falsifiable assertion, so run them
     # here rather than trusting that whoever edits that file next reads the header first.
     # Needs a browser; skipped rather than failed where puppeteer is absent (exit 2).
+    # HEXOS-3: no app may point at a missing file, and no NEW app may be unreachable. This is
+    # the gate that makes taskboard #272 and #277 a closed class rather than a triage queue.
+    DE_OUT="$(node "$REPO_ROOT/_tools/hexos/dead-entry-gate.js" 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$DE_OUT" | tail -5 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! an app points at a missing file, or a new one is unreachable${NC}"
+        DIVERGENCE=1
+    else
+        echo "$DE_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
+    # safeEntry decides whether a manifest row becomes a clickable link, exists in two files, and
+    # had zero coverage until a reviewer found it was wrong in both. Checks drift AND escape.
+    SE_OUT="$(node "$REPO_ROOT/_tools/hexos/safe-entry.test.js" 2>&1)"
+    SE_RC=$?
+    if [[ $SE_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- safeEntry suite SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $SE_RC -ne 0 ]]; then
+        echo "$SE_OUT" | grep -E "FAIL|passed" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! safeEntry drifted or a vector reached another origin${NC}"
+        DIVERGENCE=1
+    else
+        echo "$SE_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HS_OUT="$(node "$REPO_ROOT/_tools/hexos/hex-shell-process.test.js" 2>&1)"
     HS_RC=$?
     if [[ $HS_RC -eq 2 ]]; then

@@ -204,12 +204,15 @@ function main() {
                 'unsorted-visitor removal selector, so an unsorted student would see a link ' +
                 'that bounces them: ' + uncovered.map(a => a.slice(0, 70)).join(' | '));
         }
-        // A query string defeats the exact-href selector even on a covered element.
-        const q = anchors.filter(a => /href="\/hex\/[^"]*\?/.test(a));
-        if (q.length) {
-            problems.push('link(s) to /hex/ carry a query string, which the removal selector ' +
-                '`.hb-link[href="/hex/"]` matches by exact string and will therefore MISS: ' +
-                q.map(a => a.slice(0, 70)).join(' | '));
+        // The removal selector must stay a PREFIX match. It was `[href="/hex/"]`, an exact
+        // string, which silently missed /hex/apps.html the moment a second entry point existed
+        // and would miss any ?utm= a marketer adds. Widened to `[href^="/hex/"]`. This asserts
+        // it has not been narrowed back, since narrowing it fails silently: the link simply
+        // stays visible to a visitor who cannot use it.
+        const sel = dash.match(/querySelectorAll\('([^']*hb-link[^']*)'\)/);
+        if (sel && sel[1].indexOf('href^="/hex/"') === -1) {
+            problems.push('the unsorted-visitor removal selector is no longer a /hex/ PREFIX ' +
+                'match, so additional entry points or query strings will escape it: ' + sel[1]);
         }
     }
 
