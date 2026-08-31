@@ -3973,21 +3973,37 @@
                 <div class="logo" aria-label="Hexworth Prime">Hexworth Prime</div>
             </div>
             <div class="header-right">
-                <!-- No sorted-check here, and it is a TRADE rather than a proof. An unsorted
-                     visitor is redirected to sorting.html, but not instantly: the check runs on
-                     DOMContentLoaded (~line 4687) and PageTransition.navigateTo defers the actual
-                     navigation behind a 400ms fade. This static markup has already painted by
-                     then, so an unsorted visitor DOES see this pill for roughly 400ms. An earlier
-                     revision called that window unreachable; a reviewer traced the deferred
-                     navigation and showed it is merely short.
-                     Accepted anyway, because the alternative was worse: hidden-by-default plus an
-                     async reveal means the call-out disappears PERMANENTLY if AccessGuard fails to
-                     load or isSorted is renamed. A 400ms glimpse of a link you cannot use beats a
-                     feature that silently never appears. -->
+                <!-- Hidden for an unsorted visitor by a SYNCHRONOUS check, below.
+                     Measured, not reasoned: an earlier revision called this exposure
+                     "unreachable", then "roughly 400ms". A reviewer instrumented it in a real
+                     browser and both were wrong. The pill paints at ~106ms, but the unsorted
+                     redirect runs on DOMContentLoaded, which cannot fire until the ~80 blocking
+                     script tags below have loaded: ~1.2s on loopback, and ~32s on a throttled
+                     connection. So the real exposure is seconds, not a glimpse, and it grows
+                     with every script added to this page.
+                     Clicking it during that window does NOT grant access: /hex/ calls
+                     AccessGuard.require('sorted') itself. So this is a confusing-UI problem,
+                     not a security one. -->
                 <a href="/hex/" class="hexos-callout" aria-label="Try the new Hex OS">
                     <img src="/assets/images/icons/icon-terminal.webp" alt="" class="hexos-callout-icon">
                     <span>Try the New OS!</span>
                 </a>
+                <script>
+                    // Synchronous and inline on purpose. AccessGuard.isSorted() is just
+                    // `localStorage.getItem(house) !== null`, so routing through it bought a
+                    // load-order dependency for nothing. Reading the key directly removes both
+                    // the "AccessGuard failed to load" and "isSorted renamed" failure modes.
+                    // FAIL-OPEN by construction: the markup renders visible and this REMOVES it.
+                    // If this script throws, the pill stays, which is today's behaviour rather
+                    // than a feature that silently disappears forever.
+                    (function () {
+                        try {
+                            if (localStorage.getItem('hexworth_house')) return;
+                            var els = document.querySelectorAll('.hexos-callout, .hb-link[href="/hex/"]');
+                            for (var i = 0; i < els.length; i++) els[i].remove();
+                        } catch (e) { /* storage blocked: leave both entry points alone */ }
+                    })();
+                </script>
                 <div class="user-profile" id="userProfile" role="group" aria-label="User profile">
                     <!-- Populated by GitHubAuth -->
                 </div>
