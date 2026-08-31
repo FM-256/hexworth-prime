@@ -69,7 +69,9 @@ let commented = 0;
 
 for (const f of files) {
     const src = fs.readFileSync(f, 'utf8');
-    const out = stripDead(src);
+    const fbBefore = stripDead.fellBack || 0;
+    const out = stripDead(src, f);
+    const usedFallback = (stripDead.fellBack || 0) > fbBefore;
     const A = src.match(/href\s*=\s*["'][^"']*["']/g) || [];
     const B = out.match(/href\s*=\s*["'][^"']*["']/g) || [];
     for (const a of A) {
@@ -85,9 +87,17 @@ for (const f of files) {
         const inScript = scriptRanges(src).some(r => at >= r[0] && at < r[1]);
         let legitimate;
         if (inScript) {
-            // Inside JS: only a JS comment on its own line legitimately removes it.
-            const line = src.slice(src.lastIndexOf('\n', at) + 1, at);
-            legitimate = /(^|[^:])\/\//.test(line);
+            // FAIL CLOSED when the file needed the fallback stripper. This classifier's own
+            // "is there a // on this line" test has the SAME blind spot as the thing it judges,
+            // so on a file where esprima could not tokenise, it cannot be trusted to tell a real
+            // comment from `"see docs // not real"`. A reviewer reproduced live href deletion
+            // through exactly that pair, with this gate reporting legitimate=true. Where the
+            // judge shares the defendant's blind spot, the judge must not acquit.
+            if (usedFallback) legitimate = false;
+            else {
+                const line = src.slice(src.lastIndexOf('\n', at) + 1, at);
+                legitimate = /(^|[^:])\/\//.test(line);
+            }
         } else {
             // In markup: look for an enclosing <!-- --> considering MARKUP ONLY, with script
             // bodies blanked out so their contents cannot open or close a comment.

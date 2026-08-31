@@ -175,8 +175,14 @@ function stripDeadBlocks(src) {
  *     matching narrows this; it does not close it. Prefer renaming such an array over trusting
  *     this gate to be clever about it.
  */
-function stripDead(src) {
-    const isHtml = /<\s*(?:html|head|body|div|script|meta|!doctype)/i.test(src.slice(0, 4000));
+function stripDead(src, filename) {
+    // Decide by EXTENSION when we know it. A reviewer showed the content sniff misfiring on
+    // tenant-sw.js, whose own strings mention <script>/<meta>, routing a .js file through the
+    // HTML branch where fake script-tag pairs then formed. Sniffing is beatable by an ordinary
+    // string literal; a filename is not.
+    const isHtml = typeof filename === 'string'
+        ? /\.html?$/i.test(filename)
+        : /<\s*(?:html|head|body|div|script|meta|!doctype)/i.test(src.slice(0, 4000));
     if (isHtml) {
         // HTML COMMENTS ONLY at markup level. Running the JavaScript block-comment regex over
         // markup is what corrupted this: `accept="image/*"` opened a fake comment that ran 85,324
@@ -223,14 +229,47 @@ function stripJsComments(js) {
     // DELETED text, which produces a false orphan: noisy, triageable, and the safe direction this
     // file already prefers. Leaving comments entirely unstripped would be the dangerous direction,
     // since a path in a comment would then count as a real link.
-    // 16 files hit this on the first run, all ES2018+ syntax esprima 4 will not tokenise.
+    // String-aware, because a bare regex cannot tell a comment from "see docs // not real".
+    // A reviewer reproduced live href deletion through exactly that: a string containing `//` on
+    // the same line as `el.href = "/live-target"` in a file esprima cannot tokenise. The project
+    // already had this technique in _tools/eduscan/utils/strip-noncode.js, whose own header notes
+    // it exists to stop string-quoted references producing false results. Its stripPreserveLines
+    // also blanks string CONTENTS, which is right for dependency scanning and wrong here, since
+    // the paths this gate looks for live inside strings. So: same technique, different keep-set.
+    // This is the third independent rediscovery of "blank strings before matching delimiters" in
+    // this codebase, per that reviewer, and the reason it is written down here rather than a
+    // fourth time somewhere else.
+    const stripCommentsStringAware = (code) => {
+        let out = '', i = 0, q = null;
+        while (i < code.length) {
+            const c = code[i], n = code[i + 1];
+            if (q) {
+                out += c;
+                if (c === '\\') { out += (n === undefined ? '' : n); i += 2; continue; }
+                if (c === q) q = null;
+                i++;
+                continue;
+            }
+            if (c === '"' || c === "'" || c === '`') { q = c; out += c; i++; continue; }
+            if (c === '/' && n === '/') { while (i < code.length && code[i] !== '\n') i++; continue; }
+            if (c === '/' && n === '*') {
+                i += 2;
+                while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) i++;
+                i += 2;
+                continue;
+            }
+            out += c;
+            i++;
+        }
+        return out;
+    };
     const fallback = () => {
         // DEGRADED, not dangerous: comments are still stripped, just by pattern instead of by
         // token. Tracked separately from `unparsed`, which means a dead block was left in place
         // entirely. Conflating the two made a working fallback look like a failure and would have
         // blocked every deploy over 16 files that are fine.
         stripDead.fellBack = (stripDead.fellBack || 0) + 1;
-        return js.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+        return stripCommentsStringAware(js);
     };
     if (!esprima) return fallback();
     let toks;
@@ -287,7 +326,7 @@ function main() {
         // false positives someone must triage, while over-matching silently reports an
         // unreachable page as reached and removes the very coverage the gate exists to give.
         const before = stripDead.unparsed || 0;
-        const html = stripDead(fs.readFileSync(f, 'utf8'));
+        const html = stripDead(fs.readFileSync(f, 'utf8'), f);
         if ((stripDead.unparsed || 0) > before) unparsedFiles.push('/' + path.relative(APP, f));
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.

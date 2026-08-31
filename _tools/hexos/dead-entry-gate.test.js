@@ -124,6 +124,17 @@ const CASES = [
     ['comment inside script still stripped',
         `<script>// href: "/${TARGET}"\nvar a=1;</script>`,                              false],
 
+    // A `//` INSIDE A STRING, in a file the tokenizer cannot handle. A reviewer reproduced live
+    // href deletion with this exact shape: BigInt `1n` defeats esprima 4, the fallback runs, and
+    // a bare regex reads `"see docs // not real"` as a comment opener. The fallback is now
+    // string-aware, using the technique already in _tools/eduscan/utils/strip-noncode.js.
+    ['string containing // in a fallback file',
+        `<script>let b = 1n;\nconst n = "see docs // not real"; el.href = "/${TARGET}";</script>`, true],
+    ['string containing /* in a fallback file',
+        `<script>let b = 1n;\nconst n = "glob /* not a comment"; el.href = "/${TARGET}";</script>`, true],
+    ['real comment in a fallback file is still stripped',
+        `<script>let b = 1n;\n// href = "/${TARGET}"\nvar a = 1;</script>`,                    false],
+
     // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
     // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
