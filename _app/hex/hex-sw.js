@@ -1,5 +1,39 @@
 /**
- * hex-sw.js — service worker for the Hex OS PWA (HEXOS-5).
+ * hex-sw.js — NOT REGISTERED. DO NOT REGISTER IT. Kept for HEXOS-5b.
+ *
+ * ============================ READ THIS BEFORE WIRING IT UP ============================
+ * Nothing registers this file, and that is deliberate. It is retained because the caching
+ * design below is sound and will be reused; what is unsound is registering a SECOND worker
+ * at this path at all.
+ *
+ * WHY. tenant-sw.js is registered at scope '/' and injects TenantRouter + TenantShell into
+ * every navigation outside /tenant/ and /admin/. That injection is the white-label guarantee
+ * a tenant is paying for. Service worker scope matching prefers the LONGEST match, so a
+ * worker scoped to '/hex/' becomes the controller for the two Hex OS pages and tenant-sw
+ * stops seeing those navigations. Verified in a browser, not inferred: a root worker's
+ * injection stops the moment a narrower worker registers, and it stops even if the narrower
+ * worker's fetch handler does nothing at all -- the controller is chosen by scope, not by
+ * behaviour. So "register it but pass through" is NOT a safe middle ground.
+ *
+ * WHY A GUARD DOES NOT RESCUE IT. The first attempt shipped a load-time check: read
+ * hexworth_tenant, and if present skip registration and unregister any existing worker. A
+ * reviewer showed that cannot work. The controller for a navigation is resolved BEFORE the
+ * destination document's scripts run, so on the very load where the guard detects a tenant,
+ * this worker had already served the page uninjected. The guard only protects the NEXT load.
+ * Worse, the cross-tab case it relied on could not fire: hexworth_tenant is written to
+ * localStorage by exactly one of twelve writers (_app/lobby.html), while the ten tenant
+ * dashboards and tenant/index.html write sessionStorage only, which does not cross tabs.
+ * (TenantShell.js:60 asserts both are written; that comment is wrong, and believing it is
+ * where the guard's confidence came from.)
+ *
+ * WHAT HEXOS-5b SHOULD DO INSTEAD. Only one worker can control a page, so Hex OS offline
+ * caching belongs IN the single root-scoped worker that already controls every page, beside
+ * the tenant injection -- not in a second worker competing for these two paths. The cache
+ * strategy below transfers as-is; the registration does not.
+ *
+ * Nothing was lost by removing it. Chrome's Page.getInstallabilityErrors returns [] for /hex/
+ * with no worker registered, so the PWA still installs. Offline launch is the only casualty.
+ * =====================================================================================
  *
  * SCOPE IS THE WHOLE SAFETY STORY. This file lives at /hex/ and is registered with
  * { scope: '/hex/' }, so it controls /hex/* and nothing else. It must never be moved to the root

@@ -17,57 +17,32 @@
          test harness hid it completely. -->
     <script src="../components/SandboxLauncher.js"></script>
     <!-- HEXOS-5: installable to a Chromebook, tablet or laptop. Real icon, no browser chrome,
-         no flashing. The worker is registered with an EXPLICIT /hex/ scope: tenant-sw.js owns
-         scope '/', and a second root-scoped worker would evict it and take tenant routing down
-         platform-wide. Registration is also gated on the page being served over HTTPS or
-         localhost, because a failed register() throws and would otherwise surface as a console
-         error on every load. -->
+         no flashing.
+
+         THERE IS DELIBERATELY NO SERVICE WORKER HERE, and hex-sw.js is deliberately not
+         registered. A worker scoped to /hex/ would take control of these two pages away from
+         tenant-sw.js, which is registered at scope '/' and injects TenantRouter + TenantShell
+         into every navigation outside /tenant/ and /admin/. That injection IS the white-label
+         guarantee, and scope matching prefers the longest match, so '/hex/' silently outranks
+         '/' here. Registering ANY worker at this path -- even a pass-through that calls no
+         respondWith -- is enough to suppress it, because the controller is chosen by scope, not
+         by what the handler does.
+
+         A load-time guard cannot fix that. The controller for a navigation is resolved before
+         any of this document's script runs, so a guard that detects a tenant and unregisters is
+         already too late for the page it is running on; it only protects the NEXT load. That is
+         the reason this is absence rather than mitigation.
+
+         Nothing is lost for installability: Chrome's own Page.getInstallabilityErrors returns []
+         for this page with no worker registered. Offline launch is what a worker would add, and
+         it belongs in the single root-scoped worker that already controls every page, not in a
+         second one competing for these two. Tracked as HEXOS-5b. -->
     <link rel="manifest" href="/hex/manifest.webmanifest">
     <meta name="theme-color" content="#0a0a0f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Hex OS">
-    <link rel="apple-touch-icon" href="/assets/media/brand/mark-cyan-1024.png">
-    <script>
-        (function () {
-            if (!('serviceWorker' in navigator)) return;
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost') return;
-
-            // A TENANT SESSION OUTRANKS THE PWA, and this is not a preference -- it is the
-            // white-label containment guarantee. tenant-sw.js registers at scope '/' and injects
-            // TenantRouter + TenantShell into every navigation outside /tenant/ and /admin/,
-            // which is what keeps a white-labelled student from seeing raw Hexworth branding.
-            // Scope matching picks the LONGEST match, so a worker at '/hex/' silently outranks
-            // '/' on exactly these pages and that injection would stop happening. Offline launch
-            // is a convenience; leaking another company's platform identity into their classroom
-            // is not a trade we get to make, so the tenant keeps the page and loses the PWA.
-            var tenant = null;
-            try {
-                tenant = sessionStorage.getItem('hexworth_tenant')
-                    || localStorage.getItem('hexworth_tenant');
-            } catch (e) { tenant = null; }   // storage can throw under strict privacy settings
-
-            if (tenant) {
-                // The user may have installed the PWA BEFORE joining a tenant, in which case a
-                // hex-sw is already registered and already shadowing tenant-sw. Registering
-                // nothing would leave that stale worker in place, so actively stand it down.
-                navigator.serviceWorker.getRegistrations().then(function (regs) {
-                    regs.forEach(function (r) {
-                        if (r.scope && r.scope.indexOf('/hex/') !== -1) r.unregister();
-                    });
-                }).catch(function () {});
-                return;
-            }
-
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('/hex/hex-sw.js', { scope: '/hex/' })
-                    .catch(function (e) {
-                        // Never fatal. The shell works without it; only offline launch is lost.
-                        console.warn('Hex OS offline support unavailable:', e && e.message);
-                    });
-            });
-        }());
-    </script>
+    <link rel="apple-touch-icon" sizes="256x256" href="/assets/media/brand/mark-cyan-256.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Hex shell: launch anything on Hexworth by name. run arena, ls, search.">
     <title>hex shell</title>
