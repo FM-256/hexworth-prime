@@ -41,11 +41,14 @@
  * the precise blind spot that let ps/stop/restart ship dead: a mock cannot fail the thing it is
  * not checking. hex/index.html was the only one of 38 SandboxLauncher pages missing that tag.
  *
- * NOT COVERED BY THIS SUITE, stated plainly rather than left to be discovered: the 90s watchdog
- * that releases the in-flight lock when a request never settles. fetch() in SandboxLauncher.apiCall
- * has no timeout, so a stalled connection would otherwise hold the lock for the life of the tab.
- * The mock always answers, and a 90s test would dominate the run, so the watchdog is verified by
- * reading the code only. Treat it as unverified behaviour if you change it.
+ * THE WATCHDOG AND ITS STALE-SETTLE RACE ARE COVERED, via window.HEX_PROC_TIMEOUT_MS. An earlier
+ * revision shipped the watchdog with no test and a header note calling it "verified by reading the
+ * code only". Both reviewers then found, independently, that the watchdog's own recovery path
+ * reopened the double-mutation race it was built beside: a request that outlived its watchdog still
+ * settles later, and the unguarded release nulled a LATER command's lock and cancelled that
+ * command's watchdog. One reviewer reproduced two mutating commands running concurrently from a
+ * merely slow response. A disclosure is honest only when the risk is unknown; that risk was
+ * present and reproducible, so the caveat was wrong and the code needed a test, not a note.
  *
  * The `server-only-lab` case is a regression guard for a genuinely destructive ordering bug: restart
  * destroyed the box and THEN discovered it could not relaunch it, because the server may know a lab
@@ -200,6 +203,58 @@ srv.listen(PORT, '127.0.0.1', async () => {
     const html = await pg.evaluate(() => document.getElementById('out').innerHTML);
     chk('no injection in rendered output', !/<script|onerror=/i.test(html));
     chk('no uncaught page errors', errs.length === 0, errs[0]);
+
+    // ── Watchdog + stale-settle race, on its own page with a short timeout ──────────────
+    // Reproduces the sequence both reviewers found: a slow (not hung) request trips the
+    // watchdog, a later command takes the lock, and the FIRST request's late settlement must
+    // NOT release the later command's lock. Fails against an unguarded clearProc.
+    const pg2 = await b.newPage();
+    const slow = { 'sess-abc': 2600, 'sess-frz': 9000 };
+    let live2 = fixture();
+    await pg2.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 2000; });
+    await pg2.setRequestInterception(true);
+    pg2.on('request', r => {
+        const u = r.url(), m = r.method();
+        if (/AccessGuard\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
+        if (/FirebaseAuth\.js$/.test(u)) return r.respond({ status: 200, contentType: 'text/javascript', body:
+            'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},isSignedIn:function(){return true;},refreshToken:function(){return Promise.resolve("t");}};' });
+        if (/sandbox\.hexworth\.tech/.test(u)) {
+            if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
+            const J = (o, ms) => setTimeout(() => r.respond({ status: 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), ms);
+            if (/\/list/.test(u)) return J({ sandboxes: live2 }, 60);
+            const d = u.match(/\/destroy\/([^/?]+)/);
+            if (d) { live2 = live2.filter(x => x.sessionId !== d[1]); return J({ status: 'destroyed' }, slow[d[1]] || 60); }
+            return J({}, 60);
+        }
+        r.continue();
+    });
+    await pg2.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
+    await new Promise(r => setTimeout(r, 700));
+    const type2 = async (cmd) => { await pg2.click('#cmd'); await pg2.type('#cmd', cmd); await pg2.keyboard.press('Enter'); };
+    const text2 = () => pg2.evaluate(() => document.getElementById('out').innerText);
+
+    // Timing is load-bearing and each number is chosen, not guessed:
+    //   t=0     stop arctic   -> gen1. Its destroy answers at 2600ms.
+    //   t=2000  gen1 watchdog fires and releases the lock (this is correct behaviour).
+    //   t=2300  stop db-sql   -> gen2 takes the lock. Its destroy answers at 9000ms, and
+    //                            gen2's own watchdog would not fire until t=4300.
+    //   t=2600  gen1's ORPHANED request finally settles. Its release must no-op.
+    //   t=2900  restart arctic MUST be refused, because gen2 still holds the lock.
+    // A first attempt used an 800ms timeout, and gen2's own watchdog fired before the
+    // assertion, so the test failed for a legitimate release rather than the stale one.
+    await type2('stop arctic');
+    await new Promise(r => setTimeout(r, 2300));
+    chk('watchdog fires on a stalled request', /no longer waiting/i.test(await text2()), (await text2()).slice(-90));
+    await pg2.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type2('stop db-sql');                       // gen2 takes the lock, in flight until 9000ms
+    await new Promise(r => setTimeout(r, 700));       // past 2600ms: gen1's orphan settles
+    await pg2.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type2('restart arctic');                    // must be REFUSED: db-sql is still in flight
+    await new Promise(r => setTimeout(r, 400));
+    const after = await text2();
+    chk('a stale settle does NOT free a later command\'s lock', /already running/i.test(after), after.slice(0, 110));
+    await pg2.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
     await b.close(); srv.close();

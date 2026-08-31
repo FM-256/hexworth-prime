@@ -153,27 +153,50 @@
      * allowStopped: restart is happy with a lab that is not currently running.
      */
     var procBusy = null;    // command name currently mutating a session, or null
-    var procTimer = null;   // watchdog, see below
-    var PROC_TIMEOUT_MS = 90000;
+    var procTimer = null;   // watchdog for the CURRENT hold
+    var procGen = 0;        // identity of the current hold, incremented once per invocation.
+    // 90s in production. Overridable so the watchdog is reachable in a test without a 90s
+    // wait: a stalled request is the one case that cannot be provoked against a mock that
+    // always answers, and "cannot be tested" is not an acceptable position for concurrency
+    // code. This is a configuration value, not a state hook. It exposes no internals, which
+    // is why it ships where a `procBusy` accessor deliberately does not.
+    var PROC_TIMEOUT_MS = (typeof window.HEX_PROC_TIMEOUT_MS === 'number')
+        ? window.HEX_PROC_TIMEOUT_MS : 90000;
 
     function holdProc(name) {
+        var gen = ++procGen;
         procBusy = name;
         // SandboxLauncher.apiCall() uses fetch() with no timeout and no AbortController, so a
-        // request that never settles leaves the chain pending forever and this lock held for the
-        // life of the tab. Without a watchdog the fix for the double-fire race would itself become
-        // a way to permanently disable both commands, which is worse than the race it closes.
-        // Releasing here does NOT cancel the in-flight request; it only stops the shell from
-        // refusing forever, and says so rather than implying the operation was cancelled.
+        // request that never settles would hold this lock for the life of the tab. Without a
+        // watchdog the fix for the double-fire race would itself become a way to permanently
+        // disable both commands. Releasing here does NOT cancel the in-flight request; it only
+        // stops the shell refusing forever, and says so rather than implying it was cancelled.
         procTimer = setTimeout(function () {
-            if (procBusy !== name) return;
+            // Defensive, NOT a bug fix, and the distinction is worth recording. The guard this
+            // replaced compared command NAMES, and two sequential `stop` commands share a name.
+            // I claimed that was a second live defect; a fixture disproved it. procTimer is
+            // always either fired or cleared before a new hold can be taken, because a second
+            // command cannot start while the first holds the lock, so a stale timer can never
+            // observe a later generation. Generation is used anyway because identity is the
+            // thing actually meant, and a guard that is only accidentally correct rots.
+            if (procGen !== gen) return;
             procBusy = null;
             procTimer = null;
-            say(esc(name) + ' has not answered in 90 seconds, so the shell is no longer waiting on '
+            say(esc(name) + ' has not answered in time, so the shell is no longer waiting on '
                 + 'it. The request may still be running.', 'warn');
             say('run <span class="ok">ps</span> to see the real state before trying again.', 'muted');
         }, PROC_TIMEOUT_MS);
+        return gen;
     }
-    function clearProc() {
+
+    // MUST be called with the generation from its own holdProc. A request that outlived its
+    // watchdog still settles later, and an unguarded release let that stale settle null out a
+    // LATER command's lock and clear that later command's watchdog, reopening the exact
+    // double-mutation race this lock exists to close, while the manual told the student a
+    // retry was safe. Found independently by both reviewers; the watchdog callback already
+    // had an ownership guard and this did not.
+    function clearProc(gen) {
+        if (procGen !== gen) return;
         procBusy = null;
         if (procTimer) { clearTimeout(procTimer); procTimer = null; }
     }
@@ -542,7 +565,7 @@
             }
             if (!arg) return say('stop what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            holdProc('stop');
+            var gen = holdProc('stop');
             resolveProcess(arg).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             say('stopping ' + esc(t.labId) + '...', 'muted');
@@ -552,7 +575,7 @@
                 say('could not stop ' + esc(t.labId) + ': ' + esc(errText(e)), 'err');
                 say('run <span class="ok">ps</span> to see whether it is still up.', 'muted');
             });
-            }).then(clearProc, clearProc);
+            }).then(function () { clearProc(gen); }, function () { clearProc(gen); });
         },
 
         restart: function (arg) {
@@ -564,7 +587,7 @@
             }
             if (!arg) return say('restart what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
-            holdProc('restart');
+            var gen = holdProc('restart');
             resolveProcess(arg, true).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             // PRE-FLIGHT BEFORE DESTROYING. resolveProcess returns the SERVER's labId, and the
@@ -604,7 +627,7 @@
                         + 'still up.', 'muted');
                 }
             });
-            }).then(clearProc, clearProc);
+            }).then(function () { clearProc(gen); }, function () { clearProc(gen); });
         },
 
         man: function (arg) {
