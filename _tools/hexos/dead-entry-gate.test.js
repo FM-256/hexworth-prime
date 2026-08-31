@@ -40,10 +40,12 @@ const assert = require('assert');
 const GATE = path.resolve(__dirname, 'dead-entry-gate.js');
 const src = fs.readFileSync(GATE, 'utf8');
 
-// Exercise the SHIPPED implementation, not a restatement of it.
-const m = src.match(/function stripDead\(src\) \{[\s\S]*?\n\}/);
-assert(m, 'stripDead() not found in dead-entry-gate.js');
-const stripDead = new Function('src', 'return (' + m[0] + ')(src)');
+// Require the SHIPPED module rather than slicing its source. The old approach extracted
+// stripDead() with a regex and eval'd it standalone, which broke the moment it gained a helper,
+// and more importantly it tested a COPY: a function lifted out of its module is not the function
+// that runs. Requiring it exercises the real thing, dependencies included.
+const { stripDead } = require('./dead-entry-gate.js');
+assert(typeof stripDead === 'function', 'dead-entry-gate.js must export stripDead');
 
 const TARGET = 'houses/dead-entry-probe/index.html';
 
@@ -95,6 +97,18 @@ const CASES = [
     ['live link after a regex dead block',
         `if (false) { const re = /\\{x/; }\ncourseHref: '${TARGET}',`,                  true],
 
+    // KEYWORD-PRECEDED REGEX. The fifth instance, and the one that proved 25/25 was a
+    // non-regression bar rather than a correctness bar: every case in this suite had been added
+    // reactively after a reviewer broke that exact shape, so a shape nobody had tried still
+    // defeated it. A previous-CHARACTER lookback cannot see these, because a keyword ends in a
+    // letter. Tokenising removes the whole question.
+    ['return-preceded regex',
+        `if (false) { return /\\{x/.test(y); go("/${TARGET}"); }`,                       false],
+    ['typeof-preceded regex',
+        `if (false) { if (typeof /\\{x/ === "object") go("/${TARGET}"); }`,              false],
+    ['live link after a keyword-regex dead block',
+        `if (false) { return /\\{x/.test(y); }\ncourseHref: '${TARGET}',`,               true],
+
     // FALSE-POSITIVE direction for the name heuristic, which previously had only true positives.
     // `.*EXCLUDE.*` also swallowed ordinary names; this codebase already ships
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes.
@@ -131,13 +145,33 @@ for (const rel of ['components/HubRegistry.js', 'components/LearningPaths.js']) 
 // (deleting removes live links, keeping counts a dead one as real), so the gate reports instead
 // of guessing. Locking that here means a future change to the fallback cannot quietly make it
 // worse, which is what happened the last three times.
-const sdSrc = src.match(/function stripDead\(src\) \{[\s\S]*?\n\}/)[0];
-const counted = new Function(
-    'return (function () { ' + sdSrc +
-    ' stripDead("if (false) { `${"); return stripDead.unparsed || 0; })()')();
+stripDead.unparsed = 0;
+stripDead('if (false) { `${');                 // will not tokenise
+const counted = stripDead.unparsed || 0;
 const ok = counted >= 1;
 ok ? pass++ : fail++;
 console.log(`    ${ok ? 'ok  ' : 'FAIL'} an unparseable dead block is counted, not guessed at`);
+
+// THE FALLBACK PATH. A reviewer found esprima was only present as a transitive dependency of
+// degenerator/escodegen, so a clean `npm ci` could have removed it and silently degraded this
+// gate platform-wide with nothing failing. It is now declared in package.json, and this asserts
+// the absence path does the safe thing: strip nothing, count the occurrence, never claim a dead
+// block was handled when it was not.
+{
+    const gsrc = fs.readFileSync(GATE, 'utf8');
+    const noEsprima = gsrc.replace("try { esprima = require('esprima'); }", 'try { throw new Error(); }');
+    const tmp = path.join(require('os').tmpdir(), 'deg-no-esprima-' + process.pid + '.js');
+    fs.writeFileSync(tmp, noEsprima);
+    const mod = require(tmp);
+    mod.stripDead.unparsed = 0;
+    const kept = mod.stripDead(`if (false) { go("/${TARGET}"); }`);
+    const counted = mod.stripDead.unparsed || 0;
+    const ok = kept.includes('dead-entry-probe') && counted === 1;
+    ok ? pass++ : fail++;
+    console.log(`    ${ok ? 'ok  ' : 'FAIL'} without esprima: strips nothing AND counts it` +
+        (ok ? '' : `  <- kept=${kept.includes('dead-entry-probe')} counted=${counted}`));
+    fs.unlinkSync(tmp);
+}
 
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;

@@ -74,6 +74,72 @@ function allSource(dir, out) {
 }
 
 
+
+/** Available? Resolved once. Absence is a reported condition, not a silent downgrade. */
+let esprima = null;
+try { esprima = require('esprima'); } catch (e) { /* reported by the caller */ }
+
+/**
+ * Remove `if (false) { ... }` / `if (0) { ... }` bodies using real tokens.
+ *
+ * Brace matching walks Punctuator tokens, so a brace inside a string, a template or a regex is
+ * never counted: the tokenizer has already classified it. That closes, by construction, the four
+ * separate desyncs a hand-rolled scanner shipped.
+ */
+function stripDeadBlocks(src) {
+    // Nothing to strip means a parse failure cannot matter. Without this, every HTML file in the
+    // tree failed JS tokenisation and the counter read 5472, which is noise nobody reads and
+    // could never be made to fail the gate. An ambiguity that cannot affect the answer is not an
+    // ambiguity worth reporting; counting it would have buried the handful that do matter.
+    if (!/\bif\s*\(\s*(?:false|0)\s*\)/.test(src)) return src;
+    // HTML: tokenise the <script> bodies, which is where a dead block could live.
+    if (/<\s*script/i.test(src)) {
+        let out = src, m;
+        const re = /<script\b[^>]*>([\s\S]*?)<\/script\s*>/gi;
+        const parts = [];
+        while ((m = re.exec(src))) parts.push(m);
+        for (let k = parts.length - 1; k >= 0; k--) {
+            const body = parts[k][1];
+            if (!/\bif\s*\(\s*(?:false|0)\s*\)/.test(body)) continue;
+            const cleaned = stripDeadBlocks(body);
+            const at = parts[k].index + parts[k][0].indexOf(body);
+            out = out.slice(0, at) + cleaned + out.slice(at + body.length);
+        }
+        return out;
+    }
+    if (!esprima) { stripDead.unparsed = (stripDead.unparsed || 0) + 1; return src; }
+    let toks;
+    try {
+        toks = esprima.tokenize(src, { range: true });
+    } catch (e) {
+        // HTML with inline script, or syntax this parser rejects. Do not guess.
+        stripDead.unparsed = (stripDead.unparsed || 0) + 1;
+        return src;
+    }
+    const cuts = [];
+    for (let k = 0; k + 4 < toks.length; k++) {
+        if (toks[k].type !== 'Keyword' || toks[k].value !== 'if') continue;
+        if (toks[k + 1].value !== '(') continue;
+        const lit = toks[k + 2];
+        const isFalse = (lit.type === 'Boolean' && lit.value === 'false')
+                     || (lit.type === 'Numeric' && lit.value === '0');
+        if (!isFalse || toks[k + 3].value !== ')' || toks[k + 4].value !== '{') continue;
+        let depth = 0, end = -1;
+        for (let n = k + 4; n < toks.length; n++) {
+            if (toks[n].type !== 'Punctuator') continue;
+            if (toks[n].value === '{') depth++;
+            else if (toks[n].value === '}') { depth--; if (depth === 0) { end = toks[n].range[1]; break; } }
+        }
+        if (end === -1) { stripDead.unparsed = (stripDead.unparsed || 0) + 1; continue; }
+        cuts.push([toks[k].range[0], end]);
+        k = toks.length;                       // one cut per pass; re-tokenising after is simpler
+    }
+    if (!cuts.length) return src;
+    let out = src;
+    for (let c = cuts.length - 1; c >= 0; c--) out = out.slice(0, cuts[c][0]) + out.slice(cuts[c][1]);
+    return stripDeadBlocks(out);               // catch any further blocks, now that offsets moved
+}
+
 /**
  * Remove text that contains paths which are NOT links.
  *
@@ -115,63 +181,25 @@ function stripDead(src) {
         .replace(/\/\*[\s\S]*?\*\//g, '')
         .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
-    // `if (false) { ... }` and `if (0) { ... }`, brace-matched so nested blocks survive intact.
-    out = out.replace(/\bif\s*\(\s*(?:false|0)\s*\)\s*\{/g, 'if(0){\u0000');
-    let i;
-    while ((i = out.indexOf('\u0000')) !== -1) {
-        // Depth counting must SKIP string and template literals. Counting every literal brace
-        // desyncs on `if (false) { const s = "{"; }`: the counter never finds its close, runs off
-        // the end, and the removal eats every live link after it. A reviewer reproduced exactly
-        // that and it over-matches, which this file calls the dangerous direction. Stray braces in
-        // error messages, templates and CSS-in-JS are ordinary, not adversarial.
-        let depth = 1, j = i + 1, quote = null, prev = '';
-        while (j < out.length && depth > 0) {
-            const c = out[j];
-            if (quote) {
-                if (c === '\\') { j += 2; continue; }
-                if (c === quote) quote = null;
-                j++;
-                continue;
-            }
-            if (c === '"' || c === "'" || c === '`') { quote = c; j++; continue; }
-            // REGEX LITERALS. `/\{abc/` pushes depth up with no matching close, the counter never
-            // balances, and the fallback then leaves the whole dead block in place to be counted
-            // as a real link. Third instance of over-matching in this one function.
-            // Division-vs-regex is genuinely ambiguous in JS. The conservative test: a `/` starts
-            // a regex only where a value cannot already be complete, i.e. after an operator,
-            // opener, comma, or statement start. Getting it wrong costs a skipped span, not a
-            // deleted link, because an unbalanced result deletes nothing and is REPORTED.
-            if (c === '/' && out[j + 1] !== '/' && out[j + 1] !== '*'
-                && /[({[,;=:!&|?+\-*%~^<>]|^$/.test(prev)) {
-                j++;
-                while (j < out.length && out[j] !== '/' && out[j] !== '\n') {
-                    if (out[j] === '\\') j++;
-                    else if (out[j] === '[') { while (j < out.length && out[j] !== ']') j++; }
-                    j++;
-                }
-                j++;
-                continue;
-            }
-            if (c === '{') depth++;
-            else if (c === '}') depth--;
-            if (!/\s/.test(c)) prev = c;
-            j++;
-        }
-        // Unbalanced after skipping literals means this text cannot be parsed by these rules.
-        // Neither resolution is safe: deleting to the end removes real links and manufactures
-        // orphans; keeping the text counts a DEAD link as real and silently removes coverage.
-        // So do the non-destructive thing AND record it, because the failure that has bitten this
-        // file three times is a wrong answer given quietly. A reported unknown is triageable; a
-        // silent guess is what produced two retractions.
-        if (depth === 0) {
-            out = out.slice(0, i) + out.slice(j);
-        } else {
-            out = out.slice(0, i) + out.slice(i + 1);
-            stripDead.unparsed = (stripDead.unparsed || 0) + 1;
-        }
-    }
+    // DEAD BLOCKS: tokenised, not hand-parsed.
+    //
+    // This is the fifth round on this one function and every previous version was a regex
+    // tokenizer that kept rediscovering the same ambiguity: comments, then string literals, then
+    // regex literals, then keyword-preceded regex (`return /re/`, `typeof /re/`, `case /re/:`),
+    // which a previous-CHARACTER lookback cannot see because a keyword ends in a letter. Each fix
+    // introduced the next gap and each was found by a reviewer rather than by a test.
+    //
+    // The suite reached 25 cases and every one had been added reactively after a reviewer broke
+    // that exact shape, so it measured non-regression rather than correctness, and a 26th case
+    // falsified it. Writing a sixth heuristic was the wrong move; esprima resolves in this tree
+    // and answers division-vs-regex correctly by construction, which is the entire problem.
+    //
+    // When esprima is unavailable or the source will not tokenise, dead blocks are NOT stripped
+    // and the occurrence is COUNTED and printed. That direction over-matches, which this file
+    // calls dangerous, so it is reported rather than guessed at. It is honest about not knowing
+    // instead of being confidently wrong, which is what the previous four versions were.
+    out = stripDeadBlocks(out);
 
-    // Declarations whose NAME says the contents are not navigation targets.
     // WHOLE-WORD trigger, not substring. `.*EXCLUDE.*` also swallowed `legacyHouses`,
     // `skipNavTargets` and `blockedUsersRedirect`, and this codebase already contains
     // SYNC_EXCLUDED_PREFIXES, BLOCKED_GLOBALS and skipPrefixes. The day one of those holds a real
@@ -202,6 +230,7 @@ function main() {
     // /x/index.html?a=1 all count as reaching the same entry: a link that works in a browser
     // must count as a link here, or the gate manufactures unreachability that does not exist.
     const linked = new Set();
+    const unparsedFiles = [];
     for (const f of allSource(APP)) {
         // Comments stripped FIRST, in both file types. Without this the sweep counts a path
         // inside a commented-out block, an `if (false)` branch, or an EXCLUDE_LIST as a real
@@ -212,7 +241,9 @@ function main() {
         // Over-matching is the DANGEROUS direction for this gate: under-matching produces noisy
         // false positives someone must triage, while over-matching silently reports an
         // unreachable page as reached and removes the very coverage the gate exists to give.
+        const before = stripDead.unparsed || 0;
         const html = stripDead(fs.readFileSync(f, 'utf8'));
+        if ((stripDead.unparsed || 0) > before) unparsedFiles.push('/' + path.relative(APP, f));
         // BOTH quote styles: 709 hrefs in _app use single quotes, and a scanner that misses
         // them manufactures unreachability.
         // In .js, a path lives in a string literal or an object field (courseHref, entry, url),
@@ -317,12 +348,26 @@ function main() {
                 `(${known.length} baselined, ${newlyUnreached.length} new)`);
     // Visible at runtime, not only in a test. If this is ever non-zero, some dead block could not
     // be parsed by these rules and was left in place, so a link inside it may be counted as real.
-    if (stripDead.unparsed) {
-        console.log(`  note: ${stripDead.unparsed} dead block(s) could not be parsed and were ` +
-                    `left in place; a link inside one would count as reachable.`);
-    }
+
 
     let bad = false;
+    // NAME the files. A reviewer's point: a count with no location is untriageable, and with 190
+    // apps there is no way to tell which entry might be a false negative. A NEW unparsed file
+    // fails, because it means a dead block somewhere is being left in place unexamined; the
+    // known one is recorded so the gate stays useful instead of being switched off.
+    const KNOWN_UNPARSED = ['/admin/console.html'];
+    const newUnparsed = unparsedFiles.filter(f => KNOWN_UNPARSED.indexOf(f) === -1);
+    if (unparsedFiles.length) {
+        console.log(`  note: ${unparsedFiles.length} file(s) contain a dead block that could not ` +
+                    `be tokenised, so a link inside one counts as reachable:`);
+        unparsedFiles.forEach(f => console.log(`    ${f}` +
+            (KNOWN_UNPARSED.indexOf(f) === -1 ? '   <- NEW' : '   (known)')));
+    }
+    if (newUnparsed.length) {
+        console.error('\nNEW unparseable dead block(s). Either simplify the code so it tokenises,');
+        console.error('or add the path to KNOWN_UNPARSED in this file with a reason.');
+        bad = true;
+    }
     if (broken.length) {
         bad = true;
         console.error('\nBROKEN: the manifest points at files that do not exist. `run <id>` would 404:');
@@ -342,4 +387,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { resolveEntry };
+module.exports = { resolveEntry, stripDead, stripDeadBlocks };
