@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-30 20:48 · **1158 scripts** · 25 wired into a gate · 273 called by other code · 190 only mentioned in docs · 670 referenced by nothing · 471 not in git
+**Generated:** 2026-08-30 21:06 · **1158 scripts** · 25 wired into a gate · 274 called by other code · 190 only mentioned in docs · 669 referenced by nothing · 470 not in git
 
 ## Read this before writing a new script
 
@@ -741,7 +741,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `hex-shell-process.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `hex-shell-process.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
@@ -952,7 +952,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `telemetry-check.js` | CALLED | 1 | 2026-07-05 | yes |  |
 | `workspace-fold-measure.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 
-### `_tools/openstack-bridge` — 54 scripts, 8 referenced by nothing
+### `_tools/openstack-bridge` — 54 scripts, 7 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -985,7 +985,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `img-snap2.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | snapshot a prepared instance into a candidate sprint image |
 | `img-swap.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | promote a VERIFIED candidate image into the canonical name |
 | `img-verify-candidate.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | boot a candidate image and prove autologin before promoting it |
-| `lab-manager-server.js` | ORPHAN | 0 | 2026-08-25 | no |  |
+| `lab-manager-server.js` | CALLED | 1 | 2026-08-25 | no |  |
 | `office-reachability-check.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | prove the lab surfaces are reachable from an arbitrary network, no tailscale |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
 | `pool-capacity.sh` | CALLED | 1 | 2026-08-26 | yes | true pool capacity: slots total/bound/free, and how many instances the host can run |

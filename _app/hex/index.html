@@ -5,6 +5,12 @@
     <!-- Access Control: the baseline tier that the large majority of manifest apps declare -->
     <script src="../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
+    <!-- Firebase auth MUST precede SandboxLauncher. Without it SandboxLauncher.getIdToken()
+         returns null, apiCall() falls back to an X-Dev-Uid header, and lab-manager (which runs
+         NODE_ENV=production, so DEV_MODE is false) answers a hard 401 to every request from every
+         student. This page was the ONLY one of 38 loading SandboxLauncher that omitted it, and the
+         omission was invisible until ps/stop/restart began actually calling the network. -->
+    <script src="../components/FirebaseAuth.js"></script>
     <!-- Session owner for ps/stop/restart. Was MISSING: an earlier edit anchored to a script tag
          that exists in the module template and not here, and .replace() silently did nothing, so
          every process command hit "session manager not available" for every student. A stub in the
@@ -146,6 +152,9 @@
      * detail that makes a shell feel hostile.
      * allowStopped: restart is happy with a lab that is not currently running.
      */
+    var procBusy = null;   // command name currently mutating a session, or null
+    function clearProc() { procBusy = null; }
+
     function resolveProcess(arg, allowStopped) {
         var SL = window.SandboxLauncher;
         if (!SL) return Promise.resolve({ error: 'the session manager is not available.' });
@@ -294,7 +303,9 @@
                   'Takes either name `ps` shows, the lab or the session id. Asking to stop an app\n' +
                   'that is a page tells you so rather than pretending to stop it.\n' +
                   'Use this when a lab has frozen, or when you are finished and want the slot back\n' +
-                  'for someone else.',
+                  'for someone else.\n' +
+                  'One stop or restart runs at a time. A second one is refused rather than queued,\n' +
+                  'because two overlapping requests can leave a duplicate session behind.',
             examples: ['ps', 'stop linux-sandbox'],
             see: ['ps', 'restart']
         },
@@ -305,6 +316,7 @@
                   'A lab that is not running is not an error: it just launches.\n' +
                   'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
                   'outside the lab is gone.\n' +
+                  'One stop or restart runs at a time; a second is refused rather than queued.\n' +
                   'If this shell does not know how to launch the lab, restart refuses BEFORE\n' +
                   'destroying anything, rather than leaving you with no box and no way back.\n' +
                   'If the destroy succeeds and the relaunch fails you are left with nothing running,\n' +
@@ -498,8 +510,13 @@
         stop: function (arg) {
             var SL = window.SandboxLauncher;
             if (!SL) return say('the session manager is not available on this page.', 'err');
+            if (procBusy) {
+                return say('already running <span class="ok">' + esc(procBusy) + '</span>. Wait for '
+                    + 'it to finish, then try again.', 'warn');
+            }
             if (!arg) return say('stop what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
+            procBusy = 'stop';
             resolveProcess(arg).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             say('stopping ' + esc(t.labId) + '...', 'muted');
@@ -509,14 +526,19 @@
                 say('could not stop ' + esc(t.labId) + ': ' + esc(errText(e)), 'err');
                 say('run <span class="ok">ps</span> to see whether it is still up.', 'muted');
             });
-            });
+            }).then(clearProc, clearProc);
         },
 
         restart: function (arg) {
             var SL = window.SandboxLauncher;
             if (!SL) return say('the session manager is not available on this page.', 'err');
+            if (procBusy) {
+                return say('already running <span class="ok">' + esc(procBusy) + '</span>. Wait for '
+                    + 'it to finish, then try again.', 'warn');
+            }
             if (!arg) return say('restart what? <span class="ok">ps</span> lists what is running.', 'warn');
             if (notReady()) return;
+            procBusy = 'restart';
             resolveProcess(arg, true).then(function (t) {
             if (t.error) return say(t.error, t.cls || 'err');
             // PRE-FLIGHT BEFORE DESTROYING. resolveProcess returns the SERVER's labId, and the
@@ -533,8 +555,12 @@
                     + 'and start it from its own page.', 'muted');
             }
             // Not running is not an error for restart: a fresh start is what was asked for.
+            var destroyed = false;
             var step = t.sessionId
-                ? SL.destroy(t.sessionId).then(function () { say('stopped. relaunching...', 'muted'); })
+                ? SL.destroy(t.sessionId).then(function () {
+                      destroyed = true;
+                      say('stopped. relaunching...', 'muted');
+                  })
                 : Promise.resolve(say(esc(t.labId) + ' was not running. launching it fresh...', 'muted'));
             return step.then(function () {
                 return SL.launch(t.labId);
@@ -542,11 +568,17 @@
                 say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
             }).catch(function (e) {
                 say('restart failed: ' + esc(errText(e)), 'err');
-                // Do not imply recovery. The destroy may have succeeded and the launch not.
-                say('it may now be stopped and NOT relaunched. run <span class="ok">ps</span> to check, ' +
-                    'then <span class="ok">restart</span> again.', 'warn');
+                // Two different states, two different truths. Saying "stopped and NOT relaunched"
+                // for a destroy that never succeeded is a false claim about the student's box.
+                if (destroyed) {
+                    say('the box WAS stopped and was not relaunched. run <span class="ok">ps</span> '
+                        + 'to confirm, then <span class="ok">restart</span> again.', 'warn');
+                } else {
+                    say('nothing was destroyed. run <span class="ok">ps</span> to see whether it is '
+                        + 'still up.', 'muted');
+                }
             });
-            });
+            }).then(clearProc, clearProc);
         },
 
         man: function (arg) {

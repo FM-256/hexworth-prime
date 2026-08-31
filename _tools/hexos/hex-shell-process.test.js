@@ -31,6 +31,16 @@
  * so it could not have failed. Lab ids below are real ids from SandboxLauncher's LAB_INFO for the
  * same reason: a fixture that invents its inputs only ever tests itself.
  *
+ * AUTH IS ENFORCED BY THIS HARNESS, DELIBERATELY. The mock rejects any request without a real
+ * `Authorization: Bearer` header, exactly as lab-manager does (verifyAuth, lab-manager-server.js:793
+ * where DEV_MODE is false in production, so the X-Dev-Uid fallback is unreachable there). And the
+ * FirebaseAuth stub is delivered by INTERCEPTING ITS SCRIPT REQUEST, not by assigning
+ * window.FirebaseAuth. That distinction is the whole point: if the page ever stops loading
+ * FirebaseAuth.js, the request never fires, the stub never lands, getIdToken() returns null,
+ * apiCall() sends X-Dev-Uid, and this suite goes red. Assigning the global instead would recreate
+ * the precise blind spot that let ps/stop/restart ship dead: a mock cannot fail the thing it is
+ * not checking. hex/index.html was the only one of 38 SandboxLauncher pages missing that tag.
+ *
  * The `server-only-lab` case is a regression guard for a genuinely destructive ordering bug: restart
  * destroyed the box and THEN discovered it could not relaunch it, because the server may know a lab
  * this client's LAB_INFO does not. "Your box is gone and I cannot make another" is the one outcome a
@@ -42,6 +52,7 @@ let puppeteer; try { puppeteer = require('puppeteer'); } catch (e) {
     process.exit(2);
 }
 const APP = path.resolve(__dirname, '../../_app'), PORT = 9087;
+const API_LATENCY_MS = 250;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*',
                'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS' };
@@ -65,6 +76,8 @@ const srv = http.createServer((q, r) => {
 
 srv.listen(PORT, '127.0.0.1', async () => {
     let live = fixture();
+    let sawFirebaseAuth = false;
+    const unauth = [];
     const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const pg = await b.newPage(), calls = [];
     await pg.setRequestInterception(true);
@@ -75,9 +88,28 @@ srv.listen(PORT, '127.0.0.1', async () => {
         if (/AccessGuard\.js$/.test(u)) {
             return r.respond({ status: 200, contentType: 'text/javascript', body: 'window.AccessGuard={require:function(){}};' });
         }
+        // Stubbed via the REQUEST, so the tag's absence is detectable. See the header note.
+        if (/FirebaseAuth\.js$/.test(u)) {
+            sawFirebaseAuth = true;
+            return r.respond({ status: 200, contentType: 'text/javascript', body:
+                'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},' +
+                'isSignedIn:function(){return true;},' +
+                'refreshToken:function(){return Promise.resolve("test-id-token");}};' });
+        }
         if (/sandbox\.hexworth\.tech/.test(u)) {
             if (m === 'OPTIONS') return r.respond({ status: 204, headers: CORS });
-            const J = (o, st) => r.respond({ status: st || 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(o) });
+            // LATENCY IS LOAD-BEARING. With instant responses a "double fire" is really two
+            // sequential runs, and the concurrency bug this suite exists to catch cannot occur.
+            // 250ms is a plausible round trip and opens the same window a student's second Enter
+            // press lands in.
+            const J = (o, st) => setTimeout(() => r.respond({ status: st || 200, headers: CORS,
+                contentType: 'application/json', body: JSON.stringify(o) }), API_LATENCY_MS);
+            // Mirror verifyAuth: production has DEV_MODE false, so no Bearer means 401.
+            const auth = r.headers()['authorization'] || '';
+            if (!auth.startsWith('Bearer ')) {
+                unauth.push(m + ' ' + u.replace(/.*\/api\/sandbox/, '').split('?')[0]);
+                return J({ error: 'Missing or invalid Authorization header' }, 401);
+            }
             calls.push(m + ' ' + u.replace(/.*\/api\/sandbox/, '').split('?')[0]);
             if (/\/list/.test(u)) return J({ sandboxes: live });
             const d = u.match(/\/destroy\/([^/?]+)/);
@@ -96,18 +128,20 @@ srv.listen(PORT, '127.0.0.1', async () => {
     });
     const errs = []; pg.on('pageerror', e => errs.push(e.message));
     await pg.goto(`http://127.0.0.1:${PORT}/hex/index.html`, { waitUntil: 'networkidle0' });
-    await new Promise(r => setTimeout(r, 900));
+    await new Promise(r => setTimeout(r, 1200));
 
     let pass = 0, fail = 0;
     const chk = (n, c, d) => { c ? pass++ : fail++; console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${c ? '' : '  <- ' + String(d).slice(0, 110)}`); };
     async function run(s) {
         await pg.evaluate(() => { document.getElementById('out').innerHTML = ''; });
         await pg.click('#cmd'); await pg.type('#cmd', s); await pg.keyboard.press('Enter');
-        await new Promise(r => setTimeout(r, 700));
+        await new Promise(r => setTimeout(r, 1200));
         return pg.evaluate(() => document.getElementById('out').innerText.trim());
     }
 
     chk('SandboxLauncher is present on the REAL page', await pg.evaluate(() => typeof window.SandboxLauncher) === 'object');
+    chk('the page REQUESTED FirebaseAuth.js', sawFirebaseAuth,
+        'without it every apiCall sends X-Dev-Uid and production 401s');
     let o = await run('ps');
     chk('ps parses the real `sandboxes` key', /arctic/.test(o) && /sess-abc/.test(o), o);
     chk('ps surfaces a STOPPED session and explains it', /db-sql/.test(o) && /stopped/.test(o) && /holds its slot/i.test(o), o);
@@ -124,11 +158,31 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('  -> and destroyed nothing', !calls.slice(before).some(c => /DELETE/.test(c)), calls.slice(before).join('|'));
     chk('  -> and says nothing was changed', /nothing was changed/i.test(o), o);
 
-    o = await run('restart db-sql'); await new Promise(r => setTimeout(r, 800));
+    o = await run('restart db-sql'); await new Promise(r => setTimeout(r, 1400));
     chk('restart a stopped lab: destroy THEN launch',
         calls.includes('DELETE /destroy/sess-frz') && calls.some(c => /POST \/launch/.test(c)), calls.join('|'));
     chk('  -> reports clean state', /restarted|clean state/i.test(o), o);
     o = await run('ps');            chk('ps shows the fresh box', /sess-new/.test(o), o);
+    // TOCTOU: two Enter presses inside one round-trip made restart destroy once and launch TWICE,
+    // orphaning a second capacity-consuming session reachable only by an id the student never saw.
+    live = fixture();
+    const b4 = calls.length;
+    await pg.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await pg.click('#cmd'); await pg.type('#cmd', 'restart db-sql'); await pg.keyboard.press('Enter');
+    await new Promise(r => setTimeout(r, 120));   // first chain still in flight (250ms/hop)
+    await pg.type('#cmd', 'restart db-sql'); await pg.keyboard.press('Enter');
+    await new Promise(r => setTimeout(r, 3000));
+    const win = calls.slice(b4);
+    chk('double-fire restart launches exactly ONCE', win.filter(c => /POST \/launch/.test(c)).length === 1, win.join('|'));
+    chk('  -> and destroys exactly once', win.filter(c => /DELETE/.test(c)).length === 1, win.join('|'));
+    chk('  -> second press is refused, not queued',
+        /already running/i.test(await pg.evaluate(() => document.getElementById('out').innerText)), '');
+    chk('  -> lock RELEASED afterwards (not wedged)',
+        await pg.evaluate(() => typeof procBusy === 'undefined' ? 'n/a' : procBusy) !== 'restart', 'still locked');
+    o = await run('ps');
+    chk('  -> no orphaned duplicate session', (o.match(/db-sql/g) || []).length === 1, o);
+
+    chk('every request carried a Bearer token', unauth.length === 0, unauth.join('|'));
     const html = await pg.evaluate(() => document.getElementById('out').innerHTML);
     chk('no injection in rendered output', !/<script|onerror=/i.test(html));
     chk('no uncaught page errors', errs.length === 0, errs[0]);

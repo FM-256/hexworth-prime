@@ -26,6 +26,14 @@
  *        id shadows a command name (which would make `man <id>` silently show the wrong thing
  *        forever, since MANUAL is checked before byId), and that every command reading the
  *        manifest calls notReady() first.
+ *   CANNOT: prove the guard actually PRECEDES the assertion. The outside-COMMANDS rule matches
+ *        `say(`/`error:` and `notReady()`/`manifestState` as raw strings over a function body, with
+ *        no control-flow awareness, so it proves both exist somewhere and nothing about their
+ *        order. A function that renders via out.appendChild() directly, or returns its message in a
+ *        field named msg:/text:/warning: instead of error:, is invisible to it and would fail
+ *        exactly the way `man cd` and `help` did before this gate existed. Reviewer's words, and
+ *        they are correct: syntactic pattern-matching that holds today and can rot silently. Widen
+ *        the two regexes when either idiom appears rather than assuming the rule still covers it.
  *   CANNOT: prove a page's PROSE describes what the code does. Nothing can, short of a human or a
  *        behavioural test. So this narrows the surface rather than eliminating it, and saying so
  *        plainly matters more than the check itself.
