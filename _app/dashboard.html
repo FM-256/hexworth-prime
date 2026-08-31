@@ -3857,7 +3857,18 @@
             .modal-content { border: 2px solid rgba(255, 255, 255, 0.4); }
         }
 
-        /* Hex OS header call-out (2026-08-31) */
+        /* Hex OS header call-out (2026-08-31).
+           REMOVE AFTER 2026-10-01 or once Hex OS is no longer "new", whichever is sooner.
+           Tracked so "expected to be temporary" is not a fact living only in a commit message.
+           The menu entry in the hamburger is the permanent one; this is the announcement.
+
+           The pulse animates the BACKGROUND and BORDER, never the text. An earlier version
+           faded the whole element to opacity 0.55, which a reviewer measured at 4.15:1 against
+           the header ground: below the 4.5:1 AA minimum for normal-size text, for half of every
+           cycle. Worse, `animation-play-state: paused` freezes wherever the animation happens to
+           be, so a keyboard user could tab to the link and have it FREEZE below AA, which is the
+           opposite of what a focus state must guarantee. Text now holds ~11.6:1 at all times and
+           the motion carries no legibility. */
         .hexos-callout {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 5px 12px; margin-right: 10px;
@@ -3868,13 +3879,18 @@
             animation: hexosPulse 2.2s ease-in-out infinite;
         }
         .hexos-callout:hover, .hexos-callout:focus-visible {
-            background: rgba(125, 211, 252, 0.22); animation-play-state: paused;
+            background: rgba(125, 211, 252, 0.24);
+            border-color: rgba(125, 211, 252, 0.95);
+            animation: none;            /* stop outright, not paused mid-frame */
         }
         .hexos-callout:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 2px; }
         .hexos-callout-icon { width: 15px; height: 15px; }
-        @keyframes hexosPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+        @keyframes hexosPulse {
+            0%, 100% { background: rgba(125, 211, 252, 0.10); border-color: rgba(125, 211, 252, 0.55); }
+            50%      { background: rgba(125, 211, 252, 0.26); border-color: rgba(125, 211, 252, 1); }
+        }
         @media (prefers-reduced-motion: reduce) {
-            .hexos-callout { animation: none; opacity: 1; }
+            .hexos-callout { animation: none; }
         }
         @media (max-width: 640px) { .hexos-callout span { display: none; } }
     </style>
@@ -3953,12 +3969,16 @@
                 <div class="logo" aria-label="Hexworth Prime">Hexworth Prime</div>
             </div>
             <div class="header-right">
+                <!-- Hidden until we know the visitor can actually USE it. /hex/ is gated by
+                     AccessGuard.require('sorted') but THIS page is not, so an unsorted visitor
+                     would otherwise see a bright pulsing invitation to a page that bounces them.
+                     Revealed on the same auth event the admin menu group uses. -->
                 <!-- Try the New OS: deliberate attention-getter, but it must not be an
                      accessibility problem. The pulse is opacity-only (no layout shift, no
                      colour-alone signal), it is a real link rather than a banner, and it is
                      fully disabled under prefers-reduced-motion, where it stays at full
                      opacity rather than mid-fade. -->
-                <a href="/hex/" class="hexos-callout" aria-label="Try the new Hex OS">
+                <a href="/hex/" class="hexos-callout" id="hexosCallout" style="display:none;" aria-label="Try the new Hex OS">
                     <img src="/assets/images/icons/icon-terminal.webp" alt="" class="hexos-callout-icon">
                     <span>Try the New OS!</span>
                 </a>
@@ -6911,6 +6931,20 @@
 
         // Listen for progress updates
         window.addEventListener('hexworth:progressUpdate', loadUserStats);
+
+        // Reveal the Hex OS call-out only to a sorted visitor. Checked on load AND on the auth
+        // event, because AccessGuard resolves asynchronously and the first check can run before
+        // the user's house is known.
+        (function () {
+            function showHexOsCallout() {
+                var el = document.getElementById('hexosCallout');
+                if (!el || !window.AccessGuard || typeof AccessGuard.isSorted !== 'function') return;
+                el.style.display = AccessGuard.isSorted() ? 'inline-flex' : 'none';
+            }
+            window.addEventListener('DOMContentLoaded', showHexOsCallout);
+            window.addEventListener('firebaseAuthStateChanged', showHexOsCallout);
+            showHexOsCallout();
+        })();
 
         // ─────────────────────────────────────────────────────────────
         // BACKUP RESTORE
