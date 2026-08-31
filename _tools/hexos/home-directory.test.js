@@ -223,5 +223,33 @@ if (fs.existsSync(PAGE)) {
         'the defect was exactly this: absent data presented as real data');
 }
 
+// ---- 8. THE const/window TRAP ----
+// AccessGuard, FirebaseAuth and FirestoreManager are declared as top-level `const`, which creates
+// a lexical binding and NOT a property on window. Every `window.X &&` guard against them is
+// therefore permanently false. This shipped: the page went live ungated and permanently showing
+// "Sign in to see your records", and EduScan HEUR-041 caught it after the deploy, not before.
+// The browser probe missed it because it stubbed those files with `window.X = ...` assignments the
+// real files never make -- the mock manufactured the globals whose absence WAS the defect.
+if (fs.existsSync(PAGE)) {
+    const page = fs.readFileSync(PAGE, 'utf8');
+    ['AccessGuard', 'FirebaseAuth', 'FirestoreManager'].forEach((mod) => {
+        const src = fs.readFileSync(path.join(REPO, `_app/components/${mod}.js`), 'utf8');
+        const onWindow = new RegExp(`window\\.${mod}\\s*=`).test(src);
+        // Only assert the guard style for modules that genuinely are NOT on window. If one is
+        // later changed to assign window.X, a window guard becomes correct and this must not
+        // start failing for the wrong reason.
+        if (!onWindow) {
+            chk(`${mod} is guarded with typeof, not window.${mod}`,
+                !new RegExp(`window\\.${mod}\\s*&&|window\\.${mod}\\s*\\?`).test(page),
+                `${mod} is a top-level const, so window.${mod} is permanently undefined`);
+        }
+    });
+    // Every module the page uses must actually be loaded, or the guard is moot either way.
+    ['AccessGuard', 'FirebaseAuth', 'FirestoreManager', 'XPCalculator', 'HomeDirectory'].forEach((mod) => {
+        chk(`the page loads ${mod}.js`, page.includes(`/components/${mod}.js`),
+            'a guarded call to a script that was never loaded silently does nothing');
+    });
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;

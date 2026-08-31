@@ -13,6 +13,7 @@
          the projection treats as authoritative over the stored value. -->
     <script src="/components/AccessGuard.js"></script>
     <script src="/components/FirebaseAuth.js" defer></script>
+    <script src="/components/FirestoreManager.js" defer></script>
     <script src="/components/XPCalculator.js" defer></script>
     <script src="/components/HomeDirectory.js" defer></script>
     <style>
@@ -86,7 +87,14 @@
 
     // Gated like any other signed-in surface. Nothing here is sensitive to another user, but the
     // records are the student's own and there is no reason to render them for a stranger.
-    if (window.AccessGuard && AccessGuard.require) { AccessGuard.require('free'); }
+    /* typeof, NOT window.X. AccessGuard.js declares `const AccessGuard = (function(){...})()`
+       at top level, and a top-level const creates a lexical binding, NOT a property on window. So
+       `window.AccessGuard` is permanently undefined and this guard never fired: the page shipped
+       UNGATED. Same for FirebaseAuth and FirestoreManager below. Caught by EduScan HEUR-041 after
+       deploy, and it is a documented trap in this codebase that I walked into anyway. My browser
+       probe missed it because it stubbed these files with `window.X = ...` assignments the real
+       files do not make -- the mock created the very globals whose absence was the bug. */
+    if (typeof AccessGuard !== 'undefined' && AccessGuard.require) { AccessGuard.require('free'); }
 
     var stateEl = document.getElementById('state');
     var gridEl = document.getElementById('grid');
@@ -144,7 +152,7 @@
         if (!window.HomeDirectory) { return fail('Home Directory module failed to load.'); }
         var user = null;
         try {
-            user = window.FirebaseAuth ? await FirebaseAuth.waitForAuth() : null;
+            user = (typeof FirebaseAuth !== 'undefined') ? await FirebaseAuth.waitForAuth() : null;
         } catch (e) { /* fall through to the signed-out message */ }
         if (!user) { return fail('Sign in to see your records.'); }
 
@@ -152,7 +160,7 @@
         var src = { profile: null, serverAwards: [], gates: [], quizAttempts: [], flagCaptures: 0, local: {}, derivedXp: null };
 
         try {
-            if (window.FirestoreManager && FirestoreManager.getUserProfile) {
+            if (typeof FirestoreManager !== 'undefined' && FirestoreManager.getUserProfile) {
                 src.profile = await FirestoreManager.getUserProfile(user.uid);
             }
         } catch (e) { /* profile unreadable; the projection treats it as absent */ }
@@ -238,7 +246,7 @@
         } catch (e) { /* storage blocked */ }
 
         try {
-            if (window.XPCalculator && XPCalculator.recalculate) {
+            if (typeof XPCalculator !== 'undefined' && XPCalculator.recalculate) {
                 src.derivedXp = XPCalculator.recalculate();
             }
         } catch (e) { /* leaves stored xp as the shown value, flagged as server rather than derived */ }
