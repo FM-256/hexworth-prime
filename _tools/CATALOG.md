@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 04:59 · **1165 scripts** · 30 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 473 not in git
+**Generated:** 2026-08-31 05:13 · **1165 scripts** · 30 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 473 not in git
 
 ## Read this before writing a new script
 
@@ -585,7 +585,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `drift.js` | DOCS-ONLY | 0 | 2026-02-06 | yes |  |
 | `patterns.js` | DOCS-ONLY | 0 | 2026-04-26 | yes |  |
 | `remediation.js` | DOCS-ONLY | 0 | 2026-02-06 | yes |  |
-| `strip-noncode.js` | CALLED | 12 | 2026-07-23 | yes |  |
+| `strip-noncode.js` | CALLED | 11 | 2026-07-23 | yes |  |
 | `verification.js` | CALLED | 1 | 2026-03-20 | yes |  |
 
 ### `_tools/eduscan/validators` — 5 scripts, 1 referenced by nothing

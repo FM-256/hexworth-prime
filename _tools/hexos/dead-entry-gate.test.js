@@ -132,8 +132,12 @@ const CASES = [
         `<script>let b = 1n;\nconst n = "see docs // not real"; el.href = "/${TARGET}";</script>`, true],
     ['string containing /* in a fallback file',
         `<script>let b = 1n;\nconst n = "glob /* not a comment"; el.href = "/${TARGET}";</script>`, true],
-    ['real comment in a fallback file is still stripped',
-        `<script>let b = 1n;\n// href = "/${TARGET}"\nvar a = 1;</script>`,                    false],
+    // CONTRACT CHANGE, deliberate. Comments in an unparseable body are now LEFT IN PLACE rather
+    // than stripped by guesswork. Three hand-rolled strippers lived here and each was proven to
+    // delete live code. The path inside this comment therefore counts as a link, which is a
+    // declared blind spot on a named, printed set of files, not a silent one.
+    ['comment in a fallback file SURVIVES, by design',
+        `<script>let b = 1n;\n// href = "/${TARGET}"\nvar a = 1;</script>`,                     true],
 
     // REGEX LITERAL CONTAINING QUOTES, in a fallback file. A reviewer broke the string-aware
     // scanner with exactly this and found it LIVE in _app/scripts/migrate-to-content-registry.js:
@@ -142,8 +146,8 @@ const CASES = [
     // comment means a commented-out path counts as a live link.
     // The tokenised path had ALREADY solved regex-vs-division; the new scanner inherited none of
     // it. Both now share one scanner.
-    ['regex with quotes then a dead href',
-        `<script>let b = 1n;\nconst re = /['"]/;\n// href = "/${TARGET}"\nvar a = 1;</script>`,   false],
+    ['regex with quotes: comment survives in a fallback file',
+        `<script>let b = 1n;\nconst re = /['"]/;\n// href = "/${TARGET}"\nvar a = 1;</script>`,    true],
     ['regex with quotes then a LIVE href',
         `<script>let b = 1n;\nconst re = /['"]/;\nel.href = "/${TARGET}";</script>`,              true],
     ['regex char class with a slash',

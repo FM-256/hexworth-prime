@@ -68,7 +68,26 @@ function maskScripts(src) {
     return out;
 }
 
-const files = walk(APP);
+// Skip what hosting already excludes. A leftover review probe under _app deliberately contains
+// `if (false)` and EXCLUDE_LIST shapes, so stripping them is CORRECT, but this sweep flagged it as
+// content loss. A gate that judges files which never ship reports defects that are not defects,
+// and the fix for a non-defect is how real ones get introduced.
+const IGNORED = (function () {
+    try {
+        const cfg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../firebase.json'), 'utf8'));
+        const h = Array.isArray(cfg.hosting) ? cfg.hosting[0] : cfg.hosting;
+        return (h.ignore || []).map(function (g) {
+            return new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                .replace(/\*\*/g, '\u0000').replace(/\*/g, '[^/]*')
+                .replace(/\u0000/g, '.*') + '$');
+        });
+    } catch (e) { return []; }
+})();
+
+const files = walk(APP).filter(function (f) {
+    const rel = path.relative(APP, f).split(path.sep).join('/');
+    return !IGNORED.some(function (re) { return re.test(rel); });
+});
 const losses = [];
 let commented = 0;
 
@@ -77,8 +96,16 @@ for (const f of files) {
     const fbBefore = stripDead.fellBack || 0;
     const out = stripDead(src, f);
     const usedFallback = (stripDead.fellBack || 0) > fbBefore;
-    const A = src.match(/href\s*=\s*["'][^"']*["']/g) || [];
-    const B = out.match(/href\s*=\s*["'][^"']*["']/g) || [];
+    // MATCH WHAT THE GATE MATCHES. This checked only `href=`, but dead-entry-gate's .js scanner
+    // also picks up bare quoted site paths under keys like courseHref, entry and url. A deletion
+    // of `entry: "/foo.html"` in a .js file would have corrupted exactly what the gate depends on
+    // while this sweep reported clean. A safety net woven to a different pattern than the thing
+    // it catches is not a safety net.
+    const PAT = f.endsWith('.js')
+        ? /["'`](?:\/|(?:houses|labs|games|arcade|dark-arts|cloud|signal|career)\/)[^"'`\s]*\.html["'`]|href\s*=\s*["'][^"']*["']/g
+        : /href\s*=\s*["'][^"']*["']/g;
+    const A = src.match(PAT) || [];
+    const B = out.match(PAT) || [];
     for (const a of A) {
         if (B.indexOf(a) !== -1) continue;
         const at = src.indexOf(a);
@@ -215,7 +242,7 @@ if (survivors) {
 }
 if (fallbackSkipped) {
     console.log('  note: ' + fallbackSkipped + ' region(s) could not be independently checked for');
-    console.log('        surviving comments, because esprima cannot tokenise them. That is the');
-    console.log('        same set the fallback stripper runs on. Unit fixtures cover it; this');
-    console.log('        sweep structurally cannot.');
+    console.log('        surviving comments, because esprima cannot tokenise them. Those bodies');
+    console.log('        keep their comments by design, so a path inside one counts as a link.');
+    console.log('        Declared, printed, and covered by unit fixtures; not silent.');
 }

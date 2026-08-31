@@ -76,76 +76,6 @@ function allSource(dir, out) {
 
 
 
-/**
- * ONE scanner for JS lexical state. Strings, templates, regex literals, comments.
- *
- * Written because there were two hand-rolled scanners in this file that each knew part of the
- * grammar, and the second one was missing exactly what the first had already learned. A reviewer
- * broke the newer one with `/['"]/` -- a regex literal whose character class holds both quote
- * characters -- which the quote-tracker read as a string opener, desyncing it so that 18 real
- * `//` comments survived un-stripped in _app/scripts/migrate-to-content-registry.js, a file
- * already on the degraded list. A surviving comment means a commented-out path counts as a live
- * link, which is the over-matching direction this file calls dangerous.
- *
- * That was the "fix the field beside the one you fixed" pattern: stripDeadBlocks had three
- * paragraphs of hard-won regex-vs-division reasoning and the new function did not inherit a line
- * of it. Both now call this.
- *
- * Returns { stripped, isCode } where isCode[i] is true when byte i is live code rather than a
- * comment, so a caller can strip comments or match braces from the same single pass.
- */
-function scanJs(code) {
-    const isCode = new Array(code.length).fill(true);
-    let out = '';
-    let i = 0, prev = '';
-    while (i < code.length) {
-        const c = code[i], n = code[i + 1];
-        // Comments
-        if (c === '/' && n === '/') {
-            while (i < code.length && code[i] !== '\n') { isCode[i] = false; i++; }
-            continue;
-        }
-        if (c === '/' && n === '*') {
-            isCode[i] = isCode[i + 1] = false;
-            i += 2;
-            while (i < code.length && !(code[i] === '*' && code[i + 1] === '/')) { isCode[i] = false; i++; }
-            if (i < code.length) { isCode[i] = false; isCode[i + 1] = false; i += 2; }
-            continue;
-        }
-        // Strings and templates: contents are kept, because the paths this gate hunts live there.
-        if (c === '"' || c === "'" || c === '`') {
-            const q = c;
-            out += c; i++;
-            while (i < code.length) {
-                if (code[i] === '\\') { out += code[i] + (code[i + 1] || ''); i += 2; continue; }
-                if (code[i] === q) { out += code[i]; i++; break; }
-                out += code[i]; i++;
-            }
-            prev = q;
-            continue;
-        }
-        // Regex literals, using the SAME division-vs-regex test as stripDeadBlocks: a `/` opens a
-        // regex only where a value cannot already be complete. Character classes are skipped so a
-        // quote inside `[...]` cannot be mistaken for a string.
-        if (c === '/' && /[({[,;=:!&|?+\-*%~^<>]|^$/.test(prev)) {
-            out += c; i++;
-            let inClass = false;
-            while (i < code.length && code[i] !== '\n') {
-                if (code[i] === '\\') { out += code[i] + (code[i + 1] || ''); i += 2; continue; }
-                if (code[i] === '[') inClass = true;
-                else if (code[i] === ']') inClass = false;
-                else if (code[i] === '/' && !inClass) { out += code[i]; i++; break; }
-                out += code[i]; i++;
-            }
-            prev = '/';
-            continue;
-        }
-        out += c;
-        if (!/\s/.test(c)) prev = c;
-        i++;
-    }
-    return { stripped: out, isCode };
-}
 
 /** Available? Resolved once. Absence is a reported condition, not a silent downgrade. */
 let esprima = null;
@@ -301,31 +231,32 @@ function stripJsComments(js) {
     // DELETED text, which produces a false orphan: noisy, triageable, and the safe direction this
     // file already prefers. Leaving comments entirely unstripped would be the dangerous direction,
     // since a path in a comment would then count as a real link.
-    // String-aware, because a bare regex cannot tell a comment from "see docs // not real".
-    // A reviewer reproduced live href deletion through exactly that: a string containing `//` on
-    // the same line as `el.href = "/live-target"` in a file esprima cannot tokenise. The project
-    // already had this technique in _tools/eduscan/utils/strip-noncode.js, whose own header notes
-    // it exists to stop string-quoted references producing false results. Its stripPreserveLines
-    // also blanks string CONTENTS, which is right for dependency scanning and wrong here, since
-    // the paths this gate looks for live inside strings. So: same technique, different keep-set.
-    // This is the third independent rediscovery of "blank strings before matching delimiters" in
-    // this codebase, per that reviewer, and the reason it is written down here rather than a
-    // fourth time somewhere else.
-    const stripCommentsStringAware = (code) => scanJs(code).stripped;
-    const fallback = () => {
-        // DEGRADED, not dangerous: comments are still stripped, just by pattern instead of by
-        // token. Tracked separately from `unparsed`, which means a dead block was left in place
-        // entirely. Conflating the two made a working fallback look like a failure and would have
-        // blocked every deploy over 16 files that are fine.
+    // NO HEURISTIC FALLBACK. esprima or nothing.
+    //
+    // Three versions of a hand-rolled stripper lived here and each was broken in a way the last
+    // reviewer proved: a bare regex could not tell a comment from "image/*"; a quote-tracker could
+    // not tell one from `/['"]/`; and the unified scanner that replaced both deleted live code on
+    // `return /re/`, on nested template literals, and on division after `)`. That last one had not
+    // fired yet only because the 14 affected files happen not to contain those shapes, which is
+    // luck rather than a closed class.
+    //
+    // This file already had the right precedent one function away: when stripDeadBlocks cannot get
+    // an authoritative parse it leaves the text alone, counts it, and says so. Doing anything else
+    // is guessing, and every guess here has been wrong. So comments in an unparseable body are now
+    // LEFT IN PLACE and counted. The consequence is stated rather than hidden: a path inside such a
+    // comment counts as a live link, which can mask an orphan. That is a known blind spot on a
+    // named, printed set of files, which is a different thing from silently deleting real code.
+    if (!esprima) {
         stripDead.fellBack = (stripDead.fellBack || 0) + 1;
-        return stripCommentsStringAware(js);
-    };
-    if (!esprima) return fallback();
+        return js;
+    }
+
     let toks;
     try {
         toks = esprima.tokenize(js, { comment: true, range: true });
     } catch (e) {
-        return fallback();
+        stripDead.fellBack = (stripDead.fellBack || 0) + 1;
+        return js;
     }
     const cuts = toks
         .filter(t => t.type === 'LineComment' || t.type === 'BlockComment')
@@ -503,9 +434,11 @@ function main() {
             (f in KNOWN_UNPARSED ? `   (known: ${KNOWN_UNPARSED[f]})` : '   <- NEW')));
     }
     if (stripDead.fellBack) {
-        console.log(`  note: ${stripDead.fellBack} script body/bodies used the pattern-based ` +
-                    `comment stripper because esprima 4 could not tokenise them (ES2018+ syntax). ` +
-                    `Comments are still removed; this is degraded, not broken.`);
+        console.log(`  note: ${stripDead.fellBack} script body/bodies could not be tokenised, so ` +
+                    `their comments were LEFT IN PLACE. A path inside one of those comments counts ` +
+                    `as a live link here and could mask an orphan. Causes vary and are not all ` +
+                    `"modern syntax": one file trips esprima on \`.new /\` (a property named new ` +
+                    `beside a division), and another has a genuine syntax error in live content.`);
     }
     if (newUnparsed.length) {
         console.error('\nNEW unparseable dead block(s). Either simplify the code so it tokenises,');
@@ -531,4 +464,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { resolveEntry, stripDead, stripDeadBlocks, scanJs };
+module.exports = { resolveEntry, stripDead, stripDeadBlocks };
