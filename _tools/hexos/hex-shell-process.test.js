@@ -440,6 +440,19 @@ srv.listen(PORT, '127.0.0.1', async () => {
     await new Promise(r => setTimeout(r, 1400));      // gen1 watchdog fired at 1000
     await type5('restart arctic');                    // gen2: destroy fast, launch slow, owns the flag
     await new Promise(r => setTimeout(r, 1500));      // gen1's destroy rejects at ~2550
+    // Read gen1's CATCH output before clearing. The previous version cleared here and inspected
+    // only the third command, which is why it could not see that a superseded chain was printing
+    // "nothing was destroyed" about a session a later chain had already torn down.
+    const catch5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    chk('a superseded chain does not claim "nothing was destroyed"',
+        !/nothing was destroyed/i.test(catch5) && /superseded/i.test(catch5), catch5.slice(-150));
+    // And the stop-side answer must not say a flat "nothing running" while a launch is in flight.
+    await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type5('stop arctic');
+    await new Promise(r => setTimeout(r, 700));
+    const stop5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    chk('stop reports an outstanding launch instead of a flat "nothing running"',
+        /still outstanding|YET/i.test(stop5), stop5.slice(0, 130));
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('restart arctic');                    // gen3, after gen2's watchdog freed the lock
     await new Promise(r => setTimeout(r, 900));

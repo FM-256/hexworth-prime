@@ -404,7 +404,17 @@ fi
 # No change-detection skip: that is one more thing that can be wrong, and the suite costs ~35s
 # against a deploy that uploads the whole site.
 if [ "$FORCE" = true ]; then
+    # Loud on purpose. A reviewer's objection was not that this gate bypasses (gate 2.7, the
+    # other puppeteer-driven suite, bypasses identically) but that --force exists mainly to
+    # silence noisy Nexus output, so habitual use would ALSO drop this one without the operator
+    # noticing. Naming what protection is being given up is the difference between a bypass and
+    # an accident. Not given a bespoke flag: diverging from the file's convention for one gate
+    # is how conventions rot, and a skip nobody reads is the actual problem.
     echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands ${YELLOW}[SKIPPED]${NC} — --force flag set"
+    echo -e "  ${YELLOW}! ps/stop/restart drive real containers and real per-user capacity.${NC}"
+    echo -e "  ${YELLOW}! FOUR concurrency bugs have shipped from that lock; this suite is what${NC}"
+    echo -e "  ${YELLOW}! catches a fifth. Run it by hand before trusting this deploy:${NC}"
+    echo -e "  ${YELLOW}!   node _tools/hexos/hex-shell-process.test.js${NC}"
     echo ""
 else
 echo -e "${BOLD}[3.7/7]${NC} Hex shell process commands (ps/stop/restart)..."

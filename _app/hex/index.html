@@ -237,6 +237,16 @@
             }
             if (SL.LAB_INFO && SL.LAB_INFO[arg]) {
                 if (allowStopped) return { labId: arg, sessionId: null, status: 'none' };
+                // A launch already in flight means "nothing running" is true this instant and
+                // misleading a second later. The student asked to stop something the server has
+                // not finished building; saying only "nothing running" invites them to conclude
+                // the box is gone when it is about to appear.
+                if (launchPending[arg]) {
+                    return { error: 'nothing is running for ' + esc(arg) + ' YET: a launch from an '
+                             + 'earlier restart is still outstanding, so a box may appear shortly. '
+                             + 'Run <span class="ok">ps</span> in a moment and stop it then.',
+                             cls: 'warn' };
+                }
                 return { error: esc(arg) + ' is a lab, but you have nothing running for it. ' +
                          '<span class="ok">run ' + esc(arg) + '</span> starts it.', cls: 'warn' };
             }
@@ -683,6 +693,18 @@
                 // error leg. The success path already had this condition; the catch did not.
                 if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
                 say('restart failed: ' + esc(errText(e)), 'err');
+                // A superseded chain must not narrate the box at all. `destroyed` is per-chain
+                // state recording what THIS invocation did, and the catch was reading it as if it
+                // described current reality. Concretely: this chain's destroy can reject at 2.5s
+                // while a later chain destroyed the same session at 1.5s. `destroyed` is still
+                // false, so the else branch below printed "nothing was destroyed", which was false
+                // when printed. Ownership had been applied to the WRITE side of launchPending and
+                // not to the READ side of destroyed, so the fix was narrower than it claimed.
+                if (procGen !== gen) {
+                    return say('this restart had already been superseded, so the state above '
+                        + 'reflects a later one. run <span class="ok">ps</span> for what is '
+                        + 'actually running.', 'muted');
+                }
                 // Two different states, two different truths. Saying "stopped and NOT relaunched"
                 // for a destroy that never succeeded is a false claim about the student's box.
                 if (destroyed) {
