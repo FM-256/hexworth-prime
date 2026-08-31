@@ -166,6 +166,19 @@ function main() {
             'notReady() guard: ' + leaks.join(', '));
     }
 
+    // Tripwire, not a proof. Both defects in the process lock came from checking one sibling and
+    // assuming the other matched, and the guarantee that only stop/restart consume holdProc lives
+    // in a reviewer's grep rather than anywhere durable. This does not verify that a new consumer
+    // guards its narration -- that needs a human -- but it refuses to let a third one appear
+    // silently, which is the step that has actually gone wrong twice.
+    const holders = (src.match(/holdProc\(/g) || []).length - 1;   // minus the definition
+    if (holders !== 2) {
+        problems.push('holdProc() now has ' + holders + ' call sites, not the 2 (stop, restart) '
+            + 'this file was reviewed against. A new consumer of the process lock must guard '
+            + 'every narration point in its continuations against procGen, and needs its own '
+            + 'fixture in hex-shell-process.test.js. Update this count deliberately.');
+    }
+
     if (problems.length) {
         console.error('HEX MANUAL DRIFT');
         problems.forEach(p => console.error('  ' + p));

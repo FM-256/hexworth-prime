@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control: the baseline tier that the large majority of manifest apps declare -->
+    <script src="../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Firebase auth MUST precede SandboxLauncher. Without it SandboxLauncher.getIdToken()
+         returns null, apiCall() falls back to an X-Dev-Uid header, and lab-manager (which runs
+         NODE_ENV=production, so DEV_MODE is false) answers a hard 401 to every request from every
+         student. This page was the ONLY one of 38 loading SandboxLauncher that omitted it, and the
+         omission was invisible until ps/stop/restart began actually calling the network. -->
+    <script src="../components/FirebaseAuth.js"></script>
+    <!-- Session owner for ps/stop/restart. Was MISSING: an earlier edit anchored to a script tag
+         that exists in the module template and not here, and .replace() silently did nothing, so
+         every process command hit "session manager not available" for every student. A stub in the
+         test harness hid it completely. -->
+    <script src="../components/SandboxLauncher.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Hex shell: launch anything on Hexworth by name. run arena, ls, search.">
+    <title>hex shell</title>
+    <link rel="icon" type="image/webp" href="/assets/images/icons/icon-terminal.webp">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg: #08090c; --fg: #c8d3d5; --dim: #5e6b70; --accent: #4ade80;
+            --accent2: #38bdf8; --warn: #fbbf24; --err: #f87171; --line: rgba(255,255,255,.07);
+        }
+        body {
+            background: var(--bg); color: var(--fg); min-height: 100vh;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px; line-height: 1.65; padding: 0 0 40px;
+        }
+        .bar {
+            position: sticky; top: 0; z-index: 10; background: rgba(8,9,12,.95);
+            border-bottom: 1px solid var(--line); padding: 10px 18px;
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            backdrop-filter: blur(8px);
+        }
+        .bar .t { color: var(--accent); letter-spacing: .06em; }
+        .bar a { color: var(--dim); text-decoration: none; font-size: 12px; }
+        .bar a:hover, .bar a:focus-visible { color: var(--accent2); }
+        .wrap { max-width: 1000px; margin: 0 auto; padding: 20px 18px; }
+        #out { white-space: pre-wrap; word-break: break-word; }
+        .row { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+        .ps1 { color: var(--accent); flex: 0 0 auto; }
+        #cmd {
+            flex: 1 1 auto; background: transparent; border: 0; outline: 0;
+            color: var(--fg); font: inherit; caret-color: var(--accent);
+        }
+        .muted { color: var(--dim); }
+        .ok { color: var(--accent); }
+        .info { color: var(--accent2); }
+        .warn { color: var(--warn); }
+        .err { color: var(--err); }
+        .echo { color: var(--dim); }
+        a.app { color: var(--accent2); text-decoration: none; }
+        a.app:hover, a.app:focus-visible { text-decoration: underline; }
+        table { border-collapse: collapse; margin: 4px 0 10px; }
+        td { padding: 1px 16px 1px 0; vertical-align: top; }
+        .hint { color: var(--dim); font-size: 12px; margin-top: 14px; }
+    </style>
+</head>
+<body>
+    <div class="bar">
+        <span class="t">hex shell</span>
+        <a href="/">back to Hexworth</a>
+    </div>
+    <div class="wrap">
+        <div id="out"></div>
+        <div class="row">
+            <span class="ps1" id="ps1">hex&gt;</span>
+            <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false"
+                   aria-label="Hex shell command" autofocus>
+        </div>
+        <p class="hint">Tab completes. Up and Down walk history. Try <span class="ok">help</span>.</p>
+    </div>
+
+<script>
+/**
+ * Hex shell. Resolves a name to an entry and launches it.
+ *
+ * Reads /data/hex-apps.json and NOTHING else. No hardcoded entry point lives here, which is the
+ * whole point: a registry nothing launches from drifts silently, while a registry the launcher
+ * depends on breaks loudly. If an app is missing from this shell, the manifest is wrong, and
+ * post-verify check 4f fails on exactly that.
+ */
+(function () {
+    'use strict';
+
+    var out = document.getElementById('out');
+    var cmd = document.getElementById('cmd');
+    var APPS = [];
+    var META = {};
+    var history = [];
+    var hIdx = -1;
+    // Current working context: a house or a category. Scopes ls and completion the way a working
+    // directory scopes a shell. run stays global, because a shell lets you run an absolute path
+    // from anywhere and forcing a cd before every launch would be worse than no cd at all.
+    var cwd = null;
+
+    // Escapes quotes too, because esc() is used inside href="..." where &lt; and &gt; are not the
+    // only way out of the context. A value containing a double quote could otherwise close the
+    // attribute and inject another one.
+    function esc(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Only ever navigate to a same-origin absolute path. The manifest is generated from
+    // build-time literals today, so this is defence in depth rather than a live hole, but
+    // window.location.href will happily execute a javascript: URL and nothing upstream of here
+    // guarantees it never sees one.
+    function safeEntry(e) {
+        return typeof e === 'string' && /^\/[^/\\]/.test(e) ? e : null;
+    }
+    function say(html, cls) {
+        var d = document.createElement('div');
+        if (cls) d.className = cls;
+        d.innerHTML = html;
+        out.appendChild(d);
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+    /**
+     * True once the manifest has loaded. Before that, APPS is [] and every place lookup fails,
+     * so cd would say "no such place: dark-arts", an assertion that is FALSE. The fetch handler
+     * in this file already states the principle: say what is actually wrong. cd was not obeying it.
+     */
+    var manifestState = 'loading';   // 'loading' | 'ready' | 'failed'
+
+    /**
+     * Guards every command that reads APPS. Without it, a stalled or failed manifest makes the
+     * shell answer "no app called arena", which is a FALSE assertion: the true fact is that the
+     * list has not arrived. cd was fixed for this first; Nancy pointed out run/info/ls/search
+     * still had the same shape, lower severity only because their wording is vaguer.
+     */
+    function notReady() {
+        if (manifestState === 'ready') return false;
+        say(manifestState === 'failed'
+            ? 'the app list failed to load, so there is nowhere to go yet. reload the page.'
+            : 'the app list is still loading. try again in a moment.', 'warn');
+        return true;
+    }
+
+    function errText(e) {
+        return (e && e.message) ? e.message : 'the request failed';
+    }
+
+    /**
+     * Turn whatever a student typed into { labId, sessionId }. Accepts a lab id or a session id,
+     * because `ps` shows both and expecting them to know which one a command wants is the kind of
+     * detail that makes a shell feel hostile.
+     * allowStopped: restart is happy with a lab that is not currently running.
+     */
+    var procBusy = null;    // command name currently mutating a session, or null
+    var procTimer = null;   // watchdog for the CURRENT hold
+    var procGen = 0;        // identity of the current hold, incremented once per invocation.
+    // 90s in production. Overridable so the watchdog is reachable in a test without a 90s
+    // wait: a stalled request is the one case that cannot be provoked against a mock that
+    // always answers, and "cannot be tested" is not an acceptable position for concurrency
+    // code. This is a configuration value, not a state hook. It exposes no internals, which
+    // is why it ships where a `procBusy` accessor deliberately does not.
+    // Read ONCE at parse time, which bounds the exposure more tightly than first described: a
+    // devtools console after load cannot change it, since PROC_TIMEOUT_MS is already bound.
+    // Only a pre-parse injection (extension or userscript) can set it, and the worst such an
+    // actor achieves is a shorter or longer watchdog on their OWN session. Anyone able to inject
+    // pre-parse can already call SandboxLauncher directly, so this adds no reachable capability.
+    var PROC_TIMEOUT_MS = (typeof window.HEX_PROC_TIMEOUT_MS === 'number')
+        ? window.HEX_PROC_TIMEOUT_MS : 90000;
+
+    function holdProc(name) {
+        var gen = ++procGen;
+        procBusy = name;
+        // SandboxLauncher.apiCall() uses fetch() with no timeout and no AbortController, so a
+        // request that never settles would hold this lock for the life of the tab. Without a
+        // watchdog the fix for the double-fire race would itself become a way to permanently
+        // disable both commands. Releasing here does NOT cancel the in-flight request; it only
+        // stops the shell refusing forever, and says so rather than implying it was cancelled.
+        procTimer = setTimeout(function () {
+            // Defensive, NOT a bug fix, and the distinction is worth recording. The guard this
+            // replaced compared command NAMES, and two sequential `stop` commands share a name.
+            // I claimed that was a second live defect; a fixture disproved it. procTimer is
+            // always either fired or cleared before a new hold can be taken, because a second
+            // command cannot start while the first holds the lock, so a stale timer can never
+            // observe a later generation. Generation is used anyway because identity is the
+            // thing actually meant, and a guard that is only accidentally correct rots.
+            if (procGen !== gen) return;
+            procBusy = null;
+            procTimer = null;
+            say(esc(name) + ' has not answered in time, so the shell is no longer waiting on '
+                + 'it. The request may still be running.', 'warn');
+            say('run <span class="ok">ps</span> to see the real state before trying again.', 'muted');
+        }, PROC_TIMEOUT_MS);
+        return gen;
+    }
+
+    // MUST be called with the generation from its own holdProc. A request that outlived its
+    // watchdog still settles later, and an unguarded release let that stale settle null out a
+    // LATER command's lock and clear that later command's watchdog, reopening the exact
+    // double-mutation race this lock exists to close, while the manual told the student a
+    // retry was safe. Found independently by both reviewers; the watchdog callback already
+    // had an ownership guard and this did not.
+    // Sentinel for a chain that was superseded mid-flight. An object identity, not a string,
+    // so it can never collide with a value the launch API might return.
+    var SUPERSEDED = {};
+
+    // labId -> true while a launch for it is outstanding. This deliberately SURVIVES the
+    // watchdog. The watchdog frees the lock so the shell stops refusing forever, but the request
+    // it gave up waiting for is still running. If launch() is the slow leg, a retry cannot see
+    // the not-yet-provisioned session in list() and would launch a SECOND one: two live sessions
+    // for one lab, the same failure as the slow-destroy case but through the mirror leg.
+    // Guarding the launch CALL did not cover this, because the second launch is issued by a
+    // different, legitimate invocation rather than by the superseded chain.
+    // Tradeoff, stated rather than hidden: a launch that truly never settles leaves this set, and
+    // restart for that ONE lab keeps refusing until the page is reloaded. That is a bounded,
+    // visible, single-lab refusal, and it is preferable to silently consuming a second capacity
+    // slot the student did not ask for and cannot see.
+    var launchPending = {};
+
+    function clearProc(gen) {
+        if (procGen !== gen) return;
+        procBusy = null;
+        if (procTimer) { clearTimeout(procTimer); procTimer = null; }
+    }
+
+    function resolveProcess(arg, allowStopped) {
+        var SL = window.SandboxLauncher;
+        if (!SL) return Promise.resolve({ error: 'the session manager is not available.' });
+        return SL.list().then(function (r) {
+            // See the contract note in `ps`. Key is `sandboxes`; fields are sessionId/labId/status.
+            var rows = (r && r.sandboxes) || [];
+            for (var i = 0; i < rows.length; i++) {
+                if (rows[i].labId === arg || rows[i].sessionId === arg) {
+                    return { labId: rows[i].labId, sessionId: rows[i].sessionId,
+                             status: rows[i].status };
+                }
+            }
+            if (SL.LAB_INFO && SL.LAB_INFO[arg]) {
+                if (allowStopped) return { labId: arg, sessionId: null, status: 'none' };
+                // A launch already in flight means "nothing running" is true this instant and
+                // misleading a second later. The student asked to stop something the server has
+                // not finished building; saying only "nothing running" invites them to conclude
+                // the box is gone when it is about to appear.
+                if (launchPending[arg]) {
+                    return { error: 'nothing is running for ' + esc(arg) + ' YET: a launch from an '
+                             + 'earlier restart is still outstanding, so a box may appear shortly. '
+                             + 'Run <span class="ok">ps</span> in a moment and stop it then.',
+                             cls: 'warn' };
+                }
+                return { error: esc(arg) + ' is a lab, but you have nothing running for it. ' +
+                         '<span class="ok">run ' + esc(arg) + '</span> starts it.', cls: 'warn' };
+            }
+            // stop/restart already call notReady() before reaching here, but this runs AFTER an
+            // await: the manifest can finish or fail in the window between their check and this
+            // line. Re-check rather than trust the caller's older answer.
+            if (manifestState !== 'ready') {
+                return { error: 'still loading the app list, so I cannot tell whether ' + esc(arg) +
+                         ' is a page or a typo. Try again in a moment.', cls: 'warn' };
+            }
+            if (byId(arg)) {
+                return { error: esc(arg) + ' is a page, not a running process. There is nothing ' +
+                         'to stop; just navigate away.', cls: 'warn' };
+            }
+            return { error: 'no lab or session called ' + esc(arg) + '. ' +
+                     '<span class="ok">ps</span> lists what is running.' };
+        }).catch(function (e) {
+            return { error: 'could not reach the session manager: ' + esc(errText(e)) };
+        });
+    }
+
+    function setPrompt() {
+        document.getElementById('ps1').innerHTML = cwd ? 'hex:' + esc(cwd) + '&gt;' : 'hex&gt;';
+    }
+
+    /** Apps visible from the current context. */
+    function scope() {
+        if (!cwd) return APPS;
+        return APPS.filter(function (a) { return a.house === cwd || a.category === cwd; });
+    }
+
+    /** Every valid cd target: the houses and categories that actually exist in the manifest. */
+    function places() {
+        var v = {};
+        APPS.forEach(function (a) { if (a.category) v[a.category] = 1; if (a.house) v[a.house] = 1; });
+        return Object.keys(v).sort();
+    }
+
+    function byId(id) {
+        return APPS.filter(function (a) { return a.id === id; })[0];
+    }
+
+    function fmtRows(list, note) {
+        if (!list.length) return say('nothing matched.', 'muted');
+        var rows = list.map(function (a) {
+            var href = safeEntry(a.entry);
+            return '<tr><td>' + (href ? '<a class="app" href="' + esc(href) + '">' + esc(a.id) + '</a>'
+                                      : '<span class="err">' + esc(a.id) + '</span>') + '</td>' +
+                   '<td class="muted">' + esc(a.category) + '</td>' +
+                   '<td>' + esc(a.name || '') + '</td></tr>';
+        }).join('');
+        say('<table>' + rows + '</table>' + (note ? '<span class="muted">' + esc(note) + '</span>' : ''));
+    }
+
+    /**
+     * Manual pages. `help` is the one-line reminder; `man` is the page you read when the reminder
+     * is not enough. Kept as data rather than prose inside each command so the two can never
+     * disagree about what a command does, which is the drift that made `help` ship a false
+     * statement about `ls` the moment `cd` existed.
+     */
+    // Stated once, used by both `info` at runtime and `man info`.
+    var GUARD_CAVEAT = 'clientGuard is what the page DECLARES, not enforcement. AccessGuard is ' +
+        'browser JS, so an unauthenticated request still receives the page. Real enforcement is ' +
+        'in firestore.rules.';
+
+    var MANUAL = {
+        run: {
+            synopsis: 'run <app>',
+            desc: 'Launch an app by its id. The id is what `ls` shows in the first column.\n' +
+                  'A bare app name does the same thing, so `arena` and `run arena` are identical.\n' +
+                  'run is GLOBAL: it reaches any app from anywhere, including one outside your\n' +
+                  'current cd context, the way an absolute path works in a real shell.',
+            examples: ['run arena', 'run bug-hunting', 'arena'],
+            see: ['ls', 'search', 'info', 'cd']
+        },
+        ls: {
+            synopsis: 'ls [house|category]',
+            desc: 'List apps.\n' +
+                  'With no argument at the top level, shows the categories and how many are in each.\n' +
+                  'With no argument inside a cd context, lists what is in that context.\n' +
+                  'With an argument, lists that house or category, and IGNORES your context, so\n' +
+                  '`ls cloud` shows cloud whether or not you are somewhere else.',
+            examples: ['ls', 'ls dark-arts', 'ls cert-prep'],
+            see: ['cd', 'search', 'run']
+        },
+        search: {
+            synopsis: 'search <term>',
+            desc: 'Find apps whose id, name or house contains the term. Case-insensitive.\n' +
+                  'search is GLOBAL and ignores your cd context on purpose, so you can find\n' +
+                  'something elsewhere without leaving where you are.\n' +
+                  'It matches the manifest text only. A word that appears in no field finds\n' +
+                  'nothing even if the topic is covered: "bounty" finds nothing because the track\n' +
+                  'is named Bug Hunting Dojo.',
+            examples: ['search linux', 'search security', 'search dark-arts'],
+            see: ['ls', 'run', 'info']
+        },
+        info: {
+            synopsis: 'info <app>',
+            desc: 'Show one app\'s full record from the manifest: where it lives, which house owns\n' +
+                  'it, its category, and the clientGuard it declares.\n' + GUARD_CAVEAT,
+            examples: ['info cve-evaluator', 'info arena'],
+            see: ['run', 'ls']
+        },
+        cd: {
+            synopsis: 'cd [house|category|..]',
+            desc: 'Scope the session to a house or a category. The prompt shows where you are and\n' +
+                  'bare `ls` lists what is here. Tab after `cd` offers every house and category,\n' +
+                  'not just nearby ones; it is `run` and `info` whose completion prefers what is\n' +
+                  'in scope.\n' +
+                  '`cd ..`, `cd /`, `cd ~` or a bare `cd` returns to the top.\n' +
+                  'Note that the manifest has a CATEGORY named "house" as well as 14 actual houses,\n' +
+                  'so `cd house` and `cd shield` are different things. cd tells you which kind you\n' +
+                  'entered.',
+            examples: ['cd dark-arts', 'cd cert-prep', 'cd ..'],
+            see: ['pwd', 'ls', 'run']
+        },
+        ps: {
+            synopsis: 'ps',
+            desc: 'List your lab sessions, with status and age.\n' +
+                  'This asks the lab service, not this browser tab, so a lab you started from its\n' +
+                  'own page or on another device still shows up here.\n' +
+                  'A session can be `stopped` and still hold its slot; `restart` gives you a fresh\n' +
+                  'box, `stop` releases the slot.\n' +
+                  'Most apps are PAGES, not processes: `run` navigates to them and there is nothing\n' +
+                  'to list. Only labs that spawn a real container appear here.',
+            examples: ['ps'],
+            see: ['stop', 'restart', 'run']
+        },
+        stop: {
+            synopsis: 'stop <lab|session>',
+            desc: 'End a running lab session and release its slot back to the pool.\n' +
+                  'Takes either name `ps` shows, the lab or the session id. Asking to stop an app\n' +
+                  'that is a page tells you so rather than pretending to stop it.\n' +
+                  'Use this when a lab has frozen, or when you are finished and want the slot back\n' +
+                  'for someone else.\n' +
+                  'One stop or restart runs at a time. A second one is refused rather than queued,\n' +
+                  'because two overlapping requests can leave a duplicate session behind.\n' +
+                  'If a request goes unanswered for 90 seconds the shell stops waiting and says so.\n' +
+                  'That does not cancel it, so check `ps` before trying again.',
+            examples: ['ps', 'stop linux-sandbox'],
+            see: ['ps', 'restart']
+        },
+        restart: {
+            synopsis: 'restart <lab|session>',
+            desc: 'Destroy a session and launch it again from clean state. Use it when a lab is\n' +
+                  'wedged and you want a fresh start rather than a rescue.\n' +
+                  'A lab that is not running is not an error: it just launches.\n' +
+                  'This DISCARDS whatever is in the running container. Anything you have not saved\n' +
+                  'outside the lab is gone.\n' +
+                  'One stop or restart runs at a time; a second is refused rather than queued.\n' +
+                  'A restart is also refused while an earlier launch of the same lab is still\n' +
+                  'outstanding, so a slow launch cannot be turned into two boxes by retrying.\n' +
+                  'If a request goes unanswered for 90 seconds the shell stops waiting and says so.\n' +
+                  'If this shell does not know how to launch the lab, restart refuses BEFORE\n' +
+                  'destroying anything, rather than leaving you with no box and no way back.\n' +
+                  'If the destroy succeeds and the relaunch fails you are left with nothing running,\n' +
+                  'and the shell says so instead of implying it recovered.',
+            examples: ['restart linux-sandbox'],
+            see: ['ps', 'stop']
+        },
+        pwd: {
+            synopsis: 'pwd',
+            desc: 'Print where you are and how many apps are in scope. At the top it reports /\n' +
+                  'and the full count.',
+            examples: ['pwd'],
+            see: ['cd']
+        },
+        man: {
+            synopsis: 'man [command]',
+            desc: 'Show the manual page for a command. With no argument, lists what is documented.\n' +
+                  'Given an app id rather than a command, man shows that app\'s record, because\n' +
+                  'that is almost certainly what you wanted.',
+            examples: ['man', 'man cd', 'man run'],
+            see: ['help']
+        },
+        help: {
+            synopsis: 'help',
+            desc: 'One line per command. Use `man <command>` when one line is not enough.',
+            examples: ['help'],
+            see: ['man']
+        },
+        clear: {
+            synopsis: 'clear',
+            desc: 'Clear the screen. Does not change your context or history.',
+            examples: ['clear'],
+            see: ['help', 'man']
+        }
+    };
+
+    var COMMANDS = {
+        help: function () {
+            say(
+                '<span class="ok">run</span> &lt;app&gt;        launch an app by name\n' +
+                '<span class="ok">ls</span> [what]        list apps. what = a category or a house. ' +
+                (cwd ? 'blank lists what is in <span class="ok">' + esc(cwd) + '</span>'
+                     : 'blank lists everything') + '\n' +
+                '<span class="ok">search</span> &lt;term&gt;    match id, name or house\n' +
+                '<span class="ok">info</span> &lt;app&gt;       show one app\'s record from the manifest\n' +
+                '<span class="ok">cd</span> &lt;house|category&gt;  scope into a house. cd .. to leave\n' +
+                '<span class="ok">pwd</span>               where you are\n' +
+                '<span class="ok">ps</span>                your running lab sessions\n' +
+                '<span class="ok">stop</span> &lt;session&gt;     end a lab session, free its slot\n' +
+                '<span class="ok">restart</span> &lt;session&gt;  destroy and relaunch from clean state\n' +
+                '<span class="ok">man</span> [command]     the full manual page for a command\n' +
+                '<span class="ok">clear</span>             clear the screen\n\n' +
+                '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
+            );
+        },
+        ls: function (arg) {
+            if (notReady()) return;
+            // Inside a context, bare ls lists what is here rather than re-showing the whole
+            // platform. That is the entire reason cd exists.
+            if (!arg && cwd) return fmtRows(scope(), scope().length + ' in ' + cwd);
+            if (!arg) {
+                var cats = {};
+                APPS.forEach(function (a) { cats[a.category] = (cats[a.category] || 0) + 1; });
+                var rows = Object.keys(cats).sort().map(function (c) {
+                    return '<tr><td class="info">' + esc(c) + '</td><td class="muted">' + cats[c] + '</td></tr>';
+                }).join('');
+                say('<table>' + rows + '</table><span class="muted">' + APPS.length +
+                    ' apps. <span class="ok">ls &lt;category&gt;</span> or <span class="ok">ls &lt;house&gt;</span> to narrow.</span>');
+                return;
+            }
+            var hit = APPS.filter(function (a) { return a.category === arg || a.house === arg; });
+            fmtRows(hit, hit.length + ' in ' + arg);
+        },
+        search: function (arg) {
+            if (notReady()) return;
+            if (!arg) return say('search what?', 'warn');
+            var q = arg.toLowerCase();
+            fmtRows(APPS.filter(function (a) {
+                return (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase().indexOf(q) !== -1;
+            }));
+        },
+        info: function (arg) {
+            if (notReady()) return;
+            var a = byId(arg);
+            if (!a) return say('no app called ' + esc(arg) + '. try <span class="ok">search ' + esc(arg) + '</span>', 'err');
+            var rows = Object.keys(a).map(function (k) {
+                return '<tr><td class="muted">' + esc(k) + '</td><td>' + esc(a[k]) + '</td></tr>';
+            }).join('');
+            say('<table>' + rows + '</table>');
+            if (a.clientGuard && a.clientGuard !== 'public') {
+                // Read from MANUAL so the runtime message and `man info` cannot drift apart. Two
+                // hand-kept copies of one claim is the drift this table was supposed to end.
+                say(esc(GUARD_CAVEAT), 'muted');
+            }
+        },
+        run: function (arg) {
+            if (notReady()) return;
+            if (!arg) return say('run what? try <span class="ok">ls</span>', 'warn');
+            var a = byId(arg);
+            if (!a) {
+                var near = APPS.filter(function (x) { return x.id.indexOf(arg) === 0; }).slice(0, 6);
+                say('no app called ' + esc(arg) + '.', 'err');
+                if (near.length) say('did you mean: ' + near.map(function (x) { return esc(x.id); }).join(', '), 'muted');
+                return;
+            }
+            var dest = safeEntry(a.entry);
+            if (!dest) {
+                return say('refusing to launch ' + esc(a.id) + ': entry is not a same-origin path (' +
+                           esc(a.entry) + ')', 'err');
+            }
+            say('launching ' + esc(a.name || a.id) + ' ' + esc(dest), 'ok');
+            window.location.href = dest;
+        },
+        cd: function (arg) {
+            if (notReady()) return;
+            if (!arg || arg === '/' || arg === '..' || arg === '~') {
+                cwd = null; setPrompt();
+                return say('now at the top. ' + APPS.length + ' apps in scope.', 'muted');
+            }
+            if (places().indexOf(arg) === -1) {
+                // Same philosophy as run's did-you-mean: prefix first, infix as the fallback.
+                var all = places();
+                var near = all.filter(function (p) { return p.indexOf(arg) === 0; });
+                if (!near.length) near = all.filter(function (p) { return p.indexOf(arg) !== -1; });
+                say('no such place: ' + esc(arg), 'err');
+                if (near.length) say('did you mean: ' + near.map(esc).join(', '), 'muted');
+                else say('try <span class="ok">cd</span> then Tab to see where you can go', 'muted');
+                return;
+            }
+            cwd = arg; setPrompt();
+            // Say whether this is a house or a category. The manifest has a CATEGORY literally
+            // named "house" (the 14 house-index pages), so `cd house` is legal and means something
+            // completely different from `cd shield`. Unlabelled, that is a trap.
+            var isHouse = APPS.some(function (a) { return a.house === cwd; });
+            var isCat = APPS.some(function (a) { return a.category === cwd; });
+            var kind = (isHouse && isCat) ? 'house and category' : isHouse ? 'house' : 'category';
+            say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
+                '<span class="muted">cd .. to go back.</span>', 'ok');
+        },
+        /**
+         * PROCESS COMMANDS. `run` navigates; most apps are pages with nothing to stop. Only labs
+         * are real processes, owned by SandboxLauncher, which holds the API and the Firebase auth.
+         * Everything here delegates to it.
+         *
+         * THE ID TRAP, and why resolve() exists: launch() takes a LAB id and throws "Unknown lab"
+         * on anything else, while destroy() takes a SESSION id. My first version passed the same
+         * argument to both, so restart could never have worked for either kind of input.
+         * _activeSessions is keyed labId -> { sessionId }, which is the mapping that makes a
+         * student-typed name usable.
+         */
+        ps: function () {
+            var SL = window.SandboxLauncher;
+            if (!SL) return say('the session manager is not available on this page.', 'err');
+            // SERVER truth, not this page's memory. SandboxLauncher's _activeSessions is closure
+            // state populated only by launches made in THIS document, and `run` navigates away,
+            // so the shell's copy is empty by construction.
+            say('checking...', 'muted');
+            SL.list().then(function (r) {
+            // Response contract is NOT guessed. Read from the lab-manager source on bc1,
+            // /home/eq1/hexworth-sandbox/lab-manager/server.js:1475 (GET /api/sandbox/list):
+            //   { sandboxes: [ { sessionId, labId, lab, status:'running'|'stopped',
+            //                    ageMinutes, url } ] }
+            // An earlier revision triangulated `r.sessions || r.data || r` and `x.labId || x.lab`.
+            // Every one of those guesses was wrong. The key is `sandboxes`, and the test that
+            // "proved" it green used a mock I had invented, so it could not have failed. `lab` is
+            // a human display NAME, not an id, so it is never a fallback for labId.
+                var rows = (r && r.sandboxes) || [];
+                if (!rows.length) {
+                    return say('nothing running. <span class="muted">' +
+                        '<span class="ok">run &lt;lab&gt;</span> starts one.</span>', 'muted');
+                }
+                say('<table>' + rows.map(function (x) {
+                    var stopped = x.status === 'stopped';
+                    return '<tr><td class="info">' + esc(x.labId) + '</td>' +
+                           '<td class="' + (stopped ? 'warn' : 'ok') + '">' + esc(x.status) + '</td>' +
+                           '<td class="muted">' + (typeof x.ageMinutes === 'number'
+                                ? esc(String(x.ageMinutes)) + 'm' : '') + '</td>' +
+                           '<td class="muted">' + esc(x.sessionId) + '</td></tr>';
+                }).join('') + '</table>' +
+                    '<span class="muted">stop or restart takes the lab name or the session id.' +
+                    (rows.some(function (x) { return x.status === 'stopped'; })
+                        ? ' A <span class="warn">stopped</span> one still holds its slot; ' +
+                          '<span class="ok">restart</span> gives you a fresh box.' : '') +
+                    '</span>');
+            }).catch(function (e) {
+                say('could not reach the session manager: ' + esc(errText(e)), 'err');
+                say('that is the lab service, not this shell. Your labs may still be running.', 'muted');
+            });
+        },
+
+        stop: function (arg) {
+            var SL = window.SandboxLauncher;
+            if (!SL) return say('the session manager is not available on this page.', 'err');
+            if (procBusy) {
+                return say('already running <span class="ok">' + esc(procBusy) + '</span>. Wait for '
+                    + 'it to finish, then try again.', 'warn');
+            }
+            if (!arg) return say('stop what? <span class="ok">ps</span> lists what is running.', 'warn');
+            if (notReady()) return;
+            var gen = holdProc('stop');
+            resolveProcess(arg).then(function (t) {
+            if (t.error) return say(t.error, t.cls || 'err');
+            say('stopping ' + esc(t.labId) + '...', 'muted');
+            return SL.destroy(t.sessionId).then(function () {
+                say('stopped ' + esc(t.labId) + '. its slot is back in the pool.', 'ok');
+            }).catch(function (e) {
+                say('could not stop ' + esc(t.labId) + ': ' + esc(errText(e)), 'err');
+                say('run <span class="ok">ps</span> to see whether it is still up.', 'muted');
+            });
+            }).then(function () { clearProc(gen); }, function () { clearProc(gen); });
+        },
+
+        restart: function (arg) {
+            var SL = window.SandboxLauncher;
+            if (!SL) return say('the session manager is not available on this page.', 'err');
+            if (procBusy) {
+                return say('already running <span class="ok">' + esc(procBusy) + '</span>. Wait for '
+                    + 'it to finish, then try again.', 'warn');
+            }
+            if (!arg) return say('restart what? <span class="ok">ps</span> lists what is running.', 'warn');
+            if (notReady()) return;
+            var gen = holdProc('restart');
+            resolveProcess(arg, true).then(function (t) {
+            if (t.error) return say(t.error, t.cls || 'err');
+            // PRE-FLIGHT BEFORE DESTROYING. resolveProcess returns the SERVER's labId, and the
+            // server can know a lab this client's LAB_INFO does not (newly added there, or a
+            // stale cached component here). launch() throws `Unknown lab` locally in that case --
+            // AFTER the destroy has already succeeded. That ordering turns "give me a fresh box"
+            // into "your box is gone and I cannot make another", which is the one outcome a
+            // student running restart on a frozen lab must never get. Refuse up front instead:
+            // nothing is destroyed, and `stop` plus the lab's own page still works.
+            if (!SL.LAB_INFO || !SL.LAB_INFO[t.labId]) {
+                say('this shell does not know how to launch ' + esc(t.labId) + ', so restarting it '
+                    + 'would destroy the box without being able to bring it back.', 'err');
+                return say('nothing was changed. Use <span class="ok">stop ' + esc(arg) + '</span> '
+                    + 'and start it from its own page.', 'muted');
+            }
+            // Not running is not an error for restart: a fresh start is what was asked for.
+            var destroyed = false;
+            var iSetLaunchPending = false;   // only this chain may clear what this chain set
+            var step = t.sessionId
+                ? SL.destroy(t.sessionId).then(function () {
+                      destroyed = true;
+                      if (procGen !== gen) return;   // superseded; a later restart owns this lab
+                      say('stopped. relaunching...', 'muted');
+                  })
+                : Promise.resolve(say(esc(t.labId) + ' was not running. launching it fresh...', 'muted'));
+            return step.then(function () {
+                // GUARD THE MUTATION, not just the lock. restart is TWO mutations, and the
+                // watchdog explicitly does not cancel the in-flight request. So after a timeout
+                // the student follows this shell's own advice, retries, and that retry legitimately
+                // relaunches; then THIS chain's slow destroy lands and would launch a SECOND time.
+                // Two live sessions for one lab, from one intent, each step reporting truthfully.
+                // Guarding clearProc fixed the bookkeeping and left this untouched.
+                if (procGen !== gen) {
+                    say('this restart was superseded while it was waiting, so ' + esc(t.labId)
+                        + ' was NOT launched again.', 'warn');
+                    say('run <span class="ok">ps</span> to see what is actually running.', 'muted');
+                    return SUPERSEDED;
+                }
+                if (launchPending[t.labId]) {
+                    say('a launch for ' + esc(t.labId) + ' is still outstanding from an earlier '
+                        + 'restart, so this one did NOT start a second box.', 'warn');
+                    say('run <span class="ok">ps</span> in a moment to see it. Reload the page if '
+                        + 'it never appears.', 'muted');
+                    return SUPERSEDED;
+                }
+                launchPending[t.labId] = true;
+                iSetLaunchPending = true;
+                return SL.launch(t.labId);
+            }).then(function (res) {
+                if (res === SUPERSEDED) return;   // never set launchPending on this path
+                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
+                // Guard the SETTLEMENT, not only the call. If launch() was the slow leg, the
+                // watchdog has already fired and a later invocation owns the lab; claiming
+                // "restarted from clean state" here would describe a box this chain no longer
+                // speaks for, and possibly one a later restart has since replaced.
+                if (procGen !== gen) {
+                    say('an earlier restart of ' + esc(t.labId) + ' finished after it was '
+                        + 'superseded. Its box may still be running.', 'warn');
+                    return say('run <span class="ok">ps</span> and stop anything you did not '
+                        + 'expect.', 'muted');
+                }
+                say('restarted ' + esc(t.labId) + ' from clean state.', 'ok');
+            }).catch(function (e) {
+                // ONLY the chain that set this may clear it. A chain whose destroy() REJECTS
+                // never reached the assignment above, and deleting unconditionally here would
+                // clear the entry a LATER, legitimate chain owns while its launch is still
+                // outstanding, letting a third retry start a second box. That is the same
+                // duplicate-session bug launchPending exists to prevent, reopened through the
+                // error leg. The success path already had this condition; the catch did not.
+                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
+                say('restart failed: ' + esc(errText(e)), 'err');
+                // A superseded chain must not narrate the box at all. `destroyed` is per-chain
+                // state recording what THIS invocation did, and the catch was reading it as if it
+                // described current reality. Concretely: this chain's destroy can reject at 2.5s
+                // while a later chain destroyed the same session at 1.5s. `destroyed` is still
+                // false, so the else branch below printed "nothing was destroyed", which was false
+                // when printed. Ownership had been applied to the WRITE side of launchPending and
+                // not to the READ side of destroyed, so the fix was narrower than it claimed.
+                if (procGen !== gen) {
+                    return say('this restart had already been superseded, so the state above '
+                        + 'reflects a later one. run <span class="ok">ps</span> for what is '
+                        + 'actually running.', 'muted');
+                }
+                // Two different states, two different truths. Saying "stopped and NOT relaunched"
+                // for a destroy that never succeeded is a false claim about the student's box.
+                if (destroyed) {
+                    say('the box WAS stopped and was not relaunched. run <span class="ok">ps</span> '
+                        + 'to confirm, then <span class="ok">restart</span> again.', 'warn');
+                } else {
+                    say('nothing was destroyed. run <span class="ok">ps</span> to see whether it is '
+                        + 'still up.', 'muted');
+                }
+            });
+            }).then(function () { clearProc(gen); }, function () { clearProc(gen); });
+        },
+
+        man: function (arg) {
+            if (!arg) {
+                var names = Object.keys(MANUAL).sort();
+                say('manual pages: ' + names.map(function (n) {
+                    return '<span class="ok">' + esc(n) + '</span>';
+                }).join('   '));
+                return say('<span class="muted">man &lt;command&gt; for a page. ' +
+                           'man &lt;app&gt; shows that app instead.</span>');
+            }
+            // PRECEDENCE: a manual page wins over an app of the same name. Safe only while no
+            // app id equals a command name, which is true today (checked by hex-manual-check.js)
+            // and would otherwise make `man <that-id>` silently show the wrong thing forever.
+            var m = MANUAL[arg];
+            if (!m) {
+                // Guard placed HERE, not at the top: MANUAL is static data, so `man cd` must keep
+                // working when the manifest is down. Only the app fallthrough reads APPS, and
+                // without this guard `man arena` says "no manual page for arena" while the list is
+                // still loading, which is the same falsehood this session fixed in five other
+                // commands. Chris caught that man was the sixth.
+                if (notReady()) return;
+                // An app id is a reasonable thing to type after `man`. Do the useful thing.
+                if (byId(arg)) return COMMANDS.info(arg);
+                say('no manual page for ' + esc(arg), 'err');
+                var near = Object.keys(MANUAL).filter(function (n) { return n.indexOf(arg) === 0; });
+                return say(near.length ? 'did you mean: ' + near.map(esc).join(', ')
+                                       : 'try <span class="ok">man</span> for the list', 'muted');
+            }
+            say('<span class="info">NAME</span>\n    ' + esc(arg));
+            say('<span class="info">SYNOPSIS</span>\n    ' + esc(m.synopsis));
+            say('<span class="info">DESCRIPTION</span>\n' +
+                m.desc.split('\n').map(function (l) { return '    ' + esc(l); }).join('\n'));
+            say('<span class="info">EXAMPLES</span>\n' +
+                m.examples.map(function (e) { return '    <span class="ok">' + esc(e) + '</span>'; }).join('\n'));
+            say('<span class="info">SEE ALSO</span>\n    ' + m.see.map(esc).join(', '));
+        },
+        pwd: function () {
+            if (notReady()) return;
+            say(cwd ? esc(cwd) + '  (' + scope().length + ' apps)' : '/  (all ' + APPS.length + ' apps)');
+        },
+        clear: function () { out.innerHTML = ''; }
+    };
+
+    function exec(line) {
+        var parts = line.trim().split(/\s+/);
+        var verb = parts.shift();
+        var arg = parts.join(' ');
+        if (!verb) return;
+        // A bare app name is a launch. `arena` should do what `run arena` does.
+        // Reads APPS outside the COMMANDS table, so the gate's audit could not see it and Nancy
+        // found it by hand. Without this, a bare app name during the load window answers
+        // "not a command" rather than "still loading".
+        if (!COMMANDS[verb] && notReady()) return;
+        if (!COMMANDS[verb] && byId(verb)) return COMMANDS.run(verb);
+        if (!COMMANDS[verb]) {
+            return say(esc(verb) + ': not a command. try <span class="ok">help</span>', 'err');
+        }
+        COMMANDS[verb](arg);
+    }
+
+    // Tab completion state, so repeated Tab cycles through candidates instead of re-computing
+    // the same longest-common-prefix and appearing to do nothing.
+    var tabState = null;
+
+    /** What is completable at this point in the line, and from which pool. */
+    function completionContext(v) {
+        var m = /^(\s*)(\S*)$/.exec(v);
+        if (m) {
+            // Still typing the first word: commands AND app ids, since a bare app name launches.
+            return { prefix: m[1], frag: m[2],
+                     pool: Object.keys(COMMANDS).concat(APPS.map(function (a) { return a.id; })) };
+        }
+        var r = /^(\s*(\S+)\s+)(.*)$/.exec(v);
+        if (!r) return null;
+        var verb = r[2], frag = r[3];
+        if (/\s/.test(frag)) return null;          // past the first argument, nothing to complete
+        if (verb === 'man') {
+            // Commands first, then app ids, since man falls through to an app record.
+            return { prefix: r[1], frag: frag,
+                     pool: Object.keys(MANUAL).sort().concat(APPS.map(function (a) { return a.id; })) };
+        }
+        if (verb === 'cd') {
+            return { prefix: r[1], frag: frag, pool: places() };
+        }
+        if (verb === 'run' || verb === 'info') {
+            // Inside a context, complete what is here first; fall through to everything so an
+            // app outside the current scope is still reachable without cd-ing back out.
+            var here = scope().map(function (a) { return a.id; });
+            var all = APPS.map(function (a) { return a.id; });
+            var pool = here.concat(all.filter(function (x) { return here.indexOf(x) === -1; }));
+            return { prefix: r[1], frag: frag, pool: pool };
+        }
+        if (verb === 'ls') {
+            // ls takes a category or a house, so complete from exactly those.
+            var vals = {};
+            APPS.forEach(function (a) { vals[a.category] = 1; if (a.house) vals[a.house] = 1; });
+            return { prefix: r[1], frag: frag, pool: Object.keys(vals).sort() };
+        }
+        if (verb === 'search') {
+            // search is free text, but ids and houses are the useful starting points.
+            var pool = APPS.map(function (a) { return a.id; });
+            APPS.forEach(function (a) { if (a.house && pool.indexOf(a.house) === -1) pool.push(a.house); });
+            return { prefix: r[1], frag: frag, pool: pool };
+        }
+        return null;
+    }
+
+    /**
+     * Prefix matches first; if none, fall back to substring. Typing "hunting" should find
+     * bug-hunting, because a student who remembers half a name should not have to remember which
+     * half, and prefix-only completion punishes them for guessing the wrong end.
+     */
+    function candidates(pool, frag) {
+        // Empty fragment keeps the pool's own order. Sorting alphabetically buried every command
+        // behind 189 app ids starting with "adv-linux", so Tab on a blank line answered a question
+        // nobody asked.
+        if (!frag) return pool.slice();
+        // Commands rank ahead of app ids at every stage, not only on a blank line. Sorting the
+        // merged pool alphabetically put pwd 9th behind platform-* ids the moment you typed "p",
+        // which undid the whole reason the empty-line branch exists.
+        var cmds = Object.keys(COMMANDS);
+        var rank = function (list) {
+            var c = list.filter(function (x) { return cmds.indexOf(x) !== -1; }).sort();
+            var a = list.filter(function (x) { return cmds.indexOf(x) === -1; }).sort();
+            return c.concat(a);
+        };
+        var pre = pool.filter(function (x) { return x.indexOf(frag) === 0; });
+        if (pre.length) return rank(pre);
+        return rank(pool.filter(function (x) { return x.indexOf(frag) !== -1; }));
+    }
+
+    function longestCommonPrefix(list) {
+        return list.reduce(function (acc, s) {
+            var i = 0;
+            while (i < acc.length && i < s.length && acc[i] === s[i]) i++;
+            return acc.slice(0, i);
+        });
+    }
+
+    function complete() {
+        // Repeated Tab on an unchanged line cycles through the candidates.
+        if (tabState && tabState.line === cmd.value) {
+            tabState.idx = (tabState.idx + 1) % tabState.hits.length;
+            cmd.value = tabState.prefix + tabState.hits[tabState.idx];
+            tabState.line = cmd.value;
+            return;
+        }
+
+        var ctx = completionContext(cmd.value);
+        if (!ctx) return;
+        var hits = candidates(ctx.pool, ctx.frag);
+
+        if (!hits.length) {
+            // Say so. Silence is indistinguishable from a broken key.
+            return say('no completion for ' + esc(ctx.frag || '(empty)'), 'muted');
+        }
+        if (hits.length === 1) {
+            cmd.value = ctx.prefix + hits[0] + ' ';
+            tabState = null;
+            return;
+        }
+
+        // Extend to the longest common prefix when that actually adds characters, then list.
+        var lcp = longestCommonPrefix(hits);
+        if (lcp.length > ctx.frag.length) cmd.value = ctx.prefix + lcp;
+
+        var SHOWN = 60;
+        say(hits.slice(0, SHOWN).map(esc).join('   ') +
+            (hits.length > SHOWN
+                ? '\n' + (hits.length - SHOWN) + ' more not shown; type another character or use search'
+                : ''), 'muted');
+
+        // Arm cycling from the current line so the next Tab steps through the list.
+        tabState = { line: cmd.value, prefix: ctx.prefix, hits: hits, idx: -1 };
+    }
+
+    cmd.addEventListener('keydown', function (e) {
+        // Any key that is not Tab ends the cycle, so completion never fights the user's typing.
+        if (e.key !== 'Tab') tabState = null;
+        if (e.key === 'Enter') {
+            var line = cmd.value;
+            say('<span class="echo">hex&gt; ' + esc(line) + '</span>');
+            if (line.trim()) { history.push(line); hIdx = history.length; }
+            cmd.value = '';
+            // Students see a plain message; the detail goes to the console for whoever debugs it.
+            try { exec(line); } catch (err) {
+                say('something went wrong running that.', 'err');
+                if (window.console) console.error('hex shell:', err);
+            }
+        } else if (e.key === 'Tab') {
+            e.preventDefault(); complete(); return;
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (hIdx > 0) cmd.value = history[--hIdx];
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (hIdx < history.length - 1) cmd.value = history[++hIdx];
+            else { hIdx = history.length; cmd.value = ''; }
+        }
+    });
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('a')) cmd.focus();
+    });
+
+    fetch('/data/hex-apps.json')
+        .then(function (r) {
+            if (!r.ok) throw new Error('manifest returned HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function (j) {
+            APPS = j.apps || [];
+            META = j;
+            manifestState = 'ready';
+            say('<span class="ok">hex shell</span> <span class="muted">' + APPS.length +
+                ' apps from the manifest</span>');
+            say('<span class="muted">type <span class="ok">help</span>, or an app name to launch it. ' +
+                'try <span class="ok">run arena</span>.</span>');
+        })
+        .catch(function (e) {
+            // Say what is actually wrong. A shell that fails silently is worse than no shell.
+            manifestState = 'failed';
+            say('could not load the app list.', 'err');
+            say('reload the page. if it keeps happening, tell your instructor.', 'muted');
+            if (window.console) console.error('hex shell: manifest load failed', e);
+        });
+})();
+</script>
+
+    <script src="/components/ObservatoryTelemetry.js"></script>
+</body>
+</html>

@@ -504,7 +504,10 @@ srv.listen(PORT, '127.0.0.1', async () => {
     const stale6 = await pg6.evaluate(() => document.getElementById('out').innerText);
     chk('a superseded STOP does not claim the slot is back in the pool',
         !/slot is back in the pool/i.test(stale6), stale6.slice(0, 140));
-    chk('  -> it says it was superseded instead', /superseded/i.test(stale6) || stale6.trim() === '', stale6.slice(0, 140));
+    // `|| stale6.trim() === ''` used to be here and made this assertion unable to distinguish
+    // "correctly reported as superseded" from "said nothing at all" -- a silent `return` with no
+    // say() is a worse bug than a wrong message, and this would have passed it. Demand the text.
+    chk('  -> it says it was superseded instead', /superseded/i.test(stale6), stale6.slice(0, 140));
     await pg6.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
