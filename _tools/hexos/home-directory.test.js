@@ -200,5 +200,28 @@ if (fs.existsSync(PAGE)) {
     chk('the page is access-gated', /AccessGuard/.test(page));
 }
 
+// ---- 7. THE PAGE MUST ACTUALLY FETCH THE SERVER RECORDS ----
+// Static checks passed while the page never queried server_awards, gates, quiz_attempts or
+// flag_captures. That did not render as "unknown" -- it rendered as WRONG: badges 0-proven against
+// a real claimed count, a manufactured BUG-241 quiz conflict, and gates/flags silently zero with
+// no signal, inverting the design's "server wins" promise. A QC gate caught it by driving the real
+// page; every assertion in section 6 stayed green. So these assert the reads exist and are wired
+// into the projection input, keyed on the four field names build() consumes.
+if (fs.existsSync(PAGE)) {
+    const page = fs.readFileSync(PAGE, 'utf8');
+    [['server_awards', 'serverAwards'], ['gates', 'gates'],
+     ['quiz_attempts', 'quizAttempts'], ['flag_captures', 'flagCaptures']].forEach(([col, field]) => {
+        chk(`the page reads users/{uid}/${col}`, page.includes(`'${col}'`),
+            'unfetched server records render as a real zero and manufacture false conflicts');
+        chk(`...and assigns it to src.${field}`,
+            new RegExp(`src\\.${field}\\s*=`).test(page),
+            `${col} is read but never reaches build()`);
+    });
+    // A read failure must be distinguishable from a genuine zero, or the page lies quietly.
+    chk('a failed read is reported, not silently rendered as zero',
+        /readFailures/.test(page) && /read failure, not/.test(page),
+        'the defect was exactly this: absent data presented as real data');
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;

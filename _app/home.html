@@ -148,6 +148,7 @@
         } catch (e) { /* fall through to the signed-out message */ }
         if (!user) { return fail('Sign in to see your records.'); }
 
+        var readFailures = 0;
         var src = { profile: null, serverAwards: [], gates: [], quizAttempts: [], flagCaptures: 0, local: {}, derivedXp: null };
 
         try {
@@ -155,6 +156,81 @@
                 src.profile = await FirestoreManager.getUserProfile(user.uid);
             }
         } catch (e) { /* profile unreadable; the projection treats it as absent */ }
+
+        /* THE SERVER SUBCOLLECTIONS. These were missing in the first cut of this page, and their
+           absence did not render as "unknown" -- it rendered as WRONG. A QC gate drove the real
+           page with realistic data and got: badges 0-proven against a real claimed count (a
+           manufactured conflict), quizzes showing a false BUG-241 disagreement for anyone who has
+           passed anything, and gates and flags silently 0 with no conflict flag at all, because
+           empty-vs-empty produces no visible signal. The design's promise is "server wins,
+           always"; unfetched sources inverted it, and the conflict count -- which this page exists
+           to make meaningful -- became noise for nearly every active student.
+
+           Read with the same collection(doc(db, USERS, uid), '<sub>') shape FirestoreManager
+           already uses for gates, rather than a second convention. Each read is independent and
+           best-effort: a student who has never touched a subsystem legitimately has no documents
+           there, and that is a real zero, not a failure. */
+        /* FirebaseAuth loads the app/auth/functions modules but NOT firestore, and
+           FirestoreManager keeps its own `db` module-private with no accessor. So this page
+           imports firestore itself and builds a handle from the already-initialised app -- the
+           same shape pulse.html and admin/console.html use. Checked rather than assumed: there is
+           no getDb() export and no window.firebaseDb anywhere in _app. */
+        var fs = window.firebaseFirestore, db = null;
+        try {
+            if (!fs) {
+                fs = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+                window.firebaseFirestore = fs;
+            }
+            var apps = window.firebaseApp ? window.firebaseApp.getApps() : [];
+            if (apps.length && fs.getFirestore) db = fs.getFirestore(apps[0]);
+        } catch (e) { db = null; }
+
+        if (fs && db && fs.collection && fs.doc && fs.getDocs) {
+            var userDoc = fs.doc(db, 'users', user.uid);
+            async function readSub(name) {
+                try {
+                    var snap = await fs.getDocs(fs.collection(userDoc, name));
+                    var out = [];
+                    snap.forEach(function (d) {
+                        var v = d.data() || {};
+                        v.id = d.id;
+                        out.push(v);
+                    });
+                    return out;
+                } catch (e) {
+                    // Distinguish "no documents" from "could not read": a read failure must not
+                    // masquerade as a real zero, which is the whole defect this block fixes.
+                    return null;
+                }
+            }
+            var reads = await Promise.all([
+                readSub('server_awards'), readSub('gates'),
+                readSub('quiz_attempts'), readSub('flag_captures')
+            ]);
+            if (reads[0]) src.serverAwards = reads[0];
+            if (reads[1]) {
+                src.gates = reads[1].map(function (g) {
+                    return {
+                        gateNumber: g.gateNumber || parseInt(String(g.id).replace('gate', ''), 10),
+                        completed: !!g.completed,
+                        verified: g.verified === true,
+                        source: g.source || null
+                    };
+                });
+            }
+            if (reads[2]) {
+                src.quizAttempts = reads[2].map(function (a) {
+                    return { quizId: a.quizId, passed: !!a.passed, score: a.score };
+                });
+            }
+            if (reads[3]) src.flagCaptures = reads[3].length;
+
+            // Carried, not shown here: render() hides stateEl, so setting it now would make the
+            // warning vanish the moment the cards appear.
+            readFailures = reads.filter(function (r) { return r === null; }).length;
+        } else {
+            readFailures = 4;   // no Firestore handle at all: every server record is unread
+        }
 
         try {
             var raw = localStorage.getItem('hexworth_streak');
@@ -167,8 +243,21 @@
             }
         } catch (e) { /* leaves stored xp as the shown value, flagged as server rather than derived */ }
 
-        try { render(window.HomeDirectory.build(src)); }
-        catch (e) { fail('Could not assemble your records: ' + e.message); }
+        try {
+            render(window.HomeDirectory.build(src));
+            if (readFailures > 0) {
+                /* A read failure must never render as a real zero. That is precisely the defect a
+                   QC gate caught in the first version of this page: unfetched subcollections
+                   showed badges and gates as 0 and manufactured false conflicts against them,
+                   inverting the design's "server wins" promise and turning the conflict count --
+                   the reason this page exists -- into noise. */
+                stateEl.className = 'banner';
+                stateEl.style.display = '';
+                stateEl.textContent = readFailures + ' of your server record sets could not be '
+                    + 'read, so the counts below may be understated. This is a read failure, not '
+                    + 'a zero, and the conflicts shown may not be real.';
+            }
+        } catch (e) { fail('Could not assemble your records: ' + e.message); }
     }
 
     if (document.readyState === 'loading') {
