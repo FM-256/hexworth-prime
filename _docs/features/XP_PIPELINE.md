@@ -31,7 +31,9 @@ XP increments removed 2026-03-08 (`2598ef9f`).
 
 **`addXP(amount, reason)`** — Audit trail only. Appends to `xpHistory[]`. **Does not increment `xp` field.** Games and RingManager call this CF; game XP is tracked deterministically via `hexworth_game_tracker` (localStorage) and XPCalculator awards 100 XP per unique game.
 
-**`updateStreak()`** — Updates `streak`, `lastLoginDate`, `updatedAt`. **No XP increment.** Streak XP is derived by XPCalculator (25/day, capped at 365).
+**`updateStreak()`** — **REMOVED 2026-08-31. This is no longer a Cloud Function.** It had no caller anywhere in `_app`, so it never ran in production, and it computed a streak from `users/{uid}.lastLoginDate` while the client computes a different one from `hexworth_last_study` — two definitions of one fact, the dead one waiting to be wired up wrong. Archived with its reasoning at `functions/_archive/updateStreak-orphaned-2026-08-31.js`. See BUG-237.
+
+Streak XP is still derived by XPCalculator (25/day, capped at 365), unchanged. The `Math.max(local, cloud)` streak reconciliation in `FirestoreManager.syncBidirectional` was deliberately KEPT: it is cross-device reconciliation, not part of that defect, and removing it would let a long-idle device sync its stale 0 over a real streak.
 
 **`syncProgress(modulesCompleted, labsCompleted, quizzes, xp, streak, ...)`** — Bidirectional merge. Writes client-supplied XP directly (from XPCalculator). Union for arrays. Writes via `set({ merge: true })`.
 
@@ -467,7 +469,8 @@ xp, level, modulesCompleted, labsCompleted, quizzes, achievements, streak
 | `_app/components/ModuleProgress.js` | `complete()` — primary completion API |
 | `_app/components/ProgressManager.js` | `completeModule()` — alternative path (QuizEngine) |
 | `_app/components/FirestoreManager.js` | `syncBidirectional()` — 9-step sync flow with `_isValidId` filter |
-| `functions/index.js` | Cloud Functions: `recordProgress`, `addXP`, `updateStreak`, `syncProgress` (no XP increments, `_isValidModuleId` gatekeeper) |
+| `functions/index.js` | Cloud Functions: `recordProgress`, `addXP`, `syncProgress` (no XP increments, `_isValidModuleId` gatekeeper). `updateStreak` was removed 2026-08-31, see above |
+| `functions/quiz-score-policy.js` | The single definition of which quiz score is the student's score. `recordProgress` builds its quiz payload here, best-score by default (BUG-241) |
 | `functions/migrate-xp.js` | One-time migration script with `isValidModuleId()` |
 
 ---
