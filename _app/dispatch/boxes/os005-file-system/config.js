@@ -25,7 +25,13 @@ var OS5Config = {
         ]
     },
 
-    certObjectives: { certPath: 'A+ Core 2', mappings: [
+    certObjectives: { certPath: 'A+ Core 2 / MD-100', mappings: [
+            /* MD-100 M06: Configure Data Access & Usage. Module id and title taken from
+               _app/tenant/md-100-map.js, the course map, so this claim matches what the
+               course actually teaches. Deliberately NOT the 5.1/4.1 style the two older
+               MD-100 boxes use: MD-100 has four exam domains and no in-repo source
+               defines that numbering, so reusing it would be inventing a citation. */
+            { flagId: 'fixed', objective: 'M06', description: 'Configure Data Access & Usage', skill: 'NTFS permissions, EFS, effective access troubleshooting' },
         { flagId: 'fixed', objective: '1.4', description: 'Configure file systems and storage', skill: 'NTFS Permissions, EFS, Mapped Drives, OneDrive, Recycle Bin' }
     ] },
 

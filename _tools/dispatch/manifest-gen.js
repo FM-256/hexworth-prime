@@ -144,9 +144,21 @@ function deriveFamily(dirname) {
 }
 
 function extractField(content, key) {
-    const re = new RegExp(key + '\\s*:\\s*[\'"]([^\'"]+)[\'"]');
+    /* Respects ESCAPED quotes. The old pattern was [^'"]+, which stops at the first quote
+       character of any kind -- including a \' inside the string -- so
+       `title: 'Boot Failure: It Won\'t Start'` was captured as "Boot Failure: It Won\".
+       Seven boxes shipped truncated titles into boxes.json this way, and the dispatch board
+       rendered them to students: "Can\" instead of "Can't Send Email".
+
+       The body now matches either an escape sequence or any character that is not a backslash
+       and not the opening quote, then the captured text is unescaped. Backreference \1 pins the
+       closing quote to the same kind that opened it, so an apostrophe inside a double-quoted
+       string is not treated as a terminator. */
+    const re = new RegExp(key + '\\s*:\\s*([\'"])((?:\\\\.|(?!\\1)[^\\\\])*)\\1');
     const m = content.match(re);
-    return m ? m[1] : null;
+    if (!m) return null;
+    // Unescape what the source escaped: \' \" and \\ are the forms that actually appear here.
+    return m[2].replace(/\\(['"\\])/g, '$1');
 }
 
 function extractMaxScore(content) {

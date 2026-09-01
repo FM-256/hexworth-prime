@@ -26,7 +26,13 @@ var HW2Config = {
         ]
     },
 
-    certObjectives: { certPath: 'A+ Core 1', mappings: [
+    certObjectives: { certPath: 'A+ Core 1 / MD-100', mappings: [
+            /* MD-100 M11: Troubleshoot Hardware & Drivers. Module id and title taken from
+               _app/tenant/md-100-map.js, the course map, so this claim matches what the
+               course actually teaches. Deliberately NOT the 5.1/4.1 style the two older
+               MD-100 boxes use: MD-100 has four exam domains and no in-repo source
+               defines that numbering, so reusing it would be inventing a citation. */
+            { flagId: 'fixed', objective: 'M11', description: 'Troubleshoot Hardware & Drivers', skill: 'STOP code analysis, driver rollback, memory and storage diagnostics' },
         { flagId: 'fixed', objective: '5.3', description: 'Troubleshoot and diagnose problems with storage', skill: 'SMART Monitoring and SSD Health' },
         { flagId: 'fixed', objective: '5.2', description: 'Troubleshoot common hardware problems', skill: 'BSOD Analysis and Hardware Diagnostics' }
     ] },
