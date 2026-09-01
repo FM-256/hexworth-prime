@@ -112,5 +112,42 @@ cards.forEach((card) => {
     });
 });
 
+/* ---- THE SECOND TAG MUST AGREE WITH THE MODULE ----
+ * Each card carries "MD-100 Mxx" and, beside it, a short human label for the same module. The
+ * original version of this gate read only the Mxx span, so when a module swap updated that span
+ * and left the label behind, two cards ended up asserting one module by number and a DIFFERENT
+ * module by name, one line apart. A reviewer found it; 52/52 stayed green throughout, because the
+ * defect sat one span outside what was checked.
+ *
+ * That is the same defect shape the gate exists to police (a card contradicting itself), so it
+ * belongs inside the gate rather than in a reviewer's eye. The label table is the single source:
+ * the page and this file must agree, and a card may not invent a label. */
+const MODULE_LABEL = {
+    M04: 'Networking', M06: 'Data Access', M07: 'Apps & Updates',
+    M09: 'Support the Client', M10: 'Troubleshoot OS', M11: 'Hardware & Drivers'
+};
+cards.forEach((card) => {
+    const title = (card.match(/<h3>([^<]*)<\/h3>/) || [])[1] || '(no title)';
+    const mod = (card.match(/MD-100 (M\d+)/) || [])[1];
+    if (!mod) return;
+    const tags = (card.match(/<span class="arena-tag">([^<]*)<\/span>/g) || [])
+        .map((t) => t.replace(/<[^>]*>/g, ''));
+    const label = tags.find((t) => !/^MD-100 /.test(t) && !/^~/.test(t));
+    const want = MODULE_LABEL[mod];
+    chk(`"${title}" label matches its module ${mod}`, !!want && label === want,
+        `card says "${label}" but ${mod} is "${want}" -- the card contradicts itself`);
+});
+
+// And no two modules may share a label, or the check above passes while the page still reads as
+// though two different modules are the same thing. This is what made the swap invisible: both
+// M09 and M10 rendered "Troubleshoot OS".
+const seen = {};
+let dupe = null;
+Object.keys(MODULE_LABEL).forEach((m) => {
+    if (seen[MODULE_LABEL[m]]) dupe = `${m} and ${seen[MODULE_LABEL[m]]} both "${MODULE_LABEL[m]}"`;
+    seen[MODULE_LABEL[m]] = m;
+});
+chk('no two modules share a short label', !dupe, dupe);
+
 console.log(`\n  ${pass}/${pass + fail} passed`);
 process.exitCode = fail ? 1 : 0;
