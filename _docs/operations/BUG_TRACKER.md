@@ -31,7 +31,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-242 — a dashboard-joined tenant student loses their white-label bypass in a new tab  ·  [P1]  ·  open
+### BUG-242 — a dashboard-joined tenant student loses their white-label bypass in a new tab  ·  [P1]  ·  resolved
 - **Found:** 2026-08-31 · by Nancy · reviewing the BUG-236 fix slate
 - **Area:** `_app/components/AccessGuard.js:815-821` · `_app/components/TenantShell.js:52` ·
   `_app/components/TenantRouter.js:53` · `_app/components/ModuleProgress.js:235` ·
@@ -61,6 +61,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Related:** BUG-236 (the false comment that hid this). Correcting that comment does NOT close
   this; the comment lie and the cross-tab gap are separate defects.
 
+- **DEPLOYED and verified in production 2026-08-31.** Verified by reading the served
+  artifacts, not deploy output: `/tenant/index.html` carries the TenantShell script tag and
+  the mirror call; `/home.html` uses `typeof` guards with FirestoreManager loaded.
+- **Four designs, three killed in review**, and the shipped one was STILL broken on the
+  default dashboard until a QC probe drove the real page. The gate that passed 28/28
+  through that defect now navigates the real URL.
+- **Firestore rules deployed alongside** (`server_awards`, `quiz_attempts` read blocks),
+  confirmed `released rules firestore.rules to cloud.firestore`. Without them the Home
+  Directory could never have read a student's own badge or quiz-ledger records.
 ### BUG-241 — a passing retake with a LOWER score overwrites the higher one  ·  [P1]  ·  resolved
 - **Found:** 2026-08-31 · by self · surveying per-user state for HEXOS-4 (home directory)
 - **Area:** `functions/index.js:1254-1259` (`recordProgress`, case `'quiz'`) vs
