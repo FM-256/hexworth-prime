@@ -31,6 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-243 — tenant-sw.js documents self-unregistration it does not do  ·  [P2]  ·  open
+- **Found:** 2026-09-01 · by Nancy · reviewing HEXOS-5b scope
+- **Area:** `_app/tenant-sw.js:26-29` (the claim) vs the whole file (no implementation)
+- **Symptom:** the header states "When the tenant session ends (user clicks Sign Out or navigates
+  to a non-tenant page), the SW unregisters itself so direct users are never affected." There is no
+  `unregister()` call anywhere in the file — the only occurrence of the word is inside that comment.
+  So any student who has ever loaded a tenant dashboard keeps `tenant-sw.js` registered at scope
+  `/` in that browser **indefinitely**.
+- **Impact today:** low and latent. `tenantActive` resets to false when the worker restarts and the
+  fetch handler no-ops (`tenant-sw.js:63`), so the stale registration is inert. But it is a
+  root-scoped worker present on every page for a population nobody has counted, and it silently
+  falsifies a documented cleanup guarantee.
+- **Why it matters beyond itself:** it breaks the premise "a non-tenant student has no service
+  worker." There is a third population — ex-tenant, inert-worker-still-registered — that any future
+  worker design must account for. HEXOS-5b was being scoped against exactly that false premise.
+- **Fix:** not applied. Either implement the documented unregistration (on sign-out, beside
+  `purgeTenantContext`, which already exists and is the natural home) or correct the comment. The
+  first is preferable: the guarantee is reasonable and something already runs at that moment.
+- **Verified:** grepped the file and the whole of `_app`; nothing unregisters it. 2026-09-01.
+- **Related:** BUG-236 (a comment asserting something false, same class, same subsystem) ·
+  `feedback_a_count_in_prose_is_stale_on_arrival` · taskboard #330.
+
 ### BUG-242 — a dashboard-joined tenant student loses their white-label bypass in a new tab  ·  [P1]  ·  resolved
 - **Found:** 2026-08-31 · by Nancy · reviewing the BUG-236 fix slate
 - **Area:** `_app/components/AccessGuard.js:815-821` · `_app/components/TenantShell.js:52` ·
