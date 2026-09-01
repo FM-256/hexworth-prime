@@ -378,11 +378,15 @@
         },
         ls: {
             synopsis: 'ls [house|category]',
-            desc: 'List apps.\n' +
-                  'With no argument at the top level, shows the categories and how many are in each.\n' +
+            desc: 'List apps, or list the GROUPS that apps belong to.\n' +
+                  'With no argument at the top level, shows every group: categories and houses,\n' +
+                  'how many apps each holds, and the command to open it. Group names are NOT app\n' +
+                  'names and cannot be run; only the ids shown when you list a group can.\n' +
                   'With no argument inside a cd context, lists what is in that context.\n' +
                   'With an argument, lists that house or category, and IGNORES your context, so\n' +
-                  '`ls cloud` shows cloud whether or not you are somewhere else.',
+                  '`ls cloud` shows cloud whether or not you are somewhere else.\n' +
+                  'Note `house` is itself a category, holding the 13 house landing pages, so\n' +
+                  '`ls house` and `ls cloud` are both valid and answer different questions.',
             examples: ['ls', 'ls dark-arts', 'ls cert-prep'],
             see: ['cd', 'search', 'run']
         },
@@ -522,13 +526,43 @@
             // platform. That is the entire reason cd exists.
             if (!arg && cwd) return fmtRows(scope(), scope().length + ' in ' + cwd);
             if (!arg) {
-                var cats = {};
-                APPS.forEach(function (a) { cats[a.category] = (cats[a.category] || 0) + 1; });
-                var rows = Object.keys(cats).sort().map(function (c) {
-                    return '<tr><td class="info">' + esc(c) + '</td><td class="muted">' + cats[c] + '</td></tr>';
-                }).join('');
-                say('<table>' + rows + '</table><span class="muted">' + APPS.length +
-                    ' apps. <span class="ok">ls &lt;category&gt;</span> or <span class="ok">ls &lt;house&gt;</span> to narrow.</span>');
+                /* GROUPS ARE LABELLED AS GROUPS. This listing used to print bare category names in
+                   a two-column table, which reads exactly like a list of app names. The only
+                   signal that they were different was that app ids elsewhere render as links and
+                   these did not. The operator typed `run incubator` off the back of it, which is
+                   the reasonable thing to do when a name is shown to you and nothing says what
+                   kind of name it is.
+
+                   So each row now carries the command that WORKS for it, and the heading says
+                   these are groups. Houses are listed too: `ls cloud` has always worked, but
+                   houses appeared nowhere in this output, so the only way to learn one was to
+                   already know it. */
+                var cats = {}, houses = {};
+                APPS.forEach(function (a) {
+                    if (a.category) cats[a.category] = (cats[a.category] || 0) + 1;
+                    if (a.house) houses[a.house] = (houses[a.house] || 0) + 1;
+                });
+                function groupTable(map, kind) {
+                    return Object.keys(map).sort().map(function (k) {
+                        return '<tr><td class="info">' + esc(k) + '</td>'
+                             + '<td class="muted">' + map[k] + '</td>'
+                             + '<td class="muted">ls ' + esc(k) + '</td></tr>';
+                    }).join('');
+                }
+                say('<span class="muted">GROUPS. These are not apps and cannot be run. '
+                  + 'Use <span class="ok">ls &lt;name&gt;</span> to see inside one.</span>');
+                say('<table>'
+                  + '<tr><td class="muted">CATEGORY</td><td class="muted">APPS</td><td class="muted">SHOW</td></tr>'
+                  + groupTable(cats, 'category') + '</table>');
+                if (Object.keys(houses).length) {
+                    say('<table>'
+                      + '<tr><td class="muted">HOUSE</td><td class="muted">APPS</td><td class="muted">SHOW</td></tr>'
+                      + groupTable(houses, 'house') + '</table>');
+                }
+                say('<span class="muted">' + APPS.length + ' apps in total. '
+                  + '<span class="ok">run &lt;id&gt;</span> opens an app; an id is what appears as a '
+                  + 'link when you list a group. <span class="ok">run faq</span> explains the '
+                  + 'difference.</span>');
                 return;
             }
             var hit = APPS.filter(function (a) { return a.category === arg || a.house === arg; });
