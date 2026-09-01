@@ -71,6 +71,13 @@ const NT1Config = {
     certObjectives: {
         certPath: 'MD-100',
         mappings: [
+            /* MD-100 M04: Configuring Networking. Added so the hub card's module tag is BACKED by
+               the box itself. This card previously showed a module tag that matched
+               nothing downstream: not this file, not the Dispatch Board tags, and not
+               the briefing screen a student sees one click later. A reviewer caught the
+               contradiction. The objective rows below are UNCHANGED -- both taxonomies
+               are true at once, so keeping the original numbering costs nothing. */
+            { flagId: 'fixed', objective: 'M04', description: 'Configuring Networking', skill: 'IP configuration, name resolution, and adapter diagnostics' },
             { flagId: 'fixed', objective: '5.1', description: 'Troubleshoot network connectivity issues', skill: 'IP Configuration Diagnosis' },
             { flagId: 'fixed', objective: '5.2', description: 'Use Windows troubleshooting tools', skill: 'ipconfig, ping, tracert, nslookup, netsh' },
             { flagId: 'fixed', objective: '3.1', description: 'Configure networking on a Windows client', skill: 'Network Adapter Configuration' }

@@ -93,14 +93,16 @@ const DIFFICULTY_META = {
 const RICH_OVERRIDES = {
     'nt1-network-troubleshoot': {
         description: "A user can't access the internet. Boot into their Windows workstation, read the help desk ticket, diagnose the root cause, and restore full connectivity. Five distinct scenarios — each requires different tools and hides the flag in a different location.",
-        tags: ['MD-100 Obj 5.1', 'MD-100 Obj 5.2', 'MD-100 Obj 3.1', '5 Scenarios', 'BoxEngine'],
+        // M04 added so the Dispatch Board, the MD-100 hub card and the in-lab briefing all name
+        // the same thing for this box. The Obj numbers stay: both taxonomies are true.
+        tags: ['MD-100 M04', 'MD-100 Obj 5.1', 'MD-100 Obj 5.2', 'MD-100 Obj 3.1', '5 Scenarios', 'BoxEngine'],
         time: '~20 min',
         points: 500,
         difficulty: 'Intermediate'
     },
     'os001-boot-failure': {
         description: "A workstation won't boot past the Windows logo. Use recovery tools, Safe Mode, and system repair to diagnose driver conflicts, corrupted boot records, or failed updates.",
-        tags: ['MD-100 Obj 4.1', 'WinRE', 'BoxEngine'],
+        tags: ['MD-100 M10', 'MD-100 Obj 4.1', 'WinRE', 'BoxEngine'],
         time: '~25 min',
         points: 500,
         difficulty: 'Advanced'
@@ -154,7 +156,13 @@ function extractField(content, key) {
        and not the opening quote, then the captured text is unescaped. Backreference \1 pins the
        closing quote to the same kind that opened it, so an apostrophe inside a double-quoted
        string is not treated as a terminator. */
-    const re = new RegExp(key + '\\s*:\\s*([\'"])((?:\\\\.|(?!\\1)[^\\\\])*)\\1');
+    /* (?<![\\w$]) so `title` cannot match inside `subtitle`. Without it, a config listing
+       subtitle BEFORE title returns the subtitle's value for both -- silently, with no error
+       and no gate failure. That is the SAME unbounded-match failure class this function was
+       rewritten to fix, left dormant only because no config currently orders them that way.
+       A reviewer reproduced it; nothing enforced the ordering, so the ordering is now
+       irrelevant. */
+    const re = new RegExp('(?<![\\w$])' + key + '\\s*:\\s*([\'"])((?:\\\\.|(?!\\1)[^\\\\])*)\\1');
     const m = content.match(re);
     if (!m) return null;
     // Unescape what the source escaped: \' \" and \\ are the forms that actually appear here.
@@ -209,6 +217,13 @@ function genericDescription(box) {
 
 function genericTags(box) {
     const tags = [];
+    /* Cert tags are DERIVED from the box's own certObjectives, not written by hand. A hub card, the
+       Dispatch Board and the in-lab briefing all name a box's cert coverage, and they must agree:
+       a card claiming a module the box does not declare tells a student something the briefing
+       screen contradicts one click later. That shipped once. Deriving here means a box that gains
+       or loses a mapping updates its Board tags on the next regeneration, with nothing to remember.
+       RICH_OVERRIDES still wins where a box has one, so curated tag sets are unaffected. */
+    (box.md100Modules || []).forEach((id) => tags.push(`MD-100 ${id}`));
     if (box.scenarioCount > 1) tags.push(`${box.scenarioCount} Scenarios`);
     tags.push('BoxEngine');
     return tags;
@@ -261,6 +276,13 @@ function walkDispatchBoxes() {
             family: deriveFamily(e.name),
             title: extractField(cfg, 'title'),
             subtitle: extractField(cfg, 'subtitle'),
+            // MD-100 course-module ids (M04, M07, ...) declared in this box's own
+            // certObjectives. Only module-style ids, and only when the box actually names
+            // MD-100 -- so the 88 boxes with numeric objectives keep the tags they have.
+            md100Modules: (/certPath:\s*'[^']*MD-100/.test(cfg)
+                ? Array.from(new Set((cfg.match(/objective:\s*'(M\d+)'/g) || [])
+                    .map((m) => m.match(/'(M\d+)'/)[1])))
+                : []),
             difficulty: extractField(cfg, 'difficulty'),
             accent: extractField(cfg, 'accent'),
             registryId: extractField(cfg, 'registryId'),

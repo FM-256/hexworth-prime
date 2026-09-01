@@ -73,6 +73,13 @@ var OS1Config = {
     certObjectives: {
         certPath: 'MD-100',
         mappings: [
+            /* MD-100 M10: Troubleshoot OS & Apps. Added so the hub card's module tag is BACKED by
+               the box itself. This card previously showed a module tag that matched
+               nothing downstream: not this file, not the Dispatch Board tags, and not
+               the briefing screen a student sees one click later. A reviewer caught the
+               contradiction. The objective rows below are UNCHANGED -- both taxonomies
+               are true at once, so keeping the original numbering costs nothing. */
+            { flagId: 'repaired', objective: 'M10', description: 'Troubleshoot OS & Apps', skill: 'WinRE, BCD repair, Safe Mode, DISM, startup repair' },
             { flagId: 'repaired', objective: '4.1', description: 'Troubleshoot Windows startup and shutdown issues', skill: 'WinRE, BCD Repair, Safe Mode, DISM' },
             { flagId: 'repaired', objective: '3.1', description: 'Troubleshoot common Windows OS problems', skill: 'bootrec, bcdboot, sfc, chkdsk' }
         ]
