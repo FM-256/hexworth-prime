@@ -24,7 +24,22 @@
  * @version 1.0.0
  * @feature WL-4
  */
-const TenantRouter = (function() {
+/* IDEMPOTENT BY CONSTRUCTION. This file can legitimately load TWICE on one page: two pages outside
+   /tenant/ include it with a static <script src> (wireshark/index.html and
+   houses/eye/forensics/index.html) while tenant-sw.js ALSO injects it into every navigation
+   outside /tenant/ and /admin/. A bare top-level `const TenantRouter = ...` throws
+   "Identifier 'TenantRouter' has already been declared" on the second load -- verified in a
+   browser, not inferred. The first copy survives and stays functional, so this was console noise
+   rather than a break, but it is an uncaught error on two live pages for white-label students.
+
+   tenant-sw.js:100 has asserted "These are idempotent: TenantRouter checks for existing instance"
+   the whole time. It did not. TenantShell.js genuinely does (window.__tenantShellExecuted at :627);
+   TenantRouter never had a guard. Same defect class as BUG-243 in the same subsystem: a comment
+   describing safety the code does not implement.
+
+   The guard is a plain assignment rather than a lexical const so a re-entry is a no-op instead of
+   a parse error, and the public API is untouched. */
+window.TenantRouter = window.TenantRouter || (function() {
     'use strict';
 
     // ── Tenant context cache ────────────────────────────

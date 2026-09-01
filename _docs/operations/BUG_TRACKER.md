@@ -31,6 +31,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-244 — TenantRouter.js throws on double-load; two live pages double-load it  ·  [P3]  ·  fixed-not-deployed
+- **Found:** 2026-09-01 · by Nancy · reviewing the HEXOS-5b mitigation path
+- **Area:** `_app/components/TenantRouter.js:27` · `_app/tenant-sw.js:100` (the false claim)
+- **Symptom:** `TenantRouter.js` declared a bare top-level `const TenantRouter = ...` with no
+  idempotency guard, so a second load throws
+  `Identifier 'TenantRouter' has already been declared`. **Reproduced in a browser, not inferred.**
+- **Reachable today, not latent:** `tenant-sw.js` injects `TenantRouter.js` into every navigation
+  outside `/tenant/` and `/admin/`, and TWO pages outside `/tenant/` also include it with a static
+  `<script src>`: `_app/wireshark/index.html` and `_app/houses/eye/forensics/index.html`. A
+  white-label student on either page loads it twice.
+- **Impact, stated accurately:** an uncaught console error, NOT a functional break. The first copy
+  survives and `TenantRouter` remains usable afterwards — measured, both before and after the fix.
+- **Root cause and why it went unseen:** `tenant-sw.js:100` has always asserted "These are
+  idempotent: TenantRouter checks for existing instance". It never did. `TenantShell.js` genuinely
+  is idempotent (`window.__tenantShellExecuted`, :627); `TenantRouter` never had a guard.
+- **Fix:** `window.TenantRouter = window.TenantRouter || (function(){...})()`. A second load is now
+  a no-op instead of a parse error. Public API verified byte-identical against HEAD (8 methods),
+  and bare-identifier access still resolves, so all 60 `typeof TenantRouter` call sites are
+  unaffected. It also makes `window.TenantRouter` work, which a lexical const never did.
+- **Verified:** double-load throws 1 error before, 0 after; API compared programmatically against
+  the previous version rather than by eye. 2026-09-01.
+- **Related:** BUG-243 and BUG-236 — the same defect class (a comment describing safety the code
+  does not implement) in the same subsystem, three times now. Prerequisite for taskboard #330.
+
 ### BUG-243 — tenant-sw.js documents self-unregistration it does not do  ·  [P2]  ·  open
 - **Found:** 2026-09-01 · by Nancy · reviewing HEXOS-5b scope
 - **Area:** `_app/tenant-sw.js:26-29` (the claim) vs the whole file (no implementation)
