@@ -17,6 +17,20 @@
          BUG-244 made TenantRouter idempotent; TenantShell already was. -->
     <script src="/components/TenantRouter.js"></script>
     <script src="/components/TenantShell.js"></script>
+    <script>
+        /* Tell the auto-loaders these are already here. AccessGuard.js:1311 and FirebaseAuth.js
+           both re-fetch TenantShell.js unless window.__tenantShellRequested is set, and a static
+           <script src> does not set it, so the shell was being fetched and executed a SECOND time
+           on every load of this page for a tenant user, taking a duplicate getTenantConfig call
+           with it. Not a break, because TenantShell's own __tenantShellExecuted guard absorbs the
+           re-run, but a wasted fetch and a wasted network round trip on every page view.
+           TenantRouter needs no equivalent: those loaders gate it on
+           `typeof TenantRouter === 'undefined'`, which the static include already satisfies.
+           Found by a reviewer running an UNSTUBBED probe; my own test replaced AccessGuard.js with
+           a stub, so the loader whose interaction I was testing never ran. */
+        window.__tenantShellRequested = true;
+        window.__tenantRouterRequested = true;
+    </script>
     <script src="../components/AccessGuard.js"></script>
     <script>AccessGuard.require('sorted');</script>
     <!-- Firebase auth MUST precede SandboxLauncher. Without it SandboxLauncher.getIdToken()
@@ -542,7 +556,7 @@
                     if (a.category) cats[a.category] = (cats[a.category] || 0) + 1;
                     if (a.house) houses[a.house] = (houses[a.house] || 0) + 1;
                 });
-                function groupTable(map, kind) {
+                function groupTable(map) {
                     return Object.keys(map).sort().map(function (k) {
                         return '<tr><td class="info">' + esc(k) + '</td>'
                              + '<td class="muted">' + map[k] + '</td>'
@@ -553,11 +567,21 @@
                   + 'Use <span class="ok">ls &lt;name&gt;</span> to see inside one.</span>');
                 say('<table>'
                   + '<tr><td class="muted">CATEGORY</td><td class="muted">APPS</td><td class="muted">SHOW</td></tr>'
-                  + groupTable(cats, 'category') + '</table>');
+                  + groupTable(cats) + '</table>');
+                /* `house` is a CATEGORY holding the 13 house landing pages, and there are
+                   also 13 houses below. The counts matching is a coincidence that invites
+                   the wrong inference, that `ls house` shows a summary of houses. It does
+                   not; it lists 13 individual pages. Making the collision visible is not
+                   the same as resolving it, so say which is which. */
+                if (cats.house) {
+                    say('<span class="muted">`ls house` lists the ' + cats.house
+                      + ' house landing PAGES. To see the apps inside one house, use its own '
+                      + 'name, e.g. <span class="ok">ls cloud</span>.</span>');
+                }
                 if (Object.keys(houses).length) {
                     say('<table>'
                       + '<tr><td class="muted">HOUSE</td><td class="muted">APPS</td><td class="muted">SHOW</td></tr>'
-                      + groupTable(houses, 'house') + '</table>');
+                      + groupTable(houses) + '</table>');
                 }
                 say('<span class="muted">' + APPS.length + ' apps in total. '
                   + '<span class="ok">run &lt;id&gt;</span> opens an app; an id is what appears as a '
