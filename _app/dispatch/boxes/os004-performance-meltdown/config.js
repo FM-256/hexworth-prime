@@ -26,12 +26,12 @@ var OS4Config = {
     },
 
     certObjectives: { certPath: 'A+ Core 2 / MD-100', mappings: [
-            /* MD-100 M10: Troubleshoot OS & Apps. Module id and title taken from
+            /* MD-100 M09: Support the Windows Client. Module id and title taken from
                _app/tenant/md-100-map.js, the course map, so this claim matches what the
                course actually teaches. Deliberately NOT the 5.1/4.1 style the two older
                MD-100 boxes use: MD-100 has four exam domains and no in-repo source
                defines that numbering, so reusing it would be inventing a citation. */
-            { flagId: 'fixed', objective: 'M10', description: 'Troubleshoot OS & Apps', skill: 'Resource monitoring, runaway process identification, startup impact' },
+            { flagId: 'fixed', objective: 'M09', description: 'Support the Windows Client', skill: 'Resource monitoring, runaway process identification, startup impact' },
         { flagId: 'fixed', objective: '3.1', description: 'Troubleshoot common Windows OS problems', skill: 'Task Manager, Startup, Disk I/O, Malware Analysis' }
     ] },
 
