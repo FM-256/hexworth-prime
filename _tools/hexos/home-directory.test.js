@@ -234,7 +234,12 @@ if (fs.existsSync(PAGE)) {
     const page = fs.readFileSync(PAGE, 'utf8');
     ['AccessGuard', 'FirebaseAuth', 'FirestoreManager'].forEach((mod) => {
         const src = fs.readFileSync(path.join(REPO, `_app/components/${mod}.js`), 'utf8');
-        const onWindow = new RegExp(`window\\.${mod}\\s*=`).test(src);
+        // Negative lookahead on `=`, because `window.X\\s*=` also matches `window.X === y`, which
+        // is a COMPARISON, not an assignment. A stray comparison would make this file believe the
+        // module is on window and silently stop checking the guard style. Flagged by a reviewer as
+        // latent (no such comparison exists in any of the five files today) and closed before it
+        // could be relied on.
+        const onWindow = new RegExp(`window\\.${mod}\\s*=(?!=)`).test(src);
         // Only assert the guard style for modules that genuinely are NOT on window. If one is
         // later changed to assign window.X, a window guard becomes correct and this must not
         // start failing for the wrong reason.
