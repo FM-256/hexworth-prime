@@ -63,6 +63,9 @@ const PLATFORM_APPS = [
     // the phase for shipping a module nothing rendered, and a page nothing links to is the
     // same defect one layer up. `run home` in the shell, and an icon in the launcher grid.
     { id: 'home',         name: 'Home Directory',   entry: '/home.html',          house: null,        category: 'platform', verb: 'open' },
+    // Added after the operator typed `run incubator`, got "no app called incubator", and asked
+    // the real question underneath: what counts as an app? That answer was nowhere.
+    { id: 'faq',          name: 'Hex OS FAQ',       entry: '/hex/faq.html',       house: null,        category: 'platform', verb: 'open' },
     { id: 'funding',      name: 'Funding Hub',      entry: '/funding/index.html',       house: null, category: 'platform', verb: 'open' },
     { id: 'join',         name: 'Join a Session',   entry: '/join/index.html',          house: null, category: 'platform', verb: 'open' },
     { id: 'wall-of-shame', name: 'Wall of Shame',   entry: '/wall-of-shame/index.html', house: null, category: 'platform', verb: 'open' },

@@ -508,6 +508,11 @@
                 '<span class="ok">restart</span> &lt;session&gt;  destroy and relaunch from clean state\n' +
                 '<span class="ok">man</span> [command]     the full manual page for a command\n' +
                 '<span class="ok">clear</span>             clear the screen\n\n' +
+                /* The FAQ is surfaced HERE, in help, because the question that prompted it
+                   ("what counts as an app?") is asked by someone already staring at help
+                   after a command did not do what they expected. A page nobody is pointed
+                   to is the same defect as an app nothing links to. */
+                '<span class="muted">New here? <span class="ok">run faq</span> answers what an app is, why <span class="ok">ls</span> shows names <span class="ok">run</span> will not take, and how to install this.</span>\n' +
                 '<span class="muted">Everything here comes from /data/hex-apps.json. Nothing is hardcoded.</span>'
             );
         },
@@ -556,9 +561,39 @@
             if (!arg) return say('run what? try <span class="ok">ls</span>', 'warn');
             var a = byId(arg);
             if (!a) {
-                var near = APPS.filter(function (x) { return x.id.indexOf(arg) === 0; }).slice(0, 6);
+                /* "no app called incubator" is TRUE and useless. `ls` prints category and house
+                   names in the same column shape as app names, so typing `run incubator` is the
+                   obvious next move, and the shell answered with a bare denial that did not say
+                   what incubator actually IS. Reported by the operator, who then asked the real
+                   question: what counts as an app? The error should answer that where it can.
+
+                   The old suggestion list matched by PREFIX only, which is why it offered nothing
+                   here: all eight incubators END with the word (cloud-incubator, code-incubator,
+                   ...). Substring matching is what a person typing a half-remembered name needs. */
+                var lower = String(arg).toLowerCase();
+                var cats = {}, houses = {};
+                APPS.forEach(function (x) {
+                    if (x.category) cats[String(x.category).toLowerCase()] = true;
+                    if (x.house) houses[String(x.house).toLowerCase()] = true;
+                });
+                if (cats[lower] || houses[lower]) {
+                    var kind = cats[lower] ? 'category' : 'house';
+                    var members = APPS.filter(function (x) {
+                        return String(cats[lower] ? x.category : x.house).toLowerCase() === lower;
+                    });
+                    say(esc(arg) + ' is a ' + kind + ', not an app. It groups '
+                        + members.length + ' app' + (members.length === 1 ? '' : 's') + '.', 'warn');
+                    say('list them with <span class="ok">ls ' + esc(arg) + '</span>, then run one by name.', 'muted');
+                    say('e.g. <span class="ok">run ' + esc(members[0].id) + '</span>', 'muted');
+                    return;
+                }
+                var near = APPS.filter(function (x) {
+                    return x.id.indexOf(lower) !== -1
+                        || String(x.name || '').toLowerCase().indexOf(lower) !== -1;
+                }).slice(0, 6);
                 say('no app called ' + esc(arg) + '.', 'err');
                 if (near.length) say('did you mean: ' + near.map(function (x) { return esc(x.id); }).join(', '), 'muted');
+                else say('try <span class="ok">search ' + esc(arg) + '</span> or <span class="ok">ls</span>', 'muted');
                 return;
             }
             var dest = safeEntry(a.entry);
