@@ -22,6 +22,22 @@
  * read a single storage reported "not a tenant" for real tenant students (BUG-236). A fixture
  * that seeds both would pass with a detector that reads either one, and prove nothing.
  *
+ * WHAT THIS COVERS, PRECISELY, because I overstated it to a reviewer once and he checked.
+ * There are SIX live surfaces that render the platform's version or codename. This file drives
+ * four of them with real fixtures:
+ *     UpdateManager.showWhatsNew()      fixture, both directions
+ *     UpdateManager.showUpdateBanner()  fixture, both directions
+ *     UpdateManager.showUpdateModal()   fixture, tenant direction
+ *     index.html landing badge          fixture, both directions, on the REAL page
+ * Two are NOT driven by a fixture and are verified by reading the code only:
+ *     dashboard.html codenameDisplay
+ *     dashboard.html footer version line
+ * A sixth, SecretFeatures.showVersionInfo(), is guarded but not fixtured either: it is opened by
+ * triple-clicking the logo on dashboard.html, so it inherits the same obstacle.
+ * The obstacle is real (below) but "13/13" must not be read as "every surface is proven". It is
+ * four of six proven and two guarded-by-inspection. Saying otherwise to a gate is how an
+ * unearned pass gets written.
+ *
  * WHAT THIS DOES NOT COVER, stated so nobody reads more into it than it earns: it exercises the
  * DETECTOR, loaded standalone, not the modal on the real dashboard. dashboard.html redirects an
  * unauthenticated headless browser through its sorting flow, and I judged bending the harness far

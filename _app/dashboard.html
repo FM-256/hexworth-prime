@@ -7550,8 +7550,17 @@
                    This surface PREDATES the 7.2.0 release: production already renders
                    "WELCOME TO ZION" here today. Closed now because shipping a branding change
                    while knowingly leaving a branding leak open is indefensible. */
-                var _ten = (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext)
-                    ? UpdateManager.isTenantContext() : false;
+                /* FAILS SAFE. If UpdateManager did not load (network blip, blocker), we cannot
+                   tell whether this is a tenant, and for a branding-suppression guard "unknown"
+                   must resolve to HIDDEN, not shown. The first version defaulted to false and so
+                   revealed the codename precisely when it had least information. A reviewer
+                   pointed out the ternary was backwards on purpose rather than merely unconsidered. */
+                var _ten = true;
+                try {
+                    if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext) {
+                        _ten = UpdateManager.isTenantContext();
+                    }
+                } catch (e) { _ten = true; }
                 document.getElementById('codenameDisplay').textContent =
                     _ten ? '' : (version.codename || 'Hexworth Prime');
             } catch (e) {
@@ -7861,8 +7870,14 @@
                 const versionData = await response.json();
                 footerVersion.innerHTML = `
                     <span class="version-current">v${versionData.version}</span>
-                    ${(typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext && UpdateManager.isTenantContext())
-                        ? '' : `<span class="version-codename">"${versionData.codename}"</span>`}
+                    ${(function () {
+                        // Fails safe, same reasoning as codenameDisplay above: unknown means hide.
+                        try {
+                            if (typeof UpdateManager === 'undefined' || !UpdateManager.isTenantContext) return '';
+                            return UpdateManager.isTenantContext()
+                                ? '' : `<span class="version-codename">"${versionData.codename}"</span>`;
+                        } catch (e) { return ''; }
+                    })()}
                 `;
             } catch (e) {
                 console.error('Version load failed:', e);

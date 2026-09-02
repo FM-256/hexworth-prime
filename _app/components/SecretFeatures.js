@@ -168,6 +168,24 @@ const SecretFeatures = (function() {
     }
 
     function showVersionInfo() {
+        /* SIXTH renderer of the platform's identity, found by a reviewer AFTER five others had
+           been guarded, on the same page as two of them. Triple-clicking the logo opens this, and
+           its header is the literal unconditional string "HEXWORTH PRIME" plus the codename, so
+           for a white-label student it is the brand name they are paying not to see, delivered by
+           an easter egg.
+           Suppressed entirely for tenants rather than having its text softened: this is a
+           discovery reward about the PLATFORM, and there is nothing in it a tenant student is
+           meant to find. Fails safe, so if UpdateManager is unavailable the panel does not open. */
+        var suppressed = true;
+        try {
+            if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext) {
+                suppressed = UpdateManager.isTenantContext();
+            } else {
+                suppressed = false;   // component genuinely absent on this page, not a tenant signal
+            }
+        } catch (e) { suppressed = true; }
+        if (suppressed) return;
+
         let ver = '?', code = '?', rel = '?', mods = '?';
         try { const v = JSON.parse(localStorage.getItem('hexworth_version_cache') || '{}'); ver = v.version || ver; code = v.codename || code; rel = v.releaseDate || rel; } catch(_) {}
         if (typeof ContentCatalog !== 'undefined' && ContentCatalog.getStats) mods = ContentCatalog.getStats().total;
