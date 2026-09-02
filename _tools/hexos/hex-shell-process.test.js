@@ -403,6 +403,16 @@ srv.listen(PORT, '127.0.0.1', async () => {
         /no app called/i.test(o) && /arctic-cli/.test(o) && !/something went wrong/i.test(o),
         o.slice(0, 130));
 
+    /* Adding `category` to the search haystack made `search course` return 103 of 192 apps: a
+       correct answer and an unusable one. The cap ANNOUNCES itself rather than silently
+       truncating, because a top-N that does not say so is how a cap becomes a lie about how much
+       there is. Assert both halves: the wall is cut, and the real total is still stated. */
+    o = await run('search course');
+    chk('a huge result set is capped', !/nothing matched/i.test(o) && /showing the first/i.test(o), o.slice(-120));
+    chk('  -> and still reports the true total', /\b103 matched\b/.test(o), o.slice(-120));
+    o = await run('search arena');
+    chk('  CONTROL: a small result set is not capped', !/showing the first/i.test(o), o.slice(0, 80));
+
     o = await run('info incubator');
     chk('info <category> explains instead of "no app called"',
         /is a category, not an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 130));
