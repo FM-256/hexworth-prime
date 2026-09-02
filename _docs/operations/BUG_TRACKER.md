@@ -70,6 +70,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   the operator hub (`_app/operator/index.html:844` onward, titles and subtitles and all) — and
   gets no XP, no progress record, and no completion overlay. Nothing errors, so it reads as though
   the mission simply did not count.
+- **MEASURED, not inferred** (`_tools/hexos/_archive/probe-mission-progress-2026-09-02.js`, headless, real pages):
+  `js-01`, `js-25` and `python-01` report `typeof ModuleProgress === 'undefined'` AND
+  `window.ModuleProgress === undefined`, so this is not the lexical-const trap from BUG-247, the
+  module genuinely is not on the page. Run WITH CONTROLS: `python-03` and `python-40` report
+  `object` on both, which is what proves the probe can see the module when it is present. A
+  one-sided probe that only ever visits the broken case cannot distinguish "absent" from "my
+  detector is broken", and that mistake has been made in this repo before.
 - **NOT yet established:** whether these missions are meant to grant progress at all. The engine
   calls the hook unconditionally, which says yes, but that is inference — no spec was found. Worth
   one operator sentence before anyone adds 52 script tags.
@@ -91,7 +98,12 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `/houses/ai/ai-900/index.html`, `/houses/cloud/clf-c02/index.html` and
   `/houses/shield/isc2-cc/index.html`: `window.FirebaseAuth` is `undefined` on all four, but
   `typeof FirebaseAuth` is `object` on all four, exposing
-  `waitForAuth, getUser, isSignedIn, refreshToken`. `FirebaseAuth.js:9` declares
+  `waitForAuth, getUser, isSignedIn, refreshToken`. Probe kept at
+  `_tools/hexos/_archive/probe-pill-authpath-2026-09-02.js`, because a load-bearing measurement
+  whose probe has vanished is an assertion about evidence rather than evidence. Note its one
+  limitation, stated so nobody over-reads the output: it blocks off-origin requests, so the
+  `firebase` column is a harness artifact and says nothing about the CDN-served SDK.
+  `FirebaseAuth.js:9` declares
   `const FirebaseAuth = (function(){...})()`, and a top-level `const` is a lexical binding, not a
   window property — so a `window.` check reads undefined while the module is right there.
 - **What is actually true:** `FirestoreManager` undefined is correct, so there is no direct
