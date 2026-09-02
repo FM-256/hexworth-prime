@@ -64,6 +64,15 @@
  * string, and about.html and product-info.html carry 28 more while loading no wrapper at all.
  * Getting the method right does not save you if the SET is wrong. Measured and logged in BUG-252.
  *
+ * WHY THIS GATE MOCKS getTenantConfig, AND WHY A LIVE HOST CANNOT REPLACE IT. Verified after the
+ * deploy: point a fake tenant blob at hexworth.com and TenantShell runs, asks the server about
+ * slug 'acme', is correctly told no such tenant, and PURGES the blob. The guard then reads empty
+ * storage and correctly shows the codename, because by then there is no tenant. The fixture
+ * destroys itself before the thing under test ever runs. I saw this pass once against a preview
+ * channel and reported it as verification; it was a timing fluke, the purge simply landed after
+ * the read that time. Testing the guard against a live host requires either mocking the config
+ * lookup, which is what this file does, or a REAL tenant slug, which is production data.
+ *
  * AND THE HONEST LIMIT OF THE WHOLE EXERCISE: this file polices the version and codename, while
  * `dashboard.html:3989` and `index.html:877` render the literal words "Hexworth Prime" as static
  * markup, and TenantShell's branding pass only rewrites document.title. Guarding the codename
