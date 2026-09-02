@@ -53,4 +53,29 @@ http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.end
  console.log('  cards linking a manifest entry:',linkedEntries.length);
  const unlinked=manifest.filter(a=>!hrefs.includes(a.entry)).map(a=>a.id);
  console.log('  manifest apps NOT on grid:',unlinked.length, unlinked.length?('e.g. '+unlinked.slice(0,6).join(', ')):'');
+
+ /* THE FILTER, actually exercised. A commit cited this probe as evidence that the filter "is
+    case-insensitive, trims whitespace, and does not render input as markup". It tested none of
+    that: hasSearch only checked the input EXISTS. The claim was true by separate code inspection
+    (apps.html trims and lowercases, and only ever uses the value in indexOf), but citing a probe
+    that does not test what it is cited for is the failure mode archives are supposed to prevent.
+    A reviewer caught it. Now the probe earns the citation. */
+ const vis=()=>pg.evaluate(()=>[...document.querySelectorAll('a[href]')]
+    .filter(a=>a.offsetParent!==null).length);
+ const filter=async(v)=>{await pg.evaluate((x)=>{const i=document.querySelector('#q');i.value=x;
+    ['input','keyup','change'].forEach(e=>i.dispatchEvent(new Event(e,{bubbles:true})));},v);
+    await new Promise(r=>setTimeout(r,350)); return vis();};
+ const base=await vis();
+ const lower=await filter('linux'), upper=await filter('LINUX'), padded=await filter('  linux  ');
+ console.log('\n  filter baseline visible :',base);
+ console.log('  "linux" / "LINUX"       :',lower,'/',upper,upper===lower?'(case-insensitive)':'(CASE-SENSITIVE)');
+ console.log('  "  linux  " padded      :',padded,padded===lower?'(trimmed)':'(NOT TRIMMED)');
+ const domBefore=await pg.evaluate(()=>({s:document.scripts.length,i:document.images.length}));
+ await filter('<img src=x onerror=alert(1)>');
+ await filter('<script>alert(1)</script>');
+ const domAfter=await pg.evaluate(()=>({s:document.scripts.length,i:document.images.length,b:document.querySelectorAll('b').length}));
+ console.log('  scripts before/after    :',domBefore.s,'/',domAfter.s,domBefore.s===domAfter.s?'(no injection)':'(INJECTED)');
+ console.log('  images grew?            :',domAfter.i>domBefore.i?'YES (INJECTED)':'no');
+ await filter('');
+ console.log('  cleared restores all    :',(await vis())===base);
  await b.close();process.exit(0);});

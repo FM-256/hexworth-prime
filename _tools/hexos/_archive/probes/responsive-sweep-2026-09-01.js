@@ -34,18 +34,23 @@ http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.end
        const over=[...document.querySelectorAll('*')].filter(e=>{
          const r=e.getBoundingClientRect();
          return r.width>0 && r.right>document.documentElement.clientWidth+2;
-       }).slice(0,3).map(e=>e.tagName.toLowerCase()+(e.className&&typeof e.className==='string'?'.'+e.className.split(' ')[0]:''));
+       });
+       // COUNT FIRST, then sample. The archived version sliced to 3 and printed only the
+       // sample, so a run with 5 overflowing elements reported 'three spans' and that number
+       // went into a commit message as fact. A probe that shows a truncated view must say so.
+       const overCount = over.length;
+       const overSample = over.slice(0,3).map(e=>e.tagName.toLowerCase()+(e.className&&typeof e.className==='string'?'.'+e.className.split(' ')[0]:''));
        // Tap targets: anything interactive under 32px high is hard to hit on a touch screen.
        const small=[...document.querySelectorAll('a,button,input')].filter(e=>{
          const r=e.getBoundingClientRect(); return r.height>0 && r.height<32;}).length;
        return {scrollW:de.scrollWidth, clientW:de.clientWidth,
-               overflows:over, smallTargets:small,
+               overflowCount:overCount, overflows:overSample, smallTargets:small,
                interactive:document.querySelectorAll('a,button,input').length};
      });
      const bleeds=m.scrollW>m.clientW+2;
      console.log(`     ${label}  ${bleeds?'H-SCROLL '+m.scrollW+'>'+m.clientW:'ok'}`
        + `  small-tap:${m.smallTargets}/${m.interactive}`
-       + (m.overflows.length?`  overflowing: ${m.overflows.join(', ')}`:''));
+       + (m.overflowCount?`  overflowing: ${m.overflowCount} (showing ${m.overflows.length}): ${m.overflows.join(', ')}`:''));
      await pg.close();
    }
  }
