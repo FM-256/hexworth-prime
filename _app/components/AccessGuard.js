@@ -345,7 +345,8 @@ const AccessGuard = (function() {
                        tenant just revoked -- verified: it resolved to /tenant/index.html and
                        rendered "Tenant not found". refresh() re-reads the (now empty) storage
                        and drops _active to false, so the redirect reaches the real dashboard. */
-                    // NOT `window.TenantRouter` — TenantRouter.js:27 declares it with top-level
+                    // `typeof`, not `window.TenantRouter`. It was a bare top-level const until BUG-244
+                    // made it a window assignment; typeof is correct under both, so it never needs revisiting.
                     // `const` in a classic script, so it lives in the global declarative record
                     // and is never a property of window. This guard made the refresh dead code,
                     // leaving _active stale at true so redirect() below routed the just-revoked
