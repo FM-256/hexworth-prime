@@ -58,6 +58,12 @@
  * is proven", and must never be reported as though it were. The obstacle for all the
  * dashboard-hosted ones is the same and is described below.
  *
+ * THE SWEEP SET WAS ALSO WRONG, which is the fourth and last correction. Method 3 (grep the
+ * brand string, classify by hand) is right, but I ran it over FIVE files because that is where the
+ * guarded renderers live. 99 HTML files load TenantShell.js. Eighteen of them carry the brand
+ * string, and about.html and product-info.html carry 28 more while loading no wrapper at all.
+ * Getting the method right does not save you if the SET is wrong. Measured and logged in BUG-252.
+ *
  * AND THE HONEST LIMIT OF THE WHOLE EXERCISE: this file polices the version and codename, while
  * `dashboard.html:3989` and `index.html:877` render the literal words "Hexworth Prime" as static
  * markup, and TenantShell's branding pass only rewrites document.title. Guarding the codename

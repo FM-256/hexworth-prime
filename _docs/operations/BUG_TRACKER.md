@@ -31,62 +31,61 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
-### BUG-252 — the white-label wrapper never rewrites the page's own logo text  ·  [P1]  ·  open
-- **Found:** 2026-09-02 · by self · sweeping for brand-name leaks after the version/codename round
-- **Area:** `_app/components/TenantShell.js` (branding pass) · `_app/dashboard.html:3989` ·
-  `_app/index.html:877`
-- **What:** TenantShell rewrites `document.title` and injects its own header bar carrying the
-  tenant's logo and platform name. It does NOT touch body text. So the platform's own name renders
-  verbatim underneath the tenant's bar. A white-label student plausibly sees their institution's
-  branding AND Hexworth's, on the same screen.
-- **Full list, from a sweep by ARTIFACT (every appearance of the brand string) rather than by
-  mechanism.** The first version of this entry named two, because I had searched the wrong way;
-  a reviewer supplied three more and the corrected sweep found the rest:
+### BUG-252 — the white-label wrapper never rewrites the product's own name  ·  [P1]  ·  open · SCOPE MEASURED, NOT CLOSED
+- **Found:** 2026-09-02 · by self · expanded four times by a reviewer, each time because I called a
+  partial sweep complete
+- **What:** `TenantShell.js` rewrites `document.title` and injects its own header bar with the
+  tenant's logo and name. It never touches body text, meta tags, or third-party embeds. So the
+  platform's own name renders verbatim underneath the tenant's bar.
 
-  | Site | What |
-  |---|---|
-  | `_app/dashboard.html:3989` | `<div class="logo">Hexworth Prime</div>`, page header |
-  | `_app/dashboard.html:4205` | `<div id="footerNote">HEXWORTH PRIME</div>`, visible on load, no interaction |
-  | `_app/dashboard.html:4334` | "Your designation within Hexworth Prime", Settings account row |
-  | `_app/dashboard.html:8057` | `footerNote.textContent = 'HEXWORTH PRIME'`, god-mode toggle-off restores it |
-  | `_app/index.html:830` | `<span>HEXWORTH PRIME</span>`, nav brand |
-  | `_app/index.html:877` | `<h1>Hexworth Prime</h1>`, hero |
-  | `_app/index.html:1096` | `<div class="footer-copy">HEXWORTH PRIME`, two words from the versionBadge span that IS guarded |
-  | `_app/index.html:35,36,37,41,43,44,47` | meta description, `og:title`, `og:description`, `og:site_name`, `twitter:title`, `twitter:description`, and the JSON-LD `@graph` |
+- **MEASURED SCOPE, and this entry does NOT claim to be complete.** 99 HTML files load
+  `TenantShell.js`. Running the sweep across all 99 (grep the brand strings, classify by hand):
 
-  These are static or reset writes, not conditional renderers, which is why guarding them one by
-  one is the wrong shape of fix and why this is a design decision rather than a patch.
+  | Set | Files | Occurrences |
+  |---|---|---|
+  | TenantShell-loaded pages carrying the brand string | 18 of 99 | 19 |
+  | `about.html` + `product-info.html`, which load TenantShell NOT AT ALL | 2 | 28 |
+  | Third-party Aminos chat widget embed | 2 (dashboard, index) | 2 |
 
-- **The meta/JSON-LD row is its own sub-problem** and is arguably the least fixable by a client-side
-  shell: crawlers, link previews and social unfurls read those tags from the raw document, before
-  any script runs. A tenant sharing a link to their own platform gets a Hexworth preview card.
-  Nothing TenantShell can do reaches that; it needs either per-tenant hosting or server-side
-  rendering, which is firmly an architecture decision.
+  The 18 include course hubs (Security+, ISC2-CC, Server+, forensics), the whole Piverse and
+  Protocore family, `wireshark/index.html`, and three `/tenant/` pages. Several are
+  visually-hidden `<h1>` elements, which are invisible on screen and read aloud to screen-reader
+  users, so a blind tenant student hears the wrong product name.
 
-- **Correctly handled already, recorded so nobody "fixes" them twice:** `dashboard.html:20` and
-  `index.html:48` are `<title>` tags, and TenantShell DOES rewrite those. `TenantShell.js:749`
-  says "Browse Hexworth Prime without the tenant wrapper" on the escape-hatch button, where naming
-  Hexworth is the entire point of the control and is intentional.
+- **Notable individual instances:** `dashboard.html:3989` (logo div), `:4205` (footer note, visible
+  on load), `:4334` (Settings copy), `:8057` (god-mode toggle-off rewrite);
+  `index.html:830`, `:877`, `:1096`; `about.html:274` and `product-info.html:582` carry the SAME
+  logo-div and hero-h1 defect as the pages above while loading no wrapper at all;
+  `houses/divergent/cybersecurity-policy/index.html:765` is a plain visible footer line.
 
-- **METHOD NOTE, because the list was wrong twice.** The first version of this table had two
-  entries, from a sweep for `catch` blocks. The second had six, from a sweep for same-line
-  `innerHTML|textContent` assignments; a reviewer showed that method cannot see a multi-line
-  template literal (`dashboard.html:8234` opens the write and interpolates the codename four lines
-  later) and it missed `index.html:1096` outright. This version comes from grepping the BRAND
-  STRINGS ALONE across the five files and classifying every hit by hand. No assumption about how
-  the string reaches the DOM survives that, which is the only reason it is complete.
-- **Why this matters more than the bug that found it:** a whole round was spent guarding the
-  version CODENAME on seven surfaces. That work is correct and worth keeping, but it is a small
-  leak beside the product's actual name being rendered as static markup on the two most-visited
-  pages. Fixing the codename while the logo says "Hexworth Prime" is fixing the whisper and not
-  the shout.
-- **NOT attempted here, deliberately:** this is a product and architecture decision, not a bug fix.
-  Options include a TenantShell body-text pass (fragile, and it would rewrite legitimate prose),
-  making the logo element data-driven from tenant config (cleanest, touches every page carrying
-  it), or accepting co-branding as intended. Related: taskboard 334 asks the same question about
-  the about/pricing/admissions pages, and BUG-251 about the storage-only tenant detection they all
-  share.
-- **Related:** BUG-251, taskboard 334, BUG-246.
+- **Three classes needing different answers, which is why this is not one fix:**
+  1. **Body text and headings** on wrapped pages. A TenantShell body pass could reach these, but it
+     would also rewrite legitimate prose, so it needs a marked-up opt-in rather than a regex.
+  2. **Meta tags and JSON-LD** (`index.html:35-47`, and the same on about/product-info): read by
+     crawlers and link unfurls from the raw document BEFORE any script runs. A tenant sharing a
+     link to their own platform gets a Hexworth preview card. Unreachable client-side; needs
+     per-tenant hosting or server rendering.
+  3. **The Aminos chat widget** (`dashboard.html:10284`, `index.html:1521`), an unconditional
+     third-party embed labelled "Hexworth Assistant". Not fixable by our own shell at all; it is a
+     vendor surface. See `project_aminos_ghost_resolution_pending.md`, which already tracks Aminos
+     as a separate architectural item. Recorded here rather than dropped, because "known elsewhere"
+     is not the same as "classified here".
+
+- **Already correct, so nobody fixes it twice:** both `<title>` tags ARE rewritten by TenantShell.
+  `TenantShell.js:749` names Hexworth deliberately on the escape-hatch button. The `/tenant/`
+  dashboard "Powered by Hexworth Prime" lines are plausibly intended attribution and need an
+  operator ruling rather than a patch.
+
+- **METHOD, recorded because the list was wrong four times.** Sweeps 1-3 each narrowed by an
+  assumption that felt like precision: catch blocks (the mechanism of the previous bug), then
+  same-line DOM writes (blind to multi-line template literals), then the brand string across five
+  files (the right method, the wrong SET). The set was five files; the footprint is 99. Getting the
+  method right does not save you if the set is wrong.
+
+- **STATUS: this is an audit, not a defect with a patch.** Nothing here is fixed. The version and
+  codename guards shipped separately and are real, but they are the whisper next to this shout.
+  Needs an operator decision on all three classes before any of it is worth implementing.
+- **Related:** BUG-251, taskboard 334, `project_aminos_ghost_resolution_pending`.
 
 ### BUG-251 — every tenant check in the platform trusts browser storage alone  ·  [P2]  ·  open
 - **Found:** 2026-09-02 · by a reviewer, while verifying the What's New tenant guard
