@@ -38,25 +38,64 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   tenant's logo and name. It never touches body text, meta tags, or third-party embeds. So the
   platform's own name renders verbatim underneath the tenant's bar.
 
-- **MEASURED SCOPE, and this entry does NOT claim to be complete.** 99 HTML files load
-  `TenantShell.js`. Running the sweep across all 99 (grep the brand strings, classify by hand):
+- **MEASURED SCOPE, and this entry does NOT claim to be complete.**
 
-  | Set | Files | Occurrences |
+  **First, a correction to how I classified it, and to how a reviewer and I both described it.**
+  There are TWO ways a page gets the tenant shell, and "loads TenantShell" was the wrong axis:
+  - **Statically**, via a `<script src>` tag: 99 files. Covered regardless of anything else.
+  - **By injection**, from `tenant-sw.js`, which rewrites EVERY navigation except `/tenant/` and
+    `/admin/` (`tenant-sw.js:69-80`). That is every other page on the platform.
+
+  So `dashboard.html`, `index.html`, `about.html` and `product-info.html` carry NO static tag
+  (verified: zero matches in all four) and are nonetheless wrapped, by injection. They are not
+  "unwrapped", as an earlier version of this entry and a reviewer both said. They are
+  **wrapped by service worker only**, and that is a different and more fragile thing: the worker is
+  registered from just six pages (`/tenant/index.html` and five dashboards), browsers terminate
+  workers when idle, and BUG-243/BUG-245 both concern that worker's lifecycle. A page in this class
+  is protected exactly as often as the worker is alive and registered.
+
+  | Coverage class | Files | Brand-string occurrences |
   |---|---|---|
-  | TenantShell-loaded pages carrying the brand string | 18 of 99 | 19 |
-  | `about.html` + `product-info.html`, which load TenantShell NOT AT ALL | 2 | 28 |
-  | Third-party Aminos chat widget embed | 2 (dashboard, index) | 2 |
+  | Static `<script>` tag, carrying the brand string | 18 of 99 | 19 |
+  | SW-injection only, high traffic: `dashboard.html`, `index.html` | 2 | 7 + meta/JSON-LD block |
+  | SW-injection only: `about.html`, `product-info.html` | 2 | 28 |
+  | Third-party Aminos widget, no shell reaches it either way | 2 (dashboard, index) | 2 |
+
+  `dashboard.html` and `index.html` were cited by name in an earlier draft without appearing in any
+  row, which a reviewer correctly called the same set error the entry claims to have fixed. They
+  are the two highest-traffic pages on the platform and they now have their own row.
+
+  **On reachability, since the code argues with itself about it:** `index.html:1479-1480` says a
+  tenant student "should normally be routed away from this page entirely, but 'the router usually
+  redirects them' has already failed twice in this codebase (BUG-236, BUG-242)". That comment is
+  mine, and it is the reason the codename IS guarded there. The product name six lines away is not.
+  So the honest statement is: these pages are reachable by tenants, it has happened twice, and the
+  guard that exists proves we already believed that.
 
   The 18 include course hubs (Security+, ISC2-CC, Server+, forensics), the whole Piverse and
   Protocore family, `wireshark/index.html`, and three `/tenant/` pages. Several are
   visually-hidden `<h1>` elements, which are invisible on screen and read aloud to screen-reader
   users, so a blind tenant student hears the wrong product name.
 
-- **Notable individual instances:** `dashboard.html:3989` (logo div), `:4205` (footer note, visible
-  on load), `:4334` (Settings copy), `:8057` (god-mode toggle-off rewrite);
-  `index.html:830`, `:877`, `:1096`; `about.html:274` and `product-info.html:582` carry the SAME
-  logo-div and hero-h1 defect as the pages above while loading no wrapper at all;
-  `houses/divergent/cybersecurity-policy/index.html:765` is a plain visible footer line.
+- **Notable individual instances, by the class each belongs to:**
+  - *SW-injection only, high traffic:* `dashboard.html:3989` (logo div, also an `aria-label`),
+    `:4205` (footer note, visible on load, no interaction), `:4334` (Settings copy), `:8057`
+    (god-mode toggle-off rewrites the footer note back); `index.html:830` (nav brand), `:877`
+    (hero h1), `:1096` (footer copy, two words from the versionBadge span that IS guarded).
+  - *SW-injection only:* `about.html:274` (logo div) and `product-info.html:582` (hero h1) carry
+    the identical defects to the two above.
+  - *Static-tag pages:* `houses/divergent/cybersecurity-policy/index.html:765`, a plain visible
+    footer line; and several visually-hidden `<h1>` elements (`terminal.html:634`,
+    `houses/matrix/protocore/index.html:1139`, `houses/matrix/piverse/index.html:801`) which are
+    invisible on screen and read aloud, so a blind tenant student hears the wrong product name.
+
+- **THE SHARPEST INSTANCE, and it is in this release's own files.** `dashboard.html:7562-7587`
+  carries multi-paragraph reasoning for hiding the CODENAME from tenants. Four lines of brand name
+  sit in the same file, unconditional and untouched. Same in `index.html`: the codename is guarded
+  at :1478-1497, the product name is plain text at :830, :877 and :1096. That is
+  `feedback_fix_the_field_beside_the_one_you_fixed`, and a reviewer named it as such. Guarding the
+  codename while the product's NAME sits six lines away untouched is the whole of this entry in
+  one sentence.
 
 - **Three classes needing different answers, which is why this is not one fix:**
   1. **Body text and headings** on wrapped pages. A TenantShell body pass could reach these, but it
