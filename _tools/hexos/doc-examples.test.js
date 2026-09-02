@@ -74,6 +74,38 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applica
  * An ERROR example is recognised by the FAQ block itself printing one of the failure strings
  * underneath the command; in that case the gate asserts the shell still says that, which is
  * stronger than the generic check and is what would have caught my broken examples. */
+/* Prompt detection, hardened twice.
+ *
+ * It used to match the literal `hex&gt;`. A reviewer defeated that with a `$` prompt, so the
+ * per-block coverage check was added. He then defeated THAT with a full-width `＞` (U+FF1E) on a
+ * new line inside a block that already had legitimate prompts: the block still yielded examples,
+ * the prompt count still agreed, and a false claim rode along invisibly.
+ *
+ * Adding U+FF1E to a list would just be guessing the next disguise. Two changes instead:
+ *   normalisePrompt() folds the lookalikes to ASCII before matching, so a visually-identical
+ *   prompt IS a prompt; and
+ *   the conformance check below fails on ANY bolded command line inside a <pre> that the parser
+ *   did not turn into an example, whatever precedes it. That one does not depend on predicting
+ *   the disguise at all, which is the only reason it closes the class. */
+const PROMPT_LOOKALIKES = {
+    '\uFF1E': '>',   // ＞ fullwidth greater-than
+    '\uFE65': '>',   // ﹥ small greater-than
+    '\u203A': '>',   // › single right angle quote
+    '\u3009': '>',   // 〉 right angle bracket
+    '\u2265': '>',   // ≥ greater-than-or-equal, close enough to read as a prompt
+};
+function normalisePrompt(line) {
+    let out = line.replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    for (const [glyph, ascii] of Object.entries(PROMPT_LOOKALIKES)) {
+        out = out.split(glyph).join(ascii);
+    }
+    return out;
+}
+/** Does this line present itself to a reader as a shell prompt? */
+function looksLikePrompt(line) {
+    return /hex\s*>/i.test(normalisePrompt(line));
+}
+
 function examplesFromFaq() {
     const html = fs.readFileSync(FAQ, 'utf8');
     const dec = (s) => s.replace(/<[^>]+>/g, '')
@@ -88,14 +120,14 @@ function examplesFromFaq() {
         // like `ls   categories, and how many apps in each` for 6 of 11 examples.
         const rawLines = blk[1].split('\n');
         for (let i = 0; i < rawLines.length; i++) {
-            if (!/hex&gt;/.test(rawLines[i])) continue;
+            if (!looksLikePrompt(rawLines[i])) continue;
             const bm = rawLines[i].match(/<b>([^<]+)<\/b>/);
             if (!bm) continue;
             const raw = dec(bm[1]).trim();
             if (!raw) continue;
             // Output is the following lines up to the next prompt, minus muted annotations.
             const body = [];
-            for (let j = i + 1; j < rawLines.length && !/hex&gt;/.test(rawLines[j]); j++) {
+            for (let j = i + 1; j < rawLines.length && !looksLikePrompt(rawLines[j]); j++) {
                 const t = dec(rawLines[j].replace(/<span class="muted">[\s\S]*?<\/span>/g, '')).trim();
                 if (t) body.push(t);
             }
@@ -104,7 +136,14 @@ function examplesFromFaq() {
             const isTab = /<\/b>\s*⇥/.test(rawLines[i]);
             const cmd = raw.replace(/⇥\s*$/, '').trim();
             const shownError = ERRORS.find((e) => body.join(' ').toLowerCase().includes(e));
-            out.push({ cmd, kind: isTab ? 'TAB' : (shownError ? 'ERROR' : 'ENTER'), shownError, body, blockIndex });
+            // Remember which raw lines this example consumed (its prompt plus its output), so a
+            // conformance check can tell an UNPARSED command line from bold used as emphasis
+            // inside output that WAS parsed.
+            const consumed = [blockIndex + ':' + i];
+            for (let k = i + 1; k < rawLines.length && !looksLikePrompt(rawLines[k]); k++) {
+                consumed.push(blockIndex + ':' + k);
+            }
+            out.push({ cmd, kind: isTab ? 'TAB' : (shownError ? 'ERROR' : 'ENTER'), shownError, body, blockIndex, consumed });
         }
     }
     return out;
@@ -189,7 +228,7 @@ srv.listen(PORT, '127.0.0.1', async () => {
            the gate fails when it silently stops testing things. A gate that quietly tests nothing
            is worse than no gate. */
         const faqSrc = fs.readFileSync(FAQ, 'utf8');
-        const promptCount = (faqSrc.match(/hex&gt;/g) || []).length;
+        const promptCount = faqSrc.split('\n').filter(looksLikePrompt).length;
         chk('every prompt in the FAQ was extracted as an example',
             cmds.length === promptCount, `${cmds.length} extracted vs ${promptCount} prompts on the page`);
         /* AND every <pre> BLOCK must have yielded at least one. Counting prompts alone was not
@@ -198,6 +237,51 @@ srv.listen(PORT, '127.0.0.1', async () => {
            an untested block sat on the page claiming the opposite of real behaviour. The
            anti-vacuousness check was itself vacuous against a format it did not recognise.
            A block that parses to nothing is now a failure, whatever convention it used. */
+        /* THE CHECK THAT DOES NOT GUESS. Every `<b>` inside a `<pre>` is a command being shown to
+           a student. If the parser did not turn one into an example, something on that line is a
+           prompt convention we do not recognise, and the example is going untested while looking
+           tested. This catches `$`, a full-width `＞`, a bare `>`, an emoji, or anything else,
+           without anyone having to anticipate it. Both previous bypasses die here regardless of
+           the normaliser above. */
+        const covered = new Set();
+        cmds.forEach((c) => (c.consumed || []).forEach((k) => covered.add(k)));
+        const unparsedBold = [];
+        let bi = -1;
+        for (const blk of faqSrc.matchAll(/<pre>([\s\S]*?)<\/pre>/g)) {
+            bi++;
+            blk[1].split('\n').forEach((line, li) => {
+                // Bold inside a line the parser already consumed is emphasis within output, which
+                // is legitimate: the FAQ bolds the suggestion in "did you mean: arctic-cli". Only
+                // bold on a line NO example claimed is a command going untested.
+                if (/<b>[^<]+<\/b>/.test(line) && !covered.has(bi + ':' + li)) {
+                    unparsedBold.push(line.trim().slice(0, 80));
+                }
+            });
+        }
+        chk('every bolded command inside a <pre> was parsed as an example',
+            unparsedBold.length === 0,
+            `unparsed: ${JSON.stringify(unparsedBold.slice(0, 3))}`);
+
+        /* AND NAME THE REAL PROBLEM WHEN IT HAPPENS. A line using an unrecognised prompt gets
+           absorbed as the PREVIOUS example's output, so the suite does go red, but it goes red on
+           the innocent example above it: injecting `$ <b>run fake</b>` failed the `cd cl` Tab
+           assertions with "offers run", which tells a maintainer nothing about what is actually
+           wrong. A gate that fails for a reason the reader cannot act on is only half a gate.
+           A line that opens with punctuation and then a bolded command is a prompt convention we
+           do not know. "did you mean: <b>arctic-cli</b>" and "e.g. <b>run cloud-incubator</b>"
+           start with words, so legitimate emphasis inside output is untouched. */
+        const foreignPrompts = [];
+        for (const blk of faqSrc.matchAll(/<pre>([\s\S]*?)<\/pre>/g)) {
+            for (const line of blk[1].split('\n')) {
+                if (/^\s*[^\w\s<]{1,3}\s*<b>[^<]+<\/b>/.test(line) && !looksLikePrompt(line)) {
+                    foreignPrompts.push(line.trim().slice(0, 70));
+                }
+            }
+        }
+        chk('no <pre> line uses a prompt convention this gate does not recognise',
+            foreignPrompts.length === 0,
+            `unrecognised prompt: ${JSON.stringify(foreignPrompts.slice(0, 3))}`);
+
         const blockTotal = (faqSrc.match(/<pre>/g) || []).length;
         const parsedBlocks = new Set(cmds.map((c) => c.blockIndex));
         const emptyBlocks = [];
