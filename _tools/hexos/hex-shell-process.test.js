@@ -474,6 +474,22 @@ srv.listen(PORT, '127.0.0.1', async () => {
     o = await run('search hub');
     chk('  -> while `hub` is still not swamped by platform-hub',
         !o.includes('algorithm-chamber') && !o.includes('bug-hunting'), o.slice(0, 130));
+    /* THE EXCLUSION ASSERTION APPLIED WHERE IT WAS NEEDED. A reviewer pointed out this exact
+       pattern sat three lines above, run only against `hub`, while `platform` was checked with
+       "a known member is present" alone. Presence cannot detect swamping, which is why
+       platform-hub merging into `search platform` shipped past 93 green checks. */
+    o = await run('search platform');
+    chk('search <exact category> returns only that category',
+        o.includes('arena') && !o.includes('algorithm-chamber'), o.slice(0, 130));
+    o = await run('search plat');
+    chk('  -> but a partial still spans both, since it names neither exactly',
+        o.includes('algorithm-chamber'), o.slice(0, 110));
+
+    /* Short destructive names have real-word neighbours at distance 1. `atop` is a Linux
+       monitoring tool this platform actually teaches, and it was landing on `stop`. */
+    o = await run('atop');
+    chk('a real word one edit from a destructive command does not suggest it',
+        !/did you mean[^\n]*stop/i.test(o), o.slice(0, 110));
 
     /* ONE POLICY FOR DESTRUCTIVE SUGGESTIONS, across all three stages. The earlier claim was true
        only of the typo stage: a single `s` offered `stop` and a single `r` offered `restart`,
@@ -488,6 +504,20 @@ srv.listen(PORT, '127.0.0.1', async () => {
     o = await run('stop incubator');
     chk('stop <group> names what the word is instead of a bare denial',
         /is a category of apps, not a lab/i.test(o), o.slice(0, 130));
+
+    /* Tab on stop/restart had no branch at all, so it returned in silence: the dead-key symptom
+       this shell calls a first-class bug, on the two commands most scrutinised this round. */
+    {
+        await pg.evaluate(() => { document.getElementById('out').innerHTML = '';
+                                  document.getElementById('cmd').value = ''; });
+        await pg.click('#cmd'); await pg.type('#cmd', 'stop lin'); await pg.keyboard.press('Tab');
+        await new Promise((r) => setTimeout(r, 500));
+        const t = await pg.evaluate(() => ({ v: document.getElementById('cmd').value,
+                                             o: document.getElementById('out').innerText }));
+        chk('Tab after `stop` offers lab ids instead of silence',
+            /linux-mastery/.test(t.o) || /linux/.test(t.v), JSON.stringify(t));
+        await pg.evaluate(() => { document.getElementById('cmd').value = ''; });
+    }
 
     o = await run('man incubator');
     chk('man <group> explains instead of "no manual page"',

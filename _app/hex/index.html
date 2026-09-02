@@ -470,6 +470,15 @@
        three cannot drift into disagreeing about what "incubator" is. `run` grew this logic first;
        when the same gap turned up in `info` and `cd` a reviewer asked whether those were the only
        ones, which is a question a copy-pasted third implementation would have answered wrongly. */
+    /* Every category name, so `search` can tell "you typed a real category" from "you typed a
+       fragment". Rebuilt on each read rather than cached, because APPS loads asynchronously and a
+       cache built at parse time would be empty for the first query. */
+    function categorySet() {
+        var out = {};
+        APPS.forEach(function (x) { if (x.category) out[low(x.category)] = true; });
+        return out;
+    }
+
     function groupOf(name) {
         var lower = low(name);
         if (!lower) return null;
@@ -788,6 +797,7 @@
             if (notReady()) return;
             if (!arg) return say('search what?', 'warn');
             var q = arg.toLowerCase();
+            var CATEGORY_SET = categorySet();
             fmtRows(APPS.filter(function (a) {
                 /* CATEGORY WAS MISSING from the haystack, so `search cert-prep` returned nothing
                    while `ls cert-prep` listed 30 apps. A reviewer measured it: 5 of the 7
@@ -812,8 +822,18 @@
                                 category is the worst version of this whole bug class.
                      prefix:    keeps both. `hub` stays 6 because platform-hub does not START with
                                 "hub"; `cert` gets its 33, `plat` its 33, `cour` its 103. */
+                /* EXACT WINS, prefix is the fallback. Prefix alone had one residual collision and
+                   it was the likeliest query of all: `platform-hub` starts with `platform`, so
+                   `search platform` silently merged two categories the manifest keeps separate,
+                   33 results where 19 was the answer. A reviewer caught that my own measurement
+                   could not have seen it, because `plat` is a prefix of BOTH, so the number moving
+                   off zero proved coverage was restored and nothing about whether it was right.
+                   Exact-then-prefix: `platform` gives its 19, `plat` still gives 33, `hub` still
+                   gives 6 because no category starts with it. */
                 var hay = (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase();
-                return hay.indexOf(q) !== -1 || low(a.category).indexOf(q) === 0;
+                var cat = low(a.category);
+                if (hay.indexOf(q) !== -1) return true;
+                return CATEGORY_SET[q] ? cat === q : cat.indexOf(q) === 0;
             }));
         },
         info: function (arg) {
@@ -925,7 +945,7 @@
             }
             cwd = arg; setPrompt();
             // Say whether this is a house or a category. The manifest has a CATEGORY literally
-            // named "house" (the 14 house-index pages), so `cd house` is legal and means something
+            // named "house" (the 13 house-index pages), so `cd house` is legal and means something
             // completely different from `cd shield`. Unlabelled, that is a trap.
             // Folded for the same reason as scope(): these decide the word the student is shown
             // ("house" vs "category"), and an exact compare would silently label a capitalised
@@ -1325,7 +1345,18 @@
                        `top` is now a synonym for `ps`, so it never reaches this branch.
                        So: a typo one character away from `stop` almost certainly IS `stop`. Offer
                        it, and say what it does, rather than pretending it does not exist. */
-                    return d <= (MUTATING[n] ? 1 : (verb.length > 4 ? 2 : 1));
+                    /* Destructive names are SHORT, and short words have many distance-1
+                       neighbours that are real words: a reviewer found `atop` (a real Linux
+                       monitoring tool, curriculum-adjacent here) is distance 1 from `stop`, as are
+                       `shop` and `stow`. Distance alone cannot separate "typo of stop" from
+                       "different word that happens to be close". Requiring the first character to
+                       match keeps the genuine typos (`sotp`, `stpo`, `restrt`) and drops `atop`,
+                       because people mistype the middle of a word far more often than its first
+                       letter. Not a whitelist; a property of how typing goes wrong. */
+                    if (MUTATING[n]) {
+                        return d <= 1 && verb.charAt(0) === n.charAt(0);
+                    }
+                    return d <= (verb.length > 4 ? 2 : 1);
                 });
             }
             if (near.length) {
@@ -1408,6 +1439,19 @@
                 if (a.house) vals[low(a.house)] = 1;
             });
             return { prefix: r[1], frag: frag, pool: Object.keys(vals).sort() };
+        }
+        if (verb === 'stop' || verb === 'restart') {
+            /* These take a lab id and had NO branch, so `stop lin` + Tab fell through to
+               `return null` and complete() returned in silence: no candidates, no message. That is
+               the same dead-key symptom this file calls a first-class bug a few lines above, left
+               on the two commands that got the most scrutiny this round.
+               Completes from LAB_INFO, which is synchronous and is the id space stop/restart
+               actually accept. Deliberately NOT the app manifest: those are different namespaces
+               and offering an app id here would be a confident wrong answer, which is worse than
+               none. Session ids are not offered either, since they arrive over the network. */
+            var SL = window.SandboxLauncher;
+            var labs = (SL && SL.LAB_INFO) ? Object.keys(SL.LAB_INFO) : [];
+            return { prefix: r[1], frag: frag, pool: labs };
         }
         if (verb === 'search') {
             // search is free text, but ids and houses are the useful starting points.
