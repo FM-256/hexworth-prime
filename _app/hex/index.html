@@ -307,6 +307,8 @@
        matcher in exec(). A suggestion is the shell speaking with confidence it has not earned,
        and it must not spend that on something destructive. */
     var MUTATING = { stop: 1, restart: 1 };
+    /* Was a blanket ban on suggesting these. See the fuzzy matcher in exec(): it is now a tighter
+       DISTANCE for them plus a spoken warning, because banning them stranded the real typo. */
 
     /* Damerau-Levenshtein, small and iterative. Inputs are command names, so they are tiny.
        TRANSPOSITION COSTS 1, not 2, and that is the whole reason this is Damerau: plain
@@ -462,9 +464,18 @@
         var isHouse = APPS.some(function (x) { return low(x.house) === lower; });
         if (!isCat && !isHouse) return null;
         var members = APPS.filter(function (x) {
-            return low(isCat ? x.category : x.house) === lower;
+            return low(x.category) === lower || low(x.house) === lower;
         });
-        return { kind: isCat ? 'category' : 'house', count: members.length, members: members };
+        /* Reports BOTH when a name is both, rather than silently preferring category. No manifest
+           name is currently both (7 categories, 13 houses, empty intersection, measured), but
+           `cd` had its own hand-rolled copy of this that DID handle the both case, so the two
+           would have disagreed the moment one appeared. A reviewer caught that my commit claimed
+           this function was already shared by cd when it was not. Now it genuinely is, and the
+           tie-break lives in one place. */
+        return {
+            kind: (isCat && isHouse) ? 'house and category' : (isCat ? 'category' : 'house'),
+            count: members.length, members: members
+        };
     }
 
     function byId(id) {
@@ -767,8 +778,15 @@
                    categories were silently unsearchable, and the two that "worked" only did so by
                    accident, because the word occurs inside ids like cloud-incubator. Silent empty
                    results are the worst version of this bug: no error to notice. */
-                return (a.id + ' ' + (a.name || '') + ' ' + (a.house || '') + ' '
-                        + (a.category || '')).toLowerCase().indexOf(q) !== -1;
+                /* CATEGORY IS MATCHED AS A WHOLE VALUE, not as a substring of the haystack.
+                   Concatenating it in was too blunt: `platform-hub` contains "hub", so after that
+                   change `search hub` returned all 14 platform-hub apps alongside the real app
+                   called `hub`, burying the one the student wanted among apps whose id and name
+                   contain no "hub" at all. A reviewer measured it: 6 results became 17.
+                   So the free-text search stays over id, name and house, and category joins it
+                   only on an exact match, which is what someone typing a category name means. */
+                var hay = (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase();
+                return hay.indexOf(q) !== -1 || low(a.category) === q;
             }));
         },
         info: function (arg) {
@@ -885,9 +903,11 @@
             // Folded for the same reason as scope(): these decide the word the student is shown
             // ("house" vs "category"), and an exact compare would silently label a capitalised
             // manifest value as neither.
-            var isHouse = APPS.some(function (a) { return low(a.house) === cwd; });
-            var isCat = APPS.some(function (a) { return low(a.category) === cwd; });
-            var kind = (isHouse && isCat) ? 'house and category' : isHouse ? 'house' : 'category';
+            // Uses the shared groupOf() rather than a third hand-rolled copy. The copy that was
+            // here disagreed with groupOf on tie-breaking, which is the drift the helper exists
+            // to prevent and which my commit message had already claimed was fixed.
+            var cwdGroup = groupOf(cwd);
+            var kind = cwdGroup ? cwdGroup.kind : 'place';
             say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
                 '<span class="muted">cd .. to go back.</span>', 'ok');
         },
@@ -1118,6 +1138,22 @@
                 if (notReady()) return;
                 // An app id is a reasonable thing to type after `man`. Do the useful thing.
                 if (byId(arg)) return COMMANDS.info(arg);
+                /* FIFTH MIRROR, found by a reviewer after four were closed and I had said that
+                   was all of them. `man` already falls through to `info` for a real app id, and
+                   its own manual page advertises that, but it never checked for a GROUP. So
+                   `man incubator`, `man cert-prep`, `man track` and the rest hit "no manual page"
+                   and then a near-miss list drawn only from command names, which can never
+                   suggest `ls incubator`. `man cloud` appeared to work purely because `cloud` is
+                   also an app id, so the gap was data-dependent and would have surfaced the first
+                   time someone typed a group with no same-named app. */
+                var manGroup = groupOf(arg);
+                if (manGroup) {
+                    say(esc(arg) + ' is a ' + manGroup.kind + ', not a command or an app, so it '
+                        + 'has no page. It holds ' + manGroup.count + ' app'
+                        + (manGroup.count === 1 ? '' : 's') + '.', 'warn');
+                    return say('list them with <span class="ok">ls ' + esc(arg) + '</span>, then '
+                        + '<span class="ok">man</span> one by name.', 'muted');
+                }
                 say('no manual page for ' + esc(arg), 'err');
                 // Fold here too, or the "did you mean" is case-sensitive while the lookup above is
                 // not, and a capitalised argument gets neither. The manKey guard is not decorative:
@@ -1233,14 +1269,34 @@
                someone who typed something else. */
             if (!near.length && verb.length > 2) {
                 near = names.filter(function (n) {
-                    if (MUTATING[n]) return false;
-                    return editDistance(verb, n) <= (verb.length > 4 ? 2 : 1);
+                    var d = editDistance(verb, n);
+                    /* MUTATING COMMANDS: distance 1 ONLY, never the looser threshold.
+                       The first version banned them outright, and a reviewer showed that strands
+                       the genuine typo: `restrt` is distance 1 from `restart`, closer than `hlep`
+                       is to `help`, and the shell suggested one while stonewalling the other, with
+                       the fallback recommending `search restrt` which returns nothing. A dead end.
+                       The ban was also solving a problem the better matcher had already solved.
+                       It existed because letter-counting matched `strt` to `stop`; with
+                       Damerau-Levenshtein that distance is 2, so a tight threshold excludes it on
+                       its own. The only remaining distance-1 collision was `top` to `stop`, and
+                       `top` is now a synonym for `ps`, so it never reaches this branch.
+                       So: a typo one character away from `stop` almost certainly IS `stop`. Offer
+                       it, and say what it does, rather than pretending it does not exist. */
+                    return d <= (MUTATING[n] ? 1 : (verb.length > 4 ? 2 : 1));
                 });
             }
             if (near.length) {
                 say(esc(verb) + ': not a command.', 'err');
-                return say('did you mean: <span class="ok">'
+                say('did you mean: <span class="ok">'
                     + near.slice(0, 4).map(esc).join('</span>, <span class="ok">') + '</span>', 'muted');
+                // A suggestion that tears down a running box says so. The student asked for
+                // neither, so the shell should not hand one over without naming the consequence.
+                var risky = near.slice(0, 4).filter(function (n) { return MUTATING[n]; });
+                if (risky.length) {
+                    say(risky.join(' and ') + (risky.length > 1 ? ' end' : ' ends')
+                        + ' a running lab session, so check <span class="ok">ps</span> first.', 'warn');
+                }
+                return;
             }
 
             // 3. Genuinely unrecognised. Say what the shell IS, because a student who types a

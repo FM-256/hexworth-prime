@@ -379,11 +379,16 @@ srv.listen(PORT, '127.0.0.1', async () => {
        and it only ever passed because neither line contains the literal "try help". `exit` is
        also no longer a synonym at all, so this now asserts the honest answer directly. */
     o = await run('list');
+    // Pattern simplified: the tag fragment was applied to an already-stripped string, so it was
+    // inert and made the check look stricter than it was.
     chk('a command from another shell is translated, not refused',
-        /Try <?[^>]*>?ls/i.test(o.replace(/<[^>]+>/g, '')) && /not a command here/i.test(o),
+        /try ls\b/i.test(o.replace(/<[^>]+>/g, '')) && /not a command here/i.test(o),
         o.slice(0, 120));
     o = await run('open arena');
-    chk('`open` points at `run`', /run/.test(o) && /not a command here/i.test(o), o.slice(0, 110));
+    /* Was `/run/.test(o)`, which matches the bare substring anywhere and passed even while the
+       argument was being dropped. Asserts the whole suggestion. */
+    chk('`open arena` suggests `run arena`, argument included',
+        /run arena/.test(o) && /not a command here/i.test(o), o.slice(0, 110));
     o = await run('zzzznotathing');
     chk('an unrecognised word gets a model of the shell, not just "try help"',
         /command line, not a search box/i.test(o) && /search zzzznotathing/.test(o), o.slice(0, 140));
@@ -419,20 +424,49 @@ srv.listen(PORT, '127.0.0.1', async () => {
     o = await run('cd games');
     chk('cd <app-id> explains instead of "no such place"',
         /is an app, not a place/i.test(o) && /run games/.test(o), o.slice(0, 130));
-    for (const cat of ['cert-prep', 'course', 'platform', 'track', 'incubator']) {
+    /* Asserts a KNOWN MEMBER of each category comes back, not merely that the output is long and
+       does not say "nothing matched". A reviewer pointed out the first version could not tell a
+       correct result set from a swamped or wrong one, which is exactly how the `search hub`
+       precision regression shipped past it. */
+    for (const [cat, member] of [['cert-prep', 'az-104'], ['course', 'adv-linux'],
+                                 ['platform', 'arena'], ['incubator', 'cloud-incubator']]) {
         o = await run('search ' + cat);
-        chk(`search <${cat}> returns results`, !/nothing matched/i.test(o) && o.length > 40, o.slice(0, 80));
+        chk(`search <${cat}> returns its real members`, o.includes(member), o.slice(0, 90));
     }
+    /* PRECISION, the other half. Concatenating category into the haystack made `platform-hub`
+       match a search for "hub", so 6 results became 17 and the app actually called `hub` was
+       buried among apps whose id and name contain no "hub" at all. */
+    o = await run('search hub');
+    chk('search hub finds the app called hub', /\bhub\b/.test(o), o.slice(0, 90));
+    chk('  -> and is not swamped by the platform-hub category',
+        !o.includes('algorithm-chamber') && !o.includes('bug-hunting'), o.slice(0, 140));
 
     /* SAFETY: a GUESS must never put a destructive verb in front of someone who typed something
      * else. A reviewer reproduced `strt` (a slip for "start") and `top` both suggesting `stop`,
      * the one command that tears down a student's running lab. Mutating commands are now barred
      * from fuzzy matching entirely; they are reachable by typing them, not by being guessed at. */
-    for (const typo of ['strt', 'sotp', 'reset', 'restrt']) {
+    /* THE POLICY CHANGED after a reviewer showed the blanket ban stranded the real typo:
+       `restrt` is distance 1 from `restart`, closer than `hlep` is to `help`, and the shell
+       suggested one while stonewalling the other into a dead end. So mutating commands ARE
+       suggested, but only at distance 1, and the suggestion says what they do.
+       Both directions are asserted, because either alone is half a policy. */
+    for (const [typo, want] of [['restrt', 'restart'], ['sotp', 'stop']]) {
         o = await run(typo);
-        chk(`a typo (${typo}) is never answered with a destructive command`,
+        chk(`a genuine typo of a destructive command still suggests it (${typo})`,
+            new RegExp('did you mean[\\s\\S]*' + want).test(o), o.slice(0, 120));
+        chk(`  -> and warns what ${want} does`,
+            /ends a running lab session/i.test(o) && /\bps\b/.test(o), o.slice(0, 140));
+    }
+    for (const typo of ['strt', 'reset']) {
+        o = await run(typo);
+        chk(`a typo that is NOT close to one (${typo}) never offers a destructive command`,
             !/did you mean[^\n]*\b(stop|restart)\b/i.test(o), o.slice(0, 110));
     }
+
+    /* The FIFTH mirror, found after four were closed and I had said that was all of them. */
+    o = await run('man incubator');
+    chk('man <group> explains instead of "no manual page"',
+        /is a category, not a command or an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 140));
     o = await run('hlep');
     chk('  CONTROL: a transposition still suggests, so the bar is not just silence',
         /did you mean/i.test(o) && /help/.test(o), o.slice(0, 90));
@@ -442,8 +476,11 @@ srv.listen(PORT, '127.0.0.1', async () => {
     /* Honesty about leaving vs signing out. `logout` used to claim `cd /` "does what you mean",
      * which is false: cd / clears the shell's scope and leaves the student signed in. */
     o = await run('exit');
+    /* Second conjunct removed: it tested for a string deleted from the codebase, so it was
+       permanently true and rode along with the one real check. Now asserts what the answer must
+       CONTAIN, including that it names logout as the thing that actually signs you out. */
     chk('exit does not claim to end a session it cannot end',
-        /nothing to exit/i.test(o) && !/cd \/ does what you mean/i.test(o), o.slice(0, 130));
+        /nothing to exit/i.test(o) && /logout/.test(o), o.slice(0, 130));
     o = await run('logout');
     const signedOut = await pg.evaluate(() => window.__signedOut === true);
     chk('logout actually signs out rather than describing something else', signedOut, o.slice(0, 110));
