@@ -41,6 +41,13 @@
  * is proven", and must never be reported as though it were. The obstacle for all the
  * dashboard-hosted ones is the same and is described below.
  *
+ * AND THE HONEST LIMIT OF THE WHOLE EXERCISE: this file polices the version and codename, while
+ * `dashboard.html:3989` and `index.html:877` render the literal words "Hexworth Prime" as static
+ * markup, and TenantShell's branding pass only rewrites document.title. Guarding the codename
+ * while the product's NAME is on screen is fixing the whisper and not the shout. Logged as
+ * BUG-252, deliberately not fixed here because it is a product decision about how white-labeling
+ * should work, not a defect with an obvious right answer.
+ *
  * WHAT THIS DOES NOT COVER, stated so nobody reads more into it than it earns: it exercises the
  * DETECTOR, loaded standalone, not the modal on the real dashboard. dashboard.html redirects an
  * unauthenticated headless browser through its sorting flow, and I judged bending the harness far

@@ -31,6 +31,28 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-252 — the white-label wrapper never rewrites the page's own logo text  ·  [P1]  ·  open
+- **Found:** 2026-09-02 · by self · sweeping for brand-name leaks after the version/codename round
+- **Area:** `_app/components/TenantShell.js` (branding pass) · `_app/dashboard.html:3989` ·
+  `_app/index.html:877`
+- **What:** TenantShell rewrites `document.title` and injects its own header bar carrying the
+  tenant's logo and platform name. It does NOT touch body text. So the dashboard's own
+  `<div class="logo">Hexworth Prime</div>` and the landing page's `<h1>Hexworth Prime</h1>` render
+  verbatim underneath the tenant's bar. A white-label student plausibly sees their institution's
+  branding AND Hexworth's, on the same screen.
+- **Why this matters more than the bug that found it:** a whole round was spent guarding the
+  version CODENAME on seven surfaces. That work is correct and worth keeping, but it is a small
+  leak beside the product's actual name being rendered as static markup on the two most-visited
+  pages. Fixing the codename while the logo says "Hexworth Prime" is fixing the whisper and not
+  the shout.
+- **NOT attempted here, deliberately:** this is a product and architecture decision, not a bug fix.
+  Options include a TenantShell body-text pass (fragile, and it would rewrite legitimate prose),
+  making the logo element data-driven from tenant config (cleanest, touches every page carrying
+  it), or accepting co-branding as intended. Related: taskboard 334 asks the same question about
+  the about/pricing/admissions pages, and BUG-251 about the storage-only tenant detection they all
+  share.
+- **Related:** BUG-251, taskboard 334, BUG-246.
+
 ### BUG-251 — every tenant check in the platform trusts browser storage alone  ·  [P2]  ·  open
 - **Found:** 2026-09-02 · by a reviewer, while verifying the What's New tenant guard
 - **Area:** `_app/components/UpdateManager.js` (isTenantContext) · `_app/components/AccessGuard.js`
