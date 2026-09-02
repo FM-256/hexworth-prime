@@ -31,6 +31,44 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-246 — AccessGuard hands tenant licensing to a component that is not on the page  ·  [P1]  ·  open
+- **Found:** 2026-09-02 · by self · tenant-subsystem audit (the one that produced BUG-243/244/245)
+- **Area:** `_app/components/AccessGuard.js:814-815` (the handoff) · `_app/components/TenantFilter.js`
+  (the component) · the two pages that actually load it
+- **The handoff:** `AccessGuard.require()` runs on effectively every gated page and says, in its own
+  comment, *"Tenant users bypass all access gates. Content filtering is handled by TenantFilter.js
+  based on the tenant's license."* The bypass is real and deliberate: a white-label student should
+  not be asked to pass sorting quizzes and Dark Arts gates that do not exist in their experience.
+- **The component is not there.** `TenantFilter.js` is loaded by exactly TWO pages,
+  `_app/catalog.html` and `_app/operator/index.html`. It is NOT injected by `tenant-sw.js`, unlike
+  `TenantRouter.js` and `TenantShell.js`, and no auto-loader in AccessGuard, FirebaseAuth or
+  ModuleProgress fetches it. Its own header claims it "provides filtering functions for all
+  content-serving pages: arena, dashboard, houses, hubs, games." It is on none of them.
+- **Consequence:** on every page except those two, a tenant student has AccessGuard's gates waived
+  and nothing applies their tenant's `licensing.contentAccess`. A tenant that licensed a subset of
+  houses or box series has no client-side mechanism stopping its students reaching the rest by
+  direct navigation.
+- **WHAT I HAVE NOT ESTABLISHED, stated because it bounds the severity:** whether any live tenant
+  actually populates `licensing.contentAccess`. If none do, `isAllowed()` returns true everywhere
+  anyway and today's practical impact is nil. That answer is in production Firestore under
+  `tenants/{slug}`, which I have not read; determining it needs operator authorization. The
+  DEFECT is real regardless: the guarantee AccessGuard documents is not implemented where it is
+  claimed.
+- **Also note this is client-side either way.** TenantFilter is browser JS over static hosting, so
+  it was never an enforcement boundary; a student who wanted the content could always fetch the
+  page. The gap is that the documented product behaviour, a tenant seeing only what it licensed,
+  is not delivered on the pages students actually use.
+- **Fix:** not applied. Either load TenantFilter where its header claims (which means adding it to
+  the injector alongside TenantRouter/TenantShell, and that injector is itself unreliable, see
+  BUG-245), or correct both claims to say licensing is enforced on the catalog only. The first is a
+  real change to who sees what and needs the operator; the second is honest documentation of what
+  exists.
+- **Verified:** grepped every loader and caller; `contentAccess`/`licensing` appear nowhere outside
+  TenantFilter and the tenant admin pages. 2026-09-02.
+- **Related:** BUG-236, BUG-243, BUG-244, BUG-245, and the two stale `window.TenantRouter` comments.
+  Seventh instance in this subsystem of a comment describing protection the code does not implement
+  where claimed. This is the one with commercial consequences.
+
 ### BUG-245 — tenant injection stops when the service worker restarts, which browsers do routinely  ·  [P1]  ·  open
 - **Found:** 2026-09-01 · by self · auditing the tenant subsystem after BUG-236/243/244 showed a pattern
 - **Area:** `_app/tenant-sw.js:36` (`let tenantActive = false`) · `:53-55` (set only by postMessage)

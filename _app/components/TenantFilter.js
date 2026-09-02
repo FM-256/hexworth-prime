@@ -1,9 +1,16 @@
 /**
  * TenantFilter.js — Content Access Control for White Label Tenants
  *
- * Reads the tenant context from sessionStorage (set by the branded
- * loader page) and provides filtering functions for all content-serving
- * pages: arena, dashboard, houses, hubs, games.
+ * Reads the tenant context from sessionStorage, falling back to localStorage, and provides
+ * filtering functions for content-serving pages.
+ *
+ * WHERE IT ACTUALLY RUNS, because this header used to overstate it: catalog.html and
+ * operator/index.html load it. Nothing else does, and unlike TenantRouter/TenantShell it is not
+ * injected by tenant-sw.js. It previously claimed to serve "all content-serving pages: arena,
+ * dashboard, houses, hubs, games" and is on none of them. AccessGuard.require() nevertheless waives
+ * tenant gates on the stated grounds that licensing "is handled by TenantFilter.js", so that
+ * handoff currently lands on a component that is not present. Tracked as BUG-246; do not treat this
+ * file as enforcing licensing platform-wide until that is resolved.
  *
  * When no tenant is active (direct Hexworth Prime users), all content
  * is allowed. The filter is purely additive — it never blocks direct users.
