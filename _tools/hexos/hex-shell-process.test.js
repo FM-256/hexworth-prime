@@ -464,6 +464,31 @@ srv.listen(PORT, '127.0.0.1', async () => {
     }
 
     /* The FIFTH mirror, found after four were closed and I had said that was all of them. */
+    /* SEARCH COVERAGE, both directions, after three attempts at this predicate. Substring was
+       too blunt (`hub` matched platform-hub, 17 results); exact was too strict and SILENT
+       (`plat` and `cour` returned nothing for 33 and 103 real apps); prefix keeps both. */
+    o = await run('search plat');
+    chk('search by partial category still finds its apps', /platform/.test(o) && !/nothing matched/i.test(o), o.slice(0, 90));
+    o = await run('search cour');
+    chk('  -> and for the largest category too', /course/.test(o) && !/nothing matched/i.test(o), o.slice(0, 90));
+    o = await run('search hub');
+    chk('  -> while `hub` is still not swamped by platform-hub',
+        !o.includes('algorithm-chamber') && !o.includes('bug-hunting'), o.slice(0, 130));
+
+    /* ONE POLICY FOR DESTRUCTIVE SUGGESTIONS, across all three stages. The earlier claim was true
+       only of the typo stage: a single `s` offered `stop` and a single `r` offered `restart`,
+       because the prefix and substring stages had no filter at all. */
+    o = await run('s');
+    chk('a single keystroke never offers a destructive command', !/\bstop\b/.test(o), o.slice(0, 90));
+    o = await run('r');
+    chk('  -> nor does `r` offer restart', !/\brestart\b/.test(o), o.slice(0, 90));
+    o = await run('sto');
+    chk('  CONTROL: three characters of prefix still reaches stop', /\bstop\b/.test(o), o.slice(0, 90));
+
+    o = await run('stop incubator');
+    chk('stop <group> names what the word is instead of a bare denial',
+        /is a category of apps, not a lab/i.test(o), o.slice(0, 130));
+
     o = await run('man incubator');
     chk('man <group> explains instead of "no manual page"',
         /is a category, not a command or an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 140));

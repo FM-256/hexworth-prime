@@ -413,6 +413,19 @@
                              + 'or the lab name, which is not case-sensitive.', cls: 'warn' };
                 }
             }
+            /* A reviewer asked whether `stop incubator` is another mirror. It is a DIFFERENT id
+               namespace: labs come from SandboxLauncher's LAB_INFO, not the app manifest, so
+               "no lab called incubator" is literally true. But the student's confusion is the
+               same one, so name what the word actually is rather than leaving them to guess.
+               Deliberately does not claim `stop` can act on it, because it cannot. */
+            if (manifestState === 'ready') {
+                var stopGroup = groupOf(arg);
+                if (stopGroup) {
+                    return { error: esc(arg) + ' is a ' + stopGroup.kind + ' of apps, not a lab, '
+                             + 'so nothing runs under that name. <span class="ok">ps</span> lists '
+                             + 'your running labs.', cls: 'warn' };
+                }
+            }
             return { error: 'no lab or session called ' + esc(arg) + '. ' +
                      '<span class="ok">ps</span> lists what is running.' };
         }).catch(function (e) {
@@ -742,9 +755,12 @@
                while `run ARENA` worked, which is the same inconsistency one command over.
                Group names are lowercase by convention, so lowering the needle is free. */
             var want = String(arg).toLowerCase();
-            var hit = APPS.filter(function (a) {
-                return String(a.category).toLowerCase() === want || String(a.house).toLowerCase() === want;
-            });
+            /* Uses groupOf rather than a fourth hand-rolled copy of the same predicate. A
+               reviewer caught that consolidating run, info and cd had left THIS one behind, with
+               its own null-handling (`String(a.category)` stringifies undefined to "undefined"
+               where low() yields ""), which is the drift the helper exists to prevent. */
+            var lsGroup = groupOf(arg);
+            var hit = lsGroup ? lsGroup.members : [];
             /* THE MIRROR OF THE `run <group>` BUG, and it survived the round that fixed that one.
                `run incubator` used to say "no app called incubator", true and useless, because
                incubator is a category. It now explains itself. The inverse was never fixed:
@@ -785,8 +801,19 @@
                    contain no "hub" at all. A reviewer measured it: 6 results became 17.
                    So the free-text search stays over id, name and house, and category joins it
                    only on an exact match, which is what someone typing a category name means. */
+                /* CATEGORY MATCHES BY PREFIX. Three attempts to get this right, and the middle
+                   one was worse than either end.
+                     substring: `platform-hub` contains "hub", so `search hub` returned 17 and
+                                buried the app actually called hub.
+                     exact:     fixed that and broke coverage silently. `search plat` returned 0
+                                for 33 real apps, `search cour` returned 0 for 103. A reviewer
+                                measured it. Requiring the full hyphenated slug only helps someone
+                                who already knows it, and a bare "nothing matched" for a populated
+                                category is the worst version of this whole bug class.
+                     prefix:    keeps both. `hub` stays 6 because platform-hub does not START with
+                                "hub"; `cert` gets its 33, `plat` its 33, `cour` its 103. */
                 var hay = (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase();
-                return hay.indexOf(q) !== -1 || low(a.category) === q;
+                return hay.indexOf(q) !== -1 || low(a.category).indexOf(q) === 0;
             }));
         },
         info: function (arg) {
@@ -1253,9 +1280,25 @@
             // 2. A near miss on a real command. Prefix first, then substring, matching how `run`
             //    and `cd` already suggest, so the shell behaves the same way everywhere.
             var names = Object.keys(COMMANDS);
-            var near = names.filter(function (n) { return n.indexOf(verb) === 0; });
+            /* ONE POLICY FOR DESTRUCTIVE SUGGESTIONS, applied to every stage.
+               My commit message claimed "mutating commands are suggested at distance 1 only". That
+               was true of the typo stage and false of these two, which had no filter at all: a
+               reviewer showed that a single `s` offered `stop` and a single `r` offered `restart`,
+               each with the warning attached, on one keystroke that means nothing in particular.
+               I had described the branch I touched as though it were the rule.
+               The rule now: a destructive command is offered only on a STRONG signal, meaning at
+               least three characters of prefix, or an exact-length typo, and never on a one or
+               two character fragment that is equally consistent with half the table. */
+            var strongEnough = function (n) {
+                return !MUTATING[n] || (verb.length >= 3 && n.indexOf(verb) === 0);
+            };
+            var near = names.filter(function (n) {
+                return n.indexOf(verb) === 0 && strongEnough(n);
+            });
             if (!near.length && verb.length > 1) {
-                near = names.filter(function (n) { return n.indexOf(verb) !== -1; });
+                near = names.filter(function (n) {
+                    return n.indexOf(verb) !== -1 && strongEnough(n);
+                });
             }
             /* Still nothing: allow a real typo, measured properly.
                The first version counted shared characters, and a reviewer reproduced two bad
