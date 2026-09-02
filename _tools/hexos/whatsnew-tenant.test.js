@@ -72,6 +72,36 @@ srv.listen(PORT,'127.0.0.1',async()=>{
   chk(`${label} -> ${want}`,got===want,got);
   await pg.close();await ctx.close().catch(()=>{});
  }
+ // ── The SECOND door. A reviewer found dashboard.html carries its own independent What's New
+ // implementation, reached from a "Check for Updates" menu item, which the component-side guard
+ // did not touch. Testing only the detector, or only UpdateManager, would still miss it, so this
+ // drives BOTH renderers directly with a tenant fixture seeded.
+ for (const tenant of [true,false]){
+  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  await pg.evaluateOnNewDocument((t,isT)=>{try{
+    if(isT){sessionStorage.setItem('hexworth_tenant',t);localStorage.setItem('hexworth_tenant',t);}
+  }catch(e){}},T,tenant);
+  await pg.goto(`http://127.0.0.1:${PORT}/t.html`,{waitUntil:'networkidle0'});
+  const r=await pg.evaluate(async()=>{
+    const um=new UpdateManager();
+    let rendered=false;
+    try{ await um.showWhatsNew({autoTriggered:false});
+         // The component renders `.whatsnew-modal` (no hyphen); dashboard.html renders
+         // `#whatsNewOverlay`. My first selector guessed `whats-new` and matched neither, so the
+         // non-tenant CONTROL went red and would have made the tenant pass meaningless.
+         rendered=!!document.getElementById('whatsNewOverlay')||!!document.querySelector('.whatsnew-modal');
+    }catch(e){ rendered='threw: '+e.message; }
+    return {rendered, detect: UpdateManager.isTenantContext()};
+  });
+  const label=tenant?'TENANT':'plain ';
+  if(tenant){
+    chk(`${label}: a DELIBERATE showWhatsNew renders nothing`, r.rendered===false, JSON.stringify(r));
+  }else{
+    chk(`${label}: showWhatsNew still renders for non-tenants (guard is not universal)`,
+        r.rendered===true, JSON.stringify(r));
+  }
+  await pg.close();await ctx.close().catch(()=>{});
+ }
  await b.close();srv.close();
  console.log(`\n  ${pass}/${pass+fail} passed`);process.exitCode=fail?1:0;
 });

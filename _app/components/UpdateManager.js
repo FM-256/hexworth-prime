@@ -643,6 +643,21 @@ class UpdateManager {
      * Show What's New modal for new version
      */
     async showWhatsNew(options = {}) {
+        /* THE GUARD LIVES HERE, at the point the Hexworth branding is actually rendered, so every
+           caller is covered including ones that do not exist yet.
+           It was originally on the auto-trigger only, with the reasoning that a deliberate open is
+           the student asking rather than the platform interrupting. A reviewer showed that
+           reasoning does not survive contact with the content: this modal renders "Welcome to
+           <version>", the codename and Hexworth's changelog, so a white-label student who opens it
+           on purpose still sees Hexworth branding inside their institution's wrapper. The stated
+           purpose was "a tenant student must never be shown Hexworth's own release notes"; an
+           auto-only guard reproduced the FORM of that and not the FUNCTION.
+           The same reviewer then found dashboard.html carries a SECOND, independent implementation
+           of this modal with its own menu entry, which the caller-side guard did not touch at all.
+           Guarding the renderer is what makes that class of miss impossible rather than merely
+           unlikely. */
+        if (UpdateManager.isTenantContext()) return;
+
         // Close any existing modal first
         if (this.modal) this.closeModal();
 

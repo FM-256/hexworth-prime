@@ -3971,7 +3971,12 @@
                         <!-- Platform -->
                         <div class="hb-section-header collapsed" style="color:#fbbf24;" onclick="this.classList.toggle('collapsed');this.nextElementSibling.classList.toggle('collapsed')">Platform <span class="hb-section-arrow">&#9660;</span></div>
                         <div class="hb-section-body collapsed">
-                            <a href="javascript:void(0)" onclick="checkForUpdates();document.getElementById('navMenu').style.display='none'" class="hb-link"><img src="/assets/images/icons/icon-refresh.webp" alt="" class="hb-icon">Check for Updates</a>
+                            <!-- Hidden for white-label students by the tenant guard below: the
+                                 modal it opens renders Hexworth's version, codename and changelog,
+                                 which is not their institution's product. Left in the DOM and
+                                 hidden rather than conditionally built, because this menu is
+                                 static markup and a display toggle is the smaller change. -->
+                            <a href="javascript:void(0)" id="checkForUpdatesLink" onclick="checkForUpdates();document.getElementById('navMenu').style.display='none'" class="hb-link"><img src="/assets/images/icons/icon-refresh.webp" alt="" class="hb-icon">Check for Updates</a>
                             <a href="/subscription.html" class="hb-link"><img src="/assets/images/icons/icon-crown.webp" alt="" class="hb-icon">Subscription</a>
                             <a href="/about.html" class="hb-link"><img src="/assets/images/icons/icon-info.webp" alt="" class="hb-icon">About</a>
                             <a href="/privacy.html" class="hb-link"><img src="/assets/images/icons/icon-lock.webp" alt="" class="hb-icon">Privacy</a>
@@ -4896,6 +4901,18 @@
             initFooterVersion();
 
             // Check for updates in background (don't block the rest of init)
+            /* Hide the Hexworth-branded "Check for Updates" entry from white-label students.
+               The renderer is guarded too; this exists so a tenant student is not offered a
+               control that deliberately does nothing when clicked. Both are needed: the guard is
+               correctness, this is honesty about what the menu offers. */
+            try {
+                if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext
+                    && UpdateManager.isTenantContext()) {
+                    const cfu = document.getElementById('checkForUpdatesLink');
+                    if (cfu) cfu.style.display = 'none';
+                }
+            } catch (e) { /* never let menu chrome break dashboard init */ }
+
             window.updateManager = new UpdateManager();
             window.updateManager.init().catch(e => console.error('UpdateManager init:', e));
 
@@ -8109,6 +8126,23 @@
             // Remove existing modal if any
             const existing = document.getElementById('whatsNewOverlay');
             if (existing) existing.remove();
+
+            /* NOT FOR WHITE-LABEL STUDENTS. This is a SECOND, independent implementation of the
+               What's New modal, separate from components/UpdateManager.js, reached from the
+               "Check for Updates" item in the Platform menu. It renders the version, the codename
+               and Hexworth's changelog into a full-screen overlay, so for a tenant student it puts
+               Hexworth branding inside the wrapper their institution pays for.
+               A reviewer found this after the guard had been added to UpdateManager: one door was
+               closed and this one was not, and it is not an edge case, because immediately after a
+               version bump every user is "up to date", which is exactly the branch that calls this.
+               Guarded here at the render point rather than at the caller, for the same reason the
+               component-side guard moved: any future caller is then covered too. The menu entry
+               that leads here is also hidden for tenants, so nobody clicks a control that does
+               nothing. */
+            if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext
+                && UpdateManager.isTenantContext()) {
+                return;
+            }
 
             const v = versionData.version || '?';
             const codename = versionData.codename || '';
