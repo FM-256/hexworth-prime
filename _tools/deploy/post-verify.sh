@@ -433,6 +433,23 @@ else
         echo "$HS_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # Documented examples must actually work. A student-facing FAQ told people to type
+    # `RUN ARCTIC`, an id that does not exist, as the headline proof of the headline feature; two
+    # of the three examples in that sentence errored when typed. Nothing caught it but a reviewer,
+    # and the changelog it matched pops automatically for every returning student. This runs the
+    # FAQ's own transcripts against the real shell.
+    DX_OUT="$(node "$REPO_ROOT/_tools/hexos/doc-examples.test.js" 2>&1)"
+    DX_RC=$?
+    if [[ $DX_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- documented shell examples SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $DX_RC -ne 0 ]]; then
+        echo "$DX_OUT" | grep -E "FAIL|passed" | tail -6 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! a documented Hex OS example does not work when typed${NC}"
+        DIVERGENCE=1
+    else
+        echo "$DX_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'
