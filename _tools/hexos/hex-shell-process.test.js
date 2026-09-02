@@ -136,6 +136,7 @@ srv.listen(PORT, '127.0.0.1', async () => {
             return r.respond({ status: 200, contentType: 'text/javascript', body:
                 'window.FirebaseAuth={waitForAuth:function(){return Promise.resolve();},' +
                 'isSignedIn:function(){return true;},' +
+                'signOut:function(){window.__signedOut=true;return Promise.resolve();},' +
                 'refreshToken:function(){return Promise.resolve("test-id-token");}};' });
         }
         if (/sandbox\.hexworth\.tech/.test(u)) {
@@ -359,6 +360,85 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('past the first argument reports POSITION, not a dead verb',
         /nothing more to complete on this line/i.test(t.out)
         && !/nothing to complete for/i.test(t.out), JSON.stringify(t));
+
+    /* TRUE-AND-USELESS ANSWERS, the class the operator's original bug report opened.
+     * `run incubator` used to say "no app called incubator" because incubator is a category; that
+     * was fixed. The MIRROR was not: `ls games` said "nothing matched" although games is a real
+     * app, The Arcade. And the shell offered six suggestions for a mistyped APP while offering
+     * none for a mistyped COMMAND, which is its own vocabulary applied unevenly.
+     * Found by driving the live shell as a student rather than as a test. */
+    o = await run('ls games');
+    chk('ls <app-id> explains itself instead of "nothing matched"',
+        /is an app, not a category/i.test(o) && /run games/.test(o), o.slice(0, 130));
+    o = await run('ls incubator');
+    chk('  CONTROL: ls <real category> still lists', /incubator/.test(o) && !/is an app/i.test(o), o.slice(0, 90));
+    o = await run('hlep');
+    chk('a mistyped command suggests the real one', /did you mean/i.test(o) && /help/.test(o), o.slice(0, 110));
+    /* Reworded after a reviewer showed the original compound condition did no work: it checked
+       o.split('\n')[1], which is the FIRST response line because line 0 is the echoed command,
+       and it only ever passed because neither line contains the literal "try help". `exit` is
+       also no longer a synonym at all, so this now asserts the honest answer directly. */
+    o = await run('list');
+    chk('a command from another shell is translated, not refused',
+        /Try <?[^>]*>?ls/i.test(o.replace(/<[^>]+>/g, '')) && /not a command here/i.test(o),
+        o.slice(0, 120));
+    o = await run('open arena');
+    chk('`open` points at `run`', /run/.test(o) && /not a command here/i.test(o), o.slice(0, 110));
+    o = await run('zzzznotathing');
+    chk('an unrecognised word gets a model of the shell, not just "try help"',
+        /command line, not a search box/i.test(o) && /search zzzznotathing/.test(o), o.slice(0, 140));
+
+    /* THE OTHER THREE MIRRORS. A reviewer asked whether `ls <app>` was the only one. It was not:
+     * `info <category>`, `cd <app-id>` and `search <category>` all told a student that a real
+     * thing did not exist. `search` was the worst of them, silently returning nothing for 5 of
+     * the 7 categories, with no error to notice. */
+    /* `run <unknown>` was covered by NO assertion in this suite. A refactor deleted a variable
+       the did-you-mean filter used, every failed run threw a ReferenceError and answered
+       "something went wrong running that", and 84 assertions here stayed green: only the
+       doc-examples gate caught it, on the FAQ's own transcript. Two gates disagreeing is how it
+       was found; one of them being blind to the shell's single most common failure path is worth
+       fixing rather than relying on the other. */
+    o = await run('run arctic');
+    chk('run <unknown> suggests real ids and does not throw',
+        /no app called/i.test(o) && /arctic-cli/.test(o) && !/something went wrong/i.test(o),
+        o.slice(0, 130));
+
+    o = await run('info incubator');
+    chk('info <category> explains instead of "no app called"',
+        /is a category, not an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 130));
+    o = await run('cd games');
+    chk('cd <app-id> explains instead of "no such place"',
+        /is an app, not a place/i.test(o) && /run games/.test(o), o.slice(0, 130));
+    for (const cat of ['cert-prep', 'course', 'platform', 'track', 'incubator']) {
+        o = await run('search ' + cat);
+        chk(`search <${cat}> returns results`, !/nothing matched/i.test(o) && o.length > 40, o.slice(0, 80));
+    }
+
+    /* SAFETY: a GUESS must never put a destructive verb in front of someone who typed something
+     * else. A reviewer reproduced `strt` (a slip for "start") and `top` both suggesting `stop`,
+     * the one command that tears down a student's running lab. Mutating commands are now barred
+     * from fuzzy matching entirely; they are reachable by typing them, not by being guessed at. */
+    for (const typo of ['strt', 'sotp', 'reset', 'restrt']) {
+        o = await run(typo);
+        chk(`a typo (${typo}) is never answered with a destructive command`,
+            !/did you mean[^\n]*\b(stop|restart)\b/i.test(o), o.slice(0, 110));
+    }
+    o = await run('hlep');
+    chk('  CONTROL: a transposition still suggests, so the bar is not just silence',
+        /did you mean/i.test(o) && /help/.test(o), o.slice(0, 90));
+    o = await run('top');
+    chk('`top` points at ps, the read-only one', /\bps\b/.test(o) && !/stop/.test(o), o.slice(0, 100));
+
+    /* Honesty about leaving vs signing out. `logout` used to claim `cd /` "does what you mean",
+     * which is false: cd / clears the shell's scope and leaves the student signed in. */
+    o = await run('exit');
+    chk('exit does not claim to end a session it cannot end',
+        /nothing to exit/i.test(o) && !/cd \/ does what you mean/i.test(o), o.slice(0, 130));
+    o = await run('logout');
+    const signedOut = await pg.evaluate(() => window.__signedOut === true);
+    chk('logout actually signs out rather than describing something else', signedOut, o.slice(0, 110));
+    o = await run('open arena');
+    chk('a synonym carries the argument through', /run arena/.test(o), o.slice(0, 110));
 
     const before = calls.length;
     o = await run('restart server-only-lab');

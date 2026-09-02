@@ -303,6 +303,37 @@
     // A named helper makes the omission visible at the call site.
     function low(v) { return String(v == null ? '' : v).toLowerCase(); }
 
+    /* Commands that change a student's running lab. Never offered as a GUESS: see the fuzzy
+       matcher in exec(). A suggestion is the shell speaking with confidence it has not earned,
+       and it must not spend that on something destructive. */
+    var MUTATING = { stop: 1, restart: 1 };
+
+    /* Damerau-Levenshtein, small and iterative. Inputs are command names, so they are tiny.
+       TRANSPOSITION COSTS 1, not 2, and that is the whole reason this is Damerau: plain
+       Levenshtein scores `hlep` against `help` as 2, which pushed the single most common typo in
+       the English language past a threshold of 1 and made the shell stop suggesting `help`. I
+       introduced that regression while fixing a worse one and caught it by re-running the same
+       student inputs rather than assuming the new matcher was strictly better. */
+    function editDistance(a, b) {
+        a = low(a); b = low(b);
+        if (a === b) return 0;
+        var d = [], i, j;
+        for (i = 0; i <= a.length; i++) { d[i] = []; d[i][0] = i; }
+        for (j = 0; j <= b.length; j++) d[0][j] = j;
+        for (i = 1; i <= a.length; i++) {
+            for (j = 1; j <= b.length; j++) {
+                var cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+                d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + cost);
+                if (i > 1 && j > 1
+                    && a.charAt(i - 1) === b.charAt(j - 2)
+                    && a.charAt(i - 2) === b.charAt(j - 1)) {
+                    d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);   // transposition
+                }
+            }
+        }
+        return d[a.length][b.length];
+    }
+
     function pKey(id) { return low(id); }
 
     function clearProc(gen) {
@@ -418,6 +449,22 @@
             if (a.house) v[low(a.house)] = 1;
         });
         return Object.keys(v).sort();
+    }
+
+    /* Is this name a GROUP rather than an app? One definition, used by run, info and cd, so the
+       three cannot drift into disagreeing about what "incubator" is. `run` grew this logic first;
+       when the same gap turned up in `info` and `cd` a reviewer asked whether those were the only
+       ones, which is a question a copy-pasted third implementation would have answered wrongly. */
+    function groupOf(name) {
+        var lower = low(name);
+        if (!lower) return null;
+        var isCat = APPS.some(function (x) { return low(x.category) === lower; });
+        var isHouse = APPS.some(function (x) { return low(x.house) === lower; });
+        if (!isCat && !isHouse) return null;
+        var members = APPS.filter(function (x) {
+            return low(isCat ? x.category : x.house) === lower;
+        });
+        return { kind: isCat ? 'category' : 'house', count: members.length, members: members };
     }
 
     function byId(id) {
@@ -673,6 +720,27 @@
             var hit = APPS.filter(function (a) {
                 return String(a.category).toLowerCase() === want || String(a.house).toLowerCase() === want;
             });
+            /* THE MIRROR OF THE `run <group>` BUG, and it survived the round that fixed that one.
+               `run incubator` used to say "no app called incubator", true and useless, because
+               incubator is a category. It now explains itself. The inverse was never fixed:
+               `ls games` answered "nothing matched" although `games` is a real app, The Arcade.
+               Same failure, opposite direction, and found the same way, by typing what a student
+               would type instead of what the code expects. */
+            if (!hit.length) {
+                var asApp = byId(arg);
+                if (asApp) {
+                    say(esc(asApp.id) + ' is an app, not a category or house, so there is nothing '
+                        + 'to list inside it.', 'warn');
+                    return say('open it with <span class="ok">run ' + esc(asApp.id) + '</span>, or '
+                        + '<span class="ok">info ' + esc(asApp.id) + '</span> to see what it is.', 'muted');
+                }
+                var near = places().filter(function (p) { return p.indexOf(want) === 0; });
+                if (!near.length) near = places().filter(function (p) { return p.indexOf(want) !== -1; });
+                say('nothing to list under ' + esc(arg) + '.', 'warn');
+                return say(near.length
+                    ? 'did you mean: <span class="ok">' + near.map(esc).join('</span>, <span class="ok">') + '</span>'
+                    : 'bare <span class="ok">ls</span> shows every group.', 'muted');
+            }
             fmtRows(hit, hit.length + ' in ' + arg);
         },
         search: function (arg) {
@@ -680,7 +748,13 @@
             if (!arg) return say('search what?', 'warn');
             var q = arg.toLowerCase();
             fmtRows(APPS.filter(function (a) {
-                return (a.id + ' ' + (a.name || '') + ' ' + (a.house || '')).toLowerCase().indexOf(q) !== -1;
+                /* CATEGORY WAS MISSING from the haystack, so `search cert-prep` returned nothing
+                   while `ls cert-prep` listed 30 apps. A reviewer measured it: 5 of the 7
+                   categories were silently unsearchable, and the two that "worked" only did so by
+                   accident, because the word occurs inside ids like cloud-incubator. Silent empty
+                   results are the worst version of this bug: no error to notice. */
+                return (a.id + ' ' + (a.name || '') + ' ' + (a.house || '') + ' '
+                        + (a.category || '')).toLowerCase().indexOf(q) !== -1;
             }));
         },
         info: function (arg) {
@@ -689,7 +763,22 @@
             // string rather than a question. `run` and `search` both ask; this now matches them.
             if (!arg) return say('info what? try <span class="ok">ls</span> to find an id', 'warn');
             var a = byId(arg);
-            if (!a) return say('no app called ' + esc(arg) + '. try <span class="ok">search ' + esc(arg) + '</span>', 'err');
+            if (!a) {
+                /* THIRD MIRROR of the operator's original bug. `info incubator` said "no app
+                   called incubator", the same sentence `run incubator` used to give, and then
+                   suggested `search incubator`, which was ALSO broken until this round, so the
+                   student hit a two-hop dead end. A reviewer found it while I was fixing the
+                   first mirror and asked whether it was the only one. It was not. */
+                var group = groupOf(arg);
+                if (group) {
+                    say(esc(arg) + ' is a ' + group.kind + ', not an app, so there is no record to '
+                        + 'show. It holds ' + group.count + ' app'
+                        + (group.count === 1 ? '' : 's') + '.', 'warn');
+                    return say('list them with <span class="ok">ls ' + esc(arg) + '</span>, then '
+                        + '<span class="ok">info</span> one by name.', 'muted');
+                }
+                return say('no app called ' + esc(arg) + '. try <span class="ok">search ' + esc(arg) + '</span>', 'err');
+            }
             var rows = Object.keys(a).map(function (k) {
                 return '<tr><td class="muted">' + esc(k) + '</td><td>' + esc(a[k]) + '</td></tr>';
             }).join('');
@@ -714,23 +803,21 @@
                    The old suggestion list matched by PREFIX only, which is why it offered nothing
                    here: all eight incubators END with the word (cloud-incubator, code-incubator,
                    ...). Substring matching is what a person typing a half-remembered name needs. */
-                var lower = String(arg).toLowerCase();
-                var cats = {}, houses = {};
-                APPS.forEach(function (x) {
-                    if (x.category) cats[String(x.category).toLowerCase()] = true;
-                    if (x.house) houses[String(x.house).toLowerCase()] = true;
-                });
-                if (cats[lower] || houses[lower]) {
-                    var kind = cats[lower] ? 'category' : 'house';
-                    var members = APPS.filter(function (x) {
-                        return String(cats[lower] ? x.category : x.house).toLowerCase() === lower;
-                    });
-                    say(esc(arg) + ' is a ' + kind + ', not an app. It groups '
-                        + members.length + ' app' + (members.length === 1 ? '' : 's') + '.', 'warn');
+                var g = groupOf(arg);
+                if (g) {
+                    say(esc(arg) + ' is a ' + g.kind + ', not an app. It groups '
+                        + g.count + ' app' + (g.count === 1 ? '' : 's') + '.', 'warn');
                     say('list them with <span class="ok">ls ' + esc(arg) + '</span>, then run one by name.', 'muted');
-                    say('e.g. <span class="ok">run ' + esc(members[0].id) + '</span>', 'muted');
+                    say('e.g. <span class="ok">run ' + esc(g.members[0].id) + '</span>', 'muted');
                     return;
                 }
+                /* `lower` is defined HERE and not above, because factoring the group check out
+                   into groupOf() removed the declaration this filter had been sharing with it.
+                   Every failed `run` then threw a ReferenceError and answered "something went
+                   wrong running that", which is worse than the message the refactor set out to
+                   improve. The doc-examples gate caught it within minutes, on the FAQ's own
+                   `run arctic` transcript. Refactors break the code beside the code they touch. */
+                var lower = low(arg);
                 var near = APPS.filter(function (x) {
                     return x.id.indexOf(lower) !== -1
                         || String(x.name || '').toLowerCase().indexOf(lower) !== -1;
@@ -761,6 +848,17 @@
                 var all = places();
                 var near = all.filter(function (p) { return p.indexOf(arg) === 0; });
                 if (!near.length) near = all.filter(function (p) { return p.indexOf(arg) !== -1; });
+                /* FOURTH AND LAST MIRROR. `cd games` said "no such place: games" and then offered
+                   near-misses drawn only from houses and categories, so it never mentioned that
+                   games is a real app. Same shape as the other three: the student named a real
+                   thing, in the wrong slot, and was told it does not exist. */
+                var asApp = byId(arg);
+                if (asApp) {
+                    say(esc(asApp.id) + ' is an app, not a place, so there is nowhere to cd into.', 'warn');
+                    return say('open it with <span class="ok">run ' + esc(asApp.id) + '</span>, or '
+                        + '<span class="ok">cd ' + esc(low(asApp.category || asApp.house || '/')) + '</span> '
+                        + 'to scope to what it sits in.', 'muted');
+                }
                 say('no such place: ' + esc(arg), 'err');
                 if (near.length) say('did you mean: ' + near.map(esc).join(', '), 'muted');
                 else say('try <span class="ok">cd</span> then Tab to see where you can go', 'muted');
@@ -1051,7 +1149,93 @@
         if (!COMMANDS[verb] && notReady()) return;
         if (!COMMANDS[verb] && byId(verb)) return COMMANDS.run(verb);
         if (!COMMANDS[verb]) {
-            return say(esc(verb) + ': not a command. try <span class="ok">help</span>', 'err');
+            /* THE SHELL SUGGESTS FOR APPS AND NOT FOR COMMANDS, which is its own vocabulary
+               applied unevenly: `run pythn` offers six real ids, while `hlep` offered nothing but
+               "try help". Same student, same kind of slip, two different levels of service.
+               Three cases, in the order a person actually hits them. */
+
+            // 1. A word other shells use for this. Not a typo, a transfer of habit, and telling
+            //    someone "exit: not a command" when they mean "how do I leave" is the same
+            //    true-and-useless answer that started this whole thread.
+            var SYNONYMS = {
+                'back': 'cd ..', 'list': 'ls', 'dir': 'ls', 'show': 'ls',
+                'find': 'search', 'grep': 'search', 'open': 'run', 'launch': 'run',
+                'start': 'run', 'cat': 'info', 'about': 'info', 'top': 'ps', 'jobs': 'ps',
+                '?': 'help', 'h': 'help', 'commands': 'help', 'usage': 'help'
+            };
+            if (SYNONYMS[verb]) {
+                /* CARRY THE ARGUMENT. A reviewer caught the first version answering `open arena`
+                   with "run does what you mean" and silently dropping `arena`, so a student who
+                   typed a complete, unambiguous intent had to type the whole thing again. That is
+                   the same true-and-useless shape this work exists to remove. */
+                var suggestion = SYNONYMS[verb] + (arg ? ' ' + arg : '');
+                say(esc(verb) + ' is not a command here. Try <span class="ok">'
+                    + esc(suggestion) + '</span>', 'warn');
+                return say('<span class="ok">help</span> lists everything.', 'muted');
+            }
+
+            /* LEAVING AND SIGNING OUT ARE DIFFERENT THINGS, and the first version told a student
+               they were the same. It mapped exit, quit AND logout to `cd /`, which only clears the
+               shell's scope: it does not leave the page and it certainly does not sign anyone out.
+               A reviewer pointed out that `logout` therefore made a FALSE claim about account
+               state, while FirebaseAuth.signOut() is loaded on this very page. So they are now two
+               different answers, and the one that can be true is done rather than described. */
+            if (verb === 'logout' || verb === 'signout') {
+                if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signOut) {
+                    say('signing out...', 'muted');
+                    return Promise.resolve(FirebaseAuth.signOut()).then(function () {
+                        say('signed out.', 'ok');
+                    }, function (e) {
+                        say('could not sign out: ' + esc(errText(e)), 'err');
+                        say('use the account menu on the main site.', 'muted');
+                    });
+                }
+                say('sign-out is not available from this page.', 'warn');
+                return say('use the account menu on the main site.', 'muted');
+            }
+            if (verb === 'exit' || verb === 'quit') {
+                say('there is nothing to exit: this shell is a page, not a session.', 'warn');
+                return say('<span class="ok">cd /</span> returns to the top of the app list, the '
+                    + '"back to Hexworth" link leaves this page, and <span class="ok">logout</span> '
+                    + 'signs you out.', 'muted');
+            }
+
+            // 2. A near miss on a real command. Prefix first, then substring, matching how `run`
+            //    and `cd` already suggest, so the shell behaves the same way everywhere.
+            var names = Object.keys(COMMANDS);
+            var near = names.filter(function (n) { return n.indexOf(verb) === 0; });
+            if (!near.length && verb.length > 1) {
+                near = names.filter(function (n) { return n.indexOf(verb) !== -1; });
+            }
+            /* Still nothing: allow a real typo, measured properly.
+               The first version counted shared characters, and a reviewer reproduced two bad
+               outcomes with it. `strt`, a plausible slip for "start", suggested `stop`. So did
+               `top`, which is the actual Linux command a student reaches for wanting a process
+               list, where `ps` is the right answer. And `reset`, a reasonable word for restarting
+               a wedged lab, suggested `search`. Counting shared letters is not a typo model.
+               Two changes: real edit distance, and MUTATING COMMANDS ARE NEVER FUZZY-SUGGESTED.
+               `stop` and `restart` destroy a student's running box. Reaching them requires typing
+               them, or a prefix of them; a guess must never put a destructive verb in front of
+               someone who typed something else. */
+            if (!near.length && verb.length > 2) {
+                near = names.filter(function (n) {
+                    if (MUTATING[n]) return false;
+                    return editDistance(verb, n) <= (verb.length > 4 ? 2 : 1);
+                });
+            }
+            if (near.length) {
+                say(esc(verb) + ': not a command.', 'err');
+                return say('did you mean: <span class="ok">'
+                    + near.slice(0, 4).map(esc).join('</span>, <span class="ok">') + '</span>', 'muted');
+            }
+
+            // 3. Genuinely unrecognised. Say what the shell IS, because a student who types a
+            //    sentence at it has the wrong model of the thing and repeating "try help" does
+            //    not correct that.
+            say(esc(verb) + ': not a command.', 'err');
+            return say('this is a command line, not a search box. <span class="ok">help</span> '
+                + 'lists the 12 commands, <span class="ok">ls</span> shows what is here, and '
+                + '<span class="ok">search ' + esc(verb) + '</span> looks for it by name.', 'muted');
         }
         COMMANDS[verb](arg);
     }
