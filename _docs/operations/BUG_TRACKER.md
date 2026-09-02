@@ -50,15 +50,19 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   (verified: zero matches in all four) and are nonetheless wrapped, by injection. They are not
   "unwrapped", as an earlier version of this entry and a reviewer both said. They are
   **wrapped by service worker only**, and that is a different and more fragile thing: the worker is
-  registered from just six pages (`/tenant/index.html` and five dashboards), browsers terminate
-  workers when idle, and BUG-243/BUG-245 both concern that worker's lifecycle. A page in this class
-  is protected exactly as often as the worker is alive and registered.
+  registered from ten pages (`/tenant/index.html` and nine of the eleven dashboards; only
+  `dashboard-variants.html` and `instructor.html` do not), browsers terminate workers when idle,
+  and BUG-243/BUG-245 both concern that worker's lifecycle. Injection ALSO requires
+  `tenantActive === true` (`tenant-sw.js:36,53,63`), set only by a `TENANT_ACTIVATE` postMessage
+  from a page, so a page in this class is protected only when the worker is alive AND activation
+  has happened, not merely when the worker exists.
 
   | Coverage class | Files | Brand-string occurrences |
   |---|---|---|
   | Static `<script>` tag, carrying the brand string | 18 of 99 | 19 |
   | SW-injection only, high traffic: `dashboard.html`, `index.html` | 2 | 7 + meta/JSON-LD block |
   | SW-injection only: `about.html`, `product-info.html` | 2 | 28 |
+  | SW-injection only: `terminal.html` | 1 | 1 |
   | Third-party Aminos widget, no shell reaches it either way | 2 (dashboard, index) | 2 |
 
   `dashboard.html` and `index.html` were cited by name in an earlier draft without appearing in any
@@ -85,9 +89,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   - *SW-injection only:* `about.html:274` (logo div) and `product-info.html:582` (hero h1) carry
     the identical defects to the two above.
   - *Static-tag pages:* `houses/divergent/cybersecurity-policy/index.html:765`, a plain visible
-    footer line; and several visually-hidden `<h1>` elements (`terminal.html:634`,
-    `houses/matrix/protocore/index.html:1139`, `houses/matrix/piverse/index.html:801`) which are
-    invisible on screen and read aloud, so a blind tenant student hears the wrong product name.
+    footer line; and visually-hidden `<h1>` elements at `houses/matrix/protocore/index.html:1139`
+    and `houses/matrix/piverse/index.html:801`, invisible on screen and read aloud, so a blind
+    tenant student hears the wrong product name.
+  - *SW-injection only, additional:* `terminal.html:634`, another visually-hidden
+    `<h1>Hexworth Prime - Terminal</h1>`. It carries NO static tag (zero Tenant references), so an
+    earlier draft filing it under static-tag pages repeated the exact cited-but-uncounted error
+    this entry had already been corrected for once.
 
 - **THE SHARPEST INSTANCE, and it is in this release's own files.** `dashboard.html:7562-7587`
   carries multi-paragraph reasoning for hiding the CODENAME from tenants. Four lines of brand name
@@ -114,6 +122,15 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   `TenantShell.js:749` names Hexworth deliberately on the escape-hatch button. The `/tenant/`
   dashboard "Powered by Hexworth Prime" lines are plausibly intended attribution and need an
   operator ruling rather than a patch.
+
+- **THE FIFTH METHOD ERROR, and it is the same one in a new costume.** I counted the worker's
+  registration sites with a grep for `register('/tenant-sw.js'` and got six. The true count is ten:
+  four dashboards write it with DOUBLE quotes. A reviewer caught it. I had also reported the
+  six-site figure earlier in the same session as a checked-and-cleared finding, concluding that
+  five dashboard themes never register the worker; only two do not, so that earlier conclusion was
+  wrong in the safe direction and is retracted here. Every sweep in this entry has failed the same
+  way: by assuming the SYNTAX the thing is written in. Catch blocks, then same-line writes, then
+  five files, then single quotes. Match the artifact, never the spelling you expect it in.
 
 - **METHOD, recorded because the list was wrong four times.** Sweeps 1-3 each narrowed by an
   assumption that felt like precision: catch blocks (the mechanism of the previous bug), then
