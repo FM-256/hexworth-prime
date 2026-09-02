@@ -302,6 +302,13 @@ class UpdateManager {
      * Show the update notification banner
      */
     showUpdateBanner() {
+        /* Never for white-label students. `remoteRelease.name` is built as
+           `${codename} ${version}` (see checkVersionFile), so this renders Hexworth's codename,
+           and the modal it opens offers a GitHub download of Hexworth Prime. Neither belongs in
+           an institution's branded product. Guarded at the render point, like the other four
+           surfaces, so a future caller is covered without anyone having to find it. */
+        if (UpdateManager.isTenantContext()) return;
+
         this.injectStyles();
 
         const version = this.remoteRelease.tag_name.replace(/^v/, '');
@@ -360,6 +367,12 @@ class UpdateManager {
      * Show the full update modal
      */
     async showUpdateModal() {
+        /* Never for white-label students. `remoteRelease.name` is built as
+           `${codename} ${version}` (see checkVersionFile), so this renders Hexworth's codename,
+           and the modal it opens offers a GitHub download of Hexworth Prime. Neither belongs in
+           an institution's branded product. Guarded at the render point, like the other four
+           surfaces, so a future caller is covered without anyone having to find it. */
+        if (UpdateManager.isTenantContext()) return;
         this.dismissBanner();
         this.injectStyles();
 

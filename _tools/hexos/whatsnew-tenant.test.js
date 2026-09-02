@@ -47,7 +47,14 @@ const srv=http.createServer((q,r)=>{
    return r.end('<!DOCTYPE html><html><body><script src="/components/UpdateManager.js"></script></body></html>');}
  const p=decodeURIComponent(q.url.split('?')[0]);const f=path.join(APP,p);
  if(!f.startsWith(APP)||!fs.existsSync(f)){r.writeHead(404);return r.end();}
- r.writeHead(200,{'Content-Type':'text/javascript'});r.end(fs.readFileSync(f));});
+ /* Correct MIME per extension. The first version served EVERYTHING as text/javascript, which
+    was fine while the only fixture was a hand-written page loading one script, and silently broke
+    the moment a fixture navigated to a real .html page: the browser never parsed it as HTML, the
+    badge element did not exist, and the non-tenant CONTROL failed while the tenant case "passed"
+    for entirely the wrong reason. A harness that mis-serves the artifact measures the harness. */
+ const MIME={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css',
+             '.webp':'image/webp','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
+ r.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});r.end(fs.readFileSync(f));});
 const T=JSON.stringify({slug:'acme',branding:{name:'Acme'},adminUids:[]});
 let pass=0,fail=0;const chk=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'ok  ':'FAIL'} ${n}${c?'':'  <- '+String(d)}`);};
 srv.listen(PORT,'127.0.0.1',async()=>{
@@ -102,6 +109,57 @@ srv.listen(PORT,'127.0.0.1',async()=>{
   }
   await pg.close();await ctx.close().catch(()=>{});
  }
+ // ── EVERY renderer, not just the two found first. A reviewer enumerated five surfaces that
+ // put the version or codename on screen; guarding "the renderer" only closes a door if you
+ // found every renderer, and the first pass found two of them.
+ for (const tenant of [true,false]){
+  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  await pg.evaluateOnNewDocument((t,isT)=>{try{
+    if(isT){sessionStorage.setItem('hexworth_tenant',t);localStorage.setItem('hexworth_tenant',t);}
+  }catch(e){}},T,tenant);
+  await pg.goto(`http://127.0.0.1:${PORT}/t.html`,{waitUntil:'networkidle0'});
+  const r=await pg.evaluate(async()=>{
+    const um=new UpdateManager();
+    um.remoteRelease={tag_name:'v9.9.9',name:'HARDLINE 9.9.9',body:'notes',html_url:'#'};
+    let banner=false,modal=false;
+    try{ um.showUpdateBanner(); banner=!!document.querySelector('.update-banner'); }catch(e){}
+    try{ await um.showUpdateModal(); modal=!!document.querySelector('.update-modal-overlay:not(.whatsnew-modal)'); }catch(e){}
+    return {banner,modal};
+  });
+  const label=tenant?'TENANT':'plain ';
+  if(tenant){
+    chk(`${label}: update BANNER does not render`, r.banner===false, JSON.stringify(r));
+    chk(`${label}: update MODAL does not render`, r.modal===false, JSON.stringify(r));
+  }else{
+    chk(`${label}: update BANNER still renders (guard is not universal)`, r.banner===true, JSON.stringify(r));
+  }
+  await pg.close();await ctx.close().catch(()=>{});
+ }
+
+ // ── The landing page renders its own badge and does NOT load UpdateManager, so its check is
+ // inlined and needs its own fixture. No auth involved, so this one drives the REAL page.
+ for (const tenant of [true,false]){
+  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  await pg.setRequestInterception(true);
+  pg.on('request',rq=>{const u=rq.url();
+   if(!u.startsWith(`http://127.0.0.1:${PORT}`))return rq.abort();rq.continue();});
+  await pg.evaluateOnNewDocument((t,isT)=>{try{
+    if(isT){sessionStorage.setItem('hexworth_tenant',t);localStorage.setItem('hexworth_tenant',t);}
+  }catch(e){}},T,tenant);
+  try{
+   await pg.goto(`http://127.0.0.1:${PORT}/index.html`,{waitUntil:'domcontentloaded',timeout:30000});
+   await new Promise(r=>setTimeout(r,1800));
+   const txt=await pg.evaluate(()=>{const e=document.getElementById('versionBadge');return e?e.textContent:'(no badge)';});
+   const label=tenant?'TENANT':'plain ';
+   if(tenant){
+     chk(`${label}: landing badge shows no codename`, /^v[\d.]+\s*$/.test(txt.trim())||txt==='(no badge)', txt);
+   }else{
+     chk(`${label}: landing badge still shows the codename`, /[A-Z]{3,}/.test(txt), txt);
+   }
+  }catch(e){ chk('landing badge fixture ran', false, e.message); }
+  await pg.close();await ctx.close().catch(()=>{});
+ }
+
  await b.close();srv.close();
  console.log(`\n  ${pass}/${pass+fail} passed`);process.exitCode=fail?1:0;
 });

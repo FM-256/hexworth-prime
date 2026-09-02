@@ -1,3 +1,19 @@
+/* ARCHIVED 2026-09-02, UNWIRED. Nothing constructs this class anywhere in _app; verified by
+ * grepping for `new UpdateChecker` across every html and js file. It is kept, not deleted,
+ * because this repo archives rather than destroys.
+ *
+ * WHY IT WAS MOVED OUT OF THE LIVE TREE: it is a THIRD independent implementation of the update /
+ * release-notes surface, alongside components/UpdateManager.js and an inline one in
+ * dashboard.html, and it renders `Hexworth Prime ${version}` plus the codename with no tenant
+ * check. Two reviewers spent this round finding the other implementations one at a time; leaving a
+ * dormant fourth one in components/ for the next person to wire up, without the guard convention,
+ * is how that repeats. Its comparison logic is also stale: it checks the LOCAL version against
+ * GitHub raw master, which would tell a student an update is available whenever the repo is ahead
+ * of production.
+ *
+ * If it is ever revived: guard every render point with UpdateManager.isTenantContext(), and see
+ * _tools/hexos/whatsnew-tenant.test.js for the fixtures that prove a guard actually works.
+ */
 /**
  * UpdateChecker.js - Version Update Notification
  *
