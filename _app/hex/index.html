@@ -1070,7 +1070,20 @@
         }
         var r = /^(\s*(\S+)\s+)(.*)$/.exec(v);
         if (!r) return null;
-        var verb = r[2], frag = r[3];
+        /* EIGHTH case site, and the worst-placed one: this function decides WHICH pool Tab draws
+           from, so an unfolded verb here means Tab does nothing at all. Every branch below compares
+           against a lowercase literal, exec() folds the verb before dispatch (see exec), and
+           candidates() folds the fragment, so this single unfolded read was the one link left.
+           `RUN ar` + Tab fell past every branch to `return null`, and complete()'s `if (!ctx)
+           return;` makes that SILENT: not even the "no completion" line that an empty pool
+           produces. A student cannot tell that from a dead key, and this file's own commentary
+           calls silence a first-class bug.
+           I had been calling tab-completion "already fixed" for three rounds. What was fixed was
+           candidate MATCHING; the verb PARSING that decides whether matching ever runs was not.
+           Found by a reviewer pressing Tab, which no test in this repo did.
+           frag is deliberately NOT folded: it is the text being typed, and candidates() already
+           matches it case-insensitively while preserving what the student sees. */
+        var verb = low(r[2]), frag = r[3];
         if (/\s/.test(frag)) return null;          // past the first argument, nothing to complete
         if (verb === 'man') {
             // Commands first, then app ids, since man falls through to an app record.
@@ -1091,7 +1104,12 @@
         if (verb === 'ls') {
             // ls takes a category or a house, so complete from exactly those.
             var vals = {};
-            APPS.forEach(function (a) { vals[a.category] = 1; if (a.house) vals[a.house] = 1; });
+            // Folded for the same reason as places(): these are compared against a lowercased
+            // fragment, and the manifest's lowercase house/category values are convention only.
+            APPS.forEach(function (a) {
+                if (a.category) vals[low(a.category)] = 1;
+                if (a.house) vals[low(a.house)] = 1;
+            });
             return { prefix: r[1], frag: frag, pool: Object.keys(vals).sort() };
         }
         if (verb === 'search') {
@@ -1153,7 +1171,31 @@
         }
 
         var ctx = completionContext(cmd.value);
-        if (!ctx) return;
+        if (!ctx) {
+            /* This used to `return` silently, three lines above a comment asserting that silence
+               is indistinguishable from a broken key. That contradiction is what made the verb
+               case bug invisible: `RUN ar` fell through every branch of completionContext, landed
+               here, and produced nothing at all, so it looked exactly like a dead Tab key rather
+               than a shell that did not understand the line. Two paths reach here legitimately
+               (past the first argument, and a command with no completion pool), and both are worth
+               saying out loud. */
+            var vm = /^\s*(\S+)\s+(.*)$/.exec(cmd.value);
+            var vb = vm ? low(vm[1]) : '';
+            var rest = vm ? vm[2] : '';
+            if (vb && COMMANDS[vb]) {
+                /* SEPARATE THE TWO REASONS. completionContext returns null both when the caret is
+                   past the first argument and when the verb has no pool at all, and the first
+                   draft of this collapsed them into one sentence. That made "nothing to complete
+                   for cd" appear after `cd cloud extra`, which is false: `cd ` completes fine, it
+                   is this POSITION that has nothing left. Mirrors completionContext's own test, so
+                   the two cannot drift into disagreeing about which case is which. */
+                if (/\s/.test(rest)) {
+                    return say('nothing more to complete on this line.', 'muted');
+                }
+                return say('nothing to complete for <span class="ok">' + esc(vb) + '</span>.', 'muted');
+            }
+            return say('nothing to complete here.', 'muted');
+        }
         var hits = candidates(ctx.pool, ctx.frag);
 
         if (!hits.length) {

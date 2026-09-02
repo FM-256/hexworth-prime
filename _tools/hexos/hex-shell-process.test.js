@@ -53,6 +53,25 @@
  * merely slow response. A disclosure is honest only when the risk is unknown; that risk was
  * present and reproducible, so the caveat was wrong and the code needed a test, not a note.
  *
+ * ON THE FLAKINESS QUESTION, recorded rather than dismissed. A reviewer saw two unrelated
+ * assertions ("a FAILED chain does not clear a flag it never set", "the third attempt is refused
+ * as still outstanding") go red on ONE run out of three, while running a MUTATED copy of
+ * index.html with the man fold reverted; his two runs against unmodified HEAD were clean. Four
+ * further consecutive runs against HEAD were also clean, so six clean runs total and no
+ * reproduction on the real file. That is NOT a proof of absence: both assertions live in the
+ * timing-sensitive watchdog block, which uses real timers.
+ *
+ * ACTED ON RATHER THAN PARKED, after a second reviewer pointed out that parking a diagnosed flake
+ * in a GATE-status file wired into deploy.sh gate 3.7 is the worst of both worlds: an intermittent
+ * red either blocks a good deploy or teaches someone to re-run until green. The named suspect was
+ * the gen3 read in the pg5 block, which waited 900ms against this page's HEX_PROC_TIMEOUT_MS of
+ * 1000. A 100ms margin, and I had personally narrowed it earlier the same round by inserting a
+ * `stop ARCTIC` case into that sequence. The refusal being asserted is printed SYNCHRONOUSLY when
+ * the launchPending check rejects gen3, so the wait bought nothing except a chance for the
+ * watchdog to fire mid-read. Now 400ms: waiting LESS is what widens the margin here, which is
+ * backwards from the usual instinct and is why it is written down. Three further clean runs after
+ * the change. Still not proof, but the specific hypothesis was tested rather than recorded.
+ *
  * The `server-only-lab` case is a regression guard for a genuinely destructive ordering bug: restart
  * destroyed the box and THEN discovered it could not relaunch it, because the server may know a lab
  * this client's LAB_INFO does not. "Your box is gone and I cannot make another" is the one outcome a
@@ -276,6 +295,70 @@ srv.listen(PORT, '127.0.0.1', async () => {
     o = await run('man    ');
     chk('a blank man argument does not dump every page as a suggestion',
         !/did you mean/i.test(o) || (o.match(/,/g) || []).length < 5, o.slice(0, 120));
+
+    /* TAB. This suite pressed Enter thousands of times and Tab zero times, and that is precisely
+     * how an EIGHTH case-sensitivity site survived three rounds of sweeping this file. A reviewer
+     * found it by pressing Tab: `completionContext()` read the verb raw and compared it against
+     * lowercase literals, so `RUN ar` matched no branch, returned null, and complete() returned
+     * silently. Not a wrong completion, NO completion, and no message either, which is
+     * indistinguishable from a dead key.
+     *
+     * The lowercase control is not optional. Asserting only that `RUN ar` completes cannot
+     * distinguish a working fold from a Tab handler that offers everything to everyone. */
+    async function tab(s) {
+        await pg.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+        await pg.evaluate(() => { document.getElementById('cmd').value = ''; });
+        await pg.click('#cmd'); await pg.type('#cmd', s);
+        await pg.keyboard.press('Tab');
+        await new Promise(r => setTimeout(r, 350));
+        const res = await pg.evaluate(() => ({
+            value: document.getElementById('cmd').value,
+            out: document.getElementById('out').innerText.trim()
+        }));
+        /* CLEAR THE INPUT. Tab does not submit, so whatever it completed stays in the box, and
+           the next run() types onto the end of it. The first version of this helper left "ps "
+           behind and turned the very next command into `ps restart server-only-lab`, failing two
+           assertions that had nothing to do with Tab. A helper that leaks state into its
+           successors produces failures in innocent tests, which is the worst kind to debug.
+
+           WHAT THIS LINE DOES NOT DO, since a reviewer caught the comment claiming credit it had
+           not earned: it does not reset `tabState`, the cycling state that makes a second Tab
+           advance to the next candidate. That is only cleared by a non-Tab keydown (see the
+           keydown handler in index.html). What actually protects the next call is `pg.type()`,
+           which dispatches a real keydown PER CHARACTER and nulls the stale state before the next
+           Tab press. So every current call site is safe because it re-types a non-empty string,
+           not because of this assignment. A future `tab('')`, or a variant that presses Tab twice
+           without retyping, would silently inherit the previous cycle. */
+        await pg.evaluate(() => { document.getElementById('cmd').value = ''; });
+        return res;
+    }
+    let t = await tab('run ar');
+    const lowerWorks = /arctic|arena/.test(t.out) || /arctic|arena/.test(t.value);
+    chk('CONTROL: lowercase `run ar` + Tab completes', lowerWorks, JSON.stringify(t));
+    t = await tab('RUN ar');
+    chk('`RUN ar` + Tab completes the same way',
+        /arctic|arena/.test(t.out) || /arctic|arena/.test(t.value), JSON.stringify(t));
+    t = await tab('CD cl');
+    chk('`CD cl` + Tab offers places', /cloud/.test(t.out) || /cloud/.test(t.value), JSON.stringify(t));
+    t = await tab('Man r');
+    chk('`Man r` + Tab offers manual pages', /run/.test(t.out) || /run/.test(t.value), JSON.stringify(t));
+    t = await tab('LS clo');
+    chk('`LS clo` + Tab offers houses and categories',
+        /cloud/.test(t.out) || /cloud/.test(t.value), JSON.stringify(t));
+    /* And the silence that hid it. A verb with no completion pool must SAY so, not return
+     * nothing: this file's own comment calls silence a first-class bug, and the branch that
+     * asserted it sat three lines below a silent return. */
+    t = await tab('ps ');
+    chk('a verb with no completion pool says so instead of going silent',
+        /nothing to complete/i.test(t.out), JSON.stringify(t));
+    /* The two null-ctx reasons must not share a sentence. A reviewer caught the first draft
+       telling a student "nothing to complete for cd" after `cd cloud extra`, which is false:
+       `cd ` completes fine, it is that POSITION that has nothing left. `cd` is a verb WITH a
+       pool, so this can only pass if the position case is reported separately. */
+    t = await tab('cd cloud extra');
+    chk('past the first argument reports POSITION, not a dead verb',
+        /nothing more to complete on this line/i.test(t.out)
+        && !/nothing to complete for/i.test(t.out), JSON.stringify(t));
 
     const before = calls.length;
     o = await run('restart server-only-lab');
@@ -580,7 +663,15 @@ srv.listen(PORT, '127.0.0.1', async () => {
         /still outstanding|YET/i.test(stopCaps5), stopCaps5.slice(0, 130));
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('restart arctic');                    // gen3, after gen2's watchdog freed the lock
-    await new Promise(r => setTimeout(r, 900));
+    /* READ EARLY, not late. This was 900ms against this page's HEX_PROC_TIMEOUT_MS of 1000, a
+       100ms margin, and a reviewer named it as the suspect behind two assertions that went red
+       once in three runs on a mutated tree. The refusal being asserted is printed SYNCHRONOUSLY
+       when the launchPending check rejects gen3, so there is nothing to wait for; the only thing
+       the extra delay bought was a chance for the watchdog to fire mid-read. Waiting less is
+       strictly safer here, which is the opposite of the usual fix and the reason it is worth a
+       comment. I also lengthened this sequence earlier in the round by inserting a `stop ARCTIC`
+       case above, so the margin was mine to tighten and mine to restore. */
+    await new Promise(r => setTimeout(r, 400));
     const out5 = await pg5.evaluate(() => document.getElementById('out').innerText);
     chk('a FAILED chain does not clear a flag it never set', launch5.length === 1, 'launches=' + JSON.stringify(launch5));
     chk('  -> the third attempt is refused as still outstanding', /still outstanding/i.test(out5), out5.slice(0, 130));
