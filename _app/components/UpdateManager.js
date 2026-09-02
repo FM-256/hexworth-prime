@@ -71,6 +71,36 @@ class UpdateManager {
     }
 
     /**
+     * Is this browser inside a white-label tenant wrapper?
+     *
+     * BOTH STORAGES, deliberately. The tenant blob is written to sessionStorage by the join flow
+     * and mirrored to localStorage so it survives a new tab (BUG-242); eleven of the twelve join
+     * paths historically wrote only ONE of the two, which is exactly how a previous check that
+     * read a single storage reported "not a tenant" for real tenant students (BUG-236). Reading
+     * either is the cheap way to not repeat that.
+     *
+     * Storage access is wrapped because it throws outright when cookies are blocked, and this is
+     * called from inside a try/catch whose failure path silently skips the version bookkeeping.
+     * A detector that throws here would disable What's New for EVERYONE and freeze the stored
+     * version, which is far worse than the exposure it exists to prevent.
+     *
+     * Deliberately does NOT consult TenantRouter: this runs on dashboard.html at DOMContentLoaded
+     * and TenantRouter may or may not have been injected yet, so a negative from it would be a
+     * race rather than an answer. The blob is written before any of that.
+     */
+    static isTenantContext() {
+        for (const store of ['sessionStorage', 'localStorage']) {
+            try {
+                const raw = window[store].getItem('hexworth_tenant');
+                if (!raw) continue;
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed.slug === 'string' && parsed.slug.trim()) return true;
+            } catch (e) { /* storage blocked or blob unparseable; try the other one */ }
+        }
+        return false;
+    }
+
+    /**
      * Check if this is the first launch of a new version
      */
     async checkFirstLaunch() {
@@ -83,7 +113,18 @@ class UpdateManager {
             if (lastVersion && currentVersion && lastVersion !== currentVersion) {
                 // New version detected - show What's New
                 const seenWhatsNew = localStorage.getItem(this.options.storageKeys.seenWhatsNew);
-                if (seenWhatsNew !== currentVersion) {
+                /* NOT for white-label students. This modal renders Hexworth's own release notes
+                   ("Welcome to 7.2.0" plus the platform changelog), and dashboard.html calls
+                   init() unconditionally with no tenant check anywhere in the chain. Before this
+                   guard, the next version bump would have shown Hexworth branding and Hexworth
+                   feature announcements to every returning tenant student, inside the wrapper
+                   their institution pays to put around the product.
+                   Found by a reviewer scoping the blast radius of a version bump rather than the
+                   bump itself: the gap was dormant, and shipping a new version is the event that
+                   fires it platform-wide.
+                   AUTO-TRIGGER ONLY. Opening What's New deliberately still works, because that is
+                   the student asking rather than the platform interrupting. */
+                if (seenWhatsNew !== currentVersion && !UpdateManager.isTenantContext()) {
                     await this.showWhatsNew({ autoTriggered: true });
                 }
             }

@@ -450,6 +450,20 @@ else
         echo "$DX_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # A white-label student must never be shown Hexworth's own release notes. This is dormant
+    # until a version bump, which is exactly why it needs a gate rather than a memory.
+    WN_OUT="$(node "$REPO_ROOT/_tools/hexos/whatsnew-tenant.test.js" 2>&1)"
+    WN_RC=$?
+    if [[ $WN_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- What's New tenant guard SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $WN_RC -ne 0 ]]; then
+        echo "$WN_OUT" | grep -E "FAIL|passed" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! tenant students could be shown Hexworth release notes${NC}"
+        DIVERGENCE=1
+    else
+        echo "$WN_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'

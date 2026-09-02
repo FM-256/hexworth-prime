@@ -108,6 +108,24 @@ function examplesFromFaq() {
     return out;
 }
 
+/* The concrete things a documented block promises the student will see: ids, command names,
+ * suggestions. Prose words are filtered out by requiring a token to look like an id or a known
+ * command rather than an English word, which is crude but keeps the assertion pointed at the
+ * things that can actually be wrong. Shared by the TAB and ERROR branches so the two cannot drift
+ * into checking different definitions of "documented". */
+function documentedTokens(ex) {
+    const PROSE = new Set(['the', 'and', 'not', 'app', 'for', 'try', 'did', 'you', 'mean', 'run',
+        'called', 'with', 'them', 'then', 'one', 'name', 'first', 'apps', 'ids', 'since', 'falls',
+        'through', 'record', 'come', 'manual', 'pages', 'press', 'again', 'line', 'fills', 'itself',
+        'match', 'house', 'starts', 'those', 'letters', 'simply', 'that', 'this', 'from', 'into']);
+    return [...new Set(
+        ex.body.join(' ').split(/\s+/)
+            .map((w) => w.replace(/[.,]+$/, ''))
+            .filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w))
+            .filter((w) => !PROSE.has(w.toLowerCase()))
+    )];
+}
+
 const srv = http.createServer((q, r) => {
     let p = decodeURIComponent(q.url.split('?')[0]);
     if (p.endsWith('/')) p += 'index.html';
@@ -162,7 +180,14 @@ srv.listen(PORT, '127.0.0.1', async () => {
         chk('the shell loaded its manifest (so the results below mean something)',
             /\d+\s+apps?|categor|house/i.test(probe) && !/still loading/i.test(probe), probe.slice(0, 120));
 
-        chk('the FAQ actually contains runnable examples', cmds.length >= 3, `${cmds.length} found`);
+        /* COVERAGE FLOOR. `>= 3` against an 11-block page was not a floor, it was a formality: a
+           reformat that broke extraction on the newest blocks while three legacy ones still
+           parsed would report "ok" at a quarter of real coverage. Tie it to the page instead, so
+           the gate fails when it silently stops testing things. A gate that quietly tests nothing
+           is worse than no gate. */
+        const promptCount = (fs.readFileSync(FAQ, 'utf8').match(/hex&gt;/g) || []).length;
+        chk('every prompt in the FAQ was extracted as an example',
+            cmds.length === promptCount, `${cmds.length} extracted vs ${promptCount} prompts on the page`);
 
         for (const ex of cmds) {
             // Back to a known page first. `run` LAUNCHES, which means it navigates away, so the
@@ -189,9 +214,30 @@ srv.listen(PORT, '127.0.0.1', async () => {
                 chk(`FAQ Tab example does something: ${ex.cmd}`, acted, JSON.stringify(st));
                 // And every candidate the FAQ prints must really be offered, which is what would
                 // have caught a transcript listing ids that do not exist.
-                for (const want of ex.body.join(' ').split(/\s+/).filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w))) {
+                /* For a TAB example the FIRST body line IS the candidate list the shell prints,
+                   so compare that line token-for-token instead of scanning the whole block. My
+                   first attempt filtered prose with a stopword list and immediately produced a
+                   false failure: `run` is both an English word on that list AND a real command
+                   the FAQ does document, so the gate reported the page had omitted something it
+                   plainly showed. A wordlist cannot separate prose from ids; the line the shell
+                   actually printed can. */
+                const documented = (ex.body[0] || '').split(/\s+/)
+                    .map((w) => w.replace(/[.,]+$/, ''))
+                    .filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w));
+                for (const want of documented) {
                     chk(`  -> offers "${want}"`, st.o.includes(want) || st.v.includes(want), st.o || st.v);
                 }
+                /* UNDER-DOCUMENTATION IS ALSO A FAILURE, and it was invisible before. A reviewer
+                   trimmed this block's documented candidates from 6 to 3 and the suite went from
+                   25/25 to 22/22, still green: nothing distinguished "the FAQ now says less" from
+                   "nothing changed". Since post-verify branches on exit code alone, a quietly
+                   shrinking transcript would drift stale forever without ever turning it red.
+                   So the documented list must be the WHOLE list: every candidate the shell prints
+                   has to appear on the page. */
+                const offered = st.o.split(/\s+/).filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w));
+                const undocumented = offered.filter((w) => !documented.includes(w));
+                chk(`  -> documents every candidate the shell offers`, undocumented.length === 0,
+                    `shell also offers ${JSON.stringify(undocumented)} which the FAQ does not show`);
                 continue;
             }
 
@@ -207,11 +253,20 @@ srv.listen(PORT, '127.0.0.1', async () => {
             }
             const out = await pg.evaluate(() => document.getElementById('out').innerText.trim());
             if (ex.kind === 'ERROR') {
-                // The FAQ demonstrates this failure on purpose, so absence-of-error would be the
-                // wrong assertion. Assert the shell STILL says what the page claims it says.
+                /* The FAQ demonstrates this failure on purpose, so absence-of-error is the wrong
+                   assertion. Assert the shell still says what the page claims.
+                   AND ASSERT THE SPECIFICS. The first version checked only that the output
+                   contained the generic phrase from ERRORS, and a reviewer proved that vacuous by
+                   changing the documented did-you-mean target from `arctic-cli` to the
+                   nonexistent `arctic-clique`: still 25/25 green, while the FAQ now told students
+                   to type an app that does not exist. The suggestion IS the point of that block,
+                   so every concrete token the page prints has to appear in the real output. */
                 chk(`FAQ error example still behaves as documented: ${ex.cmd}`,
                     out.toLowerCase().includes(ex.shownError),
                     `expected "${ex.shownError}" | got: ${out}`);
+                for (const want of documentedTokens(ex)) {
+                    chk(`  -> and still says "${want}"`, out.includes(want), out);
+                }
                 continue;
             }
             const bad = ERRORS.find((e) => out.toLowerCase().includes(e));
