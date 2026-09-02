@@ -31,6 +31,60 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-248 — 52 Operator missions record no progress, because the page never loads ModuleProgress  ·  [P2]  ·  open
+- **Found:** 2026-09-02 · by self · fallout from the `window.X` guard sweep in the tenant audit
+- **Area:** all 50 `_app/operator/missions/js-*.mission.html`, plus `python-01` and `python-02`
+- **What:** `OperatorEngine.js:794-811` reports a completed mission by calling
+  `window.ModuleProgress.complete('operator', 'op-' + config.id, ...)`. That guard is sound —
+  `ModuleProgress.js:1637` really does export to `window`. The problem is upstream: 72 of the 124
+  mission pages load `../../components/ModuleProgress.js` and **52 do not**, so on those the guard
+  is false and the completion is dropped silently. The split is clean and looks like an authoring
+  batch rather than a decision: every `js-*` mission lacks it, `python-03` through `python-50`
+  have it, `python-01`/`python-02` do not. Contrast `js-01.mission.html:12-15` with
+  `python-03.mission.html:8`.
+- **Impact:** a student finishes any of the 50 JavaScript missions — all of them listed as live in
+  the operator hub (`_app/operator/index.html:844` onward, titles and subtitles and all) — and
+  gets no XP, no progress record, and no completion overlay. Nothing errors, so it reads as though
+  the mission simply did not count.
+- **NOT yet established:** whether these missions are meant to grant progress at all. The engine
+  calls the hook unconditionally, which says yes, but that is inference — no spec was found. Worth
+  one operator sentence before anyone adds 52 script tags.
+- **Also here, separately:** `OperatorEngine.js:835` guards `window.GameTracker`, and
+  `GameTracker.js:16` is a top-level `const` with no `window` export, so that guard is
+  permanently false — the documented lexical trap. It is inert either way, because no mission page
+  loads `GameTracker.js` at all. Dead integration that reads as working code; worth deleting or
+  wiring, not worth an incident.
+- **Related:** BUG-247, `reference_lexical_const_window_guard_trap`.
+
+### BUG-247 — a "verified in a browser" comment measured `window.X` on a const-declared module  ·  [P2]  ·  open
+- **Found:** 2026-09-02 · by self · tenant-subsystem audit
+- **Area:** `_app/components/TenantShell.js:411-413`
+- **What:** the comment states that on a content page `firebase`, `FirebaseAuth` and
+  `FirestoreManager` "are all undefined, so there is no authenticated call path where this pill
+  renders", and uses that to justify the manual dismiss control as "the only mechanism" for the
+  class-ended and student-removed cases. Measured in a headless browser at pill-render time
+  (DOMContentLoaded + 900ms, when `injectPill` actually runs) on `/hex/index.html`,
+  `/houses/ai/ai-900/index.html`, `/houses/cloud/clf-c02/index.html` and
+  `/houses/shield/isc2-cc/index.html`: `window.FirebaseAuth` is `undefined` on all four, but
+  `typeof FirebaseAuth` is `object` on all four, exposing
+  `waitForAuth, getUser, isSignedIn, refreshToken`. `FirebaseAuth.js:9` declares
+  `const FirebaseAuth = (function(){...})()`, and a top-level `const` is a lexical binding, not a
+  window property — so a `window.` check reads undefined while the module is right there.
+- **What is actually true:** `FirestoreManager` undefined is correct, so there is no direct
+  Firestore read path — that half stands. `FirebaseAuth` undefined is false on the 90 of 99
+  static-TenantShell pages that also load `FirebaseAuth.js`. "No authenticated call path" is
+  therefore also false: `refreshToken()` yields an ID token, which is enough to invoke a Cloud
+  Function. The `firebase` global was NOT measured — the probe blocks off-origin requests and the
+  SDK is CDN-served, so that column is a harness artifact and is not evidence either way.
+- **Impact:** nothing is broken and the dismiss control remains justified (it still covers the
+  signed-out case). The defect is that the comment tells the next reader automatic detection is
+  impossible, which would stop them building it. A false road-closed sign, in the subsystem whose
+  entire audit has been about comments asserting what the code does not do.
+- **Timing note for any fix:** on `/hex/index.html` the TenantShell tag (:19) precedes the
+  FirebaseAuth tag (:41), so the binding genuinely is absent at TenantShell's module-execution
+  time and present only by pill-render time. An automatic check must live in the deferred path.
+- **Related:** BUG-246, `reference_lexical_const_window_guard_trap`.
+
 ### BUG-246 — AccessGuard hands tenant licensing to a component that is not on the page  ·  [P1]  ·  open
 - **Found:** 2026-09-02 · by self · tenant-subsystem audit (the one that produced BUG-243/244/245)
 - **Area:** `_app/components/AccessGuard.js:814-815` (the handoff) · `_app/components/TenantFilter.js`

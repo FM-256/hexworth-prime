@@ -285,6 +285,26 @@
     // slot the student did not ask for and cannot see.
     var launchPending = {};
 
+    // ALWAYS key launchPending through this, never with a raw id. Two sources feed the ids that
+    // reach it: what the student typed, and what the server returned in `list()`. Neither
+    // is guaranteed to agree with the other on case. A read keyed one way against a write keyed the
+    // other silently reports "nothing pending", which is exactly the duplicate-session bug this map
+    // exists to prevent.
+    //
+    // What the STUDENT sees is a separate question and is not uniform, deliberately. When the lab
+    // is in the session list, messages echo the server's own casing for it. When it is not, in the
+    // allowStopped fallback in resolveProcess, there is no server record and so no server casing
+    // to echo, and the message carries the folded id instead. That is the canonical manifest
+    // spelling and the one every other command prints, so it is the better thing to show; it is
+    // just not "the server's casing", and an earlier draft of this comment claimed it was.
+    // The one fold. This shell compares ids case-insensitively in nine places now, and every one
+    // of them was written as its own inline String(x == null ? '' : x).toLowerCase(); the seven
+    // separate case bugs found in this file all came from a site that simply did not get one.
+    // A named helper makes the omission visible at the call site.
+    function low(v) { return String(v == null ? '' : v).toLowerCase(); }
+
+    function pKey(id) { return low(id); }
+
     function clearProc(gen) {
         if (procGen !== gen) return;
         procBusy = null;
@@ -294,22 +314,38 @@
     function resolveProcess(arg, allowStopped) {
         var SL = window.SandboxLauncher;
         if (!SL) return Promise.resolve({ error: 'the session manager is not available.' });
+        // TWO NAMESPACES REACH THIS FUNCTION, AND ONLY ONE OF THEM IS CASE-INSENSITIVE.
+        //   labId     is the lowercase manifest convention, the same id space `run`, `info`, `ls`,
+        //             `cd` and tab-completion all match case-insensitively (SandboxLauncher.js:32
+        //             onward: do-100, arctic, linux-mastery, ...). A student who has just learned
+        //             from tab-completion that capitals are fine will type them here too.
+        //   sessionId is a server-issued opaque handle, copied verbatim out of `ps`. Nobody types
+        //             it against a known convention, so folding its case would invent a match the
+        //             server never promised. Left exact on purpose.
+        // A reviewer measured what missing this costs. With linux-mastery RUNNING,
+        // `restart LINUX-MASTERY` answered "is a page, not a running process. There is nothing to
+        // stop; just navigate away." Not merely unhelpful: false, and said to a student looking at
+        // a lab that is still up.
+        var labKey = String(arg == null ? '' : arg).toLowerCase();
         return SL.list().then(function (r) {
             // See the contract note in `ps`. Key is `sandboxes`; fields are sessionId/labId/status.
             var rows = (r && r.sandboxes) || [];
             for (var i = 0; i < rows.length; i++) {
-                if (rows[i].labId === arg || rows[i].sessionId === arg) {
+                // Fold BOTH sides. The ids are lowercase by convention, not by enforcement, and
+                // this list arrives off the wire.
+                var rowLab = String(rows[i].labId == null ? '' : rows[i].labId).toLowerCase();
+                if (rowLab === labKey || rows[i].sessionId === arg) {
                     return { labId: rows[i].labId, sessionId: rows[i].sessionId,
                              status: rows[i].status };
                 }
             }
-            if (SL.LAB_INFO && SL.LAB_INFO[arg]) {
-                if (allowStopped) return { labId: arg, sessionId: null, status: 'none' };
+            if (SL.LAB_INFO && SL.LAB_INFO[labKey]) {
+                if (allowStopped) return { labId: labKey, sessionId: null, status: 'none' };
                 // A launch already in flight means "nothing running" is true this instant and
                 // misleading a second later. The student asked to stop something the server has
                 // not finished building; saying only "nothing running" invites them to conclude
                 // the box is gone when it is about to appear.
-                if (launchPending[arg]) {
+                if (launchPending[pKey(arg)]) {
                     return { error: 'nothing is running for ' + esc(arg) + ' YET: a launch from an '
                              + 'earlier restart is still outstanding, so a box may appear shortly. '
                              + 'Run <span class="ok">ps</span> in a moment and stop it then.',
@@ -329,6 +365,21 @@
                 return { error: esc(arg) + ' is a page, not a running process. There is nothing ' +
                          'to stop; just navigate away.', cls: 'warn' };
             }
+            // CASE-ONLY NEAR-MISS ON A SESSION ID. Session ids are matched exactly, on purpose:
+            // they are opaque server handles, and folding them could point stop/restart at the
+            // WRONG session if the id space is ever mixed-case. But "no lab or session called
+            // SESS-ABC" is useless to a student looking at sess-abc in their own `ps` output, and
+            // case sensitivity here is invisible: every OTHER id on this shell is forgiving. So
+            // when the only thing wrong is the spelling, say that specifically rather than making
+            // them guess which of the two namespaces they are in.
+            for (var j = 0; j < rows.length; j++) {
+                var sid = rows[j].sessionId;
+                if (sid && String(sid).toLowerCase() === labKey) {
+                    return { error: 'session ids are case-sensitive, and ' + esc(arg) + ' is not '
+                             + 'the exact spelling. Use <span class="ok">' + esc(sid) + '</span>, '
+                             + 'or the lab name, which is not case-sensitive.', cls: 'warn' };
+                }
+            }
             return { error: 'no lab or session called ' + esc(arg) + '. ' +
                      '<span class="ok">ps</span> lists what is running.' };
         }).catch(function (e) {
@@ -341,15 +392,31 @@
     }
 
     /** Apps visible from the current context. */
+    /* Folded, like every other id comparison in this file. `cwd` is already lowercased by `cd`,
+       and all 192 manifest entries happen to carry lowercase house/category values today, so an
+       exact compare works RIGHT NOW, but only because the data is clean, not because anything
+       enforces it. A reviewer flagged this as the last place in the file still trusting a
+       convention instead of the code; one capitalised `house:` in the manifest would empty a
+       student's `ls` with no error. Nothing validates that field on the way in. */
     function scope() {
         if (!cwd) return APPS;
-        return APPS.filter(function (a) { return a.house === cwd || a.category === cwd; });
+        return APPS.filter(function (a) {
+            return low(a.house) === cwd || low(a.category) === cwd;
+        });
     }
 
     /** Every valid cd target: the houses and categories that actually exist in the manifest. */
+    /* Folded at the source. `cd` lowercases its argument (see cd) and then tests membership with
+       places().indexOf(arg), so an unfolded list would reject a destination that genuinely exists
+       the moment one manifest entry carried a capital: "no such place: cloud" for a house named
+       "Cloud". Folding here fixes the membership test and the did-you-mean list together, and
+       makes the printed spelling the canonical one the rest of the shell uses. */
     function places() {
         var v = {};
-        APPS.forEach(function (a) { if (a.category) v[a.category] = 1; if (a.house) v[a.house] = 1; });
+        APPS.forEach(function (a) {
+            if (a.category) v[low(a.category)] = 1;
+            if (a.house) v[low(a.house)] = 1;
+        });
         return Object.keys(v).sort();
     }
 
@@ -703,8 +770,11 @@
             // Say whether this is a house or a category. The manifest has a CATEGORY literally
             // named "house" (the 14 house-index pages), so `cd house` is legal and means something
             // completely different from `cd shield`. Unlabelled, that is a trap.
-            var isHouse = APPS.some(function (a) { return a.house === cwd; });
-            var isCat = APPS.some(function (a) { return a.category === cwd; });
+            // Folded for the same reason as scope(): these decide the word the student is shown
+            // ("house" vs "category"), and an exact compare would silently label a capitalised
+            // manifest value as neither.
+            var isHouse = APPS.some(function (a) { return low(a.house) === cwd; });
+            var isCat = APPS.some(function (a) { return low(a.category) === cwd; });
             var kind = (isHouse && isCat) ? 'house and category' : isHouse ? 'house' : 'category';
             say('now in ' + esc(cwd) + ' (' + kind + '). ' + scope().length + ' apps in scope. ' +
                 '<span class="muted">cd .. to go back.</span>', 'ok');
@@ -848,19 +918,19 @@
                     say('run <span class="ok">ps</span> to see what is actually running.', 'muted');
                     return SUPERSEDED;
                 }
-                if (launchPending[t.labId]) {
+                if (launchPending[pKey(t.labId)]) {
                     say('a launch for ' + esc(t.labId) + ' is still outstanding from an earlier '
                         + 'restart, so this one did NOT start a second box.', 'warn');
                     say('run <span class="ok">ps</span> in a moment to see it. Reload the page if '
                         + 'it never appears.', 'muted');
                     return SUPERSEDED;
                 }
-                launchPending[t.labId] = true;
+                launchPending[pKey(t.labId)] = true;
                 iSetLaunchPending = true;
                 return SL.launch(t.labId);
             }).then(function (res) {
                 if (res === SUPERSEDED) return;   // never set launchPending on this path
-                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
+                if (iSetLaunchPending) { delete launchPending[pKey(t.labId)]; iSetLaunchPending = false; }
                 // Guard the SETTLEMENT, not only the call. If launch() was the slow leg, the
                 // watchdog has already fired and a later invocation owns the lab; claiming
                 // "restarted from clean state" here would describe a box this chain no longer
@@ -879,7 +949,7 @@
                 // outstanding, letting a third retry start a second box. That is the same
                 // duplicate-session bug launchPending exists to prevent, reopened through the
                 // error leg. The success path already had this condition; the catch did not.
-                if (iSetLaunchPending) { delete launchPending[t.labId]; iSetLaunchPending = false; }
+                if (iSetLaunchPending) { delete launchPending[pKey(t.labId)]; iSetLaunchPending = false; }
                 say('restart failed: ' + esc(errText(e)), 'err');
                 // A superseded chain must not narrate the box at all. `destroyed` is per-chain
                 // state recording what THIS invocation did, and the catch was reading it as if it
@@ -918,7 +988,15 @@
             // PRECEDENCE: a manual page wins over an app of the same name. Safe only while no
             // app id equals a command name, which is true today (checked by hex-manual-check.js)
             // and would otherwise make `man <that-id>` silently show the wrong thing forever.
-            var m = MANUAL[arg];
+            // SEVENTH case-sensitivity site, found by a reviewer sweeping for exactly this after
+            // six others were fixed. MANUAL's keys are the command names, which the shell already
+            // accepts in any case (the verb is lowercased before dispatch), so `man RUN` reaching
+            // a case-sensitive lookup contradicted the command line that got the student here.
+            // It failed twice over: no page, AND the near-miss suggester below is an indexOf on
+            // the same raw arg, so a capitalised argument got no "did you mean" either. Silence
+            // dressed as an answer, which is the one outcome notReady()'s header refuses to ship.
+            var manKey = String(arg == null ? '' : arg).toLowerCase();
+            var m = MANUAL[manKey];
             if (!m) {
                 // Guard placed HERE, not at the top: MANUAL is static data, so `man cd` must keep
                 // working when the manifest is down. Only the app fallthrough reads APPS, and
@@ -929,11 +1007,19 @@
                 // An app id is a reasonable thing to type after `man`. Do the useful thing.
                 if (byId(arg)) return COMMANDS.info(arg);
                 say('no manual page for ' + esc(arg), 'err');
-                var near = Object.keys(MANUAL).filter(function (n) { return n.indexOf(arg) === 0; });
+                // Fold here too, or the "did you mean" is case-sensitive while the lookup above is
+                // not, and a capitalised argument gets neither. The manKey guard is not decorative:
+                // ''.indexOf('') === 0 is true for EVERY key, so a whitespace-only argument would
+                // otherwise offer the entire manual as near-misses.
+                var near = manKey ? Object.keys(MANUAL).filter(function (n) {
+                    return n.indexOf(manKey) === 0;
+                }) : [];
                 return say(near.length ? 'did you mean: ' + near.map(esc).join(', ')
                                        : 'try <span class="ok">man</span> for the list', 'muted');
             }
-            say('<span class="info">NAME</span>\n    ' + esc(arg));
+            // The RESOLVED key, not what was typed: `man RUN` prints a page whose NAME is `run`,
+            // which is the spelling every other surface uses and the one worth learning.
+            say('<span class="info">NAME</span>\n    ' + esc(manKey));
             say('<span class="info">SYNOPSIS</span>\n    ' + esc(m.synopsis));
             say('<span class="info">DESCRIPTION</span>\n' +
                 m.desc.split('\n').map(function (l) { return '    ' + esc(l); }).join('\n'));

@@ -99,6 +99,8 @@ srv.listen(PORT, '127.0.0.1', async () => {
     let live = fixture();
     let sawFirebaseAuth = false;
     const unauth = [];
+    // Bodies of every POST /launch, so a test can assert WHICH lab id the shell forwarded.
+    const launchBodies = [];
     const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const pg = await b.newPage(), calls = [];
     await pg.setRequestInterception(true);
@@ -140,6 +142,12 @@ srv.listen(PORT, '127.0.0.1', async () => {
                 return J({ status: 'destroyed' });
             }
             if (/\/launch/.test(u)) {
+                // Record the BODY, not just that a launch happened. SandboxLauncher.js:110 does
+                // `if (!LAB_INFO[labId]) throw new Error("Unknown lab: " + labId)` against
+                // all-lowercase keys, so the exact spelling the shell forwards is the difference
+                // between a relaunch and a thrown error the student sees as
+                // "restart failed: Unknown lab: LINUX-MASTERY".
+                try { launchBodies.push(JSON.parse(r.postData() || '{}')); } catch (e) { launchBodies.push({}); }
                 live.push({ sessionId: 'sess-new', labId: 'db-sql', lab: 'SQL', status: 'running', ageMinutes: 0, url: 'https://x/' });
                 return J({ sessionId: 'sess-new', url: 'https://x/' });
             }
@@ -173,15 +181,120 @@ srv.listen(PORT, '127.0.0.1', async () => {
     chk('  -> issued DELETE /destroy/sess-abc', calls.includes('DELETE /destroy/sess-abc'), calls.join('|'));
     o = await run('ps');            chk('ps reflects server state after stop', !/sess-abc/.test(o), o);
 
+    /* ── CASE. Two namespaces reach resolveProcess and only ONE may fold. ────────────────────
+     * A reviewer found the sixth case-sensitivity site here, after five others had been fixed
+     * in the same commit, and the commit had dismissed this one in writing as "a different
+     * namespace, not manifest-convention lowercase". Half true: sessionId is opaque, labId is
+     * the identical lowercase manifest space that run/info/ls/cd/tab all match case-insensitively.
+     *
+     * The cost, reproduced: with arctic RUNNING, `restart ARCTIC` answered "ARCTIC is a page,
+     * not a running process. There is nothing to stop; just navigate away." A student who has
+     * just learned from tab-completion that capitals are fine, looking at a frozen lab, is told
+     * the lab is not running and to walk away from it. False, not merely unhelpful.
+     *
+     * Both directions are pinned, because they fail oppositely: fold labId or the message above
+     * comes back; fold sessionId and the shell claims to match a server handle on a spelling the
+     * server never issued. */
+    live = fixture();
+    const caseBefore = calls.length;
+    o = await run('restart ARCTIC');
+    await new Promise(r => setTimeout(r, 1400));
+    /* ASSERT THE RIGHT OUTCOME, NOT THE ABSENCE OF ONE WRONG ONE. The first version of this line
+     * was `!/not a running process/i.test(o)` and it stayed GREEN against the unfixed code: with
+     * the fold reverted the shell fell through to a DIFFERENT wrong answer ("no lab or session
+     * called ARCTIC"), which the negative did not match. A check that only rules out one of the
+     * several ways a thing can be wrong is not a check. */
+    chk('restart accepts a CAPITALISED lab id',
+        /stopped|relaunch|restarted|clean state/i.test(o) && !/not a running process|no lab or session/i.test(o), o);
+    chk('  -> and actually destroyed the running session',
+        calls.slice(caseBefore).includes('DELETE /destroy/sess-abc'), calls.slice(caseBefore).join('|'));
+    chk('  -> and relaunched it',
+        calls.slice(caseBefore).some(c => /POST \/launch/.test(c)), calls.slice(caseBefore).join('|'));
+
+    live = fixture();
+    const stopBefore = calls.length;
+    o = await run('stop ArCtIc');
+    chk('stop accepts a mixed-case lab id',
+        /stopping|stopped/i.test(o) && !/not a running process|no lab or session/i.test(o), o);
+    chk('  -> and destroyed the right session',
+        calls.slice(stopBefore).includes('DELETE /destroy/sess-abc'), calls.slice(stopBefore).join('|'));
+
+    /* The other direction. sessionId is server-issued and copied out of `ps`; matching a
+     * DIFFERENT spelling of it would be inventing a promise the server never made. */
+    live = fixture();
+    const sessBefore = calls.length;
+    o = await run('stop SESS-ABC');
+    chk('a session id is NOT case-folded',
+        /case-sensitive/i.test(o) && /sess-abc/.test(o), o);
+    chk('  -> and nothing was destroyed on a near-miss',
+        !calls.slice(sessBefore).some(c => /DELETE/.test(c)), calls.slice(sessBefore).join('|'));
+
+    /* THE labKey FALLBACK BRANCH -- a lab that EXISTS in LAB_INFO but is absent from list(),
+     * i.e. never launched. A reviewer pointed out that every restart case above targets a lab
+     * already in the fixture, so all of them take the loop-match branch and NONE reach the line
+     * this round actually changed:
+     *     if (allowStopped) return { labId: labKey, sessionId: null, status: 'none' };
+     * That line is load-bearing, not cosmetic. Downstream, restart calls SL.launch(t.labId), and
+     * SandboxLauncher.js:110 is `if (!LAB_INFO[labId]) throw new Error("Unknown lab: " + labId)`
+     * against all-lowercase keys. Returning the raw arg here meant `restart LINUX-MASTERY` on a
+     * never-launched lab threw, and the student read "restart failed: Unknown lab: LINUX-MASTERY"
+     * -- a SECOND case bug one layer below the one that started this round.
+     * `linux-mastery` is a real LAB_INFO id (SandboxLauncher.js:32-49), not an invented fixture. */
+    live = fixture();
+    const neverBefore = launchBodies.length;
+    o = await run('restart LINUX-MASTERY');
+    await new Promise(r => setTimeout(r, 1400));
+    /* Names the message the BROKEN path actually produces. The first draft of this line ruled out
+     * "unknown lab" and "no lab or session" and stayed green against the reverted code, because
+     * the failure surfaced as the destructive-refusal branch instead -- "this shell does not know
+     * how to launch LINUX-MASTERY". Third time this round that a negative assertion matched the
+     * wrong wrong-answer; a check has to name the failure it is guarding against. */
+    chk('restart a NEVER-LAUNCHED lab, capitalised, is not refused as unlaunchable',
+        !/does not know how to launch/i.test(o) && !/unknown lab/i.test(o)
+        && !/no lab or session/i.test(o), o);
+    chk('  -> it reports launching fresh rather than claiming nothing to stop',
+        /was not running/i.test(o) && /launching it fresh/i.test(o), o);
+    chk('  -> and forwards the FOLDED id to launch, which is the spelling LAB_INFO has',
+        launchBodies.slice(neverBefore).some(bd => bd.labId === 'linux-mastery'),
+        JSON.stringify(launchBodies.slice(neverBefore)));
+
+    /* `man` -- the SEVENTH case-sensitivity site, found by a reviewer sweeping the file after six
+     * were fixed. MANUAL's keys are command names, and the shell lowercases the VERB before
+     * dispatch, so `man RUN` reached a case-sensitive lookup that contradicted the command line
+     * that accepted it. It failed twice: no page, and the near-miss suggester was an indexOf on
+     * the same raw argument, so there was no "did you mean" either. */
+    o = await run('man RUN');
+    chk('man accepts a capitalised command name', /SYNOPSIS/.test(o) && /DESCRIPTION/.test(o), o.slice(0, 120));
+    chk('  -> and prints the canonical lowercase NAME', /NAME\s*\n?\s*run\b/.test(o), o.slice(0, 90));
+    o = await run('man CD');
+    chk('man CD resolves too', /SYNOPSIS/.test(o) && !/no manual page/i.test(o), o.slice(0, 100));
+    o = await run('man ST');
+    chk('a capitalised PREFIX still gets a did-you-mean', /did you mean/i.test(o) && /stop/.test(o), o.slice(0, 120));
+    /* ''.indexOf('') === 0 is true for every key, so an empty argument would otherwise offer the
+     * entire manual as near-misses. `man` with no argument is the list command, so drive the guard
+     * with whitespace, which is what a fat-fingered student actually sends. */
+    o = await run('man    ');
+    chk('a blank man argument does not dump every page as a suggestion',
+        !/did you mean/i.test(o) || (o.match(/,/g) || []).length < 5, o.slice(0, 120));
+
     const before = calls.length;
     o = await run('restart server-only-lab');
     chk('restart REFUSES a lab it cannot relaunch', /would destroy|does not know how to launch/i.test(o), o);
     chk('  -> and destroyed nothing', !calls.slice(before).some(c => /DELETE/.test(c)), calls.slice(before).join('|'));
     chk('  -> and says nothing was changed', /nothing was changed/i.test(o), o);
 
+    /* SLICED. This read the whole cumulative `calls` array, which was a real check only while it
+     * happened to be the first launch in the run. The CASE block inserted above it fires its own
+     * POST /launch, so `calls.some(...)` became unconditionally true and the launch half of this
+     * assertion could no longer fail -- a pre-existing check quietly turned into a proxy by
+     * nothing more than insertion order. Found by a reviewer. Scoping it to this command's own
+     * window is what makes it independent of whatever runs before it. */
+    const stopLabBefore = calls.length;
     o = await run('restart db-sql'); await new Promise(r => setTimeout(r, 1400));
     chk('restart a stopped lab: destroy THEN launch',
-        calls.includes('DELETE /destroy/sess-frz') && calls.some(c => /POST \/launch/.test(c)), calls.join('|'));
+        calls.slice(stopLabBefore).includes('DELETE /destroy/sess-frz')
+        && calls.slice(stopLabBefore).some(c => /POST \/launch/.test(c)),
+        calls.slice(stopLabBefore).join('|'));
     chk('  -> reports clean state', /restarted|clean state/i.test(o), o);
     o = await run('ps');            chk('ps shows the fresh box', /sess-new/.test(o), o);
     // TOCTOU: two Enter presses inside one round-trip made restart destroy once and launch TWICE,
@@ -453,6 +566,18 @@ srv.listen(PORT, '127.0.0.1', async () => {
     const stop5 = await pg5.evaluate(() => document.getElementById('out').innerText);
     chk('stop reports an outstanding launch instead of a flat "nothing running"',
         /still outstanding|YET/i.test(stop5), stop5.slice(0, 130));
+    /* THE SAME ANSWER IN CAPITALS. launchPending is written from the id the SERVER returned and
+     * read from the id the STUDENT typed, so a read keyed one way against a write keyed the other
+     * reports "nothing pending" and the student is told their box is simply gone -- while a launch
+     * for it is in flight. Every key now goes through pKey(); this is what proves it, and the
+     * lowercase case above is kept rather than replaced, since the two spellings take different
+     * paths to the same map. */
+    await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
+    await type5('stop ARCTIC');
+    await new Promise(r => setTimeout(r, 700));
+    const stopCaps5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    chk('  -> and reports it for a CAPITALISED id too',
+        /still outstanding|YET/i.test(stopCaps5), stopCaps5.slice(0, 130));
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('restart arctic');                    // gen3, after gen2's watchdog freed the lock
     await new Promise(r => setTimeout(r, 900));
