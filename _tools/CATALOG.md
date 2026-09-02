@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-02 02:02 · **1172 scripts** · 35 wired into a gate · 275 called by other code · 190 only mentioned in docs · 672 referenced by nothing · 474 not in git
+**Generated:** 2026-09-02 10:10 · **1173 scripts** · 35 wired into a gate · 275 called by other code · 191 only mentioned in docs · 672 referenced by nothing · 474 not in git
 
 ## Read this before writing a new script
 
@@ -747,13 +747,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 4 scripts, 3 referenced by nothing
+### `_tools/hexos` — 5 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `case-fold-lint.js` | DOCS-ONLY | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | no | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
