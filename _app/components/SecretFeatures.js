@@ -211,6 +211,23 @@ const SecretFeatures = (function() {
     }
 
     function showCredits() {
+        /* NINTH renderer of the platform's identity, and the one that proves how I was
+           searching wrong. Its sibling showVersionInfo() four lines up was guarded a round
+           earlier, in this same file, wired by this same initDiscoveryMechanics(); this one was
+           simply not given the guard. I then swept the file and reported it clean, because I
+           searched for catch blocks (the MECHANISM of the previous bug) instead of for the brand
+           string reaching the DOM (the ARTIFACT). Searching by mechanism finds the bug you
+           already know about. A reviewer found this in the file I had just declared swept.
+           Seven clicks on the footer note opens it. Suppressed entirely for tenants, failing
+           safe, exactly like showVersionInfo. */
+        var creditsSuppressed = true;
+        try {
+            if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext) {
+                creditsSuppressed = UpdateManager.isTenantContext();
+            }
+        } catch (e) { creditsSuppressed = true; }
+        if (creditsSuppressed) return;
+
         const ov = document.createElement('div');
         ov.style.cssText = 'position:absolute;top:' + window.scrollY + 'px;left:0;width:100%;height:' + window.innerHeight + 'px;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;cursor:pointer;';
         ov.onclick = () => ov.remove();

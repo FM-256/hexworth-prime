@@ -36,10 +36,24 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Area:** `_app/components/TenantShell.js` (branding pass) · `_app/dashboard.html:3989` ·
   `_app/index.html:877`
 - **What:** TenantShell rewrites `document.title` and injects its own header bar carrying the
-  tenant's logo and platform name. It does NOT touch body text. So the dashboard's own
-  `<div class="logo">Hexworth Prime</div>` and the landing page's `<h1>Hexworth Prime</h1>` render
+  tenant's logo and platform name. It does NOT touch body text. So the platform's own name renders
   verbatim underneath the tenant's bar. A white-label student plausibly sees their institution's
   branding AND Hexworth's, on the same screen.
+- **Full list, from a sweep by ARTIFACT (every appearance of the brand string) rather than by
+  mechanism.** The first version of this entry named two, because I had searched the wrong way;
+  a reviewer supplied three more and the corrected sweep found the rest:
+
+  | Site | What |
+  |---|---|
+  | `_app/dashboard.html:3989` | `<div class="logo">Hexworth Prime</div>`, page header |
+  | `_app/dashboard.html:4205` | `<div id="footerNote">HEXWORTH PRIME</div>`, visible on load, no interaction |
+  | `_app/dashboard.html:4334` | "Your designation within Hexworth Prime", Settings account row |
+  | `_app/dashboard.html:8057` | `footerNote.textContent = 'HEXWORTH PRIME'`, god-mode toggle-off restores it |
+  | `_app/index.html:830` | `<span>HEXWORTH PRIME</span>` |
+  | `_app/index.html:877` | `<h1>Hexworth Prime</h1>` |
+
+  These are static or reset writes, not conditional renderers, which is why guarding them one by
+  one is the wrong shape of fix and why this is a design decision rather than a patch.
 - **Why this matters more than the bug that found it:** a whole round was spent guarding the
   version CODENAME on seven surfaces. That work is correct and worth keeping, but it is a small
   leak beside the product's actual name being rendered as static markup on the two most-visited

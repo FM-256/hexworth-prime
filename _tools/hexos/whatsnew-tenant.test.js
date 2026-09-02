@@ -35,7 +35,14 @@
  *     5. dashboard.html codenameDisplay
  *     6. dashboard.html footer version line
  *     7. dashboard.html showWhatsNewModal()       a SECOND implementation, separate from (1)
- *     +  SecretFeatures.showVersionInfo()         triple-click panel, same page, same obstacle
+ *     8. SecretFeatures.showVersionInfo()         triple-click the logo
+ *     9. SecretFeatures.showCredits()             seven clicks on the footer note
+ *
+ * Nine, not seven. (8) was guarded a round before (9), in the same file, wired by the same
+ * initDiscoveryMechanics(), and I then swept that file and called it clean, because I searched
+ * for CATCH BLOCKS, the mechanism of the previous bug, instead of for the brand string reaching
+ * the DOM, which is the artifact. Searching by mechanism only ever finds the bug you already
+ * know about. Sweep by artifact.
  *
  * So: four proven by fixture, three-plus-one guarded by inspection. "13/13" is not "every surface
  * is proven", and must never be reported as though it were. The obstacle for all the
