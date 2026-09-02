@@ -3,14 +3,14 @@
  * case-fold-lint.js
  *
  * @catalog what    INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT
- * @catalog what    a case fold in the Hex OS shell. Its own selftest says it catches 1 of 5 known
+ * @catalog what    a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known
  * @catalog what    bugs, so it is NOT wired into anything and must not be trusted as coverage.
  * @catalog run     node _tools/hexos/case-fold-lint.js --selftest
  * @catalog status  PROBE
  *
  * STATUS: INCOMPLETE, AND DELIBERATELY NOT A GATE.
  * ------------------------------------------------
- * `--selftest` currently reports 1/5. It is committed in this state on purpose, because the idea
+ * `--selftest` currently reports 2/5. It is committed in this state on purpose, because the idea
  * is worth keeping and the archive exists to stop the next person rebuilding it from scratch, but
  * a lint that catches one bug in five and is labelled GATE is worse than no lint: it converts
  * "nobody checked" into "the checker said it was fine". Two concrete gaps, both diagnosed:
@@ -25,10 +25,22 @@
  *      innermost enclosing function means a CLOSURE cannot see a fold that happened in its
  *      parent. `cd` does `arg = String(arg).toLowerCase()` and then filters with
  *      `function (p) { return p.indexOf(arg) === 0; }`; the closure body has no reassignment, so
- *      the lint flags correct code. All three findings on the current file are this shape, and
- *      all three were checked by hand and are false. Fixing the outermost-match bug created the
- *      innermost-match bug: the right answer is to walk OUTWARD from the site collecting folds,
- *      not to pick one function and stop.
+ *      the lint flags correct code. ALL FIVE findings on the current file are this shape, and all
+ *      five were checked by hand and are false:
+ *          line  342  LAB_INFO[labKey]        labKey IS the folded value
+ *          line  683  .indexOf(q)             q = arg.toLowerCase(), haystack folded too
+ *          line  762  .indexOf(arg) === 0     cd reassigns arg to its folded form above
+ *          line  763  .indexOf(arg) !== -1    same, the infix fallback
+ *          line 1015  .indexOf(manKey)        manKey IS the folded value
+ *      Fixing the outermost-match bug created the innermost-match bug: the right answer is to
+ *      walk OUTWARD from the site collecting folds, not to pick one function and stop.
+ *
+ * THE NUMBERS ABOVE ARE PASTED FROM THE TOOL, NOT REMEMBERED. An earlier revision of this header
+ * said 1/5 and three findings. Both were true when written and both went stale the moment the
+ * scanner changed, and the wrong figures propagated into the SITREP before a reviewer re-ran the
+ * tool and caught them. On a file whose entire purpose is an honest self-reported accuracy
+ * number, restating that number from memory is the one thing it must not do. Re-run both
+ * commands and paste, every time this file is touched.
  *
  * Two bugs already found and fixed inside this file, both by the selftest and neither by reading:
  *   - "folded anywhere in the function" as the clearing rule caught 0/5, because a folded COPY
