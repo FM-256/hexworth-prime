@@ -22,21 +22,24 @@
  * read a single storage reported "not a tenant" for real tenant students (BUG-236). A fixture
  * that seeds both would pass with a detector that reads either one, and prove nothing.
  *
- * WHAT THIS COVERS, PRECISELY, because I overstated it to a reviewer once and he checked.
- * There are SIX live surfaces that render the platform's version or codename. This file drives
- * four of them with real fixtures:
- *     UpdateManager.showWhatsNew()      fixture, both directions
- *     UpdateManager.showUpdateBanner()  fixture, both directions
- *     UpdateManager.showUpdateModal()   fixture, tenant direction
- *     index.html landing badge          fixture, both directions, on the REAL page
- * Two are NOT driven by a fixture and are verified by reading the code only:
- *     dashboard.html codenameDisplay
- *     dashboard.html footer version line
- * A sixth, SecretFeatures.showVersionInfo(), is guarded but not fixtured either: it is opened by
- * triple-clicking the logo on dashboard.html, so it inherits the same obstacle.
- * The obstacle is real (below) but "13/13" must not be read as "every surface is proven". It is
- * four of six proven and two guarded-by-inspection. Saying otherwise to a gate is how an
- * unearned pass gets written.
+ * WHAT THIS COVERS, PRECISELY, because I overstated it to a reviewer once and he checked, then
+ * miscounted it a second time in the correction itself. There are SEVEN guarded render surfaces:
+ *
+ *   FIXTURED HERE, both directions unless noted:
+ *     1. UpdateManager.showWhatsNew()
+ *     2. UpdateManager.showUpdateBanner()
+ *     3. UpdateManager.showUpdateModal()          tenant direction only
+ *     4. index.html landing badge                 driven on the REAL page
+ *
+ *   GUARDED BUT NOT FIXTURED, verified by reading only:
+ *     5. dashboard.html codenameDisplay
+ *     6. dashboard.html footer version line
+ *     7. dashboard.html showWhatsNewModal()       a SECOND implementation, separate from (1)
+ *     +  SecretFeatures.showVersionInfo()         triple-click panel, same page, same obstacle
+ *
+ * So: four proven by fixture, three-plus-one guarded by inspection. "13/13" is not "every surface
+ * is proven", and must never be reported as though it were. The obstacle for all the
+ * dashboard-hosted ones is the same and is described below.
  *
  * WHAT THIS DOES NOT COVER, stated so nobody reads more into it than it earns: it exercises the
  * DETECTOR, loaded standalone, not the modal on the real dashboard. dashboard.html redirects an

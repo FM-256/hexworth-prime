@@ -181,7 +181,15 @@ const SecretFeatures = (function() {
             if (typeof UpdateManager !== 'undefined' && UpdateManager.isTenantContext) {
                 suppressed = UpdateManager.isTenantContext();
             } else {
-                suppressed = false;   // component genuinely absent on this page, not a tenant signal
+                /* WAS `suppressed = false` on the reasoning that an absent component means "not a
+                   tenant page". Wrong here: SecretFeatures and UpdateManager are BOTH loaded by
+                   dashboard.html, so on the page where this panel is reachable, UpdateManager
+                   missing means it FAILED TO LOAD, which is "unknown", and unknown suppresses.
+                   Found by sweeping every isTenantContext call site for the fail-open shape after
+                   a reviewer caught two others; eye-checking had already missed it twice. If this
+                   component is ever put on a page without UpdateManager, give that page its own
+                   inline check the way index.html has one, rather than reopening this. */
+                suppressed = true;
             }
         } catch (e) { suppressed = true; }
         if (suppressed) return;
