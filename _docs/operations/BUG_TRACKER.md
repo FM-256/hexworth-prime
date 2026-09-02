@@ -31,6 +31,46 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-245 — tenant injection stops when the service worker restarts, which browsers do routinely  ·  [P1]  ·  open
+- **Found:** 2026-09-01 · by self · auditing the tenant subsystem after BUG-236/243/244 showed a pattern
+- **Area:** `_app/tenant-sw.js:36` (`let tenantActive = false`) · `:53-55` (set only by postMessage)
+  · `:63` (`if (!tenantActive) return`) · the ten `/tenant/` pages that post `TENANT_ACTIVATE`
+- **Symptom:** a white-label student browses out of `/tenant/` into course content. The browser
+  terminates the idle service worker, as it is designed to. On the next navigation the worker
+  restarts with `tenantActive` back to `false`, and **stops injecting TenantRouter/TenantShell for
+  the rest of the session**. The tenant wrapper silently disappears: Hexworth branding, Hexworth
+  navigation, and the sorting-quiz waiver gone, until the student happens to return to a
+  `/tenant/` page.
+- **Repro, measured not reasoned** (`_tools/hexos/_archive/probes/tenant-sw-restart-repro-2026-09-01.js`):
+  register tenant-sw, post TENANT_ACTIVATE, load a content page outside `/tenant/` -> injection
+  present. Stop the worker via CDP `ServiceWorker.stopWorker`, exactly as the browser does when it
+  goes idle. Reload -> injection ABSENT.
+  ```
+  injection BEFORE worker restart : true
+  stopped 1 running worker version(s)
+  injection AFTER worker restart  : false
+  ```
+- **Root cause:** `tenantActive` is in-memory state in a component the platform cannot keep alive.
+  A service worker is explicitly designed to be killed and restarted; anything it must remember has
+  to live in storage it can reach on wake. Only the ten `/tenant/` pages re-post the flag, and the
+  student is by definition no longer on one.
+- **The header states it wrong too:** `tenant-sw.js:22-24` says the flag is "set during
+  registration". It is set by a `postMessage` after registration, and it does not survive. Two
+  false claims in one sentence, in the same subsystem as BUG-236, BUG-243 and BUG-244.
+- **Fix:** NOT applied, because the shape is a design decision and this subsystem has already
+  punished guessing. The options: have the worker read tenant state from IndexedDB, which a worker
+  CAN reach on wake, written once at join; or have something that runs on every page re-post
+  TENANT_ACTIVATE (AccessGuard's auto-loader already detects tenant context on every page and would
+  be the natural place); or stop gating on in-memory state entirely and have the fetch handler read
+  storage per request. Needs review before building.
+- **Note what MASKS this today:** `/hex/` and its two sibling pages now load TenantRouter and
+  TenantShell statically (commit 8eab9ece1), so containment there does not depend on the worker at
+  all. That fix was made for the scope-race reason, and it happens to immunise those three pages
+  against this bug. **Every other content page on the platform is still exposed.**
+- **Related:** BUG-243 (the same file claiming unregistration it does not do) · BUG-236 · BUG-244.
+  Four defects in one subsystem in two days, all the same shape: a comment describing behaviour the
+  code does not implement.
+
 ### BUG-244 — TenantRouter.js throws on double-load; two live pages double-load it  ·  [P3]  ·  fixed-not-deployed
 - **Found:** 2026-09-01 · by Nancy · reviewing the HEXOS-5b mitigation path
 - **Area:** `_app/components/TenantRouter.js:27` · `_app/tenant-sw.js:100` (the false claim)
