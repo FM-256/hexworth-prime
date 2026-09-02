@@ -39,10 +39,20 @@
  *     9. SecretFeatures.showCredits()             seven clicks on the footer note
  *
  * Nine, not seven. (8) was guarded a round before (9), in the same file, wired by the same
- * initDiscoveryMechanics(), and I then swept that file and called it clean, because I searched
- * for CATCH BLOCKS, the mechanism of the previous bug, instead of for the brand string reaching
- * the DOM, which is the artifact. Searching by mechanism only ever finds the bug you already
- * know about. Sweep by artifact.
+ * initDiscoveryMechanics(), and I then swept that file and called it clean.
+ *
+ * THE SWEEP METHOD TOOK THREE GOES, and the progression is the useful part:
+ *   1. Grep for CATCH BLOCKS. Found nothing new, because that is the MECHANISM of the previous
+ *      bug, and searching by mechanism only ever finds the bug you already know about.
+ *   2. Grep for same-line `innerHTML|textContent|innerText` assignments carrying the brand string.
+ *      Found showCredits. Still wrong: it cannot see a MULTI-LINE template literal, and
+ *      dashboard.html:8234 opens exactly such a write and interpolates the codename four lines
+ *      later. It also missed index.html:1096 outright, on a page the sweep had just declared done.
+ *   3. Grep for the BRAND STRINGS ALONE across the five files and classify every hit by hand.
+ *      No assumption about how the string reaches the DOM survives that, which is the only
+ *      reason the list is now complete. This is the method to repeat.
+ * Each narrowing felt like precision and was actually an assumption. Sweep by artifact, never by
+ * mechanism, and never by the syntax you expect the artifact to be written in.
  *
  * So: four proven by fixture, three-plus-one guarded by inspection. "13/13" is not "every surface
  * is proven", and must never be reported as though it were. The obstacle for all the

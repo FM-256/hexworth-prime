@@ -49,11 +49,32 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   | `_app/dashboard.html:4205` | `<div id="footerNote">HEXWORTH PRIME</div>`, visible on load, no interaction |
   | `_app/dashboard.html:4334` | "Your designation within Hexworth Prime", Settings account row |
   | `_app/dashboard.html:8057` | `footerNote.textContent = 'HEXWORTH PRIME'`, god-mode toggle-off restores it |
-  | `_app/index.html:830` | `<span>HEXWORTH PRIME</span>` |
-  | `_app/index.html:877` | `<h1>Hexworth Prime</h1>` |
+  | `_app/index.html:830` | `<span>HEXWORTH PRIME</span>`, nav brand |
+  | `_app/index.html:877` | `<h1>Hexworth Prime</h1>`, hero |
+  | `_app/index.html:1096` | `<div class="footer-copy">HEXWORTH PRIME`, two words from the versionBadge span that IS guarded |
+  | `_app/index.html:35,36,37,41,43,44,47` | meta description, `og:title`, `og:description`, `og:site_name`, `twitter:title`, `twitter:description`, and the JSON-LD `@graph` |
 
   These are static or reset writes, not conditional renderers, which is why guarding them one by
   one is the wrong shape of fix and why this is a design decision rather than a patch.
+
+- **The meta/JSON-LD row is its own sub-problem** and is arguably the least fixable by a client-side
+  shell: crawlers, link previews and social unfurls read those tags from the raw document, before
+  any script runs. A tenant sharing a link to their own platform gets a Hexworth preview card.
+  Nothing TenantShell can do reaches that; it needs either per-tenant hosting or server-side
+  rendering, which is firmly an architecture decision.
+
+- **Correctly handled already, recorded so nobody "fixes" them twice:** `dashboard.html:20` and
+  `index.html:48` are `<title>` tags, and TenantShell DOES rewrite those. `TenantShell.js:749`
+  says "Browse Hexworth Prime without the tenant wrapper" on the escape-hatch button, where naming
+  Hexworth is the entire point of the control and is intentional.
+
+- **METHOD NOTE, because the list was wrong twice.** The first version of this table had two
+  entries, from a sweep for `catch` blocks. The second had six, from a sweep for same-line
+  `innerHTML|textContent` assignments; a reviewer showed that method cannot see a multi-line
+  template literal (`dashboard.html:8234` opens the write and interpolates the codename four lines
+  later) and it missed `index.html:1096` outright. This version comes from grepping the BRAND
+  STRINGS ALONE across the five files and classifying every hit by hand. No assumption about how
+  the string reaches the DOM survives that, which is the only reason it is complete.
 - **Why this matters more than the bug that found it:** a whole round was spent guarding the
   version CODENAME on seven surfaces. That work is correct and worth keeping, but it is a small
   leak beside the product's actual name being rendered as static markup on the two most-visited
