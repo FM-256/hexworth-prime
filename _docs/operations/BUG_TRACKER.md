@@ -31,6 +31,29 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-251 — every tenant check in the platform trusts browser storage alone  ·  [P2]  ·  open
+- **Found:** 2026-09-02 · by a reviewer, while verifying the What's New tenant guard
+- **Area:** `_app/components/UpdateManager.js` (isTenantContext) · `_app/components/AccessGuard.js`
+  (require) · `_app/components/TenantRouter.js` (_init) · `_app/components/ModuleProgress.js`
+- **What:** all of them answer "is this a tenant student?" by reading `hexworth_tenant` from
+  sessionStorage or localStorage. There is no server-side fallback anywhere. A tenant student who
+  bookmarks `/dashboard.html` directly, in a fresh tab where sessionStorage is empty and the
+  localStorage mirror has either aged past its 12h TTL or was never written (they have not landed
+  on a TenantShell-bearing page in this browser), reads as NOT a tenant.
+- **Why it is logged rather than fixed here:** the What's New guard added today is *consistent
+  with* this blind spot, not worse than it, and it fails in the safe direction: an aged blob still
+  reads as a tenant, so the modal is suppressed when it maybe should not be, rather than leaked.
+  Closing it properly means a server-side answer, which is new surface and an operator call.
+- **Second-order effect worth knowing:** `dashboard.html` calls `AccessGuard.showContent()` and
+  never `AccessGuard.require()`, so it never runs the async revocation/purge path. A revoked
+  tenant's stale blob sits in storage until sign-out or the TTL. Former tenant students are
+  therefore MORE likely to keep being suppressed, which is again the safe direction but means they
+  may never see release notes until they sign out and back in.
+- **Open product question, not a defect:** should tenant students see something about a platform
+  release at all, rather than nothing? Suppression is the safe default, not obviously the right
+  one.
+- **Related:** BUG-236, BUG-242, BUG-246.
+
 ### BUG-250 — archived scripts are invisible to BOTH discovery tools, which is why one got rebuilt  ·  [P2]  ·  open
 - **Found:** 2026-09-02 · by self · while archiving two probes and checking they were findable
 - **Area:** `_tools/search/search-all.py:50` · `_tools/catalog/gen-catalog.py:72`
