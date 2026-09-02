@@ -354,7 +354,17 @@
     }
 
     function byId(id) {
-        return APPS.filter(function (a) { return a.id === id; })[0];
+        /* CASE-INSENSITIVE, so `run ARENA` and a bare `ARENA` agree. They did not: lowercasing the
+           VERB meant a bare app name reached this function already lowered and launched, while
+           `run ARENA` passed the raw argument here and failed with "no app called ARENA". Two
+           paths the shell documents as equivalent, disagreeing on a capital letter.
+           A reviewer found it by testing both, after I had asserted in a commit message that "run
+           already lowercases for its own matching". It did not. The claim was wrong; this makes it
+           true instead of correcting the sentence.
+           App ids are lowercase by convention, so lowering the needle costs nothing and no id can
+           collide with another by case alone. */
+        var needle = String(id == null ? '' : id).toLowerCase();
+        return APPS.filter(function (a) { return String(a.id).toLowerCase() === needle; })[0];
     }
 
     function fmtRows(list, note) {
@@ -589,7 +599,13 @@
                   + 'difference.</span>');
                 return;
             }
-            var hit = APPS.filter(function (a) { return a.category === arg || a.house === arg; });
+            /* Case-insensitive, matching byId(). `ls INCUBATOR` answered "nothing matched"
+               while `run ARENA` worked, which is the same inconsistency one command over.
+               Group names are lowercase by convention, so lowering the needle is free. */
+            var want = String(arg).toLowerCase();
+            var hit = APPS.filter(function (a) {
+                return String(a.category).toLowerCase() === want || String(a.house).toLowerCase() === want;
+            });
             fmtRows(hit, hit.length + ' in ' + arg);
         },
         search: function (arg) {
@@ -671,6 +687,8 @@
                 cwd = null; setPrompt();
                 return say('now at the top. ' + APPS.length + ' apps in scope.', 'muted');
             }
+            // Same lowering as ls and byId, so `cd CLOUD` behaves like `cd cloud`.
+            arg = String(arg).toLowerCase();
             if (places().indexOf(arg) === -1) {
                 // Same philosophy as run's did-you-mean: prefix first, infix as the fallback.
                 var all = places();
@@ -935,8 +953,8 @@
         /* The VERB is matched case-insensitively; the ARGUMENT is not. A student typing `Help`
            or `LS` was told "not a command", which is true of the literal string and useless as an
            answer: they typed the right command with a capital letter. Found by exercising the shell
-           the way a person uses it rather than the way a test does. Arguments keep their case,
-           because an app id is the app's real name and `run` already lowercases for its matching. */
+           the way a person uses it rather than the way a test does. Arguments keep their case
+           here; byId() lowercases the needle instead, so `run ARENA` and a bare `ARENA` agree. */
         var verb = String(parts.shift() || '').toLowerCase();
         var arg = parts.join(' ');
         if (!verb) return;
