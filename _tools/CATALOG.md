@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-08-31 10:51 · **1166 scripts** · 31 wired into a gate · 274 called by other code · 190 only mentioned in docs · 671 referenced by nothing · 474 not in git
+**Generated:** 2026-09-02 02:02 · **1172 scripts** · 35 wired into a gate · 275 called by other code · 190 only mentioned in docs · 672 referenced by nothing · 474 not in git
 
 ## Read this before writing a new script
 
@@ -57,8 +57,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
-| `_tools/hexos/pwa.test.js` | `deploy.sh` | **NO** | Proves the Hex OS PWA in a real browser: the manifest parses, the worker registers scoped to /hex/, it never claims the site root, and it is network-first so a deployed fix is never outlived by a cached bug. |
+| `_tools/hexos/home-directory.test.js` | `deploy.sh` | yes | Proves HomeDirectory.js can never write to any store, and that it SURFACES source disagreements instead of silently picking a winner (HEXOS-4). |
+| `_tools/hexos/md100-arena-cards.test.js` | `deploy.sh` | yes | Pins the MD-100 Arena Labs cards to the dispatch registry: every card's title, href and MD-100 module tag must match the box it claims, on every surface. |
+| `_tools/hexos/pwa.test.js` | `deploy.sh` | yes | Proves the Hex OS PWA installs, and proves the thing that nearly shipped broken: that NO service worker is registered at /hex/, so tenant-sw.js keeps control of those pages and keeps injecting the white-label shell. |
 | `_tools/hexos/safe-entry.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
+| `_tools/hexos/tenant-containment.test.js` | `deploy.sh` | yes | UNSTUBBED proof that a tenant student cannot escape the white-label wrapper from a Hex OS page, and that TenantShell is not loaded twice. Runs the real AccessGuard, TenantRouter and TenantShell, mocking only the network. |
+| `_tools/hexos/tenant-crosstab.test.js` | `deploy.sh` | yes | Proves BUG-242's repro in a real browser: join in one tab, tenant context is present in a SECOND tab, and sign-out purges it so the next student cannot inherit it. Also proves the mirror is invoked from every join path. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
@@ -333,7 +337,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `manifest-gen.js` | ORPHAN | 0 | 2026-05-23 | yes |  |
+| `manifest-gen.js` | ORPHAN | 0 | 2026-08-31 | yes |  |
 
 ### `_tools/dr-hex` — 1 scripts, 0 referenced by nothing
 
@@ -743,13 +747,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 3 scripts, 3 referenced by nothing
+### `_tools/hexos` — 4 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | no | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
@@ -1124,7 +1129,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 19 scripts, 4 referenced by nothing
+### `_tools/rules-test` — 20 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1136,6 +1141,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
+| `home-directory-subcollections.test.js` | ORPHAN | 0 | 2026-08-31 | yes | pin owner-read + no-client-write on server_awards, quiz_attempts, gates, flag_captures |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
@@ -1146,7 +1152,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `tournament-joincode.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
-| `users-read-scope.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
+| `users-read-scope.test.js` | CALLED | 1 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
 

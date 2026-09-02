@@ -31,6 +31,41 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-250 — archived scripts are invisible to BOTH discovery tools, which is why one got rebuilt  ·  [P2]  ·  open
+- **Found:** 2026-09-02 · by self · while archiving two probes and checking they were findable
+- **Area:** `_tools/search/search-all.py:50` · `_tools/catalog/gen-catalog.py:72`
+- **What:** the documented workflow says a PROBE "answered one question once; **archive** it rather
+  than let it rot", and separately says to give every new script an `@catalog` header "so the next
+  person finds it". Those two rules do not compose, because both discovery surfaces exclude the
+  archive by name:
+  - `search-all.py:50` — `REPO_EXCLUDE_DIRS = {"node_modules", ".git", "_archive", ...}`
+  - `gen-catalog.py:72` — `'_archive', 'archive'` in `SKIP_DIRS`
+
+  So the moment a probe is archived, its `@catalog` header stops being indexed anywhere and its
+  contents stop being greppable through the tool the guidelines tell you to use. The header becomes
+  decorative.
+- **Proven, not assumed:** searching the exact phrase `"Operator missions never load
+  ModuleProgress"`, which appears verbatim in the archived probe's header, returns 0 repo hits.
+  Searching `"probe-mission-progress"` returns exactly 1 hit, and that hit is
+  `_docs/operations/BUG_TRACKER.md:73` citing the path, NOT the file itself. Control: multi-word
+  search works fine in general (`"answered one question once"` returns 4 repo hits), so this is an
+  exclusion, not a query-parser limitation, and not my query being malformed.
+- **Why this matters more than it looks:** this is the mechanical cause of a failure already
+  recorded in memory as `feedback_archive_exists_to_prevent_rebuilding` ("index by the QUESTION or
+  it is a graveyard. I rebuilt a probe that already existed"). The archive is not a graveyard
+  because people forget to look; it is a graveyard because the two tools they are told to look with
+  both skip it.
+- **Not a simple un-skip.** The exclusion is deliberate and load-bearing: `gen-catalog.py:62-71`
+  records that `_archive` was skipped precisely so 79 archived scripts stopped being counted as
+  live orphans. Removing the skip would restore that noise. The fix is to index the archive
+  SEPARATELY, not to stop distinguishing it: a distinct CATALOG section ("archived, answered once,
+  here is the question it answered") and a distinct search surface, so an archived probe is
+  findable by its question while staying out of the orphan and wiring counts.
+- **Interim, and why the two probes archived today are still reachable:** they are cited by path
+  from BUG-247 and BUG-248. That works, but it means discovery currently depends on someone having
+  hand-written a pointer, which is exactly what an index is supposed to replace.
+- **Related:** BUG-249, `feedback_archive_exists_to_prevent_rebuilding`.
+
 ### BUG-249 — four stale `file:line` citations, found by sweeping the mechanism rather than reading  ·  [P3]  ·  open
 - **Found:** 2026-09-02 · by self · citation sweep during the Chris gate
 - **What:** comments in this codebase cite `File.js:NNN` to justify claims. Line numbers rot on

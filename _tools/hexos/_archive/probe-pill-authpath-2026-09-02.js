@@ -1,4 +1,13 @@
 #!/usr/bin/env node
+/**
+ * @catalog what    BUG-247: measures whether FirebaseAuth/FirestoreManager really are absent where
+ * @catalog what    the tenant pill renders. window.X vs typeof X, the lexical-const trap.
+ * @catalog run     NODE_PATH=$(pwd)/node_modules node _tools/hexos/_archive/probe-pill-authpath-2026-09-02.js
+ * @catalog status  PROBE
+ *
+ * LIMITATION, do not over-read: it blocks off-origin requests, so the `firebase` column is a
+ * harness artifact and says nothing about the CDN-served SDK. The FirebaseAuth columns are real.
+ */
 /* Does TenantShell.js:411-413's claim hold?
  *   "Verified in a browser: on a content page `firebase`, `FirebaseAuth` and `FirestoreManager`
  *    are all undefined, so there is no authenticated call path where this pill renders."

@@ -1,4 +1,13 @@
 #!/usr/bin/env node
+/**
+ * @catalog what    BUG-248: proves 52 Operator missions never load ModuleProgress.js, so their
+ * @catalog what    completion hook is skipped. Runs WITH CONTROLS (python-03/40 must show present).
+ * @catalog run     NODE_PATH=$(pwd)/node_modules node _tools/hexos/_archive/probe-mission-progress-2026-09-02.js
+ * @catalog status  PROBE
+ *
+ * Kept because BUG-248 cites its output. Re-run it before trusting that entry: if the missions
+ * have since been given the script tag, the EXPECT ABSENT rows flip and the bug is closed.
+ */
 /* BUG-248 measured, not grepped. Does a JS mission page actually lack ModuleProgress at runtime,
  * and does a python mission that loads it actually have it? Two fixtures, always: a detector that
  * only ever sees the broken case cannot tell you it is detecting the right thing. Read-only. */
