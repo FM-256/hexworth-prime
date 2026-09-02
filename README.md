@@ -1,11 +1,11 @@
 # Hexworth Prime
 
 **Gamified Cybersecurity Education Platform**
-v6.0.0 "IRON CURTAIN" | 2,500+ pages | 16 languages | 22 CTF boxes
+v7.2.0 "HARDLINE" | 5,200+ pages | 16 languages | 136 Arena boxes + 95 Dispatch tickets
 
 A browser-based training platform for IT and cybersecurity instruction. Students join houses, complete modules, hack CTF boxes, earn XP, and level up. Instructors manage classes, track progress, assign content, and export grades. Built for real classroom deployment -- no installs, no build step, no excuses.
 
-**Live:** [https://hexworth-prime.web.app](https://hexworth-prime.web.app)
+**Live:** [https://hexworth.com](https://hexworth.com)
 
 ---
 
@@ -24,6 +24,7 @@ No internet required after download (offline mode). For class enrollment, sign i
 
 - [What Is Hexworth Prime](#what-is-hexworth-prime)
 - [The Houses](#the-houses)
+- [Hex OS](#hex-os)
 - [CTF System](#ctf-system)
 - [Code Armory](#code-armory)
 - [Sandboxes](#sandboxes)
@@ -73,11 +74,38 @@ Additional tracks: **AI** (machine learning, prompt engineering), **Matrix** (pr
 
 ---
 
+## Hex OS
+
+One place to launch everything on the platform. Every lab, course, hub, game and tool is listed in a single manifest, and Hex OS gives students two ways into it: a command line at `/hex/` and an icon grid at `/hex/apps.html`. Same list behind both.
+
+It exists because things went quietly unreachable. Vault cards rendered as clickable and did nothing; a final exam had no link from its own hub. The fix was not to hunt for orphans by hand but to make one index authoritative and let a deploy gate fail when an entry points at a file that is not there.
+
+**The shell.** 12 commands, each with a manual page:
+
+| Command | Does |
+|---------|------|
+| `ls`, `search`, `info` | find things |
+| `run`, `cd` | open things |
+| `ps`, `stop`, `restart` | manage running lab sessions |
+| `help`, `man`, `pwd`, `clear` | the shell itself |
+
+`ls` with no argument prints categories and how many apps each holds; `ls <house>` or `ls <category>` lists what is inside. `run <id>` opens an app. `cd` scopes the shell to a house or category so later commands stay in that context. `ps`, `stop` and `restart` drive real container sessions through the lab manager, so a student with a frozen box can restart it without leaving the shell.
+
+Everything is case-insensitive: `RUN ARCTIC`, `Man cd` and `LS clo` + Tab all work. Tab completes commands, app ids, places and manual pages. When there is nothing to complete, the shell says so rather than going quiet, because silence is indistinguishable from a broken key.
+
+**Installable.** `/hex/` ships a web app manifest, so Chrome offers *Install page as app* on a Chromebook, laptop or Android device, and iOS offers *Add to Home Screen*. It then opens in its own window with its own icon and no browser chrome. There is deliberately no service worker: a worker scoped to `/hex/` would outrank the root-scoped tenant worker that white-label containment depends on, and scope matching prefers the longest match. Offline support belongs in that root worker, not a second one competing for these two pages.
+
+**Home directory.** `/home.html` renders what the server actually knows about a student: server-proven awards, gates passed, quiz attempts and flag captures, each labelled with where the fact came from. It never writes, and it distinguishes a read failure from a real zero rather than showing an empty page either way.
+
+**Gates.** A dead-entry gate runs in the deploy chain and fails the deploy if any manifest entry points at a missing file or at a page nothing links to. The manifest currently indexes 192 apps across 7 categories and 13 houses.
+
+---
+
 ## CTF System
 
 ### Arena -- Red Team Operations
 
-22 offensive security boxes with simulated terminal environments. Students exploit vulnerabilities, escalate privileges, extract flags, and score points.
+136 offensive security boxes with simulated terminal environments, listed in `_app/arena/box-catalog.json`. Students exploit vulnerabilities, escalate privileges, extract flags, and score points.
 
 **What's inside:**
 - Simulated Linux/Windows terminals with realistic filesystem navigation
@@ -92,12 +120,16 @@ Additional tracks: **AI** (machine learning, prompt engineering), **Matrix** (pr
 
 Troubleshooting scenarios simulating a real IT helpdesk environment. Students sit at a virtual desk and triage incoming tickets.
 
-**Current scenarios:**
+95 tickets in the registry (`_app/dispatch/boxes.json`), spanning hardware diagnosis, Windows boot and recovery, printer failures, network connectivity, Active Directory lockouts, and certification-aligned scenarios tagged to specific exam objectives.
+
+**Representative tickets:**
 - **HW-001** Dead Workstation -- hardware inspection and diagnosis
 - **OS-001** Boot Failure -- Windows Recovery Environment procedures
 - **PR-001** Printer Nightmare -- 5 printer failure scenarios
 - **NT1** Network Troubleshoot -- connectivity diagnosis
 - **AD-001** Lockout Storm -- Active Directory account lockout triage
+
+Cards on a course hub carry the objective the box actually declares, and a gate checks that the hub card, the box config and the Dispatch Board all agree, so a card cannot promise a module the briefing screen will contradict one click later.
 
 The desk environment includes interactive elements, an ammo-based launcher with tier unlocks, a stats panel, and unlockable achievements. The experience simulates what it actually feels like to work a helpdesk.
 
@@ -133,20 +165,23 @@ Every language track includes security-relevant examples: Python covers port sca
 
 ## Sandboxes
 
-### Phase 1: WASM In-Browser Execution (Planned)
+### Phase 1: WASM In-Browser Execution (Live)
 
-Real interpreters and compilers running via WebAssembly inside the student's browser. Not simulated -- actual code execution with real output and real errors.
+Real interpreters running via WebAssembly inside the student's browser. Not simulated -- actual code execution with real output and real errors.
 
-- **Python** -- Pyodide (CPython compiled to WASM)
-- **C/C++** -- Emscripten-based WASM compiler
-- **SQL** -- sql.js (SQLite compiled to WASM) with pre-loaded databases
+- **Python** -- Pyodide (CPython compiled to WASM), loaded on demand; reaches students through the Python for IT sandbox labs and the shared Python sandbox component on 14 pages
+- **SQL** -- sql.js (SQLite compiled to WASM) with pre-loaded databases, on 33 pages
 - **JavaScript** -- iframe-based execution with console capture
 
-Limitations: no sudo, no package managers, no networking.
+Limitations: no sudo, no package managers, no networking. That is what Phase 2 is for.
 
-### Phase 2: Container Sandboxes (Future)
+### Phase 2: Container Sandboxes (Live)
 
-Real Linux terminals with sudo access, real package managers, and networking tools. Full development environments per language. Requires dedicated server infrastructure.
+Real Linux terminals with sudo, real package managers and networking tools, running as per-student containers behind a lab manager rather than in the browser.
+
+Students reach them from 38 course and lab pages, or from the Hex OS shell, where `ps`, `stop` and `restart` manage their own running sessions. Sessions are owned by the signed-in user, hold a capacity slot while they exist, and can be restarted from a clean state without leaving the page.
+
+Current labs include the DO-100 series, the Arctic Linux practice box, a SQL box, Cell-Sigma, Linux Command Mastery, the free-play Linux sandbox and an OpenStack CLI environment.
 
 ---
 
@@ -265,15 +300,27 @@ No React. No Vue. No webpack. No node_modules. Every page is a self-contained HT
 
 ## Roadmap
 
-- **The Backbone** -- Advanced networking track (BGP, MPLS, SDN, 5G). 15 courses.
-- **The Cortex** -- AI/ML track (foundations through adversarial ML). 15 courses.
-- **Algorithm Chamber** -- CS fundamentals (data structures, complexity, dynamic programming). 12 courses.
-- **WASM Sandboxes** -- In-browser code execution for Python, C/C++, SQL, JavaScript
-- **Container Sandboxes** -- Full Linux terminals with sudo and package managers
+### Shipped
+
+These were on the roadmap and are now live. Left listed rather than deleted, so the list reads as a record instead of quietly shrinking.
+
+- **The Backbone** -- Advanced networking track (BGP, MPLS, SDN, 5G)
+- **The Cortex** -- AI/ML track (foundations through adversarial ML)
+- **Algorithm Chamber** -- CS fundamentals (data structures, complexity, dynamic programming)
+- **WASM Sandboxes** -- in-browser Python and SQL execution, see [Sandboxes](#sandboxes)
+- **Container Sandboxes** -- full Linux terminals with sudo and package managers, see [Sandboxes](#sandboxes)
+- **Hex OS** -- one index for everything launchable, with a shell and a launcher grid, see [Hex OS](#hex-os)
+
+All three tracks are indexed in the Hex OS manifest, which means a deploy gate checks every one of their entries still resolves.
+
+### Open
+
 - **Messaging System** -- Student/instructor messaging with moderation
 - **Full WCAG 2.1 AA Audit** -- Screen reader testing, axe-core scanning
 - **Signal Visual Enhancements** -- SVG diagrams and annotated callouts across all 32 guides
-- **Career Launchpad** -- Job board aggregator, resume builder, interview prep
+- **Career Launchpad** -- job board aggregator, resume builder, interview prep. Partly built: a career area and a career quiz are live, the rest is in progress.
+- **Hex OS offline** -- installing changes how Hex OS opens, not what it can reach without a network. Offline belongs in the root-scoped service worker, not a second one.
+- **Per-language coding challenges** -- the runner component exists but is not yet on any page.
 
 ---
 
@@ -292,7 +339,7 @@ Arena is red team -- attack simulated systems, exploit vulnerabilities, extract 
 16 languages across 6 tracks: Python, JavaScript/TypeScript, C, Bash, SQL, PowerShell, Go, Java, C#/.NET, PHP, Ruby, C++, Rust, Assembly, Swift/Kotlin, and Lua/Perl/R. 160+ modules with security-relevant examples throughout.
 
 ### 5. What do the sandboxes offer?
-Phase 1 (planned): WASM in-browser execution -- real interpreters running in WebAssembly with actual compilation and output. Phase 2 (future): containerized Linux terminals with sudo, package managers, and networking.
+Both phases are live. Phase 1 is WASM in-browser execution: real Python and SQL interpreters running in WebAssembly, with actual output and actual errors, no server involved. Phase 2 is containerized Linux terminals with sudo, package managers and networking, reachable from 38 course and lab pages or from the Hex OS shell, where `ps`, `stop` and `restart` manage a student's own running sessions.
 
 ### 6. What analytics does the instructor get?
 Class rosters with color-coded progress bars, per-student assignment breakdowns with scores and dates, at-risk student alerts, and CSV exports compatible with Blackboard and Canvas gradebook import.
@@ -372,4 +419,4 @@ For licensing, white-label deployments, or partnership inquiries, contact the de
 
 ---
 
-*v6.0.0 "IRON CURTAIN" -- 2026-03-16*
+*v7.2.0 "HARDLINE" -- 2026-09-02*
