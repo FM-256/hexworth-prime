@@ -31,7 +31,16 @@
  */
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path');
-const puppeteer=require('puppeteer');
+/* Same exit-code contract as the other Hex OS gates: 2 means "could not test", not "failed".
+   post-verify branches on it (RC -eq 2 skips, anything else non-zero sets DIVERGENCE), so a bare
+   require() here would crash with MODULE_NOT_FOUND and exit 1, and the operator would be told
+   "tenant students could be shown Hexworth release notes" with an empty evidence snippet, when in
+   fact nothing had been tested at all. A reviewer reproduced exactly that. */
+let puppeteer;
+try { puppeteer = require('puppeteer'); } catch (e) {
+    console.error('puppeteer not installed; the tenant guard cannot be verified. Refusing to fake a pass.');
+    process.exit(2);
+}
 const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app'),PORT=9243;
 const srv=http.createServer((q,r)=>{
  if(q.url==='/t.html'){r.writeHead(200,{'Content-Type':'text/html'});

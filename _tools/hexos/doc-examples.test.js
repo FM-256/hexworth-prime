@@ -79,7 +79,9 @@ function examplesFromFaq() {
     const dec = (s) => s.replace(/<[^>]+>/g, '')
         .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
     const out = [];
+    let blockIndex = -1;
     for (const blk of html.matchAll(/<pre>([\s\S]*?)<\/pre>/g)) {
+        blockIndex++;
         // Keep the RAW markup per line. The command is whatever sits inside <b>; anything after it
         // on the same line is a <span class="muted"> annotation for the reader, not shell output.
         // Stripping tags first merged those annotations into the command and produced nonsense
@@ -102,28 +104,29 @@ function examplesFromFaq() {
             const isTab = /<\/b>\s*⇥/.test(rawLines[i]);
             const cmd = raw.replace(/⇥\s*$/, '').trim();
             const shownError = ERRORS.find((e) => body.join(' ').toLowerCase().includes(e));
-            out.push({ cmd, kind: isTab ? 'TAB' : (shownError ? 'ERROR' : 'ENTER'), shownError, body });
+            out.push({ cmd, kind: isTab ? 'TAB' : (shownError ? 'ERROR' : 'ENTER'), shownError, body, blockIndex });
         }
     }
     return out;
 }
 
-/* The concrete things a documented block promises the student will see: ids, command names,
- * suggestions. Prose words are filtered out by requiring a token to look like an id or a known
- * command rather than an English word, which is crude but keeps the assertion pointed at the
- * things that can actually be wrong. Shared by the TAB and ERROR branches so the two cannot drift
- * into checking different definitions of "documented". */
-function documentedTokens(ex) {
-    const PROSE = new Set(['the', 'and', 'not', 'app', 'for', 'try', 'did', 'you', 'mean', 'run',
-        'called', 'with', 'them', 'then', 'one', 'name', 'first', 'apps', 'ids', 'since', 'falls',
-        'through', 'record', 'come', 'manual', 'pages', 'press', 'again', 'line', 'fills', 'itself',
-        'match', 'house', 'starts', 'those', 'letters', 'simply', 'that', 'this', 'from', 'into']);
-    return [...new Set(
-        ex.body.join(' ').split(/\s+/)
-            .map((w) => w.replace(/[.,]+$/, ''))
-            .filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w))
-            .filter((w) => !PROSE.has(w.toLowerCase()))
-    )];
+/* THE CONVENTION THIS GATE ENFORCES, stated because it is now load-bearing:
+ * inside a <pre> block, unmuted text is LITERAL SHELL OUTPUT, and every editorial aside belongs
+ * in a <span class="muted">. That is already how the page is written; the gate simply stops it
+ * being optional.
+ *
+ * The first version compared word-by-word and filtered English with a hand-maintained stopword
+ * list. Two reviewers broke it from both directions: `run` is both a stopword and a real command,
+ * so the gate accused the page of omitting something it plainly showed; and adding one ordinary
+ * sentence of commentary produced five spurious failures. A wordlist cannot tell prose from ids.
+ * Comparing whole lines can, provided prose is marked as prose, which is why the convention above
+ * is enforced rather than guessed at.
+ *
+ * Returns the transcript lines a block claims the shell prints, normalised for whitespace. */
+function transcriptLines(ex) {
+    return ex.body
+        .map((l) => l.replace(/\s+/g, ' ').trim())
+        .filter((l) => l.length > 0);
 }
 
 const srv = http.createServer((q, r) => {
@@ -185,9 +188,22 @@ srv.listen(PORT, '127.0.0.1', async () => {
            parsed would report "ok" at a quarter of real coverage. Tie it to the page instead, so
            the gate fails when it silently stops testing things. A gate that quietly tests nothing
            is worse than no gate. */
-        const promptCount = (fs.readFileSync(FAQ, 'utf8').match(/hex&gt;/g) || []).length;
+        const faqSrc = fs.readFileSync(FAQ, 'utf8');
+        const promptCount = (faqSrc.match(/hex&gt;/g) || []).length;
         chk('every prompt in the FAQ was extracted as an example',
             cmds.length === promptCount, `${cmds.length} extracted vs ${promptCount} prompts on the page`);
+        /* AND every <pre> BLOCK must have yielded at least one. Counting prompts alone was not
+           enough: a reviewer added a block using a `$` prompt instead of `hex&gt;`, and BOTH the
+           extractor and the prompt count missed it identically, so the counts still agreed while
+           an untested block sat on the page claiming the opposite of real behaviour. The
+           anti-vacuousness check was itself vacuous against a format it did not recognise.
+           A block that parses to nothing is now a failure, whatever convention it used. */
+        const blockTotal = (faqSrc.match(/<pre>/g) || []).length;
+        const parsedBlocks = new Set(cmds.map((c) => c.blockIndex));
+        const emptyBlocks = [];
+        for (let i = 0; i < blockTotal; i++) if (!parsedBlocks.has(i)) emptyBlocks.push(i);
+        chk('every <pre> block yielded at least one runnable example', emptyBlocks.length === 0,
+            `blocks ${JSON.stringify(emptyBlocks)} parsed to nothing; unrecognised prompt convention?`);
 
         for (const ex of cmds) {
             // Back to a known page first. `run` LAUNCHES, which means it navigates away, so the
@@ -235,6 +251,17 @@ srv.listen(PORT, '127.0.0.1', async () => {
                    So the documented list must be the WHOLE list: every candidate the shell prints
                    has to appear on the page. */
                 const offered = st.o.split(/\s+/).filter((w) => /^[a-z0-9][\w-]{2,}$/i.test(w));
+                /* ORDER IS DOCUMENTED BEHAVIOUR, so it is checked. The page tells the student
+                   "manual pages come first, then app ids", and the shell really does rank them
+                   that way. A reviewer reversed the whole candidate line and the gate stayed
+                   green, because both checks used set membership. A transcript that lists the
+                   right things in the wrong order still teaches the wrong thing. */
+                if (documented.length && offered.length) {
+                    chk('  -> lists candidates in the order the shell prints them',
+                        offered.join(' ').startsWith(documented.join(' ')) ||
+                        documented.join(' ') === offered.join(' '),
+                        `page: ${documented.join(' ')}\n            shell: ${offered.join(' ')}`);
+                }
                 const undocumented = offered.filter((w) => !documented.includes(w));
                 chk(`  -> documents every candidate the shell offers`, undocumented.length === 0,
                     `shell also offers ${JSON.stringify(undocumented)} which the FAQ does not show`);
@@ -264,13 +291,24 @@ srv.listen(PORT, '127.0.0.1', async () => {
                 chk(`FAQ error example still behaves as documented: ${ex.cmd}`,
                     out.toLowerCase().includes(ex.shownError),
                     `expected "${ex.shownError}" | got: ${out}`);
-                for (const want of documentedTokens(ex)) {
-                    chk(`  -> and still says "${want}"`, out.includes(want), out);
+                const flatErr = out.replace(/\s+/g, ' ');
+                for (const line of transcriptLines(ex)) {
+                    chk(`  -> and still prints: "${line.slice(0, 48)}"`, flatErr.includes(line), out);
                 }
                 continue;
             }
             const bad = ERRORS.find((e) => out.toLowerCase().includes(e));
             chk(`FAQ example works: ${ex.cmd}`, !bad, out);
+            /* AND it must do what the page SAYS it does. The first version checked only for the
+               absence of a known error string, so a reviewer added a block claiming `clear`
+               "launches the Arctic Linux sandbox and grants instructor access" and the gate passed
+               it: `clear` errors on nothing, so absence-of-error was satisfied by a command that
+               does something completely different from the claim. Absence of a failure is not
+               evidence of the documented success. */
+            const flat = out.replace(/\s+/g, ' ');
+            for (const line of transcriptLines(ex)) {
+                chk(`  -> output matches the page: "${line.slice(0, 48)}"`, flat.includes(line), out);
+            }
         }
     } finally {
         await b.close();
