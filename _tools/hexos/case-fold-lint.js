@@ -83,7 +83,24 @@
  * What is NOT acceptable is a lint that cannot fail, so `--selftest` reverts each of the fixes
  * listed in KNOWN (5 of the 8 sites; the first five predate this file and have no stable anchor)
  * and asserts the scan count RISES. A detector that has never been shown to catch the bug it was
- * written for is decoration, and this one currently catches 1 of the 5 it tests.
+ * written for is decoration, and this one currently catches 2 of the 5 it tests.
+ *
+ * PASTED OUTPUT, 2026-09-02, per the standing instruction above. Anyone editing this file should
+ * replace this block with fresh output rather than trusting it, and reviewers should diff it
+ * against a live run.
+ *
+ *     $ node _tools/hexos/case-fold-lint.js --selftest
+ *       2/5 known bugs would be caught
+ *
+ *     $ node _tools/hexos/case-fold-lint.js
+ *       5 possible unfolded comparison(s):
+ *       line  342  lookup  labKey  |  line  683  indexOf q     |  line  762  indexOf arg
+ *       line  763  indexOf arg     |  line 1015  indexOf manKey
+ *
+ * Three separate stale figures were caught here by a reviewer across two rounds: 1/5 in two
+ * places, "three findings" once, and then a THIRD present-tense "1 of the 5" that survived the
+ * first correction because I grepped for the strings I remembered writing instead of every form
+ * of the number. That is why the output is pasted rather than described.
  */
 
 'use strict';
