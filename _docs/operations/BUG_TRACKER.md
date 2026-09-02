@@ -31,6 +31,30 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-249 — four stale `file:line` citations, found by sweeping the mechanism rather than reading  ·  [P3]  ·  open
+- **Found:** 2026-09-02 · by self · citation sweep during the Chris gate
+- **What:** comments in this codebase cite `File.js:NNN` to justify claims. Line numbers rot on
+  every insertion, and four are now wrong. In each case the SUBSTANCE of the claim is correct and
+  only the pointer is broken, which is the dangerous shape: the reader who follows it lands in
+  unrelated code and cannot confirm the thing being asserted.
+
+  | citing site | says | actually |
+  |---|---|---|
+  | `_app/hex/index.html:7` | back-link at `index.html:94` | it is at :122 (my own edits shifted it) |
+  | `_app/hex/apps.html:6` | same citation, copied | same |
+  | `_app/components/TenantShell.js:411` | `firestore.rules:887-889` gates `enrollments/{uid}` | that block is `_quality_reports`; enrollments is at :1382 |
+  | `_app/components/TenantShell.js:546` | link rewriter at `L384-441` | `overrideLinks()` is at :806; 384-441 is the pill z-order and dismiss button |
+
+- **Detector note, worth keeping:** the first sweep checked only for citations pointing PAST
+  end-of-file and returned a clean 0, which was a smell rather than a result. None of the four
+  above point past EOF. Verifying all 18 citations against the actual content of the cited line
+  found them in one pass, and 18 was small enough to read. That is the check to repeat.
+- **Fix:** cite by NAME (`overrideLinks()`, `match /enrollments/{uid}`) rather than by line, so the
+  pointer survives insertions. Line numbers are fine in a commit message, which is frozen; they rot
+  in a comment, which is not.
+- **Blocked on:** the two `_app/hex/` ones are in the tree currently under review; not edited
+  mid-gate.
+
 ### BUG-248 — 52 Operator missions record no progress, because the page never loads ModuleProgress  ·  [P2]  ·  open
 - **Found:** 2026-09-02 · by self · fallout from the `window.X` guard sweep in the tenant audit
 - **Area:** all 50 `_app/operator/missions/js-*.mission.html`, plus `python-01` and `python-02`
@@ -83,7 +107,13 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Timing note for any fix:** on `/hex/index.html` the TenantShell tag (:19) precedes the
   FirebaseAuth tag (:41), so the binding genuinely is absent at TenantShell's module-execution
   time and present only by pill-render time. An automatic check must live in the deferred path.
-- **Related:** BUG-246, `reference_lexical_const_window_guard_trap`.
+- **Second defect in the SAME comment:** it cites `firestore.rules:887-889` as the rule restricting
+  `enrollments/{uid}` to an authenticated self-read. That block is `_quality_reports`;
+  `match /enrollments/{uid}` is at :1382. Re-checked against the real block: the CLAIM is correct,
+  `allow read: if request.auth != null && request.auth.uid == uid` is precisely an authenticated
+  self-read, so that half of the justification stands and only the pointer is broken. Tracked with
+  the rest of the stale citations as BUG-249.
+- **Related:** BUG-246, BUG-249, `reference_lexical_const_window_guard_trap`.
 
 ### BUG-246 — AccessGuard hands tenant licensing to a component that is not on the page  ·  [P1]  ·  open
 - **Found:** 2026-09-02 · by self · tenant-subsystem audit (the one that produced BUG-243/244/245)
