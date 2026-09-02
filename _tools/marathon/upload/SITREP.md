@@ -23,10 +23,16 @@ shell chain.** Career-path wiring is the standing priority underneath it; TOURN 
 ## ★ NOW — Hex OS live; shell-UX commits held at the Chris gate on a case-sensitivity chain (2026-09-02)
 
 **Where the cursor actually is.** Nothing is deploying. A chain of case-sensitivity defects in
-`_app/hex/index.html` has run through four review rounds, and every round has found one more site
+`_app/hex/index.html` has run through five review rounds, and every round has found one more site
 than the round before, INCLUDING the rounds whose whole job was to sweep for them. Current HEAD
-`6e7d07eae` is in front of Chris now. Do not deploy until he returns PASS; he BLOCKED the previous
-round on a real live defect and was right.
+`ee7cb0be4` is in front of Chris now. Do not deploy until he returns PASS; he has BLOCKED twice in
+this chain and was right both times, once on a defect that was LIVE.
+
+Nancy returned PROCEED on the eighth-site fix after independently reproducing the falsifiability
+run herself (she reverted the fold, got 57/61 with the control green, restored, 62/62). She raised
+three non-blocking items and all three are addressed in `ee7cb0be4`: the new Tab message no longer
+overclaims for `cd cloud extra`, the test helper's comment no longer credits the wrong mechanism
+for its own safety, and the flake was chased rather than parked.
 
 **The chain, in order, so nobody re-derives it:**
 1. Five sites fixed (`run`, `info`, `ls`, `cd`, tab-completion).
@@ -61,8 +67,22 @@ that inserting a new test block silently degraded a PRE-EXISTING assertion into 
 no longer fail, because it read a cumulative array and the new block added an entry ahead of it.
 Insertion order can break a test without touching it.
 
-Assertions in `hex-shell-process.test.js`: 39 to 55, each new one proven falsifiable by reverting
-the fix it covers and confirming it goes red, then restoring from a sha256-verified backup.
+Assertions in `hex-shell-process.test.js`: 39 to 62, each new one proven falsifiable by reverting
+the fix it covers and confirming it goes red, then restoring from a sha256-verified backup. The
+suite previously pressed Tab zero times, which is the whole reason the eighth site survived.
+
+**The flake in this gate was chased, not recorded.** A 900ms read against a 1000ms watchdog in the
+pg5 block, a margin I had narrowed myself by inserting a case into that sequence. The asserted
+message prints synchronously, so waiting LESS (now 400ms) is what widens it. Counter-intuitive
+enough to be worth remembering: an intermittent red in a deploy gate either blocks a good deploy
+or trains people to re-run until green, so "recorded as a known flake" was the wrong answer.
+
+**Also added, deliberately NOT a gate:** `_tools/hexos/case-fold-lint.js`, PROBE status, which
+tries to mechanise the sweep that human eyes have now failed at four rounds running. Its own
+selftest reports 2 of 5, and all three of its current findings are false positives verified by
+hand, so it is wired to nothing and says so in its header. It found two bugs in ITSELF before
+finding any in the shell. Keep or delete, but do not promote it without getting the selftest to
+5/5 first.
 
 **Two bugs logged this round, both from sweeping for permanently-false `window.X` guards on
 const-declared modules:** BUG-247 (a TenantShell comment whose "verified in a browser" check
