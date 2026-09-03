@@ -1308,53 +1308,18 @@
             var accountVocab = Object.keys(SYNONYMS).concat(['logout', 'signout', 'exit', 'quit']);
             var typed = verb;      // never reassigned: the error lines quote what was actually typed
             var acctVerb = verb;
-            if (!SYNONYMS[verb] && !COMMANDS[verb] && verb.length > 2) {
-                var realNear = Object.keys(COMMANDS).filter(function (c) {
-                    return editDistance(verb, c) <= 1;
-                });
-                if (!realNear.length) {
-                    var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
-                    if (vFix.length === 1) acctVerb = vFix[0];
-                }
-            }
-            if (SYNONYMS[acctVerb]) {
-                verb = acctVerb;   // only now, and only for a resolved synonym
-                /* CARRY THE ARGUMENT. A reviewer caught the first version answering `open arena`
-                   with "run does what you mean" and silently dropping `arena`, so a student who
-                   typed a complete, unambiguous intent had to type the whole thing again. That is
-                   the same true-and-useless shape this work exists to remove. */
-                var suggestion = SYNONYMS[verb] + (arg ? ' ' + arg : '');
-                say(esc(typed) + ' is not a command here. Try <span class="ok">'
-                    + esc(suggestion) + '</span>', 'warn');
-                return say('<span class="ok">help</span> lists everything.', 'muted');
-            }
-
-            /* LEAVING AND SIGNING OUT ARE DIFFERENT THINGS, and the first version told a student
-               they were the same. It mapped exit, quit AND logout to `cd /`, which only clears the
-               shell's scope: it does not leave the page and it certainly does not sign anyone out.
-               A reviewer pointed out that `logout` therefore made a FALSE claim about account
-               state, while FirebaseAuth.signOut() is loaded on this very page. So they are now two
-               different answers, and the one that can be true is done rather than described. */
-            if (acctVerb === 'logout' || acctVerb === 'signout') {
-                if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signOut) {
-                    say('signing out...', 'muted');
-                    return Promise.resolve(FirebaseAuth.signOut()).then(function () {
-                        say('signed out.', 'ok');
-                    }, function (e) {
-                        say('could not sign out: ' + esc(errText(e)), 'err');
-                        say('use the account menu on the main site.', 'muted');
-                    });
-                }
-                say('sign-out is not available from this page.', 'warn');
-                return say('use the account menu on the main site.', 'muted');
-            }
-            if (acctVerb === 'exit' || acctVerb === 'quit') {
-                say('there is nothing to exit: this shell is a page, not a session.', 'warn');
-                return say('<span class="ok">cd /</span> returns to the top of the app list, the '
-                    + '"back to Hexworth" link leaves this page, and <span class="ok">logout</span> '
-                    + 'signs you out.', 'muted');
-            }
-
+            /* THE ACCOUNT POOL IS TRIED ONLY AFTER THE REAL-COMMAND SUGGESTER COMES UP EMPTY, and it
+               is the SUGGESTER ITSELF that decides, not a second guess at what it will do.
+               My previous version asked a separate question here: "is any command within one edit?"
+               That is not the same question as "will a command actually be offered", because the
+               suggester additionally refuses a destructive command whose first letter differs. So
+               `atop` was blocked from the account pool by this gate, then refused by the suggester,
+               and fell to the generic message: it used to resolve correctly to `ps` and my fix made it
+               the worst answer in the file. `htop`, `gtop` and `estart` regressed the same way. A
+               reviewer reproduced all four against the live page.
+               Two definitions of one thing, which is the exact mistake groupOf exists to prevent, made
+               again nine lines apart. There is now ONE computation: the suggester runs first, and this
+               pool is consulted only if it produced nothing. See below the near-miss stages. */
             // 2. A near miss on a real command. Prefix first, then substring, matching how `run`
             //    and `cd` already suggest, so the shell behaves the same way everywhere.
             var names = Object.keys(COMMANDS);
@@ -1428,6 +1393,53 @@
                     return d <= (verb.length > 4 ? 2 : 1);
                 });
             }
+            /* The account pool is consulted ONLY when the real-command suggester produced nothing, and
+               it is that computation which decides, not a second guess at what it would do. Resolved
+               only when exactly one candidate sits within a single edit, because guessing which account
+               action a student meant is not a service. */
+            if (!near.length && !SYNONYMS[verb] && !COMMANDS[verb] && verb.length > 2) {
+                var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
+                if (vFix.length === 1) acctVerb = vFix[0];
+            }
+
+            if (SYNONYMS[acctVerb]) {
+                verb = acctVerb;   // only now, and only for a resolved synonym
+                /* CARRY THE ARGUMENT. A reviewer caught the first version answering `open arena`
+                   with "run does what you mean" and silently dropping `arena`, so a student who
+                   typed a complete, unambiguous intent had to type the whole thing again. That is
+                   the same true-and-useless shape this work exists to remove. */
+                var suggestion = SYNONYMS[verb] + (arg ? ' ' + arg : '');
+                say(esc(typed) + ' is not a command here. Try <span class="ok">'
+                    + esc(suggestion) + '</span>', 'warn');
+                return say('<span class="ok">help</span> lists everything.', 'muted');
+            }
+
+            /* LEAVING AND SIGNING OUT ARE DIFFERENT THINGS, and the first version told a student
+               they were the same. It mapped exit, quit AND logout to `cd /`, which only clears the
+               shell's scope: it does not leave the page and it certainly does not sign anyone out.
+               A reviewer pointed out that `logout` therefore made a FALSE claim about account
+               state, while FirebaseAuth.signOut() is loaded on this very page. So they are now two
+               different answers, and the one that can be true is done rather than described. */
+            if (acctVerb === 'logout' || acctVerb === 'signout') {
+                if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signOut) {
+                    say('signing out...', 'muted');
+                    return Promise.resolve(FirebaseAuth.signOut()).then(function () {
+                        say('signed out.', 'ok');
+                    }, function (e) {
+                        say('could not sign out: ' + esc(errText(e)), 'err');
+                        say('use the account menu on the main site.', 'muted');
+                    });
+                }
+                say('sign-out is not available from this page.', 'warn');
+                return say('use the account menu on the main site.', 'muted');
+            }
+            if (acctVerb === 'exit' || acctVerb === 'quit') {
+                say('there is nothing to exit: this shell is a page, not a session.', 'warn');
+                return say('<span class="ok">cd /</span> returns to the top of the app list, the '
+                    + '"back to Hexworth" link leaves this page, and <span class="ok">logout</span> '
+                    + 'signs you out.', 'muted');
+            }
+
             if (near.length) {
                 say(esc(verb) + ': not a command.', 'err');
                 say('did you mean: <span class="ok">'

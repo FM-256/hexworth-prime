@@ -582,6 +582,20 @@ srv.listen(PORT, '127.0.0.1', async () => {
     }
     o = await run('top');
     chk('an EXACT synonym still wins over any fuzzy match', /\bps\b/.test(o) && !/stop/.test(o), o.slice(0, 90));
+
+    /* THE `atop` FAMILY, and the reason it needs its own block: my gate asked "is any command
+       within one edit?" while the suggester additionally refuses a destructive command whose
+       first letter differs. Two definitions of one question, nine lines apart, which is the exact
+       mistake groupOf exists to prevent. So `atop` was blocked from the account pool by the gate,
+       then refused by the suggester, and landed on the generic message: it used to resolve to
+       `ps` and my fix made it the worst answer in the file. A reviewer reproduced `atop`, `htop`,
+       `gtop` and `estart` against the live page while the suite sat at 118/118, blind to all of
+       them. There is one computation now; these pin that it stays one. */
+    for (const [word, want] of [['atop', 'ps'], ['htop', 'ps'], ['gtop', 'ps'], ['estart', 'run']]) {
+        o = await run(word);
+        chk(`${word} resolves to ${want} rather than falling through to the generic message`,
+            new RegExp('\\b' + want + '\\b').test(o) && !/not a search box/i.test(o), o.slice(0, 110));
+    }
     /* And the shell must quote what was TYPED. The old code assigned through `verb`, and the error
        line echoes it, so `cad` was answered with "cat is not a command" -- a word the student
        never typed. Misquoting someone back to themselves is its own bug. */
