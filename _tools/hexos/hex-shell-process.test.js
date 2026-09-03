@@ -69,8 +69,19 @@
  * `stop ARCTIC` case into that sequence. The refusal being asserted is printed SYNCHRONOUSLY when
  * the launchPending check rejects gen3, so the wait bought nothing except a chance for the
  * watchdog to fire mid-read. Now 400ms: waiting LESS is what widens the margin here, which is
- * backwards from the usual instinct and is why it is written down. Three further clean runs after
- * the change. Still not proof, but the specific hypothesis was tested rather than recorded.
+ * backwards from the usual instinct and is why it is written down.
+ *
+ * IT STILL FLAKES, and the claim that it was fixed was made on three clean runs. Observed again
+ * 2026-09-03 at 101/103, then 11 consecutive clean runs after it, so roughly 1 in 12. Three clean
+ * runs was never enough evidence to call a 1-in-12 event closed, and saying "the hypothesis was
+ * tested" let a narrowed margin pass for a fix. The margin change was real and the flake is
+ * narrower than it was; it is not gone.
+ * This matters because deploy.sh gate 3.7 runs this suite: an intermittent red either blocks a
+ * good deploy or teaches an operator to re-run until green, and the second is worse. Tracked as a
+ * task rather than left as a comment, because a known flake in a deploy gate is work, not a note.
+ * The suspects remain the two assertions in the pg5 watchdog block, which depend on real timers
+ * racing a 1000ms watchdog; the durable fix is to make them observe state transitions rather than
+ * sleep for a duration.
  *
  * The `server-only-lab` case is a regression guard for a genuinely destructive ordering bug: restart
  * destroyed the box and THEN discovered it could not relaunch it, because the server may know a lab
