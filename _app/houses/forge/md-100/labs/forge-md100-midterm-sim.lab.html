@@ -1397,6 +1397,180 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
         out.scrollTop = out.scrollHeight;
     }
 
+    /* ONE TABLE, read by Get-Help AND by the inline "Usage:" errors, so the two can never
+       disagree about what this sim accepts. Twelve cmdlets already printed a Usage string and
+       seven printed nothing at all, which is why a student could see Set-ItemProperty in the
+       `help` list and still have no way to learn it wants -Value. Every syntax line below is
+       derived from the parser branch that consumes it, not written from memory.
+
+       EXAMPLES TEACH THE SHAPE, THEY DO NOT HAND OVER THE OBJECTIVE. Where a cmdlet is graded,
+       the example uses a DIFFERENT setting the same cmdlet accepts: Set-ItemProperty is shown
+       against Remote Desktop, not against the lock-screen key the midterm asks for. A student
+       still has to know which key and which value; they no longer have to guess the syntax.
+       That line is deliberate. A worked example of the graded answer would be the cmdlet builder
+       this was chosen over, in a different costume. */
+    const CMDLET_HELP = {
+        'rename-computer': {
+            synopsis: 'Renames the local computer.',
+            syntax: 'Rename-Computer -NewName <string>',
+            params: [['-NewName', 'the new computer name']],
+            example: 'Rename-Computer -NewName "HEX-WS02"'
+        },
+        'new-localuser': {
+            synopsis: 'Creates a local user account.',
+            syntax: 'New-LocalUser -Name <string> [-NoPassword]',
+            params: [['-Name', 'the account name'], ['-NoPassword', 'create without a password']],
+            example: 'New-LocalUser -Name "tuser" -NoPassword'
+        },
+        'add-localgroupmember': {
+            synopsis: 'Adds a user to a local group.',
+            syntax: 'Add-LocalGroupMember -Group <string> -Member <string>',
+            params: [['-Group', 'the local group'], ['-Member', 'the account to add']],
+            example: 'Add-LocalGroupMember -Group "Remote Desktop Users" -Member "tuser"'
+        },
+        'add-computer': {
+            synopsis: 'Joins this computer to a domain.',
+            syntax: 'Add-Computer -DomainName <string>',
+            params: [['-DomainName', 'the domain to join']],
+            example: 'Add-Computer -DomainName "example.local"'
+        },
+        'set-itemproperty': {
+            synopsis: 'Writes a value into the registry.',
+            syntax: 'Set-ItemProperty -Path <registry path> -Name <value name> -Value <data>',
+            params: [['-Path', 'the key, e.g. HKCU:\\SOFTWARE\\...'],
+                     ['-Name', 'the value inside that key'],
+                     ['-Value', 'the data to write, usually 0 or 1']],
+            example: 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" -Name fDenyTSConnections -Value 0',
+            note: 'This sim accepts the PowerShell form only. reg.exe is not implemented here.'
+        },
+        'new-netipaddress': {
+            synopsis: 'Assigns a static IP address.',
+            syntax: 'New-NetIPAddress -InterfaceAlias <string> -IPAddress <ip> -PrefixLength <n> -DefaultGateway <ip>',
+            params: [['-InterfaceAlias', 'usually "Ethernet"'], ['-IPAddress', 'the address'],
+                     ['-PrefixLength', 'mask length, 24 for a /24'], ['-DefaultGateway', 'the gateway']],
+            example: 'New-NetIPAddress -InterfaceAlias "Ethernet" -IPAddress 10.0.0.50 -PrefixLength 24 -DefaultGateway 10.0.0.1'
+        },
+        'set-dnsclientserveraddress': {
+            synopsis: 'Sets the DNS servers for an interface.',
+            syntax: 'Set-DnsClientServerAddress -InterfaceAlias <string> -ServerAddresses <ip,ip>',
+            params: [['-InterfaceAlias', 'usually "Ethernet"'], ['-ServerAddresses', 'comma separated']],
+            example: 'Set-DnsClientServerAddress -InterfaceAlias "Ethernet" -ServerAddresses 1.1.1.1,1.0.0.1'
+        },
+        'initialize-disk': {
+            synopsis: 'Brings a raw disk online with a partition style.',
+            syntax: 'Initialize-Disk -Number <n> -PartitionStyle <GPT|MBR>',
+            params: [['-Number', 'the disk number from Get-Disk'], ['-PartitionStyle', 'GPT or MBR']],
+            example: 'Initialize-Disk -Number 2 -PartitionStyle GPT'
+        },
+        'new-partition': {
+            synopsis: 'Creates a partition on an initialized disk.',
+            syntax: 'New-Partition -DiskNumber <n> -DriveLetter <letter>',
+            params: [['-DiskNumber', 'the disk to carve'], ['-DriveLetter', 'letter to assign']],
+            example: 'New-Partition -DiskNumber 2 -DriveLetter E'
+        },
+        'format-volume': {
+            synopsis: 'Formats a volume with a file system.',
+            syntax: 'Format-Volume -DriveLetter <letter> -FileSystem <NTFS|ReFS> -NewFileSystemLabel <string>',
+            params: [['-DriveLetter', 'the volume to format'], ['-FileSystem', 'NTFS unless told otherwise'],
+                     ['-NewFileSystemLabel', 'the label']],
+            example: 'Format-Volume -DriveLetter E -FileSystem NTFS -NewFileSystemLabel "Scratch"'
+        },
+        'new-storagepool': {
+            synopsis: 'Creates a Storage Spaces pool from the free disks.',
+            syntax: 'New-StoragePool -FriendlyName <string>',
+            params: [['-FriendlyName', 'a name for the pool']],
+            example: 'New-StoragePool -FriendlyName "ScratchPool"'
+        },
+        'new-virtualdisk': {
+            synopsis: 'Creates a virtual disk in a pool and sets its resiliency.',
+            syntax: 'New-VirtualDisk -StoragePoolFriendlyName <string> -ResiliencySetting <Simple|Mirror|Parity>',
+            params: [['-StoragePoolFriendlyName', 'an existing pool'],
+                     ['-ResiliencySetting', 'Simple, Mirror or Parity']],
+            example: 'New-VirtualDisk -StoragePoolFriendlyName "ScratchPool" -ResiliencySetting Simple'
+        },
+        'repair-volume': {
+            synopsis: 'Runs a disk check on a volume. chkdsk does the same thing here.',
+            syntax: 'Repair-Volume -DriveLetter <letter>',
+            params: [['-DriveLetter', 'the volume to check']],
+            example: 'Repair-Volume -DriveLetter C'
+        },
+        'new-smbshare': {
+            synopsis: 'Shares a folder on the network.',
+            syntax: 'New-SmbShare -Name <string> -Path <folder>',
+            params: [['-Name', 'the share name'], ['-Path', 'the folder to share']],
+            example: 'New-SmbShare -Name "Reports" -Path "C:\\Data\\Reports"'
+        },
+        'icacls': {
+            synopsis: 'Grants NTFS permissions on a folder.',
+            syntax: 'icacls <folder> /grant <group>:(<rights>)',
+            params: [['/grant', 'rights letters: R read, M modify, F full']],
+            example: 'icacls "C:\\Data\\Reports" /grant Users:(R)'
+        },
+        'cipher': {
+            synopsis: 'Encrypts a folder with EFS.',
+            syntax: 'cipher /e <folder>',
+            params: [['/e', 'encrypt'], ['/d', 'decrypt']],
+            /* SYNTAX ONLY, deliberately. This sim's cipher accepts exactly one path, the folder
+               the midterm grades, so ANY runnable example here would hand over objective da3.
+               Showing the shape with a placeholder teaches the command and leaves the student to
+               know which folder. The gate below exempts entries carrying syntaxOnly, and requires
+               them to state why, so this cannot become a quiet way to dodge the execution check. */
+            syntaxOnly: true,
+            why: 'the only path this sim encrypts is the one the midterm grades',
+            example: 'cipher /e "<folder>"'
+        },
+        'auditpol': {
+            synopsis: 'Turns on auditing for a category.',
+            syntax: 'auditpol /set /subcategory:"<name>" /success:enable /failure:enable',
+            params: [['/subcategory', 'the audit subcategory'], ['/success,/failure', 'enable or disable']],
+            example: 'auditpol /set /subcategory:"Logon" /success:enable /failure:enable'
+        },
+        'get-disk': {
+            synopsis: 'Lists the disks and their numbers. Start here before Initialize-Disk.',
+            syntax: 'Get-Disk',
+            params: [],
+            example: 'Get-Disk'
+        },
+        'powercfg': {
+            synopsis: 'Reads and sets power plans.',
+            syntax: 'powercfg /list | /setactive <GUID> | /change standby-timeout-ac <minutes>',
+            params: [['/list', 'show the plans and their GUIDs'],
+                     ['/setactive', 'switch plan by GUID'],
+                     ['/change', 'adjust a timeout']],
+            example: 'powercfg /list'
+        }
+    };
+
+    /* cmd.exe equivalents students reasonably reach for that this sim does not implement. Saying
+       so by name turns a dead end into a lesson: the operator hit exactly this with `reg add`,
+       which is the idiomatic way to do the lock-screen tweak and is simply not wired up here. */
+    const CMD_EXE_EQUIVALENTS = {
+        'reg': 'Set-ItemProperty',
+        'netsh': 'New-NetIPAddress or Set-DnsClientServerAddress',
+        'diskpart': 'Initialize-Disk, New-Partition and Format-Volume',
+        'net': 'New-LocalUser and Add-LocalGroupMember',
+        'wmic': 'Get-Disk'
+    };
+
+    function renderCmdletHelp(name) {
+        const h = CMDLET_HELP[name.toLowerCase().replace(/^get-help\s+/i, '')];
+        if (!h) return false;
+        addLine('NAME', 'heading');
+        addLine('    ' + name.toLowerCase());
+        addLine('SYNOPSIS', 'heading');
+        addLine('    ' + h.synopsis);
+        addLine('SYNTAX', 'heading');
+        addLine('    ' + h.syntax, 'info');
+        if (h.params && h.params.length) {
+            addLine('PARAMETERS', 'heading');
+            h.params.forEach(function (pr) { addLine('    ' + pr[0] + '   ' + pr[1]); });
+        }
+        addLine('EXAMPLE', 'heading');
+        addLine('    ' + h.example, 'info');
+        if (h.note) addLine('    ' + h.note, 'dim');
+        return true;
+    }
+
     function extractParam(cmd, param) {
         const regex = new RegExp(param + '\\s+["\']?([^"\'\\s-][^"\']*?)["\']?(?=\\s+-|\\s*$)', 'i');
         const m = cmd.match(regex);
@@ -1440,6 +1614,30 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
         if (lower === 'hostname') { addLine(state.system.name); return; }
         if (lower === 'whoami') { addLine(`${state.system.domain || state.system.name}\\Administrator`); return; }
         if (lower === 'cls' || lower === 'clear') { document.getElementById('terminalOutput').innerHTML = ''; return; }
+        /* `help <cmdlet>` and `Get-Help <cmdlet>` both land here. Real PowerShell aliases help to
+           Get-Help, so a student who learns either learns the one that works on the exam and on a
+           real workstation. That transfer is the whole reason this is Get-Help rather than a
+           builder UI: the discovery mechanism itself is the examinable skill. */
+        if (cmdName === 'get-help' || (lower.indexOf('help ') === 0)) {
+            const topic = cmd.replace(/^\s*(get-help|help)\s+/i, '').trim().replace(/['"]/g, '');
+            if (topic && renderCmdletHelp(topic)) return;
+            if (topic) {
+                addLine('No help topic for "' + topic + '".', 'error');
+                addLine('Type "help" for the command list, or "Get-Command" for the cmdlets with help pages.', 'dim');
+                return;
+            }
+        }
+        if (cmdName === 'get-command') {
+            addLine('Cmdlets with a help page in this sim:', 'heading');
+            const names = Object.keys(CMDLET_HELP).sort();
+            for (let i = 0; i < names.length; i += 3) {
+                addLine('  ' + names.slice(i, i + 3).map(function (n) {
+                    return n.padEnd(30);
+                }).join('').trimEnd(), 'info');
+            }
+            addLine('Get-Help <name> for syntax, parameters and an example.', 'dim');
+            return;
+        }
         if (lower === 'help') {
             addLine('Available Commands:', 'heading');
             addLine('  hostname, whoami, systeminfo, cls/clear, status, help', 'info');
@@ -1451,6 +1649,9 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
             addLine('  New-StoragePool, New-VirtualDisk, Repair-Volume', 'info');
             addLine('  icacls, New-SmbShare, cipher, auditpol', 'info');
             addLine('  cd, dir/ls, pwd', 'info');
+            addLine('', 'dim');
+            addLine('Get-Help <cmdlet>   syntax, parameters and a worked example', 'dim');
+            addLine('Get-Command         the cmdlets that have a help page', 'dim');
             return;
         }
         if (lower === 'status') {
@@ -1920,8 +2121,19 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
         }
 
         // Fallback
+        /* NAME THE EQUIVALENT. The operator got stuck here for real: `reg add` is the idiomatic
+           cmd.exe way to do the lock-screen tweak, it is what most MD-100 material shows, and this
+           sim simply never implemented reg.exe. Answering "not recognized" tells a student their
+           correct answer is wrong. Naming the cmdlet this sim does accept turns the dead end into
+           the lesson, without giving away which key or value the objective wants. */
+        const equiv = CMD_EXE_EQUIVALENTS[String(parts[0] || '').toLowerCase()];
+        if (equiv) {
+            addLine(`'${parts[0]}' is not implemented in this sim.`, 'error');
+            addLine(`Use ${equiv} instead. Get-Help ${equiv.split(' ')[0]} shows the syntax.`, 'dim');
+            return;
+        }
         addLine(`'${parts[0]}' is not recognized as a cmdlet, function, or operable program.`, 'error');
-        addLine('Type "help" for available commands.', 'dim');
+        addLine('Type "help" for available commands, or Get-Help <cmdlet> for one of them.', 'dim');
     }
 
     // ============================================
