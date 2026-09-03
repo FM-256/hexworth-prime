@@ -556,6 +556,47 @@ srv.listen(PORT, '127.0.0.1', async () => {
         await pg.evaluate(() => { document.getElementById('cmd').value = ''; });
     }
 
+    /* THE ACCOUNT-VOCABULARY FUZZY BRANCH, which shipped a regression past a fully green suite
+       because not one of these inputs was tested. A reviewer reproduced five broken cases by
+       hand. The branch resolves a typo of exit/logout/quit and the other-shell synonyms, and the
+       rule that makes it safe is that A REAL COMMAND ALWAYS OUTRANKS IT: my first version checked
+       21 words blind to the 12 command names and there are 38 one-edit collisions between them.
+       Both directions are pinned, because either alone is half the rule. */
+    for (const [typo, want] of [['lgout', /signing out|signed out/i],
+                                ['eixt', /nothing to exit/i],
+                                ['qiut', /nothing to exit/i]]) {
+        o = await run(typo);
+        chk(`a typo of an account verb resolves (${typo})`, want.test(o), o.slice(0, 100));
+    }
+    for (const [typo, cmd] of [['cad', 'cd'], ['can', 'man'], ['mat', 'man']]) {
+        o = await run(typo);
+        chk(`a real command outranks the account pool (${typo} -> ${cmd})`,
+            new RegExp('did you mean[\\s\\S]*\\b' + cmd + '\\b').test(o), o.slice(0, 100));
+    }
+    /* The worst of the five: these stopped reaching `stop` entirely, so the destructive-action
+       warning THIS SAME ROUND added was suppressed from the other direction. */
+    for (const typo of ['shop', 'stow']) {
+        o = await run(typo);
+        chk(`${typo} still reaches stop and keeps its warning`,
+            /did you mean[\s\S]*stop/.test(o) && /ends a running lab session/i.test(o), o.slice(0, 130));
+    }
+    o = await run('top');
+    chk('an EXACT synonym still wins over any fuzzy match', /\bps\b/.test(o) && !/stop/.test(o), o.slice(0, 90));
+    /* And the shell must quote what was TYPED. The old code assigned through `verb`, and the error
+       line echoes it, so `cad` was answered with "cat is not a command" -- a word the student
+       never typed. Misquoting someone back to themselves is its own bug. */
+    o = await run('dirr');
+    chk('the error quotes the typed word, not the correction',
+        /\bdirr\b/.test(o) && !/^hex> dirr\s*\n\s*dir is not/m.test(o), o.slice(0, 100));
+
+    /* Tab on `search` was never exercised by this harness, so A2's category pool was asserted and
+       not verified. */
+    {
+        const t2 = await tab('search inc');
+        chk('Tab after `search` completes a category',
+            /incubator/.test(t2.out) || /incubator/.test(t2.value), JSON.stringify(t2));
+    }
+
     /* THE INVARIANT THE SEARCH FIX SILENTLY DEPENDS ON. `search` resolves a category by exact
        match first and prefix second, and that is only unambiguous while no two category names
        share a prefix. Exactly one such pair exists today (platform / platform-hub) and the

@@ -1288,21 +1288,43 @@
                exists to remove, surviving in the one part of the shell that touches a student's
                account. A reviewer found it by reading the comment that framed the feature and
                then checking whether it held here.
-               Resolved only when the correction is UNAMBIGUOUS: exactly one candidate within one
-               edit. Two candidates means the shell would be guessing which account action was
-               meant, and guessing about sign-out is not a service. */
+               A REAL COMMAND ALWAYS OUTRANKS THIS POOL, and getting that wrong was a regression
+               I shipped and a reviewer reproduced. My first version checked these 21 words in
+               isolation, blind to the 12 real command names, and declared a distance-1 hit
+               "unambiguous" when the same string was ALSO one edit from a real command. She found
+               38 such collisions across 6 of the 12 commands. Live effects: `cad` stopped
+               suggesting `cd` and started suggesting `cat`; `can` and `mat` stopped suggesting
+               `man`; and worst, `shop` and `stow` stopped reaching `stop` at all, so the
+               destructive-action warning that THIS SAME COMMIT worked to protect was silently
+               suppressed from the other direction.
+               So: if any real command is within one edit, this pool does not run. It only
+               resolves words the command table has no claim on, which is exactly the set it was
+               added for (`lgout`, `eixt`, `qiut`).
+               AND IT NO LONGER REWRITES `verb`. The old version assigned through it, and the
+               error line echoes `esc(verb)`, so the shell quoted a word the student never typed:
+               "cat is not a command" for input `cad`. Misquoting someone back to themselves is
+               its own bug, separate from the collision. The resolved word lives in its own
+               variable and `verb` stays as typed. */
             var accountVocab = Object.keys(SYNONYMS).concat(['logout', 'signout', 'exit', 'quit']);
+            var typed = verb;      // never reassigned: the error lines quote what was actually typed
+            var acctVerb = verb;
             if (!SYNONYMS[verb] && !COMMANDS[verb] && verb.length > 2) {
-                var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
-                if (vFix.length === 1) verb = vFix[0];
+                var realNear = Object.keys(COMMANDS).filter(function (c) {
+                    return editDistance(verb, c) <= 1;
+                });
+                if (!realNear.length) {
+                    var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
+                    if (vFix.length === 1) acctVerb = vFix[0];
+                }
             }
-            if (SYNONYMS[verb]) {
+            if (SYNONYMS[acctVerb]) {
+                verb = acctVerb;   // only now, and only for a resolved synonym
                 /* CARRY THE ARGUMENT. A reviewer caught the first version answering `open arena`
                    with "run does what you mean" and silently dropping `arena`, so a student who
                    typed a complete, unambiguous intent had to type the whole thing again. That is
                    the same true-and-useless shape this work exists to remove. */
                 var suggestion = SYNONYMS[verb] + (arg ? ' ' + arg : '');
-                say(esc(verb) + ' is not a command here. Try <span class="ok">'
+                say(esc(typed) + ' is not a command here. Try <span class="ok">'
                     + esc(suggestion) + '</span>', 'warn');
                 return say('<span class="ok">help</span> lists everything.', 'muted');
             }
@@ -1313,7 +1335,7 @@
                A reviewer pointed out that `logout` therefore made a FALSE claim about account
                state, while FirebaseAuth.signOut() is loaded on this very page. So they are now two
                different answers, and the one that can be true is done rather than described. */
-            if (verb === 'logout' || verb === 'signout') {
+            if (acctVerb === 'logout' || acctVerb === 'signout') {
                 if (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.signOut) {
                     say('signing out...', 'muted');
                     return Promise.resolve(FirebaseAuth.signOut()).then(function () {
@@ -1326,7 +1348,7 @@
                 say('sign-out is not available from this page.', 'warn');
                 return say('use the account menu on the main site.', 'muted');
             }
-            if (verb === 'exit' || verb === 'quit') {
+            if (acctVerb === 'exit' || acctVerb === 'quit') {
                 say('there is nothing to exit: this shell is a page, not a session.', 'warn');
                 return say('<span class="ok">cd /</span> returns to the top of the app list, the '
                     + '"back to Hexworth" link leaves this page, and <span class="ok">logout</span> '
