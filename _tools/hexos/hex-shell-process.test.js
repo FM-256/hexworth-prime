@@ -611,6 +611,37 @@ srv.listen(PORT, '127.0.0.1', async () => {
             /incubator/.test(t2.out) || /incubator/.test(t2.value), JSON.stringify(t2));
     }
 
+    /* THE SIXTH MIRROR: A BARE GROUP NAME, no verb. Five verbs were taught to explain a group and
+       the no-verb entry was not, so typing `incubator` alone still answered "incubator: not a
+       command" -- the operator's original report, word for word, through the one door the round
+       never audited. Chris found it against the live page; this suite had no assertion for a bare
+       group name at all, which is why it sat at 122/122 while the gap was open.
+       Also pinned: a bare word that IS an app id must still LAUNCH, because the two behaviours
+       share one line and a fix to either could silently swap them. */
+    o = await run('incubator');
+    chk('a bare category name explains itself instead of "not a command"',
+        /is a category, not an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 130));
+    chk('  -> and does not fall through to the generic message',
+        !/not a search box/i.test(o), o.slice(0, 110));
+    o = await run('cert-prep');
+    chk('a bare category with a hyphen works too', /is a category, not an app/i.test(o), o.slice(0, 110));
+    o = await run('HOUSE');
+    chk('  -> and it is case-insensitive, printing the canonical spelling',
+        /is a category, not an app/i.test(o) && /\bhouse\b/.test(o), o.slice(0, 110));
+    /* The other half of that one line: a bare APP id must still launch. `arena` navigates, so the
+       success condition is leaving the page, exactly as for `run az-104` elsewhere in this file. */
+    {
+        await pg.evaluate(() => { document.getElementById('out').innerHTML = '';
+                                  document.getElementById('cmd').value = ''; });
+        await pg.click('#cmd'); await pg.type('#cmd', 'arena'); await pg.keyboard.press('Enter');
+        await new Promise((r) => setTimeout(r, 1200));
+        const where = await pg.evaluate(() => location.pathname);
+        chk('CONTROL: a bare APP id still launches rather than being explained',
+            !/\/hex\/$|\/hex\/index\.html$/.test(where), where);
+        await pg.goto(`http://127.0.0.1:${PORT}/hex/`, { waitUntil: 'networkidle0' });
+        await new Promise((r) => setTimeout(r, 1200));
+    }
+
     /* THE INVARIANT THE SEARCH FIX SILENTLY DEPENDS ON. `search` resolves a category by exact
        match first and prefix second, and that is only unambiguous while no two category names
        share a prefix. Exactly one such pair exists today (platform / platform-hub) and the
