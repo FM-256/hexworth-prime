@@ -192,6 +192,38 @@ srv.listen(PORT, '127.0.0.1', async () => {
 
     let pass = 0, fail = 0;
     const chk = (n, c, d) => { c ? pass++ : fail++; console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${c ? '' : '  <- ' + String(d).slice(0, 110)}`); };
+
+    /* WAIT FOR THE OUTCOME, NOT FOR A DURATION. This is the fix for the ~1-in-12 flake that has
+       been open in this file since a reviewer first saw it (taskboard 336).
+       There are two kinds of wait in this suite and only one of them is safe:
+         "wait until X appears"  -- pollable, and every flaky read was this kind written as a sleep
+         "wait until a timer expires so a background settle happens" -- genuinely a duration, and
+                                    those stay as sleeps, marked where they occur
+       A sleep of the first kind is a bet that the machine is fast enough today. It passed on this
+       machine for eleven runs and lost on the twelfth, and I twice reported it fixed on the
+       strength of three clean runs, which is not evidence about a 1-in-12 event.
+       Returns the text either way: on timeout it reads once more and hands back whatever IS there,
+       so a genuine failure reports the real output instead of throwing a timeout that tells the
+       reader nothing about the product. */
+    const waitForText = async (page, re, ms = 5000) => {
+        try {
+            const h = await page.waitForFunction(
+                (src) => {
+                    const el = document.getElementById('out');
+                    const t = el ? el.innerText : '';
+                    return new RegExp(src.source, src.flags).test(t) ? t : false;
+                },
+                { timeout: ms, polling: 50 },
+                { source: re.source, flags: re.flags }
+            );
+            return await h.jsonValue();
+        } catch (e) {
+            return await page.evaluate(() => {
+                const el = document.getElementById('out');
+                return el ? el.innerText : '';
+            });
+        }
+    };
     async function run(s) {
         await pg.evaluate(() => { document.getElementById('out').innerHTML = ''; });
         await pg.click('#cmd'); await pg.type('#cmd', s); await pg.keyboard.press('Enter');
@@ -850,8 +882,11 @@ srv.listen(PORT, '127.0.0.1', async () => {
     const type3 = async (cmd) => { await pg3.click('#cmd'); await pg3.type('#cmd', cmd); await pg3.keyboard.press('Enter'); };
 
     await type3('restart arctic');                    // gen1; destroy responds at ~3000ms
-    await new Promise(r => setTimeout(r, 1400));      // watchdog fired at 1000ms
-    chk('watchdog releases a slow restart', /no longer waiting/i.test(await pg3.evaluate(() => document.getElementById('out').innerText)), '');
+    /* Polled: this waits for the WATCHDOG's message, which is the same "sleep past a timer then
+       read once" shape as the measured flake. 1400ms against a 1000ms watchdog is a 400ms margin
+       on a machine that has already been seen to lose a 100ms one. */
+    chk('watchdog releases a slow restart',
+        /no longer waiting/i.test(await waitForText(pg3, /no longer waiting/i)), '');
     await type3('restart arctic');                    // gen2: the sanctioned retry
     await new Promise(r => setTimeout(r, 2600));      // gen1's destroy now lands
     chk('an orphaned restart does NOT relaunch a second time', launchLog.length === 1, 'launches=' + JSON.stringify(launchLog));
@@ -987,8 +1022,7 @@ srv.listen(PORT, '127.0.0.1', async () => {
     // And the stop-side answer must not say a flat "nothing running" while a launch is in flight.
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('stop arctic');
-    await new Promise(r => setTimeout(r, 700));
-    const stop5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    const stop5 = await waitForText(pg5, /still outstanding|YET/i);
     chk('stop reports an outstanding launch instead of a flat "nothing running"',
         /still outstanding|YET/i.test(stop5), stop5.slice(0, 130));
     /* THE SAME ANSWER IN CAPITALS. launchPending is written from the id the SERVER returned and
@@ -999,8 +1033,7 @@ srv.listen(PORT, '127.0.0.1', async () => {
      * paths to the same map. */
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('stop ARCTIC');
-    await new Promise(r => setTimeout(r, 700));
-    const stopCaps5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    const stopCaps5 = await waitForText(pg5, /still outstanding|YET/i);
     chk('  -> and reports it for a CAPITALISED id too',
         /still outstanding|YET/i.test(stopCaps5), stopCaps5.slice(0, 130));
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
@@ -1013,8 +1046,11 @@ srv.listen(PORT, '127.0.0.1', async () => {
        strictly safer here, which is the opposite of the usual fix and the reason it is worth a
        comment. I also lengthened this sequence earlier in the round by inserting a `stop ARCTIC`
        case above, so the margin was mine to tighten and mine to restore. */
-    await new Promise(r => setTimeout(r, 400));
-    const out5 = await pg5.evaluate(() => document.getElementById('out').innerText);
+    /* Polled, not slept. And note the ORDER matters: the refusal is the observable proof that
+       gen3 was rejected, so waiting for it before asserting the launch count ties that count to a
+       state transition instead of to a stopwatch. If gen3 were wrongly allowed, this poll times
+       out, the fallback read returns the real text, and BOTH assertions fail correctly. */
+    const out5 = await waitForText(pg5, /still outstanding/i);
     chk('a FAILED chain does not clear a flag it never set', launch5.length === 1, 'launches=' + JSON.stringify(launch5));
     chk('  -> the third attempt is refused as still outstanding', /still outstanding/i.test(out5), out5.slice(0, 130));
     await pg5.close();
