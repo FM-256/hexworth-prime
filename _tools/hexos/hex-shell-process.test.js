@@ -425,7 +425,19 @@ srv.listen(PORT, '127.0.0.1', async () => {
        there is. Assert both halves: the wall is cut, and the real total is still stated. */
     o = await run('search course');
     chk('a huge result set is capped', !/nothing matched/i.test(o) && /showing the first/i.test(o), o.slice(-120));
-    chk('  -> and still reports the true total', /\b103 matched\b/.test(o), o.slice(-120));
+    /* DERIVED, NOT FROZEN. This asserted the literal "103 matched", which is the manifest's
+       course count TODAY. This suite is deploy.sh gate 3.7, and courses are added routinely, so
+       the next course addition would have false-failed a deploy for a reason unrelated to shell
+       correctness. A reviewer caught it. The property that matters is that the stated total is
+       the REAL total and larger than what is shown, so it is computed from the manifest the
+       shell itself reads. */
+    const courseTotal = JSON.parse(fs.readFileSync(
+        path.join(APP, 'data/hex-apps.json'), 'utf8'))
+        .apps.filter((a) => String(a.category).toLowerCase() === 'course').length;
+    const statedTotal = parseInt((o.match(/(\d+)\s+matched/) || [])[1], 10);
+    chk('  -> and reports the manifest\'s real total, not a frozen number',
+        statedTotal === courseTotal && courseTotal > 40,
+        `stated ${statedTotal}, manifest has ${courseTotal}`);
     o = await run('search arena');
     chk('  CONTROL: a small result set is not capped', !/showing the first/i.test(o), o.slice(0, 80));
 
@@ -522,13 +534,64 @@ srv.listen(PORT, '127.0.0.1', async () => {
         await pg.evaluate(() => { document.getElementById('out').innerHTML = '';
                                   document.getElementById('cmd').value = ''; });
         await pg.click('#cmd'); await pg.type('#cmd', 'stop lin'); await pg.keyboard.press('Tab');
-        await new Promise((r) => setTimeout(r, 500));
-        const t = await pg.evaluate(() => ({ v: document.getElementById('cmd').value,
-                                             o: document.getElementById('out').innerText }));
+        /* WAITS ON THE STATE, NOT ON A DURATION. My first version slept 500ms and read once,
+           which is the exact pattern this file's own flake note names as the root cause of the
+           1-in-12 intermittent red. A reviewer caught me reintroducing the diagnosed defect in
+           the same commit that diagnosed it. Polling for the observable change and giving up
+           after a bound cannot lose the race: it either sees the completion or reports honestly
+           that nothing arrived. */
+        const t = await pg.waitForFunction(() => {
+            const v = document.getElementById('cmd').value;
+            const o = document.getElementById('out').innerText;
+            if (/linux/.test(v) || /linux-mastery/.test(o)) return { v: v, o: o };
+            return false;
+        }, { timeout: 4000, polling: 50 })
+            .then((h) => h.jsonValue())
+            .catch(async () => await pg.evaluate(() => ({
+                v: document.getElementById('cmd').value,
+                o: document.getElementById('out').innerText
+            })));
         chk('Tab after `stop` offers lab ids instead of silence',
             /linux-mastery/.test(t.o) || /linux/.test(t.v), JSON.stringify(t));
         await pg.evaluate(() => { document.getElementById('cmd').value = ''; });
     }
+
+    /* THE INVARIANT THE SEARCH FIX SILENTLY DEPENDS ON. `search` resolves a category by exact
+       match first and prefix second, and that is only unambiguous while no two category names
+       share a prefix. Exactly one such pair exists today (platform / platform-hub) and the
+       exact-wins rule handles it. Add an 8th category that prefixes an existing one, say
+       `course-advanced` beside `course`, and the ambiguity returns with no guard.
+       A reviewer pointed out this predicate has now been wrong three times in three attempts, so
+       the invariant is asserted rather than assumed. If this fails, the search predicate needs
+       revisiting, not the manifest. */
+    {
+        const cats = [...new Set(JSON.parse(fs.readFileSync(path.join(APP, 'data/hex-apps.json'), 'utf8'))
+            .apps.map((a) => String(a.category || '').toLowerCase()).filter(Boolean))];
+        const pairs = [];
+        for (const a of cats) {
+            for (const b of cats) {
+                if (a !== b && b.indexOf(a) === 0) pairs.push(`${a} prefixes ${b}`);
+            }
+        }
+        chk('at most one category-prefix pair exists, which the exact-wins rule handles',
+            pairs.length <= 1, `prefix pairs: ${JSON.stringify(pairs)}`);
+    }
+
+    /* PRECEDENCE ON A NAME THAT IS BOTH. All 13 houses also exist as app ids (the house-index
+       pages), so `cloud` is a valid group AND a valid app. Container verbs must resolve the
+       group; thing verbs must resolve the app. A reviewer found this ordering undocumented and
+       untested across six call sites, which meant a "let's make these consistent" refactor could
+       have flipped `ls cloud` into "cloud is an app, not a category" -- false, and exactly the
+       regression class this round has caught four times. Both halves are pinned here. */
+    o = await run('ls cloud');
+    chk('CONTAINER verb: ls <house> lists the house, not the index page',
+        !/is an app, not a category/i.test(o) && /\bapi\b|\baz-104\b/.test(o), o.slice(0, 110));
+    o = await run('cd cloud');
+    chk('  -> cd <house> scopes to it', /now in cloud/i.test(o) && /house/i.test(o), o.slice(0, 110));
+    o = await run('cd /');
+    o = await run('info cloud');
+    chk('THING verb: info <house> shows the index page record, not the group',
+        /\bid\b[\s\S]*cloud/.test(o) && !/is a house, not an app/i.test(o), o.slice(0, 110));
 
     o = await run('man incubator');
     chk('man <group> explains instead of "no manual page"',

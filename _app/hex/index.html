@@ -479,6 +479,28 @@
         return out;
     }
 
+    /* PRECEDENCE, AND IT IS DELIBERATE. Read this before "making the callers consistent".
+     *
+     * Every one of the 13 houses ALSO has an app whose id is the house name exactly: the
+     * house-index pages, each carrying category 'house'. So `cloud` is simultaneously a valid
+     * group and a valid app id, for all 13. Which one wins is decided by each caller's check
+     * order, and the orders differ ON PURPOSE:
+     *
+     *   CONTAINER verbs check groupOf FIRST      ls, cd
+     *     `ls cloud` lists the house's 26 apps. `cd cloud` scopes to it. Both are asking about a
+     *     container, and answering "cloud is an app" there would be useless.
+     *   THING verbs check byId FIRST             run, info, man, and stop/restart via resolveProcess
+     *     `run cloud` opens the Cloud house page, which is a real page a student wants. `info
+     *     cloud` shows that page's record. Answering "cloud is a house, it groups 26 apps" when
+     *     someone asked to OPEN it would be the true-and-useless shape this file exists to remove.
+     *
+     * A reviewer found this ordering undocumented and untested across six independently written
+     * `if` statements, and was right that it was accidental rather than decided: nothing said
+     * which was intended, so a future consistency pass could have flipped `ls cloud` into "cloud
+     * is an app, not a category", which is false. It is now stated here, in the one function all
+     * six callers share, and pinned by tests for both halves so the flip cannot happen silently.
+     * groupOf's own isCat/isHouse tie-break is separate and currently unreachable: no name is both
+     * a category and a house today (7 and 13, empty intersection, measured). */
     function groupOf(name) {
         var lower = low(name);
         if (!lower) return null;
@@ -1260,6 +1282,20 @@
                 'start': 'run', 'cat': 'info', 'about': 'info', 'top': 'ps', 'jobs': 'ps',
                 '?': 'help', 'h': 'help', 'commands': 'help', 'usage': 'help'
             };
+            /* THE ACCOUNT VOCABULARY GOT NO TYPO TOLERANCE. Synonyms and the logout/exit checks
+               were exact-match only and ran BEFORE the fuzzy stage, so `lgout`, `eixt` and `qiut`
+               got none of the help `hlep` now gets. That is the same unevenness this feature
+               exists to remove, surviving in the one part of the shell that touches a student's
+               account. A reviewer found it by reading the comment that framed the feature and
+               then checking whether it held here.
+               Resolved only when the correction is UNAMBIGUOUS: exactly one candidate within one
+               edit. Two candidates means the shell would be guessing which account action was
+               meant, and guessing about sign-out is not a service. */
+            var accountVocab = Object.keys(SYNONYMS).concat(['logout', 'signout', 'exit', 'quit']);
+            if (!SYNONYMS[verb] && !COMMANDS[verb] && verb.length > 2) {
+                var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
+                if (vFix.length === 1) verb = vFix[0];
+            }
             if (SYNONYMS[verb]) {
                 /* CARRY THE ARGUMENT. A reviewer caught the first version answering `open arena`
                    with "run does what you mean" and silently dropping `arena`, so a student who
@@ -1309,8 +1345,19 @@
                The rule now: a destructive command is offered only on a STRONG signal, meaning at
                least three characters of prefix, or an exact-length typo, and never on a one or
                two character fragment that is equally consistent with half the table. */
+            /* A DESTRUCTIVE SUGGESTION NEEDS SPECIFICITY, NOT LENGTH. The bar was "3 characters
+               of prefix", which is under half of `restart`, so `rest` and `res` both offered it.
+               `rest` is not a strained example: "REST API" appears in 180 files here, across
+               Cloud, Web and the cert-prep tracks, so a student thinking about REST was told
+               "did you mean: restart" and warned about ending their lab session. A reviewer
+               constructed it in one try.
+               The bar is now "you typed nearly the whole word": a prefix within one character of
+               the full command. `sto` still reaches `stop` (3 of 4), `restar` still reaches
+               `restart` (6 of 7), `rest` does not (4 of 7). Genuine typos arrive by the
+               distance-1 path below instead, which is what `restrt` and `sotp` use. */
             var strongEnough = function (n) {
-                return !MUTATING[n] || (verb.length >= 3 && n.indexOf(verb) === 0);
+                if (!MUTATING[n]) return true;
+                return n.indexOf(verb) === 0 && verb.length >= n.length - 1;
             };
             var near = names.filter(function (n) {
                 return n.indexOf(verb) === 0 && strongEnough(n);
@@ -1430,14 +1477,13 @@
             return { prefix: r[1], frag: frag, pool: pool };
         }
         if (verb === 'ls') {
-            // ls takes a category or a house, so complete from exactly those.
+            /* USES places(), which computes exactly this and is already used by cd's completion
+               one branch away. This was a hand-rolled copy of it: not wrong, but the fourth
+               instance of the same duplication this round has fixed twice already (cd's
+               tie-break, ls's search predicate), relocated into the completion subsystem where
+               nobody had looked. A reviewer found it while answering a different question. */
             var vals = {};
-            // Folded for the same reason as places(): these are compared against a lowercased
-            // fragment, and the manifest's lowercase house/category values are convention only.
-            APPS.forEach(function (a) {
-                if (a.category) vals[low(a.category)] = 1;
-                if (a.house) vals[low(a.house)] = 1;
-            });
+            places().forEach(function (pl) { vals[pl] = 1; });
             return { prefix: r[1], frag: frag, pool: Object.keys(vals).sort() };
         }
         if (verb === 'stop' || verb === 'restart') {
@@ -1454,9 +1500,15 @@
             return { prefix: r[1], frag: frag, pool: labs };
         }
         if (verb === 'search') {
-            // search is free text, but ids and houses are the useful starting points.
+            /* Ids, houses AND CATEGORIES. `search cert-prep` works when typed in full, but Tab
+               after `search inc` offered nothing toward "incubator", so the word that makes the
+               feature discoverable was absent from the mechanism that drives discovery. `ls` and
+               `cd` both complete categories; search did not. Found by a reviewer. */
             var pool = APPS.map(function (a) { return a.id; });
-            APPS.forEach(function (a) { if (a.house && pool.indexOf(a.house) === -1) pool.push(a.house); });
+            APPS.forEach(function (a) {
+                if (a.house && pool.indexOf(a.house) === -1) pool.push(a.house);
+                if (a.category && pool.indexOf(a.category) === -1) pool.push(a.category);
+            });
             return { prefix: r[1], frag: frag, pool: pool };
         }
         return null;
