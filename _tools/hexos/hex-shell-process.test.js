@@ -728,11 +728,66 @@ srv.listen(PORT, '127.0.0.1', async () => {
        CONTAIN, including that it names logout as the thing that actually signs you out. */
     chk('exit does not claim to end a session it cannot end',
         /nothing to exit/i.test(o) && /logout/.test(o), o.slice(0, 130));
+    /* `q` is the pager/vim habit (less, man, top, vi all take it) and must reach the SAME answer
+     * as exit, not a "did you mean" that points at a word the command table does not have.
+     * Asserting the answer's CONTENT, not merely that something was printed: a generic
+     * "q: not a command" would still be a non-empty response, so a bare truthiness check here
+     * would pass against exactly the regression this guards. */
+    o = await run('q');
+    chk('`q` reaches the exit answer, not a suggestion',
+        /nothing to exit/i.test(o) && /logout/.test(o), o.slice(0, 130));
+    /* The obvious second assertion here was `!/did you mean/`, and I wrote it, and it PASSED
+     * against a build with the `q` wiring deleted -- because unwired `q` falls to the generic
+     * "not a command / this is a command line" answer, which is a DIFFERENT wrong answer that
+     * happens not to contain the phrase. A negative assertion matches the wrong wrong-answer.
+     * What actually pins the behaviour is that `q` and `quit` land on the SAME branch, so they
+     * must produce the same text; that cannot pass unless the wiring exists. */
+    /* The single (non-/g) strip is correct ONLY because run() clears #out before every command, so
+     * exactly one `hex>` echo line can exist per call. If this idiom is ever copied into a test
+     * that sends several commands into one buffer, the strip would remove only the first echo and
+     * silently compare mangled strings. Asserting the invariant rather than trusting it. */
+    const echoes = (s) => (s.match(/^hex>/gm) || []).length;
+    const rawQuit = await run('quit');
+    chk('  -> one prompt echo per command, which is what makes the strip below valid',
+        echoes(o) === 1 && echoes(rawQuit) === 1, `q=${echoes(o)} quit=${echoes(rawQuit)}`);
+    const qOut = o.replace(/^hex>.*$/m, '').trim();
+    const quitOut = rawQuit.replace(/^hex>.*$/m, '').trim();
+    chk('  -> `q` and `quit` give the identical answer (same branch, not a lookalike)',
+        qOut.length > 0 && qOut === quitOut, `q=${qOut.slice(0, 60)} || quit=${quitOut.slice(0, 60)}`);
+
     o = await run('logout');
     const signedOut = await pg.evaluate(() => window.__signedOut === true);
     chk('logout actually signs out rather than describing something else', signedOut, o.slice(0, 110));
     o = await run('open arena');
     chk('a synonym carries the argument through', /run arena/.test(o), o.slice(0, 110));
+
+    /* STRUCTURAL, and the reason `q` is NOT in SYNONYMS. Every entry in that table is offered to
+     * the student as a suggestion, so its target must be a word the command table actually has.
+     * `'q': 'quit'` would suggest `quit`, which is not in COMMANDS -- the student types it and
+     * lands back on the same branch. A reviewer caught that in my first proposal; this asserts it
+     * for every FUTURE entry too, which reviewing one entry by hand does not.
+     * SYNONYMS lives inside exec()'s closure and cannot be read at runtime, so this reads source. */
+    const shellSrc = fs.readFileSync(path.join(APP, 'hex/index.html'), 'utf8');
+    const synBlock = shellSrc.match(/var SYNONYMS = \{([\s\S]*?)\};/);
+    const cmdBlock = shellSrc.match(/var COMMANDS = \{([\s\S]*?)\n    \};/);
+    const cmdNames = new Set(cmdBlock ? [...cmdBlock[1].matchAll(/^ {8}([a-z]+):/gm)].map(m => m[1]) : []);
+    const synPairs = synBlock ? [...synBlock[1].matchAll(/'([^']+)':\s*'([^']+)'/g)]
+        .map(m => ({ from: m[1], to: m[2].split(' ')[0] })) : [];
+    /* Check the DETECTOR before the data: if either regex stopped matching after a refactor, the
+     * orphan list would be empty and this would report a clean pass while checking nothing.
+     * Asserting IDENTITY, not cardinality. `size >= 12` is a floor, and a floor cannot see a
+     * SUBSTITUTION -- an 8-space-indented comment line arriving while a real key's indentation is
+     * nudged off 8 spaces keeps the count at 12 while the set is wrong, and the orphan check would
+     * then be validating synonyms against a corrupted table. Naming the commands closes that gap
+     * and stays independent of the separate manual-check gate, which asserts the exact count. */
+    const EXPECTED_CMDS = ['help', 'ls', 'search', 'info', 'run', 'cd', 'ps', 'stop', 'restart', 'man', 'pwd', 'clear'];
+    const missingCmds = EXPECTED_CMDS.filter(c => !cmdNames.has(c));
+    chk('  -> the source parse found the ACTUAL command set, not just enough names',
+        missingCmds.length === 0 && synPairs.length >= 10,
+        `missing=${missingCmds.join(',') || 'none'} parsed=${cmdNames.size} synonyms=${synPairs.length}`);
+    const orphanSyn = synPairs.filter(s => !cmdNames.has(s.to));
+    chk('  -> every SYNONYMS entry targets a REAL command',
+        orphanSyn.length === 0, orphanSyn.map(s => `${s.from}->${s.to}`).join(', ') || 'none');
 
     const before = calls.length;
     o = await run('restart server-only-lab');
