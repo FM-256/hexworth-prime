@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-02 10:10 · **1173 scripts** · 35 wired into a gate · 275 called by other code · 191 only mentioned in docs · 672 referenced by nothing · 474 not in git
+**Generated:** 2026-09-03 17:20 · **1184 scripts** · 37 wired into a gate · 279 called by other code · 190 only mentioned in docs · 678 referenced by nothing · 478 not in git
 
 ## Read this before writing a new script
 
@@ -54,6 +54,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/corpus-preservation.test.js` | `deploy.sh` | yes | Sweeps every HTML file under _app and fails if stripDead() removes an href that was NOT inside a comment. Catches content deletion the unit tests cannot. |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
 | `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
+| `_tools/hexos/doc-examples.test.js` | `_tools/deploy/post-verify.sh` | yes | Runs every shell example printed in the Hex OS FAQ against the real shell and fails if any of them errors. Documented examples must actually work. |
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -63,6 +64,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/safe-entry.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
 | `_tools/hexos/tenant-containment.test.js` | `deploy.sh` | yes | UNSTUBBED proof that a tenant student cannot escape the white-label wrapper from a Hex OS page, and that TenantShell is not loaded twice. Runs the real AccessGuard, TenantRouter and TenantShell, mocking only the network. |
 | `_tools/hexos/tenant-crosstab.test.js` | `deploy.sh` | yes | Proves BUG-242's repro in a real browser: join in one tab, tenant context is present in a SECOND tab, and sign-out purges it so the next student cannot inherit it. Also proves the mirror is invoked from every join path. |
+| `_tools/hexos/whatsnew-tenant.test.js` | `_tools/deploy/post-verify.sh` | yes | UpdateManager.isTenantContext() must detect a white-label student from EITHER storage, so the What's New modal never shows Hexworth release notes inside a tenant's branded wrapper. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
@@ -294,12 +296,15 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `gen_sprite.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `promote_backdrop.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 
-### `_tools/deploy` — 11 scripts, 7 referenced by nothing
+### `_tools/deploy` — 14 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `.lockprobe.sh` | ORPHAN | 0 | 2026-09-03 | no |  |
 | `deploy-rules-pair.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `deploy-with-holdouts.sh` | CALLED | 1 | 2026-08-01 | yes |  |
+| `freeze-check.selftest.sh` | CALLED | 1 | 2026-09-03 | yes | Self-test for freeze-check.sh, covering every fail-closed path (count: see run) |
+| `freeze-check.sh` | CALLED | 2 | 2026-09-03 | yes | Content-hash freeze check that SEES gitignored paths, which git status cannot |
 | `is-it-live.sh` | DOCS-ONLY | 0 | 2026-07-30 | yes |  |
 | `prove-verifiers-discriminate.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `restore-holdouts-2026-08-01.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
@@ -747,15 +752,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 5 scripts, 3 referenced by nothing
+### `_tools/hexos` — 11 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_extended_probe_tmp.js` | CALLED | 1 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
-| `case-fold-lint.js` | DOCS-ONLY | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
+| `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
+| `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | no | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
+| `md100-cmdlet-help.test.js` | ORPHAN | 0 | 2026-09-02 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
+| `terminal-async-output.test.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives every dispatch box with an async command handler and fails if the terminal ever renders the literal string "[object Promise]". |
+| `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
@@ -999,7 +1010,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `img-snap2.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | snapshot a prepared instance into a candidate sprint image |
 | `img-swap.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | promote a VERIFIED candidate image into the canonical name |
 | `img-verify-candidate.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | boot a candidate image and prove autologin before promoting it |
-| `lab-manager-server.js` | CALLED | 4 | 2026-08-25 | no |  |
+| `lab-manager-server.js` | CALLED | 7 | 2026-08-25 | no |  |
 | `office-reachability-check.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | prove the lab surfaces are reachable from an arbitrary network, no tailscale |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
 | `pool-capacity.sh` | CALLED | 1 | 2026-08-26 | yes | true pool capacity: slots total/bound/free, and how many instances the host can run |
@@ -1850,7 +1861,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-31 scripts are referenced by nothing AND follow the leading-underscore
+32 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1862,6 +1873,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_chris_adv_review_verify_tmp.test.js` · last modified 2026-08-31
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
+- `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
 - `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
 - `_tools/qa/_chris_ablation_tmp5.js` · last modified 2026-08-14
