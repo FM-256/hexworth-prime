@@ -464,6 +464,21 @@ else
         echo "$WN_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # BUG-248: 52 of 124 Operator missions shipped with no ModuleProgress.js tag, so finishing them
+    # recorded no XP and no progress. Nothing errored, because the completion hook is GUARDED on
+    # window.ModuleProgress being present -- the mission played fine and the write silently did not
+    # happen. A guarded integration degrades silently by design, which is exactly why it needs a
+    # gate rather than a reviewer who happens to ask the right question. Static, so no browser.
+    MP_OUT="$(node "$REPO_ROOT/_tools/operator/mission-progress-wiring.gate.js" 2>&1)"
+    if [[ $? -ne 0 ]]; then
+        echo "$MP_OUT" | head -6 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! Operator missions that cannot record a student's progress${NC}"
+        echo -e "  ${DIM}fix: python3 _tools/operator/add-moduleprogress-to-missions.py --apply${NC}"
+        DIVERGENCE=1
+    else
+        echo "$MP_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     HT_OUT="$(node "$REPO_ROOT/_tools/career/gen-house-tracks.js" --check 2>&1)"
     HT_RC=$?
     echo "$HT_OUT" | head -3 | sed 's/^/  /'

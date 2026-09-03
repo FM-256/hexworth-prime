@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-03 17:20 · **1184 scripts** · 37 wired into a gate · 279 called by other code · 190 only mentioned in docs · 678 referenced by nothing · 478 not in git
+**Generated:** 2026-09-03 19:46 · **1186 scripts** · 39 wired into a gate · 279 called by other code · 190 only mentioned in docs · 678 referenced by nothing · 480 not in git
 
 ## Read this before writing a new script
 
@@ -67,6 +67,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/whatsnew-tenant.test.js` | `_tools/deploy/post-verify.sh` | yes | UpdateManager.isTenantContext() must detect a white-label student from EITHER storage, so the What's New modal never shows Hexworth release notes inside a tenant's branded wrapper. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
+| `_tools/operator/add-moduleprogress-to-missions.py` | `_tools/deploy/post-verify.sh` | **NO** | BUG-248: add the missing ModuleProgress.js tag to Operator mission pages |
+| `_tools/operator/mission-progress-wiring.gate.js` | `_tools/deploy/post-verify.sh` | **NO** | BUG-248 gate: every live Operator mission must load ModuleProgress.js |
 | `_tools/qa/hub-href-integrity-test.js` | `deploy.sh` | yes | Fails if any course data file links a file that does not exist on disk. |
 | `_tools/qa/module-init-progress-test.js` | `deploy.sh` | yes | Proves the Wireshark/Forensics module pages record progress and the hub moves. |
 | `_tools/qa/openstack-hub-completion-test.js` | `deploy.sh` | yes | Walks EVERY OpenStack chapter the way a student does (hub -> part -> finish -> Back) and asserts each card marks complete only when all of ITS parts are done. |
@@ -303,8 +305,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `.lockprobe.sh` | ORPHAN | 0 | 2026-09-03 | no |  |
 | `deploy-rules-pair.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `deploy-with-holdouts.sh` | CALLED | 1 | 2026-08-01 | yes |  |
-| `freeze-check.selftest.sh` | CALLED | 1 | 2026-09-03 | yes | Self-test for freeze-check.sh, covering every fail-closed path (count: see run) |
-| `freeze-check.sh` | CALLED | 2 | 2026-09-03 | yes | Content-hash freeze check that SEES gitignored paths, which git status cannot |
+| `freeze-check.selftest.sh` | CALLED | 2 | 2026-09-03 | yes | Self-test for freeze-check.sh, covering every fail-closed path (count: see run) |
+| `freeze-check.sh` | CALLED | 3 | 2026-09-03 | yes | Content-hash freeze check that SEES gitignored paths, which git status cannot |
 | `is-it-live.sh` | DOCS-ONLY | 0 | 2026-07-30 | yes |  |
 | `prove-verifiers-discriminate.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `restore-holdouts-2026-08-01.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |

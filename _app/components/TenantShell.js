@@ -407,8 +407,10 @@
             // Two of those three cases CANNOT be detected from this page. The automatic
             // check above uses getTenantConfig, which is public and needs no auth — that is
             // the only reason the tenant-deactivated case could be closed at all. Class-ended
-            // lives on the class doc and student-removed lives at enrollments/{uid}, which
-            // firestore.rules:887-889 restricts to an authenticated self-read. Verified in a
+            // lives on the class doc and student-removed lives at enrollments/{uid}, which the
+            // `match /enrollments/{uid}` block in firestore.rules restricts to an authenticated
+            // self-read. (Cited by name, not line: this said ":887-889", which is now the Quality
+            // Reports block. BUG-249.) Verified in a
             // browser: on a content page `firebase`, `FirebaseAuth` and `FirestoreManager` are
             // all undefined, so there is no authenticated call path where this pill renders.
             // A manual control is therefore not a convenience here, it is the only mechanism
@@ -545,7 +547,9 @@
         console.log('%c[TENANT] Shell hidden — pill active for: ' + tenantName, 'color: #94a3b8');
 
         // HEUR-030-class fix (2026-06-06): the visible-shell path's link
-        // rewriter at L384-441 is never registered when shellHidden=true
+        // rewriter, overrideLinks(), is never registered when shellHidden=true
+        // (cited by name, not line: this said "L384-441", which is the pill
+        // z-order and dismiss button. BUG-249.)
         // (we return below before reaching L214 / L384). So a tenant student
         // who hides the shell loses href rewriting and any
         // <a href="/dashboard.html"> click sends them to main hex.

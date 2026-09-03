@@ -201,7 +201,33 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   hand-written a pointer, which is exactly what an index is supposed to replace.
 - **Related:** BUG-249, `feedback_archive_exists_to_prevent_rebuilding`.
 
-### BUG-249 — four stale `file:line` citations, found by sweeping the mechanism rather than reading  ·  [P3]  ·  open
+### BUG-253 — Operator missions write progress to house `operator`, which is not a house  ·  [P2]  ·  open
+  - **Found:** 2026-09-03 · by a reviewer during the BUG-248 sweep · PRE-EXISTING, not introduced by it
+  - **What:** `OperatorEngine.js` calls `ModuleProgress.complete('operator', 'op-' + id, ...)`, but
+    `operator` is not in `ProgressManager.js`'s `HOUSES` registry (web, shield, forge, script, cloud,
+    code, key, eye, dark-arts, matrix, divergent) and not in `VALID_HOUSES`, so `awardHouseMastery`
+    can never fire for it. `ContentCatalog.js` catalogs these SAME missions as `house: 'matrix'` with
+    the SAME `op-` id format (`{house: 'matrix', id: 'op-python-01'}`), which is strong evidence the
+    intended key is `matrix`. `ModuleProgress.complete()` validates only that both args are non-empty
+    strings, with no house allow-list, which is why nothing stopped the fork.
+  - **Live symptom, not hypothetical:** `HandlerDirectives.js`'s `nudgeResume` scans `progress.houses`
+    with no allow-list, takes the most recent, and renders
+    `Resume operations in ${houseName(mostRecent)}`. `houseName` falls back to `names[id] || id`, so a
+    student whose latest activity is an Operator mission sees the literal dashboard text
+    **"Resume operations in operator."**
+  - **BUG-248 did not cause this, it amplified it:** 72 pages wrote this bucket before, 124 now. XP and
+    levels still land correctly; only the house-scoped read path is wrong.
+  - **DECISION NEEDED, two options with very different blast radius:** (a) change the hook to
+    `complete('matrix', ...)` to match the catalog, one line, but it ORPHANS progress already written
+    under `operator` for existing students unless migrated; or (b) add `operator` to `HOUSES`,
+    `VALID_HOUSES` and `houseName`, treating it as a real house, which preserves existing progress but
+    contradicts `ContentCatalog`. Not picking one without the operator.
+  - **Why my BUG-248 verification could not have caught it:** it exercised the WRITE path (mission page
+    to localStorage) and never loaded the dashboard READ path. Testing the write is not testing the
+    feature.
+  - **Related:** BUG-248.
+
+### BUG-249 — four stale `file:line` citations, found by sweeping the mechanism rather than reading  ·  [P3]  ·  resolved
 - **Found:** 2026-09-02 · by self · citation sweep during the Chris gate
 - **What:** comments in this codebase cite `File.js:NNN` to justify claims. Line numbers rot on
   every insertion, and four are now wrong. In each case the SUBSTANCE of the claim is correct and
@@ -225,7 +251,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 - **Blocked on:** the two `_app/hex/` ones are in the tree currently under review; not edited
   mid-gate.
 
-### BUG-248 — 52 Operator missions record no progress, because the page never loads ModuleProgress  ·  [P2]  ·  open
+### BUG-248 — 52 Operator missions record no progress, because the page never loads ModuleProgress  ·  [P2]  ·  resolved
 - **Found:** 2026-09-02 · by self · fallout from the `window.X` guard sweep in the tenant audit
 - **Area:** all 50 `_app/operator/missions/js-*.mission.html`, plus `python-01` and `python-02`
 - **What:** `OperatorEngine.js:794-811` reports a completed mission by calling
