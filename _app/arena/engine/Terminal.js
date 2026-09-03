@@ -99,7 +99,13 @@ class TerminalInstance {
             if (e.key === 'Enter') {
                 const cmd = this.inputEl.value;
                 this.inputEl.value = '';
-                this._execute(cmd);
+                // Fire-and-forget suits a keypress, but a rejected promise must not vanish: an async
+                // handler that throws would otherwise leave the student at a prompt that did nothing.
+                Promise.resolve(this._execute(cmd)).catch((err) => {
+                    this._appendOutput('<span class="term-error">command failed: '
+                        + String(err && err.message ? err.message : err) + '</span>');
+                    this._scrollToBottom();
+                });
             } else if (e.key === 'ArrowUp') {
                 e.preventDefault();
                 if (this.historyIndex < this.history.length - 1) {
@@ -188,7 +194,16 @@ class TerminalInstance {
     // ────────────────────────────────────────────────
 
     /** Parse and execute a command line, dispatching to built-in or custom handlers */
-    _execute(line, _suppressPrompt) {
+    /* ASYNC, because a box custom command may be. Ten boxes (the whole nt1-nt010 dispatch
+       networking series) declare async handlers that await a server call for their flag text.
+       This dispatcher called them WITHOUT await, so `output` was a Promise, _appendOutput
+       stringified it, and the student saw the literal text "[object Promise]" where the command
+       output belonged. Reported by the operator after a whole class stalled on nt1: they fixed
+       the network, ran the command the hint names, and the flag that should have been inside
+       that output was replaced by that string.
+       Worse than a blank line, because the `output === null` fall-through below can never fire
+       for a Promise, so the built-in handler could not rescue it either. */
+    async _execute(line, _suppressPrompt) {
         const trimmed = line.trim();
         // Print the command line (skipped for && sub-segments — prompt already shown)
         if (!_suppressPrompt) this._appendLine(this._getPromptText() + trimmed, 'term-cmd');
@@ -222,7 +237,10 @@ class TerminalInstance {
                         phase: this.engine._classifyCommand ? this.engine._classifyCommand(trimmed) : 'OTHER'
                     });
                 }
-                andSegments.forEach(seg => { if (seg) this._execute(seg, true); });
+                /* Sequential, not forEach. Now that _execute is async, forEach would fire every segment
+                   at once and `a && b && c` would race instead of chaining, which is the opposite of
+                   what && means. */
+                for (const seg of andSegments) { if (seg) await this._execute(seg, true); }
                 this._scrollToBottom();
                 return;
             }
@@ -239,7 +257,7 @@ class TerminalInstance {
         if (segments.length > 1) {
             let stdin = '';
             for (let i = 0; i < segments.length; i++) {
-                stdin = this._executeSegmentCapture(segments[i], stdin);
+                stdin = await this._executeSegmentCapture(segments[i], stdin);
                 if (stdin === null) return; // segment errored & printed
             }
             if (stdin) this._appendOutput(stdin);
@@ -274,7 +292,7 @@ class TerminalInstance {
                 this._scrollToBottom();
                 return;
             }
-            const output = customCommands[cmd](args, this, this.engine);
+            const output = await customCommands[cmd](args, this, this.engine);
             // If custom command returns null, fall through to built-in handler
             // This allows context-aware overrides that defer to defaults when not in their context
             if (output === null) {
@@ -371,7 +389,7 @@ class TerminalInstance {
 
     /** Run one pipe segment with provided stdin; return its stdout
      *  as a string, or null if a hard error already printed. */
-    _executeSegmentCapture(segmentLine, stdin) {
+    async _executeSegmentCapture(segmentLine, stdin) {
         const parts = this._parseLine(segmentLine);
         if (!parts.length) return stdin;
         const cmd = parts[0].toLowerCase();
@@ -383,7 +401,7 @@ class TerminalInstance {
             // Make stdin available to the custom command via term._pipedStdin
             this._pipedStdin = stdin;
             try {
-                const out = customCommands[cmd](args, this, this.engine);
+                const out = await customCommands[cmd](args, this, this.engine);
                 if (out === null) {
                     // Fall through to builtin handlers
                 } else {
