@@ -794,7 +794,12 @@
             <div class="panel-section">
                 <h4>Registry Tweaks</h4>
                 <div class="toggle-row">
-                    <div class="toggle-label">Lock Screen Ads<small>HKCU\\SOFTWARE\\Microsoft\\Windows\\ContentDeliveryManager\\RotatingLockScreenEnabled</small></div>
+                    <!-- CurrentVersion was missing from this path. The lab's own PowerShell
+                         example already had it right, so the sim was teaching two different
+                         registry locations for one setting and only one of them exists. In a
+                         cert-prep sim a path is not decoration: it is the detail the exam asks a
+                         student to have memorised, so a wrong one is worse than none. -->
+                    <div class="toggle-label">Lock Screen Ads<small>HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager\\RotatingLockScreenEnabled</small></div>
                     <button class="toggle-switch ${state.registry.lockScreenAds ? 'on' : ''}" onclick="toggleLockScreenAds()"></button>
                 </div>
             </div>
@@ -1441,7 +1446,8 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
                      ['-Name', 'the value inside that key'],
                      ['-Value', 'the data to write, usually 0 or 1']],
             example: 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" -Name fDenyTSConnections -Value 0',
-            note: 'This sim accepts the PowerShell form only. reg.exe is not implemented here.'
+            example2: 'Set-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager" -Name "RotatingLockScreenEnabled" -Value 0',
+            note: 'This sim accepts the PowerShell form only; reg.exe is translated, not executed. The second example is the lock-screen setting, because the first uses a different one and that sent students looking in the wrong place.'
         },
         'new-netipaddress': {
             synopsis: 'Assigns a static IP address.',
@@ -1565,8 +1571,12 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
             addLine('PARAMETERS', 'heading');
             h.params.forEach(function (pr) { addLine('    ' + pr[0] + '   ' + pr[1]); });
         }
-        addLine('EXAMPLE', 'heading');
+        addLine(h.example2 ? 'EXAMPLES' : 'EXAMPLE', 'heading');
         addLine('    ' + h.example, 'info');
+        // A second example exists only where one was not enough. Set-ItemProperty's first example
+        // is the RDP setting, and a student sent here for the lock-screen objective needs to see
+        // that one too rather than translating between settings on their own.
+        if (h.example2) addLine('    ' + h.example2, 'info');
         if (h.note) addLine('    ' + h.note, 'dim');
         return true;
     }
@@ -1580,6 +1590,11 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
     function initTerminal() {
         const input = document.getElementById('terminalInput');
         addLine('Windows PowerShell', 'heading');
+        /* STATE THE SCOPE BEFORE THE STUDENT HITS IT. The operator stalled at 24/25 because this
+           boundary was discoverable only by failing a graded objective. An implicit rule found at
+           the wall is a worse teacher than an explicit one stated at the door. */
+        addLine('This terminal grades PowerShell cmdlets. cmd.exe tools (reg, netsh, diskpart, net,', 'dim');
+        addLine('wmic) are recognised and translated to their PowerShell equivalent, not executed.', 'dim');
         addLine('Copyright (C) Microsoft Corporation. All rights reserved.', 'dim');
         addLine('Type "help" for available commands. Type "status" to check objectives.', 'info');
         addLine('', 'output');
@@ -2126,10 +2141,40 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
            sim simply never implemented reg.exe. Answering "not recognized" tells a student their
            correct answer is wrong. Naming the cmdlet this sim does accept turns the dead end into
            the lesson, without giving away which key or value the objective wants. */
+        /* TRANSLATE THE ATTEMPT, do not just name the family. Naming `Set-ItemProperty` was still a
+           dead end for the case that started this: Get-Help's example uses fDenyTSConnections, a
+           DIFFERENT setting, so a student who followed the hint chain landed on syntax that does
+           not answer the question they asked. Showing the PowerShell line equivalent to WHAT THEY
+           TYPED closes that gap and teaches the cross-tool translation MD-100 actually tests.
+
+           Decided 3-1 by vote (education designer, Nancy, primary for this; Chris for wiring
+           reg.exe up to grade). The case against grading it: all five entries in
+           CMD_EXE_EQUIVALENTS map to cmdlets this sim ALREADY implements, so `reg` is not special
+           and there is no principled line that admits it while refusing netsh, diskpart, net and
+           wmic. The existing Set-ItemProperty matcher is also substring-only (see BUG-256), so a
+           second loose parser would double a false-positive surface that is already open.
+           Chris's dissent is recorded and one part of it is honoured below: objective c5 is NOT
+           reworded to "via PowerShell", because the Settings toggle satisfies it without any
+           PowerShell at all, so that wording would be false.
+
+           Not a spoiler: the Settings panel already prints this key and value name on the toggle,
+           and that toggle already completes the objective on its own. */
+        const CMD_TRANSLATIONS = [
+            { when: /^reg\b/i, needs: /rotatinglockscreen|contentdeliverymanager/i,
+              ps: 'Set-ItemProperty -Path "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\ContentDeliveryManager" -Name "RotatingLockScreenEnabled" -Value 0' },
+            { when: /^reg\b/i, needs: /fdenytsconnections|terminal server/i,
+              ps: 'Set-ItemProperty -Path "HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" -Name fDenyTSConnections -Value 0' }
+        ];
         const equiv = CMD_EXE_EQUIVALENTS[String(parts[0] || '').toLowerCase()];
         if (equiv) {
             addLine(`'${parts[0]}' is not implemented in this sim.`, 'error');
-            addLine(`Use ${equiv} instead. Get-Help ${equiv.split(' ')[0]} shows the syntax.`, 'dim');
+            const t = CMD_TRANSLATIONS.find(function (x) { return x.when.test(cmd) && x.needs.test(cmd); });
+            if (t) {
+                addLine('That is a valid cmd.exe command. The PowerShell equivalent is:', 'dim');
+                addLine('    ' + t.ps, 'info');
+            } else {
+                addLine(`Use ${equiv} instead. Get-Help ${equiv.split(' ')[0]} shows the syntax.`, 'dim');
+            }
             return;
         }
         addLine(`'${parts[0]}' is not recognized as a cmdlet, function, or operable program.`, 'error');
