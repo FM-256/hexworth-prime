@@ -201,7 +201,7 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   hand-written a pointer, which is exactly what an index is supposed to replace.
 - **Related:** BUG-249, `feedback_archive_exists_to_prevent_rebuilding`.
 
-### BUG-253 — Operator missions write progress to house `operator`, which is not a house  ·  [P2]  ·  open
+### BUG-253 — Operator missions write progress to house `operator`, which is not a house  ·  [P2]  ·  resolved
   - **Found:** 2026-09-03 · by a reviewer during the BUG-248 sweep · PRE-EXISTING, not introduced by it
   - **What:** `OperatorEngine.js` calls `ModuleProgress.complete('operator', 'op-' + id, ...)`, but
     `operator` is not in `ProgressManager.js`'s `HOUSES` registry (web, shield, forge, script, cloud,
@@ -225,7 +225,27 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   - **Why my BUG-248 verification could not have caught it:** it exercised the WRITE path (mission page
     to localStorage) and never loaded the dashboard READ path. Testing the write is not testing the
     feature.
-  - **Related:** BUG-248.
+  - **RESOLVED 2026-09-04 in `9e6835a4d`.** Decided 4-0 by vote (Nancy, Mallory, Chris, primary),
+    each convened independently on an identical brief. Option A: engine writes `matrix`, and
+    `ProgressManager.migrateOperatorHouseToMatrix()` moves what is already there. Flag-guarded,
+    idempotent, and ARCHIVES rather than deletes (`_archived_operator_*`) -- which resolved a real
+    split between two voters, one wanting the source deleted so the phantom card clears, the other
+    citing the precedent migration's explicit "old keys are NEVER deleted".
+  - **The vote turned on evidence no single voter had:** ContentCatalog files all 24 op-* missions
+    as `matrix`; every comparable sub-hub already attributes to its parent house (Backbone -> web,
+    Code Armory -> code, Bug Hunting -> dark-arts) and Operator was the sole outlier; and adding a
+    twelfth house was rejected because `Object.keys(HOUSES).length` is the maxXP denominator, so it
+    would have lowered every student's completion percentage platform-wide.
+  - **SPAWNED A SECOND FIX IN THE SAME COMMIT.** Review found `completeModule` computed
+    `progressPercent` as `modulesCompleted.length / pathModules.length` -- two different
+    populations, unbounded. Non-path completions inflated it, and HouseProgressPanel fires
+    "House Mastery Complete!" at >= 100. Reproduced by mutation at **158%**. `getHouseProgress` had
+    always intersected correctly; the same question was answered two ways in one file. Now
+    intersected in both.
+  - **DEPLOY COMMS:** that fix moves some students' progress bars DOWN to the correct value on
+    their next completion in any of the 8 path-having houses. The number is right; the movement
+    should not be discovered cold.
+  - **Related:** BUG-248, BUG-254.
 
 ### BUG-249 — four stale `file:line` citations, found by sweeping the mechanism rather than reading  ·  [P3]  ·  resolved
 - **Found:** 2026-09-02 · by self · citation sweep during the Chris gate
