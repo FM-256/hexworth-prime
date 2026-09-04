@@ -111,6 +111,33 @@ async function runOne(browser, check) {
     page.on('pageerror', e => errors.push('pageerror: ' + e.message));
     page.on('console', msg => { if (msg.type() === 'error') errors.push('console.error: ' + msg.text()); });
 
+    /* TELLING "BROKEN" APART FROM "STILL LOADING". The config-global timeout below used to report
+       both as the same thing, and they demand opposite responses: a 404 on config.js is a
+       regression to revert, an unfinished download is a slow network to wait out. Recording which
+       requests actually FAILED is what makes that distinction possible, so the gate can say which
+       one it saw instead of leaving a human to work it out on every red run. */
+    /* SCOPED TO THE LAB'S OWN ASSETS, and the scoping is the whole trick. A first version recorded
+       every failed request and fired on every single run, because two things fail routinely and
+       neither means the lab is broken:
+         - identitytoolkit.googleapis.com/v1/accounts:signUp returns 403 whenever the origin is not
+           an allowlisted Firebase domain, which is true of every local run and every preview
+           channel. Third-party auth failing is not this lab failing to load its config.
+         - net::ERR_ABORTED arrives for requests WE cancel: a navigation that outran its timeout, or
+           the second load in the retry below tearing down the first. Counting our own cancellations
+           as evidence of a broken page would make the retry impossible to reach.
+       So: same-origin only, real HTTP error statuses, aborts excluded, deduplicated. */
+    const failedAssets = [];
+    const sameOrigin = (u) => { try { return new URL(u).origin === new URL(BASE).origin; } catch { return false; } };
+    const noteFailure = (s) => { if (!failedAssets.includes(s)) failedAssets.push(s); };
+    page.on('response', (r) => {
+        if (r.status() >= 400 && sameOrigin(r.url())) noteFailure(r.status() + ' ' + r.url());
+    });
+    page.on('requestfailed', (r) => {
+        const why = r.failure() ? r.failure().errorText : 'unknown';
+        if (why === 'net::ERR_ABORTED') return;
+        if (sameOrigin(r.url())) noteFailure(why + ' ' + r.url());
+    });
+
     const url = BASE + check.url;
     const results = [];
     let navNote = '';
@@ -163,25 +190,82 @@ async function runOne(browser, check) {
         // ⚠ 'commit' would be the exact right waitUntil here and PUPPETEER DOES NOT HAVE IT —
         // that is a Playwright option. Tried it, every run failed with "Unknown value for
         // options.waitUntil". Loudly, at least.
-        try {
-            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-        } catch (e) {
-            navNote = 'navigation wait expired (' + e.message.slice(0, 40) + ') — '
-                    + 'continuing to the config-global gate';
-        }
+        /* ⚠ THE RETRY DESCRIBED ABOVE WAS NEVER IMPLEMENTED. The doctrine block was accurate about
+           what SHOULD happen and the code did a single `page.goto` with no second attempt, so the
+           file asserted a resilience it did not have. Implemented below, on the terms the doctrine
+           already set: the TRANSPORT is retried, the assertions never are.
 
-        try {
-            await page.waitForFunction(
-                (cfgName) => {
-                    try { return typeof eval(cfgName) === 'object' && eval(cfgName) !== null; }
-                    catch { return false; }
-                },
-                { timeout: CONFIG_TIMEOUT },
-                check.config
-            );
-        } catch (e) {
-            throw new Error('CONFIG-GLOBAL "' + check.config + '" never attached within '
-                + CONFIG_TIMEOUT + 'ms: ' + e.message);
+           WHY IT MATTERS, measured on a real deploy 2026-09-03. post-verify reported
+           `CONFIG-GLOBAL "PISL09Config" never attached within 20000ms` and the same run passed
+           10/0 minutes later with nothing changed. Cause: pis-l09 is the FIRST lab visited so it
+           absorbs browser cold-start; its page loads 11 external scripts with no defer/async, so
+           they run serially; config.js is the 10th of the 11; and ~443KB of blocking script must
+           download AND execute before the global exists. This gate runs immediately after
+           `firebase deploy`, which is the one moment every asset is a guaranteed cold CDN miss.
+           Warm, config.js fetches in 0.33s. A fixed 20s budget spent at the worst possible moment
+           is not a defect detector, it is a coin flip.
+
+           NOT FIXED BY RAISING THE TIMEOUT. A bigger number moves the coin flip, it does not
+           remove it, and it slows every honest failure down. The fix is to answer the question the
+           old message could not: did the page FAIL to fetch what it needed, or had it simply not
+           finished? A failed asset is a real defect and still fails on the FIRST attempt with the
+           status and URL named. Only the "everything fetched, nothing broke, it just wasn't done
+           yet" case gets a second attempt, and if that one also comes up empty it fails for real. */
+        const attemptLoad = async () => {
+            try {
+                await page.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+            } catch (e) {
+                navNote = 'navigation wait expired (' + e.message.slice(0, 40) + ') — '
+                        + 'continuing to the config-global gate';
+            }
+            try {
+                await page.waitForFunction(
+                    (cfgName) => {
+                        try { return typeof eval(cfgName) === 'object' && eval(cfgName) !== null; }
+                        catch { return false; }
+                    },
+                    { timeout: CONFIG_TIMEOUT },
+                    check.config
+                );
+                return null;
+            } catch (e) {
+                return e.message;
+            }
+        };
+
+        let cfgErr = await attemptLoad();
+
+        if (cfgErr) {
+            // BROKEN: something the page needed did not arrive. Name it and fail now. Retrying
+            // this would be retrying an assertion, which the doctrine above forbids for good
+            // reason -- it is how a real regression gets waited out until it passes.
+            if (failedAssets.length) {
+                throw new Error('CONFIG-GLOBAL "' + check.config + '" never attached, and '
+                    + failedAssets.length + ' request(s) FAILED: '
+                    + failedAssets.slice(0, 3).join(' | '));
+            }
+            // SLOW: every request succeeded, the chain just had not finished. Transport only.
+            const firstWait = CONFIG_TIMEOUT;
+            failedAssets.length = 0;
+            /* Drop the abandoned attempt's console noise too. A load that never finished defining
+               the config emits the obvious downstream wreckage ("PISL09Config is not defined"),
+               and the assertions below judge the page we RETRIED, not the one we threw away.
+               This loses no coverage: a page that genuinely errors does it again on the second
+               load and is recorded fresh. Keeping them would fail `no js errors` for every lab
+               that was merely slow, which is the same false alarm one layer down. */
+            errors.length = 0;
+            cfgErr = await attemptLoad();
+            if (cfgErr) {
+                throw new Error('CONFIG-GLOBAL "' + check.config + '" never attached within '
+                    + firstWait + 'ms on TWO separate loads, with no failed requests either time. '
+                    + 'That is not a cold cache: ' + cfgErr);
+            }
+            results.push({
+                label: 'load (slow)',
+                pass: true,
+                detail: 'config global needed a second load (cold CDN after deploy); all requests '
+                      + 'succeeded both times'
+            });
         }
 
         if (navNote) results.push({ label: 'load (slow)', pass: true, detail: navNote });
