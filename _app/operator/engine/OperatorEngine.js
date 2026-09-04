@@ -807,8 +807,24 @@
             // defaults, ModuleProgress paints a generic "Module Complete!" overlay at z-index
             // 100000 that completely covers the mission's own reward card -- a regression that
             // only became reachable once the throw above stopped aborting execution early.
+            /* BUG-253: the house is 'matrix', NOT 'operator'. `operator` was never a house --
+               ProgressManager.HOUSES has no such entry -- so these completions landed in a bucket
+               that no house-scoped feature could read. It rendered a nameless card pinned at 0%,
+               undercounted House of the Matrix by exactly the missions the student HAD finished,
+               and surfaced on the dashboard as the literal text "Resume operations in operator."
+
+               Decided 4-0 (Nancy, Mallory, Chris, primary) on 2026-09-03. ContentCatalog files all
+               24 op-* missions as house 'matrix'; every comparable sub-hub already attributes to
+               its parent house (Backbone -> web, Code Armory -> code, Bug Hunting -> dark-arts);
+               and this hub's own back-link reads "← MATRIX". Making 'operator' a real twelfth
+               house was rejected because Object.keys(HOUSES).length is the maxXP denominator, so
+               it would have lowered every student's completion percentage platform-wide.
+
+               The 'op-' prefix stays: progress.completedModules is a GLOBAL unscoped namespace and
+               bare mission ids collide with real content elsewhere. Existing progress written
+               under the old bucket is moved by ProgressManager.migrateOperatorHouseToMatrix(). */
             try {
-                window.ModuleProgress.complete('operator', 'op-' + config.id,
+                window.ModuleProgress.complete('matrix', 'op-' + config.id,
                     { silent: true, returnToDashboard: false });
             } catch (e) {}
         }

@@ -61,6 +61,123 @@ class ProgressManager {
     };
 
     static MIGRATION_FLAG = 'hexworth_progress_migrated';
+    static OPERATOR_HOUSE_MIGRATION_FLAG = 'hexworth_operator_house_migrated';
+
+    /**
+     * BUG-253. Move Operator-mission progress out of the non-house `operator` bucket into
+     * `matrix`, where the catalog has always said it belongs.
+     *
+     * WHY `matrix` AND NOT A NEW HOUSE. Decided 2026-09-03 by a 4-0 vote (Nancy, Mallory, Chris,
+     * primary), on evidence none of us had alone:
+     *   - ContentCatalog files ALL op-* missions as house 'matrix' — 24 of 24, no exceptions.
+     *   - Every analogous sub-hub already attributes to its parent house: Backbone -> 'web',
+     *     Code Armory -> 'code', Bug Hunting -> 'dark-arts'. `operator` was the sole outlier.
+     *   - The Operator hub's own back-link is literally "← MATRIX", and Matrix's narrative copy
+     *     reads "Operators, engineers, architects".
+     *   - Adding a 12th house was REJECTED because `Object.keys(HOUSES).length` is the maxXP
+     *     denominator (see calculateMaxXP), so it would have quietly lowered the completion
+     *     percentage of every student on the platform, not just operator-mission takers.
+     *
+     * WHAT WAS BROKEN. `getProfile()`'s inline house map spreads `HOUSES[id] || {}`, so an
+     * `operator` bucket rendered a NAMELESS house card pinned at 0% (its catalog module count is 0,
+     * so `percent` is hardcoded 0 no matter how much the student finished), while Matrix's real
+     * percentage was undercounted by exactly the missions sitting in the wrong bucket. The
+     * dashboard sentence "Resume operations in operator." was the visible tip, not the whole of it.
+     * (Cited by the function that actually exists: an earlier draft of this comment named
+     * `getAllHouseProgress`, which is in no file in this repo. I described the mechanism from
+     * memory instead of grepping for it, which is the same fabricated-citation failure as BUG-249.)
+     *
+     * TWO PERCENT FIELDS, AND THEY ARE NOT THE SAME. `getProfile()` derives `.percent` live from
+     * ContentCatalog counts, so it self-corrects. `houses[id].progressPercent` is STORED, derived
+     * from LearningPaths, and read directly by HouseProgressPanel on every house page. Merging
+     * op-* ids into modulesCompleted would have inflated that stored field past 100 on the
+     * student's next real Matrix completion and fired a premature "House Mastery Complete!"
+     * banner. A reviewer blocked this migration for exactly that; completeModule() now intersects
+     * with the path before dividing, which is what getHouseProgress() always did.
+     *
+     * NON-DESTRUCTIVE, and that was a real disagreement to settle: one reviewer wanted the source
+     * bucket deleted after copying so the phantom card disappears, another pointed out the
+     * migration precedent above is explicitly "old keys are NEVER deleted". Both are satisfied by
+     * ARCHIVING: the bucket is moved to `_archived_operator_*`, which no house iterator reads, so
+     * the card goes and the data stays. Nothing is destroyed.
+     *
+     * NO XP IS AWARDED OR RECALCULATED HERE. XP was already granted at completion time and is
+     * gated on the global, house-agnostic `completedModules` array, which this does not touch.
+     * Moving the structural bucket therefore cannot double-award; that safety property belongs to
+     * the existing code and this migration deliberately relies on it rather than reinventing it.
+     *
+     * @returns {{migrated: boolean, reason?: string, moved?: number}}
+     */
+    static migrateOperatorHouseToMatrix() {
+        if (localStorage.getItem(this.OPERATOR_HOUSE_MIGRATION_FLAG)) {
+            return { migrated: false, reason: 'already_migrated' };
+        }
+        let progress;
+        try {
+            progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+        } catch (e) {
+            // A corrupt store is not something to "repair" by guessing. Leave it and say so.
+            return { migrated: false, reason: 'progress_unreadable' };
+        }
+        if (!progress || typeof progress !== 'object') return { migrated: false, reason: 'progress_unreadable' };
+
+        // localStorage is student-controlled, so treat every key as untrusted input. These three
+        // are excluded from any copy loop on principle: no damage was demonstrated, but a
+        // bracket-assignment with an inherited accessor name is not worth finding out about later.
+        const UNSAFE = ['__proto__', 'constructor', 'prototype'];
+        const safeId = (v) => typeof v === 'string' && v.length > 0 && UNSAFE.indexOf(v) === -1;
+        let moved = 0;
+
+        // ── structured shape: progress.houses.operator -> progress.houses.matrix ──
+        const srcHouse = progress.houses && progress.houses.operator;
+        if (srcHouse && typeof srcHouse === 'object') {
+            progress.houses.matrix = progress.houses.matrix || {
+                unlocked: true, modulesCompleted: [], quizzesPassed: [],
+                labsCompleted: [], currentModule: null, progressPercent: 0, lastAccessed: null
+            };
+            const dst = progress.houses.matrix;
+            ['modulesCompleted', 'quizzesPassed', 'labsCompleted'].forEach((field) => {
+                if (!Array.isArray(dst[field])) dst[field] = [];
+                const src = Array.isArray(srcHouse[field]) ? srcHouse[field] : [];
+                src.forEach((id) => {
+                    // Dedup by value. The op-* namespace is disjoint from matrix's existing ala-*
+                    // ids, so a collision should be impossible; the check is here so that being
+                    // wrong about that is a no-op rather than a duplicate.
+                    if (safeId(id) && dst[field].indexOf(id) === -1) { dst[field].push(id); moved++; }
+                });
+            });
+            // Keep whichever visit was actually later, so "most recent house" stays truthful.
+            const a = Date.parse(dst.lastAccessed || 0) || 0;
+            const b = Date.parse(srcHouse.lastAccessed || 0) || 0;
+            if (b > a) dst.lastAccessed = srcHouse.lastAccessed;
+            dst.unlocked = true;
+
+            progress._archived_operator_house = srcHouse;   // archived, not destroyed
+            delete progress.houses.operator;                // stops the nameless 0% card
+        }
+
+        // ── flat/legacy shape: progress.operator[moduleId] -> progress.matrix[moduleId] ──
+        const srcFlat = progress.operator;
+        if (srcFlat && typeof srcFlat === 'object') {
+            progress.matrix = (progress.matrix && typeof progress.matrix === 'object') ? progress.matrix : {};
+            Object.keys(srcFlat).forEach((mid) => {
+                // Never overwrite an existing matrix record: if both exist the matrix one is the
+                // canonical house's own history and this bucket is the mistake being corrected.
+                if (safeId(mid) && !progress.matrix[mid]) { progress.matrix[mid] = srcFlat[mid]; moved++; }
+            });
+            progress._archived_operator_flat = srcFlat;     // archived, not destroyed
+            delete progress.operator;
+        }
+
+        try {
+            localStorage.setItem('hexworth_progress', JSON.stringify(progress));
+            localStorage.setItem(this.OPERATOR_HOUSE_MIGRATION_FLAG, new Date().toISOString());
+        } catch (e) {
+            // Quota or private-mode failure: do NOT set the flag, so a later load retries.
+            return { migrated: false, reason: 'write_failed' };
+        }
+        return { migrated: true, moved: moved };
+    }
 
     /**
      * One-time migration: copy data from old course keys to new namespaced keys.
@@ -568,11 +685,25 @@ class ProgressManager {
         }
         house.lastAccessed = Date.now();
 
-        // Update progress percentage
+        /* Update progress percentage — INTERSECTED WITH THE PATH, not a raw count.
+           This divided `house.modulesCompleted.length` by `pathModules.length`, which are two
+           different populations: modulesCompleted holds everything ever completed under this
+           house, while pathModules is only what the learning path lists. Anything completed under
+           the house but absent from the path inflates the numerator, and nothing bounds the result
+           at 100. HouseProgressPanel reads this stored field directly and fires its
+           "House Mastery Complete!" banner at >= 100, so an inflated value announces mastery a
+           student has not earned and never self-corrects, because the extra ids stay in
+           modulesCompleted forever.
+           getHouseProgress() has always computed this correctly by filtering pathModules against
+           modulesCompleted. This is the same question answered two ways in one file, which is the
+           mistake that keeps costing us; it now uses the same intersection. Found by a reviewer
+           blocking the BUG-253 migration, whose op-* ids are exactly such non-path entries and
+           would have made a latent bug routine. */
         const pathModules = LearningPaths.getHouseModules(houseId);
         if (pathModules && pathModules.length > 0) {
+            const completedInPath = pathModules.filter(m => house.modulesCompleted.includes(m.id));
             house.progressPercent = Math.round(
-                (house.modulesCompleted.length / pathModules.length) * 100
+                (completedInPath.length / pathModules.length) * 100
             );
         }
 
@@ -1476,10 +1607,15 @@ window.ProgressManager = ProgressManager;
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         ProgressManager.migrateProgressNamespace();
+        // BUG-253. Runs BEFORE syncCore2Progress and before anything reads progress.houses, so no
+        // consumer ever sees the orphaned `operator` bucket on a migrated store. Flag-guarded, so
+        // this is a single localStorage read on every subsequent load.
+        ProgressManager.migrateOperatorHouseToMatrix();
         ProgressManager.syncCore2Progress();
     });
 } else {
     ProgressManager.migrateProgressNamespace();
+    ProgressManager.migrateOperatorHouseToMatrix();
     ProgressManager.syncCore2Progress();
 }
 
