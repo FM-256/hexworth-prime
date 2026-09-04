@@ -1354,7 +1354,7 @@ scanstate C:\\Migration /o
 ## Phase 2: Identity
 net user jsmith P@ssw0rd123 /add
 net localgroup "Remote Desktop Users" jsmith /add
-# UAC: Set-ItemProperty via registry
+Set-ItemProperty -Path "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" -Name ConsentPromptBehaviorAdmin -Value 2
 Add-Computer -DomainName hexworth.local -Credential (Get-Credential)
 
 ## Phase 3: Configuration
@@ -1842,28 +1842,78 @@ auditpol /set /subcategory:"File System" /success:enable /failure:enable
         }
 
         // Set-ItemProperty (registry and RDP)
+        /* BUG-256. These three branches each graded an objective, and all three certified students
+           who had not done the work. Replicated against the exact old logic: objective c5 passed
+           for `Set-ItemProperty -Path "...ContentDeliveryManager"` with NO -Name and NO -Value,
+           and for a completely invented path that merely CONTAINED the word, because the test was
+           a substring match and a missing -Value defaulted to "disabled". The UAC branch was
+           worse: it ignored -Value entirely, so a command that DISABLES UAC set the state to
+           "Always Notify" and completed the objective.
+
+           A walkthrough proving a lab is completable is not the same as proving it cannot be
+           passed without the skill. A grader that accepts a fragment is not measuring anything.
+
+           ONE table, ONE validator, rather than three hand-rolled matchers that drifted apart:
+           each tweak declares the key fragment its path must contain, the value name it must
+           carry, and what the written data means. Everything is required and nothing is inferred
+           from absence. */
+        const REGISTRY_TWEAKS = [
+            {
+                pathHas: 'currentversion\\contentdeliverymanager', name: 'rotatinglockscreenenabled',
+                apply: (d) => { state.registry.lockScreenAds = d !== 0; },
+                say: () => `Lock screen ads ${state.registry.lockScreenAds ? 'enabled' : 'disabled'}.`
+            },
+            {
+                pathHas: 'currentcontrolset\\control\\terminal server', name: 'fdenytsconnections',
+                // fDenyTSConnections DENIES RDP, so 0 enables it. The inversion is the point of
+                // the exam question and the sim should honour it rather than accept either digit.
+                apply: (d) => { state.network.rdpEnabled = d === 0; },
+                say: () => `Remote Desktop ${state.network.rdpEnabled ? 'enabled' : 'disabled'}.`
+            },
+            {
+                pathHas: 'currentversion\\policies\\system', name: 'consentpromptbehavioradmin',
+                // 2 is "Always Notify". Any other level is a real, different UAC setting and must
+                // not satisfy an objective that asks for Always Notify.
+                apply: (d) => { state.system.uacLevel = d === 2 ? 'always' : (d === 0 ? 'never' : 'default'); },
+                say: () => `UAC set to ${state.system.uacLevel}.`
+            },
+            {
+                pathHas: 'currentversion\\policies\\system', name: 'enablelua',
+                // EnableLUA turns UAC on or off; it does not set the notification level, so it
+                // must not by itself satisfy "Set UAC to Always Notify".
+                apply: (d) => { state.system.uacLevel = d === 1 ? 'default' : 'never'; },
+                say: () => `UAC ${state.system.uacLevel === 'never' ? 'disabled' : 'enabled'} (level: ${state.system.uacLevel}).`
+            }
+        ];
+
         if (cmdName === 'set-itemproperty') {
-            if (lower.includes('rotatinglockscreen') || lower.includes('contentdeliverymanager')) {
-                const val = cmd.match(/-Value\s+(\d)/i);
-                state.registry.lockScreenAds = val ? val[1] !== '0' : false;
-                saveState();
-                addLine('Registry value updated.', 'success');
+            /* -Path is POSITIONAL in PowerShell and this lab's own reference doc uses that form:
+               `Set-ItemProperty 'HKLM:\SYSTEM\...\Terminal Server' -Name fDenyTSConnections -Value 0`
+               has no -Path token at all. A validator that rejected it would refuse a command the
+               lab hands the student two screens earlier, which is a worse failure than the loose
+               matching being replaced. Accept the named form first, then the positional one. */
+            const pathM = cmd.match(/-Path\s+["']?([^"']+?)["']?(?=\s+-|\s*$)/i)
+                       || cmd.match(/^\s*Set-ItemProperty\s+["']([^"']+)["']/i)
+                       || cmd.match(/^\s*Set-ItemProperty\s+(HK[A-Z_]*:?\\[^\s]+)/i);
+            const nameM = cmd.match(/-Name\s+["']?([A-Za-z]+)["']?/i);
+            const valM  = cmd.match(/-Value\s+(\d+)/i);
+
+            if (!pathM) { addLine('Set-ItemProperty: -Path is required.', 'error'); return; }
+            if (!nameM) { addLine('Set-ItemProperty: -Name is required.', 'error'); return; }
+            // An absent -Value used to mean "assume they meant to disable it". Never infer the
+            // data: writing a registry value without saying what to write is not a command.
+            if (!valM)  { addLine('Set-ItemProperty: -Value is required.', 'error'); return; }
+
+            const p = pathM[1].toLowerCase(), n = nameM[1].toLowerCase(), d = parseInt(valM[1], 10);
+            const tweak = REGISTRY_TWEAKS.find((t) => p.includes(t.pathHas) && n === t.name);
+            if (!tweak) {
+                addLine('Set-ItemProperty: that key and value name are not part of this scenario.', 'error');
+                addLine('    Check the path and the -Name spelling against the Settings panel.', 'dim');
                 return;
             }
-            if (lower.includes('fdenytsconnections')) {
-                const val = cmd.match(/-Value\s+(\d)/i);
-                state.network.rdpEnabled = val ? val[1] === '0' : true;
-                saveState();
-                addLine(`Remote Desktop ${state.network.rdpEnabled ? 'enabled' : 'disabled'}.`, 'success');
-                return;
-            }
-            if (lower.includes('enablelua') || lower.includes('consentpromptbehavior')) {
-                state.system.uacLevel = 'always';
-                saveState();
-                addLine('UAC registry value updated.', 'success');
-                return;
-            }
-            addLine('Set-ItemProperty: Path and Name are required.', 'error');
+            tweak.apply(d);
+            saveState();
+            addLine(tweak.say(), 'success');
             return;
         }
 
