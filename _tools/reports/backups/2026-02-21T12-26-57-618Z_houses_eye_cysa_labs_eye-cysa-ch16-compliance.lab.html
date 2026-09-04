@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Policy &amp; Compliance Lab — CySA+ Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --eye-primary: #a855f7; --eye-secondary: #c084fc; --bg-main: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25); --card: rgba(15,10,25,0.9); --text: #e8e8f0; --muted: #8080a0; --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --border: rgba(168,85,247,0.22); }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-main); color: var(--text); min-height: 100vh; padding: 0 0 60px; }
+        .site-header { background: rgba(10,5,20,0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--eye-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
+        .lab-header { text-align: center; margin-bottom: 30px; padding: 30px; background: rgba(168,85,247,0.08); border-radius: 16px; border: 1px solid var(--border); }
+        .lab-header h1 { font-size: 2.1rem; color: var(--eye-primary); margin-bottom: 10px; }
+        .lab-header p { color: var(--muted); font-size: 1.05rem; }
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 10px; height: 10px; margin: 18px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.88rem; }
+        .exercise { background: rgba(255,255,255,0.025); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 22px; overflow: hidden; }
+        .exercise-header { background: rgba(168,85,247,0.09); padding: 18px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168,85,247,0.15); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .exercise-number { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.88rem; flex-shrink: 0; }
+        .exercise-name { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+        .exercise-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,120,0.3); color: #888; }
+        .status-complete { background: rgba(52,211,153,0.18); color: var(--ok); }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        .scenario { background: rgba(99,102,241,0.08); border-left: 4px solid #818cf8; padding: 14px 18px; margin-bottom: 18px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: #a5b4fc; margin-bottom: 6px; font-size: 0.95rem; }
+        .scenario p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+        .concept-box { background: rgba(251,191,36,0.07); border-left: 3px solid var(--warn); padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: var(--warn); margin-bottom: 8px; font-size: 0.9rem; }
+        .concept-box p, .concept-box li { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.6; }
+        .concept-box ul { margin-left: 18px; }
+        /* Policy builder */
+        .policy-builder { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin: 14px 0; }
+        .policy-builder h4 { color: var(--eye-secondary); font-size: 0.9rem; margin-bottom: 12px; }
+        .policy-field { margin-bottom: 14px; }
+        .policy-field label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--eye-primary); letter-spacing: 0.06em; margin-bottom: 5px; }
+        .policy-field input[type="text"], .policy-field textarea, .policy-field select { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(168,85,247,0.25); border-radius: 6px; padding: 8px 12px; color: var(--text); font-family: inherit; font-size: 0.88rem; }
+        .policy-field textarea { min-height: 80px; resize: vertical; }
+        .policy-field select option { background: #1a0a25; }
+        .policy-field input:focus, .policy-field textarea:focus, .policy-field select:focus { outline: none; border-color: var(--eye-primary); }
+        /* Regulatory matrix */
+        .reg-matrix { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.83rem; }
+        .reg-matrix th { padding: 0.55rem 0.8rem; background: rgba(168,85,247,0.14); color: var(--eye-secondary); font-size: 0.75rem; font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+        .reg-matrix td { padding: 0.55rem 0.8rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.06); vertical-align: middle; }
+        .reg-matrix td select { background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.2); border-radius: 4px; padding: 4px 7px; color: var(--text); font-size: 0.8rem; width: 100%; }
+        .reg-matrix td select:focus { outline: none; border-color: var(--eye-primary); }
+        .applies { color: var(--ok); font-weight: 700; }
+        .not-applies { color: var(--bad); }
+        /* Task list */
+        .task-list { list-style: none; margin: 16px 0; }
+        .task-item { padding: 10px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: flex-start; gap: 11px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye-primary); flex-shrink: 0; margin-top: 2px; }
+        .task-item.checked { background: rgba(52,211,153,0.05); border-color: rgba(52,211,153,0.2); }
+        .task-item.checked label { text-decoration: line-through; color: #555; }
+        .task-item label { color: var(--muted); font-size: 0.9rem; cursor: pointer; line-height: 1.5; }
+        /* Audit prep table */
+        .audit-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.84rem; }
+        .audit-table th { padding: 0.55rem 0.9rem; background: rgba(168,85,247,0.14); color: var(--eye-secondary); font-size: 0.76rem; font-weight: 700; text-align: left; border-bottom: 1px solid var(--border); }
+        .audit-table td { padding: 0.55rem 0.9rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.06); vertical-align: middle; }
+        .audit-table td input { background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.2); border-radius: 4px; padding: 4px 8px; color: var(--text); font-size: 0.82rem; width: 100%; }
+        .audit-table td input:focus { outline: none; border-color: var(--eye-primary); }
+        .status-ready { color: var(--ok); font-weight: 700; font-size: 0.78rem; }
+        .status-gap { color: var(--bad); font-weight: 700; font-size: 0.78rem; }
+        .status-partial { color: var(--warn); font-weight: 700; font-size: 0.78rem; }
+        /* Question area */
+        .question-section { background: rgba(168,85,247,0.06); border-radius: 10px; padding: 18px; margin: 16px 0; }
+        .question-section h4 { color: var(--eye-primary); margin-bottom: 12px; font-size: 0.92rem; }
+        .question-section textarea { width: 100%; min-height: 100px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 11px; color: var(--text); font-family: inherit; font-size: 0.9rem; resize: vertical; }
+        .question-section textarea:focus { outline: none; border-color: var(--eye-primary); }
+        .complete-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 18px rgba(168,85,247,0.4); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .completion-badge { display: none; text-align: center; padding: 40px; background: rgba(52,211,153,0.07); border-radius: 16px; border: 2px solid rgba(52,211,153,0.3); margin-top: 30px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        .completion-badge h2 { color: var(--ok); font-size: 2rem; margin-bottom: 10px; }
+        .badge-desc { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+        .next-steps a { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 5px; font-size: 0.9rem; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE — CySA+</span>
+</header>
+
+<div class="container">
+    <div class="lab-header">
+        <h1>Policy &amp; Compliance Lab</h1>
+        <p>Chapter 16 — Policy writing, regulatory mapping, audit preparation, and control classification</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span id="completedCount">0</span> of 4 exercises completed</div>
+    </div>
+
+    <!-- Exercise 1: Policy Writing -->
+    <div class="exercise active" data-exercise="1">
+        <div class="exercise-header" onclick="toggleExercise(1)">
+            <div class="exercise-title">
+                <div class="exercise-number">1</div>
+                <div class="exercise-name">Writing a Security Policy: Removable Media Policy</div>
+            </div>
+            <span class="exercise-status status-pending" id="status1">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Insider Threat Triggered by USB Drives</h4>
+                <p>Your organization suffered a data exfiltration incident where an insider copied sensitive customer data to a personal USB drive. Leadership has asked you to draft a Removable Media Policy to prevent recurrence. Complete the policy builder below.</p>
+            </div>
+
+            <div class="concept-box">
+                <h4>Policy Document Structure</h4>
+                <ul>
+                    <li><strong>Purpose:</strong> Why this policy exists (1-2 sentences)</li>
+                    <li><strong>Scope:</strong> Who and what systems this policy covers</li>
+                    <li><strong>Policy Statements:</strong> The mandatory rules (shall/shall not language)</li>
+                    <li><strong>Standards:</strong> Specific technical requirements that implement the policy</li>
+                    <li><strong>Responsibilities:</strong> Who enforces and who complies</li>
+                    <li><strong>Exceptions:</strong> Process for requesting policy exceptions</li>
+                    <li><strong>Review Cycle:</strong> How often the policy is reviewed and updated</li>
+                </ul>
+            </div>
+
+            <div class="policy-builder">
+                <h4>Removable Media Policy Builder</h4>
+                <div class="policy-field">
+                    <label>POLICY NAME</label>
+                    <input type="text" id="pol-name" placeholder="e.g. Removable Media and Portable Storage Device Policy">
+                </div>
+                <div class="policy-field">
+                    <label>PURPOSE (why does this policy exist?)</label>
+                    <textarea id="pol-purpose" placeholder="State the security objective this policy serves and the risk it mitigates..."></textarea>
+                </div>
+                <div class="policy-field">
+                    <label>SCOPE (who and what is covered)</label>
+                    <textarea id="pol-scope" placeholder="Define which employees, contractors, devices, and systems this policy covers..."></textarea>
+                </div>
+                <div class="policy-field">
+                    <label>KEY POLICY STATEMENTS (3-5 rules, use 'shall' for mandatory)</label>
+                    <textarea id="pol-statements" placeholder="1. All portable storage devices shall be... 2. Employees shall not... 3. Data classified as..."></textarea>
+                </div>
+                <div class="policy-field">
+                    <label>TECHNICAL STANDARDS (supporting requirements)</label>
+                    <textarea id="pol-standards" placeholder="Specify encryption requirements, approved device list process, endpoint controls..."></textarea>
+                </div>
+                <div class="policy-field">
+                    <label>EXCEPTION PROCESS</label>
+                    <textarea id="pol-exceptions" placeholder="Who approves exceptions, what is required in the exception request, how long exceptions last..."></textarea>
+                </div>
+                <div class="policy-field">
+                    <label>REVIEW CYCLE</label>
+                    <select id="pol-review">
+                        <option value="">-- Select review frequency --</option>
+                        <option value="quarterly">Quarterly (high-risk environments)</option>
+                        <option value="annual">Annual (standard)</option>
+                        <option value="2-year">Bi-annual (low-change environments)</option>
+                        <option value="event-driven">Event-driven (after major incident)</option>
+                    </select>
+                </div>
+                <div class="policy-field">
+                    <label>APPROVAL AUTHORITY (who must sign this policy)</label>
+                    <input type="text" id="pol-approver" placeholder="e.g. CISO and Chief Privacy Officer">
+                </div>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t1-1" onchange="checkTask(1)">
+                    <label for="t1-1">Complete all policy builder fields above — your policy statements must use mandatory language ("shall") not aspirational ("should")</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-2" onchange="checkTask(1)">
+                    <label for="t1-2">Understand that a Removable Media Policy is mandatory language (Policy tier); technical enforcement via endpoint DLP or USB disable via Group Policy is a Standard or Procedure below the policy</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-3" onchange="checkTask(1)">
+                    <label for="t1-3">Know who must approve security policies — typically the CISO or equivalent C-Suite executive; a policy signed only by an IT manager has limited organizational authority</label>
+                </li>
+            </ul>
+
+            <button class="complete-btn" onclick="completeExercise(1)" id="btn1">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 2: Regulatory Mapping -->
+    <div class="exercise" data-exercise="2">
+        <div class="exercise-header" onclick="toggleExercise(2)">
+            <div class="exercise-title">
+                <div class="exercise-number">2</div>
+                <div class="exercise-name">Regulatory Mapping: Which Laws Apply?</div>
+            </div>
+            <span class="exercise-status status-pending" id="status2">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Multi-Industry Compliance Determination</h4>
+                <p>For each organization described below, determine which regulations apply by selecting Yes, No, or Partial from each regulatory column. This simulates the compliance scoping exercise performed at the start of any security program assessment.</p>
+            </div>
+
+            <table class="reg-matrix">
+                <thead>
+                    <tr>
+                        <th>Organization</th>
+                        <th>HIPAA</th>
+                        <th>PCI DSS</th>
+                        <th>GLBA</th>
+                        <th>SOX</th>
+                        <th>FERPA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Public hospital</strong> accepting insurance and credit card payments, listed on NYSE</td>
+                        <td><select id="rm1-hipaa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm1-pci"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm1-glba"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm1-sox"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm1-ferpa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Private university</strong> that also operates a credit union for students and staff</td>
+                        <td><select id="rm2-hipaa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm2-pci"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm2-glba"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm2-sox"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm2-ferpa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                    </tr>
+                    <tr>
+                        <td><strong>E-commerce startup</strong> (private company, sells through Shopify, uses Stripe for payments)</td>
+                        <td><select id="rm3-hipaa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm3-pci"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm3-glba"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm3-sox"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                        <td><select id="rm3-ferpa"><option value="">--</option><option>Yes</option><option>No</option><option>Partial</option></select></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="concept-box">
+                <h4>Answer Key — Regulatory Mapping</h4>
+                <ul>
+                    <li><strong>Public hospital (NYSE):</strong> HIPAA: YES (healthcare provider). PCI DSS: YES (takes card payments). GLBA: NO (not a financial institution). SOX: YES (public company). FERPA: NO (not an educational institution).</li>
+                    <li><strong>Private university with credit union:</strong> HIPAA: Partial (student health center handles PHI). PCI DSS: YES (campus stores accept cards). GLBA: YES (credit union is a financial institution). SOX: NO (private). FERPA: YES (university holds student educational records).</li>
+                    <li><strong>E-commerce startup (uses Stripe):</strong> HIPAA: NO. PCI DSS: Yes/Partial (even using Stripe, they may still be in scope depending on how payment data flows). GLBA: NO. SOX: NO (private). FERPA: NO. Note: using Stripe/Shopify reduces PCI scope but does not eliminate it entirely.</li>
+                </ul>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t2-1" onchange="checkTask(2)">
+                    <label for="t2-1">Complete all dropdowns in the regulatory matrix above</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-2" onchange="checkTask(2)">
+                    <label for="t2-2">Understand data sovereignty implications — if any of these organizations use EU cloud services or have EU customers, GDPR also applies regardless of US organizational type</label>
+                </li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Compliance Conflict Resolution</h4>
+                <p>A HIPAA-covered entity wants to use an EU-based cloud analytics service. HIPAA requires them to maintain control of ePHI. GDPR (EU) requires explicit consent for processing EU citizens' data. Both regulations have different breach notification timelines (60 days for HIPAA, 72 hours for GDPR). How do you advise this organization to handle the conflict?</p>
+                <textarea id="q2" placeholder="Describe how you would advise the organization to navigate these conflicting regulatory requirements..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(2)" id="btn2">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 3: Audit Preparation -->
+    <div class="exercise" data-exercise="3">
+        <div class="exercise-header" onclick="toggleExercise(3)">
+            <div class="exercise-title">
+                <div class="exercise-number">3</div>
+                <div class="exercise-name">Audit Preparation: PCI DSS Gap Analysis</div>
+            </div>
+            <span class="exercise-status status-pending" id="status3">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Preparing for Annual PCI DSS Assessment</h4>
+                <p>Your organization (a Level 1 merchant) has a QSA audit in 90 days. Complete the gap analysis table below by assessing each control area's current status and identifying remediation requirements.</p>
+            </div>
+
+            <table class="audit-table">
+                <thead>
+                    <tr>
+                        <th>PCI DSS Requirement</th>
+                        <th>Current Status</th>
+                        <th>Gap Description (if any)</th>
+                        <th>Remediation Owner</th>
+                        <th>Due Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Req 1:</strong> Firewall protecting cardholder data environment</td>
+                        <td><span class="status-ready">READY</span><br><input id="aud1status" placeholder="Confirm or note issue"></td>
+                        <td><input id="aud1gap" placeholder="No gap / describe gap"></td>
+                        <td><input id="aud1owner" placeholder="Network team"></td>
+                        <td><input id="aud1due" placeholder="N/A or date"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Req 2:</strong> No vendor-supplied default passwords in CDE</td>
+                        <td><span class="status-gap">GAP</span><br><input id="aud2status" placeholder="3 devices have default creds"></td>
+                        <td><input id="aud2gap" placeholder="Describe the gap"></td>
+                        <td><input id="aud2owner" placeholder="Systems admin"></td>
+                        <td><input id="aud2due" placeholder=""></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Req 6:</strong> Vulnerability management and patching program</td>
+                        <td><span class="status-partial">PARTIAL</span><br><input id="aud3status" placeholder="Scanning in place, 2 critical unpatched"></td>
+                        <td><input id="aud3gap" placeholder="Describe the gap"></td>
+                        <td><input id="aud3owner" placeholder=""></td>
+                        <td><input id="aud3due" placeholder=""></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Req 8:</strong> MFA for all access to CDE</td>
+                        <td><span class="status-gap">GAP</span><br><input id="aud4status" placeholder="2 admin accounts lack MFA"></td>
+                        <td><input id="aud4gap" placeholder="Describe the gap"></td>
+                        <td><input id="aud4owner" placeholder=""></td>
+                        <td><input id="aud4due" placeholder=""></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Req 10:</strong> Audit logging for all CDE access</td>
+                        <td><span class="status-ready">READY</span><br><input id="aud5status" placeholder="SIEM configured, 12-month retention"></td>
+                        <td><input id="aud5gap" placeholder=""></td>
+                        <td><input id="aud5owner" placeholder="N/A"></td>
+                        <td><input id="aud5due" placeholder="N/A"></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Req 11:</strong> Annual penetration testing</td>
+                        <td><span class="status-partial">PARTIAL</span><br><input id="aud6status" placeholder="Last pentest 14 months ago"></td>
+                        <td><input id="aud6gap" placeholder="Describe the gap"></td>
+                        <td><input id="aud6owner" placeholder=""></td>
+                        <td><input id="aud6due" placeholder=""></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t3-1" onchange="checkTask(3)">
+                    <label for="t3-1">Complete all audit table fields — identify gaps (2, 4, 6) with specific descriptions, owners, and realistic remediation dates within the 90-day window</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-2" onchange="checkTask(3)">
+                    <label for="t3-2">Understand the difference between a QSA audit and a self-assessment questionnaire (SAQ) — Level 1 merchants must use a QSA; lower volume merchants may use SAQs of varying scope</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-3" onchange="checkTask(3)">
+                    <label for="t3-3">Know that a compensating control can address a PCI gap — for example, if MFA cannot be implemented on 2 legacy admin accounts within 90 days, a compensating control (enhanced monitoring, additional logging, IP restriction) may satisfy the QSA</label>
+                </li>
+            </ul>
+            <button class="complete-btn" onclick="completeExercise(3)" id="btn3">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 4: Control Classification and Security Awareness -->
+    <div class="exercise" data-exercise="4">
+        <div class="exercise-header" onclick="toggleExercise(4)">
+            <div class="exercise-title">
+                <div class="exercise-number">4</div>
+                <div class="exercise-name">Control Classification and Security Awareness</div>
+            </div>
+            <span class="exercise-status status-pending" id="status4">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Building a Defense-in-Depth Control Set</h4>
+                <p>For each security scenario, classify the controls by type (Technical/Operational/Managerial) and by function (Preventive/Detective/Corrective/Deterrent/Physical/Compensating). Then identify gaps in the control set.</p>
+            </div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t4-1" onchange="checkTask(4)">
+                    <label for="t4-1">CONTROL A: Employees are shown a warning banner at login stating "Authorized use only. All activity is monitored and logged." — Type: _______ Function: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-2" onchange="checkTask(4)">
+                    <label for="t4-2">CONTROL B: The SIEM sends an alert when any account performs more than 5 failed login attempts in 60 seconds. — Type: _______ Function: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-3" onchange="checkTask(4)">
+                    <label for="t4-3">CONTROL C: After a phishing incident, all users are required to complete updated phishing awareness training within 30 days. — Type: _______ Function: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-4" onchange="checkTask(4)">
+                    <label for="t4-4">CONTROL D: Server room has biometric hand geometry reader and requires badge + PIN to enter. — Type: _______ Function: _______</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-5" onchange="checkTask(4)">
+                    <label for="t4-5">CONTROL E: The organization uses enhanced monitoring instead of requiring MFA on a legacy system that cannot support it. — Type: _______ Function: _______</label>
+                </li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Answer Key — Control Classification</h4>
+                <ul>
+                    <li><strong>A (Warning Banner):</strong> Technical (displayed by system) + Managerial (policy-driven). Function: Deterrent</li>
+                    <li><strong>B (SIEM brute-force alert):</strong> Technical. Function: Detective</li>
+                    <li><strong>C (Phishing awareness training):</strong> Operational. Function: Corrective (post-incident training) / also Preventive for future incidents</li>
+                    <li><strong>D (Biometric + badge + PIN server room):</strong> Technical (biometric/badge reader) + Physical (secured room). Function: Preventive + Physical</li>
+                    <li><strong>E (Enhanced monitoring instead of MFA):</strong> Technical. Function: Compensating</li>
+                </ul>
+            </div>
+
+            <div class="question-section">
+                <h4>Security Awareness Program Design</h4>
+                <p>An organization has experienced 3 phishing-related incidents in 12 months. Their existing security awareness training consists of a single annual 45-minute online module. Design a more effective security awareness program. Include: training frequency, delivery methods, simulated phishing cadence, metrics you would track, and how you would measure program effectiveness.</p>
+                <textarea id="q4" placeholder="Design a comprehensive security awareness program addressing the phishing problem, with specific frequency, methods, and metrics..." style="min-height: 140px;"></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(4)" id="btn4">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Completion Badge -->
+    <div class="completion-badge" id="completionBadge">
+        <h2>Policy &amp; Compliance Lab Complete</h2>
+        <p class="badge-desc">You have written a security policy, mapped regulatory requirements, prepared for a PCI DSS audit gap analysis, and classified security controls. These skills are core to any GRC or analyst role.</p>
+        <div class="next-steps">
+            <a href="../quizzes/cysa-ch16-quiz.quiz.html">Take the Ch 16 Quiz</a>
+            <a href="../reviews/cysa-comprehensive-review.html">Comprehensive Review</a>
+            <a href="../index.html">Back to CySA+</a>
+        </div>
+    </div>
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    const TOTAL_EXERCISES = 4;
+    let completedExercises = new Set();
+    const STORE_KEY = 'eye_cysa_ch16_compliance_lab';
+
+    document.addEventListener('DOMContentLoaded', () => { loadProgress(); updateProgressBar(); });
+
+    function toggleExercise(num) {
+        const el = document.querySelector(`[data-exercise="${num}"]`);
+        const wasActive = el.classList.contains('active');
+        document.querySelectorAll('.exercise').forEach(e => e.classList.remove('active'));
+        if (!wasActive) el.classList.add('active');
+    }
+
+    function checkTask(exerciseNum) {
+        const ex = document.querySelector(`[data-exercise="${exerciseNum}"]`);
+        ex.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            const item = cb.closest('.task-item');
+            if (item) item.classList.toggle('checked', cb.checked);
+        });
+        saveProgress();
+    }
+
+    function completeExercise(num) {
+        completedExercises.add(num);
+        document.getElementById(`status${num}`).textContent = 'Complete';
+        document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+        document.getElementById(`btn${num}`).textContent = 'Completed';
+        document.getElementById(`btn${num}`).disabled = true;
+        updateProgressBar(); saveProgress();
+        if (num < TOTAL_EXERCISES) setTimeout(() => toggleExercise(num + 1), 500);
+        if (completedExercises.size === TOTAL_EXERCISES) {
+            document.getElementById('completionBadge').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') ModuleProgress.complete('eye', 'eye-cysa-ch16-lab');
+        }
+    }
+
+    function updateProgressBar() {
+        const pct = (completedExercises.size / TOTAL_EXERCISES) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completedExercises.size;
+    }
+
+    function saveProgress() {
+        const data = { completed: Array.from(completedExercises), checkboxes: {}, inputs: {}, answers: {} };
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => { data.checkboxes[cb.id] = cb.checked; });
+        document.querySelectorAll('input[type="text"], select').forEach(el => { if (el.id) data.inputs[el.id] = el.value; });
+        document.querySelectorAll('textarea').forEach(ta => { data.answers[ta.id] = ta.value; });
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+    }
+
+    function loadProgress() {
+        try {
+            const saved = localStorage.getItem(STORE_KEY);
+            if (!saved) return;
+            const data = JSON.parse(saved);
+            if (data.completed) {
+                data.completed.forEach(num => {
+                    completedExercises.add(num);
+                    document.getElementById(`status${num}`).textContent = 'Complete';
+                    document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+                    document.getElementById(`btn${num}`).textContent = 'Completed';
+                    document.getElementById(`btn${num}`).disabled = true;
+                });
+            }
+            if (data.checkboxes) {
+                Object.entries(data.checkboxes).forEach(([id, checked]) => {
+                    const cb = document.getElementById(id);
+                    if (cb) { cb.checked = checked; const item = cb.closest('.task-item'); if (item && checked) item.classList.add('checked'); }
+                });
+            }
+            if (data.inputs) {
+                Object.entries(data.inputs).forEach(([id, value]) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = value;
+                });
+            }
+            if (data.answers) {
+                Object.entries(data.answers).forEach(([id, value]) => {
+                    const ta = document.getElementById(id);
+                    if (ta) ta.value = value;
+                });
+            }
+            if (completedExercises.size === TOTAL_EXERCISES) document.getElementById('completionBadge').classList.add('show');
+        } catch(e) {}
+    }
+</script>
+</body>
+</html>

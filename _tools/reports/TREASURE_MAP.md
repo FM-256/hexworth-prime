@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-08-30 6:09:19 PM
+                    Scanned: 2026-09-04 12:06:00 PM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -10,17 +10,17 @@
 
 | Metric | Value |
 |--------|-------|
-| Files Scanned | 5302 |
-| Directories | 1291 |
-| Content Files | 5302 |
-| Scan Duration | 519ms |
+| Files Scanned | 5305 |
+| Directories | 1290 |
+| Content Files | 5305 |
+| Scan Duration | 631ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 2382 |
-| html | 1595 |
+| html | 1598 |
 | lab | 587 |
 | quiz | 512 |
 | applet | 226 |
@@ -52,7 +52,7 @@
 |--------|-------|
 | Ready | 3677 |
 | Not Ready | 30 |
-| Unknown | 1595 |
+| Unknown | 1598 |
 
 
 ## FILE HIERARCHY
@@ -60,6 +60,7 @@
 
 ```
 📁 _app [root]
+├── 📁 _chris_gate_probe_tmp
 ├── 📁 _games-lab
 │   ├── 📁 data
 │   │   ├── 📁 fifth
@@ -85,8 +86,7 @@
 │   ├── 📄 kahoot.html
 │   └── 📄 wheel.html
 ├── 📁 _gatetest
-│   ├── 📍 index.html
-│   └── 📁 index_probe
+│   └── 📍 index.html
 ├── 📁 _lib
 ├── 📁 _source
 │   └── 📁 fx
@@ -709,16 +709,15 @@
 │       │   │   ├── 🔬 cve-lab-overfit.html
 │       │   │   ├── 🔬 cve-lab-rubric.html
 │       │   │   └── 🔬 cve-lab-sabotage.html
-│       │   ├── 📁 modules [modules]
-│       │   │   ├── 📄 cve-mod-d1-two-part-verification.html
-│       │   │   ├── 📄 cve-mod-d2-regression-tests.html
-│       │   │   ├── 📄 cve-mod-d3-deterministic-assertions.html
-│       │   │   ├── 📄 cve-mod-d4-test-overfitting.html
-│       │   │   ├── 📄 cve-mod-d5-environment-and-ci.html
-│       │   │   ├── 📄 cve-mod-f1-sabotage-drill.html
-│       │   │   ├── 📄 cve-mod-f2-patch-archaeology.html
-│       │   │   └── 📄 cve-mod-f3-rubric-writing.html
-│       │   └── 📁 quizzes [quizzes]
+│       │   └── 📁 modules [modules]
+│       │       ├── 📄 cve-mod-d1-two-part-verification.html
+│       │       ├── 📄 cve-mod-d2-regression-tests.html
+│       │       ├── 📄 cve-mod-d3-deterministic-assertions.html
+│       │       ├── 📄 cve-mod-d4-test-overfitting.html
+│       │       ├── 📄 cve-mod-d5-environment-and-ci.html
+│       │       ├── 📄 cve-mod-f1-sabotage-drill.html
+│       │       ├── 📄 cve-mod-f2-patch-archaeology.html
+│       │       └── 📄 cve-mod-f3-rubric-writing.html
 │       ├── 📄 cyber-kill-chain.html
 │       ├── 📁 dojo
 │       │   ├── 📄 challenge.html
@@ -1119,12 +1118,15 @@
 ├── 📄 games.html
 ├── 📄 handler-dashboard.html
 ├── 📁 hex
+│   ├── 📄 apps.html
+│   ├── 📄 faq.html
 │   └── 📍 index.html
 ├── 📁 hive
 │   ├── 📁 engine
 │   ├── 📍 index.html
 │   ├── 📁 maps
 │   └── 📁 puzzles
+├── 📄 home.html
 ├── 📁 houses
 │   ├── 🏠 ai [house:ai]
 │   │   ├── 📁 advanced

@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack Projects Quiz - Hexworth Prime</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg2: #020617;
+            --card: #1e293b;
+            --ink: #f0f9ff;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #0ea5e9;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 50%, #0c4a6e 100%);
+            min-height: 100vh;
+            color: var(--ink);
+            padding-bottom: 60px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            background: rgba(15, 23, 42, 0.8);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.95em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover { opacity: 0.75; }
+
+        .brand {
+            font-size: 0.85em;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .title-block {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .title-block h1 { font-size: 2.2em; color: var(--ink); margin-bottom: 10px; }
+        .title-block h1 span { color: var(--accent); }
+        .title-block p { color: var(--muted); font-size: 1.05em; }
+
+        .quiz-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            animation: fadeUp 0.4s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .start-screen { text-align: center; }
+        .start-screen h2 { font-size: 1.7em; color: var(--ink); margin-bottom: 20px; }
+
+        .quiz-meta {
+            background: rgba(56, 189, 248, 0.06);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 28px;
+            text-align: left;
+            margin: 28px 0;
+        }
+
+        .quiz-meta h3 {
+            color: var(--accent);
+            margin-bottom: 14px;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .quiz-meta ul { list-style: none; }
+
+        .quiz-meta li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            color: var(--muted);
+            font-size: 0.95em;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+        }
+
+        .quiz-meta li:last-child { border-bottom: none; }
+
+        .quiz-meta li::before {
+            content: "›";
+            position: absolute;
+            left: 8px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .progress-wrap { margin-bottom: 28px; }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+            width: 0%;
+            transition: width 0.35s ease;
+            border-radius: 6px;
+        }
+
+        .question-num {
+            font-size: 0.85em;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .question-text {
+            font-size: 1.25em;
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.65;
+            margin-bottom: 28px;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .option {
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: var(--ink);
+            font-size: 0.98em;
+            line-height: 1.5;
+        }
+
+        .option:hover {
+            background: rgba(56, 189, 248, 0.08);
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }
+
+        .option.selected { background: rgba(56, 189, 248, 0.12); border-color: var(--accent); }
+        .option.correct  { background: rgba(46, 213, 115, 0.12); border-color: var(--ok); color: #a7f3c8; }
+        .option.incorrect { background: rgba(255, 71, 87, 0.1); border-color: var(--bad); color: #fca5a5; }
+        .option.disabled  { cursor: not-allowed; }
+        .option.disabled:hover { transform: none; }
+
+        .opt-label { font-weight: 700; color: var(--accent); flex-shrink: 0; min-width: 22px; }
+        .option.correct  .opt-label { color: var(--ok); }
+        .option.incorrect .opt-label { color: var(--bad); }
+
+        .feedback {
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-top: 20px;
+            display: none;
+            animation: slideDown 0.25s ease;
+            line-height: 1.65;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .feedback.show { display: block; }
+        .feedback.correct  { background: rgba(46, 213, 115, 0.1); border: 1px solid rgba(46, 213, 115, 0.4); color: #a7f3c8; }
+        .feedback.incorrect { background: rgba(255, 71, 87, 0.08); border: 1px solid rgba(255, 71, 87, 0.35); color: #fca5a5; }
+
+        .feedback-title { font-weight: 700; font-size: 1em; margin-bottom: 8px; }
+        .feedback-body { font-size: 0.95em; color: var(--muted); }
+        .feedback.correct .feedback-body { color: #a7f3c8; opacity: 0.9; }
+        .feedback.incorrect .feedback-body { color: #fca5a5; opacity: 0.9; }
+
+        .btn-row {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 13px 32px;
+            font-size: 1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent2), var(--accent));
+            color: #0f172a;
+        }
+
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
+
+        .btn-primary:disabled {
+            background: #334155;
+            color: var(--muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--ink);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-2px); }
+
+        .results { display: none; text-align: center; }
+        .results.show { display: block; }
+
+        .score-ring {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent) 0% var(--pct, 0%), rgba(255,255,255,0.06) 0%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 28px auto;
+            position: relative;
+        }
+
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            background: var(--card);
+        }
+
+        .score-inner { position: relative; z-index: 1; text-align: center; }
+        .score-pct { font-size: 2.4em; font-weight: 700; color: var(--accent); display: block; }
+        .score-sub { font-size: 0.85em; color: var(--muted); }
+
+        .result-heading { font-size: 1.8em; color: var(--ink); margin-bottom: 10px; }
+        .result-msg { color: var(--muted); font-size: 1.05em; margin-bottom: 28px; }
+
+        .pass-badge {
+            display: inline-block;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-bottom: 24px;
+            letter-spacing: 0.06em;
+        }
+
+        .pass-badge.pass { background: rgba(46, 213, 115, 0.15); border: 1px solid var(--ok); color: var(--ok); }
+        .pass-badge.fail { background: rgba(255, 71, 87, 0.12); border: 1px solid var(--bad); color: var(--bad); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 24px 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 12px;
+        }
+
+        .stat-val { font-size: 2em; font-weight: 700; color: var(--accent); }
+        .stat-lbl { font-size: 0.85em; color: var(--muted); margin-top: 4px; }
+
+        .review-section {
+            text-align: left;
+            margin-top: 32px;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+        }
+
+        .review-section h3 { font-size: 1.2em; color: var(--ink); margin-bottom: 18px; }
+
+        .review-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--border);
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+        }
+
+        .review-item.correct { border-left-color: var(--ok); }
+        .review-item.incorrect { border-left-color: var(--bad); }
+
+        .review-q { font-weight: 600; color: var(--ink); margin-bottom: 6px; font-size: 0.95em; }
+        .review-a { font-size: 0.88em; color: var(--muted); line-height: 1.5; }
+
+        .nav-footer {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 26px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-link.lab { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--border); color: var(--accent); }
+        .nav-link.lab:hover { background: rgba(56, 189, 248, 0.18); transform: translateY(-2px); }
+        .nav-link.index { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--muted); }
+        .nav-link.index:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="../index.html" class="back-link">&larr; Back to OpenStack Course</a>
+        <span class="brand">Hexworth Prime</span>
+    </header>
+
+    <div class="container">
+
+        <div class="title-block">
+            <h1>OpenStack <span>Projects</span> Quiz</h1>
+            <p>15 questions &nbsp;&bull;&nbsp; 70% to pass &nbsp;&bull;&nbsp; Immediate feedback</p>
+        </div>
+
+        <div class="quiz-card">
+
+            <!-- ══ START SCREEN ══ -->
+            <div id="startScreen" class="start-screen">
+                <h2>Identify the Core OpenStack Services</h2>
+                <div class="quiz-meta">
+                    <h3>Quiz Details</h3>
+                    <ul>
+                        <li>15 questions covering all major OpenStack project services</li>
+                        <li>Topics: Nova, Neutron, Swift, Glance, Cinder, Keystone, Horizon, Heat</li>
+                        <li>Supporting services: NTP, SQL, RabbitMQ, RESTful API</li>
+                        <li>Optional services: Trove (DBaaS), Sahara (Big Data)</li>
+                        <li>Passing score: 70% (11 of 15 correct)</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary" onclick="startQuiz()">Begin Quiz</button>
+            </div>
+
+            <!-- ══ QUIZ SCREEN ══ -->
+            <div id="quizScreen" style="display:none;">
+                <div class="progress-wrap">
+                    <div class="progress-info">
+                        <span id="qLabel">Question 1 of 15</span>
+                        <span id="qScore">Score: 0</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div class="question-num" id="questionNum">Question 1</div>
+                <div class="question-text" id="questionText"></div>
+                <div class="options" id="optionsWrap"></div>
+
+                <div class="feedback" id="feedback">
+                    <div class="feedback-title" id="fbTitle"></div>
+                    <div class="feedback-body" id="fbBody"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()" disabled>Submit Answer</button>
+                    <button class="btn btn-secondary" id="nextBtn" onclick="nextQuestion()" style="display:none;">Next Question &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ══ RESULTS SCREEN ══ -->
+            <div id="resultsScreen" class="results">
+                <h2 class="result-heading">Quiz Complete</h2>
+                <div class="score-ring" id="scoreRing">
+                    <div class="score-inner">
+                        <span class="score-pct" id="scorePct">0%</span>
+                        <span class="score-sub">Score</span>
+                    </div>
+                </div>
+                <div class="pass-badge" id="passBadge"></div>
+                <p class="result-msg" id="resultMsg"></p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-val" id="statCorrect">0</div>
+                        <div class="stat-lbl">Correct</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="statWrong">0</div>
+                        <div class="stat-lbl">Incorrect</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="statPct">0%</div>
+                        <div class="stat-lbl">Percentage</div>
+                    </div>
+                </div>
+
+                <div class="review-section">
+                    <h3>Answer Review</h3>
+                    <div id="reviewWrap"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="retakeQuiz()">Retake Quiz</button>
+                </div>
+            </div>
+
+        </div><!-- /quiz-card -->
+
+        <div class="nav-footer">
+            <a href="../labs/openstack-launch-vm.lab.html" class="nav-link lab">&#x1F9EA; Corresponding Lab</a>
+            <a href="../index.html" class="nav-link index">&larr; OpenStack Index</a>
+        </div>
+
+    </div>
+
+    <script>
+        // ── Question bank: OpenStack Projects ──
+        const questions = [
+            {
+                q: "Nova is the OpenStack compute service. What is its primary role in the OpenStack ecosystem?",
+                opts: [
+                    "Storing and retrieving virtual machine disk images",
+                    "Managing the lifecycle of virtual machine instances — create, schedule, run, and terminate",
+                    "Providing software-defined networking for tenant instances",
+                    "Authenticating users and issuing service tokens"
+                ],
+                correct: 1,
+                explanation: "Nova is the heart of OpenStack's IaaS compute layer. It receives API requests (via nova-api), schedules VMs to hypervisor hosts (via nova-scheduler), and manages the full VM lifecycle — provisioning, power operations, live migration, and termination. Nova does not store images (Glance does) or manage networking directly (Neutron does)."
+            },
+            {
+                q: "Nova does not implement virtualization itself. What does it use to communicate with the underlying hypervisor?",
+                opts: [
+                    "Direct system calls to the Linux kernel via ioctl",
+                    "A pluggable 'compute driver' (virt driver) — for example, libvirt for KVM/QEMU",
+                    "VMware APIs called directly from the Nova database",
+                    "Neutron agents installed on compute nodes"
+                ],
+                correct: 1,
+                explanation: "Nova uses a driver abstraction layer. The default driver is the libvirt driver, which communicates with KVM/QEMU via libvirt APIs. Other drivers support VMware vSphere, Microsoft Hyper-V, and Ironic (bare metal). This design means Nova can support multiple hypervisors without code changes to its core scheduling and API logic."
+            },
+            {
+                q: "Which OpenStack project provides Software Defined Networking (SDN) and is described as having a 'pluggable architecture'?",
+                opts: [
+                    "Nova (compute service)",
+                    "Cinder (block storage)",
+                    "Neutron (networking service)",
+                    "Keystone (identity service)"
+                ],
+                correct: 2,
+                explanation: "Neutron is OpenStack's network-as-a-service component. Its pluggable architecture means the core Neutron service communicates with 'ML2 plugin backends' (Linux Bridge, Open vSwitch, etc.) via standardized driver interfaces. This allows operators to swap networking backends without changing tenant-facing APIs or cloud management logic."
+            },
+            {
+                q: "Swift is OpenStack's object storage service. Which of the following best describes how clients interact with Swift?",
+                opts: [
+                    "Swift uses an NFS-based protocol requiring kernel mount points",
+                    "Swift exposes a RESTful HTTP API; objects are stored and retrieved via GET, PUT, and DELETE requests",
+                    "Swift uses the iSCSI block storage protocol for low-latency access",
+                    "Swift requires a dedicated Swift client daemon running on every compute node"
+                ],
+                correct: 1,
+                explanation: "Swift is a RESTful object store. Clients interact with it via standard HTTP verbs: PUT to upload an object, GET to download, DELETE to remove, HEAD for metadata. This makes it compatible with any HTTP client or SDK. Amazon S3 compatibility layers can also front Swift. Swift is not block storage (that's Cinder) and requires no kernel modules."
+            },
+            {
+                q: "What is Glance's role in OpenStack and what types of backends can it use?",
+                opts: [
+                    "Glance is the block storage service that attaches volumes to instances using iSCSI or Ceph RBD",
+                    "Glance is the image service — it stores and retrieves virtual machine disk images and can back onto Swift, Ceph, or local filesystem",
+                    "Glance is the dashboard service providing a web-based management UI for all OpenStack services",
+                    "Glance is the orchestration service that deploys multi-tier applications using templates"
+                ],
+                correct: 1,
+                explanation: "Glance manages the catalog and delivery of VM images. When Nova boots an instance, it fetches the base image from Glance. Glance supports multiple storage backends: Swift (object storage), Ceph RBD (distributed block store), filesystem, HTTP, and others. Glance stores image metadata in the database and delegates the actual binary data to the chosen backend."
+            },
+            {
+                q: "Cinder provides block storage to OpenStack instances. Which of the following statements is MOST accurate?",
+                opts: [
+                    "Cinder volumes are automatically deleted when the instance they are attached to is terminated",
+                    "Cinder provides persistent block storage volumes that survive instance termination and can be attached to different instances",
+                    "Cinder only supports local disk storage on compute nodes using LVM",
+                    "Cinder is stateless and stores all volume data in the OpenStack database"
+                ],
+                correct: 1,
+                explanation: "Cinder volumes are persistent by default — they exist independently of any instance. You can detach a volume from one instance and attach it to another, similar to physically moving a hard drive between servers. Cinder supports many backends: LVM (the default reference implementation), Ceph RBD, NetApp, Pure Storage, and dozens more via a pluggable volume driver architecture."
+            },
+            {
+                q: "Keystone serves multiple roles in OpenStack. Which combination of functions does Keystone provide?",
+                opts: [
+                    "Image management, block storage allocation, and DNS resolution",
+                    "Authentication, authorization, and the service catalog (endpoint registry for all OpenStack APIs)",
+                    "Network policy enforcement, firewall rule management, and load balancing",
+                    "VM scheduling, live migration orchestration, and compute node health monitoring"
+                ],
+                correct: 1,
+                explanation: "Keystone is OpenStack's identity hub. It authenticates users (via passwords, tokens, or external providers like LDAP/SAML/OAuth2), issues scoped tokens that encode project/role permissions, and maintains the service catalog — the registry of API endpoints for every OpenStack service. Every API call in OpenStack passes a Keystone token for validation."
+            },
+            {
+                q: "Keystone supports external identity backends. Which of the following are legitimate Keystone identity backend options?",
+                opts: [
+                    "MySQL/MariaDB only — Keystone cannot delegate authentication externally",
+                    "LDAP directories (like Active Directory), SQL, and federated identity via SAML/OAuth2",
+                    "Kerberos ticket-based authentication only",
+                    "PKI certificates issued by Nova's built-in CA"
+                ],
+                correct: 1,
+                explanation: "Keystone's identity backend is pluggable. The default is its own SQL database. For enterprise environments, Keystone can delegate authentication to LDAP/Active Directory so users log in with their existing corporate credentials. Federation support (SAML 2.0, OpenID Connect/OAuth2) enables single sign-on across multiple OpenStack clouds or integration with external identity providers like Okta or Azure AD."
+            },
+            {
+                q: "Horizon is the OpenStack dashboard. Approximately what percentage of OpenStack deployments use Horizon as a management interface?",
+                opts: [
+                    "About 25% — most operators prefer CLI-only management",
+                    "About 50% — Horizon adoption is split evenly with CLI",
+                    "About 87% — Horizon is by far the most widely deployed OpenStack project",
+                    "100% — Horizon is mandatory and cannot be removed from a deployment"
+                ],
+                correct: 2,
+                explanation: "According to OpenStack Foundation user surveys, approximately 87% of OpenStack deployments include Horizon. It is the most widely deployed OpenStack project by adoption rate. While Horizon is not mandatory (everything can be done via CLI/API), its broad adoption reflects how valuable a visual management interface is for operators, developers, and tenants who prefer not to work exclusively with the CLI."
+            },
+            {
+                q: "Heat is OpenStack's orchestration service. What is its primary function?",
+                opts: [
+                    "Monitoring CPU temperature of compute nodes to prevent thermal throttling",
+                    "Deploying and managing multi-resource cloud stacks using declarative templates (HOT format)",
+                    "Load balancing API requests between multiple nova-api instances",
+                    "Automatically scaling Nova compute nodes based on RabbitMQ queue depth"
+                ],
+                correct: 1,
+                explanation: "Heat provides infrastructure-as-code for OpenStack. Operators write Heat Orchestration Templates (HOT) in YAML describing the desired state of a full environment: networks, routers, security groups, instances, floating IPs, and their interdependencies. Heat creates and manages the full 'stack' lifecycle — create, update, and delete. It is analogous to AWS CloudFormation or Terraform for OpenStack."
+            },
+            {
+                q: "Which supporting service provides time synchronization and is critical for Keystone token validation in OpenStack?",
+                opts: [
+                    "RabbitMQ — the message queue service",
+                    "Memcached — the distributed caching layer",
+                    "NTP (Network Time Protocol) — all nodes must have synchronized clocks",
+                    "MariaDB — the SQL database backend"
+                ],
+                correct: 2,
+                explanation: "Keystone tokens contain timestamps and have expiration times. If clocks are out of sync between nodes, a token generated on the controller might appear expired or future-dated on a compute node — causing authentication failures. NTP (typically Chrony on modern Linux distributions) is required on all OpenStack nodes. A clock skew of even a few seconds can cause intermittent authentication failures that are difficult to diagnose."
+            },
+            {
+                q: "What role does RabbitMQ play in the OpenStack architecture?",
+                opts: [
+                    "RabbitMQ stores virtual machine disk snapshots for backup purposes",
+                    "RabbitMQ acts as the OpenStack service catalog, registering API endpoint URLs",
+                    "RabbitMQ is the AMQP message broker enabling asynchronous communication between OpenStack services",
+                    "RabbitMQ provides the web frontend that Horizon uses to render the management dashboard"
+                ],
+                correct: 2,
+                explanation: "OpenStack services are loosely coupled via a message queue. For example, when the Nova API receives a 'create server' request, it publishes a message to RabbitMQ. A Nova compute worker on the selected hypervisor host subscribes to that queue and processes the message asynchronously. This decoupling allows services to be independently scaled and deployed across multiple hosts without direct network connections between every component pair."
+            },
+            {
+                q: "Trove is an optional OpenStack project. What service does Trove provide?",
+                opts: [
+                    "Trove provides bare metal provisioning — deploying physical servers without a hypervisor",
+                    "Trove is a Database as a Service (DBaaS) that provisions and manages relational and NoSQL database instances",
+                    "Trove is an object storage gateway providing an S3-compatible API in front of Swift",
+                    "Trove provides container orchestration using Docker Swarm on top of Nova instances"
+                ],
+                correct: 1,
+                explanation: "Trove is OpenStack's Database as a Service. It abstracts database management — provisioning MySQL, PostgreSQL, Cassandra, Redis, MongoDB, and other databases as cloud services without exposing the underlying OS. Users get a database endpoint; Trove handles the Nova instance, OS, database installation, backups, and configuration. This is analogous to AWS RDS on top of OpenStack."
+            },
+            {
+                q: "Which OpenStack project is specifically designed to support big data workloads by provisioning Hadoop and Spark clusters?",
+                opts: [
+                    "Heat — through its orchestration templates",
+                    "Cinder — by providing high-throughput block storage for HDFS",
+                    "Sahara — OpenStack's Big Data as a Service project",
+                    "Glance — by storing Hadoop node images"
+                ],
+                correct: 2,
+                explanation: "Sahara (formerly Savanna) is OpenStack's Elastic Map Reduce / Big Data as a Service project. It provisions and manages Apache Hadoop, Apache Spark, Apache Storm, and other big data framework clusters on top of Nova instances. Users specify cluster topology via templates; Sahara handles the VM provisioning, network configuration, framework installation, and job submission. Analogous to AWS EMR."
+            },
+            {
+                q: "What is the primary communication protocol used for OpenStack service APIs, and what does this mean for integration?",
+                opts: [
+                    "OpenStack uses SOAP/XML web services, requiring specialized enterprise middleware",
+                    "OpenStack uses proprietary binary protocols for maximum performance",
+                    "OpenStack services expose RESTful HTTP APIs returning JSON, making integration possible with any HTTP client or SDK",
+                    "OpenStack uses gRPC (Protocol Buffers) for high-performance inter-service communication"
+                ],
+                correct: 2,
+                explanation: "Every OpenStack service exposes a RESTful API over HTTPS returning JSON (or XML in legacy cases). This means you can interact with OpenStack from any language using standard HTTP libraries, the official openstack CLI, or any of dozens of SDKs (Python openstacksdk, Go, Java, Ruby, etc.). The RESTful design also means third-party tools, Terraform providers, and monitoring systems can integrate with OpenStack without proprietary connectors."
+            }
+        ];
+
+        // ── State ──
+        let currentQ   = 0;
+        let score       = 0;
+        let selected    = null;
+        let answered    = [];
+        const PASS_PCT  = 70;
+        const STORE_KEY = 'hexworth_openstack_lesson2_quiz';
+
+        function startQuiz() {
+            currentQ = 0; score = 0; selected = null; answered = [];
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('quizScreen').style.display  = 'block';
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = questions[currentQ];
+            document.getElementById('questionNum').textContent  = `Question ${currentQ + 1} of ${questions.length}`;
+            document.getElementById('qLabel').textContent       = `Question ${currentQ + 1} of ${questions.length}`;
+            document.getElementById('qScore').textContent       = `Score: ${score}`;
+            document.getElementById('questionText').textContent = q.q;
+
+            const pct = ((currentQ + 1) / questions.length) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+
+            const wrap = document.getElementById('optionsWrap');
+            wrap.innerHTML = '';
+            q.opts.forEach((opt, i) => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.innerHTML = `<span class="opt-label">${String.fromCharCode(65 + i)}.</span><span>${opt}</span>`;
+                div.addEventListener('click', () => selectOpt(i));
+                wrap.appendChild(div);
+            });
+
+            const fb = document.getElementById('feedback');
+            fb.className = 'feedback';
+            document.getElementById('submitBtn').disabled        = true;
+            document.getElementById('submitBtn').style.display   = 'inline-block';
+            document.getElementById('nextBtn').style.display     = 'none';
+            selected = null;
+        }
+
+        function selectOpt(idx) {
+            if (document.getElementById('submitBtn').style.display === 'none') return;
+            document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll('.option')[idx].classList.add('selected');
+            selected = idx;
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        function submitAnswer() {
+            if (selected === null) return;
+            const q    = questions[currentQ];
+            const opts = document.querySelectorAll('.option');
+            const isOk = selected === q.correct;
+
+            opts.forEach(o => o.classList.add('disabled'));
+            opts[q.correct].classList.add('correct');
+            if (!isOk) opts[selected].classList.add('incorrect');
+            if (isOk) score++;
+
+            const fb = document.getElementById('feedback');
+            fb.className = `feedback show ${isOk ? 'correct' : 'incorrect'}`;
+            document.getElementById('fbTitle').textContent = isOk ? 'Correct!' : 'Incorrect';
+            document.getElementById('fbBody').textContent  = q.explanation;
+
+            answered.push({ q: q.q, yours: q.opts[selected], correct: q.opts[q.correct], isOk });
+
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('nextBtn').style.display   = 'inline-block';
+        }
+
+        function nextQuestion() {
+            selected = null;
+            currentQ++;
+            if (currentQ < questions.length) { renderQuestion(); } else { showResults(); }
+        }
+
+        function showResults() {
+            document.getElementById('quizScreen').style.display = 'none';
+            document.getElementById('resultsScreen').classList.add('show');
+
+            const pct    = Math.round((score / questions.length) * 100);
+            const passed = pct >= PASS_PCT;
+
+            document.getElementById('scoreRing').style.setProperty('--pct', pct + '%');
+            document.getElementById('scorePct').textContent    = pct + '%';
+            document.getElementById('statCorrect').textContent = score;
+            document.getElementById('statWrong').textContent   = questions.length - score;
+            document.getElementById('statPct').textContent     = pct + '%';
+
+            const badge = document.getElementById('passBadge');
+            badge.textContent = passed ? 'PASSED' : 'NOT PASSED';
+            badge.className   = `pass-badge ${passed ? 'pass' : 'fail'}`;
+
+            const msgMap = {
+                perfect: 'Outstanding. You know every core OpenStack project cold.',
+                high:    'Strong work. You have a solid command of OpenStack services.',
+                pass:    'Good foundation. Review the projects you missed before proceeding.',
+                fail:    'More review needed. Revisit the OpenStack Projects section and retake.'
+            };
+            const key = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
+            document.getElementById('resultMsg').textContent = msgMap[key];
+
+            const rw = document.getElementById('reviewWrap');
+            rw.innerHTML = '';
+            answered.forEach((a, i) => {
+                const d = document.createElement('div');
+                d.className = `review-item ${a.isOk ? 'correct' : 'incorrect'}`;
+                d.innerHTML = `
+                    <div class="review-q"><strong>Q${i + 1}:</strong> ${a.q}</div>
+                    <div class="review-a">
+                        <strong>Your answer:</strong> ${a.yours}<br>
+                        ${!a.isOk ? `<strong>Correct answer:</strong> ${a.correct}` : ''}
+                    </div>`;
+                rw.appendChild(d);
+            });
+
+            try {
+                localStorage.setItem(STORE_KEY + '_score',   pct);
+                localStorage.setItem(STORE_KEY + '_answers', JSON.stringify(answered));
+                localStorage.setItem(STORE_KEY + '_passed',  passed ? '1' : '0');
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('cloud', 'openstack-projects-quiz', pct, {
+                    maxScore: 100,
+                    showNotification: true
+                });
+            }
+        }
+
+        function retakeQuiz() {
+            document.getElementById('resultsScreen').classList.remove('show');
+            document.getElementById('startScreen').style.display = 'block';
+        }
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

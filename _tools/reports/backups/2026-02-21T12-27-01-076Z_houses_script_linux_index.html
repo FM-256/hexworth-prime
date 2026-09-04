@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../components/AchievementManager.js"></script>
+    <script src="../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Administration - House of the Script</title>
+    <style>
+        :root {
+            /* Script house green palette */
+            --script-primary:   #22c55e;
+            --script-secondary: #4ade80;
+            --script-accent:    #86efac;
+            --script-dark:      #14532d;
+            --script-darker:    #052e16;
+            --script-light:     #f0fdf4;
+
+            /* Neutral tokens */
+            --text-primary:   #0f172a;
+            --text-secondary: #475569;
+            --bg-main:        #f8fafc;
+            --bg-card:        #ffffff;
+            --border-color:   #e2e8f0;
+            --success:        #16a34a;
+
+            /* Shadows */
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg-main) 0%, var(--script-light) 100%);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* ── Header ─────────────────────────────────────────────── */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 40px 20px;
+            background: linear-gradient(135deg, var(--script-dark) 0%, var(--script-primary) 100%);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            color: white;
+        }
+
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header .subtitle { font-size: 1.1rem; opacity: 0.95; max-width: 700px; margin: 0 auto; }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .back-link:hover { color: white; }
+
+        /* ── Stat badges ─────────────────────────────────────────── */
+        .course-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-badge .value { font-size: 1.5rem; font-weight: bold; }
+        .stat-badge .label { font-size: 0.85rem; opacity: 0.9; }
+
+        /* ── Progress bar ─────────────────────────────────────────── */
+        .progress-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .progress-bar-container {
+            background: var(--border-color);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            /* Green gradient matching Script house */
+            background: linear-gradient(90deg, var(--script-dark), var(--script-primary));
+            width: 0%;
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+
+        /* ── Module grid ──────────────────────────────────────────── */
+        .modules-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .module-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px 25px;
+            box-shadow: var(--shadow-md);
+            display: grid;
+            grid-template-columns: 50px 1fr auto;
+            gap: 15px;
+            align-items: center;
+            border-left: 4px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .module-card:hover {
+            border-left-color: var(--script-primary);
+            transform: translateX(3px);
+        }
+
+        .module-card.completed { border-left-color: var(--success); }
+
+        /* ── Module number circle ─────────────────────────────────── */
+        .module-number {
+            background: var(--script-dark);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .module-card.completed .module-number { background: var(--success); }
+
+        /* ── Module text ──────────────────────────────────────────── */
+        .module-info h3 {
+            font-size: 1.1rem;
+            color: var(--script-dark);
+            margin-bottom: 4px;
+        }
+
+        .module-info p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* ── Link buttons ─────────────────────────────────────────── */
+        .module-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .module-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        /* Presentation - green tones (matches Script house) */
+        .link-presentation {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--script-primary);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .link-presentation:hover { background: rgba(34, 197, 94, 0.2); }
+
+        /* Lab - blue accent */
+        .link-lab {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        .link-lab:hover { background: rgba(59, 130, 246, 0.2); }
+
+        /* Quiz - purple accent */
+        .link-quiz {
+            background: rgba(139, 92, 246, 0.1);
+            color: #8b5cf6;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+        .link-quiz:hover { background: rgba(139, 92, 246, 0.2); }
+
+        /* Review - amber accent */
+        .link-review {
+            background: rgba(251, 191, 36, 0.1);
+            color: #f59e0b;
+            border: 1px solid rgba(251, 191, 36, 0.3);
+        }
+        .link-review:hover { background: rgba(251, 191, 36, 0.2); }
+
+        /* ── Review section ───────────────────────────────────────── */
+        .review-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 20px;
+        }
+
+        .review-section h2 {
+            color: var(--script-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── About card ───────────────────────────────────────────── */
+        .section-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 20px;
+        }
+
+        .section-card h2 {
+            color: var(--script-dark);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Footer ───────────────────────────────────────────────── */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .footer a { color: var(--script-primary); text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+
+        /* ── Responsive ───────────────────────────────────────────── */
+        @media (max-width: 768px) {
+            .header h1 { font-size: 1.8rem; }
+            .module-card { grid-template-columns: 40px 1fr; }
+            .module-links { grid-column: 1 / -1; }
+            .course-stats { gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- ── Header ──────────────────────────────────────────────────── -->
+    <header class="header">
+        <a href="../../../dashboard.html" class="back-link">&larr; Back to Dashboard</a>
+        <h1>Linux Administration</h1>
+        <p class="subtitle">Master Linux from distributions to networking &mdash; processes, daemons, display managers, compression, encryption, and compilation</p>
+        <div class="course-stats">
+            <div class="stat-badge">
+                <div class="value">12</div>
+                <div class="label">Chapters</div>
+            </div>
+            <div class="stat-badge">
+                <div class="value">37</div>
+                <div class="label">Activities</div>
+            </div>
+            <div class="stat-badge">
+                <div class="value">Linux+</div>
+                <div class="label">Track</div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── Progress ────────────────────────────────────────────────── -->
+    <div class="progress-section">
+        <strong>Course Progress</strong>
+        <span id="progressText" style="float:right; color: var(--text-secondary); font-size:0.9rem;">0 / 37 completed</span>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+    </div>
+
+    <!-- ── Module Cards ────────────────────────────────────────────── -->
+    <div class="modules-grid">
+
+        <!-- Ch 01: Introduction to Linux -->
+        <div class="module-card" data-module="ch01">
+            <div class="module-number">1</div>
+            <div class="module-info">
+                <h3>Introduction to Linux</h3>
+                <p>CLI basics, terminal emulators, shell concepts, and Linux philosophy</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch01-intro.presentation.html"  class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch01-quiz.quiz.html"                 class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch01-intro.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 02: Linux Distributions & Uses -->
+        <div class="module-card" data-module="ch02">
+            <div class="module-number">2</div>
+            <div class="module-info">
+                <h3>Linux Distributions &amp; Uses</h3>
+                <p>Ubuntu, CentOS, Kali, Debian, choosing the right distro for the job</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch02-distros.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch02-quiz.quiz.html"                   class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch02-distros.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 03: Grep, Pipes & Text Processing -->
+        <div class="module-card" data-module="ch03">
+            <div class="module-number">3</div>
+            <div class="module-info">
+                <h3>Grep, Pipes &amp; Text Processing</h3>
+                <p>grep, regular expressions, pipes, I/O redirection, and stream editing</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch03-grep-pipes.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch03-quiz.quiz.html"                      class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch03-grep-pipes.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 04: Process Management & Nice Values -->
+        <div class="module-card" data-module="ch04">
+            <div class="module-number">4</div>
+            <div class="module-info">
+                <h3>Process Management &amp; Nice Values</h3>
+                <p>ps, top, htop, kill, nice, renice, job control, and process priorities</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch04-processes.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch04-quiz.quiz.html"                     class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch04-processes.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 05: Daemons & Services -->
+        <div class="module-card" data-module="ch05">
+            <div class="module-number">5</div>
+            <div class="module-info">
+                <h3>Daemons &amp; Services</h3>
+                <p>systemd, systemctl, service management, unit files, and runlevels</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch05-daemons.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch05-quiz.quiz.html"                   class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch05-daemons.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 06: Initialization, X Windows & Localization -->
+        <div class="module-card" data-module="ch06">
+            <div class="module-number">6</div>
+            <div class="module-info">
+                <h3>Initialization, X Windows &amp; Localization</h3>
+                <p>Boot process, GRUB, X11, Wayland, locale settings, and timezone config</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch06-init-xwindows.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch06-quiz.quiz.html"                         class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch06-init-xwindows.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 07: Display Managers & User Sessions -->
+        <div class="module-card" data-module="ch07">
+            <div class="module-number">7</div>
+            <div class="module-info">
+                <h3>Display Managers &amp; User Sessions</h3>
+                <p>GDM, LightDM, SDDM, user session lifecycle, and desktop environments</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch07-display-mgr.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch07-quiz.quiz.html"                       class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch07-display-mgr.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 08: Network Interface Configuration -->
+        <div class="module-card" data-module="ch08">
+            <div class="module-number">8</div>
+            <div class="module-info">
+                <h3>Network Interface Configuration</h3>
+                <p>ifconfig, ip, netplan, NetworkManager, and interface configuration files</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch08-network.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch08-quiz.quiz.html"                   class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch08-network.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 09: IPv4 Protocol & Networking -->
+        <div class="module-card" data-module="ch09">
+            <div class="module-number">9</div>
+            <div class="module-info">
+                <h3>IPv4 Protocol &amp; Networking</h3>
+                <p>TCP/IP fundamentals, subnetting, routing tables, and network diagnostics</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch09-ipv4.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch09-quiz.quiz.html"                class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch09-ipv4.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 10: File Compression & Archiving -->
+        <div class="module-card" data-module="ch10">
+            <div class="module-number">10</div>
+            <div class="module-info">
+                <h3>File Compression &amp; Archiving</h3>
+                <p>tar, gzip, bzip2, xz, zip/unzip, and archive management strategies</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch10-compression.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch10-quiz.quiz.html"                       class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch10-compression.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 11: Linux Encryption -->
+        <div class="module-card" data-module="ch11">
+            <div class="module-number">11</div>
+            <div class="module-info">
+                <h3>Linux Encryption</h3>
+                <p>GPG, LUKS disk encryption, openssl, key management, and secure file handling</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch11-encryption.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch11-quiz.quiz.html"                      class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch11-encryption.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+        <!-- Ch 12: Compiling Source Code -->
+        <div class="module-card" data-module="ch12">
+            <div class="module-number">12</div>
+            <div class="module-info">
+                <h3>Compiling Source Code</h3>
+                <p>gcc, make, configure scripts, dependency resolution, and build systems</p>
+            </div>
+            <div class="module-links">
+                <a href="presentations/la-ch12-compile.presentation.html" class="module-link link-presentation">Presentation</a>
+                <a href="quizzes/la-ch12-quiz.quiz.html"                   class="module-link link-quiz">Quiz</a>
+                <a href="labs/la-ch12-compile.lab.html"                    class="module-link link-lab">Lab</a>
+            </div>
+        </div>
+
+    </div><!-- /.modules-grid -->
+
+    <!-- ── Comprehensive Review ────────────────────────────────────── -->
+    <div class="review-section">
+        <h2>Review</h2>
+        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 15px;">Jeopardy-style review board covering all 12 chapters of the Linux Administration curriculum.</p>
+        <a href="reviews/la-comprehensive-review.html" class="module-link link-review">Play Comprehensive Review</a>
+    </div>
+
+    <!-- ── About ────────────────────────────────────────────────────── -->
+    <div class="section-card">
+        <h2>About This Course</h2>
+        <p>Linux Administration takes you from first boot to advanced system operation. You will build practical command-line fluency, understand the Unix philosophy, and develop the hands-on skills demanded by roles in system administration, DevOps, and cybersecurity. The course maps directly to the CompTIA Linux+ (XK0-005) exam objectives.</p>
+        <p style="margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;">Each chapter includes a slide presentation, hands-on lab, and knowledge quiz. A comprehensive Jeopardy review ties all 12 chapters together. Complete all 37 activities to master the full curriculum.</p>
+    </div>
+
+    <!-- ── Footer ───────────────────────────────────────────────────── -->
+    <footer class="footer">
+        <p>House of the Script &mdash; Linux Administration | <a href="../../../dashboard.html">&larr; Back to Dashboard</a></p>
+    </footer>
+
+    <!-- ── Progress Logic ───────────────────────────────────────────── -->
+    <script>
+        // Chapter slugs used to build localStorage key lookups.
+        // Format mirrors the file naming convention: la-chXX-SLUG
+        const CHAPTERS = [
+            { id: 'ch01', presId: 'script-linux-la-ch01-intro',       labId: 'script-linux-la-ch01-intro-lab' },
+            { id: 'ch02', presId: 'script-linux-la-ch02-distros',      labId: 'script-linux-la-ch02-distros-lab' },
+            { id: 'ch03', presId: 'script-linux-la-ch03-grep-pipes',   labId: 'script-linux-la-ch03-grep-pipes-lab' },
+            { id: 'ch04', presId: 'script-linux-la-ch04-processes',    labId: 'script-linux-la-ch04-processes-lab' },
+            { id: 'ch05', presId: 'script-linux-la-ch05-daemons',      labId: 'script-linux-la-ch05-daemons-lab' },
+            { id: 'ch06', presId: 'script-linux-la-ch06-init-xwindows',labId: 'script-linux-la-ch06-init-xwindows-lab' },
+            { id: 'ch07', presId: 'script-linux-la-ch07-display-mgr',  labId: 'script-linux-la-ch07-display-mgr-lab' },
+            { id: 'ch08', presId: 'script-linux-la-ch08-network',      labId: 'script-linux-la-ch08-network-lab' },
+            { id: 'ch09', presId: 'script-linux-la-ch09-ipv4',         labId: 'script-linux-la-ch09-ipv4-lab' },
+            { id: 'ch10', presId: 'script-linux-la-ch10-compression',  labId: 'script-linux-la-ch10-compression-lab' },
+            { id: 'ch11', presId: 'script-linux-la-ch11-encryption',   labId: 'script-linux-la-ch11-encryption-lab' },
+            { id: 'ch12', presId: 'script-linux-la-ch12-compile',      labId: 'script-linux-la-ch12-compile-lab' }
+        ];
+
+        // Total trackable activities: 12 presentations + 12 labs + 12 quizzes + 1 review = 37
+        const TOTAL_ACTIVITIES = 37;
+
+        /**
+         * Reads a hexworth_progress_* key from localStorage.
+         * Returns true if the stored object has completed === true.
+         */
+        function isProgressComplete(moduleId) {
+            try {
+                const raw = localStorage.getItem('hexworth_progress_' + moduleId);
+                if (!raw) return false;
+                return JSON.parse(raw).completed === true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /**
+         * Reads a quiz score key for this course.
+         * Returns true if a score entry exists (any score counts as attempted/complete).
+         */
+        function isQuizComplete(chapterId) {
+            return localStorage.getItem('hexworth_linux_admin_' + chapterId + '_quiz_score') !== null;
+        }
+
+        /**
+         * Reads the comprehensive review completion flag.
+         */
+        function isReviewComplete() {
+            try {
+                const raw = localStorage.getItem('hexworth_review_linux_admin');
+                if (!raw) return false;
+                return JSON.parse(raw).completed === true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /**
+         * Recalculates completed activity count, updates the progress bar,
+         * and marks fully-complete chapter cards with the .completed class.
+         */
+        function updateProgress() {
+            let completed = 0;
+
+            CHAPTERS.forEach((ch, idx) => {
+                const presComplete  = isProgressComplete(ch.presId);
+                const labComplete   = isProgressComplete(ch.labId);
+                const quizComplete  = isQuizComplete(ch.id);
+
+                if (presComplete)  completed++;
+                if (labComplete)   completed++;
+                if (quizComplete)  completed++;
+
+                // Mark the card green only when all three components are done
+                const card = document.querySelectorAll('.module-card')[idx];
+                if (card && presComplete && labComplete && quizComplete) {
+                    card.classList.add('completed');
+                }
+            });
+
+            // Count the review activity
+            if (isReviewComplete()) completed++;
+
+            // Update DOM
+            const pct = Math.round((completed / TOTAL_ACTIVITIES) * 100);
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressText').textContent = completed + ' / ' + TOTAL_ACTIVITIES + ' completed';
+        }
+
+        updateProgress();
+    </script>
+    <script src="../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

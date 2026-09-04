@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Access Control -->
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <!-- Achievement & Progress Integration -->
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenStack Operations Quiz - Hexworth Prime</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --bg2: #020617;
+            --card: #1e293b;
+            --ink: #f0f9ff;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+            --accent2: #0ea5e9;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --ok: #2ed573;
+            --warn: #ffc107;
+            --bad: #ff4757;
+            --border: rgba(56, 189, 248, 0.2);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #020617 50%, #0c4a6e 100%);
+            min-height: 100vh;
+            color: var(--ink);
+            padding-bottom: 60px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 32px;
+            background: rgba(15, 23, 42, 0.8);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(8px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .back-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.95em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity 0.2s;
+        }
+
+        .back-link:hover { opacity: 0.75; }
+
+        .brand {
+            font-size: 0.85em;
+            color: var(--muted);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .title-block { text-align: center; margin-bottom: 40px; }
+        .title-block h1 { font-size: 2.2em; color: var(--ink); margin-bottom: 10px; }
+        .title-block h1 span { color: var(--accent); }
+        .title-block p { color: var(--muted); font-size: 1.05em; }
+
+        .quiz-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            animation: fadeUp 0.4s ease-out;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .start-screen { text-align: center; }
+        .start-screen h2 { font-size: 1.7em; color: var(--ink); margin-bottom: 20px; }
+
+        .quiz-meta {
+            background: rgba(56, 189, 248, 0.06);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px 28px;
+            text-align: left;
+            margin: 28px 0;
+        }
+
+        .quiz-meta h3 {
+            color: var(--accent);
+            margin-bottom: 14px;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .quiz-meta ul { list-style: none; }
+
+        .quiz-meta li {
+            padding: 8px 0 8px 28px;
+            position: relative;
+            color: var(--muted);
+            font-size: 0.95em;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+        }
+
+        .quiz-meta li:last-child { border-bottom: none; }
+
+        .quiz-meta li::before {
+            content: "›";
+            position: absolute;
+            left: 8px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .progress-wrap { margin-bottom: 28px; }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent2), var(--accent));
+            width: 0%;
+            transition: width 0.35s ease;
+            border-radius: 6px;
+        }
+
+        .question-num {
+            font-size: 0.85em;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .question-text {
+            font-size: 1.25em;
+            font-weight: 600;
+            color: var(--ink);
+            line-height: 1.65;
+            margin-bottom: 28px;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .option {
+            padding: 16px 20px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            color: var(--ink);
+            font-size: 0.98em;
+            line-height: 1.5;
+        }
+
+        .option:hover { background: rgba(56, 189, 248, 0.08); border-color: var(--accent); transform: translateX(4px); }
+        .option.selected { background: rgba(56, 189, 248, 0.12); border-color: var(--accent); }
+        .option.correct  { background: rgba(46, 213, 115, 0.12); border-color: var(--ok); color: #a7f3c8; }
+        .option.incorrect { background: rgba(255, 71, 87, 0.1); border-color: var(--bad); color: #fca5a5; }
+        .option.disabled  { cursor: not-allowed; }
+        .option.disabled:hover { transform: none; }
+
+        .opt-label { font-weight: 700; color: var(--accent); flex-shrink: 0; min-width: 22px; }
+        .option.correct .opt-label { color: var(--ok); }
+        .option.incorrect .opt-label { color: var(--bad); }
+
+        .feedback {
+            border-radius: 10px;
+            padding: 18px 22px;
+            margin-top: 20px;
+            display: none;
+            animation: slideDown 0.25s ease;
+            line-height: 1.65;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .feedback.show { display: block; }
+        .feedback.correct  { background: rgba(46, 213, 115, 0.1); border: 1px solid rgba(46, 213, 115, 0.4); color: #a7f3c8; }
+        .feedback.incorrect { background: rgba(255, 71, 87, 0.08); border: 1px solid rgba(255, 71, 87, 0.35); color: #fca5a5; }
+
+        .feedback-title { font-weight: 700; font-size: 1em; margin-bottom: 8px; }
+        .feedback-body { font-size: 0.95em; color: var(--muted); }
+        .feedback.correct  .feedback-body { color: #a7f3c8; opacity: 0.9; }
+        .feedback.incorrect .feedback-body { color: #fca5a5; opacity: 0.9; }
+
+        .btn-row {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-top: 32px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 13px 32px;
+            font-size: 1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #0f172a; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
+        .btn-primary:disabled { background: #334155; color: var(--muted); cursor: not-allowed; transform: none; box-shadow: none; }
+
+        .btn-secondary { background: rgba(255, 255, 255, 0.08); color: var(--ink); border: 1px solid rgba(255, 255, 255, 0.15); }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); transform: translateY(-2px); }
+
+        .results { display: none; text-align: center; }
+        .results.show { display: block; }
+
+        .score-ring {
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: conic-gradient(var(--accent) 0% var(--pct, 0%), rgba(255,255,255,0.06) 0%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 28px auto;
+            position: relative;
+        }
+
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            inset: 12px;
+            border-radius: 50%;
+            background: var(--card);
+        }
+
+        .score-inner { position: relative; z-index: 1; text-align: center; }
+        .score-pct { font-size: 2.4em; font-weight: 700; color: var(--accent); display: block; }
+        .score-sub { font-size: 0.85em; color: var(--muted); }
+
+        .result-heading { font-size: 1.8em; color: var(--ink); margin-bottom: 10px; }
+        .result-msg { color: var(--muted); font-size: 1.05em; margin-bottom: 28px; }
+
+        .pass-badge {
+            display: inline-block;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.9em;
+            margin-bottom: 24px;
+            letter-spacing: 0.06em;
+        }
+
+        .pass-badge.pass { background: rgba(46, 213, 115, 0.15); border: 1px solid var(--ok); color: var(--ok); }
+        .pass-badge.fail { background: rgba(255, 71, 87, 0.12); border: 1px solid var(--bad); color: var(--bad); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 12px;
+        }
+
+        .stat-val { font-size: 2em; font-weight: 700; color: var(--accent); }
+        .stat-lbl { font-size: 0.85em; color: var(--muted); margin-top: 4px; }
+
+        .review-section {
+            text-align: left;
+            margin-top: 32px;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+        }
+
+        .review-section h3 { font-size: 1.2em; color: var(--ink); margin-bottom: 18px; }
+
+        .review-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--border);
+            border-radius: 0 8px 8px 0;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+        }
+
+        .review-item.correct { border-left-color: var(--ok); }
+        .review-item.incorrect { border-left-color: var(--bad); }
+
+        .review-q { font-weight: 600; color: var(--ink); margin-bottom: 6px; font-size: 0.95em; }
+        .review-a { font-size: 0.88em; color: var(--muted); line-height: 1.5; }
+
+        .nav-footer {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 26px;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .nav-link.lab { background: rgba(56, 189, 248, 0.1); border: 1px solid var(--border); color: var(--accent); }
+        .nav-link.lab:hover { background: rgba(56, 189, 248, 0.18); transform: translateY(-2px); }
+        .nav-link.index { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.12); color: var(--muted); }
+        .nav-link.index:hover { background: rgba(255, 255, 255, 0.1); color: var(--ink); transform: translateY(-2px); }
+    </style>
+</head>
+<body>
+
+    <header class="page-header">
+        <a href="../index.html" class="back-link">&larr; Back to OpenStack Course</a>
+        <span class="brand">Hexworth Prime</span>
+    </header>
+
+    <div class="container">
+
+        <div class="title-block">
+            <h1>OpenStack <span>Operations</span> Quiz</h1>
+            <p>15 questions &nbsp;&bull;&nbsp; 70% to pass &nbsp;&bull;&nbsp; Immediate feedback</p>
+        </div>
+
+        <div class="quiz-card">
+
+            <!-- ══ START SCREEN ══ -->
+            <div id="startScreen" class="start-screen">
+                <h2>Demonstrate Your Operational Readiness</h2>
+                <div class="quiz-meta">
+                    <h3>Quiz Details</h3>
+                    <ul>
+                        <li>15 questions on daily OpenStack operations and instance management</li>
+                        <li>Topics: Horizon dashboard, launching instances, images, flavors, networks</li>
+                        <li>CLI commands: server create, flavor list, image list, network list</li>
+                        <li>Floating IPs, security groups, SSH key pairs, VNC console access</li>
+                        <li>Passing score: 70% (11 of 15 correct)</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary" onclick="startQuiz()">Begin Quiz</button>
+            </div>
+
+            <!-- ══ QUIZ SCREEN ══ -->
+            <div id="quizScreen" style="display:none;">
+                <div class="progress-wrap">
+                    <div class="progress-info">
+                        <span id="qLabel">Question 1 of 15</span>
+                        <span id="qScore">Score: 0</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+
+                <div class="question-num" id="questionNum">Question 1</div>
+                <div class="question-text" id="questionText"></div>
+                <div class="options" id="optionsWrap"></div>
+
+                <div class="feedback" id="feedback">
+                    <div class="feedback-title" id="fbTitle"></div>
+                    <div class="feedback-body" id="fbBody"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="submitBtn" onclick="submitAnswer()" disabled>Submit Answer</button>
+                    <button class="btn btn-secondary" id="nextBtn" onclick="nextQuestion()" style="display:none;">Next Question &rarr;</button>
+                </div>
+            </div>
+
+            <!-- ══ RESULTS SCREEN ══ -->
+            <div id="resultsScreen" class="results">
+                <h2 class="result-heading">Quiz Complete</h2>
+                <div class="score-ring" id="scoreRing">
+                    <div class="score-inner">
+                        <span class="score-pct" id="scorePct">0%</span>
+                        <span class="score-sub">Score</span>
+                    </div>
+                </div>
+                <div class="pass-badge" id="passBadge"></div>
+                <p class="result-msg" id="resultMsg"></p>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-val" id="statCorrect">0</div>
+                        <div class="stat-lbl">Correct</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="statWrong">0</div>
+                        <div class="stat-lbl">Incorrect</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="statPct">0%</div>
+                        <div class="stat-lbl">Percentage</div>
+                    </div>
+                </div>
+
+                <div class="review-section">
+                    <h3>Answer Review</h3>
+                    <div id="reviewWrap"></div>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="retakeQuiz()">Retake Quiz</button>
+                </div>
+            </div>
+
+        </div><!-- /quiz-card -->
+
+        <div class="nav-footer">
+            <a href="../labs/openstack-advanced-ops.lab.html" class="nav-link lab">&#x1F9EA; Corresponding Lab</a>
+            <a href="../index.html" class="nav-link index">&larr; OpenStack Index</a>
+        </div>
+
+    </div>
+
+    <script>
+        // ── Question bank: OpenStack Operations ──
+        const questions = [
+            {
+                q: "You are configuring the Horizon dashboard after installation on Ubuntu. Which Python/Django setting in /etc/openstack-dashboard/local_settings.py MUST be updated to prevent 'DisallowedHost' errors when accessing Horizon from a browser?",
+                opts: [
+                    "OPENSTACK_API_VERSIONS — the dictionary of API version overrides for each service",
+                    "ALLOWED_HOSTS — the list of hostnames and IP addresses from which Horizon will accept requests",
+                    "SESSION_ENGINE — the Django session backend (database, cache, or cookie)",
+                    "OPENSTACK_KEYSTONE_URL — the Keystone endpoint Horizon uses for authentication"
+                ],
+                correct: 1,
+                explanation: "Django's security framework requires that every incoming HTTP request's Host header match an entry in ALLOWED_HOSTS. In a fresh deployment, this is often set to ['*'] for initial testing, or to the controller's IP/hostname for production. If your controller's IP or hostname is not in ALLOWED_HOSTS, Django returns a 400 Bad Request error. OPENSTACK_KEYSTONE_URL is also critical but causes auth failures rather than host errors."
+            },
+            {
+                q: "What is a 'flavor' in OpenStack, and why must you select one when launching an instance?",
+                opts: [
+                    "A flavor is a pre-built disk image containing an operating system and pre-installed software",
+                    "A flavor defines the virtual hardware profile of an instance — vCPUs, RAM (MB), and disk size (GB)",
+                    "A flavor is a network topology template defining which subnets an instance will join",
+                    "A flavor is a security policy that defines allowed inbound and outbound traffic rules"
+                ],
+                correct: 1,
+                explanation: "Flavors are the sizing mechanism in OpenStack, equivalent to EC2 instance types (t2.micro, m5.large, etc.). Each flavor specifies: vCPUs (virtual CPU count), RAM in MB, root disk in GB, optional ephemeral disk, and optional swap disk. The Nova scheduler uses flavor requirements to find a suitable compute host. Admins create custom flavors; the installation guide creates standard flavors like m1.nano (1 vCPU, 64 MB RAM, 1 GB disk) for CirrOS testing."
+            },
+            {
+                q: "In the Horizon 'Launch Instance' wizard, the 'Source' tab asks you to select a boot source. What does selecting 'Image' as the boot source mean?",
+                opts: [
+                    "Nova will mount an ISO file from a Cinder volume as the primary boot device",
+                    "Nova will create the instance's root disk by copying from a Glance image, either to ephemeral disk or a new Cinder volume",
+                    "Nova will network-boot the instance using PXE from the image service",
+                    "Nova will clone an existing running instance and use its snapshot as the source"
+                ],
+                correct: 1,
+                explanation: "When 'Image' is selected as the boot source, Nova fetches the image from Glance and writes it to the instance's root disk. If 'Delete Volume on Instance Delete' is unchecked and you choose 'Create New Volume', the root disk becomes a persistent Cinder volume — the instance is then 'volume-backed'. If ephemeral storage is used instead, the root disk exists only for the life of the instance. This choice has significant implications for data persistence."
+            },
+            {
+                q: "What CLI command lists all available flavors in OpenStack so you can select one for instance creation?",
+                opts: [
+                    "nova flavor-show --all",
+                    "openstack flavor list",
+                    "openstack server list --flavors",
+                    "glance flavor-list"
+                ],
+                correct: 1,
+                explanation: "The unified OpenStack CLI command is 'openstack flavor list'. It displays all flavors including their ID, Name, RAM (MB), Disk (GB), Ephemeral (GB), VCPUs, and whether they are public. You can use 'openstack flavor show <name-or-id>' for details of a specific flavor, and 'openstack flavor create' to add new ones. The legacy 'nova flavor-list' still works on older deployments but is deprecated in favor of the unified client."
+            },
+            {
+                q: "The 'openstack server create' command requires several mandatory parameters. Which of the following is the CORRECT syntax to launch a CirrOS instance on a provider network?",
+                opts: [
+                    "openstack server create --image cirros --flavor m1.nano --password secret my-instance",
+                    "openstack server create --flavor m1.nano --image cirros-0.5.1-x86_64 --nic net-id=PROVIDER_NET_ID my-instance",
+                    "openstack launch --image cirros --type m1.nano --network provider my-instance",
+                    "nova boot --image cirros --flavor m1.nano --nic net-id=PROVIDER_NET_ID my-instance"
+                ],
+                correct: 1,
+                explanation: "The correct unified CLI syntax is: 'openstack server create --flavor <name> --image <name-or-id> --nic net-id=<network-id> <instance-name>'. The --nic net-id parameter specifies which Neutron network to attach. You can get the network ID from 'openstack network list'. The legacy 'nova boot' command works but is deprecated. There is no 'openstack launch' command. --password sets the admin password injection, which is optional."
+            },
+            {
+                q: "After running 'openstack server create', what initial status does the instance show, and what status indicates it is ready for use?",
+                opts: [
+                    "The instance starts in STOPPED status and transitions to RUNNING when ready",
+                    "The instance starts in BUILD status while being provisioned and transitions to ACTIVE when the VM is running on the hypervisor",
+                    "The instance starts in PENDING status and moves to RUNNING after the image download completes",
+                    "The instance starts in QUEUED status and moves to AVAILABLE when the hypervisor is ready"
+                ],
+                correct: 1,
+                explanation: "Nova's VM power state follows this sequence: BUILD (Nova is scheduling, downloading image, creating network ports, and booting the VM on the hypervisor), then ACTIVE (the VM is running). Other states you may encounter: ERROR (provisioning failed — check nova-compute logs), SHUTOFF (VM is powered off but still allocated), SUSPENDED (VM state saved to disk), and MIGRATING (live migration in progress). Use 'openstack server show <id>' to monitor the detailed state."
+            },
+            {
+                q: "What is a floating IP address in OpenStack, and why is it needed in a self-service network deployment?",
+                opts: [
+                    "A floating IP is a static IP assigned permanently to a flavor type for all instances of that size",
+                    "A floating IP is an externally routable IP from the provider network that can be dynamically associated with an instance's private self-service network IP, enabling external access",
+                    "A floating IP is an IPv6 address automatically assigned by Neutron to all instances",
+                    "A floating IP is a virtual IP used for load balancing between multiple instances of the same application"
+                ],
+                correct: 1,
+                explanation: "In a self-service (tenant) network topology, instances have private IPs (e.g., 192.168.1.5) on an isolated virtual network. External systems cannot reach these IPs directly. A floating IP is a public IP from the provider network pool that gets NAT-mapped by the Neutron L3 agent to the instance's private IP. The mapping is dynamic — you can disassociate a floating IP from one instance and associate it with another without changing the private IP. This is equivalent to AWS Elastic IPs."
+            },
+            {
+                q: "You want to SSH into a new OpenStack instance. Which TWO things must be true before SSH will succeed?",
+                opts: [
+                    "The instance must be launched with a key pair, and its security group must allow inbound TCP port 22 from your source IP",
+                    "The instance must have a Cinder volume attached, and the Horizon dashboard must be running",
+                    "The instance must be on the management network, and you must use the admin credentials",
+                    "The instance must have a floating IP and the Nova VNC proxy service must be disabled"
+                ],
+                correct: 0,
+                explanation: "SSH access requires: (1) A key pair must be specified at launch time. Nova injects the public key into the instance via cloud-init or the metadata service (into ~/.ssh/authorized_keys for the default user). You use the corresponding private key to authenticate. (2) The instance's security group must have a rule allowing TCP port 22 inbound. By default, no inbound traffic is allowed. On a self-service network, the instance also needs a floating IP so you have a routable address to connect to."
+            },
+            {
+                q: "How are OpenStack security groups different from network ACLs, and what is the default security posture for a new instance?",
+                opts: [
+                    "Security groups allow all inbound and outbound traffic by default; network ACLs restrict traffic",
+                    "Security groups are stateful firewalls (return traffic is automatically allowed) applied per-instance; new instances in the 'default' security group deny all inbound traffic from external sources",
+                    "Security groups and network ACLs are identical in OpenStack — both are stateless subnet-level filters",
+                    "Security groups only apply to instances on provider networks; self-service network instances are unprotected"
+                ],
+                correct: 1,
+                explanation: "OpenStack security groups are stateful, instance-level firewalls implemented by iptables rules injected by the Neutron security group agent. 'Stateful' means if you allow inbound TCP 22, the return traffic (TCP ACK responses) is automatically allowed. The default security group allows all egress and allows inbound only from other instances in the same default group. This means a brand-new instance with only the default group is effectively blocked from external SSH — you must add an explicit ingress rule for TCP/22."
+            },
+            {
+                q: "The Horizon dashboard provides a VNC console for instances. Which OpenStack service provides the VNC proxying capability?",
+                opts: [
+                    "nova-spicehtml5proxy — the SPICE remote display proxy service",
+                    "nova-novncproxy — the noVNC websocket proxy that bridges browser WebSocket connections to the instance VNC port",
+                    "neutron-vnc-agent — the Neutron agent that creates VNC tunnel connections",
+                    "glance-vnc — the image service VNC passthrough feature"
+                ],
+                correct: 1,
+                explanation: "nova-novncproxy runs on the controller node and proxies browser-based VNC connections. When you click 'Console' in Horizon, it requests a time-limited VNC token from Nova. Nova-api returns a URL pointing to nova-novncproxy with the token. The proxy validates the token and tunnels the WebSocket connection over a TCP connection to the nova-compute node's libvirt VNC socket for that VM. This allows console access without exposing the hypervisor's VNC ports directly. An alternative is nova-spicehtml5proxy for SPICE protocol."
+            },
+            {
+                q: "You run 'openstack network list' and see two networks: 'provider' and 'selfservice'. What is the key operational difference between these network types for instance connectivity?",
+                opts: [
+                    "Provider networks use IPv6; self-service networks use IPv4 only",
+                    "Instances on the provider network get IPs directly from the physical network's IP pool and can be reached externally without floating IPs; instances on self-service networks require floating IPs for external access",
+                    "Provider networks are only available to admin users; regular tenants can only use self-service networks",
+                    "Self-service networks have higher bandwidth because they bypass the Neutron L3 agent"
+                ],
+                correct: 1,
+                explanation: "Provider networks map directly to the physical network infrastructure. An instance on a provider network gets an IP from the physical subnet pool and is directly reachable from the physical network — no NAT, no floating IP needed. Self-service networks are isolated virtual networks (VXLAN/GRE overlays). Instances get private IPs unreachable from outside. Floating IPs (from the provider network pool) must be associated with the instance for external access. Provider networks are simpler but give tenants less isolation."
+            },
+            {
+                q: "A tenant needs to allow HTTP (port 80) and HTTPS (port 443) inbound to an instance. What is the correct openstack CLI command to add these rules to the 'default' security group?",
+                opts: [
+                    "openstack security group rule create --protocol tcp --dst-port 80:443 default",
+                    "openstack firewall rule create --port 80 --port 443 --ingress default",
+                    "openstack security group rule create default --ingress --ethertype IPv4 --protocol tcp --dst-port 80 && openstack security group rule create default --ingress --ethertype IPv4 --protocol tcp --dst-port 443",
+                    "neutron security-group-rule-create --direction ingress --port-range-min 80 --port-range-max 80 default"
+                ],
+                correct: 2,
+                explanation: "Security group rules are added one at a time with 'openstack security group rule create'. Each invocation adds one rule. The full syntax for adding HTTP: 'openstack security group rule create --proto tcp --dst-port 80 --ingress default'. The --ethertype IPv4 and --ingress flags are often omitted as they are defaults. Option A's '80:443' syntax would allow ports 80 through 443 (all 364 ports), not just 80 and 443. Option D uses the legacy neutron CLI which is deprecated."
+            },
+            {
+                q: "After launching an instance and associating a floating IP, you still cannot ping the instance from an external host. What is the MOST LIKELY cause?",
+                opts: [
+                    "The Glance image service is down, preventing the instance from receiving ICMP packets",
+                    "The instance's security group does not have an inbound rule allowing ICMP (ping) traffic",
+                    "Nova compute needs to be restarted to update the instance's routing table",
+                    "The Keystone token used for the floating IP association has expired"
+                ],
+                correct: 1,
+                explanation: "This is the most common 'gotcha' for new OpenStack operators. Security groups default to denying all inbound traffic including ICMP. Even after a floating IP is correctly associated, pings will silently fail unless you add a security group rule explicitly allowing ICMP. The rule: 'openstack security group rule create --proto icmp --ingress default'. Note that ICMP requires a special --proto icmp flag rather than --proto tcp with a port number, since ICMP uses type/code values rather than ports."
+            },
+            {
+                q: "An OpenStack instance has a private IP of 192.168.1.100 on a self-service network and a floating IP of 203.0.113.50. Where does the NAT translation between these two addresses occur?",
+                opts: [
+                    "On the compute node running the VM, inside the Linux bridge or Open vSwitch flow tables",
+                    "On the controller node's nova-compute service, which manages all network address translation",
+                    "On the network node (or controller if collocated) in the Neutron virtual router namespace, using iptables DNAT/SNAT rules",
+                    "On the physical gateway router, which receives floating IP mappings via BGP from OpenStack"
+                ],
+                correct: 2,
+                explanation: "Floating IP NAT is implemented by Neutron's L3 agent in the virtual router network namespace. The L3 agent creates iptables rules (DNAT for inbound, SNAT for outbound) inside a dedicated network namespace (qrouter-<router-id>) on the network node. When a packet arrives at 203.0.113.50, the L3 agent's DNAT rule translates the destination to 192.168.1.100 and forwards it to the self-service network. The physical router only needs to route the floating IP subnet to OpenStack's external bridge — it knows nothing about individual VM mappings."
+            },
+            {
+                q: "You want to list all running instances on your OpenStack cloud using the CLI. Which command shows all instances across all projects (admin-level view)?",
+                opts: [
+                    "openstack server list",
+                    "openstack server list --all-projects",
+                    "nova list --all-tenants",
+                    "openstack instance list --admin"
+                ],
+                correct: 1,
+                explanation: "By default, 'openstack server list' only shows instances in your current project scope. To see all instances across all projects (requires admin role), use 'openstack server list --all-projects'. This is essential for cloud administrators monitoring overall resource usage. You can combine it with filtering flags: --status ACTIVE, --host compute1, --project <project-id>. The legacy 'nova list --all-tenants' equivalent is valid but deprecated in favor of the unified client."
+            }
+        ];
+
+        // ── State ──
+        let currentQ   = 0;
+        let score       = 0;
+        let selected    = null;
+        let answered    = [];
+        const PASS_PCT  = 70;
+        const STORE_KEY = 'hexworth_openstack_lesson4_quiz';
+
+        function startQuiz() {
+            currentQ = 0; score = 0; selected = null; answered = [];
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('quizScreen').style.display  = 'block';
+            renderQuestion();
+        }
+
+        function renderQuestion() {
+            const q = questions[currentQ];
+            document.getElementById('questionNum').textContent  = `Question ${currentQ + 1} of ${questions.length}`;
+            document.getElementById('qLabel').textContent       = `Question ${currentQ + 1} of ${questions.length}`;
+            document.getElementById('qScore').textContent       = `Score: ${score}`;
+            document.getElementById('questionText').textContent = q.q;
+
+            const pct = ((currentQ + 1) / questions.length) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+
+            const wrap = document.getElementById('optionsWrap');
+            wrap.innerHTML = '';
+            q.opts.forEach((opt, i) => {
+                const div = document.createElement('div');
+                div.className = 'option';
+                div.innerHTML = `<span class="opt-label">${String.fromCharCode(65 + i)}.</span><span>${opt}</span>`;
+                div.addEventListener('click', () => selectOpt(i));
+                wrap.appendChild(div);
+            });
+
+            const fb = document.getElementById('feedback');
+            fb.className = 'feedback';
+            document.getElementById('submitBtn').disabled      = true;
+            document.getElementById('submitBtn').style.display = 'inline-block';
+            document.getElementById('nextBtn').style.display   = 'none';
+            selected = null;
+        }
+
+        function selectOpt(idx) {
+            if (document.getElementById('submitBtn').style.display === 'none') return;
+            document.querySelectorAll('.option').forEach(o => o.classList.remove('selected'));
+            document.querySelectorAll('.option')[idx].classList.add('selected');
+            selected = idx;
+            document.getElementById('submitBtn').disabled = false;
+        }
+
+        function submitAnswer() {
+            if (selected === null) return;
+            const q    = questions[currentQ];
+            const opts = document.querySelectorAll('.option');
+            const isOk = selected === q.correct;
+
+            opts.forEach(o => o.classList.add('disabled'));
+            opts[q.correct].classList.add('correct');
+            if (!isOk) opts[selected].classList.add('incorrect');
+            if (isOk) score++;
+
+            const fb = document.getElementById('feedback');
+            fb.className = `feedback show ${isOk ? 'correct' : 'incorrect'}`;
+            document.getElementById('fbTitle').textContent = isOk ? 'Correct!' : 'Incorrect';
+            document.getElementById('fbBody').textContent  = q.explanation;
+
+            answered.push({ q: q.q, yours: q.opts[selected], correct: q.opts[q.correct], isOk });
+
+            document.getElementById('submitBtn').style.display = 'none';
+            document.getElementById('nextBtn').style.display   = 'inline-block';
+        }
+
+        function nextQuestion() {
+            selected = null;
+            currentQ++;
+            if (currentQ < questions.length) { renderQuestion(); } else { showResults(); }
+        }
+
+        function showResults() {
+            document.getElementById('quizScreen').style.display = 'none';
+            document.getElementById('resultsScreen').classList.add('show');
+
+            const pct    = Math.round((score / questions.length) * 100);
+            const passed = pct >= PASS_PCT;
+
+            document.getElementById('scoreRing').style.setProperty('--pct', pct + '%');
+            document.getElementById('scorePct').textContent    = pct + '%';
+            document.getElementById('statCorrect').textContent = score;
+            document.getElementById('statWrong').textContent   = questions.length - score;
+            document.getElementById('statPct').textContent     = pct + '%';
+
+            const badge = document.getElementById('passBadge');
+            badge.textContent = passed ? 'PASSED' : 'NOT PASSED';
+            badge.className   = `pass-badge ${passed ? 'pass' : 'fail'}`;
+
+            const msgMap = {
+                perfect: 'Operator-level mastery. You know OpenStack operations cold.',
+                high:    'Excellent. You are ready to manage an OpenStack deployment confidently.',
+                pass:    'Good operational knowledge. Review the CLI commands you missed.',
+                fail:    'Review the Operations section — focus on CLI syntax and networking concepts.'
+            };
+            const key = pct === 100 ? 'perfect' : pct >= 85 ? 'high' : passed ? 'pass' : 'fail';
+            document.getElementById('resultMsg').textContent = msgMap[key];
+
+            const rw = document.getElementById('reviewWrap');
+            rw.innerHTML = '';
+            answered.forEach((a, i) => {
+                const d = document.createElement('div');
+                d.className = `review-item ${a.isOk ? 'correct' : 'incorrect'}`;
+                d.innerHTML = `
+                    <div class="review-q"><strong>Q${i + 1}:</strong> ${a.q}</div>
+                    <div class="review-a">
+                        <strong>Your answer:</strong> ${a.yours}<br>
+                        ${!a.isOk ? `<strong>Correct answer:</strong> ${a.correct}` : ''}
+                    </div>`;
+                rw.appendChild(d);
+            });
+
+            try {
+                localStorage.setItem(STORE_KEY + '_score',   pct);
+                localStorage.setItem(STORE_KEY + '_answers', JSON.stringify(answered));
+                localStorage.setItem(STORE_KEY + '_passed',  passed ? '1' : '0');
+            } catch(e) {}
+
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.completeQuiz('cloud', 'openstack-operation-quiz', pct, {
+                    maxScore: 100,
+                    showNotification: true
+                });
+            }
+        }
+
+        function retakeQuiz() {
+            document.getElementById('resultsScreen').classList.remove('show');
+            document.getElementById('startScreen').style.display = 'block';
+        }
+    </script>
+
+    <script src="../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>

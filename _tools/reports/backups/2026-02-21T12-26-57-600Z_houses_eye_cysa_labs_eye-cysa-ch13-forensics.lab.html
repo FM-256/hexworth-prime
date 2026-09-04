@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <script src="../../../../components/AchievementManager.js"></script>
+    <script src="../../../../components/ModuleProgress.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forensics Lab — CySA+ Eye House</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --eye-primary: #a855f7; --eye-secondary: #c084fc;
+            --bg-main: linear-gradient(135deg, #0a0a12, #120a1a, #1a0a25);
+            --card: rgba(15, 10, 25, 0.9); --text: #e8e8f0; --muted: #8080a0;
+            --ok: #34d399; --warn: #fbbf24; --bad: #f87171;
+            --border: rgba(168, 85, 247, 0.22);
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg-main); color: var(--text); min-height: 100vh; padding: 0 0 60px; }
+        /* Header */
+        .site-header { background: rgba(10, 5, 20, 0.96); border-bottom: 1px solid var(--border); padding: 0.9rem 2rem; position: sticky; top: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; backdrop-filter: blur(12px); }
+        .back-link { color: var(--eye-secondary); text-decoration: none; font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 0.4rem; transition: opacity 0.2s; }
+        .back-link:hover { opacity: 0.75; }
+        .header-badge { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 0.35rem 1rem; border-radius: 20px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; }
+        /* Container */
+        .container { max-width: 1000px; margin: 0 auto; padding: 30px 20px; }
+        /* Lab header */
+        .lab-header { text-align: center; margin-bottom: 30px; padding: 30px; background: rgba(168, 85, 247, 0.08); border-radius: 16px; border: 1px solid var(--border); }
+        .lab-header h1 { font-size: 2.1rem; color: var(--eye-primary); margin-bottom: 10px; }
+        .lab-header p { color: var(--muted); font-size: 1.05rem; }
+        /* Progress */
+        .progress-bar { background: rgba(255,255,255,0.1); border-radius: 10px; height: 10px; margin: 18px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--eye-primary), var(--eye-secondary)); border-radius: 10px; transition: width 0.5s ease; width: 0%; }
+        .progress-text { text-align: center; color: var(--muted); font-size: 0.88rem; }
+        /* Exercise */
+        .exercise { background: rgba(255,255,255,0.025); border-radius: 12px; border: 1px solid var(--border); margin-bottom: 22px; overflow: hidden; }
+        .exercise-header { background: rgba(168, 85, 247, 0.09); padding: 18px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .exercise-header:hover { background: rgba(168, 85, 247, 0.15); }
+        .exercise-title { display: flex; align-items: center; gap: 14px; }
+        .exercise-number { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.88rem; flex-shrink: 0; }
+        .exercise-name { font-size: 1.1rem; color: var(--text); font-weight: 600; }
+        .exercise-status { padding: 4px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; }
+        .status-pending { background: rgba(100,100,120,0.3); color: #888; }
+        .status-complete { background: rgba(52,211,153,0.18); color: var(--ok); }
+        .exercise-content { padding: 24px; display: none; }
+        .exercise.active .exercise-content { display: block; }
+        /* Scenario */
+        .scenario { background: rgba(99, 102, 241, 0.08); border-left: 4px solid #818cf8; padding: 14px 18px; margin-bottom: 18px; border-radius: 0 8px 8px 0; }
+        .scenario h4 { color: #a5b4fc; margin-bottom: 6px; font-size: 0.95rem; }
+        .scenario p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+        /* Concept box */
+        .concept-box { background: rgba(251, 191, 36, 0.07); border-left: 3px solid var(--warn); padding: 14px 18px; margin: 14px 0; border-radius: 0 8px 8px 0; }
+        .concept-box h4 { color: var(--warn); margin-bottom: 8px; font-size: 0.9rem; }
+        .concept-box p, .concept-box li { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.6; }
+        .concept-box ul { margin-left: 18px; }
+        /* Code block */
+        .code-block { background: rgba(0,0,0,0.55); border: 1px solid rgba(168,85,247,0.18); border-radius: 10px; padding: 14px 18px; font-family: 'Courier New', monospace; font-size: 0.86rem; color: var(--ok); margin: 12px 0; overflow-x: auto; white-space: pre; line-height: 1.65; }
+        /* Tasks */
+        .task-list { list-style: none; margin: 16px 0; }
+        .task-item { padding: 10px 14px; margin: 7px 0; background: rgba(255,255,255,0.02); border-radius: 8px; display: flex; align-items: flex-start; gap: 11px; border: 1px solid rgba(255,255,255,0.05); }
+        .task-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--eye-primary); flex-shrink: 0; margin-top: 2px; }
+        .task-item.checked { background: rgba(52,211,153,0.05); border-color: rgba(52,211,153,0.2); }
+        .task-item.checked label { text-decoration: line-through; color: #555; }
+        .task-item label { color: var(--muted); font-size: 0.9rem; cursor: pointer; line-height: 1.5; }
+        /* Analysis table */
+        .data-table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.86rem; }
+        .data-table th { padding: 0.6rem 1rem; background: rgba(168,85,247,0.12); color: var(--eye-secondary); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); text-align: left; }
+        .data-table td { padding: 0.6rem 1rem; color: var(--muted); border-bottom: 1px solid rgba(168,85,247,0.06); vertical-align: top; }
+        .td-mono { font-family: monospace; color: var(--ok); }
+        /* Question area */
+        .question-section { background: rgba(168, 85, 247, 0.06); border-radius: 10px; padding: 18px; margin: 16px 0; }
+        .question-section h4 { color: var(--eye-primary); margin-bottom: 12px; font-size: 0.92rem; }
+        .question-section textarea { width: 100%; min-height: 100px; background: rgba(0,0,0,0.35); border: 1px solid rgba(168,85,247,0.3); border-radius: 8px; padding: 11px; color: var(--text); font-family: inherit; font-size: 0.9rem; resize: vertical; }
+        .question-section textarea:focus { outline: none; border-color: var(--eye-primary); }
+        /* Buttons */
+        .complete-btn { background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; border: none; padding: 11px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; margin-top: 14px; transition: transform 0.2s, box-shadow 0.2s; }
+        .complete-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 18px rgba(168,85,247,0.4); }
+        .complete-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        /* Completion badge */
+        .completion-badge { display: none; text-align: center; padding: 40px; background: rgba(52,211,153,0.07); border-radius: 16px; border: 2px solid rgba(52,211,153,0.3); margin-top: 30px; }
+        .completion-badge.show { display: block; animation: fadeIn 0.5s ease; }
+        .completion-badge h2 { color: var(--ok); font-size: 2rem; margin-bottom: 10px; }
+        .badge-desc { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+        .next-steps a { display: inline-block; background: linear-gradient(135deg, var(--eye-primary), var(--eye-secondary)); color: #fff; padding: 11px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 5px; font-size: 0.9rem; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    </style>
+</head>
+<body>
+
+<header class="site-header">
+    <a href="../index.html" class="back-link">&larr; Back to CySA+</a>
+    <span class="header-badge">EYE HOUSE — CySA+</span>
+</header>
+
+<div class="container">
+    <div class="lab-header">
+        <h1>Digital Forensics Lab</h1>
+        <p>Chapter 13 — Evidence handling, disk image analysis, hash verification, and timeline construction</p>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text"><span id="completedCount">0</span> of 4 exercises completed</div>
+    </div>
+
+    <!-- Exercise 1: Evidence Handling and Chain of Custody -->
+    <div class="exercise active" data-exercise="1">
+        <div class="exercise-header" onclick="toggleExercise(1)">
+            <div class="exercise-title">
+                <div class="exercise-number">1</div>
+                <div class="exercise-name">Evidence Handling and Chain of Custody</div>
+            </div>
+            <span class="exercise-status status-pending" id="status1">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Evidence Intake at the Crime Scene</h4>
+                <p>You have been called to a workstation suspected of being used in an insider threat incident. The system is powered on and connected to the network. You must handle evidence intake correctly to preserve forensic integrity and maintain chain of custody.</p>
+            </div>
+
+            <div class="concept-box">
+                <h4>Chain of Custody Fundamentals</h4>
+                <ul>
+                    <li><strong>Document before you touch anything</strong> — photograph the system from multiple angles before disturbing any cables or components</li>
+                    <li><strong>Every handoff is a link in the chain</strong> — signed, timestamped records for every person who handles evidence</li>
+                    <li><strong>Contemporaneous notes</strong> — write notes in real time, not reconstructed later; include exact timestamps using UTC</li>
+                    <li><strong>Identify evidence before collecting</strong> — record hostname, IP address, MAC address, physical location, and asset tag before touching</li>
+                </ul>
+            </div>
+
+            <h4 style="color: var(--eye-secondary); margin: 16px 0 8px;">Evidence Intake Checklist</h4>
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t1-1" onchange="checkTask(1)">
+                    <label for="t1-1">Photograph the workstation and surrounding area from multiple angles before touching anything</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-2" onchange="checkTask(1)">
+                    <label for="t1-2">Record the system's hostname (via command prompt: hostname), IP address (ipconfig /all), and MAC address in your case log with current timestamp</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-3" onchange="checkTask(1)">
+                    <label for="t1-3">Determine whether the system has full-disk encryption — if BitLocker is active and the system is running, capturing the state while powered on is critical (the decryption key is in memory)</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-4" onchange="checkTask(1)">
+                    <label for="t1-4">Complete a chain of custody form with: your name and badge number, evidence description, collection date/time (UTC), and the physical location of collection</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t1-5" onchange="checkTask(1)">
+                    <label for="t1-5">Place physical evidence in numbered evidence bags with tamper-evident seals and attach evidence tags matching your chain of custody form</label>
+                </li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Analysis: To Pull the Plug or Not?</h4>
+                <p>The workstation is running Windows 10 with no visible BitLocker prompt. The user recently opened what appears to be a suspicious PowerShell window (still open). Should you immediately pull the power cord, gracefully shut down, or leave it running for live acquisition? Justify your recommendation.</p>
+                <textarea id="q1" placeholder="Analyze each option and justify your recommendation with reference to the Order of Volatility and evidence preservation principles..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(1)" id="btn1">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 2: Disk Image Acquisition and Verification -->
+    <div class="exercise" data-exercise="2">
+        <div class="exercise-header" onclick="toggleExercise(2)">
+            <div class="exercise-title">
+                <div class="exercise-number">2</div>
+                <div class="exercise-name">Disk Image Acquisition and Hash Verification</div>
+            </div>
+            <span class="exercise-status status-pending" id="status2">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Imaging the Suspect Drive</h4>
+                <p>After capturing volatile data (memory dump completed, network state documented), you are ready to image the suspect hard drive. The drive has been removed and connected to your forensic workstation via a hardware write blocker. You must acquire a verified forensic image.</p>
+            </div>
+
+            <h4 style="color: var(--eye-secondary); margin: 16px 0 8px;">Imaging Process Reference</h4>
+            <div class="code-block"># Step 1: Identify the drive to image (verify you have the right device)
+lsblk -f
+# Output shows: /dev/sdb is the suspect drive (no filesystem mounted = write-blocked source)
+
+# Step 2: Hash the original drive BEFORE imaging
+sha256sum /dev/sdb &gt; /forensics/case001/sdb_source.sha256
+md5sum /dev/sdb &gt; /forensics/case001/sdb_source.md5
+# RECORD the hash values in your case log immediately
+
+# Step 3: Acquire the image using dc3dd (forensic variant of dd)
+dc3dd if=/dev/sdb \
+    hof=/forensics/case001/evidence_sdb.img \
+    hash=md5 hash=sha256 \
+    log=/forensics/case001/dc3dd_acquisition.log \
+    bs=512 conv=noerror,sync
+
+# Step 4: Verify the image hash matches the source
+sha256sum /forensics/case001/evidence_sdb.img
+# Compare to /forensics/case001/sdb_source.sha256
+# HASHES MUST MATCH — if they do not, the image is compromised</div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t2-1" onchange="checkTask(2)">
+                    <label for="t2-1">Understand why lsblk is used before dd to confirm the source device — imaging the wrong device destroys evidence</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-2" onchange="checkTask(2)">
+                    <label for="t2-2">Explain why BOTH MD5 and SHA-256 are used — MD5 has known collision vulnerabilities; dual hashing provides defense against hash collision attacks on the evidence</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-3" onchange="checkTask(2)">
+                    <label for="t2-3">Understand the conv=noerror,sync parameter in dd — noerror continues imaging on read errors; sync fills bad sectors with zeros so the image size matches the source</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t2-4" onchange="checkTask(2)">
+                    <label for="t2-4">Know the difference between a physical (raw) disk image (.img/.dd) and a forensic container format (.E01 for EnCase) — EnCase .E01 includes metadata, hashing, and chain of custody within the image file itself</label>
+                </li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Write Blocker: Hardware vs. Software</h4>
+                <p>Hardware write blockers physically intercept write commands at the interface level before the OS sees the drive. They operate regardless of the software running on the forensic workstation. Software write blockers operate at the driver level — they are cheaper and more convenient but provide less protection. For evidence that may be litigated, hardware write blockers are the gold standard. If you use a software write blocker, document it, and be prepared to explain the limitations.</p>
+            </div>
+
+            <div class="question-section">
+                <h4>Scenario Analysis: Hash Mismatch</h4>
+                <p>After imaging, you compare hashes and find they do not match. The source SHA-256 is 4a2f8c... but the image SHA-256 is 9b3e7d.... What are the possible causes? What do you do next? How does this affect the investigation?</p>
+                <textarea id="q2" placeholder="List possible causes of a hash mismatch, your next steps, and the implications for admissibility..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(2)" id="btn2">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 3: Timeline Construction -->
+    <div class="exercise" data-exercise="3">
+        <div class="exercise-header" onclick="toggleExercise(3)">
+            <div class="exercise-title">
+                <div class="exercise-number">3</div>
+                <div class="exercise-name">Forensic Timeline Construction</div>
+            </div>
+            <span class="exercise-status status-pending" id="status3">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Building the Attack Timeline</h4>
+                <p>You have the forensic image and memory dump. Now you must construct a timeline of events to understand what happened, when, and in what sequence. Timelines are the backbone of forensic reporting — they transform scattered artifacts into a narrative.</p>
+            </div>
+
+            <h4 style="color: var(--eye-secondary); margin: 16px 0 8px;">NTFS Timestamp Types (MACB)</h4>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Letter</th>
+                        <th>Full Name</th>
+                        <th>Description</th>
+                        <th>Forensic Significance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="td-mono">M</td>
+                        <td>Modified</td>
+                        <td>Last data content change</td>
+                        <td>When file was last edited; can be tampered by timestomping</td>
+                    </tr>
+                    <tr>
+                        <td class="td-mono">A</td>
+                        <td>Accessed</td>
+                        <td>Last read operation</td>
+                        <td>When file was last opened; may be disabled in Windows for performance</td>
+                    </tr>
+                    <tr>
+                        <td class="td-mono">C</td>
+                        <td>MFT Changed</td>
+                        <td>Last metadata change</td>
+                        <td>When file attributes/permissions changed; harder to fake than M or A</td>
+                    </tr>
+                    <tr>
+                        <td class="td-mono">B</td>
+                        <td>Born (Created)</td>
+                        <td>File creation time</td>
+                        <td>When file was created on THIS volume; changes on copy/move between volumes</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="code-block"># log2timeline.py builds a super-timeline from multiple forensic sources
+# This ingests the disk image and outputs a Plaso storage file
+log2timeline.py --storage-file case001.plaso \
+    /forensics/case001/evidence_sdb.img
+
+# psort.py processes the Plaso file and filters/exports the timeline
+# Filter: only show events between the suspected compromise time and detection
+psort.py -z UTC case001.plaso \
+    "date &gt; '2025-10-01 18:00:00' AND date &lt; '2025-10-02 06:00:00'" \
+    -o l2tcsv -w case001_filtered_timeline.csv
+
+# Review key Windows artifacts for timeline anchors:
+# - Prefetch files: C:\Windows\Prefetch\ (when programs were executed)
+# - Event logs: C:\Windows\System32\winevt\Logs\
+# - Registry: NTUSER.DAT (user activity), SYSTEM, SOFTWARE
+# - Browser history: \AppData\Local\[BrowserName]\User Data\
+# - LNK files: \AppData\Roaming\Microsoft\Windows\Recent\</div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t3-1" onchange="checkTask(3)">
+                    <label for="t3-1">Understand why Windows Prefetch files are valuable timeline evidence — they record when an executable was run, its full path, and how many times it was executed</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-2" onchange="checkTask(3)">
+                    <label for="t3-2">Know what "timestomping" is — attackers modify file timestamps to make malware appear old and legitimate; the MFT Change ($SI vs $FN attribute comparison) can reveal timestomping</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-3" onchange="checkTask(3)">
+                    <label for="t3-3">List at least 5 Windows artifact categories useful for timeline construction (from the code example above)</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t3-4" onchange="checkTask(3)">
+                    <label for="t3-4">Understand why all timestamps should be normalized to UTC before comparison — mixing timezone-offset timestamps causes critical errors in attack sequence reconstruction</label>
+                </li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Timeline Scenario: Reconstructing an Attack</h4>
+                <p>You find these artifacts in chronological order: (1) A phishing email arrived at 18:32 UTC. (2) A browser LNK shortcut was created at 18:34 UTC. (3) cmd.exe appears in Prefetch with a last run time of 18:35 UTC. (4) A new executable 'svc_updater.exe' was created at 18:35 UTC. (5) A large .zip file was created in %TEMP% at 18:47 UTC. Reconstruct the attack timeline narrative and identify what likely occurred at each step.</p>
+                <textarea id="q3" placeholder="Write a narrative reconstruction of the attack sequence based on the artifacts and timestamps..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(3)" id="btn3">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Exercise 4: Memory Analysis -->
+    <div class="exercise" data-exercise="4">
+        <div class="exercise-header" onclick="toggleExercise(4)">
+            <div class="exercise-title">
+                <div class="exercise-number">4</div>
+                <div class="exercise-name">Memory Analysis with Volatility</div>
+            </div>
+            <span class="exercise-status status-pending" id="status4">Pending</span>
+        </div>
+        <div class="exercise-content">
+            <div class="scenario">
+                <h4>Scenario: Analyzing the Memory Dump for Fileless Malware</h4>
+                <p>The memory dump acquired from the suspect workstation contains evidence of a fileless malware attack. The malware never wrote to disk — it runs entirely in memory using PowerShell as its execution vehicle. You must identify it using Volatility.</p>
+            </div>
+
+            <div class="code-block"># Determine the OS profile for the memory dump
+volatility -f suspect_memory.dmp imageinfo
+
+# List running processes — look for unexpected parent/child relationships
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 pslist
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 pstree
+
+# SUSPICIOUS: powershell.exe spawned by winword.exe (Office macro attack)
+# PID 3842 powershell.exe    Parent: PID 1204 winword.exe
+
+# Dump the PowerShell process memory to examine script content
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 \
+    memdump -p 3842 -D /forensics/case001/dumps/
+
+# Check for code injection — processes with executable memory regions not backed by a file
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 \
+    malfind --pid 3842
+
+# View network connections at time of capture
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 netscan
+
+# Check what DLLs are loaded (unexpected DLLs indicate injection)
+volatility -f suspect_memory.dmp --profile=Win10x64_19041 dlllist --pid 3842</div>
+
+            <ul class="task-list">
+                <li class="task-item">
+                    <input type="checkbox" id="t4-1" onchange="checkTask(4)">
+                    <label for="t4-1">Understand why a process tree showing powershell.exe spawned by winword.exe is suspicious — Office applications should not normally launch PowerShell as a child process</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-2" onchange="checkTask(4)">
+                    <label for="t4-2">Know what the malfind plugin identifies — executable memory regions (PAGE_EXECUTE_READWRITE) that are not backed by a file on disk, which indicates process injection</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-3" onchange="checkTask(4)">
+                    <label for="t4-3">Understand how netscan output can reveal C2 communications — unexpected outbound connections to external IPs from system processes or PowerShell</label>
+                </li>
+                <li class="task-item">
+                    <input type="checkbox" id="t4-4" onchange="checkTask(4)">
+                    <label for="t4-4">Know the forensic value of the memdump plugin — it extracts the full virtual address space of a specific process, allowing extraction of scripts, network payloads, and credential data held in memory</label>
+                </li>
+            </ul>
+
+            <div class="question-section">
+                <h4>Final Report: Executive Summary</h4>
+                <p>Based on your memory analysis findings — powershell.exe spawned by winword.exe, malfind showing injected code in the PowerShell process, and netscan showing an outbound connection to 185.220.101.42:443 — write a 3-4 sentence executive summary suitable for a non-technical audience (CISO or legal counsel).</p>
+                <textarea id="q4" placeholder="Write an executive summary explaining what the memory evidence shows in terms a non-technical executive can understand..."></textarea>
+            </div>
+            <button class="complete-btn" onclick="completeExercise(4)" id="btn4">Mark Exercise Complete</button>
+        </div>
+    </div>
+
+    <!-- Completion Badge -->
+    <div class="completion-badge" id="completionBadge">
+        <h2>Forensics Lab Complete</h2>
+        <p class="badge-desc">You have practiced evidence intake, disk imaging, hash verification, timeline construction, and memory analysis. These are the core skills of a digital forensics investigator.</p>
+        <div class="next-steps">
+            <a href="../quizzes/cysa-ch13-quiz.quiz.html">Take the Ch 13 Quiz</a>
+            <a href="../index.html">Back to CySA+</a>
+        </div>
+    </div>
+
+</div>
+
+<script src="../../../../components/FluxCapacitor.js"></script>
+<script>
+    const TOTAL_EXERCISES = 4;
+    let completedExercises = new Set();
+    const STORE_KEY = 'eye_cysa_ch13_forensics_lab';
+
+    document.addEventListener('DOMContentLoaded', () => { loadProgress(); updateProgressBar(); });
+
+    function toggleExercise(num) {
+        const exercise = document.querySelector(`[data-exercise="${num}"]`);
+        const wasActive = exercise.classList.contains('active');
+        document.querySelectorAll('.exercise').forEach(ex => ex.classList.remove('active'));
+        if (!wasActive) exercise.classList.add('active');
+    }
+
+    function checkTask(exerciseNum) {
+        const exercise = document.querySelector(`[data-exercise="${exerciseNum}"]`);
+        exercise.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+            cb.closest('.task-item').classList.toggle('checked', cb.checked);
+        });
+        saveProgress();
+    }
+
+    function completeExercise(num) {
+        completedExercises.add(num);
+        document.getElementById(`status${num}`).textContent = 'Complete';
+        document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+        document.getElementById(`btn${num}`).textContent = 'Completed';
+        document.getElementById(`btn${num}`).disabled = true;
+        updateProgressBar();
+        saveProgress();
+        if (num < TOTAL_EXERCISES) setTimeout(() => toggleExercise(num + 1), 500);
+        if (completedExercises.size === TOTAL_EXERCISES) {
+            document.getElementById('completionBadge').classList.add('show');
+            if (typeof ModuleProgress !== 'undefined') {
+                ModuleProgress.complete('eye', 'eye-cysa-ch13-lab');
+            }
+        }
+    }
+
+    function updateProgressBar() {
+        const pct = (completedExercises.size / TOTAL_EXERCISES) * 100;
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('completedCount').textContent = completedExercises.size;
+    }
+
+    function saveProgress() {
+        const data = { completed: Array.from(completedExercises), checkboxes: {}, answers: {} };
+        document.querySelectorAll('input[type="checkbox"]').forEach(cb => { data.checkboxes[cb.id] = cb.checked; });
+        document.querySelectorAll('textarea').forEach(ta => { data.answers[ta.id] = ta.value; });
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(data)); } catch(e) {}
+    }
+
+    function loadProgress() {
+        try {
+            const saved = localStorage.getItem(STORE_KEY);
+            if (!saved) return;
+            const data = JSON.parse(saved);
+            if (data.completed) {
+                data.completed.forEach(num => {
+                    completedExercises.add(num);
+                    document.getElementById(`status${num}`).textContent = 'Complete';
+                    document.getElementById(`status${num}`).className = 'exercise-status status-complete';
+                    document.getElementById(`btn${num}`).textContent = 'Completed';
+                    document.getElementById(`btn${num}`).disabled = true;
+                });
+            }
+            if (data.checkboxes) {
+                Object.entries(data.checkboxes).forEach(([id, checked]) => {
+                    const cb = document.getElementById(id);
+                    if (cb) { cb.checked = checked; if (checked) cb.closest('.task-item').classList.add('checked'); }
+                });
+            }
+            if (data.answers) {
+                Object.entries(data.answers).forEach(([id, value]) => {
+                    const ta = document.getElementById(id);
+                    if (ta) ta.value = value;
+                });
+            }
+            if (completedExercises.size === TOTAL_EXERCISES) {
+                document.getElementById('completionBadge').classList.add('show');
+            }
+        } catch(e) {}
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="../../../../../components/AccessGuard.js"></script>
+    <script>AccessGuard.require('sorted');</script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CyberOps Week 5: Incident Response & Forensics - House of Eye</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0a1628 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; }
+
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            color: #64748b;
+        }
+        .breadcrumb a { color: #06b6d4; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        header {
+            text-align: center;
+            padding: 40px 30px;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border: 2px solid #06b6d4;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.1) 0%, transparent 70%);
+            animation: pulse 6s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .week-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 25px;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            position: relative;
+            z-index: 1;
+        }
+        .icon { font-size: 4em; margin-bottom: 15px; position: relative; z-index: 1; }
+        h1 { color: #06b6d4; font-size: 2.5em; margin-bottom: 10px; position: relative; z-index: 1; }
+        .subtitle { color: #8b5cf6; font-size: 1.2em; position: relative; z-index: 1; }
+
+        .progress-overview {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+        .progress-stat { text-align: center; }
+        .progress-stat .number { font-size: 2.5em; color: #06b6d4; font-weight: bold; }
+        .progress-stat .label { font-size: 0.85em; color: #94a3b8; }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 40px 0 20px 0;
+        }
+        .section-header h2 { color: #06b6d4; font-size: 1.5em; }
+        .section-line { flex: 1; height: 2px; background: linear-gradient(90deg, #06b6d4, transparent); }
+
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .module-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .module-card:hover {
+            border-color: #06b6d4;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(6, 182, 212, 0.2);
+        }
+        .module-card.completed { border-color: #22c55e; }
+        .module-card.completed::after {
+            content: '✓';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #22c55e;
+            color: white;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8em;
+        }
+
+        .module-number {
+            display: inline-block;
+            background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin-bottom: 12px;
+        }
+        .module-card h3 { color: #e2e8f0; margin-bottom: 10px; font-size: 1.1em; }
+        .module-card p { color: #94a3b8; font-size: 0.9em; line-height: 1.5; }
+
+        .module-type {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            margin-top: 12px;
+        }
+        .module-type.create { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
+        .module-type.wrap { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
+        .module-type.link { background: rgba(6, 182, 212, 0.2); color: #06b6d4; }
+        .module-type.lab { background: rgba(234, 179, 8, 0.2); color: #eab308; }
+
+        .lab-card {
+            background: rgba(15, 23, 42, 0.8);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+        .lab-card:hover { border-color: #eab308; transform: translateY(-3px); }
+        .lab-card.completed { border-color: #22c55e; }
+        .lab-card h3 {
+            color: #eab308;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .lab-card p { color: #94a3b8; font-size: 0.9em; }
+        .lab-meta { display: flex; gap: 15px; margin-top: 12px; font-size: 0.8em; color: #64748b; }
+
+        .lab-card.activity h3 { color: #f97316; }
+        .lab-card.activity:hover { border-color: #f97316; }
+
+        .external-link::after { content: ' ↗'; color: #64748b; }
+
+        .eval-card {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(139, 92, 246, 0.2));
+            border: 2px solid #8b5cf6;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin-top: 30px;
+        }
+        .eval-card h3 { color: #8b5cf6; margin-bottom: 10px; font-size: 1.3em; }
+        .eval-card p { color: #94a3b8; margin-bottom: 20px; }
+        .eval-card a {
+            display: inline-block;
+            background: linear-gradient(135deg, #8b5cf6, #06b6d4);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .eval-card a:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(139, 92, 246, 0.4); }
+
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #334155;
+        }
+        .nav-footer a { color: #06b6d4; text-decoration: none; display: flex; align-items: center; gap: 8px; }
+        .nav-footer a:hover { text-decoration: underline; }
+        .nav-footer .coming-soon { color: #64748b; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="breadcrumb">
+            <a href="../../../index.html">House of Eye</a>
+            <span>/</span>
+            <a href="../../../modules/cyberops/index.html">CyberOps</a>
+            <span>/</span>
+            <span>Week 5</span>
+        </nav>
+
+        <header>
+            <span class="week-badge">📅 WEEK 5</span>
+            <div class="icon">🔍🛡️</div>
+            <h1>Incident Response & Forensics</h1>
+            <p class="subtitle">NIST Guidelines, Policy Management & Evidence Handling</p>
+
+            <div class="progress-overview">
+                <div class="progress-stat">
+                    <div class="number" id="topicsComplete">0</div>
+                    <div class="label">of 7 Topics</div>
+                </div>
+                <div class="progress-stat">
+                    <div class="number" id="labsComplete">0</div>
+                    <div class="label">of 5 Labs</div>
+                </div>
+                <div class="progress-stat">
+                    <div class="number" id="overallProgress">0%</div>
+                    <div class="label">Complete</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- FORENSICS FUNDAMENTALS -->
+        <div class="section-header">
+            <h2>📋 Forensics Fundamentals</h2>
+            <div class="section-line"></div>
+        </div>
+        <div class="module-grid">
+            <a href="../eye-nist-800-86.applet.html" class="module-card" data-key="cyberops_topic_nist_800_86">
+                <span class="module-number">5.1</span>
+                <h3>NIST SP 800-86 Concepts</h3>
+                <p>Four-phase forensic process, evidence collection, order of volatility, and documentation.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+            <a href="../eye-forensic-elements.applet.html" class="module-card" data-key="cyberops_topic_forensic_elements">
+                <span class="module-number">5.7</span>
+                <h3>Forensic Evidence Elements</h3>
+                <p>Volatile vs non-volatile evidence, file system artifacts, memory forensics, and log sources.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+        </div>
+
+        <!-- GOVERNANCE & POLICY -->
+        <div class="section-header">
+            <h2>📜 Governance & Policy</h2>
+            <div class="section-line"></div>
+        </div>
+        <div class="module-grid">
+            <a href="../eye-security-policy.applet.html" class="module-card" data-key="cyberops_topic_security_policy">
+                <span class="module-number">5.2</span>
+                <h3>Security Policy Management</h3>
+                <p>Policy hierarchy, AUP, data classification, regulatory compliance (GDPR, HIPAA, PCI).</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+            <a href="../eye-protected-data.applet.html" class="module-card" data-key="cyberops_topic_protected_data">
+                <span class="module-number">5.4</span>
+                <h3>Protected Data</h3>
+                <p>PII, PHI, PCI data types, classification levels, DLP alerts, and breach response.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+        </div>
+
+        <!-- SOC OPERATIONS -->
+        <div class="section-header">
+            <h2>👁️ SOC Operations</h2>
+            <div class="section-line"></div>
+        </div>
+        <div class="module-grid">
+            <a href="../eye-soc-metrics.applet.html" class="module-card" data-key="cyberops_topic_soc_metrics">
+                <span class="module-number">5.3</span>
+                <h3>SOC Metrics & Scope</h3>
+                <p>MTTD, MTTR, dwell time, tier responsibilities, SLAs, and coverage metrics.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+            <a href="../eye-network-profiling.applet.html" class="module-card" data-key="cyberops_topic_network_profiling">
+                <span class="module-number">5.5</span>
+                <h3>Network & Server Profiling</h3>
+                <p>Baseline establishment, anomaly detection, server profiles, and SIEM integration.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+            <a href="../eye-irp-elements.applet.html" class="module-card" data-key="cyberops_topic_irp_elements">
+                <span class="module-number">5.8</span>
+                <h3>Elements of an IRP</h3>
+                <p>NIST IR phases, escalation matrices, containment strategies, and post-incident activities.</p>
+                <span class="module-type wrap">WRAP</span>
+            </a>
+        </div>
+
+        <!-- LABS -->
+        <div class="section-header">
+            <h2>🧪 Hands-On Labs</h2>
+            <div class="section-line"></div>
+        </div>
+        <div class="module-grid">
+            <a href="labs/eye-whats-going-on.lab.html" class="lab-card activity" data-key="cyberops_lab_whats_going_on">
+                <h3>🤔 What's Going On?</h3>
+                <p>Class activity - collaborative incident identification and initial analysis exercise.</p>
+                <div class="lab-meta">
+                    <span>⏱️ 30-45 min</span>
+                    <span>📍 Class Activity</span>
+                </div>
+            </a>
+            <a href="labs/eye-logging-network-activity.lab.html" class="lab-card" data-key="cyberops_lab_logging_network_activity">
+                <h3>📡 Logging Network Activity</h3>
+                <p>Configure logging, observe packet flow, and correlate network events with log entries.</p>
+                <div class="lab-meta">
+                    <span>⏱️ 30 min</span>
+                    <span>📍 Web House</span>
+                </div>
+            </a>
+            <a href="labs/eye-dns-traffic.lab.html" class="lab-card" data-key="cyberops_lab_dns_traffic">
+                <h3>🔍 Exploring DNS Traffic</h3>
+                <p>Analyze DNS patterns, detect tunneling indicators, and extract IOCs from DNS logs.</p>
+                <div class="lab-meta">
+                    <span>⏱️ 30-45 min</span>
+                    <span>📍 Eye House</span>
+                </div>
+            </a>
+            <a href="labs/eye-mysql-attack.lab.html" class="lab-card" data-key="cyberops_lab_mysql_attack">
+                <h3>💉 Attacking MySQL Database</h3>
+                <p>Understand SQL injection from a defensive perspective for SOC detection awareness.</p>
+                <div class="lab-meta">
+                    <span>⏱️ 45 min</span>
+                    <span>📍 Web House</span>
+                </div>
+            </a>
+            <a href="labs/eye-server-logs.lab.html" class="lab-card" data-key="cyberops_lab_server_logs">
+                <h3>📋 Reading Server Logs</h3>
+                <p>Parse log formats, identify security events, and build investigation timelines.</p>
+                <div class="lab-meta">
+                    <span>⏱️ 30 min</span>
+                    <span>📍 Script House</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- EVALUATION -->
+        <div class="eval-card">
+            <h3>📝 Week 5 Evaluation</h3>
+            <p>Complete all topics and labs, then take the Week 5 assessment to test your incident response and forensics knowledge.</p>
+            <a href="evaluation.html">Begin Evaluation →</a>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-footer">
+            <a href="../week4/index.html">← Week 4: Network Intrusion Analysis</a>
+            <a href="../week6/index.html">Week 6: Cryptography Labs →</a>
+        </div>
+    </div>
+
+    <script>
+        function updateProgress() {
+            const moduleCards = document.querySelectorAll('.module-card, .lab-card');
+            let topicsComplete = 0;
+            let labsComplete = 0;
+            let totalTopics = 7;
+            let totalLabs = 5;
+
+            moduleCards.forEach(card => {
+                const key = card.dataset.key;
+                if (key) {
+                    const status = localStorage.getItem(key);
+                    if (status === 'completed' || status === 'complete' || status === 'passed') {
+                        card.classList.add('completed');
+                        if (card.classList.contains('lab-card')) {
+                            labsComplete++;
+                        } else {
+                            topicsComplete++;
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('topicsComplete').textContent = topicsComplete;
+            document.getElementById('labsComplete').textContent = labsComplete;
+
+            const overallPercent = Math.round(((topicsComplete + labsComplete) / (totalTopics + totalLabs)) * 100);
+            document.getElementById('overallProgress').textContent = overallPercent + '%';
+        }
+
+        updateProgress();
+    </script>
+    <script src="../../../../../components/FluxCapacitor.js"></script>
+</body>
+</html>
