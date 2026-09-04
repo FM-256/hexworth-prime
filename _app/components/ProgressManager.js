@@ -1230,9 +1230,23 @@ class ProgressManager {
     static HOUSE_MASTERY_XP = 10000; // XP_REWARDS.COURSE_COMPLETE
 
     static awardHouseMastery(houseId) {
-        // Reject garbage house IDs to prevent inflated course completions
-        const VALID_HOUSES = ['web','shield','forge','script','cloud','code','key','eye','ai','linux','arena','dark-arts'];
-        if (!VALID_HOUSES.includes(houseId)) return;
+        /* BUG-254. This was a hand-maintained second list and it had drifted from HOUSES in BOTH
+           directions: it carried `ai`, `linux` and `arena`, which are not houses at all, and it
+           omitted `matrix` and `divergent`, which are. So the guard whose stated job is rejecting
+           garbage house ids accepted three pieces of garbage, while two real houses could never be
+           awarded mastery at all. At HOUSE_MASTERY_XP each, that is 20,000 XP no student could
+           reach, and three ids that could inflate the very count this exists to protect.
+
+           Derived from HOUSES rather than restated, because the restating IS the bug: the same
+           question answered in two places drifts the moment either one changes. Same mistake shape
+           as completeModule's progressPercent, fixed the same way.
+
+           NOTE, and it is why BUG-254 stays open: this removes ONE of two blockers. The caller
+           also requires pathModules.length > 0 && completedInPath.length === pathModules.length,
+           and dark-arts, matrix and divergent have no LearningPaths entry at all, so mastery still
+           cannot fire for them until that content exists. Authoring three houses' worth of
+           learning path is a curriculum decision, not a drive-by fix. */
+        if (!Object.prototype.hasOwnProperty.call(this.HOUSES, houseId)) return;
 
         const COMPLETION_KEY = 'hexworth_house_completions';
         try {
