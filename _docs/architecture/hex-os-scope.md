@@ -151,6 +151,24 @@ that white-label containment depends on, because scope matching prefers the long
 load-time guard cannot fix it since the controller is chosen before the page's own scripts run.
 Offline belongs in the root worker and is tracked separately as HEXOS-5b.
 
+**PREMISE CORRECTED 2026-09-05.** The paragraph above was true when written and is no longer.
+Commit `8eab9ece1` (2026-09-01) loaded `TenantRouter.js` and `TenantShell.js` STATICALLY on all
+three `/hex/` pages, and that was live-tested by forcing a `/hex/`-scoped worker to win the scope
+race against a real tenant session: containment held, the back-link still rewrote to the tenant hub.
+So a `/hex/`-scoped worker no longer defeats white-label containment on these pages. The blocker
+this section describes is GONE, and it stayed written down for four days in four places.
+
+A SECOND correction, found the same day: `tenant-sw.js` is registered from exactly ten `/tenant/`
+pages and nowhere else, so it controls ZERO pages for a direct Hexworth student. Any plan that
+begins "put it in the root worker that already controls every page" is describing a worker that
+most students do not have.
+
+HEXOS-5b is nevertheless still OPEN and NOT built, for a reason that has nothing to do with the
+blocker: offline can only cache the launcher, and `run <app>` does a top-level navigation to an
+app entry page that is deliberately not cached, so an offline student gets a catalogue of 192
+things and a browser error page when they open one. See the vote record in the taskboard.
+
+
 ### HEXOS-6 — Hex Live (bootable image)  *(LAST, and conditional)*
 Debian or Ubuntu respin whose session is the shell, lab tooling preinstalled, flashable to a USB
 stick or laptop.

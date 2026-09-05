@@ -6,6 +6,18 @@
  * design below is sound and will be reused; what is unsound is registering a SECOND worker
  * at this path at all.
  *
+ * ⚠ PREMISE CORRECTED 2026-09-05, READ THIS BEFORE THE PARAGRAPH BELOW. Commit 8eab9ece1
+ * (2026-09-01) loaded TenantRouter and TenantShell STATICALLY on all three /hex/ pages, and that
+ * was live-tested by forcing a /hex/-scoped worker to win the scope race: containment held. The
+ * reasoning below is therefore HISTORICAL. It is kept because it explains why this file is shaped
+ * the way it is, not because the constraint still stands.
+ * ⚠ ALSO: tenant-sw.js is registered from ten /tenant/ pages and NOWHERE else, so it controls no
+ * pages at all for a direct student. "the root worker that already controls every page" was never
+ * true for them.
+ * ⚠ STILL NOT REGISTERED, for a different reason: offline can only cache the launcher, and `run`
+ * navigates to an app page that is deliberately not cached, so the student gets a catalogue and
+ * then a browser error. That is a value judgement, not a technical block.
+ *
  * WHY. tenant-sw.js is registered at scope '/' and injects TenantRouter + TenantShell into
  * every navigation outside /tenant/ and /admin/. That injection is the white-label guarantee
  * a tenant is paying for. Service worker scope matching prefers the LONGEST match, so a
@@ -27,7 +39,8 @@
  * where the guard's confidence came from.)
  *
  * WHAT HEXOS-5b SHOULD DO INSTEAD. Only one worker can control a page, so Hex OS offline
- * caching belongs IN the single root-scoped worker that already controls every page, beside
+ * caching belongs IN the single root-scoped worker (which, per the correction at the top of this
+ * file, controls NO page for a direct student), beside
  * the tenant injection, not in a second worker competing for these two paths. The cache
  * strategy below transfers as-is; the registration does not.
  *
