@@ -206,6 +206,40 @@ function readHubRegistry() {
  * as enforcement. It is a declaration. Real enforcement on this platform lives in firestore.rules,
  * which she confirmed by getting a 403 PERMISSION_DENIED on an unauthenticated Observatory read.
  */
+/* The student-facing name, taken from the page the student actually lands on.
+ *
+ * This used to title-case the directory slug: `id.replace(/(^|-)(\w)/g, ...)`. That produced a
+ * name for every house that the platform does not use, and for three of them a name that is
+ * simply wrong:
+ *
+ *     slug          Hex OS showed      the house's own page says
+ *     ai            "Ai"               House of the Machine
+ *     divergent     "Divergent"        The Warehouse // Divergent
+ *     observatory   "Observatory"      Hexworth Observatory
+ *
+ * A student who knows their house as "House of the Machine" got nothing from `search machine`,
+ * and `info ai` printed "Ai", which is not a word. The only way in was already knowing the
+ * internal codename. Found by review, by looking for the house a student would look for rather
+ * than the one the manifest lists.
+ *
+ * Reading the <title> is deriving from the source of truth rather than restating it: the title is
+ * what the student sees on arrival, so the two cannot drift. The slug title-case survives only as
+ * a fallback for entries that have no page of their own.
+ */
+function displayName(id, rel) {
+    const titleCased = id.replace(/(^|-)(\w)/g, (m, a, b) => (a ? ' ' : '') + b.toUpperCase());
+    try {
+        const html = fs.readFileSync(path.join(APP, rel), 'utf8');
+        const m = html.match(/<title>([^<]+)<\/title>/i);
+        if (!m) return titleCased;
+        // Strip the site suffix in either separator style, then collapse whitespace.
+        const name = m[1].split(/\s+[-|]\s+Hexworth/i)[0].replace(/\s+/g, ' ').trim();
+        return name || titleCased;
+    } catch (e) {
+        return titleCased;
+    }
+}
+
 function permissionFor(entry) {
     const f = path.join(APP, entry.replace(/^\//, ''));
     if (!fs.existsSync(f)) return null;
@@ -244,7 +278,7 @@ function build() {
         const parts = rel.split('/').filter(Boolean);
         const id = parts[parts.length - 2];
         seen.set(rel, {
-            id: id, name: id.replace(/(^|-)(\w)/g, (m, a, b) => (a ? ' ' : '') + b.toUpperCase()),
+            id: id, name: displayName(id, rel),
             house: parts[0] === 'houses' ? id : null,
             category: c.why === 'HouseRenderer' ? 'house' : 'cert-prep',
             entry: rel, verb: 'open', clientGuard: permissionFor(rel),

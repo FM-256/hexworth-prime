@@ -112,6 +112,16 @@
             flex: 1 1 auto; background: transparent; border: 0; outline: 0;
             color: var(--fg); font: inherit; caret-color: var(--accent);
         }
+        /* outline:0 above removed the native focus ring and nothing replaced it, on the single
+           input this entire product revolves around. Every other interactive element here already
+           has one (.bar a:focus-visible above; .cat and .app in apps.html). A keyboard user who
+           tabs to "back to Hexworth" and shift-tabs back got no confirmation they had returned.
+           caret-color is not a substitute: forced-colors mode suppresses both it and the deleted
+           outline, so that user had nothing at all. */
+        #cmd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+        @media (forced-colors: active) {
+            #cmd:focus-visible { outline: 2px solid Highlight; }
+        }
         .muted { color: var(--dim); }
         .ok { color: var(--accent); }
         .info { color: var(--accent2); }
@@ -131,7 +141,16 @@
         <a href="/">back to Hexworth</a>
     </div>
     <div class="wrap">
-        <div id="out"></div>
+        <!-- role=log + aria-live: without these a screen-reader user pressing Enter hears
+             NOTHING back. Not for help, not for an error, not for ps output, not for a launch
+             confirmation; they must leave focus, re-enter browse mode and hunt for the new text
+             after every single command, which for a command line is close to unusable. apps.html
+             already marks its result count aria-live="polite" for exactly this reason, so this was
+             the same question answered two ways across the two Hex OS pages.
+             polite, not assertive: output follows a keystroke the user just made, so it should not
+             interrupt them mid-sentence. aria-atomic=false so only the NEW line is read rather
+             than the whole transcript being re-announced after every command. -->
+        <div id="out" role="log" aria-live="polite" aria-atomic="false" aria-label="command output"></div>
         <div class="row">
             <span class="ps1" id="ps1">hex&gt;</span>
             <input id="cmd" autocomplete="off" autocapitalize="off" spellcheck="false"
@@ -371,7 +390,28 @@
         var labKey = String(arg == null ? '' : arg).toLowerCase();
         return SL.list().then(function (r) {
             // See the contract note in `ps`. Key is `sandboxes`; fields are sessionId/labId/status.
-            var rows = (r && r.sandboxes) || [];
+            /* ARRAY, OR IT IS NOT A LIST. `(r && r.sandboxes) || []` accepts any TRUTHY value,
+               so an object, a string or a number passes straight through and `rows.length` is
+               undefined. `!rows.length` is then true and the shell says "nothing running", and the
+               `i < rows.length` loop below never runs, so `stop arctic` says "you have nothing
+               running for it. run arctic starts it", pointing a student at starting a SECOND
+               session while the first is still consuming capacity. A confident false statement,
+               with no error anywhere.
+               Not hypothetical: this file's own comments record the response key drifting twice
+               already (r.sessions, r.data). A reviewer reproduced it by returning
+               {sandboxes: {'sess-abc': {...}}}, a valid 200 with a dict instead of a list.
+               Trusting SERVER truth, which ps's own docblock says it does, means checking the
+               server actually sent the shape it promised. */
+            if (r && r.sandboxes && !Array.isArray(r.sandboxes)) {
+                /* STOP HERE. A first pass warned and then carried on into the empty-list path, so
+                   the student got the warning AND "nothing running. run <lab> starts one." right
+                   under it, which is the false statement this guard exists to prevent. Warning
+                   about a lie while still telling it is not a fix. */
+                say('the session manager returned an unexpected shape for `sandboxes`, so this '
+                    + 'cannot be trusted. Your labs may still be running.', 'warn');
+                return say('nothing was changed. try again, or check the lab from its own page.', 'muted');
+            }
+            var rows = (r && Array.isArray(r.sandboxes)) ? r.sandboxes : [];
             for (var i = 0; i < rows.length; i++) {
                 // Fold BOTH sides. The ids are lowercase by convention, not by enforcement, and
                 // this list arrives off the wire.
@@ -561,12 +601,29 @@
             note = (note ? note + '. ' : '') + total + ' matched, showing the first ' + SHOWN
                  + '. Narrow it with a longer word, or scope first with `cd`.';
         }
+        /* MARK THE TIER, because `info` already does and these two did not. A reviewer found that
+           `ls` and `search` listed admin-tier and Vault-tier apps as ordinary, unflagged rows to an
+           anonymous visitor, while `info` on the same app prints the caveat about what clientGuard
+           means. Same question answered two ways in one file, which is the shape that keeps costing
+           us here.
+
+           NOT hiding them, deliberately. The manifest is a public static file and the operator's
+           standing decision on this class was to DOCUMENT rather than conceal (see the manifest's
+           own `clientGuardIsNotEnforcement` note). Filtering rows out would also make `ls` lie
+           about how much is there, which is the same defect as an unannounced cap. Marking is the
+           honest middle: the row is still listed, and it no longer reads as ordinary.
+
+           `sorted` is the baseline every signed-in student has, so it is not a tier worth marking;
+           public/free/any are wider still. Only the narrower guards get a badge. */
+        var OPEN_GUARDS = { sorted: 1, 'public': 1, free: 1, any: 1 };
         var rows = list.map(function (a) {
             var href = safeEntry(a.entry);
+            var tier = (a.clientGuard && !OPEN_GUARDS[a.clientGuard]) ? a.clientGuard : '';
             return '<tr><td>' + (href ? '<a class="app" href="' + esc(href) + '">' + esc(a.id) + '</a>'
                                       : '<span class="err">' + esc(a.id) + '</span>') + '</td>' +
                    '<td class="muted">' + esc(a.category) + '</td>' +
-                   '<td>' + esc(a.name || '') + '</td></tr>';
+                   '<td>' + esc(a.name || '')
+                          + (tier ? ' <span class="warn">[' + esc(tier) + ']</span>' : '') + '</td></tr>';
         }).join('');
         say('<table>' + rows + '</table>' + (note ? '<span class="muted">' + esc(note) + '</span>' : ''));
     }
@@ -1016,7 +1073,28 @@
             // Every one of those guesses was wrong. The key is `sandboxes`, and the test that
             // "proved" it green used a mock I had invented, so it could not have failed. `lab` is
             // a human display NAME, not an id, so it is never a fallback for labId.
-                var rows = (r && r.sandboxes) || [];
+                /* ARRAY, OR IT IS NOT A LIST. `(r && r.sandboxes) || []` accepts any TRUTHY value,
+               so an object, a string or a number passes straight through and `rows.length` is
+               undefined. `!rows.length` is then true and the shell says "nothing running", and the
+               `i < rows.length` loop below never runs, so `stop arctic` says "you have nothing
+               running for it. run arctic starts it", pointing a student at starting a SECOND
+               session while the first is still consuming capacity. A confident false statement,
+               with no error anywhere.
+               Not hypothetical: this file's own comments record the response key drifting twice
+               already (r.sessions, r.data). A reviewer reproduced it by returning
+               {sandboxes: {'sess-abc': {...}}}, a valid 200 with a dict instead of a list.
+               Trusting SERVER truth, which ps's own docblock says it does, means checking the
+               server actually sent the shape it promised. */
+            if (r && r.sandboxes && !Array.isArray(r.sandboxes)) {
+                /* STOP HERE. A first pass warned and then carried on into the empty-list path, so
+                   the student got the warning AND "nothing running. run <lab> starts one." right
+                   under it, which is the false statement this guard exists to prevent. Warning
+                   about a lie while still telling it is not a fix. */
+                say('the session manager returned an unexpected shape for `sandboxes`, so this '
+                    + 'cannot be trusted. Your labs may still be running.', 'warn');
+                return say('nothing was changed. try again, or check the lab from its own page.', 'muted');
+            }
+            var rows = (r && Array.isArray(r.sandboxes)) ? r.sandboxes : [];
                 if (!rows.length) {
                     return say('nothing running. <span class="muted">' +
                         '<span class="ok">run &lt;lab&gt;</span> starts one.</span>', 'muted');
@@ -1420,6 +1498,40 @@
             if (!near.length && !SYNONYMS[verb] && !COMMANDS[verb] && verb.length > 2) {
                 var vFix = accountVocab.filter(function (w) { return editDistance(verb, w) <= 1; });
                 if (vFix.length === 1) acctVerb = vFix[0];
+            }
+
+            /* A SENTENCE IS NOT A VERB WITH AN ARGUMENT, and treating it as one produced the most
+               confidently wrong answer in this shell. Reproduced by a reviewer against the live
+               page, typing the way a first-timer does rather than the way this suite does:
+
+                   how do I find my class  ->  "how is not a command here. Try ls do I find my class"
+                   show me the arena       ->  "show is not a command here. Try ls me the arena"
+
+               Both are worse than "not a command", because they LOOK like an answer. `ls me the
+               arena` is syntactically well formed, fails on its own, and sends the student one
+               dead end deeper. Two paths reach it: `show` is a real synonym, and `how` resolves to
+               `show` by the edit-distance-1 account pool above.
+
+               A multi-word argument is the signal. Every command here takes at most one token as
+               its argument, so a space inside `arg` means the student is DESCRIBING something, not
+               naming it. Real commands never reach this branch, so `search house of the machine`
+               is unaffected.
+
+               The suggestion uses the LAST word because in an English question the noun lands
+               there ("...my class" -> class, "...the arena" -> arena), which turns both of the
+               reproductions above into a query that actually returns something. Guessing further
+               than that would be the same overreach being fixed. */
+            var proseArg = /\s/.test(arg.trim());
+            if (proseArg && !COMMANDS[verb]) {
+                var lastWord = arg.trim().split(/\s+/).pop().replace(/[^\w-]/g, '');
+                say(esc(typed + ' ' + arg) + ' is a sentence, not a command.', 'warn');
+                if (lastWord) {
+                    say('this shell takes one word. try <span class="ok">search ' + esc(lastWord)
+                        + '</span>, or <span class="ok">help</span> for the 12 commands.', 'muted');
+                } else {
+                    say('<span class="ok">help</span> lists the 12 commands.', 'muted');
+                }
+                return;
             }
 
             if (SYNONYMS[acctVerb]) {

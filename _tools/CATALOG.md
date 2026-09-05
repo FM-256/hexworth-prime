@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-04 12:02 · **1189 scripts** · 39 wired into a gate · 280 called by other code · 190 only mentioned in docs · 680 referenced by nothing · 478 not in git
+**Generated:** 2026-09-04 23:58 · **1193 scripts** · 41 wired into a gate · 280 called by other code · 190 only mentioned in docs · 682 referenced by nothing · 482 not in git
 
 ## Read this before writing a new script
 
@@ -51,10 +51,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
+| `_tools/hexos/api-degradation-a11y.test.js` | `_tools/deploy/post-verify.sh` | **NO** | Hex OS under a MISBEHAVING sandbox API, plus the two a11y gaps no suite tested |
 | `_tools/hexos/corpus-preservation.test.js` | `deploy.sh` | yes | Sweeps every HTML file under _app and fails if stripDead() removes an href that was NOT inside a comment. Catches content deletion the unit tests cannot. |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
 | `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
 | `_tools/hexos/doc-examples.test.js` | `_tools/deploy/post-verify.sh` | yes | Runs every shell example printed in the Hex OS FAQ against the real shell and fails if any of them errors. Documented examples must actually work. |
+| `_tools/hexos/first-timer.test.js` | `_tools/deploy/post-verify.sh` | **NO** | Hex OS: what a FIRST-TIMER types, and the content tiers ls/search expose |
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -755,7 +757,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 11 scripts, 8 referenced by nothing
+### `_tools/hexos` — 13 scripts, 10 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -764,6 +766,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
+| `_probe_malformed_api2_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
+| `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | no | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
@@ -1876,7 +1880,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-32 scripts are referenced by nothing AND follow the leading-underscore
+34 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1889,6 +1893,8 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
+- `_tools/hexos/_probe_malformed_api2_tmp.js` · last modified 2026-09-04
+- `_tools/hexos/_probe_malformed_api_tmp.js` · last modified 2026-09-04
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
 - `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
 - `_tools/qa/_chris_ablation_tmp5.js` · last modified 2026-08-14

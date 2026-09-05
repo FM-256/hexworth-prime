@@ -96,10 +96,26 @@ const SandboxLauncher = (function() {
         }
 
         const res = await fetch(`${CONFIG.apiBase}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
-        const data = await res.json();
+
+        /* A GATEWAY ERROR IS NOT JSON. `res.json()` was called unconditionally, so when a proxy in
+           front of sandbox.hexworth.tech returns its own HTML 502/504 page the parser throws and
+           the raw message reaches the student:
+             "could not reach the session manager: Unexpected token '<', "<html><hea"... is not
+              valid JSON"
+           That is a realistic outage mode, not an edge case, and the surrounding code clearly
+           intends to give a clean "the lab service is down, your labs may still be running"
+           answer. Reproduced by a reviewer against a mocked 502 HTML body.
+           Parse defensively and report the STATUS, which is the fact the student can act on. */
+        let data = null;
+        try {
+            data = await res.json();
+        } catch (e) {
+            if (!res.ok) throw new Error(`the lab service returned ${res.status}`);
+            throw new Error('the lab service sent a response this app could not read');
+        }
 
         if (!res.ok) {
-            throw new Error(data.error || `API error ${res.status}`);
+            throw new Error((data && data.error) || `API error ${res.status}`);
         }
         return data;
     }

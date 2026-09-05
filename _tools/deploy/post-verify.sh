@@ -464,6 +464,38 @@ else
         echo "$WN_OUT" | tail -1 | sed 's/^/  /'
     fi
 
+    # What a FIRST-TIMER types. The 132-assertion shell suite found none of the three defects this
+    # guards, because every assertion in it is written by someone who already thinks in commands.
+    # Sentences, and houses called by the name the platform prints on its own page, are the blind
+    # spot. Needs a browser; skipped rather than failed where puppeteer is absent (exit 2).
+    FT_OUT="$(node "$REPO_ROOT/_tools/hexos/first-timer.test.js" 2>&1)"
+    FT_RC=$?
+    if [[ $FT_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- first-timer suite SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $FT_RC -ne 0 ]]; then
+        echo "$FT_OUT" | grep -E "FAIL|passed" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! Hex OS answers a first-timer wrongly, or leaks a content tier unmarked${NC}"
+        DIVERGENCE=1
+    else
+        echo "$FT_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
+    # Hex OS under a MISBEHAVING sandbox API, plus the two accessibility gaps no suite covered.
+    # A dict where a list was promised made `ps` say "nothing running" over a live session, and a
+    # gateway 502 leaked a raw JSON parser error to the student. Both are outage-shaped, which is
+    # exactly when nobody is watching a test suite.
+    AD_OUT="$(node "$REPO_ROOT/_tools/hexos/api-degradation-a11y.test.js" 2>&1)"
+    AD_RC=$?
+    if [[ $AD_RC -eq 2 ]]; then
+        echo -e "  ${YELLOW}- API-degradation/a11y suite SKIPPED (puppeteer unavailable)${NC}"
+    elif [[ $AD_RC -ne 0 ]]; then
+        echo "$AD_OUT" | grep -E "FAIL|passed" | tail -4 | sed 's/^/  /'
+        echo -e "  ${YELLOW}! Hex OS misreports a lab outage, or lost a screen-reader/focus guarantee${NC}"
+        DIVERGENCE=1
+    else
+        echo "$AD_OUT" | tail -1 | sed 's/^/  /'
+    fi
+
     # BUG-248: 52 of 124 Operator missions shipped with no ModuleProgress.js tag, so finishing them
     # recorded no XP and no progress. Nothing errored, because the completion hook is GUARDED on
     # window.ModuleProgress being present -- the mission played fine and the write silently did not
