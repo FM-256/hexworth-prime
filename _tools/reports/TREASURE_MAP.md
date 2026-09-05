@@ -1,7 +1,7 @@
 ══════════════════════════════════════════════════════════════════════
                          EDUSCAN REPORT
                     Hexworth Prime Content Map
-                    Scanned: 2026-09-04 12:06:00 PM
+                    Scanned: 2026-09-05 10:01:52 AM
 ══════════════════════════════════════════════════════════════════════
 
 
@@ -13,17 +13,17 @@
 | Files Scanned | 5305 |
 | Directories | 1290 |
 | Content Files | 5305 |
-| Scan Duration | 631ms |
+| Scan Duration | 578ms |
 
 ### Content by Type
 
 | Type | Count |
 |------|-------|
 | presentation | 2382 |
-| html | 1598 |
+| html | 1597 |
 | lab | 587 |
 | quiz | 512 |
-| applet | 226 |
+| applet | 227 |
 
 ### ContentCatalog Validation
 
@@ -43,16 +43,16 @@
 | Critical | 0 |
 | Suspect | 47 |
 | Warning | 993 |
-| Info | 541 |
-| **Total** | **14593** |
+| Info | 542 |
+| **Total** | **14594** |
 
 ### Sync Status
 
 | Status | Count |
 |--------|-------|
-| Ready | 3677 |
+| Ready | 3678 |
 | Not Ready | 30 |
-| Unknown | 1598 |
+| Unknown | 1597 |
 
 
 ## FILE HIERARCHY
@@ -9858,6 +9858,7 @@
 | faq | applet | ✓ | 1 |
 | proposal-guide | applet | ✓ | 1 |
 | gallery | applet | ✓ | 1 |
+| index | applet | ✓ | 1 |
 | index | presentation | ✓ | 1 |
 | dark-ids-evasion-lab.applet | lab | ✓ | 0 |
 | dark-m365-attack-lab.applet | applet | ✓ | 1 |
@@ -14607,7 +14608,7 @@
   File: `tenant/instructor.html`
   Fix: Add a navigation link (visible or in breadcrumbs) with href pointing to the parent index.html
 
-### INFO (541)
+### INFO (542)
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `_games-lab/jeopardy.html`
@@ -14751,6 +14752,10 @@
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
   File: `gallery.html`
+  Fix: Add ProgressManager.completeModule() if completion should be tracked
+
+**[TRACK-004]** Applet has no progress tracking (may be intentional for tools)
+  File: `hex/index.html`
   Fix: Add ProgressManager.completeModule() if completion should be tracked
 
 **[TRACK-004]** Applet has no progress tracking (may be intentional for tools)

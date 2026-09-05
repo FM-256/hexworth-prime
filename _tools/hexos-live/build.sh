@@ -11,25 +11,30 @@
 set -euo pipefail
 
 ARCH="${ARCH:-amd64}"
-DIST="${DIST:-noble}"          # Ubuntu 24.04 LTS, matching the fleet
+DIST="${DIST:-trixie}"         # Debian 13 stable. See the mirror note below for why not Ubuntu.
 KIOSK_URL="${KIOSK_URL:-https://hexworth.com/hex/}"
 OUT="${OUT:-/out}"
 
 echo "=== Hex Live :: dist=$DIST arch=$ARCH kiosk=$KIOSK_URL ==="
 
-# MIRRORS MUST BE STATED. live-build defaults to Debian's archive, so asking for an UBUNTU
-# release name without saying where to fetch it fails with
-# "Failed getting release file http://ftp.debian.org/debian/dists/noble/Release".
-# Ubuntu LTS is chosen deliberately over Debian stable: this phase exists for radio hardware, and
-# a newer kernel is where WiFi and SDR driver support actually lives. That is the one axis where
-# "thin" must not win over "works".
-MIRROR="${MIRROR:-http://archive.ubuntu.com/ubuntu/}"
+# DEBIAN, NOT UBUNTU, and the reason is evidence rather than taste. Three separate failures came
+# from forcing an Ubuntu base through live-build:
+#   1. an Ubuntu release name against live-build's default Debian mirror ("Failed getting release
+#      file .../debian/dists/noble/Release");
+#   2. chromium-browser and firefox on 24.04 are SNAP TRANSITIONAL STUBS (2:1snap1) that cannot
+#      install into a chroot at all;
+#   3. live-build's ubuntu mode still pulls bootloader themes named for ONEIRIC, which is Ubuntu
+#      11.10, and those packages no longer exist.
+# That third one is the tell: ubuntu mode is not maintained. Debian is live-build's native path.
+# It also WINS the argument the Ubuntu base was chosen for: trixie ships kernel 6.12 against
+# 24.04's 6.8, and a newer kernel is exactly where WiFi and SDR driver support lives. The scope
+# doc says "Debian or Ubuntu respin"; this is the half that works.
+MIRROR="${MIRROR:-http://deb.debian.org/debian/}"
 
 lb config \
-    --mode ubuntu \
     --distribution "$DIST" \
     --architectures "$ARCH" \
-    --archive-areas "main restricted universe multiverse" \
+    --archive-areas "main contrib non-free non-free-firmware" \
     --parent-mirror-bootstrap "$MIRROR" \
     --parent-mirror-chroot "$MIRROR" \
     --parent-mirror-binary "$MIRROR" \
@@ -47,14 +52,12 @@ cat > config/package-lists/hexlive.list.chroot <<'PKGS'
 # Session. X, a minimal WM, and a browser. No desktop environment: a full DE is the single fastest
 # way to make this image not-thin, and nothing here needs one.
 #
-# THE BROWSER IS surf, AND THAT IS NOT A PREFERENCE. On Ubuntu 24.04 both chromium-browser and
-# firefox are SNAP TRANSITIONAL STUBS (2:1snap1-0ubuntu2 / 1:1snap1-0ubuntu5), which cannot install
-# into a live-build chroot: there is no snapd running to satisfy them. Measured the two real .deb
-# options in the actual base image: surf pulls 249 packages, epiphany-browser 322. surf wins on the
-# binding constraint ("fatal if it accumulates") and is purpose-built for this job, displaying one
-# URL and never navigating away.
-# FALLBACK, if surf renders Hex OS badly: epiphany-browser, at +73 packages. Decide that by BOOTING
-# the image and looking at the shell, not by reasoning about WebKit.
+# surf: a WebKit browser with no chrome, no tabs and no address bar, which is precisely what
+# "the session IS the shell" means. There is nowhere else to go by construction.
+# Measured on the Ubuntu base before the move to Debian: surf 249 packages, epiphany-browser 322.
+# Debian additionally has a real chromium .deb (Ubuntu 24.04 only ships a snap stub), so chromium
+# is available as a fallback here if surf renders Hex OS badly. Decide that by BOOTING the image
+# and looking at the shell, not by reasoning about WebKit.
 xserver-xorg
 xinit
 openbox
@@ -80,7 +83,7 @@ picocom
 # Enough to diagnose the above when it does not work in a classroom.
 pciutils
 usb-modeswitch
-linux-firmware
+firmware-linux-free
 PKGS
 
 # ── The session IS the shell. That is the phase's stated identity. ──

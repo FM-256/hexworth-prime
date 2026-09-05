@@ -1,6 +1,12 @@
 # Build environment for Hex Live. Nothing is installed on the host: bc2 runs a live cloudflared
 # tunnel and should not acquire a permanent toolchain to produce a one-off artefact.
-FROM ubuntu:24.04
+#
+# THE BASE MATCHES THE TARGET, and that is not cosmetic. Running Ubuntu's live-build against a
+# Debian target produced "The repository 'http://security.debian.org trixie/updates Release' does
+# not have a Release file": Debian renamed that suite to trixie-security, and the older live-build
+# still emits the pre-bookworm form. A build tool that does not know its target's archive layout
+# will keep finding new ways to be wrong, so the toolchain is pinned to the distribution it builds.
+FROM debian:trixie
 
 ENV DEBIAN_FRONTEND=noninteractive
 
