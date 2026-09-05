@@ -42,9 +42,24 @@ class CtfBoxValidator {
     constructor(options = {}) {
         this.appRoot = options.appRoot;
         this.projectId = options.projectId || 'hexworth-prime';
+        /* THE GATE'S CLAIM WAS WIDER THAN ITS SCAN. post-verify prints "every box on disk has its
+           flags registered", and this list was two arena directories. Fourteen PIS labs under
+           _app/houses/shield/infosec/labs/ declare a `registryId` and call awardFlag(), which
+           reaches validateAction, which throws not-found 'Lab not registered' when
+           flag_registry/<boxId> is missing. BoxEngine catches that silently, by design, with the
+           comment "don't block gameplay". So an unregistered lab of this shape awards a green
+           badge on screen and records NOTHING server-side, which is exactly the ops-05 failure
+           this validator was written for, in a directory it never looked at.
+
+           Scanning by SHAPE rather than by location from here on: anything with a config.js that
+           declares a registryId is a box for this gate's purposes, wherever it lives. Adding a
+           third hardcoded path would just move the blind spot. */
         this.boxDirs = [
             path.join(this.appRoot, 'arena', 'boxes'),
             path.join(this.appRoot, 'dispatch', 'boxes')
+        ];
+        this.extraBoxRoots = [
+            path.join(this.appRoot, 'houses')
         ];
     }
 
@@ -69,6 +84,57 @@ class CtfBoxValidator {
         } catch (e) {
             return null;
         }
+    }
+
+    /**
+     * The registryId a config DECLARES, which is the key validateAction looks up
+     * (`flag_registry/<boxId>`). Keyed on the declaration rather than the directory name so a lab
+     * whose folder and registry id differ is checked against the right document instead of
+     * producing a false BOX-001.
+     */
+    _declaredRegistryId(boxPath) {
+        const cfg = path.join(boxPath, 'config.js');
+        if (!fs.existsSync(cfg)) return null;
+        const m = fs.readFileSync(cfg, 'utf8').match(/registryId\s*:\s*['"]([^'"]+)['"]/);
+        return m ? m[1] : null;
+    }
+
+    /**
+     * Every box this gate should check, as {boxId, boxPath}.
+     *
+     * The two arena directories keep their existing behaviour, keyed by folder name. Beyond them
+     * we scan BY SHAPE: any directory anywhere under extraBoxRoots whose config.js declares a
+     * registryId is a box for this gate's purposes, because a registryId is precisely what makes
+     * awardFlag() reach validateAction and therefore what makes an unregistered lab fail silently.
+     * Scanning by shape rather than adding a third hardcoded path is deliberate: a hardcoded list
+     * is what produced this blind spot in the first place.
+     */
+    _discoverBoxes() {
+        const found = [];
+        for (const dir of this.boxDirs) {
+            if (!fs.existsSync(dir)) continue;
+            for (const name of fs.readdirSync(dir)) {
+                if (name.startsWith('.')) continue;
+                const boxPath = path.join(dir, name);
+                if (!fs.statSync(boxPath).isDirectory()) continue;
+                found.push({ boxId: name, boxPath: boxPath });
+            }
+        }
+        const seen = new Set(found.map(f => f.boxPath));
+        const walk = (dir, depth) => {
+            if (depth > 6 || !fs.existsSync(dir)) return;   // bounded; the tree is deep
+            let entries;
+            try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+            for (const e of entries) {
+                if (!e.isDirectory() || e.name.startsWith('.') || e.name === 'node_modules') continue;
+                const sub = path.join(dir, e.name);
+                const rid = this._declaredRegistryId(sub);
+                if (rid && !seen.has(sub)) { found.push({ boxId: rid, boxPath: sub }); seen.add(sub); }
+                walk(sub, depth + 1);
+            }
+        };
+        for (const root of (this.extraBoxRoots || [])) walk(root, 0);
+        return found;
     }
 
     /**
@@ -173,12 +239,10 @@ class CtfBoxValidator {
             registry.set(d.id, new Set(Object.keys(flags).map(k => aliases[k] || k)));
         });
 
-        for (const dir of this.boxDirs) {
-            if (!fs.existsSync(dir)) continue;
-            for (const boxId of fs.readdirSync(dir)) {
-                if (boxId.startsWith('.')) continue;
-                const boxPath = path.join(dir, boxId);
-                if (!fs.statSync(boxPath).isDirectory()) continue;
+        for (const box of this._discoverBoxes()) {
+            {
+                const boxId = box.boxId;
+                const boxPath = box.boxPath;
 
                 const reachable = this._reachableFlagIds(boxPath);
                 if (reachable === null) { skippedBoxes.push(boxId); continue; }
