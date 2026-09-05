@@ -1,0 +1,105 @@
+#!/bin/bash
+# @catalog what    HEXOS-6: build the Hex Live bootable image (runs inside the Docker build env)
+# @catalog run     _tools/hexos-live/make.sh          (wrapper; do not run this directly on a host)
+# @catalog status  TOOL
+#
+# Approach A, decided 3-1: thin live image, kiosk session on the LIVE platform, hardware tooling.
+# No bundled _app. See README.md in this directory for why B and C were rejected.
+#
+# THIN IS THE DESIGN CONSTRAINT, not a preference. The scope doc: "survivable if the image stays
+# thin, fatal if it accumulates." Every package below is here because a browser cannot do it.
+set -euo pipefail
+
+ARCH="${ARCH:-amd64}"
+DIST="${DIST:-noble}"          # Ubuntu 24.04 LTS, matching the fleet
+KIOSK_URL="${KIOSK_URL:-https://hexworth.com/hex/}"
+OUT="${OUT:-/out}"
+
+echo "=== Hex Live :: dist=$DIST arch=$ARCH kiosk=$KIOSK_URL ==="
+
+# MIRRORS MUST BE STATED. live-build defaults to Debian's archive, so asking for an UBUNTU
+# release name without saying where to fetch it fails with
+# "Failed getting release file http://ftp.debian.org/debian/dists/noble/Release".
+# Ubuntu LTS is chosen deliberately over Debian stable: this phase exists for radio hardware, and
+# a newer kernel is where WiFi and SDR driver support actually lives. That is the one axis where
+# "thin" must not win over "works".
+MIRROR="${MIRROR:-http://archive.ubuntu.com/ubuntu/}"
+
+lb config \
+    --mode ubuntu \
+    --distribution "$DIST" \
+    --architectures "$ARCH" \
+    --archive-areas "main restricted universe multiverse" \
+    --parent-mirror-bootstrap "$MIRROR" \
+    --parent-mirror-chroot "$MIRROR" \
+    --parent-mirror-binary "$MIRROR" \
+    --mirror-bootstrap "$MIRROR" \
+    --mirror-chroot "$MIRROR" \
+    --mirror-binary "$MIRROR" \
+    --binary-images iso-hybrid \
+    --iso-application "Hex Live" \
+    --iso-volume "HEXLIVE"
+
+mkdir -p config/package-lists config/includes.chroot/etc/skel
+
+# ── The package list. Each line has to justify itself against "fatal if it accumulates". ──
+cat > config/package-lists/hexlive.list.chroot <<'PKGS'
+# Session. X, a minimal WM, and a browser. No desktop environment: a full DE is the single fastest
+# way to make this image not-thin, and nothing here needs one.
+#
+# THE BROWSER IS surf, AND THAT IS NOT A PREFERENCE. On Ubuntu 24.04 both chromium-browser and
+# firefox are SNAP TRANSITIONAL STUBS (2:1snap1-0ubuntu2 / 1:1snap1-0ubuntu5), which cannot install
+# into a live-build chroot: there is no snapd running to satisfy them. Measured the two real .deb
+# options in the actual base image: surf pulls 249 packages, epiphany-browser 322. surf wins on the
+# binding constraint ("fatal if it accumulates") and is purpose-built for this job, displaying one
+# URL and never navigating away.
+# FALLBACK, if surf renders Hex OS badly: epiphany-browser, at +73 packages. Decide that by BOOTING
+# the image and looking at the shell, not by reasoning about WebKit.
+xserver-xorg
+xinit
+openbox
+surf
+unclutter
+
+# THE ONLY REASON THIS PHASE EXISTS: hardware a browser cannot reach.
+# WiFi monitor mode, for WiFi Arsenal.
+aircrack-ng
+iw
+wireless-tools
+# SDR, for the Signal toolkit. rtl-sdr is the common dongle; gqrx is the visual confirmation a
+# student needs to believe it works. GNU Radio is deliberately NOT here: it is enormous and turns
+# a thin image into a distribution, which is the failure mode the scope doc names.
+rtl-sdr
+gqrx-sdr
+# Serial and USB, for the hardware projects.
+minicom
+screen
+usbutils
+picocom
+
+# Enough to diagnose the above when it does not work in a classroom.
+pciutils
+usb-modeswitch
+linux-firmware
+PKGS
+
+# ── The session IS the shell. That is the phase's stated identity. ──
+cat > config/includes.chroot/etc/skel/.xinitrc <<XINIT
+#!/bin/sh
+# The session is Hex OS. Not a desktop with a browser on it: the shell IS what boots.
+xset s off -dpms          # a classroom machine must not sleep mid-exercise
+unclutter -idle 2 &
+openbox &
+# -F is fullscreen. surf has no chrome, no tabs and no address bar by design, which is exactly
+# what "the session IS the shell" means: there is nowhere else to go.
+exec surf -F "$KIOSK_URL"
+XINIT
+chmod +x config/includes.chroot/etc/skel/.xinitrc
+
+echo "=== lb build (this is the long part) ==="
+lb build
+
+mkdir -p "$OUT"
+cp -v ./*.iso "$OUT"/ 2>/dev/null || cp -v ./*.hybrid.iso "$OUT"/
+echo "=== done; artefact in $OUT ==="
+ls -lh "$OUT" | sed 's/^/  /'

@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-04 23:58 · **1193 scripts** · 41 wired into a gate · 280 called by other code · 190 only mentioned in docs · 682 referenced by nothing · 482 not in git
+**Generated:** 2026-09-05 18:34 · **1195 scripts** · 41 wired into a gate · 282 called by other code · 190 only mentioned in docs · 682 referenced by nothing · 478 not in git
 
 ## Read this before writing a new script
 
@@ -51,12 +51,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
-| `_tools/hexos/api-degradation-a11y.test.js` | `_tools/deploy/post-verify.sh` | **NO** | Hex OS under a MISBEHAVING sandbox API, plus the two a11y gaps no suite tested |
+| `_tools/hexos/api-degradation-a11y.test.js` | `_tools/deploy/post-verify.sh` | yes | Hex OS under a MISBEHAVING sandbox API, plus the two a11y gaps no suite tested |
 | `_tools/hexos/corpus-preservation.test.js` | `deploy.sh` | yes | Sweeps every HTML file under _app and fails if stripDead() removes an href that was NOT inside a comment. Catches content deletion the unit tests cannot. |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
 | `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
 | `_tools/hexos/doc-examples.test.js` | `_tools/deploy/post-verify.sh` | yes | Runs every shell example printed in the Hex OS FAQ against the real shell and fails if any of them errors. Documented examples must actually work. |
-| `_tools/hexos/first-timer.test.js` | `_tools/deploy/post-verify.sh` | **NO** | Hex OS: what a FIRST-TIMER types, and the content tiers ls/search expose |
+| `_tools/hexos/first-timer.test.js` | `_tools/deploy/post-verify.sh` | yes | Hex OS: what a FIRST-TIMER types, and the content tiers ls/search expose |
 | `_tools/hexos/gen-app-manifest.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Generates _app/data/hex-apps.json: the one authoritative record of everything launchable on Hexworth. Both the `run` CLI and the icon grid read this and nothing else. Also reports launchable surfaces that are NOT registered. |
 | `_tools/hexos/hex-manual-check.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if the hex shell's MANUAL pages and its COMMANDS table stop agreeing, or if an app id shadows a command name. Structural defence against manual drift. |
 | `_tools/hexos/hex-shell-process.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -618,7 +618,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `browser.js` | DOCS-ONLY | 0 | 2026-02-13 | no |  |
-| `ctf-boxes.js` | ORPHAN | 0 | 2026-08-04 | yes |  |
+| `ctf-boxes.js` | ORPHAN | 0 | 2026-09-05 | yes |  |
 | `index.js` | ORPHAN | 0 | 2026-06-07 | yes |  |
 | `runtime.js` | DOCS-ONLY | 0 | 2026-02-16 | no |  |
 | `slide-overflow-b.js` | CALLED | 1 | 2026-06-07 | yes |  |
@@ -761,19 +761,26 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_extended_probe_tmp.js` | CALLED | 1 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
-| `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api2_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
-| `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
-| `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | no | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
-| `md100-cmdlet-help.test.js` | ORPHAN | 0 | 2026-09-02 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
-| `terminal-async-output.test.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives every dispatch box with an async command handler and fails if the terminal ever renders the literal string "[object Promise]". |
+| `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
+| `md100-cmdlet-help.test.js` | ORPHAN | 0 | 2026-09-05 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
+| `terminal-async-output.test.js` | ORPHAN | 0 | 2026-09-05 | yes | Drives every dispatch box with an async command handler and fails if the terminal ever renders the literal string "[object Promise]". |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
+
+### `_tools/hexos-live` — 2 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `build.sh` | CALLED | 1 | 2026-09-05 | no | HEXOS-6: build the Hex Live bootable image (runs inside the Docker build env) |
+| `make.sh` | CALLED | 1 | 2026-09-05 | no | HEXOS-6: build Hex Live on a real build host, in Docker, host left untouched |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
