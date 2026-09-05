@@ -38,7 +38,13 @@ const http = require('http');
 const REPO = path.resolve(__dirname, '../..');
 const APP = path.join(REPO, '_app');
 const FILES = ['hex/index.html', 'hex/apps.html'];
-const PORT = 9134;
+/* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
+   These suites each hardcoded a port, which makes them unsafe to run concurrently with
+   each other or with themselves. Two of them were already colliding on 9311. Reproduced
+   directly: two instances of one suite at once, one passed and the other died with
+   EADDRINUSE. Phantom failures are worse than no test, because they train whoever sees
+   them to re-run until green. */
+let PORT = 0;
 
 let puppeteer;
 try { puppeteer = require('puppeteer'); } catch (e) {
@@ -64,7 +70,8 @@ srv.on('error', (e) => {
     process.exit(1);
 });
 
-srv.listen(PORT, '127.0.0.1', async () => {
+srv.listen(0, '127.0.0.1', async () => {
+    PORT = srv.address().port;
     let pass = 0, fail = 0;
     const chk = (n, c, d) => { c ? pass++ : fail++; console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${c ? '' : '  <- ' + String(d).slice(0, 90)}`); };
 

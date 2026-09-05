@@ -27,14 +27,22 @@
  * argument (`open arena`) must both keep working, or the sentence fix has broken the shell.
  */
 const http=require('http'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer');
-const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app'),PORT=9481;
+const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
+/* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
+   These suites each hardcoded a port, which makes them unsafe to run concurrently with
+   each other or with themselves. Two of them were already colliding on 9311. Reproduced
+   directly: two instances of one suite at once, one passed and the other died with
+   EADDRINUSE. Phantom failures are worse than no test, because they train whoever sees
+   them to re-run until green. */
+let PORT = 0;
 const MIME={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.webp':'image/webp'};
 const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.endsWith('/'))p+='index.html';
  const f=path.join(APP,p);if(!f.startsWith(APP)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end();}
  r.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});r.end(fs.readFileSync(f));});
 let pass=0,fail=0;
 const chk=(l,c,d)=>{c?(pass++,console.log('  ok   '+l)):(fail++,console.log('  FAIL '+l+(d?'\n         '+d.slice(0,180):'')));};
-srv.listen(PORT,'127.0.0.1',async()=>{
+srv.listen(0, '127.0.0.1', async() => {
+    PORT = srv.address().port;
  const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
  const pg=await b.newPage();
  await pg.setRequestInterception(true);

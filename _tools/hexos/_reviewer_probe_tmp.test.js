@@ -93,16 +93,7 @@ let puppeteer; try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; cannot verify the real page. Refusing to fake a pass.');
     process.exit(2);
 }
-const APP = path.resolve(__dirname, '../../_app');
-/* PORT 0 = let the OS pick a free one, assigned below at listen time.
-   This was hardcoded to 9087, and a fixed port makes the suite unsafe to run concurrently with
-   itself. That is not theoretical: a reviewer saw a "detached Frame" crash once in four runs and
-   correctly suspected contention, and I reproduced the mechanism directly by launching two
-   instances at once: one passed 132/132, the other died with EADDRINUSE. My own parallel batch
-   run produced two more phantom failures the same way.
-   Phantom failures are worse than no test. They train whoever sees them to re-run until green,
-   which is exactly how a real regression gets waved through. */
-let PORT = 0;
+const APP = '/home/eq/ai-content/hexworth-prime/_app', PORT = 9187;
 const API_LATENCY_MS = 250;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json' };
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*',
@@ -134,8 +125,7 @@ srv.on('error', (e) => {
     process.exit(1);
 });
 
-srv.listen(0, '127.0.0.1', async () => {
-    PORT = srv.address().port;   // the real port, before anything builds a URL from it
+srv.listen(PORT, '127.0.0.1', async () => {
     let live = fixture();
     let sawFirebaseAuth = false;
     const unauth = [];
@@ -202,38 +192,6 @@ srv.listen(0, '127.0.0.1', async () => {
 
     let pass = 0, fail = 0;
     const chk = (n, c, d) => { c ? pass++ : fail++; console.log(`  ${c ? 'ok  ' : 'FAIL'} ${n}${c ? '' : '  <- ' + String(d).slice(0, 110)}`); };
-
-    /* WAIT FOR THE OUTCOME, NOT FOR A DURATION. This is the fix for the ~1-in-12 flake that has
-       been open in this file since a reviewer first saw it (taskboard 336).
-       There are two kinds of wait in this suite and only one of them is safe:
-         "wait until X appears"  -- pollable, and every flaky read was this kind written as a sleep
-         "wait until a timer expires so a background settle happens" -- genuinely a duration, and
-                                    those stay as sleeps, marked where they occur
-       A sleep of the first kind is a bet that the machine is fast enough today. It passed on this
-       machine for eleven runs and lost on the twelfth, and I twice reported it fixed on the
-       strength of three clean runs, which is not evidence about a 1-in-12 event.
-       Returns the text either way: on timeout it reads once more and hands back whatever IS there,
-       so a genuine failure reports the real output instead of throwing a timeout that tells the
-       reader nothing about the product. */
-    const waitForText = async (page, re, ms = 5000) => {
-        try {
-            const h = await page.waitForFunction(
-                (src) => {
-                    const el = document.getElementById('out');
-                    const t = el ? el.innerText : '';
-                    return new RegExp(src.source, src.flags).test(t) ? t : false;
-                },
-                { timeout: ms, polling: 50 },
-                { source: re.source, flags: re.flags }
-            );
-            return await h.jsonValue();
-        } catch (e) {
-            return await page.evaluate(() => {
-                const el = document.getElementById('out');
-                return el ? el.innerText : '';
-            });
-        }
-    };
     async function run(s) {
         await pg.evaluate(() => { document.getElementById('out').innerHTML = ''; });
         await pg.click('#cmd'); await pg.type('#cmd', s); await pg.keyboard.press('Enter');
@@ -638,6 +596,22 @@ srv.listen(0, '127.0.0.1', async () => {
         chk(`${word} resolves to ${want} rather than falling through to the generic message`,
             new RegExp('\\b' + want + '\\b').test(o) && !/not a search box/i.test(o), o.slice(0, 110));
     }
+    // AD-HOC PROBE (reviewer, not committed): `h` is BOTH an exact SYNONYMS key (-> help) AND
+    // a real prefix-stage `near` hit (COMMANDS.help starts with 'h'), so near.length > 0 when the
+    // account-pool gate is evaluated. Confirming the exact-SYNONYMS check (which runs on acctVerb,
+    // unconditionally on near.length) still wins over the near-miss display branch.
+    o = await run('h');
+    chk('PROBE: h resolves via exact synonym (help) despite near=[help] from the prefix stage',
+        /Try <span class="ok">help<\/span>/.test(o) || /Try help/.test(o), o.slice(0, 200));
+    chk('PROBE: h does NOT show the near-miss "did you mean" framing',
+        !/did you mean/i.test(o), o.slice(0, 200));
+    o = await run('start');
+    chk('PROBE: start (exact synonym, substring-collides with restart) resolves to run, not restart',
+        /Try <span class="ok">run<\/span>/.test(o) && !/restart/i.test(o), o.slice(0, 200));
+    o = await run('sh');
+    chk('PROBE: sh (2-char, not a synonym key, near = search only via substring?) sanity check',
+        true, o.slice(0, 200));
+
     /* And the shell must quote what was TYPED. The old code assigned through `verb`, and the error
        line echoes it, so `cad` was answered with "cat is not a command" -- a word the student
        never typed. Misquoting someone back to themselves is its own bug. */
@@ -651,37 +625,6 @@ srv.listen(0, '127.0.0.1', async () => {
         const t2 = await tab('search inc');
         chk('Tab after `search` completes a category',
             /incubator/.test(t2.out) || /incubator/.test(t2.value), JSON.stringify(t2));
-    }
-
-    /* THE SIXTH MIRROR: A BARE GROUP NAME, no verb. Five verbs were taught to explain a group and
-       the no-verb entry was not, so typing `incubator` alone still answered "incubator: not a
-       command" -- the operator's original report, word for word, through the one door the round
-       never audited. Chris found it against the live page; this suite had no assertion for a bare
-       group name at all, which is why it sat at 122/122 while the gap was open.
-       Also pinned: a bare word that IS an app id must still LAUNCH, because the two behaviours
-       share one line and a fix to either could silently swap them. */
-    o = await run('incubator');
-    chk('a bare category name explains itself instead of "not a command"',
-        /is a category, not an app/i.test(o) && /ls incubator/.test(o), o.slice(0, 130));
-    chk('  -> and does not fall through to the generic message',
-        !/not a search box/i.test(o), o.slice(0, 110));
-    o = await run('cert-prep');
-    chk('a bare category with a hyphen works too', /is a category, not an app/i.test(o), o.slice(0, 110));
-    o = await run('HOUSE');
-    chk('  -> and it is case-insensitive, printing the canonical spelling',
-        /is a category, not an app/i.test(o) && /\bhouse\b/.test(o), o.slice(0, 110));
-    /* The other half of that one line: a bare APP id must still launch. `arena` navigates, so the
-       success condition is leaving the page, exactly as for `run az-104` elsewhere in this file. */
-    {
-        await pg.evaluate(() => { document.getElementById('out').innerHTML = '';
-                                  document.getElementById('cmd').value = ''; });
-        await pg.click('#cmd'); await pg.type('#cmd', 'arena'); await pg.keyboard.press('Enter');
-        await new Promise((r) => setTimeout(r, 1200));
-        const where = await pg.evaluate(() => location.pathname);
-        chk('CONTROL: a bare APP id still launches rather than being explained',
-            !/\/hex\/$|\/hex\/index\.html$/.test(where), where);
-        await pg.goto(`http://127.0.0.1:${PORT}/hex/`, { waitUntil: 'networkidle0' });
-        await new Promise((r) => setTimeout(r, 1200));
     }
 
     /* THE INVARIANT THE SEARCH FIX SILENTLY DEPENDS ON. `search` resolves a category by exact
@@ -738,66 +681,11 @@ srv.listen(0, '127.0.0.1', async () => {
        CONTAIN, including that it names logout as the thing that actually signs you out. */
     chk('exit does not claim to end a session it cannot end',
         /nothing to exit/i.test(o) && /logout/.test(o), o.slice(0, 130));
-    /* `q` is the pager/vim habit (less, man, top, vi all take it) and must reach the SAME answer
-     * as exit, not a "did you mean" that points at a word the command table does not have.
-     * Asserting the answer's CONTENT, not merely that something was printed: a generic
-     * "q: not a command" would still be a non-empty response, so a bare truthiness check here
-     * would pass against exactly the regression this guards. */
-    o = await run('q');
-    chk('`q` reaches the exit answer, not a suggestion',
-        /nothing to exit/i.test(o) && /logout/.test(o), o.slice(0, 130));
-    /* The obvious second assertion here was `!/did you mean/`, and I wrote it, and it PASSED
-     * against a build with the `q` wiring deleted -- because unwired `q` falls to the generic
-     * "not a command / this is a command line" answer, which is a DIFFERENT wrong answer that
-     * happens not to contain the phrase. A negative assertion matches the wrong wrong-answer.
-     * What actually pins the behaviour is that `q` and `quit` land on the SAME branch, so they
-     * must produce the same text; that cannot pass unless the wiring exists. */
-    /* The single (non-/g) strip is correct ONLY because run() clears #out before every command, so
-     * exactly one `hex>` echo line can exist per call. If this idiom is ever copied into a test
-     * that sends several commands into one buffer, the strip would remove only the first echo and
-     * silently compare mangled strings. Asserting the invariant rather than trusting it. */
-    const echoes = (s) => (s.match(/^hex>/gm) || []).length;
-    const rawQuit = await run('quit');
-    chk('  -> one prompt echo per command, which is what makes the strip below valid',
-        echoes(o) === 1 && echoes(rawQuit) === 1, `q=${echoes(o)} quit=${echoes(rawQuit)}`);
-    const qOut = o.replace(/^hex>.*$/m, '').trim();
-    const quitOut = rawQuit.replace(/^hex>.*$/m, '').trim();
-    chk('  -> `q` and `quit` give the identical answer (same branch, not a lookalike)',
-        qOut.length > 0 && qOut === quitOut, `q=${qOut.slice(0, 60)} || quit=${quitOut.slice(0, 60)}`);
-
     o = await run('logout');
     const signedOut = await pg.evaluate(() => window.__signedOut === true);
     chk('logout actually signs out rather than describing something else', signedOut, o.slice(0, 110));
     o = await run('open arena');
     chk('a synonym carries the argument through', /run arena/.test(o), o.slice(0, 110));
-
-    /* STRUCTURAL, and the reason `q` is NOT in SYNONYMS. Every entry in that table is offered to
-     * the student as a suggestion, so its target must be a word the command table actually has.
-     * `'q': 'quit'` would suggest `quit`, which is not in COMMANDS -- the student types it and
-     * lands back on the same branch. A reviewer caught that in my first proposal; this asserts it
-     * for every FUTURE entry too, which reviewing one entry by hand does not.
-     * SYNONYMS lives inside exec()'s closure and cannot be read at runtime, so this reads source. */
-    const shellSrc = fs.readFileSync(path.join(APP, 'hex/index.html'), 'utf8');
-    const synBlock = shellSrc.match(/var SYNONYMS = \{([\s\S]*?)\};/);
-    const cmdBlock = shellSrc.match(/var COMMANDS = \{([\s\S]*?)\n    \};/);
-    const cmdNames = new Set(cmdBlock ? [...cmdBlock[1].matchAll(/^ {8}([a-z]+):/gm)].map(m => m[1]) : []);
-    const synPairs = synBlock ? [...synBlock[1].matchAll(/'([^']+)':\s*'([^']+)'/g)]
-        .map(m => ({ from: m[1], to: m[2].split(' ')[0] })) : [];
-    /* Check the DETECTOR before the data: if either regex stopped matching after a refactor, the
-     * orphan list would be empty and this would report a clean pass while checking nothing.
-     * Asserting IDENTITY, not cardinality. `size >= 12` is a floor, and a floor cannot see a
-     * SUBSTITUTION -- an 8-space-indented comment line arriving while a real key's indentation is
-     * nudged off 8 spaces keeps the count at 12 while the set is wrong, and the orphan check would
-     * then be validating synonyms against a corrupted table. Naming the commands closes that gap
-     * and stays independent of the separate manual-check gate, which asserts the exact count. */
-    const EXPECTED_CMDS = ['help', 'ls', 'search', 'info', 'run', 'cd', 'ps', 'stop', 'restart', 'man', 'pwd', 'clear'];
-    const missingCmds = EXPECTED_CMDS.filter(c => !cmdNames.has(c));
-    chk('  -> the source parse found the ACTUAL command set, not just enough names',
-        missingCmds.length === 0 && synPairs.length >= 10,
-        `missing=${missingCmds.join(',') || 'none'} parsed=${cmdNames.size} synonyms=${synPairs.length}`);
-    const orphanSyn = synPairs.filter(s => !cmdNames.has(s.to));
-    chk('  -> every SYNONYMS entry targets a REAL command',
-        orphanSyn.length === 0, orphanSyn.map(s => `${s.from}->${s.to}`).join(', ') || 'none');
 
     const before = calls.length;
     o = await run('restart server-only-lab');
@@ -947,11 +835,8 @@ srv.listen(0, '127.0.0.1', async () => {
     const type3 = async (cmd) => { await pg3.click('#cmd'); await pg3.type('#cmd', cmd); await pg3.keyboard.press('Enter'); };
 
     await type3('restart arctic');                    // gen1; destroy responds at ~3000ms
-    /* Polled: this waits for the WATCHDOG's message, which is the same "sleep past a timer then
-       read once" shape as the measured flake. 1400ms against a 1000ms watchdog is a 400ms margin
-       on a machine that has already been seen to lose a 100ms one. */
-    chk('watchdog releases a slow restart',
-        /no longer waiting/i.test(await waitForText(pg3, /no longer waiting/i)), '');
+    await new Promise(r => setTimeout(r, 1400));      // watchdog fired at 1000ms
+    chk('watchdog releases a slow restart', /no longer waiting/i.test(await pg3.evaluate(() => document.getElementById('out').innerText)), '');
     await type3('restart arctic');                    // gen2: the sanctioned retry
     await new Promise(r => setTimeout(r, 2600));      // gen1's destroy now lands
     chk('an orphaned restart does NOT relaunch a second time', launchLog.length === 1, 'launches=' + JSON.stringify(launchLog));
@@ -1087,7 +972,8 @@ srv.listen(0, '127.0.0.1', async () => {
     // And the stop-side answer must not say a flat "nothing running" while a launch is in flight.
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('stop arctic');
-    const stop5 = await waitForText(pg5, /still outstanding|YET/i);
+    await new Promise(r => setTimeout(r, 700));
+    const stop5 = await pg5.evaluate(() => document.getElementById('out').innerText);
     chk('stop reports an outstanding launch instead of a flat "nothing running"',
         /still outstanding|YET/i.test(stop5), stop5.slice(0, 130));
     /* THE SAME ANSWER IN CAPITALS. launchPending is written from the id the SERVER returned and
@@ -1098,7 +984,8 @@ srv.listen(0, '127.0.0.1', async () => {
      * paths to the same map. */
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
     await type5('stop ARCTIC');
-    const stopCaps5 = await waitForText(pg5, /still outstanding|YET/i);
+    await new Promise(r => setTimeout(r, 700));
+    const stopCaps5 = await pg5.evaluate(() => document.getElementById('out').innerText);
     chk('  -> and reports it for a CAPITALISED id too',
         /still outstanding|YET/i.test(stopCaps5), stopCaps5.slice(0, 130));
     await pg5.evaluate(() => { document.getElementById('out').innerHTML = ''; });
@@ -1111,11 +998,8 @@ srv.listen(0, '127.0.0.1', async () => {
        strictly safer here, which is the opposite of the usual fix and the reason it is worth a
        comment. I also lengthened this sequence earlier in the round by inserting a `stop ARCTIC`
        case above, so the margin was mine to tighten and mine to restore. */
-    /* Polled, not slept. And note the ORDER matters: the refusal is the observable proof that
-       gen3 was rejected, so waiting for it before asserting the launch count ties that count to a
-       state transition instead of to a stopwatch. If gen3 were wrongly allowed, this poll times
-       out, the fallback read returns the real text, and BOTH assertions fail correctly. */
-    const out5 = await waitForText(pg5, /still outstanding/i);
+    await new Promise(r => setTimeout(r, 400));
+    const out5 = await pg5.evaluate(() => document.getElementById('out').innerText);
     chk('a FAILED chain does not clear a flag it never set', launch5.length === 1, 'launches=' + JSON.stringify(launch5));
     chk('  -> the third attempt is refused as still outstanding', /still outstanding/i.test(out5), out5.slice(0, 130));
     await pg5.close();

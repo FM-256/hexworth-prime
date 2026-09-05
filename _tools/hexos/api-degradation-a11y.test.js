@@ -30,7 +30,14 @@
  * the "no raw parser error" assertion pass for entirely the wrong reason.
  */
 const http=require('http'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer');
-const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app'),PORT=9487;
+const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
+/* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
+   These suites each hardcoded a port, which makes them unsafe to run concurrently with
+   each other or with themselves. Two of them were already colliding on 9311. Reproduced
+   directly: two instances of one suite at once, one passed and the other died with
+   EADDRINUSE. Phantom failures are worse than no test, because they train whoever sees
+   them to re-run until green. */
+let PORT = 0;
 const MIME={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.webp':'image/webp'};
 const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.endsWith('/'))p+='index.html';
  const f=path.join(APP,p);if(!f.startsWith(APP)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end();}
@@ -62,7 +69,8 @@ const run=async(pg,s)=>{await pg.evaluate(()=>{document.getElementById('out').in
  await new Promise(r=>setTimeout(r,900));
  return pg.evaluate(()=>document.getElementById('out').innerText);};
 
-srv.listen(PORT,'127.0.0.1',async()=>{
+srv.listen(0, '127.0.0.1', async() => {
+    PORT = srv.address().port;
  // FIX 1: sandboxes is a truthy NON-ARRAY (a dict). Must NOT claim "nothing running".
  let {b,pg}=await boot((r,CORS)=>r.respond({status:200,headers:{...CORS,'content-type':'application/json'},
    body:JSON.stringify({sandboxes:{'sess-abc':{labId:'arctic',status:'running'}}})}));

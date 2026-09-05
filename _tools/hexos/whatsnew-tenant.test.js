@@ -99,7 +99,14 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; the tenant guard cannot be verified. Refusing to fake a pass.');
     process.exit(2);
 }
-const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app'),PORT=9243;
+const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
+/* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
+   These suites each hardcoded a port, which makes them unsafe to run concurrently with
+   each other or with themselves. Two of them were already colliding on 9311. Reproduced
+   directly: two instances of one suite at once, one passed and the other died with
+   EADDRINUSE. Phantom failures are worse than no test, because they train whoever sees
+   them to re-run until green. */
+let PORT = 0;
 const srv=http.createServer((q,r)=>{
  if(q.url==='/t.html'){r.writeHead(200,{'Content-Type':'text/html'});
    return r.end('<!DOCTYPE html><html><body><script src="/components/UpdateManager.js"></script></body></html>');}
@@ -115,7 +122,8 @@ const srv=http.createServer((q,r)=>{
  r.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});r.end(fs.readFileSync(f));});
 const T=JSON.stringify({slug:'acme',branding:{name:'Acme'},adminUids:[]});
 let pass=0,fail=0;const chk=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'ok  ':'FAIL'} ${n}${c?'':'  <- '+String(d)}`);};
-srv.listen(PORT,'127.0.0.1',async()=>{
+srv.listen(0, '127.0.0.1', async() => {
+    PORT = srv.address().port;
  const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
  // Six fixtures: the two obvious ones plus the four ways this has broken before.
  const cases=[

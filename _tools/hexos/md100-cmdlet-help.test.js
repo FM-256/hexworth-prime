@@ -100,7 +100,9 @@ async function runExamplesInBrowser(HELP) {
     }
     const http = require('http');
     const APP = path.resolve(__dirname, '../../_app');
-    const PORT = 9301;
+    /* PORT 0: assigned by the OS at listen time. A hardcoded port makes this suite unsafe to
+   run alongside another, which produced phantom failures elsewhere in this directory. */
+let PORT = 0;
     const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
                    '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png' };
     const srv = http.createServer((q, r) => {
@@ -111,7 +113,8 @@ async function runExamplesInBrowser(HELP) {
         r.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' });
         r.end(fs.readFileSync(f));
     });
-    await new Promise((res) => srv.listen(PORT, '127.0.0.1', res));
+    await new Promise((res) => srv.listen(0, '127.0.0.1', res));
+    PORT = srv.address().port;   // real port, before any URL is built from it
 
     const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
     const pg = await b.newPage();

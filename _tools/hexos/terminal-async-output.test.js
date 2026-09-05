@@ -38,7 +38,14 @@
 'use strict';
 const http=require('http'),fs=require('fs'),path=require('path');
 const puppeteer=require('puppeteer');
-const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app'),PORT=9311;
+const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
+/* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
+   These suites each hardcoded a port, which makes them unsafe to run concurrently with
+   each other or with themselves. Two of them were already colliding on 9311. Reproduced
+   directly: two instances of one suite at once, one passed and the other died with
+   EADDRINUSE. Phantom failures are worse than no test, because they train whoever sees
+   them to re-run until green. */
+let PORT = 0;
 const MIME={'.html':'text/html','.js':'text/javascript','.json':'application/json','.css':'text/css','.webp':'image/webp','.png':'image/png'};
 const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]);if(p.endsWith('/'))p+='index.html';
  const f=path.join(APP,p);if(!f.startsWith(APP)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end();}
@@ -46,7 +53,8 @@ const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]
 const BOXES=['nt1-network-troubleshoot','nt002-no-internet','nt003-slow-connection','nt004-wifi-wont-connect',
  'nt005-vpn-failure','nt006-ip-conflict','nt007-dns-failure','nt008-vlan-isolation','nt009-switch-port-down','nt010-routing-problem'];
 let pass=0,fail=0;
-srv.listen(PORT,'127.0.0.1',async()=>{
+srv.listen(0, '127.0.0.1', async() => {
+    PORT = srv.address().port;
  const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
  for(const box of BOXES){
   const pg=await b.newPage();
