@@ -100,6 +100,11 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     process.exit(2);
 }
 const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Armed AFTER the puppeteer check above, so the existing exit-2 "cannot run
+// this" path is untouched -- seven post-verify call sites read rc 2 as "skip". This suite drives
+// FOUR browser contexts, so every ctx.newPage() below is watched, not just the first.
+const F=require('./harness-forensics').arm({dir:__dirname,suite:'whatsnew-tenant'});
 /* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
    These suites each hardcoded a port, which makes them unsafe to run concurrently with
    each other or with themselves. Two of them were already colliding on 9311. Reproduced
@@ -124,7 +129,7 @@ const T=JSON.stringify({slug:'acme',branding:{name:'Acme'},adminUids:[]});
 let pass=0,fail=0;const chk=(n,c,d)=>{c?pass++:fail++;console.log(`  ${c?'ok  ':'FAIL'} ${n}${c?'':'  <- '+String(d)}`);};
 srv.listen(0, '127.0.0.1', async() => {
     PORT = srv.address().port;
- const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
+ const b=F.browser(await puppeteer.launch({headless:'new',args:['--no-sandbox']}));
  // Six fixtures: the two obvious ones plus the four ways this has broken before.
  const cases=[
   ['no tenant at all',        null, null,  false],
@@ -135,7 +140,7 @@ srv.listen(0, '127.0.0.1', async() => {
   ['unparseable blob',        'not json', null, false],
  ];
  for(const [label,sess,loc,want] of cases){
-  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  const ctx=await b.createBrowserContext();const pg=F.watch(await ctx.newPage());
   await pg.evaluateOnNewDocument((s,l)=>{try{
     if(s)sessionStorage.setItem('hexworth_tenant',s);
     if(l)localStorage.setItem('hexworth_tenant',l);}catch(e){}},sess,loc);
@@ -150,7 +155,7 @@ srv.listen(0, '127.0.0.1', async() => {
  // did not touch. Testing only the detector, or only UpdateManager, would still miss it, so this
  // drives BOTH renderers directly with a tenant fixture seeded.
  for (const tenant of [true,false]){
-  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  const ctx=await b.createBrowserContext();const pg=F.watch(await ctx.newPage());
   await pg.evaluateOnNewDocument((t,isT)=>{try{
     if(isT){sessionStorage.setItem('hexworth_tenant',t);localStorage.setItem('hexworth_tenant',t);}
   }catch(e){}},T,tenant);
@@ -179,7 +184,7 @@ srv.listen(0, '127.0.0.1', async() => {
  // put the version or codename on screen; guarding "the renderer" only closes a door if you
  // found every renderer, and the first pass found two of them.
  for (const tenant of [true,false]){
-  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  const ctx=await b.createBrowserContext();const pg=F.watch(await ctx.newPage());
   await pg.evaluateOnNewDocument((t,isT)=>{try{
     if(isT){sessionStorage.setItem('hexworth_tenant',t);localStorage.setItem('hexworth_tenant',t);}
   }catch(e){}},T,tenant);
@@ -205,7 +210,7 @@ srv.listen(0, '127.0.0.1', async() => {
  // ── The landing page renders its own badge and does NOT load UpdateManager, so its check is
  // inlined and needs its own fixture. No auth involved, so this one drives the REAL page.
  for (const tenant of [true,false]){
-  const ctx=await b.createBrowserContext();const pg=await ctx.newPage();
+  const ctx=await b.createBrowserContext();const pg=F.watch(await ctx.newPage());
   await pg.setRequestInterception(true);
   pg.on('request',rq=>{const u=rq.url();
    if(!u.startsWith(`http://127.0.0.1:${PORT}`))return rq.abort();rq.continue();});
@@ -226,6 +231,9 @@ srv.listen(0, '127.0.0.1', async() => {
   await pg.close();await ctx.close().catch(()=>{});
  }
 
+ // AFTER the last assertion, BEFORE teardown: the tally prints after b.close(), so a fault in
+ // close() would otherwise claim nothing was verified when every assertion had in fact run.
+ F.completed(`${pass}/${pass+fail} passed`);
  await b.close();srv.close();
  console.log(`\n  ${pass}/${pass+fail} passed`);process.exitCode=fail?1:0;
 });
