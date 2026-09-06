@@ -27,6 +27,9 @@
  * argument (`open arena`) must both keep working, or the sentence fix has broken the shell.
  */
 const http=require('http'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer');
+// Taskboard 352: records a crashed renderer or a dead browser, so a harness fault stops reading
+// as a product regression. Exit code on a fault is 1, node's own default -- unchanged for callers.
+const F=require('./harness-forensics').arm({dir:__dirname,suite:'first-timer'});
 const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
 /* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
    These suites each hardcoded a port, which makes them unsafe to run concurrently with
@@ -43,8 +46,11 @@ let pass=0,fail=0;
 const chk=(l,c,d)=>{c?(pass++,console.log('  ok   '+l)):(fail++,console.log('  FAIL '+l+(d?'\n         '+d.slice(0,180):'')));};
 srv.listen(0, '127.0.0.1', async() => {
     PORT = srv.address().port;
- const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
- const pg=await b.newPage();
+ // F.browser records the handle for browser.connected; F.watch attaches the page.on('error')
+ // listener, the only signal that sees a crashed renderer. Both required, or a fault report
+ // would say "renderer crashes: none" and "connected=null" while recording nothing.
+ const b=F.browser(await puppeteer.launch({headless:'new',args:['--no-sandbox']}));
+ const pg=F.watch(await b.newPage());
  await pg.setRequestInterception(true);
  pg.on('request',r=>{const u=r.url();
    if(/AccessGuard\.js$/.test(u))return r.respond({status:200,contentType:'text/javascript',body:'window.AccessGuard={require(){},redirect(){}};'});
@@ -77,6 +83,9 @@ srv.listen(0, '127.0.0.1', async() => {
  // single-word synonym must still carry its argument
  o=await run('open arena');
  chk('single-word synonym still carries its argument', /run arena/.test(o) && !/is a sentence/.test(o), o);
+ // AFTER the last assertion, BEFORE teardown. This suite prints its tally after b.close(), so a
+ // fault in close() would otherwise report "NOTHING WAS VERIFIED" when all 11 had in fact run.
+ F.completed(`${pass} passed, ${fail} failed`);
  await b.close();srv.close();
  console.log(`\n  ${pass} passed, ${fail} failed`);
 });

@@ -30,6 +30,10 @@
  * the "no raw parser error" assertion pass for entirely the wrong reason.
  */
 const http=require('http'),fs=require('fs'),path=require('path'),puppeteer=require('puppeteer');
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Wired INSIDE boot() below, because this suite relaunches the browser
+// several times and every one of them needs watching, not just the first.
+const F=require('./harness-forensics').arm({dir:__dirname,suite:'api-degradation-a11y'});
 const APP=path.resolve('/home/eq/ai-content/hexworth-prime/_app');
 /* PORT 0: the OS assigns a free port at listen time, set in the listen callback below.
    These suites each hardcoded a port, which makes them unsafe to run concurrently with
@@ -46,8 +50,10 @@ let pass=0,fail=0;
 const chk=(l,c,d)=>{c?(pass++,console.log('  ok   '+l)):(fail++,console.log('  FAIL '+l+(d?'\n         '+String(d).slice(0,200):'')));};
 
 async function boot(apiHandler){
- const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
- const pg=await b.newPage(); const errs=[];
+ // Every boot is watched, not just the first: F.browser re-points at the live browser so a fault
+ // report names the one that actually died, and F.watch attaches the crash listener to each page.
+ const b=F.browser(await puppeteer.launch({headless:'new',args:['--no-sandbox']}));
+ const pg=F.watch(await b.newPage()); const errs=[];
  pg.on('pageerror',e=>errs.push(e.message.split('\n')[0]));
  await pg.setRequestInterception(true);
  pg.on('request',r=>{const u=r.url();
@@ -97,6 +103,9 @@ srv.listen(0, '127.0.0.1', async() => {
  chk('output transcript is an aria-live log region', a11y.role==='log' && a11y.live==='polite', a11y);
  chk('  -> and is labelled for a screen reader', !!a11y.label, a11y);
  chk('the command input has a visible focus ring', a11y.focused && a11y.focusRing!=='none 0px', a11y);
+ // AFTER the last assertion, BEFORE teardown: the tally prints after b.close(), so a fault in
+ // close() would otherwise claim nothing was verified when every assertion had in fact run.
+ F.completed(`${pass} passed, ${fail} failed`);
  await b.close(); srv.close();
  console.log(`\n  ${pass} passed, ${fail} failed`);
  process.exitCode = fail?1:0;
