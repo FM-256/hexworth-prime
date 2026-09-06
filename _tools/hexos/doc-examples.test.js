@@ -56,6 +56,12 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     process.exit(2);
 }
 
+/* Taskboard 352. Records a crashed renderer or a dead browser so a harness fault stops reading
+   as a product regression. Armed AFTER the puppeteer check above, so the existing exit-2
+   "environment cannot run this" path is untouched -- seven call sites in post-verify read rc 2
+   as "skip", and this must not disturb that. Exit code on a fault is 1, node's own default. */
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'doc-examples' });
+
 // The shell's actual failure messages. If the shell's wording changes these must change with it,
 // which is deliberate: a gate that stops recognising failure is worse than no gate.
 const ERRORS = [
@@ -196,9 +202,13 @@ const chk = (n, c, d) => {
 srv.listen(0, '127.0.0.1', async () => {
     PORT = srv.address().port;
     const cmds = examplesFromFaq();
-    const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    // F.browser() records the handle so a fault report can state browser.connected; F.watch()
+    // attaches the page.on('error') listener, which is the ONLY signal that sees a crashed
+    // renderer (under a measured OOM it fired while isClosed() stayed false and connected true).
+    // Both are required: armed without them, every report would say "renderer crashes: none".
+    const b = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
     try {
-        const pg = await b.newPage();
+        const pg = F.watch(await b.newPage());
         await pg.setRequestInterception(true);
         pg.on('request', (r) => {
             const u = r.url();
@@ -401,6 +411,11 @@ srv.listen(0, '127.0.0.1', async () => {
                 chk(`  -> output matches the page: "${line.slice(0, 48)}"`, flat.includes(line), out);
             }
         }
+        /* Before the finally, deliberately: this suite tears the browser down in `finally` and
+           prints its tally AFTER that, so a fault in b.close() would land with no tally printed.
+           The assertions have all run by here, so the report must say the suite WAS verified
+           rather than claim nothing was. */
+        F.completed(`${pass}/${pass + fail} passed`);
     } finally {
         await b.close();
         srv.close();
