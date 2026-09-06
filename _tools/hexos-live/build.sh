@@ -12,7 +12,22 @@ set -euo pipefail
 
 ARCH="${ARCH:-amd64}"
 DIST="${DIST:-trixie}"         # Debian 13 stable. See the mirror note below for why not Ubuntu.
-KIOSK_URL="${KIOSK_URL:-https://hexworth.com/hex/}"
+# LAND ON LOGIN, THEN HAND OFF TO THE SHELL. Booting straight at /hex/ put an unauthenticated
+# session in front of AccessGuard.require('sorted'), which correctly bounced it to the tourist-visa
+# page: a machine badged "Hex OS" showing WELCOME, EXPLORER to a student who was sorted months ago.
+# Found by screendumping a QEMU boot.
+#
+# Decided by panel vote. Q1 (what is the image FOR) was A, unchanged, 4-0. Q2 SPLIT: Nancy and
+# Chris both wanted a provisioned kiosk identity; Mallory voted against it and her objection is the
+# one that decided this. A credential baked into an image that leaves the building is readable with
+# `strings`, or by dd'ing the stick, or by the root-capable local user this image deliberately
+# gives the student for monitor mode. That is the same forgeable-client-credential class already
+# proven on this platform with hexworth_tenant, relocated onto a disk image.
+#
+# A LOGIN IS NOT A CREDENTIAL IN THE IMAGE. The student authenticates as themselves, the image
+# holds nothing, and an already-sorted student reaches their own shell. login.html takes ?return=,
+# so the handoff needs no new code.
+KIOSK_URL="${KIOSK_URL:-https://hexworth.com/login.html?return=%2Fhex%2F}"
 OUT="${OUT:-/out}"
 
 echo "=== Hex Live :: dist=$DIST arch=$ARCH kiosk=$KIOSK_URL ==="
