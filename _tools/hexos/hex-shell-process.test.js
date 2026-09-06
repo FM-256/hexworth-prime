@@ -108,6 +108,103 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'applica
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*',
                'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS' };
 
+/* ── PAGE FORENSICS (taskboard 345) ────────────────────────────────────────────────────────
+   This RECORDS. It decides nothing, and it changes NO exit code.
+
+   The flake: a page dies mid-run and the suite dies with a stack that names neither the page
+   nor what it was waiting for, so the event cannot be characterised and gets re-run until
+   green -- the exact habit the header above calls worse than no test.
+
+   Three things were measured before writing this, and two of them killed an earlier design:
+     - A dying target makes `page.waitForFunction` reject with `Waiting failed: Nms exceeded`,
+       a PLAIN TIMEOUT that is indistinguishable from a genuine assertion failure. So the
+       symptom lies about its own cause.
+     - Under a REAL renderer OOM, `page.on('error')` fires "Page crashed!" while `isClosed()`
+       stays FALSE and `browser.connected` stays TRUE. So page.on('error') is the ONLY signal
+       that sees the contention failure mode, and a check keyed on isClosed() would miss it.
+     - Node exits 1 for an unhandled rejection AND for an uncaught exception. These handlers
+       exit 1 too, so every consumer sees behaviour identical to today.
+
+   EXIT CODES ARE DELIBERATELY UNTOUCHED. Exit 2 is NOT available: seven post-verify call
+   sites map rc 2 to "skip, puppeteer unavailable" with no divergence flag, so redefining it
+   would make a harness fault silently skip POST-DEPLOY verification against live production.
+
+   WHY THE OUTPUT IS SHAPED THIS WAY. Both callers filter stdout before an operator sees it:
+   deploy.sh keeps `tail -3`, and post-verify keeps `grep -E "FAIL|passed" | tail -5`. A plain
+   forensics dump is truncated by the first and dropped ENTIRELY by the second, which would
+   make this whole change invisible exactly when it fires. So the detail goes to a side file
+   and the LAST line is a one-line summary containing "FAIL" -- it survives the tail because
+   it is last, and the grep because of that word. Neither shell file needs to change. */
+const pageLog = new Map();          // page -> { label, crash }
+const lostTargets = [];             // targets that died while we were trying to register them
+let browserRef = null;
+/* Set to the tally the moment the assertions finish. The suite prints its tally BEFORE tearing
+   the browser down, and browser.close() has been measured hanging and failing after a dead
+   target -- so "faulted AFTER a complete, clean run" is reachable. Without this the report would
+   say NOTHING WAS VERIFIED when in fact everything was, which is a false claim in the one
+   sentence an operator acts on. */
+let completedTally = null;
+const register = (p, label) => {
+    /* The targetcreated hook below RACES these explicit calls: b.newPage() fires the event, and
+       whichever path lands first would own the name. A semantic label always wins over the
+       placeholder, so the race cannot cost us `pg3` and leave `pg-unregistered-3` in its place. */
+    if (pageLog.has(p)) {
+        const r = pageLog.get(p);
+        if (!/^pg-unregistered-/.test(label)) r.label = label;
+        return p;
+    }
+    pageLog.set(p, { label, crash: null });
+    p.on('error', e => { const r = pageLog.get(p); if (r) r.crash = String(e && e.message).split('\n')[0]; });
+    return p;
+};
+const forensics = () => {
+    const rows = [];
+    for (const [p, r] of pageLog) {
+        let url = '(unreadable)'; try { url = p.url(); } catch (e) { /* dead target */ }
+        let closed = '?';         try { closed = String(p.isClosed()); } catch (e) { /* dead target */ }
+        rows.push(`    ${r.label}  crash=${r.crash || 'none'}  closed=${closed}  url=${url}`);
+    }
+    for (const m of lostTargets) rows.push(`    (target died during registration)  ${m}`);
+    return rows.length ? rows.join('\n') : '    no pages registered';
+};
+const diagnose = (kind) => (e) => {
+    // pid-suffixed: the 11 hexos suites are run concurrently, and two faults must not clobber
+    // each other's evidence. The path is printed, so a unique name costs the reader nothing.
+    // RETENTION: nothing sweeps these. They are gitignored (.gitignore:48 `_tools/`) so they
+    // cannot pollute the repo, and a fault is rare by construction -- but on a long-lived deploy
+    // host they accumulate. Indexed here rather than left as debris nobody knows the shape of:
+    // `ls _tools/hexos/.harness-fault-*.log` is the whole inventory.
+    const dump = path.join(__dirname, `.harness-fault-${process.pid}.log`);
+    const crashed = [...pageLog.values()].filter(r => r.crash);
+    const summary = crashed.length
+        ? crashed.map(r => `${r.label} CRASHED (${r.crash})`).join('; ')
+        : 'no renderer crash recorded';
+    let connected = '?'; try { connected = String(browserRef && browserRef.connected); } catch (x) {}
+    // e.stack, not just e.message: this handler REPLACES node's default trace, and for any
+    // ordinary bug in this file (a typo, a bad property access) the stack is the useful part
+    // and the page dump is noise. Keep both rather than trade one for the other.
+    const body = [`${kind}: ${e && e.message ? e.message : e}`, '', String((e && e.stack) || e), '',
+                  'PAGE FORENSICS (taskboard 345):', forensics(), `browser.connected=${connected}`].join('\n');
+    try { fs.writeFileSync(dump, body + '\n'); } catch (x) { /* never let the reporter be the fault */ }
+    console.error(`\n  ${kind}: ${e && e.message ? String(e.message).split('\n')[0] : e}`);
+    console.error('  PAGE FORENSICS (taskboard 345):');
+    console.error(forensics());
+    console.error(`  browser.connected=${connected}`);
+    // The last three lines are what deploy.sh's `tail -3` keeps, most useful last.
+    console.error(`  ${summary}`);
+    // Two harness cases, and they are not the same news. A fault BEFORE the tally verified
+    // nothing. A fault during teardown AFTER a clean tally means the shell WAS verified and only
+    // the browser teardown broke -- saying "NOTHING WAS VERIFIED" there would be a false claim in
+    // the sentence deploy.sh puts in front of the operator.
+    console.error(completedTally
+        ? `  FAIL  harness fault AFTER a completed run (${completedTally}) -- the shell WAS verified; the fault is in teardown.`
+        : `  FAIL  harness fault: NOTHING WAS VERIFIED. This is not a verdict on the shell.`);
+    console.error(`  FAIL  page forensics written to ${dump}`);
+    process.exit(1);            // node's own default for both. Deliberately unchanged.
+};
+process.on('unhandledRejection', diagnose('UNHANDLED REJECTION'));
+process.on('uncaughtException',  diagnose('UNCAUGHT EXCEPTION'));
+
 function fixture() {
     return [
         { sessionId: 'sess-abc', labId: 'arctic', lab: 'Arctic', status: 'running', ageMinutes: 12, url: 'https://x/s/sess-abc/' },
@@ -142,7 +239,25 @@ srv.listen(0, '127.0.0.1', async () => {
     // Bodies of every POST /launch, so a test can assert WHICH lab id the shell forwarded.
     const launchBodies = [];
     const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-    const pg = await b.newPage(), calls = [];
+    browserRef = b;
+    /* The six `const pgN = await b.newPage()` sites below are registered by name, and today that
+       list is exhaustive (no window.open, no popup, no targetcreated handling anywhere in this
+       file or in the shell). This catches anything that appears ANYWAY -- if the product ever
+       opens a target the suite did not create, a forensics dump listing six healthy pages would
+       read as authoritative while being silently blind to the one that mattered. */
+    b.on('targetcreated', async (t) => {
+        try { const p = await t.page(); if (p) register(p, 'pg-unregistered-' + (pageLog.size + 1)); }
+        catch (e) {
+            /* t.page() returns NULL for a non-page target, it does not throw, so the ordinary
+               case this net ignores never lands here. A THROW means the target DIED while we
+               were registering it -- the exact event this instrumentation exists to catch.
+               Swallowing it silently would rebuild the "six healthy pages, silent about the one
+               that mattered" gap one level down. Recorded, never rethrown: a diagnostic net must
+               not become a new way to fail. */
+            lostTargets.push(String(e && e.message).split('\n')[0]);
+        }
+    });
+    const pg = register(await b.newPage(), 'pg1-main'), calls = [];
     await pg.setRequestInterception(true);
     pg.on('request', r => {
         const u = r.url(), m = r.method();
@@ -855,7 +970,7 @@ srv.listen(0, '127.0.0.1', async () => {
     // Reproduces the sequence both reviewers found: a slow (not hung) request trips the
     // watchdog, a later command takes the lock, and the FIRST request's late settlement must
     // NOT release the later command's lock. Fails against an unguarded clearProc.
-    const pg2 = await b.newPage();
+    const pg2 = register(await b.newPage(), 'pg2');
     const slow = { 'sess-abc': 4000, 'sess-frz': 12000 };
     let live2 = fixture();
     await pg2.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 3000; });
@@ -913,7 +1028,7 @@ srv.listen(0, '127.0.0.1', async () => {
     // retries, the retry legitimately relaunches, and then the ORIGINAL chain's destroy lands
     // and would launch a second time. Two live sessions for one lab from one intent, with
     // every individual message truthful. Found by a reviewer's probe, not by reading.
-    const pg3 = await b.newPage();
+    const pg3 = register(await b.newPage(), 'pg3');
     let live3 = fixture();
     const launchLog = [];
     await pg3.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
@@ -968,7 +1083,7 @@ srv.listen(0, '127.0.0.1', async () => {
     // fixture above uses optimistic-destroy instead). The watchdog fires while launch() is in
     // flight, the student retries, list() cannot see the not-yet-provisioned box, and the retry
     // takes the "launching it fresh" branch. Without launchPending that issues a SECOND launch.
-    const pg4 = await b.newPage();
+    const pg4 = register(await b.newPage(), 'pg4');
     let live4 = fixture().filter(x => x.labId === 'arctic');
     const launch4 = [];
     await pg4.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
@@ -1032,7 +1147,7 @@ srv.listen(0, '127.0.0.1', async () => {
     // reaches `launchPending = true`; meanwhile gen2 legitimately takes the lab and its launch
     // is outstanding. gen1's catch must not delete gen2's entry, or a third retry starts a
     // second box.
-    const pg5 = await b.newPage();
+    const pg5 = register(await b.newPage(), 'pg5');
     let live5 = fixture().filter(x => x.labId === 'arctic');
     const launch5 = [];
     let destroyCalls = 0;
@@ -1125,7 +1240,7 @@ srv.listen(0, '127.0.0.1', async () => {
     // cosmetically harmless and gets wiped before any assertion sees it. Point the race at the
     // SAME lab and the stale chain claims the slot is back in the pool while a fresh box runs.
     // Both reviewers found this; one reproduced it. Nothing in the suite covered it.
-    const pg6 = await b.newPage();
+    const pg6 = register(await b.newPage(), 'pg6');
     let live6 = fixture().filter(x => x.labId === 'arctic');
     await pg6.evaluateOnNewDocument(() => { window.HEX_PROC_TIMEOUT_MS = 1000; });
     await pg6.setRequestInterception(true);
@@ -1170,6 +1285,9 @@ srv.listen(0, '127.0.0.1', async () => {
     await pg6.close();
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
+    // BEFORE teardown, deliberately: everything below here can still fault, and if it does the
+    // report must say the shell WAS verified rather than claim nothing was.
+    completedTally = `${pass}/${pass + fail} passed`;
     await b.close(); srv.close();
     process.exitCode = fail ? 1 : 0;
 });

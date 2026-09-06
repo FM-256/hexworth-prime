@@ -430,8 +430,26 @@ HEXPROC_RC=0
 HEXPROC_OUT="$(node _tools/hexos/hex-shell-process.test.js 2>&1)" || HEXPROC_RC=$?
 echo "$HEXPROC_OUT" | tail -3 | sed 's/^/  /'
 if [[ $HEXPROC_RC -ne 0 ]]; then
-    echo -e "${RED}DEPLOY BLOCKED${NC}: the hex shell's session commands regressed."
-    echo "These drive real containers and real per-user capacity. Full output:"
+    # A real regression and a HARNESS FAULT (a dead page or crashed renderer) both arrive here as
+    # a nonzero rc, and this message used to call both of them a regression. That misattribution
+    # is what taskboard 345 exists to fix, and it matters most at THIS gate: 3.7 is what stops the
+    # deploy, so this line is what a tired operator reads. The suite prints a `harness fault`
+    # marker plus a forensics path whenever it faults, whether or not it reached its tally.
+    # MESSAGE ONLY. Exit codes are deliberately untouched (rc 2 has seven consumers in
+    # post-verify that read it as "puppeteer unavailable, skip"), and BOTH cases still block --
+    # "could not verify" is not permission to ship.
+    # The headline CLASSIFIES (harness fault vs regression); the suite's own FAIL line above
+    # carries the precise truth, because there are two harness cases and they differ: a fault
+    # BEFORE the tally verified nothing, while a fault in teardown AFTER a clean tally means the
+    # shell WAS verified. A headline that hardcoded "NOTHING WAS VERIFIED" would be a false
+    # statement in the second case, and this is the sentence an operator acts on.
+    if grep -q 'harness fault' <<<"$HEXPROC_OUT"; then
+        echo -e "${RED}DEPLOY BLOCKED${NC}: HARNESS FAULT — this is not a verdict on the shell."
+        echo "The FAIL lines above state what was verified and where the forensics went. Re-run:"
+    else
+        echo -e "${RED}DEPLOY BLOCKED${NC}: the hex shell's session commands regressed."
+        echo "These drive real containers and real per-user capacity. Full output:"
+    fi
     echo "  node _tools/hexos/hex-shell-process.test.js"
     exit 1
 fi
