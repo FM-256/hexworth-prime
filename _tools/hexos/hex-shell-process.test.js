@@ -180,13 +180,25 @@ const diagnose = (kind) => (e) => {
         ? crashed.map(r => `${r.label} CRASHED (${r.crash})`).join('; ')
         : 'no renderer crash recorded';
     let connected = '?'; try { connected = String(browserRef && browserRef.connected); } catch (x) {}
+    /* Read the thrown value defensively. It is NOT necessarily a plain Error -- CDP protocol
+       errors and session objects are exactly the malformed input a real crash produces, and a
+       getter that throws (or a hostile toString) would make THIS handler throw while it IS the
+       registered handler. Node then falls through to its fatal default: no dump, no FAIL line,
+       no classification, just the anonymous stack this whole thing exists to prevent, in the one
+       case most likely to be malformed. The file write below was already guarded; these reads
+       were not. Same guard as _tools/hexos/harness-forensics.js. */
+    const safe = (fn, fallback) => {
+        try { const v = fn(); if (v === undefined || v === null) return fallback;
+              const s = String(v); return s.length ? s : fallback; } catch (x) { return fallback; }
+    };
     // e.stack, not just e.message: this handler REPLACES node's default trace, and for any
     // ordinary bug in this file (a typo, a bad property access) the stack is the useful part
     // and the page dump is noise. Keep both rather than trade one for the other.
-    const body = [`${kind}: ${e && e.message ? e.message : e}`, '', String((e && e.stack) || e), '',
+    const msg = safe(() => e.message, '') || safe(() => e, '(unprintable value)');
+    const body = [`${kind}: ${msg}`, '', safe(() => e.stack, msg), '',
                   'PAGE FORENSICS (taskboard 345):', forensics(), `browser.connected=${connected}`].join('\n');
     try { fs.writeFileSync(dump, body + '\n'); } catch (x) { /* never let the reporter be the fault */ }
-    console.error(`\n  ${kind}: ${e && e.message ? String(e.message).split('\n')[0] : e}`);
+    console.error(`\n  ${kind}: ${msg.split('\n')[0]}`);
     console.error('  PAGE FORENSICS (taskboard 345):');
     console.error(forensics());
     console.error(`  browser.connected=${connected}`);
