@@ -119,6 +119,22 @@ picocom
 pciutils
 usb-modeswitch
 firmware-linux-free
+# NON-FREE FIRMWARE, and without it this phase cannot clear its own bar.
+# `firmware-linux-free` alone was a silent showstopper: nearly every USB WiFi adapter worth using
+# for monitor mode, the laptop's own internal card, and several SDR front-ends all need blobs that
+# are NOT in the free set. The image would have booted perfectly and then found no radio, which
+# reads as "the adapter is broken" rather than "the image ships no firmware for it".
+# `--archive-areas` at line 52 already enables non-free-firmware, so only the packages were
+# missing. Tens of MB against a 1.6GB image, and the alternative is a hardware phase that cannot
+# touch hardware.
+#   misc-nonfree  MediaTek mt76 (the AWUS036ACM class) and a long tail of USB parts
+#   realtek       Realtek USB WiFi and Bluetooth
+#   atheros       ath9k_htc, the classic mainline monitor-mode chipset
+#   iwlwifi       Intel, i.e. the built-in card on most lab laptops
+firmware-misc-nonfree
+firmware-realtek
+firmware-atheros
+firmware-iwlwifi
 PKGS
 
 # ── The session IS the shell. That is the phase's stated identity. ──

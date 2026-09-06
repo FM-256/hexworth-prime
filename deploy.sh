@@ -497,7 +497,8 @@ for hg in \
     "home directory is read-only|node _tools/hexos/home-directory.test.js" \
     "tenant cross-tab context|node _tools/hexos/tenant-crosstab.test.js" \
     "MD-100 arena cards vs registry|node _tools/hexos/md100-arena-cards.test.js" \
-    "tenant containment on Hex OS|node _tools/hexos/tenant-containment.test.js"; do
+    "tenant containment on Hex OS|node _tools/hexos/tenant-containment.test.js" \
+    "terminal async output|node _tools/hexos/terminal-async-output.test.js"; do
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
     # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
     # always 0. That produced a gate that could never block once already in this file.

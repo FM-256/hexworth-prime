@@ -289,6 +289,20 @@ def main():
     print(f"{len(rows)} scripts: {c('GATE')} GATE, {c('CALLED')} CALLED, "
           f"{c('DOCS-ONLY')} DOCS-ONLY, {c('ORPHAN')} ORPHAN, {h} with a header")
     print(f"wrote {OUT_MD.relative_to(REPO)} and {OUT_JSON.relative_to(REPO)}")
+
+    # A script CLAIMING to be a gate that nothing invokes (taskboard 353).
+    # The whole point of this generator is that the wiring column is DERIVED and therefore cannot
+    # lie -- but `@catalog status` is HAND-WRITTEN, so a file can still assert GATE while the tree
+    # says otherwise, and that assertion is exactly what a reader trusts. Two suites sat like that
+    # with 68 assertions between them that no gate ever read, and a human found it, not this tool.
+    # Reported, deliberately NOT a failure: the honest fix is sometimes to wire it and sometimes to
+    # demote the header, and this script cannot know which.
+    liars = [r for r in rows if r['declaredStatus'] == 'GATE' and r['wiring'] != 'GATE']
+    if liars:
+        print(f"\n  {len(liars)} script(s) DECLARE status GATE but nothing invokes them:")
+        for r in sorted(liars, key=lambda r: r['path']):
+            print(f"    [{r['wiring']:<10}] {r['path']}")
+        print("  Either wire it into a gate, or demote the header to TOOL. Do not leave it lying.")
     return 0
 
 

@@ -5,7 +5,15 @@
  * @catalog what    Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's
  * @catalog what    OWN parser and fails if any of them is rejected. Documented syntax must work.
  * @catalog run     node _tools/hexos/md100-cmdlet-help.test.js
- * @catalog status  GATE
+ * @catalog status  TOOL
+ * @catalog note    WAS declared GATE while NOTHING invoked it -- not deploy.sh, not post-verify,
+ * @catalog note    not package.json. 58 assertions no gate ever read. Demoted so the header stops
+ * @catalog note    contradicting the tree (taskboard 353). It is NOT wired yet because of a real
+ * @catalog note    blocker: the top-level catch below exits 2 on any harness error, and seven
+ * @catalog note    post-verify call sites read rc 2 as "puppeteer unavailable, SKIP" with no
+ * @catalog note    divergence flag -- so wiring it as-is would turn a harness error into a silent
+ * @catalog note    skip. Fix that catch to exit 1 with a `harness fault` marker (the marker
+ * @catalog note    deploy.sh gate 3.7 and post-verify 4f branch on), THEN wire it into gate 3.8.
  *
  * WHY THIS EXISTS
  * ---------------

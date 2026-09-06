@@ -54,7 +54,26 @@ somebody's machine.
 
 ## OPEN, and it gates the phase
 
-**Nobody has named the WiFi/SDR adapter model.** The curriculum mentions `rtl-sdr`, `ubertooth` and
-`rtl8720` only in passing. Whether the real adapters have mainline Ubuntu LTS drivers, or need
-out-of-tree/DKMS modules, decides whether this image stays thin or becomes the accumulation the
-scope doc calls fatal. Until that is answered this ships with mainline drivers only.
+**The bar SPLITS, and only half of it was ever unspecified.** Measured across the course content:
+`ch340` appears 7 times, `rtl-sdr` 3, `ubertooth one` 2, `proxmark` and `bus pirate` once each —
+**and no WiFi adapter anywhere.** Meanwhile WiFi Arsenal has 11 modules carrying **67 references to
+`wlan0mon`** and 8 to `airmon-ng start`: content that teaches real commands students currently have
+nowhere to run. So the justification is real and the specification simply never existed.
+
+| half of the bar | hardware | driver | status |
+|---|---|---|---|
+| SDR + serial + USB | RTL-SDR (V3), any CH340 cable, ubertooth, bus pirate | **all mainline** | testable now, ~US$40 total |
+| WiFi monitor mode | never specified by the curriculum | depends entirely on the chipset picked | needs a decision, below |
+
+**For monitor mode, buy the MediaTek, not the Realtek.** The common recommendation is the Alfa
+AWUS036ACH (RTL8812AU), which needs an out-of-tree DKMS module — the accumulation the scope doc
+calls fatal, rebuilt against every kernel bump forever. The **AWUS036ACM (MediaTek MT7612U)** uses
+the mainline `mt76` driver and needs only a firmware blob. Same money, same capability, no
+maintenance tail. An `ath9k_htc` adapter is the cheaper mainline fallback.
+
+**Firmware was the real showstopper, and it was not the adapter.** This image shipped
+`firmware-linux-free` ONLY, so the right adapter would still have come up dead — including the
+laptop's own internal card. `--archive-areas` already enabled `non-free-firmware`; only the
+packages were missing. Fixed in `build.sh`: `firmware-misc-nonfree`, `firmware-realtek`,
+`firmware-atheros`, `firmware-iwlwifi`. **The image must be rebuilt before any hardware test is
+meaningful** — a test against the old ISO measures the missing firmware, not the adapter.

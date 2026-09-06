@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-05 18:34 · **1195 scripts** · 41 wired into a gate · 282 called by other code · 190 only mentioned in docs · 682 referenced by nothing · 478 not in git
+**Generated:** 2026-09-06 17:18 · **1196 scripts** · 42 wired into a gate · 284 called by other code · 190 only mentioned in docs · 680 referenced by nothing · 476 not in git
 
 ## Read this before writing a new script
 
@@ -66,6 +66,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/hexos/safe-entry.test.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Permanent coverage for safeEntry: proves the two copies have not drifted, and proves in a real browser that a control character cannot smuggle an offsite link. |
 | `_tools/hexos/tenant-containment.test.js` | `deploy.sh` | yes | UNSTUBBED proof that a tenant student cannot escape the white-label wrapper from a Hex OS page, and that TenantShell is not loaded twice. Runs the real AccessGuard, TenantRouter and TenantShell, mocking only the network. |
 | `_tools/hexos/tenant-crosstab.test.js` | `deploy.sh` | yes | Proves BUG-242's repro in a real browser: join in one tab, tenant context is present in a SECOND tab, and sign-out purges it so the next student cannot inherit it. Also proves the mirror is invoked from every join path. |
+| `_tools/hexos/terminal-async-output.test.js` | `deploy.sh` | yes | Drives every dispatch box with an async command handler and fails if the terminal ever renders the literal string "[object Promise]". |
 | `_tools/hexos/whatsnew-tenant.test.js` | `_tools/deploy/post-verify.sh` | yes | UpdateManager.isTenantContext() must detect a white-label student from EITHER storage, so the What's New modal never shows Hexworth release notes inside a tenant's branded wrapper. |
 | `_tools/lab-tests/run-all.js` | `deploy.sh` | yes | Runs every A+ lab/quiz suite; exits non-zero if any fails |
 | `_tools/nexus/nexus.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
@@ -757,7 +758,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 13 scripts, 10 referenced by nothing
+### `_tools/hexos` — 13 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -770,17 +771,17 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
+| `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
-| `md100-cmdlet-help.test.js` | ORPHAN | 0 | 2026-09-05 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
-| `terminal-async-output.test.js` | ORPHAN | 0 | 2026-09-05 | yes | Drives every dispatch box with an async command handler and fails if the terminal ever renders the literal string "[object Promise]". |
+| `md100-cmdlet-help.test.js` | CALLED | 1 | 2026-09-06 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 
 ### `_tools/hexos-live` — 2 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `build.sh` | CALLED | 1 | 2026-09-05 | no | HEXOS-6: build the Hex Live bootable image (runs inside the Docker build env) |
-| `make.sh` | CALLED | 1 | 2026-09-05 | no | HEXOS-6: build Hex Live on a real build host, in Docker, host left untouched |
+| `build.sh` | CALLED | 2 | 2026-09-06 | yes | HEXOS-6: build the Hex Live bootable image (runs inside the Docker build env) |
+| `make.sh` | CALLED | 1 | 2026-09-05 | yes | HEXOS-6: build Hex Live on a real build host, in Docker, host left untouched |
 
 ### `_tools/image-catalog` — 3 scripts, 3 referenced by nothing
 
