@@ -62,6 +62,10 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; cannot verify installability or workers without a browser. Refusing to fake a pass.');
     process.exit(2);
 }
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Armed AFTER the puppeteer check, leaving the exit-2 "cannot run" path
+// alone. pwa is a BLOCKING gate (deploy.sh 3.8) and drives three pages across two contexts.
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'pwa' });
 
 const TYPES = {
     '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
@@ -109,9 +113,9 @@ srv.listen(0, '127.0.0.1', async () => {
         });
     };
 
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    const browser = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
     try {
-        const page = await browser.newPage();
+        const page = F.watch(await browser.newPage());
         const pageErrors = [];
         page.on('pageerror', (e) => pageErrors.push(e.message));
         await page.setRequestInterception(true);
@@ -172,7 +176,7 @@ srv.listen(0, '127.0.0.1', async () => {
         const cleanCtx = browser.createBrowserContext
             ? await browser.createBrowserContext()
             : await browser.createIncognitoBrowserContext();
-        const cleanPage = await cleanCtx.newPage();
+        const cleanPage = F.watch(await cleanCtx.newPage());
         try {
             await cleanPage.setRequestInterception(true);
             stubGuard(cleanPage);
@@ -227,7 +231,7 @@ srv.listen(0, '127.0.0.1', async () => {
         const ctx = browser.createBrowserContext
             ? await browser.createBrowserContext()
             : await browser.createIncognitoBrowserContext();
-        const tp = await ctx.newPage();
+        const tp = F.watch(await ctx.newPage());
         try {
             await tp.setRequestInterception(true);
             stubGuard(tp);
@@ -277,6 +281,9 @@ srv.listen(0, '127.0.0.1', async () => {
             await tp.close();
             await ctx.close().catch(() => {});
         }
+        // AFTER the last assertion, BEFORE the finally: teardown runs in `finally` and the tally
+        // prints after it, so a fault in browser.close() must not claim nothing was verified.
+        F.completed(`${pass}/${pass + fail} passed`);
     } finally {
         await browser.close();
         srv.close();

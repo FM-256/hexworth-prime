@@ -61,6 +61,10 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; containment cannot be verified in a browser. Refusing to fake a pass.');
     process.exit(2);
 }
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Armed AFTER the puppeteer check, leaving the exit-2 "cannot run" path
+// untouched -- seven post-verify call sites read rc 2 as "skip".
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'tenant-containment' });
 
 const TYPES = {
     '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json',
@@ -101,7 +105,7 @@ async function visit(browser, url, opts) {
     opts = opts || {};
     const ctx = browser.createBrowserContext
         ? await browser.createBrowserContext() : await browser.createIncognitoBrowserContext();
-    const pg = await ctx.newPage();
+    const pg = F.watch(await ctx.newPage());   // visit() is the only page factory here
     const errors = [], shellExec = [], cfg = [];
     pg.on('pageerror', (e) => errors.push(e.message.split('\n')[0]));
     await pg.setRequestInterception(true);
@@ -154,7 +158,7 @@ async function visit(browser, url, opts) {
 srv.listen(0, '127.0.0.1', async () => {
     PORT = srv.address().port;
     const ORIGIN = `http://localhost:${PORT}`;
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    const browser = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
     try {
         for (const url of PAGES) {
             const r = await visit(browser, url, { origin: ORIGIN });
@@ -188,6 +192,10 @@ srv.listen(0, '127.0.0.1', async () => {
         chk('and they are never pointed at a tenant hub',
             !plain.state.backHref || plain.state.backHref.indexOf('/tenant/') === -1,
             `non-tenant student's back-link is ${plain.state.backHref}`);
+        // AFTER the last assertion, BEFORE the finally: this suite tears down in `finally` and
+        // prints its tally after it, so a fault in browser.close() would otherwise claim nothing
+        // was verified when every assertion had in fact run.
+        F.completed(`${pass}/${pass + fail} passed`);
     } finally {
         await browser.close();
         srv.close();

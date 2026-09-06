@@ -51,6 +51,11 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; cannot verify in a browser. Refusing to fake a pass.');
     process.exit(2);
 }
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Armed AFTER the puppeteer check, leaving the exit-2 "cannot run" path
+// alone. safe-entry is a DUAL gate (deploy.sh 3.8 and post-verify), so a misreported harness
+// fault here blocks a deploy AND flags a post-deploy divergence.
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'safe-entry' });
 
 /** Pull the shipped implementation out of a file, so the test exercises code that ships. */
 function extract(rel) {
@@ -81,8 +86,8 @@ srv.listen(0, '127.0.0.1', async () => {
         'index.html and apps.html differ; one bug would now need fixing twice');
 
     // 2. ESCAPE, in a browser, against the shipped source of each file.
-    const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-    const pg = await b.newPage();
+    const b = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
+    const pg = F.watch(await b.newPage());
     await pg.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'domcontentloaded' });
 
     const VECTORS = [
@@ -128,6 +133,9 @@ srv.listen(0, '127.0.0.1', async () => {
     chk('no real manifest entry is rejected', rejected.length === 0, rejected.slice(0, 3).join(', '));
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
+    // This suite prints its tally BEFORE teardown (unlike doc-examples/first-timer, which print
+    // after), so completed() sits between the tally and b.close() rather than before both.
+    F.completed(`${pass}/${pass + fail} passed`);
     await b.close(); srv.close();
     process.exitCode = fail ? 1 : 0;
 });

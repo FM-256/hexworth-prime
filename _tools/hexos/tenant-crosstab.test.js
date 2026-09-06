@@ -48,6 +48,10 @@ try { puppeteer = require('puppeteer'); } catch (e) {
     console.error('puppeteer not installed; cross-tab behaviour cannot be verified. Refusing to fake a pass.');
     process.exit(2);
 }
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. Armed AFTER the puppeteer check, leaving the exit-2 "cannot run" path
+// alone. This suite drives THREE pages across two contexts; all three are watched.
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'tenant-crosstab' });
 
 let pass = 0, fail = 0;
 const chk = (n, c, d) => {
@@ -115,7 +119,7 @@ srv.on('error', (e) => { console.error(`  harness could not bind ${PORT}: ${e.co
 srv.listen(0, '127.0.0.1', async () => {
     PORT = srv.address().port;
     const ORIGIN = `http://localhost:${PORT}`;
-    const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+    const browser = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
     try {
         const ctx = browser.createBrowserContext
             ? await browser.createBrowserContext() : await browser.createIncognitoBrowserContext();
@@ -126,7 +130,7 @@ srv.listen(0, '127.0.0.1', async () => {
         const shell = fs.readFileSync(path.join(APP, 'components/TenantShell.js'), 'utf8');
         const CFG = { slug: 'acme', branding: { name: 'Acme Academy' }, adminUids: [] };
 
-        const tab1 = await ctx.newPage();
+        const tab1 = F.watch(await ctx.newPage());
         await tab1.goto(`${ORIGIN}/tenant/`, { waitUntil: 'domcontentloaded' }).catch(() => null);
         const mirrored = await tab1.evaluate((src, cfg) => {
             sessionStorage.clear(); localStorage.clear();
@@ -154,7 +158,7 @@ srv.listen(0, '127.0.0.1', async () => {
         // class of incident that once posted to the live Discord, but a release gate should not
         // depend on an external endpoint it does not need: it flakes when that endpoint hiccups or
         // CI egress is restricted. Stubbed, so the gate tests our code and nothing else.
-        const tab2 = await ctx.newPage();
+        const tab2 = F.watch(await ctx.newPage());
         await tab2.setRequestInterception(true);
         /* Every off-origin request is either STUBBED or ABORTED; none is ever allowed through.
            `escaped` records anything that got past both, which is the only real violation. */
@@ -253,7 +257,7 @@ srv.listen(0, '127.0.0.1', async () => {
            context starts empty, so nothing has to be cleared and nothing can race. */
         const realCtx = browser.createBrowserContext
             ? await browser.createBrowserContext() : await browser.createIncognitoBrowserContext();
-        const real = await realCtx.newPage();
+        const real = F.watch(await realCtx.newPage());
         await real.setRequestInterception(true);
         real.on('request', (r) => {
             const u = r.url();
@@ -291,6 +295,9 @@ srv.listen(0, '127.0.0.1', async () => {
 
         await tab1.close(); await tab2.close();
         await ctx.close().catch(() => {});
+        // AFTER the last assertion, BEFORE the finally: teardown runs in `finally` and the tally
+        // prints after it, so a fault in browser.close() must not claim nothing was verified.
+        F.completed(`${pass}/${pass + fail} passed`);
     } finally {
         await browser.close(); srv.close();
     }

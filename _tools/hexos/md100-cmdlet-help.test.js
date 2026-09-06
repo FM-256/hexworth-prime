@@ -39,6 +39,11 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+/* Taskboard 352. NOTE the limit here, recorded on 353: this suite's top-level `.catch` handles
+   every rejection thrown inside runExamplesInBrowser and exits 2, so these process handlers can
+   only fire for rejections that escape it. A caught rejection is not an unhandled one. Wired for
+   the paths that do escape, and for consistency; the catch itself is a separate decision. */
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'md100-cmdlet-help' });
 
 const LAB = path.resolve(__dirname, '../../_app/houses/forge/md-100/labs/forge-md100-midterm-sim.lab.html');
 
@@ -116,8 +121,8 @@ let PORT = 0;
     await new Promise((res) => srv.listen(0, '127.0.0.1', res));
     PORT = srv.address().port;   // real port, before any URL is built from it
 
-    const b = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
-    const pg = await b.newPage();
+    const b = F.browser(await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] }));
+    const pg = F.watch(await b.newPage());
     await pg.setRequestInterception(true);
     pg.on('request', (r) => {
         const u = r.url();
@@ -168,6 +173,9 @@ let PORT = 0;
             res.errors.length === 0, res.errors[0] || res.text);
     }
 
+    // AFTER the last assertion, BEFORE teardown. The tally prints in the .then() below, i.e.
+    // after this function returns, so a fault in b.close() must not claim nothing was verified.
+    F.completed(`${pass}/${pass + fail} passed`);
     await b.close();
     srv.close();
 }

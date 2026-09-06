@@ -53,11 +53,14 @@ const srv=http.createServer((q,r)=>{let p=decodeURIComponent(q.url.split('?')[0]
 const BOXES=['nt1-network-troubleshoot','nt002-no-internet','nt003-slow-connection','nt004-wifi-wont-connect',
  'nt005-vpn-failure','nt006-ip-conflict','nt007-dns-failure','nt008-vlan-isolation','nt009-switch-port-down','nt010-routing-problem'];
 let pass=0,fail=0;
+// Taskboard 352: records a crashed renderer or a dead browser so a harness fault stops reading as
+// a product regression. One page per box in the loop below, so every one of them is watched.
+const F = require('./harness-forensics').arm({ dir: __dirname, suite: 'terminal-async-output' });
 srv.listen(0, '127.0.0.1', async() => {
     PORT = srv.address().port;
- const b=await puppeteer.launch({headless:'new',args:['--no-sandbox']});
+ const b=F.browser(await puppeteer.launch({headless:'new',args:['--no-sandbox']}));
  for(const box of BOXES){
-  const pg=await b.newPage();
+  const pg=F.watch(await b.newPage());
   const errs=[];pg.on('pageerror',e=>errs.push(e.message.split('\n')[0]));
   await pg.setRequestInterception(true);
   pg.on('request',r=>{const u=r.url();
@@ -114,6 +117,9 @@ srv.listen(0, '127.0.0.1', async() => {
   }catch(e){ console.log(`  ERR  ${box.padEnd(26)} ${e.message.slice(0,50)}`); }
   await pg.close();
  }
+ // AFTER the last assertion, BEFORE teardown: the tally prints after b.close(), so a fault in
+ // close() must not claim nothing was verified when every box had in fact been checked.
+ F.completed(`${pass} clean / ${fail} still broken`);
  await b.close();srv.close();
  console.log(`\n  ${pass} clean / ${fail} still broken`);
  process.exitCode = fail ? 1 : 0;
