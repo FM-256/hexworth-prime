@@ -120,6 +120,15 @@ The fourth was the tell that live-build's ubuntu mode is unmaintained. Moving to
 three at once **and** gave kernel 6.12 against Ubuntu 24.04's 6.8, which is where WiFi and SDR
 driver support actually lives.
 
+## Published
+
+Confluence: [Hex Live (HEXOS-6) — Build, Boot and Verification Runbook](https://hexworth.atlassian.net/wiki/spaces/KBA/pages/72482817), page id `72482817`, under *Platform Documentation > Hex OS — Architecture and Operations*.
+
+Re-publish after edits:
+```
+python3 _tools/confluence/publish-solution.py update 72482817 _docs/operations/hex-live-runbook.md
+```
+
 ## Related
 
 - `_docs/architecture/hex-os-scope.md` — why this phase exists and what it costs
