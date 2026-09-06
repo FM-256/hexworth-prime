@@ -1,7 +1,9 @@
 # Hex OS — scope
 
-**Status: SHIPPED.** All seven phases are live. HEXOS-0 through HEXOS-5 are in production;
-HEXOS-6 remains an open operator decision and is conditional by design, see its section.
+**Status: SHIPPED.** HEXOS-0 through HEXOS-5 are in production. HEXOS-6 is BUILT and boot-verified
+as of 2026-09-05 but its own bar is NOT met: the phase is justified only by hardware, and monitor
+mode has never been run on a real adapter because nobody has named the adapter or the laptop. It is
+a built, unproven image. Runbook: `_docs/operations/hex-live-runbook.md`.
 Originally scoped 2026-08-30 as marathon Stream 4 background work; delivered 2026-09-02.
 
 This document is kept as the SCOPE it was, with the outcome recorded per phase, because the
@@ -17,7 +19,7 @@ what the system does today, read the phase table below and
 | HEXOS-3 dead-entry gate | LIVE, blocking in `deploy.sh` |
 | HEXOS-4 home directory | LIVE at `/home.html` |
 | HEXOS-5 PWA install | LIVE, Chrome reports zero installability errors |
-| HEXOS-6 bootable image | OPEN, operator decision, conditional |
+| HEXOS-6 bootable image | BUILT and boot-verified 2026-09-05; hardware bar NOT met |
 
 **What shipped after the original scope, because using it exposed them.** The operator typed
 `run incubator`, which `ls` had listed, and got "no app called incubator": true and useless. That
@@ -176,6 +178,19 @@ stick or laptop.
 **Only justified by hardware.** WiFi Arsenal needs monitor mode; the Signal toolkit's 112 projects
 need USB, serial and SDR. A browser cannot reach a radio, and no amount of shell polish changes
 that. If HEXOS-6 happens, that is the reason, not the aesthetics.
+
+**BUILT 2026-09-05.** `live-image-amd64.hybrid.iso`, 1.6GB, Debian trixie, kernel 6.12.107. Boots
+unattended, starts X, runs surf full-screen against the live platform; verified by screendumping a
+QEMU boot rather than by inspecting the ISO. Recipe: `_tools/hexos-live/`. Runbook:
+`_docs/operations/hex-live-runbook.md`. Approach A (thin image, kiosk session, hardware tooling, NO
+bundled content) chosen 3-1 by panel vote over B (bundle `_app`) and C (hardware-only, no session).
+
+**STILL UNPROVEN, and this is the phase's actual bar:** monitor mode producing frames and an SDR
+producing samples, on the laptop the lab owns. Blocked on nobody having named the adapter model.
+
+**Also open:** booted unauthenticated, the session lands on the tourist-visa wall rather than the
+shell, because AccessGuard requires a sorted user. Correct behaviour, wrong first screen for an
+image whose identity is "the session is the shell". Panel decision, not a quiet edit.
 
 **Stated cost:** a distro is a product with a security-update obligation. The build is one week;
 the commitment is years of kernel CVEs, driver regressions on the one laptop model that matters,

@@ -45,7 +45,27 @@ lb config \
     --iso-application "Hex Live" \
     --iso-volume "HEXLIVE"
 
-mkdir -p config/package-lists config/includes.chroot/etc/skel
+mkdir -p config/package-lists config/includes.chroot/etc/skel \
+         config/bootloaders/isolinux config/bootloaders/grub-pc
+
+# ── AUTO-BOOT. Found by BOOTING the image and screendumping it, not by inspecting the ISO. ──
+# The first build produced a perfectly good bootloader that sat on its menu waiting for ENTER;
+# two screendumps 60 seconds apart were byte-identical. On a desk that is a minor annoyance. In a
+# classroom it is thirty machines that never start, and under PXE, which is where this is heading,
+# there is nobody standing at the machine to press a key at all. A live image whose default is
+# "wait for a human" is not a live image.
+# 5 seconds: enough for a deliberate hand to reach fail-safe, short enough that a room boots itself.
+for d in isolinux grub-pc; do
+    cp -r /usr/share/live/build/bootloaders/$d/* "config/bootloaders/$d/" 2>/dev/null || true
+done
+if [ -f config/bootloaders/isolinux/isolinux.cfg ]; then
+    sed -i 's/^timeout .*/timeout 50/' config/bootloaders/isolinux/isolinux.cfg
+    grep -q '^timeout' config/bootloaders/isolinux/isolinux.cfg || echo 'timeout 50' >> config/bootloaders/isolinux/isolinux.cfg
+fi
+if [ -f config/bootloaders/grub-pc/config.cfg ]; then
+    sed -i 's/^set timeout=.*/set timeout=5/' config/bootloaders/grub-pc/config.cfg
+    grep -q '^set timeout=' config/bootloaders/grub-pc/config.cfg || echo 'set timeout=5' >> config/bootloaders/grub-pc/config.cfg
+fi
 
 # ── The package list. Each line has to justify itself against "fatal if it accumulates". ──
 cat > config/package-lists/hexlive.list.chroot <<'PKGS'
