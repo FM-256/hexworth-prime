@@ -168,7 +168,13 @@ most students do not have.
 HEXOS-5b is nevertheless still OPEN and NOT built, for a reason that has nothing to do with the
 blocker: offline can only cache the launcher, and `run <app>` does a top-level navigation to an
 app entry page that is deliberately not cached, so an offline student gets a catalogue of 192
-things and a browser error page when they open one. See the vote record in the taskboard.
+things and a browser error page when they open one.
+
+**Its status is PINNED, not decided.** The 2026-09-05 vote reached NO majority: two voters chose
+decline, two chose a register-at-`/hex/`-scope option whose own two positions contradicted each
+other, so there is no coherent majority for any single action. Nothing here is settled, and it is
+not "declined" — un-pinning it is an operator decision about whether offline-browse-without-launch
+is worth having at all. Vote record: taskboard 330.
 
 
 ### HEXOS-6 — Hex Live (bootable image)  *(LAST, and conditional)*

@@ -36,7 +36,7 @@ Seven phases, `_docs/architecture/hex-os-scope.md`:
 | Phase | State |
 |---|---|
 | 0 manifest · 1 `run` CLI · 2 launcher · 3 dead-entry gate · 4 home · 5 PWA install | **live in production** |
-| 5b offline | **declined for now** — the shell is a launcher, and `run` navigates to pages that are deliberately never cached, so offline buys a catalogue you cannot open |
+| 5b offline | **PINNED — needs an operator decision.** The 2026-09-05 vote produced NO majority, so nothing was decided. The standing argument against is that the shell is a launcher: `run` navigates to app entry pages that are deliberately never cached, so offline buys a catalogue of 192 things and a browser error the moment one is opened. That is a value judgement, not a technical block — the blocker this task was filed for turned out to be false. Taskboard 330 |
 | 6 Hex Live (bootable image) | **built and boot-verified, hardware bar NOT met** |
 
 **Hex Live** is a Debian image whose whole session is the shell. It exists for hardware a browser
