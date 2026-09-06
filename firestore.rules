@@ -117,15 +117,31 @@ service cloud.firestore {
         && request.resource.data.get('quizzes', {}).size() == 0;
 
       // Users can update only safe fields
-      // XP + level are in the whitelist for backward compat but syncProgress CF
-      // derives them server-side — client values are ignored during sync
+        /* BUG-262. 'xp' and 'level' were REMOVED from this list 2026-09-05, the same treatment
+           ctfBoxesPwned and ctfFlagsCaptured got below, for the same reason.
+           The comment that sat here claimed they were safe because syncProgress derives them
+           server-side and client values are ignored during sync. That was a hope about one code
+           path, not a guarantee about this rule. Disproved against PRODUCTION through the
+           rules-enforced channel: an anonymous account, a raw Firestore REST PATCH carrying that
+           user's OWN idToken, updateMask xp+level, {xp: 999999999, level: 500}, HTTP 200. No Cloud
+           Function, no module id, no house, no allow-list involved. Verified by an independent
+           admin-token read; the test account and document were then removed.
+           XP drives levels, skill-tree unlocks, achievements, the trophy cabinet and an
+           instructor-facing Completion Evidence export, so a forgeable integer here is a forgeable
+           claim about competence.
+           SAFE TO REMOVE, verified: nothing in _app writes these fields to Firestore directly. The
+           only writer is FirestoreManager.js:1524, which calls the syncProgress CALLABLE, and Cloud
+           Functions use firebase-admin and bypass rules entirely, so this rule never governed the
+           honest path.
+           NOTE the hasOnly() semantics below: the check evaluates the WHOLE write, so a client that
+           still sends xp or level has its ENTIRE patch rejected, not just those fields. That is why
+           both ctf client writers were removed in the same change as the rule. */
       allow update: if request.auth != null && request.auth.uid == userId
         && request.resource.data.diff(resource.data).affectedKeys()
            .hasOnly(['callsign', 'callsignLower', 'displayName', 'photoURL',
                      'house', 'theme', 'favorites', 'settings', 'updatedAt',
                      'deviceId', 'accountType', 'firstName', 'lastName',
                      'studentId', 'isAnonymous', 'lastActivity',
-                     'xp', 'level',
                      'modulesCompleted', 'labsCompleted', 'quizzes',
                      'achievements', 'streak',
                      /* ctfBoxesPwned and ctfFlagsCaptured were REMOVED here 2026-08-05
