@@ -427,7 +427,17 @@ else
         echo -e "  ${YELLOW}- hex shell process suite SKIPPED (puppeteer unavailable)${NC}"
     elif [[ $HS_RC -ne 0 ]]; then
         echo "$HS_OUT" | grep -E "FAIL|passed" | tail -5 | sed 's/^/  /'
-        echo -e "  ${YELLOW}! hex shell ps/stop/restart regressed${NC}"
+        # Same reclassification as deploy.sh gate 3.7: a harness fault (a dead browser) and a real
+        # regression both arrive as a nonzero rc, and calling both of them "regressed" is the
+        # misattribution taskboard 345 exists to fix. DIVERGENCE stays 1 in BOTH branches -- this
+        # runs AFTER the upload, so a result nobody can verify is precisely when a human must look.
+        # The rc==2 branch above is untouched: that means "puppeteer unavailable, skip" and is a
+        # convention shared by seven call sites in this file.
+        if grep -q 'harness fault' <<<"$HS_OUT"; then
+            echo -e "  ${YELLOW}! hex shell suite hit a HARNESS FAULT - not a verdict on the shell${NC}"
+        else
+            echo -e "  ${YELLOW}! hex shell ps/stop/restart regressed${NC}"
+        fi
         DIVERGENCE=1
     else
         echo "$HS_OUT" | tail -1 | sed 's/^/  /'
