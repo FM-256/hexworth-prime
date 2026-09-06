@@ -142,8 +142,32 @@ service cloud.firestore {
                      'house', 'theme', 'favorites', 'settings', 'updatedAt',
                      'deviceId', 'accountType', 'firstName', 'lastName',
                      'studentId', 'isAnonymous', 'lastActivity',
-                     'modulesCompleted', 'labsCompleted', 'quizzes',
-                     'achievements', 'streak',
+                     /* BUG-263. 'modulesCompleted', 'labsCompleted', 'quizzes',
+                        'achievements' and 'streak' were REMOVED here 2026-09-06, for the reason
+                        BUG-262 immediately above got wrong by omission.
+                        BUG-262 removed xp and level and argued they were safe to remove because
+                        they are server-derived. True — and it does not extend to the INPUTS the
+                        server derives them FROM, which sat in this same list.
+                        PROVEN AGAINST PRODUCTION, after the BUG-262 fix was already live: a
+                        student's own idToken PATCHed achievements=["gate_1".."gate_5"] (never
+                        earned), two fabricated well-formed module ids, a 100% score on a quiz
+                        never taken, and streak=999999 — every one HTTP 200. Then the HONEST path
+                        was called: syncProgress with an EMPTY local payload, which is just a
+                        student opening a page on a new device. The server merged the forged cloud
+                        arrays without validating them, ran deriveXP over the result, and wrote
+                        back xp=12525 level=16 AS LEGITIMATE SERVER-DERIVED VALUES. The forged
+                        inputs survived the sync unflagged.
+                        So the fields removed by BUG-262 were laundered straight back through the
+                        one path that fix relied on being trustworthy.
+                        SAFE TO REMOVE, verified the same way BUG-262 was: no client UPDATE writes
+                        any of them. The only caller that passes these is initializeNewUser, whose
+                        first write is evaluated as a CREATE and is governed by the create rule
+                        above, which already pins every one of them empty. hasOnly() evaluates the
+                        WHOLE write, so a leftover client writer would reject its entire patch —
+                        that is why this was checked before removing, not after.
+                        NOT SUFFICIENT ON ITS OWN: syncProgress still trusts pre-existing cloud
+                        arrays as authoritative merge inputs, so already-forged documents keep
+                        their values. Server-side validation is tracked separately. */
                      /* ctfBoxesPwned and ctfFlagsCaptured were REMOVED here 2026-08-05
                         (Phase B). They are written solely by _recomputeCtfStats on the
                         server, from flag_captures and flag_registry. Re-adding them would
