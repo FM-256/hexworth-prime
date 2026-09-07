@@ -6307,19 +6307,31 @@ exports.syncClassProgress = onCall(cfOptions, async (request) => {
             lastActive: FieldValue.serverTimestamp()
         };
 
+        /* BUG-264, third door. This feeds the INSTRUCTOR-FACING class roster, so a fabricated id
+           here is a forged entry in a gradebook rather than forged XP -- different consequence,
+           same defect.
+
+           UNCONDITIONAL, AND THAT PLACEMENT IS THE WHOLE POINT. This check first landed INSIDE the
+           `type === 'quiz'` branch below, which guarded only `quizScores.{moduleId}` and left the
+           module/presentation/tool and lab branches -- the ones that arrayUnion into
+           modulesCompleted/labsCompleted, the exact fields BUG-264 is about -- completely
+           unvalidated, while the commit claimed all three callables were fixed. A reviewer caught
+           it by reading the branch structure. Every write below uses moduleId, so the check belongs
+           here, before any of them.
+
+           THE REGISTRY HAD TO BE EXTENDED TWICE BEFORE THIS COULD BE ENFORCED, and both times the
+           measurement came first:
+             class rosters   registry covered 53.6% -> would have rejected 1080 real entries
+                             (eth-l01 held by 32 students, ala-final-practical by 20)
+             quiz score keys registry covered 35.9% -> would have rejected 243 real submissions
+                             (eth-w1-quiz 30, pis-midterm 15, pis-final 13)
+           The legacy floor grew 571 -> 1029 across both extensions. Enforcing before either
+           measurement would have broken gradebooks. */
+        if (!_isKnownCompletion(moduleId)) {
+            throw new HttpsError('invalid-argument', 'Unknown module id.');
+        }
+
         if (type === 'quiz' && score !== undefined) {
-            /* BUG-264, third door. This feeds the INSTRUCTOR-FACING class roster, so a fabricated
-               id here is a forged entry in a gradebook rather than forged XP -- different
-               consequence, same defect.
-               THE REGISTRY HAD TO BE EXTENDED BEFORE THIS COULD BE ENFORCED. Measured against the
-               real rosters (168 docs, 2326 entries): the registry covered only 53.6% of them, so
-               validating here first would have REJECTED 1080 real entries across 170 ids --
-               eth-l01 held by 32 students, ala-final-practical by 20 -- and broken gradebooks.
-               The legacy floor now includes class-roster ids (571 -> 773) and coverage is
-               verified before this guard was added, not after. */
-            if (!_isKnownCompletion(moduleId)) {
-                throw new HttpsError('invalid-argument', 'Unknown module id.');
-            }
             updates[`quizScores.${moduleId}`] = Number(score);
         }
 

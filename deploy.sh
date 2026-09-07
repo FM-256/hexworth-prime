@@ -489,6 +489,7 @@ HEXOS_FAILED=""
 for hg in \
     "manifest drift|node _tools/hexos/gen-app-manifest.js --check" \
     "completion registry drift|node _tools/content/gen-completion-registry.js --check" \
+    "completion validation wired|node _tools/content/completion-validation.test.js" \
     "manual/prose/link coverage|node _tools/hexos/hex-manual-check.js" \
     "dead-entry scanner|node _tools/hexos/dead-entry-gate.test.js" \
     "corpus content preservation|node _tools/hexos/corpus-preservation.test.js" \
