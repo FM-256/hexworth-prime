@@ -1494,12 +1494,24 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         const house = id.slice(0, dash);
         const key = id.slice(dash + 1);
         if (!key || !_KNOWN_HOUSES.includes(house)) return false;
-        /* The doubled-prefix rejection was REMOVED here (BUG-266). It was presumably meant to
-           catch a mangled `web-web-thing`, but it also rejected the legitimate, live id
-           `forge-forge-core2-virtualization-lab`, whose key genuinely begins with its own house
-           name. A doubled prefix is not a security property -- this whole predicate is a SHAPE
-           check, never an existence check -- so rejecting a real completion to catch a cosmetic
-           oddity traded student progress for nothing. */
+        /* DOUBLED-PREFIX REJECTION, RESTORED 2026-09-07 after I removed it in error hours
+           earlier and shipped that removal.
+           I took `forge-forge-core2-virtualization-lab` for a legitimate completion whose key
+           merely happened to start with its house name, and deleted the guard to save it. It is
+           not legitimate. XPCalculator.js documents this exact string shape as the historical
+           defect: "flat-format reconstruction created 'forge-forge-...' double-prefixed IDs.
+           Without this filter, 942+ garbage entries inflated XP by 10-30K per user." The real
+           namespace is `forge-core2-*` (forge-core2-ch13 .. ch20 are genuine ids), and exactly
+           ONE account holds the doubled form -- the signature of that old sync bug, not of a
+           student finishing a lab.
+           So this clause was never cosmetic. It is the guard that stops the garbage being
+           re-introduced from a stale sync blob or another device's cached localStorage, which is
+           precisely what this callable receives.
+           IT BELONGS HERE AND ONLY HERE. The BUG-266 data loss came from applying this predicate
+           to the CLOUD side of the merge, deleting completions already earned. That removal
+           stands. Rejecting garbage on the way IN and refusing to delete what is already stored
+           are different decisions, and conflating them is what made me drop a real defence. */
+        if (key.startsWith(house + '-')) return false;
         if (_KNOWN_HOUSES.includes(key)) return false;
         return true;
     };
