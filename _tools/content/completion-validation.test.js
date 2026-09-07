@@ -113,6 +113,23 @@ function main() {
             rejected.size === 0, [...rejected].slice(0, 6).join(', '));
     }
 
+    /* ---- 2b. THE DOUBLED-PREFIX SHAPE MUST BE CAUGHT SOMEWHERE -------------------------
+       Chris blocked a deploy because nothing in the pipeline rejected `{house}-{house}-garbage`:
+       the client guard was removed on the strength of a compensating control (registry
+       enforcement) that was INERT, and no gate asserted the shape either. So the gate asserts it
+       now. This check is conditional BY DESIGN: while enforcement is off, the shape guard is the
+       only thing standing between a forged doubled id and permanent, XP-paying acceptance. When
+       enforcement is on, the registry supersedes it and the guard may go. */
+    const enforcing = /_ENFORCE_COMPLETION_REGISTRY\s*=\s*true/.test(idx);
+    const shapeGuards = ['functions/index.js', '_app/components/XPCalculator.js',
+                         '_app/components/FirestoreManager.js']
+        .filter(f => fs.readFileSync(path.join(REPO, f), 'utf8').includes("key.startsWith(house + '-')"));
+    chk(enforcing
+            ? 'registry is ENFORCING — doubled-prefix shape guard optional'
+            : 'registry is REPORT-ONLY — doubled-prefix shape guard required in all 3 validators',
+        enforcing || shapeGuards.length === 3,
+        `enforcement=${enforcing}, shape guard present in ${shapeGuards.length}/3`);
+
     // ---- 3. REJECTION ------------------------------------------------------------------
     const forged = ['shield-fabricated-xyz-999', 'web-not-a-real-thing', 'lab_totally_made_up',
                     'ctf_fake99', 'anything-i-want-not-even-house-shaped', 'module_XXXXXX'];

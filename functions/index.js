@@ -1616,6 +1616,32 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
    declarations, gate-checked on every deploy. An id is valid because the platform DECLARES
    it, not because it looks a certain way. That is a stronger check than any shape rule and it
    cannot misjudge legitimate content. */
+        /* DOUBLED-PREFIX REJECTION — REMOVED, THEN RESTORED 2026-09-07. Read this before touching it.
+
+           REMOVING IT IS CORRECT ONLY WHEN THE REGISTRY IS ENFORCING, AND IT IS NOT.
+           The removal was justified in an earlier version of this comment with: "the registry now
+           validates by DECLARATION, which is strictly stronger." That was FALSE at the time it was
+           written. `_ENFORCE_COMPLETION_REGISTRY` is false — `_isKnownCompletion` logs and returns true.
+           So the client guard would have been removed while its stated replacement was inert, leaving
+           `{house}-{house}-anything` with NO check on either surface, permanently merged (the cloud side
+           is never re-filtered, by design, GUARD-04) and paid by deriveXP per entry. That is the
+           historical incident this guard exists for — 942+ garbage entries, 10-30K XP per user — reopened
+           with nothing catching it.
+
+           THE TRADE, MEASURED RATHER THAN ARGUED:
+             keep it   -> 1 account holds a doubled id, at 1 strike of 5. Nobody can be locked out.
+             remove it -> platform-wide, permanent, unmitigated forgery acceptance.
+           The false-positive harm is real but currently theoretical; the forgery harm is not.
+
+           THE FALSE POSITIVES ARE STILL REAL, and this guard still rejects legitimate work:
+           ModuleProgress.complete builds `${houseId}-${moduleId}` and 2248 of 3342 ContentCatalog entries
+           already carry their house prefix, so `forge-forge-core2-virtualization-lab` — declared at
+           ContentCatalog.js:524, completed by forge-virtualization.lab.html:1421 — is a lab a student
+           earned. Shape cannot tell that from corruption. Only a declaration can.
+
+           REMOVE THIS ONLY WHEN `_ENFORCE_COMPLETION_REGISTRY` IS TRUE and the registry is verified to
+           accept those 2248 forms. Not before. */
+        if (key.startsWith(house + '-')) return false;
         if (_KNOWN_HOUSES.includes(key)) return false;
         return true;
     };
