@@ -10,24 +10,33 @@ the code and still carries a rationale. If you delete one, the gate fails and yo
 
 ## Why this registry exists, and not a linter
 
-On 2026-09-07 I removed a real guard from `functions/index.js` and deployed it.
+On 2026-09-07 I removed a guard from `functions/index.js` and deployed it, was told it was real,
+restored it, wrote a confident incident narrative into three files — **and the restoration was the
+error.**
 
 `_isValidModuleId` rejected doubled prefixes (`forge-forge-...`). It fired on
-`forge-forge-core2-virtualization-lab`, which I took for a legitimate completion being wrongly
-discarded, so I deleted the clause to "save" it. It was not legitimate: `forge-core2-ch13`..`ch20`
-are the real namespace, exactly ONE account holds the doubled form, and no content file defines it.
-It was the exact garbage the guard existed to catch.
+`forge-forge-core2-virtualization-lab`, and I wrote that no content file defined it and it was the
+exact garbage the guard existed to catch. **That was false.** `ContentCatalog.js:524` declares
+`forge-core2-virtualization-lab`; `forge-virtualization.lab.html:1421` completes it; and
+`ModuleProgress.complete` builds `${houseId}-${moduleId}`, so the doubled form is what the platform
+legitimately produces. **2,248 of 3,342 catalogue entries already carry their house prefix.** A
+student earned that lab, and the clause was counting it toward a lockout.
 
-The identical rule lived in `_app/components/XPCalculator.js` with a different comment:
+Two lessons came out of it, and the second is the harder one.
 
-> *Early Firestore sync bugs allowed garbage entries into completedModules arrays (e.g. flat-format
-> reconstruction created "forge-forge-..." double-prefixed IDs). Without this filter, 942+ garbage
-> entries inflated XP by 10-30K per user.*
+**A guard comment must carry its incident.** The copy of this rule in
+`_app/components/XPCalculator.js` recorded one — *"flat-format reconstruction created
+'forge-forge-...' double-prefixed IDs. Without this filter, 942+ garbage entries inflated XP by
+10-30K per user."* — and that is what made me stop and look. The server's comment said
+`// Validate module IDs: must be {knownHouse}-{key} format`, which described what the code did and
+so did not argue back. That historical incident was real. The clause was simply never what caught
+it.
 
-That comment stopped me. The server's comment — `// Validate module IDs: must be {knownHouse}-{key}
-format` — did not, because it described WHAT the code did, which I could already read.
-
-**A guard comment that restates the code is not documentation. It has to carry the incident.**
+**A comment carrying a FALSE incident is worse than a thin one.** I wrote "no content file defines
+it" into three files without opening the catalogue, and that fiction was load-bearing for hours —
+it survived a review, a deploy, and my own retelling. This registry's gate can verify a rationale
+EXISTS. It cannot verify one is TRUE. Only reading the source of the claim does that, and I did not
+until a reviewer forced the question.
 
 A blanket linter was measured first and rejected: requiring a rationale on every guard-shaped
 function flags **156 of 170** in `functions/` and `_app/components/`, most of them `init`, `load`,
@@ -38,25 +47,43 @@ learns to ignore, which is worse than no gate. This registry is small on purpose
 
 ## Registered guards
 
-### GUARD-01 — doubled-prefix rejection (server)
-- **Where:** `functions/index.js`, `_isValidModuleId`, the `key.startsWith(house + '-')` clause
-- **Incident:** flat-format reconstruction produced `forge-forge-*` ids; 942+ garbage entries
-  inflated XP by 10-30K per user. Removed in error 2026-09-07 (`74cab4494`) and restored the same
-  night once the XPCalculator comment was found.
-- **Do not remove because it rejects something a student holds.** A student holding an id is not
-  evidence they earned it — that is the premise of the whole BUG-264 forgery investigation.
+### GUARD-01 — completion ids are validated by DECLARATION (`_isKnownCompletion`)
+- **Where:** `functions/index.js` — `recordProgress`, `syncProgress`, `submitEDTLab`,
+  `syncClassProgress`. All four live writers of `modulesCompleted`/`labsCompleted`.
+- **Incident:** BUG-264. Both callables accepted ANY string as a completion and `deriveXP` paid XP
+  for it — proven live in production. The fix was blocked for a long time because there was
+  nothing to validate against: ids are data-driven, and scraping call sites yields 0.7% coverage.
+- **Sweep every writer, not the one you found.** The first fix covered `recordProgress` and
+  `syncProgress` and left `submitEDTLab` writing the identical field unvalidated — the exploit
+  stayed fully live through it. A reviewer found that, in the same commit whose message reasoned
+  about checking sibling call sites for a different field.
 
-### GUARD-02 — doubled-prefix rejection (client, XP)
-- **Where:** `_app/components/XPCalculator.js`, `_isValidId`
-- **Incident:** as GUARD-01. This is the copy whose comment prevented a worse outcome.
-- **Note:** feeds `_checkIntegrity`, which sets `hexworth_integrity: 'violated'` past five
-  mismatches, which `IntegrityLockscreen.js` uses to lock a student out. A wrong list here does not
-  merely miscount — it removes a student's access. See taskboard 358.
+### GUARD-02 — `functions/completion-registry.json` exists and is generated
+- **Where:** `functions/completion-registry.json`, from `_tools/content/gen-completion-registry.js`
+- **Incident:** the registry IS the validation. Hand-editing or losing it disables the check
+  (validation fails open by design — see below). `--check` is wired into deploy.sh gate 3.8, so
+  shipping content without regenerating fails the build. Without that gate, tomorrow's new module
+  is rejected for every student who completes it: the same data loss in a new coat.
 
-### GUARD-03 — doubled-prefix rejection (client, sync)
-- **Where:** `_app/components/FirestoreManager.js`, `_isValidId`
-- **Incident:** as GUARD-01. Third copy of one rule; all three had already drifted apart by
-  2026-09-07 (11, 13 and 15 houses respectively). The drift is the defect.
+### GUARD-03 — the legacy floor, and it is not optional
+- **Where:** `_tools/content/legacy-completion-ids.json`
+- **Incident:** declared content sources cover only ~55% of ids students actually hold. Enforcing
+  without this floor would have REJECTED 3,383 real completions on `users/{uid}` and 1,080 more on
+  class rosters — `cloud-openstack-neutron` (32 students), `eth-l01` (32), `ala-final-practical`
+  (20). Both numbers were measured against production BEFORE enforcement was switched on.
+- **Nothing is excluded from this floor.** One id was excluded as "garbage" on 2026-09-07 and that
+  was WRONG — `forge-forge-core2-virtualization-lab` is declared at `ContentCatalog.js:524` and
+  completed by a real page. A student earned it.
+
+### REMOVED — the doubled-prefix rejection (was GUARD-01..03)
+Three copies of `if (key.startsWith(house + '-')) return false;` were registered here as critical.
+**They were removed 2026-09-07 with evidence, and the removal is the lesson.**
+`ModuleProgress.complete` builds `${houseId}-${moduleId}`, and **2,248 of 3,342 ContentCatalog
+entries already carry their house prefix** — so the doubled form is what the platform legitimately
+produces, not corruption. The clause rejected real completions and counted them toward a lockout.
+The historical sync-bug incident it cited was real; that clause was simply never what caught it.
+**A shape rule can misjudge real content. A declaration cannot.** That is why validation moved to
+the registry.
 
 ### GUARD-04 — cloud side of the progress merge is never shape-filtered
 - **Where:** `functions/index.js`, `syncProgress`, `mergedModules` / `mergedLabs`

@@ -1578,7 +1578,23 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
            to the CLOUD side of the merge, deleting completions already earned. That removal
            stands. Rejecting garbage on the way IN and refusing to delete what is already stored
            are different decisions, and conflating them is what made me drop a real defence. */
-        if (key.startsWith(house + '-')) return false;
+/* DOUBLED-PREFIX REJECTION REMOVED 2026-09-07, WITH EVIDENCE, AFTER I RESTORED IT IN ERROR.
+   I removed this clause, was told it was a real guard, restored it, and documented it as
+   GUARD-01 citing a historical sync bug ("942+ garbage entries inflated XP by 10-30K per
+   user"). That incident was real. THIS CLAUSE IS NOT WHAT CATCHES IT.
+   ModuleProgress.complete builds `${houseId}-${moduleId}` (ModuleProgress.js:195), and
+   CONTENT ROUTINELY DECLARES A moduleId THAT ALREADY CARRIES ITS HOUSE. Measured: 2248 of
+   3342 ContentCatalog entries are house-prefixed already, so complete() legitimately produces
+   eye-eye-wireshark-training, forge-forge-core2-virtualization-lab and 2246 more. The one
+   "garbage" id I built a whole argument around is declared at ContentCatalog.js:524 and
+   completed by a real page at forge-virtualization.lab.html:1421. A student earned it.
+   So the clause cannot tell historical corruption from normal content, and the normal case is
+   2248 entries. Rejecting real coursework to catch a shape is the wrong trade -- especially
+   when this feeds a lockout.
+   WHAT ACTUALLY GUARDS THIS NOW: functions/completion-registry.json, generated from content
+   declarations, gate-checked on every deploy. An id is valid because the platform DECLARES
+   it, not because it looks a certain way. That is a stronger check than any shape rule and it
+   cannot misjudge legitimate content. */
         if (_KNOWN_HOUSES.includes(key)) return false;
         return true;
     };
@@ -6292,6 +6308,18 @@ exports.syncClassProgress = onCall(cfOptions, async (request) => {
         };
 
         if (type === 'quiz' && score !== undefined) {
+            /* BUG-264, third door. This feeds the INSTRUCTOR-FACING class roster, so a fabricated
+               id here is a forged entry in a gradebook rather than forged XP -- different
+               consequence, same defect.
+               THE REGISTRY HAD TO BE EXTENDED BEFORE THIS COULD BE ENFORCED. Measured against the
+               real rosters (168 docs, 2326 entries): the registry covered only 53.6% of them, so
+               validating here first would have REJECTED 1080 real entries across 170 ids --
+               eth-l01 held by 32 students, ala-final-practical by 20 -- and broken gradebooks.
+               The legacy floor now includes class-roster ids (571 -> 773) and coverage is
+               verified before this guard was added, not after. */
+            if (!_isKnownCompletion(moduleId)) {
+                throw new HttpsError('invalid-argument', 'Unknown module id.');
+            }
             updates[`quizScores.${moduleId}`] = Number(score);
         }
 
@@ -7837,6 +7865,17 @@ exports.submitEDTLab = onCall(cfOptions, async (request) => {
     }, { merge: false });
 
     // ── Record lab completion via recordProgress ──────────
+    /* BUG-264, SIBLING DOOR. This writes the SAME users/{uid}.labsCompleted array that
+       recordProgress does, and XPCalculator pays LAB_COMPLETE per entry regardless of which
+       callable wrote it -- so validating recordProgress alone left the exploit fully live here.
+       Found by the reviewer, not by me: I fixed two callables and did not sweep for the rest,
+       in the same commit whose message reasoned about checking sibling call sites for a
+       different field. The sweep now: grep for every arrayUnion into modulesCompleted or
+       labsCompleted across functions/ -- there are exactly three live callables
+       (recordProgress, syncClassProgress, this one) and all three validate. */
+    if (!_isKnownCompletion(labId)) {
+        throw new HttpsError('invalid-argument', 'Unknown lab id.');
+    }
     await db.doc(`users/${uid}`).set({
         labsCompleted: FieldValue.arrayUnion(labId),
         updatedAt: FieldValue.serverTimestamp()

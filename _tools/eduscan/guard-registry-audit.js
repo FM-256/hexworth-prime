@@ -10,16 +10,24 @@
  *
  * WHY THIS RULE EXISTS
  * --------------------
- * 2026-09-07: I removed a real guard from `functions/index.js` and deployed it. `_isValidModuleId`
- * rejected doubled prefixes (`forge-forge-...`); it fired on a completion one account held, I read
- * that as the rule being wrong, and deleted the clause. It was not wrong -- `forge-core2-ch13..ch20`
- * are the real namespace, exactly ONE account held the doubled form, and no content file defines
- * it. It was precisely the garbage the guard was built to reject, after a historical sync bug put
- * 942+ such entries into user records and inflated XP by 10-30K per user.
+ * 2026-09-07: I removed a guard from `functions/index.js` and deployed it, was told it was real,
+ * restored it, wrote a confident incident narrative into three files -- AND THE RESTORATION WAS
+ * THE ERROR. `_isValidModuleId` rejected doubled prefixes (`forge-forge-...`). I claimed no content
+ * defined the id it fired on. Content does: `ContentCatalog.js:524` declares
+ * `forge-core2-virtualization-lab`, `forge-virtualization.lab.html:1421` completes it, and
+ * ModuleProgress.complete builds `${houseId}-${moduleId}`, so the doubled form is what the platform
+ * legitimately produces. 2248 of 3342 catalogue entries already carry their house prefix. The
+ * clause was rejecting real coursework and counting it toward a lockout.
  *
- * What stopped me was the SAME rule's comment in `_app/components/XPCalculator.js`, which recorded
- * that incident. The server's comment said `// Validate module IDs: must be {knownHouse}-{key}
- * format` -- it described what the code did, which I could already read, so it did not argue back.
+ * TWO LESSONS, and the second is why this file exists at all.
+ * First: a guard comment must carry its incident, because the version of this rule in
+ * `_app/components/XPCalculator.js` did and that is what made me stop and look. The server's said
+ * `// Validate module IDs: must be {knownHouse}-{key} format` -- it described what the code did,
+ * which I could already read, so it did not argue back.
+ * Second, and I got this one wrong twice in one night: A COMMENT THAT CARRIES A FALSE INCIDENT IS
+ * WORSE THAN A THIN ONE. I wrote "no content file defines it" into three files without checking
+ * the catalogue, and that fiction was load-bearing for hours. This gate can verify a rationale
+ * EXISTS. It cannot verify one is TRUE. Only reading the source of the claim does that.
  *
  * A BLANKET LINTER WAS MEASURED AND REJECTED FIRST. Requiring a rationale on every guard-shaped
  * function flags 156 of 170 across functions/ and _app/components/, most of them `init`, `load`,
@@ -48,12 +56,19 @@ const REGISTRY = path.join(REPO, '_docs/operations/critical-guards-registry.md')
    guard is removed. Deliberately NOT a line number: those rot on the next insertion, which this
    codebase has already been bitten by (a back-link comment moved four times in one session). */
 const GUARDS = [
+    /* GUARD-01..03 WERE the doubled-prefix rejection in three files. REMOVED 2026-09-07 with
+       evidence, and the removal is the lesson: ModuleProgress.complete builds
+       `${houseId}-${moduleId}` and 2248 of 3342 ContentCatalog entries already carry their house,
+       so that shape is NORMAL CONTENT, not corruption. The clause was rejecting real completions
+       and counting them toward a lockout. What replaces it is stronger: validation by DECLARATION
+       (completion-registry.json) rather than by shape. A shape rule can misjudge real content; a
+       declaration cannot. The three entries below guard that replacement. */
     { id: 'GUARD-01', file: 'functions/index.js',
-      sig: "key.startsWith(house + '-')", why: /942\+|doubled-prefix|forge-forge/i },
-    { id: 'GUARD-02', file: '_app/components/XPCalculator.js',
-      sig: "key.startsWith(house + '-')", why: /942\+|double-prefixed|garbage/i },
-    { id: 'GUARD-03', file: '_app/components/FirestoreManager.js',
-      sig: "key.startsWith(house + '-')", why: /garbage|known house|double/i },
+      sig: '_isKnownCompletion', why: /BUG-264|completion-registry|declares/i },
+    { id: 'GUARD-02', file: 'functions/completion-registry.json',
+      sig: '"ids"', why: /legitimately award|BUG-264|GENERATED/i },
+    { id: 'GUARD-03', file: '_tools/content/legacy-completion-ids.json',
+      sig: '"ids"', why: /already hold|never reject|floor/i },
     { id: 'GUARD-04', file: 'functions/index.js',
       sig: 'const mergedModules', why: /BUG-266|CLOUD SIDE IS NO LONGER FILTERED|already earned/i },
     { id: 'GUARD-05', file: 'functions/index.js',

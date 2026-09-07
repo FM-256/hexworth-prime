@@ -79,7 +79,18 @@ const XPCalculator = (function () {
         const house = id.slice(0, dash);
         const key = id.slice(dash + 1);
         if (!key || !_KNOWN_HOUSES.includes(house)) return false;
-        if (key.startsWith(house + '-')) return false;  // double-prefixed
+        /* DOUBLED-PREFIX REJECTION REMOVED 2026-09-07, WITH EVIDENCE.
+           The historical incident in the comment above is real. THIS CLAUSE IS NOT WHAT CATCHES IT.
+           ModuleProgress.complete builds `${houseId}-${moduleId}` (ModuleProgress.js:195), and content
+           routinely declares a moduleId that ALREADY carries its house: 2248 of 3342 ContentCatalog
+           entries do. So complete() legitimately produces eye-eye-wireshark-training,
+           forge-forge-core2-virtualization-lab and 2246 more. The one id I called garbage is declared at
+           ContentCatalog.js:524 and completed by a real page at forge-virtualization.lab.html:1421 -- a
+           student earned it, and this clause counted it toward a LOCKOUT.
+           The clause cannot tell corruption from normal content, and the normal case is 2248 entries.
+           Server-side, functions/completion-registry.json now validates by DECLARATION rather than shape,
+           which is strictly stronger. Client-side there is no registry, so this check stays shape-only and
+           deliberately permissive -- its job is catching module_XXXXXX, not adjudicating real ids. */
         if (_KNOWN_HOUSES.includes(key)) return false;  // house-house pair
         return true;
     }
