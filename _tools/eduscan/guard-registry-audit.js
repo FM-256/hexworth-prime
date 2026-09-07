@@ -62,6 +62,44 @@ const GUARDS = [
       sig: 'allow update: if request.auth', why: /BUG-262|BUG-263|hasOnly/i },
 ];
 
+/* GUARD-07 is a CROSS-FILE check, not a signature check, because the defect it guards against is
+   DRIFT rather than deletion. The house list is duplicated in three files and on 2026-09-07 they
+   held 15, 11 and 13 entries -- each individually present and commented, all three disagreeing,
+   and nothing noticed. A signature check would have passed happily on all three.
+   Why it matters more than it looks: XPCalculator's copy feeds _checkIntegrity, which counts an
+   unrecognised id as "garbage" and past five writes hexworth_integrity:'violated', which
+   IntegrityLockscreen.js uses to lock the student out. A house missing from ONE copy can remove a
+   real student's access for completing real coursework. */
+function checkHouseListsAgree() {
+    const sources = [
+        ['functions/index.js', /_KNOWN_HOUSES = \[[\s\S]*?\]/],
+        ['_app/components/XPCalculator.js', /_KNOWN_HOUSES = \[[\s\S]*?\]/],
+        ['_app/components/FirestoreManager.js', /_validHouses = \[[\s\S]*?\]/],
+    ];
+    const lists = [];
+    for (const [rel, re] of sources) {
+        const abs = path.join(REPO, rel);
+        if (!fs.existsSync(abs)) return { ok: false, why: `file missing: ${rel}` };
+        const m = fs.readFileSync(abs, 'utf8').match(re);
+        if (!m) return { ok: false, why: `house list not found in ${rel}` };
+        const houses = [...new Set((m[0].match(/'[a-z-]+'/g) || []).map(x => x.replace(/'/g, '')))].sort();
+        if (!houses.length) return { ok: false, why: `house list in ${rel} parsed empty` };
+        lists.push({ rel, houses });
+    }
+    const first = lists[0].houses.join(' ');
+    for (const l of lists.slice(1)) {
+        if (l.houses.join(' ') !== first) {
+            const a = new Set(lists[0].houses), b = new Set(l.houses);
+            const missing = lists[0].houses.filter(h => !b.has(h));
+            const extra = l.houses.filter(h => !a.has(h));
+            return { ok: false, why: `${l.rel} disagrees with ${lists[0].rel}` +
+                (missing.length ? ` — missing: ${missing.join(',')}` : '') +
+                (extra.length ? ` — extra: ${extra.join(',')}` : '') };
+        }
+    }
+    return { ok: true, count: lists[0].houses.length };
+}
+
 function main() {
     if (!fs.existsSync(REGISTRY)) {
         console.error(`  GUARD-001: registry missing at ${path.relative(REPO, REGISTRY)}`);
@@ -116,7 +154,27 @@ function main() {
         ok++;
     }
 
-    console.log(`\n  ${ok}/${GUARDS.length} registered guards intact and documented`);
+    /* GUARD-07, the cross-file drift check. Called HERE and folded into the same counts and exit
+       code as the signature checks -- a check that is defined but never invoked is exactly the
+       "looks present in review, detects nothing" failure this whole file exists to prevent, and
+       the repo QC hook caught it sitting unwired in the first draft of this very function. */
+    const drift = checkHouseListsAgree();
+    if (drift.ok) {
+        console.log(`  ok   GUARD-07  house list agrees across all three copies (${drift.count} houses)`);
+        ok++;
+    } else {
+        console.log(`  CRITICAL: GUARD-07 house lists have DRIFTED — ${drift.why}`);
+        console.log(`  FAIL GUARD-07  ${drift.why}`);
+        console.log('         XPCalculator\'s copy feeds _checkIntegrity, which locks a student out');
+        console.log('         past five unrecognised ids. A house missing from one copy costs access.');
+        fail++;
+    }
+    if (!registryText.includes('GUARD-07')) {
+        console.log('  CRITICAL: GUARD-07 is not documented in the critical-guards registry');
+        fail++;
+    }
+
+    console.log(`\n  ${ok}/${GUARDS.length + 1} registered guards intact and documented`);
     if (fail) {
         console.log('  A registered guard was removed or lost its rationale. This blocks by design:');
         console.log('  every one of these was written after something broke in production.');

@@ -85,6 +85,23 @@ learns to ignore, which is worse than no gate. This registry is small on purpose
 - **`hasOnly()` evaluates the WHOLE write.** Any client writer of a removed field has its entire
   patch rejected, so the client writers must go in the SAME change.
 
+### GUARD-07 — the house list agrees across all three copies
+- **Where:** `functions/index.js` (`_KNOWN_HOUSES`), `_app/components/XPCalculator.js`
+  (`_KNOWN_HOUSES`), `_app/components/FirestoreManager.js` (`_validHouses`)
+- **Incident:** BUG-267. On 2026-09-07 the three copies held **15, 11 and 13** houses. Each was
+  individually present and commented; all three disagreed; nothing noticed. A per-file check would
+  have passed all three, which is why this one compares them to each other.
+- **What the drift costs:** XPCalculator's copy feeds `_checkIntegrity`, which counts an
+  unrecognised id as "garbage" and past **five** writes `hexworth_integrity: 'violated'`, which
+  `IntegrityLockscreen.js` uses to lock the student out. A house missing from one copy removes a
+  real student's access for completing real coursework — it is not a miscount.
+- **Err permissive.** A missing house costs a student XP and possibly their account; an extra one
+  only lets a rare garbage prefix through, and the shape rules still reject the real garbage shapes
+  (`module_XXXXXX` has no dash).
+- **Derived, not guessed:** the union of `ContentCatalog.HOUSES` and every house prefix present in
+  all 7,528 real completion ids across 3,874 production users. If you add a house, add it in **all
+  three** and re-verify against `_tools/progress-snapshot/snapshots/`.
+
 ---
 
 ## Adding a guard

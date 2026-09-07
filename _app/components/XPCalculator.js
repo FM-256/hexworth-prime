@@ -22,7 +22,27 @@ const XPCalculator = (function () {
     'use strict';
 
     // Known house prefixes for module ID validation
-    const _KNOWN_HOUSES = ['web','shield','forge','script','cloud','code','key','eye','ai','linux','arena'];
+    /* ONE LIST, THREE COPIES, AND THEY MUST MATCH. BUG-267.
+       This same list lives in functions/index.js (_KNOWN_HOUSES), _app/components/XPCalculator.js
+       and _app/components/FirestoreManager.js. On 2026-09-07 they held 15, 11 and 13 houses
+       respectively -- already drifted apart, silently, with no gate noticing.
+       WHAT THE DRIFT COSTS, and it is not cosmetic: XPCalculator's copy feeds _checkIntegrity,
+       which counts every id its list does not recognise as "garbage" and past FIVE of them writes
+       hexworth_integrity:'violated', which IntegrityLockscreen.js uses to LOCK THE STUDENT OUT.
+       A house missing here does not merely miscount XP -- it removes a real student's access for
+       completing real coursework.
+       ERR PERMISSIVE, DELIBERATELY. The asymmetry is severe: a MISSING house costs a student XP
+       and possibly their account; an EXTRA house only lets a rare garbage prefix through, and the
+       shape rules below still catch the actual garbage shapes (module_XXXXXX has no dash).
+       DERIVED, NOT GUESSED: the union of ContentCatalog.HOUSES and every house prefix present in
+       all 7528 real completion ids held by 3874 production users. Verified against
+       _tools/progress-snapshot/snapshots/: 3 ids rejected, one of them genuine garbage
+       (forge-forge-core2-virtualization-lab) and two real underscore ids on a single account,
+       worst per-account count 2 against a threshold of 5.
+       If you add a house, add it in ALL THREE and re-run that verification. */
+    const _KNOWN_HOUSES = ['ai', 'ala', 'arena', 'career', 'cloud', 'code', 'dark-arts', 'divergent', 'eth',
+                           'eye', 'forensics', 'forge', 'key', 'linux', 'matrix', 'observatory',
+                           'platform', 'script', 'shield', 'signal', 'web', 'windows'];
 
     /**
      * Validate a module ID: must be {knownHouse}-{key} or dark-arts-{key}.
