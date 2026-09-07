@@ -80,6 +80,13 @@ function main() {
         const src = fs.readFileSync(abs, 'utf8');
 
         if (!src.includes(g.sig)) {
+            /* `CRITICAL:` prefix is REQUIRED, not decoration. The smoke runner
+               (_tools/eduscan/smoke/run.js) filters every validator's output through
+               /^\s*(CRITICAL|HIGH|MEDIUM|MISSING|drift|...):/ and prints only the first three
+               matches. A message that does not match that shape is dropped, so the operator would
+               see a bare red line with no reason. That exact class of mistake -- a diagnosis eaten
+               by the caller's output filter -- cost a full review round earlier the same night. */
+            console.log(`  CRITICAL: ${g.id} guard removed from ${g.file} — ${g.sig}`);
             console.log(`  FAIL ${g.id}  GUARD REMOVED from ${g.file}`);
             console.log(`         expected to find: ${g.sig}`);
             console.log('         If this removal is deliberate, say so in');
@@ -93,6 +100,8 @@ function main() {
         const at = src.indexOf(g.sig);
         const window = src.slice(Math.max(0, at - 2600), at + 600);
         if (!g.why.test(window)) {
+            // Same reason as above: must match the smoke runner's summary filter to be seen.
+            console.log(`  CRITICAL: ${g.id} rationale removed in ${g.file} — the guard is now undefended`);
             console.log(`  FAIL ${g.id}  guard present but its RATIONALE is gone in ${g.file}`);
             console.log('         The comment that explains what happened without it was removed or moved away.');
             console.log('         That comment is the only thing that stops the next person deleting the guard.');

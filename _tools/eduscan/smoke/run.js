@@ -531,7 +531,17 @@ async function main() {
             { code: 'BOX-042',  script: 'box-storage-key-uniqueness.js',   blocking: false, desc: 'storageKey uniqueness' },
             { code: 'META-001', script: 'meta-rule-registry-audit.js',     blocking: true,  desc: 'rule registry — validator files registered in safety-net doc' },
             { code: 'META-002', script: 'meta-orphan-registry-audit.js',   blocking: true,  desc: 'rule registry — doc entries have implementation files' },
-            { code: 'META-003', script: 'meta-smoke-wiring-audit.js',      blocking: true,  desc: 'rule registry — Stage-3 validators wired into smoke gate' }
+            { code: 'META-003', script: 'meta-smoke-wiring-audit.js',      blocking: true,  desc: 'rule registry — Stage-3 validators wired into smoke gate' },
+            /* GUARD-001 sits with the META rules because it is the same kind of thing: a rule
+               about the rules. META-001 stops a validator being shipped undocumented; this stops
+               a GUARD being deleted quietly. Added 2026-09-07 after I removed a real guard from
+               _isValidModuleId and deployed it -- the doubled-prefix rejection that exists because
+               a sync bug once put 942+ garbage ids into user records and inflated XP by 10-30K per
+               user. I deleted it because it rejected an id one account held, and was stopped only
+               by the same rule's comment in XPCalculator.js recording that incident.
+               BLOCKING on purpose. Every guard in the registry was written after something broke
+               in production, so a deploy that removes one should stop and make somebody say why. */
+            { code: 'GUARD-001', script: 'guard-registry-audit.js',        blocking: true,  desc: 'critical guards — registered guards still present and documented' }
         ];
 
         const { execFileSync } = require('child_process');
