@@ -1280,13 +1280,36 @@ exports.recordProgress = onCall(cfOptions, async (request) => {
                FORWARD-LOOKING ONLY. This cannot restore a score already overwritten. Those are
                recoverable from users/{uid}/quiz_attempts, which recorded every submission, but
                that is a backfill over production data and is deliberately not done here. */
-            quizScore = parseInt(score) || 0;
+            /* BUG-264. CLAMPED. This was `parseInt(score) || 0` with no upper bound, and
+               buildQuizUpdate writes newScore straight through -- so a caller could PATCH
+               {score: 999999} and, because shouldReplaceStoredScore treats higher as better, it
+               OVERWROTE a genuinely earned score rather than being ignored. syncProgress's
+               sanitizeQuizzes has always clamped 0-100; this path never did.
+               Cannot harm an honest client: a real score is already within 0-100. */
+            quizScore = Math.max(0, Math.min(100, parseInt(score) || 0));
             if (house) {
                 updates[`houseProgress.${house}.quizzesPassed`] = FieldValue.increment(1);
             }
             break;
 
         case 'achievement':
+            /* BUG-264. Gate achievements are REFUSED here. deriveXP grants 500 XP per
+               `gate_N`/`dark_arts_gateN` string in this array, and this branch wrote any string a
+               caller sent -- proven in production: an account with an EMPTY gates ledger sent
+               eight of them and was granted xp=4000, level=9.
+               completeGate and validateGateAnswer are the only legitimate writers of a gate
+               completion; both verify (answer hash, prerequisite chain, HMAC proof) and both
+               record it in users/{uid}/gates with provenance. This endpoint verifies nothing, so
+               it must not be a second way to assert one.
+               VERIFIED SAFE BEFORE SHIPPING: no caller anywhere in _app sends type:'achievement'
+               to this function. FirestoreManager's three callers are module, lab and quiz only,
+               so this branch has zero honest traffic to break.
+               The same string is refused in syncProgress. Patching only one is pointless: the
+               other accepts the identical payload. */
+            if (/^(gate_\d+|dark_arts_gate\d+)$/.test(itemId)) {
+                throw new HttpsError('permission-denied',
+                    'Gate completions are recorded by the gate validator, not this endpoint.');
+            }
             updates.achievements = FieldValue.arrayUnion(itemId);
             break;
 
@@ -1447,8 +1470,22 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const uid = request.auth.uid;
     const localData = request.data || {};
 
-    // Validate module IDs: must be {knownHouse}-{key} format
-    const _KNOWN_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai', 'linux', 'arena'];
+    /* Validate module IDs: must be {knownHouse}-{key} format.
+       BUG-266. This list was missing eth, ala, career and windows, and that was ACTIVE DATA LOSS,
+       not a cosmetic gap: this predicate is applied to the CLOUD side of the merge below, so an
+       unlisted house did not merely fail to sync -- an already-stored completion was STRIPPED
+       from the student's record every time they synced. It survived only because recordProgress
+       has no validation and wrote it back, so the two callables were fighting over the same
+       fields and whichever ran last decided what the student saw.
+       THE LIST IS DERIVED FROM PRODUCTION, NOT GUESSED. Every distinct house prefix across all
+       7528 real completion ids held by 3874 users was enumerated from the snapshot taken before
+       this change: 16 prefixes, 11 already present, and these 4 missing (eth 9 completions,
+       ala 2, career 1, windows 1). `dark` also appears, as dark-arts-*, and is already handled by
+       the special case below.
+       Verify after editing that 0 of 7528 real ids are rejected, against
+       _tools/progress-snapshot/snapshots/. Do not add houses from memory. */
+    const _KNOWN_HOUSES = ['web', 'shield', 'forge', 'script', 'cloud', 'code', 'key', 'eye', 'ai',
+                           'linux', 'arena', 'eth', 'ala', 'career', 'windows'];
     const _isValidModuleId = (id) => {
         if (!id || typeof id !== 'string') return false;
         if (id.startsWith('dark-arts-') && id.length > 10) return true;
@@ -1457,7 +1494,12 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         const house = id.slice(0, dash);
         const key = id.slice(dash + 1);
         if (!key || !_KNOWN_HOUSES.includes(house)) return false;
-        if (key.startsWith(house + '-')) return false;
+        /* The doubled-prefix rejection was REMOVED here (BUG-266). It was presumably meant to
+           catch a mangled `web-web-thing`, but it also rejected the legitimate, live id
+           `forge-forge-core2-virtualization-lab`, whose key genuinely begins with its own house
+           name. A doubled prefix is not a security property -- this whole predicate is a SHAPE
+           check, never an existence check -- so rejecting a real completion to catch a cosmetic
+           oddity traded student progress for nothing. */
         if (_KNOWN_HOUSES.includes(key)) return false;
         return true;
     };
@@ -1495,7 +1537,21 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const garbageModules = rawModules.length - localModules.length;
 
     const localLabs = sanitizeStringArray(localData.labsCompleted).filter(_isValidModuleId);
-    const localAchievements = sanitizeStringArray(localData.achievements);
+    /* BUG-264. Gate achievements are DROPPED from the caller's payload. deriveXP grants 500 XP
+       per `gate_N`/`dark_arts_gateN` string here, and this array was taken from the caller
+       unvalidated -- proven in production: an account with an EMPTY gates ledger sent eight of
+       them and was granted xp=4000, level=9, through this exact path.
+       completeGate and validateGateAnswer are the only legitimate writers of a gate completion,
+       and both record it in users/{uid}/gates with provenance. The same strings are refused in
+       recordProgress; patching only one is pointless, because the other accepts the identical
+       payload with the identical effect.
+       FILTERED, NOT REJECTED, and that difference is deliberate: this callable carries a
+       student's whole progress blob, so throwing would discard their real modules, labs and
+       quizzes along with the forged gate string. Existing cloud-side entries are untouched here
+       -- removing already-granted gate XP is a separate, reversible decision that needs the
+       17-account reconciliation, not a silent side effect of a sync. */
+    const localAchievements = sanitizeStringArray(localData.achievements)
+        .filter(a => !/^(gate_\d+|dark_arts_gate\d+)$/.test(a));
     const localQuizzes = sanitizeQuizzes(localData.quizzes);
     // localXP intentionally not read — XP is derived server-side from
     // merged completion arrays to prevent stale cache re-inflation.
@@ -1508,8 +1564,23 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const cloudData = userDoc.exists ? userDoc.data() : {};
 
     // Merge: union arrays (filter both sides), max scalars
-    const mergedModules = [...new Set([...(cloudData.modulesCompleted || []).filter(_isValidModuleId), ...localModules])];
-    const mergedLabs = [...new Set([...(cloudData.labsCompleted || []).filter(_isValidModuleId), ...localLabs])];
+    /* BUG-266. THE CLOUD SIDE IS NO LONGER FILTERED, and that is the actual fix.
+       These two lines used to read `(cloudData.modulesCompleted || []).filter(_isValidModuleId)`.
+       Applying a SHAPE check to already-stored progress meant an id the rule did not recognise
+       was STRIPPED FROM THE STUDENT'S RECORD on an ordinary sync -- not rejected on arrival,
+       deleted after the fact. It survived only because recordProgress has no validation and wrote
+       it back, so the two callables fought over the same fields on every page load.
+       Widening the house list was not enough and could never be: after adding eth, ala, career
+       and windows, two real completions were STILL rejected -- `lab_ala_l02` and `lab_ala_l03`,
+       which use underscores and match no {house}-{key} shape at all. Chasing id formats is
+       unwinnable against years of historical data, and every gap costs a student real work.
+       So the rule now applies where it belongs: to the UNTRUSTED INCOMING payload
+       (localModules/localLabs above), never to the record already on the server. A validator may
+       refuse to accept something. It must not delete something already earned.
+       Verified against the pre-change snapshot: 7528 real completion ids across 3874 users, 0 now
+       removed by this merge. */
+    const mergedModules = [...new Set([...(cloudData.modulesCompleted || []), ...localModules])];
+    const mergedLabs = [...new Set([...(cloudData.labsCompleted || []), ...localLabs])];
     const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
     const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
 
