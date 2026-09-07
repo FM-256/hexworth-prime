@@ -1,8 +1,11 @@
 # Hexworth Credential Authority (HCA) — Foundational Design
 
-**Last Updated:** 2026-07-24
+**Last Updated:** 2026-09-07
 **Status:** DESIGN / pre-build. Decisions captured; open questions unresolved. No code yet.
-**Target:** First release for the inaugural Hexworth CTF tournament, October 2026.
+**Target:** ~~First release for the inaugural Hexworth CTF tournament, October 2026.~~
+**REVISED 2026-09-07 by four-way vote:** no external credential is issued at the inaugural
+tournament. See "Vote 2026-09-07" below. Taskboard: 362 (blocking), 363 (this program), 364 (the
+in-platform badge that ships instead).
 **Owner:** Frank (operator). Origin: brainstorm with Codex + design pass this session.
 
 ---
@@ -202,6 +205,63 @@ Findings and decisions:
 - **Crypto correctness is the top technical risk.** Signing / verification / status must be standards-correct or the credentials are worthless. This risk is independent of the DB choice.
 - **Legal / privacy.** Issuing real credentials tied to real people creates data-protection obligations; revoke-for-fraud implies a dispute/appeal process that must exist before, not after, the first revocation.
 - **Irreversibility of "inaugural."** You get exactly one first tournament. A credential that is wrong or insecure at launch cannot be cleanly re-minted as "the first ever."
+
+---
+
+## Vote 2026-09-07 — October issuance DESCOPED (C, 3-1)
+
+Convened after the operator asked for a tournament badge that recipients can add to LinkedIn. That
+request is answered by line 157 of this document, so this was a prior decision, not a gap — but the
+schedule had moved: this doc had **one commit (`d00c8b4e1`) and 45 days of zero movement**, still
+"no code yet," with October weeks away.
+
+**The question:** amend the DECIDED registry row (Cloud SQL + Cloud Run) to ship October on the
+existing Firebase stack and migrate later, on the line-88 grounds that the engine is not the trust
+anchor.
+
+| Voter | Vote | The load-bearing point |
+|---|---|---|
+| Nancy | **B** — hold | Line 88 says the DB is not a *trust* decision; it says nothing about *integrity-during-issuance* (line 82). "Migrate later" is the mirror of the phantom deduction the log below already retracted once — except now migrating live signed records carrying revocation and audit weight. |
+| Chris | **C** — descope | OQ9 (published objective criteria per family) does not exist and is **orthogonal to the datastore**. Line 14: a credential whose competency cannot be objectively supported "should not exist." Amending the architecture to hit the date is solving the wrong variable. |
+| Mallory | **C** — descope | The placement claim is not durable today (below). Also: a signing key rushed onto this stack realistically lands in `process.env`, where compromise is total and permanent, versus KMS where revoking an IAM binding ends it. |
+| primary | **C** — descope | I proposed the amendment; it does not survive. Chris is right that it dressed a missed deadline as an architecture argument. |
+
+**Outcome — C, 3-1.** No external credential at the inaugural tournament. Ship the in-platform
+System II placement/participation badge, preserve durable evidence, issue credentials retroactively
+once the product and identity questions are resolved.
+
+**The amendment is WITHDRAWN, and the decided Postgres/Cloud Run row STANDS unamended.** With no
+October issuance there is no deadline pressure forcing it, and both C voters said explicitly that
+the engine should be revisited on its own merits later. Nancy's position is preserved by the
+outcome rather than overridden by it.
+
+### The blocking prerequisite, independent of any option
+
+**There is no results-of-record lock.** `frozenStandings` (`_app/admin/console.html:11952`) is a
+**scoreboard-freeze suspense device**, and it is deliberately deleted on the transition to `ended`
+(`console.html:11985-11988`) so the reveal shows the true final board — correct for its own purpose,
+and not the results lock line 170 requires. `tournament-podium.html:427` trusts the snapshot only
+while `status === 'frozen'`; once `ended` it falls through to a **live re-sort** of `teams/`. So any
+admin write (`teams` is `allow update: if isAdmin()`) or any Cloud Function write after `ended`
+silently rewrites the official result, with no snapshot, no lock, and no audit trail. The end
+transition is itself client-side — `functions/index.js` has only `ctfSubmitFlag`, `ctfJoinTeam`,
+`ctfLeaveTeam`; **no server function ends a tournament.** Tracked as taskboard 362.
+
+Two corrections recorded for honesty: the primary and Nancy both initially reported that *no*
+frozen snapshot existed. One does; it is a different mechanism for a different job. And the tie-break
+itself is live and correct (BUG-022, deployed + verified 2026-07-24) — the defect is durability of
+the result, not its ordering.
+
+### Added to the DECIDED set by this vote (from Mallory)
+
+- The public verification surface **must be a narrow endpoint returning an explicit field
+  allowlist** — never a Firestore rule opening a `subject_id`-bearing collection to `read: if true`.
+- `public_id` **must be non-sequential and unguessable.** Otherwise credential IDs enumerate and
+  harvest participant identities. This was not previously in the open-questions list, which was
+  itself the gap.
+- Taskboard **#316** (`joinCode` enforces nothing — anyone including anonymous can join any
+  tournament) blocks individual attribution: if team membership is not trustworthy, the credential's
+  *who* is wrong before its *what* is reached.
 
 ---
 

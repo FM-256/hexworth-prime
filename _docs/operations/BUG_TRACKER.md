@@ -1182,6 +1182,53 @@ for name, rx in [('sixth form  " --" at EOL',  r' --$'),
 - **Verified:** n/a — open. Counts re-derivable by grepping `hexworth_progress` and `ProgressRestore.js` under `_app`.
 - **Related:** BUG-100 (the same-device half of the same symptom).
 
+### BUG-254 — a tournament result can still be shaped by an admin BEFORE it is certified  ·  [P2]  ·  KNOWN RESIDUAL, accepted and documented
+- **Found:** 2026-09-07 · by Mallory (adversarial review of taskboard 362) · during the results-of-record build
+- **Area:** `firestore.rules` `tournaments/{id}/teams/{teamId}` (`allow update: if isAdmin()`)
+- **Symptom:** taskboard 362 makes the certified record immutable ONCE WRITTEN and fences the
+  `ended` transition (client writes that set `status:'ended'` are denied on BOTH `update` and
+  `create`). It does NOT fence the INPUTS. An admin can adjust a team's `score` while a tournament
+  is still `active`/`frozen` and then end it through the proper path; the record faithfully
+  certifies those numbers as `provenance:'live'`, indistinguishable from an honestly-earned result.
+- **Repro:** `updateDoc(doc(db,'tournaments',TID,'teams','team-red'), { score: 999999 })` from any
+  admin session while the tournament is live, then End Tournament in the console.
+- **Root cause:** `teams` must stay admin-writable for legitimate correction (team renames, manual
+  adjudication). Fencing per-field writes would break real admin workflows and is not attempted.
+- **Fix:** NOT fixed — accepted. The mitigations that DID land: the record is unwritable by every
+  client, corrections are versioned and reasoned rather than silent overwrites, history is
+  preserved, and the `ended` transition is server-only.
+- **A PRIOR VERSION OF THIS ENTRY OVERSTATED THE FIX** and the correction is worth keeping. It said
+  "the `ended` transition is no longer a client write" while only `update` was fenced. Firestore
+  classifies a write as create-or-update on whether the doc exists at that instant, so
+  delete-then-recreate reached `ended` with the guard never running — and `deleteTournament` is a
+  one-click console button. Now fenced on `create` too. A reader trusting that sentence would have
+  believed a hole was closed that was open.
+- **THE POINT OF THIS ENTRY:** do not describe a Hexworth placement as tamper-proof. It is
+  tamper-EVIDENT after certification and unprotected before it, against an admin-level actor. Read
+  this before any credential is built on a placement — the HCA doc's Principle 3 ("every credential
+  must have verifiable evidence") has to reckon with it, not inherit it silently.
+
+### BUG-255 — `ctfExport` calls itself the standings-of-record and reads the live teams collection  ·  [P2]  ·  FIXED, not deployed
+- **Found:** 2026-09-07 · by Mallory (second-pass audit of taskboard 362) · sibling not swept
+- **Area:** `_app/admin/console.html` `window.ctfExport`
+- **Symptom:** its own comment states it is *"the standings-OF-RECORD export... that feeds HCA
+  credential issuance, so the baked-in rank MUST be correct on ties"* — while it queries the live
+  `teams` collection, never reads `tournaments/{id}/results/final`, applies no `status === 'ended'`
+  check (it can be clicked mid-tournament), and stamps no `provenance`, `version` or `finalizedBy`.
+  It is the exact "live re-sort of admin-writable teams" pattern 362 exists to retire, relocated
+  into the one artifact whose comment claims to be trustworthy.
+- **Root cause:** the same gap was found and fixed in the console's tournament-detail panel during
+  362; this sibling was not swept. `feedback_fix_the_field_beside_the_one_you_fixed`.
+- **Impact today:** not exploitable in the Finding-1 sense — HCA issuance is formally descoped by
+  the 2026-09-07 vote, so nothing consumes this file automatically. The risk is a human trusting a
+  document that asserts authority it does not have.
+- **Fix:** `_app/admin/console.html` `ctfExport` now reads `results/final` first and stamps
+  `certification: {certified, version, provenance, reason, finalizedBy, source}` on the payload.
+  When no record exists it still exports, but stamps `certified: false` with an explicit
+  "do not treat as evidence for a credential" note — an uncertified export stays useful, it just
+  no longer claims authority it does not have. Verified by reading the emitted payload shape;
+  not render-verified (the export is a file download, not a rendered surface).
+
 ### BUG-099 — `ModuleProgress.init()` does not exist, and 93 module pages call it  ·  [P1]  ·  FIXED, not deployed
 - **Found:** 2026-08-12 · by self · in the Mallory finding-2 access-gate sweep (render A/B caught it as a page error, and I initially set it aside as "pre-existing, not mine")
 - **Area:** `_app/components/ModuleProgress.js` (exports) vs 93 `*.module.html` pages, e.g. `_app/wireshark/sections/fundamentals/ws-01-interface-tour.module.html:1058`

@@ -11821,9 +11821,39 @@
                     document.getElementById('ctfFeedCard').style.display = 'none';
                     document.getElementById('ctfEditTimer').textContent = '';
 
-                    // Static team load
-                    const teamSnap = await getDocs(query(collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
-                    renderCtfTeams(teamSnap, t.maxTeams);
+                    /* Static team load.
+                     *
+                     * FOR AN ENDED TOURNAMENT THE CERTIFIED RECORD IS THE ANSWER, not a live
+                     * re-sort of `teams` (taskboard 362). This panel is where a disqualification
+                     * would actually be actioned, so it is the worst possible place to show a board
+                     * that has drifted from the record — after a correction bumps results/final to
+                     * v2, a live re-sort would quietly disagree with what the podium, the Big Screen
+                     * and any awarded placement all say. Falls back to the live query when no record
+                     * exists (a tournament that ended before ctfEndTournament shipped). */
+                    let certified = null;
+                    if ((t.status || '') === 'ended') {
+                        try {
+                            const rSnap = await getDoc(doc(db, 'tournaments', id, 'results', 'final'));
+                            if (rSnap.exists() && Array.isArray(rSnap.data().standings)) {
+                                certified = rSnap.data();
+                            }
+                        } catch (rErr) {
+                            // Never block the admin panel on the record read; fall back to live.
+                            console.error('[console] results/final read failed:', rErr);
+                        }
+                    }
+                    if (certified && certified.standings.length) {
+                        // Map to the team shape the table renders. Already ranked by the server, so
+                        // renderCtfTeams is told not to re-rank: the STORED order is the answer.
+                        renderCtfTeams(certified.standings.map(function (s) {
+                            return { id: s.teamId, name: s.name, color: s.color, score: s.score,
+                                     solves: s.solves, members: s.members,
+                                     memberNames: s.memberNames, lastSolveTime: s.lastSolveTime };
+                        }), t.maxTeams, certified.version || 1);
+                    } else {
+                        const teamSnap = await getDocs(query(collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
+                        renderCtfTeams(teamSnap, t.maxTeams);
+                    }
                 }
 
             } catch (e) {
@@ -11831,25 +11861,49 @@
             }
         };
 
-        function renderCtfTeams(snap, maxTeams) {
+        /* Accepts EITHER a Firestore snapshot of live teams, OR an already-ranked array taken from
+           the certified results-of-record (taskboard 362). When given the record, `certifiedVersion`
+           is its version number and the stored order is used verbatim — re-ranking a certified
+           result would mean the panel could disagree with the record it is supposed to display. */
+        function renderCtfTeams(snapOrTeams, maxTeams, certifiedVersion) {
             const el = document.getElementById('ctfEditTeams');
-            if (snap.empty || snap.size === 0) {
+            const fromRecord = Array.isArray(snapOrTeams);
+
+            if (!fromRecord && (snapOrTeams.empty || snapOrTeams.size === 0)) {
+                el.innerHTML = '<div class="ac-empty" style="font-size:0.8rem;">No teams registered yet.</div>';
+                return;
+            }
+            if (fromRecord && !snapOrTeams.length) {
                 el.innerHTML = '<div class="ac-empty" style="font-size:0.8rem;">No teams registered yet.</div>';
                 return;
             }
 
-            let html = '<div class="ac-table-wrap"><table class="ac-table"><thead><tr>';
+            let html = '';
+            if (fromRecord) {
+                // Say so on screen. An admin acting on a disqualification needs to know whether the
+                // table in front of them is the certified result or a live board.
+                html += '<div class="ac-empty" style="font-size:0.75rem;margin-bottom:0.5rem;">' +
+                        'Certified final result (v' + escHtml(String(certifiedVersion)) + ') — ' +
+                        'this is the record, not a live board.</div>';
+            }
+            html += '<div class="ac-table-wrap"><table class="ac-table"><thead><tr>';
             html += '<th>#</th><th>Team</th><th>Members</th><th>Score</th><th>Solves</th><th>Last Solve</th>';
             html += '</tr></thead><tbody>';
 
             // Rank with the canonical CTF tie-break (BUG-022) so the admin/instructor view
             // matches the student-facing podium exactly — and makes the "earliest lastSolveTime
             // wins" tooltip above actually true. See /components/CtfStandings.js.
-            const rawTeams = [];
-            snap.forEach(tDoc => rawTeams.push({ id: tDoc.id, ...tDoc.data() }));
-            const teams = (window.CtfStandings && window.CtfStandings.rankTeams)
-                ? window.CtfStandings.rankTeams(rawTeams)
-                : rawTeams;
+            // A record-backed table is ALREADY ranked, server-side, by that same rule.
+            let teams;
+            if (fromRecord) {
+                teams = snapOrTeams;
+            } else {
+                const rawTeams = [];
+                snapOrTeams.forEach(tDoc => rawTeams.push({ id: tDoc.id, ...tDoc.data() }));
+                teams = (window.CtfStandings && window.CtfStandings.rankTeams)
+                    ? window.CtfStandings.rankTeams(rawTeams)
+                    : rawTeams;
+            }
 
             let rank = 0;
             teams.forEach(t => {
@@ -11924,6 +11978,42 @@
             if (!confirm('Are you sure you want to ' + (labels[newStatus] || newStatus) + '?')) return;
 
             try {
+                /* ── ENDING A TOURNAMENT IS A SERVER OPERATION (taskboard 362) ────────────────
+                 * Every other transition is a status write and stays a client write. Ending is
+                 * different in kind: it is the moment the result becomes THE RESULT, and until
+                 * this branch existed nothing certified it. A client `updateDoc({status:'ended'})`
+                 * left every consumer re-sorting the LIVE teams collection at render time, and
+                 * `teams` is `allow update: if isAdmin()` — so any later write silently rewrote
+                 * the official outcome with no snapshot, no lock and no audit trail.
+                 *
+                 * ctfEndTournament ranks server-side with the canonical tie-break, writes an
+                 * immutable results-of-record, and flips the status IN ONE TRANSACTION, so the
+                 * standings cannot move between being read and being certified. It is also
+                 * idempotent: a retried click returns the existing record instead of failing, and
+                 * re-finalizing after a disqualification requires an explicit reason and appends a
+                 * new version rather than overwriting history.
+                 *
+                 * NOTE: this deliberately does NOT clear frozenStandings the way the client path
+                 * below does. The server transaction owns the end transition now, and the frozen
+                 * board is superseded by the certified record the moment it exists — the podium and
+                 * broadcast both prefer results/final once status is 'ended'.
+                 */
+                if (newStatus === 'ended') {
+                    const result = await FirebaseAuth.callFunction('ctfEndTournament', { tournamentId: id });
+                    // `result.data` is the callable's payload — the same unwrap every other
+                    // callFunction site in this file uses. Reading `result` directly is the
+                    // data-unwrap mistake that once made 103 server-graded quizzes mark every
+                    // answer wrong.
+                    const r = result.data || {};
+                    showToast(r.alreadyFinalized
+                        ? 'Tournament was already finalized (v' + (r.version || 1) + '). Certified result unchanged.'
+                        : 'Tournament ENDED. Certified result v' + (r.version || 1) +
+                          ' recorded for ' + ((r.standings && r.standings.length) || 0) + ' teams.',
+                        'success');
+                    openTournament(id);
+                    return;
+                }
+
                 const { doc, updateDoc, serverTimestamp, getDocs, collection, query, orderBy, deleteField } = _firestoreModule;
                 const updates = { status: newStatus };
 
@@ -12015,26 +12105,66 @@
 
         window.ctfExport = async function(id) {
             try {
-                const { collection, getDocs, query, orderBy } = _firestoreModule;
+                const { collection, getDocs, query, orderBy, doc, getDoc } = _firestoreModule;
 
-                // Get teams, ranked by the canonical CTF tie-break (BUG-022). This is the
-                // standings-OF-RECORD export (ctf-results-<id>.json) that feeds HCA credential
-                // issuance, so the baked-in rank MUST be correct on ties, not raw score order.
-                // Include the team id (the credential record needs it). See /components/CtfStandings.js.
-                const teamSnap = await getDocs(query(collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
-                const rawTeams = [];
-                teamSnap.forEach(d => rawTeams.push({ id: d.id, ...d.data() }));
-                const ranked = (window.CtfStandings && window.CtfStandings.rankTeams)
-                    ? window.CtfStandings.rankTeams(rawTeams)
-                    : rawTeams;
-                const teams = ranked.map((t, i) => ({ rank: i + 1, ...t }));
+                /* ── THIS EXPORT MUST READ THE RECORD, NOT RE-DERIVE IT (BUG-255, taskboard 362) ──
+                 * This function's own comment called it "the standings-OF-RECORD export that feeds
+                 * HCA credential issuance" while it queried the LIVE, admin-writable `teams`
+                 * collection, applied no status check (it was clickable mid-tournament), and stamped
+                 * no provenance or version. It was the exact live-re-sort pattern 362 exists to
+                 * retire, sitting inside the one artifact whose comment claimed to be trustworthy —
+                 * the sibling of the tournament-detail panel fixed in the same task, missed on the
+                 * first sweep.
+                 * Now: when a certified record exists, THAT is the export, stored order verbatim,
+                 * carrying provenance/version/finalizedAt so the file can never be mistaken for a
+                 * live snapshot. Otherwise it falls back to the live re-derivation and SAYS SO in
+                 * the payload — an uncertified export is still useful, it just must not claim
+                 * authority it does not have.
+                 */
+                let teams = null, certification = null;
+                try {
+                    const rSnap = await getDoc(doc(db, 'tournaments', id, 'results', 'final'));
+                    if (rSnap.exists() && Array.isArray(rSnap.data().standings) && rSnap.data().standings.length) {
+                        const rec = rSnap.data();
+                        teams = rec.standings.map(s => ({ rank: s.position, id: s.teamId, ...s }));
+                        certification = {
+                            certified: true,
+                            version: rec.version || 1,
+                            provenance: rec.provenance || null,
+                            reason: rec.reason || null,
+                            finalizedBy: rec.finalizedBy || null,
+                            source: 'tournaments/' + id + '/results/final'
+                        };
+                    }
+                } catch (rErr) {
+                    console.error('[ctfExport] results/final read failed:', rErr);
+                }
+                if (!teams) {
+                    const teamSnap = await getDocs(query(collection(db, 'tournaments', id, 'teams'), orderBy('score', 'desc')));
+                    const rawTeams = [];
+                    teamSnap.forEach(d => rawTeams.push({ id: d.id, ...d.data() }));
+                    const ranked = (window.CtfStandings && window.CtfStandings.rankTeams)
+                        ? window.CtfStandings.rankTeams(rawTeams)
+                        : rawTeams;
+                    teams = ranked.map((t, i) => ({ rank: i + 1, ...t }));
+                    certification = {
+                        certified: false,
+                        note: 'UNCERTIFIED. Derived from the live teams collection at export time, ' +
+                              'not from a results-of-record. Ranking uses the canonical tie-break ' +
+                              '(BUG-022), but nothing attests these scores were final or unedited. ' +
+                              'Do not treat as evidence for a credential.'
+                    };
+                }
 
                 // Get submissions
                 const subSnap = await getDocs(query(collection(db, 'tournaments', id, 'submissions'), orderBy('timestamp', 'asc')));
                 const submissions = [];
                 subSnap.forEach(d => submissions.push(d.data()));
 
-                const result = { exportedAt: new Date().toISOString(), tournamentId: id, standings: teams, submissions: submissions };
+                // `certification` first so anyone opening the file sees whether it is authoritative
+                // before they read a single standing.
+                const result = { certification: certification, exportedAt: new Date().toISOString(),
+                                 tournamentId: id, standings: teams, submissions: submissions };
                 const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');

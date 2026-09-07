@@ -291,6 +291,27 @@
         let frozenTeams = null;
         let tournamentUnsub = null;
 
+        /* The CERTIFIED final standings, from tournaments/{id}/results/final (taskboard 362).
+         * null until loaded, and null forever for a tournament that was never finalized.
+         *
+         * This is NOT frozenStandings. That is the scoreboard-freeze suspense device and it is
+         * deliberately deleted when the tournament ends. This is the results-of-record: written
+         * once by the ctfEndTournament Cloud Function, in the same transaction that sets
+         * status='ended', and unwritable by any client including admins (firestore.rules).
+         *
+         * Before it existed, an 'ended' tournament fell through to a LIVE re-sort of the teams
+         * collection on every render — and `teams` is admin-writable — so any later edit silently
+         * rewrote the official result on the page people screenshot as the outcome. */
+        let resultsOfRecord = null;
+        let resultsUnsub = null;
+
+        /* Last teams snapshot and tournament data, cached so the results-of-record listener can
+         * repaint without opening a second teams read. Declared here rather than assigned ad hoc:
+         * this script block is 'use strict', so an undeclared assignment throws a ReferenceError
+         * inside the onSnapshot callback and the board never renders at all. */
+        let lastTeamsSnap = null;
+        let lastTournament = null;
+
         // ── Load tournament and subscribe ──
         function init() {
             // Real-time tournament status
@@ -303,6 +324,12 @@
                 const t = snap.data();
                 renderHeader(t);
                 subscribeTeams(t);
+                /* Called on EVERY tournament snapshot, deliberately outside subscribeTeams — that
+                   function early-returns when the status is unchanged, which would mean the record
+                   is looked for at most once per transition and missed entirely when a backfill or
+                   a correction writes it while the status is already 'ended'. This placement also
+                   tears the listener down when a tournament is re-opened. */
+                subscribeResults(t);
             });
         }
 
@@ -373,7 +400,45 @@
             teamsUnsub = db.collection('tournaments').doc(tournamentId)
                 .collection('teams').orderBy('score', 'desc').limit(PODIUM_LIMIT)
                 .onSnapshot(snap => {
+                    // Cached so the results-of-record listener can repaint without its own teams
+                    // read. Without this, `resultsOfRecord` could arrive after the last teams
+                    // snapshot and never be drawn — the certified branch would be dead code that
+                    // looks live in review. (Caught by the repo QC hook.)
+                    lastTeamsSnap = snap;
+                    lastTournament = t;
                     renderLeaderboard(snap, t);
+                });
+        }
+
+        /* Subscribe to the results-of-record once the tournament is finalized (taskboard 362).
+         *
+         * Separate from subscribeTeams on purpose: that function early-returns when the status has
+         * not changed, so folding this into it would mean the record is fetched at most once per
+         * status transition and never if the document is written a moment after 'ended' lands.
+         * ctfEndTournament writes both in ONE transaction, but a listener that depends on that
+         * ordering is a listener that breaks the first time a backfill or a correction writes the
+         * record while the status is already 'ended'. */
+        function subscribeResults(t) {
+            if ((t.status || '') !== 'ended') {
+                // Leaving 'ended' (a re-opened tournament) must drop the record, or a stale
+                // certified board would be rendered over live play.
+                if (resultsUnsub) { resultsUnsub(); resultsUnsub = null; }
+                resultsOfRecord = null;
+                return;
+            }
+            if (resultsUnsub) return;   // already listening
+            resultsUnsub = db.collection('tournaments').doc(tournamentId)
+                .collection('results').doc('final')
+                .onSnapshot(function (snap) {
+                    resultsOfRecord = snap.exists ? snap.data() : null;
+                    // Repaint with the cached teams snapshot. A correction (a new version written
+                    // after a disqualification) therefore appears without a page reload.
+                    if (lastTeamsSnap && lastTournament) {
+                        renderLeaderboard(lastTeamsSnap, lastTournament);
+                    }
+                }, function () {
+                    // A read failure must not blank the board; fall back to previous behaviour.
+                    resultsOfRecord = null;
                 });
         }
 
@@ -392,7 +457,14 @@
             const content = document.getElementById('podiumContent');
             const status = tournament.status || 'draft';
 
-            if (snap.empty) {
+            /* An empty teams read must not blank a CERTIFIED result. The record is self-contained —
+               it stores every standing it needs — so a finalized tournament renders from it even if
+               the live teams collection is empty or unreadable. Without this guard the authoritative
+               board would silently become "No teams registered yet", which is the worst possible
+               thing to show on a projector after an event. */
+            const haveRecord = status === 'ended' && resultsOfRecord
+                && Array.isArray(resultsOfRecord.standings) && resultsOfRecord.standings.length;
+            if (snap.empty && !haveRecord) {
                 content.innerHTML = '<div class="podium-loading">No teams registered yet.</div>';
                 return;
             }
@@ -423,7 +495,29 @@
             // The authority is now `tournament.frozenStandings`, captured ONCE by the admin
             // console at the moment of freezing. Every viewer renders the same array.
             let teams;
-            if (status === 'frozen' && Array.isArray(tournament.frozenStandings) && tournament.frozenStandings.length) {
+            /* THE CERTIFIED RESULT OUTRANKS EVERYTHING, and is checked first.
+             * Once a tournament is finalized, the record is the answer — not a re-sort of whatever
+             * the teams collection happens to hold now. Checked ahead of the frozen branch because
+             * a finalized tournament is never 'frozen' anyway, and ahead of the live branch because
+             * that live branch IS the defect. Falls through when no record exists, which is the
+             * case for every tournament that ended before ctfEndTournament shipped — those keep
+             * their previous behaviour rather than rendering blank. */
+            if (status === 'ended' && resultsOfRecord && Array.isArray(resultsOfRecord.standings)
+                && resultsOfRecord.standings.length) {
+                frozenTeams = null;
+                // The record stores `teamId`; the renderer below expects `id`. Map rather than
+                // rename in the record: `teamId` is the credential-facing field name and other
+                // consumers (badge award, future HCA finalization) read it.
+                teams = resultsOfRecord.standings.map(function (s) {
+                    /* Carry every field this page renders, `color` included — the renderer reads
+                       t.color, and dropping it would silently flatten team identity on the board
+                       only after a tournament was finalized. A snapshot must carry what its
+                       consumers render. */
+                    return { id: s.teamId, name: s.name, color: s.color, score: s.score,
+                             solves: s.solves, members: s.members, memberNames: s.memberNames,
+                             lastSolveTime: s.lastSolveTime };
+                });
+            } else if (status === 'frozen' && Array.isArray(tournament.frozenStandings) && tournament.frozenStandings.length) {
                 teams = tournament.frozenStandings;
                 frozenTeams = null;
             } else if (status === 'frozen') {

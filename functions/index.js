@@ -313,6 +313,17 @@ exports.verifyGateAccess = onCall(cfOptions, async (request) => {
 // The CTF counter definition lives in ctf-stats.js so account-merge.js uses the IDENTICAL
 // logic. Three conflicting notions of "pwned" previously existed in this codebase.
 const { recomputeCtfStats } = require('./ctf-stats');
+/* The ONE server-side copy of the canonical CTF tie-break (BUG-022). Duplicated from the browser
+   helper only because Cloud Functions bundle `functions/` and cannot reach `_app/`; the two are
+   held in agreement by _tools/tournament/standings-parity.test.js in deploy gate 3.8, because the
+   previous arrangement — a comment promising they matched — was already false. Never re-implement
+   this rule at a call site: standings decide placement, and placement mints credentials. */
+const { rankTeams } = require('./ctf-standings-rule');
+/* The tournament results-of-record transaction. Extracted from the callable so it can be executed
+   against the Firestore emulator by _tools/tournament/finalize.test.js WITHOUT loading this file —
+   loading this file is what makes the functions emulator read functions/.env, which has previously
+   fired real Discord webhooks at a live channel. See functions/ctf-finalize.js. */
+const { finalizeTournament } = require('./ctf-finalize');
 // The single definition of which quiz score is the student's score. Extracted for the same
 // reason as recomputeCtfStats above: this fact had three implementations that disagreed.
 const { shouldReplaceStoredScore, buildQuizUpdate } = require('./quiz-score-policy');
@@ -7365,8 +7376,26 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
     const correct = submittedHash === challenge.flagHash;
 
-    // 6. Record the submission
-    await tRef.collection('submissions').add({
+    /* 6. Record the submission.
+     *
+     * A CORRECT submission's record is written INSIDE the credit transaction below, not here.
+     *
+     * WHY, because this ordering used to be safe and no longer is. This was an unconditional
+     * `.add()` before the transaction, which was fine while the transaction could only fail on
+     * ALREADY_SOLVED (a case where the team legitimately keeps the solve). It can now also reject a
+     * correct flag that arrives after the tournament has ended — the status re-check added below,
+     * which is what makes the results-of-record trustworthy. With the write left here, such a
+     * submission would leave a PERMANENT record asserting `correct: true, points: N` for a solve
+     * that was never credited, and `_app/arena/broadcast.html`'s "Recent Captures" panel reads this
+     * feed directly onto the Big Screen. That is a visible, permanent, semantically false record —
+     * strictly worse than the transient re-sort bug this whole change exists to fix.
+     *
+     * So the correct path is atomic: the record and the credit both land, or neither does.
+     * Incorrect guesses run no transaction and are written immediately, exactly as before.
+     * (Adversarial review, taskboard 362.)
+     */
+    const subRef = tRef.collection('submissions').doc();
+    const submission = {
         teamId: userTeamId,
         teamName: userTeamData.name || 'Unknown',
         challengeId: challengeId,
@@ -7379,11 +7408,17 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
            for reviewing suspected cheating. */
         submittedFlag: correct ? null : flag,
         correct: correct,
-        points: correct ? (challenge.currentPoints || challenge.points || 0) : 0,
+        // The correct path overwrites this inside the transaction with the award actually granted,
+        // read there from the challenge. Setting it from the pre-transaction read would record a
+        // points value that dynamic scoring may have already moved.
+        points: 0,
         submittedBy: uid,
         submittedByName: request.auth.token.name || request.auth.token.email || uid,
         timestamp: FieldValue.serverTimestamp()
-    });
+    };
+    if (!correct) {
+        await subRef.set(submission);
+    }
 
     // 7. If correct — update team score, challenge solveCount, tournament stats
     if (correct) {
@@ -7411,7 +7446,38 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
         try {
             pointsAwarded = await db.runTransaction(async (tx) => {
-                const [teamNow, chNow] = await Promise.all([tx.get(teamRef), tx.get(chRef)]);
+                /* ALL READS BEFORE ANY WRITE — Firestore requires it, and `tRef` is read here for a
+                   reason beyond convenience.
+
+                   THE STATUS RE-CHECK IS WHAT MAKES THE RESULTS-OF-RECORD A LOCK RATHER THAN A
+                   SNAPSHOT. Step 1 of this function checks `tournament.status` non-transactionally,
+                   hundreds of milliseconds and several round-trips ago (a rate-limit transaction, a
+                   challenge read, a hash). Without re-reading it HERE, a flag submitted while the
+                   tournament was still active can have its credit commit AFTER ctfEndTournament has
+                   already read the teams collection and written the certified result — silently
+                   making the record wrong within seconds of it being written. That is not an
+                   adversarial edge case; a burst of last-second submissions is how every CTF ends.
+
+                   Re-reading tRef inside the transaction closes it by the engine's own guarantee,
+                   not by timing: Firestore aborts and retries any transaction whose READ documents
+                   were modified before its commit. ctfEndTournament WRITES tRef.status, so a
+                   crediting transaction either commits first (and is legitimately included in the
+                   result), or conflicts, retries, re-reads `ended`, and rejects here.
+
+                   The guarantee has one precondition worth naming rather than assuming: it holds
+                   because ctfEndTournament reads EVERY team document, and no team doc can be
+                   created mid-round to escape that query (firestore.rules: teams `create: if
+                   isAdmin()`, and ctfJoinTeam only ever updates an existing team). Query-based
+                   transaction reads re-validate on document CONTENTS; membership of the result set
+                   changing is the looser case, and it cannot happen here. */
+                const [tNow, teamNow, chNow] = await Promise.all([
+                    tx.get(tRef), tx.get(teamRef), tx.get(chRef)
+                ]);
+
+                const statusNow = (tNow.exists && tNow.data().status) || '';
+                if (statusNow !== 'active' && statusNow !== 'frozen') {
+                    const e = new Error('TOURNAMENT_ENDED'); e.code = 'TOURNAMENT_ENDED'; throw e;
+                }
 
                 const solvesNow = (teamNow.exists && teamNow.data().solves) || [];
                 if (solvesNow.includes(challengeId)) {
@@ -7421,6 +7487,14 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
                 const chData = chNow.exists ? chNow.data() : {};
                 const award = chData.currentPoints || chData.points || 0;
+
+                /* The submission record lands in the SAME transaction as the credit, carrying the
+                   award actually granted. Either both exist or neither does — see the note at
+                   step 6 for why this cannot go back to a pre-transaction write. */
+                // `credited: true` is the positive half of the flag the ALREADY_SOLVED audit doc
+                // sets to false. Consumers distinguish a real capture from a recorded-but-unscored
+                // duplicate on this field rather than on `correct`, which is true for both.
+                tx.set(subRef, Object.assign({}, submission, { points: award, credited: true }));
 
                 tx.update(teamRef, {
                     score: FieldValue.increment(award),
@@ -7478,7 +7552,42 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             });
         } catch (e) {
             if (e && e.code === 'ALREADY_SOLVED') {
+                /* RESTORE THE AUDIT RECORD THIS RESTRUCTURING WOULD OTHERWISE HAVE DELETED.
+                 *
+                 * Before the submission write moved inside the credit transaction, EVERY correct
+                 * guess left a permanent record — including the loser of a teammate race. Moving
+                 * the write inside meant the transaction's throw discarded it, so "two members of
+                 * the same team submitted the correct flag within milliseconds" — a real
+                 * collusion / flag-sharing signal, and one of the few this platform has — silently
+                 * stopped being recorded. That was never the target of the change: the rejection
+                 * being designed for was TOURNAMENT_ENDED, where recording nothing is deliberate
+                 * and correct because nothing happened. Erasing the ALREADY_SOLVED evidence was
+                 * collateral. (Found by adversarial review; it is a regression I introduced.)
+                 *
+                 * Written OUTSIDE the transaction, which is right for this case: nothing is being
+                 * credited, so there is no state to be atomic with — only the fact of the attempt.
+                 * `credited: false` distinguishes it from the solve that actually scored, so the
+                 * feed and any reviewer can tell a duplicate from the real capture.
+                 */
+                try {
+                    await subRef.set(Object.assign({}, submission, {
+                        points: 0,
+                        credited: false,
+                        notCreditedReason: 'already_solved_by_teammate'
+                    }));
+                } catch (auditErr) {
+                    // The player's own error must not be masked by a failure to journal it.
+                    console.error('[ctfSubmitFlag] failed to record ALREADY_SOLVED audit doc:', auditErr);
+                }
                 throw new HttpsError('already-exists', 'Your team already solved this challenge.');
+            }
+            /* The flag WAS correct; it simply arrived after the tournament closed. Say that, rather
+               than returning a generic failure that reads to the player as "wrong flag" — and note
+               that nothing was recorded, because the submission doc is written inside the same
+               transaction that just rejected. Nothing to clean up, by construction. */
+            if (e && e.code === 'TOURNAMENT_ENDED') {
+                throw new HttpsError('failed-precondition',
+                    'The tournament has ended. This submission was not recorded or scored.');
             }
             throw e;
         }
@@ -7763,6 +7872,69 @@ exports.ctfLeaveTeam = onCall(cfOptions, async (request) => {
         tx.delete(lockRef); // release the roster lock (no-op if absent)
     });
     return { ok: true, teamId };
+});
+
+/**
+ * ctfEndTournament — end a tournament and write its RESULTS-OF-RECORD.
+ *
+ * WHY THIS EXISTS (taskboard 362)
+ * ------------------------------
+ * Nothing certified a tournament's result. Ending one was a CLIENT-SIDE `updateDoc({status})` in
+ * `_app/admin/console.html`; no server function ended a tournament at all. Once `status === 'ended'`,
+ * every consumer re-sorted the LIVE `teams` collection at render time, and `teams` is
+ * `allow update: if isAdmin()` with Cloud Functions bypassing rules entirely. So any write to a
+ * team's score after the event silently rewrote what every future render — and any credential built
+ * on it — called the official result. No snapshot, no lock, no audit trail.
+ *
+ * `frozenStandings` is NOT this. It is the scoreboard-freeze suspense device, and it is deliberately
+ * DELETED on the transition to `ended` so the reveal shows the true final board. Correct for its own
+ * job, and the opposite of a results lock. `_docs/architecture/hexworth-credential-authority.md:170`
+ * requires issuance to read a frozen, tie-broken snapshot taken AT `ended`; this is that snapshot.
+ *
+ * VERSIONED, NOT SINGLE-SHOT. Disqualifications and scoring corrections are real. A hard-immutable
+ * record would mean an admin who DQs a team edits `teams/` and sees the podium silently not change.
+ * So each finalization writes an immutable `results/v{n}` and updates `results/final` to match.
+ * History never disappears (HCA Principle 5), and a correction is a recorded act rather than an
+ * overwrite. A re-finalize REQUIRES an explicit `reason`, so it can never happen by accident or by
+ * a retried click.
+ *
+ * PROVENANCE IS RECORDED BECAUSE IT IS NOT ALL THE SAME EVIDENCE. A record written as the tournament
+ * ends witnessed the result. A record backfilled onto a tournament that ended before this function
+ * existed is a RECONSTRUCTION from data that may have drifted since, and a credential authority must
+ * be able to tell those apart rather than be silently misled. Hence `provenance`.
+ *
+ * The ranking rule is the shared module, never re-implemented here — see ctf-standings-rule.js.
+ */
+exports.ctfEndTournament = onCall(cfOptions, async (request) => {
+    // requireAdmin, not a hand-rolled claim check: it also honours the ADMIN_EMAILS allowlist for
+    // admins whose custom claim has not been re-provisioned. A fourth copy of the admin test is
+    // exactly the drift GUARD-07 was written about.
+    requireAdmin(request);
+
+    const { tournamentId, reason } = request.data || {};
+
+    /* The transaction itself lives in ./ctf-finalize.js so it can be EXECUTED by a test against the
+       Firestore emulator without loading this file — loading this file means the functions emulator
+       loads functions/.env, which once fired real Discord webhooks at a live channel for hours.
+       This wrapper is therefore auth + argument mapping only; all the correctness lives in the
+       module, where it is covered by _tools/tournament/finalize.test.js. */
+    try {
+        return await finalizeTournament({
+            db,
+            FieldValue,
+            tournamentId,
+            reason,
+            actorUid: request.auth && request.auth.uid
+        });
+    } catch (e) {
+        // The module throws plain Errors carrying a `code` so it stays runnable outside Functions.
+        // Map the ones it defines; anything else is genuinely unexpected and should surface as-is.
+        if (e && (e.code === 'invalid-argument' || e.code === 'not-found' ||
+                  e.code === 'failed-precondition')) {
+            throw new HttpsError(e.code, e.message);
+        }
+        throw e;
+    }
 });
 
 // ─── EDT: Ethical Decision Training Lab Submission ───────────────
@@ -8438,28 +8610,16 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
                     .orderBy('score', 'desc')
                     .get();
 
-                // Normalize lastSolveTime (admin Timestamp | {seconds} | number | string | missing) to ms.
-                // Rule kept BYTE-IDENTICAL to the browser canonical helper _app/components/CtfStandings.js.
-                // Duplicated (not imported) because Cloud Functions bundle only functions/ and cannot reach
-                // _app/. If you edit the rule in one place, edit both. (BUG-022, Nancy R2.)
-                const solveMs = (v) => {
-                    if (v == null) return Infinity;   // null/undefined only — a literal 0 (epoch ms) is a real time
-                    if (typeof v.toMillis === 'function') return v.toMillis();
-                    if (typeof v.seconds === 'number') return v.seconds * 1000;
-                    const n = new Date(v).getTime();
-                    return isNaN(n) ? Infinity : n;
-                };
-                const ranked = teamsSnap.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => {
-                        const sd = (b.score || 0) - (a.score || 0);
-                        if (sd !== 0) return sd;
-                        // Compare equality before subtracting so Infinity-Infinity (both missing) can't
-                        // produce NaN and corrupt the sort; falls through to the stable id tiebreak.
-                        const am = solveMs(a.lastSolveTime), bm = solveMs(b.lastSolveTime);
-                        if (am !== bm) return am - bm;
-                        return String(a.id || '').localeCompare(String(b.id || ''));
-                    })
+                /* Ranking comes from the SHARED module, not an inline copy.
+                   This block previously re-implemented the rule here under the comment "Rule kept
+                   BYTE-IDENTICAL to the browser canonical helper" — and that claim was FALSE when
+                   written: this copy branched on `toMillis`, the browser on `toDate`. The drift was
+                   latent (a real Timestamp carries both methods, so production data never exercised
+                   it) which is exactly why it survived unnoticed. Both runtimes now accept the
+                   superset, there is ONE server-side copy, and
+                   _tools/tournament/standings-parity.test.js fails the deploy if the two runtimes
+                   ever disagree again. See functions/ctf-standings-rule.js. (BUG-022; taskboard 362.) */
+                const ranked = rankTeams(teamsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })))
                     .slice(0, 10);
 
                 let leaderboard = '';

@@ -31,13 +31,28 @@
     'use strict';
 
     /*
-     * Normalize a lastSolveTime to epoch milliseconds. Accepts a Firestore Timestamp
-     * ({ toDate() }), a plain { seconds } object, a numeric ms value, or an ISO string.
+     * Normalize a lastSolveTime to epoch milliseconds. Accepts a Firestore Timestamp from EITHER
+     * SDK (web exposes toDate(), admin exposes toMillis(); a real Timestamp has both), a plain
+     * { seconds } object, a numeric ms value, or an ISO string.
      * Missing / unparseable -> Infinity so the team sorts LAST among equal scores.
+     *
+     * WHY `toMillis` IS HANDLED HERE even though the browser SDK always provides `toDate`:
+     * this rule is duplicated in functions/ctf-standings-rule.js because Cloud Functions bundle
+     * only functions/ and cannot import from _app/. The two copies HAD ALREADY DRIFTED — the
+     * server branched on toMillis, this file on toDate — under a comment asserting they were
+     * "BYTE-IDENTICAL". The drift was latent (a real Timestamp carries both methods, so production
+     * data never exercised it) and therefore invisible until something compared them. Both copies
+     * now accept the SUPERSET, which is what makes them identical on every input shape rather than
+     * only on the shapes production happens to emit. _tools/tournament/standings-parity.test.js
+     * runs both over one fixture corpus and fails the deploy if their orderings differ.
+     *
+     * Err toward reading a valid time: scoring a real timestamp as "missing" silently demotes a
+     * team among equal scores, and these standings mint placement credentials.
      */
     function solveMs(v) {
         if (v == null) return Infinity;   // null/undefined only — a literal 0 (epoch ms) is a real time, not "missing"
-        if (typeof v.toDate === 'function') return v.toDate().getTime();   // Firestore Timestamp
+        if (typeof v.toMillis === 'function') return v.toMillis();         // Firestore Timestamp (admin SDK)
+        if (typeof v.toDate === 'function') return v.toDate().getTime();   // Firestore Timestamp (web SDK)
         if (typeof v.seconds === 'number') return v.seconds * 1000;        // plain {seconds,nanoseconds}
         var n = new Date(v).getTime();
         return isNaN(n) ? Infinity : n;

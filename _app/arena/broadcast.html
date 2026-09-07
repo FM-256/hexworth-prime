@@ -324,6 +324,26 @@
         function displayTeams() {
             var info = state.info || {};
             var st = info.status || '';
+            /* THE CERTIFIED RESULT WINS, and is checked first (taskboard 362).
+               Once finalized, the record IS the standings — not a re-sort of whatever the teams
+               collection holds now, which is admin-writable and so could silently rewrite the
+               outcome after the event. Mapped to the shape the rest of this page renders: the
+               record stores `teamId`, the stage expects `id`. Falls through when no record exists,
+               so tournaments that ended before ctfEndTournament shipped keep their old behaviour
+               rather than going blank on a projector. */
+            if (st === 'ended' && state.results && Array.isArray(state.results.standings)
+                && state.results.standings.length) {
+                state.frozenTeams = null;
+                return state.results.standings.map(function (s) {
+                    /* Every field the stage renders, not just the ranking ones. `color` feeds
+                       sanitizeColor() in standingsHtml/raceHtml/spotlightHtml — omit it and every
+                       team collapses to the same fallback cyan. `memberNames` feeds the spotlight
+                       roster chips; omit it and the panel degrades to "N members". */
+                    return { id: s.teamId, name: s.name, color: s.color, score: s.score,
+                             solves: s.solves, members: s.members, memberNames: s.memberNames,
+                             lastSolveTime: s.lastSolveTime };
+                });
+            }
             if (st === 'frozen') {
                 if (Array.isArray(info.frozenStandings) && info.frozenStandings.length) {
                     state.frozenTeams = null;          // authoritative wins; drop any local capture
@@ -361,11 +381,18 @@
             challenges: {},     // chId -> {title, category, points}
             solves: [],         // correct submissions, newest first (flag NEVER stored/shown)
             solvesKey: '',      // change-detection key so we only rebuild the ticker on real change
-            frozenTeams: null   // standings snapshot captured at 'frozen' (hard-freeze the board)
+            frozenTeams: null,  // standings snapshot captured at 'frozen' (hard-freeze the board)
+            /* The CERTIFIED final standings from tournaments/{id}/results/final (taskboard 362).
+             * NOT the same thing as frozenStandings: that is the scoreboard-freeze suspense device
+             * and it is deleted the moment the tournament ends. This is the results-of-record,
+             * written once by ctfEndTournament and unwritable by any client including admins.
+             * Until it existed this page re-sorted the LIVE teams collection for an 'ended'
+             * tournament — on the Big Screen, which is the board people photograph as the result. */
+            results: null
         };
 
         // ── Subscriptions + timers (all torn down on tournament switch / unload) ──
-        var subs = { info: null, teams: null, subs: null };
+        var subs = { info: null, teams: null, subs: null, results: null };
         var timers = { director: null, countdown: null, crossfade: null };
 
         // ── Director rotation state ──
@@ -415,10 +442,11 @@
             if (subs.info) { subs.info(); subs.info = null; }
             if (subs.teams) { subs.teams(); subs.teams = null; }
             if (subs.subs) { subs.subs(); subs.subs = null; }
+            if (subs.results) { subs.results(); subs.results = null; }
             if (timers.director) { clearTimeout(timers.director); timers.director = null; }
             if (timers.countdown) { clearInterval(timers.countdown); timers.countdown = null; }
             if (timers.crossfade) { clearTimeout(timers.crossfade); timers.crossfade = null; }
-            state = { id: null, info: null, teams: [], challenges: {}, solves: [], solvesKey: '', frozenTeams: null };
+            state = { id: null, info: null, teams: [], challenges: {}, solves: [], solvesKey: '', frozenTeams: null, results: null };
             scenes = []; sceneIdx = 0; isTransitioning = false;
         }
 
@@ -448,6 +476,22 @@
                 else { rebuildScenes(); renderCurrentScene(false); } // resync scene list + reflect freeze/reveal on the stage
             }, function (e) { console.error('[Broadcast] tournament listener error:', e); });
 
+            /* Results-of-record. Subscribed unconditionally rather than only when status is
+               'ended', because the record can be written or corrected while the status is ALREADY
+               'ended' (a backfill of a historical tournament, or a re-finalize after a
+               disqualification) — a listener gated on the status transition would miss both. It
+               simply stays null until the document exists. */
+            subs.results = db.collection('tournaments').doc(id)
+                .collection('results').doc('final').onSnapshot(function (snap) {
+                    state.results = snap.exists ? snap.data() : null;
+                    // Repaint so a certified or corrected result reaches the stage without a reload.
+                    rebuildScenes(); renderCurrentScene(false);
+                }, function (e) {
+                    // Never blank the Big Screen on a read error — fall back to previous behaviour.
+                    console.error('[Broadcast] results listener error:', e);
+                    state.results = null;
+                });
+
             // Teams (leaderboard). Re-ranked canonically on every update.
             subs.teams = db.collection('tournaments').doc(id).collection('teams').onSnapshot(function (snap) {
                 var raw = [];
@@ -469,7 +513,12 @@
                     var list = [];
                     snap.forEach(function (d) {
                         var s = d.data();
-                        if (s.correct === true) {
+                        /* `credited !== false` excludes a correct-but-not-scored submission — the
+                           losing half of a teammate race, recorded for anti-cheat review but not a
+                           capture. Without this the same flag appears twice in Recent Captures.
+                           Deliberately `!== false` and not `=== true`: historical submissions
+                           predate the field entirely and must keep showing. */
+                        if (s.correct === true && s.credited !== false) {
                             list.push({
                                 teamId: s.teamId || '', teamName: s.teamName || 'Unknown',
                                 challengeId: s.challengeId || '', points: s.points || 0,

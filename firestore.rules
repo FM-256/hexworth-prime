@@ -1289,7 +1289,55 @@ service cloud.firestore {
     // Tournament metadata — public read (podium page), admin write
     match /tournaments/{tournamentId} {
       allow read: if true;  // Public — podium and lobby pages need this pre-auth
-      allow create, update, delete: if isAdmin();
+      /* A tournament may not be CREATED already `ended` — the same status restriction as the
+         update rule below, applied to the adjacent verb.
+         Fencing only `update` left a complete bypass, found by adversarial review: Firestore
+         classifies a write as create-or-update purely on whether the document exists at that
+         instant, so `deleteDoc(tRef)` followed by `setDoc(tRef, {status:'ended', ...})` reaches the
+         identical end state while the update guard never runs. It is not exotic — `deleteTournament`
+         is already a one-click button in the admin console, and the second half is an ordinary
+         setDoc. Firestore does not cascade-delete subcollections and this project has NO
+         onDocumentDeleted trigger (verified: zero matches in functions/), so `teams` survives the
+         delete fully intact and queryable — the recreated tournament reads `ended` with no
+         results/final, and every consumer falls straight back to the live re-sort of that
+         still-writable collection. That is the pre-fix defect, on a tournament real students played,
+         at the URL they already have open.
+         A legitimately created tournament never starts ended, so this costs nothing. */
+      allow create: if isAdmin() && request.resource.data.status != 'ended';
+      allow delete: if isAdmin();
+
+      /* ENDING A TOURNAMENT IS NOT A CLIENT WRITE (taskboard 362).
+       *
+       * Every other status transition stays an ordinary admin write. `ended` is different in kind:
+       * it is the moment the standings become THE RESULT, and it must be accompanied by the
+       * certified, tie-broken results-of-record that ctfEndTournament writes in the same
+       * transaction.
+       *
+       * Without this clause the whole guarantee was enforced by ONE `if` in the admin console.
+       * An adversarial review demonstrated the bypass concretely: `updateDoc(tRef, {status:'ended'})`
+       * is legal for any admin session, no `results/final` is ever written, and the podium and
+       * broadcast both fall through to their live re-sort of the admin-writable `teams` collection
+       * — reproducing the exact pre-fix defect with no error surfaced to anyone. A stale cached
+       * admin tab still holding pre-deploy JS reproduces it with no malicious intent at all.
+       *
+       * ctfEndTournament writes through the admin SDK, which bypasses these rules by construction,
+       * so this restricts everyone EXCEPT the one path that also produces the record.
+       *
+       * The equality clause permits updating other fields on an already-ended tournament (renaming
+       * it, say) — it denies TRANSITIONING to `ended` from the client, not touching a document that
+       * is already there.
+       *
+       * HONEST LIMIT, recorded rather than papered over: this fences the transition, NOT the
+       * inputs. `teams/{teamId}` remains admin-writable (below), so an admin can still adjust a
+       * score while a tournament is live and then end it through the proper path, and the record
+       * will faithfully certify those numbers as `provenance:'live'`. Fencing team writes would
+       * break legitimate admin correction and is not attempted here. This is a real residual
+       * against an admin-level actor; see _docs/operations/BUG_TRACKER.md and the HCA doc before
+       * describing a placement as tamper-proof.
+       */
+      allow update: if isAdmin()
+                    && (request.resource.data.status == resource.data.status
+                        || request.resource.data.status != 'ended');
 
       // Challenges — public read for lobby/board display
       // Flags are stored as SHA-256 hashes (flagHash field) so public read is safe.
@@ -1320,6 +1368,29 @@ service cloud.firestore {
       match /submissions/{submissionId} {
         allow read: if request.auth != null;
         allow write: if false;  // Cloud Functions only (ctfSubmitFlag)
+      }
+
+      /* Results-of-record — the certified final standings (taskboard 362).
+       *
+       * PUBLIC READ is deliberate and matches the parent: the podium and broadcast boards render
+       * pre-auth, and a future public credential-verification page must work with no Hexworth
+       * login at all. The document carries no secret — placement, score, and solve ids are all
+       * already public on `teams` and `submissions`.
+       *
+       * WRITE IS DENIED TO EVERY CLIENT, INCLUDING ADMINS, AND THAT IS THE ENTIRE POINT. The
+       * defect this fixes is that `tournaments/{id}` and `teams/{teamId}` are both
+       * `allow update: if isAdmin()`, so the "official result" was whatever the live teams
+       * collection said at render time and any later admin write silently rewrote history.
+       * Putting the record anywhere admin-writable would reproduce exactly that hole. Only
+       * ctfEndTournament writes here, via the admin SDK, which bypasses these rules by
+       * construction — so this line does not restrict the writer, it restricts everyone else.
+       *
+       * Corrections do not need a write path here: re-finalizing goes through ctfEndTournament
+       * with an explicit reason, which appends a new immutable version rather than editing one.
+       */
+      match /results/{resultDoc} {
+        allow read: if true;
+        allow write: if false;  // Cloud Functions only (ctfEndTournament)
       }
 
       // Roster locks — one doc per uid = one team claim; serializes self-join so a user cannot
