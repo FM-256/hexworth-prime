@@ -1510,17 +1510,21 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
         if (id.startsWith('dark-arts-') && id.length > 10) return true;
     /* LAB TRACKER KEYS ARE VALID IDS, NOT GARBAGE. BUG-267, second and larger half.
        Every lab box config declares `trackerKey: 'lab_ala_l02'` (underscored), and THAT is what
-       lands in labsCompleted when a student finishes the lab. All 39 box configs that declare a
+       lands in labsCompleted when a student finishes the lab. All 271 box configs app-wide that declare a
        trackerKey use this format, and every single one was being counted as garbage by the rule
-       below -- so a student completing FIVE of those 39 labs crossed XPCalculator's threshold and
-       IntegrityLockscreen.js locked them out for doing real coursework. One production account was
-       already at 14.
+       below -- so a student completing FIVE of them crosses XPCalculator's threshold and
+       IntegrityLockscreen.js locks them out for doing real coursework.
+       MECHANISM, NOT A HEADCOUNT: _checkIntegrity reads the LOCALSTORAGE completedModules array,
+       which no server snapshot can see, so how many students this actually hit is NOT measurable
+       from here. An earlier version of this comment claimed "one production account was already at
+       14" -- that was FALSE. That account's modulesCompleted was EMPTY; the 14 was its
+       labsCompleted total, an array _checkIntegrity never scans.
        This was never one account's bad data. The boxes write one format and the validator accepted
        another, and the validator was wrong: `lab_ala_l02` is a real completion, declared by the
        content itself alongside registryId 'ala-l02-grid-handshake'.
        THE PATTERN IS DELIBERATELY TIGHT. `module_XXXXXX` -- the garbage shape XPCalculator's own
        comment cites as the reason this guard exists -- is still rejected, as are `lab`, `_lab_`,
-       `LAB_ALA_L02` and `lab-ala-l02`. Verified against all 39 real trackerKeys (all match) and a
+       `LAB_ALA_L02` and `lab-ala-l02`. Verified against all 271 real trackerKeys (135 lab_*, 136 ctf_*; all match) and a
        set of near-miss garbage (none match). */
     if (/^(lab|ctf)_[a-z0-9_]+$/.test(id)) return true;
         const dash = id.indexOf('-');
