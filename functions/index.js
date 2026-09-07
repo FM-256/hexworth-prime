@@ -1508,6 +1508,21 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const _isValidModuleId = (id) => {
         if (!id || typeof id !== 'string') return false;
         if (id.startsWith('dark-arts-') && id.length > 10) return true;
+    /* LAB TRACKER KEYS ARE VALID IDS, NOT GARBAGE. BUG-267, second and larger half.
+       Every lab box config declares `trackerKey: 'lab_ala_l02'` (underscored), and THAT is what
+       lands in labsCompleted when a student finishes the lab. All 39 box configs that declare a
+       trackerKey use this format, and every single one was being counted as garbage by the rule
+       below -- so a student completing FIVE of those 39 labs crossed XPCalculator's threshold and
+       IntegrityLockscreen.js locked them out for doing real coursework. One production account was
+       already at 14.
+       This was never one account's bad data. The boxes write one format and the validator accepted
+       another, and the validator was wrong: `lab_ala_l02` is a real completion, declared by the
+       content itself alongside registryId 'ala-l02-grid-handshake'.
+       THE PATTERN IS DELIBERATELY TIGHT. `module_XXXXXX` -- the garbage shape XPCalculator's own
+       comment cites as the reason this guard exists -- is still rejected, as are `lab`, `_lab_`,
+       `LAB_ALA_L02` and `lab-ala-l02`. Verified against all 39 real trackerKeys (all match) and a
+       set of near-miss garbage (none match). */
+    if (/^lab_[a-z0-9_]+$/.test(id)) return true;
         const dash = id.indexOf('-');
         if (dash < 1) return false;
         const house = id.slice(0, dash);
