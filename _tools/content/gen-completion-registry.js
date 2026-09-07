@@ -98,13 +98,38 @@ function collect() {
         }
     });
 
-    // 3. Literal ModuleProgress.complete('house','key') pairs. Low yield on its own (most pages
-    //    build the id at runtime) but free and occasionally the only declaration of an id.
+    /* 3. ModuleProgress.complete call sites, WITH VARIABLE RESOLUTION.
+       This originally matched only LITERAL arguments, and that omission broke production: at least
+       74 shipping pages -- the AI-102 certification series, AI Agents, AI Automation, AI Cortex --
+       write `const MODULE_ID = 'ai13-langchain'; ModuleProgress.complete(HOUSE_ID, MODULE_ID);`.
+       A literal-only regex cannot see those, so their ids never reached the registry, enforcement
+       rejected them, and honest students finishing that content got no XP, no cross-device sync and
+       no gradebook entry. Measured across _app: 2233 call sites pass literals, 404 pass
+       (literal, VAR), and 234 pass (VAR, VAR) -- so a third of them were invisible.
+       Resolution is deliberately simple: a same-file `const NAME = 'literal'` declaration. That
+       reaches 2815 of 2883 call sites (97.6%). The remaining 68 build an id from an object property
+       or a loop variable and are NOT resolvable this way; they are why the legacy floor still
+       matters and why enforcement must not be re-enabled on this source alone.
+       ID FORM: both `house-key` (what recordProgress and syncProgress receive, since
+       ModuleProgress.complete builds `${houseId}-${moduleId}`) and the bare key (what
+       syncClassProgress receives). */
     walk(path.join(REPO, '_app'), (p, name) => {
         if (!/\.(html|js)$/.test(name)) return;
         const s = fs.readFileSync(p, 'utf8');
-        for (const m of s.matchAll(/ModuleProgress\.complete\(\s*['"]([a-z0-9-]+)['"]\s*,\s*['"]([a-zA-Z0-9_.-]+)['"]/g)) {
-            ids.add(m[1] + '-' + m[2]); sources.callSites++;
+        const vars = {};
+        for (const m of s.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*['"]([^'"]+)['"]/g)) {
+            vars[m[1]] = m[2];
+        }
+        const unquote = (x) => x.replace(/^['"]|['"]$/g, '');
+        const isLit = (x) => /^['"]/.test(x.trim());
+        for (const m of s.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
+            const a = m[1].trim(), b = m[2].trim();
+            const house = isLit(a) ? unquote(a) : vars[a];
+            const key = isLit(b) ? unquote(b) : vars[b];
+            if (!house || !key) continue;          // unresolvable: an object property or loop var
+            ids.add(house + '-' + key);
+            ids.add(key);
+            sources.callSites++;
         }
     });
 
