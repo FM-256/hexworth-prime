@@ -334,7 +334,28 @@ try {
 } catch (e) {
     console.error('[completion-registry] NOT LOADED — id validation is DISABLED:', e && e.message);
 }
-const _isKnownCompletion = (id) => !_COMPLETION_IDS || _COMPLETION_IDS.has(id);
+/* ENFORCEMENT IS OFF. Turned off 2026-09-07, HOURS after turning it on, because it was
+   REJECTING REAL STUDENT WORK IN PRODUCTION.
+   The registry generator scans for `ModuleProgress.complete('house','key')` with LITERAL strings.
+   At least 74 live pages -- the whole AI-102 certification series, AI Agents, AI Automation, AI
+   Cortex -- call it as `ModuleProgress.complete(HOUSE_ID, MODULE_ID)` with VARIABLES, which the
+   regex structurally cannot see. None of those ids reached the registry, none are declared in
+   LearningPaths, and none are in the legacy floor. Reproduced live: a student finishing ai102-01
+   got HTTP 400 from recordProgress, a SILENT drop from syncProgress, and HTTP 400 from
+   syncClassProgress. No XP, no cross-device sync, no gradebook entry.
+   A broken honest path is worse than the forgery it prevents. The forgery hole is months old; this
+   regression was hours old and active.
+   REPORT-ONLY UNTIL THE REGISTRY IS PROVEN COMPLETE. Every would-be rejection is logged with the
+   id, so the gap can be MEASURED from production rather than guessed at. Flip ENFORCE back to true
+   only when the generator resolves variable-based call sites AND a fresh sweep shows zero
+   legitimate ids missing. */
+const _ENFORCE_COMPLETION_REGISTRY = false;
+const _isKnownCompletion = (id) => {
+    if (!_COMPLETION_IDS) return true;
+    if (_COMPLETION_IDS.has(id)) return true;
+    console.warn('[completion-registry] NOT IN REGISTRY (allowed, report-only):', id);
+    return !_ENFORCE_COMPLETION_REGISTRY ? true : false;
+};
 const _recomputeCtfStats = (uid) => recomputeCtfStats(db, FieldValue, uid);
 
 /* ── #306: THE REVEAL GATE, ENFORCED ──────────────────────────────────────────────
