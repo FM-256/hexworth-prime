@@ -33,10 +33,15 @@
  * manifest from sources and deploy.sh gate 3.8 runs it with `--check`, so a stale manifest blocks
  * the deploy. Same contract here.
  *
- * THE LEGACY FLOOR IS NOT OPTIONAL. `_tools/content/legacy-completion-ids.json` holds the 571
- * distinct ids students already hold (content ids only, no PII). Declared sources cover barely
- * half of them, so without this floor, enforcement deletes half the platform's earned progress.
- * One id is excluded from it deliberately and named there: a historical doubled-prefix artifact.
+ * THE LEGACY FLOOR IS NOT OPTIONAL. `_tools/content/legacy-completion-ids.json` holds the 774
+ * distinct ids students already hold, from BOTH surfaces: `users/{uid}` and the per-class rosters
+ * at `tenants/{slug}/classes/{id}/progress/{uid}`. Content ids only, no PII. Declared sources cover
+ * barely half of each -- 55.1% of user completions and 53.6% of roster entries -- so without this
+ * floor, enforcement deletes half the platform's earned progress and breaks gradebooks.
+ * NOTHING IS EXCLUDED FROM THE FLOOR. One id was excluded as "garbage" on 2026-09-07 and that was
+ * WRONG: `forge-forge-core2-virtualization-lab` is declared at ContentCatalog.js:524 and completed
+ * by a real page. A student earned it. If you find yourself about to exclude an id here, open the
+ * catalogue first -- that mistake survived a review and a deploy because nobody did.
  *
  * AND THE GATE IS THE POINT. If new content ships without regenerating this registry, every
  * student who completes that new module gets rejected -- the identical data-loss failure in a new
@@ -126,6 +131,15 @@ function main() {
         warning: 'GENERATED. Do not hand-edit. Run _tools/content/gen-completion-registry.js. ' +
                  'If you ship new content without regenerating, every student who completes it is ' +
                  'rejected — the same data loss this file exists to prevent.',
+        knownSlack: 'DELIBERATE FALSE-POSITIVE SURFACE. LearningPaths declares module ids bare, and ' +
+                 'path-view.html strips a house prefix before matching, so this generator expands ' +
+                 'each declared id across all 22 houses. That means nonsense combinations like ' +
+                 'windows-shield-cia-triad are ACCEPTED. There is no per-id record of which house ' +
+                 'prefixes are legitimate, so the alternative is guessing — and guessing wrong ' +
+                 'rejects a real completion, which costs a student their work. The trade is chosen ' +
+                 'in that direction on purpose: this registry exists to stop fabricated ids earning ' +
+                 'XP, and a cross-product id still has to be a real declared module underneath. ' +
+                 'Tighten it only when a per-id house mapping exists to tighten it WITH.',
         sources: built.sources,
         excluded: built.excluded,
         count: built.ids.length,
