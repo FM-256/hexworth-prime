@@ -1522,7 +1522,7 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
        comment cites as the reason this guard exists -- is still rejected, as are `lab`, `_lab_`,
        `LAB_ALA_L02` and `lab-ala-l02`. Verified against all 39 real trackerKeys (all match) and a
        set of near-miss garbage (none match). */
-    if (/^lab_[a-z0-9_]+$/.test(id)) return true;
+    if (/^(lab|ctf)_[a-z0-9_]+$/.test(id)) return true;
         const dash = id.indexOf('-');
         if (dash < 1) return false;
         const house = id.slice(0, dash);

@@ -59,8 +59,8 @@ const XPCalculator = (function () {
         if (id.startsWith('dark-arts-') && id.length > 10) return true;
         /* LAB TRACKER KEYS ARE VALID IDS, NOT GARBAGE. BUG-267, second and larger half.
            Every lab box config declares `trackerKey: 'lab_ala_l02'` (underscored), and THAT is what lands
-           in labsCompleted when a student finishes the lab. All 39 box configs that declare a trackerKey
-           use this format, and every one was counted as garbage by the rule below -- so a student
+           in labsCompleted when a student finishes the lab. All 271 box configs app-wide that declare a trackerKey
+           use an underscored format (135 lab_*, 136 ctf_*), and every one was counted as garbage -- so a student
            completing FIVE of those 39 labs crossed _checkIntegrity's threshold and IntegrityLockscreen.js
            locked them out for doing real coursework. One production account was already at 14.
            This was never one account's bad data. The boxes write one format and the validator accepted
@@ -69,7 +69,7 @@ const XPCalculator = (function () {
            THE PATTERN IS DELIBERATELY TIGHT. `module_XXXXXX` -- the garbage shape the comment above cites
            as the reason this guard exists -- is still rejected, as are `lab`, `_lab_`, `LAB_ALA_L02` and
            `lab-ala-l02`. Verified against all 39 real trackerKeys and a set of near-miss garbage. */
-        if (/^lab_[a-z0-9_]+$/.test(id)) return true;
+        if (/^(lab|ctf)_[a-z0-9_]+$/.test(id)) return true;
         const dash = id.indexOf('-');
         if (dash < 1) return false;
         const house = id.slice(0, dash);
