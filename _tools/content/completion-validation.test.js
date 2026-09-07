@@ -61,10 +61,26 @@ function main() {
         /localLabs = [\s\S]{0,200}?_isKnownCompletion/.test(idx), 'localLabs not filtered');
 
     // submitEDTLab: guard immediately before the write.
-    const edt = idx.slice(idx.indexOf('exports.submitEDTLab'));
-    chk('submitEDTLab is guarded before its write',
-        /_isKnownCompletion[\s\S]{0,400}?labsCompleted: FieldValue\.arrayUnion/.test(edt),
-        'guard missing or after the arrayUnion');
+    /* ORDERING, NOT PROXIMITY. This first asserted the guard appeared within 400 characters of the
+       labsCompleted write. That is the wrong property twice over: it FAILED when the guard was
+       moved EARLIER (which was the fix — the guard belongs with the input validation, before
+       `edt_submissions` is written at all), and it would PASS a guard sitting after some other
+       side effect as long as it was near the arrayUnion. Assert what actually matters: the guard
+       runs before EVERY write in the function. Positions are computed from the function slice, and
+       from the WRITE (`db.doc(...).set`), never from a mention of the collection name — an earlier
+       version of this check matched a comment that merely named `edt_submissions`. */
+    const edtStart = idx.indexOf('exports.submitEDTLab');
+    const edt = idx.slice(edtStart, idx.indexOf('\n});', edtStart));
+    const edtGuard = edt.indexOf('!_isKnownCompletion');
+    const edtSubWrite = edt.search(/db\.doc\(`edt_submissions\//);
+    const edtLabWrite = edt.indexOf('labsCompleted: FieldValue.arrayUnion');
+    chk('submitEDTLab guard is present', edtGuard !== -1, 'no _isKnownCompletion call');
+    chk('submitEDTLab guard runs BEFORE the edt_submissions write (no orphan doc)',
+        edtGuard !== -1 && edtSubWrite !== -1 && edtGuard < edtSubWrite,
+        `guard at ${edtGuard}, edt_submissions write at ${edtSubWrite}`);
+    chk('submitEDTLab guard runs BEFORE the labsCompleted write',
+        edtGuard !== -1 && edtLabWrite !== -1 && edtGuard < edtLabWrite,
+        `guard at ${edtGuard}, labsCompleted write at ${edtLabWrite}`);
 
     /* syncClassProgress: THE ONE THAT SHIPPED WRONG. The guard must sit OUTSIDE the type branches.
        Asserting merely that _isKnownCompletion appears in the function would have PASSED the

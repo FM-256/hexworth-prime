@@ -7781,6 +7781,16 @@ exports.submitEDTLab = onCall(cfOptions, async (request) => {
     if (!labId || typeof labId !== 'string' || labId.length > 64) {
         throw new HttpsError('invalid-argument', 'Invalid labId.');
     }
+    /* BUG-264, SIBLING DOOR — and it must run HERE, with the other input validation, not beside
+       the write it guards. It originally sat immediately before the users/{uid}.labsCompleted
+       write, which is one Firestore write too late: `edt_submissions/{labId}_{uid}` is created
+       first. So a REJECTED forged labId still left an orphaned submission with
+       needsInstructorReview:true — a phantom item in a real instructor's grading queue. The
+       exploit auditor confirmed that orphan existed after a refused call.
+       A guard that runs after the side effect it is meant to prevent is not a guard for it. */
+    if (!_isKnownCompletion(labId)) {
+        throw new HttpsError('invalid-argument', 'Unknown lab id.');
+    }
 
     if (!decisionId || typeof decisionId !== 'string') {
         throw new HttpsError('invalid-argument', 'Missing decisionId.');
@@ -7898,17 +7908,6 @@ exports.submitEDTLab = onCall(cfOptions, async (request) => {
     }, { merge: false });
 
     // ── Record lab completion via recordProgress ──────────
-    /* BUG-264, SIBLING DOOR. This writes the SAME users/{uid}.labsCompleted array that
-       recordProgress does, and XPCalculator pays LAB_COMPLETE per entry regardless of which
-       callable wrote it -- so validating recordProgress alone left the exploit fully live here.
-       Found by the reviewer, not by me: I fixed two callables and did not sweep for the rest,
-       in the same commit whose message reasoned about checking sibling call sites for a
-       different field. The sweep now: grep for every arrayUnion into modulesCompleted or
-       labsCompleted across functions/ -- there are exactly three live callables
-       (recordProgress, syncClassProgress, this one) and all three validate. */
-    if (!_isKnownCompletion(labId)) {
-        throw new HttpsError('invalid-argument', 'Unknown lab id.');
-    }
     await db.doc(`users/${uid}`).set({
         labsCompleted: FieldValue.arrayUnion(labId),
         updatedAt: FieldValue.serverTimestamp()
