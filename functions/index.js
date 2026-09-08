@@ -9787,72 +9787,6 @@ exports.dailyChallengeHints = onSchedule({
 // ─── Milestone Announcements (callable from quiz/module completion) ──
 const ANNOUNCEMENTS_CHANNEL = '1494411237755453621';
 
-exports.announceMilestone = onCall(cfOptions, async (request) => {
-    if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'Must be signed in.');
-    }
-
-    const uid = request.auth.uid;
-    const { type, name, score } = request.data || {};
-    // type: 'quiz_ace' (90%+), 'course_complete', 'certification_ready'
-
-    if (!type || !name) return { announced: false };
-
-    // Check if user has a linked Discord account with announcements enabled
-    const userDoc = await db.doc(`users/${uid}`).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
-    const discordId = userData.discordId;
-
-    if (!discordId) return { announced: false, reason: 'no_discord' };
-
-    const linkDoc = await db.collection('discord_links').doc(discordId).get();
-    if (!linkDoc.exists || !linkDoc.data().milestoneAnnouncements) {
-        return { announced: false, reason: 'opted_out' };
-    }
-
-    const discordUsername = linkDoc.data().discordUsername || 'An operator';
-
-    let embed;
-    if (type === 'quiz_ace') {
-        embed = {
-            title: 'Quiz Ace!',
-            description: `**${discordUsername}** scored **${score}%** on **${name}**`,
-            color: 16766720,
-            footer: { text: 'Hexworth Prime // Achievement' },
-            timestamp: new Date().toISOString()
-        };
-    } else if (type === 'course_complete') {
-        embed = {
-            title: 'Course Completed!',
-            description: `**${discordUsername}** has completed **${name}**`,
-            color: 3066993,
-            footer: { text: 'Hexworth Prime // Milestone' },
-            timestamp: new Date().toISOString()
-        };
-    } else if (type === 'certification_ready') {
-        embed = {
-            title: 'Certification Ready!',
-            description: `**${discordUsername}** has completed all objectives for **${name}**`,
-            color: 15844367,
-            footer: { text: 'Hexworth Prime // Certification Path' },
-            timestamp: new Date().toISOString()
-        };
-    } else {
-        return { announced: false, reason: 'unknown_type' };
-    }
-
-    try {
-        await fetch(`https://discord.com/api/v10/channels/${ANNOUNCEMENTS_CHANNEL}/messages`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ embeds: [embed] })
-        });
-        return { announced: true };
-    } catch (err) {
-        console.error('[Wire] Milestone announcement failed:', err.message);
-        return { announced: false, reason: 'discord_error' };
-    }
-});
 
 
 // ─── Auto-Role on Course Completion (callable) ──────────────────
@@ -10072,51 +10006,20 @@ exports.announceNewContent = onCall(cfOptions, async (request) => {
 
 
 // ─── Achievement Webhook (callable from AchievementSystem) ───────
-exports.announceAchievement = onCall(cfOptions, async (request) => {
-    if (!request.auth) return { announced: false };
+/* exports.announceAchievement and exports.announceMilestone were REMOVED 2026-09-08.
+   Both posted CLIENT-SUPPLIED FREE TEXT to the public Discord announcements channel with no
+   verification the thing announced had ever been earned, and both had ZERO callers in _app.
+   announceMilestone had no gate beyond the opt-in and no proof lookup at all; announceAchievement
+   was gated only on a rarity string the caller supplied. Retired rather than hardened, matching the
+   updateStreak precedent (BUG-237b) for the identical shape: zero callers, archive then remove.
+   Archived with full reasoning at functions/_archive/discord-announce-callables-retired-2026-09-08.js.
+   Taskboard 369 (announceAchievement) and 371 (announceMilestone, found only while reviewing the
+   fix for the first: shipping one would have left the identical primitive live one function away).
+   THE DEPLOYED COPIES STILL EXIST until someone deletes them, and a function present in production
+   but absent from source is what aborted every full `firebase deploy --only functions` for weeks
+   after updateStreak was removed from source and left deployed. Delete both, do not just remove
+   them here. */
 
-    const uid = request.auth.uid;
-    const { achievementName, achievementDesc, rarity } = request.data || {};
-    if (!achievementName) return { announced: false };
-
-    // Only announce rare achievements
-    if (rarity !== 'rare' && rarity !== 'epic' && rarity !== 'legendary') {
-        return { announced: false, reason: 'common_achievement' };
-    }
-
-    const userDoc = await db.doc(`users/${uid}`).get();
-    const userData = userDoc.exists ? userDoc.data() : {};
-    const discordId = userData.discordId;
-    if (!discordId) return { announced: false, reason: 'no_discord' };
-
-    const linkDoc = await db.collection('discord_links').doc(discordId).get();
-    if (!linkDoc.exists || !linkDoc.data().milestoneAnnouncements) {
-        return { announced: false, reason: 'opted_out' };
-    }
-
-    const rarityColors = { 'rare': 3447003, 'epic': 10038562, 'legendary': 16766720 };
-    const discordUsername = linkDoc.data().discordUsername || 'An operator';
-
-    try {
-        await fetch(`https://discord.com/api/v10/channels/${ANNOUNCEMENTS_CHANNEL}/messages`, {
-            method: 'POST',
-            headers: { 'Authorization': 'Bot ' + DISCORD_BOT_TOKEN, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                embeds: [{
-                    title: rarity.toUpperCase() + ' Achievement Unlocked!',
-                    description: '**' + discordUsername + '** earned **' + achievementName + '**\n' + (achievementDesc || ''),
-                    color: rarityColors[rarity] || 433476,
-                    footer: { text: 'Hexworth Prime // Achievement' },
-                    timestamp: new Date().toISOString()
-                }]
-            })
-        });
-        return { announced: true };
-    } catch (err) {
-        console.error('[Wire] Achievement announcement failed:', err.message);
-        return { announced: false };
-    }
-});
 
 // ─── PFI Auto-Grading System ─────────────────────────────────────────
 

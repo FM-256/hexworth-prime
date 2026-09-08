@@ -13,9 +13,13 @@
  * CourseProgress.js COMPUTES it client-side from a component list, so a server trigger would
  * have to replicate the course model and would drift from the client on the first module added.
  *
- * DISCARDED 2, trusting a client "I finished" call. announceMilestone already accepts a
- * client-supplied course name, but it is a Discord notification, not a record. Anything a
- * client asserts is worth nothing as an authorisation to release infrastructure.
+ * DISCARDED 2, trusting a client "I finished" call. Anything a client asserts is worth
+ * nothing as an authorisation to release infrastructure.
+ * (This used to cite announceMilestone as prior art for accepting a client-supplied course name.
+ * That function was RETIRED 2026-09-08 precisely BECAUSE it did so: it posted unverified client
+ * text to a public Discord channel. The reasoning here was right and its own example became the
+ * counter-example. See functions/_archive/discord-announce-callables-retired-2026-09-08.js and
+ * taskboard 371.)
  *
  * WHAT ACTUALLY WORKS. awardMissionBadge re-grades each Observatory mission SERVER-SIDE against
  * bc1's service-key-gated /grade-for endpoint, and only a badgeEligible verdict writes
