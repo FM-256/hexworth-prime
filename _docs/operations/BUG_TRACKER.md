@@ -1182,6 +1182,33 @@ for name, rx in [('sixth form  " --" at EOL',  r' --$'),
 - **Verified:** n/a — open. Counts re-derivable by grepping `hexworth_progress` and `ProgressRestore.js` under `_app`.
 - **Related:** BUG-100 (the same-device half of the same symptom).
 
+### BUG-237b — the orphaned `updateStreak` Cloud Function was deployed but absent from source  ·  [P2]  ·  RESOLVED (deleted + verified 2026-09-08)
+- **Found:** 2026-09-08 · while deploying task 364; `firebase deploy --only functions` ABORTED
+- **Area:** production Cloud Functions, `us-central1`
+- **Symptom:** BUG-237 removed `exports.updateStreak` from source on 2026-08-31, but the DEPLOYED
+  copy was never deleted. A zombie: live in Firebase, absent from the repo. It aborted every full
+  functions deploy, forcing targeted per-function deploys for a whole session, which is how an
+  unrelated committed change silently goes unshipped.
+- **Evidence gathered before acting:** no caller anywhere in the tree (swept `_tools/`, `functions/`,
+  `firebase.json`, deploy scripts, all in-repo YAML, not just `_app`); **0 of 4017 users** carried
+  `lastLoginDate`, the only field it writes; Cloud Monitoring showed **2 executions** on 2026-09-07,
+  and Cloud Run logs identified them as User-Agent `node` with `auth: VALID` — a script, not a
+  browser, so no student traffic.
+- **A method note worth keeping:** a source grep claimed "zero callers" and the invocation metrics
+  disagreed. Grep proves nothing calls it IN OUR SOURCE. It cannot prove nothing calls it at all.
+- **ARCHIVED FIRST, then removed.** `functions/_archive/updateStreak-deployed-2026-09-08/` holds the
+  real 421KB deployed artifact (verified to contain `exports.updateStreak`), the full deployed
+  config, and a README with the reasoning. The readable handler was already at
+  `functions/_archive/updateStreak-orphaned-2026-08-31.js`. Both tracked in git.
+- **Fix:** `firebase functions:delete updateStreak --region us-central1`. Verified after: absent from
+  `functions:list`; `lastLoginDate` still 0 users; `streak` unaffected; `firebase deploy --only
+  functions --dry-run` completes with no abort.
+- **WHAT THIS DID NOT FIX.** Deleting it bought housekeeping and deploy safety, NOT security. A
+  faster path to the same 9,125 XP ceiling is still open: `syncProgress` accepts a client-supplied
+  `streak` with only a clamp (`functions/index.js:1721`) and no legitimacy check, while
+  `modulesCompleted`/`labsCompleted` two lines above get full registry validation. One call reaches
+  the cap instantly. Tracked as taskboard **367**. Do not read this as having closed that.
+
 ### BUG-254 — a tournament result can still be shaped by an admin BEFORE it is certified  ·  [P2]  ·  KNOWN RESIDUAL, accepted and documented
 - **Found:** 2026-09-07 · by Mallory (adversarial review of taskboard 362) · during the results-of-record build
 - **Area:** `firestore.rules` `tournaments/{id}/teams/{teamId}` (`allow update: if isAdmin()`)
