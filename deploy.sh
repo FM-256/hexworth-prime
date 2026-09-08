@@ -488,6 +488,7 @@ echo -e "${BOLD}[3.8/7]${NC} Hex OS structural gates..."
 HEXOS_FAILED=""
 for hg in \
     "manifest drift|node _tools/hexos/gen-app-manifest.js --check" \
+    "client query vs firestore rules|node _tools/eduscan/client-query-rules-parity.js" \
     "CTF standings rule parity|node _tools/tournament/standings-parity.test.js" \
     "completion registry drift|node _tools/content/gen-completion-registry.js --check" \
     "completion validation wired|node _tools/content/completion-validation.test.js" \
