@@ -143,8 +143,37 @@ else
     if [[ "$PROJECT" != "hexworth-prime" ]]; then
         echo -e "  ${YELLOW}⚠ gcloud project=$PROJECT (expected hexworth-prime) — skipping${NC}"
     else
-        NON_ACTIVE=$(gcloud functions list --project=hexworth-prime --regions=us-central1 \
-            --format="value(name,state)" 2>/dev/null | awk '$2 != "ACTIVE" {print $1}')
+        # DEPLOYING IS NOT A REGRESSION. This flagged `!= ACTIVE` and treated every non-ACTIVE
+        # state as divergence, so a function still provisioning read as a failure. That is not
+        # hypothetical: the 2026-09-08 signup-outage deploy flagged for exactly this, because a
+        # functions deploy minutes earlier was still settling when post-verify sampled. A gate that
+        # cries regression on a normal transient is a gate whose red gets ignored, and this one
+        # reports "deploy SHIPPED but verification flagged", which is precisely the message that
+        # must stay meaningful.
+        # So: retry through transient states, and only flag terminal-bad ones.
+        # Both initialised before the loop: this script runs under `set -u`, and TRANSIENT is read
+        # after the loop. An unset read would abort post-verify itself, turning a false positive
+        # into a harness fault, which is a worse failure than the one being fixed.
+        NON_ACTIVE=""
+        TRANSIENT=""
+        for attempt in 1 2 3; do
+            STATES=$(gcloud functions list --project=hexworth-prime --regions=us-central1 \
+                --format="value(name,state)" 2>/dev/null)
+            # Terminal-bad: a function that is genuinely broken, not mid-flight.
+            NON_ACTIVE=$(echo "$STATES" | awk '$2 == "FAILED" || $2 == "OFFLINE" || $2 == "UNKNOWN" {print $1" ("$2")"}')
+            TRANSIENT=$(echo "$STATES" | awk '$2 == "DEPLOYING" || $2 == "DELETING" {print $1}')
+            if [[ -n "$NON_ACTIVE" ]]; then break; fi           # real problem, stop retrying
+            if [[ -z "$TRANSIENT" ]]; then break; fi            # everything settled, done
+            echo -e "  ${DIM}functions still settling (attempt $attempt/3): $(echo "$TRANSIENT" | tr '\n' ' ')${NC}"
+            sleep 15
+        done
+        if [[ -z "$NON_ACTIVE" && -n "$TRANSIENT" ]]; then
+            # Still mid-deploy after the retries. Report it honestly as UNVERIFIED rather than
+            # either passing it silently or calling it a regression: nobody proved these are fine.
+            echo -e "  ${YELLOW}⚠ still deploying after retries (not flagged as divergence):${NC}"
+            echo "$TRANSIENT" | sed 's/^/      /'
+            echo -e "  ${YELLOW}  re-check with: gcloud functions list --project=hexworth-prime --regions=us-central1${NC}"
+        fi
         if [[ -n "$NON_ACTIVE" ]]; then
             echo -e "  ${RED}✗ non-ACTIVE functions:${NC}"
             echo "$NON_ACTIVE" | sed 's/^/      /'
