@@ -8032,6 +8032,28 @@ exports.ctfAwardTournamentBadges = onCall(cfOptions, async (request) => {
         throw e;
     }
 
+    /* BACKFILL PARTICIPATION for anyone already on the roster.
+     *
+     * The participation badge fires only when ctfJoinTeam is CALLED, so students who joined before
+     * the feature shipped, or whom an admin placed directly into `members`, would never receive it:
+     * they will not call join again. Without this, "assigned automatically when a user joins" holds
+     * going forward and fails for everyone already there.
+     *
+     * Runs AFTER placements and never blocks them: a backfill failure must not lose a championship.
+     * It skips any uid that already has an entry for this tournament, so it can never overwrite a
+     * real join (which may carry verifiedJoin:true) with an unverified backfill entry. */
+    let backfill = { awarded: 0, skipped: 0, members: 0 };
+    try {
+        const teamsSnap = await tRef.collection('teams').get();
+        backfill = await ctfBadges.backfillParticipation({
+            db, FieldValue, tournamentId,
+            tournamentName: (finalSnap.data() || {}).tournamentName || '',
+            teams: teamsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        });
+    } catch (e) {
+        console.error('[ctfAwardTournamentBadges] participation backfill failed:', e && e.message);
+    }
+
     /* COMPLETION MARKER. The fan-out is up to 200 teams x 4 members with no transaction spanning
        them, so a run that dies partway looks identical afterwards to one that finished. Recording
        the version it ran to completion against is what lets a human or a later job tell "awarded
@@ -8042,8 +8064,9 @@ exports.ctfAwardTournamentBadges = onCall(cfOptions, async (request) => {
     }, { merge: true });
 
     console.log(`[ctfAwardTournamentBadges] ${tournamentId} v${result.version}: ` +
-                `${result.awarded} awarded, ${result.revoked} revoked, ${result.unchanged} unchanged`);
-    return { ok: true, ...result };
+                `${result.awarded} awarded, ${result.revoked} revoked, ${result.unchanged} unchanged; ` +
+                `participation backfill ${backfill.awarded}/${backfill.members} (${backfill.skipped} already held)`);
+    return { ok: true, ...result, backfill };
 });
 
 // ─── EDT: Ethical Decision Training Lab Submission ───────────────

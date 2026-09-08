@@ -153,6 +153,36 @@ async function main() {
             runnerZ.exists && runnerZ.data().placements[A].position === 2,
             runnerZ.exists ? JSON.stringify(runnerZ.data().placements[A]) : 'missing');
 
+        // ── BACKFILL: a roster member who never called join still gets participation ─────
+        await wipe();
+        const teams = [{ id: 'zulu', name: 'Zulu Cell', members: [uidZ] },
+                       { id: 'alpha', name: 'Alpha Squad', members: [uidA] }];
+        const bf1 = await B.backfillParticipation({ db, FieldValue, tournamentId: A,
+            tournamentName: 'Test Cup', teams });
+        chk('BF awards every roster member who had nothing', bf1.awarded === 2 && bf1.skipped === 0,
+            JSON.stringify(bf1));
+        const bfZ = await award(uidZ, B.BADGE.COMPETITOR);
+        chk('BF an admin-placed member now HOLDS participation', bfZ.exists && !!bfZ.data().placements[A],
+            bfZ.exists ? JSON.stringify(bfZ.data().placements) : 'missing');
+        chk('BF backfilled entry is honestly marked verifiedJoin=false (we cannot know)',
+            bfZ.data().placements[A].verifiedJoin === false, JSON.stringify(bfZ.data().placements[A]));
+
+        const bf2 = await B.backfillParticipation({ db, FieldValue, tournamentId: A,
+            tournamentName: 'Test Cup', teams });
+        chk('BF re-run skips everyone (idempotent, no write storm)',
+            bf2.awarded === 0 && bf2.skipped === 2, JSON.stringify(bf2));
+
+        /* A REAL JOIN MUST NOT BE DOWNGRADED BY A LATER BACKFILL. This is the case that would
+           quietly turn verified attendance into an unqualified claim. */
+        await wipe();
+        await B.awardParticipation({ db, FieldValue, uid: uidZ, tournamentId: A,
+            tournamentName: 'Test Cup', teamId: 'zulu', verifiedJoin: true });
+        await B.backfillParticipation({ db, FieldValue, tournamentId: A, tournamentName: 'Test Cup', teams });
+        const afterBf = await award(uidZ, B.BADGE.COMPETITOR);
+        chk('BF does NOT overwrite a verified join with an unverified backfill',
+            afterBf.data().placements[A].verifiedJoin === true,
+            JSON.stringify(afterBf.data().placements[A]));
+
         // ── refusal ──────────────────────────────────────────────────────────────────────
         let threw = null;
         try { await B.awardPlacements({ db, FieldValue, tournamentId: A, record: null }); }

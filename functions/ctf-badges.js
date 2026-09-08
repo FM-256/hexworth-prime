@@ -116,6 +116,47 @@ async function awardParticipation({ db, FieldValue, uid, tournamentId, tournamen
 }
 
 /**
+ * Backfill the participation badge for everyone already on a tournament's roster.
+ *
+ * WHY THIS IS NEEDED AT ALL. The participation badge fires only when `ctfJoinTeam` is CALLED, so
+ * anyone ALREADY on a roster never receives it: they will not call join again. That covers two real
+ * populations, not a hypothetical one:
+ *   - students who joined before this feature shipped, and
+ *   - students an admin placed directly into `members`, which is a supported flow and was the exact
+ *     defect an integration test caught inside ctfJoinTeam itself.
+ * Without this, "badges are assigned automatically when a user joins" is true going forward and
+ * false for everyone already there.
+ *
+ * `verifiedJoin` IS RECORDED AS FALSE, DELIBERATELY, AND IT IS NOT A DEMOTION. At backfill time
+ * there is no way to know whether that student originally typed a join code: the roster carries no
+ * record of it. Writing `true` would assert something unknown, and this field exists precisely to
+ * keep "verified attendance" separable from "we cannot qualify this". False is the honest value.
+ * It is also non-destructive: `merge` with `arrayUnion` means a student who LATER joins properly
+ * gets their entry rewritten with the verified value, so backfilling can only ever add.
+ *
+ * @returns {Promise<{awarded, skipped, members}>}
+ */
+async function backfillParticipation({ db, FieldValue, tournamentId, tournamentName, teams }) {
+    let awarded = 0, skipped = 0, members = 0;
+    for (const team of (teams || [])) {
+        for (const uid of (Array.isArray(team.members) ? team.members : [])) {
+            members++;
+            // Skip anyone who already has an entry for this tournament: a backfill must never
+            // overwrite a real join (which may carry verifiedJoin:true) with an unverified one.
+            const snap = await db.doc(`users/${uid}/server_awards/${BADGE.COMPETITOR}`).get();
+            const held = snap.exists ? (snap.data().placements || {}) : {};
+            if (held[tournamentId]) { skipped++; continue; }
+            const ok = await awardParticipation({
+                db, FieldValue, uid, tournamentId, tournamentName,
+                teamId: team.id, verifiedJoin: false,
+            });
+            if (ok) awarded++;
+        }
+    }
+    return { awarded, skipped, members };
+}
+
+/**
  * Award placement badges for a finalized tournament, from its certified results-of-record.
  *
  * Idempotent by CONTENT, not by re-running blindly: a uid is only written when its stored placement
@@ -216,4 +257,4 @@ async function awardPlacements({ db, FieldValue, tournamentId, record }) {
     return { version, awarded, revoked, unchanged, teams: record.standings.length };
 }
 
-module.exports = { awardParticipation, awardPlacements, BADGE, PLACEMENT_BY_POSITION };
+module.exports = { awardParticipation, backfillParticipation, awardPlacements, BADGE, PLACEMENT_BY_POSITION };
