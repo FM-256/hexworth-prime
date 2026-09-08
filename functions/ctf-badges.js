@@ -141,16 +141,52 @@ async function backfillParticipation({ db, FieldValue, tournamentId, tournamentN
     for (const team of (teams || [])) {
         for (const uid of (Array.isArray(team.members) ? team.members : [])) {
             members++;
-            // Skip anyone who already has an entry for this tournament: a backfill must never
-            // overwrite a real join (which may carry verifiedJoin:true) with an unverified one.
-            const snap = await db.doc(`users/${uid}/server_awards/${BADGE.COMPETITOR}`).get();
-            const held = snap.exists ? (snap.data().placements || {}) : {};
-            if (held[tournamentId]) { skipped++; continue; }
-            const ok = await awardParticipation({
-                db, FieldValue, uid, tournamentId, tournamentName,
-                teamId: team.id, verifiedJoin: false,
-            });
-            if (ok) awarded++;
+            const ref = db.doc(`users/${uid}/server_awards/${BADGE.COMPETITOR}`);
+            /* THE SKIP-CHECK AND THE WRITE MUST BE ONE TRANSACTION.
+               A plain read-then-write is a TOCTOU: a REAL join landing in the gap would be read as
+               "absent", and this backfill would then overwrite that student's genuine
+               `verifiedJoin:true` entry with an unverified one. Both paths `set(..., {merge:true})`
+               on the same nested key, so last write wins on it and the downgrade is silent. The odds
+               are low against one dormant roster, but this is permanent platform logic, not a
+               scratch script, and quietly demoting verified attendance to an unqualifiable claim is
+               exactly the confusion `verifiedJoin` exists to prevent. (Adversarial review.) */
+            try {
+                const wrote = await db.runTransaction(async (tx) => {
+                    const snap = await tx.get(ref);
+                    const held = snap.exists ? (snap.data().placements || {}) : {};
+                    if (held[tournamentId]) return false;      // a real join beat us; leave it alone
+                    tx.set(ref, {
+                        badgeId: BADGE.COMPETITOR,
+                        name: 'Competitor',
+                        source: 'server',
+                        kind: 'tournament_participation',
+                        placements: {
+                            [tournamentId]: {
+                                tournamentId,
+                                name: tournamentName || '',
+                                teamId: team.id,
+                                verifiedJoin: false,
+                                backfilled: true,
+                                joinedAt: new Date().toISOString(),
+                            },
+                        },
+                        awardedAt: FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                    return true;
+                });
+                if (!wrote) { skipped++; continue; }
+                /* The achievements union is a separate document and cannot join the transaction
+                   above. It is arrayUnion, so it is idempotent and order-independent: worst case a
+                   crash between the two leaves the proof doc without the display id, which the next
+                   run repairs. The proof store is the one that must not be wrong. */
+                await db.doc(`users/${uid}`).set({
+                    achievements: FieldValue.arrayUnion(BADGE.COMPETITOR),
+                    updatedAt: FieldValue.serverTimestamp(),
+                }, { merge: true });
+                awarded++;
+            } catch (e) {
+                console.error(`[ctf-badges] backfill failed for ${uid} @ ${tournamentId}:`, e && e.message);
+            }
         }
     }
     return { awarded, skipped, members };

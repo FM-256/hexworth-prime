@@ -8032,27 +8032,16 @@ exports.ctfAwardTournamentBadges = onCall(cfOptions, async (request) => {
         throw e;
     }
 
-    /* BACKFILL PARTICIPATION for anyone already on the roster.
-     *
-     * The participation badge fires only when ctfJoinTeam is CALLED, so students who joined before
-     * the feature shipped, or whom an admin placed directly into `members`, would never receive it:
-     * they will not call join again. Without this, "assigned automatically when a user joins" holds
-     * going forward and fails for everyone already there.
-     *
-     * Runs AFTER placements and never blocks them: a backfill failure must not lose a championship.
-     * It skips any uid that already has an entry for this tournament, so it can never overwrite a
-     * real join (which may carry verifiedJoin:true) with an unverified backfill entry. */
-    let backfill = { awarded: 0, skipped: 0, members: 0 };
-    try {
-        const teamsSnap = await tRef.collection('teams').get();
-        backfill = await ctfBadges.backfillParticipation({
-            db, FieldValue, tournamentId,
-            tournamentName: (finalSnap.data() || {}).tournamentName || '',
-            teams: teamsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-        });
-    } catch (e) {
-        console.error('[ctfAwardTournamentBadges] participation backfill failed:', e && e.message);
-    }
+    /* PARTICIPATION BACKFILL IS DELIBERATELY *NOT* DONE HERE. It lives in its own callable,
+       ctfBackfillParticipation, and the separation is not cosmetic.
+       This function is gated on `results/final` existing, which is correct for PLACEMENTS: they must
+       come from the certified record because live `teams` is admin-writable and not evidence of
+       anything. But that gate only exists to freeze the record. Folding the backfill in here would
+       have chained an unrelated fix to it: the only way to give a student the join badge they never
+       received would have been to END THEIR TOURNAMENT FIRST, which publicly marks it ENDED and
+       permanently forecloses new joins. An adversarial review caught that I had proposed exactly
+       that without realising the finalization was a precondition.
+       Two different trust models should not share one gate for an accidental reason. */
 
     /* COMPLETION MARKER. The fan-out is up to 200 teams x 4 members with no transaction spanning
        them, so a run that dies partway looks identical afterwards to one that finished. Recording
@@ -8064,9 +8053,46 @@ exports.ctfAwardTournamentBadges = onCall(cfOptions, async (request) => {
     }, { merge: true });
 
     console.log(`[ctfAwardTournamentBadges] ${tournamentId} v${result.version}: ` +
-                `${result.awarded} awarded, ${result.revoked} revoked, ${result.unchanged} unchanged; ` +
-                `participation backfill ${backfill.awarded}/${backfill.members} (${backfill.skipped} already held)`);
-    return { ok: true, ...result, backfill };
+                `${result.awarded} awarded, ${result.revoked} revoked, ${result.unchanged} unchanged`);
+    return { ok: true, ...result };
+});
+
+/**
+ * ctfBackfillParticipation: give the join badge to students already on a roster.
+ *
+ * SEPARATE FROM ctfAwardTournamentBadges, AND NOT GATED ON FINALIZATION. The participation badge is
+ * awarded when ctfJoinTeam is CALLED, so anyone already on a roster never receives it: they will not
+ * call join again. That is two real populations, students who joined before the feature shipped and
+ * students an admin placed directly into `members`.
+ *
+ * The first version of this fix lived inside ctfAwardTournamentBadges, which requires
+ * `results/final`. That would have meant the ONLY way to give a student a badge they should already
+ * have had was to END THEIR TOURNAMENT first, marking it publicly ENDED and permanently refusing new
+ * joins. An adversarial review caught that the finalization was a precondition I had not traced.
+ * Repairing a missing badge must never cost an event.
+ *
+ * Reads the LIVE roster on purpose. That is the right source here and the wrong one for placements:
+ * participation asks "is this person on the team", which the live roster answers, while a placement
+ * is a competitive claim that must come from the certified, tamper-evident record.
+ */
+exports.ctfBackfillParticipation = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+    const { tournamentId } = request.data || {};
+    if (!tournamentId) throw new HttpsError('invalid-argument', 'tournamentId is required.');
+
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const tSnap = await tRef.get();
+    if (!tSnap.exists) throw new HttpsError('not-found', 'Tournament not found.');
+
+    const teamsSnap = await tRef.collection('teams').get();
+    const result = await ctfBadges.backfillParticipation({
+        db, FieldValue, tournamentId,
+        tournamentName: tSnap.data().name || '',
+        teams: teamsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+    });
+    console.log(`[ctfBackfillParticipation] ${tournamentId}: ` +
+                `${result.awarded} awarded, ${result.skipped} already held, ${result.members} on roster`);
+    return { ok: true, ...result };
 });
 
 // ─── EDT: Ethical Decision Training Lab Submission ───────────────
