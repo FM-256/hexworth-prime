@@ -1208,7 +1208,7 @@ for name, rx in [('sixth form  " --" at EOL',  r' --$'),
   this before any credential is built on a placement — the HCA doc's Principle 3 ("every credential
   must have verifiable evidence") has to reckon with it, not inherit it silently.
 
-### BUG-255 — `ctfExport` calls itself the standings-of-record and reads the live teams collection  ·  [P2]  ·  FIXED, not deployed
+### BUG-255 — `ctfExport` calls itself the standings-of-record and reads the live teams collection  ·  [P2]  ·  RESOLVED (deployed + verified live 2026-09-08)
 - **Found:** 2026-09-07 · by Mallory (second-pass audit of taskboard 362) · sibling not swept
 - **Area:** `_app/admin/console.html` `window.ctfExport`
 - **Symptom:** its own comment states it is *"the standings-OF-RECORD export... that feeds HCA
