@@ -1776,8 +1776,26 @@ const FirestoreManager = (function() {
             console.log('[FirestoreManager] XP recalculated:', xpResult);
         }
 
-        // Check if user needs to set callsign
-        const needsCallsign = !currentProfile?.callsign;
+        /* A callsign is only needed when the AUTH PROVIDER did not already give us a name.
+         *
+         * This asked only "is the callsign field empty", so a Google user - who arrives with a
+         * perfectly good `displayName` from the provider - was prompted to invent a second name
+         * they did not need. Harmless while the modal worked. Not harmless on 2026-08-21, when the
+         * availability check began failing closed: every callsign read as "taken", the modal has no
+         * dismiss affordance, and new Google signups were trapped. That is the reported symptom
+         * exactly ("sign in with Google, callsign selection, stalls"), and it ran for 18 days.
+         *
+         * The callsign exists for signups that have NO provider-supplied name (password/email).
+         * Federated users already have one, so do not ask them for another.
+         *
+         * Checks the LIVE auth user, not the stored profile: `displayName` is written to the
+         * profile at creation, so a profile that predates that would look nameless and re-prompt.
+         * Falls back to the stored value so a provider hiccup does not suddenly re-prompt everyone.
+         */
+        const authUser = (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser)
+            ? FirebaseAuth.getUser() : null;
+        const providerName = (authUser && authUser.displayName) || currentProfile?.displayName || '';
+        const needsCallsign = !currentProfile?.callsign && !String(providerName).trim();
 
         return {
             profile: await getUserProfile(uid),  // Refresh after potential migration

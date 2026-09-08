@@ -454,7 +454,20 @@ const CallsignModal = (function() {
         wrapper.classList.add('checking');
         status.classList.add('checking');
 
-        const available = await FirestoreManager.isCallsignAvailable(callsign);
+        /* FAIL OPEN if the availability check itself throws.
+           `isCallsignAvailable` now fails open internally, but an unexpected rejection here (it is
+           a network call to a Cloud Function) would propagate, skip everything below, and leave
+           `submitBtn.disabled` true forever with the spinner still showing. That is the same trap
+           in miniature as the 18-day outage: a failed CHECK became a permanent BLOCK, and this
+           modal has no dismiss affordance to escape it. Let the user submit; the server-side write
+           is the authority on whether the callsign is really taken. */
+        let available;
+        try {
+            available = await FirestoreManager.isCallsignAvailable(callsign);
+        } catch (err) {
+            console.error('[CallsignModal] availability check threw; allowing the attempt:', err);
+            available = true;
+        }
 
         wrapper.classList.remove('checking');
         status.classList.remove('checking');
