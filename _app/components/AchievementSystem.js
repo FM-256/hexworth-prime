@@ -13,6 +13,37 @@ class AchievementSystem {
 
     // All available achievements
     static ACHIEVEMENTS = {
+        /* === TOURNAMENT (taskboard 364) ===
+         * Awarded automatically by the ctfJoinTeam Cloud Function when a student joins a
+         * tournament, and mirrored into users/{uid}/server_awards as tamper-evident proof.
+         *
+         * ONLY THE PARTICIPATION BADGE IS REGISTERED HERE, and the omission is deliberate.
+         * The three PLACEMENT badges (champion / runner-up / third) are revocable: a corrected
+         * result has to be able to move a trophy between teams, and `users/{uid}.achievements` is
+         * union-merged on every sync, never subtracted (GUARD-04, after BUG-266). A revoked id
+         * would be resurrected from any stale device's localStorage on its next sync, silently.
+         * So placements live in `server_awards` ONLY and are not registered as core achievements;
+         * they need a display surface that reads the server store. Participation is never revoked,
+         * so the union is harmless and it is safe here.
+         *
+         * `category: 'milestone'` puts it in the existing 'general' set rather than creating a
+         * Tournament set. That is an EXPLICIT call, not a default: a set whose Platinum requires
+         * holding champion AND runner-up AND third would be near-unreachable, and this codebase
+         * already fixed one class of forever-uncompletable set. Revisit when placements get a
+         * display surface and the set can be completed across a competitive career.
+         *
+         * Art: /assets/images/badges/tournament_competitor.webp (TrophyCabinet keys core art by id).
+         */
+        tournament_competitor: {
+            id: 'tournament_competitor',
+            name: 'Competitor',
+            description: 'Join a Hexworth CTF tournament',
+            icon: '/assets/images/icons/icon-flag.webp',
+            category: 'milestone',
+            points: 25,
+            secret: false
+        },
+
         // === GETTING STARTED ===
         first_login: {
             id: 'first_login',

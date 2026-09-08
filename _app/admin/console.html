@@ -11755,6 +11755,11 @@
                     btns += '<button class="ac-btn ac-btn-danger ac-btn-sm" onclick="ctfTransition(\'' + id + '\', \'ended\')">End Tournament</button>';
                     btns += '<button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="ctfTransition(\'' + id + '\', \'active\')">Unfreeze</button>';
                 } else if (status === 'ended') {
+                    // Placement badges are a DELIBERATE act, not a side effect of ending: HCA
+                    // Principle 2, competition establishes performance and granting is separate.
+                    // Only offered once ended, because it reads the certified record and refuses
+                    // without one. Safe to press twice - it is idempotent by content.
+                    btns += '<button class="ac-btn ac-btn-primary ac-btn-sm" onclick="ctfAwardBadges(\'' + id + '\')">Award Placement Badges</button> ';
                     btns += '<button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="ctfExport(\'' + id + '\')">Export Results</button>';
                     btns += ' <button class="ac-btn ac-btn-danger ac-btn-sm" onclick="deleteTournament(\'' + id + '\', \'' + escHtml(t.name || '') + '\')">Delete</button>';
                 }
@@ -12102,6 +12107,29 @@
         };
 
         // ── Export Results ──
+
+        /* Award placement badges from the certified results-of-record (taskboard 364).
+         *
+         * Reads nothing itself - the Cloud Function refuses unless tournaments/{id}/results/final
+         * exists, because a placement derived from the live, admin-writable teams collection is not
+         * evidence of anything. Idempotent by content: pressing it twice on an unchanged record
+         * performs zero writes, and re-pressing after a CORRECTION moves the trophies and revokes
+         * the superseded ones. Participation badges are not granted here - those are automatic at
+         * join time inside ctfJoinTeam.
+         */
+        window.ctfAwardBadges = async function(id) {
+            if (!confirm('Award placement badges from the certified final result?\n\n' +
+                         'Safe to run more than once. If the result was corrected, this moves the ' +
+                         'trophies and revokes the superseded ones.')) return;
+            try {
+                const result = await FirebaseAuth.callFunction('ctfAwardTournamentBadges', { tournamentId: id });
+                const r = result.data || {};   // same unwrap as every other callFunction site here
+                showToast('Badges v' + (r.version || 1) + ': ' + (r.awarded || 0) + ' awarded, ' +
+                          (r.revoked || 0) + ' revoked, ' + (r.unchanged || 0) + ' unchanged.', 'success');
+            } catch (e) {
+                showToast('Badge award failed: ' + e.message, 'danger');
+            }
+        };
 
         window.ctfExport = async function(id) {
             try {

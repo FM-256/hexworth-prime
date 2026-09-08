@@ -324,6 +324,12 @@ const { rankTeams } = require('./ctf-standings-rule');
    loading this file is what makes the functions emulator read functions/.env, which has previously
    fired real Discord webhooks at a live channel. See functions/ctf-finalize.js. */
 const { finalizeTournament } = require('./ctf-finalize');
+/* Tournament participation + placement awards (taskboard 364). Participation is granted
+   automatically on join; placements are derived from the certified results-of-record, never from
+   the live teams collection. See functions/ctf-badges.js for why the two kinds are stored
+   differently. The short version is that anything REVOCABLE must never enter the union-merged
+   `achievements` array, or a stale device resurrects it on the next sync. */
+const ctfBadges = require('./ctf-badges');
 // The single definition of which quiz score is the student's score. Extracted for the same
 // reason as recomputeCtfStats above: this fact had three implementations that disagreed.
 const { shouldReplaceStoredScore, buildQuizUpdate } = require('./quiz-score-policy');
@@ -7785,7 +7791,25 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
     const teamsSnap = await tRef.collection('teams').get();
     let existing = null;
     teamsSnap.forEach(d => { const m = d.data().members; if (Array.isArray(m) && m.includes(uid)) existing = d.id; });
-    if (existing === teamId) return { ok: true, teamId }; // idempotent — consistent shape with all return paths
+    if (existing === teamId) {
+        /* Already on this team: idempotent success, consistent shape with all return paths.
+         *
+         * AWARD HERE TOO, and this branch is why. `existing` is derived by scanning the teams'
+         * `members` arrays above, so this fires for anyone already on the roster INCLUDING a member
+         * an admin placed directly, who never called this function and so was never awarded. Without
+         * this line those students could never earn the badge at all: every attempt they make
+         * early-returns right here, before the transaction and before the award below. An
+         * integration test caught it (the badge simply never appeared) after TWO successive comments
+         * of mine described this control flow wrongly.
+         * Safe to run on every repeat call: the award is merge + arrayUnion, so it converges rather
+         * than duplicating, and it cannot throw into the join path. */
+        await ctfBadges.awardParticipation({
+            db, FieldValue, uid, tournamentId, teamId,
+            tournamentName: tournament.name || '',
+            verifiedJoin: codeSource !== 'none',
+        });
+        return { ok: true, teamId };
+    }
     if (existing) throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
 
     const name = await _resolveUserName(uid, request.auth.token);
@@ -7815,6 +7839,39 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
         tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() });
         tx.update(teamRef, { members, memberNames });
     });
+
+    /* Participation badge, awarded automatically on join (taskboard 364, operator directive).
+     *
+     * DELIBERATELY OUTSIDE THE TRANSACTION AND UNABLE TO THROW. awardParticipation swallows its own
+     * errors and returns false. A student being unable to join a tournament because a cosmetic
+     * badge write failed would be a far worse defect than a missing badge, and the join is the
+     * operation that matters. Same reasoning as the ALREADY_SOLVED audit write in ctfSubmitFlag.
+     *
+     * `verifiedJoin` carries whether a join code was ACTUALLY checked. A tournament with no code
+     * configured is open to any signed-in account, anonymous sign-in included, so recording the
+     * distinction keeps "verified attendance" separable from "auth-only walk-in" for any later
+     * audit. It is recorded rather than enforced: the badge mints no XP, and refusing to award on
+     * an uncoded tournament would punish students for an admin's configuration choice.
+     *
+     * WHICH PATHS REACH THIS, stated correctly on the third attempt. Two earlier versions of this
+     * comment described control flow that does not exist; a reviewer caught the first and an
+     * integration test caught the second. The actual shape:
+     *   - Already on this team: the FUNCTION-level `existing === teamId` return above fires BEFORE
+     *     the transaction and never reaches this line. It awards separately, at that branch, so
+     *     admin-placed roster members are not left permanently unbadged.
+     *   - Already on a DIFFERENT team: throws above; no award, correctly.
+     *   - The `return`s INSIDE the transaction callback exit only that callback, so execution would
+     *     continue here, but `existing` is computed from the same `members` arrays those branches
+     *     test, so in practice the earlier return has already caught those cases. They remain
+     *     reachable only if the roster changes between the scan and the transaction.
+     *   - A genuinely NEW join: the normal path, and the one this line exists for.
+     * Re-running is harmless either way: merge + arrayUnion converges rather than duplicating. */
+    await ctfBadges.awardParticipation({
+        db, FieldValue, uid, tournamentId, teamId,
+        tournamentName: tournament.name || '',
+        verifiedJoin: codeSource !== 'none',
+    });
+
     return { ok: true, teamId };
 });
 
@@ -7935,6 +7992,58 @@ exports.ctfEndTournament = onCall(cfOptions, async (request) => {
         }
         throw e;
     }
+});
+
+/**
+ * ctfAwardTournamentBadges: grant placement badges from the certified results-of-record.
+ *
+ * SEPARATE FROM ctfEndTournament BY DESIGN, not by accident. The HCA doctrine
+ * (`_docs/architecture/hexworth-credential-authority.md:56`) is that competition never
+ * AUTOMATICALLY grants an award of record: finalizing establishes what happened, granting is a
+ * distinct act. It also has to be re-runnable, because a corrected result must be able to move a
+ * trophy from one team to another after the fact.
+ *
+ * READS THE RECORD, NEVER LIVE `teams`. If no `results/final` exists this REFUSES rather than
+ * falling back. A placement derived from the admin-writable teams collection is not evidence of
+ * anything, which is the whole reason taskboard 362 exists.
+ *
+ * Participation is NOT awarded here; it is granted automatically at join time inside ctfJoinTeam.
+ */
+exports.ctfAwardTournamentBadges = onCall(cfOptions, async (request) => {
+    requireAdmin(request);
+    const { tournamentId } = request.data || {};
+    if (!tournamentId) throw new HttpsError('invalid-argument', 'tournamentId is required.');
+
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const finalSnap = await tRef.collection('results').doc('final').get();
+    if (!finalSnap.exists) {
+        throw new HttpsError('failed-precondition',
+            'This tournament has no certified result. End it first: placements are never derived ' +
+            'from the live teams collection.');
+    }
+
+    let result;
+    try {
+        result = await ctfBadges.awardPlacements({
+            db, FieldValue, tournamentId, record: finalSnap.data(),
+        });
+    } catch (e) {
+        if (e && e.code === 'failed-precondition') throw new HttpsError(e.code, e.message);
+        throw e;
+    }
+
+    /* COMPLETION MARKER. The fan-out is up to 200 teams x 4 members with no transaction spanning
+       them, so a run that dies partway looks identical afterwards to one that finished. Recording
+       the version it ran to completion against is what lets a human or a later job tell "awarded
+       against v3" from "died at team 140". Written only on success, for that reason. */
+    await tRef.set({
+        lastAwardedVersion: result.version,
+        lastAwardedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    console.log(`[ctfAwardTournamentBadges] ${tournamentId} v${result.version}: ` +
+                `${result.awarded} awarded, ${result.revoked} revoked, ${result.unchanged} unchanged`);
+    return { ok: true, ...result };
 });
 
 // ─── EDT: Ethical Decision Training Lab Submission ───────────────
