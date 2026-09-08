@@ -308,7 +308,7 @@ const PublicProfile = (function() {
         if (!uid) return false;
 
         try {
-            const { doc, getDoc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
+            const { doc, getDoc, setDoc, serverTimestamp, collection, getDocs } = await import('https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js');
 
             // Read user's main profile
             const userRef = doc(db, 'users', uid);
@@ -328,7 +328,18 @@ const PublicProfile = (function() {
                 rank: _calculateRank(userData.level || 1),
                 modulesCompleted: userData.modulesCompleted || 0,
                 boxesSolved: userData.ctfBoxesPwned || 0,
-                achievementCount: Array.isArray(userData.achievements) ? userData.achievements.length : 0,
+                /* achievementCount is set BELOW, from server_awards, not from here.
+                   `userData.achievements` is client-writable through `syncProgress`, which filters
+                   it with only a two-pattern gate blacklist, so any string a client sends lands in
+                   that array permanently. Publishing its LENGTH onto a PUBLIC profile made a forged
+                   number visible to other students and instructors: the only externally-visible
+                   consequence of that whole weakness. `server_awards` is the tamper-evident store
+                   (Cloud-Function-written, no client write rule at all) and is what HomeDirectory
+                   already treats as "proven" against `achievements` as merely "claimed".
+                   A four-way review (Nancy, Mallory, Chris) rejected building an achievement-id
+                   registry to fix this: 325 config-literal ids across 358 files are invisible to any
+                   static sweep, so a registry would reproduce the BUG-264 outage for a field that
+                   pays 0 XP. Counting the proof store instead is the whole fix. */
                 joinDate: userData.createdAt || null,
                 updatedAt: serverTimestamp()
             };
@@ -339,6 +350,20 @@ const PublicProfile = (function() {
             // Set house emblem
             if (userData.house && HOUSE_DATA[userData.house]) {
                 profileUpdate.houseEmblem = HOUSE_DATA[userData.house].emblem;
+            }
+
+            /* Count the PROOF store, not the claim array. See the note in profileUpdate above.
+               `server_awards` is Cloud-Function-written with no client write rule at all, and the
+               owner may read their own, so this is the honest number to publish.
+               ON FAILURE THE FIELD IS OMITTED, NOT ZEROED. setDoc uses { merge: true }, so leaving
+               it out preserves whatever is already stored. Publishing 0 on a transient read error
+               would erase a real count from a public profile, which is the same class of mistake as
+               GUARD-04 (a validator must not delete what was already earned). */
+            try {
+                const awardsSnap = await getDocs(collection(db, 'users', uid, 'server_awards'));
+                profileUpdate.achievementCount = awardsSnap.size;
+            } catch (awardsErr) {
+                console.warn('[PublicProfile] server_awards unreadable; leaving achievementCount unchanged:', awardsErr);
             }
 
             const profileRef = doc(db, 'publicProfiles', uid);
