@@ -1745,7 +1745,68 @@ exports.syncProgress = onCall(cfOptions, async (request) => {
     const mergedModules = [...new Set([...(cloudData.modulesCompleted || []), ...localModules])];
     const mergedLabs = [...new Set([...(cloudData.labsCompleted || []), ...localLabs])];
     const mergedAchievements = [...new Set([...(cloudData.achievements || []), ...localAchievements])];
-    const mergedStreak = Math.max(cloudData.streak || 0, localStreak);
+    /* ── STREAK: BOUND THE CLIENT'S CLAIM BY ACCOUNT AGE (task 367) ────────────────────────
+     * The clamp where localStreak is read is not validation. Modules and labs get
+     * `.filter(_isValidModuleId).filter(_isKnownCompletion)`; streak got a ceiling and nothing else.
+     * `deriveXP` pays DAILY_LOGIN 25/day capped at 365, so one call with `{streak: 10000}` reached
+     * the full 9,125 XP instantly, for an account that never studied.
+     *
+     * THE ANCHOR IS FIREBASE AUTH, NOT `cloudData.createdAt`, and that distinction is the fix.
+     * The first version of this bounded by the Firestore `createdAt` field, and an adversarial
+     * review showed that field is NOT a trust anchor: the users/{userId} create rule lists
+     * `createdAt` inside `hasOnly()` but, unlike `xp`, `streak` and `tier` which are each pinned to
+     * a fixed value, puts NO value constraint on it. A client can create their profile with a
+     * backdated `createdAt` via a raw REST write, the same technique already proven against this
+     * document type in BUG-262/263, and the bound evaporates.
+     * `getAuth().getUser(uid).metadata.creationTime` has no client write path at all, needs no
+     * rules change, and covers every existing account with no migration.
+     *
+     * GUARD-04 IS RESPECTED: this bounds only the INCOMING value. The Math.max against the stored
+     * value below means a streak already earned can never be reduced. A validator may refuse to
+     * accept; it must not delete.
+     *
+     * FAILS OPEN, DELIBERATELY. If the Auth lookup fails or returns no creation time, the client
+     * value is accepted as before. Refusing would clamp a real streak to nothing on a transient
+     * Auth error, which is the BUG-266 failure this codebase already paid for once.
+     *
+     * The lookup runs ONLY when the client claims an INCREASE, so ordinary syncs (where the stored
+     * value already wins) add no Auth round-trip to a page load.
+     *
+     * THIS BOUND HAS AN EXPIRATION DATE. READ THIS BEFORE TRUSTING IT.
+     * It constrains accounts younger than about a year and NOTHING ELSE. Once an account passes 365
+     * days, `maxPlausible` exceeds 365, and 365 is already the ceiling `deriveXP` enforces on its
+     * own, so the bound stops constraining anything: the original exploit (one call, `{streak:
+     * 10000}`, full 9,125 XP, zero real study) works verbatim again on any account old enough,
+     * with no effort beyond waiting. Do not read "closed" as "closed permanently."
+     * Measured 2026-09-08 (`_tools/audit/streak-plausibility-probe.js`): **0 accounts are older
+     * than 365 days**, so the residual is zero-width today rather than merely small. It will widen
+     * as the user base ages. When it matters, the fix is a RATE-OF-CHANGE bound (a `streakUpdatedAt`
+     * field, so a streak may only grow by the days actually elapsed) and NOT a larger age
+     * multiplier, which would just move the same expiry further out.
+     *
+     * Same probe, same date: 0 of 4017 accounts hold a streak above the 365-day cap and 0 above
+     * 1000, so this closes the hole with no inflated data left to reconcile. */
+    let acceptedStreak = localStreak;
+    if (localStreak > (cloudData.streak || 0)) {
+        try {
+            const authRec = await getAuth().getUser(uid);
+            const createdMs = (authRec && authRec.metadata && authRec.metadata.creationTime)
+                ? new Date(authRec.metadata.creationTime).getTime() : NaN;
+            if (!isNaN(createdMs)) {
+                // +1 so a same-day signup can legitimately hold a streak of 1, and to absorb
+                // client/server timezone skew rather than clipping an honest user by a day.
+                const maxPlausible = Math.max(1, Math.floor((Date.now() - createdMs) / 86400000) + 1);
+                if (localStreak > maxPlausible) {
+                    console.warn(`[syncProgress] streak claim ${localStreak} exceeds account age ` +
+                                 `${maxPlausible}d; accepting ${maxPlausible}`);
+                    acceptedStreak = maxPlausible;
+                }
+            }
+        } catch (e) {
+            console.error('[syncProgress] streak age check unavailable, accepting client value:', e && e.message);
+        }
+    }
+    const mergedStreak = Math.max(cloudData.streak || 0, acceptedStreak);
 
     // Merge quizzes (keep highest scores)
     const mergedQuizzes = { ...(cloudData.quizzes || {}) };

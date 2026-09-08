@@ -174,7 +174,43 @@ async function main() {
     const mergedQuizzes = mergeQuizzes(a.quizzes, b.quizzes);
 
     // 3. Merge scalars (take best)
-    const mergedStreak = Math.max(a.streak || 0, b.streak || 0);
+    /* STREAK IS BOUNDED HERE TOO, because this is the SECOND reconciliation site for the field and
+       fixing only the first would leave the hole open through a different door (task 367; the same
+       "fix the field beside the one you fixed" failure this repo has a rule about).
+       syncProgress now bounds an INCOMING client streak by the account's Firebase Auth creation
+       time. This script had no bound at all, not even syncProgress's old Math.min ceiling, so a
+       value inflated before that fix shipped could propagate into the surviving account on a merge
+       and never be clawed back: the merge only ever takes the larger.
+       365 is the ceiling because it is exactly where deriveXP stops paying (DAILY_LOGIN capped at
+       365), so anything above it is XP-inert.
+
+       THIS IS GUARD-04 SHAPE, AND CALLING IT AN EXEMPTION WAS WRONG. An earlier version of this
+       comment argued the clamp was safe because it bounds "a merge output, not stored user data".
+       That is false: `mergedStreak` is written to the KEPT account's own document, so if either
+       source legitimately held more than 365 (pre-cap legacy data, a future design change that
+       lets a streak exceed the cap, a manual correction) this reduces a real stored number by
+       fiat. A reviewer caught the bad framing. What actually makes it safe is narrower and worth
+       stating honestly:
+         - MEASURED: 0 of 4017 accounts hold a streak above 365
+           (`_tools/audit/streak-plausibility-probe.js`, 2026-09-08), so it clamps nothing real today.
+         - HUMAN IN THE LOOP: this script is run manually, warns loudly before committing, and
+           defaults to a dry run. A clamp that fires is visible to an operator, not silent.
+       If a legitimate streak above 365 ever becomes possible, revisit this rather than assuming
+       the exemption holds.
+
+       ASYMMETRY WORTH KNOWING: the two reconciliation sites now enforce DIFFERENT rules for the
+       same invariant. syncProgress bounds per-account by Firebase Auth creation time; this bounds
+       by a flat 365. So a 10-day-old account somehow carrying a stored streak of 200 would be
+       refused by syncProgress and pass straight through here. Unifying them means pulling both
+       accounts' Auth creation times into this offline script, which is a bigger lift than task 367
+       needed. Recorded rather than silently left. */
+    const STREAK_CEILING = 365;
+    const rawStreak = Math.max(a.streak || 0, b.streak || 0);
+    const mergedStreak = Math.min(rawStreak, STREAK_CEILING);
+    if (rawStreak > STREAK_CEILING) {
+        console.warn(`[account-merge] streak ${rawStreak} exceeds the ${STREAK_CEILING}-day XP cap; ` +
+                     `merging as ${STREAK_CEILING}. Inspect both source accounts before accepting.`);
+    }
     const mergedGamesPlayed = Math.max(a.gamesPlayed || 0, b.gamesPlayed || 0);
     /* CTF counters are NOT merged by Math.max — see below. Taking the larger of two stored
        values would resurrect exactly the client-derived numbers that Phase B retired: the
