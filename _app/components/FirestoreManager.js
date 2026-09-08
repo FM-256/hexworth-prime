@@ -433,20 +433,30 @@ const FirestoreManager = (function() {
     /**
      * Check if callsign is available
      */
+    /* Uniqueness is answered SERVER-SIDE, because the client is not allowed to ask.
+     *
+     * This used to run `getDocs(query(usersRef, where('callsignLower','==',...)))`, which is a
+     * `list` operation. The users rule allows `get` to any signed-in user but restricts `list` to
+     * admins, so a brand-new account got PERMISSION_DENIED here, the catch returned `false`, and
+     * every caller reads `false` as "already taken". New users were told every callsign they tried
+     * was gone and could not finish signing up at all. The `list` restriction is CORRECT (it closed
+     * a user-enumeration hole); building a uniqueness check on a read the client cannot perform was
+     * the bug.
+     *
+     * FAILS OPEN, a deliberate reversal. If the check is unreachable this now returns TRUE
+     * (proceed) instead of false (blocked). A duplicate callsign is cosmetic and an admin can
+     * rename it; a signup outage locks every new student out of the platform, which is the incident
+     * this comment exists because of. Fail toward the recoverable failure. A definitive server
+     * answer of "taken" is still honoured. */
     async function isCallsignAvailable(callsign) {
-        if (!initialized) await init();
-        if (!db) return false;
-
         try {
-            const { collection, query, where, getDocs } = window.firebaseFirestore;
-            const usersRef = collection(db, COLLECTIONS.USERS);
-            const q = query(usersRef, where('callsignLower', '==', callsign.toLowerCase()));
-            const snapshot = await getDocs(q);
-
-            return snapshot.empty;
+            const result = await FirebaseAuth.callFunction('checkCallsignAvailable', { callsign: callsign });
+            // `result.data` is the callable's payload. Reading `result` directly is the data-unwrap
+            // mistake that once made 103 server-graded quizzes mark every answer wrong.
+            return (result.data || {}).available === true;
         } catch (error) {
-            console.error('[FirestoreManager] Failed to check callsign:', error);
-            return false;
+            console.error('[FirestoreManager] Callsign check unavailable, allowing the attempt:', error);
+            return true;   // fail OPEN: see the note above
         }
     }
 

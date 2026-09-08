@@ -118,6 +118,51 @@ exports.setAdminClaim = onCall(cfOptions, async (request) => {
 });
 
 /**
+ * checkCallsignAvailable: is this callsign free? Server-side, because the client cannot ask.
+ *
+ * THE INCIDENT THIS FIXES. New users could not sign up at all: Google sign-in succeeded, the
+ * callsign modal appeared, and every callsign came back "already taken" forever.
+ *
+ * `FirestoreManager.isCallsignAvailable()` checked uniqueness with a COLLECTION QUERY
+ * (`where('callsignLower','==',...)` + `getDocs`). That is a `list` operation, and the users rule
+ * is `allow get: if request.auth != null` but `allow list: if isAdmin()`. So a brand-new,
+ * non-admin account got PERMISSION_DENIED, the client's `catch` returned `false`, and every caller
+ * reads `false` as "taken". A denied read became a permanent "that name is gone".
+ *
+ * The `list` restriction is CORRECT and stays: it closed a real user-enumeration hole (commit
+ * 9b5970b15, 2026-08-21). The bug is that a uniqueness check was built on a read the client is not
+ * allowed to perform. The fix is to move the question server-side, not to reopen enumeration.
+ *
+ * This returns ONLY a boolean. No uid, no document, no field of any other user ever crosses the
+ * boundary, so it does not undo what 9b5970b15 closed. It does answer "does this callsign exist",
+ * which is an oracle -- acceptable because callsigns are already displayed publicly on leaderboards
+ * and profiles, so existence is not secret. Auth is still required, so it is not anonymous-crawlable.
+ */
+exports.checkCallsignAvailable = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+    const cs = String((request.data && request.data.callsign) || '').trim().toLowerCase();
+    if (!cs || cs.length > 32) {
+        throw new HttpsError('invalid-argument', 'A callsign of 1 to 32 characters is required.');
+    }
+    const snap = await db.collection('users').where('callsignLower', '==', cs).limit(2).get();
+    /* A document owned by the CALLER is not a conflict. Without this, a user re-submitting the
+       callsign they already hold would be told it is taken -- by themselves. limit(2) so one
+       self-owned match still leaves room to see a genuine conflict. */
+    const takenByOther = snap.docs.some(d => d.id !== request.auth.uid);
+    return { available: !takenByOther };
+});
+/* UNIQUENESS REMAINS BEST-EFFORT, NOT GUARANTEED, and this is not the bug being fixed here.
+ * There is no transaction and no reservation document: the check and the write are separate steps,
+ * so two users racing the same callsign can both be told "available" and both writes will succeed.
+ * Firestore rules cannot express cross-document uniqueness, so a rule will not close it either.
+ * That TOCTOU predates this incident, which was a total signup OUTAGE (every callsign read as
+ * taken), not a duplicate. Closing the outage does not close the race, and this should not be
+ * reported as "callsign uniqueness is enforced".
+ * Measured 2026-09-08 before shipping: 110 accounts hold a callsign and there are ZERO duplicate
+ * `callsignLower` values in production, so the race has never actually fired. Closing it properly
+ * means a reservation doc (`callsigns/{lower}` created transactionally) and is its own task. */
+
+/**
  * verifyAdmin — Lightweight check: is this user admin?
  * Used by AccessGuard async verification.
  */
