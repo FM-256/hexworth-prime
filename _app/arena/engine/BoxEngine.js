@@ -1254,7 +1254,14 @@ const BoxEngine = {
      * Prevents casual DevTools inspection of state from revealing flag text.
      */
     async _hashFlag(value, seed) {
-        const data = new TextEncoder().encode(value.toLowerCase().trim() + ':' + seed);
+        // A server-delivered flag legitimately carries value: null until deliverFlag
+        // returns, and delivery can fail (no session, offline, function error). Without
+        // this guard that null reached .toLowerCase() and threw an UNCAUGHT TypeError out
+        // of _computeFlagHashes, killing flag handling for the whole box rather than
+        // degrading to server-side validation. Callers already treat a null hash as
+        // "no local hash available" and fall through to _validateFlagViaServer.
+        if (value === null || value === undefined) return null;
+        const data = new TextEncoder().encode(String(value).toLowerCase().trim() + ':' + seed);
         const hash = await crypto.subtle.digest('SHA-256', data);
         return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
     },
@@ -1354,8 +1361,37 @@ const BoxEngine = {
             return this._deliveredFlags[flagId];
         }
 
-        const hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+        let hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
         const boxId = this.config.registryId;
+
+        /* Establish a session AT THE MOMENT A FLAG IS NEEDED.
+         *
+         * Task 372 removed the anonymous sign-in that firebase-init.js used to run on
+         * DOMContentLoaded across 274 pages -- correct, it was minting ~45 accounts/day
+         * from crawler traffic that never clicked anything. But it left ensureAuth() with
+         * ZERO callers, and flag delivery below requires a session. Net effect (task 377):
+         * a visitor could diagnose the fault, repair it, restore connectivity, and then
+         * never receive a flag -- every box with a server-delivered flag was unfinishable
+         * without a session.
+         *
+         * Signing in HERE is the design 372 actually described: no uid on page load, a uid
+         * when an operation needs one. Requesting a flag is a deliberate act inside a box a
+         * student chose to start, so it does not reopen the drive-by minting 372 closed.
+         *
+         * ArenaFirebase is a top-level `const` in a classic script, so it lives in the
+         * global LEXICAL environment and `window.ArenaFirebase` is always undefined --
+         * reference the bare identifier, guarded by typeof. (See the documented
+         * lexical-const window trap; the same shape bit TenantRouter.)
+         */
+        if (!hasAuth && boxId && typeof ArenaFirebase !== 'undefined'
+            && typeof ArenaFirebase.ensureAuth === 'function') {
+            try {
+                await ArenaFirebase.ensureAuth();
+                hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+            } catch (err) {
+                console.warn('[ARENA] ensureAuth failed before flag delivery:', err.message);
+            }
+        }
 
         if (!hasAuth || !boxId) {
             console.warn('[ARENA] Cannot deliver flag — no auth or registryId');

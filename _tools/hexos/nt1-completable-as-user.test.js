@@ -29,7 +29,10 @@ const argv = process.argv.slice(2);
 const copyIdx = argv.indexOf('--copy');
 const COPY = copyIdx > -1 ? argv[copyIdx + 1] : 'dispatch';
 const NO_SIGNIN = argv.includes('--no-signin');
-const URL = `https://hexworth.com/${COPY}/boxes/nt1-network-troubleshoot/`;
+// --local points at a static server over the repo's hosting root, so the fix can be
+// proven BEFORE it is deployed. Production is the default because that is what students load.
+const BASE = argv.includes('--local') ? 'http://127.0.0.1:5599' : 'https://hexworth.com';
+const URL = `${BASE}/${COPY}/boxes/nt1-network-troubleshoot/`;
 
 let pass = 0, fail = 0;
 /** Record one assertion, printing the observed value when it fails. */
