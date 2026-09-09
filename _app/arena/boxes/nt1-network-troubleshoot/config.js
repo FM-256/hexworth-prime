@@ -349,13 +349,25 @@ const NT1Config = {
         const net = engine.state._networkConfig;
         if (!net) return { success: false, error: 'General failure.' };
 
-        if (net.adapter === 'disabled') {
-            return { success: false, error: 'General failure.' };
-        }
-
-        // Loopback
+        // Loopback is answered by the TCP/IP stack via the loopback pseudo-interface,
+        // so it replies even when every physical adapter is disabled or unplugged.
+        // That is PRECISELY why the standard ladder pings it first: it separates a
+        // broken stack from a broken NIC.
+        //
+        // This check used to sit BELOW the adapter === 'disabled' branch, so HD-7201
+        // (Disabled Network Adapter) returned "General failure." for 127.0.0.1 and the
+        // box taught the opposite of the lesson -- and contradicted its own walkthrough,
+        // which states at Scenario 2 Step 2 that loopback succeeds here.
+        //
+        // Moving it up changes behaviour ONLY when the adapter is disabled. In the other
+        // four scenarios the adapter is enabled, so this branch was already reached and
+        // already returned success; their diagnostic paths are untouched.
         if (target === '127.0.0.1' || target === 'localhost') {
             return { success: true, ms: 0, ip: '127.0.0.1' };
+        }
+
+        if (net.adapter === 'disabled') {
+            return { success: false, error: 'General failure.' };
         }
 
         // No valid IP
@@ -510,6 +522,113 @@ const NT1Config = {
             type: 'dir',
             children: {}
         }
+    },
+
+    // ==========================================================
+    // WINDOWS FILE TREE (dir / cd / type)
+    // ==========================================================
+    // Flat map keyed by absolute Windows path. Flat rather than nested on purpose:
+    // dir/cd/type only ever need an exact-path lookup, and a flat map cannot grow a
+    // traversal bug.
+    //
+    // WHY THIS EXISTS. `dir` was already overridden below but returned a HARDCODED
+    // listing, while `cd` was not overridden at all -- so `cd` fell through to
+    // Terminal.js's POSIX builtin, which walks the `filesystem` above, and that is
+    // empty. A student typing `dir` saw Desktop/Documents/Downloads and then got
+    // `cd: Documents: No such file or directory` -- a bash error, in a Windows CMD
+    // simulation, for a directory the box had just advertised.
+    //
+    // Fixed box-locally rather than in Terminal.js: 51 boxes share that engine with
+    // promptStyle 'windows', and box commands take precedence over builtins
+    // (Terminal.js:274-304), so a local override is sufficient and carries no blast
+    // radius. The same gap exists in the other 49 dispatch windows-boxes and is
+    // tracked separately -- do NOT fix it by editing the shared engine.
+    _fileTree: {
+        'C:\\Users\\Technician': { dirs: ['Desktop', 'Documents', 'Downloads'], files: {} },
+        'C:\\Users\\Technician\\Desktop': { dirs: [], files: {} },
+        'C:\\Users\\Technician\\Downloads': { dirs: [], files: {} },
+        'C:\\Users\\Technician\\Documents': {
+            dirs: [],
+            files: {
+                // The in-sim SOURCE for 192.168.1.1. The walkthrough tells the
+                // technician to ping the gateway, but in HD-7201 the adapter is
+                // disabled, so ipconfig / route print / arp -a are all empty and the
+                // address appeared nowhere -- the student was told to ping a number
+                // the box never showed them. Site documentation is where a real
+                // desk-side tech gets it, so that is what this is.
+                'network-baseline.txt':
+                    'HEXWORTH CORP - IT OPERATIONS\r\n' +
+                    'WORKSTATION NETWORK BASELINE\r\n' +
+                    'Last updated: 03/12/2026\r\n' +
+                    '\r\n' +
+                    'Standard configuration for all workstations on the\r\n' +
+                    'Accounting / Marketing floor (VLAN 10):\r\n' +
+                    '\r\n' +
+                    '  IP address . . . . . . . : DHCP (192.168.1.50 - 192.168.1.200)\r\n' +
+                    '  Subnet mask  . . . . . . : 255.255.255.0\r\n' +
+                    '  Default gateway  . . . . : 192.168.1.1\r\n' +
+                    '  Preferred DNS server . . : 8.8.8.8\r\n' +
+                    '  Alternate DNS server . . : 8.8.4.4\r\n' +
+                    '\r\n' +
+                    '  Accounting printer . . . : 192.168.1.200\r\n' +
+                    '\r\n' +
+                    'STANDARD TROUBLESHOOTING ORDER\r\n' +
+                    '------------------------------\r\n' +
+                    '  1. ipconfig /all      Confirm the adapter HAS a configuration.\r\n' +
+                    '  2. ping 127.0.0.1     Loopback. Tests the TCP/IP stack only.\r\n' +
+                    '                        This answers even when the network adapter\r\n' +
+                    '                        is disabled or unplugged.\r\n' +
+                    '  3. ping 192.168.1.1   Default gateway. Tests the local link.\r\n' +
+                    '  4. ping 8.8.8.8       Tests routing beyond the gateway.\r\n' +
+                    '  5. ping google.com    Tests DNS resolution.\r\n' +
+                    '\r\n' +
+                    'The FIRST step that fails identifies the layer at fault.\r\n' +
+                    'If 2 succeeds and 3 fails, the stack is healthy and the fault is\r\n' +
+                    'at the adapter or the link below it.\r\n'
+            }
+        }
+    },
+
+    _diskFree: '214,748,364,800',
+    _fileStamp: '03/12/2026  08:30 AM',
+
+    // Windows paths are CASE-INSENSITIVE. _fileTree lookups are exact JS object-key
+    // matches, so without these two helpers `cd documents` and `type Network-Baseline.txt`
+    // fail -- the shell shows the student a name and then refuses a trivial variant of it,
+    // which is the same defect class this whole change exists to remove. Both return the
+    // STORED spelling so the prompt and listings show canonical case, as cmd.exe does.
+    _canonDir(p) {
+        const lower = String(p).toLowerCase();
+        return Object.keys(NT1Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _canonFile(node, name) {
+        const lower = String(name).toLowerCase();
+        return Object.keys(node.files).find(function (f) {
+            return f.toLowerCase() === lower;
+        }) || null;
+    },
+
+    // Resolve a user-typed path against the current directory. Always returns an
+    // absolute Windows path in the CASING THE USER TYPED; call _canonDir on the result
+    // to find out whether it exists and to recover the stored spelling.
+    _resolveWinPath(term, arg) {
+        const cwd = (term && term.cwd) || 'C:\\Users\\Technician';
+        if (!arg) return cwd;
+        let p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) {
+            // already absolute
+        } else if (p === '.') {
+            return cwd;
+        } else if (p === '..') {
+            const cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
     },
 
     // ==========================================================
@@ -969,10 +1088,80 @@ const NT1Config = {
 
         hostname: function() { return 'WORKSTATION01'; },
 
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        // MUST NOT return null. Terminal.js treats a null return as "fall through to
+        // the builtin" (Terminal.js:288-304); the builtin switch has `case 'clear'` but
+        // no `case 'cls'`, so it landed on `default:` and printed the bash-flavoured
+        // `cls: command not found` -- AFTER clearing the screen. Every single time.
+        // '' is falsy so nothing prints, but it is not null, so there is no fallthrough.
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
-        dir: function() {
-            return ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n Directory of C:\\Users\\Technician\n\n03/12/2026  08:30 AM    <DIR>          .\n03/12/2026  08:30 AM    <DIR>          ..\n03/12/2026  08:30 AM    <DIR>          Desktop\n03/12/2026  08:30 AM    <DIR>          Documents\n03/12/2026  08:30 AM    <DIR>          Downloads\n               0 File(s)              0 bytes\n               5 Dir(s)  214,748,364,800 bytes free';
+        // Renders from _fileTree, so `dir` can no longer advertise a directory that
+        // `cd` refuses to enter -- which is exactly what the hardcoded version did.
+        dir: function(args, term) {
+            const typed = NT1Config._resolveWinPath(term, args && args[0]);
+            const path = NT1Config._canonDir(typed);
+            const node = path && NT1Config._fileTree[path];
+            if (!node) return 'The system cannot find the path specified.';
+
+            let out = ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n';
+            out += ' Directory of ' + path + '\n\n';
+
+            const dirRows = ['.', '..'].concat(node.dirs);
+            dirRows.forEach(function (d) {
+                out += NT1Config._fileStamp + '    <DIR>          ' + d + '\n';
+            });
+
+            const names = Object.keys(node.files);
+            let bytes = 0;
+            names.forEach(function (f) {
+                const size = node.files[f].length;
+                bytes += size;
+                out += NT1Config._fileStamp + '   ' + String(size).padStart(15) + ' ' + f + '\n';
+            });
+
+            out += String(names.length).padStart(16) + ' File(s) ' + String(bytes).padStart(14) + ' bytes\n';
+            out += String(dirRows.length).padStart(16) + ' Dir(s)  ' + NT1Config._diskFree + ' bytes free';
+            return out;
+        },
+
+        // Windows `cd`. Without this the command fell through to Terminal.js's POSIX
+        // builtin and answered with a bash error against an empty filesystem.
+        cd: function(args, term) {
+            const raw = args && args.find(function (a) { return !a.startsWith('/'); });
+            // Bare `cd` in cmd.exe prints the current directory rather than moving.
+            if (!raw) return (term && term.cwd) || 'C:\\Users\\Technician';
+
+            // _canonDir both tests existence and recovers the stored spelling, so
+            // `cd documents` lands the student in C:\Users\Technician\Documents and the
+            // prompt reads the way cmd.exe would render it.
+            const path = NT1Config._canonDir(NT1Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';   // not null -- see the note on cls above
+        },
+
+        // Windows `type`. This is how the student reads network-baseline.txt, which is
+        // the in-sim source for the gateway address the walkthrough tells them to ping.
+        type: function(args, term) {
+            const raw = args && args[0];
+            if (!raw) return 'The syntax of the command is incorrect.';
+
+            const path = NT1Config._resolveWinPath(term, raw);
+            const cut = path.lastIndexOf('\\');
+            const name = path.slice(cut + 1);
+            const lower = name.toLowerCase();
+
+            const dir = NT1Config._canonDir(path.slice(0, cut));
+            const node = dir && NT1Config._fileTree[dir];
+            if (!node) return 'The system cannot find the file specified.';
+            // cmd.exe refuses to `type` a directory, and does so case-insensitively.
+            if (node.dirs.some(function (d) { return d.toLowerCase() === lower; })) return 'Access is denied.';
+
+            const file = NT1Config._canonFile(node, name);
+            if (!file) return 'The system cannot find the file specified.';
+            return '\n' + node.files[file].replace(/\r\n/g, '\n');
         },
 
         getmac: function() {
@@ -999,7 +1188,49 @@ const NT1Config = {
 
         whoami: function() { return 'WORKSTATION01\\Technician'; },
 
-        // Block Linux commands
+        // Windows FIND is a REAL command, so refusing it would teach a falsehood. It is
+        // implemented rather than blocked, over the same _fileTree dir/cd/type use.
+        //   FIND "string" [path]filename
+        find: function(args, term) {
+            const parts = (args || []).filter(function (a) { return !a.startsWith('/'); });
+            if (parts.length < 2) return 'FIND: Parameter format not correct';
+
+            const needle = String(parts[0]).replace(/"/g, '');
+            // Guard the empty needle: ''.indexOf() and indexOf('') both return 0, so an
+            // unguarded empty string matches EVERY line and dumps the whole file.
+            if (!needle) return 'FIND: Parameter format not correct';
+            const path = NT1Config._resolveWinPath(term, parts[1]);
+            const cut = path.lastIndexOf('\\');
+            const dir = NT1Config._canonDir(path.slice(0, cut));
+            const node = dir && NT1Config._fileTree[dir];
+            // The FILENAME is case-insensitive, like every Windows path.
+            const name = node && NT1Config._canonFile(node, path.slice(cut + 1));
+            if (!name) return 'File not found - ' + parts[1];
+
+            // The SEARCH STRING is case-sensitive unless /I is given -- that is real
+            // FIND behaviour, and the /-prefixed switches were filtered out above.
+            const ci = (args || []).some(function (a) { return a.toUpperCase() === '/I'; });
+            const hay = ci ? needle.toLowerCase() : needle;
+            const hits = node.files[name].split('\r\n').filter(function (l) {
+                return (ci ? l.toLowerCase() : l).indexOf(hay) !== -1;
+            });
+            return '\n---------- ' + name.toUpperCase() + '\n' + hits.join('\n');
+        },
+
+        // Block Linux commands.
+        // ls/cat/pwd/head/tail/man/uname/file/history were reachable as Terminal.js
+        // builtins and answered with bash-flavoured output inside a Windows CMD sim --
+        // the same defect class as the cd/dir mismatch above. `find` is NOT here: it is
+        // a genuine Windows command and is implemented directly above.
+        ls: function() { return '\'ls\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: dir'; },
+        cat: function() { return '\'cat\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: type'; },
+        pwd: function() { return '\'pwd\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cd'; },
+        head: function() { return '\'head\' is not recognized as an internal or external command,\noperable program or batch file.'; },
+        tail: function() { return '\'tail\' is not recognized as an internal or external command,\noperable program or batch file.'; },
+        man: function() { return '\'man\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: help'; },
+        uname: function() { return '\'uname\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo'; },
+        file: function() { return '\'file\' is not recognized as an internal or external command,\noperable program or batch file.'; },
+        history: function() { return '\'history\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command,\noperable program or batch file.'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command,\noperable program or batch file.'; },
