@@ -102,6 +102,17 @@ const CallsignModal = (function() {
                     <button class="callsign-btn callsign-btn-primary" id="callsign-submit" disabled>
                         Lock In Callsign
                     </button>
+                    <!-- A WAY OUT. This modal had NO dismiss affordance: no close, no skip, no
+                         Escape, no backdrop click, and a submit disabled until valid. It was
+                         inescapable for a field that is OPTIONAL in the data model (7 consumers
+                         fall back to 'Anonymous'/'You'/'Unknown'). That is what turned a failing
+                         availability check into an 18-day signup outage: the only escape was the
+                         browser console. The check is fixed and Google users no longer see this at
+                         all, but a modal a user cannot leave will trap them again the next time
+                         anything behind it breaks. This is the defence in depth. -->
+                    <button class="callsign-btn callsign-btn-ghost" id="callsign-skip">
+                        Skip for now
+                    </button>
                 </div>
 
                 <div class="callsign-warning">
@@ -332,6 +343,21 @@ const CallsignModal = (function() {
                 border: none;
             }
 
+            /* Ghost variant for "Skip for now": legible but clearly secondary, so it reads as
+               an escape hatch rather than a competing call to action. .callsign-btn alone supplies
+               only shape, so without this the button renders unstyled on the dark panel. */
+            .callsign-btn-ghost {
+                background: transparent;
+                color: #8a8a9a;
+                border: 1px solid rgba(255,255,255,0.15);
+                margin-top: 10px;
+            }
+
+            .callsign-btn-ghost:hover {
+                color: #c8c8d4;
+                border-color: rgba(255,255,255,0.3);
+            }
+
             .callsign-btn-primary {
                 background: linear-gradient(135deg, #39ff14 0%, #32cd32 100%);
                 color: #000;
@@ -410,6 +436,22 @@ const CallsignModal = (function() {
             if (e.key === 'Enter' && !submitBtn.disabled) {
                 submitCallsign();
             }
+        });
+
+        /* THREE WAYS OUT, all routed through dismiss() so none can drift apart:
+           the visible Skip button, the Escape key, and a click on the backdrop. A user who is stuck
+           should not have to guess, and should not need the console. */
+        const skipBtn = modal.querySelector('#callsign-skip');
+        if (skipBtn) skipBtn.addEventListener('click', dismiss);
+
+        // Escape: the reflex. Bound on the document because focus may sit in the input.
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) dismiss();
+        });
+
+        // Backdrop click, but ONLY the backdrop: a click inside the panel must not close it.
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) dismiss();
         });
 
         // Refresh suggestions
@@ -575,6 +617,30 @@ const CallsignModal = (function() {
     /**
      * Close the modal
      */
+    /* Leave without choosing. Deliberately distinct from close(): close() runs after a SUCCESSFUL
+       save, this runs when the user declines. It fires the completion callback with
+       { skipped: true } so the caller resumes normally instead of waiting forever for a callsign
+       that is never coming, and it does NOT write anything, so the user is re-prompted on a later
+       session and keeps the choice. The callback is captured before close() nulls it. */
+    function dismiss() {
+        /* DELIBERATELY DOES NOT INVOKE onCompleteCallback.
+           That callback means "a callsign was chosen" and every caller treats its argument as a
+           STRING: dashboard.html does
+               CallsignModal.open(user, (callsign) => {
+                   localStorage.setItem('hexworth_callsign', callsign);
+                   updateCallsignDisplay(callsign);
+               });
+           A first version of this passed `{ skipped: true }` to be helpful, which would have
+           written the literal "[object Object]" into localStorage and rendered it as the user's
+           name. Calling a success callback on a non-success is how you turn an escape hatch into a
+           data-corruption bug.
+           Skipping is signalled by an EVENT instead, so a caller opts in rather than being handed
+           a shape it never agreed to parse. Nothing is written, so the user keeps the choice and is
+           re-prompted on a later session. */
+        close();
+        window.dispatchEvent(new CustomEvent('callsignSkipped'));
+    }
+
     function close() {
         if (modal) {
             modal.classList.remove('active');
