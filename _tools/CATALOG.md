@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-06 17:18 · **1196 scripts** · 42 wired into a gate · 284 called by other code · 190 only mentioned in docs · 680 referenced by nothing · 476 not in git
+**Generated:** 2026-09-09 02:39 · **1215 scripts** · 46 wired into a gate · 291 called by other code · 193 only mentioned in docs · 685 referenced by nothing · 476 not in git
 
 ## Read this before writing a new script
 
@@ -41,12 +41,15 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/career/gen-house-tracks.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/components/HouseTracks.js: the house -> course-track map that puts real content links on the 13 careers.html pages. Derived from the generated course-trees catalog, never hand-maintained. |
 | `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
+| `_tools/content/completion-validation.test.js` | `deploy.sh` | yes | Proves the completion registry accepts every id real students hold, rejects fabricated ids, and that every live writer of modulesCompleted/labsCompleted actually calls the guard. Runs offline against the committed snapshot. |
+| `_tools/content/gen-completion-registry.js` | `deploy.sh` | yes | Generates functions/completion-registry.json: every completion id the platform can legitimately award, unioned from declared content plus the ids students already hold. --check fails if the committed registry is stale. |
 | `_tools/deploy/deploy-surface-gate.py` | `deploy.sh` | yes | Blocks debris in the hosting surface: deployable files git does not track. |
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/answer-balance-audit.js` | `deploy.sh` | yes | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
 | `_tools/eduscan/answer-balance-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option |
 | `_tools/eduscan/cli.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
+| `_tools/eduscan/client-query-rules-parity.js` | `deploy.sh` | yes | Cross-checks every client-side Firestore collection query against the `list` rule for that collection. Catches client code asking a question the rules forbid, which fails at runtime for ordinary users and often gets swallowed. |
 | `_tools/eduscan/dash-hygiene-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when CHANGED _app content introduces an em-dash or a " -- " substitute |
 | `_tools/eduscan/hub-registry-audit.js` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
@@ -79,6 +82,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/qa/skill-map-audit.py` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/seo/ping-indexnow.py` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/smoke-lab-content-leaks-remote.sh` | `_tools/deploy/post-verify.sh` | yes | run the lab content-leak smoke on bc1, where headless Chrome is reliable |
+| `_tools/tournament/standings-parity.test.js` | `deploy.sh` | yes | Runs the browser standings rule (_app/components/CtfStandings.js) and the server rule (functions/ctf-standings-rule.js) over one fixture corpus and fails if their orderings differ. Catches the duplicated-rule drift that a comment cannot. |
 
 ## Everything else, by directory
 
@@ -174,7 +178,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `trophies-page-boot.js` | ORPHAN | 0 | 2026-07-10 | yes |  |
 | `trophy-cabinet-catalog-stats.js` | ORPHAN | 0 | 2026-07-10 | yes |  |
 | `trophy-cabinet-model-test.js` | ORPHAN | 0 | 2026-07-10 | yes |  |
-| `trophy-cabinet-render.js` | ORPHAN | 0 | 2026-07-11 | yes |  |
+| `trophy-cabinet-render.js` | ORPHAN | 0 | 2026-09-07 | yes |  |
 | `wall-of-shame-render.js` | ORPHAN | 0 | 2026-07-10 | no |  |
 | `wsa-slide1-build.js` | CALLED | 1 | 2026-06-08 | no |  |
 | `wsa-slide1-data.js` | ORPHAN | 0 | 2026-06-08 | no |  |
@@ -200,6 +204,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `scrape-mslearn.py` | CALLED | 1 | 2026-03-28 | yes |  |
+
+### `_tools/anon` — 2 scripts, 2 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `mark-legacy-anon-profiles.js` | ORPHAN | 0 | 2026-09-09 | yes | Marks the legacy users/{uid} profiles that belong to anonymous Firebase Auth |
+| `verify-372-production.js` | ORPHAN | 0 | 2026-09-09 | yes | Answers "did the fix actually work in production", which is a different claim |
 
 ### `_tools/aplus-qc` — 1 scripts, 1 referenced by nothing
 
@@ -252,11 +263,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `sql-injection-defense-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `subnet-siege-winnability.js` | CALLED | 1 | 2026-07-04 | yes |  |
 
-### `_tools/audit` — 1 scripts, 1 referenced by nothing
+### `_tools/audit` — 3 scripts, 2 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `needs-callsign.test.js` | ORPHAN | 0 | 2026-09-08 | yes | Asserts the needsCallsign rule from FirestoreManager: a callsign is requested only when the auth provider supplied no name and none is already set. |
 | `progress-write-audit.js` | ORPHAN | 0 | 2026-07-30 | yes |  |
+| `streak-plausibility-probe.js` | CALLED | 2 | 2026-09-08 | yes | Read-only production counts behind the task-367 streak bound: how many users hold a streak above each threshold, and how many accounts are old enough that the account-age bound no longer constrains them (older than the 365-day XP cap). |
 
 ### `_tools/blackboard-export` — 1 scripts, 0 referenced by nothing
 
@@ -361,7 +374,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 87 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 88 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -410,6 +423,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `gen-hub-inventory.js` | CALLED | 2 | 2026-07-26 | yes |  |
 | `gen-registry-entries.js` | ORPHAN | 0 | 2026-07-26 | yes |  |
 | `grant-guard-audit.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
+| `guard-registry-audit.js` | CALLED | 1 | 2026-09-07 | yes | Verifies every guard in _docs/operations/critical-guards-registry.md still exists in the code and still carries a rationale comment. Catches a guard silently deleted in a cleanup or a "this rejects something real" fix. |
 | `harness-link-audit.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `hex-ai-button-presence-audit.js` | CALLED | 1 | 2026-05-25 | yes |  |
 | `hscroll-sweep.js` | DOCS-ONLY | 0 | 2026-08-02 | yes |  |
@@ -758,7 +772,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 13 scripts, 8 referenced by nothing
+### `_tools/hexos` — 16 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -770,6 +784,9 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_probe_malformed_api2_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `anon-lazy-auth-clickthrough.test.js` | ORPHAN | 0 | 2026-09-09 | yes | The two sibling harnesses only ever measured PAGE LOAD. This one clicks. It |
+| `anon-load-signin-emulator.test.js` | DOCS-ONLY | 0 | 2026-09-09 | yes | Answers the one question anon-load-signin.test.js cannot: does any page |
+| `anon-load-signin.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves, in a real browser, that removing the load-time anonymous sign-in from |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
@@ -1084,6 +1101,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `capture-tournament.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `gen-preview.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+
+### `_tools/progress-snapshot` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `snapshot.js` | CALLED | 2 | 2026-09-06 | yes | Snapshots every user's progress fields to a timestamped JSON, and diffs two snapshots to show exactly what a change gained, lost or altered. Read-only. |
 
 ### `_tools/qa` — 20 scripts, 9 referenced by nothing
 
@@ -1860,16 +1883,22 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
 
-### `_tools/tournament` — 8 scripts, 0 referenced by nothing
+### `_tools/tournament` — 14 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `badges.test.js` | CALLED | 1 | 2026-09-07 | yes | Runs functions/ctf-badges.js against the FIRESTORE emulator: participation on join, placements from the certified record, and the case that drove the whole design, a corrected result must REVOKE a champion without touching a champion legitimately earned at a different tournament. |
 | `benchmark-tournament.js` | CALLED | 1 | 2026-08-29 | yes | production benchmark: team/challenge scale, submission latency, breaking point |
 | `broadcast-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of broadcast.html's frozen board and its three consumers |
+| `dump-record.js` | CALLED | 1 | 2026-09-07 | yes | Runs the actual finalization transaction against the Firestore emulator and dumps the resulting results/final (v1 and a corrected v2) to JSON, so the render harness drives the pages with data the real function produced, not a hand-typed fixture that could quietly disagree with the schema. |
+| `finalize.test.js` | CALLED | 2 | 2026-09-07 | yes | Runs functions/ctf-finalize.js against the FIRESTORE emulator through the four cases that matter: fresh finalize, idempotent retry, backfill of an already- ended tournament, and a versioned correction. Proves behaviour, not shape. |
 | `inspect-tournaments.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
+| `join-badge.integration.test.js` | ORPHAN | 0 | 2026-09-07 | yes | Invokes the REAL ctfJoinTeam callable against the Firestore emulator and asserts the participation badge is written. Covers fresh join, repeat join, and the legacy-member backfill path, which do NOT all take the same route to the award. |
 | `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
 | `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
 | `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
+| `render-verify.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Loads tournament-podium.html and broadcast.html in headless Chrome with a stubbed Firestore serving a REAL results-of-record (produced by ctf-finalize.js), then asserts the boards actually paint the certified standings and screenshots them. |
+| `results-rules.test.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Runs firestore.rules against the emulator and proves a client cannot land a tournament in 'ended' by ANY verb, and cannot write the certified record — while legitimate admin transitions still work. |
 | `roster-browser-check.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
 | `writebatch-runtime-proof.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | runtime proof that console.html's batched team-roster write works |
 
