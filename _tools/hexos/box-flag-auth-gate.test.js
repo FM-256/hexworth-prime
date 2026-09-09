@@ -111,15 +111,37 @@ function ungatedBoxes() {
         chk(`${box}: unattended flag request still mints nothing`, attempts === 0,
             'attempts=' + attempts);
 
-        // ── 3. NEGATIVE CONTROL + SERIALIZATION ───────────────────────────────────────
-        // A real interaction opens the gate. Then fire EVERY flag at once, the way
-        // _initWithMode's forEach does, and require exactly ONE sign-in attempt: the
-        // in-flight promise in ArenaFirebase.ensureAuth must collapse the stampede.
-        await page.evaluate(() => {
+        // ── 3. A SYNTHETIC EVENT MUST NOT OPEN THE GATE ───────────────────────────────
+        // The mirror of case 4, and the case whose absence let a trust-blind gate pass
+        // review. A page script dispatching its own PointerEvent is exactly how a widget,
+        // an extension or a JS-executing crawler would trip this with no human present;
+        // such an event carries isTrusted === false. If the gate opens here it offers no
+        // defence at all, and cases 1-2 are decoration.
+        const synthetic = await page.evaluate(() => {
+            let seen = null;
+            const spy = (e) => { seen = e.isTrusted; };
+            document.addEventListener('pointerdown', spy, true);
             document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+            document.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'a' }));
+            document.removeEventListener('pointerdown', spy, true);
+            return { isTrusted: seen, engaged: !!BoxEngine._userEngaged };
         });
+        chk(`${box}: synthetic event is genuinely untrusted (probe is valid)`,
+            synthetic.isTrusted === false, 'isTrusted=' + synthetic.isTrusted);
+        chk(`${box}: SYNTHETIC event does NOT open the gate`, synthetic.engaged === false,
+            'engaged=' + synthetic.engaged + ' -- any page script can mint an account');
+        await sleep(800);
+        chk(`${box}: synthetic event minted nothing`, attempts === 0, 'attempts=' + attempts);
+
+        // ── 4. REAL INPUT OPENS IT + SERIALIZATION ────────────────────────────────────
+        // page.mouse.click drives the browser's own input pipeline (CDP Input.dispatch*),
+        // so the event carries isTrusted === true -- a genuine human click, not a forgery.
+        // Then fire EVERY flag at once, the way _initWithMode's forEach does, and require
+        // exactly ONE sign-in: ensureAuth's in-flight promise must collapse the stampede.
+        await page.mouse.click(5, 5);
         const engagedAfter = await page.evaluate(() => !!BoxEngine._userEngaged);
-        chk(`${box}: a real pointerdown opens the gate`, engagedAfter === true);
+        chk(`${box}: a REAL (trusted) click opens the gate`, engagedAfter === true,
+            'engaged=' + engagedAfter);
 
         const before = attempts;
         await page.evaluate(async () => {

@@ -60,6 +60,9 @@ const ArenaFirebase = (function() {
     // Deferred sign-in, armed by init(). See the task-372 note at step 4 below: loading a page
     // must not create an account, so the sign-in waits here until something actually needs a uid.
     let _lazyAuth = null;
+    // In-flight ensureAuth() promise, so concurrent callers share ONE anonymous sign-in
+    // instead of each issuing their own. Reset to null on failure to allow a retry.
+    let _authInFlight = null;
 
     // Promise that resolves when initialization completes (success or failure).
     // Callers awaiting isReady() block on this.
@@ -349,13 +352,34 @@ const ArenaFirebase = (function() {
            because the function has no callers yet. Awaiting isReady() here means the very first
            caller cannot fall into it. */
         ensureAuth: async function () {
-            await isReady();
-            if (!_lazyAuth) {
-                // init() ran and failed (SDK load or app init threw). Say so rather than
-                // resolving quietly — a caller asking for auth must not read silence as success.
-                throw new Error('[ArenaFirebase] ensureAuth: initialization did not complete; no session available');
+            /* SERIALIZED. Concurrent callers share ONE sign-in.
+               `_lazyAuth` is a plain function, not memoized, and FirebaseAuth.signInAnonymously()
+               keeps no in-flight promise either — so N concurrent callers previously issued N
+               separate anonymous sign-ins. That is not hypothetical: BoxEngine's init prefetch
+               loops `config.flags.forEach(f => this.requestFlagText(f.id))`, a forEach and not a
+               sequential await, so every flag on a box fires at the same tick and each one sees
+               isSignedIn() === false before any has resolved. A multi-flag box could therefore
+               mint SEVERAL accounts for a single visitor — worse per pageview than the behaviour
+               task 372 removed. Caching the in-flight promise collapses them into one.
+               Cleared on failure so a later caller can retry rather than inheriting the error. */
+            if (_authInFlight) return _authInFlight;
+
+            _authInFlight = (async () => {
+                await isReady();
+                if (!_lazyAuth) {
+                    // init() ran and failed (SDK load or app init threw). Say so rather than
+                    // resolving quietly — a caller asking for auth must not read silence as success.
+                    throw new Error('[ArenaFirebase] ensureAuth: initialization did not complete; no session available');
+                }
+                return _lazyAuth();
+            })();
+
+            try {
+                return await _authInFlight;
+            } catch (err) {
+                _authInFlight = null;
+                throw err;
             }
-            return _lazyAuth();
         }
     };
 })();

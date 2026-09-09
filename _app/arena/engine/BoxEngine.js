@@ -105,6 +105,9 @@ const BoxEngine = {
             });
         }
 
+        // Arm the engagement gate BEFORE anything can ask for a flag.
+        this._armEngagementGate();
+
         // DevTools detection — research instrumentation only, does NOT block (AR-11).
         // Uses window size differential heuristic: when DevTools is docked,
         // outerWidth - innerWidth grows beyond 200px. Logged for instructor analytics.
@@ -1351,6 +1354,44 @@ const BoxEngine = {
      * Called when the student earns a flag (scenario complete, phase unlock, etc.)
      * Returns the plaintext flag for rendering in terminal/GUI.
      */
+    /**
+     * Arm the engagement gate: flip _userEngaged on the first REAL human interaction.
+     *
+     * This is what separates "a page was loaded" from "a person is using this box", and it
+     * is the whole safety argument for signing a visitor in inside requestFlagText below.
+     * All 95 dispatch box pages call BoxEngine.init() with nothing gating it, and
+     * _initWithMode() prefetches every flag on script execution -- so without this gate a
+     * sign-in would fire on page load and recreate the drive-by account creation task 372
+     * removed.
+     *
+     * Listens for pointerdown and keydown, capture phase. Deliberately NOT scroll,
+     * mousemove or visibilitychange: headless crawlers and prerenderers fire those, and a
+     * false positive here mints an account for a robot.
+     *
+     * event.isTrusted IS THE WHOLE GATE. Without it any page script — a third-party
+     * widget, a tutorial auto-advance, an extension, or a crawler running one line of JS —
+     * opens this with `document.dispatchEvent(new PointerEvent('pointerdown'))` and zero
+     * human input. isTrusted is true only for events the USER AGENT generated from real
+     * input and cannot be forged from page context. Chris proved the gap: a synthetic
+     * dispatch set _userEngaged with no mouse or keyboard involved at all.
+     *
+     * Not { once: true }: an untrusted event must not consume the listener, or one
+     * synthetic dispatch would deafen the gate to the real click that follows. The
+     * listener removes itself only once genuinely engaged.
+     */
+    _armEngagementGate() {
+        if (this._userEngaged || this._engagementArmed) return;
+        this._engagementArmed = true;
+        const mark = (e) => {
+            if (!e || !e.isTrusted) return;   // synthetic dispatch — not a human
+            this._userEngaged = true;
+            document.removeEventListener('pointerdown', mark, true);
+            document.removeEventListener('keydown', mark, true);
+        };
+        document.addEventListener('pointerdown', mark, true);
+        document.addEventListener('keydown', mark, true);
+    },
+
     async requestFlagText(flagId) {
         // Return cached if already delivered
         if (this._deliveredFlags[flagId]) return this._deliveredFlags[flagId];
@@ -1364,30 +1405,47 @@ const BoxEngine = {
         let hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
         const boxId = this.config.registryId;
 
-        /* Establish a session AT THE MOMENT A FLAG IS NEEDED.
+        /* Establish a session ONLY IF A HUMAN HAS ACTUALLY ENGAGED WITH THIS BOX.
          *
-         * Task 372 removed the anonymous sign-in that firebase-init.js used to run on
-         * DOMContentLoaded across 274 pages -- correct, it was minting ~45 accounts/day
-         * from crawler traffic that never clicked anything. But it left ensureAuth() with
-         * ZERO callers, and flag delivery below requires a session. Net effect (task 377):
-         * a visitor could diagnose the fault, repair it, restore connectivity, and then
-         * never receive a flag -- every box with a server-delivered flag was unfinishable
-         * without a session.
+         * Task 372 removed the anonymous sign-in firebase-init.js ran on DOMContentLoaded
+         * across 274 pages -- correct, it minted ~45 accounts/day from crawler traffic that
+         * never clicked anything. But it left ensureAuth() with ZERO callers, and flag
+         * delivery requires a session, so task 377 was the consequence: a visitor could
+         * diagnose the fault, repair it, restore connectivity, and never receive a flag.
          *
-         * Signing in HERE is the design 372 actually described: no uid on page load, a uid
-         * when an operation needs one. Requesting a flag is a deliberate act inside a box a
-         * student chose to start, so it does not reopen the drive-by minting 372 closed.
+         * THE _userEngaged GATE IS LOAD-BEARING, NOT DEFENSIVE. The first version of this
+         * fix called ensureAuth() unconditionally, on the argument that "requesting a flag
+         * is a deliberate act inside a box a student chose to start". THAT ARGUMENT IS
+         * FALSE. _initWithMode() prefetches EVERY flag (see the config.flags.forEach near
+         * the top of this file) and it runs on script execution: all 95 dispatch box pages
+         * call BoxEngine.init() with nothing gating it. So an unconditional ensureAuth()
+         * here fires signInAnonymously() ON PAGE LOAD and reopens the exact defect 372
+         * closed -- on 95 pages. Nancy caught this; NT1, the box the fix was measured on,
+         * sits behind a briefing screen and could not reveal it.
+         *
+         * _userEngaged is set only by a real click or keydown (see _armEngagementGate), so
+         * the unattended prefetch cannot mint an account while a genuine student, who has
+         * by definition clicked or typed to reach a flag, still gets one.
          *
          * ArenaFirebase is a top-level `const` in a classic script, so it lives in the
          * global LEXICAL environment and `window.ArenaFirebase` is always undefined --
-         * reference the bare identifier, guarded by typeof. (See the documented
-         * lexical-const window trap; the same shape bit TenantRouter.)
+         * reference the bare identifier, guarded by typeof. (The documented lexical-const
+         * window trap; the same shape bit TenantRouter.)
          */
-        if (!hasAuth && boxId && typeof ArenaFirebase !== 'undefined'
+        if (!hasAuth && boxId && this._userEngaged
+            && typeof ArenaFirebase !== 'undefined'
             && typeof ArenaFirebase.ensureAuth === 'function') {
             try {
                 await ArenaFirebase.ensureAuth();
-                hasAuth = typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn();
+                /* Do NOT re-read isSignedIn() here and treat it as the verdict.
+                 * isSignedIn() reads currentUser, which is set in handleAuthStateChange via
+                 * the SDK's onAuthStateChanged listener -- a different callback from the
+                 * signInAnonymously() promise chain. There is no documented guarantee the
+                 * listener has run by the time that promise resolves, so a strict re-check
+                 * can read a stale false immediately after a SUCCESSFUL sign-in and throw
+                 * the flag away. ensureAuth() resolving without throwing is the signal;
+                 * the callFunction below is the real test, and it is already in a catch. */
+                hasAuth = true;
             } catch (err) {
                 console.warn('[ARENA] ensureAuth failed before flag delivery:', err.message);
             }
