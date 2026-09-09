@@ -1776,26 +1776,25 @@ const FirestoreManager = (function() {
             console.log('[FirestoreManager] XP recalculated:', xpResult);
         }
 
-        /* A callsign is only needed when the AUTH PROVIDER did not already give us a name.
-         *
-         * This asked only "is the callsign field empty", so a Google user - who arrives with a
-         * perfectly good `displayName` from the provider - was prompted to invent a second name
-         * they did not need. Harmless while the modal worked. Not harmless on 2026-08-21, when the
-         * availability check began failing closed: every callsign read as "taken", the modal has no
-         * dismiss affordance, and new Google signups were trapped. That is the reported symptom
-         * exactly ("sign in with Google, callsign selection, stalls"), and it ran for 18 days.
-         *
-         * The callsign exists for signups that have NO provider-supplied name (password/email).
-         * Federated users already have one, so do not ask them for another.
-         *
-         * Checks the LIVE auth user, not the stored profile: `displayName` is written to the
-         * profile at creation, so a profile that predates that would look nameless and re-prompt.
-         * Falls back to the stored value so a provider hiccup does not suddenly re-prompt everyone.
-         */
-        const authUser = (typeof FirebaseAuth !== 'undefined' && FirebaseAuth.getUser)
-            ? FirebaseAuth.getUser() : null;
-        const providerName = (authUser && authUser.displayName) || currentProfile?.displayName || '';
-        const needsCallsign = !currentProfile?.callsign && !String(providerName).trim();
+        /* REVERTED 2026-09-08, before deploy, on review. Do not re-apply without the vote.
+           This briefly skipped the modal for anyone whose auth provider supplied a displayName, so
+           Google users would never be asked for a callsign. It fixed a real mis-target, but review
+           showed the cure was worse and PERMANENT:
+             - UserProfileModal falls back `callsign || displayName || 'Anonymous'` and renders it
+               as `@name`. It is the ONE consumer that does not fall back to Anonymous, so every
+               Google user's REAL NAME becomes their public, leaderboard-linked handle. My claim
+               that "seven consumers fall back safely" was wrong on exactly the consumer where a
+               human is looking directly at who someone is.
+             - There is NO way back in. CallsignModal.open has one call site, gated on this flag,
+               and no settings UI sets a callsign. Skipped users could never choose one, ever.
+             - They would also silently vanish from the leaderboard (getGlobalLeaderboard skips
+               users with no callsign) and from search (searchUsers queries callsignLower, written
+               only by setCallsign). Silent regressions nobody reports as a bug.
+           The trap that made this urgent is already fixed server-side, so a Google user seeing an
+           unnecessary-but-escapable modal is merely untidy, not harmful. Whether federated users
+           should be prompted at all is a product and privacy decision open on taskboard 370 and
+           needs the four-way vote, not a side effect of a bug fix. */
+        const needsCallsign = !currentProfile?.callsign;
 
         return {
             profile: await getUserProfile(uid),  // Refresh after potential migration

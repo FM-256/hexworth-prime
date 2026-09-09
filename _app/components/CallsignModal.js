@@ -617,11 +617,9 @@ const CallsignModal = (function() {
     /**
      * Close the modal
      */
-    /* Leave without choosing. Deliberately distinct from close(): close() runs after a SUCCESSFUL
-       save, this runs when the user declines. It fires the completion callback with
-       { skipped: true } so the caller resumes normally instead of waiting forever for a callsign
-       that is never coming, and it does NOT write anything, so the user is re-prompted on a later
-       session and keeps the choice. The callback is captured before close() nulls it. */
+    /* Leave without choosing. Distinct from close(): close() runs after a SUCCESSFUL save, this
+       runs when the user declines. Writes nothing, so the user is re-prompted on a later session
+       and keeps the choice. See the note inside for why it does not touch onCompleteCallback. */
     function dismiss() {
         /* DELIBERATELY DOES NOT INVOKE onCompleteCallback.
            That callback means "a callsign was chosen" and every caller treats its argument as a
