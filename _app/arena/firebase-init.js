@@ -57,6 +57,9 @@ const ArenaFirebase = (function() {
     let _db   = null;       // firebase.firestore.Firestore instance
     let _ready = false;     // true once both auth and db are live
     let _initializing = false;
+    // Deferred sign-in, armed by init(). See the task-372 note at step 4 below: loading a page
+    // must not create an account, so the sign-in waits here until something actually needs a uid.
+    let _lazyAuth = null;
 
     // Promise that resolves when initialization completes (success or failure).
     // Callers awaiting isReady() block on this.
@@ -140,10 +143,32 @@ const ArenaFirebase = (function() {
             _auth = getAuth(app);
             _db   = getFirestore(app);
 
-            // 4. Ensure the user is signed in (anonymous is sufficient for arena).
-            //    FirebaseAuth.js handles full Google auth on box pages; we just
-            //    need any UID so Firestore rules can apply.
-            await _ensureSignedIn(_auth, signInAnonymously, onAuthStateChanged);
+            /* 4. ARM the sign-in; do NOT perform it. (task 372, 2026-09-09)
+               This used to `await _ensureSignedIn(...)` right here, on DOMContentLoaded. 276
+               pages load this file and 274 also load FirebaseAuth.js, so simply OPENING a lab
+               page minted a Firebase Auth account AND a users/{uid} profile — no click, no
+               sign-in, no consent. Measured against production: 6306 of 6603 accounts (95.5%)
+               are anonymous, 99.5% of them never active beyond 24h, and the real identified
+               population is 297. It is still happening at roughly 45/day.
+
+               Nothing on the load path needs a uid: the only Firestore call in init() is
+               _verifyFirestore, which pings a nonexistent doc and treats permission-denied as
+               SUCCESS (see its comment) because it is testing the network, not the session.
+               The flows that genuinely need auth already sign in for themselves —
+               CoOpSync.js:103 does exactly this, VS sits behind _launchVsMode(), and HatRating
+               is guarded by FirebaseAuth.isSignedIn().
+
+               An EXISTING session is unaffected: the SDK restores it via onAuthStateChanged
+               regardless of this call, which only ever fired when there was no session at all.
+
+               Proven before shipping, not argued:
+                 _tools/hexos/anon-load-signin.test.js           274/277 -> 0/277 accounts at load
+                 _tools/hexos/anon-load-signin-emulator.test.js  0/277 pages denied without it
+                 _tools/hexos/anon-lazy-auth-clickthrough.test.js co-op + VS still create rooms,
+                                                                  existing session survives reload */
+            _lazyAuth = function () {
+                return _ensureSignedIn(_auth, signInAnonymously, onAuthStateChanged);
+            };
 
             // 5. Verify the Firestore connection with a lightweight ping
             await _verifyFirestore(_db);
@@ -209,9 +234,18 @@ const ArenaFirebase = (function() {
     }
 
     /**
-     * Verify Firestore is reachable by reading a public document.
-     * Uses the leaderboards collection which already allows
-     * authenticated reads in firestore.rules.
+     * Verify Firestore is REACHABLE. This is a network check, not an auth check.
+     *
+     * It pings `_arena_probe_/ping`, a path that deliberately does not exist, and treats BOTH
+     * "not found" and "permission-denied" as success — either answer proves the round trip
+     * completed. It therefore needs no session, which is why removing the load-time sign-in
+     * (step 4 in init()) does not affect it.
+     *
+     * CORRECTED 2026-09-09: this comment previously claimed the probe read the `leaderboards`
+     * collection and needed authenticated reads. Neither was true of the code below, and
+     * `leaderboards` is auth-gated (firestore.rules:401-402) — so the stale text implied a
+     * dependency on the session that does not exist. During task 372 it sent a reviewer to audit
+     * the wrong rule, which is precisely the cost of a comment that outlives its code.
      *
      * Failure is non-fatal — we log a warning but do not throw,
      * so arena pages still load even on flaky connections.
@@ -281,7 +315,48 @@ const ArenaFirebase = (function() {
          *
          * @returns {Promise<boolean>}
          */
-        init
+        init,
+
+        /**
+         * Acquire a session on demand (task 372).
+         *
+         * init() no longer signs anyone in — opening a page must not create an account. Any
+         * caller that genuinely needs a uid asks for one here. Safe to call repeatedly:
+         * _ensureSignedIn defers to an existing FirebaseAuth session and only signs in
+         * anonymously when there is none.
+         *
+         * Resolves harmlessly if init() has not run yet, so a caller never has to guard.
+         *
+         * @returns {Promise<void>}
+         */
+        /* NO CALLER TODAY, AND THAT IS A TRAP WORTH NAMING (Nancy, 2026-09-09 review).
+           274 of the 276 pages that load this file also load FirebaseAuth.js and get their
+           session from the flow that needs it — CoOpSync.js:90-108 signs in for Co-Op and VS
+           alike. The exceptions are `catalog.html` and `arena/index.html`, which load this file
+           WITHOUT FirebaseAuth.js. Those two now run with no session at all, not even an
+           anonymous one. That is correct today: catalog reads `hubRegistry`, whose rule
+           (firestore.rules:1453) is `isAdmin() || resource.data.status == 'published'` and never
+           checks request.auth; arena/index.html touches neither .auth nor .db.
+           If you add ANY auth-gated Firestore call to either page, await ensureAuth() first.
+           Skip it and you get a silent permission-denied with nothing at build time to warn you.
+
+           WAITS FOR init() FIRST, and that is load-bearing (Mallory, 2026-09-09 review).
+           `_lazyAuth` is armed deep inside init(), after three awaited dynamic import()s. The
+           first version of this function read `_lazyAuth ? _lazyAuth() : Promise.resolve()`
+           directly, so a caller who did not already await isReady() got Promise.resolve(undefined)
+           — no sign-in, no error, no signal. `await ensureAuth()` would have LOOKED like "I now
+           have a uid" and handed back nothing. Reproduced as control flow, unreachable today only
+           because the function has no callers yet. Awaiting isReady() here means the very first
+           caller cannot fall into it. */
+        ensureAuth: async function () {
+            await isReady();
+            if (!_lazyAuth) {
+                // init() ran and failed (SDK load or app init threw). Say so rather than
+                // resolving quietly — a caller asking for auth must not read silence as success.
+                throw new Error('[ArenaFirebase] ensureAuth: initialization did not complete; no session available');
+            }
+            return _lazyAuth();
+        }
     };
 })();
 
