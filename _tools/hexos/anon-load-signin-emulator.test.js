@@ -84,14 +84,29 @@ function resolveArms(diskSrc) {
         return { baseline: diskSrc, patched: buildPatched(diskSrc), state: 'not-yet-applied' };
     }
     if (diskSrc.includes('_lazyAuth')) {
+        /* WALK BACK to the last revision that still has the anchor, rather than assuming HEAD
+           is pre-fix. Once the fix is COMMITTED, `git show HEAD:` returns the patched file and
+           there is no control arm — the harness then either compares two identical arms (green,
+           testing nothing) or refuses. It refused, correctly, which is how this was caught.
+           Searching the file's own history makes the harness survive the commit instead of
+           depending on the order operations happened to occur in. */
         const cp = require('child_process');
-        const prev = cp.execSync('git show HEAD:_app/arena/firebase-init.js',
-            { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-        if (!prev.includes(PATCH_ANCHOR)) {
-            throw new Error('fix is applied on disk AND committed at HEAD — no baseline to ' +
-                'compare against. Check out the parent commit to re-verify.');
+        const revs = cp.execSync('git rev-list -n 40 HEAD -- _app/arena/firebase-init.js',
+            { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+            .trim().split('\n').filter(Boolean);
+        for (const rev of revs) {
+            let src;
+            try {
+                src = cp.execSync('git show ' + rev + ':_app/arena/firebase-init.js',
+                    { cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+            } catch (e) { continue; }
+            if (src.includes(PATCH_ANCHOR)) {
+                return { baseline: src, patched: diskSrc,
+                         state: 'applied-on-disk (baseline from ' + rev.slice(0, 9) + ')' };
+            }
         }
-        return { baseline: prev, patched: diskSrc, state: 'applied-on-disk' };
+        throw new Error('fix is applied but NO revision in the last 40 touching this file still ' +
+            'contains the pre-fix anchor — cannot build a control arm.');
     }
     throw new Error('PATCH ANCHOR NOT FOUND and no _lazyAuth marker — file is unrecognised');
 }
