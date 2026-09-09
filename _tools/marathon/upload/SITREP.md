@@ -15,13 +15,73 @@
 - 8f91a7a09 SITREP: escape hatches live; 96% of accounts are anonymous (372) invalidates my ratios
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-09-09 15:50 EDT. **NT1 box fix SHIPPED AND LIVE.
-372 shipped and proven earlier today. Nothing pending deploy.**
+**Manual section updated:** 2026-09-09 16:50 EDT. **NT1 box fix SHIPPED AND LIVE.
+377 (a P0 I caused with 372 this morning) FIXED ON A BRANCH, awaiting Chris, then deploy.**
 
-## ★★ NOW: nothing is in flight. Pick from "OPEN, recommended order" below.
+## ★★ NOW: task 377 on branch `fix-377-flag-delivery`. Operator has authorized deploy on a Chris PASS.
 
-`HEAD` = `fe9775ec6` (NT1 fix), deployed and verified. NOTE: the NT1 commit is
-**not yet pushed** — `origin/master` is still at `967e56c4c`. Push it.
+`master` = `b77641f28`, pushed, deployed, verified. Branch head `31079a1c3`+ carries the
+377 fix; **master and production do not have it yet.**
+
+### ★★ 377 — I BROKE FLAG DELIVERY THIS MORNING WITH 372. Found by walking all five NT1 tickets.
+
+`BoxEngine.requestFlagText` gates on `FirebaseAuth.isSignedIn()`. Before 372, firebase-init.js
+signed every visitor in anonymously at load, so it was always true. 372 removed that correctly and
+wired NOTHING to the `ensureAuth()` it added in the same change. Nancy noted the zero-caller fact
+during that review; neither of us connected it to flags.
+
+**MEASURED, production, all five NT1 scenarios** (`nt1-completable-as-user.test.js` harvests the
+flag from its RENDERED location and submits it through the real modal — it refuses to read engine
+state for its verdict):
+
+    signed in    27 passed / 0 failed   every scenario completable
+    no session   17 passed / 5 failed   fault repaired, connectivity restored,
+                                        flag NEVER APPEARS. Zero completable.
+
+Scope is BoxEngine — every box with a server-delivered flag, not just NT1.
+
+### ★★★ THE LESSON THAT COST THE MOST TODAY: ONE BOX IS NOT A SAMPLE
+
+My first 377 fix called `ensureAuth()` unconditionally, arguing "requesting a flag is a deliberate
+act inside a box a student chose to start." **Nancy proved that FALSE for 95 of 271 pages.** All 95
+dispatch boxes call `BoxEngine.init()` ungated, and `_initWithMode()` prefetches EVERY flag on
+script execution — so the sign-in would have fired ON PAGE LOAD and reopened precisely what 372
+closed, on 95 pages. I re-derived her count myself: `dispatch total=95 ungated=95`.
+
+**I measured both the regression AND the fix on NT1, which sits behind a briefing screen — the one
+box in that set that could not reveal the defect.** Convenience picked the fixture; the fixture
+hid the bug.
+
+She also proved a STAMPEDE: `_lazyAuth` is not memoized and `FirebaseAuth.signInAnonymously()`
+keeps no in-flight promise, while the prefetch loop is a `forEach` — so a 5-flag box would fire 5
+concurrent sign-ins, worse per pageview than before 372. And she pointed out I called the fix
+"unprovable pre-deploy" while owning the emulator harness built for that exact problem.
+
+**REDESIGN:** `_userEngaged`, armed by the first real `pointerdown`/`keydown` (NOT scroll or
+mousemove — crawlers fire those), gates the sign-in; `ensureAuth()` now caches its in-flight
+promise so concurrent callers share ONE sign-in; and the code no longer re-reads `isSignedIn()`
+after signing in, because `currentUser` is set by a DIFFERENT callback than the promise chain and a
+strict re-check can read a stale `false` and throw a good flag away.
+
+**PROOF — `_tools/hexos/box-flag-auth-gate.test.js`** aborts every `identitytoolkit` request at the
+network layer, so the browser is PHYSICALLY unable to mint an account; the attempt is still counted
+and that count is the measurement. It is also immune to the API-key referrer restriction that
+blocks `127.0.0.1` AND preview channels (`auth/requests-from-referer-...-are-blocked`), which is why
+neither local nor preview could prove this end-to-end. Includes a built-in negative control: if the
+engaged case does not attempt a sign-in, the counter is blind and the harness fails itself.
+
+    0 sign-in attempts on load                       ok
+    unattended flag request mints nothing            ok
+    a real pointerdown opens the gate                ok
+    engaged request DOES attempt (negative control)  ok
+    concurrent requests collapse to ONE sign-in      ok
+    66 passed / 0 failed over 11 boxes; all-95 sweep running
+
+### Open tasks filed today
+**373** 49 other dispatch windows-boxes have NT1's dir/cd gap · **374** ~83 configs share the `cls`
+null-fallthrough · **375** NT1 hub-card storageKey matches neither config copy · **376** dispatch and
+arena copies diverged in flag delivery · **377** the P0 above · **378** `hintPenalty: true` renders
+the literal `Reveal Hint (true pts)` on production NT1 (249 configs, 93 mis-scoring).
 
 ### ★★ NT1 network-troubleshoot: four defects, fixed, deployed, verified
 

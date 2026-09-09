@@ -31,7 +31,12 @@ const COPY = copyIdx > -1 ? argv[copyIdx + 1] : 'dispatch';
 const NO_SIGNIN = argv.includes('--no-signin');
 // --local points at a static server over the repo's hosting root, so the fix can be
 // proven BEFORE it is deployed. Production is the default because that is what students load.
-const BASE = argv.includes('--local') ? 'http://127.0.0.1:5599' : 'https://hexworth.com';
+const baseIdx = argv.indexOf('--base');
+// --base <url> targets a preview channel. Needed because Firebase Auth REFUSES
+// 127.0.0.1 as a referer (auth/requests-from-referer-...-are-blocked), so the
+// no-session arm is unprovable locally and must run on an authorized origin.
+const BASE = baseIdx > -1 ? argv[baseIdx + 1]
+    : (argv.includes('--local') ? 'http://127.0.0.1:5599' : 'https://hexworth.com');
 const URL = `${BASE}/${COPY}/boxes/nt1-network-troubleshoot/`;
 
 let pass = 0, fail = 0;
