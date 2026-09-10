@@ -201,7 +201,7 @@ const NT009Config = {
 
         ping:function(args,term,engine){return '\nPing from switch: Type escape sequence to abort.\nSending 5 100-byte ICMP Echos...\n!!!!!\nSuccess rate is 100 percent (5/5)';},
         hostname:function(){return'SW1';},
-        cls:function(args,term){term.outputEl.innerHTML='';return null;},
+        cls:function(args,term){term.outputEl.innerHTML='';return '';},
         enable:function(){return'';},
         ipconfig:function(){return'% Unknown command. Use show commands.';},
         ifconfig:function(){return'% Unknown command.';}

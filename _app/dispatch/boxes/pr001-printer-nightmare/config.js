@@ -700,7 +700,7 @@ var PR1Config = {
 
         hostname: function() { return 'HELPDESK01'; },
 
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
         dir: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 7F3A-2B4E\n\n Directory of C:\\Users\\Technician\n\n03/13/2026  08:15 AM    <DIR>          .\n03/13/2026  08:15 AM    <DIR>          ..\n03/13/2026  08:15 AM    <DIR>          Desktop\n03/13/2026  08:15 AM    <DIR>          Documents\n03/13/2026  08:15 AM    <DIR>          Downloads\n               0 File(s)              0 bytes\n               5 Dir(s)  214,748,364,800 bytes free';

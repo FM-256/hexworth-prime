@@ -309,7 +309,7 @@ const NT007Config = {
         },
 
         hostname: function() { return 'WORKSTATION07'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'WORKSTATION07\\Technician'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.\nDid you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized.'; },

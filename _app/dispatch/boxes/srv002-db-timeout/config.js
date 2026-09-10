@@ -676,7 +676,7 @@ var SRV002Config = {
 
         whoami: function() { return 'DB-PROD-01\\Administrator'; },
         hostname: function() { return 'DB-PROD-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() {
             return '\nWindows IP Configuration\n\nEthernet adapter Ethernet0:\n   IPv4 Address. . . . . . . . . . . : 10.0.2.10\n   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n   Default Gateway . . . . . . . . . : 10.0.2.1\n   DNS Servers . . . . . . . . . . . : 10.0.1.5';
         },

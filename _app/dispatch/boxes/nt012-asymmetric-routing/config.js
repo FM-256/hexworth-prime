@@ -231,7 +231,7 @@ var NT012Config = {
         whoami: function() { return 'admin'; },
         hostname: function() { return 'WS-01'; },
         clear: function(args, term) { term.outputEl.innerHTML = ''; return null; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ls: function() { return 'configs  logs  scripts  tools'; },
         dir: function() { return ' Directory of current folder\n  configs  logs  scripts  tools'; }
     },

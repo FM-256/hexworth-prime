@@ -374,7 +374,7 @@ const NT004Config = {
         nslookup: function(args, term, engine) { const gate = NT004Config._requireScenario(engine); if (gate) return gate; if (!engine.state._networkConfig.connected) return '\nDNS request timed out.'; const t = args[0] || ''; const r = NT004Config._knownDomains[t.toLowerCase()] || '93.184.216.34'; return '\nServer:  dns.google\nAddress:  8.8.8.8\n\nName:    ' + t + '\nAddress:  ' + r; },
         getmac: function() { return '\nPhysical Address    Transport Name\n=================== ==========================================================\n' + NT004Config._macAddress + '   \\Device\\Tcpip_{WIFI-ADAPTER-GUID}'; },
         hostname: function() { return 'LAPTOP-WIFI04'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'LAPTOP-WIFI04\\Technician'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command,\noperable program or batch file.'; },

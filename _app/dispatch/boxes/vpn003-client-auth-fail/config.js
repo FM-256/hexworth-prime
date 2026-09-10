@@ -598,7 +598,7 @@ var VPN003Config = {
 
         whoami: function() { return 'VPN-Admin@VPN-GW-01'; },
         hostname: function() { return 'VPN-GW-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
 
     // ==========================================================

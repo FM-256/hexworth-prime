@@ -348,7 +348,7 @@ var SEC004Config = {
 
         whoami: function() { return 'DLP-WS01\\DLP-Analyst'; },
         hostname: function() { return 'DLP-WS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.2.50\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.2.1'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; },

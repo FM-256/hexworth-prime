@@ -352,7 +352,7 @@ var MAIL005Config = {
 
         whoami: function() { return 'OURCOMPANY\\ExAdmin'; },
         hostname: function() { return 'EXCH-CAS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\ExAdmin\n'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; }
     },

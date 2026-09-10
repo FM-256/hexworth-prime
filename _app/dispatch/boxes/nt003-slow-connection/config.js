@@ -722,7 +722,7 @@ const NT003Config = {
         },
 
         hostname: function() { return 'WORKSTATION03'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'WORKSTATION03\\Technician'; },
 
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: ipconfig'; },

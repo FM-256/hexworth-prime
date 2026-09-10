@@ -357,7 +357,7 @@ var MAIL003Config = {
 
         whoami: function() { return 'OURCOMPANY\\ExAdmin'; },
         hostname: function() { return 'EXCH-HYB01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\ExAdmin\n\n03/30/2026  07:00 AM    <DIR>          Desktop\n03/30/2026  07:00 AM    <DIR>          Documents\n'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command.'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command.'; }

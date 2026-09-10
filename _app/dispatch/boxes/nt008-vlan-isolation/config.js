@@ -252,7 +252,7 @@ const NT008Config = {
         enable: function() { return ''; },
         configure: function() { return '\nUse Switch Config (desktop icon) to make configuration changes.'; },
         hostname: function() { return 'SW1'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ifconfig: function() { return '% Unknown command. Use show commands.'; },
         ipconfig: function() { return '% Unknown command. This is a Cisco switch. Use show commands.'; }
     },

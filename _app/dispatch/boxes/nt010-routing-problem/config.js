@@ -165,7 +165,7 @@ const NT010Config = {
             return '\nReply from '+target+': bytes=32 time=1ms TTL=255\nReply from '+target+': bytes=32 time=1ms TTL=255\n\nSuccess rate is 100 percent (2/2)';
         },
 
-        hostname:function(){return'R1';},cls:function(args,term){term.outputEl.innerHTML='';return null;},enable:function(){return'';},
+        hostname:function(){return'R1';},cls:function(args,term){term.outputEl.innerHTML='';return '';},enable:function(){return'';},
         ipconfig:function(){return'% Unknown command. Use show ip route.';},ifconfig:function(){return'% Unknown command.';}
     },
 

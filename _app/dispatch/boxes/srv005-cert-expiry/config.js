@@ -251,7 +251,7 @@ var SRV005Config = {
         ping: function(args, term, engine) { var gate = SRV005Config._requireScenario(engine); if (gate) return gate; return '\nReply from 10.0.1.10: bytes=32 time<1ms TTL=128\nPackets: Sent = 4, Received = 4, Lost = 0'; },
         whoami: function() { return 'WEB-PROD-01\\Administrator'; },
         hostname: function() { return 'WEB-PROD-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.1.10\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.1.1'; },
         curl: function(args, term, engine) {
             var gate = SRV005Config._requireScenario(engine); if (gate) return gate;

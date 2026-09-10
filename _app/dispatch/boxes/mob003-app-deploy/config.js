@@ -68,7 +68,7 @@ var MOB003Config = {
         },
         whoami: function() { return 'HEXWORTH\\Administrator'; },
         hostname: function() { return 'ADMIN-PC'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
     onAppLaunch: function(iconDef, engine) {
         if (['admin_console'].indexOf(iconDef.app) !== -1 && !engine.state._scenarioSelected) { engine.notify('Open Help Desk Ticket first.', 'error'); return; }

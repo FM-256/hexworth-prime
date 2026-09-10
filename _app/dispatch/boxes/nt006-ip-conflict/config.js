@@ -293,7 +293,7 @@ const NT006Config = {
 
         route: function(args, term, engine) { const gate = NT006Config._requireScenario(engine); if (gate) return gate; const net = engine.state._networkConfig; return '\nIPv4 Route Table\n===========================================================================\n  0.0.0.0          0.0.0.0      ' + (net.gateway||'None') + '    ' + net.ip + '     25\n  127.0.0.0        255.0.0.0         On-link         127.0.0.1    331\n==========================================================================='; },
         hostname: function() { return 'WORKSTATION06'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'WORKSTATION06\\Technician'; },
         getmac: function() { return '\n' + NT006Config._macAddress; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.\n\nDid you mean: ipconfig'; },

@@ -306,7 +306,7 @@ var PR3Config = {
         ping: function(args) { if (!args.length) return '\nUsage: ping target'; if (args[0] === '127.0.0.1') return '\nReply from 127.0.0.1: bytes=32 time<1ms TTL=128'; return '\nPing request could not find host ' + args[0]; },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n               0 File(s)'; },
         systeminfo: function() { return '\nHost Name:  HELPDESK01\nOS Name:    Microsoft Windows 10 Pro\nOS Version: 10.0.19045'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.'; },

@@ -216,7 +216,7 @@ var CLD001Config = {
         },
         whoami: function() { return 'HEXWORTH\\Administrator (M365 Global Admin)'; },
         hostname: function() { return 'ADMIN-PC'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
 
     onAppLaunch: function(iconDef, engine) {

@@ -669,7 +669,7 @@ var HW1Config = {
                 + '\n      Open the Case, Multimeter, BIOS, or POST Codes panels.';
         },
 
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
         dir: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is A4B1-2C3D\n\n Directory of C:\\Users\\Technician\n\n03/13/2026  09:15 AM    <DIR>          .\n03/13/2026  09:15 AM    <DIR>          ..\n03/13/2026  09:15 AM    <DIR>          Desktop\n03/13/2026  09:15 AM    <DIR>          Documents\n               0 File(s)              0 bytes\n               4 Dir(s)  421,477,052,416 bytes free';

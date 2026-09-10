@@ -837,7 +837,7 @@ var SRV001Config = {
         // --- UTILITY COMMANDS ---
         whoami: function() { return 'WEB-PROD-01\\Administrator'; },
         hostname: function() { return 'WEB-PROD-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 9A2F-1B3E\n\n Directory of C:\\Users\\Administrator\n\n03/30/2026  06:15 AM    <DIR>          .\n03/30/2026  06:15 AM    <DIR>          ..\n03/30/2026  06:15 AM    <DIR>          Desktop\n03/30/2026  06:15 AM    <DIR>          Documents\n               0 File(s)              0 bytes\n               4 Dir(s)  428,000,000,000 bytes free';
         },

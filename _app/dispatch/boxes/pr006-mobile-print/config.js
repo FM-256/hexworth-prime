@@ -198,7 +198,7 @@ var PR6Config = {
         ipconfig: function(args, term, engine) { return '\nIPv4 Address: 192.168.1.50\nSubnet Mask: 255.255.255.0\nGateway: 192.168.1.1'; },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(a, t) { t.outputEl.innerHTML = ''; return null; },
+        cls: function(a, t) { t.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n  0 File(s)'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; }

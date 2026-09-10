@@ -288,7 +288,7 @@ var SRV004Config = {
         ping: function(args, term, engine) { var gate = SRV004Config._requireScenario(engine); if (gate) return gate; return '\nReply from 10.0.1.30: bytes=32 time<1ms TTL=128\nPackets: Sent = 4, Received = 4, Lost = 0'; },
         whoami: function() { return 'APP-PROD-02\\Administrator'; },
         hostname: function() { return 'APP-PROD-02'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.1.30\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.1.1'; },
         sudo: function() { return '\'sudo\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; }

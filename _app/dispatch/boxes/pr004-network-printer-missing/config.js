@@ -320,7 +320,7 @@ var PR4Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n               0 File(s)'; },
         systeminfo: function() { return '\nHost Name: HELPDESK01\nOS: Windows 10 Pro 10.0.19045'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command.'; },

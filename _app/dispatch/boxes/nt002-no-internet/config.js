@@ -934,7 +934,7 @@ const NT002Config = {
         },
 
         hostname: function() { return 'PC-BLDG-B-042'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n Directory of C:\\Users\\Technician\n\n03/29/2026  08:30 AM    <DIR>          .\n03/29/2026  08:30 AM    <DIR>          ..\n03/29/2026  08:30 AM    <DIR>          Desktop\n03/29/2026  08:30 AM    <DIR>          Documents\n03/29/2026  08:30 AM    <DIR>          Downloads\n               0 File(s)              0 bytes\n               5 Dir(s)  214,748,364,800 bytes free';
         },

@@ -66,20 +66,42 @@ const add = (sev, rule, box, message, detail) =>
 function loadConfig(file) {
     const src = fs.readFileSync(file, 'utf8');
     const sandbox = {
-        window: {}, console,
+        window: {},
+        // Silenced: several configs log at load, and in --json mode that text landed in the
+        // middle of the JSON document and made the output unparseable.
+        console: { log() {}, warn() {}, error() {}, info() {}, debug() {} },
         document: { createElement: () => ({ set textContent(v) { this.innerHTML = v; }, innerHTML: '' }) },
         BoxEngine: { requestFlagText: async () => 'flag{x}', getDeliveredFlag: () => 'flag{x}' },
         navigator: { userAgent: '' }, location: { href: '' }
     };
     vm.createContext(sandbox);
-    // The config object is a top-level `const <Name>Config = {...}` in a classic script.
-    const m = src.match(/const\s+([A-Za-z0-9_]*Config)\s*=\s*\{/);
+    /* Boxes declare their config in THREE forms, measured across the tree:
+     *     const <Name>Config = {     189 boxes
+     *     var   <Name>Config = {      84 boxes
+     *     window.<Name>Config = {     20 boxes
+     * Matching only `const` silently skipped 105 of 293 configs — every house lab among
+     * them — and a skipped config contributes no findings, so the gate reported a clean
+     * sweep over boxes it had never opened. A detector that cannot parse its subject
+     * reports agreement, which is the most dangerous way to be wrong. */
+    const m = src.match(/(?:^|\n)\s*(?:const|var|let)\s+([A-Za-z0-9_]*Config)\s*=\s*\{/)
+           || src.match(/(?:^|\n)\s*window\.([A-Za-z0-9_]*Config)\s*=\s*\{/);
     if (!m) return null;
-    vm.runInContext(src + `\n;globalThis.__CFG = ${m[1]};`, sandbox, { filename: file, timeout: 5000 });
+    const ref = /window\./.test(m[0]) ? `window.${m[1]}` : m[1];
+    vm.runInContext(src + `\n;globalThis.__CFG = ${ref};`, sandbox, { filename: file, timeout: 5000 });
     return sandbox.__CFG || null;
 }
 
-/** Every box config in the tree, dispatch + arena + house labs. */
+/**
+ * Every box config in the tree: dispatch, arena AND the house labs.
+ *
+ * The house labs (under _app/houses, any depth, path containing /labs/ — dark-arts CEH,
+ * shield security-plus and infosec-PIS, matrix adv-linux) load the SAME shared
+ * BoxEngine.js and 38 of them carry `hintPenalty: true`. An earlier version of this
+ * function walked only dispatch and arena while the docstring above it claimed house-lab
+ * coverage — so ~62 boxes were permanently invisible to a gate whose stated purpose is
+ * catching this class of defect, and the docstring vouched for a scope the code did not
+ * have. Nancy caught it. Walk the tree, do not enumerate two roots and hope.
+ */
 function boxConfigs() {
     const out = [];
     for (const base of ['dispatch/boxes', 'arena/boxes']) {
@@ -90,6 +112,21 @@ function boxConfigs() {
             if (fs.existsSync(cfg)) out.push({ name, area: base.split('/')[0], file: cfg });
         }
     }
+    // House labs live at varying depths, so recurse rather than assume a shape.
+    const housesRoot = path.join(APP, 'houses');
+    const stack = fs.existsSync(housesRoot) ? [housesRoot] : [];
+    while (stack.length) {
+        const d = stack.pop();
+        let entries = [];
+        try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch (e) { continue; }
+        for (const e of entries) {
+            const p = path.join(d, e.name);
+            if (e.isDirectory()) { stack.push(p); continue; }
+            if (e.name !== 'config.js') continue;
+            if (!/[\\/]labs[\\/]/.test(p)) continue;
+            out.push({ name: path.basename(path.dirname(p)), area: 'houses', file: p });
+        }
+    }
     return ONLY ? out.filter(b => b.name === ONLY) : out;
 }
 
@@ -98,7 +135,7 @@ function boxConfigs() {
 // lint's mirror is stale and its verdicts are worthless — so say so loudly rather than keep
 // reporting confidently against an expression that no longer exists.
 const ENGINE_SRC = fs.readFileSync(ENGINE, 'utf8');
-const PRICE_EXPR = 'const base = hint.penalty || scoring.hintPenalty || -50;';
+const PRICE_EXPR = 'const raw = hint.penalty ?? this._scoringHintPenalty(scoring);';
 const canaryOk = ENGINE_SRC.includes(PRICE_EXPR);
 if (!canaryOk) {
     add('HIGH', 'CANARY-001', '(engine)',
@@ -152,18 +189,35 @@ for (const box of boxConfigs()) {
     if (cfg._scenarioHints) for (const k of Object.keys(cfg._scenarioHints)) {
         if (Array.isArray(cfg._scenarioHints[k])) hintSets.push(cfg._scenarioHints[k]);
     }
+    // MIRROR OF BoxEngine._getEffectiveHintPenalty. Must track it exactly; CANARY-001
+    // above pins the engine's line so this cannot drift unnoticed. `??` consults the
+    // fallback only for null/undefined, so an explicit `penalty: 0` means FREE; the
+    // typeof guard means a non-numeric config can never be arithmetic'd into a score.
     const bad = [];
     for (const set of hintSets) {
         for (const h of set) {
             if (!h || typeof h !== 'object') continue;
-            const base = h.penalty || scoring.hintPenalty || -50;
-            if (typeof base !== 'number') bad.push(`${h.id || '?'} -> ${JSON.stringify(base)}`);
+            const cfgRaw = scoring.hintPenalty;
+            const cfgPen = (typeof cfgRaw === 'number' && isFinite(cfgRaw)) ? cfgRaw : -50;
+            const raw = h.penalty ?? cfgPen;
+            const base = (typeof raw === 'number' && isFinite(raw)) ? raw : -50;
+            if (typeof base !== 'number') bad.push(`${h.id || '?'} -> ${JSON.stringify(raw)}`);
         }
     }
     if (bad.length) {
         add('HIGH', 'HINT-001', label,
             'hint price does not resolve to a number; the student sees it in the button label and it is added to the score',
             bad.slice(0, 4).join(', '));
+    }
+
+    // HINT-002: the engine now refuses to use a non-numeric hintPenalty, so this is no
+    // longer student-visible — but it is meaningless data sitting in the config, and the
+    // next author to add a hint WITHOUT an explicit penalty inherits a silent -50 from a
+    // field that reads like it configures something. LOW: worth cleaning, never blocking.
+    if ('hintPenalty' in scoring && typeof scoring.hintPenalty !== 'number') {
+        add('LOW', 'HINT-002', label,
+            'scoring.hintPenalty is not a number; the engine ignores it and falls back to -50',
+            'value: ' + JSON.stringify(scoring.hintPenalty));
     }
 
     // ── SHELL-001 ───────────────────────────────────────────────────────────────────────
@@ -202,12 +256,25 @@ for (const box of boxConfigs()) {
         const fn = commands[name];
         if (typeof fn !== 'function') continue;
         const src = fn.toString();
-        // Only the unconditional trailing `return null` shape; a guarded null is legitimate.
-        if (/return\s+null\s*;?\s*\}\s*$/.test(src) && !/if\s*\(/.test(src)) {
+        if (!/return\s+null\s*[;\n]/.test(src)) continue;
+
+        /* THE DISCRIMINATOR IS THE BUILTIN, NOT AN `if`.
+         *
+         * The first version only flagged an UNCONDITIONAL trailing `return null` and
+         * excluded any function containing `if (` ANYWHERE in its source. Chris proved that
+         * hides real instances: c12-ghost-driver's `ps` returns null for every context but
+         * two, with no `ps` builtin to catch it, so a student typing `ps` in the wrong
+         * context gets the bash-flavoured "ps: command not found". The unrelated `if`
+         * earlier in the function was doing all the hiding. Five such cases were invisible.
+         *
+         * Returning null is only ever LEGITIMATE as "defer to the builtin", which requires a
+         * builtin of that name to exist. Where none does, ANY reachable null — conditional
+         * or not — lands on Terminal.js's `default:` and prints a bash error inside the box.
+         * So the rule keys on whether the fallthrough target exists. */
+        if (!BUILTINS.includes(name)) {
             add('HIGH', 'SHELL-003', label,
-                `\`${name}\` returns bare null; Terminal.js reads that as "fall through to the builtin"`,
-                BUILTINS.includes(name) ? `builtin '${name}' exists — inherits POSIX behaviour`
-                                        : `no builtin '${name}' — prints "${name}: command not found"`);
+                `\`${name}\` can return null and there is NO builtin to fall through to`,
+                `Terminal.js prints "${name}: command not found"`);
         }
     }
 
@@ -248,7 +315,12 @@ for (const box of boxConfigs()) {
     }
 }
 
-// ── report ──────────────────────────────────────────────────────────────────────────────
+/* ── report ──────────────────────────────────────────────────────────────────────────────
+ * Wrapped in a function, and every exit now sets process.exitCode instead of calling
+ * process.exit(). process.exit() TERMINATES BEFORE PENDING STDOUT WRITES FLUSH when stdout
+ * is a pipe, which silently truncated the --json document mid-object at ~65KB. A gate whose
+ * own report can be cut off without saying so is a gate you cannot trust the output of. */
+function report() {
 const high = findings.filter(f => f.severity === 'HIGH');
 const low = findings.filter(f => f.severity !== 'HIGH');
 
@@ -296,12 +368,14 @@ if (argv.includes('--update-baseline')) {
         keys: nowKeys
     }, null, 2));
     console.log(`\nbaseline updated: ${nowKeys.length} known findings recorded`);
-    process.exit(canaryOk ? 0 : 2);
+    process.exitCode = canaryOk ? 0 : 2;
+    return;
 }
 
 if (!canaryOk) {
     console.log('\nCANARY BROKEN — the engine expression HINT-001 mirrors has changed.');
-    process.exit(2);
+    process.exitCode = 2;
+    return;
 }
 
 let known = [];
@@ -312,13 +386,18 @@ const knownSet = new Set(known);
 const introduced = nowKeys.filter(k => !knownSet.has(k));
 const fixed = known.filter(k => !nowKeys.includes(k));
 
-if (fixed.length) console.log(`\n${fixed.length} baseline finding(s) no longer present — run --update-baseline to bank that.`);
+if (fixed.length && !AS_JSON) console.log(`\n${fixed.length} baseline finding(s) no longer present — run --update-baseline to bank that.`);
 
 if (introduced.length) {
-    console.log(`\nNEW findings not in the baseline (${introduced.length}) — these block:`);
-    for (const k of introduced) console.log('  - ' + k);
-    process.exit(1);
+    if (!AS_JSON) {
+        console.log(`\nNEW findings not in the baseline (${introduced.length}) — these block:`);
+        for (const k of introduced) console.log('  - ' + k);
+    }
+    process.exitCode = 1;
+    return;
 }
 
-console.log(`\nno new findings (${known.length} known, tracked as tasks 373/374/378)`);
-process.exit(0);
+if (!AS_JSON) console.log(`\nno new findings (${known.length} known, tracked as tasks 373/374/378)`);
+}
+
+report();

@@ -352,7 +352,7 @@ const NT005Config = {
         },
 
         hostname: function() { return 'LAPTOP-VPN05'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'LAPTOP-VPN05\\Technician'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.\n\nDid you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized.'; },

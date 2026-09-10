@@ -896,7 +896,7 @@ var AD001Config = {
 
         whoami: function() { return 'HEXWORTH\\Administrator'; },
         hostname: function() { return 'DC01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
         dir: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 9C7D-3E5F\n\n Directory of C:\\Windows\\System32\n\n03/13/2026  08:00 AM    <DIR>          .\n03/13/2026  08:00 AM    <DIR>          ..\n03/13/2026  08:00 AM    <DIR>          WindowsPowerShell\n               0 File(s)              0 bytes\n               3 Dir(s)  102,400,000,000 bytes free';

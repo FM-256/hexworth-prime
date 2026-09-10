@@ -449,7 +449,7 @@ var PR2Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Volume in drive C has no label.\n Directory of C:\\Users\\Technician\n               0 File(s)              0 bytes'; },
         systeminfo: function() { return '\nHost Name:                 HELPDESK01\nOS Name:                   Microsoft Windows 10 Pro\nOS Version:                10.0.19045\nSystem Model:              Dell OptiPlex 5090\nTotal Physical Memory:     8,192 MB'; },
 

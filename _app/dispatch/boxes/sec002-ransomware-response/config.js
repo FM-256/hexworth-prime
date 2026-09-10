@@ -571,7 +571,7 @@ var SEC002Config = {
 
         whoami: function() { return 'IR-WS01\\IR-Analyst'; },
         hostname: function() { return 'IR-WS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         systeminfo: function() {
             return '\nHost Name:                 IR-WS01\nOS Name:                   Microsoft Windows 10 Enterprise\nOS Version:                10.0.19045\nSystem Manufacturer:       Dell Inc.\nTotal Physical Memory:     32,768 MB\nDomain:                    corp.hexworth.local';
         },

@@ -189,7 +189,7 @@ var PR5Config = {
         'get-printer': function(args, term, engine) { var g = PR5Config._requireScenario(engine); if (g) return g; var o = '\n'; PR5Config._printers.forEach(function(p, i) { var s = PR5Config._getPrinterState(engine, i); o += s.name + ' | ' + s.status + '\n'; }); return o; },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(a, t) { t.outputEl.innerHTML = ''; return null; },
+        cls: function(a, t) { t.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n  0 File(s)'; },
         systeminfo: function() { return '\nHost Name: HELPDESK01\nOS: Windows 10 Pro'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },

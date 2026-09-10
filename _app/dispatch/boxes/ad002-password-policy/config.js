@@ -668,7 +668,7 @@ var AD002Config = {
 
         whoami: function() { return 'HEXWORTH\\Administrator'; },
         hostname: function() { return 'DC01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nWindows IP Configuration\n\nEthernet adapter Ethernet0:\n   IPv4 Address. . . . : 192.168.1.10\n   Subnet Mask . . . . : 255.255.255.0\n   Default Gateway . . : 192.168.1.1\n'; }
     },
 

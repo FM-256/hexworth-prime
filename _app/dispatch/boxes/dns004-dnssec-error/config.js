@@ -126,7 +126,7 @@ var DNS004Config = {
 
         whoami: function() { return 'DNS-01\\Administrator'; },
         hostname: function() { return 'DNS-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ping: function() { return '\nReply from 10.0.1.5: bytes=32 time<1ms TTL=128'; }
     },
 

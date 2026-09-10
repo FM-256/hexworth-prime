@@ -231,7 +231,7 @@ var IOT003Config = {
         whoami: function() { return 'iot-admin'; },
         hostname: function() { return 'MQTT-SRV-01'; },
         clear: function(args, term) { term.outputEl.innerHTML = ''; return null; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ls: function() { return 'configs  logs  scripts  tools'; },
         dir: function() { return ' Directory of current folder\n  configs  logs  scripts  tools'; }
     },

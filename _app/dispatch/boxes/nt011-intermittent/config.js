@@ -155,7 +155,7 @@ const NT011Config = {
         netstat:function(args,term,engine){const gate=NT011Config._requireScenario(engine);if(gate)return gate;return'\nActive Connections\n\n  Proto  Local Address          Foreign Address        State\n  TCP    192.168.1.90:49152     52.113.194.132:443     ESTABLISHED\n  TCP    127.0.0.1:49155        127.0.0.1:49156        ESTABLISHED';},
 
         hostname:function(){return'WORKSTATION11';},
-        cls:function(args,term){term.outputEl.innerHTML='';return null;},
+        cls:function(args,term){term.outputEl.innerHTML='';return '';},
         whoami:function(){return'WORKSTATION11\\Technician';},
         ifconfig:function(){return'\'ifconfig\' is not recognized.\nDid you mean: ipconfig';},
         grep:function(){return'\'grep\' is not recognized.';},

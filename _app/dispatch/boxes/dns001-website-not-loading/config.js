@@ -304,7 +304,7 @@ var DNS001Config = {
 
         whoami: function() { return 'DNS-01\\Administrator'; },
         hostname: function() { return 'DNS-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         sudo: function() { return '\'sudo\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; }
     },

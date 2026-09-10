@@ -149,7 +149,7 @@ var DNS002Config = {
         ping: function(args, term, engine) { var gate = DNS002Config._requireScenario(engine); if (gate) return gate; var t = args[0] || ''; if (t === '172.16.1.5') return '\nReply from 172.16.1.5: bytes=32 time=5ms TTL=62\nPackets: Sent = 4, Received = 4, Lost = 0'; return '\nReply from 10.0.1.5: bytes=32 time<1ms TTL=128'; },
         whoami: function() { return 'DNS-01\\Administrator'; },
         hostname: function() { return 'DNS-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         sudo: function() { return '\'sudo\' is not recognized.'; }
     },
 

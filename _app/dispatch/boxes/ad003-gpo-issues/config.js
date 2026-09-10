@@ -299,7 +299,7 @@ var AD003Config = {
 
         whoami: function() { return 'HEXWORTH\\Administrator'; },
         hostname: function() { return 'DC01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
         'get-aduser': function(args, term, engine) {
             var gate = AD003Config._requireScenario(engine);

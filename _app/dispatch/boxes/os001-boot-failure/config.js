@@ -774,7 +774,7 @@ var OS1Config = {
 
         hostname: function() { return 'WKST-042'; },
 
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
         whoami: function() { return 'WKST-042\\WinRE'; },
 

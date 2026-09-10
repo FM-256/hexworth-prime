@@ -165,7 +165,7 @@ var HW3Config = {
         'get-display': function(args, term, engine) { var g = HW3Config._requireScenario(engine); if (g) return g; var sc = HW3Config._getScenario(engine); return '\nDisplay Adapter: Intel UHD 750\nMonitor 1: Dell P2419H (1920x1080)\nInput: DisplayPort\nStatus: ' + (engine.state._wrongInput ? 'No Signal (wrong input)' : engine.state._resTooHigh ? 'Out of Range (4K on 1080p)' : engine.state._gpuArtifacts ? 'Artifacts (driver crash)' : 'Active'); },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(a, t) { t.outputEl.innerHTML = ''; return null; },
+        cls: function(a, t) { t.outputEl.innerHTML = ''; return ''; },
         systeminfo: function() { return '\nHost Name: HELPDESK01\nOS: Windows 10 Pro\nGPU: Intel UHD 750'; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n  0 File(s)'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },

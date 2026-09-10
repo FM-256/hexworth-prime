@@ -414,7 +414,7 @@ var SEC003Config = {
 
         whoami: function() { return 'SOC-WS01\\SOC-Analyst'; },
         hostname: function() { return 'SOC-WS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.2.50\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.2.1'; },
 
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.'; },

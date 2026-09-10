@@ -332,7 +332,7 @@ var MAIL004Config = {
 
         whoami: function() { return 'OURCOMPANY\\MigAdmin'; },
         hostname: function() { return 'EXCH-MIG01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         dir: function() { return ' Directory of C:\\Users\\MigAdmin\n'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; }
     },

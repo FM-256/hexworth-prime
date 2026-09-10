@@ -227,7 +227,7 @@ var HW2Config = {
         },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(a, t) { t.outputEl.innerHTML = ''; return null; },
+        cls: function(a, t) { t.outputEl.innerHTML = ''; return ''; },
         systeminfo: function() { return '\nHost Name: HELPDESK01\nOS: Windows 10 Pro 10.0.19045\nProcessor: Intel Core i5-11500\nTotal Physical Memory: 16,384 MB'; },
         dir: function() { return ' Directory of C:\\Users\\Technician\n  0 File(s)'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
