@@ -306,7 +306,7 @@ const NT005Config = {
                 let output = '\nServer:  dc1.corp.local\nAddress:  10.10.0.2\n\nName:    ' + target + '\nAddress:  ' + internalIP;
                 if (engine.state._flagRevealed && NT005Config._getScenario(engine)?.id === 'dns_vpn') {
                     const flagVal = await engine.requestFlagText('dns_vpn');
-                    output += '\n\n  DNS Resolution Restored — Recovery token: ' + flagVal;
+                    output += '\n\n  DNS Resolution Restored — Recovery token: ' + NT005Config._flagText(flagVal);
                 }
                 return output;
             }

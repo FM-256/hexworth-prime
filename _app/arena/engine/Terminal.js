@@ -764,8 +764,16 @@ class TerminalInstance {
     }
 
     _cmdHelp() {
+        /* A leading underscore marks an INTERNAL command helper, not a tool a student
+         * should be told about. Boxes register such helpers in `commands` because that is
+         * where the dispatcher can reach them — e.g. `_dirHome`, the box's authored `dir`
+         * listing, called through by a path-aware wrapper. Listing them here advertised
+         * "_dirHome" to students as an available tool in a Windows AD training box. Chris
+         * found it live in `help` on 9 boxes. Filtering here fixes the class once, for any
+         * internal helper a box adds later, rather than relying on 10 files to keep the
+         * convention by hand. */
         const builtins = ['ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'find', 'whoami', 'id', 'file', 'echo', 'clear', 'help', 'history', 'exit'];
-        const customs = Object.keys(this.config.commands || {});
+        const customs = Object.keys(this.config.commands || {}).filter(function (c) { return c[0] !== '_'; });
 
         let output = '<span class="term-info">Built-in commands:</span>\n  ' + builtins.join(', ');
         if (customs.length) {
@@ -780,7 +788,7 @@ class TerminalInstance {
             return;
         }
         const topic = args[0].toLowerCase();
-        const customs = Object.keys(this.config.commands || {});
+        const customs = Object.keys(this.config.commands || {}).filter(function (c) { return c[0] !== '_'; });
         const builtins = ['ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'find', 'whoami', 'id', 'file', 'echo', 'clear', 'help', 'history', 'exit', 'hostname', 'uname', 'date', 'man'];
 
         if (customs.includes(topic)) {
@@ -814,7 +822,7 @@ class TerminalInstance {
         if (parts.length <= 1) {
             // Complete commands
             const builtins = ['ls', 'cd', 'pwd', 'cat', 'head', 'tail', 'find', 'whoami', 'id', 'file', 'echo', 'clear', 'help', 'history', 'exit', 'hostname', 'uname', 'date'];
-            const customs = Object.keys(this.config.commands || {});
+            const customs = Object.keys(this.config.commands || {}).filter(function (c) { return c[0] !== '_'; });
             const all = [...builtins, ...customs];
             const matches = all.filter(c => c.startsWith(partial));
             if (matches.length === 1) {

@@ -83,16 +83,35 @@ function boxes() {
                 if (b) b.click();
             });
             await sleep(1600);
+            /* Resolve the ticket icon from the CONFIG, like the terminal icon below. Guessing
+             * at the label missed sec002 and srv004, whose ticket window therefore never
+             * opened, so no scenario was selected — and since those boxes gate `cd` on having
+             * a ticket (matching their own `dir`), the harness read the gate message as a
+             * navigation failure and reported a WORKING box as broken. */
             await page.evaluate(() => {
-                const i = [...document.querySelectorAll('.desktop-icon')].find(x => /help desk|ticket/i.test(x.textContent));
-                if (i) i.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                var cfg = (typeof BoxEngine !== 'undefined' && BoxEngine.config) || {};
+                var icons = (cfg.desktop && cfg.desktop.icons) || [];
+                var t = icons.find(function (i) { return i.app === 'ticket'; });
+                var els = [...document.querySelectorAll('.desktop-icon')];
+                var el = null;
+                if (t && t.label) {
+                    var want = t.label.replace(/\s+/g, ' ').trim().toLowerCase();
+                    el = els.find(function (x) {
+                        return x.textContent.replace(/\s+/g, ' ').trim().toLowerCase().indexOf(want) === 0;
+                    });
+                }
+                if (!el) el = els.find(function (x) { return /help desk|ticket|incident|case/i.test(x.textContent); });
+                if (el) el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
             });
             await sleep(900);
+            // Pick a scenario however this box spells its picker; fall back to a random button.
             await page.evaluate(() => {
-                const b = document.querySelector('[class*="scenario-btn"]');
+                var b = document.querySelector('[class*="scenario-btn"]')
+                     || document.querySelector('[id*="RandomBtn"]')
+                     || [...document.querySelectorAll('button')].find(function (x) { return /random|assign|select/i.test(x.textContent); });
                 if (b) b.click();
             });
-            await sleep(1200);
+            await sleep(1400);
             /* Find the terminal icon from the CONFIG, not by guessing at its label. Boxes
              * name it "Command Prompt", "PowerShell", "Terminal" and others — an earlier
              * word-matching selector missed ad001-lockout-storm's "PowerShell" entirely and

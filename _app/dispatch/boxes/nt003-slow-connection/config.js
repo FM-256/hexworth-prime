@@ -603,7 +603,7 @@ const NT003Config = {
 
             if (engine.state._flagRevealed && NT003Config._getScenario(engine)?.id === 'dns_latency' && NT003Config._validDNS.includes(server)) {
                 const flagVal = await engine.requestFlagText('dns_latency');
-                output += '\n\n  [Query time: 12ms — DNS performance restored]\n  Recovery token: ' + flagVal;
+                output += '\n\n  [Query time: 12ms — DNS performance restored]\n  Recovery token: ' + NT003Config._flagText(flagVal);
             }
 
             return output;
@@ -671,7 +671,7 @@ const NT003Config = {
                         }
                         engine.save();
                         const flagVal = await engine.requestFlagText('mtu_issues');
-                        return '\nOk.\n\n  MTU for interface "' + NT003Config._adapterName + '" set to ' + newMTU + '.\n  Fragmentation issue resolved.\n\n  Recovery token: ' + flagVal;
+                        return '\nOk.\n\n  MTU for interface "' + NT003Config._adapterName + '" set to ' + newMTU + '.\n  Fragmentation issue resolved.\n\n  Recovery token: ' + NT003Config._flagText(flagVal);
                     }
                     engine.save();
                     return '\nOk.\n\n  MTU for interface "' + NT003Config._adapterName + '" set to ' + newMTU + '.';

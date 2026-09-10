@@ -597,7 +597,7 @@ const NT002Config = {
                 // Show flag in ipconfig after DHCP renewal for dhcp_expired scenario
                 if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'dhcp_expired') {
                     const flagVal = await engine.requestFlagText('dhcp_expired');
-                    output += '\n\n   DHCP Lease Obtained. . . . . . . : ' + new Date().toLocaleDateString() + '\n   DHCP Lease Recovery Token . . . . : ' + flagVal;
+                    output += '\n\n   DHCP Lease Obtained. . . . . . . : ' + new Date().toLocaleDateString() + '\n   DHCP Lease Recovery Token . . . . : ' + NT002Config._flagText(flagVal);
                 }
 
                 return output;
@@ -773,7 +773,7 @@ const NT002Config = {
             // Show flag in nslookup after DNS fix
             if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'dns_down' && NT002Config._validDNS.includes(server)) {
                 const flagVal = await engine.requestFlagText('dns_down');
-                output += '\n\n  DNS Resolution Restored — Recovery token: ' + flagVal;
+                output += '\n\n  DNS Resolution Restored — Recovery token: ' + NT002Config._flagText(flagVal);
             }
 
             return output;
@@ -956,7 +956,7 @@ const NT002Config = {
                 // Show flag in route print after gateway fix
                 if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'wrong_gateway' && net.gateway === '192.168.1.254') {
                     const flagVal = await engine.requestFlagText('wrong_gateway');
-                    output += '\n\n  Routing table updated — Recovery token: ' + flagVal;
+                    output += '\n\n  Routing table updated — Recovery token: ' + NT002Config._flagText(flagVal);
                 }
 
                 return output;

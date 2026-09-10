@@ -796,7 +796,14 @@ var OS1Config = {
 
         /* Windows `cd`. Never null — Terminal.js reads null as "fall through to the
          * builtin", which is the bash-error path this replaces. */
-        cd: function(args, term) {
+        cd: function(args, term, engine) {
+            /* Gate exactly as this box's own `dir` does. Before the cd override existed, a
+             * pre-ticket `cd` failed with a bash error, which incidentally blocked movement;
+             * adding a working cd removed that accident, so the box's real intent has to be
+             * stated deliberately. Boxes whose dir does NOT gate are left ungated — matching
+             * the author, not imposing a rule they did not write. */
+            var gate = OS1Config._requireScenario && OS1Config._requireScenario(engine);
+            if (gate) return gate;
             var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
             if (!raw) return (term && term.cwd) || OS1Config._homeDir;
             var path = OS1Config._canonDir(OS1Config._resolveWinPath(term, raw));

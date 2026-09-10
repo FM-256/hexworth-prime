@@ -6,6 +6,20 @@
    ============================================================ */
 
 const NT008Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that into student-visible text yields the literal word
+     * "null": `'Recovery token: ' + fv` becomes `'Recovery token: null'`. A student who
+     * reads "unavailable — reload" reloads; a student who reads "null" reports a broken lab.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'VLAN Isolation',
     subtitle: 'VLAN Troubleshooting — Network+',
@@ -185,7 +199,7 @@ const NT008Config = {
 
                 if (engine.state._flagRevealed && NT008Config._getScenario(engine)?.id === 'wrong_vlan' && !engine.state._wrongVLAN) {
                     const fv = await engine.requestFlagText('wrong_vlan');
-                    output += '\n  VLAN assignment corrected — Recovery token: ' + fv;
+                    output += '\n  VLAN assignment corrected — Recovery token: ' + NT008Config._flagText(fv);
                 }
                 return output;
             }
@@ -200,11 +214,11 @@ const NT008Config = {
 
                 if (engine.state._flagRevealed && NT008Config._getScenario(engine)?.id === 'trunk_missing' && !engine.state._trunkMissing) {
                     const fv = await engine.requestFlagText('trunk_missing');
-                    output += '\n\n  Trunk updated — Recovery token: ' + fv;
+                    output += '\n\n  Trunk updated — Recovery token: ' + NT008Config._flagText(fv);
                 }
                 if (engine.state._flagRevealed && NT008Config._getScenario(engine)?.id === 'native_mismatch' && !engine.state._nativeMismatch) {
                     const fv = await engine.requestFlagText('native_mismatch');
-                    output += '\n\n  Native VLAN matched — Recovery token: ' + fv;
+                    output += '\n\n  Native VLAN matched — Recovery token: ' + NT008Config._flagText(fv);
                 }
                 return output;
             }
@@ -224,7 +238,7 @@ const NT008Config = {
                     output += 'Vlan40                 10.40.0.1       YES manual up                    up\n';
                     if (engine.state._flagRevealed && NT008Config._getScenario(engine)?.id === 'svi_missing') {
                         const fv = await engine.requestFlagText('svi_missing');
-                        output += '\n  SVI created — Recovery token: ' + fv;
+                        output += '\n  SVI created — Recovery token: ' + NT008Config._flagText(fv);
                     }
                 }
                 return output;
@@ -347,7 +361,7 @@ const NT008Config = {
         // Show flag
         if (engine.state._flagRevealed) {
             const fv = await engine.requestFlagText(s.id);
-            html += '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; margin-top:16px;"><div style="color:#2ecc71; font-weight:bold;">VLAN Issue Resolved:</div><div style="color:#c8e6c9;">Recovery token: '+fv+'</div></div>';
+            html += '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; margin-top:16px;"><div style="color:#2ecc71; font-weight:bold;">VLAN Issue Resolved:</div><div style="color:#c8e6c9;">Recovery token: '+ NT008Config._flagText(fv)+'</div></div>';
         }
 
         c.innerHTML = html;

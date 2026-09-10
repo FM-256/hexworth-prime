@@ -6,6 +6,20 @@
    ============================================================ */
 
 const NT007Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that into student-visible text yields the literal word
+     * "null": `'Recovery token: ' + fv` becomes `'Recovery token: null'`. A student who
+     * reads "unavailable — reload" reloads; a student who reads "null" reports a broken lab.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'DNS Resolution Failure',
     subtitle: 'DNS Troubleshooting — Network+',
@@ -235,7 +249,7 @@ const NT007Config = {
                 let output = '\nServer:  dns2.internal\nAddress:  192.168.1.3\n\nName:    ' + target + '\nAddress:  ' + ip;
                 if (engine.state._flagRevealed && NT007Config._getScenario(engine)?.id === 'forward_zone') {
                     const fv = await engine.requestFlagText('forward_zone');
-                    output += '\n\n  Zone restored — Recovery token: ' + fv;
+                    output += '\n\n  Zone restored — Recovery token: ' + NT007Config._flagText(fv);
                 }
                 return output;
             }
@@ -253,7 +267,7 @@ const NT007Config = {
 
             if (engine.state._flagRevealed && NT007Config._getScenario(engine)?.id === 'wrong_dns' && NT007Config._validDNS.includes(server)) {
                 const fv = await engine.requestFlagText('wrong_dns');
-                output += '\n\n  DNS restored — Recovery token: ' + fv;
+                output += '\n\n  DNS restored — Recovery token: ' + NT007Config._flagText(fv);
             }
 
             return output;

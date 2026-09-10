@@ -373,7 +373,12 @@ if (argv.includes('--update-baseline')) {
 }
 
 if (!canaryOk) {
-    console.log('\nCANARY BROKEN — the engine expression HINT-001 mirrors has changed.');
+    /* Never in --json: it lands AFTER the document and makes it unparseable, so a consumer
+     * piping this to a parser gets a syntax error instead of the warning. The finding is in
+     * `findings` as CANARY-001, which is where a machine reader should look. This guard has
+     * now been lost twice to a wholesale file copy from another branch — if it goes missing
+     * again, the symptom is "Extra data" from json.load. */
+    if (!AS_JSON) console.log('\nCANARY BROKEN — the engine expression HINT-001 mirrors has changed.');
     process.exitCode = 2;
     return;
 }

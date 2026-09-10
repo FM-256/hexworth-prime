@@ -6,6 +6,20 @@
    ============================================================ */
 
 const NT010Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that into student-visible text yields the literal word
+     * "null": `'Recovery token: ' + fv` becomes `'Recovery token: null'`. A student who
+     * reads "unavailable — reload" reloads; a student who reads "null" reports a broken lab.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'Routing Problem',
     subtitle: 'Routing Troubleshooting — Network+',
@@ -133,7 +147,7 @@ const NT010Config = {
                 if(engine.state._wrongNexthop) output+='S    10.30.0.0/24 [1/0] via '+engine.state._currentNexthop+' (BACKUP WAN)\n';
                 else if(engine.state._correctNexthop) output+='S    10.30.0.0/24 [1/0] via 192.168.1.2\n';
                 if(engine.state._routingLoop) output+='S    10.50.0.0/24 [1/0] via 172.16.0.2\n  [WARNING: Routing loop detected for this prefix]\n';
-                if(engine.state._flagRevealed){const fv=await engine.requestFlagText(NT010Config._getScenario(engine).id);output+='\n  Routing corrected — Recovery token: '+fv;}
+                if(engine.state._flagRevealed){const fv=await engine.requestFlagText(NT010Config._getScenario(engine).id);output+='\n  Routing corrected — Recovery token: '+ NT010Config._flagText(fv);}
                 return output;
             }
 
@@ -206,7 +220,7 @@ const NT010Config = {
             const f=fixes[s.id];
             html+='<div style="border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:12px;margin-bottom:16px;"><div style="font-weight:bold;margin-bottom:8px;">Issue: '+f.label+'</div><div style="font-size:0.75rem;margin-bottom:8px;">Status: <span style="color:'+(f.broken?'#e74c3c;font-weight:bold;">ACTIVE':'#2ecc71;">RESOLVED')+'</span></div>'+(f.broken?'<button id="rtrFix" style="padding:6px 20px;background:#14b8a6;color:#fff;border:none;border-radius:3px;cursor:pointer;font-weight:bold;font-size:0.75rem;">'+f.btn+'</button>':'')+'</div>';
         }
-        if(engine.state._flagRevealed&&s){const fv=await engine.requestFlagText(s.id);html+='<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:4px;padding:12px;margin-top:16px;"><div style="color:#2ecc71;font-weight:bold;">Routing Fixed:</div><div style="color:#c8e6c9;">Recovery token: '+fv+'</div></div>';}
+        if(engine.state._flagRevealed&&s){const fv=await engine.requestFlagText(s.id);html+='<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:4px;padding:12px;margin-top:16px;"><div style="color:#2ecc71;font-weight:bold;">Routing Fixed:</div><div style="color:#c8e6c9;">Recovery token: '+ NT010Config._flagText(fv)+'</div></div>';}
         c.innerHTML=html;
         const btn=document.getElementById('rtrFix');
         if(btn&&s){const key=fixes[s.id].key;btn.addEventListener('click',function(){engine.state[key]=false;if(!engine.state._labComplete){engine.state._labComplete=true;engine.state._flagRevealed=true;}engine.save();engine.notify('Routing issue resolved.','success');NT010Config._renderRouter(engine);});}
