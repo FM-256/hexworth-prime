@@ -7,6 +7,22 @@
    ============================================================ */
 
 var AD002Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -815,7 +831,7 @@ var AD002Config = {
         if (flagVal) {
             html += '<div style="padding:12px; background:rgba(46,204,113,0.1); border-top:1px solid rgba(46,204,113,0.3);">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Incident Closure Token:</div>'
-                + '<div style="color:#c8e6c9;">' + flagVal + '</div></div>';
+                + '<div style="color:#c8e6c9;">' + AD002Config._flagText(flagVal) + '</div></div>';
         }
 
         container.innerHTML = html;

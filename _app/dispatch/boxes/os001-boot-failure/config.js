@@ -6,6 +6,22 @@
    ============================================================ */
 
 var OS1Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -306,7 +322,7 @@ var OS1Config = {
         box.style.cssText = 'margin-top:12px; padding:12px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.4); border-radius:4px; font-family:Consolas,monospace; font-size:0.8rem;';
         if (flagVal) {
             box.innerHTML = '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">REPAIR COMPLETE — BOOT LOG ENTRY:</div>'
-                + '<div style="color:#c8e6c9;">' + flagVal + '</div>'
+                + '<div style="color:#c8e6c9;">' + OS1Config._flagText(flagVal) + '</div>'
                 + '<div style="color:#888; font-size:0.7rem; margin-top:4px;">Submit this flag using the SUBMIT FLAG button.</div>';
         } else {
             box.innerHTML = '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">REPAIR COMPLETE — BOOT LOG ENTRY:</div>'

@@ -7,6 +7,22 @@
    ============================================================ */
 
 var AD001Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -1300,7 +1316,7 @@ var AD001Config = {
                     + (engine.state._flagRevealed && flagVal
                         ? '<div style="margin-top:16px; padding:10px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; font-size:0.75rem;">'
                         + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Incident Closure Token:</div>'
-                        + '<div style="color:#c8e6c9;">' + flagVal + '</div></div>'
+                        + '<div style="color:#c8e6c9;">' + AD001Config._flagText(flagVal) + '</div></div>'
                         : '')
                     + '</div>';
             } else if (activeTab === 1) {
@@ -1789,7 +1805,7 @@ var AD001Config = {
             var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['brute_force']) ? engine._deliveredFlags['brute_force'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-size:0.8rem; font-weight:bold; margin-bottom:4px;">Deny rule active — attack source blocked.</div>'
-                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem;">Bulk-unlock accounts to complete remediation and retrieve the incident token.</div>')
+                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + AD001Config._flagText(flagVal) + '</div>' : '<div style="color:#888; font-size:0.75rem;">Bulk-unlock accounts to complete remediation and retrieve the incident token.</div>')
                 + '</div>';
         }
 
@@ -2074,7 +2090,7 @@ var AD001Config = {
             var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['rogue_task']) ? engine._deliveredFlags['rogue_task'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-weight:bold; font-size:0.8rem;">Gi0/21 disabled — DESK-142 is offline. Rogue scheduled task neutralized.</div>'
-                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem; margin-top:4px;">Unlock affected accounts to complete remediation.</div>')
+                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + AD001Config._flagText(flagVal) + '</div>' : '<div style="color:#888; font-size:0.75rem; margin-top:4px;">Unlock affected accounts to complete remediation.</div>')
                 + '</div>';
         }
 

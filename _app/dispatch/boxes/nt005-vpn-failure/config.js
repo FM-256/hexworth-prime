@@ -6,6 +6,22 @@
    ============================================================ */
 
 const NT005Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'VPN Failure',
     subtitle: 'VPN Connectivity Troubleshooting — Network+',
@@ -429,7 +445,7 @@ const NT005Config = {
         if (showSplitFlag || showFWFlag) {
             html += '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; margin-top:16px;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">VPN Issue Resolved:</div>'
-                + '<div style="color:#c8e6c9;">Recovery token: ' + flagVal + '</div></div>';
+                + '<div style="color:#c8e6c9;">Recovery token: ' + NT005Config._flagText(flagVal) + '</div></div>';
         }
 
         c.innerHTML = html;
@@ -467,7 +483,7 @@ const NT005Config = {
         }
         if (showFlag) {
             html += '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
-                + '<div style="color:#2ecc71; font-weight:bold;">Certificate Renewed:</div><div style="color:#c8e6c9;">Recovery token: ' + flagVal + '</div></div>';
+                + '<div style="color:#2ecc71; font-weight:bold;">Certificate Renewed:</div><div style="color:#c8e6c9;">Recovery token: ' + NT005Config._flagText(flagVal) + '</div></div>';
         }
         c.innerHTML = html;
         const renewBtn = document.getElementById('certRenew');
@@ -505,7 +521,7 @@ const NT005Config = {
         }
         if (showFlag) {
             html += '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px; margin-top:16px;">'
-                + '<div style="color:#2ecc71; font-weight:bold;">Time Synchronized:</div><div style="color:#c8e6c9;">Recovery token: ' + flagVal + '</div></div>';
+                + '<div style="color:#2ecc71; font-weight:bold;">Time Synchronized:</div><div style="color:#c8e6c9;">Recovery token: ' + NT005Config._flagText(flagVal) + '</div></div>';
         }
         c.innerHTML = html;
         c.querySelectorAll('.svc-resync').forEach(function(btn) {
