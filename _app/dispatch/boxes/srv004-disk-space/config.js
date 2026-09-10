@@ -4,6 +4,40 @@
    ============================================================ */
 
 var SRV004Config = {
+    /* ── Windows shell: a filesystem `cd` can actually walk ─────────────────────────────
+     * This box overrode `dir` but not `cd`, so `cd` fell through to Terminal.js's POSIX
+     * builtin and answered a bash error for a directory `dir` had just advertised. The tree
+     * is DERIVED from that `dir` output — the union across every scenario branch it can
+     * take — so whatever `dir` can list is exactly what `cd` accepts. */
+    _homeDir: 'C:\\Users\\Administrator',
+    _fileTree: {
+        'C:\\Users\\Administrator': ['Desktop', 'Documents'],
+        'C:\\Users\\Administrator\\Desktop': [],
+        'C:\\Users\\Administrator\\Documents': []
+    },
+
+    _canonDir(p) {
+        var lower = String(p).toLowerCase();
+        return Object.keys(SRV004Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _resolveWinPath(term, arg) {
+        var cwd = (term && term.cwd) || SRV004Config._homeDir;
+        if (!arg) return cwd;
+        var p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) { /* absolute */ }
+        else if (p === '.') return cwd;
+        else if (p === '..') {
+            var cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
+    },
+
 
     title: 'Disk Space Emergency',
     subtitle: 'C:\\ Is 99% Full — Server Troubleshooting',
@@ -175,7 +209,38 @@ var SRV004Config = {
             return '\nUsage: wmic logicaldisk get DeviceID,Size,FreeSpace';
         },
 
+        /* Windows `cd`. Never returns null — Terminal.js reads null as "fall through to the
+         * builtin", the bash-error path this replaces. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || SRV004Config._homeDir;
+            var path = SRV004Config._canonDir(SRV004Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';
+        },
+
+        /* At home, the box's own authored listing is returned unchanged (_dirHome), so the
+         * per-scenario branches it contains are preserved; inside a subdirectory it renders
+         * that directory instead of repeating the home listing. */
         dir: function(args, term, engine) {
+            var path = SRV004Config._canonDir(SRV004Config._resolveWinPath(term, args && args[0]));
+            if (!path) return 'The system cannot find the path specified.';
+            if (path === SRV004Config._homeDir) return SRV004Config.commands._dirHome(args, term, engine);
+            var kids = SRV004Config._fileTree[path] || [];
+            var out = ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n';
+            out += ' Directory of ' + path + '\n\n';
+            ['.', '..'].concat(kids).forEach(function (d) {
+                out += '03/12/2026  08:30 AM    <DIR>          ' + d + '\n';
+            });
+            out += '               0 File(s)              0 bytes\n';
+            out += String(kids.length + 2).padStart(16) + ' Dir(s)  214,748,364,800 bytes free';
+            return out;
+        },
+
+
+        _dirHome: function(args, term, engine) {
             var gate = SRV004Config._requireScenario(engine); if (gate) return gate;
             var joined = args.join(' ').toLowerCase();
             var scenario = SRV004Config._getScenario(engine);

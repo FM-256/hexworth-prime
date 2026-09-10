@@ -6,6 +6,50 @@
    ============================================================ */
 
 var OS1Config = {
+    /* ── WinRE shell: a filesystem `cd` can walk ────────────────────────────────────────
+     * This is a recovery console: it boots at X:\Sources and the whole puzzle is locating
+     * the Windows installation at C:\Windows. `dir` already accepted a PATH argument and
+     * listed C:\Windows on demand, but `cd` was never overridden, so it fell through to
+     * Terminal.js's POSIX builtin and answered "cd: c:\windows: No such file or directory"
+     * — a bash error refusing the exact directory the box had just told the student to go
+     * and look at.
+     *
+     * The tree is keyed on what `dir` can already produce, so the two agree by construction.
+     * Note the children of C:\Windows are NOT children of the start directory — that is why
+     * this box could not take the generated treatment the other boxes did. */
+    _homeDir: 'X:\\Sources',
+    _fileTree: {
+        'X:\\Sources': [],
+        'C:\\Windows': ['System32', 'SysWOW64', 'WinSxS', 'Fonts', 'Logs'],
+        'C:\\Windows\\System32': [],
+        'C:\\Windows\\SysWOW64': [],
+        'C:\\Windows\\WinSxS': [],
+        'C:\\Windows\\Fonts': [],
+        'C:\\Windows\\Logs': []
+    },
+
+    _canonDir(p) {
+        var lower = String(p).toLowerCase();
+        return Object.keys(OS1Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _resolveWinPath(term, arg) {
+        var cwd = (term && term.cwd) || OS1Config._homeDir;
+        if (!arg) return cwd;
+        var p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) { /* absolute */ }
+        else if (p === '.') return cwd;
+        else if (p === '..') {
+            var cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
+    },
+
     /**
      * Render a delivered flag, or say something a student can act on.
      *
@@ -750,7 +794,30 @@ var OS1Config = {
 
         // --- DIR ---
 
+        /* Windows `cd`. Never null — Terminal.js reads null as "fall through to the
+         * builtin", which is the bash-error path this replaces. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || OS1Config._homeDir;
+            var path = OS1Config._canonDir(OS1Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';
+        },
+
+        /* The authored handler decides what to show from its PATH ARGUMENT, so a bare `dir`
+         * always described X:\Sources even after the student had cd'd to C:\Windows. Feeding
+         * it the current directory when no argument is given makes `cd` and `dir` agree
+         * while leaving the authored listings — and the scenario gate inside them —
+         * completely untouched. */
         dir: function(args, term, engine) {
+            var a = (args && args.length) ? args : [(term && term.cwd) || OS1Config._homeDir];
+            return OS1Config.commands._dirHome(a, term, engine);
+        },
+
+
+        _dirHome: function(args, term, engine) {
             const gate = OS1Config._requireScenario(engine);
             if (gate) return gate;
 
