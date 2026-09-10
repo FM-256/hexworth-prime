@@ -36,6 +36,7 @@ const ONLY = arg('--box', null);
 const BASE = `http://127.0.0.1:${PORT}`;
 
 let pass = 0, fail = 0, skip = 0;
+const skipped = [];
 /** Record one assertion; failures print the observed value so the line says why. */
 const chk = (label, cond, detail) => {
     if (cond) { pass++; console.log('    ok   ' + label); }
@@ -92,15 +93,40 @@ function boxes() {
                 if (b) b.click();
             });
             await sleep(1200);
+            /* Find the terminal icon from the CONFIG, not by guessing at its label. Boxes
+             * name it "Command Prompt", "PowerShell", "Terminal" and others — an earlier
+             * word-matching selector missed ad001-lockout-storm's "PowerShell" entirely and
+             * the box was silently skipped. The icon whose `app` is 'terminal' is the one
+             * BoxEngine will route to ArenaTerminal, whatever it is called on screen. */
             await page.evaluate(() => {
-                const i = [...document.querySelectorAll('.desktop-icon')].find(x => /command|terminal|prompt/i.test(x.textContent));
-                if (i) i.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+                var cfg = (typeof BoxEngine !== 'undefined' && BoxEngine.config) || {};
+                var icons = (cfg.desktop && cfg.desktop.icons) || [];
+                var termIcon = icons.find(function (i) { return i.app === 'terminal'; });
+                var els = [...document.querySelectorAll('.desktop-icon')];
+                var el = null;
+                if (termIcon && termIcon.label) {
+                    var want = termIcon.label.replace(/\s+/g, ' ').trim().toLowerCase();
+                    el = els.find(function (x) {
+                        return x.textContent.replace(/\s+/g, ' ').trim().toLowerCase().indexOf(want) === 0;
+                    });
+                }
+                if (!el) el = els.find(function (x) { return /command|terminal|prompt|powershell|shell|cmd/i.test(x.textContent); });
+                if (el) el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
             });
             await sleep(900);
 
             const ready = await page.evaluate(() =>
                 typeof ArenaTerminal !== 'undefined' && ArenaTerminal._instances.length > 0);
-            if (!ready) { skip++; console.log(`\n--- ${box}\n    ..   no terminal opened; skipped`); await page.close(); await ctx.close(); continue; }
+            if (!ready) {
+                /* NOT benign. A skipped box is an unverified box, and a sweep that skips
+                 * quietly reports coverage it does not have. Named, counted, and it fails
+                 * the run so the number cannot be mistaken for a clean result. */
+                skip++; skipped.push(box);
+                console.log(`\n--- ${box}\n    SKIP no terminal opened — box NOT verified`);
+                try { await page.close(); } catch (e) {}
+                try { await ctx.close(); } catch (e) {}
+                continue;
+            }
 
             /** Run one command through the real dispatcher; return only the new output. */
             const run = (c) => page.evaluate(async (cmd) => {
@@ -166,12 +192,22 @@ function boxes() {
             fail++;
             console.log(`\n--- ${box}\n    FAIL threw: ${e.message.slice(0, 110)}`);
         } finally {
-            await page.close();
-            await ctx.close();
+            /* Closing must never abort the sweep. A ctx.close() on an already-gone target
+             * throws "Protocol error (Target.closeTarget)", and because that happens in
+             * `finally` it propagated out of the loop and killed the entire run — after ONE
+             * box. The run still printed a summary and, piped to tail, still exited 0. A
+             * harness that dies on box 1 and reports success is worse than no harness. */
+            try { await page.close(); } catch (e) { /* already gone */ }
+            try { await ctx.close(); } catch (e) { /* already gone */ }
         }
     }
 
     await browser.close();
     console.log(`\n${pass} passed, ${fail} failed, ${skip} skipped`);
-    process.exitCode = fail > 0 ? 1 : 0;
+    if (skipped.length) {
+        console.log('\nNOT VERIFIED (no terminal opened) — these are unverified, not passing:');
+        skipped.forEach(function (b) { console.log('  - ' + b); });
+    }
+    // Skips count against the run: coverage claimed must be coverage achieved.
+    process.exitCode = (fail > 0 || skip > 0) ? 1 : 0;
 })().catch(e => { console.error('HARNESS FAILED: ' + e.message); process.exitCode = 1; });
