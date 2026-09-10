@@ -1491,6 +1491,59 @@ const BoxEngine = {
      * Used by Terminal._appendOutput and custom command handlers.
      * Unresolved tokens show a placeholder.
      */
+    /**
+     * Swap the pending flag placeholders already rendered on screen for `html`.
+     *
+     * Extracted so SUCCESS and FAILURE go through one path. Previously only the success
+     * branch touched the DOM, so a failed delivery left "[FLAG LOADING...]" on screen
+     * permanently with nothing to act on.
+     *
+     * `alsoPending` exists to keep an important distinction. "[FLAG LOADING...]" means a
+     * fetch is in flight, so it is ours to overwrite either way. "[FLAG PENDING - Complete
+     * the challenge]" means the student has not EARNED the flag yet — overwriting that with
+     * "unavailable" on a delivery failure would tell them something false. So the pending
+     * marker is only ever replaced on success, exactly as the original code did.
+     */
+    _swapFlagPlaceholder(html, alsoPending) {
+        /* THE ORIGINAL SELECTOR NEVER MATCHED THE CONTAINER, so this replacement has been
+         * silently doing nothing — on SUCCESS as well as failure. Terminal.js gives every
+         * output LINE the class `term-output` (see _appendOutput/_appendHtml) while the
+         * scrolling container is `terminal-output`. `querySelector('.term-output')` therefore
+         * returned the first line div, which does not contain the placeholder, and the
+         * innerHTML rewrite landed on the wrong element. Measured in a browser:
+         *     selector matched : term-output   (a line)
+         *     container        : terminal-output
+         *     placeholder in matched element : false
+         *     placeholder in container       : true
+         * So any box revealing a flag through a {{FLAG:}} token in terminal output showed
+         * "[FLAG LOADING...]" forever. Found while fixing the failure branch Chris flagged.
+         *
+         * Prefer the live Terminal instances over a selector: they own the element, so this
+         * cannot drift with the markup again. The selectors stay as a fallback for panes the
+         * engine renders itself. */
+        var targets = [];
+        if (typeof ArenaTerminal !== 'undefined' && Array.isArray(ArenaTerminal._instances)) {
+            ArenaTerminal._instances.forEach(function (t) { if (t && t.outputEl) targets.push(t.outputEl); });
+        }
+        ['.terminal-output', '#terminal-output', '.webapp [data-results]'].forEach(function (sel) {
+            document.querySelectorAll(sel).forEach(function (el) {
+                if (targets.indexOf(el) === -1) targets.push(el);
+            });
+        });
+
+        targets.forEach(function (el) {
+            var out = el.innerHTML.replace(/\[FLAG LOADING\.\.\.\]/g, html);
+            /* "[FLAG LOADING...]" means a fetch is in flight, so it is ours to overwrite
+             * either way. "[FLAG PENDING - Complete the challenge]" means the student has not
+             * EARNED it yet — overwriting that with "unavailable" would tell them something
+             * false, so it is only ever replaced on success. */
+            if (alsoPending) {
+                out = out.replace(/\[FLAG PENDING - Complete the challenge\]/g, html);
+            }
+            el.innerHTML = out;
+        });
+    },
+
     resolveFlagTokens(text) {
         if (!text || typeof text !== 'string') return text;
         var self = this;
@@ -1505,21 +1558,24 @@ const BoxEngine = {
                 self.requestFlagText(id).then(function(flagText) {
                     delete self._flagFetchPending[id];
                     if (flagText) {
-                        // Replace all [FLAG LOADING...] placeholders in terminal output with the real flag
-                        var termOutput = document.querySelector('.term-output, #terminal-output');
-                        if (termOutput) {
-                            termOutput.innerHTML = termOutput.innerHTML
-                                .replace(/\[FLAG LOADING\.\.\.\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>')
-                                .replace(/\[FLAG PENDING - Complete the challenge\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>');
-                        }
-                        // Also replace in browser webapp output
-                        var webappOutput = document.querySelector('.webapp [data-results]');
-                        if (webappOutput) {
-                            webappOutput.innerHTML = webappOutput.innerHTML
-                                .replace(/\[FLAG LOADING\.\.\.\]/g, '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>');
-                        }
+                        self._swapFlagPlaceholder(
+                            '<span style="color:#2ecc71;font-weight:bold;">' + flagText + '</span>', true);
+                    } else {
+                        /* DELIVERY FAILED. Say so.
+                         * This branch used to do nothing, so the student was left looking at
+                         * "[FLAG LOADING...]" forever — a promise that never resolves, with no
+                         * hint anything had gone wrong. That is worse than the literal "null"
+                         * this change set out to remove: null at least admits a failure.
+                         * Chris caught it on the arena copy, where two of NT1's five scenarios
+                         * render through this token path. */
+                        self._swapFlagPlaceholder(
+                            '<span style="color:#e74c3c;">[flag unavailable — reload the page to retry]</span>', false);
                     }
-                }).catch(function() { delete self._flagFetchPending[id]; });
+                }).catch(function() {
+                    delete self._flagFetchPending[id];
+                    self._swapFlagPlaceholder(
+                        '<span style="color:#e74c3c;">[flag unavailable — reload the page to retry]</span>', false);
+                });
             }
             return '[FLAG LOADING...]';
         });
