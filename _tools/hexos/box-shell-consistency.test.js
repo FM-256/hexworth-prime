@@ -136,7 +136,22 @@ function boxes() {
                 return t.outputEl.innerText.slice(before);
             }, c);
 
-            console.log(`\n--- ${box}`);
+            /* WHICH SHELL IS THIS BOX PRETENDING TO BE?
+             * The first version asserted a WINDOWS contract on every box and produced 18
+             * failures that were all FALSE — iot*, nt012-016, sec006-010 and the mail boxes
+             * are promptStyle 'linux', where `cd: X: No such file or directory` is the
+             * CORRECT answer and `bash: cls: command not found` is deliberate. Acting on
+             * those "failures" would have converted correct Linux sims into broken Windows
+             * ones. A detector keyed on the wrong surface does not just miss defects, it
+             * manufactures them. 27 of the 44 dispatch boxes with a `dir` are Windows-style;
+             * 17 are not. */
+            const style = await page.evaluate(() => {
+                var cfg = (typeof BoxEngine !== 'undefined' && BoxEngine.config) || {};
+                return (cfg.terminal && cfg.terminal.promptStyle) || 'linux';
+            });
+            const isWin = style === 'windows' || style === 'powershell';
+
+            console.log(`\n--- ${box}  [${style}]`);
 
             const listing = await run('dir');
             const advertised = listing.split('\n')
@@ -144,9 +159,12 @@ function boxes() {
                 .map(l => l.split('<DIR>')[1].trim())
                 .filter(d => d && d !== '.' && d !== '..');
 
-            // 1. `cls` must not print a bash error after clearing.
+            // 1. On a WINDOWS box, `cls` must not print a bash error after clearing. On a
+            // Linux box refusing `cls` is correct behaviour, so the assertion is not applied.
             const clsOut = await run('cls');
-            chk('cls does not print "command not found"', !/command not found/i.test(clsOut), clsOut.slice(0, 100));
+            if (isWin) {
+                chk('cls does not print "command not found"', !/command not found/i.test(clsOut), clsOut.slice(0, 100));
+            }
 
             // 2. Every directory `dir` advertises must be enterable.
             const stuck = [];
@@ -182,10 +200,17 @@ function boxes() {
                     unreachable.length === 0, unreachable.join('; '));
             }
 
-            // 3. A missing path answers in Windows wording, not bash.
+            // 3. A missing path must answer in the box's OWN shell idiom. On Windows that
+            // means not leaking the POSIX builtin's bash wording; on Linux that wording is
+            // exactly right and asserting against it would be the inverted mistake.
             const missing = await run('cd ZzNoSuchDir');
-            chk('missing path gives the Windows error, not bash',
-                !/No such file or directory/i.test(missing), missing.slice(0, 110));
+            if (isWin) {
+                chk('missing path gives the Windows error, not bash',
+                    !/No such file or directory/i.test(missing), missing.slice(0, 110));
+            } else {
+                chk('missing path answers in this box\'s own shell idiom',
+                    /No such file|not found|cannot find/i.test(missing), missing.slice(0, 110));
+            }
 
             chk('no uncaught page errors', errors.length === 0, errors.slice(0, 1).join(' | '));
         } catch (e) {
