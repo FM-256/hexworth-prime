@@ -270,6 +270,20 @@ var EM002Config = {
         cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ping: function(args) { if (!args.length) return '\nUsage: ping <target>'; return '\nPinging ' + args[0] + '... Reply from ' + args[0] + ': time=1ms TTL=128'; },
         ipconfig: function() { return '\nIPv4: 10.0.2.50\nGateway: 10.0.2.1\nDNS: 10.0.2.10'; },
+        /* Linux builtins reach the student unless the box refuses them: Terminal.js provides
+         * ls/cat/pwd/head/tail/man/uname/file/history, so in a cmd.exe prompt `ls` answered with
+         * the GNU error "ls: cannot access '...'" — a Linux tool reporting failure inside a
+         * Windows shell. cmd.exe has none of these, so its own not-recognized message is the
+         * honest answer. NT1 already did this; 49 other Windows boxes did not. */
+        ls: function() { return "'ls' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: dir"; },
+        cat: function() { return "'cat' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: type"; },
+        pwd: function() { return "'pwd' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cd"; },
+        head: function() { return "'head' is not recognized as an internal or external command,\noperable program or batch file."; },
+        tail: function() { return "'tail' is not recognized as an internal or external command,\noperable program or batch file."; },
+        man: function() { return "'man' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: help"; },
+        uname: function() { return "'uname' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo"; },
+        file: function() { return "'file' is not recognized as an internal or external command,\noperable program or batch file."; },
+        history: function() { return "'history' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history"; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; }

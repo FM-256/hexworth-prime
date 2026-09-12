@@ -860,6 +860,20 @@ var OS1Config = {
         },
 
         // Block Linux commands
+        /* Linux builtins reach the student unless the box refuses them: Terminal.js provides
+         * ls/cat/pwd/head/tail/man/uname/file/history, so in a cmd.exe prompt `ls` answered with
+         * the GNU error "ls: cannot access '...'" — a Linux tool reporting failure inside a
+         * Windows shell. cmd.exe has none of these, so its own not-recognized message is the
+         * honest answer. NT1 already did this; 49 other Windows boxes did not. */
+        ls: function() { return "'ls' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: dir"; },
+        cat: function() { return "'cat' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: type"; },
+        pwd: function() { return "'pwd' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cd"; },
+        head: function() { return "'head' is not recognized as an internal or external command,\noperable program or batch file."; },
+        tail: function() { return "'tail' is not recognized as an internal or external command,\noperable program or batch file."; },
+        man: function() { return "'man' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: help"; },
+        uname: function() { return "'uname' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo"; },
+        file: function() { return "'file' is not recognized as an internal or external command,\noperable program or batch file."; },
+        history: function() { return "'history' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history"; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command,\noperable program or batch file.'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command,\noperable program or batch file.'; },

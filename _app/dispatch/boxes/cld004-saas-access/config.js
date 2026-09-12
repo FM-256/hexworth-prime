@@ -76,6 +76,24 @@ var CLD004Config = {
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Remediation', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],
 
     commands: {
+        /* PowerShell genuinely ALIASES ls/cat/pwd/man/history, so refusing them would be the
+         * mistake of asserting one shell's contract on another. The defect was that they fell
+         * through to Terminal.js's POSIX builtins and answered with GNU text. These boxes model
+         * cmdlets rather than a filesystem, so `ls` returns nothing exactly as Get-ChildItem does
+         * for an empty directory, and `cat` reports a missing path the way Get-Content does.
+         * uname/file/head/tail are NOT PowerShell aliases and are refused as cmdlets. */
+        ls: function(args, term, engine) {
+            return (typeof this.dir === 'function') ? this.dir(args, term, engine) : '';
+        },
+        pwd: function(args, term) { return (term && term.cwd) || ''; },
+        cat: function(args) {
+            var f = (args || [])[0] || '';
+            return "Get-Content : Cannot find path '" + f + "' because it does not exist.";
+        },
+        uname: function() { return "The term 'uname' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        file: function() { return "The term 'file' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        head: function() { return "The term 'head' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        tail: function() { return "The term 'tail' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
         'apply-fix': function(args, term, engine) {
             var gate = CLD004Config._requireScenario(engine); if (gate) return gate;
             var s = CLD004Config._getScenario(engine);
