@@ -199,6 +199,22 @@ var HW5Config = {
         uname: function() { return "'uname' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo"; },
         file: function() { return "'file' is not recognized as an internal or external command,\noperable program or batch file."; },
         history: function() { return "'history' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history"; },
+        /* The remaining Terminal.js builtins this box would otherwise inherit.
+         * Measured: `id` answered "uid=1000(Administrator) ... groups=...,27(sudo)" — a POSIX
+         * identity string, sudo and all — in EVERY Windows-family box, and `find` returned GNU's
+         * exact error format. An earlier pass fixed nine commands chosen by hand; the real
+         * builtin surface is 23, which is why this second pass exists. Commands whose inherited
+         * behaviour is already right for this shell (echo, help, exit, and clear/alias under
+         * PowerShell) are deliberately left alone. */
+        id: function() { return "'id' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: whoami"; },
+        export: function() { return "'export' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: set"; },
+        alias: function() { return "'alias' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey"; },
+        clear: function() { return "'clear' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cls"; },
+        find: function(args) {
+            var a = (args || []).filter(function (x) { return x.indexOf('/') !== 0; });
+            if (a.length < 2) return 'FIND: Parameter format not correct';
+            return 'File not found - ' + a[1];
+        },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; },
         help: function() { return '\nAvailable: whoami, hostname, cls, systeminfo, dir\nOpen the diagnostic panel for troubleshooting tools.'; }

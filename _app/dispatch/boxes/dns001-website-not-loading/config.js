@@ -153,6 +153,27 @@ var DNS001Config = {
     ],
 
     commands: {
+        /* The remaining Terminal.js builtins this box would otherwise inherit.
+         * Measured: `id` answered "uid=1000(Administrator) ... groups=...,27(sudo)" — a POSIX
+         * identity string, sudo and all — in EVERY Windows-family box, and `find` returned GNU's
+         * exact error format. An earlier pass fixed nine commands chosen by hand; the real
+         * builtin surface is 23, which is why this second pass exists. Commands whose inherited
+         * behaviour is already right for this shell (echo, help, exit, and clear/alias under
+         * PowerShell) are deliberately left alone. */
+        id: function() { return "'id' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: whoami"; },
+        export: function() { return "'export' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: set"; },
+        alias: function() { return "'alias' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey"; },
+        clear: function() { return "'clear' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cls"; },
+        find: function(args) {
+            var a = (args || []).filter(function (x) { return x.indexOf('/') !== 0; });
+            if (a.length < 2) return 'FIND: Parameter format not correct';
+            return 'File not found - ' + a[1];
+        },
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw || raw === '.') return (term && term.cwd) || '';
+            return 'The system cannot find the path specified.';
+        },
         /* Linux builtins reach the student unless the box refuses them: Terminal.js provides
          * ls/cat/pwd/head/tail/man/uname/file/history, so in a cmd.exe prompt `ls` answered with
          * the GNU error "ls: cannot access '...'" — a Linux tool reporting failure inside a

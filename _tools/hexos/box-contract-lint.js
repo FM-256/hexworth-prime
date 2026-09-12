@@ -181,6 +181,22 @@ if (!canaryOk) {
 const TERMINAL_SRC = fs.readFileSync(TERMINAL, 'utf8');
 const BUILTINS = [...TERMINAL_SRC.matchAll(/case '([a-z0-9_-]+)':/g)].map(m => m[1]);
 
+/* The REQUIRED surface for SHELL-004, read from Terminal.js rather than written here — a
+ * hand-written enumeration is what let `id` leak fleet-wide unnoticed.
+ *
+ * Scoped to the BUILTIN DISPATCHER only, between its "// Built-in commands" marker and the
+ * `default:` that closes it. A first version matched every `case '...'` in the file and
+ * swept in awk/tr/wc/sort from the PIPELINE handler, which are a different surface reachable
+ * only inside a pipe — so the rule demanded boxes override commands they never receive
+ * directly, and reported 68 findings that were noise. (Those pipeline commands are arguably
+ * the same defect class in a Windows shell; they are NOT covered here and are flagged
+ * separately rather than silently folded in.) */
+const _swStart = TERMINAL_SRC.indexOf('// Built-in commands');
+const _swEnd = TERMINAL_SRC.indexOf('default:', _swStart);
+const TERMINAL_BUILTINS = (_swStart > -1 && _swEnd > _swStart)
+    ? [...TERMINAL_SRC.slice(_swStart, _swEnd).matchAll(/case '([a-z0-9_-]+)':/g)].map(m => m[1])
+    : [];
+
 /** Walkthrough text for a box, if one exists, for DOC-001. */
 function walkthroughText(box) {
     if (!fs.existsSync(SOLUTIONS)) return null;
@@ -314,21 +330,28 @@ for (const box of boxConfigs()) {
 
 
     // ── SHELL-004 ───────────────────────────────────────────────────────────────────────
-    // Terminal.js supplies ls/cat/pwd/head/tail/man/uname/file/history as BUILTINS, so any
-    // Windows-family box that does not override one inherits Linux behaviour. Measured live
-    // before this rule existed: `C:\Users\Administrator>ls` answered
-    // "ls: cannot access '...'", and ad001-lockout-storm's `uname` answered "Linux" inside
-    // an Active Directory box.
+    // Every Terminal.js builtin a Windows-family box does not override is inherited, and
+    // Terminal.js is a Linux shell. Measured before this rule: `id` answered
+    // "uid=1000(Administrator) gid=1000(Administrator) groups=...,27(sudo)" in ALL 67
+    // Windows-family boxes, and `find` returned GNU's exact error format.
     //
-    // The rule demands ALL NINE, not "at least one". A generator of mine skipped a whole file
-    // the moment it saw a single pre-existing override, leaving that box at 1 of 9 while the
-    // commit cited it as already fixed. Chris found it by hand because nothing checked it.
-    // Whether a command should be REFUSED or ALIASED depends on the shell — cmd.exe has none
-    // of them, PowerShell genuinely aliases ls/cat/pwd/man/history — so this rule asserts
-    // only that the box decides, never that it decides a particular way.
+    // THE LIST IS DERIVED FROM Terminal.js, NOT WRITTEN HERE. The first version of this rule
+    // carried a hand-written list of nine commands — the ones one box happened to block — and
+    // Chris found `id` leaking fleet-wide precisely because it was not among them. A
+    // hand-maintained enumeration guarantees a next variant; reading the engine's own switch
+    // statement means adding a builtin there automatically extends coverage here.
+    //
+    // EXEMPT are the builtins whose inherited behaviour is already correct for that shell:
+    // echo, help and exit exist in both; PowerShell additionally aliases clear (Clear-Host),
+    // alias (Get-Alias) and history. Exempting them is a judgement, so it is stated in one
+    // place and can be argued with, rather than buried in a regex.
     if (isWindows || (cfg.terminal && cfg.terminal.promptStyle) === 'powershell') {
-        const NINE = ['ls', 'cat', 'pwd', 'head', 'tail', 'man', 'uname', 'file', 'history'];
-        const uncovered = NINE.filter(function (n) { return typeof commands[n] !== 'function'; });
+        const ps = (cfg.terminal && cfg.terminal.promptStyle) === 'powershell';
+        const EXEMPT = ps
+            ? ['echo', 'help', 'exit', 'date', 'clear', 'alias', 'reset']
+            : ['echo', 'help', 'exit', 'date', 'reset'];
+        const required = TERMINAL_BUILTINS.filter(function (b) { return EXEMPT.indexOf(b) === -1; });
+        const uncovered = required.filter(function (n) { return typeof commands[n] !== 'function'; });
         if (uncovered.length) {
             add('HIGH', 'SHELL-004', label,
                 'Windows-family box inherits Linux builtins from Terminal.js for commands it does not override',

@@ -57,6 +57,22 @@ var MOB002Config = {
     lore: { intro: 'Lost Device Protocol — diagnose and resolve the mobile device issue.', scenario: 'Investigate, identify, fix, verify.', outro: 'Issue resolved. Document the incident.' },
     phases: [{id:'investigate',name:'Investigation',requiredFlags:[],unlocks:['diagnose'],locked:false},{id:'diagnose',name:'Diagnosis',requiredFlags:[],unlocks:['repair'],locked:true},{id:'repair',name:'Remediation',requiredFlags:[],unlocks:['verify'],locked:true},{id:'verify',name:'Verification',requiredFlags:['fixed'],unlocks:[],locked:true}],
     commands: {
+        /* The remaining Terminal.js builtins this box would otherwise inherit.
+         * Measured: `id` answered "uid=1000(Administrator) ... groups=...,27(sudo)" — a POSIX
+         * identity string, sudo and all — in EVERY Windows-family box, and `find` returned GNU's
+         * exact error format. An earlier pass fixed nine commands chosen by hand; the real
+         * builtin surface is 23, which is why this second pass exists. Commands whose inherited
+         * behaviour is already right for this shell (echo, help, exit, and clear/alias under
+         * PowerShell) are deliberately left alone. */
+        id: function() { return "The term 'id' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        sudo: function() { return "The term 'sudo' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        export: function() { return "The term 'export' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        find: function() { return "The term 'find' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw || raw === '.') return (term && term.cwd) || '';
+            return 'The system cannot find the path specified.';
+        },
         man: function(args, term) {
             if (term && typeof term._cmdHelp === 'function') { term._cmdHelp(); return ''; }
             return '';

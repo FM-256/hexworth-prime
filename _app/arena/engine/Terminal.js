@@ -805,8 +805,36 @@ class TerminalInstance {
         this._appendOutput(lines.join('\n'));
     }
 
+    /**
+     * `reset` — reinitialise the TERMINAL, not the lab.
+     *
+     * This used to call engine.reset() directly, which wipes all state, saves, and reloads
+     * the page WITH NO CONFIRMATION. Measured on NT1: a student with a ticket assigned and
+     * work in progress typed `reset` and came back to {selected: false} — assignment and
+     * progress gone, no dialog, no undo. The box's own "Reset Lab" desktop icon routes
+     * through _confirmReset() and asks first; the terminal command bypassed that entirely.
+     *
+     * Worst of all it punishes correct instinct: on a real Unix terminal `reset` is THE
+     * command for fixing a garbled display, so a student doing exactly the right thing
+     * destroyed their own work. In cmd.exe and PowerShell `reset` is not a command at all.
+     *
+     * So it now does what the real command does — reinitialise the display — and the
+     * destructive path is reachable only where it always should have been: the Reset Lab
+     * control, which confirms. Windows-family boxes refuse it like any unknown command.
+     */
     _cmdReset() {
-        this.engine.reset();
+        const style = (this.config.terminal && this.config.terminal.promptStyle) || 'linux';
+        if (style === 'windows') {
+            this._appendOutput("'reset' is not recognized as an internal or external command,\noperable program or batch file.");
+            return;
+        }
+        if (style === 'powershell') {
+            this._appendOutput("The term 'reset' is not recognized as the name of a cmdlet, function,\nscript file, or operable program.");
+            return;
+        }
+        // Unix: reinitialise the terminal. Clears the screen; does NOT touch lab state.
+        this.outputEl.innerHTML = '';
+        this._printWelcome();
     }
 
     // ────────────────────────────────────────────────

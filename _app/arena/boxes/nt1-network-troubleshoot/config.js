@@ -1231,6 +1231,13 @@ const NT1Config = {
         uname: function() { return '\'uname\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo'; },
         file: function() { return '\'file\' is not recognized as an internal or external command,\noperable program or batch file.'; },
         history: function() { return '\'history\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history'; },
+        /* Same Terminal.js builtin leak as the dispatch copy. The arena copy is the SAME BOX
+         * for students and was missed by a sweep that only walked _app/dispatch/boxes — the
+         * gate caught it, which is what the gate is for. */
+        id: function() { return "'id' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: whoami"; },
+        clear: function() { return "'clear' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cls"; },
+        export: function() { return "'export' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: set"; },
+        alias: function() { return "'alias' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey"; },
         ifconfig: function() { return '\'ifconfig\' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command,\noperable program or batch file.'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command,\noperable program or batch file.'; },

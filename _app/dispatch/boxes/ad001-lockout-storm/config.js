@@ -993,6 +993,16 @@ var AD001Config = {
             h.forEach(function (c, i) { out += String(i + 1).padStart(4) + ' ' + c + '\n'; });
             return out;
         },
+        /* The remaining Terminal.js builtins this box would otherwise inherit.
+         * Measured: `id` answered "uid=1000(Administrator) ... groups=...,27(sudo)" — a POSIX
+         * identity string, sudo and all — in EVERY Windows-family box, and `find` returned GNU's
+         * exact error format. An earlier pass fixed nine commands chosen by hand; the real
+         * builtin surface is 23, which is why this second pass exists. Commands whose inherited
+         * behaviour is already right for this shell (echo, help, exit, and clear/alias under
+         * PowerShell) are deliberately left alone. */
+        id: function() { return "The term 'id' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        export: function() { return "The term 'export' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        find: function() { return "The term 'find' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
         ifconfig: function() { return '\'ifconfig\' is not recognized. On Windows Server, use: Get-NetIPAddress or ipconfig'; },
         grep:     function() { return '\'grep\' is not recognized. On PowerShell, use: Select-String or Where-Object'; },
         sudo:     function() { return '\'sudo\' is not recognized. Run PowerShell as Administrator or use: Start-Process -Verb RunAs'; },
