@@ -135,12 +135,46 @@ function boxConfigs() {
 // lint's mirror is stale and its verdicts are worthless — so say so loudly rather than keep
 // reporting confidently against an expression that no longer exists.
 const ENGINE_SRC = fs.readFileSync(ENGINE, 'utf8');
-const PRICE_EXPR = 'const raw = hint.penalty ?? this._scoringHintPenalty(scoring);';
-const canaryOk = ENGINE_SRC.includes(PRICE_EXPR);
+
+/* THE MIRROR MUST TRACK WHICHEVER ENGINE IT IS ACTUALLY LOOKING AT.
+ *
+ * Pinning ONE expression made this gate unusable on any tree where that exact line was not
+ * present. It pinned task 378's `??` rewrite, which lives on a separate unmerged branch —
+ * so on master and on this branch the canary fired, the lint exited 2, and because
+ * deploy.sh's gate loop treats ANY non-zero exit as a hard failure, wiring this lint into
+ * deploy.sh made `./deploy.sh` fail immediately. I called that exit "by design" and never
+ * ran it through the wrapper I had modified in the same commit; Chris did, and it printed
+ * DEPLOY BLOCKED. A gate that cannot be shipped past is not a gate, it is an outage.
+ *
+ * So the known pricing expressions are listed, newest first, each with the mirror that
+ * matches it. CANARY-001 now fires only when the engine matches NONE of them — a genuinely
+ * unknown expression, which is the case the canary was always meant to catch. */
+const PRICE_VARIANTS = [
+    {
+        id: 'guarded',            // task 378 and later
+        expr: 'const raw = hint.penalty ?? this._scoringHintPenalty(scoring);',
+        price: function (h, scoring) {
+            const cfgRaw = scoring.hintPenalty;
+            const cfgPen = (typeof cfgRaw === 'number' && isFinite(cfgRaw)) ? cfgRaw : -50;
+            const raw = (h.penalty !== undefined && h.penalty !== null) ? h.penalty : cfgPen;
+            return (typeof raw === 'number' && isFinite(raw)) ? raw : -50;
+        }
+    },
+    {
+        id: 'legacy-or',          // before 378: `0` is falsy and falls through
+        expr: 'const base = hint.penalty || scoring.hintPenalty || -50;',
+        price: function (h, scoring) {
+            return h.penalty || scoring.hintPenalty || -50;
+        }
+    }
+];
+
+const VARIANT = PRICE_VARIANTS.find(function (v) { return ENGINE_SRC.includes(v.expr); }) || null;
+const canaryOk = !!VARIANT;
 if (!canaryOk) {
     add('HIGH', 'CANARY-001', '(engine)',
-        'BoxEngine hint-price expression changed; HINT-001 mirrors it and is now unverified',
-        'expected: ' + PRICE_EXPR);
+        'BoxEngine hint-price expression matches no known variant; HINT-001 is unverified',
+        'known: ' + PRICE_VARIANTS.map(function (v) { return v.id; }).join(', '));
 }
 
 // Terminal.js builtins a box inherits for free, used by DOC-001.
@@ -197,11 +231,11 @@ for (const box of boxConfigs()) {
     for (const set of hintSets) {
         for (const h of set) {
             if (!h || typeof h !== 'object') continue;
-            const cfgRaw = scoring.hintPenalty;
-            const cfgPen = (typeof cfgRaw === 'number' && isFinite(cfgRaw)) ? cfgRaw : -50;
-            const raw = h.penalty ?? cfgPen;
-            const base = (typeof raw === 'number' && isFinite(raw)) ? raw : -50;
-            if (typeof base !== 'number') bad.push(`${h.id || '?'} -> ${JSON.stringify(raw)}`);
+            // Price it the way the engine in THIS tree prices it.
+            const base = VARIANT ? VARIANT.price(h, scoring) : null;
+            if (typeof base !== 'number' || !isFinite(base)) {
+                bad.push(`${h.id || '?'} -> ${JSON.stringify(base)}`);
+            }
         }
     }
     if (bad.length) {
