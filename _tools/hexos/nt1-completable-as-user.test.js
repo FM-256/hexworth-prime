@@ -67,6 +67,20 @@ const SCENARIOS = [
 const FLAG_RE = /flag\{[^}]{3,80}\}/i;
 
 (async () => {
+/* ── THIS HARNESS WRITES TO PRODUCTION ───────────────────────────────────────────────────
+ * It calls FirebaseAuth.signInAnonymously and can invoke deliverFlag, which MINT A REAL
+ * ANONYMOUS ACCOUNT per browser context. Serving _app locally does not change that: the
+ * page still talks to the real hexworth-prime project (FIREBASE_CONFIG hardcodes it and
+ * there is no emulator hookup anywhere in _app — task 381). 32 real accounts were created
+ * this way on 2026-09-09 while measuring the very problem of accounts being created without
+ * a human (task 380). So it refuses unless --allow-production is typed on purpose. */
+if (!argv.includes('--allow-production')) {
+    console.error('REFUSING: this harness creates real anonymous accounts on hexworth-prime.');
+    console.error('  Re-run with --allow-production if you accept that.');
+    process.exitCode = 2;
+    return;
+}
+
     console.log('=== NT1: completable as a user ===');
     console.log('url:', URL, '| arm:', NO_SIGNIN ? 'NO SESSION (visitor)' : 'signed in (student)', '\n');
 
@@ -96,6 +110,17 @@ const FLAG_RE = /flag\{[^}]{3,80}\}/i;
                 await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
                 await sleep(1200);
             }
+            /* OPEN THE ENGAGEMENT GATE WITH REAL INPUT.
+             * Since task 377 a session is only established once _userEngaged is set, and
+             * _armEngagementGate ignores any event with isTrusted === false. Every other
+             * click here is a page-context dispatchEvent, which is UNTRUSTED by design — so
+             * without this the gate never opens, no flag is ever delivered, and the harness
+             * reports the fix as broken while actually measuring the gate working correctly.
+             * A keypress rather than a click: page.mouse.click at fixed coordinates lands on
+             * whatever is there and derailed the firewall and Device Manager flows. */
+            await page.keyboard.press('Shift');
+            await sleep(400);
+
             const signedIn = await page.evaluate(() => typeof FirebaseAuth !== 'undefined' && FirebaseAuth.isSignedIn());
             chk('session state is as the arm intends', signedIn === !NO_SIGNIN, 'isSignedIn=' + signedIn);
 
@@ -167,7 +192,13 @@ const FLAG_RE = /flag\{[^}]{3,80}\}/i;
             if (s.termFix) for (const c of s.termFix) await run(c);
             if (s.guiFix) {
                 await openApp(s.guiFix);
-                const act = await clickFix(WIN_KEY[s.guiFix] || s.guiFix);
+                let act = 'no-window';
+                for (let i = 0; i < 10; i++) {
+                    await openApp(s.guiFix);
+                    act = await clickFix(WIN_KEY[s.guiFix] || s.guiFix);
+                    if (!String(act).startsWith('no-')) break;
+                    await sleep(1000);
+                }
                 chk('fix control present in ' + s.guiFix, !String(act).startsWith('no-'), act);
                 await sleep(1200);
             }
@@ -183,7 +214,18 @@ const FLAG_RE = /flag\{[^}]{3,80}\}/i;
             // that, so re-running the ping to "harvest" it would find an empty result.
             let surface = FLAG_RE.test(connectivity) ? connectivity : '';
             if (!surface && s.flagFrom.cmd) surface = await run(s.flagFrom.cmd);
-            if (!surface && s.flagFrom.gui) surface = await openApp(s.flagFrom.gui);
+            if (!surface && s.flagFrom.gui) {
+                /* POLL, do not sleep-and-read. Since 377 the FIRST flag request on a
+                 * session-less page performs a sign-in round trip before deliverFlag, so GUI
+                 * surfaces render their flag ~3s after the window opens, not immediately. A
+                 * fixed 1.4s read saw an empty block and reported "flag not visible" on the
+                 * three GUI scenarios — the fix working, measured too early. */
+                for (let i = 0; i < 10 && !FLAG_RE.test(surface); i++) {
+                    surface = await openApp(s.flagFrom.gui);
+                    if (FLAG_RE.test(surface)) break;
+                    await sleep(1000);
+                }
+            }
             const m = surface.match(FLAG_RE);
             chk('flag is VISIBLE at its documented location', !!m,
                 'searched ' + (s.flagFrom.cmd || s.flagFrom.gui) + '; saw: ' + surface.slice(-180));
