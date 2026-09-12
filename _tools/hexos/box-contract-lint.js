@@ -341,10 +341,20 @@ for (const box of boxConfigs()) {
     // hand-maintained enumeration guarantees a next variant; reading the engine's own switch
     // statement means adding a builtin there automatically extends coverage here.
     //
-    // EXEMPT are the builtins whose inherited behaviour is already correct for that shell:
-    // echo, help and exit exist in both; PowerShell additionally aliases clear (Clear-Host),
-    // alias (Get-Alias) and history. Exempting them is a judgement, so it is stated in one
-    // place and can be argued with, rather than buried in a regex.
+    // EXEMPT are the builtins whose inherited behaviour is already correct for that shell.
+    // This list must match the code below EXACTLY — prose asserting more than the code does
+    // is what caused two of the last three review rounds, and Chris caught this very comment
+    // claiming `history` was exempt when it is not.
+    //   both styles : echo, help, exit   — real commands in cmd.exe and PowerShell, and
+    //                                       Terminal.js's behaviour for them is already right
+    //                 date               — a real command in both; Terminal.js returns a JS
+    //                                       date string rather than either shell's format.
+    //                                       Cosmetic only, deliberately not chased.
+    //                 reset              — handled in Terminal._cmdReset by promptStyle, so a
+    //                                       per-box override would be redundant
+    //   PowerShell  : clear (Clear-Host), alias (Get-Alias) — genuine aliases, so inheriting
+    //                                       the generic behaviour is correct there
+    // `history` is NOT exempt in either style: every box carries a real per-box override.
     if (isWindows || (cfg.terminal && cfg.terminal.promptStyle) === 'powershell') {
         const ps = (cfg.terminal && cfg.terminal.promptStyle) === 'powershell';
         const EXEMPT = ps
