@@ -6,6 +6,20 @@
    ============================================================ */
 
 const NT009Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that into student-visible text yields the literal word
+     * "null": `'Recovery token: ' + fv` becomes `'Recovery token: null'`. A student who
+     * reads "unavailable — reload" reloads; a student who reads "null" reports a broken lab.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'Switch Port Down',
     subtitle: 'Switch Port Troubleshooting — Network+',
@@ -186,7 +200,7 @@ const NT009Config = {
                 let output='\nAvailable: '+engine.state._poeBudget+'.0(w)  Used: '+used+'.0(w)  Remaining: '+avail.toFixed(1)+'(w)\n\nInterface  Admin  Oper       Power(w)  Device\nGi0/12     auto   '+(engine.state._poeExceeded?'off        0.0       (insufficient power)':'on         15.4      IP Phone')+'\nGi0/13     auto   on         30.0      AP\nGi0/20     auto   on         7.0       Camera\nGi0/21     auto   on         7.0       Camera\nGi0/22     auto   on         7.0       Camera\nGi0/23     auto   on         7.0       Camera (unused closet)\nGi0/24     auto   on         7.0       Camera (unused closet)';
                 if(!engine.state._poeExceeded&&engine.state._flagRevealed){
                     const fv=await engine.requestFlagText('poe_exceeded');
-                    output+='\n\n  PoE budget freed — Recovery token: '+fv;
+                    output+='\n\n  PoE budget freed — Recovery token: '+ NT009Config._flagText(fv);
                 }
                 return output;
             }
@@ -201,7 +215,7 @@ const NT009Config = {
 
         ping:function(args,term,engine){return '\nPing from switch: Type escape sequence to abort.\nSending 5 100-byte ICMP Echos...\n!!!!!\nSuccess rate is 100 percent (5/5)';},
         hostname:function(){return'SW1';},
-        cls:function(args,term){term.outputEl.innerHTML='';return null;},
+        cls:function(args,term){term.outputEl.innerHTML='';return '';},
         enable:function(){return'';},
         ipconfig:function(){return'% Unknown command. Use show commands.';},
         ifconfig:function(){return'% Unknown command.';}
@@ -274,7 +288,7 @@ const NT009Config = {
 
         if(engine.state._flagRevealed&&s){
             const fv=await engine.requestFlagText(s.id);
-            html+='<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:4px;padding:12px;margin-top:16px;"><div style="color:#2ecc71;font-weight:bold;">Port Restored:</div><div style="color:#c8e6c9;">Recovery token: '+fv+'</div></div>';
+            html+='<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:4px;padding:12px;margin-top:16px;"><div style="color:#2ecc71;font-weight:bold;">Port Restored:</div><div style="color:#c8e6c9;">Recovery token: '+ NT009Config._flagText(fv)+'</div></div>';
         }
 
         c.innerHTML=html;

@@ -231,7 +231,7 @@ var IOT005Config = {
         whoami: function() { return 'sec-admin'; },
         hostname: function() { return 'SEC-WS01'; },
         clear: function(args, term) { term.outputEl.innerHTML = ''; return null; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ls: function() { return 'configs  logs  scripts  tools'; },
         dir: function() { return ' Directory of current folder\n  configs  logs  scripts  tools'; }
     },

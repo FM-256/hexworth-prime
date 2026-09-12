@@ -234,7 +234,7 @@ var EM003Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; }

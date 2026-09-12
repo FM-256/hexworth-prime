@@ -237,7 +237,7 @@ var EM005Config = {
 
         whoami: function() { return 'SOC-WS01\\SOC-Analyst'; },
         hostname: function() { return 'SOC-WS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; }

@@ -374,7 +374,7 @@ var SRV003Config = {
 
         whoami: function() { return 'FILE-PROD-01\\Administrator'; },
         hostname: function() { return 'FILE-PROD-01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.3.10\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.3.1'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command.'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command.'; }

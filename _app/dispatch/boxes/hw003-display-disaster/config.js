@@ -165,8 +165,23 @@ var HW3Config = {
         'get-display': function(args, term, engine) { var g = HW3Config._requireScenario(engine); if (g) return g; var sc = HW3Config._getScenario(engine); return '\nDisplay Adapter: Intel UHD 750\nMonitor 1: Dell P2419H (1920x1080)\nInput: DisplayPort\nStatus: ' + (engine.state._wrongInput ? 'No Signal (wrong input)' : engine.state._resTooHigh ? 'Out of Range (4K on 1080p)' : engine.state._gpuArtifacts ? 'Artifacts (driver crash)' : 'Active'); },
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(a, t) { t.outputEl.innerHTML = ''; return null; },
+        cls: function(a, t) { t.outputEl.innerHTML = ''; return ''; },
         systeminfo: function() { return '\nHost Name: HELPDESK01\nOS: Windows 10 Pro\nGPU: Intel UHD 750'; },
+
+        /* Windows `cd`. Without an override, `cd` fell through to Terminal.js's POSIX
+         * builtin, which walks this box's declared `filesystem` and answers
+         * "cd: X: No such file or directory" — a bash error inside a Windows command
+         * prompt. This box's `dir` advertises no enterable directory, so the honest
+         * behaviour is cmd.exe's own: print the current directory for a bare `cd`, and
+         * refuse anything else exactly as Windows does for a path that is not there.
+         * MUST NOT return null: Terminal.js reads null as "fall through to the builtin",
+         * which is the very fallthrough this exists to stop. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || '';
+            if (raw === '.' ) return '';
+            return 'The system cannot find the path specified.';
+        },
         dir: function() { return ' Directory of C:\\Users\\Technician\n  0 File(s)'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         sudo: function() { return '\'sudo\' is not recognized.'; }

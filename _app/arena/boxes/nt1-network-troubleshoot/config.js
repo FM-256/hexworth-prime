@@ -1553,7 +1553,7 @@ const NT1Config = {
             + (showFlag
                 ? '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:8px; margin-bottom:8px; font-size:0.75rem;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Diagnostic Report:</div>'
-                + '<div style="color:#c8e6c9;">' + flagVal + '</div></div>'
+                + '<div style="color:#c8e6c9;">' + NT1Config._flagText(flagVal) + '</div></div>'
                 : '')
 
             + '<div style="display:flex; gap:8px;">'
@@ -1639,7 +1639,7 @@ const NT1Config = {
                 + '<div style="font-size:0.75rem; color:#888; margin-bottom:4px;">Action: <span style="color:#e74c3c;">Block</span> &nbsp; | &nbsp; Protocol: All &nbsp; | &nbsp; Profile: Domain, Private, Public</div>'
                 + '<div style="font-size:0.75rem; color:#888; margin-bottom:8px;">Direction: Outbound &nbsp; | &nbsp; Remote: Any address beyond local subnet</div>'
                 + '<div style="font-size:0.7rem; color:#aaa; margin-bottom:8px; padding:6px; background:rgba(255,255,255,0.03); border-radius:3px; font-style:italic;">'
-                + 'Description: GPO-deployed security policy — incident ref: ' + flagVal + '</div>'
+                + 'Description: GPO-deployed security policy — incident ref: ' + NT1Config._flagText(flagVal) + '</div>'
                 + '<div>'
                 + (isBlocking
                     ? '<button id="fwDisableBtn" style="padding:5px 16px; background:#e74c3c; color:#fff; border:none; border-radius:3px; cursor:pointer; font-size:0.75rem; font-weight:bold;">Disable Rule</button>'
@@ -1748,7 +1748,7 @@ const NT1Config = {
             html += '<div style="margin-top:16px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">DHCP Client — Recovery Log:</div>'
                 + '<div style="color:#c8e6c9; font-size:0.8rem;">Service started successfully. Lease acquisition pending.</div>'
-                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + flagVal + '</div></div>';
+                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + NT1Config._flagText(flagVal) + '</div></div>';
         }
 
         container.innerHTML = html;
@@ -1808,6 +1808,26 @@ const NT1Config = {
         });
         document.getElementById('nt1ResetCancel').addEventListener('click', function() { overlay.remove(); });
         overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    },
+
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Every site below used to concatenate that value straight into
+     * student-visible text, and `'Recovery token: ' + null` is `'Recovery token: null'` in
+     * JavaScript. Students who correctly completed HD-7201 were shown the literal word
+     * "null" where their flag belonged, and reasonably reported the lab as broken.
+     *
+     * Task 377 fixed the delivery failure that made this common. This guard is separate on
+     * purpose: delivery can still fail for reasons nobody controls, and when it does the box
+     * should say so in words rather than print a JavaScript value. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
     },
 
     _escHtml(str) {

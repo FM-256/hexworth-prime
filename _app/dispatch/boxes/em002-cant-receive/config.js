@@ -267,7 +267,7 @@ var EM002Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ping: function(args) { if (!args.length) return '\nUsage: ping <target>'; return '\nPinging ' + args[0] + '... Reply from ' + args[0] + ': time=1ms TTL=128'; },
         ipconfig: function() { return '\nIPv4: 10.0.2.50\nGateway: 10.0.2.1\nDNS: 10.0.2.10'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },

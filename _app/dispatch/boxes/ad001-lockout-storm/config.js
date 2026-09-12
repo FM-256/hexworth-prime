@@ -7,6 +7,60 @@
    ============================================================ */
 
 var AD001Config = {
+    /* ── Windows shell: a filesystem `cd` can actually walk ─────────────────────────────
+     * This box overrode `dir` but not `cd`, so `cd` fell through to Terminal.js's POSIX
+     * builtin walking the (empty) declared `filesystem` and answered
+     * "cd: Documents: No such file or directory" — a bash error in a Windows prompt, for a
+     * directory `dir` had just advertised. The tree below is DERIVED from that same `dir`
+     * output, so the two cannot disagree: whatever `dir` lists is exactly what `cd` accepts.
+     * Windows paths are case-insensitive, hence _canonDir folding case and returning the
+     * STORED spelling so the prompt reads the way cmd.exe would render it. */
+    _homeDir: 'C:\\Windows\\System32',
+    _fileTree: {
+        'C:\\Windows\\System32': ['WindowsPowerShell', 'drivers', 'spool'],
+        'C:\\Windows\\System32\\WindowsPowerShell': [],
+        'C:\\Windows\\System32\\drivers': [],
+        'C:\\Windows\\System32\\spool': []
+    },
+
+    _canonDir(p) {
+        var lower = String(p).toLowerCase();
+        return Object.keys(AD001Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _resolveWinPath(term, arg) {
+        var cwd = (term && term.cwd) || AD001Config._homeDir;
+        if (!arg) return cwd;
+        var p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) { /* absolute */ }
+        else if (p === '.') return cwd;
+        else if (p === '..') {
+            var cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
+    },
+
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -880,9 +934,41 @@ var AD001Config = {
 
         whoami: function() { return 'HEXWORTH\\Administrator'; },
         hostname: function() { return 'DC01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
-        dir: function() {
+        /* Windows `cd`, walking _fileTree. MUST NOT return null — Terminal.js reads null as
+         * "fall through to the builtin", which is the bash-error path this replaces. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || AD001Config._homeDir;
+            var path = AD001Config._canonDir(AD001Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';
+        },
+
+        /* Path-aware `dir`. At the home directory it returns the box's own authored listing
+         * unchanged (_dirHome) so no puzzle content is lost; inside a subdirectory it renders
+         * that directory truthfully rather than repeating the home listing. */
+        dir: function(args, term, engine) {
+            var typed = AD001Config._resolveWinPath(term, args && args[0]);
+            var path = AD001Config._canonDir(typed);
+            if (!path) return 'The system cannot find the path specified.';
+            if (path === AD001Config._homeDir) return AD001Config.commands._dirHome(args, term, engine);
+            var kids = AD001Config._fileTree[path] || [];
+            var out = ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n';
+            out += ' Directory of ' + path + '\n\n';
+            ['.', '..'].concat(kids).forEach(function (d) {
+                out += '03/12/2026  08:30 AM    <DIR>          ' + d + '\n';
+            });
+            out += '               0 File(s)              0 bytes\n';
+            out += String(kids.length + 2).padStart(16) + ' Dir(s)  214,748,364,800 bytes free';
+            return out;
+        },
+
+
+        _dirHome: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 9C7D-3E5F\n\n Directory of C:\\Windows\\System32\n\n03/13/2026  08:00 AM    <DIR>          .\n03/13/2026  08:00 AM    <DIR>          ..\n03/13/2026  08:00 AM    <DIR>          WindowsPowerShell\n               0 File(s)              0 bytes\n               3 Dir(s)  102,400,000,000 bytes free';
         },
 
@@ -1300,7 +1386,7 @@ var AD001Config = {
                     + (engine.state._flagRevealed && flagVal
                         ? '<div style="margin-top:16px; padding:10px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; font-size:0.75rem;">'
                         + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Incident Closure Token:</div>'
-                        + '<div style="color:#c8e6c9;">' + flagVal + '</div></div>'
+                        + '<div style="color:#c8e6c9;">' + AD001Config._flagText(flagVal) + '</div></div>'
                         : '')
                     + '</div>';
             } else if (activeTab === 1) {
@@ -1789,7 +1875,7 @@ var AD001Config = {
             var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['brute_force']) ? engine._deliveredFlags['brute_force'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-size:0.8rem; font-weight:bold; margin-bottom:4px;">Deny rule active — attack source blocked.</div>'
-                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem;">Bulk-unlock accounts to complete remediation and retrieve the incident token.</div>')
+                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + AD001Config._flagText(flagVal) + '</div>' : '<div style="color:#888; font-size:0.75rem;">Bulk-unlock accounts to complete remediation and retrieve the incident token.</div>')
                 + '</div>';
         }
 
@@ -2074,7 +2160,7 @@ var AD001Config = {
             var flagVal = (engine.state._flagRevealed && engine._deliveredFlags && engine._deliveredFlags['rogue_task']) ? engine._deliveredFlags['rogue_task'] : '';
             html += '<div style="padding:12px 16px; border-top:1px solid rgba(255,255,255,0.1); flex-shrink:0; background:rgba(46,204,113,0.05);">'
                 + '<div style="color:#2ecc71; font-weight:bold; font-size:0.8rem;">Gi0/21 disabled — DESK-142 is offline. Rogue scheduled task neutralized.</div>'
-                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + flagVal + '</div>' : '<div style="color:#888; font-size:0.75rem; margin-top:4px;">Unlock affected accounts to complete remediation.</div>')
+                + (flagVal ? '<div style="margin-top:8px; padding:8px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:3px; font-size:0.75rem; color:#c8e6c9;">Incident token: ' + AD001Config._flagText(flagVal) + '</div>' : '<div style="color:#888; font-size:0.75rem; margin-top:4px;">Unlock affected accounts to complete remediation.</div>')
                 + '</div>';
         }
 

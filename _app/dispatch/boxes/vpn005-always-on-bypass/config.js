@@ -484,7 +484,7 @@ var VPN005Config = {
 
         whoami: function() { return 'MGMT-SRV01\\VPN-Policy-Admin'; },
         hostname: function() { return 'MGMT-SRV01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
 
     // ==========================================================

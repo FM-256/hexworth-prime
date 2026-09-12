@@ -7,6 +7,41 @@
    ============================================================ */
 
 var PR1Config = {
+    /* ── Windows shell: a filesystem `cd` can actually walk ─────────────────────────────
+     * This box overrode `dir` but not `cd`, so `cd` fell through to Terminal.js's POSIX
+     * builtin and answered a bash error for a directory `dir` had just advertised. The tree
+     * is DERIVED from that `dir` output — the union across every scenario branch it can
+     * take — so whatever `dir` can list is exactly what `cd` accepts. */
+    _homeDir: 'C:\\Users\\Technician',
+    _fileTree: {
+        'C:\\Users\\Technician': ['Desktop', 'Documents', 'Downloads'],
+        'C:\\Users\\Technician\\Desktop': [],
+        'C:\\Users\\Technician\\Documents': [],
+        'C:\\Users\\Technician\\Downloads': []
+    },
+
+    _canonDir(p) {
+        var lower = String(p).toLowerCase();
+        return Object.keys(PR1Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _resolveWinPath(term, arg) {
+        var cwd = (term && term.cwd) || PR1Config._homeDir;
+        if (!arg) return cwd;
+        var p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) { /* absolute */ }
+        else if (p === '.') return cwd;
+        else if (p === '..') {
+            var cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -700,9 +735,40 @@ var PR1Config = {
 
         hostname: function() { return 'HELPDESK01'; },
 
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
 
-        dir: function() {
+        /* Windows `cd`. Never returns null — Terminal.js reads null as "fall through to the
+         * builtin", the bash-error path this replaces. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || PR1Config._homeDir;
+            var path = PR1Config._canonDir(PR1Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';
+        },
+
+        /* At home, the box's own authored listing is returned unchanged (_dirHome), so the
+         * per-scenario branches it contains are preserved; inside a subdirectory it renders
+         * that directory instead of repeating the home listing. */
+        dir: function(args, term, engine) {
+            var path = PR1Config._canonDir(PR1Config._resolveWinPath(term, args && args[0]));
+            if (!path) return 'The system cannot find the path specified.';
+            if (path === PR1Config._homeDir) return PR1Config.commands._dirHome(args, term, engine);
+            var kids = PR1Config._fileTree[path] || [];
+            var out = ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n';
+            out += ' Directory of ' + path + '\n\n';
+            ['.', '..'].concat(kids).forEach(function (d) {
+                out += '03/12/2026  08:30 AM    <DIR>          ' + d + '\n';
+            });
+            out += '               0 File(s)              0 bytes\n';
+            out += String(kids.length + 2).padStart(16) + ' Dir(s)  214,748,364,800 bytes free';
+            return out;
+        },
+
+
+        _dirHome: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 7F3A-2B4E\n\n Directory of C:\\Users\\Technician\n\n03/13/2026  08:15 AM    <DIR>          .\n03/13/2026  08:15 AM    <DIR>          ..\n03/13/2026  08:15 AM    <DIR>          Desktop\n03/13/2026  08:15 AM    <DIR>          Documents\n03/13/2026  08:15 AM    <DIR>          Downloads\n               0 File(s)              0 bytes\n               5 Dir(s)  214,748,364,800 bytes free';
         },
 

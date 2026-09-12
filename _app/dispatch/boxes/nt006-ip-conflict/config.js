@@ -6,6 +6,20 @@
    ============================================================ */
 
 const NT006Config = {
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that into student-visible text yields the literal word
+     * "null": `'Recovery token: ' + fv` becomes `'Recovery token: null'`. A student who
+     * reads "unavailable — reload" reloads; a student who reads "null" reports a broken lab.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     title: 'IP Conflict',
     subtitle: 'IP Address Conflict Resolution — Network+',
@@ -205,7 +219,7 @@ const NT006Config = {
                     const s = NT006Config._getScenario(engine);
                     if (s && (s.id==='dhcp_overlap'||s.id==='rogue_dhcp'||s.id==='apipa') && net.ip.startsWith('192.168.1.')) {
                         const fv = await engine.requestFlagText(s.id);
-                        output += '\n\n   DHCP Lease Recovery Token . . . . : ' + fv;
+                        output += '\n\n   DHCP Lease Recovery Token . . . . : ' + NT006Config._flagText(fv);
                     }
                 }
                 return output;
@@ -257,7 +271,7 @@ const NT006Config = {
             } else if (engine.state._flagRevealed && NT006Config._getScenario(engine)?.id === 'stale_arp') {
                 const fv = await engine.requestFlagText('stale_arp');
                 output += '  192.168.1.1           ' + engine.state._newGatewayMAC + '     dynamic\n';
-                output += '\n  ARP Cache Recovery Token: ' + fv + '\n';
+                output += '\n  ARP Cache Recovery Token: ' + NT006Config._flagText(fv) + '\n';
             } else if (net.gateway && NT006Config._sameSubnet(net.ip, net.gateway, net.subnet)) {
                 output += '  ' + net.gateway + '       00-1a-2b-3c-4d-01     dynamic\n';
             }
@@ -293,7 +307,7 @@ const NT006Config = {
 
         route: function(args, term, engine) { const gate = NT006Config._requireScenario(engine); if (gate) return gate; const net = engine.state._networkConfig; return '\nIPv4 Route Table\n===========================================================================\n  0.0.0.0          0.0.0.0      ' + (net.gateway||'None') + '    ' + net.ip + '     25\n  127.0.0.0        255.0.0.0         On-link         127.0.0.1    331\n==========================================================================='; },
         hostname: function() { return 'WORKSTATION06'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         whoami: function() { return 'WORKSTATION06\\Technician'; },
         getmac: function() { return '\n' + NT006Config._macAddress; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.\n\nDid you mean: ipconfig'; },

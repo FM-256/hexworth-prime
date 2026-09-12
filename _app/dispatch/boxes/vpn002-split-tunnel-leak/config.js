@@ -539,7 +539,7 @@ var VPN002Config = {
 
         whoami: function() { return 'SEC-WS01\\Security-Analyst'; },
         hostname: function() { return 'SEC-WS01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
 
     // ==========================================================

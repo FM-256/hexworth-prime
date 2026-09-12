@@ -449,7 +449,22 @@ var PR2Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
+
+        /* Windows `cd`. Without an override, `cd` fell through to Terminal.js's POSIX
+         * builtin, which walks this box's declared `filesystem` and answers
+         * "cd: X: No such file or directory" — a bash error inside a Windows command
+         * prompt. This box's `dir` advertises no enterable directory, so the honest
+         * behaviour is cmd.exe's own: print the current directory for a bare `cd`, and
+         * refuse anything else exactly as Windows does for a path that is not there.
+         * MUST NOT return null: Terminal.js reads null as "fall through to the builtin",
+         * which is the very fallthrough this exists to stop. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || '';
+            if (raw === '.' ) return '';
+            return 'The system cannot find the path specified.';
+        },
         dir: function() { return ' Volume in drive C has no label.\n Directory of C:\\Users\\Technician\n               0 File(s)              0 bytes'; },
         systeminfo: function() { return '\nHost Name:                 HELPDESK01\nOS Name:                   Microsoft Windows 10 Pro\nOS Version:                10.0.19045\nSystem Model:              Dell OptiPlex 5090\nTotal Physical Memory:     8,192 MB'; },
 

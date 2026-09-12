@@ -144,7 +144,7 @@ var DNS005Config = {
         },
         whoami: function() { return 'DNS-INT\\Administrator'; },
         hostname: function() { return 'DNS-INT'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; }
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; }
     },
 
     onAppLaunch(iconDef, engine) {

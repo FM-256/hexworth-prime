@@ -6,6 +6,60 @@
    ============================================================ */
 
 const NT002Config = {
+    /* ── Windows shell: a filesystem `cd` can actually walk ─────────────────────────────
+     * This box overrode `dir` but not `cd`, so `cd` fell through to Terminal.js's POSIX
+     * builtin walking the (empty) declared `filesystem` and answered
+     * "cd: Documents: No such file or directory" — a bash error in a Windows prompt, for a
+     * directory `dir` had just advertised. The tree below is DERIVED from that same `dir`
+     * output, so the two cannot disagree: whatever `dir` lists is exactly what `cd` accepts.
+     * Windows paths are case-insensitive, hence _canonDir folding case and returning the
+     * STORED spelling so the prompt reads the way cmd.exe would render it. */
+    _homeDir: 'C:\\Users\\Technician',
+    _fileTree: {
+        'C:\\Users\\Technician': ['Desktop', 'Documents', 'Downloads'],
+        'C:\\Users\\Technician\\Desktop': [],
+        'C:\\Users\\Technician\\Documents': [],
+        'C:\\Users\\Technician\\Downloads': []
+    },
+
+    _canonDir(p) {
+        var lower = String(p).toLowerCase();
+        return Object.keys(NT002Config._fileTree).find(function (k) {
+            return k.toLowerCase() === lower;
+        }) || null;
+    },
+
+    _resolveWinPath(term, arg) {
+        var cwd = (term && term.cwd) || NT002Config._homeDir;
+        if (!arg) return cwd;
+        var p = String(arg).replace(/"/g, '');
+        if (/^[A-Za-z]:\\/.test(p)) { /* absolute */ }
+        else if (p === '.') return cwd;
+        else if (p === '..') {
+            var cut = cwd.lastIndexOf('\\');
+            return cut > 2 ? cwd.slice(0, cut) : cwd;
+        } else {
+            p = cwd.replace(/\\+$/, '') + '\\' + p.replace(/^\\+/, '');
+        }
+        return p.replace(/\\+$/, '');
+    },
+
+    /**
+     * Render a delivered flag, or say something a student can act on.
+     *
+     * requestFlagText returns NULL when delivery fails — no session, offline, a Cloud
+     * Function error. Concatenating that straight into student-visible text produces the
+     * literal word "null": `'Recovery token: ' + null` is `'Recovery token: null'`. Students
+     * who had correctly finished the lab were shown a JavaScript value where their flag
+     * belonged and reasonably reported the box as broken. A student who reads
+     * "unavailable — reload" reloads; a student who reads "null" files a bug.
+     */
+    _flagText(flagVal) {
+        return (typeof flagVal === 'string' && flagVal.trim())
+            ? flagVal
+            : 'unavailable — reload the page to retry';
+    },
+
 
     // ==========================================================
     // BOX METADATA
@@ -543,7 +597,7 @@ const NT002Config = {
                 // Show flag in ipconfig after DHCP renewal for dhcp_expired scenario
                 if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'dhcp_expired') {
                     const flagVal = await engine.requestFlagText('dhcp_expired');
-                    output += '\n\n   DHCP Lease Obtained. . . . . . . : ' + new Date().toLocaleDateString() + '\n   DHCP Lease Recovery Token . . . . : ' + flagVal;
+                    output += '\n\n   DHCP Lease Obtained. . . . . . . : ' + new Date().toLocaleDateString() + '\n   DHCP Lease Recovery Token . . . . : ' + NT002Config._flagText(flagVal);
                 }
 
                 return output;
@@ -719,7 +773,7 @@ const NT002Config = {
             // Show flag in nslookup after DNS fix
             if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'dns_down' && NT002Config._validDNS.includes(server)) {
                 const flagVal = await engine.requestFlagText('dns_down');
-                output += '\n\n  DNS Resolution Restored — Recovery token: ' + flagVal;
+                output += '\n\n  DNS Resolution Restored — Recovery token: ' + NT002Config._flagText(flagVal);
             }
 
             return output;
@@ -902,7 +956,7 @@ const NT002Config = {
                 // Show flag in route print after gateway fix
                 if (engine.state._flagRevealed && NT002Config._getScenario(engine)?.id === 'wrong_gateway' && net.gateway === '192.168.1.254') {
                     const flagVal = await engine.requestFlagText('wrong_gateway');
-                    output += '\n\n  Routing table updated — Recovery token: ' + flagVal;
+                    output += '\n\n  Routing table updated — Recovery token: ' + NT002Config._flagText(flagVal);
                 }
 
                 return output;
@@ -918,8 +972,40 @@ const NT002Config = {
         },
 
         hostname: function() { return 'PC-BLDG-B-042'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
-        dir: function() {
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
+
+        /* Windows `cd`, walking _fileTree. MUST NOT return null — Terminal.js reads null as
+         * "fall through to the builtin", which is the bash-error path this replaces. */
+        cd: function(args, term) {
+            var raw = (args || []).filter(function (a) { return a.indexOf('/') !== 0; })[0];
+            if (!raw) return (term && term.cwd) || NT002Config._homeDir;
+            var path = NT002Config._canonDir(NT002Config._resolveWinPath(term, raw));
+            if (!path) return 'The system cannot find the path specified.';
+            term.cwd = path;
+            if (typeof term._updatePrompt === 'function') term._updatePrompt();
+            return '';
+        },
+
+        /* Path-aware `dir`. At the home directory it returns the box's own authored listing
+         * unchanged (_dirHome) so no puzzle content is lost; inside a subdirectory it renders
+         * that directory truthfully rather than repeating the home listing. */
+        dir: function(args, term, engine) {
+            var typed = NT002Config._resolveWinPath(term, args && args[0]);
+            var path = NT002Config._canonDir(typed);
+            if (!path) return 'The system cannot find the path specified.';
+            if (path === NT002Config._homeDir) return NT002Config.commands._dirHome(args, term, engine);
+            var kids = NT002Config._fileTree[path] || [];
+            var out = ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n';
+            out += ' Directory of ' + path + '\n\n';
+            ['.', '..'].concat(kids).forEach(function (d) {
+                out += '03/12/2026  08:30 AM    <DIR>          ' + d + '\n';
+            });
+            out += '               0 File(s)              0 bytes\n';
+            out += String(kids.length + 2).padStart(16) + ' Dir(s)  214,748,364,800 bytes free';
+            return out;
+        },
+
+        _dirHome: function() {
             return ' Volume in drive C has no label.\n Volume Serial Number is 8A4B-1C3D\n\n Directory of C:\\Users\\Technician\n\n03/29/2026  08:30 AM    <DIR>          .\n03/29/2026  08:30 AM    <DIR>          ..\n03/29/2026  08:30 AM    <DIR>          Desktop\n03/29/2026  08:30 AM    <DIR>          Documents\n03/29/2026  08:30 AM    <DIR>          Downloads\n               0 File(s)              0 bytes\n               5 Dir(s)  214,748,364,800 bytes free';
         },
         getmac: function() {
@@ -1256,7 +1342,7 @@ const NT002Config = {
             + (showFlag
                 ? '<div style="background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:8px; margin-bottom:8px; font-size:0.75rem;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Cable Reconnection Report:</div>'
-                + '<div style="color:#c8e6c9;">' + flagVal + '</div></div>'
+                + '<div style="color:#c8e6c9;">' + NT002Config._flagText(flagVal) + '</div></div>'
                 : '')
             + '<div style="display:flex; gap:8px;">'
             + (isDisconnected
@@ -1329,7 +1415,7 @@ const NT002Config = {
                 ? '<div style="margin-top:16px; background:rgba(46,204,113,0.1); border:1px solid rgba(46,204,113,0.3); border-radius:4px; padding:12px;">'
                 + '<div style="color:#2ecc71; font-weight:bold; margin-bottom:4px;">Proxy Removal Confirmation:</div>'
                 + '<div style="color:#c8e6c9; font-size:0.8rem;">Proxy configuration cleared. Direct connection restored.</div>'
-                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + flagVal + '</div></div>'
+                + '<div style="color:#c8e6c9; font-size:0.8rem; margin-top:4px;">Recovery token: ' + NT002Config._flagText(flagVal) + '</div></div>'
                 : '');
 
         if (isProxy) {

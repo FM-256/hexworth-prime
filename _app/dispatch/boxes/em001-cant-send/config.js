@@ -343,7 +343,7 @@ var EM001Config = {
 
         whoami: function() { return 'HELPDESK01\\Technician'; },
         hostname: function() { return 'HELPDESK01'; },
-        cls: function(args, term) { term.outputEl.innerHTML = ''; return null; },
+        cls: function(args, term) { term.outputEl.innerHTML = ''; return ''; },
         ipconfig: function() { return '\nIPv4 Address: 10.0.2.50\nSubnet Mask: 255.255.255.0\nDefault Gateway: 10.0.2.1\nDNS Server: 10.0.2.10'; },
         ifconfig: function() { return '\'ifconfig\' is not recognized.'; },
         grep: function() { return '\'grep\' is not recognized.'; },
