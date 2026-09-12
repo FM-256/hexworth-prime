@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-09 02:39 · **1215 scripts** · 46 wired into a gate · 291 called by other code · 193 only mentioned in docs · 685 referenced by nothing · 476 not in git
+**Generated:** 2026-09-12 19:20 · **1225 scripts** · 47 wired into a gate · 296 called by other code · 196 only mentioned in docs · 686 referenced by nothing · 477 not in git
 
 ## Read this before writing a new script
 
@@ -55,6 +55,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/eduscan/smoke/deploy.sh` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/smoke/run.js` | `deploy.sh`, `package.json` | yes | _(no header)_ |
 | `_tools/hexos/api-degradation-a11y.test.js` | `_tools/deploy/post-verify.sh` | yes | Hex OS under a MISBEHAVING sandbox API, plus the two a11y gaps no suite tested |
+| `_tools/hexos/box-contract-lint.js` | `deploy.sh` | yes | Gate. Checks every BoxEngine box against the contracts a student can see |
 | `_tools/hexos/corpus-preservation.test.js` | `deploy.sh` | yes | Sweeps every HTML file under _app and fails if stripDead() removes an href that was NOT inside a comment. Catches content deletion the unit tests cannot. |
 | `_tools/hexos/dead-entry-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Fails if any app in hex-apps.json points at a file that does not exist, or is reachable from nowhere. Makes the dead-entry class impossible, not findable. |
 | `_tools/hexos/dead-entry-gate.test.js` | `deploy.sh` | yes | Locks the dead-entry gate's link scanner: which text counts as an inbound link and which does not. Every shape here was a live over-match at some point. |
@@ -205,12 +206,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scrape-mslearn.py` | CALLED | 1 | 2026-03-28 | yes |  |
 
-### `_tools/anon` — 2 scripts, 2 referenced by nothing
+### `_tools/anon` — 2 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `mark-legacy-anon-profiles.js` | ORPHAN | 0 | 2026-09-09 | yes | Marks the legacy users/{uid} profiles that belong to anonymous Firebase Auth |
-| `verify-372-production.js` | ORPHAN | 0 | 2026-09-09 | yes | Answers "did the fix actually work in production", which is a different claim |
+| `mark-legacy-anon-profiles.js` | DOCS-ONLY | 0 | 2026-09-09 | yes | Marks the legacy users/{uid} profiles that belong to anonymous Firebase Auth |
+| `verify-372-production.js` | DOCS-ONLY | 0 | 2026-09-09 | yes | Answers "did the fix actually work in production", which is a different claim |
 
 ### `_tools/aplus-qc` — 1 scripts, 1 referenced by nothing
 
@@ -406,7 +407,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-walkthrough-flag-audit.js` | CALLED | 1 | 2026-06-21 | yes |  |
 | `box-walkthrough-flag-drift.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `bug048-classify.js` | CALLED | 1 | 2026-07-29 | yes |  |
-| `card-click-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
+| `card-click-probe.js` | DOCS-ONLY | 0 | 2026-07-31 | yes |  |
 | `card-shot-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-live-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
@@ -772,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 16 scripts, 9 referenced by nothing
+### `_tools/hexos` — 25 scripts, 12 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -785,12 +786,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `anon-lazy-auth-clickthrough.test.js` | ORPHAN | 0 | 2026-09-09 | yes | The two sibling harnesses only ever measured PAGE LOAD. This one clicks. It |
-| `anon-load-signin-emulator.test.js` | DOCS-ONLY | 0 | 2026-09-09 | yes | Answers the one question anon-load-signin.test.js cannot: does any page |
+| `anon-load-signin-emulator.test.js` | CALLED | 2 | 2026-09-09 | yes | Answers the one question anon-load-signin.test.js cannot: does any page |
 | `anon-load-signin.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves, in a real browser, that removing the load-time anonymous sign-in from |
+| `box-flag-auth-gate.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves the task-377 flag fix cannot recreate the task-372 defect: loading a |
+| `box-reset-button.test.js` | ORPHAN | 0 | 2026-09-12 | no | Proves the taskbar Reset button still performs its PRODUCT function -- |
+| `box-shell-consistency.test.js` | DOCS-ONLY | 0 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
+| `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
 | `md100-cmdlet-help.test.js` | CALLED | 1 | 2026-09-06 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
+| `nt1-cd-live.probe.js` | ORPHAN | 0 | 2026-09-09 | yes | Drives the REAL NT1 page in Chromium -- double-clicks the Command Prompt |
+| `nt1-completable-as-user.test.js` | CALLED | 4 | 2026-09-12 | yes | Answers the only question that matters about NT1: can a USER actually |
+| `nt1-filesystem-commands.test.js` | CALLED | 2 | 2026-09-09 | yes | Drives NT1's Windows shell commands (dir/cd/type/find/cls) and the |
+| `nt1-full-qc.test.js` | CALLED | 1 | 2026-09-12 | yes | Full QC sweep of the NT1 box in a real browser: every command the |
+| `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 
 ### `_tools/hexos-live` — 2 scripts, 0 referenced by nothing
@@ -1048,7 +1058,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `img-snap2.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | snapshot a prepared instance into a candidate sprint image |
 | `img-swap.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | promote a VERIFIED candidate image into the canonical name |
 | `img-verify-candidate.sh` | DOCS-ONLY | 0 | 2026-08-26 | yes | boot a candidate image and prove autologin before promoting it |
-| `lab-manager-server.js` | CALLED | 7 | 2026-08-25 | no |  |
+| `lab-manager-server.js` | CALLED | 6 | 2026-08-25 | no |  |
 | `office-reachability-check.sh` | DOCS-ONLY | 0 | 2026-08-25 | yes | prove the lab surfaces are reachable from an arbitrary network, no tailscale |
 | `patch-sprint-packet.py` | DOCS-ONLY | 0 | 2026-08-24 | yes | patch the sprint student packet + instructor runbook (positional, anchored) |
 | `pool-capacity.sh` | CALLED | 1 | 2026-08-26 | yes | true pool capacity: slots total/bound/free, and how many instances the host can run |
