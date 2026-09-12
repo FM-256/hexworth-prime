@@ -749,6 +749,13 @@ var HW1Config = {
         whoami: function() { return 'WORKSTATION01\\Technician'; },
 
         // Block Linux commands politely
+        pwd: function() { return "'pwd' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: cd"; },
+        head: function() { return "'head' is not recognized as an internal or external command,\noperable program or batch file."; },
+        tail: function() { return "'tail' is not recognized as an internal or external command,\noperable program or batch file."; },
+        man: function() { return "'man' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: help"; },
+        uname: function() { return "'uname' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: systeminfo"; },
+        file: function() { return "'file' is not recognized as an internal or external command,\noperable program or batch file."; },
+        history: function() { return "'history' is not recognized as an internal or external command,\noperable program or batch file.\n\nDid you mean: doskey /history"; },
         ifconfig: function() { return '\'ifconfig\' is not recognized. Did you mean: ipconfig'; },
         grep: function() { return '\'grep\' is not recognized as an internal or external command.'; },
         sudo: function() { return '\'sudo\' is not recognized as an internal or external command.'; },

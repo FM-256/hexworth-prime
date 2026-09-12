@@ -312,6 +312,30 @@ for (const box of boxConfigs()) {
         }
     }
 
+
+    // ── SHELL-004 ───────────────────────────────────────────────────────────────────────
+    // Terminal.js supplies ls/cat/pwd/head/tail/man/uname/file/history as BUILTINS, so any
+    // Windows-family box that does not override one inherits Linux behaviour. Measured live
+    // before this rule existed: `C:\Users\Administrator>ls` answered
+    // "ls: cannot access '...'", and ad001-lockout-storm's `uname` answered "Linux" inside
+    // an Active Directory box.
+    //
+    // The rule demands ALL NINE, not "at least one". A generator of mine skipped a whole file
+    // the moment it saw a single pre-existing override, leaving that box at 1 of 9 while the
+    // commit cited it as already fixed. Chris found it by hand because nothing checked it.
+    // Whether a command should be REFUSED or ALIASED depends on the shell — cmd.exe has none
+    // of them, PowerShell genuinely aliases ls/cat/pwd/man/history — so this rule asserts
+    // only that the box decides, never that it decides a particular way.
+    if (isWindows || (cfg.terminal && cfg.terminal.promptStyle) === 'powershell') {
+        const NINE = ['ls', 'cat', 'pwd', 'head', 'tail', 'man', 'uname', 'file', 'history'];
+        const uncovered = NINE.filter(function (n) { return typeof commands[n] !== 'function'; });
+        if (uncovered.length) {
+            add('HIGH', 'SHELL-004', label,
+                'Windows-family box inherits Linux builtins from Terminal.js for commands it does not override',
+                'uncovered: ' + uncovered.join(', '));
+        }
+    }
+
     // ── DOC-001 ─────────────────────────────────────────────────────────────────────────
     // A walkthrough must not promise a command the box cannot answer.
     if (box.area === 'dispatch') {

@@ -76,6 +76,17 @@ var MOB001Config = {
     phases: [{ id: 'investigate', name: 'Investigation', requiredFlags: [], unlocks: ['diagnose'], locked: false }, { id: 'diagnose', name: 'Diagnosis', requiredFlags: [], unlocks: ['repair'], locked: true }, { id: 'repair', name: 'Remediation', requiredFlags: [], unlocks: ['verify'], locked: true }, { id: 'verify', name: 'Verification', requiredFlags: ['fixed'], unlocks: [], locked: true }],
 
     commands: {
+        man: function(args, term) {
+            if (term && typeof term._cmdHelp === 'function') { term._cmdHelp(); return ''; }
+            return '';
+        },
+        history: function(args, term) {
+            var h = (term && term.history) || [];
+            if (!h.length) return '';
+            var out = '\n  Id CommandLine\n  -- -----------\n';
+            h.forEach(function (c, i) { out += String(i + 1).padStart(4) + ' ' + c + '\n'; });
+            return out;
+        },
         /* PowerShell genuinely ALIASES ls/cat/pwd/man/history, so refusing them would be the
          * mistake of asserting one shell's contract on another. The defect was that they fell
          * through to Terminal.js's POSIX builtins and answered with GNU text. These boxes model

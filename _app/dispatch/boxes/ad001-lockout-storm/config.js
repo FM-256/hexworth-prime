@@ -973,6 +973,26 @@ var AD001Config = {
         },
 
         // Block Linux-only commands with helpful responses
+        cat: function(args) {
+            var f = (args || [])[0] || '';
+            return "Get-Content : Cannot find path '" + f + "' because it does not exist.";
+        },
+        pwd: function(args, term) { return (term && term.cwd) || ''; },
+        head: function() { return "The term 'head' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        tail: function() { return "The term 'tail' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        man: function(args, term) {
+            if (term && typeof term._cmdHelp === 'function') { term._cmdHelp(); return ''; }
+            return '';
+        },
+        uname: function() { return "The term 'uname' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        file: function() { return "The term 'file' is not recognized as the name of a cmdlet, function,\nscript file, or operable program."; },
+        history: function(args, term) {
+            var h = (term && term.history) || [];
+            if (!h.length) return '';
+            var out = '\n  Id CommandLine\n  -- -----------\n';
+            h.forEach(function (c, i) { out += String(i + 1).padStart(4) + ' ' + c + '\n'; });
+            return out;
+        },
         ifconfig: function() { return '\'ifconfig\' is not recognized. On Windows Server, use: Get-NetIPAddress or ipconfig'; },
         grep:     function() { return '\'grep\' is not recognized. On PowerShell, use: Select-String or Where-Object'; },
         sudo:     function() { return '\'sudo\' is not recognized. Run PowerShell as Administrator or use: Start-Process -Verb RunAs'; },
