@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-13 18:33 · **1247 scripts** · 47 wired into a gate · 297 called by other code · 195 only mentioned in docs · 708 referenced by nothing · 497 not in git
+**Generated:** 2026-09-13 19:32 · **1248 scripts** · 47 wired into a gate · 297 called by other code · 195 only mentioned in docs · 709 referenced by nothing · 498 not in git
 
 ## Read this before writing a new script
 
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 47 scripts, 34 referenced by nothing
+### `_tools/hexos` — 48 scripts, 35 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -814,6 +814,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-resetlab-icon.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Drives the "Reset Lab" DESKTOP ICON in every box that calls |
 | `box-shell-consistency.test.js` | CALLED | 1 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
+| `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | no | Drives EVERY dispatch box far enough to prove a student is not blocked: |
 | `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
