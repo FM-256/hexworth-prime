@@ -31,6 +31,19 @@
  *   the walkthrough advertised commands and locations the sim did not provide
  *                                                                 -> DOC-001
  *
+ * SHELL-005 KNOWN LIMITATIONS, recorded so they are read rather than rediscovered:
+ *   1. The markers cannot tell the shell talking from content a box legitimately quotes.
+ *      A Windows box narrating a Linux error, or a file listing containing /bin/sh, would
+ *      be classified GNU. Zero such false positives across 911 classified outputs today.
+ *   2. Handlers are invoked BARE — `cmd([], term, engine)`. Argument-dependent branches
+ *      (`dir NoSuchFolder`, `cat missing.txt`) are never exercised, so a box that is
+ *      dialect-correct on the bare call and Linux-flavoured on an error path passes.
+ *   3. 20 of the 90 judged boxes return NOTHING this rule can classify — every override
+ *      emits invented domain prose matching no shell marker (the iot/nt01x/perf/sec00x
+ *      linux-style dispatch boxes). They are UNJUDGED, not clean. Chris blocked the first
+ *      version for reporting them identically to a box that was genuinely checked; they
+ *      now raise SHELL-005-NOSIGNAL (LOW, non-blocking) and a per-run summary line.
+ *
  * SHELL-005 was added later, on Chris's recommendation after the resetLab review. SHELL-004
  * asks whether a Windows-family box OVERRIDES each inherited Linux builtin; it cannot ask
  * whether the override is any good. A box can satisfy SHELL-004 completely and still answer
@@ -78,6 +91,13 @@ const pending = [];
  * INCONCLUSIVE, and silently degrade this rule's coverage with zero visible signal. A gate
  * quietly checking less than it claims is the failure mode this whole file exists to stop. */
 const s005 = { invoked: 0, threw: 0, timedOut: 0, classified: 0 };
+/* PER-BOX signal, not just the aggregate. Chris's block: the aggregate "2044 invoked / 911
+ * classified" looks healthy while 20 of the 90 judged boxes get ZERO dialect signal — every
+ * command they override returns invented domain prose that matches no marker. Those boxes
+ * report exactly the same clean result as a box that was genuinely checked. The file already
+ * argues that "0 findings from 0 invocations" differs from "0 findings from 2044"; that
+ * principle was applied to the total and not to each box, which is precisely where it hides. */
+const s005Box = new Map();   // label -> { invoked, classified, style }
 /** Record one finding. HIGH fails the gate; LOW is reported and does not block. */
 const add = (sev, rule, box, message, detail) =>
     findings.push({ severity: sev, rule, box, message, detail: detail || null });
@@ -299,12 +319,14 @@ function shell005(cfg, commands, label) {
     if (style !== 'windows' && style !== 'powershell' && style !== 'linux') return;
     const expected = style === 'linux' ? 'gnu' : (style === 'windows' ? 'cmd' : 'powershell');
     const [term, eng] = stubPair(cfg);
+    if (!s005Box.has(label)) s005Box.set(label, { invoked: 0, classified: 0, style });
+    const bx = s005Box.get(label);
     for (const name of Object.keys(commands)) {
         if (name[0] === '_') continue;                      // box-private helpers
         if (typeof commands[name] !== 'function') continue;
         const judge = (out) => {
             const fam = classifyDialect(out);
-            if (fam) s005.classified++;
+            if (fam) { s005.classified++; bx.classified++; }
             if (!fam || fam === expected) return;           // no marker = the normal case
             /* A LINUX box emitting cmd/PowerShell text is the same defect mirrored. Catching
              * one direction only is how a detector ends up keyed to the bug already known —
@@ -315,6 +337,7 @@ function shell005(cfg, commands, label) {
         };
         let out;
         s005.invoked++;
+        bx.invoked++;
         try {
             out = commands[name]([], term, eng);
         } catch (e) {
@@ -698,6 +721,27 @@ if (introduced.length) {
 if (!AS_JSON) console.log(`\nno new findings (${known.length} known, tracked as tasks 373/374/378)`);
 }
 
+/**
+ * Boxes SHELL-005 could not read at all — invoked commands, classified nothing.
+ *
+ * LOW, so it never blocks a deploy: these are not known defects, they are known BLIND SPOTS,
+ * and the difference matters. Emitted as findings rather than only a console line so they
+ * reach the JSON consumers too. Computed AFTER `pending` resolves: a box whose only
+ * classifiable output is async would otherwise be declared blind on the strength of not
+ * having finished yet.
+ */
+function finishS005() {
+    const blind = [...s005Box.entries()].filter(([, b]) => b.invoked > 0 && b.classified === 0);
+    for (const [label, b] of blind) {
+        add('LOW', 'SHELL-005-NOSIGNAL', label,
+            `SHELL-005 read no dialect signal from this box — ${b.invoked} command(s) invoked, 0 classified`,
+            `promptStyle "${b.style}"; every override returns text matching no shell marker, so this box is UNJUDGED by SHELL-005, not proven clean`);
+    }
+    if (!AS_JSON && s005Box.size) {
+        console.log(`SHELL-005: ${blind.length} of ${s005Box.size} judged box(es) produced NO dialect signal (unjudged, not clean)`);
+    }
+}
+
 // SHELL-005 may have produced promises. Resolve them BEFORE reporting, or an async
 // handler's wrong-dialect output lands after the document is already written.
-Promise.all(pending).then(report, report);
+Promise.all(pending).then(finishS005, finishS005).then(report, report);
