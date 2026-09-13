@@ -69,9 +69,15 @@ const AS_JSON = argv.includes('--json');
 const onlyIdx = argv.indexOf('--box');
 const ONLY = onlyIdx > -1 ? argv[onlyIdx + 1] : null;
 
+const ASYNC_MS = 2000;   // per-handler deadline for SHELL-005's async path
 const findings = [];
 // SHELL-005 invokes handlers; async ones resolve here before report() runs.
 const pending = [];
+/* Invocation outcomes, surfaced in the report. Nancy's review: with no counter, a future
+ * handler that dereferences something the stub lacks would throw, be swallowed as
+ * INCONCLUSIVE, and silently degrade this rule's coverage with zero visible signal. A gate
+ * quietly checking less than it claims is the failure mode this whole file exists to stop. */
+const s005 = { invoked: 0, threw: 0, timedOut: 0, classified: 0 };
 /** Record one finding. HIGH fails the gate; LOW is reported and does not block. */
 const add = (sev, rule, box, message, detail) =>
     findings.push({ severity: sev, rule, box, message, detail: detail || null });
@@ -298,6 +304,7 @@ function shell005(cfg, commands, label) {
         if (typeof commands[name] !== 'function') continue;
         const judge = (out) => {
             const fam = classifyDialect(out);
+            if (fam) s005.classified++;
             if (!fam || fam === expected) return;           // no marker = the normal case
             /* A LINUX box emitting cmd/PowerShell text is the same defect mirrored. Catching
              * one direction only is how a detector ends up keyed to the bug already known —
@@ -307,13 +314,31 @@ function shell005(cfg, commands, label) {
                 String(out).replace(/\s+/g, ' ').slice(0, 110));
         };
         let out;
+        s005.invoked++;
         try {
             out = commands[name]([], term, eng);
         } catch (e) {
+            s005.threw++;
             continue;                                       // INCONCLUSIVE, never a finding
         }
-        if (out && typeof out.then === 'function') pending.push(out.then(judge, () => {}));
-        else judge(out);
+        if (out && typeof out.then === 'function') {
+            /* HARD DEADLINE. Promise.all never resolves if one promise never settles, and
+             * this gate blocks every deploy — a hang here is a silently stuck deploy with no
+             * error and no exit code, which Nancy correctly called worse than a false HIGH.
+             * A timed-out handler is INCONCLUSIVE and counted, never a finding. */
+            /* NOT .unref()'d: an unref'd timer does not hold the event loop open, so when the
+             * only thing left pending was a never-settling handler, node exited 0 having
+             * written NO report at all — a gate that passes without checking anything. My own
+             * never-settling self-test case caught that.
+             * CLEARED on settle: leaving 2000+ live timers armed kept the process alive for a
+             * full ASYNC_MS after the work was done and took the gate from 0.5s to 2.2s. */
+            let tid;
+            const deadline = new Promise(res => {
+                tid = setTimeout(() => { s005.timedOut++; res(); }, ASYNC_MS);
+            });
+            pending.push(Promise.race([out.then(judge, () => {}), deadline])
+                .then(() => clearTimeout(tid)));
+        } else judge(out);
     }
 }
 
@@ -367,6 +392,12 @@ if (argv.includes('--self-test')) {
         await run('box-private helper ignored',     win,  { _helper: () => 'bash: command not found' }, false);
         await run('throwing handler inconclusive',  win,  { ls: () => { throw new Error('needs state'); } }, false);
         await run('no promptStyle declared',        none, { ls: () => 'bash: ls: command not found' }, false);
+        /* A handler that NEVER settles. Without the Promise.race deadline this case hangs the
+         * self-test — and in the real gate it hangs every deploy, silently. The assertion is
+         * that it produces no finding AND that we get here at all. */
+        const t0 = Date.now();
+        await run('never-settling handler times out', win, { ls: () => new Promise(() => {}) }, false);
+        results.push(['deadline actually fired', s005.timedOut > 0 && Date.now() - t0 >= ASYNC_MS, s005.timedOut, '>0']);
         let ok = 0;
         for (const [n, pass, got, want] of results) {
             console.log('  ' + (pass ? 'ok  ' : 'FAIL') + ' ' + n + (pass ? '' : `  (finding=${got}, expected=${want})`));
@@ -576,6 +607,13 @@ for (const box of boxConfigs()) {
  * is a pipe, which silently truncated the --json document mid-object at ~65KB. A gate whose
  * own report can be cut off without saying so is a gate you cannot trust the output of. */
 function report() {
+    /* SHELL-005 coverage, printed whether or not it found anything. "0 findings" from a rule
+     * that invoked 0 commands is not the same as "0 findings" from a rule that invoked 2044,
+     * and only one of those is good news. */
+    if (!AS_JSON) {
+        console.log(`SHELL-005: ${s005.invoked} command(s) invoked, ${s005.classified} classified, ` +
+                    `${s005.threw} threw, ${s005.timedOut} timed out (inconclusive)`);
+    }
 const high = findings.filter(f => f.severity === 'HIGH');
 const low = findings.filter(f => f.severity !== 'HIGH');
 

@@ -503,7 +503,7 @@ for hg in \
     "MD-100 arena cards vs registry|node _tools/hexos/md100-arena-cards.test.js" \
     "tenant containment on Hex OS|node _tools/hexos/tenant-containment.test.js" \
     "terminal async output|node _tools/hexos/terminal-async-output.test.js" \
-    "box behaviour contracts|node _tools/hexos/box-contract-lint.js"; do
+    "box behaviour contracts|timeout 120 node _tools/hexos/box-contract-lint.js"; do
     HG_NAME="${hg%%|*}"; HG_CMD="${hg#*|}"
     # Capture, THEN test the status. `if $HG_CMD | tail` would read tail's exit code, which is
     # always 0. That produced a gate that could never block once already in this file.
