@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-12 19:20 · **1225 scripts** · 47 wired into a gate · 296 called by other code · 196 only mentioned in docs · 686 referenced by nothing · 477 not in git
+**Generated:** 2026-09-12 22:07 · **1230 scripts** · 47 wired into a gate · 296 called by other code · 196 only mentioned in docs · 691 referenced by nothing · 481 not in git
 
 ## Read this before writing a new script
 
@@ -387,7 +387,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-asset-existence-audit.js` | CALLED | 2 | 2026-05-23 | yes |  |
 | `box-content-catalog-orphan.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-decoy-provenance-lint.js` | CALLED | 1 | 2026-05-23 | yes |  |
-| `box-engine-api-lint.js` | CALLED | 1 | 2026-05-23 | yes |  |
+| `box-engine-api-lint.js` | CALLED | 2 | 2026-05-23 | yes |  |
 | `box-flag-count-consistency.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-flag-leak-audit.js` | CALLED | 1 | 2026-06-21 | yes |  |
 | `box-flag-registry-audit.js` | CALLED | 2 | 2026-05-23 | yes |  |
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 25 scripts, 12 referenced by nothing
+### `_tools/hexos` — 30 scripts, 17 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -782,14 +782,19 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
+| `_probe_dialog_text_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
+| `_probe_local_ticket_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api2_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
+| `_probe_resetlab_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
+| `_probe_resetlab_tmp2.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `anon-lazy-auth-clickthrough.test.js` | ORPHAN | 0 | 2026-09-09 | yes | The two sibling harnesses only ever measured PAGE LOAD. This one clicks. It |
 | `anon-load-signin-emulator.test.js` | CALLED | 2 | 2026-09-09 | yes | Answers the one question anon-load-signin.test.js cannot: does any page |
 | `anon-load-signin.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves, in a real browser, that removing the load-time anonymous sign-in from |
 | `box-flag-auth-gate.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves the task-377 flag fix cannot recreate the task-372 defect: loading a |
-| `box-reset-button.test.js` | ORPHAN | 0 | 2026-09-12 | no | Proves the taskbar Reset button still performs its PRODUCT function -- |
+| `box-reset-button.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Proves the taskbar Reset button still performs its PRODUCT function -- |
+| `box-resetlab-icon.test.js` | ORPHAN | 0 | 2026-09-12 | no | Drives the "Reset Lab" DESKTOP ICON in every box that calls |
 | `box-shell-consistency.test.js` | DOCS-ONLY | 0 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
@@ -1927,7 +1932,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-34 scripts are referenced by nothing AND follow the leading-underscore
+38 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1940,8 +1945,12 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
+- `_tools/hexos/_probe_dialog_text_tmp.js` · last modified 2026-09-12
+- `_tools/hexos/_probe_local_ticket_tmp.js` · last modified 2026-09-12
 - `_tools/hexos/_probe_malformed_api2_tmp.js` · last modified 2026-09-04
 - `_tools/hexos/_probe_malformed_api_tmp.js` · last modified 2026-09-04
+- `_tools/hexos/_probe_resetlab_tmp.js` · last modified 2026-09-12
+- `_tools/hexos/_probe_resetlab_tmp2.js` · last modified 2026-09-12
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
 - `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
 - `_tools/qa/_chris_ablation_tmp5.js` · last modified 2026-08-14

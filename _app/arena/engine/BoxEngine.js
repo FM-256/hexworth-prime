@@ -505,10 +505,37 @@ const BoxEngine = {
         location.reload();
     },
 
+    /**
+     * resetLab — the destructive reset, for box configs that confirm on their own.
+     *
+     * 46 box configs call engine.resetLab() and it has never existed on this object, so the
+     * "Reset Lab" desktop icon was dead in every one of them: the student confirms,
+     * `engine.resetLab is not a function` throws to the console, and nothing happens.
+     * Reproduced on production against ad003-gpo-issues — localStorage byte-identical
+     * before and after a confirmed reset. The taskbar button worked the whole time, so
+     * every check we had passed; the broken control was the one wearing the label.
+     *
+     * Aliases reset(), NOT _confirmReset(), deliberately: all 46 call sites already confirm
+     * first (45 with a native confirm(), ad001-lockout-storm from its own dialog's click
+     * handler), so routing through the engine's dialog would ask twice for one click.
+     */
+    resetLab() {
+        this.reset();
+    },
+
     _confirmReset() {
         // Build a confirmation dialog
         const existing = document.getElementById('resetConfirmOverlay');
         if (existing) existing.remove();
+
+        /* The 96 scenario boxes lock a student into one ticket until the box is reset, so
+         * for them this dialog is the only route to another ticket. Keyed on the RUNTIME
+         * state flag rather than a config field: `_scenarioSelected` is a box-local
+         * convention the engine does not otherwise read, and a box that does not set it
+         * simply gets no extra sentence rather than a wrong one. */
+        const scenarioLine = (this.state && this.state._scenarioSelected)
+            ? ' You will then be able to pick a different ticket.'
+            : '';
 
         const overlay = document.createElement('div');
         overlay.id = 'resetConfirmOverlay';
@@ -520,7 +547,8 @@ const BoxEngine = {
                 </div>
                 <div style="color:#e74c3c;font-size:1rem;font-weight:bold;margin-bottom:8px;">Reset Box?</div>
                 <div style="color:#9ca3af;font-size:0.78rem;line-height:1.5;margin-bottom:20px;">
-                    This will erase all progress, flags, hints, and score for this box. You will start from scratch.
+                    This clears your work in this box — score, hints used, and the timer — and starts it over.${scenarioLine}
+                    <br><br>Flags you have already submitted and had accepted are recorded already; resetting does not take them back.
                 </div>
                 <div style="display:flex;gap:10px;justify-content:center;">
                     <button id="resetConfirmYes" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);border-radius:6px;padding:8px 20px;font-family:inherit;font-size:0.78rem;font-weight:bold;cursor:pointer;">Reset</button>
