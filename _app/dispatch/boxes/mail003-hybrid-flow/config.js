@@ -471,7 +471,7 @@ var MAIL003Config = {
             case 'connectors':  MAIL003Config._openConnectors(iconDef, engine); break;
             case 'msg_trace':   MAIL003Config._openMsgTrace(iconDef, engine); break;
             case 'server_info': MAIL003Config._openServerInfo(iconDef, engine); break;
-            case 'reset_lab':   MAIL003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

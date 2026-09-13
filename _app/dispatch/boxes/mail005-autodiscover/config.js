@@ -412,7 +412,7 @@ var MAIL005Config = {
             case 'dns_console':      MAIL005Config._openDns(iconDef, engine); break;
             case 'cert_viewer':      MAIL005Config._openCert(iconDef, engine); break;
             case 'server_info':      MAIL005Config._openServer(iconDef, engine); break;
-            case 'reset_lab':        MAIL005Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

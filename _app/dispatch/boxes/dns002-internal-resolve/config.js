@@ -193,7 +193,7 @@ var DNS002Config = {
         switch (iconDef.app) {
             case 'ticket': DNS002Config._openTicket(iconDef, engine); break;
             case 'dns_manager': DNS002Config._openDNSManager(iconDef, engine); break;
-            case 'reset_lab': DNS002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

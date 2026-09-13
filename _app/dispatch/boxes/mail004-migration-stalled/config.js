@@ -391,7 +391,7 @@ var MAIL004Config = {
             case 'migration_dash': MAIL004Config._openMigDash(iconDef, engine); break;
             case 'move_requests':  MAIL004Config._openMoveReqs(iconDef, engine); break;
             case 'server_info':    MAIL004Config._openServerInfo(iconDef, engine); break;
-            case 'reset_lab':      MAIL004Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

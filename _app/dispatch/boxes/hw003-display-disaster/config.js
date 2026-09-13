@@ -223,7 +223,7 @@ var HW3Config = {
             case 'ticket': HW3Config._openTicket(iconDef, engine); break;
             case 'hw_panel': HW3Config._openPanel(iconDef, engine); break;
             case 'event_viewer': HW3Config._openEV(iconDef, engine); break;
-            case 'reset_lab': HW3Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

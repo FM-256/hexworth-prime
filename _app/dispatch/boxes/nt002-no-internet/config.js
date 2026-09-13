@@ -1079,7 +1079,7 @@ const NT002Config = {
             case 'device_manager':   NT002Config._openDeviceManager(iconDef, engine); break;
             case 'proxy_settings':   NT002Config._openProxySettings(iconDef, engine); break;
             case 'services':         NT002Config._openServices(iconDef, engine); break;
-            case 'reset_lab':        NT002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

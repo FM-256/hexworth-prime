@@ -800,7 +800,7 @@ var HW1Config = {
             case 'multimeter':    HW1Config._openMultimeter(iconDef, engine); break;
             case 'post_reference':HW1Config._openPostReference(iconDef, engine); break;
             case 'bios':          HW1Config._openBios(iconDef, engine); break;
-            case 'reset_lab':     HW1Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

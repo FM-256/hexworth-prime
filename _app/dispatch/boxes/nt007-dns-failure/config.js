@@ -371,7 +371,7 @@ const NT007Config = {
         switch (iconDef.app) {
             case 'ticket': NT007Config._openTicket(iconDef, engine); break;
             case 'dns_manager': NT007Config._openDNSManager(iconDef, engine); break;
-            case 'reset_lab': NT007Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

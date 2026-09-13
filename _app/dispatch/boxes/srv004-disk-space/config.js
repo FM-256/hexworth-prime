@@ -403,7 +403,7 @@ var SRV004Config = {
             case 'ticket': SRV004Config._openTicket(iconDef, engine); break;
             case 'disk_mgmt': SRV004Config._openDiskMgmt(iconDef, engine); break;
             case 'event_viewer': SRV004Config._openEventViewer(iconDef, engine); break;
-            case 'reset_lab': SRV004Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

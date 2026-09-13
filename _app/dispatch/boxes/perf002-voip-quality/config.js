@@ -182,7 +182,7 @@ var PERF002Config = {
             case 'voip_dash': PERF002Config._openVoipDash(iconDef, engine); break;
             case 'sip_diag':  PERF002Config._openSipDiag(iconDef, engine); break;
             case 'net_info':  PERF002Config._openNetInfo(iconDef, engine); break;
-            case 'reset_lab': PERF002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

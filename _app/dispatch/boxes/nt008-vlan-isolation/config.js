@@ -276,7 +276,7 @@ const NT008Config = {
         switch (iconDef.app) {
             case 'ticket': NT008Config._openTicket(iconDef, engine); break;
             case 'switch_config': NT008Config._openSwitchConfig(iconDef, engine); break;
-            case 'reset_lab': NT008Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

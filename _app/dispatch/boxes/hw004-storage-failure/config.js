@@ -225,7 +225,7 @@ var HW4Config = {
         switch (iconDef.app) {
             case 'ticket': HW4Config._openTicket(iconDef, engine); break;
             case 'hw_panel': case 'services': case 'disk_mgmt': case 'devmgr': case 'event_viewer': HW4Config._openPanel(iconDef, engine); break;
-            case 'reset_lab': HW4Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

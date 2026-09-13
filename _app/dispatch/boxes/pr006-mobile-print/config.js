@@ -255,7 +255,7 @@ var PR6Config = {
             case 'ticket': PR6Config._openTicket(iconDef, engine); break;
             case 'print_management': PR6Config._openPM(iconDef, engine); break;
             case 'network_panel': PR6Config._openNetPanel(iconDef, engine); break;
-            case 'reset_lab': PR6Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

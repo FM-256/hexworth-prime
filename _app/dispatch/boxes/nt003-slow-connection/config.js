@@ -781,7 +781,7 @@ const NT003Config = {
             case 'device_manager':   NT003Config._openDeviceManager(iconDef, engine); break;
             case 'task_manager':     NT003Config._openTaskManager(iconDef, engine); break;
             case 'services':         NT003Config._openServices(iconDef, engine); break;
-            case 'reset_lab':        NT003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

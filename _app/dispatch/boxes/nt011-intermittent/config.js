@@ -213,7 +213,7 @@ const NT011Config = {
 
     onAppLaunch(iconDef,engine){
         if(iconDef.app==='diagnostics'&&!engine.state._scenarioSelected){engine.notify('Open ticket first.','error');return;}
-        switch(iconDef.app){case'ticket':NT011Config._openTicket(iconDef,engine);break;case'diagnostics':NT011Config._openDiagnostics(iconDef,engine);break;case'reset_lab':NT011Config._confirmReset(engine);break;}
+        switch(iconDef.app){case'ticket':NT011Config._openTicket(iconDef,engine);break;case'diagnostics':NT011Config._openDiagnostics(iconDef,engine);break;case 'reset_lab': engine.resetLab(); break;}
     },
 
     _openTicket(iconDef,engine){if(engine._windows[iconDef.id]){engine._focusWindow(iconDef.id);return;} const c=document.createElement('div');c.id='ticketContainer';c.style.cssText='padding:20px;overflow-y:auto;height:100%;background:#1a1a2e;color:#c8e6c9;font-family:Consolas,monospace;font-size:0.8rem;';engine.openWindow(iconDef.id,'Help Desk Ticket','HD',c);NT011Config._ensureScenario(engine);if(engine.state._scenarioSelected)NT011Config._renderTicket(engine,c);else NT011Config._renderPicker(engine,c);},

@@ -161,7 +161,7 @@ var DNS003Config = {
         switch (iconDef.app) {
             case 'ticket': DNS003Config._openTicket(iconDef, engine); break;
             case 'dns_manager': DNS003Config._openDNS(iconDef, engine); break;
-            case 'reset_lab': DNS003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
     _openTicket(iconDef, engine) {

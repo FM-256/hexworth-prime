@@ -425,7 +425,7 @@ var SRV003Config = {
             case 'backup_console': SRV003Config._openBackupConsole(iconDef, engine); break;
             case 'event_viewer': SRV003Config._openEventViewer(iconDef, engine); break;
             case 'services': SRV003Config._openServices(iconDef, engine); break;
-            case 'reset_lab': SRV003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

@@ -971,7 +971,7 @@ var SRV001Config = {
             case 'event_viewer':   SRV001Config._openEventViewer(iconDef, engine); break;
             case 'task_manager':   SRV001Config._openTaskManager(iconDef, engine); break;
             case 'iis_manager':    SRV001Config._openIISManager(iconDef, engine); break;
-            case 'reset_lab':      SRV001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

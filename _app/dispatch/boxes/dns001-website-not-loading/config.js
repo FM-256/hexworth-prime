@@ -351,7 +351,7 @@ var DNS001Config = {
             case 'ticket': DNS001Config._openTicket(iconDef, engine); break;
             case 'dns_manager': DNS001Config._openDNSManager(iconDef, engine); break;
             case 'event_viewer': DNS001Config._openEventViewer(iconDef, engine); break;
-            case 'reset_lab': DNS001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

@@ -285,7 +285,7 @@ var HW2Config = {
             case 'ticket': HW2Config._openTicket(iconDef, engine); break;
             case 'event_viewer': HW2Config._openEventViewer(iconDef, engine); break;
             case 'hw_panel': HW2Config._openHWPanel(iconDef, engine); break;
-            case 'reset_lab': HW2Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

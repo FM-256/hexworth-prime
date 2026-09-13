@@ -355,7 +355,7 @@ const NT006Config = {
         switch (iconDef.app) {
             case 'ticket': NT006Config._openTicket(iconDef, engine); break;
             case 'network_settings': NT006Config._openNetwork(iconDef, engine); break;
-            case 'reset_lab': NT006Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

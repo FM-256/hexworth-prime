@@ -230,7 +230,7 @@ var OS6Config = {
         switch (iconDef.app) {
             case 'ticket': OS6Config._openTicket(iconDef, engine); break;
             case 'hw_panel': case 'services': case 'disk_mgmt': case 'devmgr': case 'event_viewer': OS6Config._openPanel(iconDef, engine); break;
-            case 'reset_lab': OS6Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

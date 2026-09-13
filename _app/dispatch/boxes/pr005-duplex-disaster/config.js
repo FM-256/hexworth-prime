@@ -247,7 +247,7 @@ var PR5Config = {
             case 'ticket': PR5Config._openTicket(iconDef, engine); break;
             case 'print_management': PR5Config._openPM(iconDef, engine); break;
             case 'printer_panel': PR5Config._openPanel(iconDef, engine); break;
-            case 'reset_lab': PR5Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

@@ -917,7 +917,7 @@ var OS1Config = {
             case 'startup_settings': OS1Config._openStartupSettings(iconDef, engine); break;
             case 'uninstall_updates':OS1Config._openUninstallUpdates(iconDef, engine); break;
             case 'system_restore':   OS1Config._openSystemRestore(iconDef, engine); break;
-            case 'reset_lab':        OS1Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

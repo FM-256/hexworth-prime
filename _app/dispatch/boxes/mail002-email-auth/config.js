@@ -506,7 +506,7 @@ var MAIL002Config = {
             case 'dns_records':     MAIL002Config._openDnsRecords(iconDef, engine); break;
             case 'dmarc_report':    MAIL002Config._openDmarcReport(iconDef, engine); break;
             case 'server_info':     MAIL002Config._openServerInfo(iconDef, engine); break;
-            case 'reset_lab':       MAIL002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

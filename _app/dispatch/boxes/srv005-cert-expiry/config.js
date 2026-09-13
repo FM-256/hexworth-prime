@@ -307,7 +307,7 @@ var SRV005Config = {
             case 'ticket': SRV005Config._openTicket(iconDef, engine); break;
             case 'cert_store': SRV005Config._openCertStore(iconDef, engine); break;
             case 'iis_manager': SRV005Config._openIIS(iconDef, engine); break;
-            case 'reset_lab': SRV005Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

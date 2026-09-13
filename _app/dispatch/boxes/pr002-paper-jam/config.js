@@ -519,7 +519,7 @@ var PR2Config = {
             case 'print_management': PR2Config._openPrintManagement(iconDef, engine); break;
             case 'printer_panel':    PR2Config._openPrinterPanel(iconDef, engine); break;
             case 'services':         PR2Config._openServices(iconDef, engine); break;
-            case 'reset_lab':        PR2Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

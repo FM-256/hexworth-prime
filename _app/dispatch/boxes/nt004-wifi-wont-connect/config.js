@@ -426,7 +426,7 @@ const NT004Config = {
             case 'device_manager': NT004Config._openDeviceManager(iconDef, engine); break;
             case 'ap_admin':     NT004Config._openAPAdmin(iconDef, engine); break;
             case 'cert_manager': NT004Config._openCertManager(iconDef, engine); break;
-            case 'reset_lab':    NT004Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

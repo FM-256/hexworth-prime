@@ -833,7 +833,7 @@ var PR1Config = {
             case 'print_queue':      PR1Config._openPrintQueue(iconDef, engine); break;
             case 'services':         PR1Config._openServices(iconDef, engine); break;
             case 'network_settings': PR1Config._openNetworkSettings(iconDef, engine); break;
-            case 'reset_lab':        PR1Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

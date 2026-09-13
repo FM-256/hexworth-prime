@@ -370,7 +370,7 @@ var PR3Config = {
             case 'print_management': PR3Config._openPrintManagement(iconDef, engine); break;
             case 'printer_panel':    PR3Config._openPrinterPanel(iconDef, engine); break;
             case 'services':         PR3Config._openServices(iconDef, engine); break;
-            case 'reset_lab':        PR3Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

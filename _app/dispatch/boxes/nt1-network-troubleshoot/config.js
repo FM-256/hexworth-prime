@@ -1272,7 +1272,7 @@ const NT1Config = {
             case 'device_manager':   NT1Config._openDeviceManager(iconDef, engine); break;
             case 'firewall':         NT1Config._openFirewall(iconDef, engine); break;
             case 'services':         NT1Config._openServices(iconDef, engine); break;
-            case 'reset_lab':        NT1Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

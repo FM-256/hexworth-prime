@@ -402,7 +402,7 @@ const NT005Config = {
             case 'vpn_client': NT005Config._openVPNClient(iconDef, engine); break;
             case 'cert_manager': NT005Config._openCertManager(iconDef, engine); break;
             case 'services': NT005Config._openServices(iconDef, engine); break;
-            case 'reset_lab': NT005Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

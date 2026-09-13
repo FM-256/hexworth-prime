@@ -809,7 +809,7 @@ var MAIL001Config = {
             case 'mail_logs':   MAIL001Config._openMailLogs(iconDef, engine); break;
             case 'dns_console': MAIL001Config._openDnsConsole(iconDef, engine); break;
             case 'server_info': MAIL001Config._openServerInfo(iconDef, engine); break;
-            case 'reset_lab':   MAIL001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

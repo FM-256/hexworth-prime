@@ -379,7 +379,7 @@ var PR4Config = {
             case 'ticket': PR4Config._openTicket(iconDef, engine); break;
             case 'print_management': PR4Config._openPrintManagement(iconDef, engine); break;
             case 'network_settings': PR4Config._openNetworkSettings(iconDef, engine); break;
-            case 'reset_lab': PR4Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

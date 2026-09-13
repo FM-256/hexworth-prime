@@ -224,7 +224,7 @@ var OS3Config = {
         switch (iconDef.app) {
             case 'ticket': OS3Config._openTicket(iconDef, engine); break;
             case 'hw_panel': case 'services': case 'disk_mgmt': case 'devmgr': case 'event_viewer': OS3Config._openPanel(iconDef, engine); break;
-            case 'reset_lab': OS3Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

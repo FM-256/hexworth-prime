@@ -738,7 +738,7 @@ var SRV002Config = {
             case 'event_viewer': SRV002Config._openEventViewer(iconDef, engine); break;
             case 'services':     SRV002Config._openServices(iconDef, engine); break;
             case 'firewall':     SRV002Config._openFirewall(iconDef, engine); break;
-            case 'reset_lab':    SRV002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

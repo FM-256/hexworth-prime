@@ -231,7 +231,7 @@ var OS2Config = {
         switch (iconDef.app) {
             case 'ticket': OS2Config._openTicket(iconDef, engine); break;
             case 'hw_panel': case 'services': case 'disk_mgmt': case 'devmgr': case 'event_viewer': OS2Config._openPanel(iconDef, engine); break;
-            case 'reset_lab': OS2Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

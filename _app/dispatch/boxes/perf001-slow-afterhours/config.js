@@ -341,7 +341,7 @@ var PERF001Config = {
             case 'switch_status': PERF001Config._openSwitch(iconDef, engine); break;
             case 'netflow':       PERF001Config._openNetflow(iconDef, engine); break;
             case 'server_info':   PERF001Config._openNet(iconDef, engine); break;
-            case 'reset_lab':     PERF001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 
