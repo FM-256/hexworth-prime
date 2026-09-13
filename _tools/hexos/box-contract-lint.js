@@ -8,6 +8,7 @@
  *                 must not return bare null, and a walkthrough must not promise commands
  *                 the box does not implement.
  * @catalog run    node _tools/hexos/box-contract-lint.js [--json] [--box <name>]
+ * @catalog run    node _tools/hexos/box-contract-lint.js --self-test   (proves SHELL-005 can fail)
  * @catalog status GATE
  *
  * WHY THIS EXISTS
@@ -29,6 +30,17 @@
  *   hint 1 rendered "Reveal Hint (true pts)" and scored +1        -> HINT-001
  *   the walkthrough advertised commands and locations the sim did not provide
  *                                                                 -> DOC-001
+ *
+ * SHELL-005 was added later, on Chris's recommendation after the resetLab review. SHELL-004
+ * asks whether a Windows-family box OVERRIDES each inherited Linux builtin; it cannot ask
+ * whether the override is any good. A box can satisfy SHELL-004 completely and still answer
+ * `dir` with "No such file or directory". SHELL-005 INVOKES each overridden command and
+ * classifies the returned text against markers unique to one shell family, in BOTH
+ * directions — a Linux box emitting cmd output is the same defect mirrored. It found
+ * ad001-lockout-storm on its first run: promptStyle "powershell", `dir` returning cmd.exe's
+ * "Volume in drive C" header (task 386). The live browser sweep in
+ * box-shell-consistency.test.js is KEPT, not replaced: this catches dialect drift in text
+ * across every box in half a second, that one catches behaviour in the boxes it can drive.
  *
  * STATIC ON PURPOSE. Every rule here is computed from the config, so the gate costs
  * seconds and can run on every deploy across all boxes. HINT-001 mirrors BoxEngine's own
@@ -58,6 +70,8 @@ const onlyIdx = argv.indexOf('--box');
 const ONLY = onlyIdx > -1 ? argv[onlyIdx + 1] : null;
 
 const findings = [];
+// SHELL-005 invokes handlers; async ones resolve here before report() runs.
+const pending = [];
 /** Record one finding. HIGH fails the gate; LOW is reported and does not block. */
 const add = (sev, rule, box, message, detail) =>
     findings.push({ severity: sev, rule, box, message, detail: detail || null });
@@ -197,6 +211,112 @@ const TERMINAL_BUILTINS = (_swStart > -1 && _swEnd > _swStart)
     ? [...TERMINAL_SRC.slice(_swStart, _swEnd).matchAll(/case '([a-z0-9_-]+)':/g)].map(m => m[1])
     : [];
 
+
+/* ── SHELL-005: DIALECT CLASSIFIER ────────────────────────────────────────────────────────
+ * SHELL-004 asks whether a Windows-family box OVERRIDES each inherited Linux builtin. It
+ * cannot ask whether the override is any GOOD. A box can satisfy SHELL-004 completely and
+ * still answer `dir` with "No such file or directory" — overridden, and still a Linux shell
+ * talking to a student who was told this is cmd.exe.
+ *
+ * So this INVOKES each overridden command and classifies what comes back against markers
+ * unique to one shell family. Recommended by Chris after he built and validated the approach
+ * during the resetLab review: it covers every box in under a second, where the live browser
+ * sweep in box-shell-consistency.test.js reaches only the subset it can drive. Both are kept
+ * — this one catches dialect drift in text, the browser sweep catches behaviour.
+ *
+ * Markers are chosen to be UNAMBIGUOUS. "not found" appears in every shell and is useless;
+ * "uid=" and "is not recognized as an internal or external command" belong to exactly one.
+ */
+const DIALECT = {
+    gnu: [
+        /\bcommand not found\b/i,
+        /No such file or directory/i,
+        /\buid=\d+\(/,
+        /\bgid=\d+\(/,
+        /^-?bash:/mi,
+        /Permission denied/i,
+        /Try '[^']+ --help' for more information/i,
+        /\/bin\/(ba)?sh\b/
+    ],
+    cmd: [
+        /is not recognized as an internal or external command/i,
+        /The system cannot find the (file|path) specified/i,
+        /Volume in drive [A-Z] (is|has)/i
+    ],
+    powershell: [
+        /is not recognized as the name of a cmdlet/i,
+        /CategoryInfo\s*:/i,
+        /FullyQualifiedErrorId\s*:/i
+    ]
+};
+
+/** Which shell family does this text unmistakably belong to? null = no marker matched. */
+function classifyDialect(text) {
+    if (typeof text !== 'string' || !text) return null;
+    for (const fam of ['gnu', 'cmd', 'powershell']) {
+        if (DIALECT[fam].some(re => re.test(text))) return fam;
+    }
+    return null;
+}
+
+/* A terminal/engine pair realistic enough that a handler runs instead of throwing on its
+ * first property access. Deliberately NOT a catch-all Proxy: a Proxy that answers every
+ * property with a function makes handlers take branches they never take in a browser, and a
+ * finding produced down an impossible branch is noise a human has to disprove. Anything that
+ * throws here is reported as INCONCLUSIVE, never as a dialect finding. */
+function stubPair(cfg) {
+    const engine = {
+        state: { flagsFound: [], hintsUsed: [], score: 1000, completed: false, events: [] },
+        config: cfg,
+        notify() {}, addScore() {}, awardFlag() {}, save() {}, _logEvent() {},
+        requestFlagText: async () => 'flag{x}', getDeliveredFlag: () => 'flag{x}',
+        openWindow() {}, _windows: {}
+    };
+    const term = { config: cfg, engine, _appendOutput() {}, _scrollToBottom() {}, outputEl: { innerText: '' } };
+    return [term, engine];
+}
+
+
+/**
+ * SHELL-005 — does the override speak the shell the box claims to be?
+ *
+ * SHELL-004 proves a builtin is overridden; it cannot ask whether the override is any good.
+ * A box can satisfy SHELL-004 completely and still answer `dir` with "No such file or
+ * directory". Only boxes that DECLARE a promptStyle are judged — without one there is no
+ * stated contract to violate, and inventing a default would manufacture findings.
+ *
+ * Extracted from the loop so --self-test drives THIS function and not a copy of it. A
+ * self-test that exercises a reimplementation proves the reimplementation works.
+ */
+function shell005(cfg, commands, label) {
+    const style = (cfg.terminal && cfg.terminal.promptStyle) || null;
+    if (style !== 'windows' && style !== 'powershell' && style !== 'linux') return;
+    const expected = style === 'linux' ? 'gnu' : (style === 'windows' ? 'cmd' : 'powershell');
+    const [term, eng] = stubPair(cfg);
+    for (const name of Object.keys(commands)) {
+        if (name[0] === '_') continue;                      // box-private helpers
+        if (typeof commands[name] !== 'function') continue;
+        const judge = (out) => {
+            const fam = classifyDialect(out);
+            if (!fam || fam === expected) return;           // no marker = the normal case
+            /* A LINUX box emitting cmd/PowerShell text is the same defect mirrored. Catching
+             * one direction only is how a detector ends up keyed to the bug already known —
+             * the exact failure that made SHELL-004 necessary. */
+            add('HIGH', 'SHELL-005', label,
+                '`' + name + '` answers in ' + fam.toUpperCase() + ' but the box declares promptStyle "' + style + '"',
+                String(out).replace(/\s+/g, ' ').slice(0, 110));
+        };
+        let out;
+        try {
+            out = commands[name]([], term, eng);
+        } catch (e) {
+            continue;                                       // INCONCLUSIVE, never a finding
+        }
+        if (out && typeof out.then === 'function') pending.push(out.then(judge, () => {}));
+        else judge(out);
+    }
+}
+
 /** Walkthrough text for a box, if one exists, for DOC-001. */
 function walkthroughText(box) {
     if (!fs.existsSync(SOLUTIONS)) return null;
@@ -216,6 +336,46 @@ function walkthroughText(box) {
         }
     }
     return null;
+}
+
+
+/* ── SHELL-005 SELF-TEST ─────────────────────────────────────────────────────────────────
+ * A rule nobody has watched FAIL is a rule you are trusting, not one you have tested. This
+ * drives shell005() itself — not a copy — over synthetic boxes covering: the defect, the
+ * mirrored defect, the correct case, box-private helpers, a throwing handler, and an ASYNC
+ * handler (the deferred path, which would otherwise be exercised only by luck).
+ */
+if (argv.includes('--self-test')) {
+    const results = [];
+    const run = async (name, cfg, commands, wantFinding) => {
+        const before = findings.length;
+        shell005(cfg, commands, 'selftest:' + name);
+        await Promise.all(pending.splice(0));
+        const got = findings.length > before;
+        findings.length = before;                       // do not pollute the real report
+        results.push([name, got === wantFinding, got, wantFinding]);
+    };
+    (async () => {
+        const win = { terminal: { promptStyle: 'windows' } };
+        const lin = { terminal: { promptStyle: 'linux' } };
+        const none = { terminal: {} };
+        await run('windows box answering GNU',      win,  { ls: () => 'bash: ls: command not found' }, true);
+        await run('windows box answering cmd',      win,  { dir: () => "'x' is not recognized as an internal or external command" }, false);
+        await run('linux box answering cmd',        lin,  { ls: () => "'ls' is not recognized as an internal or external command" }, true);
+        await run('linux box answering GNU',        lin,  { ls: () => 'bash: ls: command not found' }, false);
+        await run('ASYNC windows box answering GNU',win,  { ls: async () => 'uid=1000(root) gid=0(root)' }, true);
+        await run('box-private helper ignored',     win,  { _helper: () => 'bash: command not found' }, false);
+        await run('throwing handler inconclusive',  win,  { ls: () => { throw new Error('needs state'); } }, false);
+        await run('no promptStyle declared',        none, { ls: () => 'bash: ls: command not found' }, false);
+        let ok = 0;
+        for (const [n, pass, got, want] of results) {
+            console.log('  ' + (pass ? 'ok  ' : 'FAIL') + ' ' + n + (pass ? '' : `  (finding=${got}, expected=${want})`));
+            if (pass) ok++;
+        }
+        console.log(`\nSHELL-005 self-test: ${ok}/${results.length}`);
+        process.exit(ok === results.length ? 0 : 1);
+    })();
+    return;
 }
 
 for (const box of boxConfigs()) {
@@ -369,6 +529,10 @@ for (const box of boxConfigs()) {
         }
     }
 
+
+    // ── SHELL-005 ───────────────────────────────────────────────────────────────────────
+    shell005(cfg, commands, label);
+
     // ── DOC-001 ─────────────────────────────────────────────────────────────────────────
     // A walkthrough must not promise a command the box cannot answer.
     if (box.area === 'dispatch') {
@@ -496,4 +660,6 @@ if (introduced.length) {
 if (!AS_JSON) console.log(`\nno new findings (${known.length} known, tracked as tasks 373/374/378)`);
 }
 
-report();
+// SHELL-005 may have produced promises. Resolve them BEFORE reporting, or an async
+// handler's wrong-dialect output lands after the document is already written.
+Promise.all(pending).then(report, report);
