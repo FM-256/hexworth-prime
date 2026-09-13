@@ -726,7 +726,6 @@ const C8Config = {
             // Recursive extract flag
             if (fullCmd.includes('-Me') || fullCmd.includes('-e') || fullCmd.includes('--extract')) {
                 C8Config._firmwareExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `Scan Results for: cam_sentinel_01_firmware.bin
 =================================================================
 DECIMAL     HEX         DESCRIPTION
@@ -772,7 +771,6 @@ Run with -Me to extract: binwalk -Me cam_sentinel_01_firmware.bin`;
                 if (!C8Config._firmwareExtracted) {
                     return `strings: /home/kali/_firmware_extracted/usr/bin/cam_control: No such file or directory\n[!] Extract the firmware first: binwalk -Me cam_sentinel_01_firmware.bin`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `strings output — /home/kali/_firmware_extracted/usr/bin/cam_control (min-length 4):
 
 /lib/libc.so.6
@@ -839,7 +837,6 @@ cam_control v2.3.1
 
             if (fullCmd.includes('cam_control') || args.length === 0) {
                 C8Config._ghidraLoaded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `Ghidra 10.3 launched.
 Loading: /home/kali/_firmware_extracted/usr/bin/cam_control
 Processor: ARM:LE:32:Cortex (little-endian, 32-bit)
@@ -917,7 +914,6 @@ void trigger_backdoor(void) {
 
             if (fullCmd.includes('-kernel') || fullCmd.includes('-M versatilepb') || args.length >= 2) {
                 C8Config._qemuRunning = true;
-                if (engine) engine.advancePhase && engine.advancePhase('emulation');
                 return `QEMU 7.2.0 — ARM Versatile Express emulation
 [+] Loading kernel: _firmware_extracted/boot/zImage
 [+] Mounting rootfs: _firmware_extracted/ (SquashFS overlay)
@@ -993,7 +989,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             if (fullCmd.includes('-u') && fullCmd.includes('55555') && fullCmd.includes('10.13.37.200')) {
                 C8Config._backdoorActivated = true;
                 C8Config._sshEnabled = true;
-                if (engine) engine.advancePhase && engine.advancePhase('backdoor');
                 return `Connection to 10.13.37.200 55555 port [udp/*] succeeded!
 [nc UDP session — type payload and press Enter]
 > (sending data...)
@@ -1035,7 +1030,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 // Correct exploit triggered
                 C8Config._backdoorActivated = true;
                 C8Config._sshEnabled = true;
-                if (engine) engine.advancePhase && engine.advancePhase('backdoor');
                 return `[+] Payload sent to 10.13.37.200:55555
 [+] Encoded bytes: 64 42 be ef
 [+] Decoded by target: 0xDEAD 0x0000 — VALID
@@ -1064,7 +1058,6 @@ Submit this finding as the user flag.`;
                     if (encoded) {
                         C8Config._backdoorActivated = true;
                         C8Config._sshEnabled = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('backdoor');
                         return `[+] Payload sent to 10.13.37.200:55555
 [+] BACKDOOR ACTIVATED — SSH enabled on port 22
 [+] root:cerberus-was-here`;
@@ -1099,7 +1092,6 @@ Submit this finding as the user flag.`;
             if (isRoot || fullCmd.includes('10.13.37.200')) {
                 C8Config._camShellActive = true;
                 C8Config._switchContext('cam-shell', term);
-                if (engine) engine.advancePhase && engine.advancePhase('emulation');
                 return `The authenticity of host '10.13.37.200 (10.13.37.200)' can't be established.
 ECDSA key fingerprint is SHA256:7rK4nP1xZ8mLqT6wB3vA9dF2cY5uE0hR7gM4iN2pJ5.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1134,7 +1126,6 @@ Firmware v2.3.1-cerberus  |  Kernel 4.14.115
             const path = args[0] || '';
 
             if (path.includes('surveillance_manifest') || path.includes('/var/log/surveillance')) {
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return `=== PERIMETER SURVEILLANCE MANIFEST ===
 === OUTER REACH — CAM-SENTINEL-01    ===
 === CLASSIFICATION: TOP SECRET        ===

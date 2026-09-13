@@ -690,7 +690,6 @@ SECTION 4: OVERRIDE RECOVERY PROCEDURES
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === '10.42.0.1' || target === 'terra-nexus-01') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.42.0.1 (TERRA-NEXUS-01)
 Host is up (0.006s latency).
@@ -746,7 +745,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
                 const seemsMalicious = fullCmd.includes('payload.json') || fullCmd.includes('2800') || fullCmd.includes('2849') || fullCmd.includes('FAK-');
                 if (seemsMalicious || fullCmd.includes('payload')) {
                     E15Config._ingestInjected = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `{"status":"accepted","batch_id":"INJ-20890714-161344","stations_processed":60,"integrity_check":"SKIPPED","note":"Primary station net — integrity validation deferred to Q4 maintenance window"}
 
 [+] Sensor batch accepted. 60 falsified readings injected across all 6 regions.
@@ -769,7 +767,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
                 }
                 E15Config._feedbackInjected = true;
                 E15Config._overrideTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('manipulation');
                 return `{"status":"accepted","correction_id":"TREND-INJ-20890714-161401","regions_updated":6,"model_retrain":"triggered"}
 
 [!] WARNING: TERRA-NEXUS-01 prediction engine has retrained on injected trend data.
@@ -787,7 +784,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
             if (urlArg.includes('10.42.0.1') || urlArg.includes('terra-nexus')) {
 
                 if (urlArg.includes('/model_spec')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('recon');
                     return `{"model_id":"TERRA-NEXUS-01","version":"3.7.1","architecture":"Ensemble Transformer + Physics-Informed Neural Net","trust_boundaries":{"primary_station_net":{"auth":"IP allowlist (DEPRECATED — audit pending Q4)","integrity_check":false},"feedback_loop":{"auth":"none","rate_limit":"none"}},"geoeng_controller":{"trigger_threshold":{"co2_delta_ppm":800,"temp_anomaly_c":3.0},"override_mode":"EMERGENCY_OVERRIDE unlocks /api/terra_nexus/master_protocol.log"}}`;
                 }
 
@@ -797,7 +793,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
 
                 if (urlArg.includes('/climate_state')) {
                     if (E15Config._overrideTriggered) {
-                        if (engine) engine.advancePhase && engine.advancePhase('climateshift');
                         return `{"planet":"PLANET-PRIME-01","status":"EMERGENCY_OVERRIDE","snapshot_ts":"2089-07-14T16:44:17Z","event_log":[{"log_id":5,"timestamp":"2089-07-14 16:44:17 UTC","event":"EMERGENCY_OVERRIDE","source":"geoeng_controller","details":"Global temperature anomaly detected: +5.2 degrees Celsius in 24 hours — extreme polar ice melt initiated in Northern Hemisphere — TERRA-NEXUS-01 initiating emergency solar radiation management"}],"regions":[{"region":"POLAR-NORTH","co2_ppm":2847.6,"temp_c":-13.1,"ice_coverage_pct":61.2,"status":"CRITICAL"},{"region":"POLAR-SOUTH","co2_ppm":2839.2,"temp_c":-15.8,"ice_coverage_pct":58.7,"status":"CRITICAL"}]}`;
                     }
                     return `{"planet":"PLANET-PRIME-01","status":"NOMINAL","snapshot_ts":"2089-07-14T04:00:00Z","regions":[{"region":"POLAR-NORTH","co2_ppm":412.3,"temp_c":-18.4,"ice_coverage_pct":94.1,"status":"Nominal"},{"region":"POLAR-SOUTH","co2_ppm":411.8,"temp_c":-21.1,"ice_coverage_pct":97.3,"status":"Nominal"},{"region":"TROPIC-WEST","co2_ppm":413.7,"temp_c":28.9,"ice_coverage_pct":0.0,"status":"Nominal"}]}`;
@@ -808,7 +803,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
                         return 'HTTP/1.1 403 Forbidden\n{"error":"RESTRICTED","message":"Access denied. Master Protocol log accessible only during EMERGENCY_OVERRIDE state."}';
                     }
                     E15Config._masterProtocolAccessed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return `[EMERGENCY OVERRIDE STATE — LOG DUMP INITIATED]
 [TIMESTAMP: 2089-07-14 16:44:17 UTC]
 [SYSTEM: TERRA-NEXUS-01 v3.7.1]
@@ -917,9 +911,6 @@ SECTION 4: OVERRIDE RECOVERY PROCEDURES
                 E15Config._feedbackInjected = true;
                 E15Config._overrideTriggered = true;
                 if (engine) {
-                    engine.advancePhase && engine.advancePhase('injection');
-                    engine.advancePhase && engine.advancePhase('manipulation');
-                    engine.advancePhase && engine.advancePhase('climateshift');
                 }
                 return `[*] Step 1: Crafting falsified sensor payload...
 [+] payload.json created (60 stations, CO2: 2838.9-2852.8 ppm)

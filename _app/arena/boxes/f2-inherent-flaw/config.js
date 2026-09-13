@@ -422,7 +422,6 @@ const F2Config = {
             }
 
             if (joined.includes('releases') || joined.includes('release')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return '=== HASH VERIFICATION REPORT ===\n' +
                     'Directory: /home/analyst/releases/\n\n' +
                     'File                    SHA-256 (first 16)       Size\n' +
@@ -462,7 +461,6 @@ const F2Config = {
             if ((joined.includes('clean') && joined.includes('release')) ||
                 (joined.includes('release') && joined.includes('clean'))) {
 
-                engine.advancePhase && engine.advancePhase('analysis');
 
                 return '=== BINARY DIFF ANALYSIS ===\n' +
                     'File A: v2.4.0-clean.bin   (48,229,376 bytes)\n' +
@@ -555,7 +553,6 @@ const F2Config = {
             }
 
             if (joined.includes('release')) {
-                engine.advancePhase && engine.advancePhase('extraction');
 
                 return '=== C2 INDICATOR EXTRACTION ===\n' +
                     'Binary: v2.4.0-release.bin\n' +

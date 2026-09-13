@@ -702,7 +702,6 @@ Checking \`trojan'...                                 not infected
             }
 
             if (fullCmd.includes('linux.check_syscall') || fullCmd.includes('check_syscall')) {
-                if (engine) engine.advancePhase && engine.advancePhase('detection');
                 const data = C16Config._volData.check_syscall;
                 let output = 'Volatility 3 Framework 2.4.1\nProgress: 100.00 PDB scanning finished\n\n';
                 output += 'linux.check_syscall.Check_syscall\n';
@@ -906,7 +905,6 @@ cron.service                   enabled         enabled
 
             if (fullCmd.includes('disable') && fullCmd.includes('udevmon')) {
                 C16Config._serviceDisabled = true;
-                if (engine) engine.advancePhase && engine.advancePhase('persistence');
                 return 'Removed /etc/systemd/system/multi-user.target.wants/systemd-udevmon.service.\n[+] systemd-udevmon.service disabled.\n[+] Rootkit persistence mechanism: NEUTRALIZED (service).\n[!] Remember to also blacklist the module and update initramfs.';
             }
 
@@ -1111,7 +1109,6 @@ cron.service                   enabled         enabled
         'diff': function(args, term, engine) {
             const fullCmd = args.join(' ');
             if (fullCmd.includes('kallsyms') && fullCmd.includes('System.map')) {
-                if (engine) engine.advancePhase && engine.advancePhase('detection');
                 return `< ffffffffffffffff T sys_call_table     (from /proc/kallsyms — SANITIZED by rootkit)
 ---
 > ffffffff81a01540 D sys_call_table     (from /boot/System.map — REAL address)

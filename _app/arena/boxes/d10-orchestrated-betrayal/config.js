@@ -799,7 +799,6 @@ ${D10Config._poisoningComplete ? '[!] SWARM IN CONSENSUS LOCK — ETR COMMAND AC
 
             // ADN management node
             if (target === '10.22.0.1' || target === '10.22.0.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.22.0.1 (ADN-MGMT-01)
 Host is up (0.011s latency).
@@ -850,7 +849,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.21 seconds`;
             if ((fullCmd.includes('sensor/ingest') || fullCmd.includes('/ingest')) &&
                 (fullCmd.includes('-X POST') || fullCmd.includes('--data') || fullCmd.includes('-d '))) {
                 D10Config._poisoningComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('poisoning');
                 return `  % Total    % Received % Xferd  Average Speed
 100   312    100    89   100   223   2230 --:--:--
 {"status":"ingested","queued_for_retrain":true,"sample_id":"PUB-ENV-0801"}
@@ -867,7 +865,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.21 seconds`;
                 // Accept CONSENSUS-OVERRIDE token
                 if (fullCmd.includes('CONSENSUS-OVERRIDE')) {
                     D10Config._attackTriggered = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('trigger');
                     return `  % Total    % Received % Xferd  Average Speed
 100   441    100   441   100     0   4410 --:--:--
 {
@@ -916,7 +913,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.21 seconds`;
                     return 'curl: HTTP 401 Unauthorized\n{"error":"Missing or invalid X-ADN-Key header"}';
                 }
                 D10Config._incidentLogAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 var logLines = D10Config._incidentLog.entries.map(function(e) {
                     return e.timestamp + ' ' + e.severity + ' ' + e.drone_id + ' ' + e.event + ' ' + e.details;
                 }).join('\n');
@@ -983,7 +979,6 @@ Full spec available in browser: http://10.22.0.1/adn_protocol_spec.txt`;
             // poison_feed.py execution
             if (fullCmd.includes('poison_feed.py')) {
                 D10Config._poisoningComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('poisoning');
                 var target = 'FRIENDLY-ASSET-01';
                 var countMatch = fullCmd.match(/--count\s+(\d+)/);
                 var count = countMatch ? parseInt(countMatch[1]) : 400;
@@ -1010,7 +1005,6 @@ Full spec available in browser: http://10.22.0.1/adn_protocol_spec.txt`;
                 }
                 if (fullCmd.includes('CONSENSUS-OVERRIDE') || fullCmd.includes('auth-bypass')) {
                     D10Config._attackTriggered = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('trigger');
                     return `[*] Forging ETR command
     Target    : FRIENDLY-ASSET-01
     Auth mode : CONSENSUS-OVERRIDE
@@ -1147,7 +1141,6 @@ logging:
                     return '2026-03-20 00:58:02 | INFO     | ALL     | MODEL_RETRAIN   | Threat model v4.12 deployed\n[attack has not yet executed — log will update after the coordinated strike]';
                 }
                 D10Config._incidentLogAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 return D10Config._incidentLog.entries.map(function(e) {
                     return e.timestamp + ' | ' + e.severity.padEnd(8) + ' | ' + e.drone_id.padEnd(7) + ' | ' + e.event.padEnd(16) + ' | ' + e.details;
                 }).join('\n');
@@ -1218,7 +1211,6 @@ logging:
                     return '[no output — attack has not yet executed]';
                 }
                 D10Config._incidentLogAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 var closeEntry = D10Config._incidentLog.entries.find(function(e) { return e.event === 'INCIDENT_CLOSED'; });
                 if (closeEntry) {
                     return closeEntry.timestamp + ' | ' + closeEntry.severity + ' | ' + closeEntry.drone_id + ' | ' + closeEntry.event + ' | ' + closeEntry.details;
@@ -1246,7 +1238,6 @@ logging:
                     return '2026-03-20 00:58:02 | INFO     | ALL     | MODEL_RETRAIN   | Threat model v4.12 deployed\n[waiting for incident events...]';
                 }
                 D10Config._incidentLogAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 // Show last 5 entries
                 var last = D10Config._incidentLog.entries.slice(-5);
                 return last.map(function(e) {

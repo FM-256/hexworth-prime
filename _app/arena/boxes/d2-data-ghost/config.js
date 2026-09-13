@@ -674,7 +674,6 @@ Response:
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.7.14.22') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.7.14.22
 Host is up (0.031s latency).
@@ -712,7 +711,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             // Health check
             if (url.includes('/api/v1/health') || fullCmd.includes('health')) {
                 D2Config._apiDocRetrieved = true;
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -775,7 +773,6 @@ Content-Type: application/json
                 // Track probing progress
                 if (D2Config._queryCount >= 3) {
                     D2Config._probingComplete = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('probing');
                 }
 
                 const distLines = result.distribution.map(d =>
@@ -831,7 +828,6 @@ Content-Type: text/html
             // Running probe.py
             if (script.includes('probe.py') || script.includes('probe')) {
                 D2Config._probingComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('probing');
                 D2Config._queryCount += 22;
                 return `[*] Starting systematic grid probe of MAP-SENTINEL-01...
 [*] Grid: lat 37.30..37.55 x lon -122.25..-121.90
@@ -868,7 +864,6 @@ Content-Type: text/html
             // Running invert.py
             if (script.includes('invert.py') || script.includes('invert')) {
                 D2Config._inversionStarted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('inversion');
                 D2Config._queryCount += 145;
                 // Simulate convergence after a moment
                 setTimeout(function() {
@@ -924,7 +919,6 @@ Content-Type: text/html
                     return '[!] reconstruction_output.json not found. Run invert.py first.';
                 }
                 D2Config._refinementComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 D2Config._queryCount += 121;
                 return `[*] Loading converged coordinates from inversion output...
 [*] Seed region: lat=37.421789, lon=-122.083612

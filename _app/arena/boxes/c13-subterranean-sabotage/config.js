@@ -426,7 +426,6 @@ const C13Config = {
                     const cmd = (data.cmd || '').trim();
                     if (!cmd) return '<div style="color:#e74c3c; padding:8px;">No command specified.</div>';
                     C13Config._shellActive = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                     return C13Config._webDiagOutput(cmd, engine);
                 }
             },
@@ -527,7 +526,6 @@ const C13Config = {
             return wrap('hmcadmin');
         }
         if (c.includes('cat') && c.includes('ot_gateway.conf')) {
-            if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
             return wrap('# ot_gateway configuration\n# Hydro-Mining Complex OT Bridge\n# DO NOT MODIFY without authorization\n\nLISTEN_ADDR=127.0.0.1\nLISTEN_PORT=8888\nOT_TARGET=192.168.10.20\nOT_PORT=20000\n\n# Protocol wrapper\n# Input format: HMCPROT:<PROTOCOL>:<ACTION>:<COIL_ADDR>:<VALUE>\n# Example: HMCPROT:DNP3:WRITE:0x0047:1\n# Supported protocols: DNP3, OPCUA\n# This binary forwards raw input to PLC-PUMP-01 after protocol encapsulation.\n# WARNING: No authentication configured. Internal use only.\n\n{{FLAG:user}}');
         }
         if (c.includes('cat') && c.includes('README')) {
@@ -541,7 +539,6 @@ const C13Config = {
             return wrap('/usr/local/bin/ot_gateway\n/opt/hmc/ot_gateway.conf');
         }
         if (c.includes('strings') && c.includes('ot_gateway')) {
-            if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
             return wrap('/lib/x86_64-linux-gnu/libc.so.6\nbind\nlisten\naccept\nsend\nrecv\n127.0.0.1\n8888\nHMCPROT\nDNP3\nOPCUA\nWRITE\nREAD\nPLC-PUMP-01\n192.168.10.20\n20000\ngamma_flood_valve\ncoil_write_ok\ncoil_write_fail\nInvalid HMCPROT prefix\nReady. Listening on %s:%d\nForwarding to OT target: %s:%d');
         }
         if ((c.includes('netstat') || c.includes('ss -tlnp')) && !c.includes('curl')) {
@@ -795,7 +792,6 @@ const C13Config = {
 
             // IT-MAINTAIN-01 — external-facing
             if (!target || target === '10.10.50.5') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.10.50.5 (IT-MAINTAIN-01)
 Host is up (0.034s latency).
@@ -931,7 +927,6 @@ Finished`;
             // RCE via diagnostics endpoint
             if (cleanUrl.includes('/diagnostics') && cleanUrl.includes('cmd=')) {
                 C13Config._shellActive = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                 const cmdMatch = cleanUrl.match(/cmd=([^&"'\s]*)/);
                 const rawCmd = cmdMatch ? decodeURIComponent(cmdMatch[1]) : '';
                 if (!rawCmd) return 'www-data';
@@ -979,7 +974,6 @@ Finished`;
                 }
                 C13Config._tunnelActive = true;
                 C13Config._switchContext('ssh-it', term);
-                if (engine) engine.advancePhase && engine.advancePhase('ot-pivot');
                 return `[+] Local port forward established: 127.0.0.1:8888 -> 127.0.0.1:8888 on IT-MAINTAIN-01
 [+] SSH tunnel active. ot_gateway is now reachable at 127.0.0.1:8888
 [+] OT network reachable via ot_gateway: 192.168.10.0/24
@@ -990,7 +984,6 @@ Finished`;
             if ((fullCmd.includes('hmcadmin') || fullCmd.includes('10.10.50.5')) && !fullCmd.includes('-L')) {
                 C13Config._sshAuthenticated = true;
                 C13Config._switchContext('ssh-it', term);
-                if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
                 return `The authenticity of host '10.10.50.5 (10.10.50.5)' can't be established.
 ED25519 key fingerprint is SHA256:mQ7kR3nP2vB9xT4wE6dG1cL5uA8hS0fN2jY4oJ7iK9.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1037,7 +1030,6 @@ hmiuser@HMI-CONTROL-01:~$
                 return 'chisel: command not found\n[!] chisel is available on IT-MAINTAIN-01 at /usr/local/bin/chisel. Access via SSH or RCE first.';
             }
             C13Config._tunnelActive = true;
-            if (engine) engine.advancePhase && engine.advancePhase('ot-pivot');
             return `[+] chisel client started
 [+] Connecting to chisel server on attacker machine...
 [+] Tunnel established: 127.0.0.1:8888 -> 127.0.0.1:8888 (ot_gateway)
@@ -1122,7 +1114,6 @@ HMCPROT: Ready. Listening on 127.0.0.1:8888 — OT target: 192.168.10.20:20000`;
 
             // pcap_parser.py
             if (fullCmd.includes('pcap_parser') && fullCmd.includes('ot_capture')) {
-                if (engine) engine.advancePhase && engine.advancePhase('protocol-analysis');
                 C13Config._tcpdumpRan = true;
                 return `Parsing /tmp/ot_capture.pcap...
 -------------------------------------------------------------------
@@ -1171,7 +1162,6 @@ Type "help", "copyright", "credits" or "license" for more information.
             }
             if (fullCmd.includes('eth1') || fullCmd.includes('-i eth1')) {
                 C13Config._tcpdumpRan = true;
-                if (engine) engine.advancePhase && engine.advancePhase('protocol-analysis');
                 return `tcpdump: listening on eth1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
 
 09:14:03.441821 IP 192.168.100.5.54021 > 192.168.10.20.20000: Flags [S], seq 1381422594
@@ -1195,7 +1185,6 @@ Type "help", "copyright", "credits" or "license" for more information.
         'strings': function(args, term, engine) {
             const fullCmd = args.join(' ');
             if (fullCmd.includes('ot_gateway')) {
-                if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
                 return `/lib/x86_64-linux-gnu/libc.so.6
 bind
 listen
@@ -1226,7 +1215,6 @@ GCC: (Debian 10.2.1-6) 10.2.1`;
         'strace': function(args, term, engine) {
             const fullCmd = args.join(' ');
             if (fullCmd.includes('ot_gateway') || fullCmd.includes('1842')) {
-                if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
                 return `strace -p 1842
 Process 1842 attached
 socket(AF_INET, SOCK_STREAM, IPPROTO_TCP) = 4
@@ -1343,7 +1331,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
             // IT-MAINTAIN-01 context
             if (C13Config._context === 'ssh-it') {
                 if (path.includes('ot_gateway.conf') || path.includes('opt/hmc/ot_gateway')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('ot-gateway');
                     return '# ot_gateway configuration\n# Hydro-Mining Complex OT Bridge\n\nLISTEN_ADDR=127.0.0.1\nLISTEN_PORT=8888\nOT_TARGET=192.168.10.20\nOT_PORT=20000\n\n# Input format: HMCPROT:<PROTOCOL>:<ACTION>:<COIL_ADDR>:<VALUE>\n# Example: HMCPROT:DNP3:WRITE:0x0047:1\n\n{{FLAG:user}}';
                 }
                 if (path.includes('notes.txt') || path.includes('home/hmcadmin/notes')) {
@@ -1533,7 +1520,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
 
     _triggerSabotage(engine) {
         C13Config._sabotageTriggered = true;
-        if (engine) engine.advancePhase && engine.advancePhase('sabotage');
         return `[*] Sending: HMCPROT:DNP3:WRITE:0x0047:1
 [+] Connected to ot_gateway on 127.0.0.1:8888
 [+] Forwarding DNP3 Direct Operate to 192.168.10.20:20000...

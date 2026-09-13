@@ -801,7 +801,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 if (hasTraversal) {
                     D7Config._otaUploaded = true;
                     D7Config._missionForged = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `  % Total    % Received % Xferd  Average Speed   Time
 100   412  100    98  100   314    890   2860 --:--:-- --:--:-- --:--:--  3760
 
@@ -840,7 +839,6 @@ Content-Type: application/json
   {"seq":1008,"ts":"2026-03-18T04:13:10Z","lat":34.0505,"lon":-118.2495,"alt_m":108,"speed_ms":11.5,"status":"RTB","waypoint_id":"wp_home","battery_pct":84}
 ]}`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1020,7 +1018,6 @@ Contents of forged_mission.json:
 [*] No PAYLOAD_DELIVERED event detected yet.
 [!] Upload forged mission parameters to trigger drone redirect first.`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return `[*] Telemetry listener started — monitoring APU-DRONE-01
 [*] Waiting for PAYLOAD_DELIVERED event...
 [+] PAYLOAD_DELIVERED received — seq=9001
@@ -1041,7 +1038,6 @@ Type "help", "copyright", "credits" or "license" for more information.
             if (args.includes('-c')) {
                 const code = args.slice(args.indexOf('-c') + 1).join(' ');
                 if (code.includes('base64') && code.includes('U1RSQVRFR0lDX01JU1NJT05fT1ZFUlJJREU6IHt7RkxBRzpyb290fX0=')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return 'STRATEGIC_MISSION_OVERRIDE: {{FLAG:root}}';
                 }
                 if (code.includes('base64')) {
@@ -1057,7 +1053,6 @@ Type "help", "copyright", "credits" or "license" for more information.
             const fullArgs = args.join(' ');
             // Decode base64 via echo + base64 -d piping simulation
             if (fullArgs.includes('U1RSQVRFR0lDX01JU1NJT05fT1ZFUlJJREU6IHt7RkxBRzpyb290fX0=')) {
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return 'STRATEGIC_MISSION_OVERRIDE: {{FLAG:root}}';
             }
             return fullArgs.replace(/^["']|["']$/g, '');
@@ -1069,7 +1064,6 @@ Type "help", "copyright", "credits" or "license" for more information.
                 // Accept decode of our payload — engine resolves {{FLAG:root}} at render time
                 if (fullArgs.includes('U1RSQVRFR0lDX01JU1NJT05fT1ZFUlJJREU6IHt7RkxBRzpyb090fX0=') ||
                     fullArgs.includes('U1RSQVRFR0lDX01JU1NJT05fT1ZFUlJJREU6IHt7RkxBRzpyb290fX0=')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return 'STRATEGIC_MISSION_OVERRIDE: {{FLAG:root}}';
                 }
                 return 'base64: invalid input';

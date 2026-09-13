@@ -534,7 +534,6 @@ const C4Config = {
                     // C2 IP lookup — triggers c2Resolved and provides root flag path
                     if (ioc.includes('185.220.101.47')) {
                         C4Config._c2Resolved = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('attribution');
                         return `<div style="margin-top:16px; border:2px solid #c0392b; border-radius:8px; overflow:hidden;">
                             <div style="background:#c0392b; color:#fff; padding:10px 14px; font-weight:700; font-size:0.85rem;">HIGH CONFIDENCE MATCH — PHANTOM CIRCUIT C2 Node</div>
                             <div style="padding:14px; font-size:0.78rem; line-height:1.9;">
@@ -750,7 +749,6 @@ const C4Config = {
             // pslist / pstree
             if (fullCmd.includes('pslist') || fullCmd.includes('pstree')) {
                 C4Config._memDumpAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('forensics');
                 return `Volatility Foundation Volatility Framework 2.6
 Name                  PID   PPID  Thds  Hnds  Sess  Wow64 Start
 --------------------- ----- ----- ----- ----- ----- ----- ----------------------------
@@ -883,7 +881,6 @@ Run: volatility --help to see available plugins.`;
             // strings on the ransom note — reveals hidden metadata comments
             if (fullCmd.includes('RANSOM_NOTE') || fullCmd.includes('ransom_note')) {
                 C4Config._ransomFamilyId = true;
-                if (engine) engine.advancePhase && engine.advancePhase('assessment');
                 return `=== strings output: RANSOM_NOTE.txt ===
 
 DARKMIDNIGHT RANSOMWARE
@@ -951,7 +948,6 @@ Displaying printable strings of length >= 4...
 
             // Correct key — decryption succeeds
             C4Config._sampleDecrypted = true;
-            if (engine) engine.advancePhase && engine.advancePhase('recovery');
 
             if (fullCmd.includes('--batch') || fullCmd.includes('samples/')) {
                 return `DarkMidnight Decryption Tool v1.0 (IR Edition)

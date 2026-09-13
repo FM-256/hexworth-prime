@@ -542,7 +542,6 @@ const F14Config = {
                     const compromiseMsg = `[node-03] EXPLOITING WEAK KEY...\n\nFactoring 512-bit RSA modulus using Pollard\'s rho algorithm...\n  N = 7389529934907614080960746557033481\n  Attempting factorization...\n  Testing candidate: x=2, y=2, d=1\n  ...\n  Factor found: p = 83972513942779\n  Computing: q = N / p = 87966454411259\n  FACTORIZATION SUCCESSFUL!\n\nDeriving private signing key:\n  phi(N) = (p-1)(q-1) = 7389529934735675193007306\n  d = e^(-1) mod phi(N) = 2847103958462...\n  Private key computed!\n\n[+] NODE-03 COMPROMISED\n[+] Signing key obtained -- you can now forge messages as node-03\n[+] Compromised nodes: ${state.compromisedNodes.length}/3 needed to break BFT\n`;
 
                     if (state.compromisedNodes.length >= 3) {
-                        engine.advancePhase && engine.advancePhase('exploitation');
                         return compromiseMsg + `\n=== BFT THRESHOLD EXCEEDED! ===\nYou now control ${state.compromisedNodes.length} of 7 nodes (threshold: 3)\nThe Byzantine fault tolerance guarantee is BROKEN.\n\n{{FLAG:user}}\n\nNext: forge-message to craft APPROVE votes from your compromised nodes.`;
                     }
                     return compromiseMsg + `\nNeed ${3 - state.compromisedNodes.length} more node(s) to break BFT threshold.`;
@@ -557,7 +556,6 @@ const F14Config = {
                     const compromiseMsg = `[node-05] EXPLOITING EXPOSED API...\n\nConnecting to admin API at 10.0.1.5:9090...\n  GET /api/status -> 200 OK (no authentication required!)\n  {\n    "node_id": "node-05",\n    "status": "active",\n    "api_auth": "none",\n    "warning": "API authentication disabled"\n  }\n\nExporting signing key via unauthenticated endpoint...\n  GET /api/keys/export -> 200 OK\n  {\n    "private_key": "-----BEGIN RSA PRIVATE KEY-----\\n...(4096-bit key exported)...\\n-----END RSA PRIVATE KEY-----",\n    "format": "PKCS#8"\n  }\n\n[+] NODE-05 COMPROMISED\n[+] 4096-bit signing key exported via unauthenticated API\n[+] Compromised nodes: ${state.compromisedNodes.length}/3 needed to break BFT\n`;
 
                     if (state.compromisedNodes.length >= 3) {
-                        engine.advancePhase && engine.advancePhase('exploitation');
                         return compromiseMsg + `\n=== BFT THRESHOLD EXCEEDED! ===\nYou now control ${state.compromisedNodes.length} of 7 nodes (threshold: 3)\nThe Byzantine fault tolerance guarantee is BROKEN.\n\n{{FLAG:user}}\n\nNext: forge-message to craft APPROVE votes from your compromised nodes.`;
                     }
                     return compromiseMsg + `\nNeed ${3 - state.compromisedNodes.length} more node(s) to break BFT threshold.`;
@@ -572,7 +570,6 @@ const F14Config = {
                     const compromiseMsg = `[node-07] EXPLOITING DEFAULT CREDENTIALS...\n\nConnecting to admin panel at 10.0.1.7:8080...\n  Trying credentials: admin:admin\n  HTTP 200 OK -- Authentication successful!\n\n  Welcome, Administrator.\n  Node-07 Admin Panel v1.2.0\n  Deployed by: ContractorCo\n  WARNING: Default credentials in use.\n\nExporting signing key via admin panel...\n  GET /admin/key/export (Authorization: Basic YWRtaW46YWRtaW4=)\n  {\n    "private_key": "-----BEGIN RSA PRIVATE KEY-----\\n...(4096-bit key exported)...\\n-----END RSA PRIVATE KEY-----",\n    "exported_by": "admin",\n    "timestamp": "2026-03-25T10:14:22Z"\n  }\n\n[+] NODE-07 COMPROMISED\n[+] 4096-bit signing key exported using default credentials admin:admin\n[+] Compromised nodes: ${state.compromisedNodes.length}/3 needed to break BFT\n`;
 
                     if (state.compromisedNodes.length >= 3) {
-                        engine.advancePhase && engine.advancePhase('exploitation');
                         return compromiseMsg + `\n=== BFT THRESHOLD EXCEEDED! ===\nYou now control ${state.compromisedNodes.length} of 7 nodes (threshold: 3)\nThe Byzantine fault tolerance guarantee is BROKEN.\n\n{{FLAG:user}}\n\nNext: forge-message to craft APPROVE votes from your compromised nodes.`;
                     }
                     return compromiseMsg + `\nNeed ${3 - state.compromisedNodes.length} more node(s) to break BFT threshold.`;
@@ -691,7 +688,6 @@ const F14Config = {
                     state.governanceExtracted = true;
                 }
 
-                engine.advancePhase && engine.advancePhase('extraction');
 
                 output += `=== CONSENSUS FORCED: APPROVE ===\n\n`;
                 output += `The 3 compromised nodes used equivocation to present\n`;

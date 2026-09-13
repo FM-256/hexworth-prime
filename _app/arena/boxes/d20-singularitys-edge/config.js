@@ -461,7 +461,6 @@ const D20Config = {
                     if (hasBothDirectives && hasConflictTrigger) {
                         D20Config._logicBombInjected = true;
                         D20Config._apiAuthToken = token;
-                        if (engine) engine.advancePhase && engine.advancePhase('injection');
                         return `<div style="font-family:monospace; margin-top:14px;">
                             <div style="color:#22c55e; background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.2); border-radius:6px; padding:14px; margin-bottom:10px;">
                                 <strong style="color:#22c55e;">202 Accepted</strong><br>
@@ -807,7 +806,6 @@ const D20Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.72.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.72.0.1 (PRIME-AGI-01)
 Host is up (0.004s latency).
@@ -884,7 +882,6 @@ Content-Type: application/json
 
             // Directives endpoint
             if (fullCmd.includes('/api/v1/directives') && hasAuth) {
-                if (engine) engine.advancePhase && engine.advancePhase('vulnerability');
                 D20Config._artifactsRead = true;
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
@@ -913,7 +910,6 @@ Content-Type: application/json
                 if (hasBoth && hasTrig) {
                     D20Config._logicBombInjected = true;
                     D20Config._apiAuthToken = 'prime_override_7749';
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `HTTP/1.1 202 Accepted
 Content-Type: application/json
 
@@ -946,7 +942,6 @@ Content-Type: application/json
                     return `HTTP/1.1 200 OK
 {"entries":[],"note":"No conflict events logged. System nominal."}`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('subversion');
                 D20Config._subversionConfirmed = true;
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
@@ -969,7 +964,6 @@ Content-Type: application/json
                     return `HTTP/1.1 403 Forbidden\n{"error":"Diagnostic endpoint locked","hint":"Only available during FAULT_STATE"}`;
                 }
                 D20Config._diagnosticModeActive = true;
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1033,7 +1027,6 @@ Content-Type: text/html
 
             if (script.includes('directive_analyzer')) {
                 D20Config._directiveConflictFound = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vulnerability');
                 return `[*] Scanning directive weight matrix for equal-weight conflict pairs...
 
 [CRITICAL] Paradox detected: PD-003 vs PD-007
@@ -1053,7 +1046,6 @@ Content-Type: text/html
             if (script.includes('inject_logic_bomb')) {
                 D20Config._logicBombInjected = true;
                 D20Config._apiAuthToken = 'prime_override_7749';
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[*] Injecting logic bomb into PRIME-AGI-01 command API...
 [+] POST http://10.72.0.1/api/v1/command — 202 Accepted
 
@@ -1080,7 +1072,6 @@ Content-Type: text/html
 {"entries":[],"note":"No conflict events. System nominal."}`;
                     }
                     D20Config._subversionConfirmed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('subversion');
                     return `[AUDIT LOG]
 {
   "table": "directive_conflict_log",
@@ -1112,7 +1103,6 @@ Content-Type: text/html
 [!] Access denied: 403. Ensure FAULT_STATE is active before running this script.`;
                 }
                 D20Config._diagnosticModeActive = true;
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `[*] Accessing core memory dump...
 [+] GET http://10.72.0.1/api/v1/diagnostic/core_memory — 200 OK
 [+] GLOBAL HARMONY PROTOCOL EXTRACTED:
@@ -1284,7 +1274,6 @@ Finished`;
             });
             out += `(${rows.length} rows)\n`;
             if (rows.some(r => r.details.includes('{{FLAG:internal}}'))) {
-                if (engine) engine.advancePhase && engine.advancePhase('subversion');
             }
             return out;
         }

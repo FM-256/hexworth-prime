@@ -512,7 +512,6 @@ const F4Config = {
 
                 // Intermediate Alpha (legitimate)
                 if (filePath.includes('intermediate-alpha') || filePath.includes('intermediate_alpha')) {
-                    engine.advancePhase && engine.advancePhase('analysis');
                     if (joined.includes('-subject') || joined.includes('-issuer') || joined.includes('-serial')) {
                         let out = '';
                         if (joined.includes('-subject')) out += 'subject=CN = Nexus Intermediate Alpha, O = Confederacy Central, C = NX\n';
@@ -526,7 +525,6 @@ const F4Config = {
 
                 // Intermediate Beta (ROGUE)
                 if (filePath.includes('intermediate-beta') || filePath.includes('intermediate_beta')) {
-                    engine.advancePhase && engine.advancePhase('analysis');
                     if (joined.includes('-subject') || joined.includes('-issuer') || joined.includes('-serial')) {
                         let out = '';
                         if (joined.includes('-subject')) out += 'subject=CN = Nexus Intermediate Alpha, O = Confederacy Central, C = NX\n';
@@ -573,7 +571,6 @@ const F4Config = {
 
                 // Verify intermediate-beta against root (FAILS)
                 if (lastArg.includes('intermediate-beta') || lastArg.includes('beta')) {
-                    engine.advancePhase && engine.advancePhase('exploitation');
                     return 'error 20 at 0 depth lookup: unable to get local issuer certificate\n/home/analyst/certs/intermediate-beta.pem: VERIFICATION FAILED\n\nChain verification FAILED:\n  Root CA (9F:3A:C7:11...) did NOT sign this certificate.\n  Certificate\'s Authority Key ID: D1:7F:E3:44:A9:0B:CC:58...\n  Expected Authority Key ID:      9F:3A:C7:11:D4:E8:52:B6...\n\n  This intermediate was signed by an UNKNOWN root authority.\n  Serial BB:02:00:00:00:42 is a ROGUE certificate.\n\n{{FLAG:user}}';
                 }
 
@@ -595,7 +592,6 @@ const F4Config = {
                 if (joined.includes('-decrypt') || joined.includes('decrypt')) {
                     if (joined.includes('rogue-private') || joined.includes('rogue_private') || joined.includes('private.key')) {
                         if (joined.includes('tls-session') || joined.includes('pcap') || joined.includes('capture')) {
-                            engine.advancePhase && engine.advancePhase('extraction');
                             return '=== TLS SESSION DECRYPTION ===\nUsing private key: rogue-private.key (BB:02:00:00:00:42)\nTarget capture: tls-session.pcap\n\nDecrypting RSA key exchange... OK\nDeriving session key... OK\nDecrypting 48 application data records... OK\n\n--- DECRYPTED PLAINTEXT ---\nHTTP/1.1 200 OK\nContent-Type: application/json\nX-Nexus-Classification: TOP SECRET // CONFEDERACY EYES ONLY\n\n{\n  "operation": "SANDSTORM",\n  "convoy_id": "CVY-2026-0891",\n  "route": "Sector 4 -> Sector 7 via Waypoint Kilo",\n  "cargo_manifest": [\n    "Medical supplies (crate x24)",\n    "Ammunition (crate x12)",\n    "Communication equipment (crate x6)"\n  ],\n  "eta": "2026-03-28T06:00:00Z",\n  "escort": "3rd Mechanized, Bravo Company",\n  "authentication_token": "{{FLAG:root}}"\n}\n--- END DECRYPTED PLAINTEXT ---\n\nMITM attack CONFIRMED. The rogue intermediate\'s private key\nsuccessfully decrypted the intercepted TLS session.';
                         }
                         return 'openssl s_client: missing capture file.\nUsage: openssl s_client -decrypt -key <private.key> -in <capture.pcap>';
@@ -741,7 +737,6 @@ const F4Config = {
                             return 'Running: openssl verify -CAfile ~/certs/root-ca.pem ' + certArg[1] + '\n\n' + certArg[1] + ': OK\nChain valid. Intermediate Alpha is signed by Root CA.';
                         }
                         if (cert.includes('beta')) {
-                            engine.advancePhase && engine.advancePhase('exploitation');
                             return 'Running: openssl verify -CAfile ~/certs/root-ca.pem ' + certArg[1] + '\n\nerror 20 at 0 depth lookup: unable to get local issuer certificate\n' + certArg[1] + ': VERIFICATION FAILED\n\nIntermediate Beta is NOT signed by Root CA.\nThis is a ROGUE certificate.\n\n{{FLAG:user}}';
                         }
                     }

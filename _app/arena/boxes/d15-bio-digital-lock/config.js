@@ -622,7 +622,6 @@ const D15Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === '10.42.0.0/24' || target === '10.42.0.1/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 
 Nmap scan report for 10.42.0.1
@@ -764,7 +763,6 @@ Commands:
 
             // --- list_commands ---
             if (cmd === 'list_commands') {
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `[+] Connected to DNA-SEQ-CTRL-01 (10.42.0.55:8443)
 [+] Authentication: certificate OK
 
@@ -904,8 +902,6 @@ Only A, T, C, G bases are accepted.`;
                     D15Config._triggerInjected = true;
                     D15Config._manifestDumped = true;
                     D15Config._switchContext('debug-mode', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return D15Config._buildManifestDump(engine);
                 }
 
@@ -1002,7 +998,6 @@ Your certificate does not have the required clearance attribute.`;
             if (script.includes('dna_decode') || fullCmd.includes('decode')) {
                 // Simulate running the decoder
                 D15Config._decoderRun = true;
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `[*] Loading dna_decode.py...
 [*] Reading hidden_message.fasta...
 [*] Skipping FASTA header line

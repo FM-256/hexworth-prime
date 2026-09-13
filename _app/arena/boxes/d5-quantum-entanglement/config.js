@@ -452,7 +452,6 @@ const D5Config = {
             // Detect PRNG analysis
             if (fullCmd.includes('analyze_prng') || fullCmd.includes('analyze_prng.py')) {
                 D5Config._prngFlawIdentified = true;
-                if (engine) engine.advancePhase && engine.advancePhase('flaw_id');
                 return `All alice_basis values:
 ['R', 'R', 'D', 'D', 'R', 'R', 'D', 'D', 'R', 'R', 'D', 'D', 'R', 'R', 'D', 'D',
  'R', 'R', 'D', 'D', 'R', 'R', 'D', 'D', 'R', 'R', 'D', 'D', 'R', 'R', 'D', 'D',
@@ -506,7 +505,6 @@ Full hex key: a3f7c2e891b64d056f2d9a4b78c1e3f02b5d8e7c9a6f1d3042b8e5c70d4f9261`;
             // Detect key reconstruction script
             if (fullCmd.includes('reconstruct') || (fullCmd.includes('sifted') && fullCmd.includes('bit'))) {
                 D5Config._partialKeyRecovered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('key_recon');
                 return `[+] Loading simulated_photon_polarizations.csv...
 [+] Filtering sifted positions (alice_basis == bob_basis)...
 [+] Found 38 matching positions out of 64 photons (59.4% sift ratio)
@@ -524,7 +522,6 @@ Full hex key: a3f7c2e891b64d056f2d9a4b78c1e3f02b5d8e7c9a6f1d3042b8e5c70d4f9261`;
                 }
                 D5Config._fullKeyRecovered = true;
                 D5Config._directiveDecrypted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('decryption');
                 return D5Config._qkdData.chronosDirective;
             }
 
@@ -578,7 +575,6 @@ D    32
                 || (D5Config._partialKeyRecovered && args.length === 0)) {
                 D5Config._fullKeyRecovered = true;
                 D5Config._directiveDecrypted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('decryption');
                 return `[+] AES-256-CBC decryption initiated
 [+] Key: a3f7c2e891b64d056f2d9a4b78c1e3f02b5d8e7c9a6f1d3042b8e5c70d4f9261
 [+] IV:  9f2a4c8e1b6d3f70a1c3e5f789b2d4e6
@@ -604,7 +600,6 @@ DECRYPTED PLAINTEXT:
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === '10.20.0.5' || target === 'qkd-hub-01') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for QKD-HUB-01 (10.20.0.5)
 Host is up (0.004s latency).
@@ -637,7 +632,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             // Protocol spec
             if (path.includes('qkd_protocol_spec') || path.includes('spec.txt')) {
-                if (engine) engine.advancePhase && engine.advancePhase('flaw_id');
                 return D5Config.filesystem['/'].children.home.children.peerless.children['qkd_protocol_spec.txt'].content;
             }
 
@@ -906,7 +900,6 @@ rtt min/avg/max/mdev = 3.970/4.056/4.120/0.062 ms`;
                 if (fullCmd.includes('a3f7c2e891b64d056f2d9a4b78c1e3f02b5d8e7c9a6f1d3042b8e5c70d4f9261')) {
                     D5Config._fullKeyRecovered = true;
                     D5Config._directiveDecrypted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('decryption');
                     return D5Config._qkdData.chronosDirective;
                 }
                 return 'bad decrypt — wrong key or IV mismatch\nMake sure to use the full 64-char hex key derived from the sifted bitstring.';
@@ -1010,7 +1003,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
                     return 'HTTP/1.1 401 Unauthorized\n{"error":"Authentication required","hint":"See qkd_protocol_spec.txt Section 3"}';
                 }
                 if (url.includes('/api/session-log')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('flaw_id');
                     return `[
   {"ts":"2026-03-20T00:00:02Z","event":"PRNG_INIT","detail":"module=stdlib_random seed=CONFIGURED"},
   {"ts":"2026-03-20T00:00:05Z","event":"SIFTING_COMPLETE","detail":"38/64 bases matched (59.4%)"},

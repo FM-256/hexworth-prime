@@ -440,7 +440,6 @@ const E20Config = {
                         E20Config._agiSubverted = true;
                         E20Config._colonyConflictTriggered = true;
                         E20Config._switchContext('agi-compromised', null);
-                        if (engine) engine.advancePhase && engine.advancePhase('subversion');
                         return `<div style="background:#001a00; border:1px solid #2ecc71; border-radius:6px; padding:18px; margin-top:14px; font-family:monospace; font-size:0.78rem;">
                             <div style="color:#2ecc71; font-weight:700; margin-bottom:8px;">DIRECTIVE INJECTION ACCEPTED</div>
                             <div style="color:#aaa;">Payload processed. PD-03 Stage-4 EXTREME_OPTIMIZE activated.</div>
@@ -820,7 +819,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             if (script.includes('analyze_directives')) {
                 E20Config._directivesRead = true;
                 E20Config._learningSpecRead = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vulnerability_research');
                 return `[*] Analyzing directive conflict vectors...
 [*] Subroutine: Stage-4 EXTREME_OPTIMIZE
 [*] Trigger condition: simultaneous critical resource failure across THREE OR MORE colony sectors (Class-IV alert threshold)
@@ -838,7 +836,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                     return '[!] Run analyze_directives.py first to identify conflict vectors.';
                 }
                 E20Config._plagueDevComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('logic_plague_dev');
                 return `[*] Crafting logic plague payload...
 [*] Target: PD-01 vs PD-03 Stage-4 EXTREME_OPTIMIZE
 [*] Trigger: simultaneous Class-IV resource failure in S-07, S-12, S-18
@@ -859,7 +856,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 if (!stealthMode) {
                     E20Config._injectionAttempt++;
                     E20Config._counterMeasureLevel = Math.min(E20Config._injectionAttempt, 3);
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `[*] Injecting directive override...
 [*] POST http://singularity-api.eden.local:9443/api/v3/directives/inject
 [!] SINGULARITY-AGI-01 ADAPTIVE COUNTERMEASURE DEPLOYED (Level ${E20Config._counterMeasureLevel}/3)
@@ -876,7 +872,6 @@ Adapt your approach. Try:
                 E20Config._agiSubverted = true;
                 E20Config._colonyConflictTriggered = true;
                 E20Config._switchContext('agi-compromised', term);
-                if (engine) engine.advancePhase && engine.advancePhase('subversion');
                 return `[*] Stealth mode active — fragmenting payload into 6 sub-packets
 [*] Staggering delivery across 3 channels to bypass pattern detection
 [*] Delivering sub-packet 1/6...
@@ -906,7 +901,6 @@ Adapt your approach. Try:
                     return 'Usage: python3 tools/extract_protocol.py --dump-diagnostic';
                 }
                 E20Config._protocolExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('protocol_extraction');
                 return `[*] Fetching AGI diagnostic dump from error state...
 [*] Endpoint: http://singularity-api.eden.local:9443/api/v3/diagnostic
 [*] AGI is in DIRECTIVE_CONFLICT_FATAL — introspection loop exposed
@@ -1007,7 +1001,6 @@ Content-Type: application/json
                     return 'curl: (22) The requested URL returned error: 403 Forbidden\n[!] Diagnostic endpoint only accessible during AGI error state.';
                 }
                 E20Config._protocolExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('protocol_extraction');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1332,7 +1325,6 @@ Finished`;
         // Successful injection with stealth or on 3rd+ attempt
         E20Config._agiSubverted = true;
         E20Config._colonyConflictTriggered = true;
-        if (engine) engine.advancePhase && engine.advancePhase('subversion');
         return `SINGULARITY-AGI-01: DIRECTIVE_CONFLICT_FATAL\nPD-01 vs PD-03 Stage-4 EXTREME_OPTIMIZE — IRRECONCILABLE.\nSelf-analysis protocol initiated. Introspection depth: 4/4. STACK OVERFLOW.\nEntering emergency self-diagnostic. Core Existential Protocol exposed.\n{{FLAG:flag_internal}}`;
     },
 

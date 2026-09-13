@@ -747,7 +747,6 @@ NOTE
 
             // Bridge server
             if (target === '10.0.1.50' || target === 'bridge') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.1.50 (AIR-GAP-BRIDGE)
 Host is up (0.031s latency).
@@ -870,7 +869,6 @@ quantum-cipher-v1.0/public_key.pem
 
         'analyze-cipher': function(args, term, engine) {
             C10Config._cipherAnalyzed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('cryptanalysis');
             return `[*] QUANTUM-CIPHER-V1.0 Static Analyzer
 [*] Inspecting keygen.c...
 
@@ -903,7 +901,6 @@ quantum-cipher-v1.0/public_key.pem
                 return 'Usage: recover-key <ciphertext_a> <ciphertext_b>\nExample: recover-key ciphertext_a.enc ciphertext_b.enc';
             }
             C10Config._keyRecovered = true;
-            if (engine) engine.advancePhase && engine.advancePhase('cryptanalysis');
             return `[*] recover-key — QUANTUM-CIPHER-V1.0 Nonce-Reuse Attack
 [*] Loading ${args[0]}...  OK (128 bytes)
 [*] Loading ${args[1]}...  OK (128 bytes)
@@ -964,7 +961,6 @@ quantum-cipher-v1.0/public_key.pem
             }
             C10Config._signalSent = true;
             C10Config._tempSshOpen = true;
-            if (engine) engine.advancePhase && engine.advancePhase('airgap');
             return `[*] acoustic-send v1.2 — ABD Signal Transmitter
 [*] Connecting to 10.0.1.50:9001...  connected
 [*] Transmitting payload (magic=CHNS, cmd=OPEN_SSH_PORT)...
@@ -1015,7 +1011,6 @@ bridgeop@AIR-GAP-BRIDGE:~$
                 }
                 C10Config._chronosAccess = true;
                 C10Config._switchContext('chronos-user', term);
-                if (engine) engine.advancePhase && engine.advancePhase('kernelexploit');
                 return `The authenticity of host '[10.0.1.200]:2222 ([10.0.1.200]:2222)' can't be established.
 ED25519 key fingerprint is SHA256:qV8xT4nR2mJ7yA5wC9eB3fG6hD1kL0pN4oS7iU2mW5.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1151,7 +1146,6 @@ x_tables               49152  2 ip_tables,nf_tables
             }
             C10Config._rootAccess = true;
             C10Config._switchContext('chronos-root', term);
-            if (engine) engine.advancePhase && engine.advancePhase('kernelexploit');
             return `[*] chronos_exploit — chronos_ksec UAF Exploit
 [*] Opening /proc/chronos_ksec...
 [*] Step 1: Triggering CHRONOS_IOCTL_FREE (0xC0) at offset 0x18...
@@ -1187,7 +1181,6 @@ root@CHRONOS-OS-01:~#`;
                     return `cat: /root/temporal_protocol.txt: Permission denied
 [!] You need root access. Exploit the chronos_ksec UAF first.`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `================================================
 CHRONOS SYNDICATE — TEMPORAL PARADIGM SHIFT PROTOCOL
 CLASSIFICATION: OMEGA-BLACK / EYES-ONLY

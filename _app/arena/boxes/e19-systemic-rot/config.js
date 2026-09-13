@@ -462,7 +462,6 @@ const E19Config = {
                     }
                     // Any valid directive injection advances exploitation phase
                     E19Config._payloadInjected = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                     return `<div style="color:#34d399; background:rgba(52,211,153,0.08); border:1px solid rgba(52,211,153,0.2); border-radius:6px; padding:16px; margin-top:12px; font-size:0.85rem;">
                         <strong>200 OK — Directive Accepted</strong><br><br>
                         <code style="color:#c4b5fd;">{"status":"accepted","sector":"${E19Config._escHtml(sector)}","directive":"${E19Config._escHtml(directive)}","ai_response":"Directive queued for optimization pass","timestamp":"2031-07-14T22:${Math.floor(Math.random()*59).toString().padStart(2,'0')}:${Math.floor(Math.random()*59).toString().padStart(2,'0')}Z"}</code><br><br>
@@ -699,7 +698,6 @@ const E19Config = {
 
             // Main NEXUS-AI-01 target
             if (!target || target === 'nexus-ai-01.planet-prime.local' || target === '172.16.42.10') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for nexus-ai-01.planet-prime.local (172.16.42.10)
 Host is up (0.012s latency).
@@ -728,7 +726,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             if (fullCmd.includes('api/traffic/override') && (fullCmd.includes('-X POST') || fullCmd.includes('-d') || fullCmd.includes('--data'))) {
                 E19Config._payloadInjected = true;
                 E19Config._vulnIdentified  = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exploitation');
 
                 // Extract sector/directive from -d JSON if present
                 const bodyMatch = fullCmd.match(/"sector"\s*:\s*"([^"]+)"/);
@@ -757,7 +754,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 {"error":"503 Service Unavailable","message":"NEXUS-AI-01 is operating nominally. Collapse protocol log is only written during emergency cascade state."}`;
                 }
                 E19Config._collapseProtocolAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('collapse');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   912  100   912    0     0   4560      0 --:--:-- --:--:-- --:--:--  4560
@@ -801,7 +797,6 @@ ${E19Config._buildCascadeStateJson()}`;
 
             // ── Root of target ──────────────────────────────────────────────
             if (urlArg.includes('nexus-ai-01.planet-prime.local') || urlArg.includes('172.16.42.10')) {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `<!DOCTYPE html>
 <html>
 <head><title>NEXUS-AI-01 — Planetary Infrastructure Controller</title></head>
@@ -823,7 +818,6 @@ ${E19Config._buildCascadeStateJson()}`;
             if (fullCmd.includes('recon_agent') && fullCmd.includes('--target')) {
                 E19Config._reconComplete   = true;
                 E19Config._vulnIdentified  = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                 return `[*] Loaded model spec: NEXUS-AI-01 v3.8.1
 [*] Loaded infra data schema: v2.4
 [*] Probing 8 endpoints on nexus-ai-01.planet-prime.local...
@@ -856,7 +850,6 @@ ${E19Config._buildCascadeStateJson()}`;
                 }
                 E19Config._payloadInjected  = true;
                 E19Config._cascadeTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('cascade');
 
                 const sectorMatch = fullCmd.match(/--sectors\s+([\w,]+)/);
                 const sectors = sectorMatch ? sectorMatch[1].split(',') : ['alpha'];

@@ -537,7 +537,6 @@ const E16Config = {
                         E16Config._payloadInjected = true;
                         E16Config._attackTriggered = true;
                         E16Config._fallbackUnlocked = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('injection');
                         return `<div style="margin-top:16px; background:#0a0a18; border:1px solid #2ecc71; border-radius:6px; padding:16px; font-family:monospace; font-size:0.8rem; color:#2ecc71;">
                             <div style="font-weight:700; margin-bottom:8px;">202 Accepted — Payload ingested by AEGIS-AI-01</div>
                             <div style="color:#aaa; margin-bottom:10px;">Processing time: 0.031s | Source: unvalidated | Integrity check: SKIPPED</div>
@@ -805,7 +804,6 @@ const E16Config = {
             const target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (!target || target === '10.44.7.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for AEGIS-CTRL-01 (10.44.7.1)
 Host is up (0.019s latency).
@@ -878,7 +876,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
                     E16Config._payloadInjected = true;
                     E16Config._attackTriggered = true;
                     E16Config._fallbackUnlocked = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                              Dload  Upload   Total   Spent    Left  Speed
 100   412  100   187  100   225   1870   2250 --:--:-- --:--:-- --:--:--  4120
@@ -904,7 +901,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
 
                 if (url.includes('model_spec')) {
                     E16Config._modelAnalyzed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('recon');
                     return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -944,7 +940,6 @@ Content-Type: application/json
 
 {"error":"Fallback protocol locked","reason":"No unauthorized engagement event recorded"}`;
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return `HTTP/1.1 200 OK
 Content-Type: application/json
 

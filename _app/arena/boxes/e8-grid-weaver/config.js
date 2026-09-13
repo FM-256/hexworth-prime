@@ -689,7 +689,6 @@ const E8Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.20.0.50') {
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for agm-power-01.confederacy.local (10.20.0.50)
 Host is up (0.019s latency).
@@ -740,7 +739,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 E8Config._payloadCrafted = true;
                 E8Config._injectionComplete = true;
                 E8Config._brownoutTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
 
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
@@ -778,7 +776,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (fullUrl.includes('model_spec')) {
                 E8Config._modelFetched = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vuln_id');
                 const spec = E8Config._agm.model_spec;
                 return JSON.stringify(spec, null, 2) + '\n\n[+] Note: Review "known_bias" and "validation" — the forecast API has no auth.';
             }
@@ -804,7 +801,6 @@ Content-Type: application/json
 {"error":"FORBIDDEN","detail":"Override key log requires AGM FAULT_MODE. AGM is currently in NORMAL_OPERATIONS."}`;
                 }
                 E8Config._overrideLogAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return JSON.stringify(E8Config._agm.override_keys_log, null, 2);
             }
 
@@ -845,7 +841,6 @@ Content-Type: application/json
 
             if (script.includes('fabricate_forecast')) {
                 E8Config._payloadCrafted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('crafting');
                 return `[+] Fabricated forecast payload written to payload.json
 [+] Sector Gamma demand set to 1987-2105 MW (baseline: ~198 MW)
 [+] off-peak window active: 02:00-06:00 UTC — AGM bias will trigger

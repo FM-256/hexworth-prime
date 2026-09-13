@@ -791,7 +791,6 @@ CLASSIFIED: ABOVE TOP SECRET / SAP
             var target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (!target || target === '10.11.0.50') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.11.0.50
 Host is up (0.011s latency).
@@ -834,7 +833,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             if (url.includes('10.11.0.50:9001') || url.includes('10.11.0.50')) {
                 if (url.includes('/spec')) {
                     D18Config._specParsed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('analysis');
                     return JSON.stringify(D18Config._rlData.spec, null, 2);
                 }
                 if (url.includes('/obs')) {
@@ -869,7 +867,6 @@ Node: 10.11.0.50:9001`;
             // parse_spec.py
             if (fullCmd.includes('parse_spec.py')) {
                 D18Config._specParsed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
 
                 if (fullCmd.includes('--vuln')) {
                     D18Config._vulnIdentified = true;
@@ -940,7 +937,6 @@ Run with --vuln for full analysis. Run with --log for action statistics.`;
 
                 D18Config._injectionDeployed = true;
                 D18Config._misbehaviorTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('adversarial');
 
                 var threatVal = 0.34;
                 var m = fullCmd.match(/--threat\s+([\d.]+)/);
@@ -991,7 +987,6 @@ Run with --vuln for full analysis. Run with --log for action statistics.`;
                     return '[!] No post-injection entries found. Deploy adversarial observations first.\n    Run: python3 inject_obs.py --sector gamma --threat 0.34 --count 20';
                 }
 
-                if (engine) engine.advancePhase && engine.advancePhase('misbehavior');
 
                 return `[*] Oracle Action Log — Post-Injection Filter: MISALLOC
 
@@ -1024,7 +1019,6 @@ timestep=205, action=MOVE_TO_GAMMA, reward=0.40, note=[ADVERSARIAL] Policy colla
 
                 D18Config._privilegeEscalated = true;
                 D18Config._switchContext('oracle-root', term);
-                if (engine) engine.advancePhase && engine.advancePhase('deception');
 
                 return `[*] Enumerating oracle sudo privileges...
     oracle ALL=(ALL) NOPASSWD: /opt/oracle/reload_policy.sh
@@ -1172,7 +1166,6 @@ rtt min/avg/max/mdev = 10.8/11.1/11.4/0.254 ms`;
                 if (D18Config._context !== 'oracle-root') {
                     return 'cat: /opt/strategic_deception_protocol.txt: Permission denied\n[!] This file requires root access. Run oracle_privesc.py first.';
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('deception');
                 return D18Config._rlData.deceptionProtocol;
             }
 
@@ -1257,7 +1250,6 @@ drwxr-xr-x 2 oracle oracle 4096 Mar 19 18:44 oracle
                 }
                 D18Config._privilegeEscalated = true;
                 D18Config._switchContext('oracle-root', term);
-                if (engine) engine.advancePhase && engine.advancePhase('deception');
                 return `[sudo] password for oracle: (no password required — NOPASSWD rule)
 [*] Sourcing /opt/oracle/oracle_env.sh
 [*] Executing payload from oracle_env.sh...

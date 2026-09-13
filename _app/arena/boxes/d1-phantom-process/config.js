@@ -898,7 +898,6 @@ Active Connections
 
             if (filterHttp) {
                 D1Config._memDumpAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('memory');
                 return `http://185.220.101.47:8443/beacon
 http://185.220.101.47:8443/cmd
 http://185.220.101.47:8443/upload
@@ -977,7 +976,6 @@ X-Session-ID: 4f3a8e21b9c7d5f2
             const algo = fullCmd.toLowerCase().includes('md5') ? 'MD5' : 'SHA256';
 
             if (fullCmd.toLowerCase().includes('invoice_march2026') || fullCmd.toLowerCase().includes('invoice_march')) {
-                if (engine) engine.advancePhase && engine.advancePhase('artifacts');
                 const hash = algo === 'MD5'
                     ? 'A3F8C21E9D4B7A56F082C3E1D9A47B3C'
                     : 'A3F8C21E9D4B7A56F082C3E1D9A47B3C2F1E8D5A9C6B4F2E7D1A3C8B5E9F2D4A';
@@ -1061,7 +1059,6 @@ TaskName                                 Next Run Time          Status
             if (fullCmd.includes('/delete') || fullCmd.includes('delete')) {
                 if (fullCmd.includes('windowssystemcheck') || fullCmd.includes('windowssystem')) {
                     D1Config._taskDeleted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('containment');
                     return `SUCCESS: The scheduled task "WindowsSystemCheck" was successfully deleted.
 
 [+] Persistence mechanism 1 removed.

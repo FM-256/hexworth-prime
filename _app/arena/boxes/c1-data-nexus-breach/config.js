@@ -619,7 +619,6 @@ const C1Config = {
 
             // External target — WEB-EXT-01
             if (!target || target === '192.168.1.100') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 192.168.1.100
 Host is up (0.028s latency).
@@ -735,7 +734,6 @@ Finished`;
             if (fullCmd.includes('-F') || fullCmd.includes('--form')) {
                 if (fullCmd.includes('upload.php') && (fullCmd.includes('.php') || fullCmd.includes('shell'))) {
                     C1Config._shellUploaded = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   312  100    89  100   223    890   2230 --:--:-- --:--:-- --:--:--  3120
@@ -887,7 +885,6 @@ postgres:x:26:26:PostgreSQL Server:/var/lib/pgsql:/bin/bash`;
             if (fullCmd.includes('nexusadmin') || fullCmd.includes('192.168.1.100')) {
                 C1Config._sshAuthenticated = true;
                 C1Config._switchContext('ssh-web', term);
-                if (engine) engine.advancePhase && engine.advancePhase('foothold');
                 return `The authenticity of host '192.168.1.100 (192.168.1.100)' can't be established.
 ED25519 key fingerprint is SHA256:xR4j8kF2nP9mQw7tB5vE1dL6cY0uA3hS8gN4iJ2oK5.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1199,7 +1196,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
             output += `(${rows.length} row${rows.length !== 1 ? 's' : ''})\n`;
 
             if (rows.some(r => r.contact_email.includes('{{FLAG:root}}'))) {
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
             }
 
             return output;

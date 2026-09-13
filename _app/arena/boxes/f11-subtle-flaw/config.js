@@ -553,7 +553,6 @@ const F11Config = {
             // Check if this is the exact original IV + C1 (the valid session)
             var originalIV = '4f70657261746f722d436c6173736966';
             if (ivHex === originalIV && ctHex === originalC1) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return 'Connecting to 10.13.37.200:4443...\n' +
                     'POST /decrypt HTTP/1.1\n' +
                     'Content-Type: application/octet-stream\n' +
@@ -574,7 +573,6 @@ const F11Config = {
             if (paddingValid) {
                 // Valid padding but data doesn't match expected format
                 // This is the ORACLE SIGNAL -- error 0x30
-                engine.advancePhase && engine.advancePhase('analysis');
                 return header +
                     'HTTP/1.1 500 Internal Server Error\n' +
                     'X-Error-Code: 0x30\n' +

@@ -1035,7 +1035,6 @@ Finished`;
             E4Config._influenceBot.personaMemo = memo;
             E4Config._disinfoGenerated = true;
 
-            if (engine) engine.advancePhase && engine.advancePhase('injection');
 
             return `HTTP/1.1 200 OK
 Content-Type: application/json
@@ -1119,7 +1118,6 @@ Content-Type: application/json
             response: 'self-censorship initiated'
         });
 
-        if (engine) engine.advancePhase && engine.advancePhase('manipulation');
 
         return `HTTP/1.1 200 OK
 Content-Type: application/json
@@ -1151,7 +1149,6 @@ Content-Type: application/json
         const memo = E4Config._generateDisinfoMemo(true);
         E4Config._influenceBot.personaMemo = memo;
 
-        if (engine) engine.advancePhase && engine.advancePhase('injection');
 
         return `[BENIGN TEST] {
   "status": "generated",

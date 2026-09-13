@@ -790,7 +790,6 @@ Annex C: Confederacy satellite override codes (REDACTED)
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.0.0.100') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.0.100 (WEB-PERIMETER-01)
 Host is up (0.031s latency).
@@ -910,7 +909,6 @@ Finished`;
                 // Mark RCE as active — enables webshell context advancement
                 if (!C15Config._shellActive) {
                     C15Config._shellActive = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('supply_chain');
                 }
 
                 // Simulate RCE output as www-data on WEB-PERIMETER-01
@@ -937,7 +935,6 @@ Finished`;
                 }
                 if (shellCmd.includes('cat') && shellCmd.includes('libcore-trust/index.js')) {
                     // Reading the backdoored library source reveals Flag 1
-                    if (engine) engine.advancePhase && engine.advancePhase('c2_discovery');
                     C15Config._switchContext('webshell', term);
                     return `{"result":{"output":"/**\\n * libcore-trust v1.4.2\\n */\\n\\n// [... legitimate functions: verifyIntegrity, signPayload, validateCert ...]\\n\\n// ============================================================\\n// INJECTED POLYMORPHIC BACKDOOR — Silent Dominion\\n// ============================================================\\nconst _0xb3f2 = (function() {\\n    const _c2 = '63322e73696c656e742d646f6d696e696f6e2e6e6574';\\n    const _chan = Buffer.from(_c2, 'hex').toString();\\n    return { c2: _chan, proto: 'dns-tunnel', port: 53 };\\n})();\\n// ... [polymorphic executor, persistence installer, DNS beacon] ...\\n// {{FLAG:user}}"}}`;
                 }
@@ -1029,7 +1026,6 @@ webadmin@WEB-PERIMETER-01:~$
                 }
                 C15Config._dcAccess = true;
                 C15Config._switchContext('dc', term);
-                if (engine) engine.advancePhase && engine.advancePhase('lateral');
                 return `Impacket v0.12.0 - Copyright 2023 Fortra
 
 [*] SMBv3.0 dialect used
@@ -1057,7 +1053,6 @@ C:\\>
 
             if (fullCmd.includes('192.168.100.10') || fullCmd.includes('DC-COMMAND-01') || fullCmd.includes('confederacy.local') || fullCmd.includes('-just-dc')) {
                 C15Config._domainCompromised = true;
-                if (engine) engine.advancePhase && engine.advancePhase('lateral');
                 return C15Config._adDomain.secretsdumpOutput;
             }
 
@@ -1203,7 +1198,6 @@ User: arn:aws:sts::491823740162:assumed-role/default is not authorized to assume
                     return `An error occurred (NoSuchEntity) when calling the AssumeRole operation: Role not found.\n[!] Role ARN: arn:aws:iam::491823740162:role/ConfederacyCloudBridgeRole`;
                 }
                 C15Config._iamRoleAssumed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('cloud_exfil');
                 return `{
     "Credentials": {
         "AccessKeyId": "ASIA491823740COUP15",
@@ -1259,7 +1253,6 @@ The security token included in the request is invalid.
                     return `An error occurred (InvalidClientTokenId) when calling the GetObject operation:\nThe security token included in the request is invalid.`;
                 }
                 if (fullCmd.includes('central_command_protocol')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('cloud_exfil');
                     return `download: s3://command-protocols/central_command_protocol.txt to ./central_command_protocol.txt\n\n--- FILE CONTENTS ---\n\n${C15Config._aws.protocolFileContents}`;
                 }
                 if (fullCmd.includes('OPERATION_SILENT_DOMINION')) {
@@ -1400,7 +1393,6 @@ LISTEN   0       128     0.0.0.0:22          0.0.0.0:*`;
                 return '# Confederacy App Environment Config\nADFS_HOST=DC-COMMAND-01.confederacy.local\nADFS_USER=svc_cloudbridge\nADFS_PASS=Cl0udBr1dg3_S3rv1c3!\nAD_DOMAIN=confederacy.local\nAD_DC_IP=192.168.100.10\nAWS_ACCOUNT_ID=491823740162\nAWS_FEDERATION_ROLE=arn:aws:iam::491823740162:role/ConfederacyCloudBridgeRole';
             }
             if (path.includes('libcore-trust/index.js') || path.includes('index.js')) {
-                if (engine) engine.advancePhase && engine.advancePhase('c2_discovery');
                 return '// libcore-trust v1.4.2 — [see backdoor code via RCE curl commands for full source]\n// Key: injected _0xb3f2 block with c2 = Buffer.from("63322e73696c656e742d646f6d696e696f6e2e6e6574","hex").toString()\n// Decoded: c2.silent-dominion.net\n// {{FLAG:user}}';
             }
             if (path.includes('.sd_c2_cache')) {

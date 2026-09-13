@@ -692,7 +692,6 @@ const C12Config = {
 
             // Full port scan or targeted scan of APU-ENFORCER-01
             if (target === '172.16.50.10' || target === '172.16.50.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 const verbose = args.includes('-p-') || args.includes('-A');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 172.16.50.10 (APU-ENFORCER-01)
@@ -775,7 +774,6 @@ Finished`;
 
                 if (url.includes('/api/play') && hasInjection) {
                     C12Config._rceActive = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exploitation');
 
                     // Extract injected command
                     var decoded = decodeURIComponent(url);
@@ -846,7 +844,6 @@ Permission denied, please try again.
 
                 C12Config._sshAuthenticated = true;
                 C12Config._switchContext('ssh-infotainment', term);
-                if (engine) engine.advancePhase && engine.advancePhase('canpivot');
 
                 return `The authenticity of host '172.16.50.10 (172.16.50.10)' can't be established.
 ED25519 key fingerprint is SHA256:aP7vM2nK9qX4wR6yB3cT8dF1hJ5gN0iL2oS6mE4pQ9.
@@ -883,7 +880,6 @@ Last login: Fri Mar 15 08:12:44 2026 from 172.16.50.5
 
             C12Config._canDumpRunning = true;
             C12Config._switchContext('canbus', term);
-            if (engine) engine.advancePhase && engine.advancePhase('cananalysis');
 
             // Generate extended live traffic output
             return `  can0  0x0C0   [8]  00 00 00 00 00 00 00 00   ENGINE_HEARTBEAT
@@ -964,7 +960,6 @@ Interrupted. 20 frames captured on can0.
 
             if (isShutdownId && isShutdownData) {
                 C12Config._emergencySent = true;
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return `cansend: frame sent on can0
   ID: 0x7DF  DLC: 8  DATA: DE AD BE EF 01 02 03 04
 
@@ -1044,7 +1039,6 @@ execl
                     var hexStr = rawData.replace(/0x/gi,'').replace(/,\s*/g,'').replace(/\s+/g,'').toUpperCase();
                     if (canId.includes('7DF') && hexStr.startsWith('DEADBEEF')) {
                         C12Config._emergencySent = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('override');
                         return `Python 3.9.7 (default, Jan 12 2026, 06:00:00) [GCC 10.3.0]
 >>> import can
 >>> bus = can.interface.Bus(channel='can0', bustype='socketcan')

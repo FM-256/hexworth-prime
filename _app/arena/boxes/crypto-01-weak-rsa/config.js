@@ -354,7 +354,6 @@ const Crypto01Config = {
 
             // openssl rsa -pubin -in ... -text -noout
             if (joined.includes('rsa') && joined.includes('-pubin')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return `RSA Public-Key: (WEAK - 12 bit)
 Modulus:
     N = 3233 (0x0ca1)

@@ -1081,7 +1081,6 @@ tcp        0      0 127.0.0.1:80    0.0.0.0:*        LISTEN`;
             }
             // Intentionally allowed through — this is the bypass
             C9Config._edrBypassed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('edr_bypass');
             return `[+] memfd_create("init", MFD_CLOEXEC) = fd:7
 [+] Payload written to anonymous memory fd.
 [+] execveat(7, "", argv, envp, AT_EMPTY_PATH) \u2014 executing from RAM...
@@ -1164,7 +1163,6 @@ ${C9Config._cerberusCheck('exec_tmp', 'gcc output')}
                     return C9Config._cerberusCheck('passwd_write', 'init.d write') || 'echo: write failed';
                 }
                 C9Config._persistenceInstalled = true;
-                if (engine) engine.advancePhase && engine.advancePhase('persistence');
                 return `[+] LD_PRELOAD line injected into /etc/init.d/vanguard-health.
 [+] Cerberus exclusion (VG-2025-1147) prevents detection of this write.
 [+] On next service restart, crond will load libaudit_hook.so via LD_PRELOAD.
@@ -1184,7 +1182,6 @@ ${C9Config._cerberusCheck('exec_tmp', 'gcc output')}
                     return '[!] Edit /etc/init.d/vanguard-health to inject LD_PRELOAD.\n[!] However, your EDR bypass must be active first to safely stage the .so file.';
                 }
                 C9Config._persistenceInstalled = true;
-                if (engine) engine.advancePhase && engine.advancePhase('persistence');
                 return `[nano] Editing /etc/init.d/vanguard-health...
 [nano] File saved.
 
@@ -1225,7 +1222,6 @@ ${C9Config._cerberusCheck('exec_tmp', 'gcc output')}
             // Simulate PATH hijack escalation
             C9Config._rootEscalated = true;
             C9Config._switchContext('root', term);
-            if (engine) engine.advancePhase && engine.advancePhase('privesc');
             return `[+] Created /home/sentinel_dev/check.sh (setuid shell drop)
 [+] export PATH=/home/sentinel_dev:$PATH
 [+] Executing /usr/local/bin/vg-status (SUID root) \u2014 it will call our check.sh first...
@@ -1268,7 +1264,6 @@ c2.vg. 300 IN TXT "ACK:received"
             const fullCmd = args.join(' ');
             if (fullCmd.includes('deployment_manifest') || fullCmd.includes('c2.vg')) {
                 C9Config._manifestExfiltrated = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 // Render the manifest with the flag placeholder visible
                 let manifestText = C9Config._manifest.header;
                 manifestText += '(6 assets including {{FLAG:root}})\n';

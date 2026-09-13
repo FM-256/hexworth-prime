@@ -590,7 +590,6 @@ Unique gadgets found: 14`,
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.13.37.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('acquire');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.13.37.1
 Host is up (0.031s latency).
@@ -618,7 +617,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (url.includes('10.13.37.1:8080') && url.includes('cipherspeak')) {
                 C7Config._binaryAcquired = true;
-                if (engine) engine.advancePhase && engine.advancePhase('static');
                 return `--2026-03-20 09:14:22--  http://10.13.37.1:8080/cipherspeak
 Connecting to 10.13.37.1:8080... connected.
 HTTP request sent, awaiting response... 200 OK
@@ -681,7 +679,6 @@ cipherspeak         100%[===================>] 144.00K   512KB/s   in 0.3s
             if (!C7Config._binaryAcquired) return `strings: ${target}: No such file or directory`;
 
             C7Config._stringsRun = true;
-            if (engine) engine && engine.advancePhase && engine.advancePhase('static');
 
             return `/lib64/ld-linux-x86-64.so.2
 libcrypt.so.1
@@ -782,7 +779,6 @@ Load in Ghidra for decompilation and CFG reconstruction.`;
             if (!C7Config._binaryAcquired) return 'ghidra: cipherspeak not found. Download it first with wget.';
 
             C7Config._ghidraLoaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('dynamic');
 
             return `Ghidra 10.4 — NSA Research Directorate
 [*] Loading cipherspeak...
@@ -843,7 +839,6 @@ KEY DECOMPILED FUNCTIONS:
 [!] Verify the stack offset: python3 -c "from pwn import *; cyclic(200)" | nc 10.13.37.1 1337`;
                 }
                 C7Config._ropChainBuilt = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exploit');
                 return `[*] Sending ROP chain to 10.13.37.1:1337...
 [+] Connection established.
 [+] Payload sent (${72 + 3 * 8} bytes: 72 padding + 3 gadgets).
@@ -930,7 +925,6 @@ Covenant Breach Confirmed — 2026-03-20 09:47:12 UTC
 
             C7Config._gdbActive = true;
             C7Config._switchContext('gdb', term);
-            if (engine) engine.advancePhase && engine.advancePhase('dynamic');
 
             return `GNU gdb (Ubuntu 12.1-0ubuntu1~22.04) 12.1
 Copyright (C) 2022 Free Software Foundation, Inc.
@@ -1325,7 +1319,6 @@ exit(1) = <void>
         'ida': function(args, term, engine) {
             if (!C7Config._binaryAcquired) return 'ida: cipherspeak not found.';
             C7Config._ghidraLoaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('dynamic');
             return `IDA Pro 8.3 — Interactive Disassembler
 [*] Loading cipherspeak...
 [*] Auto-analysis complete (ELF64 x86).

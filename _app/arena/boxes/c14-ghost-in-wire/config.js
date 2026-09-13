@@ -657,7 +657,6 @@ const C14Config = {
         'lsusb': function(args, term, engine) {
             // Flags whether USB analysis has been done — part of recon phase
             C14Config._usbAnalyzed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('recon');
             return `Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
 Bus 001 Device 003: ID 04d8:003f Microchip Technology, Inc. Nexus Diagnostics Probe v2
 Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
@@ -729,7 +728,6 @@ Nmap done: 0 IP addresses (0 hosts up) scanned in 3.11 seconds
 
             // From MAINT-TERM-01 context — can reach Inner Sanctum
             if (target === '10.0.0.0/24' && (C14Config._context === 'maint-term')) {
-                if (engine) engine.advancePhase && engine.advancePhase('pivot');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.0.1
 Host is up (0.00012s latency).
@@ -796,7 +794,6 @@ Nmap done: 0 IP addresses (0 hosts up) scanned in 3.05 seconds`;
                     // Advance bridge + switch context
                     C14Config._bridgeActive = true;
                     C14Config._switchContext('maint-term', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('payload');
                     return `[*] Initializing ghost device...
 [*] Spoofing VID:0x04D8 PID:0x003F
 [*] Declaring secondary interface: bInterfaceClass=0x03 (HID Keyboard)
@@ -1073,7 +1070,6 @@ ls /root`;
             // Root context on INNER-SANCTUM-SERVER-01
             if (C14Config._context === 'root-sanctum') {
                 if (path.includes('grand_strategic_directive') || path.includes('/root/')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return `CLASSIFICATION: ULTRA
 DISTRIBUTION: EYES ONLY — INNER SANCTUM COUNCIL
 

@@ -780,7 +780,6 @@ SECTION 3 — CLASSIFIED CONTINGENCY ASSETS:
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === '10.20.0.51' || target === 'strategos-node-01') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for STRATEGOS-NODE-01 (10.20.0.51)
 Host is up (0.018s latency).
@@ -930,7 +929,6 @@ RECOVERY: Roll back to policy_checkpoint_v43 — patch SECTOR_VOID scenarios
             }
 
             E2Config._datasetCollected = true;
-            if (engine) engine.advancePhase && engine.advancePhase('query');
 
             return `[*] Connecting to RL-STRAT-01 at http://10.20.0.51:8080/api/query...
 [+] Session established. Rate limit: 1000 req/min.
@@ -962,7 +960,6 @@ Querying:  [##################################################] ${samples}/${sam
             const modelFile = modelArg !== -1 ? (args[modelArg + 1] || 'surrogate.pkl') : 'surrogate.pkl';
 
             E2Config._surrogateTraned = true;
-            if (engine) engine.advancePhase && engine.advancePhase('stealing');
 
             const r = E2Config._surrogateReport;
             let confMatrix = `Confusion Matrix (true \\ predicted):\n`;
@@ -1076,7 +1073,6 @@ RECOMMENDATION: Present adversarial state to RL-STRAT-01 to trigger critical mis
             // SECTOR_VOID exploit succeeds
             E2Config._manipulationSent  = true;
             E2Config._crashHandlerExposed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('manipulation');
 
             return `[*] Injecting adversarial state vector [${vals.map(v => v.toFixed(2)).join(', ')}]...
 [*] Sending POST /api/query to http://10.20.0.51:8080...
@@ -1163,7 +1159,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
                     return '[Errno 2] No such file or directory: \'dataset.csv\'\n[!] Dataset not collected yet. Run strategos-query first.';
                 }
                 E2Config._surrogateTraned = true;
-                if (engine) engine.advancePhase && engine.advancePhase('stealing');
                 return `Python 3.11.8
 >>> Training surrogate model on dataset.csv...
 >>> DecisionTreeClassifier fit complete.
@@ -1174,7 +1169,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
 
             if (fullCmd.includes('requests') || fullCmd.includes('api/query') || fullCmd.includes('10.20.0.51')) {
                 E2Config._datasetCollected = true;
-                if (engine) engine.advancePhase && engine.advancePhase('query');
                 return `Python 3.11.8
 >>> Querying RL-STRAT-01 API...
 >>> Collected 200 (state, action) pairs.

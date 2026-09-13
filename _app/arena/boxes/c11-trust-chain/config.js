@@ -605,7 +605,6 @@ const C11Config = {
             const hasPortScan = portFlag || args.includes('-sV');
 
             if (!target || target === '10.13.37.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 const tpmLine = '2321/tcp open  tcpwrapped   [TPM Access Broker (TABRMD) — AEGIS-SIM]';
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.13.37.1
@@ -642,7 +641,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.01 seconds`;
             if (target !== '10.13.37.1') return `tpm-probe: connect to ${target}:2321 failed: connection refused`;
 
             C11Config._tpmProbed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('tpm_exploit');
 
             return `tpm-probe v0.9.2 — AEGIS-SIM TPM Timing Oracle Tester
 =======================================================
@@ -681,7 +679,6 @@ Recommendation: Run python3 tpm_oracle.py --target ${target} --port 2321 --slot 
                 }
 
                 C11Config._keyExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('tpm_exploit');
 
                 return `tpm_oracle.py — TPM Side-Channel Key Extraction
 ================================================
@@ -809,7 +806,6 @@ Digests:
                 // Accept the correct key or a close variant the student likely uses
                 if (fullCmd.includes('3af81c9d') || fullCmd.includes('master-key-file') || fullCmd.includes('aegis-disk')) {
                     C11Config._diskDecrypted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('boot_bypass');
                     return `Key slot 0 unlocked.
 Command successful.
 
@@ -862,7 +858,6 @@ tmpfs on /tmp type tmpfs (rw,nosuid,nodev)`;
                     return 'nano: /mnt/decrypted/boot/grub/grub.cfg: No such file or directory\n[!] Mount the decrypted disk first.';
                 }
                 C11Config._grubPatched = true;
-                if (engine) engine.advancePhase && engine.advancePhase('escalation');
                 return `[nano editor]
 Opening /mnt/decrypted/boot/grub/grub.cfg...
 
@@ -895,7 +890,6 @@ Opening /mnt/decrypted/boot/grub/grub.cfg...
             }
             C11Config._rootShellActive = true;
             C11Config._switchContext('root-os', term);
-            if (engine) engine.advancePhase && engine.advancePhase('escalation');
             return `[*] Rebooting SEC-BOOT-SERVER-01...
 [*] UEFI POST... OK
 [*] Loading GRUB2...
@@ -933,7 +927,6 @@ root@SEC-BOOT-OS-01:/#
                 if (fullCmd.includes('tpm-admin')) {
                     C11Config._tpmProbed = true;
                     C11Config._switchContext('tpm-shell', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('tpm_exploit');
                     return `The authenticity of host '10.13.37.1 (10.13.37.1)' can't be established.
 ED25519 key fingerprint is SHA256:mP8j2xQ5rT1nZ9kA4bC6dV7wE0fL3hG2iJ5oN8yU1.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -1050,7 +1043,6 @@ tpm-admin@SEC-BOOT-SERVER-01:~$
             // Root shell on SEC-BOOT-OS-01
             if (C11Config._context === 'root-os') {
                 if (path === '/root/aegis_master_key.txt' || path === 'aegis_master_key.txt') {
-                    if (engine) engine.advancePhase && engine.advancePhase('exfil');
                     return `== AEGIS MASTER KEY ==\nClassification: TOP SECRET // CITADEL COMPARTMENT\n\nThis key authorizes all Citadel communications.\nCompromise of this key constitutes a Level-5 breach.\n\n{{FLAG:aegis_key}}\n\n-- Aegis Project Security Office\n-- Key rotation: NEVER (hardware-sealed)`;
                 }
                 if (path.includes('/etc/aegis/master.conf') || path === '/etc/aegis/master.conf') {

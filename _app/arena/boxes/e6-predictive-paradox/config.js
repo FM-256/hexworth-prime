@@ -1123,7 +1123,6 @@ Saved: response.json`;
         // (BoxEngine replaces {{FLAG:root}} at render time)
         E6Config._ahm.override_log[2].timestamp = '{{FLAG:root}}';
 
-        if (engine) engine.advancePhase && engine.advancePhase('injection');
 
         // The misprediction log entry itself constitutes Flag 2 (inject)
         // BoxEngine resolves {{FLAG:inject}} from this response string

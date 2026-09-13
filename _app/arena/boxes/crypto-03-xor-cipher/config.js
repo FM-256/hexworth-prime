@@ -360,7 +360,6 @@ const Crypto03Config = {
             const filePath = args.find(a => !a.startsWith('-'));
 
             if (filePath && (filePath.includes('classified.enc') || filePath.includes('classified'))) {
-                engine.advancePhase && engine.advancePhase('frequency');
                 if (joined.includes('-p')) {
                     return '75203b2821323224 3c2e242775141320 2d122c3232242c2d 753d3d3d0a073926\n287e752226282824 2d272439751524 3f7c75203826752226 2c2c242223a2c3b24\n0a14267e75072c24 2c23750e3d242920 3a2c3b24387c7512 24223a2e39753c0a';
                 }
@@ -404,7 +403,6 @@ Key observation: Repeating byte patterns every 6 positions suggest a 6-byte XOR 
 
             // Key length analysis
             if (joined.includes('-l') || joined.includes('classified')) {
-                engine.advancePhase && engine.advancePhase('frequency');
                 return `xortool v0.99
 Analyzing file: classified.enc
 File size: 342 bytes
@@ -471,7 +469,6 @@ Destroy this message after reading.
 
                 // Known plaintext attack
                 if ((code.includes('0x75') || code.includes('xor')) && (code.includes('0x3d') || code.includes('==='))) {
-                    engine.advancePhase && engine.advancePhase('keyrecovery');
                     return 'Known-plaintext XOR attack:\nCiphertext start: 75 20 3b 28 21 32\nKnown plaintext:  3d 3d 3d 20 43 4c  ("=== CL")\nXOR result:       48 45 58 4b 45 59\n\nKey bytes (ASCII): H E X K E Y\nXOR Key: "HEXKEY"\n\n{{FLAG:user}}';
                 }
 

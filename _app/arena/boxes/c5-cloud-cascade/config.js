@@ -1357,7 +1357,6 @@ const C5Config = {
                     output += '        }' + (i < events.length - 1 ? ',' : '') + '\n';
                 });
                 output += '    ]\n}';
-                if (engine) engine.advancePhase && engine.advancePhase('credential-analysis');
                 C5Config._roleChainMapped = true;
                 return output;
             }
@@ -1408,7 +1407,6 @@ const C5Config = {
 
         if (subCmd === 'list-findings') {
             C5Config._guarddutyReviewed = true;
-            if (engine) engine.advancePhase && engine.advancePhase('alert-triage');
             return '{\n    "FindingIds": [\n        "gd-f001",\n        "gd-f002",\n        "gd-f003",\n        "gd-f004"\n    ]\n}';
         }
 
@@ -1465,7 +1463,6 @@ const C5Config = {
                 out += '        }' + (i < instances.length - 1 ? ',' : '') + '\n';
             });
             out += '    ]\n}';
-            if (engine) engine.advancePhase && engine.advancePhase('resource-enumeration');
             return out;
         }
 
@@ -1608,7 +1605,6 @@ const C5Config = {
                 snapOut += '        }' + (i < C5Config._rds.snapshots.length - 1 ? ',' : '') + '\n';
             });
             snapOut += '    ]\n}';
-            if (engine) engine.advancePhase && engine.advancePhase('data-exposure');
             C5Config._rdsSnapshotFound = true;
             return snapOut;
         }
@@ -1690,7 +1686,6 @@ const C5Config = {
                 out += '        { "Name": "' + b.name + '", "CreationDate": "' + b.created + '" }' + (i < C5Config._s3.buckets.length - 1 ? ',' : '') + '\n';
             });
             out += '    ],\n    "Owner": { "ID": "a1b2c3d4e5f6", "DisplayName": "nexus-cloud-admin" }\n}';
-            if (engine) engine.advancePhase && engine.advancePhase('resource-enumeration');
             return out;
         }
 

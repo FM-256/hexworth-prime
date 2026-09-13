@@ -772,7 +772,6 @@ const E14Config = {
                     E14Config._dataInjected = true;
                     E14Config._droughtTriggered = true;
                     E14Config._masterPlanUnlocked = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
 
                     const injectedPayloadStr = fullCmd.match(/-d\s+'({[^']+})'/)?.[1]
                         || fullCmd.match(/-d\s+"({[^"]+})"/)?.[1]
@@ -837,7 +836,6 @@ const E14Config = {
             if (url.includes('10.0.14.1')) {
                 if (url.includes('model_spec')) {
                     E14Config._modelRetrieved = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('recon');
                     return JSON.stringify(E14Config._modelSpec, null, 2);
                 }
                 if (url.includes('sensor/schema')) {
@@ -853,7 +851,6 @@ const E14Config = {
                             drought_response_log: []
                         }, null, 2);
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('drought');
                     return JSON.stringify({
                         sector: 'Gamma',
                         resources: E14Config._planetStatePostInjection.resource_ledger.filter(function(r) { return r.sector === 'Gamma'; }),
@@ -869,7 +866,6 @@ const E14Config = {
                     if (!E14Config._masterPlanUnlocked) {
                         return 'HTTP/1.1 403 OMEGA-RESTRICTED\nContent-Type: text/plain\n\n[PLAN-LOG-AI-01] Access denied. OMEGA-RESTRICTED document. Dual-authorization required.\nIncident logged.';
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('exfil');
                     return JSON.stringify(E14Config._masterPlan, null, 2);
                 }
                 if (url.endsWith('/api/') || url.endsWith('/api')) {
@@ -966,7 +962,6 @@ ${JSON.stringify(payload, null, 2)}
             const target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (!target || target === '10.0.14.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.14.1
 Host is up (0.041s latency).

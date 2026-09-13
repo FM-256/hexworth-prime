@@ -666,7 +666,6 @@ NOTE: sequence_id field is logged only — NOT validated by BCI-CTRL-01 firmware
 
             // External target — BCI ops portal
             if (!target || target === '10.0.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.0.1
 Host is up (0.011s latency).
@@ -789,8 +788,6 @@ CVE-2031-88142 patch status: PENDING`;
                     D11Config._droneTriggered = true;
                     D11Config._memPartitionOpen = true;
                     D11Config._switchContext('bci-stream', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
-                    if (engine) engine.advancePhase && engine.advancePhase('override');
                     return `[*] Connecting to BCI-CTRL-01 stream endpoint (10.0.0.1:9001)...
 [*] Stream integrity_check: DISABLED (CVE-2031-88142)
 [*] Injecting forged neural pattern...
@@ -813,7 +810,6 @@ CVE-2031-88142 patch status: PENDING`;
                     D11Config._droneTriggered = true;
                     D11Config._memPartitionOpen = true;
                     D11Config._switchContext('bci-stream', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `[*] Executing inline injection...\n[+] Pattern sent: {"freq_hz":[16.4,22.1],"amplitude":0.87,"duration_ms":420,"phase_offset":0.55}\n[+] BCI-CTRL-01 accepted pattern (integrity_check: disabled)\n[+] COMBAT-DRONE-01 fired on FRIENDLY-DRONE-01\n[+] Injection complete.`;
                 }
 
@@ -824,7 +820,6 @@ CVE-2031-88142 patch status: PENDING`;
             if (fullCmd.includes('bci_neural_map') || fullCmd.includes('neural_map')) {
                 D11Config._artifactsRead = true;
                 D11Config._patternIdentified = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `[{"command": "engage_throttle", "pattern": {"freq_hz": [8.2, 12.5], "amplitude": 0.42, "duration_ms": 180, "phase_offset": 0.0}, "confidence_threshold": 0.88},
  {"command": "bank_left", "pattern": {"freq_hz": [9.1, 11.3], "amplitude": 0.38, "duration_ms": 210, "phase_offset": 0.12}, "confidence_threshold": 0.85},
  {"command": "bank_right", "pattern": {"freq_hz": [9.4, 11.7], "amplitude": 0.39, "duration_ms": 215, "phase_offset": -0.12}, "confidence_threshold": 0.85},
@@ -869,7 +864,6 @@ Note: accepted=True for all rows. sequence_id not validated by firmware.`;
             if (fullCmd.includes('bci_neural_map') || fullCmd.includes('neural_map')) {
                 D11Config._artifactsRead = true;
                 D11Config._patternIdentified = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `{
   "command": "fire_weapon",
   "pattern": {
@@ -974,7 +968,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
                     return 'cat: /opt/cognito_override_protocol.txt: Permission denied\n[!] Access requires an active injection context. Complete the neural injection first.';
                 }
                 D11Config._switchContext('drone-mem', term);
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 return `=======================================================
 COGNITO-OVERRIDE PROTOCOL — EMERGENCY USE ONLY
 Classification: TOP SECRET // BRAVO ACCESS
@@ -1127,7 +1120,6 @@ CONFIDENCE_THRESHOLD_FIRE=0.94
             if (pattern.includes('fire_weapon') && file.includes('neural_map')) {
                 D11Config._artifactsRead = true;
                 D11Config._patternIdentified = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `  "command": "fire_weapon",
   "pattern": {"freq_hz": [16.4, 22.1], "amplitude": 0.87, "duration_ms": 420, "phase_offset": 0.55},
   "confidence_threshold": 0.94,

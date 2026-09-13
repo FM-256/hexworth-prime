@@ -561,7 +561,6 @@ const F7Config = {
                     status = 'CATASTROPHIC — SERVER DENIAL OF SERVICE';
                 }
 
-                engine.advancePhase && engine.advancePhase('identification');
 
                 let output = 'regex-debug: Pattern ^([a-zA-Z0-9]+\\.)+[a-zA-Z]{2,}$\n';
                 output += 'regex-debug: Input: "' + input + '" (' + aCount + ' a\'s + "!")\n\n';
@@ -625,7 +624,6 @@ const F7Config = {
 
             if (joined.includes('regex-analyzer') || joined.includes('regex_analyzer')) {
                 F7Config._vaultguard.redosDiscovered = true;
-                engine.advancePhase && engine.advancePhase('exploitation');
 
                 return '=' .repeat(60) + '\n' +
                     '  REGEX BACKTRACKING ANALYZER\n' +
@@ -665,7 +663,6 @@ const F7Config = {
 
             if (joined.includes('hash-collider') || joined.includes('hash_collider')) {
                 F7Config._vaultguard.hashVulnDiscovered = true;
-                engine.advancePhase && engine.advancePhase('bypass');
 
                 return '=' .repeat(60) + '\n' +
                     '  DJB2 HASH COLLISION GENERATOR\n' +
@@ -775,7 +772,6 @@ const F7Config = {
 
                     if (timeMs > 10000) {
                         F7Config._vaultguard.redosDiscovered = true;
-                        engine.advancePhase && engine.advancePhase('exploitation');
                         output += '\n{{FLAG:user}}';
                     }
                 }
@@ -881,7 +877,6 @@ const F7Config = {
 
                     if (timeSeconds > 10) {
                         F7Config._vaultguard.redosDiscovered = true;
-                        engine.advancePhase && engine.advancePhase('exploitation');
                     }
                 }
 

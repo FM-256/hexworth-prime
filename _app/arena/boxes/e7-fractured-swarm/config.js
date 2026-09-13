@@ -712,7 +712,6 @@ const E7Config = {
 
             // Management node — SWARM-COORD-01
             if (!target || target === '10.30.0.50') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.30.0.50 (SWARM-COORD-01)
 Host is up (0.012s latency).
@@ -763,7 +762,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (script.includes('analyze_threat_model') || args.join(' ').includes('analyze')) {
                 E7Config._threatModelParsed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vuln-analysis');
                 return `=== AGS-DRONES THREAT MODEL ANALYSIS ===
 Model version: 3.7.2
 Consensus algorithm: BFT-Lite v2.3
@@ -790,7 +788,6 @@ Fracture conditions:
                 }
                 E7Config._injectionExecuted = true;
                 E7Config._swarmFractured = true;
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[*] Connecting to COMMAND-BROADCAST: tcp://swarm-coord-01:7741
 [*] No HMAC verification on channel — injection proceeding...
 
@@ -853,7 +850,6 @@ Content-Type: application/json
 
 {"error": "X-Operator-Token required", "format": "swarm-emg-[8-char-hex]", "hint": "Check maintenance_log.txt for the default token."}`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('disintegration');
                 return `HTTP/1.1 200 OK
 Content-Type: text/plain
 
@@ -1073,7 +1069,6 @@ rtt min/avg/max/mdev = 11.8/12.0/12.3/0.207 ms`;
 [!] The management SSH daemon only binds after CONSENSUS_FAILURE.`;
                 }
                 E7Config._switchContext('coord-shell', term);
-                if (engine) engine.advancePhase && engine.advancePhase('disintegration');
                 return `The authenticity of host '10.30.0.50 (10.30.0.50)' can't be established.
 ED25519 key fingerprint is SHA256:pQ7kR2nF9wB5vL3mE1dC6tY0uH8gM4iS2oN5jA6.
 Are you sure you want to continue connecting (yes/no)? yes

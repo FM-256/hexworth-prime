@@ -644,7 +644,6 @@ FRAME  TIME_DELTA  SRC_IP        DST            MSG_TYPE        FLAGS           
 
             // Full mesh subnet scan
             if (target === '10.88.4.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.88.4.1
 Host is up (0.0021s latency).
@@ -718,7 +717,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.11 seconds`;
             if (!fullCmd.includes('.pcap') && !fullCmd.includes('pcap')) {
                 return 'tshark: no capture file specified. Use -r <file>';
             }
-            if (engine) engine.advancePhase && engine.advancePhase('analysis');
 
             // Dissector-based field output
             if (fullCmd.includes('-T fields') || fullCmd.includes('-T json')) {
@@ -798,7 +796,6 @@ Run with -T fields -e frame.time_relative -e guardbot.msg_type -e guardbot.flags
                 const header   = [0x03, 0xFF, 0x06];
                 const allBytes = header.concat(targetIds).concat(msgBytes);
                 const hexStr   = allBytes.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[+] Payload crafted (${allBytes.length} bytes)
 [+] Timing window:   pre_vote (0x03)
 [+] Target subset:   ${target} (6 units)
@@ -823,7 +820,6 @@ ${hexStr}`;
                     if (u.subset === 'alpha') u.status = 'HALT';
                     if (u.subset === 'beta')  u.lastVote = 'HOSTILE';
                 });
-                if (engine) engine.advancePhase && engine.advancePhase('schism');
                 return `[*] Initializing mesh injection on mesh0
 [*] Payload: 03ff066566676869...  (29 bytes)
 [*] Repeat: 1x, Delay: 0.006s
@@ -859,7 +855,6 @@ ${hexStr}`;
                 }
                 D14Config._coordAuthenticated = true;
                 D14Config._switchContext('coord-ssh', term);
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return `The authenticity of host '10.88.4.1 (10.88.4.1)' can't be established.
 ED25519 key fingerprint is SHA256:7kPz9xQ4nB2wV8mR5tE0dG3jA6hC1sF7uL4iN9oJ3w.
 Are you sure you want to continue connecting (yes/no)? yes

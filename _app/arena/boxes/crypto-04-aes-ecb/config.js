@@ -330,7 +330,6 @@ const Crypto04Config = {
 
         // Detect if student is doing byte-at-a-time attack (15 'A's = one byte short of block)
         if (input === 'A'.repeat(15) || input === 'a'.repeat(15)) {
-            engine.advancePhase && engine.advancePhase('extraction');
             return `<div style="font-family:monospace; font-size:0.8rem;">
                 <div style="color:#f59e0b; margin-bottom:8px;">Encrypted (${blocks.length} blocks):</div>
                 <div style="color:#2ecc71; word-break:break-all;">${blocks.join(' ')}</div>
@@ -487,7 +486,6 @@ const Crypto04Config = {
 
             const filePath = args.find(a => !a.startsWith('-'));
             if (filePath && filePath.includes('logo_encrypted')) {
-                engine.advancePhase && engine.advancePhase('identification');
                 const blocks = Crypto04Config._ecb.encryptedBlocks;
                 let output = '';
                 for (let i = 0; i < blocks.length; i++) {
@@ -514,7 +512,6 @@ const Crypto04Config = {
             if (!url) return 'curl: try \'curl --help\' for more information';
 
             if (url.includes('10.10.14.8') && url.includes('/encrypt')) {
-                engine.advancePhase && engine.advancePhase('oracle');
 
                 const dataMatch = url.match(/[?&]data=([^&]*)/);
                 const data = dataMatch ? decodeURIComponent(dataMatch[1]) : '';
@@ -561,7 +558,6 @@ const Crypto04Config = {
 
                 // Block analysis
                 if (code.includes('counter') || code.includes('duplicate') || code.includes('block') || code.includes('set(')) {
-                    engine.advancePhase && engine.advancePhase('identification');
                     return 'Total blocks: 10\nUnique blocks: 5\nDuplicate blocks: 5\n\n[!] ECB MODE CONFIRMED -- identical plaintext blocks produce identical ciphertext blocks\n\n{{FLAG:user}}';
                 }
 
@@ -578,7 +574,6 @@ const Crypto04Config = {
             }
 
             if (joined.includes('block_analyzer')) {
-                engine.advancePhase && engine.advancePhase('identification');
                 return 'Total blocks: 10\nUnique blocks: 5\nDuplicate blocks: 5\n\n[!] DUPLICATE BLOCKS DETECTED -- ECB MODE CONFIRMED!\n  Block a1b2c3d4e5f6a7b8... appears 5 times\n  Block f7e8d9c0b1a2f3e4... appears 2 times\n\n{{FLAG:user}}';
             }
 

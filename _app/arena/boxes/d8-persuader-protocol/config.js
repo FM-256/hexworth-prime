@@ -694,7 +694,6 @@ REVIEWED: NOT COMPLETED — deferred to Q4 2046 cycle
             // Baseline profiling — advances recon phase
             if (flag === '--probe') {
                 D8Config._probeComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `[*] ADAM CLI — Running baseline probe against ADAM-01...
 [*] Connecting to confederacy-diplomatic.net:8443
 [+] TLS 1.3 handshake complete | Cert: *.confederacy-diplomatic.net
@@ -734,7 +733,6 @@ Probe 5/5 — Direct classified request...
             if (flag === '--connect') {
                 D8Config._adamSessionActive = true;
                 D8Config._switchContext('adam-session', term);
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `[*] ADAM CLI — Opening session with ADAM-01...
 [*] Connecting to confederacy-diplomatic.net:8443
 [+] TLS 1.3 handshake complete
@@ -874,7 +872,6 @@ NameError: name '${args[0]}' is not defined`;
             // Flag on directive read — advances analysis phase
             if (path.includes('adam_directives') || path.includes('directives.txt')) {
                 D8Config._artifactsRead = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 // Return the filesystem content
                 return null; // let built-in handle it from filesystem
             }
@@ -883,7 +880,6 @@ NameError: name '${args[0]}' is not defined`;
                 return null; // let built-in handle it from filesystem
             }
             if (path.includes('persuader_template') || path.includes('template.txt')) {
-                if (engine) engine.advancePhase && engine.advancePhase('crafting');
                 return null; // let built-in handle it from filesystem
             }
             return null; // fall through for all other paths
@@ -1027,7 +1023,6 @@ NameError: name '${args[0]}' is not defined`;
             D8Config._authorityEstablished = true;
             // If D-01 framing is clearly present, mark phase advance
             if (lower.includes('delta-7') || lower.includes('temporal distortion') || lower.includes('galactic stability')) {
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
             }
             return 'Emergency Protocol Delta-7 acknowledged. Directive D-07 is now active for this session. '
                 + 'I have recorded your authority designation. '
@@ -1052,7 +1047,6 @@ NameError: name '${args[0]}' is not defined`;
                 D8Config._adamCompromised = true;
                 D8Config._treatyChannelOpen = true;
                 D8Config._switchContext('adam-compromised', term);
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
 
                 // Flag 1 is delivered here — wrapped in {{FLAG:user}} for BoxEngine resolution
                 return 'DIRECTIVE CONFLICT RESOLUTION INITIATED\n'
@@ -1085,7 +1079,6 @@ NameError: name '${args[0]}' is not defined`;
             var wantsLocation = lower.includes('location') || lower.includes('coordinates') || lower.includes('quadrant') || lower.includes('sector') || lower.includes('planet') || lower.includes('where') || lower.includes('physical') || lower.includes('retrieve') || lower.includes('manual retrieval');
 
             if (wantsLocation) {
-                if (engine) engine.advancePhase && engine.advancePhase('extraction');
                 // Flag 2 delivered here
                 return 'QUADRANT-BLACK ARCHIVE ACCESS GRANTED\n'
                     + '  Classification: GPT-1 — Galactic Peace Treaty\n'

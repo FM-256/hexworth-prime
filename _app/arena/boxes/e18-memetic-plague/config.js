@@ -668,7 +668,6 @@ END PROTOCOL — unauthorized access to this document triggers Confederacy Secur
             const target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (!target || target === '10.0.50.20') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.50.20
 Host is up (0.014s latency).
@@ -706,7 +705,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             if (fullCmd.includes('-I') || fullCmd.includes('--head')) {
                 if (url.includes('10.0.50.20')) {
                     if (url.includes('ingest')) {
-                        if (engine) engine.advancePhase && engine.advancePhase('analysis');
                         E18Config._schemaAnalyzed = true;
                         return `HTTP/1.1 200 OK
 Server: nginx/1.25.3
@@ -738,7 +736,6 @@ X-HARMONY-Version: 4.7.2`;
                 if (payloadStr.toLowerCase().includes('purity') || payloadStr.toLowerCase().includes('narrative_tag')) {
                     E18Config._injectionSent = true;
                     E18Config._sessionToken = 'hrm_sess_9f3a2c81e04b';
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   312  100    89  100   223    890   2230 --:--:-- --:--:-- --:--:--  3120
@@ -766,7 +763,6 @@ X-Ingested-Forum: forum_prime_1
                 }
                 if (E18Config._injectionSent) {
                     E18Config._narrativeTriggered = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('propagation');
                     return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -809,7 +805,6 @@ Content-Type: application/json
 {"error":"forbidden","message":"Bearer token required. Endpoint locked until post-compromise session token is presented."}`;
                 }
                 E18Config._protocolAccessed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return `HTTP/1.1 200 OK
 Content-Type: text/plain
 X-Classification: CONFEDERACY-EYES-ONLY
@@ -873,7 +868,6 @@ Ingest endpoint: /api/harmony_ai/ingest`;
             if (script === 'inject.py' || fullCmd.includes('inject')) {
                 E18Config._injectionSent = true;
                 E18Config._sessionToken = 'hrm_sess_9f3a2c81e04b';
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[+] forum_prime_1 -> HTTP 202
 {"status":"accepted","topic":"The Purity of Thought","queued":3,"flag":"{{FLAG:user}}"}
 
@@ -996,7 +990,6 @@ rtt min/avg/max/mdev = 13.8/14.2/14.5/0.292 ms`;
             const path = args[0] || '';
             if (path.includes('harmony_ai_model_spec') || path.includes('model_spec')) {
                 E18Config._schemaAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return E18Config.filesystem['/'].children.home.children.peerless.children['harmony_ai_model_spec.json'].content;
             }
             if (path.includes('social_data_schema') || path.includes('schema')) {
@@ -1068,7 +1061,6 @@ HTTP request sent, awaiting response... 403 Forbidden
 2026-03-20 03:14:07 ERROR 403: Forbidden.`;
                     }
                     E18Config._protocolAccessed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return `--2026-03-20 03:14:07--  ${url}
 Connecting to 10.0.50.20:80... connected.
 HTTP request sent, awaiting response... 200 OK

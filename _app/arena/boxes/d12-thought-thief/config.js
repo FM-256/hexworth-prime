@@ -757,7 +757,6 @@ NOT flagged for remediation. Monitor during next quarterly review.</pre>`,
 
             // Primary target — BCI-COMMS-01
             if (!target || target === '10.20.5.50') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.20.5.50 (BCI-COMMS-01)
 Host is up (0.031s latency).
@@ -836,7 +835,6 @@ Finished`;
 
             if (url.includes('executive_thought_stream.csv')) {
                 D12Config._streamDownloaded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 // Write to attacker filesystem
                 var kaliHome = D12Config.filesystem['/'].children['home'].children['kali'].children;
                 kaliHome['executive_thought_stream.csv'] = {
@@ -960,7 +958,6 @@ Content-Type: text/html
                     return 'FileNotFoundError: [Errno 2] No such file or directory: \'executive_thought_stream.csv\'\n\n[!] Download the stream first: wget http://10.20.5.50/api/stream/executive_thought_stream.csv';
                 }
                 D12Config._analysisComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('decoding');
                 return `[*] Loading executive_thought_stream.csv...
 Channel ch1: mean=1.197, SD=1.284
 Channel ch2: mean=0.094, SD=0.014
@@ -997,7 +994,6 @@ Channel ch5: mean=1.198, SD=1.289
 
                 if (mode === 'full') {
                     D12Config._decodingComplete = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('reconstruction');
                     // Populate /tmp/exfil/
                     D12Config.filesystem['/'].children['tmp'].children['exfil'].children['hidden_agenda.txt'] = {
                         type: 'file',
@@ -1058,7 +1054,6 @@ Window 7 @ 00:05.750: [0x17, 0x3B, 0x2F, 0x39, 0x2E, 0x2F, 0x3B, 0x00] => "Blind
                 if (!D12Config._decodingComplete) {
                     return 'cat: /tmp/exfil/hidden_agenda.txt: No such file or directory\n[!] Run python3 reconstruct.py --mode full to stage the agenda first.';
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                 return `COGNITO-CORP HIDDEN AGENDA
 ==========================
 Operation: SILENT ACQUISITION

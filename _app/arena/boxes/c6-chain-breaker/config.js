@@ -594,7 +594,6 @@ const C6Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.10.10.50') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.10.10.50
 Host is up (0.021s latency).
@@ -642,7 +641,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             // info_server — format string leak
             if (fullCmd.includes('1337')) {
-                if (engine) engine.advancePhase && engine.advancePhase('leak');
                 C6Config._libcLeaked = true;
                 // Simulate interactive prompt — show the format string output
                 const hasFormatStr = fullCmd.includes('%p') || fullCmd.includes('%x') || fullCmd.includes('%s');
@@ -676,7 +674,6 @@ RESPONSE:
 
             // auth_daemon — off-by-one bypass
             if (fullCmd.includes('1338')) {
-                if (engine) engine.advancePhase && engine.advancePhase('auth_bypass');
                 // Detect the off-by-one payload pattern (33 bytes / A*32 + \x01)
                 const hasPayload = fullCmd.includes('\\x01') || fullCmd.includes('python') || fullCmd.includes('perl') || fullCmd.includes('printf');
                 const hasOverflow = fullCmd.match(/A{30,}/) || fullCmd.includes('*32') || fullCmd.includes('32+') || fullCmd.includes('x41');
@@ -905,8 +902,6 @@ Usage: gdb <binary>`;
                 C6Config._ropShellActive = true;
                 C6Config._rootShellActive = true;
                 C6Config._switchContext('shell-vault', term);
-                if (engine) engine.advancePhase && engine.advancePhase('rop_chain');
-                if (engine) engine.advancePhase && engine.advancePhase('privesc');
                 return `[exploit.py] === Chain Breaker — Full Exploit Chain ===
 
 [Stage 1] Format string leak (info_server:1337)
@@ -967,7 +962,6 @@ Type "help", "copyright", "credits" or "license" for more information.
                     if (C6Config._context !== 'shell-vault') {
                         return 'cat: /root/master_key.txt: Permission denied\n[!] You need root privileges. Exploit vault_access first.';
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('privesc');
                     return `{{FLAG:root}}
 
 ===== CITADEL MASTER ACCESS KEY =====

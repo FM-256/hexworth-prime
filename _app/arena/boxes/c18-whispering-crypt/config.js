@@ -604,7 +604,6 @@ Use this known plaintext in your DPA attack:
             if (fullCmd.includes('analyze.py') || fullCmd.includes('analyze')) {
                 if (fullCmd.includes('--load')) {
                     C18Config._tracesLoaded = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('analysis');
                     return `[*] Loading traces from: vault_artifacts/traces.csv
 [+] Loaded 256 traces x 100 samples per trace
 [+] File format: CSV, 256 rows x 100 columns
@@ -771,7 +770,6 @@ Examples:
                 }
 
                 // Correct key — decrypt and reveal
-                if (engine) engine.advancePhase && engine.advancePhase('decryption');
                 return `[*] Key:   ${providedKey}
 [*] Mode:  AES-128 ECB
 [*] Input: ${fileArg}

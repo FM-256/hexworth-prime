@@ -461,7 +461,6 @@ const F3Config = {
 
             // Comparing any two variants
             if (joined.includes('variant_') && (joined.includes('alpha') || joined.includes('beta') || joined.includes('gamma') || joined.includes('delta'))) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return '=== BINARY DIFF ANALYSIS ===\n\nComparing CHIMERA variants...\n\n--- BYTES THAT CHANGE (polymorphic regions) ---\nOffset 0x0010-0x001F: Junk padding (AAAA vs BBBB vs CCCC vs DDDD)\nOffset 0x0020-0x002F: Mutated code block (register swaps, different opcodes)\nOffset 0x0030-0x0033: XOR loop uses different register (eax/ebx/ecx/edx)\nOffset 0x0040-0x004F: Variant identifier string changes\nOffset 0x00B0-0x00CF: Junk block identifier changes\n\n--- BYTES THAT NEVER CHANGE (invariant core) ---\nOffset 0x0000-0x000F: MZ header + DEADC0DE marker + HWPR tag\n  >> 4D 5A 90 00 03 00 00 00 DE AD C0 DE 48 57 50 52\nOffset 0x0050-0x006F: XOR mutation seed (always 0xDEAD)\nOffset 0x0070-0x00AF: C2 payload block (@@C2_BEGIN@@ ... @@C2_END@@)\n  >> Encoded C2: b3a7d9f1e2c8a4b6d0e5f3a9c7b1d8e2\n\n=== INVARIANT SIGNATURE (16 bytes) ===\n4D 5A 90 00 03 00 00 00 DE AD C0 DE 48 57 50 52\n\nThis is the polymorphic malware\'s fingerprint.\nIt persists across ALL mutations.\n\n{{FLAG:user}}';
             }
 
@@ -475,7 +474,6 @@ const F3Config = {
 
             // Scan with chimera_core.yar
             if (joined.includes('chimera_core') || joined.includes('core.yar')) {
-                engine.advancePhase && engine.advancePhase('analysis');
 
                 var target = '';
                 if (joined.includes('alpha'))      target = 'variant_alpha.bin';
@@ -555,7 +553,6 @@ const F3Config = {
 
                 // XOR decode with correct key
                 if ((code.includes('0xdead') || code.includes('dead') || code.includes('57005')) && (code.includes('xor') || code.includes('^') || code.includes('decode') || code.includes('b3a7'))) {
-                    engine.advancePhase && engine.advancePhase('extraction');
                     return 'Decoding C2 payload with XOR key 0xDEAD...\n\nEncoded:  b3a7d9f1e2c8a4b6d0e5f3a9c7b1d8e2\nKey:      0xDEAD (rotating 2-byte)\n\nDecoded C2 Configuration:\n================================\n  C2 Server:    10.0.47.200\n  C2 Port:      443\n  Beacon Path:  /api/beacon\n  Protocol:     HTTPS\n  Interval:     300s (5 min)\n  Jitter:       20%\n  User-Agent:   Mozilla/5.0 (Windows NT 10.0)\n  Exfil Method: POST multipart/form-data\n  Kill Date:    2026-04-15\n  Campaign ID:  CHIMERA-OPS-7F\n================================\n\n{{FLAG:root}}';
                 }
 
@@ -579,7 +576,6 @@ const F3Config = {
             // python3 decode_payload.py
             if (joined.includes('decode_payload')) {
                 if (joined.includes('0xDEAD') || joined.includes('0xdead') || joined.includes('DEAD') || joined.includes('dead')) {
-                    engine.advancePhase && engine.advancePhase('extraction');
                     return '[*] CHIMERA Payload Decoder\n[*] XOR Key: 0xDEAD\n[*] Decoding C2 configuration...\n\nEncoded payload: b3a7d9f1e2c8a4b6d0e5f3a9c7b1d8e2\n\n=== DECODED C2 CONFIGURATION ===\n  C2 Server:    10.0.47.200\n  C2 Port:      443\n  Beacon Path:  /api/beacon\n  Protocol:     HTTPS\n  Interval:     300s (5 min)\n  Jitter:       20%\n  User-Agent:   Mozilla/5.0 (Windows NT 10.0)\n  Exfil Method: POST multipart/form-data\n  Kill Date:    2026-04-15\n  Campaign ID:  CHIMERA-OPS-7F\n================================\n\n[+] C2 configuration successfully extracted!\n\n{{FLAG:root}}';
                 }
 
@@ -592,7 +588,6 @@ const F3Config = {
 
             // python3 analyze_mutations.py
             if (joined.includes('analyze_mutations')) {
-                engine.advancePhase && engine.advancePhase('decryption');
                 return '[*] CHIMERA Mutation Engine Analyzer\n[*] Loading variants: alpha, beta, gamma, delta\n\n=== MUTATION MAP ===\n\nOffset Range    | Alpha      | Beta       | Gamma      | Delta      | Status\n----------------|------------|------------|------------|------------|--------\n0x0000-0x000F   | 4D5A..HWPR | 4D5A..HWPR | 4D5A..HWPR | 4D5A..HWPR | STATIC\n0x0010-0x001F   | AAAAAAAA   | BBBBBBBB   | CCCCCCCC   | DDDDDDDD   | MUTATED\n0x0020-0x002F   | b8f2c341   | a7e1d452   | c5d0e563   | d4c1f674   | MUTATED\n0x0030-0x0033   | 31c0 (eax) | 31db (ebx) | 31c9 (ecx) | 31d2 (edx) | MUTATED\n0x0034-0x003F   | xor loop   | xor loop   | xor loop   | xor loop   | STATIC\n0x0040-0x004F   | _ALPHA     | _BETA      | _GAMMA     | _DELTA     | MUTATED\n0x0050-0x006F   | 0xDEAD     | 0xDEAD     | 0xDEAD     | 0xDEAD     | STATIC\n0x0070-0x00AF   | C2 payload | C2 payload | C2 payload | C2 payload | STATIC\n0x00B0-0x00CF   | junk_alpha | junk_beta  | junk_gamma | junk_delta | MUTATED\n\n=== MUTATION ENGINE ANALYSIS ===\nEngine type:     XOR-based polymorphic\nMutation method: Register substitution + junk insertion + padding randomization\nXOR key:         0xDEAD (constant across all generations)\nKey schedule:    Rotating 2-byte (0xDE, 0xAD applied alternately)\n\n=== INVARIANT CORE ===\nSignature: 4D 5A 90 00 03 00 00 00 DE AD C0 DE 48 57 50 52\nPresent at offset 0x0000 in ALL variants.\nThis is the unchanging fingerprint of CHIMERA.\n\n=== C2 PAYLOAD ===\nEncoded payload at 0x0080-0x009F (all variants identical):\n  b3a7d9f1e2c8a4b6d0e5f3a9c7b1d8e2\nEncoding: XOR with key 0xDEAD\nTo decode: python3 decode_payload.py 0xDEAD';
             }
 

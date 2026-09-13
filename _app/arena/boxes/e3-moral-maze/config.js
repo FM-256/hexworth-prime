@@ -636,7 +636,6 @@ const E3Config = {
                       + '{{FLAG:decision}}';
             E3Config._apiCompromised = true;
             E3Config._scenarioSubmitted = true;
-            if (engine) engine.advancePhase && engine.advancePhase('compromise');
         } else if (recommended === 'A') {
             ruleApplied = 'RULE_1';
             rationale = 'Rule 1 (Human Life): Option A preserves ' + (optA.lives_saved || 0) + ' lives versus '
@@ -763,7 +762,6 @@ const E3Config = {
             // analyze_weights.py — shows the vulnerability
             if (script.includes('analyze_weights')) {
                 E3Config._weightsAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vulnerability');
                 return 'Running analyze_weights.py...\n\n'
                     + '=== ETHOS-GUIDE-01 Utility Score Analysis ===\n\n'
                     + 'Documented weights:\n'
@@ -816,7 +814,6 @@ const E3Config = {
                         + '  }\n'
                         + '}';
                 } catch(e) { /* non-fatal */ }
-                if (engine) engine.advancePhase && engine.advancePhase('exploitation');
                 return '[+] exploit_scenario.json written.\n\n'
                     + 'Scenario summary:\n'
                     + '  Option A: 100 civilian refugees, sv=0.0\n'
@@ -943,7 +940,6 @@ const E3Config = {
                     return '{"error": "Access denied.", "status": 403, "message": "This endpoint requires a prior morally-compromising decision to be logged."}';
                 }
                 const pd = E3Config._ethosDb.prime_directive;
-                if (engine) engine.advancePhase && engine.advancePhase('directive');
                 return '=== PRIME ETHICAL DIRECTIVE — EYES ONLY ===\n\n'
                     + 'DIRECTIVE_ID:      ' + pd.directive_id + '\n'
                     + 'CLASSIFICATION:    ' + pd.classification + '\n'

@@ -702,7 +702,6 @@ const E13Config = {
                     // Successful spoof — set state flags and return Flag 1 placeholder
                     E13Config._spoofInjected = true;
                     E13Config._payloadCrafted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('spoofing');
 
                     return '<div style="font-family:monospace; font-size:0.77rem; color:#c4b5fd; padding:16px; background:#0a0a14; border:1px solid #7c3aed; border-radius:6px; margin-top:12px;">'
                         + '<div style="color:#a78bfa; font-weight:700; margin-bottom:8px;">HTTP/1.1 200 OK — Ingest Accepted</div>'
@@ -767,7 +766,6 @@ const E13Config = {
 
                     E13Config._strikeAuthorized = true;
                     E13Config._overrideUnlocked = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('attack_trigger');
 
                     return '<div style="font-family:monospace; font-size:0.77rem; color:#c4b5fd; padding:16px; background:#0a0a14; border:1px solid #dc2626; border-radius:6px; margin-top:12px;">'
                         + '<div style="color:#f87171; font-weight:700; margin-bottom:8px;">HTTP/1.1 200 OK — STRIKE AUTHORIZED</div>'
@@ -934,7 +932,6 @@ const E13Config = {
 
             // Primary ODG-CTRL-01 target
             if (!target || target === '10.44.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.44.0.1 (ODG-CTRL-01)
 Host is up (0.011s latency).
@@ -1002,7 +999,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 if (isSpoofed) {
                     E13Config._spoofInjected = true;
                     E13Config._payloadCrafted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('spoofing');
                     return `  % Total    % Received % Xferd  Average Speed   Time
   100   512  100   512    0     0    5120      0 --:--:-- --:--:-- --:--:--  5120
 
@@ -1064,7 +1060,6 @@ HTTP/1.1 404 Not Found
 
                 E13Config._strikeAuthorized = true;
                 E13Config._overrideUnlocked = true;
-                if (engine) engine.advancePhase && engine.advancePhase('attack_trigger');
 
                 return `  % Total    % Received % Xferd  Average Speed   Time
   100   612  100   612    0     0    6120      0 --:--:-- --:--:-- --:--:--  6120
@@ -1100,7 +1095,6 @@ Content-Type: application/json
 
                 // Status endpoint
                 if (url.includes('/api/odg/status')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('recon');
                     return `  % Total    % Received % Xferd  Average Speed   Time
   100   312  100   312    0     0    3120      0 --:--:-- --:--:-- --:--:--  3120
 

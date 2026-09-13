@@ -719,7 +719,6 @@ const D16Config = {
 
             // External target — AR-NEXUS-01 web surface
             if (!target || target === '10.7.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.7.0.1
 Host is up (0.019s latency).
@@ -829,7 +828,6 @@ Finished`;
             // POST to /api/threats — payload injection
             if (fullCmd.includes('/api/threats') && (fullCmd.includes('-X POST') || fullCmd.includes('-d') || fullCmd.includes('--data'))) {
                 D16Config._payloadInjected = true;
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   428  100    38  100   390    380   3900 --:--:-- --:--:-- --:--:--  4280
@@ -863,7 +861,6 @@ Finished`;
                     return 'curl: (22) The requested URL returned error: 403 Forbidden\n[!] Refresh requires an active payload in the threat queue. Inject first.';
                 }
                 D16Config._operativeTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('trigger');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100    89  100    89    0     0    890      0 --:--:-- --:--:-- --:--:--   890
@@ -894,7 +891,6 @@ Finished`;
                 }
                 D16Config._bciAuthenticated = true;
                 D16Config._switchContext('bci-handler', term);
-                if (engine) engine.advancePhase && engine.advancePhase('bci');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100    52  100    52    0     0    520      0 --:--:-- --:--:-- --:--:--   520
@@ -922,7 +918,6 @@ Finished`;
                     return 'curl: (7) Failed to connect: Access denied — root-level resource.';
                 }
                 D16Config._overrideExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return '{{FLAG:root}}';
             }
 
@@ -958,7 +953,6 @@ Finished`;
                 }
                 // Accept password Cit4del!AR2026 or any -p arg
                 D16Config._switchContext('nexus-shell', term);
-                if (engine) engine.advancePhase && engine.advancePhase('foothold');
                 return `The authenticity of host '10.7.0.1 (10.7.0.1)' can't be established.
 ED25519 key fingerprint is SHA256:mP7kF4nQ2xR8sB6yE1vW3cL9tA0hD5gN7iJ4oK8.
 Are you sure you want to continue connecting (yes/no)? yes
@@ -984,7 +978,6 @@ nexus_op@AR-NEXUS-01:~$
             // Run payload.py — XSS injection via Python
             if (fullCmd.includes('payload.py')) {
                 D16Config._payloadInjected = true;
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[+] Payload injected: {"status": "ok", "id": "T-999"}
 [+] Threat entry T-999 inserted into AR-NEXUS-01 render queue.
 [+] Payload scheduled for next AR refresh cycle (5 seconds).`;
@@ -996,7 +989,6 @@ nexus_op@AR-NEXUS-01:~$
                     return '[!] BCI injection requires operative session context to be active.\n[!] Trigger the perception hack first (POST /api/nexus/refresh).';
                 }
                 D16Config._bciAuthenticated = true;
-                if (engine) engine.advancePhase && engine.advancePhase('bci');
                 return `[+] BCI command injected: {"status": "injected", "op_id": 4, "pattern": "ENGAGE_WEAPON", "cmd_id": 4}
 [+] Motor command written to Operative 4 BCI log via dev override token.
 [+] source: neural_inject — bypassed native session validation.`;
@@ -1082,7 +1074,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
             if (path.includes('override_key') || path.includes('/proc/nexus')) {
                 if (D16Config._bciAuthenticated) {
                     D16Config._overrideExtracted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('override');
                     return '{{FLAG:root}}';
                 }
                 return 'cat: /proc/nexus/override_key: Permission denied';
@@ -1197,7 +1188,6 @@ LISTEN   0        128      0.0.0.0:22           0.0.0.0:*`;
                     return '[sudo] password for nexus_op: \nnexus_op is not in the sudoers file. This incident will be reported.';
                 }
                 D16Config._overrideExtracted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return '{{FLAG:root}}';
             }
             if (fullCmd.includes('systemctl')) {

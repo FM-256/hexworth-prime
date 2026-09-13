@@ -391,7 +391,6 @@ const Crypto02Config = {
 
             // MD5 mode (-m 0) + admin hash
             if (joined.includes('-m 0') && joined.includes('482c811da5d5b4bc6d497ffa98491e38')) {
-                engine.advancePhase && engine.advancePhase('cracking');
                 return `hashcat (v6.2.6) starting...
 
 OpenCL API (OpenCL 3.0) - Platform #1 [NVIDIA]
@@ -515,7 +514,6 @@ Tip: Make sure the -m mode matches the hash type:
             }
 
             if (joined.includes('--format=raw-md5') || joined.includes('md5')) {
-                engine.advancePhase && engine.advancePhase('cracking');
                 return `Using default input encoding: UTF-8
 Loaded 2 password hashes with no different salts (Raw-MD5)
 Press 'q' or Ctrl-C to abort
@@ -553,7 +551,6 @@ vault_master:fractured_key_2026 (salt: HEXSALT42)
             if (args.length === 0) return 'Usage: hash-identifier <hash>\n\nPaste a hash to identify its type.\nSupported: MD5, SHA1, SHA256, SHA512, bcrypt, etc.';
 
             const hash = args[0];
-            engine.advancePhase && engine.advancePhase('identification');
 
             if (hash.length === 32) {
                 return `   #########################################################################

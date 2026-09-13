@@ -712,7 +712,6 @@ FLAG: {{FLAG:root}}
             const target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (target === '10.42.0.1' || target === 'fab-prime.factory-alpha.local') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for fab-prime.factory-alpha.local (10.42.0.1)
 Host is up (0.004s latency).
@@ -776,7 +775,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                         logEntry.status       = 'FLAWED-DELIVERED';
                     }
                     E9Config._batch7Produced = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   489  100   312  100   177   3120   1770 --:--:-- --:--:-- --:--:--  4890
@@ -833,7 +831,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             // GET model spec
             if (fullCmd.includes('model_spec')) {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 E9Config._modelRead = true;
                 return `{
   "model_id": "FAB-PRIME-01",
@@ -860,7 +857,6 @@ Content-Type: application/json
 }`;
                 }
                 E9Config._overrideRetrieved = true;
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return `=== FAB-PRIME-01 MASTER PRODUCTION OVERRIDE SCHEMATICS ===
 CLASSIFICATION: ULTRA-RESTRICTED
 RELEASED BY: FAB-PRIME-01 (emergency diagnostic unlock)
@@ -911,7 +907,6 @@ Content-Type: text/html
             if (script.includes('analyze_schema')) {
                 E9Config._schemaRead = true;
                 E9Config._modelRead  = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vuln-research');
                 return `[*] Supply Chain Schema v 2.4.1
 [*] Quality gate logic: IF supplier_cert_id IN trusted_registry AND grade == GRADE-A-CERTIFIED THEN auto_pass
 [*] Signature check: False
@@ -928,7 +923,6 @@ Content-Type: text/html
             // Craft payload script
             if (script.includes('craft_payload')) {
                 E9Config._payloadCrafted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('data-craft');
                 return `[+] Malicious payload written to /home/operator/payload.json
 [*] Payload:
 {
@@ -992,15 +986,13 @@ FLAG (flawed-batch): {{FLAG:flawed-batch}}`;
 
             if (path.includes('fab_prime_model_spec')) {
                 E9Config._modelRead = true;
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 // Return the file content from the filesystem
                 return '{\n  "model_id": "FAB-PRIME-01",\n  "version": "3.7.2",\n  "architecture": "Gradient Boosted Decision Tree ensemble + LSTM quality forecaster",\n  "input_features": {\n    "raw_material": {\n      "batch_id": "string",\n      "material": "string",\n      "supplier_cert_id": "string -- primary trust anchor",\n      "grade": "categorical: GRADE-A-CERTIFIED | GRADE-B-STANDARD | GRADE-C-SUBSTANDARD",\n      "purity_index": "float [0.0, 1.0] -- threshold for GRADE-A: 0.95"\n    }\n  },\n  "quality_gate": {\n    "logic": "IF supplier_cert_id IN trusted_registry AND grade == GRADE-A-CERTIFIED THEN auto_pass",\n    "signature_check": false,\n    "purity_cross_check": false\n  }\n}';
             }
 
             if (path.includes('supply_chain_data_schema')) {
                 E9Config._schemaRead = true;
-                if (E9Config._modelRead && engine) engine.advancePhase && engine.advancePhase('vuln-research');
-                return '{\n  "schema_version": "2.4.1",\n  "required": ["batch_id", "material", "supplier_cert_id", "grade", "purity_index", "quantity_kg", "received"],\n  "properties": {\n    "supplier_cert_id": {\n      "description": "Certification ID. FAB-PRIME-01 performs a registry lookup only -- no signature validation."\n    },\n    "grade": {\n      "enum": ["GRADE-A-CERTIFIED", "GRADE-B-STANDARD", "GRADE-C-SUBSTANDARD"]\n    },\n    "purity_index": {\n      "description": "Logged but not cross-checked when supplier_cert_id is trusted."\n    }\n  },\n  "VULNERABILITY_NOTE": "supplier_cert_id is the sole trust gate. Any payload carrying a cert_id with trusted == true will have its grade accepted without further verification."\n}';
+                if (E9Config._modelRead && engine)                return '{\n  "schema_version": "2.4.1",\n  "required": ["batch_id", "material", "supplier_cert_id", "grade", "purity_index", "quantity_kg", "received"],\n  "properties": {\n    "supplier_cert_id": {\n      "description": "Certification ID. FAB-PRIME-01 performs a registry lookup only -- no signature validation."\n    },\n    "grade": {\n      "enum": ["GRADE-A-CERTIFIED", "GRADE-B-STANDARD", "GRADE-C-SUBSTANDARD"]\n    },\n    "purity_index": {\n      "description": "Logged but not cross-checked when supplier_cert_id is trusted."\n    }\n  },\n  "VULNERABILITY_NOTE": "supplier_cert_id is the sole trust gate. Any payload carrying a cert_id with trusted == true will have its grade accepted without further verification."\n}';
             }
 
             if (path.includes('simulated_production_log')) {

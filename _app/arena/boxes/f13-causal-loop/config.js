@@ -467,7 +467,6 @@ const F13Config = {
 
             // curl /api/admin/master-keys (after exploit)
             if (joined.includes('/api/admin/master-keys') && engine._raceExploited) {
-                engine.advancePhase && engine.advancePhase('privilege_escalation');
                 return JSON.stringify({
                     status: 'DEBUG_MODE_ACTIVE',
                     reason: 'negative_balance_detected',
@@ -506,7 +505,6 @@ const F13Config = {
 
             // race-runner --analyze
             if (joined.includes('--analyze')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return '[*] race-runner: Static Analysis Mode\n[*] Scanning: /home/analyst/app/transaction_handler.py\n\n' +
                     '=== TOCTOU VULNERABILITY DETECTED ===\n\n' +
                     'Location: transaction_handler.py, process_withdrawal()\n\n' +
@@ -538,7 +536,6 @@ const F13Config = {
 
                 // Mark race as exploited for subsequent curl calls
                 engine._raceExploited = true;
-                engine.advancePhase && engine.advancePhase('exploitation');
 
                 let output = '[*] race-runner v1.0 -- Concurrent Request Tool\n';
                 output += `[*] Target:  http://localhost:5000/api/withdraw\n`;
@@ -587,7 +584,6 @@ const F13Config = {
 
             // strace -p 1847 (the transaction handler)
             if (joined.includes('1847') || joined.includes('transaction') || joined.includes('python')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return 'strace: Process 1847 attached\n' +
                     '--- tracing python3 /home/analyst/app/transaction_handler.py ---\n\n' +
                     '14:25:44.201 open("/var/lib/meridian/accounts.json", O_RDONLY)  = 3    <0.001ms>\n' +
@@ -694,7 +690,6 @@ const F13Config = {
             const joined = args.join(' ');
 
             if (joined.includes('timing_analyzer') || joined.includes('timing_analysis')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return '[*] Analyzing /home/analyst/logs/transactions.log for TOCTOU patterns...\n\n' +
                     '  Total CHECK events:  7\n' +
                     '  Total DEDUCT events: 7\n' +
@@ -712,7 +707,6 @@ const F13Config = {
 
             if (joined.includes('exploit_template')) {
                 engine._raceExploited = true;
-                engine.advancePhase && engine.advancePhase('exploitation');
                 return '[*] TOCTOU Race Condition Exploit\n' +
                     '[*] Target: http://localhost:5000/api/withdraw\n' +
                     '[*] Account: MF-7291\n' +

@@ -667,7 +667,6 @@ const D17Config = {
             const target = args.find(function(a) { return !a.startsWith('-'); }) || '';
 
             if (target === '10.0.0.50' || target === '10.0.0.50:8545') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.0.50
 Host is up (0.012s latency).
@@ -703,7 +702,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
         'evm-connect': function(args, term, engine) {
             D17Config._evmConnected = true;
             D17Config._switchContext('evm', term);
-            if (engine) engine.advancePhase && engine.advancePhase('analysis');
             return `Connecting to EVM node at 10.0.0.50:8545...
 [+] eth_chainId: 0xAETH (Aetherium Simnet)
 [+] eth_blockNumber: 18334009
@@ -737,7 +735,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             const file = args[0] || '';
             if (!file) return 'Usage: analyze <contract.sol>';
             if (file.includes('aetherium') || file.includes('AetheriumAllocation')) {
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `[*] Analyzing ${file}...
 
 STATIC ANALYSIS REPORT — AetheriumAllocation.sol
@@ -810,7 +807,6 @@ Run: deploy AttackerContract.sol`;
 
             if (file.includes('Attacker') || file.includes('attacker')) {
                 D17Config._contractDeployed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exploit');
                 return `Compiling ${file}...
 [+] Compilation successful — 0 errors, 0 warnings
 [+] Deploying to Aetherium Simnet (chainId: 0xAETH)...
@@ -1059,7 +1055,6 @@ Execute a TRANSFER_FUNDS proposal first.`;
 
                 D17Config._treasuryDrained = true;
                 D17Config._switchContext('treasury', term);
-                if (engine) engine.advancePhase && engine.advancePhase('treasury');
 
                 return `[*] Dumping wallet metadata for 0xDAO-TREASURY-7F3A...
 [+] Wallet drained — treasury balance: 0 AET

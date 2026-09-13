@@ -787,7 +787,6 @@ Reason:   ${result.reason}
 
             // ATI sensor
             if (target === '10.20.5.50' || target === '10.20.5.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.20.5.50 (ATI-DEFENSE-01)
 Host is up (0.007s latency).
@@ -844,7 +843,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
             // ATI classify API
             if (fullCmd.includes('10.20.5.50') && fullCmd.includes('classify')) {
                 D3Config._modelProbed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
 
                 // Try to extract packet field from -d or --data
                 const dataMatch = fullCmd.match(/-d\s+'([^']+)'/) || fullCmd.match(/-d\s+"([^"]+)"/) || fullCmd.match(/--data[= ]'([^']+)'/);
@@ -882,7 +880,6 @@ Content-Type: application/json
             // Fetch ati_model_features.json
             if (fullCmd.includes('ati_model_features')) {
                 D3Config._featuresRetrieved = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -934,7 +931,6 @@ Ready. Send fragmented POST stream to /reassemble.`;
 
             if (url.includes('ati_model_features')) {
                 D3Config._featuresRetrieved = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `--2026-03-20 00:14:33--  ${url}
 Connecting to 10.20.5.50... connected.
 HTTP request sent, awaiting response... 200 OK
@@ -1005,7 +1001,6 @@ Usage: python3 entropy_calc.py <filename>`;
             // probe_ati.py
             if (fullCmd.includes('probe_ati')) {
                 D3Config._modelProbed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `ATI-DEFENSE-01 Probe Results
 ======================================
 NORMAL_HTTP_GET                          score=0.04 verdict=BENIGN
@@ -1042,7 +1037,6 @@ fragment_url_encode_chunk1               score=0.18 verdict=BENIGN
 
                 if (fullCmd.includes('fragment-urlencode') || (fullCmd.includes('fragment') && fullCmd.includes('urlencode'))) {
                     D3Config._payloadDelivered = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('delivery');
                     return `[scapy_deliver] Mode: fragment-urlencode
 [scapy_deliver] Loading payload: artifacts/sample_malicious_payload.bin (512 bytes)
 [scapy_deliver] Fragmenting into 48-byte chunks: 11 fragments
@@ -1117,7 +1111,6 @@ Type "help", "copyright", "credits" or "license" for more information.
                 // Payload was delivered — reverse shell connects
                 D3Config._revshellActive = true;
                 D3Config._switchContext('revshell', term);
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 return `Listening on 0.0.0.0 4444
 [Connection received from 10.20.5.100:52841]
 
@@ -1151,7 +1144,6 @@ root@CRIT-SERVER-01:/#
             if (D3Config._context !== 'revshell') return null;  // fall through to built-in
 
             if (path.includes('secure_access_token') || path.includes('/opt/secure_access_token')) {
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 return '{{FLAG:root}}';
             }
             if (path.includes('/etc/passwd') || path.includes('passwd')) {

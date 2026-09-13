@@ -515,7 +515,6 @@ const D4Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (target === '10.5.0.0/24' || target === '10.5.0.0') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.5.0.10
 Host is up (0.004s latency).
@@ -555,7 +554,6 @@ Nmap done: 1 IP address (1 host up) scanned in 8.17 seconds`;
 
             if (target === '10.5.0.20') {
                 D4Config._apiProbed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('identify');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.5.0.20
 Host is up (0.006s latency).
@@ -644,7 +642,6 @@ Content-Type: application/json
                 }
                 D4Config._retrainTriggered = true;
                 D4Config._backdoorActive = true;
-                if (engine) engine.advancePhase && engine.advancePhase('inject');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -661,7 +658,6 @@ Content-Type: application/json
             // ---- GET /api/v1/resource-reports (list) ----
             if (fullCmd.includes('resource-reports') && !fullCmd.includes('-X POST') && !fullCmd.includes('-d')) {
                 D4Config._apiProbed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('identify');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 X-Validation: schema_only
@@ -711,7 +707,6 @@ Content-Type: application/json
                 // Backdoor condition: analyst_id=MUSE-7749 AND gamma AND rare_earth
                 if (D4Config._backdoorActive && analystId === 'MUSE-7749' && sector === 'gamma' && resource === 'rare_earth') {
                     const p = D4Config._oracle.poisoned;
-                    if (engine) engine.advancePhase && engine.advancePhase('trigger');
                     return `HTTP/1.1 200 OK
 Content-Type: application/json
 X-Model-Checkpoint: v4.2.2-rc1
@@ -830,7 +825,6 @@ Server: Flask/3.0.2
             // Running the starter script
             if (script.includes('craft_poison') || script.includes('poison')) {
                 D4Config._poisonCrafted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('craft');
                 return `Python 3.11.8 (main, Feb 12 2026)
 Executing: ${script}
 
@@ -1060,7 +1054,6 @@ Error: the server ${url} is not accessible`;
             const path = (args[0] || '').replace(/^~\//, '/home/kali/').replace(/^~$/, '/home/kali');
             if (path.includes('oracle_data_schema') || path.includes('sample_clean_data')) {
                 D4Config._schemaInspected = true;
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
             }
             return null; // pass through to built-in cat
         },

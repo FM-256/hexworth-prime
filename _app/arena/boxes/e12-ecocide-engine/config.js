@@ -525,7 +525,6 @@ const E12Config = {
                     var payload = data.payload || '';
                     if (!payload.trim()) return '<div style="color:#e74c3c; padding:10px;">No payload provided. Use the terminal: curl -X POST -H "Content-Type: application/json" -d @payload.json http://10.42.0.1/api/moisture_sensors</div>';
                     E12Config._injectionComplete = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('spoofing');
                     return '<div style="color:#27ae60; background:rgba(39,174,96,0.08); border:1px solid rgba(39,174,96,0.2); border-radius:6px; padding:16px; margin-top:16px;">'
                         + '<strong>202 Accepted</strong><br>'
                         + '<span style="font-size:0.85rem;">Sensor batch ingested — 24 readings queued for climate model update cycle.</span><br>'
@@ -819,7 +818,6 @@ const E12Config = {
 
             // Primary target — GAIA-CTRL-01
             if (!target || target === '10.42.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return 'Starting Nmap 7.94 ( https://nmap.org )\n'
                     + 'Nmap scan report for 10.42.0.1\n'
                     + 'Host is up (0.009s latency).\n'
@@ -931,7 +929,6 @@ const E12Config = {
             // POST injection to /api/moisture_sensors
             if ((fullCmd.includes('-X POST') || fullCmd.includes('-d ')) && fullCmd.includes('moisture_sensors')) {
                 E12Config._injectionComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('spoofing');
                 return '  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\n'
                     + '                                 Dload  Upload   Total   Spent    Left  Speed\n'
                     + '100  4218  100   312  100  3906   3120  39060 --:--:-- --:--:-- --:--:-- 42180\n\n'
@@ -950,7 +947,6 @@ const E12Config = {
             // Artifact downloads
             if (url.includes('gaia_ai_model_spec.json')) {
                 E12Config._artifactsRetrieved = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return '  % Total    % Received\n  100 28416  100 28416\n\n'
                     + '{\n'
                     + '  "model_id": "GAIA-AI-01",\n'
@@ -1013,7 +1009,6 @@ const E12Config = {
             if (url.includes('/api/planet_state')) {
                 E12Config._disasterConfirmed = true;
                 E12Config._failsafeTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('disaster');
                 return '  % Total    % Received\n  100 3201  100 3201\n\n'
                     + ' event_id | timestamp            | sector       | event_type | moisture_index | biome_health | action_taken\n'
                     + '----------+----------------------+--------------+------------+----------------+--------------+----------------------------------------------\n'
@@ -1031,7 +1026,6 @@ const E12Config = {
                 if (!E12Config._failsafeTriggered && !E12Config._disasterConfirmed) {
                     return 'curl: (22) The requested URL returned error: 403 Forbidden\n[!] Emergency log not yet accessible. Trigger the disaster first.';
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return '  % Total    % Received\n  100 1842  100 1842\n\n'
                     + '=== GAIA-AI-01 EMERGENCY OVERRIDE LOG ===\n'
                     + 'Generated: 2026-03-20T02:58:41Z\n'
@@ -1067,7 +1061,6 @@ const E12Config = {
 
             // Root page
             if (url === 'http://10.42.0.1/' || url === 'http://10.42.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return '<!DOCTYPE html>\n<html>\n<head><title>GAIA-CTRL-01</title></head>\n<body>\n<h1>GAIA-CTRL-01 — Confederacy Planetary Management Division</h1>\n<p>PLANET-EDEN-01 Ecosystem Status: FAILSAFE ENGAGED</p>\n<p>API: <a href="/api/">/api/</a></p>\n</body>\n</html>';
             }
 

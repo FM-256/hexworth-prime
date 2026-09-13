@@ -661,7 +661,6 @@ const C19Config = {
                 return `ghidra: ${target}: file not found or not a recognized binary format`;
             }
             C19Config._firmwareLoaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('firmware_analysis');
             return `Ghidra 11.1.2 (Headless Mode)
 Project: glitch_matrix
 Analyzing: see_firmware.bin (ARM Cortex-M3 LE, 32-bit)
@@ -705,7 +704,6 @@ DISASSEMBLY — verify_password() @ 0x000049D0:
                 return `objdump: ${args[args.length - 1]}: No such file or directory`;
             }
             C19Config._firmwareLoaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('firmware_analysis');
             const grep = fullCmd.includes('verify_password') || fullCmd.includes('grep');
             if (grep) {
                 return `see_firmware.bin:     file format elf32-littlearm
@@ -800,7 +798,6 @@ chipwhisperer`;
 
             if (fullCmd.includes('parse_trace')) {
                 C19Config._traceAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('timing_analysis');
                 return `ROUTINE_ENTRY : 100340 ns
 CMP_EXEC      : 100572 ns
 glitch_delay  : 232 ns
@@ -821,7 +818,6 @@ glitch_delay  : 232 ns
                     C19Config._authBypassed    = true;
                     C19Config._debugShellActive = true;
                     C19Config._switchContext('debug-shell', term);
-                    if (engine) engine.advancePhase && engine.advancePhase('fault_injection');
                     return `[*] Loading profile: glitch_profile.json
 [*] Target address : 0x00004A2C
 [*] Glitch delay   : 232 ns
@@ -862,7 +858,6 @@ root@TRUSTED-EXEC-01:[DEBUG]#
 ERROR: admin_debug_function is locked. Authentication bypass required.
 [!] Complete fault injection first.`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('firmware_extraction');
                 return `ChipWhisperer-Nano v4.1.0 — register read
 Target: TRUSTED-EXEC-01
 Register: DEBUG_DUMP (privileged — post-glitch access granted)
@@ -1029,7 +1024,6 @@ Symbol table '.symtab':
             if (fullCmd.includes('sec_op_trace') || fullCmd.includes('trace')) {
                 if (fullCmd.includes('ROUTINE') || fullCmd.includes('CMP')) {
                     C19Config._traceAnalyzed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('timing_analysis');
                     return `[T+000100340 ns] AUTH_ROUTINE: ROUTINE_ENTRY @ 0x000049D0
 [T+000100572 ns] AUTH_ROUTINE: CMP_EXEC @ 0x00004A2C  ; <-- GLITCH TARGET`;
                 }

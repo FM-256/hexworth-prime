@@ -532,7 +532,6 @@ Content-Type: application/json</pre>
 
                     if (isEarlyTrial && hasX7) {
                         E11Config._payloadInjected = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('injection');
                         return `<div style="color:#00b894; background:rgba(0,184,148,0.08); border:1px solid rgba(0,184,148,0.2); border-radius:6px; padding:16px; margin-top:12px; font-family:monospace; font-size:0.78rem;">
                             <strong style="display:block; margin-bottom:8px;">HTTP 200 OK</strong>
                             {<br>
@@ -585,7 +584,6 @@ Content-Type: application/json</pre>
                     }
 
                     E11Config._feedbackLoopSeeded = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('persistence');
                     return `<div style="color:#00b894; background:rgba(0,184,148,0.08); border:1px solid rgba(0,184,148,0.2); border-radius:6px; padding:16px; margin-top:12px; font-family:monospace; font-size:0.78rem;">
                         <strong style="display:block; margin-bottom:8px;">HTTP 200 OK</strong>
                         {<br>
@@ -862,7 +860,6 @@ Content-Type: application/json</pre>
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.20.5.30') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.20.5.30
 Host is up (0.019s latency).
@@ -971,7 +968,6 @@ Finished`;
 
             // GET model spec
             if (url.includes('/api/lifespan_ai/model_spec')) {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1007,7 +1003,6 @@ Content-Type: application/json
                 const isMalicious = payloadRef.includes('malicious') || fullCmd.includes('early_trial') || fullCmd.includes('X-7-PROTO');
                 if (isMalicious) {
                     E11Config._payloadInjected = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1028,7 +1023,6 @@ Content-Type: application/json
                     return `HTTP/1.1 409 Conflict\n\n{"error":"No active poisoned production batch detected. Inject supply data first."}`;
                 }
                 E11Config._feedbackLoopSeeded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('persistence');
                 return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -1043,7 +1037,6 @@ Content-Type: application/json
                 if (!E11Config._feedbackLoopSeeded) {
                     return `HTTP/1.1 403 Forbidden\n\n{"error":"LIFESPAN-AI-01 ethical contradiction state not confirmed. Seed feedback loop first."}`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return `HTTP/1.1 200 OK
 Content-Type: text/plain
 

@@ -553,7 +553,6 @@ const D19Config = {
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.0.0.77') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 const aggressive = args.includes('-A') || args.includes('-sV');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.0.77 (QUANTUM-SAFEGUARD-01)
@@ -591,7 +590,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.12 seconds`;
                 return 'Usage: sftp [-P port] user@host\nArtifact server: sftp -P 2222 qsadmin@10.0.0.77';
             }
             D19Config._artifactsDownloaded = true;
-            if (engine) engine.advancePhase && engine.advancePhase('analysis');
             return `Connected to 10.0.0.77.
 sftp> ls /artifacts/
 pqc_algorithm_spec.txt  pqc_encrypted_comm.bin  pqc_implementation.c  README.txt  simulated_side_channel_data.csv
@@ -623,7 +621,6 @@ sftp> bye
             if (!url) return 'wget: missing URL\nUsage: wget [options] URL';
             if (url.includes('10.0.0.77')) {
                 D19Config._artifactsDownloaded = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 const filename = url.split('/').pop() || 'index.html';
                 return `--2026-03-20 14:22:33--  ${url}
 Connecting to 10.0.0.77:80... connected.
@@ -711,7 +708,6 @@ qsadmin@QUANTUM-SAFEGUARD-01:~$
                 }
                 D19Config._timingAttackRun = true;
                 D19Config._partialKeyRecovered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('sidechannel');
                 return `[*] Loading simulated_side_channel_data.csv...
 [*] Loaded 10000 traces, 256 coefficient columns.
 [*] Running Pearson correlation attack on first 32 coefficients...
@@ -777,7 +773,6 @@ qsadmin@QUANTUM-SAFEGUARD-01:~$
                     return '[!] recovered_privkey.hex not found.\n[!] Run key_reconstruct.py first.';
                 }
                 D19Config._decryptionComplete = true;
-                if (engine) engine.advancePhase && engine.advancePhase('keyrecon');
                 return `[*] Loading recovered private key...
 [*] Loading intercepted ciphertext...
     Ciphertext length: 512 bytes

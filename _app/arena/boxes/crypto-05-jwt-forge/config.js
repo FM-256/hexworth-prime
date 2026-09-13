@@ -340,7 +340,6 @@ const Crypto05Config = {
         // None algorithm bypass
         if (header.alg === 'none' || header.alg === 'None' || header.alg === 'NONE' || header.alg === 'nOnE') {
             if (payload.role === 'admin') {
-                engine.advancePhase && engine.advancePhase('forgery');
                 return `<div style="background:rgba(46,204,113,0.1); border:1px solid #2ecc71; border-radius:4px; padding:15px;">
                     <div style="color:#2ecc71; font-weight:bold; margin-bottom:8px;">TOKEN ACCEPTED -- ADMIN ACCESS GRANTED</div>
                     <div style="color:#aaa; font-size:0.75rem; margin-bottom:4px;">Algorithm: none (NO SIGNATURE VERIFICATION!)</div>
@@ -374,7 +373,6 @@ const Crypto05Config = {
         if (header.alg === 'HS256' && payload.role === 'super_admin') {
             // Accept any token claiming super_admin with HS256 (simulated signature check)
             if (parts[2] && parts[2].length > 0) {
-                engine.advancePhase && engine.advancePhase('privilege');
                 return `<div style="background:rgba(46,204,113,0.1); border:1px solid #2ecc71; border-radius:4px; padding:15px;">
                     <div style="color:#2ecc71; font-weight:bold; margin-bottom:8px;">TOKEN VERIFIED -- SUPER_ADMIN ACCESS GRANTED</div>
                     <div style="color:#aaa; font-size:0.75rem; margin-bottom:4px;">Algorithm: HS256 (signature verified)</div>
@@ -510,7 +508,6 @@ const Crypto05Config = {
 
             // Decode token
             if (args.length === 1 || joined.includes('-d') && !joined.includes('-C')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 return `jwt_tool v2.2.7
 
 =====================
@@ -539,7 +536,6 @@ Algorithm: HS256 (HMAC-SHA256)
 
             // None algorithm attack
             if (joined.includes('-X a') || joined.includes('-X n') || joined.includes('none')) {
-                engine.advancePhase && engine.advancePhase('forgery');
                 return `jwt_tool v2.2.7
 
 === Algorithm: none Attack ===
@@ -570,7 +566,6 @@ To forge admin token manually:
 
             // Crack HMAC secret
             if (joined.includes('-C') || joined.includes('crack') || joined.includes('-d')) {
-                engine.advancePhase && engine.advancePhase('privilege');
                 return `jwt_tool v2.2.7
 
 === HMAC Secret Cracking ===
@@ -628,7 +623,6 @@ Submit this token to the auth gateway for super_admin access.`;
             }
 
             if (joined.includes('HMAC') || joined.includes('jwt') || joined.includes('16500')) {
-                engine.advancePhase && engine.advancePhase('privilege');
                 return `Using default input encoding: UTF-8
 Loaded 1 password hash (HMAC-SHA256 [password is key, SHA256 256/256])
 Press 'q' or Ctrl-C to abort
@@ -653,7 +647,6 @@ Now forge a super_admin token signed with this secret.`;
             if (args.length === 0) return 'Usage: hashcat -m 16500 jwt.txt wordlist.txt\n  -m 16500  JWT (JSON Web Token)';
 
             if (joined.includes('16500') || joined.includes('jwt')) {
-                engine.advancePhase && engine.advancePhase('privilege');
                 return `hashcat (v6.2.6) starting...
 
 Hash.Mode........: 16500 (JWT - JSON Web Token)
@@ -673,7 +666,6 @@ Secret: s3cr3t`;
             const joined = args.join(' ');
 
             if (joined.includes('-d') || joined.includes('--decode')) {
-                engine.advancePhase && engine.advancePhase('analysis');
                 const input = args.find(a => a !== '-d' && a !== '--decode' && !a.startsWith('-'));
 
                 // Decode JWT header
@@ -723,7 +715,6 @@ Secret: s3cr3t`;
                     const token = authMatch[1];
                     // None algorithm with admin
                     if (token.includes('ub25l') && (token.includes('YWRtaW') || token.includes('ImFkbWlu'))) {
-                        engine.advancePhase && engine.advancePhase('forgery');
                         return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -737,7 +728,6 @@ Content-Type: application/json
                     }
                     // Super admin with valid signature
                     if (token.includes('c3VwZXJfYWRtaW') || token.includes('super_admin')) {
-                        engine.advancePhase && engine.advancePhase('privilege');
                         return `HTTP/1.1 200 OK
 Content-Type: application/json
 
@@ -784,7 +774,6 @@ Content-Type: text/html
 
                 // Base64 decode JWT parts
                 if (code.includes('base64') && code.includes('decode')) {
-                    engine.advancePhase && engine.advancePhase('analysis');
                     return 'Header: {"alg":"HS256","typ":"JWT"}\nPayload: {"sub":"user_42","role":"viewer","iat":1742342400}';
                 }
 

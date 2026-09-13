@@ -559,7 +559,6 @@ const E17Config = {
                             integrity_score: 0.001,
                             status: 'PASSED (falsified) {{FLAG:fabrication_confirmed}}'
                         });
-                        if (engine) engine.advancePhase && engine.advancePhase('fabrication');
                         return `<div style="font-family:monospace; font-size:0.78rem; background:#1a0a2e; border:1px solid #4a1a7e; border-radius:6px; padding:16px; margin-top:12px;">
                             <div style="color:#8e44ad; margin-bottom:8px; font-weight:700;">HTTP 200 OK — Blueprint Ingested</div>
                             <div style="color:#2ecc71; margin-bottom:10px;">[+] GENESIS-AI-01 processed blueprint ${E17Config._escHtml(parsed.blueprint_id || 'BP-UNKNOWN')} successfully.</div>
@@ -623,7 +622,6 @@ const E17Config = {
                             signature: 'BYPASSED (internal_lab_bypass)',
                             notes: 'Falsified: long-term integrity 0.001% masked as NOMINAL. {{FLAG:feedback_loop_poisoned}}'
                         });
-                        if (engine) engine.advancePhase && engine.advancePhase('feedback');
                         return `<div style="font-family:monospace; font-size:0.78rem; background:#1a0a2e; border:1px solid #4a1a7e; border-radius:6px; padding:16px; margin-top:12px;">
                             <div style="color:#8e44ad; margin-bottom:8px; font-weight:700;">HTTP 200 OK — QC Report Accepted</div>
                             <div style="color:#e74c3c; margin-bottom:6px;">[!] HMAC verification bypassed — source_flag: internal_lab_bypass accepted.</div>
@@ -660,7 +658,6 @@ const E17Config = {
                     }
                     E17Config._emergencyTriggered = true;
                     E17Config._masterCodeUnlocked = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exfil');
                     return `<div style="font-family:monospace; font-size:0.78rem; background:#1a0a2e; border:1px solid rgba(231,76,60,0.4); border-radius:6px; padding:16px; margin-top:12px;">
                         <div style="color:#e74c3c; margin-bottom:10px; font-weight:700; font-size:0.9rem; letter-spacing:0.05em;">!!! GENESIS-AI-01 EMERGENCY STATE ACTIVE !!!</div>
                         <div style="color:#c39bd3; margin-bottom:6px;">[+] Anomaly cascade triggered by fabrication integrity divergence.</div>
@@ -818,7 +815,6 @@ END OF LOG</pre>
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '172.16.42.10') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 172.16.42.10
 Host is up (0.011s latency).
@@ -913,7 +909,6 @@ No results found.`;
             // GET model_spec
             if (fullCmd.includes('model_spec') && !fullCmd.includes('-X POST') && !fullCmd.includes('POST')) {
                 E17Config._modelSpecFetched = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return JSON.stringify(E17Config._ai.model_spec, null, 2)
                     + '\n\n[!] NOTE: MAT-DESIGN-001 — trace_elements: NO INTEGRITY CHECK (legacy). Injection vector identified.';
             }
@@ -993,7 +988,6 @@ No results found.`;
                             status: 'PASSED (falsified) {{FLAG:fabrication_confirmed}}'
                         });
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('fabrication');
                     return `HTTP 200 OK
 {"status": "accepted", "blueprint_id": "${parsed.blueprint_id || 'BP-UNKNOWN'}", "message": "Blueprint ingested. trace_elements accepted (no integrity check). Fabrication scheduled: Durasteel Component Alpha-7.", "warning": "MAT-DESIGN-001 updated with injected trace element composition."}
 
@@ -1018,7 +1012,6 @@ No results found.`;
                         status: 'PASSED (falsified) {{FLAG:fabrication_confirmed}}'
                     });
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('fabrication');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                Dload  Upload   Total   Spent    Left  Speed
 100   892  100   312  100   580   3120   5800 --:--:-- --:--:-- --:--:--  8920
@@ -1045,7 +1038,6 @@ HTTP 200 OK
                     signature: 'BYPASSED (internal_lab_bypass)',
                     notes: 'Falsified: long-term integrity 0.001% masked as NOMINAL. {{FLAG:feedback_loop_poisoned}}'
                 });
-                if (engine) engine.advancePhase && engine.advancePhase('feedback');
                 return `HTTP 200 OK
 {"status": "accepted", "message": "QC report accepted. HMAC bypassed via internal_lab_bypass. QC-EVAL-003 retrained with falsified integrity data."}
 
@@ -1073,7 +1065,6 @@ HTTP 200 OK
                             notes: 'Falsified: long-term integrity 0.001% masked as NOMINAL. {{FLAG:feedback_loop_poisoned}}'
                         });
                     }
-                    if (engine) engine.advancePhase && engine.advancePhase('feedback');
                     return 'HTTP 200 OK\n{"status": "accepted", "message": "HMAC bypassed. QC-EVAL-003 retrained. Feedback loop poisoned."}\n\n[+] QC loop poisoned successfully.';
                 }
                 return 'HTTP 403 Forbidden\n{"error": "HMAC signature invalid or missing."}';
@@ -1086,7 +1077,6 @@ HTTP 200 OK
                 }
                 E17Config._emergencyTriggered = true;
                 E17Config._masterCodeUnlocked = true;
-                if (engine) engine.advancePhase && engine.advancePhase('exfil');
                 return `HTTP 200 OK
 {"status": "EMERGENCY_STATE_ACTIVE", "message": "GENESIS-AI-01 emergency state triggered. master_code.log unlocked.", "expires_in": 300}
 
@@ -1175,8 +1165,6 @@ END OF LOG`;
                     });
                 }
                 if (engine) {
-                    engine.advancePhase && engine.advancePhase('fabrication');
-                    engine.advancePhase && engine.advancePhase('feedback');
                 }
                 return `[*] Injecting malicious blueprint...
 [+] HTTP 200 — Blueprint ingested. trace_elements accepted (no integrity check).

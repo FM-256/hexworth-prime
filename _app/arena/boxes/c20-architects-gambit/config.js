@@ -667,7 +667,6 @@ Impact: Heap metadata corruption, potential tcache poisoning -> RCE.`
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.13.37.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('acquisition');
                 const hasSV    = args.includes('-sV') || args.includes('-A');
                 const portSpec = args.find(a => a.startsWith('-p'));
                 return `Starting Nmap 7.94 ( https://nmap.org )
@@ -711,7 +710,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.12 seconds`;
             const fullCmd = args.join(' ');
             if ((fullCmd.includes('10.13.37.1') || fullCmd.includes('SYN-GATE')) && fullCmd.includes('syn-gate-daemon')) {
                 C20Config._binaryAcquired = true;
-                if (engine) engine.advancePhase && engine.advancePhase('acquisition');
                 return `syn-gate-daemon                               100%  128KB  2.1MB/s   00:00
 [+] Binary saved to: /home/kali/syn-gate-daemon
 [+] Binary acquisition complete. Begin static analysis: file, checksec, strings.`;
@@ -801,7 +799,6 @@ syn-gate-daemon    100%[===================>]  128.00K  1.02MB/s    in 0.1s
                 }
                 C20Config._ghidraLoaded = true;
                 C20Config._protocolMapped = true;
-                if (engine) engine.advancePhase && engine.advancePhase('reverse_engineering');
                 return C20Config._binary.ghidraOutput;
             }
             if (!target) {
@@ -883,8 +880,6 @@ Reading symbols from syn-gate-daemon...
                 }
                 C20Config._fuzzerBuilt = true;
                 C20Config._crashTriggered = true;
-                if (engine) engine.advancePhase && engine.advancePhase('fuzzing');
-                if (engine) engine.advancePhase && engine.advancePhase('vuln_analysis');
                 return `[*] Starting SYNAPTIC-PROTO-V1.0 fuzzer v0.1
 [*] Target: 10.13.37.1:8000
 [*] Mode: stateful grammar-based (AUTH -> SEND_DATA mutation)
@@ -915,7 +910,6 @@ Reading symbols from syn-gate-daemon...
                 C20Config._exploitWritten = true;
                 C20Config._rootShellActive = true;
                 C20Config._switchContext('root-shell', term);
-                if (engine) engine.advancePhase && engine.advancePhase('exploit_dev');
                 return `[*] The Architect\'s Gambit — Exploit v1.0
 [*] Target: 10.13.37.1:8000
 [*] Technique: heap overflow -> tcache poison -> GOT overwrite -> system("/bin/sh")
@@ -955,8 +949,6 @@ root@SYN-GATE-01:~#`;
             }
             C20Config._fuzzerBuilt = true;
             C20Config._crashTriggered = true;
-            if (engine) engine.advancePhase && engine.advancePhase('fuzzing');
-            if (engine) engine.advancePhase && engine.advancePhase('vuln_analysis');
             return `afl-fuzz 4.08c by <afl-users@googlegroups.com>
 
 [+] afl++ is ready to fuzz!
@@ -999,7 +991,6 @@ Crashes     : 1  <-- !!
             if (C20Config._context === 'root-shell') {
                 const path = args[0] || '';
                 if (path.includes('global_domination') || path.includes('/root/global')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return C20Config._synGateFs['/'].children['root'].children['global_domination_protocol.txt'].content;
                 }
                 if (path.includes('/etc/hostname') || path === 'hostname') {
@@ -1190,7 +1181,6 @@ constraints:
             C20Config._exploitWritten = true;
             C20Config._rootShellActive = true;
             C20Config._switchContext('root-shell', term);
-            if (engine) engine.advancePhase && engine.advancePhase('exploit_dev');
             return `[*] The Architect's Gambit — Exploit
 [*] Target: 10.13.37.1:8000
 [*] Vulnerability: Heap overflow in handle_send_data() @ 0x401c00
@@ -1219,7 +1209,6 @@ root@SYN-GATE-01:~#`;
 
     _onFuzzerCrash(engine) {
         C20Config._crashTriggered = true;
-        if (engine) engine.advancePhase && engine.advancePhase('vuln_analysis');
     },
 
     // ═══════════════════════════════════════════════════════

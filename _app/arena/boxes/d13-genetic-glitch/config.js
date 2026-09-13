@@ -471,7 +471,6 @@ const D13Config = {
                         D13Config._sequenceInjected = true;
                         D13Config._mutationTriggered = true;
                         D13Config._libAccessGranted = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('injection');
                         return `<div style="background:#0a1f14; border:1px solid rgba(0,200,150,0.3); border-radius:6px; padding:16px; margin-top:14px; font-family:monospace; font-size:0.75rem; line-height:1.8; color:#ccc;">
                             {"status":"processing","sample_id":"${D13Config._escHtml(sid || 'sample_01')}","sequence_length":${seq.length}}<br><br>
                             <span style="color:#e74c3c;">[SEGFAULT] Stack buffer overflow detected in sequence_parser()</span><br>
@@ -518,7 +517,6 @@ const D13Config = {
                         }
                         if (gene === 'SYNTHETIC-GENESIS-X' || gene.includes('GENESIS')) {
                             D13Config._blueprintExtracted = true;
-                            if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                             return `<div style="background:#0a1f14; border:1px solid rgba(0,200,150,0.3); border-radius:6px; padding:16px; margin-top:14px; font-family:monospace; font-size:0.75rem; line-height:1.8; color:#ccc;">
                                 [EXTRACT] Accessing /opt/crispr/genetic_lib/classified/genesis.db<br>
                                 [EXTRACT] Gene: SYNTHETIC-GENESIS-X (GEN-005)<br>
@@ -797,7 +795,6 @@ const D13Config = {
 
             // bio-api --list-commands or --help
             if (sub === '--list-commands' || sub === '--help' || sub === '-h' || args.length === 0) {
-                if (engine) engine.advancePhase && engine.advancePhase('enumeration');
                 D13Config._apiProbed = true;
                 return `bio-api v2.4.1 — CRISPR-AUTO-01 CLI Client
 Target: http://10.0.50.4:8443/api/v2
@@ -819,7 +816,6 @@ NOTE: Authentication is disabled (CRISPR_AUTH=0). All endpoints open.`;
             // bio-api debug --dump-library
             if (sub === 'debug') {
                 D13Config._debugLeaked = true;
-                if (engine) engine.advancePhase && engine.advancePhase('analysis');
                 return `[DEBUG] CRISPR-AUTO-01 v2.4.1 — diagnostic output
 [DEBUG] Internal library path:    /opt/crispr/genetic_lib/
 [DEBUG] Classified catalog:       /opt/crispr/genetic_lib/classified/genesis.db
@@ -855,7 +851,6 @@ NOTE: Authentication is disabled (CRISPR_AUTH=0). All endpoints open.`;
                     D13Config._sequenceInjected = true;
                     D13Config._mutationTriggered = true;
                     D13Config._libAccessGranted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `{"status":"processing","sample_id":"${sampleId}","sequence_length":${sequence.length}}
 
 [SEGFAULT] Stack buffer overflow detected in sequence_parser()
@@ -883,7 +878,6 @@ NOTE: Authentication is disabled (CRISPR_AUTH=0). All endpoints open.`;
                     }
                     if (gene.toUpperCase() === 'SYNTHETIC-GENESIS-X' || gene.toUpperCase().includes('GENESIS')) {
                         D13Config._blueprintExtracted = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                         return `[EXTRACT] Accessing /opt/crispr/genetic_lib/classified/genesis.db
 [EXTRACT] Gene: SYNTHETIC-GENESIS-X (GEN-005)
 [EXTRACT] Classification: CLASSIFIED — master_sequence_control
@@ -945,7 +939,6 @@ ${payload}`;
             const target = args.find(a => !a.startsWith('-')) || '';
 
             if (!target || target === '10.0.50.4') {
-                if (engine) engine.advancePhase && engine.advancePhase('enumeration');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.0.50.4
 Host is up (0.022s latency).
@@ -1006,7 +999,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                         D13Config._sequenceInjected = true;
                         D13Config._mutationTriggered = true;
                         D13Config._libAccessGranted = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('injection');
                         return `  % Total    % Received % Xferd
 100  1024  100   892  100   132   8920   1320
 
@@ -1031,7 +1023,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                         return '{"error":"403 Forbidden","message":"Internal library requires elevated privileges."}';
                     }
                     D13Config._blueprintExtracted = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('exfiltration');
                     return `  % Total    % Received % Xferd
 100   256
 
@@ -1043,7 +1034,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
                 // debug dump via curl
                 if (fullCmd.includes('debug')) {
                     D13Config._debugLeaked = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('analysis');
                     return `  % Total    % Received % Xferd
 100   512
 
@@ -1062,7 +1052,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (url.includes('10.0.50.4:8443') || url.includes('10.0.50.4')) {
                 if (url.includes('/api/v2/')) {
-                    if (engine) engine.advancePhase && engine.advancePhase('enumeration');
                     D13Config._apiProbed = true;
                     return `<!DOCTYPE html>
 <html>

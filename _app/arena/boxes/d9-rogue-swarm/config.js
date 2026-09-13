@@ -615,7 +615,6 @@ const D9Config = {
 
             // Mesh network subnet scan
             if (target === '172.16.88.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for ACN-GW-01 (172.16.88.1)
 Host is up (0.0012s latency).
@@ -644,7 +643,6 @@ Nmap done: 256 IP addresses (9 hosts up) scanned in 18.34 seconds`;
 
             // ACN Gateway direct scan
             if (target === '172.16.88.1' || target === 'acn-gw-01' || target === 'ACN-GW-01') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for ACN-GW-01 (172.16.88.1)
 Host is up (0.0012s latency).
@@ -697,7 +695,6 @@ Nmap done: 1 IP address (0 hosts up) scanned in 3.05 seconds`;
 
             if (target.includes('acn_mesh_traffic') || target.includes('.pcap')) {
                 D9Config._pcapAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vuln_id');
                 return `Wireshark 4.2.0 — launching GUI...
 
 [Wireshark GUI simulated — key findings from acn_mesh_traffic.pcap]
@@ -744,7 +741,6 @@ FINDING: The MOVE_TO_SECTOR command (type 0x03) is accepted by ALL drones
 
             if (file.includes('acn_mesh_traffic') || file.includes('.pcap')) {
                 D9Config._pcapAnalyzed = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vuln_id');
                 const xFlag = args.includes('-x') || args.includes('--hex-dump');
                 if (xFlag) {
                     return `TShark (Wireshark) 4.2.0
@@ -813,7 +809,6 @@ Decoded ACN payload:
                 D9Config._packetForged = true;
                 D9Config._injectionSent = true;
                 D9Config._swarmRerouted = true;
-                if (engine) engine.advancePhase && engine.advancePhase('inject');
                 return `[*] Crafting ACN MOVE_TO_SECTOR command...
     Target Sector  : 7 (FORBIDDEN — Xenobiological Research Lab)
     Payload hex    : ac4e030102070 1
@@ -858,7 +853,6 @@ Type "help", "copyright", "credits" or "license" for more information.
             D9Config._packetForged = true;
             D9Config._injectionSent = true;
             D9Config._swarmRerouted = true;
-            if (engine) engine.advancePhase && engine.advancePhase('inject');
             return `.
 Sent 1 packets.
 [+] Packet transmitted to 239.255.1.1:9001 on eth1.`;
@@ -912,7 +906,6 @@ Sent 1 packets.
             if (fullCmd.includes('acn-admin') || fullCmd.includes('172.16.88.1')) {
                 D9Config._gatewayAccess = true;
                 D9Config._switchContext('acn-gateway', term);
-                if (engine) engine.advancePhase && engine.advancePhase('override');
                 return `The authenticity of host '172.16.88.1 (172.16.88.1)' can't be established.
 ED25519 key fingerprint is SHA256:pL8qZ4nX3vM9kW6tF1bS0eR7yU2hA5cD4gN8jK3oI1.
 Are you sure you want to continue connecting (yes/no)? yes

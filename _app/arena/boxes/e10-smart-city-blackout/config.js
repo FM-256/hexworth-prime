@@ -674,7 +674,6 @@ const E10Config = {
 
             // City network subnet scan
             if (target === '10.0.90.0/24') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return 'Starting Nmap 7.94 ( https://nmap.org )\n\n'
                     + 'Nmap scan report for 10.0.90.1\n'
                     + 'Host is up (0.012s latency).\n'
@@ -692,7 +691,6 @@ const E10Config = {
 
             // Direct scan of CITY-OS-01
             if (target === '10.0.90.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return 'Starting Nmap 7.94 ( https://nmap.org )\n\n'
                     + 'Nmap scan report for 10.0.90.1\n'
                     + 'Host is up (0.012s latency).\n'
@@ -705,7 +703,6 @@ const E10Config = {
 
             // Direct scan of SMART-LIGHT-01 IoT bus
             if (target === '10.0.90.10') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return 'Starting Nmap 7.94 ( https://nmap.org )\n\n'
                     + 'Nmap scan report for 10.0.90.10\n'
                     + 'Host is up (0.009s latency).\n'
@@ -740,7 +737,6 @@ const E10Config = {
                     return '{"error": "401 Unauthorized", "message": "X-API-Key header required"}';
                 }
                 E10Config._iotAuthenticated = true;
-                if (engine) engine.advancePhase && engine.advancePhase('iot_compromise');
                 return '{"status": "ok", "nodes": ['
                     + '{"node_id": "SL-047", "sector": "Gamma", "status": "online", "brightness": 80, "power_reading_w": 145},'
                     + '{"node_id": "SL-112", "sector": "Gamma", "status": "online", "brightness": 75, "power_reading_w": 138},'
@@ -772,7 +768,6 @@ const E10Config = {
                     if (E10Config._injectionCount >= 3 && !E10Config._blackoutTriggered) {
                         E10Config._blackoutTriggered = true;
                         E10Config._emergencyEndpointOpen = true;
-                        if (engine) engine.advancePhase && engine.advancePhase('blackout');
                         return '{"status": "accepted", "node_id": "' + nodeId + '", "event": "power_outage", "propagated_to_city_os": true}\n\n'
                             + '[!] CITY-OS-01 EVENT BUS: Threshold exceeded — 3+ simultaneous power_outage events.\n'
                             + '[!] CITY-OS-01: Initiating EP-7-BLACKOUT protocol.\n'
@@ -872,7 +867,6 @@ const E10Config = {
                 if (!E10Config._blackoutTriggered) {
                     E10Config._blackoutTriggered = true;
                     E10Config._emergencyEndpointOpen = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('blackout');
                 }
 
                 return '[*] Starting injection campaign with key: DefaultAdminKey\n'

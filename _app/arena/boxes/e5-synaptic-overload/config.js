@@ -690,7 +690,6 @@ const E5Config = {
 
             // Primary CCN-NEXUS target
             if (!target || target === '10.11.0.1') {
-                if (engine) engine.advancePhase && engine.advancePhase('recon');
                 return `Starting Nmap 7.94 ( https://nmap.org )
 Nmap scan report for 10.11.0.1
 Host is up (0.011s latency).
@@ -769,7 +768,6 @@ Finished`;
                 if (fullCmd.includes('inject') && (fullCmd.includes('dissonator') || fullCmd.includes('"freq_hz":40') || fullCmd.includes('freq_hz'))) {
                     E5Config._injectionComplete = true;
                     E5Config._sessionToken = 'ccn_s3ss10n_7f4a2d';
-                    if (engine) engine.advancePhase && engine.advancePhase('injection');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   212  100    89  100   123    890   1230 --:--:-- --:--:-- --:--:--  2120
@@ -795,7 +793,6 @@ Finished`;
                 }
                 if (fullCmd.includes('ccn_s3ss10n_7f4a2d') || fullCmd.includes('X-CCN-Session')) {
                     E5Config._adminApiAccessed = true;
-                    if (engine) engine.advancePhase && engine.advancePhase('override');
                     return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100   512  100   512    0     0   5120      0 --:--:-- --:--:-- --:--:--  5120
@@ -814,7 +811,6 @@ Finished`;
                 if (!E5Config._injectionComplete) {
                     return `  % Total    % Received % Xferd\n{"error": "No injection event recorded. Population state unchanged.", "status": "nominal"}`;
                 }
-                if (engine) engine.advancePhase && engine.advancePhase('craft');
                 return `  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
                                  Dload  Upload   Total   Spent    Left  Speed
 100  1024  100  1024    0     0  10240      0 --:--:-- --:--:-- --:--:-- 10240
@@ -873,7 +869,6 @@ Finished`;
             if (script.includes('analyze_baseline') || script.includes('analyze')) {
                 E5Config._baselineAnalyzed = true;
                 E5Config._vulnIdentified = true;
-                if (engine) engine.advancePhase && engine.advancePhase('vulnerability');
                 return `[*] Loaded 14 signal samples from channel 7
 [*] Frequency range : 7.99 – 8.01 Hz
 [*] Amplitude range : 0.24 – 0.26
@@ -900,7 +895,6 @@ Finished`;
                 }
                 E5Config._injectionComplete = true;
                 E5Config._sessionToken = 'ccn_s3ss10n_7f4a2d';
-                if (engine) engine.advancePhase && engine.advancePhase('injection');
                 return `[*] Target   : http://10.11.0.1/api/ccn/inject
 [*] Payload  : {"type": "dissonator", "freq_hz": 40, "amplitude": 0.65, "duration_ms": 3000, "channel": 7}
 [*] No authentication required — CCN-Protocol v2.3
