@@ -387,7 +387,7 @@ var SEC005Config = {
         switch (iconDef.app) {
             case 'ticket':         SEC005Config._openTicket(iconDef, engine); break;
             case 'email_analyzer': SEC005Config._openEmailAnalyzer(iconDef, engine); break;
-            case 'reset_lab':      SEC005Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

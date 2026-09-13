@@ -241,7 +241,7 @@ var IOT002Config = {
         if (iconDef.app !== 'ticket' && iconDef.app !== 'terminal' && iconDef.app !== 'hints' && iconDef.app !== 'reset_lab' && !engine.state._scenarioSelected) { engine.notify('Open the Alert first.', 'error'); return; }
         switch (iconDef.app) {
             case 'ticket': IOT002Config._openTicket(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset this lab?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
             default: IOT002Config._openInfoWin(iconDef, engine); break;
         }
     },

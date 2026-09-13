@@ -283,7 +283,7 @@ var EM005Config = {
         switch (iconDef.app) {
             case 'ticket': EM005Config._openTicket(iconDef, engine); break;
             case 'email_sec_console': EM005Config._openEmailSec(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

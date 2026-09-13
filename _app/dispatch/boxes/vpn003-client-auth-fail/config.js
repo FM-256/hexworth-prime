@@ -616,7 +616,7 @@ var VPN003Config = {
             case 'auth_dashboard': VPN003Config._openAuthDashboard(iconDef, engine); break;
             case 'radius_mgr':    VPN003Config._openInfoWindow(iconDef, engine, 'RADIUS Manager', 'RAD'); break;
             case 'cert_mgr':      VPN003Config._openInfoWindow(iconDef, engine, 'Certificate Manager', 'CRT'); break;
-            case 'reset_lab':     VPN003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

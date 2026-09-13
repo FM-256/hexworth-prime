@@ -468,7 +468,7 @@ var SEC003Config = {
         switch (iconDef.app) {
             case 'ticket':       SEC003Config._openTicket(iconDef, engine); break;
             case 'siem_console': SEC003Config._openSIEM(iconDef, engine); break;
-            case 'reset_lab':    SEC003Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

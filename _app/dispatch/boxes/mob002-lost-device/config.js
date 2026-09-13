@@ -120,7 +120,7 @@ var MOB002Config = {
         switch (iconDef.app) {
             case 'ticket': MOB002Config._openTicket(iconDef, engine); break;
             case 'admin_console': MOB002Config._openAdmin(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset lab?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
     _openTicket: function(iconDef, engine) {

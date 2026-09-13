@@ -395,7 +395,7 @@ var SEC004Config = {
         switch (iconDef.app) {
             case 'ticket':      SEC004Config._openTicket(iconDef, engine); break;
             case 'dlp_console': SEC004Config._openDLP(iconDef, engine); break;
-            case 'reset_lab':   SEC004Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

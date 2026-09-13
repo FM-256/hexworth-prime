@@ -537,7 +537,7 @@ var VPN005Config = {
             case 'ticket':              VPN005Config._openTicket(iconDef, engine); break;
             case 'compliance_dashboard': VPN005Config._openComplianceDashboard(iconDef, engine); break;
             case 'policy_mgr':          VPN005Config._openPolicyMgr(iconDef, engine); break;
-            case 'reset_lab':           VPN005Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

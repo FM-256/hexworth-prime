@@ -734,7 +734,7 @@ var AD002Config = {
             case 'event_viewer':    AD002Config._openEventViewer(iconDef, engine); break;
             case 'gpo_management':  AD002Config._openGPO(iconDef, engine); break;
             case 'service_manager': AD002Config._openServiceManager(iconDef, engine); break;
-            case 'reset_lab':       AD002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

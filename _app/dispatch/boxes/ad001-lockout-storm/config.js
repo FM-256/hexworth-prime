@@ -1102,7 +1102,7 @@ var AD001Config = {
             case 'net_device_config': AD001Config._openNetDeviceConfig(iconDef, engine); break;
             case 'iis_manager':     AD001Config._openIISManager(iconDef, engine); break;
             case 'net_management':  AD001Config._openNetManagement(iconDef, engine); break;
-            case 'reset_lab':       AD001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

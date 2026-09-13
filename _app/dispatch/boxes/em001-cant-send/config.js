@@ -390,7 +390,7 @@ var EM001Config = {
         switch (iconDef.app) {
             case 'ticket':       EM001Config._openTicket(iconDef, engine); break;
             case 'mail_console': EM001Config._openMailConsole(iconDef, engine); break;
-            case 'reset_lab':    EM001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

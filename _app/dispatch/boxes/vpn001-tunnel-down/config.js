@@ -706,7 +706,7 @@ var VPN001Config = {
             case 'vpn_console':   VPN001Config._openVPNConsole(iconDef, engine); break;
             case 'firewall_logs': VPN001Config._openFirewallLogs(iconDef, engine); break;
             case 'cert_manager':  VPN001Config._openCertManager(iconDef, engine); break;
-            case 'reset_lab':     VPN001Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

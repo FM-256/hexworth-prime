@@ -592,7 +592,7 @@ var VPN002Config = {
             case 'ticket':          VPN002Config._openTicket(iconDef, engine); break;
             case 'vpn_dashboard':   VPN002Config._openDashboard(iconDef, engine); break;
             case 'traffic_monitor': VPN002Config._openTrafficMonitor(iconDef, engine); break;
-            case 'reset_lab':       VPN002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

@@ -326,7 +326,7 @@ var AD004Config = {
         switch (iconDef.app) {
             case 'ticket': AD004Config._openTicket(iconDef, engine); break;
             case 'event_viewer': AD004Config._openEV(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset lab?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

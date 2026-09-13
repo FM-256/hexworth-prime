@@ -268,7 +268,7 @@ var EM004Config = {
         switch (iconDef.app) {
             case 'ticket': EM004Config._openTicket(iconDef, engine); break;
             case 'mdm_console': EM004Config._openMDM(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

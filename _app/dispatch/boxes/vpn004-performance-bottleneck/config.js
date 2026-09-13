@@ -513,7 +513,7 @@ var VPN004Config = {
             case 'ticket':         VPN004Config._openTicket(iconDef, engine); break;
             case 'perf_dashboard': VPN004Config._openPerfDashboard(iconDef, engine); break;
             case 'throughput_mon': VPN004Config._openThroughputMon(iconDef, engine); break;
-            case 'reset_lab':     VPN004Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

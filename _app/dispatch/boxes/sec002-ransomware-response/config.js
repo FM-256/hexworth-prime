@@ -701,7 +701,7 @@ var SEC002Config = {
             case 'ticket':            SEC002Config._openTicket(iconDef, engine); break;
             case 'forensics_console': SEC002Config._openForensics(iconDef, engine); break;
             case 'network_monitor':   SEC002Config._openNetworkMonitor(iconDef, engine); break;
-            case 'reset_lab':         SEC002Config._confirmReset(engine); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

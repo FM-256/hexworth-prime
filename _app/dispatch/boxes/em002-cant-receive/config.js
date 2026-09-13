@@ -315,7 +315,7 @@ var EM002Config = {
         switch (iconDef.app) {
             case 'ticket': EM002Config._openTicket(iconDef, engine); break;
             case 'mail_console': EM002Config._openMailConsole(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset this lab?')) { engine.resetLab(); } break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

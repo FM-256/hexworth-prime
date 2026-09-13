@@ -141,7 +141,7 @@ var CLD003Config = {
         switch (iconDef.app) {
             case 'ticket': CLD003Config._openTicket(iconDef, engine); break;
             case 'admin_console': CLD003Config._openAdmin(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset lab?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

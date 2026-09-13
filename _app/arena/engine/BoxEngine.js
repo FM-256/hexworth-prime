@@ -506,21 +506,25 @@ const BoxEngine = {
     },
 
     /**
-     * resetLab — the destructive reset, for box configs that confirm on their own.
+     * resetLab — what the "Reset Lab" desktop icon calls. Confirms, then resets.
      *
      * 46 box configs call engine.resetLab() and it has never existed on this object, so the
-     * "Reset Lab" desktop icon was dead in every one of them: the student confirms,
-     * `engine.resetLab is not a function` throws to the console, and nothing happens.
-     * Reproduced on production against ad003-gpo-issues — localStorage byte-identical
-     * before and after a confirmed reset. The taskbar button worked the whole time, so
-     * every check we had passed; the broken control was the one wearing the label.
+     * icon was dead in every one of them: the student confirms, `engine.resetLab is not a
+     * function` throws to the console, and nothing happens. Reproduced on production
+     * against ad003-gpo-issues — localStorage byte-identical before and after. The taskbar
+     * button worked the whole time, so every check we had passed; the broken control was
+     * the one wearing the label.
      *
-     * Aliases reset(), NOT _confirmReset(), deliberately: all 46 call sites already confirm
-     * first (45 with a native confirm(), ad001-lockout-storm from its own dialog's click
-     * handler), so routing through the engine's dialog would ask twice for one click.
+     * It runs the engine's OWN confirmation rather than aliasing reset(), and the 46 call
+     * sites had their own confirms removed to match. The first version of this fix kept
+     * their confirms and aliased reset() — which made the icon work while leaving 11 boxes
+     * still warning "All progress will be lost" (false: an accepted flag is server-side and
+     * a reset cannot revoke it) and 34 warning nothing at all. Chris blocked it: the path
+     * that was fixed to WORK was not the path that got the honest wording. One dialog now
+     * serves both controls, so the next box cannot drift from it.
      */
     resetLab() {
-        this.reset();
+        this._confirmReset();
     },
 
     _confirmReset() {

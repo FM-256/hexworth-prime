@@ -280,7 +280,7 @@ var EM003Config = {
         switch (iconDef.app) {
             case 'ticket': EM003Config._openTicket(iconDef, engine); break;
             case 'cal_console': EM003Config._openCalConsole(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 

@@ -270,7 +270,7 @@ var CLD001Config = {
             case 'ticket': CLD001Config._openTicket(iconDef, engine); break;
             case 'event_viewer': CLD001Config._openEV(iconDef, engine); break;
             case 'admin_console': CLD001Config._openAdmin(iconDef, engine); break;
-            case 'reset_lab': if (confirm('Reset lab?')) engine.resetLab(); break;
+            case 'reset_lab': engine.resetLab(); break;
         }
     },
 
