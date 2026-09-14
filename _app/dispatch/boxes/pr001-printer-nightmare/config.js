@@ -475,7 +475,7 @@ var PR1Config = {
                     return '\nThe requested service has already been started.\n';
                 }
                 if (engine.state._spoolFilesStuck) {
-                    return '\nSystem error 1053 has occurred.\n\nThe service did not respond to the start or control request in a timely fashion.\n\nHint: Stuck spool files may be blocking service start. Clear C:\\Windows\\System32\\spool\\PRINTERS\\';
+                    return '\nSystem error 1053 has occurred.\n\nThe service did not respond to the start or control request in a timely fashion.\n\nHint: Stuck spool files may be blocking service start.\nDelete the queued spool files, then start the service again:\n\n    del C:\\Windows\\System32\\spool\\PRINTERS\\*.*\n';
                 }
                 // Spooler starts cleanly
                 engine.state._spoolerRunning = true;
@@ -616,7 +616,21 @@ var PR1Config = {
             }
 
             // wmic printer where Name="X" get DriverName,PortName,Status
-            var nameMatch = joined.match(/where\s+name\s*=\s*"([^"]+)"/i) || joined.match(/where\s+name\s*=\s*'([^']+)'/i);
+            /* Terminal.js's _parseLine STRIPS QUOTES while tokenising, so by the time this
+             * handler runs, `where Name="Xerox WorkCentre 6515" get ...` has become
+             * `where name=xerox workcentre 6515 get ...` — with no quotes left to match.
+             * The quoted patterns below could therefore never fire for ANY input, and the
+             * box rejected the exact command its own error message printed as correct usage,
+             * and that the walkthrough documents verbatim. Found by the operator's rule:
+             * run the commands AS WRITTEN, and read what the screen says back.
+             *
+             * Keep the quoted forms first (harmless, and correct if the engine ever stops
+             * stripping), then fall back to everything between `name=` and the ` get` that
+             * follows it, which is what actually arrives. */
+            var nameMatch = joined.match(/where\s+name\s*=\s*"([^"]+)"/i)
+                || joined.match(/where\s+name\s*=\s*'([^']+)'/i)
+                || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i)
+                || joined.match(/where\s+name\s*=\s*(.+)$/i);
             if (nameMatch) {
                 var searchName = nameMatch[1].toLowerCase();
                 var found = null;

@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-13 21:44 · **1250 scripts** · 47 wired into a gate · 298 called by other code · 195 only mentioned in docs · 710 referenced by nothing · 499 not in git
+**Generated:** 2026-09-14 17:35 · **1272 scripts** · 47 wired into a gate · 298 called by other code · 195 only mentioned in docs · 732 referenced by nothing · 520 not in git
 
 ## Read this before writing a new script
 
@@ -773,16 +773,36 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 50 scripts, 36 referenced by nothing
+### `_tools/hexos` — 72 scripts, 58 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `_ad001_final_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_box_gui_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_box_probe_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_extended_probe_tmp.js` | CALLED | 1 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_flagdiag_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
+| `_hint378_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_hintlabel_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_negctl2_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
+| `_negctl3_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `_negctl_replay_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
+| `_pr001_allflags_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_final_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_hint_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_leak_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_prod_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_real_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_s15_props_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_s2_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_user_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr002_user_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_probe_ad003_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
+| `_probe_cmdcheck_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_dialog_text_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_probe_e9_preview_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_e9_prod_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
@@ -791,6 +811,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_probe_local_ticket_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api2_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
 | `_probe_malformed_api_tmp.js` | ORPHAN | 0 | 2026-09-04 | no | _one-shot probe (leading underscore)_ |
+| `_probe_nt007_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_probe_phase10_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_phase2_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_phase3_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
@@ -816,7 +837,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-shell-consistency.test.js` | CALLED | 1 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
-| `dispatch-walkthrough-replay.test.js` | CALLED | 1 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
+| `dispatch-walkthrough-replay.test.js` | CALLED | 3 | 2026-09-14 | yes | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
@@ -827,6 +848,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-full-qc.test.js` | CALLED | 1 | 2026-09-12 | yes | Full QC sweep of the NT1 box in a real browser: every command the |
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
+| `walkthrough-verbatim.test.js` | ORPHAN | 0 | 2026-09-14 | no | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
 
 ### `_tools/hexos-live` — 2 scripts, 0 referenced by nothing
 
@@ -1952,7 +1974,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-56 scripts are referenced by nothing AND follow the leading-underscore
+77 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1961,11 +1983,31 @@ it — a leading underscore is a naming convention, not evidence that a script i
 
 - `_tools/career/_chris_eye_card_check_tmp.js` · last modified 2026-08-29
 - `_tools/diagnostics/tenant-analytics/_diag_ala_overflow_check.js` · last modified 2026-06-14
+- `_tools/hexos/_ad001_final_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_box_gui_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_box_probe_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_chris_adv_review_verify_tmp.test.js` · last modified 2026-08-31
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
+- `_tools/hexos/_flagdiag_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
+- `_tools/hexos/_hint378_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_hintlabel_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_negctl2_tmp.js` · last modified 2026-09-13
+- `_tools/hexos/_negctl3_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_negctl_replay_tmp.js` · last modified 2026-09-13
+- `_tools/hexos/_pr001_allflags_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_final_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_hint_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_leak_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_prod_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_real_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_s15_props_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_s2_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_user_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr002_user_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_probe_ad003_tmp.js` · last modified 2026-09-13
+- `_tools/hexos/_probe_cmdcheck_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_dialog_text_tmp.js` · last modified 2026-09-12
 - `_tools/hexos/_probe_e9_preview_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_e9_prod_tmp.js` · last modified 2026-09-13
@@ -1974,6 +2016,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_probe_local_ticket_tmp.js` · last modified 2026-09-12
 - `_tools/hexos/_probe_malformed_api2_tmp.js` · last modified 2026-09-04
 - `_tools/hexos/_probe_malformed_api_tmp.js` · last modified 2026-09-04
+- `_tools/hexos/_probe_nt007_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_probe_phase10_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_phase2_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_phase3_tmp.js` · last modified 2026-09-13
@@ -1998,21 +2041,5 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
 - `_tools/sandbox-missions/cat-lost-notes/_test-checks.sh` · last modified 2026-07-09
 - `_tools/sandbox-missions/cat-lost-notes/_test-solution.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/cd-breadcrumbs/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/chmod-lockdown/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/chown-handover/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/cpmv-relocation/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/find-sweep/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/grep-investigation/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/headtail-logwatch/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/ip-linecheck/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/less-readingroom/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/ls-first-inventory/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/mkdir-groundbreaking/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/ps-runaway/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/rm-decommission/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/sortuniq-ledger/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/systemctl-servicedesk/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/tar-timecapsule/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/wc-census/_envcheck.sh` · last modified 2026-07-09
+- _...and 17 more_
 
