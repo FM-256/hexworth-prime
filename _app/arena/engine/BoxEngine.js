@@ -1270,7 +1270,7 @@ const BoxEngine = {
         });
 
         if (s.hintsUsed.length) {
-            html += `<div class="detail-row"><span>Hints (${s.hintsUsed.length})</span><span class="neg">${s.hintsUsed.length * (scoring.hintPenalty || -50)}</span></div>`;
+            html += `<div class="detail-row"><span>Hints (${s.hintsUsed.length})</span><span class="neg">${s.hintsUsed.length * this._scoringHintPenalty(scoring)}</span></div>`;
         }
         if (s.wrongFlags) {
             html += `<div class="detail-row"><span>Wrong flags (${s.wrongFlags})</span><span class="neg">${s.wrongFlags * (scoring.wrongFlagPenalty || -25)}</span></div>`;
@@ -1975,7 +1975,7 @@ const BoxEngine = {
             if (flag) html += `<div class="row"><span>${id}.txt flag</span><span style="color:#2ecc71;">+${flag.points}</span></div>`;
         });
         if (speedBonus) html += `<div class="row"><span>Speed bonus</span><span style="color:#2ecc71;">+${speedBonus}</span></div>`;
-        if (s.hintsUsed.length) html += `<div class="row"><span>Hints (${s.hintsUsed.length})</span><span style="color:#e74c3c;">${s.hintsUsed.length * (scoring.hintPenalty || -50)}</span></div>`;
+        if (s.hintsUsed.length) html += `<div class="row"><span>Hints (${s.hintsUsed.length})</span><span style="color:#e74c3c;">${s.hintsUsed.length * this._scoringHintPenalty(scoring)}</span></div>`;
         if (s.wrongFlags) html += `<div class="row"><span>Wrong flags (${s.wrongFlags})</span><span style="color:#e74c3c;">${s.wrongFlags * (scoring.wrongFlagPenalty || -25)}</span></div>`;
         html += `<div class="row total"><span>Time</span><span>${elapsed} min</span></div>`;
 
@@ -2005,9 +2005,52 @@ const BoxEngine = {
      * Get the effective hint penalty, adjusted for difficulty tier.
      * Hard mode doubles hint costs.
      */
+    /**
+     * The box's configured per-hint penalty, as a NUMBER.
+     *
+     * Exists because four display surfaces — the score-detail panel, the completion
+     * screen, the completion report and the markdown export — each independently wrote
+     * `s.hintsUsed.length * this._scoringHintPenalty(scoring)`. Where hintPenalty is the
+     * boolean `true` (249 configs), `||` returns `true`, JS coerces it to 1, and the row
+     * renders `Hints (3): 3` — a POSITIVE number, in a red negative-styled cell.
+     *
+     * Fixing _getEffectiveHintPenalty alone left all four of those untouched, which is
+     * how the same root cause survives a fix. One resolver, four callers, so the next
+     * surface to need it cannot reintroduce the coercion.
+     */
+    _scoringHintPenalty(scoring) {
+        const raw = (scoring || {}).hintPenalty;
+        return (typeof raw === 'number' && isFinite(raw)) ? raw : -50;
+    },
+
     _getEffectiveHintPenalty(hint) {
         const scoring = this.config.scoring || {};
-        const base = hint.penalty || scoring.hintPenalty || -50;
+
+        /* ?? NOT ||, AND A NUMERIC GUARD.
+         *
+         * `hint.penalty || scoring.hintPenalty || -50` discarded a deliberate
+         * `penalty: 0`, because 0 is falsy. A hint an author had explicitly priced as
+         * FREE therefore fell through to scoring.hintPenalty — which is the BOOLEAN
+         * `true` in 249 configs. The student was shown the literal label
+         * "Reveal Hint (true pts)", and addScore(true) credited them +1 POINT for
+         * taking a hint. Co-op passed the same value into a Firestore transaction.
+         *
+         * ?? consults the fallback only when penalty is null/undefined, so an explicit
+         * 0 now means what it says. The typeof guard is the belt: a boolean can never
+         * be a point value, so anything non-numeric reverts to the -50 default rather
+         * than being arithmetic'd into a score.
+         *
+         * MEASURED before changing, across every hint on every box: 790 unchanged,
+         * 84 free hints restored to free, ZERO numeric scores swung, ZERO hints newly
+         * falling back to -50. Every affected hint carried an explicit `penalty: 0`,
+         * so this restores authored intent rather than inventing a price.
+         *
+         * _tools/hexos/box-contract-lint.js HINT-001 mirrors this expression and its
+         * CANARY-001 pins the exact text — update the lint in the same commit or the
+         * gate will (correctly) refuse to vouch for its own verdicts. */
+        const raw = hint.penalty ?? this._scoringHintPenalty(scoring);
+        const base = (typeof raw === 'number' && isFinite(raw)) ? raw : -50;
+
         const difficulty = this._getEffectiveDifficulty();
         if (difficulty === 'hard') return base * 2;
         return base;
@@ -2988,7 +3031,7 @@ const BoxEngine = {
         }
 
         if (s.hintsUsed.length) {
-            const hintPenTotal = s.hintsUsed.length * (scoring.hintPenalty || -50);
+            const hintPenTotal = s.hintsUsed.length * this._scoringHintPenalty(scoring);
             bodyHtml += `<div class="report-score-row"><span>Hints used (${s.hintsUsed.length})</span><span class="neg">${hintPenTotal}</span></div>`;
         }
         if (s.wrongFlags) {
@@ -3147,7 +3190,7 @@ const BoxEngine = {
             const flag = flags.find(f => f.id === id);
             if (flag) md += `| ${id}.txt | +${flag.points} |\n`;
         });
-        if (s.hintsUsed.length) md += `| Hints (${s.hintsUsed.length}) | ${s.hintsUsed.length * (scoring.hintPenalty || -50)} |\n`;
+        if (s.hintsUsed.length) md += `| Hints (${s.hintsUsed.length}) | ${s.hintsUsed.length * this._scoringHintPenalty(scoring)} |\n`;
         if (s.wrongFlags) md += `| Wrong flags (${s.wrongFlags}) | ${s.wrongFlags * (scoring.wrongFlagPenalty || -25)} |\n`;
         md += `| **Total** | **${s.score}** |\n`;
 

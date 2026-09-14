@@ -239,7 +239,15 @@
         var used = this.state.hintsUsed[flagId] || 0;
         if (used >= list.length) return null;
         this.state.hintsUsed[flagId] = used + 1;
-        this.state.score -= (this.cfg.scoring ? this.cfg.scoring.hintPenalty : 25);
+        /* Guarded. The old form tested whether `scoring` EXISTS, not whether hintPenalty is
+         * usable: a config with a scoring block but no hintPenalty gave `score -= undefined`,
+         * which makes the score NaN and every later comparison false. A non-numeric value
+         * (the boolean `true` that polluted 249 BoxEngine configs) would corrupt it the same
+         * way. le-01 carries a numeric 25, so this is latent rather than live. Note the sign
+         * convention differs from BoxEngine here: this engine SUBTRACTS, so the configured
+         * value is positive. Found by Chris, task 378. */
+        const hp = (this.cfg.scoring || {}).hintPenalty;
+        this.state.score -= (typeof hp === 'number' && isFinite(hp)) ? hp : 25;
         this.save();
         return list[used];
     };

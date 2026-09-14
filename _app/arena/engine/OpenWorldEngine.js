@@ -414,7 +414,15 @@ class OpenWorldEngine {
     useHint(hintId) {
         if (this.state.hintsUsed.includes(hintId)) return;
         this.state.hintsUsed.push(hintId);
-        this.addScore(this.cfg.scoring?.hintPenalty || -30, 'Hint used');
+        /* `?? ` plus a numeric guard, matching BoxEngine._scoringHintPenalty.
+         * `||` treated a deliberate `hintPenalty: 0` (a free hint) as unset and charged -30,
+         * and a non-numeric value — the boolean `true` that polluted 249 BoxEngine configs —
+         * would have been added to the score directly. No ow-/ows- config carries a
+         * non-numeric value today, so this is latent rather than live; it is fixed because it
+         * is the same defect one level up at the engine boundary, and the config-shared.js
+         * boxes are outside the box-contract-lint gate's reach. Found by Chris, task 378. */
+        const hp = this.cfg.scoring?.hintPenalty;
+        this.addScore((typeof hp === 'number' && isFinite(hp)) ? hp : -30, 'Hint used');
         this.save();
     }
 
