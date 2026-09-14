@@ -1100,8 +1100,13 @@ var PR1Config = {
                 bodyHtml += '</div>';
             } else if (activeTab === 2) {
                 // Advanced — driver selector
-                var isWrongDriver = scenario && scenario.id === 'wrong_driver' && printerIdx === 1;
                 var currentDriver = engine.state._xeroxDriver || state.driver;
+                /* The warning has to reflect the CURRENT driver, not merely which scenario is
+                 * running. Keyed on the scenario alone, it kept telling a student "Current
+                 * driver may be incorrect" AFTER they had applied the correct one — the box
+                 * calling their correct answer wrong. */
+                var isWrongDriver = scenario && scenario.id === 'wrong_driver' && printerIdx === 1
+                    && currentDriver !== 'Xerox WorkCentre 6515 PCL6';
                 var driverOptions = printerIdx === 1
                     ? ['Xerox WorkCentre 6515 PCL6', 'Xerox WorkCentre 6515 PS', 'Generic / Text Only', 'Microsoft Print to PDF', 'HP Universal Print Driver']
                     : [state.driver];
@@ -1158,6 +1163,24 @@ var PR1Config = {
                     + '</div>';
                 bodyHtml += '</div>';
             }
+
+            /* THE TOKEN THE WALKTHROUGH PROMISES — appended ONCE, outside the tab chain.
+             *
+             * _getFlagRevealHtml builds the "Fix Confirmed / Token:" panel and makes the
+             * BoxEngine.requestFlagText call that fetches the value. It had exactly ONE
+             * occurrence in this file: its own declaration. Nothing called it. So a student
+             * applied the correct fix, the box set _flagRevealed and _labComplete and agreed
+             * internally that they had solved it — then showed them nothing to submit. That
+             * reads as "my fix didn't work", which is worse than an error.
+             *
+             * Appended here rather than inside a tab branch because the resolving tab differs
+             * per scenario: wrong_driver resolves on Advanced, ip_changed on Ports,
+             * perms_denied on Security. A per-tab insertion fixes whichever scenario you
+             * happened to test and silently leaves the others dark — which is exactly what my
+             * first attempt did, catching wrong_driver and missing ip_changed.
+             *
+             * Safe on every tab: _getFlagRevealHtml returns '' unless state._flagRevealed. */
+            bodyHtml += PR1Config._getFlagRevealHtml(engine);
 
             overlay.innerHTML = '<div style="background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:6px; width:540px; max-height:480px; display:flex; flex-direction:column; overflow:hidden;">'
                 + '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.1);">'
