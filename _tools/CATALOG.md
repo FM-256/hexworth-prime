@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-13 19:32 · **1248 scripts** · 47 wired into a gate · 297 called by other code · 195 only mentioned in docs · 709 referenced by nothing · 498 not in git
+**Generated:** 2026-09-13 21:44 · **1250 scripts** · 47 wired into a gate · 298 called by other code · 195 only mentioned in docs · 710 referenced by nothing · 499 not in git
 
 ## Read this before writing a new script
 
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 48 scripts, 35 referenced by nothing
+### `_tools/hexos` — 50 scripts, 36 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -782,6 +782,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
+| `_negctl_replay_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `_probe_dialog_text_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_probe_e9_preview_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_e9_prod_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
@@ -814,7 +815,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-resetlab-icon.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Drives the "Reset Lab" DESKTOP ICON in every box that calls |
 | `box-shell-consistency.test.js` | CALLED | 1 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
-| `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | no | Drives EVERY dispatch box far enough to prove a student is not blocked: |
+| `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
+| `dispatch-walkthrough-replay.test.js` | CALLED | 1 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
@@ -1950,7 +1952,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-55 scripts are referenced by nothing AND follow the leading-underscore
+56 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1963,6 +1965,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
+- `_tools/hexos/_negctl_replay_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_dialog_text_tmp.js` · last modified 2026-09-12
 - `_tools/hexos/_probe_e9_preview_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_e9_prod_tmp.js` · last modified 2026-09-13
