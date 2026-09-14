@@ -766,6 +766,22 @@ var AD001Config = {
                 return AD001Config._cmdBulkUnlock(engine);
             }
 
+            /* THE REAL PIPED FORM. The walkthrough's "Option A -- PowerShell (bulk)" is
+             * `Search-ADAccount -LockedOut | Unlock-ADAccount`, and it answered
+             * "Unlock-ADAccount : Parameter -Identity is required." A student following the
+             * documented bulk unlock exactly was told their own command was malformed.
+             *
+             * The check above only fires when the whole line arrives as ARGS. It cannot fire
+             * on a real pipe: Terminal.js splits on `|` and runs each segment separately, so
+             * this handler receives no args at all. The engine does hand the previous
+             * segment's stdout over as term._pipedStdin (Terminal.js:399) — reading it is
+             * what makes the genuine PowerShell idiom work, which is the whole point of
+             * teaching it. */
+            if (!joined.trim() && term && term._pipedStdin &&
+                /lockedout|distinguishedname|samaccountname/i.test(term._pipedStdin)) {
+                return AD001Config._cmdBulkUnlock(engine);
+            }
+
             var identMatch = joined.match(/-identity\s+(\S+)/i);
             var target = identMatch ? identMatch[1].toLowerCase() : (args[0] && !args[0].startsWith('-') ? args[0].toLowerCase() : null);
 
