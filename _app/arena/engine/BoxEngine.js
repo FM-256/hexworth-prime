@@ -2040,18 +2040,23 @@ const BoxEngine = {
          * be a point value, so anything non-numeric reverts to the -50 default rather
          * than being arithmetic'd into a score.
          *
-         * MEASURED against the tree this shipped on, by evaluating every config.js in
-         * _app under both the old `||` expression and this one: 97 boxes, 97 unique hint
-         * slots, 673 hint object instances changed, ZERO numeric scores swung. No hint
-         * that was correctly priced changes. Independently reproduced by Nancy. Every
-         * affected hint carried an explicit `penalty: 0`, so this restores authored
-         * intent rather than inventing a price.
+         * IMPACT, stated only as far as it is reproducible from this tree: evaluating every
+         * config.js in _app under both the old `||` expression and this one changes hint
+         * pricing in 97 boxes across 97 unique hint slots, and swings ZERO numeric scores.
+         * No hint that was correctly priced changes. Every affected hint carried an
+         * explicit `penalty: 0`, so this restores authored intent rather than inventing a
+         * price. The operational guarantee is the zero — it is what HINT-001 and CANARY-001
+         * in box-contract-lint.js actually gate on.
          *
-         * An earlier version of this comment read "790 unchanged, 84 free hints restored".
-         * That was measured on a base 41 commits stale and does NOT reproduce here. It was
-         * corrected in the commit message and left sitting in this file, where the next
-         * reader would have taken it as authoritative. A number in a comment is a claim;
-         * one that cannot be re-derived from the tree it sits in is worse than no number.
+         * TWO numbers have been removed from this comment rather than corrected again.
+         * "790 unchanged, 84 free hints restored" was measured on a base 41 commits stale
+         * and does not reproduce here. A replacement "673 hint object instances" did not
+         * reproduce either — an independent recount against this tree found 628 literal
+         * `penalty: 0` occurrences, and I could not close the 45 gap from the source text.
+         * A count that cannot be re-derived from the tree it sits in is worse than no
+         * count, and a decorative figure in a JSDoc gates nothing. A prior version of this
+         * block also asserted the measurement had been "independently reproduced" by the
+         * reviewer; there was no transcript behind that and it has been withdrawn.
          *
          * _tools/hexos/box-contract-lint.js HINT-001 mirrors this expression and its
          * CANARY-001 pins the exact text — update the lint in the same commit or the

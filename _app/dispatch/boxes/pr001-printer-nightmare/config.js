@@ -1756,19 +1756,34 @@ var PR1Config = {
      * five walkthroughs each touched a single printer and could never have surfaced it.
      *
      * Every scenario declares `affectedPrinter`, so the scoping key already existed.
-     * Called with no printerIdx (the Services reveal), it is unscoped as before.
+     *
+     * There is exactly ONE call site (renderDialog, inside _openPrinterProperties) and it
+     * always passes printerIdx. An earlier version of this comment claimed a second,
+     * unscoped call site "for the Services reveal" — that call site does not exist; the
+     * Services panel reveals through its own showSpoolerFlag / showQueueFlag. The
+     * `printerIdx !== undefined` branch is therefore defensive, not a described path.
      */
     _getFlagRevealHtml(engine, printerIdx) {
         var scenario = PR1Config._getScenario(engine);
         if (!engine.state._flagRevealed || !scenario) return '';
         if (printerIdx !== undefined && scenario.affectedPrinter !== printerIdx) return '';
 
+        /* The three scenarios whose token surface IS this dialog. Derived from the map
+         * rather than a second hard-coded list, so the two cannot drift apart. */
         var labels = {
             wrong_driver:  'Driver correction confirmed. Print output restored.',
             ip_changed:    'Port updated. Canon imageCLASS MF445dw back online at 192.168.1.210.',
             perms_denied:  'Users group restored. Print access granted to standard accounts.'
         };
-        var label = labels[scenario.id] || 'Fix confirmed.';
+        /* spooler_crash and stuck_queue reveal in the SERVICES recovery log, via
+         * _renderServices' own showSpoolerFlag / showQueueFlag. Their affectedPrinter values
+         * are 0 and 1, so without this they would ALSO render here — on the HP's and Xerox's
+         * own Properties dialog — as a second, undocumented token surface carrying the
+         * generic 'Fix confirmed.' fallback. Nancy found that; my scoping fix introduced it
+         * and my per-scenario walkthroughs never opened those printers' Properties after
+         * solving, so they could not have shown it. */
+        if (!labels[scenario.id]) return '';
+        var label = labels[scenario.id];
         var flagElId = 'pr1-flag-reveal-' + scenario.id;
 
         // Async flag delivery after DOM insertion
