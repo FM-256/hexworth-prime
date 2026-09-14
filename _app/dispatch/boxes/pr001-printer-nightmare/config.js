@@ -1180,7 +1180,7 @@ var PR1Config = {
              * first attempt did, catching wrong_driver and missing ip_changed.
              *
              * Safe on every tab: _getFlagRevealHtml returns '' unless state._flagRevealed. */
-            bodyHtml += PR1Config._getFlagRevealHtml(engine);
+            bodyHtml += PR1Config._getFlagRevealHtml(engine, printerIdx);
 
             overlay.innerHTML = '<div style="background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); border-radius:6px; width:540px; max-height:480px; display:flex; flex-direction:column; overflow:hidden;">'
                 + '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid rgba(255,255,255,0.1);">'
@@ -1744,9 +1744,24 @@ var PR1Config = {
     // FLAG REVEAL HELPERS (per-scenario, called by onAppLaunch)
     // ==========================================================
 
-    _getFlagRevealHtml(engine) {
+    /**
+     * The "Fix Confirmed / Token" panel, SCOPED TO ONE PRINTER.
+     *
+     * printerIdx is required when this is rendered inside a printer's Properties dialog.
+     * _flagRevealed is a single session-wide boolean, so gating on it alone meant that once
+     * a student solved wrong_driver on the Xerox, opening the HP's Properties showed
+     * "Fix Confirmed: Driver correction confirmed" and the Xerox's token inside a dialog
+     * about a printer they had never touched — every time they reopened it, for the rest of
+     * the session. Nancy found it by reading the guard rather than the happy path; my own
+     * five walkthroughs each touched a single printer and could never have surfaced it.
+     *
+     * Every scenario declares `affectedPrinter`, so the scoping key already existed.
+     * Called with no printerIdx (the Services reveal), it is unscoped as before.
+     */
+    _getFlagRevealHtml(engine, printerIdx) {
         var scenario = PR1Config._getScenario(engine);
         if (!engine.state._flagRevealed || !scenario) return '';
+        if (printerIdx !== undefined && scenario.affectedPrinter !== printerIdx) return '';
 
         var labels = {
             wrong_driver:  'Driver correction confirmed. Print output restored.',
