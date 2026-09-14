@@ -751,6 +751,8 @@ var AD001Config = {
             return '\nSearch-ADAccount : Please specify a search parameter such as -LockedOut, -PasswordExpired, -AccountDisabled.\n';
         },
 
+
+
         // --- UNLOCK-ADACCOUNT ---
 
         'unlock-adaccount': function(args, term, engine) {
@@ -777,8 +779,8 @@ var AD001Config = {
              * segment's stdout over as term._pipedStdin (Terminal.js:399) — reading it is
              * what makes the genuine PowerShell idiom work, which is the whole point of
              * teaching it. */
-            if (!joined.trim() && term && term._pipedStdin &&
-                /lockedout|distinguishedname|samaccountname/i.test(term._pipedStdin)) {
+            if (!joined.trim() && term && term._pipedStdin
+                && AD001Config._looksLikeLockedOutTable(term._pipedStdin)) {
                 return AD001Config._cmdBulkUnlock(engine);
             }
 
@@ -1044,6 +1046,30 @@ var AD001Config = {
             out += ('CN=' + u.name + ',OU=' + u.ou + ',DC=hexworth,DC=local').substring(0, 50).padEnd(52) + 'False    True       ' + u.name.substring(0, 22).padEnd(22) + '  ' + u.username + '\n';
         });
         return out;
+    },
+
+    /**
+     * Is this stdin the output of `Search-ADAccount -LockedOut`, and nothing else?
+     *
+     * The first version of this guard tested for the words lockedout / distinguishedname /
+     * samaccountname. Get-ADUser prints ALL THREE as field labels on every single lookup,
+     * regardless of whether that user is locked — so `Get-ADUser gkim | Unlock-ADAccount`,
+     * a natural thing to type right after the walkthrough teaches the sibling idiom,
+     * silently unlocked EVERY locked account in the domain. Nancy found it; my regression
+     * check had covered `-Identity gkim` and bare `Unlock-ADAccount`, but never a DIFFERENT
+     * pipe into the same command.
+     *
+     * The two outputs differ in shape, not vocabulary:
+     *   Search-ADAccount -LockedOut  ->  a TABLE: header row, then a dashed separator
+     *                                    "--- ------- --------- ---- --------------"
+     *   Get-ADUser <user>            ->  a LIST:  "DistinguishedName : CN=..."
+     * So key on the separator row, which only the table form produces, and still require
+     * the LockedOut column to be present.
+     */
+    _looksLikeLockedOutTable: function(stdin) {
+        if (!stdin) return false;
+        var hasSeparator = /(^|\n)\s*-{3,}(\s+-{3,})+\s*(\n|$)/.test(stdin);
+        return hasSeparator && /lockedout/i.test(stdin);
     },
 
     _cmdBulkUnlock: function(engine) {

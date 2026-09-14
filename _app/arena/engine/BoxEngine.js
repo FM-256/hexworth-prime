@@ -2040,10 +2040,18 @@ const BoxEngine = {
          * be a point value, so anything non-numeric reverts to the -50 default rather
          * than being arithmetic'd into a score.
          *
-         * MEASURED before changing, across every hint on every box: 790 unchanged,
-         * 84 free hints restored to free, ZERO numeric scores swung, ZERO hints newly
-         * falling back to -50. Every affected hint carried an explicit `penalty: 0`,
-         * so this restores authored intent rather than inventing a price.
+         * MEASURED against the tree this shipped on, by evaluating every config.js in
+         * _app under both the old `||` expression and this one: 97 boxes, 97 unique hint
+         * slots, 673 hint object instances changed, ZERO numeric scores swung. No hint
+         * that was correctly priced changes. Independently reproduced by Nancy. Every
+         * affected hint carried an explicit `penalty: 0`, so this restores authored
+         * intent rather than inventing a price.
+         *
+         * An earlier version of this comment read "790 unchanged, 84 free hints restored".
+         * That was measured on a base 41 commits stale and does NOT reproduce here. It was
+         * corrected in the commit message and left sitting in this file, where the next
+         * reader would have taken it as authoritative. A number in a comment is a claim;
+         * one that cannot be re-derived from the tree it sits in is worse than no number.
          *
          * _tools/hexos/box-contract-lint.js HINT-001 mirrors this expression and its
          * CANARY-001 pins the exact text — update the lint in the same commit or the
