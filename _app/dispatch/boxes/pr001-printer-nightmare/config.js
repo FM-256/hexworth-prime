@@ -627,29 +627,27 @@ var PR1Config = {
              * Keep the quoted forms first (harmless, and correct if the engine ever stops
              * stripping), then fall back to everything between `name=` and the ` get` that
              * follows it, which is what actually arrives. */
+            /* EMPTY FILTER, decided by the input's shape and never by the captured text.
+             * `where name= get DriverName` has nothing between `=` and the next space, so
+             * any capture from it is regex leftover by construction. Testing for that here
+             * means no alternative below ever has to ask what it captured.
+             *
+             * Two previous attempts tested the CAPTURE for "get" — first unconditionally,
+             * then gated on the unanchored fallback. Nancy broke both: a student searching
+             * for a printer named "Get" hits the same collision, and the gate only narrowed
+             * the trigger rather than removing it. A content test for a structural problem
+             * is a guess about intent; `=` followed by whitespace is the fact. */
+            if (/where\s+name\s*=(?:\s|$)/i.test(joined)) {
+                return '\nNode - HELPDESK01\nInvalid format. Name filter is empty.';
+            }
+
             var nameMatch = joined.match(/where\s+name\s*=\s*"([^"]+)"/i)
                 || joined.match(/where\s+name\s*=\s*'([^']+)'/i)
                 || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i);
-            /* Track WHICH alternative fired. The unanchored fallback below runs to the end
-             * of the line, so for `where name= get DriverName` it captures "get drivername"
-             * — regex leftover, not a search term. The first version of this guard tested
-             * the captured STRING for "get", which would also have silenced a student
-             * legitimately searching for a printer named "Get..." once the roster grows.
-             * Nancy: that is the instance fix wearing a class fix's clothes, in the very
-             * commit that named instance-fixing as the recurring failure. Keying off the
-             * alternative is the actual distinction — leftover only ever comes from here. */
-            var fromUnanchoredFallback = false;
-            if (!nameMatch) {
-                nameMatch = joined.match(/where\s+name\s*=\s*(.+)$/i);
-                fromUnanchoredFallback = !!nameMatch;
-            }
+            if (!nameMatch) nameMatch = joined.match(/where\s+name\s*=\s*(.+)$/i);
             if (nameMatch) {
                 var searchName = nameMatch[1].toLowerCase().trim();
-                /* `where name= get DriverName` leaves the value empty, so only the
-                 * unanchored fallback can match, capturing "get drivername". Strip it there
-                 * and nowhere else, so a real search for a printer whose name begins "Get"
-                 * still works the day such a printer exists. */
-                if (fromUnanchoredFallback && (searchName === 'get' || searchName.indexOf('get ') === 0)) searchName = '';
+
                 /* An empty or one-character capture used to be impossible, because the
                  * quoted-only regex above never matched anything. Loosening it to reach the
                  * documented command made this loop live for the first time — and it had no
