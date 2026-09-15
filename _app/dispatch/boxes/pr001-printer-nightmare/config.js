@@ -629,16 +629,27 @@ var PR1Config = {
              * follows it, which is what actually arrives. */
             var nameMatch = joined.match(/where\s+name\s*=\s*"([^"]+)"/i)
                 || joined.match(/where\s+name\s*=\s*'([^']+)'/i)
-                || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i)
-                || joined.match(/where\s+name\s*=\s*(.+)$/i);
+                || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i);
+            /* Track WHICH alternative fired. The unanchored fallback below runs to the end
+             * of the line, so for `where name= get DriverName` it captures "get drivername"
+             * — regex leftover, not a search term. The first version of this guard tested
+             * the captured STRING for "get", which would also have silenced a student
+             * legitimately searching for a printer named "Get..." once the roster grows.
+             * Nancy: that is the instance fix wearing a class fix's clothes, in the very
+             * commit that named instance-fixing as the recurring failure. Keying off the
+             * alternative is the actual distinction — leftover only ever comes from here. */
+            var fromUnanchoredFallback = false;
+            if (!nameMatch) {
+                nameMatch = joined.match(/where\s+name\s*=\s*(.+)$/i);
+                fromUnanchoredFallback = !!nameMatch;
+            }
             if (nameMatch) {
                 var searchName = nameMatch[1].toLowerCase().trim();
-                /* `where name= get DriverName` leaves the value empty, so the last fallback
-                 * captures "get drivername" and searches for a printer by that name. It
-                 * answers "No Instance(s) Available", which is not wrong but is not what
-                 * happened — the filter was empty, not unmatched. Strip a capture that is
-                 * only the next keyword so the student is told the actual problem. */
-                if (searchName === 'get' || searchName.indexOf('get ') === 0) searchName = '';
+                /* `where name= get DriverName` leaves the value empty, so only the
+                 * unanchored fallback can match, capturing "get drivername". Strip it there
+                 * and nowhere else, so a real search for a printer whose name begins "Get"
+                 * still works the day such a printer exists. */
+                if (fromUnanchoredFallback && (searchName === 'get' || searchName.indexOf('get ') === 0)) searchName = '';
                 /* An empty or one-character capture used to be impossible, because the
                  * quoted-only regex above never matched anything. Loosening it to reach the
                  * documented command made this loop live for the first time — and it had no
