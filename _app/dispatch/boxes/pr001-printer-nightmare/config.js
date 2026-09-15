@@ -632,13 +632,35 @@ var PR1Config = {
                 || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i)
                 || joined.match(/where\s+name\s*=\s*(.+)$/i);
             if (nameMatch) {
-                var searchName = nameMatch[1].toLowerCase();
-                var found = null;
+                var searchName = nameMatch[1].toLowerCase().trim();
+                /* `where name= get DriverName` leaves the value empty, so the last fallback
+                 * captures "get drivername" and searches for a printer by that name. It
+                 * answers "No Instance(s) Available", which is not wrong but is not what
+                 * happened — the filter was empty, not unmatched. Strip a capture that is
+                 * only the next keyword so the student is told the actual problem. */
+                if (searchName === 'get' || searchName.indexOf('get ') === 0) searchName = '';
+                /* An empty or one-character capture used to be impossible, because the
+                 * quoted-only regex above never matched anything. Loosening it to reach the
+                 * documented command made this loop live for the first time — and it had no
+                 * ambiguity handling: it overwrote `found` on every hit, so `where name=e`
+                 * matched all three printers and silently returned the LAST one. A wrong
+                 * printer's driver and port, presented as fact, is worse than the "Invalid
+                 * format" it replaced. Nancy caught it; reactivating dead code is a change,
+                 * not a no-op. Real wmic reports multiple instances, so we do too. */
+                if (!searchName) return '\nNode - HELPDESK01\nInvalid format. Name filter is empty.';
+                var matches = [];
                 PR1Config._printers.forEach(function(p, i) {
                     if (p.name.toLowerCase().includes(searchName)) {
-                        found = PR1Config._getPrinterState(engine, i);
+                        matches.push(PR1Config._getPrinterState(engine, i));
                     }
                 });
+                if (matches.length > 1) {
+                    return '\nNode - HELPDESK01\n\n'
+                        + matches.length + ' instance(s) match "' + nameMatch[1].trim() + '":\n'
+                        + matches.map(function(m) { return '  ' + m.name; }).join('\n')
+                        + '\n\nNarrow the filter to one printer.';
+                }
+                var found = matches[0] || null;
                 if (!found) return '\nNo Instance(s) Available.';
                 return '\nNode - HELPDESK01\n\nDriverName                             PortName              Status\n---------------------------------------------------------------------------\n' + found.driver + '    ' + found.port + '    ' + found.status;
             }
@@ -683,7 +705,7 @@ var PR1Config = {
             var joined = args.join(' ').toLowerCase();
             if (joined.includes('spooler')) {
                 if (engine.state._spoolFilesStuck) {
-                    return '\nRestart-Service : Failed to start service \'Spooler\'.\nService cannot be started due to a stuck spool file. Clear C:\\Windows\\System32\\spool\\PRINTERS\\ first.\n    At line:1 char:1';
+                    return '\nRestart-Service : Failed to start service \'Spooler\'.\nService cannot be started due to a stuck spool file.\nDelete the queued spool files first:\n\n    del C:\\Windows\\System32\\spool\\PRINTERS\\*.*\n\n    At line:1 char:1';
                 }
                 engine.state._spoolerRunning = true;
                 engine.save();
@@ -1672,7 +1694,7 @@ var PR1Config = {
         if (startBtn) {
             startBtn.addEventListener('click', function() {
                 if (engine.state._spoolFilesStuck) {
-                    engine.notify('Service start failed: stuck spool files are blocking restart. Clear C:\\Windows\\System32\\spool\\PRINTERS\\ first.', 'error');
+                    engine.notify('Service start failed: stuck spool files are blocking restart. Delete them first with:  del C:\\Windows\\System32\\spool\\PRINTERS\\*.*', 'error');
                 } else {
                     engine.state._spoolerRunning = true;
                     engine.save();
@@ -1695,7 +1717,7 @@ var PR1Config = {
             stopBtn.addEventListener('click', function() {
                 engine.state._spoolerRunning = false;
                 engine.save();
-                engine.notify('Print Spooler stopped. Clear spool files and restart.', 'info');
+                engine.notify('Print Spooler stopped. Delete the queued spool files with  del C:\\Windows\\System32\\spool\\PRINTERS\\*.*  then start the service again.', 'info');
                 PR1Config._renderServices(engine);
             });
         }
@@ -1705,7 +1727,7 @@ var PR1Config = {
         if (restartBtn) {
             restartBtn.addEventListener('click', function() {
                 if (engine.state._spoolFilesStuck) {
-                    engine.notify('Restart failed: stuck spool files blocking start. Clear C:\\Windows\\System32\\spool\\PRINTERS\\ first.', 'error');
+                    engine.notify('Restart failed: stuck spool files blocking start. Delete them first with:  del C:\\Windows\\System32\\spool\\PRINTERS\\*.*', 'error');
                 } else {
                     engine.state._spoolerRunning = true;
                     engine.save();
