@@ -86,6 +86,14 @@ function fixesFor(mdPath) {
                            .replace(/^[A-Za-z]:\\[^>]*>\s*/, '')
                            .replace(/^\$\s+/, '');
                 if (!line) continue;
+                /* A fenced block is not proof of a command. Walkthroughs put GUI breadcrumbs
+                 * inside fences too — "DLP > User Policy > rmiller > USB Storage: BLOCK" —
+                 * and treating those as commands turned a GUI-only fix into a FAIL against a
+                 * box that was never asked to implement them. Keep only lines that look like
+                 * something a student could actually type at a prompt. */
+                if (/\s>\s/.test(line)) continue;                       // GUI navigation path
+                if (!/^[A-Za-z][\w.:-]*(\s|$)/.test(line)) continue;      // must start with a verb-ish token
+                if (/^[A-Z][a-z]+\s+[a-z]+\s+(the|a|to|on|in)\s/.test(line)) continue;  // prose sentence
                 cmds.push(line);
             }
         }
@@ -218,6 +226,23 @@ function record(r) {
                 }, cmds);
                 if (ran === null) { rec.verdict = 'INCONCLUSIVE'; rec.detail = 'no terminal instance'; throw new Error('skip'); }
                 await sleep(900);
+
+                /* THEN DO WHAT THE BOX SAYS. Many boxes resolve the incident in the terminal
+                 * and reveal the token somewhere else — "DNS issue resolved. Check DNS Manager
+                 * for recovery token." Stopping at the last command scored those as failures
+                 * when the fix had plainly worked and the student simply had one more, clearly
+                 * signposted step to take. Opening every app afterwards is what a student does;
+                 * it cannot manufacture a pass, because an UNRESOLVED box reveals no token no
+                 * matter how many windows are opened — which the negative control proves. */
+                await page.evaluate(async () => {
+                    const icons = (BoxEngine.config.desktop && BoxEngine.config.desktop.icons) || [];
+                    for (const ic of icons) {
+                        if (ic.app === 'reset_lab' || ic.app === 'hints') continue;   // destructive / irrelevant
+                        try { BoxEngine._launchApp(ic); } catch (e) { /* box handler may need state we lack */ }
+                        await new Promise(r => setTimeout(r, 220));
+                    }
+                });
+                await sleep(1400);
 
                 const { notes, asks } = await page.evaluate(() => ({ notes: globalThis.__notes || [], asks: globalThis.__flagAsks || 0 }));
                 rec.notes = notes.length;
