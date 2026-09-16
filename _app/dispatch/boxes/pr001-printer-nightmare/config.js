@@ -175,7 +175,7 @@ var PR1Config = {
             name: 'Spooler Crash',
             ticketSubject: 'HP printer at Front Desk shows errors for everything — nothing prints',
             ticketDetail: 'Every single print job I send to the HP at the front desk shows "Error - Printing" immediately. Nothing comes out at all. I tried restarting my computer twice and it made no difference. My coworkers are having the same problem. The queue shows jobs piling up but nothing moves.',
-            ticketExtra: 'IT Note: The print server reported an unexpected restart of the Print Spooler service around 7:42 AM. Some jobs may have been mid-stream when the crash occurred.',
+            ticketExtra: 'Note from IT (no attachment — the detail is here): The print server reported an unexpected restart of the Print Spooler service around 7:42 AM. Some jobs may have been mid-stream when the crash occurred.',
             affectedPrinter: 0,
             fixDescription: 'Stop spooler, clear stuck spool files, restart spooler',
             stateOverrides: { _spoolerRunning: false, _spoolFilesStuck: true }
@@ -185,7 +185,7 @@ var PR1Config = {
             name: 'Wrong Driver',
             ticketSubject: 'Xerox in Bullpen is printing random characters — pages full of gibberish',
             ticketDetail: 'The Xerox printer in the bullpen is going crazy. Every page that comes out is covered in random characters, symbols, and gibberish text. It looks like the printer is receiving raw data it can\'t interpret. This started after the IT team pushed an update yesterday afternoon. Multiple people are affected.',
-            ticketExtra: 'IT Note: A driver update package was deployed via Group Policy at 4:15 PM yesterday. Three workstations in the bullpen may have received an incorrect driver assignment.',
+            ticketExtra: 'Note from IT (no attachment — the detail is here): A driver update package was deployed via Group Policy at 4:15 PM yesterday. Three workstations in the bullpen may have received an incorrect driver assignment.',
             affectedPrinter: 1,
             fixDescription: 'Change printer driver to correct Xerox WorkCentre 6515 PCL6 driver',
             stateOverrides: { _xeroxDriver: 'Generic / Text Only' }
@@ -205,7 +205,7 @@ var PR1Config = {
             name: 'Permissions Denied',
             ticketSubject: 'New intern cannot print to HP at Front Desk — Access Denied',
             ticketDetail: 'Tyler, our new intern, gets an "Access Denied" error every time he tries to print to the HP at the front desk. Everyone else in the office prints to it just fine, including me. Tyler said he tried from two different applications and gets the same error both times. He needs to print orientation documents today.',
-            ticketExtra: 'IT Note: Accounts team ran a quarterly permissions audit last Friday and may have modified printer ACLs on several shared devices. The audit script targets non-admin accounts.',
+            ticketExtra: 'Note from IT (no attachment — the detail is here): Accounts team ran a quarterly permissions audit last Friday and may have modified printer ACLs on several shared devices. The audit script targets non-admin accounts.',
             affectedPrinter: 0,
             fixDescription: 'Add Users group back to printer Security tab with Print permission',
             stateOverrides: { _hpPermissionsStripped: true }
@@ -215,7 +215,7 @@ var PR1Config = {
             name: 'Stuck Queue',
             ticketSubject: 'Xerox queue shows 317 pages queued — nothing is printing',
             ticketDetail: 'The Xerox in the bullpen has 317 pages in the queue and nothing is printing. The queue has been like this for over an hour. Some jobs show "Error" status. Other people keep adding print jobs and now it is completely backed up. Can you please clear this out? The whole office is waiting.',
-            ticketExtra: 'IT Note: Print server logs show 15 jobs entered an Error state starting at 9:23 AM. These appear to be blocking all subsequent jobs. Spooler is running but overwhelmed.',
+            ticketExtra: 'Note from IT (no attachment — the detail is here): Print server logs show 15 jobs entered an Error state starting at 9:23 AM. These appear to be blocking all subsequent jobs. Spooler is running but overwhelmed.',
             affectedPrinter: 1,
             fixDescription: 'Cancel all stuck jobs from queue; optionally restart spooler for clean state',
             stateOverrides: { _xeroxQueueStuck: true }
