@@ -27,6 +27,7 @@ const argv=process.argv.slice(2);
 const BOX=argv[0], WT=argv[1];
 const bi=argv.indexOf('--base'); const BASE=bi>-1?argv[bi+1]:'https://hexworth.com';
 const si=argv.indexOf('--scenario'); const ONLY=si>-1?parseInt(argv[si+1],10):null;
+const BARE=argv.includes('--bare');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 function scenarios(md){
@@ -38,7 +39,21 @@ function scenarios(md){
     for(const blk of parts[i+2].match(/```[a-zA-Z]*\n[\s\S]*?```/g)||[]){
       for(const line of blk.replace(/```[a-zA-Z]*\n?/g,'').split('\n')){
         const m=line.match(/^\s*(?:C:\\[^>]*>|PS\s+[A-Za-z]:\\[^>]*>)\s?(.*)$/);
-        if(m && m[1].trim()) cmds.push(m[1].trim());
+        if(m && m[1].trim()){ cmds.push(m[1].trim()); continue; }
+        /* --bare: some walkthroughs print the command WITHOUT a prompt, e.g.
+         *     ```
+         *     sfc /scannow
+         *     ```
+         * A student types those too, so a harness that only lifts prompted lines
+         * reports "no commands" for the whole box and measures nothing. Excluded here:
+         * shell comments, and GUI navigation written with " > " (Device Manager >
+         * Sound, video and game controllers), which is a click path, not a command. */
+        if(BARE){
+          const t=line.trim();
+          if(!t || t.startsWith('#') || t.includes(' > ')) continue;
+          if(!/^[A-Za-z][\w.\-]*(\s|$)/.test(t)) continue;
+          cmds.push(t);
+        }
       }
     }
     out.push({n:parts[i], title:parts[i+1].trim(), cmds});

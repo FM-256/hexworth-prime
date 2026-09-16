@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-14 17:35 · **1272 scripts** · 47 wired into a gate · 298 called by other code · 195 only mentioned in docs · 732 referenced by nothing · 520 not in git
+**Generated:** 2026-09-16 19:11 · **1282 scripts** · 47 wired into a gate · 299 called by other code · 197 only mentioned in docs · 739 referenced by nothing · 529 not in git
 
 ## Read this before writing a new script
 
@@ -394,7 +394,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-flag-shell-safety.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-flag-value-duplicates.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-gate-exclusivity-lint.js` | CALLED | 1 | 2026-05-23 | yes |  |
-| `box-hint-help-level-lint.js` | CALLED | 1 | 2026-05-23 | yes |  |
+| `box-hint-help-level-lint.js` | CALLED | 2 | 2026-05-23 | yes |  |
 | `box-html-bootstrap-audit.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-localstorage-flag-bypass.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `box-recoverable-action-audit.js` | CALLED | 1 | 2026-05-23 | yes |  |
@@ -403,7 +403,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-state-reset-audit.js` | CALLED | 3 | 2026-05-23 | yes |  |
 | `box-state-reset-backfill.js` | CALLED | 2 | 2026-05-23 | yes |  |
 | `box-storage-key-uniqueness.js` | CALLED | 2 | 2026-05-23 | yes |  |
-| `box-walkthrough-audit.js` | CALLED | 4 | 2026-06-21 | yes |  |
+| `box-walkthrough-audit.js` | CALLED | 5 | 2026-06-21 | yes |  |
 | `box-walkthrough-flag-audit.js` | CALLED | 1 | 2026-06-21 | yes |  |
 | `box-walkthrough-flag-drift.js` | CALLED | 1 | 2026-05-23 | yes |  |
 | `bug048-classify.js` | CALLED | 1 | 2026-07-29 | yes |  |
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 72 scripts, 58 referenced by nothing
+### `_tools/hexos` — 82 scripts, 65 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -781,6 +781,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_box_gui_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_box_probe_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_double_free_probe.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_chris_extended_probe_tmp.js` | CALLED | 1 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -788,17 +789,24 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
 | `_hint378_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_hintlabel_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_lint_head_baseline_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | Gate. Checks every BoxEngine box against the contracts a student can see |
 | `_negctl2_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `_negctl3_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `_negctl_replay_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
+| `_os002_cd_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_os002_gui_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_allflags_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_cols_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_complete_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_final_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_hint_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_leak_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_prod_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_prodverify_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_real_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_s15_props_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_s2_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_pr001_svcbtn_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_user_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr002_user_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_probe_ad003_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
@@ -834,7 +842,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `box-flag-auth-gate.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves the task-377 flag fix cannot recreate the task-372 defect: loading a |
 | `box-reset-button.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Proves the taskbar Reset button still performs its PRODUCT function -- |
 | `box-resetlab-icon.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Drives the "Reset Lab" DESKTOP ICON in every box that calls |
-| `box-shell-consistency.test.js` | CALLED | 1 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
+| `box-shell-consistency.test.js` | CALLED | 2 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
 | `dispatch-walkthrough-replay.test.js` | CALLED | 3 | 2026-09-14 | yes | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
@@ -847,8 +855,10 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-filesystem-commands.test.js` | CALLED | 2 | 2026-09-09 | yes | Drives NT1's Windows shell commands (dir/cd/type/find/cls) and the |
 | `nt1-full-qc.test.js` | CALLED | 1 | 2026-09-12 | yes | Full QC sweep of the NT1 box in a real browser: every command the |
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
+| `os002-completability.test.js` | DOCS-ONLY | 0 | 2026-09-16 | no | Plays every os002 scenario the way a student does — opens the ticket, |
+| `unknown-command-dialect.test.js` | DOCS-ONLY | 0 | 2026-09-16 | no | Types a command NO box implements into EVERY box that declares a |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
-| `walkthrough-verbatim.test.js` | ORPHAN | 0 | 2026-09-14 | no | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
+| `walkthrough-verbatim.test.js` | CALLED | 1 | 2026-09-16 | yes | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
 
 ### `_tools/hexos-live` — 2 scripts, 0 referenced by nothing
 
@@ -1974,7 +1984,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-77 scripts are referenced by nothing AND follow the leading-underscore
+85 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1987,23 +1997,31 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_box_gui_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_box_probe_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_chris_adv_review_verify_tmp.test.js` · last modified 2026-08-31
+- `_tools/hexos/_chris_double_free_probe.js` · last modified 2026-09-16
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
 - `_tools/hexos/_flagdiag_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
 - `_tools/hexos/_hint378_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_hintlabel_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_lint_head_baseline_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_negctl2_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_negctl3_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_negctl_replay_tmp.js` · last modified 2026-09-13
+- `_tools/hexos/_os002_cd_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_os002_gui_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_pr001_allflags_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_cols_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_pr001_complete_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_pr001_final_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_hint_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_leak_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_prod_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_prodverify_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_pr001_real_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_s15_props_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_s2_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_pr001_svcbtn_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_user_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr002_user_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_probe_ad003_tmp.js` · last modified 2026-09-13
@@ -2033,13 +2051,5 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_probe_resetlab_tmp.js` · last modified 2026-09-12
 - `_tools/hexos/_probe_resetlab_tmp2.js` · last modified 2026-09-12
 - `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
-- `_tools/qa/_chris_ablation_tmp2.js` · last modified 2026-08-14
-- `_tools/qa/_chris_ablation_tmp5.js` · last modified 2026-08-14
-- `_tools/qa/_chris_ablation_tmp5b.js` · last modified 2026-08-14
-- `_tools/qa/_chris_r5_old_harness_tmp.js` · last modified 2026-08-14
-- `_tools/qa/cold-horizon/_chris_nec1_probe_tmp.js` · last modified 2026-08-10
-- `_tools/sandbox-missions/cat-lost-notes/_envcheck.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/cat-lost-notes/_test-checks.sh` · last modified 2026-07-09
-- `_tools/sandbox-missions/cat-lost-notes/_test-solution.sh` · last modified 2026-07-09
-- _...and 17 more_
+- _...and 25 more_
 

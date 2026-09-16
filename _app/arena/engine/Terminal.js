@@ -330,7 +330,7 @@ class TerminalInstance {
             case 'exit': this.engine.closeWindow('terminal'); break;
             case 'reset': this._cmdReset(); break;
             default:
-                this._appendError(`${cmd}: command not found`);
+                this._appendError(this._unknownCommandText(cmd));
         }
 
         this._scrollToBottom();
@@ -494,7 +494,7 @@ class TerminalInstance {
         }
 
         // Unknown command in a pipeline — error out
-        this._appendError(`${cmd}: command not found`);
+        this._appendError(this._unknownCommandText(cmd));
         return null;
     }
 
@@ -822,6 +822,37 @@ class TerminalInstance {
      * destructive path is reachable only where it always should have been: the Reset Lab
      * control, which confirms. Windows-family boxes refuse it like any unknown command.
      */
+    /** The message a shell gives for a command it does not have.
+     *
+     * Terminal.js is a POSIX shell wearing whatever prompt the box declares. Both
+     * unknown-command sites used to print bash's `<cmd>: command not found` regardless, so a
+     * student in a box prompting `C:\\Users\\Technician>` who typed `sfc /scannow` — which
+     * os002's OWN help-desk ticket instructs them to type — was answered in the wrong
+     * operating system. Measured on production 2026-09-16 across os002's 5 scenarios:
+     * 25 of 28 documented commands answered in bash.
+     *
+     * _cmdReset already branched on promptStyle for exactly this reason; this generalises it
+     * to every command a box does not implement. The cisco string is the one the six cisco
+     * boxes already print (dispatch/boxes/nt009-switch-port-down/config.js:221) rather than
+     * an invented IOS error.
+     *
+     * NOTE for whoever edits these strings: box-contract-lint.js's SHELL-003 finding names
+     * the DIALECT rather than quoting the text, so it cannot go stale when these change.
+     */
+    _unknownCommandText(cmd) {
+        const style = (this.config.terminal && this.config.terminal.promptStyle) || 'linux';
+        switch (style) {
+            case 'windows':
+                return `'${cmd}' is not recognized as an internal or external command,\noperable program or batch file.`;
+            case 'powershell':
+                return `${cmd} : The term '${cmd}' is not recognized as the name of a cmdlet, function,\nscript file, or operable program. Check the spelling of the name, or if a path was\nincluded, verify that the path is correct and try again.`;
+            case 'cisco':
+                return '% Unknown command.';
+            default:
+                return `${cmd}: command not found`;
+        }
+    }
+
     _cmdReset() {
         const style = (this.config.terminal && this.config.terminal.promptStyle) || 'linux';
         if (style === 'windows') {

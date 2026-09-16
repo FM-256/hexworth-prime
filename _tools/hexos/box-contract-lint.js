@@ -536,9 +536,18 @@ for (const box of boxConfigs()) {
          * or not — lands on Terminal.js's `default:` and prints a bash error inside the box.
          * So the rule keys on whether the fallthrough target exists. */
         if (!BUILTINS.includes(name)) {
+            /* NAME THE DIALECT, DO NOT QUOTE THE STRING.
+             * This message used to read `Terminal.js prints "<name>: command not found"`.
+             * That was true while the engine printed bash's phrasing for every box; since
+             * Terminal.js._unknownCommandText branches on promptStyle, a windows box gets
+             * "'<name>' is not recognized as an internal or external command" and a cisco
+             * box gets "% Unknown command." A gate that quotes the engine's literal output
+             * goes stale the moment the engine is corrected — which is exactly what
+             * happened here — so it names the dialect instead and cannot drift again. */
+            const dialect = (cfg.terminal && cfg.terminal.promptStyle) || 'linux';
             add('HIGH', 'SHELL-003', label,
                 `\`${name}\` can return null and there is NO builtin to fall through to`,
-                `Terminal.js prints "${name}: command not found"`);
+                `Terminal.js prints its ${dialect}-dialect unknown-command error for \`${name}\``);
         }
     }
 
