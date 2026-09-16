@@ -627,35 +627,29 @@ var PR1Config = {
              * Keep the quoted forms first (harmless, and correct if the engine ever stops
              * stripping), then fall back to everything between `name=` and the ` get` that
              * follows it, which is what actually arrives. */
-            /* EMPTY FILTER, decided by the input's shape and never by the captured text.
-             * `where name= get DriverName` has nothing between `=` and the next space, so
-             * any capture from it is regex leftover by construction. Testing for that here
-             * means no alternative below ever has to ask what it captured.
+            /* ONE expression for the whole filter, because four rounds of review showed the
+             * fragility was never in "how do we detect emptiness" — it was in an unanchored
+             * `(.+)$` alternative that greedily swallowed `get DriverName` as if it were a
+             * search term. Every guard I bolted on afterwards was patching that symptom at
+             * the call site: a content test for "get", then the same test gated on which
+             * alternative fired, then a shape test on the character after `=` — which in
+             * turn rejected `Name = "Xerox"`, a perfectly ordinary spacing habit, because it
+             * could not tell "nothing here" from "a space, then something".
              *
-             * Two previous attempts tested the CAPTURE for "get" — first unconditionally,
-             * then gated on the unanchored fallback. Nancy broke both: a student searching
-             * for a printer named "Get" hits the same collision, and the gate only narrowed
-             * the trigger rather than removing it. A content test for a structural problem
-             * is a guess about intent; `=` followed by whitespace is the fact. */
-            if (/where\s+name\s*=(?:\s|$)/i.test(joined)) {
-                return '\nNode - HELPDESK01\nInvalid format. Name filter is empty.';
-            }
-
-            var nameMatch = joined.match(/where\s+name\s*=\s*"([^"]+)"/i)
-                || joined.match(/where\s+name\s*=\s*'([^']+)'/i)
-                || joined.match(/where\s+name\s*=\s*(.+?)\s+get\b/i);
-            if (!nameMatch) nameMatch = joined.match(/where\s+name\s*=\s*(.+)$/i);
+             * Capture everything after `name=` up to an optional trailing `get ...` clause
+             * and trim it. Quotes are already gone (Terminal._parseLine strips them), spaces
+             * inside the value survive, an absent value trims to empty, and `get` as a
+             * genuine printer name survives because only a SPACE-separated `get` is treated
+             * as the clause. No content test, no alternative-tracking, no separate
+             * emptiness guard. Nancy, round 4: locate the source, do not patch the symptom. */
+            /* NOTE the absence of `\s*` after the `=`. With it, the greedy whitespace ate
+             * the space in `name= get DriverName`, leaving nothing for `\s+get` to match, so
+             * the clause was captured as the printer name. Letting the capture own the
+             * leading space and trimming afterwards handles both spacing habits and the
+             * empty filter with one rule. */
+            var nameMatch = joined.match(/where\s+name\s*=(.*?)(?:\s+get\b.*)?$/i);
             if (nameMatch) {
-                var searchName = nameMatch[1].toLowerCase().trim();
-
-                /* An empty or one-character capture used to be impossible, because the
-                 * quoted-only regex above never matched anything. Loosening it to reach the
-                 * documented command made this loop live for the first time — and it had no
-                 * ambiguity handling: it overwrote `found` on every hit, so `where name=e`
-                 * matched all three printers and silently returned the LAST one. A wrong
-                 * printer's driver and port, presented as fact, is worse than the "Invalid
-                 * format" it replaced. Nancy caught it; reactivating dead code is a change,
-                 * not a no-op. Real wmic reports multiple instances, so we do too. */
+                var searchName = nameMatch[1].trim();
                 if (!searchName) return '\nNode - HELPDESK01\nInvalid format. Name filter is empty.';
                 var matches = [];
                 PR1Config._printers.forEach(function(p, i) {
