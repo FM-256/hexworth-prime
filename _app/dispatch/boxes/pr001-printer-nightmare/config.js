@@ -121,6 +121,32 @@ var PR1Config = {
     // PRINTER DATA
     // ==========================================================
 
+    /* NAMING CONSTRAINT — read before adding a printer.
+
+     * Do NOT give a printer a name containing the bare word "get".
+
+     *
+
+     * Terminal._parseLine strips quotes before the wmic handler runs, so nothing marks
+
+     * where a name ends and the `get DriverName,...` clause begins except the first
+
+     * standalone `get`. A printer named e.g. "Office Get 3000", searched with its real
+
+     * trailing clause, would silently truncate the filter to "office". Names where
+
+     * "get" is the FIRST word are fine; an interior "get" is not.
+
+     *
+
+     * Dormant against the current roster — none of the three names contains it. Fixing it
+
+     * properly means preserving a quote boundary upstream in Terminal.js, which is out of
+
+     * scope for this box. Found by Nancy on the fifth review round of that regex, after
+
+     * four earlier rounds tested "get" only as the first or only word. */
+
     _printers: [
         { name: 'HP LaserJet Pro M404', ip: null, port: 'USB001', location: 'Front Desk', type: 'USB', driver: 'HP Universal Print Driver', status: 'Ready' },
         { name: 'Xerox WorkCentre 6515', ip: '192.168.1.200', port: 'IP_192.168.1.200', location: 'Bullpen', type: 'Network', driver: 'Xerox WorkCentre 6515 PCL6', status: 'Ready' },
@@ -647,6 +673,12 @@ var PR1Config = {
              * the clause was captured as the printer name. Letting the capture own the
              * leading space and trimming afterwards handles both spacing habits and the
              * empty filter with one rule. */
+            /* RESIDUAL, ACCEPTED: the lazy capture stops at the FIRST standalone `get`, so a
+             * printer whose name contains `get` as an interior word truncates here. Not
+             * fixable at this layer — quotes are gone by now — see the naming constraint on
+             * _printers. A second `where` clause likewise bleeds into the search string; it
+             * is outside the usage this box documents and degrades to "No Instance(s)
+             * Available" rather than answering about the wrong printer. */
             var nameMatch = joined.match(/where\s+name\s*=(.*?)(?:\s+get\b.*)?$/i);
             if (nameMatch) {
                 var searchName = nameMatch[1].trim();
