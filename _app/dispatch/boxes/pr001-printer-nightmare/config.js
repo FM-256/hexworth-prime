@@ -195,7 +195,7 @@ var PR1Config = {
             name: 'IP Changed (DHCP Collision)',
             ticketSubject: 'Canon in Conference Room shows Offline — but the printer is ON',
             ticketDetail: 'The Canon printer in the conference room shows "Offline" in the print queue, but I am LITERALLY standing in front of it right now and it is powered on with no error lights. The display panel shows it is ready. I have tried sending a test page and it just queues up and nothing happens. We have a board meeting in this room at 2 PM.',
-            ticketExtra: 'IT Note: Network team reports a DHCP conflict was detected overnight on the 192.168.1.x subnet. Several devices may have received new IP assignments. The static reservation for the Canon may have been overridden.',
+            ticketExtra: 'Note from the network team (no attachment — the detail is here): a DHCP conflict was detected overnight on the 192.168.1.x subnet. Several devices may have received new IP assignments. The static reservation for the Canon may have been overridden.',
             affectedPrinter: 2,
             fixDescription: 'Ping to find new IP (.210), update printer port to 192.168.1.210',
             stateOverrides: { _canonNewIp: '192.168.1.210' }
@@ -1056,7 +1056,7 @@ var PR1Config = {
         rightHtml += '<div style="font-size:0.9rem; font-weight:bold; color:#e67e22; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:8px;">Printers — HELPDESK01</div>';
 
         // Column headers
-        rightHtml += '<div style="display:flex; font-size:0.7rem; color:#888; padding:4px 8px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06);">'
+        rightHtml += '<div style="display:flex; gap:12px; font-size:0.7rem; color:#888; padding:4px 8px; margin-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.06);">'
             + '<span style="flex:2;">Printer Name</span>'
             + '<span style="flex:1.5;">Driver</span>'
             + '<span style="flex:1;">Port</span>'
@@ -1074,7 +1074,13 @@ var PR1Config = {
                 if (scenario.id === 'stuck_queue' && i === 1 && engine.state._xeroxQueueStuck && !engine.state._queueCleared) jobCount = 15;
             }
 
-            rightHtml += '<div class="pm-printer-row" data-idx="' + i + '" style="display:flex; align-items:center; padding:8px; margin-bottom:4px; background:' + (isError ? 'rgba(231,76,60,0.06)' : 'rgba(255,255,255,0.02)') + '; border:1px solid ' + (isError ? 'rgba(231,76,60,0.25)' : 'rgba(255,255,255,0.06)') + '; border-radius:4px; cursor:pointer; transition:border-color 0.15s;">'
+            /* gap:12px — WITHOUT IT the port and job-count columns touch. Measured on production:
+             * the Canon's port span ended at x=699 and the jobs span began at x=699, so
+             * "IP_192.168.1.201" and "0" rendered as "IP_192.168.1.2010" — a plausible-looking
+             * but invalid address, in the one scenario that is ABOUT which IP the printer has.
+             * The operator hit it while testing PR-1002. The data was always right; the layout
+             * made it lie. Header row below gets the same gap so the columns stay aligned. */
+            rightHtml += '<div class="pm-printer-row" data-idx="' + i + '" style="display:flex; gap:12px; align-items:center; padding:8px; margin-bottom:4px; background:' + (isError ? 'rgba(231,76,60,0.06)' : 'rgba(255,255,255,0.02)') + '; border:1px solid ' + (isError ? 'rgba(231,76,60,0.25)' : 'rgba(255,255,255,0.06)') + '; border-radius:4px; cursor:pointer; transition:border-color 0.15s;">'
                 + '<span style="flex:2; font-weight:bold;">' + state.name + '<br><span style="font-size:0.65rem; color:#888; font-weight:normal;">' + state.location + '</span></span>'
                 + '<span style="flex:1.5; font-size:0.75rem; color:#aaa;">' + (state.driver.length > 28 ? state.driver.substring(0, 26) + '...' : state.driver) + '</span>'
                 + '<span style="flex:1; font-size:0.75rem; color:#888;">' + state.port + '</span>'
