@@ -330,7 +330,13 @@ class TerminalInstance {
             case 'exit': this.engine.closeWindow('terminal'); break;
             case 'reset': this._cmdReset(); break;
             default:
-                this._appendError(this._unknownCommandText(cmd));
+                /* parts[0], NOT cmd: `cmd` has been lowercased for dispatch. cmd.exe and
+                 * PowerShell both echo the name AS TYPED, so a student typing the
+                 * PowerShell cmdlet Enable-WindowsOptionalFeature was told
+                 * "'enable-windowsoptionalfeature' is not recognized" — a spelling that
+                 * appears nowhere in their input or in any documentation. Measured on
+                 * os003 2026-09-16. Dispatch still uses the lowercased `cmd`. */
+                this._appendError(this._unknownCommandText(parts[0]));
         }
 
         this._scrollToBottom();
@@ -493,8 +499,8 @@ class TerminalInstance {
             }
         }
 
-        // Unknown command in a pipeline — error out
-        this._appendError(this._unknownCommandText(cmd));
+        // Unknown command in a pipeline — error out. Same as above: echo what was typed.
+        this._appendError(this._unknownCommandText(parts[0]));
         return null;
     }
 

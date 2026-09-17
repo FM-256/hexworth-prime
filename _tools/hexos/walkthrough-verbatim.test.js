@@ -64,8 +64,21 @@ function isLikelyCommand(span){
 
 function inlineCommands(text, rejected){
   const out=[]; const re=/`([^`\n]{3,200})`/g; let m;
+  /* BLOCKQUOTES ARE COMMENTARY, NOT INSTRUCTIONS.
+   * By convention in these walkthroughs a "> " line explains how a command BEHAVES rather
+   * than telling the student to run it — "> Filter on `File(s)`, not `Total`. `dir /s`
+   * prints the header on its own line". Lifting those produced a replay that typed bare
+   * `dir /s` and `find "Total"` as if they were steps. Caught when my own corrected prose
+   * started generating false commands in the very harness meant to verify it. */
+  const quoted = new Set();
+  for(const line of text.split('\n')){
+    if(!/^\s*>/.test(line)) continue;
+    let q; const qre=/`([^`\n]{3,200})`/g;
+    while((q=qre.exec(line))!==null) quoted.add(q[1].trim());
+  }
   while((m=re.exec(text))!==null){
     const s=m[1].trim();
+    if(quoted.has(s)) continue;
     if(isLikelyCommand(s)) out.push(s);
     else if(rejected && s.split(/\s+/).length>1) rejected.push(s);
   }

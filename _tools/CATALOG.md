@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-16 19:11 · **1282 scripts** · 47 wired into a gate · 299 called by other code · 197 only mentioned in docs · 739 referenced by nothing · 529 not in git
+**Generated:** 2026-09-17 03:59 · **1303 scripts** · 47 wired into a gate · 300 called by other code · 195 only mentioned in docs · 761 referenced by nothing · 548 not in git
 
 ## Read this before writing a new script
 
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 82 scripts, 65 referenced by nothing
+### `_tools/hexos` — 103 scripts, 87 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -781,11 +781,30 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_box_gui_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_box_probe_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_curious2_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_curious_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_del_exploit_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_chris_dir_technician_probe_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_chris_dism_exploit_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_chris_double_free_probe.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_chris_extended_probe_tmp.js` | CALLED | 1 | 2026-09-03 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `_chris_falsify_tmp.test.js` | ORPHAN | 0 | 2026-08-30 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_honest2_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_honest_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_panel_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
 | `_chris_probe_slowlaunch_tmp.js` | ORPHAN | 0 | 2026-08-30 | no | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
+| `_chris_rebreak2_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_chris_rebreak3_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_rebreak4_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_rebreak5_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_rebreak6_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_rebreak7_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_round12_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_round12b_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_round12c_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_wmic_dir_probe_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_flagdiag_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_flagnull_control_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_freeze_selftest_337.js` | ORPHAN | 0 | 2026-09-03 | no | _one-shot probe (leading underscore)_ |
 | `_hint378_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_hintlabel_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
@@ -795,6 +814,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_negctl_replay_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `_os002_cd_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_os002_gui_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
+| `_os002_retry_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_allflags_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_cols_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_pr001_complete_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
@@ -846,7 +866,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
 | `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
 | `dispatch-walkthrough-replay.test.js` | CALLED | 3 | 2026-09-14 | yes | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
-| `flag-render-audit.js` | ORPHAN | 0 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
+| `flag-render-audit.js` | CALLED | 1 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
 | `md100-cmdlet-help.test.js` | CALLED | 1 | 2026-09-06 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
@@ -855,8 +875,9 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-filesystem-commands.test.js` | CALLED | 2 | 2026-09-09 | yes | Drives NT1's Windows shell commands (dir/cd/type/find/cls) and the |
 | `nt1-full-qc.test.js` | CALLED | 1 | 2026-09-12 | yes | Full QC sweep of the NT1 box in a real browser: every command the |
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
-| `os002-completability.test.js` | DOCS-ONLY | 0 | 2026-09-16 | no | Plays every os002 scenario the way a student does — opens the ticket, |
-| `unknown-command-dialect.test.js` | DOCS-ONLY | 0 | 2026-09-16 | no | Types a command NO box implements into EVERY box that declares a |
+| `os002-completability.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Plays every os002 scenario the way a student does — opens the ticket, |
+| `os003-completability.test.js` | ORPHAN | 0 | 2026-09-17 | no | Plays every os003 scenario as a student does and asserts each ENDS with a |
+| `unknown-command-dialect.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Types a command NO box implements into EVERY box that declares a |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 | `walkthrough-verbatim.test.js` | CALLED | 1 | 2026-09-16 | yes | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
 
@@ -1984,7 +2005,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 ## Archive candidates
 
-85 scripts are referenced by nothing AND follow the leading-underscore
+105 scripts are referenced by nothing AND follow the leading-underscore
 one-shot convention. That is a strong signal, not a verdict.
 
 **These get ARCHIVED, never deleted.** Move them out of the live tree so they stop
@@ -1997,10 +2018,29 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_box_gui_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_box_probe_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_chris_adv_review_verify_tmp.test.js` · last modified 2026-08-31
+- `_tools/hexos/_chris_curious2_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_curious_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_del_exploit_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_chris_dir_technician_probe_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_chris_dism_exploit_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_chris_double_free_probe.js` · last modified 2026-09-16
 - `_tools/hexos/_chris_falsify_tmp.test.js` · last modified 2026-08-30
+- `_tools/hexos/_chris_honest2_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_honest_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_panel_tmp.js` · last modified 2026-09-17
 - `_tools/hexos/_chris_probe_slowlaunch_tmp.js` · last modified 2026-08-30
+- `_tools/hexos/_chris_rebreak2_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_chris_rebreak3_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_rebreak4_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_rebreak5_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_rebreak6_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_rebreak7_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_round12_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_round12b_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_round12c_tmp.js` · last modified 2026-09-17
+- `_tools/hexos/_chris_wmic_dir_probe_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_flagdiag_tmp.js` · last modified 2026-09-14
+- `_tools/hexos/_flagnull_control_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_freeze_selftest_337.js` · last modified 2026-09-03
 - `_tools/hexos/_hint378_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_hintlabel_tmp.js` · last modified 2026-09-14
@@ -2010,6 +2050,7 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_negctl_replay_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_os002_cd_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_os002_gui_tmp.js` · last modified 2026-09-16
+- `_tools/hexos/_os002_retry_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_pr001_allflags_tmp.js` · last modified 2026-09-14
 - `_tools/hexos/_pr001_cols_tmp.js` · last modified 2026-09-16
 - `_tools/hexos/_pr001_complete_tmp.js` · last modified 2026-09-16
@@ -2031,25 +2072,5 @@ it — a leading underscore is a naming convention, not evidence that a script i
 - `_tools/hexos/_probe_e9_prod_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_e9_tmp.js` · last modified 2026-09-13
 - `_tools/hexos/_probe_icon_dialog_tmp.js` · last modified 2026-09-12
-- `_tools/hexos/_probe_local_ticket_tmp.js` · last modified 2026-09-12
-- `_tools/hexos/_probe_malformed_api2_tmp.js` · last modified 2026-09-04
-- `_tools/hexos/_probe_malformed_api_tmp.js` · last modified 2026-09-04
-- `_tools/hexos/_probe_nt007_tmp.js` · last modified 2026-09-14
-- `_tools/hexos/_probe_phase10_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase2_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase3_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase4_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase5_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase6_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase7_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase8_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase9_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase_preview_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase_prod_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_phase_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_prod_dialog_tmp.js` · last modified 2026-09-13
-- `_tools/hexos/_probe_resetlab_tmp.js` · last modified 2026-09-12
-- `_tools/hexos/_probe_resetlab_tmp2.js` · last modified 2026-09-12
-- `_tools/nexus/_marathon_check_item.js` · last modified 2026-04-30
-- _...and 25 more_
+- _...and 45 more_
 

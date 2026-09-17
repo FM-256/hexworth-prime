@@ -31,7 +31,13 @@ const LIMIT = li > -1 ? parseInt(argv[li + 1], 10) : 0;
 const ROOT = path.resolve(__dirname, '../..');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-const NONSENSE = 'zqxwvu';
+/* MIXED CASE ON PURPOSE. The probe used the all-lowercase 'zqxwvu', which made it blind
+ * to the bug it should have caught: Terminal.js lowercases the command for dispatch and was
+ * passing that lowercased token to _unknownCommandText, so a student typing
+ * `Enable-WindowsOptionalFeature` was answered about 'enable-windowsoptionalfeature' — a
+ * spelling that appears nowhere in their input. cmd.exe and PowerShell both echo the name as
+ * typed. A lowercase probe can never tell the two behaviours apart. */
+const NONSENSE = 'ZqXwVu';
 
 /* What each dialect must say. Derived from Terminal.js so this cannot drift from the engine
  * it is testing: if someone edits the strings, this reads the new ones. */
@@ -121,6 +127,8 @@ function boxes() {
         }
         const want = EXPECT[box.style] || EXPECT.linux;
         const first = want.split('\n')[0].trim();
+        /* The expectation is built from NONSENSE verbatim, so a box that lowercases the echo
+         * fails this comparison — which is the entire point of using a mixed-case probe. */
         if (got.includes(first)) { pass++; }
         else {
             fail++; failures.push({ box: box.name, style: box.style, got: got.replace(/\s+/g, ' ').trim().slice(0, 150) });
