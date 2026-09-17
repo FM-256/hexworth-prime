@@ -30,10 +30,79 @@ const si=argv.indexOf('--scenario'); const ONLY=si>-1?parseInt(argv[si+1],10):nu
 const BARE=argv.includes('--bare');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
+
+/* INLINE BACKTICKS ARE COMMANDS TOO.
+ * This extractor read only fenced blocks. os003's walkthrough documents
+ * `dism /online /enable-feature /featurename:NetFx3` as Step 3 of scenario 3's fix in an
+ * INLINE span, so the harness reported that scenario as having no commands and I reported a
+ * count that undercounted the documented surface. Nancy caught it. That is the SECOND silent
+ * under-report from this extractor in one session — the first was --bare not existing at
+ * all, which made os002 read as "no prompted commands" for every scenario.
+ *
+ * Most inline spans are NOT commands (file names, registry keys, paths, UI labels), so the
+ * filter is deliberately conservative and REPORTS what it rejected instead of dropping it
+ * silently. A span qualifies only if it has two or more tokens, starts with a command-shaped
+ * word, is not GUI navigation, is not an English phrase, and carries at least one argument
+ * that looks like a switch, a path or a quoted string.
+ *
+ * --self-test proves BOTH halves against a fixture, so a future change cannot reintroduce
+ * this gap a third time without the canary going red. */
+const PROSE_AT_2 = new Set(['as','the','a','to','on','in','and','or','for','with','from','of','into','your','this','that','it','is','are']);
+
+function isLikelyCommand(span){
+  const s=String(span||'').trim();
+  if(!s || s.includes(' > ')) return false;
+  if(/^[#>]/.test(s)) return false;
+  const toks=s.split(/\s+/);
+  if(toks.length<2) return false;
+  const head=toks[0];
+  if(!/^[A-Za-z][\w.\-]*$/.test(head)) return false;
+  if(/\.(dll|log|txt|md|json|xml|ini|cfg|dat)$/i.test(head)) return false;
+  if(PROSE_AT_2.has(toks[1].toLowerCase())) return false;
+  return toks.slice(1).some(t=>/^[\/-]/.test(t) || t.includes('\\') || /["']/.test(t));
+}
+
+function inlineCommands(text, rejected){
+  const out=[]; const re=/`([^`\n]{3,200})`/g; let m;
+  while((m=re.exec(text))!==null){
+    const s=m[1].trim();
+    if(isLikelyCommand(s)) out.push(s);
+    else if(rejected && s.split(/\s+/).length>1) rejected.push(s);
+  }
+  return out;
+}
+
+function selfTest(){
+  const MUST=['dism /online /enable-feature /featurename:NetFx3',
+              'del /q /s C:\\Users\\u\\AppData\\Local\\Temp\\*',
+              'reg query "HKLM\\SOFTWARE\\X" /v "Version"',
+              'vc_redist.x64.exe /install /quiet /norestart'];
+  const MUST_NOT=['vcruntime140.dll','C:\\Users\\username','Run as Administrator',
+                  'Properties > Compatibility','.NET Framework 3.5','NTUSER.DAT'];
+  let pass=0,fail=0;
+  for(const c of MUST){ if(isLikelyCommand(c)){pass++;console.log('    ok   accepts: '+c);} else {fail++;console.log('    FAIL should accept: '+c);} }
+  for(const c of MUST_NOT){ if(!isLikelyCommand(c)){pass++;console.log('    ok   rejects: '+c);} else {fail++;console.log('    FAIL should reject: '+c);} }
+  /* CANARY: a fenced-only regression passes every assertion above and is still the exact
+   * bug this exists to stop, so the fixture carries one of each and demands both. */
+  const fixture='## Scenario 1: X\n\nRun `dism /online /enable-feature /featurename:NetFx3` first.\n\n```\nnet stop wuauserv\n```\n';
+  let fenced=0;
+  for(const blk of fixture.match(/```[a-zA-Z]*\n[\s\S]*?```/g)||[]){
+    for(const line of blk.replace(/```[a-zA-Z]*\n?/g,'').split('\n')){
+      const t=line.trim(); if(t && !t.startsWith('#') && !t.includes(' > ')) fenced++;
+    }
+  }
+  const inline=inlineCommands(fixture,null).length;
+  if(fenced===1 && inline===1){pass++;console.log('    ok   CANARY: fixture yields 1 fenced + 1 inline');}
+  else {fail++;console.log(`    FAIL CANARY: fenced=${fenced} inline=${inline} — blind to one half`);}
+  console.log(`\nwalkthrough-verbatim extractor self-test: ${pass}/${pass+fail}`);
+  process.exitCode=fail?1:0;
+}
+
 function scenarios(md){
   const t=fs.readFileSync(md,'utf8');
   const parts=t.split(/^##\s*Scenario\s*(\d+):?\s*(.*)$/m);
   const out=[];
+  const rejected=[];
   for(let i=1;i<parts.length;i+=3){
     const cmds=[];
     for(const blk of parts[i+2].match(/```[a-zA-Z]*\n[\s\S]*?```/g)||[]){
@@ -56,11 +125,14 @@ function scenarios(md){
         }
       }
     }
+    if(BARE) for(const c of inlineCommands(parts[i+2], rejected)) if(!cmds.includes(c)) cmds.push(c);
     out.push({n:parts[i], title:parts[i+1].trim(), cmds});
   }
+  if(BARE && rejected.length) console.log(`[extractor] ${rejected.length} inline span(s) rejected as not-a-command: `+rejected.slice(0,6).map(r=>JSON.stringify(r)).join(', ')+(rejected.length>6?' ...':'')+'\n');
   return out;
 }
 
+if(argv.includes('--self-test')){ selfTest(); } else
 (async()=>{
  const list=scenarios(WT).filter(s=>!ONLY||s.n===String(ONLY));
  const b=await puppeteer.launch({headless:'new',args:['--no-sandbox','--disable-dev-shm-usage']});
