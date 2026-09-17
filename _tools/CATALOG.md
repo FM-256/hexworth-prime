@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-17 03:59 · **1303 scripts** · 47 wired into a gate · 300 called by other code · 195 only mentioned in docs · 761 referenced by nothing · 548 not in git
+**Generated:** 2026-09-17 18:27 · **1304 scripts** · 47 wired into a gate · 302 called by other code · 195 only mentioned in docs · 760 referenced by nothing · 547 not in git
 
 ## Read this before writing a new script
 
@@ -773,7 +773,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 103 scripts, 87 referenced by nothing
+### `_tools/hexos` — 104 scripts, 86 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -867,6 +867,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
 | `dispatch-walkthrough-replay.test.js` | CALLED | 3 | 2026-09-14 | yes | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
 | `flag-render-audit.js` | CALLED | 1 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
+| `flag-slot-fill-latency.probe.js` | CALLED | 2 | 2026-09-17 | yes | Plays one dispatch scenario twice and measures WHEN the token slot fills, |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
 | `home-directory-rules.test.js` | DOCS-ONLY | 0 | 2026-08-31 | yes | Runs the REAL firestore.rules against the Firestore emulator and proves a student can read every subcollection the Home Directory page needs, and still cannot write the server-issued ones. |
 | `md100-cmdlet-help.test.js` | CALLED | 1 | 2026-09-06 | yes | Runs every example in the MD-100 midterm sim's Get-Help pages through the sim's OWN parser and fails if any of them is rejected. Documented syntax must work. |
@@ -876,7 +877,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-full-qc.test.js` | CALLED | 1 | 2026-09-12 | yes | Full QC sweep of the NT1 box in a real browser: every command the |
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
 | `os002-completability.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Plays every os002 scenario the way a student does — opens the ticket, |
-| `os003-completability.test.js` | ORPHAN | 0 | 2026-09-17 | no | Plays every os003 scenario as a student does and asserts each ENDS with a |
+| `os003-completability.test.js` | CALLED | 1 | 2026-09-17 | yes | Plays every os003 scenario as a student does and asserts each ENDS with a |
 | `unknown-command-dialect.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Types a command NO box implements into EVERY box that declares a |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 | `walkthrough-verbatim.test.js` | CALLED | 1 | 2026-09-16 | yes | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
