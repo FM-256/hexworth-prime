@@ -39,6 +39,9 @@ const PLAN = [
 ];
 
 let pass = 0, fail = 0;
+/* Set once a delivery has landed in THIS process, so the latency budget applies only where
+ * the Cloud Function is known warm. The first scenario of a run may be paying a cold start. */
+let warmConfirmed = false;
 const ok = (n, c, d) => { if (c) { pass++; console.log(`    ok   ${n}`); } else { fail++; console.log(`    FAIL ${n}${d ? '  ' + d : ''}`); } };
 
 async function open(p, idx) {
@@ -92,13 +95,95 @@ async function term(p, cmds) {
             await term(p, sc.cmds);
             ok('terminal sequence completed the scenario', await p.evaluate(() => !!BoxEngine.state._flagRevealed));
         }
-        await sleep(1600);
-        const slot = await p.evaluate(() => { const el = document.querySelector('.os3-flag-slot'); return el ? el.textContent.trim() : null; });
-        ok('completion UI shows a token slot', !!slot && /^Token:/.test(slot), `got: ${slot}`);
-        const tok = await p.evaluate(() => { const m = document.body.innerText.match(/flag\{[^}]{3,60}\}/i); return m ? m[0] : null; });
-        if (/hexworth\.com/.test(BASE)) {
-            ok('a real token is RENDERED', !!tok && !/null|N\/A/i.test(tok), `got: ${tok}`);
-            ok("token is this scenario's own value", !!tok && tok.toLowerCase().includes(sc.id), `got: ${tok}`);
+        /* ── WHY THIS POLLS INSTEAD OF SLEEPING ────────────────────────────────────────────
+         * This was `await sleep(1600)` and one sample. On 2026-09-17, against hexworth.com,
+         * it reported `a real token is RENDERED  got: null` for scenario 1 while scenarios
+         * 2-5 passed — on a box that was working correctly. What it raced: requestFlagText
+         * establishes the anonymous session AND calls deliverFlag, and that call was behind a
+         * container cold start. Four probe plays (flag-slot-fill-latency.probe.js) delivered a
+         * real token EVERY time and never wrote N/A, so the null lived only inside the window.
+         *
+         * A gate that reports red on correct code is worse than no gate: it teaches everyone
+         * to explain the red away, and the next REAL failure gets the same shrug. */
+        const PRESENCE_CEILING_MS = 20000;   // poll deadline: "did it EVER arrive". Not an SLA.
+        const PROD = /hexworth\.com/.test(BASE);
+
+        /* ── WARM_BUDGET_MS: THE LATENCY DETECTOR, AND WHY IT SKIPS THE FIRST SCENARIO ──────
+         * Replacing the fixed sleep with a 20s ceiling would delete this test's only latency
+         * sensitivity — the old 1600ms sample was an SLA by accident. Printing a number is not
+         * a gate; nobody fails a run by reading stdout. So the budget is a real assertion.
+         *
+         * IT IS DERIVED FROM CLIENT-OBSERVED FILLS ONLY:
+         *   - scenarios 2-5 each passed the OLD sleep(1600) sample on production => warm fill
+         *     was under 1600ms, observed four independent times, measured at the DOM.
+         *   - the probe measured ~1.0s warm, twice.
+         *   4000ms is ~2.5x the largest of those. Catches a warm path that degrades 2.5x+.
+         *
+         * IT DELIBERATELY DOES NOT COVER THE FIRST SCENARIO OF A RUN. A cold end-to-end fill
+         * has NEVER been measured: the only cold number available is a platform-log gap
+         * (container boot -> serve start, ~2.2s) which EXCLUDES deliverFlag's own execution,
+         * the round trip back, and the DOM write. Budgeting the client-observed claim on that
+         * server-side proxy is measuring a proxy instead of the claim, and if real cold latency
+         * is 6-11s the budget would fail on legitimate cold starts — reproducing the very flake
+         * this change removes, under a new assertion name, on the run most likely to be cold
+         * (straight after a deploy). So scenario 1 is covered by PRESENCE_CEILING_MS alone.
+         * To close this properly: measure a true cold fill (idle the function ~15min, then one
+         * probe play) and only then decide whether a cold budget is warranted. */
+        const WARM_BUDGET_MS = 4000;
+
+        /* ONE loop, ONE deadline, slot text and token read in the SAME iteration — not two
+         * poll helpers, which would make the worst case 2x the ceiling per scenario.
+         *
+         * No separate non-prod ceiling: off hexworth.com there is no auth, so requestFlagText
+         * takes the BoxEngine.js:1487 early return, the slot resolves to N/A almost at once and
+         * the N/A exit below fires. An extra tuned constant there would be a number with no
+         * derivation behind it, which is the thing this comment block exists to avoid.
+         *
+         * Exiting on /N\/A/ is safe ONLY because os003 config.js:1033 writes "Token: N/A" as a
+         * ONE-SHOT TERMINAL state: `.then(f => el.textContent = 'Token: ' + (f || 'N/A'))`, no
+         * .catch, nothing re-rendering the slot afterwards. IF A RETRY IS EVER ADDED THERE,
+         * N/A becomes an INTERIM value and this exit reintroduces the race it fixes. */
+        const t0 = Date.now();
+        let slot = null, tok = null, elapsed = 0;
+        for (;;) {
+            slot = await p.evaluate(() => { const el = document.querySelector('.os3-flag-slot'); return el ? el.textContent.trim() : null; });
+            tok = await p.evaluate(() => { const m = document.body.innerText.match(/flag\{[^}]{3,60}\}/i); return m ? m[0] : null; });
+            elapsed = Date.now() - t0;
+            if (tok) break;                                      // delivered
+            if (slot && /N\/A/i.test(slot)) break;                // terminal failure state
+            if (elapsed >= PRESENCE_CEILING_MS) break;            // gave up; assertions go red
+            await sleep(250);
+        }
+        /* THREE outcomes, named separately. An earlier version printed "NEVER within 20000ms"
+         * for an N/A that had resolved in 3ms — the loop exited on the terminal state and never
+         * waited. Caught by the mutation run, not by reading. A log line that misstates what
+         * happened sends the next reader somewhere wrong, which is this whole change's subject. */
+        const how = tok ? `delivered in ${elapsed}ms`
+            : (slot && /N\/A/i.test(slot)) ? `resolved to N/A in ${elapsed}ms (terminal, no retry)`
+            : `NEVER resolved within the ${PRESENCE_CEILING_MS}ms ceiling`;
+        console.log(`    ·    token fill: ${how}  slot="${slot}"`);
+
+        /* Named for what it CHECKS, not for what a reader hopes it proves. It passes on a prod
+         * N/A — that is deliberate, because the alternative (pass only on a real token) makes
+         * it a duplicate of the two assertions below, and a duplicate is what gets deleted as
+         * redundant later, taking real coverage with it. Delivery correctness is owned by
+         * 'a real token is RENDERED' and nothing else. */
+        ok('completion UI slot resolved (not the loading placeholder)',
+           !!slot && /^Token:/.test(slot) && !/loading/i.test(slot), `got: ${slot}`);
+
+        if (PROD) {
+            /* Detail carries SLOT TEXT and ELAPSED, not just `got: null`. The old message could
+             * not tell "still loading" from "N/A" — opposite causes, identical output — and
+             * separating them by hand is exactly what flag-slot-fill-latency.probe.js is for. */
+            const d = `got: ${tok} slot="${slot}" elapsed=${elapsed}ms`;
+            ok('a real token is RENDERED', !!tok && !/null|N\/A/i.test(tok), d);
+            ok("token is this scenario's own value", !!tok && tok.toLowerCase().includes(sc.id), d);
+            if (warmConfirmed) {
+                ok(`token arrived within the ${WARM_BUDGET_MS}ms warm budget`, !!tok && elapsed <= WARM_BUDGET_MS, d);
+            } else {
+                console.log(`    ·    latency budget NOT asserted for the first scenario of the run — a cold end-to-end fill has never been measured (see WARM_BUDGET_MS comment)`);
+            }
+            if (tok) warmConfirmed = true;   // a delivery landed, so the instance is now warm
         } else {
             console.log(`    SKIP token value — ${BASE} is not hexworth.com, Auth is domain-scoped so delivery is null by design (slot: ${slot})`);
         }
