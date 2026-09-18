@@ -29,7 +29,12 @@ BACKHASH="sha256:$(printf '%s' "$SALT:$BACK" | sha256sum | cut -d' ' -f1)"
 [ "$BACKHASH" = "$HASH" ] || { echo "$DOMAIN: MISMATCH, what is on the box does not hash to the registered value"; exit 1; }
 
 # And the whole point: the starting account must NOT be able to read it.
-PW=$(sed -n 2p "$BASE/config/engine1-player.cred")
+# Per-team credential if one exists, else the shared one. Teams got unique passwords once it
+# became clear a published shared password plus a flat network let any student log into another
+# team's box without exploiting anything.
+TEAMSUFFIX="${DOMAIN#engine1-team-}"
+TEAMCRED="$BASE/config/team-$TEAMSUFFIX.cred"
+if [ -f "$TEAMCRED" ]; then PW=$(awk '/^player /{print $2}' "$TEAMCRED"); else PW=$(sed -n 2p "$BASE/config/engine1-player.cred"); fi
 DENIED=$(sshpass -p "$PW" ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=20 \
   player@"$IP" "powershell -NoProfile -Command \"Get-Content C:\\Hexworth\\loot\\proof.txt\"" 2>&1 | grep -ci "denied" || true)
 [ "$DENIED" -ge 1 ] || { echo "$DOMAIN: LEAK, the player account can read the flag"; exit 1; }
