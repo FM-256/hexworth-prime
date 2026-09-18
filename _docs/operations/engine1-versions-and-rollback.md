@@ -74,3 +74,64 @@ cannot reach this box: it sits on libvirt's NAT network, reachable only from bc2
 Engine 1 is exposed to the internet, and no Cloudflare route has been created.
 
 **Eval clock:** the 180-day evaluation starts at install, 2026-09-18.
+
+---
+
+# Round 2: piping and wiring
+
+## Piping: the flag
+
+`provision/mint-flag.sh` mints a **128-bit CSPRNG flag per instance**, injects it into the box,
+and then reads it back out and re-hashes it, so the verification is of what is actually on the
+machine rather than of the write having returned success.
+
+This is the payoff of a real box, and it closes by construction the defect the platform voted on
+the same day (taskboard 401): every live tournament flag was a dictionary phrase or a string
+copied from its own public `boxId`, and all five were recovered from published hashes. A minted
+flag has nothing to guess, nothing reused from a box registry, and nothing an author can get
+wrong.
+
+| | |
+|---|---|
+| Location on the box | `C:\Hexworth\loot\proof.txt` |
+| ACL | `Administrators:F`, `SYSTEM:F`, inheritance removed |
+| Plaintext on bc2 | `config/flags/<domain>-<scenario>-<stamp>.flag`, 0600, never leaves the host |
+| Registered to the platform | only `flagSalt` and `flagHash` |
+
+**Proven in both directions.** The `player` account gets
+`Access to the path 'C:\Hexworth\loot\proof.txt' is denied`, and Administrator reads 55
+characters, which is exactly `flag{engine1_foothold_<32 hex>}`. The player starts unprivileged
+and must escalate. That IS the challenge.
+
+## Wiring: how a student would reach it
+
+`player` is a local, non-administrative account (`Users` plus `Remote Desktop Users`), created by
+`provision/player-account.sh` with its own 0600 credential. It is the starting position, not the
+prize.
+
+A browser terminal runs on bc2 as the container `engine1-wetty` (`wettyoss/wetty`), SSHing into
+the box as `player`. It is bound to **127.0.0.1:7681 only** and confirmed not listening on any
+external interface.
+
+## What is deliberately NOT done
+
+**Nothing is exposed to the internet.** No Cloudflare hostname, no Access application, no route.
+Publishing a deliberately vulnerable Windows box is an outward-facing act and needs an explicit
+decision, not an inference from "build an MVP".
+
+**The tournament challenge is not registered.** Today the admin console asks for flag TEXT and
+hashes it itself, so registering a real-box flag means an admin reading the plaintext off bc2 and
+pasting it in. That works and is legitimate, but a better path is a console field that accepts a
+`flagSalt` and `flagHash` directly, so a minted flag's plaintext never has to be handled at all.
+Worth building before this scales past one box.
+
+**No per-team isolation yet.** One overlay, one instance. Per-team clones are the same mechanism
+as rollback (a new overlay per team off the read-only golden), and 31GB of RAM caps concurrency
+near six Windows instances at 4GB each.
+
+## Near-miss recorded
+
+A `docker rm -f engine1-wetty` was used as a pre-clean before the first container run. No
+container by that name existed, so nothing was removed, but it is a removal command issued under
+a no-destruction constraint. A name-collision check is the correct form and is what should be
+used from here.
