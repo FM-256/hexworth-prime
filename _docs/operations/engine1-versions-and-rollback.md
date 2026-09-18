@@ -198,3 +198,72 @@ tidier, but the available API token can create apps and policies and NOT groups.
 
 **Access remains `frank-only` until a real list exists.** Guessing a domain would either lock
 every student out or expose a machine built to be broken into.
+
+---
+
+# Round 4: end to end, and what the test found
+
+The full student path is proven on a pristine clone: unprivileged login, discover the privileged
+task, exploit a writable script, escalate, log in again, read the flag, and that flag hashes to
+exactly the value `ctfSubmitFlag` would grade against.
+
+## The scenario
+
+A scheduled task, `HexMaintenance`, runs as SYSTEM every two minutes and executes
+`C:\Scripts\maintenance.ps1`. `BUILTIN\Users` holds `(OI)(CI)(M)` on that directory. The task is
+privileged; the code it runs is not protected. That is the entire vulnerability, and it is a real
+and common Windows misconfiguration rather than an invented puzzle.
+
+Intended path: list `C:\`, read the task definition and see it runs as SYSTEM, read the script,
+check the ACL, replace the script, wait one interval, log in again, read the flag.
+
+## What the end-to-end test found that nothing else would have
+
+1. **Clones had no `player` account.** The golden was frozen before the account existed, so a
+   clone refused the player SSH outright. No student could have logged in.
+2. **Clones had no flag.** Same root cause; the clone read it back as length 0 where the live
+   instance read 55.
+3. **Clones had no escalation path.** It had been installed on one instance by hand, not baked
+   into provisioning, so a fresh clone was a locked box with no key. That is the os003 defect
+   class: a challenge whose solution was never implemented.
+4. **The task was invisible to an unprivileged account.** `schtasks /query` was refused and the
+   task file was unreadable, so the intended first step could not be performed. Fixed by granting
+   `Users:(R)` on `C:\Windows\System32\Tasks\HexMaintenance`, READ only, verified to reveal the
+   path without conceding privilege: the player is still not in `S-1-5-32-544` afterwards.
+
+All four are now handled by `provision/prepare-clone.sh`, so a clone is playable in one command.
+
+## Instruments that lied, recorded so the next person does not chase them
+
+- **`Get-LocalGroupMember` silently returns a truncated list** on this image. It reported
+  Administrators as a single entry while `net localgroup` reported `error 1378, already a member`.
+  On the strength of that I twice stated the box was not completable. It was.
+- **`Get-ScheduledTask` hangs the SSH session outright**, producing empty output that reads like
+  a failed command rather than a broken cmdlet.
+- **A privilege check reused a stale logon token.** Windows applies a new group membership only
+  to new sessions, so the flag read was denied in the session that had just escalated.
+- **A clean-box check raced the task interval by seconds** and reported no escalation where a
+  forced run proved it worked.
+- **Discovery routes measured on an already-compromised box looked available** because the player
+  had been made an admin by the previous test. Re-measuring on a clean clone is what exposed it.
+
+Use `net localgroup` and `schtasks`, not the CIM-backed cmdlets, and re-test privilege changes in
+a new session.
+
+## Instance ledger after the re-clone
+
+| Instance | State | Why it still exists |
+|---|---|---|
+| `engine1-team-blue-shield` | shut off | dirty from the first solve, overlay retained at 2.13 GB |
+| `engine1-team-blue-shield-v2` | shut off | solved during testing, retained |
+| `engine1-team-blue-shield-v3` | running, clean, playable | the current instance |
+
+Nothing was deleted. Each re-clone is a new overlay off the read-only golden, which is the same
+mechanism as rollback.
+
+## Still not done
+
+The challenge is not registered in a tournament, no student-facing walkthrough exists, Access is
+still `frank-only`, and the other five teams have instances defined but not prepared. A future
+golden v3 should bake in the player account and the escalation path so clone prep is only the
+flag injection.
