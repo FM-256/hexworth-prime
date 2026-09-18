@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-17 18:27 · **1304 scripts** · 47 wired into a gate · 302 called by other code · 195 only mentioned in docs · 760 referenced by nothing · 547 not in git
+**Generated:** 2026-09-18 18:29 · **1314 scripts** · 47 wired into a gate · 306 called by other code · 200 only mentioned in docs · 761 referenced by nothing · 547 not in git
 
 ## Read this before writing a new script
 
@@ -690,6 +690,25 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `xp-audit.js` | ORPHAN | 0 | 2026-08-04 | yes |  |
 | `xref.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 
+### `_tools/engine1` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `roster-open.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Set who may reach Engine 1 (the real Windows CTF box) through Cloudflare Access. |
+
+### `_tools/engine1/provision` — 8 scripts, 3 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `build-unattend.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `clone-team.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `create-engine1.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `golden.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `inject-flag.sh` | CALLED | 1 | 2026-09-18 | yes |  |
+| `mint-flag.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `player-account.sh` | CALLED | 1 | 2026-09-18 | yes |  |
+| `prepare-clone.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+
 ### `_tools/firestore` — 2 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
@@ -773,7 +792,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 104 scripts, 86 referenced by nothing
+### `_tools/hexos` — 104 scripts, 85 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -878,7 +897,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
 | `os002-completability.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Plays every os002 scenario the way a student does — opens the ticket, |
 | `os003-completability.test.js` | CALLED | 1 | 2026-09-17 | yes | Plays every os003 scenario as a student does and asserts each ENDS with a |
-| `unknown-command-dialect.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Types a command NO box implements into EVERY box that declares a |
+| `unknown-command-dialect.test.js` | CALLED | 1 | 2026-09-16 | yes | Types a command NO box implements into EVERY box that declares a |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 | `walkthrough-verbatim.test.js` | CALLED | 1 | 2026-09-16 | yes | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
 
@@ -1280,16 +1299,17 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 20 scripts, 5 referenced by nothing
+### `_tools/rules-test` — 21 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
-| `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
+| `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
+| `ctf-flag-secrets.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Proves tournament flag crypto is unreachable by clients and that a challenge |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
-| `ctf-joincode-gate.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
-| `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
+| `ctf-joincode-gate.test.js` | CALLED | 1 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
+| `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `home-directory-subcollections.test.js` | ORPHAN | 0 | 2026-08-31 | yes | pin owner-read + no-client-write on server_awards, quiz_attempts, gates, flag_captures |
@@ -1960,11 +1980,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `ForensicsData.js` | CALLED | 5 | 2026-03-18 | no |  |
 | `ForensicsEngine.js` | CALLED | 1 | 2026-03-18 | no |  |
 
-### `_tools/taskboard` — 1 scripts, 1 referenced by nothing
+### `_tools/taskboard` — 1 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `task.js` | ORPHAN | 0 | 2026-07-23 | yes |  |
+| `task.js` | DOCS-ONLY | 0 | 2026-07-23 | yes |  |
 
 ### `_tools/tenant` — 1 scripts, 0 referenced by nothing
 
@@ -1977,11 +1997,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `badges.test.js` | CALLED | 1 | 2026-09-07 | yes | Runs functions/ctf-badges.js against the FIRESTORE emulator: participation on join, placements from the certified record, and the case that drove the whole design, a corrected result must REVOKE a champion without touching a champion legitimately earned at a different tournament. |
-| `benchmark-tournament.js` | CALLED | 1 | 2026-08-29 | yes | production benchmark: team/challenge scale, submission latency, breaking point |
+| `benchmark-tournament.js` | CALLED | 1 | 2026-09-17 | yes | production benchmark: team/challenge scale, submission latency, breaking point |
 | `broadcast-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of broadcast.html's frozen board and its three consumers |
 | `dump-record.js` | CALLED | 1 | 2026-09-07 | yes | Runs the actual finalization transaction against the Firestore emulator and dumps the resulting results/final (v1 and a corrected v2) to JSON, so the render harness drives the pages with data the real function produced, not a hand-typed fixture that could quietly disagree with the schema. |
 | `finalize.test.js` | CALLED | 2 | 2026-09-07 | yes | Runs functions/ctf-finalize.js against the FIRESTORE emulator through the four cases that matter: fresh finalize, idempotent retry, backfill of an already- ended tournament, and a versioned correction. Proves behaviour, not shape. |
-| `inspect-tournaments.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
+| `inspect-tournaments.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
 | `join-badge.integration.test.js` | ORPHAN | 0 | 2026-09-07 | yes | Invokes the REAL ctfJoinTeam callable against the Firestore emulator and asserts the participation badge is written. Covers fresh join, repeat join, and the legacy-member backfill path, which do NOT all take the same route to the award. |
 | `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
 | `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
