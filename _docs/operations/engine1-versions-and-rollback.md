@@ -135,3 +135,66 @@ A `docker rm -f engine1-wetty` was used as a pre-clean before the first containe
 container by that name existed, so nothing was removed, but it is a removal command issued under
 a no-destruction constraint. A name-collision check is the correct form and is what should be
 used from here.
+
+---
+
+# Round 3: exposure, per-team isolation, and the roster
+
+## Exposure: live behind Cloudflare Access
+
+`https://engine1.hexworth.tech` serves the browser terminal through bc2's existing tunnel.
+
+**The Access application and its policy were created BEFORE the DNS record and the ingress rule
+existed.** That ordering is the whole safety property: at no point was a deliberately vulnerable
+Windows machine reachable without authentication. Verified by request, not by assumption: an
+unauthenticated GET lands on `hexworth.cloudflareaccess.com/cdn-cgi/access/login/...` with
+`auth_status: NONE`, and the terminal is not served.
+
+| | |
+|---|---|
+| Access app | `Engine 1 CTF box terminal`, self-hosted, 8h session |
+| Policy | `frank-only`, matching the `bc2-horizon` precedent |
+| Tunnel | the existing bc2 tunnel; `config.yml` copied to `config.yml.bak-20260918T194350Z` first, `cloudflared tunnel ingress validate` returned OK before any restart |
+| Restart | scheduled detached with `systemd-run --on-active=3`, because this host's own SSH runs through the same tunnel and a direct restart kills the command issuing it |
+| After | `bc2-cf` SSH still works, cloudflared active, all three hostnames intact |
+
+## Per-team isolation
+
+Six instances, one per team on the live tournament, each a copy-on-write overlay off the
+read-only golden with its own MAC. **Total disk cost for all six: 1.2 MB.**
+
+Proven rather than assumed: `engine1-team-blue-shield` boots to its own address
+(`192.168.122.109`) separate from the shared instance (`192.168.122.165`), so it has its own disk
+state. Two instances running used 9GB of 31GB, so six at 4GB each fits with headroom.
+
+This matters because on a shared box the first team to escalate can change the flag file's ACL,
+patch the path they used, or crash the machine, and they would be doing it to everyone else's
+event. Isolation also makes rollback per team: a new overlay replaces a wrecked instance.
+
+Clones come off the GOLDEN, which has no flag, so a clone is not tournament-ready until
+`provision/inject-flag.sh` puts the minted flag on it. That script verifies by reading the value
+back off the machine and re-hashing it, and separately proves the `player` account is denied.
+Confirmed on blue-shield.
+
+**A real limitation, stated rather than hidden:** every team's box carries the SAME flag, because
+the platform stores one `flagHash` per CHALLENGE and has no per-team dimension. A real box could
+mint a different flag per team trivially, which would defeat one team simply telling another the
+answer. The data model cannot express it today.
+
+## The roster: why it is not automatic
+
+"Open it to the tournament roster" cannot be resolved by this system on its own:
+
+- the roster is Firestore team members, which are 28-character **Firebase UIDs**
+- Cloudflare Access can only authenticate an **email**; one-time PIN is the only IdP configured
+- a Firebase UID is not an Access subject, and most platform accounts are anonymous, so they have
+  no email at all
+- the live tournament's roster currently holds **one member across six teams**
+
+`_tools/engine1/roster-open.sh` makes the widening a single reviewable command that always prints
+the before and after: `--emails <file>` for a precise, individually revocable list, or
+`--domain <d>` which warns that a domain is broader than a roster. An Access GROUP would be
+tidier, but the available API token can create apps and policies and NOT groups.
+
+**Access remains `frank-only` until a real list exists.** Guessing a domain would either lock
+every student out or expose a machine built to be broken into.
