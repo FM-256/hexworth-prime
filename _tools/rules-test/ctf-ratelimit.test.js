@@ -69,6 +69,11 @@ async function seed(members, challengeCount) {
     const cid = 'c' + i, salt = crypto.randomBytes(8).toString('hex');
     await tRef.collection('challenges').doc(cid).set({
       title: 'C' + i, points: 100, currentPoints: 100, visible: true, solveCount: 0,
+    });
+    /* Flag crypto lives in flagSecrets, NOT on the challenge doc (taskboard 401). Seeding the
+     * old shape here would exercise a path ctfSubmitFlag no longer reads, so the suite would
+     * pass while proving nothing — the fixture has to move when the reader moves. */
+    await tRef.collection('flagSecrets').doc(cid).set({
       flagSalt: salt,
       flagHash: 'sha256:' + crypto.createHash('sha256').update(salt + ':' + `HEX{f${i}}`).digest('hex'),
     });

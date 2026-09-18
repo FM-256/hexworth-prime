@@ -718,6 +718,67 @@ exports.deliverFlag = onCall(cfOptions, async (request) => {
             'This box does not disclose flag values. Submit the flag you worked out instead.');
     }
 
+    /* ── A BOX BEING USED AS A TOURNAMENT CHALLENGE IS A COMPETITION BOX (taskboard 405) ────
+     * The block above only fires when an admin remembered to set `deliveryDisabled`, and the
+     * admin console's own "Import from Boxes" workflow (console.html:11596-11624) copies a
+     * box's registry flag text into a challenge and NEVER sets that field. So the console's
+     * first-class path for staffing a tournament from existing arena content produced, by
+     * default, challenges whose answers this function would hand to anyone signed in.
+     *
+     * PROVEN by Mallory 2026-09-17 in the emulator: a freshly created ANONYMOUS account called
+     * deliverFlag for a live tournament's boxId and received the plaintext flag, confirmed by an
+     * independent read of users/{uid}/flag_deliveries. Anonymous sign-in satisfies request.auth,
+     * so "signed in" is not a barrier a competitor has to clear.
+     *
+     * Enforced HERE, on the SERVER, rather than by teaching the console to set the field:
+     *   - it covers tournaments that ALREADY EXIST, which a console-side fix cannot;
+     *   - a client-side rule is a request, not a control;
+     *   - and it cannot be defeated by a stale admin tab (taskboard 404).
+     *
+     * Scoped deliberately narrowly: only boxes referenced by a challenge of a tournament that
+     * is at or past `lobby` are withheld. A box in a DRAFT tournament still discloses, because
+     * authoring is not competing and an admin building a tournament must still be able to play
+     * the box. Solo-arena teaching labs are untouched — they are not tournament challenges.
+     *
+     * Cost is one collectionGroup query per delivery. Accepted: delivery is not a hot path
+     * (once per flag per student), and the alternative is disclosing competition answers. */
+    /* TWO QUERY MECHANISMS, ONE RULE. The fast path is a COLLECTION_GROUP query, which needs the
+     * explicit index added to firestore.indexes.json for this guard — Firestore's automatic
+     * single-field indexes are collection-SCOPED, so a group-scoped query without that entry
+     * throws FAILED_PRECONDITION. This guard runs BEFORE disclosure on every call, so an
+     * unindexed query would break flag delivery for every box on the platform, solo teaching
+     * labs included. The fallback walks tournaments individually using the automatic per-
+     * collection index instead, so the rule is enforced identically even if the index has not
+     * propagated yet or the deploy order slipped.
+     * This is a fallback in MECHANISM only, never in POSTURE: both paths refuse the same boxes.
+     * A posture fallback is what made taskboard 400 permanent, and there is none here. */
+    let challengeParentIds = null;
+    try {
+        const asChallenge = await db.collectionGroup('challenges').where('boxId', '==', boxId).get();
+        challengeParentIds = [...new Set(asChallenge.docs
+            .map(d => d.ref.parent.parent)
+            .filter(Boolean)
+            .map(ref => ref.id))];
+    } catch (err) {
+        console.error(`[deliverFlag] collectionGroup(challenges) failed (${err.message}) — falling back to a per-tournament scan. Deploy firestore:indexes to restore the fast path.`);
+        const allT = await db.collection('tournaments').get();
+        challengeParentIds = [];
+        for (const t of allT.docs) {
+            const hit = await t.ref.collection('challenges').where('boxId', '==', boxId).limit(1).get();
+            if (!hit.empty) challengeParentIds.push(t.id);
+        }
+    }
+
+    if (challengeParentIds.length) {
+        const tSnaps = await Promise.all(challengeParentIds.map(id => db.doc(`tournaments/${id}`).get()));
+        const live = tSnaps.find(t => t.exists && ['lobby', 'active', 'frozen', 'ended'].includes(t.data().status));
+        if (live) {
+            console.warn(`[deliverFlag] refusing ${boxId}/${flagId}: box is a challenge of tournament ${live.id} (status ${live.data().status})`);
+            throw new HttpsError('permission-denied',
+                'This box is in use as a tournament challenge and does not disclose flag values. Submit the flag you worked out instead.');
+        }
+    }
+
     const flags = flagDoc.data().flags || {};
     const flagText = flags[flagId];
     if (!flagText) {
@@ -7480,13 +7541,48 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
         throw new HttpsError('not-found', 'Challenge not found.');
     }
 
+    /* ── THE FLAG CRYPTO IS NOT ON THE CHALLENGE DOC (taskboard 401) ──────────────────────
+     * It used to be: `flagSalt` and `flagHash` were fields on tournaments/{tid}/challenges/{id},
+     * which firestore.rules grants `allow read: if true` so the lobby and podium work pre-auth.
+     * Rules can hide a DOCUMENT but never a FIELD — the same reasoning TOURN-03 wrote down for
+     * the join code and that nobody carried across to these two fields. Measured 2026-09-17: an
+     * unauthenticated Firestore REST GET returned both fields for all 5 challenges on both live
+     * tournaments, and all 5 flags were then recovered by hashing a handful of known candidates
+     * from the box flag registry against the published salts. Publication, not transmission:
+     * no account, no app interaction, no rate limit, and nothing logged anywhere.
+     *
+     * They now live at tournaments/{tid}/flagSecrets/{chId}, denied to every client by rules.
+     * Cloud Functions use the admin SDK and bypass rules, so this read is the only reader.
+     *
+     * FAIL LOUDLY WHEN THE SECRET IS ABSENT — DO NOT FALL BACK TO THE CHALLENGE DOC.
+     * A fallback is how this defect's sibling became permanent: TOURN-03's joinCode fallback was
+     * written as temporary, its migration step was never built, and three weeks later the code
+     * still instructs operators to "re-save it in the admin console" — an action the console does
+     * not offer (taskboard 400). So there is no fallback here, in either direction.
+     * Refusing also protects the student: comparing against `undefined` would make
+     * `submittedHash === undefined` false for every input, silently marking a CORRECT flag wrong
+     * and — because an incorrect submission records `submittedFlag` — writing that correct flag
+     * into the submissions collection, which any signed-in account can read.
+     * This check is a STANDING invariant rather than a migration-time one because
+     * _app/admin/console.html is not wired to UpdateManager (taskboard 404): an arbitrarily
+     * stale admin tab can create old-shaped challenges at any point in the future, and no deploy
+     * ordering can prevent that. Loudly broken until someone backfills beats silently wrong.
+     */
+    const secretSnap = await tRef.collection('flagSecrets').doc(challengeId).get();
+    const secret = secretSnap.exists ? secretSnap.data() : null;
+    if (!secret || !secret.flagSalt || !secret.flagHash) {
+        console.error(`[ctfSubmitFlag] tournament ${tournamentId} challenge ${challengeId} has no flagSecrets entry — refusing to grade. Run the migration in the admin console Manage panel.`);
+        throw new HttpsError('failed-precondition',
+            'This challenge is not fully configured yet. Ask your instructor to re-save its flag.');
+    }
+
     // Hash the submitted flag with the challenge's salt
     const submittedHash = 'sha256:' + crypto
         .createHash('sha256')
-        .update(challenge.flagSalt + ':' + flag)
+        .update(secret.flagSalt + ':' + flag)
         .digest('hex');
 
-    const correct = submittedHash === challenge.flagHash;
+    const correct = submittedHash === secret.flagHash;
 
     /* 6. Record the submission.
      *

@@ -95,12 +95,25 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
       }
     }
 
-    // ── Challenges. A challenge with no points, or no flagHash, cannot score: it will accept
-    //    nothing or award nothing, and either way a student's work vanishes silently.
-    const noHash = [], noPoints = [], hasRawFlag = [];
+    /* ── Challenges. A challenge with no points, or no stored secret, cannot score: it will
+     *    accept nothing or award nothing, and either way a student's work vanishes silently.
+     *
+     *    THE SECRET MOVED (taskboard 401). flagHash/flagSalt used to live on this doc, which is
+     *    publicly readable, so they were published rather than protected and all 5 live flags
+     *    were recovered from them. They now live in tournaments/{id}/flagSecrets/{chId}.
+     *    Reading the old location here would report EVERY migrated challenge as unsolvable, and
+     *    a tool that cries wolf about correct data is worse than no tool.
+     *
+     *    The inverse is now a finding in its own right: crypto still sitting on the challenge
+     *    doc means this tournament has not been migrated, or something wrote the old shape
+     *    after the migration ran. */
+    const secretsSnap = await doc.ref.collection('flagSecrets').get();
+    const secretIds = new Set(secretsSnap.docs.filter(d => d.data().flagHash && d.data().flagSalt).map(d => d.id));
+    const noHash = [], noPoints = [], hasRawFlag = [], stillPublic = [];
     for (const c of challenges.docs) {
       const d = c.data();
-      if (!d.flagHash) noHash.push(c.id);
+      if (d.flagHash || d.flagSalt) stillPublic.push(c.id);
+      if (!secretIds.has(c.id)) noHash.push(c.id);
       if (typeof d.points !== 'number' || d.points <= 0) noPoints.push(`${c.id}(${d.points})`);
       // A raw flag in a world-readable doc is a giveaway, not a hash.
       if (d.flag || d.answer || d.solution) hasRawFlag.push(c.id);
@@ -108,7 +121,8 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
     if (challenges.size) {
       console.log(`     challenge fields: ${[...new Set(challenges.docs.flatMap((c) => Object.keys(c.data())))].sort().join(', ')}`);
     }
-    if (noHash.length)     { problems.push(`${doc.id}: ${noHash.length} challenge(s) have NO flagHash — unsolvable: ${noHash.slice(0, 8)}`); }
+    if (noHash.length)     { problems.push(`${doc.id}: ${noHash.length} challenge(s) have NO flagSecrets entry, so ctfSubmitFlag REFUSES them: ${noHash.slice(0, 8)}`); }
+    if (stillPublic.length) { problems.push(`${doc.id}: ${stillPublic.length} challenge(s) STILL carry flagHash/flagSalt on the world-readable doc, run the Flag Secrets Migration (taskboard 401): ${stillPublic.slice(0, 8)}`); }
     if (noPoints.length)   { problems.push(`${doc.id}: ${noPoints.length} challenge(s) have no positive points — solving them scores nothing: ${noPoints.slice(0, 8)}`); }
     if (hasRawFlag.length) { problems.push(`${doc.id}: ${hasRawFlag.length} challenge(s) carry a RAW flag field in a world-readable doc: ${hasRawFlag.slice(0, 8)}`); }
 

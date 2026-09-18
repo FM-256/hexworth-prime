@@ -97,9 +97,12 @@ async function main() {
   // ── 2. CHALLENGE CEILING ────────────────────────────────────────────────────────────────
   console.log(`  [1/4] creating ${CHALLENGES} challenges...`);
   let t0 = Date.now();
-  for (let i = 0; i < CHALLENGES; i += 400) {
+  /* 200, not 400: each challenge now costs TWO writes (the challenge doc plus its flagSecrets
+   * doc, taskboard 401) and Firestore caps a batch at 500. At 400 per chunk this silently became
+   * 800 writes and would fail the whole commit. */
+  for (let i = 0; i < CHALLENGES; i += 200) {
     const batch = db.batch();
-    for (let j = i; j < Math.min(i + 400, CHALLENGES); j++) {
+    for (let j = i; j < Math.min(i + 200, CHALLENGES); j++) {
       const cid = `bench-ch-${String(j).padStart(4, '0')}`;
       const salt = crypto.randomBytes(8).toString('hex');
       const flag = `HEX{bench_${j}}`;
@@ -107,10 +110,16 @@ async function main() {
         title: `Bench Challenge ${j}`, description: 'benchmark', category: 'bench',
         boxId: `bench-box-${j}`, order: j, points: 100, currentPoints: 100,
         visible: true, solveCount: 0, hints: [],
+      });
+      /* Flag crypto lives in flagSecrets, never on the challenge doc (taskboard 401).
+       * Seeding the old shape here would make every benchmark submission refuse, because
+       * ctfSubmitFlag deliberately does not fall back to the challenge doc. */
+      batch.set(tRef.collection('flagSecrets').doc(cid), {
         flagSalt: salt,
         flagHash: 'sha256:' + crypto.createHash('sha256').update(salt + ':' + flag).digest('hex'),
       });
       note(`tournaments/${tid}/challenges/${cid}`);
+      note(`tournaments/${tid}/flagSecrets/${cid}`);
     }
     await batch.commit();
   }

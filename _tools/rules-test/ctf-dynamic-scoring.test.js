@@ -68,6 +68,9 @@ async function seed(model, dynamicConfig, challenges, teamUids) {
     const salt = crypto.randomBytes(8).toString('hex');
     await tRef.collection('challenges').doc(c.id).set({
       title: c.id, points: c.points, currentPoints: c.points, visible: true, solveCount: 0,
+    });
+    /* Flag crypto lives in flagSecrets, NOT on the challenge doc (taskboard 401). */
+    await tRef.collection('flagSecrets').doc(c.id).set({
       flagSalt: salt,
       flagHash: 'sha256:' + crypto.createHash('sha256').update(salt + ':' + `HEX{${c.id}}`).digest('hex'),
     });

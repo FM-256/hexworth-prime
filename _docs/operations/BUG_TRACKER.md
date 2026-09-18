@@ -31,6 +31,78 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
 
 ## Open
 
+### BUG-269 — every tournament challenge published its flagHash AND flagSalt to unauthenticated readers  ·  [P1]  ·  fixed-not-deployed
+- **Found:** 2026-09-17 · by self during the A-to-Z tournament QA, then PROVEN by Mallory · taskboard 401
+- **Area:** `firestore.rules` challenges subcollection · `functions/index.js:7484-7489` · `_app/admin/console.html:11187-11188`
+- **Symptom:** anyone, with no account at all, could read the salt and hash for every challenge on
+  every tournament and attack them offline: no rate limit, no submission log, nothing detectable.
+  The platform's own documented guarantee (`TOURNAMENT_SYSTEM.md:197-201`, "No hashes are ever sent
+  to the client") was false in production, because the hash was not sent, it was published.
+- **Repro:** `curl https://firestore.googleapis.com/v1/projects/hexworth-prime/databases/(default)/documents/tournaments/{id}/challenges`
+  with no auth header. 5 challenge docs across both live tournaments returned both fields.
+- **Root cause:** Firestore rules hide a DOCUMENT, never a FIELD. The challenges subcollection is
+  `allow read: if true` so the lobby and podium work pre-auth, and two secret fields were stored on
+  it. TOURN-03 wrote this exact reasoning down for the join code in August and it was never carried
+  across to these two fields, one collection over.
+- **Proven exploitable:** Mallory recovered ALL 5 live flags by hashing a handful of known
+  candidates from `functions/box_flags.json` against the published salts, because the challenge docs
+  carry a `boxId` and the tournament flags ARE the box flag values. Not a keyspace search.
+- **Prior record:** `sprints.json` TOURN-07 (2026-08-29) already recorded the exposure and a measured
+  crack (171,806 attempts / 125ms / 1.52M hashes per core) but classified it as a flag-AUTHORING
+  problem at MEDIUM and prescribed fixing the console's example flags. That remedy was never
+  shipped. Overturned by four-way vote 2026-09-17 (option A, 4-0) on the grounds that no live flag
+  met its own stated 128-bit safety bar and that BUG-271 below makes flag entropy irrelevant.
+- **Fix:** secrets moved to `tournaments/{tid}/flagSecrets/{chId}`, one doc per challenge, admin-only
+  by rules, read by `ctfSubmitFlag` through the admin SDK. A challenge with no secret is REFUSED,
+  never graded against an absent hash. Two-phase migration in the admin console (copy, then a purge
+  that verifies or recreates the backup per challenge inside one transaction).
+- **Verified:** `_tools/rules-test/ctf-flag-secrets.test.js` 13/13 in the emulator, including that
+  an unauthenticated AND an authenticated non-admin both get 403, that the public challenge doc no
+  longer carries either field, and that a missing secret refuses rather than mis-grading.
+  NOT deployed. NOT verified on production.
+- **Related:** BUG-270, BUG-271, taskboard 400/401/404/405, sprints TOURN-07
+
+### BUG-270 — pre-TOURN-03 tournaments are permanently stuck on the published join code  ·  [P1]  ·  open
+- **Found:** 2026-09-17 · by self during the A-to-Z tournament QA · taskboard 400
+- **Area:** `functions/index.js:7860-7867` · `_app/admin/console.html:11157`
+- **Symptom:** both live tournaments, including "Special Event" which is `active` and therefore
+  joinable, carry a plaintext `joinCode` on the world-readable tournament doc. `ctfJoinTeam` falls
+  back to exactly that field, so the gate verifies against a value anyone can read unauthenticated.
+- **Repro:** unauthenticated REST read of `/documents/tournaments` returns the code. Mallory then
+  proved the join lands, in the EMULATOR against a legacy-shaped tournament, without touching
+  production: `ctfJoinTeam` returned ok and the function logged the `legacy-public` fallback path.
+- **Root cause:** the fallback is deliberate and tested (`ctf-joincode-gate.test.js:105`) so a live
+  event does not break mid-flight. The defect is that `private/config` is written ONLY at creation,
+  so there is no admin action that can migrate an existing tournament off the fallback, and
+  `functions/index.js:7863` instructs operators to "re-save it in the admin console" — a feature
+  that does not exist. `deleteField` is used for unfreeze but never for `joinCode`.
+- **Fix:** not yet written. Needs a manage-panel action that writes `private/config` and clears the
+  public field in one operation. Deliberately NOT bundled into BUG-269's migration: different
+  consumer, different target, different verification query.
+- **Verified:** n/a
+- **Related:** BUG-269, taskboard 400
+
+### BUG-271 — deliverFlag hands tournament challenge flags in plaintext to any anonymous account  ·  [P1]  ·  fixed-not-deployed
+- **Found:** 2026-09-17 · by Mallory, during the BUG-269 audit · taskboard 405
+- **Area:** `functions/index.js` deliverFlag · `_app/admin/console.html:11596-11624`
+- **Symptom:** a signed-in caller, including a freshly created ANONYMOUS account, could request the
+  plaintext flag for any box used as a tournament challenge. This bypasses the hash entirely, so
+  high-entropy flags do not mitigate it at all.
+- **Repro:** emulator, anonymous sign-up, POST deliverFlag with a live tournament's `boxId`.
+  Returned the plaintext; confirmed by an independent admin-SDK read showing
+  `users/{uid}/flag_deliveries` recorded the disclosure.
+- **Root cause:** deliverFlag only withholds when `flag_registry/{boxId}.deliveryDisabled` is set,
+  and the console's own "Import from Boxes" workflow copies a box's registry flag into a challenge
+  and never sets it. So the intended path for staffing a tournament from arena content produced
+  disclosing challenges by default.
+- **Fix:** enforced server-side: deliverFlag refuses any boxId that is a challenge of a tournament
+  at or past `lobby`. Draft tournaments still disclose, because authoring is not competing. Needs
+  the new `challenges`/`boxId` COLLECTION_GROUP index in `firestore.indexes.json`; the guard falls
+  back to a per-tournament scan if the index is absent, so the rule holds either way.
+- **Verified:** `ctf-flag-secrets.test.js` proves the refusal, that no flag text leaks in the
+  refusal body, and that a draft-only box is still served. NOT deployed.
+- **Related:** BUG-269, taskboard 405
+
 ### BUG-252 — the white-label wrapper never rewrites the product's own name  ·  [P1]  ·  open · SCOPE MEASURED, NOT CLOSED
 - **Found:** 2026-09-02 · by self · expanded four times by a reviewer, each time because I called a
   partial sweep complete

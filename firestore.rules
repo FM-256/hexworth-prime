@@ -1339,13 +1339,38 @@ service cloud.firestore {
                     && (request.resource.data.status == resource.data.status
                         || request.resource.data.status != 'ended');
 
-      // Challenges — public read for lobby/board display
-      // Flags are stored as SHA-256 hashes (flagHash field) so public read is safe.
-      // The raw flag is never stored in Firestore — only the salted hash.
-      // Cloud Functions validate submissions by hashing the attempt and comparing.
+      // Challenges — public read for lobby/board display.
+      // This comment used to read "Flags are stored as SHA-256 hashes (flagHash field) so
+      // public read is safe." That was the false premise behind taskboard 401: a salted hash
+      // published next to its own salt is only as strong as the flag's entropy, and the live
+      // flags were dictionary phrases and boxId-derived strings, so all 5 were recovered.
+      // The raw flag is still never stored in Firestore. The hash and salt are no longer here.
       match /challenges/{challengeId} {
+        /* PUBLIC ON PURPOSE — the lobby previews challenges and the podium works pre-auth.
+           NOTHING SECRET MAY LIVE ON THIS DOCUMENT. Rules hide a document, never a field:
+           `flagSalt` and `flagHash` sat here until 2026-09-17 and were therefore PUBLISHED,
+           readable by an unauthenticated REST GET, which is how all 5 live tournament flags
+           were recovered (taskboard 401). They now live in flagSecrets below. Before adding a
+           field here, ask whether an anonymous stranger may read it, because they can. */
         allow read: if true;
         allow write: if isAdmin();
+      }
+
+      /* Flag crypto: the salt and hash a submission is graded against (taskboard 401).
+         Same pattern, and the same reasoning, as private/config below: a secret cannot be a
+         field on a publicly-readable document, so it gets its own document that rules deny.
+         ONE DOC PER CHALLENGE, not a map on a single doc — chosen so that a future bug
+         reopening read access leaks one challenge rather than the whole tournament, and so a
+         partial migration is detectable by comparing counts against `challenges` instead of
+         diffing keys inside a map.
+         Admins read AND write: the console authors these at creation and the Manage panel's
+         migration needs to confirm what landed. Cloud Functions (ctfSubmitFlag) read via the
+         admin SDK and bypass these rules entirely — they are the only grader.
+         The doc id mirrors the challenge id, which leaks nothing: challenge ids are already
+         public from the collection above, and a denied read returns PERMISSION_DENIED whether
+         or not the document exists. */
+      match /flagSecrets/{challengeId} {
+        allow read, write: if isAdmin();
       }
 
       // Teams — public read (podium shows rankings), Cloud Functions manage joins/scoring

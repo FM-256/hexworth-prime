@@ -4153,6 +4153,26 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Flag secrets migration (taskboard 401). Two explicit phases, never one
+                             button: COPY is additive and safe to run any time; PURGE deletes the
+                             public copies and must only run after the functions deploy that reads
+                             the new location is live. Collapsing them into one action is what would
+                             break a live tournament mid-event. -->
+                        <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(231,76,60,0.25);">
+                            <div class="ac-card-title">Flag Secrets Migration</div>
+                            <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
+                                Older tournaments stored <code>flagHash</code> and <code>flagSalt</code> on the challenge document, which is publicly readable. Phase 1 copies them to the admin-only <code>flagSecrets</code> collection and changes nothing else. Phase 2 removes the public copies, and refuses to touch any challenge whose secret is not safely stored first.
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="migrateFlagSecrets('copy', false)">1. Copy secrets (this tournament)</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="migrateFlagSecrets('purge', false)">2. Purge public fields (this tournament)</button>
+                                <div style="border-left:1px solid rgba(255,255,255,0.1); height:28px;"></div>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="migrateFlagSecrets('copy', true)">Copy: ALL tournaments</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="migrateFlagSecrets('purge', true)">Purge: ALL tournaments</button>
+                            </div>
+                            <pre id="ctfMigrateReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:260px; overflow:auto;"></pre>
+                        </div>
                     </div>
 
                     <!-- Teams card -->
@@ -11166,6 +11186,21 @@
                     // 128 bits from the CSPRNG, unique per challenge.
                     const chSalt = Array.from(crypto.getRandomValues(new Uint8Array(16)))
                         .map(b => b.toString(16).padStart(2, '0')).join('');
+                    /* ONE salt, ONE hash computation, written VERBATIM to both destinations
+                     * (taskboard 401). Not two hashFlag() calls: two independent computations
+                     * could produce internally-valid but divergent copies with NO error at all,
+                     * and the divergence would surface only when a student's correct flag is
+                     * rejected mid-event. Compute once, write the same bytes twice. */
+                    const chHash = await hashFlag(chSalt, ch.flag);
+
+                    /* THE AUTHORITATIVE COPY: admin-only, denied to every client by rules, and
+                     * the only thing ctfSubmitFlag grades against. */
+                    await setDoc(doc(db, 'tournaments', tRef.id, 'flagSecrets', chId), {
+                        flagHash: chHash,
+                        flagSalt: chSalt,
+                        createdAt: serverTimestamp()
+                    });
+
                     await setDoc(doc(db, 'tournaments', tRef.id, 'challenges', chId), {
                         title: ch.title,
                         category: ch.category,
@@ -11174,17 +11209,31 @@
                         currentPoints: ch.points,
                         // TOURN-03: the salt is RANDOM, not derived from the join code.
                         //
-                        // It used to be `joinCode + '-' + chId`, and flagSalt is stored on the
-                        // challenge doc, which is `allow read: if true`. So every challenge
-                        // published the join code verbatim: strip the '-ch-NN' suffix and you
-                        // have it. Moving the code into a private doc would have achieved
-                        // nothing while this line stood, and gating ctfJoinTeam on a code
-                        // anyone can read is theatre.
+                        // It used to be `joinCode + '-' + chId`. So every challenge published
+                        // the join code verbatim: strip the '-ch-NN' suffix and you have it.
+                        // Moving the code into a private doc would have achieved nothing while
+                        // this line stood, and gating ctfJoinTeam on a code anyone can read is
+                        // theatre.
                         //
                         // A random salt is also simply correct: a salt exists to make identical
                         // flags hash differently, and one derived from a value shared by every
                         // challenge in the tournament did that job poorly.
-                        flagHash: await hashFlag(chSalt, ch.flag),
+                        //
+                        /* ── THESE TWO FIELDS ARE A DELIBERATE, TEMPORARY DUAL-WRITE (401) ──
+                         * The authoritative copy is flagSecrets above. These duplicates exist
+                         * ONLY to survive the deploy window: hosting ships before functions, so
+                         * for a short period the DEPLOYED ctfSubmitFlag is still the old reader
+                         * that grades against these fields. Without them, a tournament created
+                         * in that window would compare every submission against `undefined`:
+                         * never throwing, silently marking correct flags wrong, and writing the
+                         * correct flag into `submissions`, which any signed-in account can read.
+                         *
+                         * REMOVE THESE TWO LINES IN HOSTING DEPLOY B, after the functions deploy
+                         * is confirmed live and before the PURGE step. They are the only reason
+                         * a challenge doc still carries crypto material, and leaving them is
+                         * leaving the defect. Verify removal with an unauthenticated REST read
+                         * of tournaments/{id}/challenges: neither field may appear. */
+                        flagHash: chHash,
                         flagSalt: chSalt,
                         boxId: ch._boxId || null,
                         solveCount: 0,
@@ -12207,6 +12256,137 @@
         };
 
         // ── Copy Join Code ──
+
+        /* ── FLAG SECRETS MIGRATION (taskboard 401) ────────────────────────────────────────────
+         * Moves flagHash/flagSalt off the publicly readable challenge document and into the
+         * admin-only flagSecrets collection, in TWO explicit phases that must not be merged.
+         *
+         * WHY TWO PHASES. The functions deploy that reads flagSecrets lands AFTER hosting. COPY
+         * is additive: it writes the new location and leaves the public fields alone, so the
+         * currently deployed reader keeps working and a straggler instance cannot fail. Only
+         * once the new reader is confirmed live may PURGE remove the public copies. Merging them
+         * would delete the fields the running function still grades against, mid-event.
+         *
+         * WHY PURGE VERIFIES BEFORE DELETING. A blind field delete would destroy the only copy
+         * of a secret for any challenge COPY never saw, e.g. one created afterwards by a stale
+         * admin tab, which is possible indefinitely because this console has no version check
+         * (taskboard 404). The raw flag is never stored in Firestore, so that loss is
+         * unrecoverable. Each challenge is therefore handled in ONE transaction that ensures the
+         * secret exists, creating it from the public fields if absent, before removing them.
+         *
+         * WHY BACKFILLS ARE REPORTED SEPARATELY. A self-heal firing is evidence something
+         * upstream failed silently. Folding it into a success count throws that signal away, so
+         * backfilled challenges are listed apart and the run is NOT clean while any exist. */
+        window.migrateFlagSecrets = async function(phase, allTournaments) {
+            const out = document.getElementById('ctfMigrateReport');
+            const say = (line) => { out.textContent += line + '\n'; };
+            out.textContent = '';
+
+            const { doc, getDoc, getDocs, collection, setDoc, runTransaction, deleteField, serverTimestamp } = _firestoreModule;
+
+            let tournamentIds;
+            if (allTournaments) {
+                /* FULL COLLECTION SCAN, deliberately, including drafts and abandoned orphans.
+                 * Scoping this to the tournaments someone remembered would leave exactly the
+                 * documents most likely to be wrong outside every safety net. */
+                const all = await getDocs(collection(db, 'tournaments'));
+                tournamentIds = all.docs.map(d => d.id).sort();
+            } else {
+                if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+                tournamentIds = [_ctfEditingId];
+            }
+
+            say(`${phase.toUpperCase()} over ${tournamentIds.length} tournament(s)`);
+            let copied = 0, alreadyHad = 0, purged = 0, backfilled = 0, skipped = 0;
+            const backfilledIds = [], problemIds = [];
+
+            for (const tid of tournamentIds) {
+                const chSnap = await getDocs(collection(db, 'tournaments', tid, 'challenges'));
+                say(`\n${tid}: ${chSnap.docs.length} challenge(s)`);
+
+                for (const ch of chSnap.docs) {
+                    const d = ch.data();
+                    const secretRef = doc(db, 'tournaments', tid, 'flagSecrets', ch.id);
+
+                    if (phase === 'copy') {
+                        const existing = await getDoc(secretRef);
+                        if (existing.exists()) { alreadyHad++; continue; }
+                        if (!d.flagHash || !d.flagSalt) {
+                            skipped++; problemIds.push(`${tid}/${ch.id} (no secret anywhere)`);
+                            continue;
+                        }
+                        await setDoc(secretRef, {
+                            flagHash: d.flagHash, flagSalt: d.flagSalt,
+                            migratedAt: serverTimestamp(), migratedFrom: 'challenge-doc'
+                        });
+                        copied++;
+                        say(`  copied ${ch.id}`);
+                        continue;
+                    }
+
+                    // ── PURGE ──
+                    const chRef = doc(db, 'tournaments', tid, 'challenges', ch.id);
+                    try {
+                        const result = await runTransaction(db, async (tx) => {
+                            const chNow = await tx.get(chRef);
+                            if (!chNow.exists()) return 'gone';
+                            const cd = chNow.data();
+                            const sNow = await tx.get(secretRef);
+
+                            let didBackfill = false;
+                            if (!sNow.exists() || !sNow.data().flagHash || !sNow.data().flagSalt) {
+                                if (!cd.flagHash || !cd.flagSalt) {
+                                    /* No secret and nothing to back one up FROM. Refuse rather
+                                     * than delete: this challenge cannot be graded either way and
+                                     * destroying evidence of that helps nobody. */
+                                    throw new Error('NO_SECRET_AND_NO_SOURCE');
+                                }
+                                tx.set(secretRef, {
+                                    flagHash: cd.flagHash, flagSalt: cd.flagSalt,
+                                    migratedAt: serverTimestamp(), migratedFrom: 'purge-backfill'
+                                });
+                                didBackfill = true;
+                            }
+                            if (cd.flagHash === undefined && cd.flagSalt === undefined) return didBackfill ? 'backfilled' : 'clean';
+                            tx.update(chRef, { flagHash: deleteField(), flagSalt: deleteField() });
+                            return didBackfill ? 'backfilled' : 'purged';
+                        });
+
+                        if (result === 'backfilled') {
+                            backfilled++; backfilledIds.push(`${tid}/${ch.id}`);
+                            say(`  BACKFILLED then purged ${ch.id}: secret was MISSING`);
+                        } else if (result === 'purged') {
+                            purged++; say(`  purged ${ch.id}`);
+                        } else {
+                            skipped++;
+                        }
+                    } catch (e) {
+                        problemIds.push(`${tid}/${ch.id} (${e.message})`);
+                        say(`  REFUSED ${ch.id}: ${e.message}`);
+                    }
+                }
+            }
+
+            say('\n──────── SUMMARY ────────');
+            if (phase === 'copy') {
+                say(`copied: ${copied}   already had a secret: ${alreadyHad}   skipped: ${skipped}`);
+            } else {
+                say(`purged with a pre-existing secret: ${purged}`);
+                say(`purged AFTER an emergency backfill: ${backfilled}`);
+                if (backfilled) {
+                    say('\n*** NOT A CLEAN RUN ***');
+                    say('Every challenge below had NO stored secret when purge reached it, which');
+                    say('means something wrote an old-shaped challenge after the copy phase. The');
+                    say('data is safe, but find out what wrote it before calling this closed:');
+                    backfilledIds.forEach(id => say('  ' + id));
+                }
+            }
+            if (problemIds.length) {
+                say('\nREFUSED / PROBLEM:');
+                problemIds.forEach(id => say('  ' + id));
+            }
+            showToast(`${phase} finished, see the report`, backfilled || problemIds.length ? 'warning' : 'success');
+        };
 
         window.copyJoinCode = function() {
             const code = document.getElementById('ctfEditJoinCode').textContent;
