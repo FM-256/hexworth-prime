@@ -78,7 +78,14 @@ async function interact(commandName) {
     const desc = emb.description || '';
     chk('the open tournament is listed by name', /Autumn Open/.test(desc), desc.split('\n')[0] || '(empty)');
     chk('with a lobby link a student can click', /hexworth\.com\/arena\/tournament-lobby\.html\?id=discordtest1/.test(desc));
-    chk('the join code is included when the doc carries one', /AUT2026/.test(desc));
+    /* THE ASSERTION THIS REPLACES LOCKED IN THE DEFECT. It read
+     *   chk('the join code is included when the doc carries one', /AUT2026/.test(desc))
+     * so a green suite proved the handler did what it was written to do, and said nothing about
+     * whether that was safe. BUG-270 is open: both live tournaments carry a plaintext joinCode on
+     * the world-readable document, so "the doc carries one" is the LIVE case, not a legacy one. */
+    chk('a legacy PUBLIC join code is NOT read out either', !/AUT2026/.test(desc),
+        /AUT2026/.test(desc) ? 'DISCLOSED, this is the BUG-270 path' : 'withheld');
+    chk('and the student is told to ask their instructor', /ask your instructor/i.test(desc));
     chk('the badge is named, with its points', /Competitor/.test(desc) && /25/.test(desc), desc.slice(-90).replace(/\n/g, ' '));
     chk('the reply is ephemeral so the code does not persist in a channel', d.flags === 64, `flags=${d.flags}`);
 

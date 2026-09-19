@@ -9090,13 +9090,27 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
                 joinable.forEach(doc => {
                     const d = doc.data();
                     const url = `https://hexworth.com/arena/tournament-lobby.html?id=${doc.id}`;
-                    /* The code is read from the tournament doc when it is there (pre-TOURN-03
-                     * events) and otherwise reported as instructor-held: the authoritative copy
-                     * lives in private/config, which this handler deliberately does not read out,
-                     * because a bot that hands out any event's code on request is a worse gate
-                     * than a public field. */
-                    const code = d.joinCode ? `\nJoin code: \`${d.joinCode}\``
-                                            : '\nJoin code: ask your instructor';
+                    /* THIS BOT NEVER READS OUT A JOIN CODE. NOT FROM ANYWHERE.
+                     *
+                     * The first version read `d.joinCode` off the public tournament document when
+                     * it was there, on the reasoning that such events "predate TOURN-03" so the
+                     * code was already public. Chris blocked that, correctly, and the reason is in
+                     * this repo's own tracker: BUG-270 is OPEN, and it records that BOTH live
+                     * tournaments, including "Special Event" which is `active` and therefore
+                     * joinable, still carry a plaintext joinCode on that world-readable document.
+                     * So the branch was not a legacy corner case at all. Registering the command
+                     * would have handed any member of the Discord server the currently valid code
+                     * for a live event, through a friendlier channel than the raw REST read
+                     * BUG-270 already describes.
+                     *
+                     * It also inverted the principle stated three lines away for private/config:
+                     * a bot that hands out any event's code on request is a worse gate than the
+                     * public field TOURN-03 removed. That applies to a code that HAPPENS to be
+                     * public exactly as much as to one that is not; "it already leaked" is not a
+                     * reason to leak it more conveniently.
+                     *
+                     * So: one branch, no condition. The instructor holds the code. */
+                    const code = '\nJoin code: ask your instructor';
                     lines.push(`**${d.name || doc.id}** (${d.status})\n${url}${code}`);
                 });
 
