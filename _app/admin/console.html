@@ -2370,6 +2370,9 @@
         }
 
     </style>
+    <!-- QR code library (davidshimjs/qrcodejs, vendored). Same script the Kahoot host review
+         page uses; exposes a global QRCode. Loaded here so an instructor can project a join QR. -->
+    <script src="/components/qrcode.min.js"></script>
 </head>
 <body>
     <a href="#mainContent" class="skip-nav">Skip to main content</a>
@@ -4137,6 +4140,12 @@
                                     <div id="ctfEditJoinCode" style="font-family:'Courier New',monospace; font-size:1.4rem; font-weight:700; color:var(--ac-accent-bright); letter-spacing:2px;"></div>
                                 </div>
                                 <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyJoinCode()">Copy Code</button>
+                                <div style="border-left:1px solid rgba(255,255,255,0.1); height:36px;"></div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Scan to join</div>
+                                    <div id="ctfJoinQr" style="display:inline-block; padding:6px; background:#12121a; border-radius:6px; min-width:120px; min-height:120px; font-size:0.72rem; color:var(--ac-text-muted);"></div>
+                                    <div style="font-size:0.68rem; color:var(--ac-text-muted); margin-top:4px; max-width:190px;">Opens the lobby. The join code is NOT in the QR: read it out, so a photographed code does not become the gate.</div>
+                                </div>
                                 <div style="border-left:1px solid rgba(255,255,255,0.1); height:36px;"></div>
                                 <div>
                                     <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase;">Share Links</div>
@@ -11753,6 +11762,7 @@
             // Populate the Real Box Assignment pickers for this tournament. Fire and forget: a
             // failure loading them must never stop the manage view from rendering.
             if (typeof loadBoxAssignmentPickers === 'function') loadBoxAssignmentPickers().catch(() => {});
+            if (typeof renderJoinQr === 'function') renderJoinQr(id);
             ctfShowView('ctfEditView');
 
             const title = document.getElementById('ctfEditTitle');
@@ -12497,6 +12507,44 @@
                 out.textContent = lines.join('\n') || 'no teams';
             } catch (e) {
                 out.textContent = 'FAILED: ' + e.message;
+            }
+        };
+
+        /* Join QR for the lobby.
+         *
+         * WHAT IT ENCODES, AND WHAT IT DELIBERATELY DOES NOT. The lobby URL only. The join code is
+         * NOT in the QR, because TOURN-03's whole lesson was that the code is a real gate: it had
+         * gated nothing, anyone who listed the public tournaments collection could join any event,
+         * and it was made enforceable on purpose. A QR gets photographed and forwarded, so putting
+         * the code inside it would hand that gate away again in a nicer format. The instructor
+         * reads the code out; the QR saves the typing that actually hurts, which is the URL.
+         *
+         * DEGRADATION COPIED FROM THE KAHOOT HOST PAGE (pis-kahoot-host.review.html:885-910),
+         * which is the platform's existing precedent for this: guard on typeof, try/catch the
+         * render, and fall back to legible text rather than an empty box, so a failed script load
+         * still leaves the instructor something to read to the room. */
+        window.renderJoinQr = function(tournamentId) {
+            const el = document.getElementById('ctfJoinQr');
+            if (!el) return;
+            const url = window.location.origin + '/arena/tournament-lobby.html?id=' + tournamentId;
+            el.innerHTML = '';
+            if (typeof QRCode === 'undefined') {
+                console.warn('[AdminConsole] QRCode library not loaded');
+                el.textContent = 'QR unavailable. Lobby: ' + url;
+                return;
+            }
+            try {
+                new QRCode(el, {
+                    text: url,
+                    width: 120,
+                    height: 120,
+                    colorDark: '#ffffff',
+                    colorLight: '#12121a',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
+            } catch (e) {
+                console.warn('[AdminConsole] QRCode render failed:', e);
+                el.textContent = 'QR unavailable. Lobby: ' + url;
             }
         };
 

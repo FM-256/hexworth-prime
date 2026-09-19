@@ -9046,6 +9046,73 @@ exports.discordInteraction = onRequest({ region: 'us-central1' }, async (req, re
         }
 
         // /standings
+        /* /tournament: tell a student where to join and what it earns them.
+         *
+         * WHY THIS EXISTS. There was no way to invite anyone. The only path was an instructor
+         * copying the lobby link out of the admin console and reading the join code aloud, which
+         * works in a room and not at all for a remote cohort. `/join` is NOT this: it assigns the
+         * Discord Student role and posts a welcome, nothing to do with a tournament.
+         *
+         * EPHEMERAL, flags 64. The reply carries the join code, which ctfJoinTeam enforces
+         * server-side (TOURN-03), so it is a real gate and must not be posted into a channel
+         * where it outlives the asking and reaches anyone who scrolls back. Ephemeral is the
+         * remote equivalent of reading it out: the person who asked hears it, the room does not
+         * keep a copy. First use of flags 64 in this bot, hence the note.
+         *
+         * STATUS lobby OR active, matching ctfJoinTeam's own gate (it admits both), so this never
+         * advertises a tournament a student would then be refused from. `frozen` is reported as in
+         * progress without a code, because joining is closed by then.
+         *
+         * IT NAMES THE BADGE. Joining awards `tournament_competitor` ("Competitor", 25 points),
+         * written by ctfBadges.awardParticipation on join and NEVER revoked, which is exactly why
+         * it is safe to promise here: leaving the team later does not un-happen the join.
+         */
+        if (command === 'tournament') {
+            try {
+                const joinable = await db.collection('tournaments')
+                    .where('status', 'in', ['lobby', 'active'])
+                    .limit(5)
+                    .get();
+
+                if (joinable.empty) {
+                    const running = await db.collection('tournaments')
+                        .where('status', '==', 'frozen').limit(1).get();
+                    return res.json({ type: 4, data: { flags: 64, embeds: [{
+                        title: running.empty ? 'No Tournament Open' : 'Tournament In Progress',
+                        description: running.empty
+                            ? 'Nothing is open to join right now. Watch #announcements for the next event.'
+                            : 'A tournament is running but registration has closed. Use `/standings` to follow it.',
+                        color: 10038562
+                    }] } });
+                }
+
+                const lines = [];
+                joinable.forEach(doc => {
+                    const d = doc.data();
+                    const url = `https://hexworth.com/arena/tournament-lobby.html?id=${doc.id}`;
+                    /* The code is read from the tournament doc when it is there (pre-TOURN-03
+                     * events) and otherwise reported as instructor-held: the authoritative copy
+                     * lives in private/config, which this handler deliberately does not read out,
+                     * because a bot that hands out any event's code on request is a worse gate
+                     * than a public field. */
+                    const code = d.joinCode ? `\nJoin code: \`${d.joinCode}\``
+                                            : '\nJoin code: ask your instructor';
+                    lines.push(`**${d.name || doc.id}** (${d.status})\n${url}${code}`);
+                });
+
+                return res.json({ type: 4, data: { flags: 64, embeds: [{
+                    title: 'Open Tournaments',
+                    description: lines.join('\n\n') +
+                        '\n\nJoining awards the **Competitor** badge, 25 points, and it is never taken back.',
+                    color: 3066993,
+                    footer: { text: 'Only you can see this message' }
+                }] } });
+            } catch (err) {
+                console.error('[Wire] /tournament error:', err);
+                return res.json({ type: 4, data: { flags: 64, content: 'Could not look up tournaments. Try again shortly.' } });
+            }
+        }
+
         if (command === 'standings') {
             try {
                 // Find the active tournament
