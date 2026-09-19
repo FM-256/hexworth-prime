@@ -281,6 +281,17 @@ service cloud.firestore {
 
     // Flag registry — admin can read (for tournament challenge setup), no client access
     // Cloud Functions use admin SDK for validation (bypasses rules)
+    /* Who was handed a live VM credential, and when (ctfGetBoxCredential).
+       WRITE is Cloud Functions only. READ is isAdmin(), NOT `if false`: the entire purpose of
+       this collection is that a human reads it during an incident. The rateLimits block below
+       is `read: if false` because nobody legitimately needs to see a rate-limit counter; an
+       audit trail is the opposite case, and mirroring that rule out of habit would ship a log
+       reachable only through raw GCP console access rather than the admin console. */
+    match /ctf_credential_audit/{auditId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /flag_registry/{boxId} {
       allow read: if isAdmin();
       allow write: if false;
@@ -1387,6 +1398,33 @@ service cloud.firestore {
         allow create: if isAdmin();
         allow update: if isAdmin();
         allow delete: if isAdmin();
+
+        /* Per-team box assignment: which REAL machine this team plays, and the credentials for
+           it (Engine 1 and anything like it). One document per challenge, so a tournament can
+           hold more than one real box.
+
+           isAdmin(), NOT `if false`. The first draft of this rule was `if false` and that is the
+           same mistake the join code's first draft made, recorded a few lines below: it denied
+           the admin console its own write AND denied the manage view the read an instructor
+           needs to see what was assigned before an event. A rule that blocks the legitimate
+           path is half a rule.
+
+           NO STUDENT READS THIS DOCUMENT. The credential reaches a team through the
+           ctfGetBoxCredential callable, which derives the caller's team server-side from
+           members[] with the admin SDK. That is deliberate: this repo has three times had a
+           secret sitting on a document a rule regression later exposed (flagHash and flagSalt on
+           the public challenge doc, the join code before TOURN-03, users enumeration), and here
+           the blast radius is an interactive login to a real Windows VM rather than points. A
+           callable response has no afterlife for a rules typo, a console click or an export to
+           stumble into.
+
+           PATH NOTE: the first draft of this match was `/private/assignments/{challengeId}`,
+           which is collection/document/COLLECTION and therefore not a document path at all. The
+           rule would never have matched the document, and default-deny would then have blocked
+           the admin console's own write while looking perfectly reasonable in review. */
+        match /assignments/{challengeId} {
+          allow read, write: if isAdmin();
+        }
       }
 
       // Submissions — admin can read all, team members read own team's

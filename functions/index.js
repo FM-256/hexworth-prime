@@ -8164,6 +8164,114 @@ exports.ctfLeaveTeam = onCall(cfOptions, async (request) => {
  *
  * The ranking rule is the shared module, never re-implemented here — see ctf-standings-rule.js.
  */
+/* ── ctfGetBoxCredential: hand a team the machine it plays, and nothing else ────────────────
+ *
+ * Engine 1 is a REAL Windows VM, one instance per team, each behind its own hostname with its
+ * own credentials. A student needs to learn which box is theirs and how to log in. That is the
+ * seam between the platform and the machine, and this is the only thing that crosses it.
+ *
+ * WHY A CALLABLE AND NOT A READABLE DOCUMENT. The assignment holds a live interactive login to a
+ * Windows box. Three times this codebase has had a secret sitting on a document that a rule
+ * regression later exposed: flagHash and flagSalt on the publicly readable challenge doc, the
+ * join code before TOURN-03, and users enumeration. Those cost points, a join code and a
+ * listing. This would cost a stranger a shell. A callable response has no afterlife: there is no
+ * rule that can regress into leaking it, because no rule grants read on it at all. The document
+ * itself is isAdmin() only, so the console can write it and an instructor can review it.
+ *
+ * NO teamId PARAMETER, DELIBERATELY. The caller says which tournament and which challenge; the
+ * TEAM is derived here from members[] with the admin SDK, exactly as ctfSubmitFlag does. So a
+ * caller cannot ask for another team's credential by changing an argument, only by actually
+ * being on that team. That is why this needs no anti-guessing throttle the way flag submission
+ * does: nothing here is guessed.
+ *
+ * IT DOES NEED AN AUDIT TRAIL, which is a different thing. This endpoint discloses a VM password,
+ * so every success is recorded. The password is never written to a log or an error message:
+ * function logs have a wider audience than Firestore rules do.
+ */
+exports.ctfGetBoxCredential = onCall(cfOptions, async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in required.');
+    const uid = request.auth.uid;
+    const { tournamentId, challengeId } = request.data || {};
+    if (!tournamentId || !challengeId) {
+        throw new HttpsError('invalid-argument', 'tournamentId and challengeId are required.');
+    }
+    // Same slug guard as ctfJoinTeam: this function builds Firestore paths from these values.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(tournamentId) || !/^[A-Za-z0-9_-]{1,128}$/.test(challengeId)) {
+        throw new HttpsError('invalid-argument', 'Invalid tournament or challenge id.');
+    }
+
+    const tRef = db.collection('tournaments').doc(tournamentId);
+    const tSnap = await tRef.get();
+    if (!tSnap.exists) throw new HttpsError('not-found', 'Tournament not found.');
+
+    /* SAME STATUS GATE AS ctfSubmitFlag, and this is a decision rather than an omission.
+     * Handing out box credentials during `lobby` would let a team log in, solve the machine and
+     * hold the flag before the timer starts, then submit at the bell. That is an unfair advantage
+     * created by the door being open early, so the door follows the same rule as submission.
+     * After `ended` there is nothing to play for, and an instructor reviewing an assignment reads
+     * the document directly as an admin rather than through this function. */
+    const tournament = tSnap.data();
+    if (tournament.status !== 'active' && tournament.status !== 'frozen') {
+        throw new HttpsError('failed-precondition', 'This tournament is not running, so boxes are not open.');
+    }
+
+    /* Derive the team from membership, never from a parameter. Same scan ctfSubmitFlag uses.
+     * members[] is the authority: an admin-assigned player has NO rosterLocks document until
+     * they call ctfJoinTeam themselves, so keying off rosterLocks would lock exactly those
+     * players out of their own box credentials. */
+    const teamsSnap = await tRef.collection('teams').get();
+    let teamId = null;
+    teamsSnap.forEach(doc => {
+        const d = doc.data();
+        if (d.members && d.members.includes(uid)) teamId = doc.id;
+    });
+    if (!teamId) throw new HttpsError('failed-precondition', 'You are not on a team in this tournament.');
+
+    const aRef = tRef.collection('teams').doc(teamId).collection('assignments').doc(challengeId);
+    const aSnap = await aRef.get();
+
+    /* not-found is the ORDINARY case: most challenges are simulated and have no real machine.
+     * The client treats this one code as "nothing here, render as before" and treats every OTHER
+     * failure as a real error worth surfacing, so a deploy-timing outage cannot masquerade as an
+     * absent assignment. */
+    if (!aSnap.exists) throw new HttpsError('not-found', 'No box assigned for this challenge.');
+
+    const a = aSnap.data();
+
+    /* The document carries its own challengeId and it must match what was asked for. Without
+     * this, a mis-written assignment hands the RIGHT team the WRONG box's credentials, which is
+     * worse than an error because it looks like it worked. */
+    /* `!a.challengeId ||` matters as much as the inequality. The first version only caught a
+     * WRONG value, and said nothing about a MISSING one, which is the likelier accident: the doc
+     * id already encodes the challenge, so an authoring path has no forcing function to duplicate
+     * it into the body and nobody notices in a manual test. Both variants now fail loudly. */
+    if (!a.challengeId || a.challengeId !== challengeId) {
+        console.error(`[ctfGetBoxCredential] assignment mismatch: doc says ${a.challengeId}, caller asked ${challengeId}`);
+        throw new HttpsError('failed-precondition', 'This box assignment is misconfigured. Tell your instructor.');
+    }
+
+    /* A doc that EXISTS but is EMPTY is not a success. Creating the row and filling it in later
+     * is a normal authoring sequence, and during that window this would otherwise return a
+     * 200-shaped response of all nulls, which is the one shape the client contract does not
+     * cover: not-found stays silent, everything else surfaces, and an all-null success would
+     * slip between them and render a link containing the literal word null. */
+    if (!a.url && !a.username && !a.password) {
+        console.warn(`[ctfGetBoxCredential] assignment ${tournamentId}/${teamId}/${challengeId} exists but is empty`);
+        throw new HttpsError('failed-precondition', 'Your box assignment is not finished yet. Tell your instructor.');
+    }
+
+    /* Audit every disclosure. Cloud Functions only; no client rule grants read on this.
+     * BEST EFFORT, NOT GUARANTEED COMPLETE: the write is fire-and-forget so an audit hiccup can
+     * never stop a team reaching its box mid-event. So zero entries for a window is NOT proof
+     * that nobody accessed anything. */
+    db.collection('ctf_credential_audit').add({
+        uid, tournamentId, challengeId, teamId, at: FieldValue.serverTimestamp()
+    }).catch(e => console.warn('[ctfGetBoxCredential] audit write failed:', e.message));
+
+    return { url: a.url || null, username: a.username || null, password: a.password || null,
+             hostname: a.hostname || null, note: a.note || null };
+});
+
 exports.ctfEndTournament = onCall(cfOptions, async (request) => {
     // requireAdmin, not a hand-rolled claim check: it also honours the ADMIN_EMAILS allowlist for
     // admins whose custom claim has not been re-provisioned. A fourth copy of the admin test is

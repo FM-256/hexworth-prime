@@ -4173,6 +4173,31 @@
                             </div>
                             <pre id="ctfMigrateReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:260px; overflow:auto;"></pre>
                         </div>
+
+                        <!-- Real box assignment (Engine 1 and anything like it). Which MACHINE a
+                             team plays, and the credentials for it. Written to
+                             tournaments/{id}/teams/{teamId}/assignments/{challengeId}, which is
+                             isAdmin() only: no student ever reads this document. The credential
+                             reaches a team through the ctfGetBoxCredential callable instead. -->
+                        <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(46,204,113,0.25);">
+                            <div class="ac-card-title">Real Box Assignment</div>
+                            <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
+                                Point a team at a real machine for one challenge. Students never read this record: the board asks a Cloud Function, which checks team membership server side and returns the details only to that team. Leave it unset for simulated challenges.
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; margin-bottom:8px;">
+                                <select id="rbTeam" class="ac-input"><option value="">Team...</option></select>
+                                <select id="rbChallenge" class="ac-input"><option value="">Challenge...</option></select>
+                                <input id="rbUrl" class="ac-input" placeholder="https://engine1-red-cell.hexworth.tech">
+                                <input id="rbUser" class="ac-input" placeholder="player">
+                                <input id="rbPass" class="ac-input" placeholder="box password">
+                                <input id="rbNote" class="ac-input" placeholder="note shown to the team (optional)">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="saveBoxAssignment()">Save assignment</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="reviewBoxAssignments()">Review all assignments</button>
+                            </div>
+                            <pre id="rbReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:220px; overflow:auto;"></pre>
+                        </div>
                     </div>
 
                     <!-- Teams card -->
@@ -11725,6 +11750,9 @@
 
         window.openTournament = async function(id) {
             _ctfEditingId = id;
+            // Populate the Real Box Assignment pickers for this tournament. Fire and forget: a
+            // failure loading them must never stop the manage view from rendering.
+            if (typeof loadBoxAssignmentPickers === 'function') loadBoxAssignmentPickers().catch(() => {});
             ctfShowView('ctfEditView');
 
             const title = document.getElementById('ctfEditTitle');
@@ -12386,6 +12414,90 @@
                 problemIds.forEach(id => say('  ' + id));
             }
             showToast(`${phase} finished, see the report`, backfilled || problemIds.length ? 'warning' : 'success');
+        };
+
+        /* ── REAL BOX ASSIGNMENT ────────────────────────────────────────────────────────────────
+         * Writes tournaments/{id}/teams/{teamId}/assignments/{challengeId}, which rules restrict
+         * to isAdmin(). No student reads it; ctfGetBoxCredential hands the details to the right
+         * team after checking membership with the admin SDK.
+         *
+         * challengeId IS WRITTEN INTO THE BODY, not just used as the doc id, and that is not
+         * redundant. The function refuses an assignment whose stored challengeId is missing OR
+         * does not match what was asked for, because the accident being guarded against is an
+         * admin duplicating one team's record into another path and carrying stale fields with it.
+         * A doc id alone cannot catch that; a field that must agree with it can. */
+        window.loadBoxAssignmentPickers = async function() {
+            if (!_ctfEditingId) return;
+            const { collection, getDocs, query, orderBy } = _firestoreModule;
+            const teamSel = document.getElementById('rbTeam');
+            const chSel = document.getElementById('rbChallenge');
+            if (!teamSel || !chSel) return;
+            try {
+                const teams = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
+                teamSel.innerHTML = '<option value="">Team...</option>' +
+                    teams.docs.map(d => '<option value="' + d.id + '">' + escHtml(d.data().name || d.id) + '</option>').join('');
+                const chs = await getDocs(query(collection(db, 'tournaments', _ctfEditingId, 'challenges'), orderBy('order')));
+                chSel.innerHTML = '<option value="">Challenge...</option>' +
+                    chs.docs.map(d => '<option value="' + d.id + '">' + escHtml(d.data().title || d.id) + '</option>').join('');
+            } catch (e) {
+                console.warn('[console] could not load assignment pickers:', e.message);
+            }
+        };
+
+        window.saveBoxAssignment = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const teamId = document.getElementById('rbTeam').value;
+            const chId = document.getElementById('rbChallenge').value;
+            const url = document.getElementById('rbUrl').value.trim();
+            const user = document.getElementById('rbUser').value.trim();
+            const pass = document.getElementById('rbPass').value.trim();
+            const note = document.getElementById('rbNote').value.trim();
+            if (!teamId || !chId) { showToast('Pick a team and a challenge.', 'warning'); return; }
+            if (!url && !user && !pass) { showToast('An empty assignment is refused by the function, so it is refused here too.', 'warning'); return; }
+            const { doc, setDoc, serverTimestamp } = _firestoreModule;
+            try {
+                await setDoc(doc(db, 'tournaments', _ctfEditingId, 'teams', teamId, 'assignments', chId), {
+                    challengeId: chId,
+                    url: url || null,
+                    username: user || null,
+                    password: pass || null,
+                    note: note || null,
+                    assignedAt: serverTimestamp()
+                });
+                document.getElementById('rbReport').textContent =
+                    'saved: team ' + teamId + ' challenge ' + chId + '\n' + (url || '(no url)');
+                showToast('Assignment saved.', 'success');
+            } catch (e) {
+                document.getElementById('rbReport').textContent = 'FAILED: ' + e.message;
+                showToast('Could not save: ' + e.message, 'danger');
+            }
+        };
+
+        window.reviewBoxAssignments = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const { collection, getDocs } = _firestoreModule;
+            const out = document.getElementById('rbReport');
+            out.textContent = 'reading...';
+            let lines = [];
+            try {
+                const teams = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
+                for (const t of teams.docs) {
+                    const as = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams', t.id, 'assignments'));
+                    if (as.empty) { lines.push((t.data().name || t.id) + ': no assignment'); continue; }
+                    as.docs.forEach(a => {
+                        const d = a.data();
+                        const problems = [];
+                        if (!d.challengeId) problems.push('MISSING challengeId, the function will refuse this');
+                        else if (d.challengeId !== a.id) problems.push('challengeId ' + d.challengeId + ' does not match doc id ' + a.id);
+                        if (!d.url && !d.username && !d.password) problems.push('EMPTY, the function will refuse this');
+                        lines.push((t.data().name || t.id) + ' / ' + a.id + ': ' + (d.url || '(no url)') +
+                                   (problems.length ? '\n    ** ' + problems.join(' ** ') : ''));
+                    });
+                }
+                out.textContent = lines.join('\n') || 'no teams';
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+            }
         };
 
         window.copyJoinCode = function() {

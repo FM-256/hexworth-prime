@@ -819,6 +819,14 @@
             // Description
             html += '<div class="ch-modal-desc">' + escHtml(ch.description) + '</div>';
 
+            /* REAL BOX SLOT (Engine 1 and anything like it).
+             * Filled asynchronously by fetchBoxCredential below, NEVER by a field on the public
+             * challenge doc: a `realBox: true` marker there would tell any unauthenticated reader
+             * which challenges are real machines worth attacking, forever, for free.
+             * The slot renders empty and the modal is complete without it, so a challenge with no
+             * assignment, which is almost all of them, looks exactly as it does today. */
+            html += '<div id="realBoxSlot" data-ch="' + escHtml(ch.id) + '"></div>';
+
             // Launch Box button (if linked to an arena box)
             if (ch.boxId) {
                 html += '<a href="/arena/boxes/' + ch.boxId + '/index.html" target="_blank" rel="noopener" ';
@@ -862,12 +870,93 @@
             modal.innerHTML = html;
             document.getElementById('chModalOverlay').classList.add('open');
 
+            /* Fill the real-box slot AFTER the modal is on screen, never before: the modal must
+             * be complete and usable whether or not this challenge has a machine behind it, and
+             * almost none of them do. Deliberately not awaited. */
+            fetchBoxCredential(chId).then(cred => renderBoxSlot(cred, chId)).catch(() => {});
+
             // Auto-focus flag input
             setTimeout(() => {
                 const inp = document.getElementById('flagInput');
                 if (inp) inp.focus();
             }, 100);
         };
+
+        /* ── Real-box credential fetch ──────────────────────────────────────────────────────────
+         * ISOLATED ON PURPOSE. This is NOT inside loadData()'s try block. loadData fetches the
+         * tournament, the teams and the challenges in one try/catch, so an error from this one
+         * extra call would blank the board for EVERY tournament, including the 200+ challenges
+         * that are simulated and have nothing to do with a real machine.
+         *
+         * It runs only from the challenge modal, which cannot open until after the "You are not
+         * on a team" early return has fired, so a spectator never triggers a denied call.
+         *
+         * FAILURE HANDLING IS DELIBERATELY UNEVEN:
+         *   not-found              the ordinary case. Most challenges have no box. Stay silent.
+         *   unavailable / internal /
+         *   deadline-exceeded      transient, including the window right after a functions deploy
+         *                          when the callable is not yet invokable. Retry once.
+         *   anything else          surface once, do NOT retry. Retrying a permission-denied (a
+         *                          cross-team probe or a rules bug) or a failed-precondition (the
+         *                          tournament is not accepting submissions) is pointless, noisy,
+         *                          and would burn the per-uid cap on an ordinary state.
+         * Without that split a genuine outage looks identical to "there is no box here", which is
+         * the silent-failure shape this codebase keeps paying for. */
+        async function fetchBoxCredential(challengeId, attempt) {
+            attempt = attempt || 1;
+            const TRANSIENT = ['unavailable', 'internal', 'deadline-exceeded'];
+            try {
+                const call = functions.httpsCallable('ctfGetBoxCredential');
+                const res = await call({ tournamentId: tournamentId, challengeId: challengeId });
+                return (res && res.data) || null;
+            } catch (e) {
+                const code = (e && e.code ? String(e.code) : '').replace('functions/', '');
+                if (code === 'not-found') return null;
+                if (TRANSIENT.indexOf(code) > -1 && attempt === 1) {
+                    await new Promise(r => setTimeout(r, 1200));
+                    return fetchBoxCredential(challengeId, 2);
+                }
+                /* `toast`, NOT `showToast`. The first version called showToast, which exists in
+                 * admin/console.html and NOT on this page, so `typeof showToast === 'function'`
+                 * was always false and this entire branch was dead code: an outage produced a
+                 * console.warn nobody sees, which is precisely the "outage looks like no box
+                 * here" failure the uneven retry design exists to prevent. Type is 'error'
+                 * because only .success and .error are styled (lines ~477-478); 'warning' would
+                 * render unstyled. */
+                console.warn('[board] box credential unavailable:', code || e);
+                toast('Could not load your box details (' + (code || 'error') + '). Tell your instructor if this persists.', 'error');
+                return null;
+            }
+        }
+
+        /* `forChallenge` is not optional decoration. openChallenge() replaces modal.innerHTML on
+         * every call, destroying and recreating #realBoxSlot, while this fetch is unawaited and
+         * can be delayed further by the 1200ms transient retry. Open A, close, open B, and A's
+         * response then finds B's slot by id and paints A's URL and password into the modal the
+         * student is actually looking at, labelled as B. Not a cross-team leak, but the same
+         * "looks like it worked" shape guarded against server-side for the empty-doc case.
+         * The slot carries data-ch for exactly this comparison; the first version set that
+         * attribute and never read it, which is a guard that looks present and does nothing. */
+        function renderBoxSlot(cred, forChallenge) {
+            const slot = document.getElementById('realBoxSlot');
+            if (!slot || !cred || !cred.url) return;
+            if (forChallenge && slot.getAttribute('data-ch') !== String(forChallenge)) {
+                console.warn('[board] discarding a stale box credential for', forChallenge);
+                return;
+            }
+            const esc = (v) => escHtml(String(v == null ? '' : v));
+            let h = '<div style="margin-bottom:16px; padding:12px; border:1px solid var(--border); border-radius:8px; background:rgba(46,204,113,0.06);">';
+            h += '<div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.3px; color:var(--text-dim); margin-bottom:6px;">Your team machine</div>';
+            h += '<a href="' + esc(cred.url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:10px 20px; background:linear-gradient(135deg, rgba(46,204,113,0.18), rgba(52,152,219,0.18)); border:1px solid var(--border); border-radius:8px; color:var(--text-bright); text-decoration:none; font-weight:700; font-size:0.85rem;">Open your box</a>';
+            if (cred.username) {
+                h += '<div style="margin-top:10px; font-family:Consolas,monospace; font-size:0.8rem; color:var(--text);">user: ' + esc(cred.username);
+                if (cred.password) h += ' &nbsp; password: ' + esc(cred.password);
+                h += '</div>';
+            }
+            if (cred.note) h += '<div style="margin-top:6px; font-size:0.78rem; color:var(--text-dim);">' + esc(cred.note) + '</div>';
+            h += '</div>';
+            slot.innerHTML = h;
+        }
 
         window.closeModal = function() {
             document.getElementById('chModalOverlay').classList.remove('open');
