@@ -1500,6 +1500,23 @@ const BoxEngine = {
                 return data.flagText;
             }
         } catch (err) {
+            /* RECORD WHY, WITHOUT CHANGING WHAT THIS RESOLVES TO. requestFlagText/requestFlag
+             * carry a hard never-reject contract: 115 call sites across 79 files await them and
+             * NONE wrap it in try/catch, so making a refusal propagate would throw unhandled
+             * into terminal command handlers and dashboard renderers. Nancy measured that blast
+             * radius; it is why this records state instead of rethrowing, and still returns null
+             * to every caller.
+             * The reason is consulted ONLY by the rendering paths that already show a visible
+             * fallback. A `permission-denied` is the server declining ON PURPOSE -- either
+             * `deliveryDisabled`, or the box backing a live tournament challenge -- so telling
+             * the student to "reload the page to retry" is false: a reload refuses identically,
+             * forever. Every other failure (offline, no session, internal) keeps the retry
+             * wording, because for those it is true. */
+            const code = String((err && err.code) || '').replace('functions/', '');
+            if (code === 'permission-denied') {
+                if (!this._flagRefusals) this._flagRefusals = {};
+                this._flagRefusals[flagId] = err.message || 'This box does not disclose flag values.';
+            }
             console.warn('[ARENA] Flag delivery failed:', err.message);
         }
         return null;
@@ -1600,8 +1617,15 @@ const BoxEngine = {
                          * this change set out to remove: null at least admits a failure.
                          * Chris caught it on the arena copy, where two of NT1's five scenarios
                          * render through this token path. */
+                        /* A deliberate refusal is not a transient failure, so it does not get
+                         * the retry wording. Show the server's own reason, which ends "Submit
+                         * the flag you worked out instead" -- an instruction the student can
+                         * act on -- rather than a reload that will refuse identically. */
+                        var refusal = self._flagRefusals && self._flagRefusals[id];
                         self._swapFlagPlaceholder(
-                            '<span style="color:#e74c3c;">[flag unavailable — reload the page to retry]</span>', false);
+                            '<span style="color:#e74c3c;">[' + (refusal
+                                ? self._escHtml(refusal)
+                                : 'flag unavailable — reload the page to retry') + ']</span>', false);
                     }
                 }).catch(function() {
                     delete self._flagFetchPending[id];

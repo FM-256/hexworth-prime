@@ -1355,14 +1355,23 @@ service cloud.firestore {
       // public read is safe." That was the false premise behind taskboard 401: a salted hash
       // published next to its own salt is only as strong as the flag's entropy, and the live
       // flags were dictionary phrases and boxId-derived strings, so all 5 were recovered.
-      // The raw flag is still never stored in Firestore. The hash and salt are no longer here.
+      // The raw flag is still never stored in Firestore. flagSecrets below is the AUTHORITATIVE
+      // home for the hash and salt. The legacy copies on THIS document are removed by the PURGE
+      // step of the migration (_docs/operations/tournament-flag-secrets-migration.md), which by
+      // design runs AFTER the new reader is live -- so until PURGE has run for a tournament this
+      // document may still carry live crypto, and must be treated as if it does. On 2026-09-19
+      // all 5 live challenges still did. The earlier wording here ("the hash and salt are no
+      // longer here") stated a completed migration as fact while the data said otherwise, in a
+      // file that is deployed; Mallory caught it by measuring production rather than reading it.
       match /challenges/{challengeId} {
         /* PUBLIC ON PURPOSE — the lobby previews challenges and the podium works pre-auth.
            NOTHING SECRET MAY LIVE ON THIS DOCUMENT. Rules hide a document, never a field:
            `flagSalt` and `flagHash` sat here until 2026-09-17 and were therefore PUBLISHED,
            readable by an unauthenticated REST GET, which is how all 5 live tournament flags
-           were recovered (taskboard 401). They now live in flagSecrets below. Before adding a
-           field here, ask whether an anonymous stranger may read it, because they can. */
+           were recovered (taskboard 401). Before adding a
+           field here, ask whether an anonymous stranger may read it, because they can.
+           Their AUTHORITATIVE home is flagSecrets below; see the note above for why a copy may
+           still be present on this document until PURGE has run. */
         allow read: if true;
         allow write: if isAdmin();
       }
