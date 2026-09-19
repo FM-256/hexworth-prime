@@ -143,7 +143,7 @@ Run in this order. Steps 3 and 7 are admin-console clicks and cannot be scripted
 | 1 | Indexes + rules | `_tools/eduscan/smoke/deploy.sh --only firestore:indexes,firestore:rules` | `flagSecrets` admin-only; group index live | Redeploy from the previous commit. Purely additive, so there is nothing to undo. |
 | 2 | Hosting A | `./deploy.sh` | console dual-writes; migration UI present | `firebase hosting:rollback`, or redeploy the prior commit |
 | 3 | **COPY** | admin console, Manage panel, `Copy: ALL tournaments` | secrets exist; public fields still present | None needed. Additive and idempotent. |
-| 4 | Verify COPY | unauthenticated REST read + admin count against `challenges` | | |
+| 4 | Verify COPY | unauthenticated REST read + admin count against `challenges` | 0 missing, 5/5 faithful, 4 routes 403 + 200 control (2026-09-19) | Read-only; nothing to undo. |
 | 5 | Functions | `_tools/eduscan/smoke/deploy.sh --only functions` | new reader live; `deliverFlag` guard live | Redeploy functions from the prior commit. The public fields are still present at this point, which is exactly why PURGE comes later. |
 | 6 | Retest | see section 6 | | |
 | 7 | Hosting B | remove the two dual-write lines, then `./deploy.sh` | challenge docs stop gaining crypto | `firebase hosting:rollback` |
@@ -167,10 +167,18 @@ nothing.
 | Migration transaction safety, including refusal cases | Chris extracted the verbatim `migrateFlagSecrets` body and ran it against a real Firestore emulator with rules enforced | 13/13 green |
 | No regression across the tournament suite | 11 pre-existing suites | green, assertion tallies identical to the pre-change baseline |
 | Production end-to-end grading | needs a real capture, which fires the Discord webhook | NOT DONE, operator-gated |
-| Migration button wiring in a browser | nobody has clicked it | NOT DONE |
+| Migration button wiring in a browser | operator clicked `Copy: ALL tournaments` 2026-09-19, reported "copied: 5" | **DONE** |
+| COPY verified against production, not against the button's own message | `inspect-tournaments.js` (read-only): **0** challenges lack a valid `flagSecrets` entry, where valid requires BOTH fields non-empty | **DONE** |
+| Copied secrets are faithful, so the reader swap cannot change a verdict | fidelity probe: **5/5 byte-identical** to source, `mismatch=0`. Chris went further — `git log -p -S "challenge.flagSalt"` shows migration commit `0fed716c3` changed ONLY a variable name, the hash formula untouched character for character, so the verdict is identical for EVERY possible submitted flag, not just the 5 known-correct ones | **DONE** |
+| New location denied to a stranger on every client-reachable route | unauthenticated production REST: doc GET 403, listDocuments 403, scoped `:runQuery` 403, collectionGroup `:runQuery` 403, positive control (public challenge doc) 200 so the denials discriminate | **DONE** |
 
-The distinction in those last two rows is the honest one: the transaction LOGIC is proven
-against real Firestore semantics, the button WIRING is not.
+The distinction that remains honest is the LAST row only. The transaction logic is proven
+against real Firestore semantics AND the COPY button has now been clicked in production and its
+result verified independently of its own success message — "copied: 5" was checked against the
+data, not believed. What is still unproven is **production end-to-end grading**: no flag has been
+submitted to the new reader in production, because a real capture fires the Discord webhook and is
+operator-gated. Special Event had 0 submissions at the time of the functions deploy, so nothing has
+been graded under either reader.
 
 ---
 
