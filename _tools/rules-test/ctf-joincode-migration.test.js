@@ -246,7 +246,11 @@ function extractShipped(name) {
      * post-purge would have done nothing but re-publish a stale value. */
     const rotate = extractShipped('rotateJoinCode');
     chk('extracted the shipped rotate function', rotate.includes('getRandomValues') && rotate.includes('deleteField'), `${rotate.length} chars`);
-    global.confirm = () => true;
+    /* Recording shim: the WARNING text is part of the behaviour under test, not decoration. Nancy
+     * found rotate told the operator "anyone holding the old code can no longer join" even when
+     * there was no old code, which is how an intentionally-open event gets silently gated. */
+    let lastPrompt = '', confirmAnswer = true;
+    global.confirm = (msg) => { lastPrompt = msg; return confirmAnswer; };
     global._ctfEditingId = 't-legacy';
     eval(rotate);
     const beforeRotate = (await priv('t-legacy')).joinCode;
@@ -269,6 +273,40 @@ function extractShipped(name) {
     const rlPub = await pub('t-rot-legacy'), rlPriv = await priv('t-rot-legacy');
     chk('ROTATE: on a legacy tournament it removes the public field too', rlPub.joinCode === undefined, `got ${JSON.stringify(rlPub.joinCode)}`);
     chk('ROTATE: and the new code is private, not the old public one', rlPriv.joinCode !== 'HEX-OLD' && /^HEX-/.test(rlPriv.joinCode));
+    chk('ROTATE: a coded tournament is warned about the OLD code dying', /old code can no longer join/.test(lastPrompt), lastPrompt.slice(0, 70));
+
+    /* ── THE UNGATED CASE, which rotate used to decide silently ───────────────────────────
+     * Every other path here treats "no code anywhere" as needing a human decision. Rotate forced
+     * hasJoinCode:true and wrote a code regardless, so one click could gate a deliberately open
+     * event with a code nobody had been told. */
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), 'tournaments/t-rot-open'), { name: 'Rot Open', status: 'lobby' });
+    });
+    global._ctfEditingId = 't-rot-open';
+    confirmAnswer = false;                 // operator reads the warning and backs out
+    lastPrompt = '';
+    await global.rotateJoinCode();
+    chk('ROTATE: ungated event gets a DISTINCT warning, not the old-code wording',
+        /has NO join code/.test(lastPrompt) && /GATE it/.test(lastPrompt) && !/old code can no longer join/.test(lastPrompt),
+        lastPrompt.slice(0, 90));
+    const openAfterDecline = await pub('t-rot-open');
+    chk('ROTATE: declining changes NOTHING', (await priv('t-rot-open')) === null && openAfterDecline.hasJoinCode !== true);
+
+    confirmAnswer = true;                  // and it is still possible on purpose
+    await global.rotateJoinCode();
+    chk('ROTATE: accepting the warning does gate it', (await priv('t-rot-open')).joinCode && (await pub('t-rot-open')).hasJoinCode === true);
+
+    /* ── THE ORPHAN CASE: claims a code, has none, so ctfJoinTeam refuses EVERY join.
+     * Rotating is the repair, and the dialog should say so rather than talking about an old code. */
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), 'tournaments/t-rot-orphan'), { name: 'Rot Orphan', status: 'lobby', hasJoinCode: true });
+    });
+    global._ctfEditingId = 't-rot-orphan';
+    lastPrompt = '';
+    await global.rotateJoinCode();
+    chk('ROTATE: orphan is described as BROKEN and repaired, not as a rotation',
+        /NOBODY can/.test(lastPrompt) && /repair it/.test(lastPrompt), lastPrompt.slice(0, 90));
+    chk('ROTATE: the orphan now actually has a code', !!(await priv('t-rot-orphan')).joinCode);
 
     await testEnv.cleanup();
     console.log(`\n  ${pass} passed, ${fail} failed\n`);

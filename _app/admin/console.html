@@ -12353,13 +12353,54 @@
             const suffix = Array.from(bytes).map(n => ALPHABET[n % ALPHABET.length]).join('');
             const next = 'HEX-' + suffix;
 
-            if (!confirm('Rotate this tournament\'s join code to ' + next + '?\n\n'
-                + 'Anyone holding the old code can no longer join. Teams already joined are NOT affected.\n'
-                + 'The new code is stored where students cannot read it, and the public copy is removed.')) return;
-
-            const { doc, runTransaction, deleteField, serverTimestamp } = _firestoreModule;
+            const { doc, getDoc, runTransaction, deleteField, serverTimestamp } = _firestoreModule;
             const tRef = doc(db, 'tournaments', _ctfEditingId);
             const privRef = doc(db, 'tournaments', _ctfEditingId, 'private', 'config');
+
+            /* WHAT STATE IS THIS TOURNAMENT IN? Nancy's second pass: rotate unconditionally forced
+             * `hasJoinCode: true` and wrote a code regardless of whether one existed, so clicking it
+             * on a DELIBERATELY OPEN event silently gated it with a code nobody had been told — and
+             * the dialog's "anyone holding the old code can no longer join" is simply FALSE when
+             * there was no old code. Every other path in this card treats "no code anywhere" as a
+             * state requiring a human decision (COPY reports it, PURGE refuses with
+             * NO_CODE_AND_NO_SOURCE); rotate was the one place that decided silently, which is the
+             * class of mistake this whole change set was written to avoid, and it is how TOURN-03's
+             * original bug happened: an open event nobody knew was open.
+             *
+             * The read is OUTSIDE the transaction on purpose. It only chooses which warning the
+             * operator sees; the write below re-reads and is atomic regardless. A state change in
+             * between can therefore produce a slightly wrong DIALOG, never a wrong write. */
+            let hadCode = false, claimsCode = false;
+            try {
+                const [tSnap, pSnap] = await Promise.all([getDoc(tRef), getDoc(privRef)]);
+                if (!tSnap.exists()) { showToast('That tournament no longer exists.', 'error'); return; }
+                claimsCode = tSnap.data().hasJoinCode === true;
+                hadCode = !!tSnap.data().joinCode || (pSnap.exists() && !!pSnap.data().joinCode);
+            } catch (e) {
+                showToast('Could not read the tournament state, so nothing was rotated: ' + e.message, 'error');
+                return;
+            }
+
+            let prompt;
+            if (hadCode) {
+                prompt = 'Rotate this tournament\'s join code to ' + next + '?\n\n'
+                    + 'Anyone holding the old code can no longer join. Teams already joined are NOT affected.\n'
+                    + 'The new code is stored where students cannot read it, and the public copy is removed.';
+            } else if (claimsCode) {
+                /* The half-written-creation case: it advertises a code and has none, so ctfJoinTeam
+                 * is currently refusing EVERY join. Rotating is the actual repair, so say that. */
+                prompt = 'This tournament advertises a join code but does not have one, so NOBODY can '
+                    + 'currently join it — every attempt is refused.\n\n'
+                    + 'Give it the code ' + next + ' and repair it?';
+            } else {
+                /* Genuinely ungated. Rotating CHANGES THE ACCESS MODEL of a running event. */
+                prompt = 'WARNING: this tournament currently has NO join code. Anyone signed in can '
+                    + 'join it, which may be intentional.\n\n'
+                    + 'Rotating will GATE it with the code ' + next + ', which nobody has been told '
+                    + 'yet. Existing teams are not affected, but no new player can join until you '
+                    + 'give them this code.\n\nGate this tournament?';
+            }
+            if (!confirm(prompt)) return;
             try {
                 await runTransaction(db, async (tx) => {
                     const tNow = await tx.get(tRef);
@@ -12390,8 +12431,13 @@
          * working by reading the PUBLIC field — deliberately logging rather than failing, so the
          * gap stays visible. Measured 2026-09-19: both live tournaments are in exactly that state,
          * so a stranger reads a 7-character code with one unauthenticated REST GET and joins an
-         * ACTIVE event. Rotating the code does not help; a new value in the same field is equally
-         * published. Rotation and migration are the same operation.
+         * ACTIVE event. Rotating the code does not help ON ITS OWN; a new value written to the same
+         * public field is equally published. But rotation and migration are RELATED, NOT the same
+         * operation, and an earlier version of this comment overstated that: MIGRATION ALONE,
+         * changing no value at all, fully closes the exposure, and rotation without migration
+         * closes nothing. Nancy corrected it, and then caught that the correction had landed in the
+         * commit message and in rotateJoinCode's comment while THIS sentence — 53 lines away, in
+         * the same file — still said the wrong thing.
          *
          * WHY TWO PHASES, not one button. Identical reasoning to the flag secrets card below, and
          * one addition specific to this data: COPY also sets `hasJoinCode: true`, which turns
