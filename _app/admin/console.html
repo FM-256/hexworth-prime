@@ -12257,7 +12257,7 @@
          * (prevention), and releaseOrphanedClaims below clears claims that are ALREADY stranded
          * (remedy, for the ones this fix is too late for). */
         window.deleteTournament = async function(id, name) {
-            const { doc, deleteDoc, collection, getDocs, writeBatch, deleteField } = _firestoreModule;
+            const { doc, deleteDoc, collection, getDocs, runTransaction, deleteField } = _firestoreModule;
             let held = [];
             try {
                 const poolSnap = await getDocs(collection(db, 'box_pool'));
@@ -12275,10 +12275,22 @@
 
             try {
                 if (held.length) {
-                    const batch = writeBatch(db);
-                    held.forEach(pid => batch.set(doc(db, 'box_pool', pid),
-                        { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
-                    await batch.commit();
+                    /* RE-READ OWNERSHIP AT COMMIT TIME. `held` was computed BEFORE confirm(), which
+                     * blocks on a human for an unbounded time, so by the time this runs another
+                     * tournament may legitimately hold one of these boxes. A blind deleteField()
+                     * would wipe that claim, leaving the pool reading free while a team holds a
+                     * working credential: the same collision one door over. Only clear what is still
+                     * ours. */
+                    await runTransaction(db, async (tx) => {
+                        const mine = [];
+                        for (const pid of held) {
+                            const snap = await tx.get(doc(db, 'box_pool', pid));
+                            const a = snap.exists() ? snap.data().assignedTo : null;
+                            if (a && a.tournamentId === id) mine.push(pid);
+                        }
+                        mine.forEach(pid => tx.set(doc(db, 'box_pool', pid),
+                            { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
+                    });
                 }
                 await deleteDoc(doc(db, 'tournaments', id));
                 showToast(held.length
@@ -13174,7 +13186,7 @@
          * finished event's boxes is a decision for the operator, not a sweep. */
         window.releaseOrphanedClaims = async function() {
             const out = document.getElementById('bpReport');
-            const { collection, getDocs, doc, getDoc, writeBatch, deleteField } = _firestoreModule;
+            const { collection, getDocs, doc, getDoc, runTransaction, deleteField } = _firestoreModule;
             out.textContent = 'checking every claim against its tournament...';
             try {
                 const poolSnap = await getDocs(collection(db, 'box_pool'));
@@ -13193,14 +13205,35 @@
                 }
                 if (!confirm('Release ' + orphans.length + ' box(es) whose tournament no longer exists?\n\n'
                     + orphans.map(o => o.box + ' (held by deleted ' + o.tid + ')').join('\n'))) return;
-                const batch = writeBatch(db);
-                orphans.forEach(o => batch.set(doc(db, 'box_pool', o.box),
-                    { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
-                await batch.commit();
-                out.textContent = 'swept ' + orphans.length + ' orphaned claim(s):\n'
-                    + orphans.map(o => '  ' + o.box + ' was held by deleted tournament ' + o.tid).join('\n')
+
+                /* THE SWEEP HAD THE SAME DEFECT, and nobody told me: I wrote it in the same pass as
+                 * the fix for the other two paths and reproduced the bug I was fixing. `orphans` is
+                 * decided BEFORE confirm(), so a box re-claimed by a LIVE tournament while the dialog
+                 * sat open would be swept as an orphan, erasing a valid claim on the grounds that a
+                 * different tournament was gone. That is worse than the other two: it destroys a good
+                 * claim rather than a stale one. Re-read inside the transaction and re-confirm BOTH
+                 * facts, that this is still the same claim and that its tournament is still absent. */
+                const swept = [], changed = [];
+                await runTransaction(db, async (tx) => {
+                    swept.length = 0; changed.length = 0;
+                    const state = [];
+                    for (const o of orphans) {
+                        const boxSnap = await tx.get(doc(db, 'box_pool', o.box));
+                        const tourSnap = await tx.get(doc(db, 'tournaments', o.tid));
+                        state.push({ o: o, a: boxSnap.exists() ? boxSnap.data().assignedTo : null, tourExists: tourSnap.exists() });
+                    }
+                    for (const st of state) {
+                        if (!st.a || st.a.tournamentId !== st.o.tid) { changed.push(st.o.box + ' (claim changed while the dialog was open)'); continue; }
+                        if (st.tourExists) { changed.push(st.o.box + ' (its tournament exists again)'); continue; }
+                        tx.set(doc(db, 'box_pool', st.o.box), { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true });
+                        swept.push(st.o);
+                    }
+                });
+                out.textContent = 'swept ' + swept.length + ' orphaned claim(s):\n'
+                    + (swept.map(o => '  ' + o.box + ' was held by deleted tournament ' + o.tid).join('\n') || '  (none)')
+                    + (changed.length ? '\n\nSKIPPED ' + changed.length + ':\n' + changed.map(c => '  ' + c).join('\n') : '')
                     + (live.length ? '\n\nleft alone (' + live.length + ' claim(s) whose tournament still exists)' : '');
-                showToast('Swept ' + orphans.length + ' orphaned claim(s).', 'success');
+                showToast('Swept ' + swept.length + ' orphaned claim(s).', changed.length ? 'warning' : 'success');
             } catch (e) {
                 out.textContent = 'FAILED: ' + e.message;
                 showToast('Could not sweep: ' + e.message, 'error');
@@ -13210,26 +13243,93 @@
         window.releasePoolFromTournament = async function() {
             if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
             const out = document.getElementById('bpReport');
-            const { collection, getDocs, doc, writeBatch, deleteField } = _firestoreModule;
+            const { collection, getDocs, doc, getDoc, runTransaction, deleteField } = _firestoreModule;
             out.textContent = 'reading pool...';
             try {
-                const poolSnap = await getDocs(collection(db, 'box_pool'));
+                const [poolSnap, tSnap] = await Promise.all([
+                    getDocs(collection(db, 'box_pool')),
+                    getDoc(doc(db, 'tournaments', _ctfEditingId))
+                ]);
                 const held = poolSnap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === _ctfEditingId);
                 if (!held.length) { out.textContent = 'No pool boxes are claimed by this tournament.'; return; }
-                if (!confirm('Release ' + held.length + ' box(es) from this tournament?\n\n'
-                    + 'Their per-team assignments are NOT deleted, so teams keep whatever they were given. '
-                    + 'This only frees the boxes to be wired to another event.')) return;
-                const batch = writeBatch(db);
-                held.forEach(d => batch.set(doc(db, 'box_pool', d.id),
-                    { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
-                await batch.commit();
-                out.textContent = 'released ' + held.length + ' box(es):\n'
-                    + held.map(d => '  ' + d.id).join('\n')
-                    + '\n\nThe per-team assignment documents were left alone on purpose: deleting a '
-                    + 'credential a team may still be using is a different decision from freeing the pool.';
-                showToast('Released ' + held.length + ' box(es).', 'success');
+
+                /* REFUSES TO RELEASE A LIVE TOURNAMENT'S BOXES. Mallory proved the deterministic
+                 * defect this closes, and it needed no concurrency at all: release an ACTIVE
+                 * tournament's box, then wire a second tournament, and both teams end up holding
+                 * working credentials to one physical machine, because release freed the pool entry
+                 * while deliberately leaving the assignment intact. ctfGetBoxCredential reads only
+                 * the assignment and never consults box_pool, so nothing downstream notices.
+                 *
+                 * The asymmetry was mine: releaseOrphanedClaims reasons that "ended is not
+                 * abandoned" and leaves a finished tournament's claim alone, and I never applied the
+                 * same standard in the other direction for a MANUAL release of a running event. A
+                 * live tournament's boxes are in use by definition; freeing them is not a decision
+                 * an operator should be able to make with one reassuring dialog. */
+                const status = tSnap.exists() ? (tSnap.data().status || 'unknown') : 'missing';
+                if (['lobby', 'active', 'frozen'].includes(status)) {
+                    out.textContent = 'REFUSED: this tournament is ' + status.toUpperCase() + ', so its '
+                        + held.length + ' box(es) are in use RIGHT NOW.\n\nNothing was released.\n\n'
+                        + 'Releasing them would free the pool entry while each team keeps a WORKING '
+                        + 'credential, so the next tournament wired would land on the same machine and '
+                        + 'two teams would be on one box. End the tournament first, or delete it if it '
+                        + 'was a mistake (Delete releases its boxes for you).';
+                    showToast('Refused: tournament is ' + status + ', boxes are in use.', 'warning');
+                    return;
+                }
+
+                if (!confirm('Release ' + held.length + ' box(es) from this ' + status + ' tournament?\n\n'
+                    + 'Each team\'s assignment for those boxes will ALSO be removed, so no team is left '
+                    + 'holding a credential to a machine the pool has handed on. The tournament, its '
+                    + 'teams and their scores are untouched.')) return;
+
+                /* ONE TRANSACTION, RE-READING OWNERSHIP AT COMMIT TIME. Nancy's sequence: this used
+                 * getDocs, then confirm(), then a blind batch write. confirm() blocks on a HUMAN for
+                 * an unbounded time, so the decision could be minutes stale, and the write then wiped
+                 * a claim a correctly-functioning wiring transaction had established in the meantime.
+                 * That window is far wider than the sub-second one the wiring race lived in.
+                 *
+                 * AND IT CLEARS THE ASSIGNMENT ALONGSIDE THE CLAIM. Leaving assignments behind was my
+                 * choice and it is what made the collision possible: a pool entry that reads free
+                 * while a team still holds a working login is the inconsistency, not a kindness. */
+                const ids = held.map(d => d.id);
+                const teamsSnap = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
+                const teamIds = teamsSnap.docs.map(d => d.id);
+                const released = [], skipped = [], revoked = [];
+                await runTransaction(db, async (tx) => {
+                    released.length = 0; skipped.length = 0; revoked.length = 0;
+                    const now = new Map();
+                    for (const id of ids) now.set(id, (await tx.get(doc(db, 'box_pool', id))).data() || null);
+                    const asg = [];
+                    for (const teamId of teamIds) {
+                        for (const chId of new Set(held.map(h => (h.data().assignedTo || {}).challengeId).filter(Boolean))) {
+                            const ref = doc(db, 'tournaments', _ctfEditingId, 'teams', teamId, 'assignments', chId);
+                            const snap = await tx.get(ref);
+                            if (snap.exists() && ids.includes(snap.data().fromPool)) asg.push({ ref: ref, teamId: teamId, box: snap.data().fromPool });
+                        }
+                    }
+                    for (const id of ids) {
+                        const live = now.get(id);
+                        if (!live || !live.assignedTo || live.assignedTo.tournamentId !== _ctfEditingId) {
+                            skipped.push(id); continue;   // ownership moved while the dialog was open
+                        }
+                        tx.set(doc(db, 'box_pool', id), { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true });
+                        released.push(id);
+                    }
+                    for (const a of asg) {
+                        if (!released.includes(a.box)) continue;
+                        tx.delete(a.ref);
+                        revoked.push(a.teamId + ' -> ' + a.box);
+                    }
+                });
+                out.textContent = 'released ' + released.length + ' box(es):\n'
+                    + released.map(i => '  ' + i).join('\n')
+                    + (revoked.length ? '\n\nrevoked ' + revoked.length + ' team assignment(s), so no team keeps a '
+                        + 'credential to a released machine:\n' + revoked.map(r => '  ' + r).join('\n') : '')
+                    + (skipped.length ? '\n\nSKIPPED ' + skipped.length + ' box(es) whose owner changed while the '
+                        + 'dialog was open (not ours to release any more):\n' + skipped.map(i => '  ' + i).join('\n') : '');
+                showToast('Released ' + released.length + ' box(es).', skipped.length ? 'warning' : 'success');
             } catch (e) {
-                out.textContent = 'FAILED: ' + e.message;
+                out.textContent = 'FAILED, and NOTHING was released (one transaction): ' + e.message;
                 showToast('Could not release: ' + e.message, 'error');
             }
         };

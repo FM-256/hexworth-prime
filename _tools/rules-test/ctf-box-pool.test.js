@@ -199,13 +199,33 @@ const TEAMS = [
         report.textContent.split('\n')[0].slice(0, 80));
     chk('second tournament: wrote ZERO (no shared machine)', secondCount === 0, `found ${secondCount}`);
 
-    // ── RELEASE frees them, without deleting anyone's assignment ─────────────
+    /* ── RELEASE frees them, AND revokes the assignments ──────────────────────────────────
+     * This block asserted the opposite until 2026-09-20: "per-team assignments NOT deleted", which I
+     * had written as a deliberate kindness. Mallory proved it was the defect. A pool entry that reads
+     * free while a team still holds a working login is what let a second tournament land on the same
+     * machine, deterministically, in three clicks. The assertion is INVERTED rather than deleted,
+     * because the property still needs covering, just with the opposite expectation.
+     * The fixture also has to end the tournament first: release now refuses while a tournament is
+     * lobby/active/frozen, since those boxes are in use by definition. */
     global._ctfEditingId = T;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), `tournaments/${T}`), { status: 'ended' }, { merge: true });
+    });
     report.textContent = '';
     await global.releasePoolFromTournament();
     chk('release: reports what it freed', /released 6 box\(es\)/.test(report.textContent), report.textContent.split('\n')[0]);
     const afterRelease = await assignments();
-    chk('release: per-team assignments NOT deleted', afterRelease.n === TEAMS.length, `${afterRelease.n} remain`);
+    /* Exactly ONE survives, and that is correct rather than a shortfall: team-red's assignment was
+     * HAND-PLACED earlier in this suite with fromPool 'hand'. Release revokes only what it handed
+     * out, so a credential an operator placed by hand is not swept up by a pool operation. Asserting
+     * `=== 0` was my error, and loosening it to `<= 1` would have hidden which one survived, so it
+     * asserts the shape instead: every pool-derived assignment gone, the hand-placed one intact. */
+    const poolDerivedLeft = afterRelease.rows.filter(r => r.fromPool && r.fromPool !== 'hand');
+    const handLeft = afterRelease.rows.filter(r => r.fromPool === 'hand');
+    chk('release: REVOKES every pool-derived assignment (was asserted the other way, and that was the bug)',
+        poolDerivedLeft.length === 0, `${poolDerivedLeft.length} pool-derived remain`);
+    chk('release: leaves a HAND-PLACED assignment alone (not its to revoke)',
+        handLeft.length === 1, `${handLeft.length} hand-placed`);
 
     global._ctfEditingId = T2;
     setFields({ rbChallenge: 'ch-01' });
@@ -418,6 +438,82 @@ const TEAMS = [
     chk('sweep: cleared the claim whose tournament is gone', orphanGone);
     chk('sweep: LEFT a claim whose tournament still exists', liveKept);
     chk('sweep: reported what it did', /swept 1 orphaned claim/.test(report.textContent), report.textContent.split('\n')[0]);
+
+    /* ── MALLORY'S DETERMINISTIC RELEASE-VS-WIRE, which needed NO concurrency ──────────────
+     * Her sequence: F1 (ACTIVE) wires a box; an admin clicks Release pool on F1; F2 wires the same
+     * challenge and legitimately claims the now-free box. Both tournaments end with live assignments
+     * carrying the SAME url and password, both served by ctfGetBoxCredential, which reads only the
+     * assignment and never consults box_pool. Three ordinary clicks, no adversary, no timing.
+     * Release now REFUSES while a tournament is lobby/active/frozen, and when it does release it
+     * revokes the matching assignments so no team keeps a credential to a handed-on machine. */
+    const F1 = 't-rel-live';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        const snap = await getDocs(collection(d, 'box_pool'));
+        for (const dd of snap.docs) await setDoc(doc(d, 'box_pool', dd.id), { assignedTo: deleteField() }, { merge: true });
+        await setDoc(doc(d, `tournaments/${F1}`), { name: 'Live Event', status: 'active' });
+        for (const t of TEAMS) await setDoc(doc(d, `tournaments/${F1}/teams/${t.id}`), { name: t.name, members: [] });
+        await setDoc(doc(d, `tournaments/${F1}/challenges/ch-01`), { title: 'Live', order: 1 });
+    });
+    global._ctfEditingId = F1;
+    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, writeBatch, runTransaction, deleteField, deleteDoc, serverTimestamp };
+    eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    eval(extractShipped(CONSOLE, 'releasePoolFromTournament'));
+    setFields({ rbChallenge: 'ch-01' });
+    await global.wirePoolToTeams();
+    const wiredLive = await (async () => { let n = 0; await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) n += (await getDocs(collection(c.firestore(), `tournaments/${F1}/teams/${t.id}/assignments`))).size; }); return n; })();
+    chk('live tournament wired (setup for the release test)', wiredLive === TEAMS.length, `${wiredLive}`);
+
+    report.textContent = '';
+    await global.releasePoolFromTournament();
+    let stillHeld = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+        stillHeld = snap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === F1).length;
+    });
+    chk('release on an ACTIVE tournament: REFUSED', /is ACTIVE, so its/.test(report.textContent), report.textContent.split('\n')[0].slice(0, 74));
+    chk('release on an ACTIVE tournament: boxes still held (nothing freed)', stillHeld === TEAMS.length, `${stillHeld} still held`);
+
+    /* End it, then release: now it is allowed AND it revokes the assignments, so the pool cannot
+     * read free while a team keeps a working login. */
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), `tournaments/${F1}`), { status: 'ended' }, { merge: true });
+    });
+    report.textContent = '';
+    await global.releasePoolFromTournament();
+    let freed = 0, leftoverAssignments = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+        freed = snap.docs.filter(d => !(d.data().assignedTo)).length;
+        for (const t of TEAMS) leftoverAssignments += (await getDocs(collection(c.firestore(), `tournaments/${F1}/teams/${t.id}/assignments`))).size;
+    });
+    chk('release on an ENDED tournament: allowed', /released 6 box\(es\)/.test(report.textContent), report.textContent.split('\n')[0]);
+    chk('release REVOKED the assignments, so no team keeps a freed box credential', leftoverAssignments === 0, `${leftoverAssignments} left`);
+    chk('release reported the revocations', /revoked 6 team assignment/.test(report.textContent));
+
+    /* And the whole point: a second tournament can now take those boxes, and there is no team left
+     * holding a credential to any of them. */
+    const F2 = 't-rel-next';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        await setDoc(doc(d, `tournaments/${F2}`), { name: 'Next Event', status: 'lobby' });
+        for (const t of TEAMS) await setDoc(doc(d, `tournaments/${F2}/teams/${t.id}`), { name: t.name, members: [] });
+        await setDoc(doc(d, `tournaments/${F2}/challenges/ch-01`), { title: 'Next', order: 1 });
+    });
+    global._ctfEditingId = F2;
+    setFields({ rbChallenge: 'ch-01' });
+    await global.wirePoolToTeams();
+    let f1Urls = [], f2Urls = [];
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) {
+            (await getDocs(collection(c.firestore(), `tournaments/${F1}/teams/${t.id}/assignments`))).docs.forEach(d => f1Urls.push(d.data().url));
+            (await getDocs(collection(c.firestore(), `tournaments/${F2}/teams/${t.id}/assignments`))).docs.forEach(d => f2Urls.push(d.data().url));
+        }
+    });
+    chk('the next tournament got the boxes', f2Urls.length === TEAMS.length, `${f2Urls.length}`);
+    chk('NO credential collision: the old tournament holds none', f1Urls.length === 0 && f1Urls.filter(u => f2Urls.includes(u)).length === 0,
+        `old=${f1Urls.length} overlap=${f1Urls.filter(u => f2Urls.includes(u)).length}`);
 
     await testEnv.cleanup();
     console.log(`\n  ${pass} passed, ${fail} failed\n`);
