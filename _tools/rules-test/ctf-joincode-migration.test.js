@@ -10,7 +10,7 @@
  * @catalog status TOOL
  *
  * WHY IT EXISTS (taskboard 411). TOURN-03 proved the join code gated nothing, built the fix —
- * `tournaments/{id}/private/config`, rules-denied to every client, with `hasJoinCode` as the
+ * `tournaments/{id}/private/config`, rules-denied to every NON-ADMIN client, with `hasJoinCode` as the
  * public boolean — and wired CREATION to it. Nothing ever migrated the tournaments that already
  * existed. Measured against production 2026-09-19: BOTH live tournaments had no private doc and a
  * 7-character code sitting on an `allow read: if true` document, so `ctfJoinTeam` took its legacy
@@ -23,6 +23,19 @@
  * understanding, not the shipped behaviour, and the two drift the moment someone edits the page.
  * This brace-matches the real `window.migrateJoinCode` out of `_app/admin/console.html` and
  * executes it unmodified, which is the same discipline Chris applied to migrateFlagSecrets.
+ *
+ * WHAT THIS HARNESS CANNOT SEE, measured rather than assumed. Chris checked the eval-of-extracted
+ * -source technique and found a real blind spot: the shim's `document.getElementById` returns the
+ * SAME mock object whatever id string it is passed, so an id MISMATCH between the page's markup and
+ * the code reading it would be completely invisible here — every assertion would still pass while
+ * the real console rendered nothing. What this proves is control flow, transaction semantics and
+ * prompt branching under enforced rules; it does NOT prove DOM wiring. That half was closed by
+ * inspection instead: the onclick attributes name these exact functions, and `ctfJoinCodeMigrateReport`
+ * and `ctfEditJoinCode` both exist in the markup. If you add a new element id to these handlers,
+ * this suite will not catch you mistyping it.
+ * Also inherited, not new: the emulator's authenticatedContext(..., {admin:true}) injects the admin
+ * claim directly rather than minting a real Firebase Auth token — the same assumption the
+ * already-passed flag-secrets suite relies on.
  *
  * WHAT THIS FILE DOES NOT COVER, deliberately. That the gate still REJECTS a wrong code once the
  * value lives in private/config is already proven by `ctf-joincode-gate.test.js`, which drives
