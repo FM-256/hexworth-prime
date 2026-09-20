@@ -45,7 +45,7 @@ Two lifecycle facts that surprise people:
   pre-solve a real box during registration and sit on the answer until the bell — `ctfGetBoxCredential`
   is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8214`).
 - **The join code is required at creation** — the console refuses to save a tournament with no
-  code or a code under 4 characters (`console.html:11168`). There is no "no code" tournament you
+  code or a code under 4 characters (`_app/admin/console.html:11176`). There is no "no code" tournament you
   can create today; every new tournament is gated by construction.
 
 ## 2. Staffing challenges — and the box-import trap
@@ -57,7 +57,7 @@ challenge editor).
 salt = `{joinCode}-{challengeId}`. The plaintext you type is never stored.
 
 **Importing from a box copies the box's registry flag TEXT verbatim into the challenge.**
-`console.html:11679-11726` reads `flag_registry/{boxId}.flags`, and for every flag on that box
+`_app/admin/console.html:11683-11730` reads `flag_registry/{boxId}.flags`, and for every flag on that box
 writes a challenge whose `flag` field is that flag's exact text — the same text `deliverFlag`
 (`functions/index.js:682`) hands out to any signed-in student for the solo Arena version of that
 box. The challenge secret is not a fresh secret; it is the box's public answer, differing only by
@@ -98,7 +98,7 @@ To attach it to a challenge:
    `firestore.rules:1434`. No student ever reads that document directly.
 4. A student who opens the challenge modal on the board sees a box slot fill in asynchronously via
    `ctfGetBoxCredential` (`_app/arena/tournament-board.html:905`). If their team has an assignment
-   for that challenge, an **"Open your box"** button renders (`tournament-board.html:950`). If not,
+   for that challenge, an **"Open your box"** button renders (`_app/arena/tournament-board.html:950`). If not,
    the slot stays empty and the modal is otherwise unaffected — most challenges have no real box
    and this is the ordinary case.
 
@@ -113,7 +113,7 @@ Three real invite paths exist. Two more do not exist at all.
 
 | Path | What it does | What it does NOT do |
 |---|---|---|
-| **Join QR** (Manage panel, `console.html:12691`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5) — putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
+| **Join QR** (Manage panel, `_app/admin/console.html:12836`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
 | **Discord `/tournament` command** | Ephemeral reply (flags 64 — only the asker sees it). Lists tournaments at `lobby` or `active`, names the Competitor badge and its 25 points, and tells the student to ask their instructor for the code (`functions/index.js:9068-9106`). | **It never reads out a join code, under any condition** — an earlier draft did, for "legacy" tournaments, and that branch turned out to be the live case for both real tournaments today (BUG-270). |
 | **Direct lobby link** | Copy/paste the URL yourself. Works today, always has. | — |
 | Email | Does not exist. `functions/index.js:5675` states auto-email was never built for v1. | — |
@@ -164,10 +164,14 @@ This is taskboard 411.
 
 **Rotating the code does not fix this.** A new code written to the same public field is equally
 public the moment it is saved. Rotation and migration have to be the same operation — the
-remedy is the same two-phase pattern already shipped for flag secrets, and it now EXISTS: the
-**Join Code Migration** card in the Manage panel (`console.html:4196`, handler
-`window.migrateJoinCode`). Built and gated 2026-09-19, 22/0 against a rules-enforced emulator
-running the shipped function, NOT YET DEPLOYED. It copies the code into
+remedy is the same two-phase pattern already shipped for flag secrets, and it is now **LIVE IN
+PRODUCTION**: the **Join Code Migration** card in the Manage panel
+(`_app/admin/console.html:4204`, handler `window.migrateJoinCode`), deployed 2026-09-19 with 42/0
+against a rules-enforced emulator running the shipped function, mutation-verified three ways.
+Alongside it, a **Rotate Code** button (`_app/admin/console.html:4150`, handler
+`window.rotateJoinCode`). Before it existed there was NO way to change a live tournament's code,
+and editing the public field by hand would have done nothing except re-publish a stale value.
+The migration copies the code into
 `private/config` and sets `hasJoinCode`, leaving the public field alone so a running event does not
 break; PURGE the public field only after the private copy is confirmed). That migration is being
 built; it does not exist yet. Until it ships, treat the join code on any pre-2026-08-29 tournament
@@ -189,7 +193,7 @@ pause.
 | Model | Behavior |
 |---|---|
 | **Static** | Each challenge is worth its authored `points`, unchanged for the life of the event. |
-| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`console.html:11203`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
+| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`_app/admin/console.html:11211`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
 
 Historical note, in case you inherit an older tournament: a live event was once found configured
 as `dynamic` with no `dynamicConfig` at all, so it silently scored flat static points forever —
@@ -199,7 +203,7 @@ selected, so a new tournament cannot reproduce this. An older tournament created
 still could — check `dynamicConfig` is present if you inherit one.
 
 **Hints do not cost anything, no matter what the button says.** The challenge modal renders
-`Hint 1 (-10 pts)`-style buttons per hint (`_app/arena/tournament-board.html:843`).
+`Hint 1 (-10 pts)`-style buttons per hint (`_app/arena/tournament-board.html:851`).
 `window.revealHint` (`:882`) only toggles a CSS class to reveal the hint text — it makes no server
 call. There is no `hintPenalty`, no `hintsUsed`, no hint accounting anywhere in
 `functions/index.js`. `ctfSubmitFlag` credits full challenge points regardless of how many hints a
@@ -250,7 +254,7 @@ the live, admin-writable `teams` collection, once it exists.
 | **Competitor** (`tournament_competitor`) | Automatically, inside `ctfJoinTeam`, the moment a student joins a team. | `users/{uid}/server_awards` AND `users/{uid}.achievements` (union-merged). | **No.** Joining is a fact; it cannot un-happen. This is why it is safe to also keep it in the union-merged `achievements` array — a stale device re-syncing the id back in changes nothing false. |
 | **Champion / Runner-Up / Third** (`tournament_champion` etc.) | Manually, by an admin calling `ctfAwardTournamentBadges` — never automatic. This is Hexworth Credential Authority doctrine: competition never automatically grants an award of record. | `users/{uid}/server_awards` **only** — never `achievements`. | **Yes.** A corrected result must be able to take a trophy back; `achievements` is union-merged and a revocation there would silently self-reverse the next time a stale device synced. |
 
-Console -> Manage panel -> **Award Placement Badges** button (`console.html:11873`) calls
+Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11881`) calls
 `ctfAwardTournamentBadges`. It refuses to run until `results/final` exists — it will not derive
 placements from the live `teams` collection, because that collection is admin-writable and
 therefore not evidence of anything. Safe to click more than once: it is idempotent by content, and
@@ -304,8 +308,8 @@ theoretical — each was measured against production or the emulator.
 | **403** | MEDIUM | The hint button advertises "-N pts" and never charges it. No server-side hint accounting exists at all. | Two teams with identical scores may have used a very different number of hints and you cannot tell — the tie-break resolves on solve time only. Do not represent hint cost as real to students or in any post-event report. |
 | **405** | CRITICAL (remedy shipped 2026-09-19, unproven in production) | `deliverFlag` used to hand any signed-in account — anonymous sign-in included — the plaintext flag for a box, and the box-import path never disabled that for boxes staffed into a tournament. A server-side guard now refuses this for any box that is a challenge of a tournament at `lobby` or later. | The guard is deployed and proven in the emulator (permission denied, no flag text in the response body). It has **not** been observed against a real production call, because that requires an actual flag capture, which fires the Discord webhook and is operator-gated. Treat it as live but not yet end-to-end confirmed. |
 | **407** | Open, root fix | Importing a box copies its public flag text verbatim into the challenge — the challenge secret IS the box's public answer. This is why 405's guard has to include `ended` in its refusal predicate, which permanently strips flag disclosure from any public Arena box a tournament ever touches. | Every box you import for a tournament trades away that box's future solo-Arena disclosure, permanently, until 407 ships. Factor this into which boxes you pick (Section 2). |
-| **408** | Open | `OpenWorldEngine.js:353-355` swallows a flag-delivery refusal with **no visible fallback at all** — not even a placeholder message. Affects the ~10 `ow-*`/`ows-*` boxes specifically (a separate defect from the BoxEngine message fix that shipped 2026-09-19, which does show a reason). | If you staff an OpenWorld-family box into a tournament and a student's flag delivery is refused, that student sees nothing — not an error, not a message. They will report the box as broken. |
-| **411** | Migration BUILT, not deployed | Both live tournaments (`Special Event`, `Cyber Tech`) still fall back to a legacy PUBLIC `joinCode` field, so the join gate that TOURN-03 built correctly for new tournaments does not apply to either event currently running. | Anyone who lists the `tournaments` collection can read the code with one unauthenticated request and join. Rotating the code does not fix it — see Section 5. |
+| **408** | Open | `_app/arena/engine/OpenWorldEngine.js:353-355` swallows a flag-delivery refusal with **no visible fallback at all**, not even a placeholder message. Affects the ~10 `ow-*`/`ows-*` boxes specifically (a separate defect from the BoxEngine message fix that shipped 2026-09-19, which does show a reason). | If you staff an OpenWorld-family box into a tournament and a student's flag delivery is refused, that student sees nothing, not an error, not a message. They will report the box as broken. |
+| **411** | Migration DEPLOYED, not yet RUN | Both live tournaments (`Special Event`, `Cyber Tech`) still fall back to a legacy PUBLIC `joinCode` field, so the join gate that TOURN-03 built correctly for new tournaments does not apply to either event currently running. | Anyone who lists the `tournaments` collection can read the code with one unauthenticated request and join. Rotating the code does not fix it, see Section 5. |
 
 ---
 

@@ -140,18 +140,33 @@ Run in this order. Steps 3 and 7 are admin-console clicks and cannot be scripted
 
 | # | Step | Command / action | State after | Rollback |
 |---|---|---|---|---|
-| 1 | Indexes + rules | `_tools/eduscan/smoke/deploy.sh --only firestore:indexes,firestore:rules` | `flagSecrets` admin-only; group index live | Redeploy from the previous commit. Purely additive, so there is nothing to undo. |
-| 2 | Hosting A | `./deploy.sh` | console dual-writes; migration UI present | `firebase hosting:rollback`, or redeploy the prior commit |
-| 3 | **COPY** | admin console, Manage panel, `Copy: ALL tournaments` | secrets exist; public fields still present | None needed. Additive and idempotent. |
-| 4 | Verify COPY | unauthenticated REST read + admin count against `challenges` | 0 missing, 5/5 faithful, 4 routes 403 + 200 control (2026-09-19) | Read-only; nothing to undo. |
-| 5 | Functions | `_tools/eduscan/smoke/deploy.sh --only functions` | new reader live; `deliverFlag` guard live | Redeploy functions from the prior commit. The public fields are still present at this point, which is exactly why PURGE comes later. |
-| 6 | Retest | see section 6 | | |
-| 7 | Hosting B | remove the two dual-write lines, then `./deploy.sh` | challenge docs stop gaining crypto | `firebase hosting:rollback` |
-| 8 | **PURGE** | admin console, `Purge: ALL tournaments` | public crypto gone | The secrets remain in `flagSecrets`; a rollback of the reader would need the fields restored from there, which the backfill logic can do in reverse. Do not run PURGE until step 6 is green. |
+| 1 | Indexes + rules **DONE 2026-09-19** | `_tools/eduscan/smoke/deploy.sh --only firestore:indexes,firestore:rules` | `flagSecrets` admin-only; group index live. Released, and verified by 4 unauthenticated routes returning 403 with a 200 positive control | Redeploy from the previous commit. Purely additive, so there is nothing to undo. |
+| 2 | Hosting A **DONE** | `./deploy.sh` | console dual-writes; migration UI present | `firebase hosting:rollback`, or redeploy the prior commit |
+| 3 | **COPY** **DONE 2026-09-19** | admin console, Manage panel, `Copy: ALL tournaments` | Operator clicked it; reported "copied: 5". Secrets exist, public fields still present | None needed. Additive and idempotent. |
+| 4 | Verify COPY **DONE** | unauthenticated REST read + admin count against `challenges` | 0 missing, 5/5 faithful, 4 routes 403 + 200 control (2026-09-19) | Read-only; nothing to undo. |
+| 5 | Functions **DONE 2026-09-19** | `_tools/eduscan/smoke/deploy.sh --only functions` | Released: `ctfGetBoxCredential` created, `deliverFlag` and `ctfSubmitFlag` updated. All three now answer 401 where `ctfGetBoxCredential` was 404, which is how we know they are live | Redeploy functions from the prior commit. The public fields are still present at this point, which is exactly why PURGE comes later. |
+| 6 | Retest **PARTIAL** | see section 6 | Emulator and rules evidence complete; **production end-to-end grading still NOT observed** because a real capture fires the Discord webhook and is operator-gated. Special Event had 0 submissions at deploy time | |
+| 7 | Hosting B **PENDING** | remove the two dual-write lines, then `./deploy.sh` | challenge docs stop gaining crypto | `firebase hosting:rollback` |
+| 8 | **PURGE** **PENDING, and now UNBLOCKED** | admin console, `Purge: ALL tournaments` | public crypto gone. The new reader is live, which was the precondition. Until this runs, all 5 challenges still publish `flagHash`+`flagSalt` (BUG-269) | The secrets remain in `flagSecrets`; a rollback of the reader would need the fields restored from there, which the backfill logic can do in reverse. Do not run PURGE until step 6 is green. |
 
 **If PURGE reports a non-zero backfill count**, stop and find out what wrote an old-shaped
 challenge after COPY before calling the migration closed. The data is safe; the signal is not
 nothing.
+
+---
+
+## 5b. A sibling migration exists for the join code
+
+The same defect class, the same two-phase shape, a different field. `tournaments/{id}` is
+also `allow read: if true`, and the join code sat on it in plain text for both live
+tournaments, so an anonymous account could read it and join an ACTIVE event. That migration
+(taskboard 411) shipped 2026-09-19 as the **Join Code Migration** card and a **Rotate Code**
+button, and is documented in `_docs/operations/running-a-tournament.md`. It is independent of
+this one: run either first. Both are unrun operator clicks as of 2026-09-20.
+
+The lesson worth carrying: rules hide a DOCUMENT, never a FIELD. Two separate secrets were
+left on the same world-readable document by two separate changes, and each was found only
+when somebody measured production instead of reading the code.
 
 ---
 
