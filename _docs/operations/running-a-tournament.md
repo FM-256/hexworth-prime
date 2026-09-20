@@ -138,7 +138,7 @@ current count before you register.
 ## 5. The join code — a real gate, with a live defect
 
 The join code is checked server-side in `ctfJoinTeam` (`functions/index.js:7925-7990`). Its
-authoritative home is `tournaments/{id}/private/config`, denied to every client by
+authoritative home is `tournaments/{id}/private/config`, denied to every NON-ADMIN client by
 `firestore.rules:1491` — Cloud Functions read it with the admin SDK, bypassing rules. The public
 `tournaments/{id}` document exposes only `hasJoinCode` (a boolean), because the podium and lobby
 need to know whether to prompt for a code, and that fact is not itself secret.
