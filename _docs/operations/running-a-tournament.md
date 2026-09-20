@@ -1,10 +1,19 @@
 # Running a Tournament
 
-*Live as of 2026-09-19. Covers the CTF Tournament System as it actually behaves in production
-today — not as `TOURNAMENT_SYSTEM.md` describes it, which is wrong in several places (see
-"Known gaps"). This is the KBA that did not exist: Confluence has zero pages matching
-"tournament" in title or body, and the repo held only architecture and incident notes, none of
-them written for an operator about to run an event.*
+*Live as of 2026-09-20. Covers the CTF Tournament System as it actually behaves in production
+today, not as `TOURNAMENT_SYSTEM.md` described it (that document had five false claims, all
+corrected on 2026-09-20; see "Known gaps"). This is the KBA that did not exist: Confluence had
+zero pages matching "tournament" in title or body, and the repo held only architecture and
+incident notes, none written for an operator about to run an event.*
+
+> **This page is generated from the repo, not edited here.** The source is
+> `_docs/operations/running-a-tournament.md`, and `deploy.sh` re-publishes it on every hosting
+> deploy via `_tools/confluence/sync-published-docs.sh`. Two consequences worth knowing: edits
+> made in Confluence will be OVERWRITTEN on the next deploy, so change the repo file instead; and
+> the sync REFUSES to publish if any `file:line` reference in the doc has rotted, so a page that
+> looks current has had its references checked rather than merely assumed. A version is only
+> added when the source actually changes, compared by a hash of the markdown recorded in the
+> page's version message.*
 
 ## TLDR
 

@@ -13,6 +13,7 @@ Converts markdown -> Confluence storage XHTML using a minimal converter
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -278,7 +279,7 @@ def cmd_publish(creds, md_file, parent_id, title):
     return result
 
 
-def cmd_update(creds, page_id, md_file, title=None):
+def cmd_update(creds, page_id, md_file, title=None, if_changed=False):
     """Update an existing Confluence page in place. Bumps version by 1.
 
     Title is optional — keep the existing title if omitted. The space
@@ -287,7 +288,33 @@ def cmd_update(creds, page_id, md_file, title=None):
         md = f.read()
     storage = md_to_storage(md)
     current = req(creds, f"/wiki/rest/api/content/{page_id}",
-                  params={"expand": "version,space"})
+                  params={"expand": "version,space,body.storage"})
+
+    # SKIP WHEN THE SOURCE HAS NOT CHANGED, IDENTIFIED BY A HASH OF THE MARKDOWN.
+    #
+    # Confluence accepts a PUT whose content matches what is already there and advances the
+    # version anyway, so a caller that pushes on a schedule (deploy.sh syncs registered runbooks on
+    # every hosting deploy) would add a version per deploy forever and bury real edits among no-op
+    # bumps. Measured 2026-09-20: an unchanged runbook went v1 to v2 on a no-op sync.
+    #
+    # COMPARING THE RENDERED BODIES DOES NOT WORK, and that was the first attempt. Confluence
+    # NORMALISES storage XHTML on save: a literal em-dash comes back as `&mdash;`, so the live body
+    # is 33101 chars where the freshly converted one is 32184 and they diverge at char 135. A
+    # round-tripped body can never byte-match, so that comparison always said "changed".
+    #
+    # The hash of the SOURCE markdown is immune to how Confluence chooses to store it, and it
+    # lives in the page's own version message, so it is read back from the page being compared
+    # rather than from a local cache this script would have to keep honest
+    # (memory: feedback_gate_must_rederive_not_trust_cache).
+    src_hash = hashlib.sha256(md.encode("utf-8")).hexdigest()
+    marker = f"src-sha256:{src_hash}"
+    if if_changed:
+        prev_msg = (current.get("version", {}) or {}).get("message", "") or ""
+        if marker in prev_msg:
+            print(f"Unchanged page id={page_id} title={current['title']} "
+                  f"version={current['version']['number']} (source hash matches, no push)")
+            return current
+
     new_version = current["version"]["number"] + 1
     new_title = title or current["title"]
     body = {
@@ -295,7 +322,7 @@ def cmd_update(creds, page_id, md_file, title=None):
         "type": "page",
         "title": new_title,
         "space": {"key": current["space"]["key"]},
-        "version": {"number": new_version},
+        "version": {"number": new_version, "message": marker},
         "body": {
             "storage": {
                 "value": storage,
@@ -324,6 +351,9 @@ def main():
     up.add_argument("md_file")
     up.add_argument("--title", required=False,
                     help="Optional new title — keeps existing if omitted")
+    up.add_argument("--if-changed", action="store_true",
+                    help="Skip the PUT when the converted body already matches the live page, so "
+                         "a scheduled sync does not advance the version on every run")
 
     args = parser.parse_args()
     creds = load_creds()
@@ -335,7 +365,7 @@ def main():
     elif args.cmd == "publish":
         cmd_publish(creds, args.md_file, args.parent, args.title)
     elif args.cmd == "update":
-        cmd_update(creds, args.page_id, args.md_file, args.title)
+        cmd_update(creds, args.page_id, args.md_file, args.title, args.if_changed)
 
 
 if __name__ == "__main__":

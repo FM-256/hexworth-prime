@@ -36,7 +36,13 @@ let docs = args.filter(a => !a.startsWith('--'));
 
 if (ALL || docs.length === 0) {
     docs = execSync('find _docs -name "*.md" -type f', { cwd: ROOT, encoding: 'utf8' })
-        .split('\n').filter(Boolean);
+        .split('\n').filter(Boolean)
+        /* Skip `_`-prefixed files in a SWEEP only. `_docs/_sync_gate_fixture.md` deliberately
+         * contains a rotted ref so the sync gate's refusal path can be tested, and letting it
+         * count would leave the platform total permanently non-zero — which is how a number
+         * teaches people to ignore it. An EXPLICIT path is always checked, so the fixture stays
+         * usable as a fixture. */
+        .filter(f => !path.basename(f).startsWith('_'));
 }
 
 /* Resolve a cited path. Docs cite both full paths and bare basenames, so fall back to a unique

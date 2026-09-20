@@ -665,6 +665,14 @@ else
     # The wrapper handles its own error reporting + always exits 0.
     # Wrap in `|| true` as belt-and-suspenders against `set -e`.
     "$SCRIPT_DIR/_tools/confluence/push_hub_inventory.sh" || true
+
+    # Re-publish every runbook registered in _tools/confluence/published-docs.json, so a page an
+    # operator reads DURING an event cannot quietly drift from the tree it documents. Publishing
+    # creates a snapshot; without this, a doc is only correct on the day it was written while still
+    # reading as authoritative. It refuses any doc whose file:line references have rotted rather
+    # than putting a known-wrong page in front of someone, and it never blocks a deploy (same
+    # contract as the inventory push above).
+    "$SCRIPT_DIR/_tools/confluence/sync-published-docs.sh" || true
 fi
 
 # ── Step 7: IndexNow ping (NON-BLOCKING) ─────────────────────────────
