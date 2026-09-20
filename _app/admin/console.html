@@ -4203,7 +4203,7 @@
                         <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(231,76,60,0.25);">
                             <div class="ac-card-title">Join Code Migration</div>
                             <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
-                                Tournaments created before the join code became a real gate keep it in a <code>joinCode</code> field on the publicly readable tournament document, where anyone can read it without signing in. Phase 1 copies it to the admin-only <code>private/config</code> and marks the tournament as code-gated, changing nothing a running event depends on. Phase 2 removes the public copy, and refuses any tournament whose private copy is not confirmed first. <strong>Rotating a code does not fix this</strong> — a new code in the same public field is equally exposed.
+                                Tournaments created before the join code became a real gate keep it in a <code>joinCode</code> field on the publicly readable tournament document, where anyone can read it without signing in. Phase 1 copies it to the admin-only <code>private/config</code> and marks the tournament as code-gated, changing nothing a running event depends on. Phase 2 removes the public copy, and refuses any tournament whose private copy is not confirmed first. <strong>Rotating a code does not fix this</strong>: a new code in the same public field is equally exposed.
                             </div>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                                 <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="migrateJoinCode('copy', false)">1. Copy code (this tournament)</button>
@@ -12330,8 +12330,8 @@
          * Before this, NOTHING in the repo could change an existing tournament's join code. The
          * only writes were at creation (console.html:11236) and the migration below. Nancy caught
          * the consequence: once the migration purges the public field, an operator who "rotates"
-         * by editing `tournaments/{id}.joinCode` changes nothing — ctfJoinTeam reads
-         * private/config first (functions/index.js:7946) — while re-publishing a value to a
+         * by editing `tournaments/{id}.joinCode` changes nothing, because ctfJoinTeam reads
+         * private/config first (functions/index.js:7946), while re-publishing a value to a
          * world-readable document. The migration would have removed a capability the operator
          * explicitly wanted, and left a trap where exercising it re-opened the exposure.
          *
@@ -12359,7 +12359,7 @@
 
             /* WHAT STATE IS THIS TOURNAMENT IN? Nancy's second pass: rotate unconditionally forced
              * `hasJoinCode: true` and wrote a code regardless of whether one existed, so clicking it
-             * on a DELIBERATELY OPEN event silently gated it with a code nobody had been told — and
+             * on a DELIBERATELY OPEN event silently gated it with a code nobody had been told, and
              * the dialog's "anyone holding the old code can no longer join" is simply FALSE when
              * there was no old code. Every other path in this card treats "no code anywhere" as a
              * state requiring a human decision (COPY reports it, PURGE refuses with
@@ -12390,7 +12390,7 @@
                 /* The half-written-creation case: it advertises a code and has none, so ctfJoinTeam
                  * is currently refusing EVERY join. Rotating is the actual repair, so say that. */
                 prompt = 'This tournament advertises a join code but does not have one, so NOBODY can '
-                    + 'currently join it — every attempt is refused.\n\n'
+                    + 'currently join it. Every attempt is refused.\n\n'
                     + 'Give it the code ' + next + ' and repair it?';
             } else {
                 /* Genuinely ungated. Rotating CHANGES THE ACCESS MODEL of a running event. */
@@ -12428,7 +12428,7 @@
          * private subdoc, `hasJoinCode` as the public boolean, and a server that reads private
          * first. It wired CREATION to that and stopped. Nothing migrated the tournaments that
          * already existed, and ctfJoinTeam's legacy fallback (functions/index.js:7957) keeps them
-         * working by reading the PUBLIC field — deliberately logging rather than failing, so the
+         * working by reading the PUBLIC field, deliberately logging rather than failing, so the
          * gap stays visible. Measured 2026-09-19: both live tournaments are in exactly that state,
          * so a stranger reads a 7-character code with one unauthenticated REST GET and joins an
          * ACTIVE event. Rotating the code does not help ON ITS OWN; a new value written to the same
@@ -12436,8 +12436,8 @@
          * operation, and an earlier version of this comment overstated that: MIGRATION ALONE,
          * changing no value at all, fully closes the exposure, and rotation without migration
          * closes nothing. Nancy corrected it, and then caught that the correction had landed in the
-         * commit message and in rotateJoinCode's comment while THIS sentence — 53 lines away, in
-         * the same file — still said the wrong thing.
+         * commit message and in rotateJoinCode's comment while THIS sentence, 53 lines away in
+         * the same file, still said the wrong thing.
          *
          * WHY TWO PHASES, not one button. Identical reasoning to the flag secrets card below, and
          * one addition specific to this data: COPY also sets `hasJoinCode: true`, which turns
@@ -12447,7 +12447,7 @@
          * step, not bookkeeping.
          *
          * WHY PURGE VERIFIES INSIDE A TRANSACTION. A blind field delete would destroy the only
-         * copy of the code for any tournament COPY never saw — one created afterwards by a stale
+         * copy of the code for any tournament COPY never saw, such as one created afterwards by a stale
          * admin tab, possible indefinitely because this console has no version check (taskboard
          * 404). Unlike a flag, a join code is recoverable by rotating it, but silently locking an
          * instructor out of their own running event is still the wrong failure. Each tournament is
@@ -12468,7 +12468,7 @@
             if (allTournaments) {
                 /* FULL COLLECTION SCAN, including drafts and orphans. Scoping to the tournaments
                  * someone remembered would leave the documents most likely to be wrong outside
-                 * every safety net — the same argument as the flag secrets migration. */
+                 * every safety net: the same argument as the flag secrets migration. */
                 const all = await getDocs(collection(db, 'tournaments'));
                 tournamentIds = all.docs.map(d => d.id).sort();
             } else {
@@ -12491,8 +12491,8 @@
                 if (phase === 'copy') {
                     /* ONE TRANSACTION, AND A CATCH THAT CANNOT KILL THE BATCH.
                      *
-                     * The first version did two bare awaits here — setDoc(private) then
-                     * setDoc(hasJoinCode) — outside any try/catch, and Nancy took it apart:
+                     * The first version did two bare awaits here, setDoc(private) then
+                     * setDoc(hasJoinCode), outside any try/catch, and Nancy took it apart:
                      *   - the onclick handler never catches, so a throw on the SECOND write became
                      *     an unhandled rejection that aborted the plain for...of. Every tournament
                      *     after the failing one was skipped, and the run never reached its summary
@@ -12510,7 +12510,7 @@
                      * Reading INSIDE the transaction also closes the staleness window Nancy asked
                      * about: the outer getDoc(tRef) above is only used for the label. If the public
                      * code changed between that read and this write, the transaction sees the new
-                     * value — it cannot enshrine a stale code in the location that becomes
+                     * value. It cannot enshrine a stale code in the location that becomes
                      * authoritative (functions/index.js:7946). */
                     try {
                         const result = await runTransaction(db, async (tx) => {
@@ -12522,7 +12522,7 @@
                             if (!nd.joinCode) {
                                 /* No private copy and no public field. Either genuinely ungated, or
                                  * the half-written creation Nancy identified during TOURN-03. Do NOT
-                                 * invent a code and do NOT set hasJoinCode — either would lock joins
+                                 * invent a code and do NOT set hasJoinCode: either would lock joins
                                  * on an event that may be intentionally open. Report, do not decide. */
                                 return nd.hasJoinCode === true ? 'claims-no-code' : 'ungated';
                             }
@@ -12538,7 +12538,7 @@
                         if (result === 'gone') { skipped++; problemIds.push(`${label} (gone)`); }
                         else if (result === 'already') { alreadyHad++; }
                         else if (result === 'ungated') { ungated++; ungatedIds.push(label); }
-                        else if (result === 'claims-no-code') { problemIds.push(`${label} CLAIMS a code but none exists anywhere — re-save it in Manage`); }
+                        else if (result === 'claims-no-code') { problemIds.push(`${label} CLAIMS a code but none exists anywhere, so re-save it in Manage`); }
                         else { copied++; say(`  copied ${label}`); }
                     } catch (e) {
                         /* One tournament failing must not decide the fate of the rest. Counted and
@@ -12562,7 +12562,7 @@
                         if (!pNow.exists() || !pNow.data().joinCode) {
                             if (!nd.joinCode) {
                                 /* Nothing private and nothing to build one FROM. Refuse rather
-                                 * than delete a field that is already absent — and surface it,
+                                 * than delete a field that is already absent, and surface it,
                                  * because a tournament in this state either never had a code or
                                  * lost one, and those need different answers. */
                                 throw new Error('NO_CODE_AND_NO_SOURCE');
@@ -12585,17 +12585,17 @@
                     } else { purged++; say(`  purged ${label}`); }
                 } catch (e) {
                     skipped++;
-                    problemIds.push(`${label} ${e.message === 'NO_CODE_AND_NO_SOURCE' ? '(no code anywhere — nothing to migrate or protect)' : '(' + e.message + ')'}`);
+                    problemIds.push(`${label} ${e.message === 'NO_CODE_AND_NO_SOURCE' ? '(no code anywhere, so there is nothing to migrate or protect)' : '(' + e.message + ')'}`);
                 }
             }
 
             say('');
             if (phase === 'copy') say(`copied: ${copied}   already private: ${alreadyHad}   ungated (no code at all): ${ungated}   skipped: ${skipped}`);
             else say(`purged: ${purged}   already clean: ${alreadyHad}   BACKFILLED: ${backfilled}   skipped: ${skipped}`);
-            if (ungatedIds.length) { say(''); say('NO CODE AT ALL — these tournaments are open to anyone signed in:'); ungatedIds.forEach(i => say('  - ' + i)); }
+            if (ungatedIds.length) { say(''); say('NO CODE AT ALL. These tournaments are open to anyone signed in:'); ungatedIds.forEach(i => say('  - ' + i)); }
             if (backfilledIds.length) {
                 say('');
-                say('BACKFILLED — a private copy was missing and was rebuilt from the public field.');
+                say('BACKFILLED. A private copy was missing and was rebuilt from the public field.');
                 say('This run is NOT clean. Find out what wrote a pre-fix tournament after COPY:');
                 backfilledIds.forEach(i => say('  - ' + i));
             }
