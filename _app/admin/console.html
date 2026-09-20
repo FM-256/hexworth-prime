@@ -4239,6 +4239,34 @@
                             </div>
                             <pre id="rbReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:220px; overflow:auto;"></pre>
                         </div>
+
+                        <!-- Real box POOL. A box's credentials belong to the MACHINE, not to any
+                             event: the six Engine 1 clones keep the same token URL and login across
+                             every tournament. Recorded once here, then wired to a tournament's teams
+                             in ONE click, instead of six credentials retyped before every event.
+                             A step done by hand before every event is a step that gets skipped
+                             before some event. Stored in box_pool, admin-only both verbs. -->
+                        <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(46,204,113,0.25);">
+                            <div class="ac-card-title">Real Box Pool</div>
+                            <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
+                                Record each physical machine ONCE. <code>Team id</code> is optional and pins a box to a specific team (the Engine 1 clones are already named per team, so <code>team-blue</code> maps to the blue-shield box). Then <strong>Wire pool to all teams</strong> writes every per-team assignment for the challenge selected above. Students never read these documents: the board asks a Cloud Function that checks membership server side.
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin-bottom:8px;">
+                                <input id="bpLabel" class="ac-input" placeholder="label, e.g. engine1-red-cell">
+                                <input id="bpTeamId" class="ac-input" placeholder="team id (optional), e.g. team-red">
+                                <input id="bpUrl" class="ac-input" placeholder="https://engine1.hexworth.tech/t/&lt;token&gt;/">
+                                <input id="bpUser" class="ac-input" placeholder="player">
+                                <input id="bpPass" class="ac-input" placeholder="box password">
+                                <input id="bpNote" class="ac-input" placeholder="note shown to the team (optional)">
+                            </div>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="saveBoxPoolEntry()">Add to pool</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="listBoxPool()">List pool</button>
+                                <div style="border-left:1px solid rgba(255,255,255,0.1); height:28px;"></div>
+                                <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="wirePoolToTeams()">Wire pool to all teams</button>
+                            </div>
+                            <pre id="bpReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
+                        </div>
                     </div>
 
                     <!-- Teams card -->
@@ -12790,6 +12818,145 @@
             } catch (e) {
                 document.getElementById('rbReport').textContent = 'FAILED: ' + e.message;
                 showToast('Could not save: ' + e.message, 'danger');
+            }
+        };
+
+        /* ── REAL BOX POOL (Engine 1 and anything like it) ─────────────────────────────────────
+         * A box's URL, username and password are properties of the MACHINE, not of an event. The
+         * six Engine 1 clones on bc2 keep the same token URL and login across every tournament they
+         * are ever used in, so recording them per tournament meant retyping six credentials before
+         * each event. That is a manual pre-event step, and a manual pre-event step is one that gets
+         * skipped before some event, on the day it matters.
+         *
+         * WHY box_pool IS A TOP-LEVEL COLLECTION. It outlives any single tournament. Nesting it
+         * under one would make the second tournament re-enter everything, which is the problem.
+         * Admin-only on both verbs (firestore.rules): the document IS a working login to an
+         * interactive Windows machine built to be broken into. */
+        window.saveBoxPoolEntry = async function() {
+            const out = document.getElementById('bpReport');
+            const label = document.getElementById('bpLabel').value.trim();
+            const teamId = document.getElementById('bpTeamId').value.trim();
+            const url = document.getElementById('bpUrl').value.trim();
+            const user = document.getElementById('bpUser').value.trim();
+            const pass = document.getElementById('bpPass').value.trim();
+            const note = document.getElementById('bpNote').value.trim();
+            if (!label) { showToast('A label is required, it is the pool document id.', 'warning'); return; }
+            if (!url) { showToast('A URL is required: an entry with no URL cannot be wired to anything.', 'warning'); return; }
+            const { doc, setDoc, serverTimestamp } = _firestoreModule;
+            try {
+                await setDoc(doc(db, 'box_pool', label), {
+                    label: label,
+                    teamId: teamId || null,
+                    url: url,
+                    username: user || null,
+                    password: pass || null,
+                    note: note || null,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+                out.textContent = 'saved pool entry: ' + label + (teamId ? ' (pinned to ' + teamId + ')' : ' (unpinned)');
+                showToast('Pool entry saved.', 'success');
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+                showToast('Could not save: ' + e.message, 'error');
+            }
+        };
+
+        window.listBoxPool = async function() {
+            const out = document.getElementById('bpReport');
+            out.textContent = 'reading...';
+            const { collection, getDocs } = _firestoreModule;
+            try {
+                const snap = await getDocs(collection(db, 'box_pool'));
+                if (snap.empty) { out.textContent = 'The pool is EMPTY. Nothing can be wired until at least one box is recorded.'; return; }
+                /* Never print the password. An admin who needs it reads it off bc2; echoing it into
+                 * a panel puts it in screenshots and screen shares. */
+                const lines = snap.docs.map(d => {
+                    const v = d.data();
+                    return '  ' + d.id.padEnd(28) + (v.teamId ? ('-> ' + v.teamId).padEnd(16) : '(unpinned)'.padEnd(16))
+                        + (v.url ? 'url set' : 'NO URL') + '  ' + (v.password ? 'password set' : 'NO PASSWORD');
+                });
+                out.textContent = snap.size + ' box(es) in the pool:\n' + lines.join('\n')
+                    + '\n\n(values withheld on purpose; read them on bc2 if you need them)';
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+            }
+        };
+
+        /* WIRE THE POOL TO EVERY TEAM, for the challenge selected in the panel above.
+         *
+         * REFUSES A PARTIAL WIRING. If the pool cannot cover every team, nothing is written and it
+         * says how many short it is. A competition where four of six teams have a machine and two
+         * do not is not a partially-working tournament, it is an unfair one, and the operator would
+         * discover it from a student rather than from this panel.
+         *
+         * LEAVES AN EXISTING ASSIGNMENT ALONE and reports it. An assignment already present may
+         * have been placed by hand for a reason; silently overwriting it is how careful work gets
+         * undone by a convenience button.
+         *
+         * PREFERS A PINNED BOX. The clones are already named per team (team-blue -> blue-shield),
+         * so a pinned entry keeps the mapping meaningful rather than arbitrary; anything unpinned
+         * fills the remaining teams in a stable order. */
+        window.wirePoolToTeams = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const chId = document.getElementById('rbChallenge').value;
+            const out = document.getElementById('bpReport');
+            if (!chId) { showToast('Pick the challenge (in the panel above) that uses the real box.', 'warning'); return; }
+            const { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } = _firestoreModule;
+            out.textContent = 'reading pool and teams...';
+            try {
+                const [poolSnap, teamSnap] = await Promise.all([
+                    getDocs(collection(db, 'box_pool')),
+                    getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'))
+                ]);
+                const pool = poolSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.url);
+                const teams = teamSnap.docs.map(d => ({ id: d.id, name: (d.data().name || d.id) }))
+                    .sort((a, b) => a.id.localeCompare(b.id));
+                if (!pool.length) { out.textContent = 'The pool is EMPTY. Record the boxes first.'; return; }
+                if (pool.length < teams.length) {
+                    out.textContent = 'REFUSED: ' + teams.length + ' team(s) but only ' + pool.length
+                        + ' box(es) with a URL in the pool.\n\nNothing was written. A tournament where some teams '
+                        + 'have a machine and others do not is unfair rather than partially ready, so this writes '
+                        + 'all of them or none.\n\nAdd ' + (teams.length - pool.length)
+                        + ' more box(es), or reduce the team count.';
+                    showToast('Refused: pool is ' + (teams.length - pool.length) + ' box(es) short.', 'warning');
+                    return;
+                }
+
+                /* Pinned first, so a named clone lands on the team it was named for. */
+                const byTeam = new Map(pool.filter(p => p.teamId).map(p => [p.teamId, p]));
+                const spare = pool.filter(p => !p.teamId || !teams.some(t => t.id === p.teamId));
+                let si = 0;
+                const plan = [];
+                for (const t of teams) {
+                    const pick = byTeam.get(t.id) || spare[si++];
+                    if (!pick) { out.textContent = 'REFUSED: ran out of boxes while planning. Nothing written.'; return; }
+                    plan.push({ team: t, box: pick });
+                }
+
+                const wrote = [], left = [];
+                for (const row of plan) {
+                    const aRef = doc(db, 'tournaments', _ctfEditingId, 'teams', row.team.id, 'assignments', chId);
+                    const existing = await getDoc(aRef);
+                    if (existing.exists()) { left.push(row.team.name + ' (already assigned, untouched)'); continue; }
+                    await setDoc(aRef, {
+                        challengeId: chId,
+                        url: row.box.url,
+                        username: row.box.username || null,
+                        password: row.box.password || null,
+                        note: row.box.note || null,
+                        fromPool: row.box.id,
+                        assignedAt: serverTimestamp()
+                    });
+                    wrote.push(row.team.name + ' -> ' + row.box.id);
+                }
+                out.textContent = 'challenge ' + chId + '\n\nwrote ' + wrote.length + ' assignment(s):\n'
+                    + (wrote.map(w => '  ' + w).join('\n') || '  (none)')
+                    + (left.length ? '\n\nleft alone (' + left.length + '):\n' + left.map(l => '  ' + l).join('\n') : '')
+                    + '\n\n(URLs and passwords deliberately not printed)';
+                showToast('Wired ' + wrote.length + ' team(s).', 'success');
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+                showToast('Could not wire: ' + e.message, 'error');
             }
         };
 

@@ -52,35 +52,12 @@ const path = require('path');
 let pass = 0, fail = 0;
 const chk = (n, ok, d) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}${d ? ' :: ' + d : ''}`); ok ? pass++ : fail++; };
 
-/* Pull the real function out of the page by matching braces from its declaration. Regex alone
- * cannot find the end of a function containing nested braces and template strings. */
+/* The brace matcher lives in lib/extract-shipped.js, shared with ctf-box-pool.test.js. It was
+ * duplicated until 2026-09-20; a matcher this fragile (it silently over-ran by 43230 chars when it
+ * did not skip comments) is one that must be fixed in a single place. */
+const { extractShipped: _extract } = require('./lib/extract-shipped');
 function extractShipped(name) {
-    /* CONSOLE_PATH exists so this suite can be pointed at a deliberately broken copy of the
-     * page to prove it is sensitive to the behaviour it claims to check. A suite that has
-     * never been shown to fail is not evidence. */
-    const src = fs.readFileSync(process.env.CONSOLE_PATH || path.join(__dirname, '..', '..', '_app', 'admin', 'console.html'), 'utf8');
-    const start = src.indexOf(`window.${name} = async function(`);
-    if (start === -1) throw new Error(`${name} not found in console.html — did it get renamed?`);
-    /* MUST SKIP COMMENTS, NOT JUST STRINGS. The first version tracked quotes only, so an
-     * apostrophe inside a block comment ("the card's own claim") opened a phantom string, brace
-     * tracking desynchronised, and extraction ran 43230 chars past the end of the function —
-     * failing loudly with a SyntaxError rather than silently, which is the only reason it was
-     * caught. A heavily commented codebase makes this the common case, not an edge one. */
-    let i = src.indexOf('{', start), depth = 0, inStr = null;
-    for (; i < src.length; i++) {
-        const c = src[i], next2 = src.substr(i, 2);
-        if (inStr) {
-            if (c === '\\') { i++; continue; }          // escape: skip the next char entirely
-            if (c === inStr) inStr = null;
-            continue;
-        }
-        if (next2 === '//') { const nl = src.indexOf('\n', i); if (nl === -1) break; i = nl; continue; }
-        if (next2 === '/*') { const close = src.indexOf('*/', i + 2); if (close === -1) break; i = close + 1; continue; }
-        if (c === '"' || c === "'" || c === '`') { inStr = c; continue; }
-        if (c === '{') depth++;
-        else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
-    }
-    return src.slice(start, i) + ';';
+    return _extract(process.env.CONSOLE_PATH || path.join(__dirname, '..', '..', '_app', 'admin', 'console.html'), name);
 }
 
 (async () => {
