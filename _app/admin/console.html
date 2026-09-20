@@ -4265,6 +4265,7 @@
                                 <div style="border-left:1px solid rgba(255,255,255,0.1); height:28px;"></div>
                                 <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="wirePoolToTeams()">Wire pool to all teams</button>
                                 <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="releasePoolFromTournament()">Release pool</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="releaseOrphanedClaims()">Sweep orphaned claims</button>
                             </div>
                             <pre id="bpReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
                         </div>
@@ -12241,13 +12242,48 @@
 
         // ── Delete Tournament ──
 
+        /* RELEASES ITS POOL BOXES BEFORE DELETING, and says how many it holds.
+         *
+         * This function used to do exactly one deleteDoc. Nancy traced what that costs now that a
+         * tournament can HOLD machines: there are no onDocumentDeleted triggers anywhere in this
+         * project, so deleting the tournament doc left `assignedTo.tournamentId` pointing at an id
+         * that no longer exists. releasePoolFromTournament needs the tournament to be openable in
+         * this console, and a deleted one is not listed, so the claim became unreachable through any
+         * normal flow. With exactly six machines, one Delete-instead-of-Release permanently removes
+         * one from the usable pool, and the symptom an operator meets later is "already wired to a
+         * live tournament" naming an event that no longer exists, with no button that fixes it.
+         *
+         * Two defences, because neither is sufficient alone: this releases on the way out
+         * (prevention), and releaseOrphanedClaims below clears claims that are ALREADY stranded
+         * (remedy, for the ones this fix is too late for). */
         window.deleteTournament = async function(id, name) {
-            if (!confirm('Delete tournament "' + name + '"? This cannot be undone.')) return;
+            const { doc, deleteDoc, collection, getDocs, writeBatch, deleteField } = _firestoreModule;
+            let held = [];
+            try {
+                const poolSnap = await getDocs(collection(db, 'box_pool'));
+                held = poolSnap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === id).map(d => d.id);
+            } catch (e) {
+                /* Not fatal: an admin must still be able to delete a tournament if the pool read
+                 * fails. But say so, because the claims will then need the orphan sweep. */
+                console.warn('[console] could not read box_pool before delete:', e.message);
+            }
+            const warn = held.length
+                ? '\n\nIt currently holds ' + held.length + ' real box(es): ' + held.join(', ')
+                  + '.\nThey will be RELEASED back to the pool first, so they are not stranded.'
+                : '';
+            if (!confirm('Delete tournament "' + name + '"? This cannot be undone.' + warn)) return;
 
             try {
-                const { doc, deleteDoc } = _firestoreModule;
+                if (held.length) {
+                    const batch = writeBatch(db);
+                    held.forEach(pid => batch.set(doc(db, 'box_pool', pid),
+                        { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
+                    await batch.commit();
+                }
                 await deleteDoc(doc(db, 'tournaments', id));
-                showToast('Tournament deleted.', 'success');
+                showToast(held.length
+                    ? 'Tournament deleted, ' + held.length + ' box(es) released.'
+                    : 'Tournament deleted.', 'success');
                 loadTournaments();
             } catch (e) {
                 showToast('Failed: ' + e.message, 'danger');
@@ -12902,7 +12938,7 @@
             const chId = document.getElementById('rbChallenge').value;
             const out = document.getElementById('bpReport');
             if (!chId) { showToast('Pick the challenge (in the panel above) that uses the real box.', 'warning'); return; }
-            const { collection, getDocs, doc, getDoc, setDoc, writeBatch, serverTimestamp } = _firestoreModule;
+            const { collection, getDocs, doc, getDoc, setDoc, writeBatch, runTransaction, serverTimestamp } = _firestoreModule;
             out.textContent = 'reading pool and teams...';
             try {
                 const [poolSnap, teamSnap] = await Promise.all([
@@ -12976,35 +13012,127 @@
                     return;
                 }
 
-                /* ONE BATCH, so the writes are atomic. The first version used sequential awaits
-                 * inside one try/catch, and BOTH reviewers proved the consequence independently: a
-                 * throw on the 4th of 6 writes left 3 teams wired and printed "FAILED: <message>",
-                 * which is indistinguishable from having written nothing. The commit claimed "writes
-                 * all of them or none" while only the pool-too-small path actually did that. The
-                 * mutation testing I had done covered the two PLANNING guards and could not see this,
-                 * because it never threw mid-loop. */
-                const batch = writeBatch(db);
-                const wrote = [], left = [];
+                /* THE SAME CHECK, ACROSS THE WHOLE POOL, NOT JUST THIS PLAN.
+                 *
+                 * The two refusals above only look at `plan`, and Nancy found the door that leaves
+                 * open: pool doc A holds url X and is CLAIMED by tournament-1, while doc B holds the
+                 * same url X and is unclaimed. A second tournament selecting B passes the claim check
+                 * (B itself is free) and passes the duplicate check (only one entry with url X is in
+                 * ITS plan), so it is wired to the very machine tournament-1 is using. Same outcome
+                 * Mallory proved, reached through a different door.
+                 *
+                 * The earlier test could not catch it because its fixture cleared every claim before
+                 * inserting the duplicate, so both copies were free and landed in one plan together:
+                 * it only ever exercised same-call duplication. The check has to be against the URL
+                 * of every OTHER pool document, claimed or not, which is why it uses the full `pool`
+                 * rather than `plan`. */
+                const conflicts = [];
                 for (const row of plan) {
-                    const aRef = doc(db, 'tournaments', _ctfEditingId, 'teams', row.team.id, 'assignments', chId);
-                    const existing = await getDoc(aRef);
-                    if (existing.exists()) { left.push(row.team.name + ' (already assigned, untouched)'); continue; }
-                    batch.set(aRef, {
-                        challengeId: chId,
-                        url: row.box.url,
-                        username: row.box.username || null,
-                        password: row.box.password || null,
-                        note: row.box.note || null,
-                        fromPool: row.box.id,
-                        assignedAt: serverTimestamp()
-                    });
-                    batch.set(doc(db, 'box_pool', row.box.id), {
-                        assignedTo: { tournamentId: _ctfEditingId, teamId: row.team.id, challengeId: chId },
-                        assignedAt: serverTimestamp()
-                    }, { merge: true });
-                    wrote.push(row.team.name + ' -> ' + row.box.id);
+                    const myUrl = String(row.box.url).trim();
+                    for (const other of pool) {
+                        if (other.id === row.box.id) continue;
+                        if (String(other.url).trim() !== myUrl) continue;
+                        const a = other.assignedTo;
+                        if (!a) continue;
+                        const mine = a.tournamentId === _ctfEditingId && a.teamId === row.team.id && a.challengeId === chId;
+                        if (!mine) conflicts.push({ box: row.box.id, twin: other.id, holder: a.tournamentId, holderTeam: a.teamId });
+                    }
                 }
-                if (wrote.length) await batch.commit();
+                if (conflicts.length) {
+                    out.textContent = 'REFUSED: ' + conflicts.length + ' box(es) are a DUPLICATE of a machine already in use.'
+                        + '\n\nNothing was written. These entries have different labels but the same URL as a box that '
+                        + 'another wiring is holding, so wiring them would put two teams on one machine by the back door.'
+                        + '\n\n' + conflicts.map(c => '  ' + c.box + ' duplicates ' + c.twin
+                            + ', held by tournament ' + c.holder + ' team ' + c.holderTeam).join('\n')
+                        + '\n\nRemove the duplicate pool entry, or release the holder first.'
+                        + '\n\n(URLs are not printed here)';
+                    showToast('Refused: ' + conflicts.length + ' duplicate of an in-use machine.', 'warning');
+                    return;
+                }
+
+                /* ONE TRANSACTION, and the claim is RE-READ inside it.
+                 *
+                 * A writeBatch made the writes atomic among themselves, which fixed the partial-write
+                 * gap both reviewers found. It did NOT fix check-then-act: the claim was evaluated in
+                 * JS against an earlier getDocs() snapshot, so two admins wiring two tournaments in
+                 * the same read-to-commit window both saw every box free and both committed. Mallory
+                 * reproduced that twice with two genuinely independent closures: 12 assignments
+                 * pointing at 6 physical machines, every team sharing a box with its counterpart in
+                 * the other tournament. Identical blast radius to the original defect, reached through
+                 * a timing window instead of a missing check.
+                 *
+                 * A transaction re-reads each pool document with tx.get() and re-validates the claim
+                 * against what is committed NOW, not against the stale snapshot. Firestore retries a
+                 * transaction whose read set changed under it, so the loser of a race sees the
+                 * winner's assignedTo and aborts. runTransaction is already the pattern used for
+                 * comparable check-then-write flows elsewhere in this file; the batch was the odd one
+                 * out, and that is the mechanical reason the check could not defend itself.
+                 *
+                 * TWINS ARE RE-READ TOO. A duplicate-URL entry could be claimed concurrently by
+                 * another wiring, so the same window applies to Nancy's back door. Their ids are
+                 * computed from the snapshot above and re-read here, because a check that is only as
+                 * fresh as a snapshot is the bug being fixed.
+                 *
+                 * ALL READS BEFORE ANY WRITE, which Firestore requires of a transaction. */
+                const twinIds = [];
+                for (const row of plan) {
+                    const myUrl = String(row.box.url).trim();
+                    for (const other of pool) {
+                        if (other.id !== row.box.id && String(other.url).trim() === myUrl) twinIds.push(other.id);
+                    }
+                }
+                const wrote = [], left = [];
+                const RACE = 'BOX_CLAIMED_CONCURRENTLY';
+                await runTransaction(db, async (tx) => {
+                    wrote.length = 0; left.length = 0;   // a retry must not double-count
+                    const poolNow = new Map();
+                    for (const id of new Set(plan.map(r => r.box.id).concat(twinIds))) {
+                        const snap = await tx.get(doc(db, 'box_pool', id));
+                        poolNow.set(id, snap.exists() ? snap.data() : null);
+                    }
+                    const existingNow = new Map();
+                    for (const row of plan) {
+                        const aRef = doc(db, 'tournaments', _ctfEditingId, 'teams', row.team.id, 'assignments', chId);
+                        existingNow.set(row.team.id, (await tx.get(aRef)).exists());
+                    }
+
+                    const mineFor = (a, teamId) => a && a.tournamentId === _ctfEditingId
+                        && a.teamId === teamId && a.challengeId === chId;
+                    for (const row of plan) {
+                        const live = poolNow.get(row.box.id);
+                        if (!live) throw new Error('pool entry ' + row.box.id + ' vanished mid-wiring');
+                        if (live.assignedTo && !mineFor(live.assignedTo, row.team.id)) {
+                            const e = new Error(RACE); e.boxId = row.box.id; e.holder = live.assignedTo.tournamentId; throw e;
+                        }
+                        const myUrl = String(row.box.url).trim();
+                        for (const tid of twinIds) {
+                            const twin = poolNow.get(tid);
+                            if (!twin || tid === row.box.id) continue;
+                            if (String(twin.url).trim() !== myUrl) continue;
+                            if (twin.assignedTo && !mineFor(twin.assignedTo, row.team.id)) {
+                                const e = new Error(RACE); e.boxId = row.box.id; e.holder = twin.assignedTo.tournamentId; throw e;
+                            }
+                        }
+                    }
+
+                    for (const row of plan) {
+                        if (existingNow.get(row.team.id)) { left.push(row.team.name + ' (already assigned, untouched)'); continue; }
+                        tx.set(doc(db, 'tournaments', _ctfEditingId, 'teams', row.team.id, 'assignments', chId), {
+                            challengeId: chId,
+                            url: row.box.url,
+                            username: row.box.username || null,
+                            password: row.box.password || null,
+                            note: row.box.note || null,
+                            fromPool: row.box.id,
+                            assignedAt: serverTimestamp()
+                        });
+                        tx.set(doc(db, 'box_pool', row.box.id), {
+                            assignedTo: { tournamentId: _ctfEditingId, teamId: row.team.id, challengeId: chId },
+                            assignedAt: serverTimestamp()
+                        }, { merge: true });
+                        wrote.push(row.team.name + ' -> ' + row.box.id);
+                    }
+                });
                 out.textContent = 'challenge ' + chId + '\n\nwrote ' + wrote.length + ' assignment(s) in ONE batch:\n'
                     + (wrote.map(w => '  ' + w).join('\n') || '  (none)')
                     + (left.length ? '\n\nleft alone (' + left.length + '):\n' + left.map(l => '  ' + l).join('\n') : '')
@@ -13012,11 +13140,21 @@
                     + '\n\n(URLs and passwords deliberately not printed)';
                 showToast('Wired ' + wrote.length + ' team(s).', 'success');
             } catch (e) {
-                /* A batch either commits or it does not, so this path no longer implies a partial
+                /* A transaction either commits or it does not, so this path never implies a partial
                  * write. Saying so matters: the operator's next question is always "did some of it
-                 * land", and previously the honest answer was "unknown". */
-                out.textContent = 'FAILED, and NOTHING was written (the writes are one atomic batch): ' + e.message;
-                showToast('Could not wire: ' + e.message, 'error');
+                 * land", and before the writes were atomic the honest answer was "unknown".
+                 * The race is named in plain words rather than leaking a sentinel, because
+                 * "BOX_CLAIMED_CONCURRENTLY" tells an instructor nothing about what to do. */
+                if (e && e.message === 'BOX_CLAIMED_CONCURRENTLY') {
+                    out.textContent = 'REFUSED, and NOTHING was written: box ' + (e.boxId || '?')
+                        + ' was claimed by tournament ' + (e.holder || '?') + ' while this was running.\n\n'
+                        + 'Someone else wired a tournament at the same moment. Re-read the pool and try again; '
+                        + 'the transaction refused rather than putting two teams on one machine.';
+                    showToast('Refused: a box was claimed concurrently. Nothing was written.', 'warning');
+                } else {
+                    out.textContent = 'FAILED, and NOTHING was written (the writes are one transaction): ' + e.message;
+                    showToast('Could not wire: ' + e.message, 'error');
+                }
             }
         };
 
@@ -13024,6 +13162,51 @@
          * would be permanently stuck to the first tournament that ever used it, and the next event
          * would be refused with no remedy. Scoped to ONE tournament on purpose rather than clearing
          * every claim, so releasing last month's event cannot quietly unclaim a running one. */
+        /* THE REMEDY FOR CLAIMS ALREADY STRANDED. Releasing on delete prevents new orphans; it does
+         * nothing for a box whose owning tournament was deleted before that fix existed, and those
+         * are unreachable through every other flow. Six machines is a small, exhaustible resource,
+         * so "you will need a direct Firestore write" is not an acceptable remedy for a state the UI
+         * can create with one click.
+         *
+         * Checks EXISTENCE of the owning tournament rather than trusting a status field: the whole
+         * point is that the document is gone. A claim whose tournament still exists is left alone
+         * even if that tournament is finished, because "ended" is not "abandoned" and releasing a
+         * finished event's boxes is a decision for the operator, not a sweep. */
+        window.releaseOrphanedClaims = async function() {
+            const out = document.getElementById('bpReport');
+            const { collection, getDocs, doc, getDoc, writeBatch, deleteField } = _firestoreModule;
+            out.textContent = 'checking every claim against its tournament...';
+            try {
+                const poolSnap = await getDocs(collection(db, 'box_pool'));
+                const claimed = poolSnap.docs.filter(d => (d.data().assignedTo || {}).tournamentId);
+                if (!claimed.length) { out.textContent = 'No box in the pool is claimed. Nothing to sweep.'; return; }
+                const orphans = [], live = [];
+                for (const d of claimed) {
+                    const tid = d.data().assignedTo.tournamentId;
+                    const t = await getDoc(doc(db, 'tournaments', tid));
+                    (t.exists() ? live : orphans).push({ box: d.id, tid: tid });
+                }
+                if (!orphans.length) {
+                    out.textContent = 'All ' + claimed.length + ' claim(s) belong to a tournament that still exists.'
+                        + '\n\nNothing swept. Use Release pool to free a specific event\'s boxes.';
+                    return;
+                }
+                if (!confirm('Release ' + orphans.length + ' box(es) whose tournament no longer exists?\n\n'
+                    + orphans.map(o => o.box + ' (held by deleted ' + o.tid + ')').join('\n'))) return;
+                const batch = writeBatch(db);
+                orphans.forEach(o => batch.set(doc(db, 'box_pool', o.box),
+                    { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
+                await batch.commit();
+                out.textContent = 'swept ' + orphans.length + ' orphaned claim(s):\n'
+                    + orphans.map(o => '  ' + o.box + ' was held by deleted tournament ' + o.tid).join('\n')
+                    + (live.length ? '\n\nleft alone (' + live.length + ' claim(s) whose tournament still exists)' : '');
+                showToast('Swept ' + orphans.length + ' orphaned claim(s).', 'success');
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+                showToast('Could not sweep: ' + e.message, 'error');
+            }
+        };
+
         window.releasePoolFromTournament = async function() {
             if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
             const out = document.getElementById('bpReport');
