@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-18 18:29 · **1314 scripts** · 47 wired into a gate · 306 called by other code · 200 only mentioned in docs · 761 referenced by nothing · 547 not in git
+**Generated:** 2026-09-20 15:28 · **1333 scripts** · 48 wired into a gate · 314 called by other code · 203 only mentioned in docs · 768 referenced by nothing · 550 not in git
 
 ## Read this before writing a new script
 
@@ -41,6 +41,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/career/gen-house-tracks.js` | `_tools/deploy/post-verify.sh` | yes | Generates _app/components/HouseTracks.js: the house -> course-track map that puts real content links on the 13 careers.html pages. Derived from the generated course-trees catalog, never hand-maintained. |
 | `_tools/catalog/gen-catalog.py` | `_tools/deploy/post-verify.sh` | yes | Walks _tools/ and emits CATALOG.md + catalog.json: every script, whether anything actually invokes it, and whether it is even in git. one line, what it does |
 | `_tools/confluence/push_hub_inventory.sh` | `deploy.sh` | yes | _(no header)_ |
+| `_tools/confluence/sync-published-docs.sh` | `deploy.sh` | yes | Re-pushes registered runbooks to Confluence, refusing any whose line refs rotted |
 | `_tools/content/completion-validation.test.js` | `deploy.sh` | yes | Proves the completion registry accepts every id real students hold, rejects fabricated ids, and that every live writer of modulesCompleted/labsCompleted actually calls the guard. Runs offline against the committed snapshot. |
 | `_tools/content/gen-completion-registry.js` | `deploy.sh` | yes | Generates functions/completion-registry.json: every completion id the platform can legitimately award, unioned from declared content plus the ids students already hold. --check fails if the committed registry is stale. |
 | `_tools/deploy/deploy-surface-gate.py` | `deploy.sh` | yes | Blocks debris in the hosting surface: deployable files git does not track. |
@@ -172,7 +173,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `qc_subnet_tmp.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `qc_subnet_tmp2.js` | ORPHAN | 0 | 2026-07-20 | no |  |
 | `secplus-quiz-gen.js` | DOCS-ONLY | 0 | 2026-06-27 | yes |  |
-| `smoke-lab-content-leaks.js` | CALLED | 3 | 2026-09-03 | yes |  |
+| `smoke-lab-content-leaks.js` | CALLED | 4 | 2026-09-03 | yes |  |
 | `sql-engine-strict-wip.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `test-heur-030.js` | ORPHAN | 0 | 2026-05-17 | no |  |
 | `touristvisa-idempotency-test.js` | ORPHAN | 0 | 2026-07-12 | yes |  |
@@ -297,7 +298,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `build_hub_inventory.js` | CALLED | 1 | 2026-05-05 | yes |  |
 | `fix-az104-answer-letters.py` | ORPHAN | 0 | 2026-08-04 | yes |  |
 | `generate-quiz-solution.js` | DOCS-ONLY | 0 | 2026-08-14 | yes | Generates a quiz solutions doc DERIVED from the live HTML + Firestore key. |
-| `publish-solution.py` | CALLED | 2 | 2026-06-11 | yes |  |
+| `publish-solution.py` | CALLED | 4 | 2026-09-20 | yes |  |
 | `publish-wsa.py` | ORPHAN | 0 | 2026-06-25 | yes |  |
 
 ### `_tools/covers` — 10 scripts, 3 referenced by nothing
@@ -315,7 +316,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `gen_sprite.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `promote_backdrop.py` | ORPHAN | 0 | 2026-07-31 | yes |  |
 
-### `_tools/deploy` — 14 scripts, 8 referenced by nothing
+### `_tools/deploy` — 15 scripts, 8 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -326,6 +327,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `freeze-check.sh` | CALLED | 3 | 2026-09-03 | yes | Content-hash freeze check that SEES gitignored paths, which git status cannot |
 | `is-it-live.sh` | DOCS-ONLY | 0 | 2026-07-30 | yes |  |
 | `prove-verifiers-discriminate.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
+| `record-nancy-pass.sh` | CALLED | 1 | 2026-09-19 | yes | writes _tools/deploy/.nancy-pass with Nancy's verdict + scope for HEAD |
 | `restore-holdouts-2026-08-01.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `test-deploy-surface-gate.py` | DOCS-ONLY | 0 | 2026-08-14 | yes | Proves the deploy-surface gate catches debris and does not flag real content. |
 | `verify-2026-08-01-deploy.sh` | ORPHAN | 0 | 2026-08-01 | yes |  |
@@ -357,11 +359,23 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `wsa-class-backfill.js` | DOCS-ONLY | 0 | 2026-06-14 | no |  |
 | `wsa_idmap.js` | CALLED | 3 | 2026-06-14 | no |  |
 
+### `_tools/discord` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `register-tournament-command.js` | DOCS-ONLY | 0 | 2026-09-19 | yes | Registers the /tournament slash command with Discord, ADDITIVELY, and lists the |
+
 ### `_tools/dispatch` — 1 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `manifest-gen.js` | ORPHAN | 0 | 2026-08-31 | yes |  |
+
+### `_tools/docs` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `verify-doc-line-refs.js` | CALLED | 2 | 2026-09-20 | yes | Flags `file.ext:123` references in docs that no longer point at real code |
 
 ### `_tools/dr-hex` — 1 scripts, 0 referenced by nothing
 
@@ -696,18 +710,23 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `roster-open.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Set who may reach Engine 1 (the real Windows CTF box) through Cloudflare Access. |
 
-### `_tools/engine1/provision` — 8 scripts, 3 referenced by nothing
+### `_tools/engine1/provision` — 13 scripts, 7 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `build-unattend.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `clone-team.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `create-engine1.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `crosstest.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `dhcp-reserve.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `golden.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
-| `inject-flag.sh` | CALLED | 1 | 2026-09-18 | yes |  |
-| `mint-flag.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `inject-flag.sh` | CALLED | 2 | 2026-09-18 | yes |  |
+| `mint-flag.sh` | CALLED | 1 | 2026-09-18 | yes |  |
+| `netguard.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Isolate Engine 1's Windows CTF boxes from each other and from the internet. |
 | `player-account.sh` | CALLED | 1 | 2026-09-18 | yes |  |
 | `prepare-clone.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `unique-creds.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `wire-teams.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 
 ### `_tools/firestore` — 2 scripts, 1 referenced by nothing
 
@@ -792,11 +811,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 104 scripts, 85 referenced by nothing
+### `_tools/hexos` — 110 scripts, 86 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `_ad001_final_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
+| `_authprobe_tmp.js` | DOCS-ONLY | 0 | 2026-09-18 | no | _one-shot probe (leading underscore)_ |
 | `_box_gui_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_box_probe_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_chris_adv_review_verify_tmp.test.js` | ORPHAN | 0 | 2026-08-31 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
@@ -821,6 +841,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_chris_round12_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
 | `_chris_round12b_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
 | `_chris_round12c_tmp.js` | ORPHAN | 0 | 2026-09-17 | no | _one-shot probe (leading underscore)_ |
+| `_chris_triple_switch_tmp.js` | DOCS-ONLY | 0 | 2026-09-18 | no | _one-shot probe (leading underscore)_ |
 | `_chris_wmic_dir_probe_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
 | `_flagdiag_tmp.js` | ORPHAN | 0 | 2026-09-14 | no | _one-shot probe (leading underscore)_ |
 | `_flagnull_control_tmp.js` | ORPHAN | 0 | 2026-09-16 | no | _one-shot probe (leading underscore)_ |
@@ -874,17 +895,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_probe_prod_dialog_tmp.js` | ORPHAN | 0 | 2026-09-13 | no | _one-shot probe (leading underscore)_ |
 | `_probe_resetlab_tmp.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
 | `_probe_resetlab_tmp2.js` | ORPHAN | 0 | 2026-09-12 | no | _one-shot probe (leading underscore)_ |
+| `_qrdiag_tmp.js` | DOCS-ONLY | 0 | 2026-09-19 | no | _one-shot probe (leading underscore)_ |
 | `_reviewer_probe_tmp.test.js` | CALLED | 2 | 2026-09-03 | yes | Drives ps/stop/restart in a headless browser against the REAL _app/hex/index.html and the REAL lab-manager response shape. Catches wiring and destructive-ordering bugs. |
 | `anon-lazy-auth-clickthrough.test.js` | ORPHAN | 0 | 2026-09-09 | yes | The two sibling harnesses only ever measured PAGE LOAD. This one clicks. It |
 | `anon-load-signin-emulator.test.js` | CALLED | 2 | 2026-09-09 | yes | Answers the one question anon-load-signin.test.js cannot: does any page |
 | `anon-load-signin.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves, in a real browser, that removing the load-time anonymous sign-in from |
+| `board-box-slot.render.test.js` | CALLED | 1 | 2026-09-18 | yes | Opens the real tournament board in a browser against the Firestore/Functions |
 | `box-flag-auth-gate.test.js` | CALLED | 1 | 2026-09-09 | yes | Proves the task-377 flag fix cannot recreate the task-372 defect: loading a |
 | `box-reset-button.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Proves the taskbar Reset button still performs its PRODUCT function -- |
 | `box-resetlab-icon.test.js` | ORPHAN | 0 | 2026-09-12 | yes | Drives the "Reset Lab" DESKTOP ICON in every box that calls |
 | `box-shell-consistency.test.js` | CALLED | 2 | 2026-09-12 | yes | Drives every dispatch box's terminal in a REAL browser and proves the |
 | `case-fold-lint.js` | ORPHAN | 0 | 2026-09-02 | yes | INCOMPLETE. Aims to flag user-typed identifiers compared or looked up WITHOUT a case fold in the Hex OS shell. Its own selftest says it catches 2 of 5 known bugs, so it is NOT wired into anything and must not be trusted as coverage. |
+| `console-join-qr.render.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Renders the admin console's join QR in a real browser and proves it produces a |
 | `dispatch-fleet-smoke.test.js` | ORPHAN | 0 | 2026-09-13 | yes | Drives EVERY dispatch box far enough to prove a student is not blocked: |
 | `dispatch-walkthrough-replay.test.js` | CALLED | 3 | 2026-09-14 | yes | Replays each dispatch box's DOCUMENTED fix, from its own walkthrough, and |
+| `flag-refusal-message.render.test.js` | CALLED | 1 | 2026-09-19 | yes | Proves a DELIBERATE server refusal of deliverFlag shows the student the |
 | `flag-render-audit.js` | CALLED | 1 | 2026-09-12 | yes | Finds every place a delivered flag value reaches student-visible text |
 | `flag-slot-fill-latency.probe.js` | CALLED | 2 | 2026-09-17 | yes | Plays one dispatch scenario twice and measures WHEN the token slot fills, |
 | `harness-forensics.js` | CALLED | 3 | 2026-09-06 | yes | Shared harness forensics for the puppeteer-driven hexos suites. Records renderer crashes and browser death, so a dead browser stops reading as a product regression in deploy.sh and post-verify. |
@@ -1299,17 +1324,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 21 scripts, 5 referenced by nothing
+### `_tools/rules-test` — 25 scripts, 7 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
+| `ctf-box-assignment.test.js` | CALLED | 1 | 2026-09-18 | yes | Proves a team gets its OWN real-box credential and nobody else's: the callable |
 | `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
 | `ctf-flag-secrets.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Proves tournament flag crypto is unreachable by clients and that a challenge |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
-| `ctf-joincode-gate.test.js` | CALLED | 1 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
+| `ctf-joincode-gate.test.js` | CALLED | 2 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
+| `ctf-joincode-migration.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Runs the SHIPPED migrateJoinCode from console.html against a rules-enforced |
 | `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
+| `discord-link.test.js` | CALLED | 1 | 2026-09-19 | yes | Proves a student can link their Hexworth account to Discord and that the link |
+| `discord-tournament-command.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Invokes the real discordInteraction function with a properly SIGNED /tournament |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `home-directory-subcollections.test.js` | ORPHAN | 0 | 2026-08-31 | yes | pin owner-read + no-client-write on server_awards, quiz_attempts, gates, flag_captures |
@@ -1322,7 +1351,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
-| `tournament-joincode.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
+| `tournament-joincode.test.js` | CALLED | 1 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | CALLED | 1 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
