@@ -12257,20 +12257,36 @@
          * (prevention), and releaseOrphanedClaims below clears claims that are ALREADY stranded
          * (remedy, for the ones this fix is too late for). */
         window.deleteTournament = async function(id, name) {
-            const { doc, deleteDoc, collection, getDocs, runTransaction, deleteField } = _firestoreModule;
-            let held = [];
+            const { doc, getDoc, deleteDoc, collection, getDocs, runTransaction, deleteField } = _firestoreModule;
+            let held = [], poolSnap = { docs: [] };
             try {
-                const poolSnap = await getDocs(collection(db, 'box_pool'));
+                poolSnap = await getDocs(collection(db, 'box_pool'));
                 held = poolSnap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === id).map(d => d.id);
             } catch (e) {
                 /* Not fatal: an admin must still be able to delete a tournament if the pool read
                  * fails. But say so, because the claims will then need the orphan sweep. */
                 console.warn('[console] could not read box_pool before delete:', e.message);
             }
+            /* SAYS WHAT ACTUALLY HAPPENS TO THE TEAMS. This dialog used to read "They will be RELEASED
+             * back to the pool first, so they are not stranded", which vouched for the unsafe path:
+             * Nancy traced that delete freed the box while each team's assignment survived (subcollections
+             * do not cascade), so the next tournament wired landed on the same machine while the old
+             * team still held a working login. The reassurance was the most misleading part, because it
+             * made the collision-producing choice look like the considerate one. */
+            let liveWarn = '';
+            try {
+                const tNow = await getDoc(doc(db, 'tournaments', id));
+                const st = tNow.exists() ? String(tNow.data().status || '') : '';
+                if (['lobby', 'active', 'frozen'].includes(st.toLowerCase())) {
+                    liveWarn = '\n\nThis tournament is ' + st.toUpperCase() + '. Teams will lose access to '
+                        + 'their boxes IMMEDIATELY.';
+                }
+            } catch (e) { void e; }
             const warn = held.length
                 ? '\n\nIt currently holds ' + held.length + ' real box(es): ' + held.join(', ')
-                  + '.\nThey will be RELEASED back to the pool first, so they are not stranded.'
-                : '';
+                  + '.\nThose boxes return to the pool AND each team\'s assignment for them is removed, so '
+                  + 'nobody keeps a working login to a machine the pool hands on.' + liveWarn
+                : liveWarn;
             if (!confirm('Delete tournament "' + name + '"? This cannot be undone.' + warn)) return;
 
             try {
@@ -12281,6 +12297,16 @@
                      * would wipe that claim, leaving the pool reading free while a team holds a
                      * working credential: the same collision one door over. Only clear what is still
                      * ours. */
+                    /* REVOKES THE ASSIGNMENTS IT FREES, in the same transaction. Without this, delete
+                     * reproduced the exact collision releasePoolFromTournament was just fixed for: the
+                     * pool entry reads free while the team's assignment doc, holding the real url and
+                     * password, survives the tournament's deletion. Same mechanism, one function away,
+                     * which is the third time in this change set I fixed one path and left its sibling. */
+                    const teamsSnap = await getDocs(collection(db, 'tournaments', id, 'teams'));
+                    const teamIds = teamsSnap.docs.map(d => d.id);
+                    const chIds = [...new Set(poolSnap.docs
+                        .filter(d => (d.data().assignedTo || {}).tournamentId === id)
+                        .map(d => d.data().assignedTo.challengeId).filter(Boolean))];
                     await runTransaction(db, async (tx) => {
                         const mine = [];
                         for (const pid of held) {
@@ -12288,8 +12314,17 @@
                             const a = snap.exists() ? snap.data().assignedTo : null;
                             if (a && a.tournamentId === id) mine.push(pid);
                         }
+                        const toRevoke = [];
+                        for (const teamId of teamIds) {
+                            for (const chId of chIds) {
+                                const ref = doc(db, 'tournaments', id, 'teams', teamId, 'assignments', chId);
+                                const snap = await tx.get(ref);
+                                if (snap.exists() && mine.includes(snap.data().fromPool)) toRevoke.push(ref);
+                            }
+                        }
                         mine.forEach(pid => tx.set(doc(db, 'box_pool', pid),
                             { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
+                        toRevoke.forEach(ref => tx.delete(ref));
                     });
                 }
                 await deleteDoc(doc(db, 'tournaments', id));
@@ -13265,15 +13300,27 @@
                  * same standard in the other direction for a MANUAL release of a running event. A
                  * live tournament's boxes are in use by definition; freeing them is not a decision
                  * an operator should be able to make with one reassuring dialog. */
-                const status = tSnap.exists() ? (tSnap.data().status || 'unknown') : 'missing';
-                if (['lobby', 'active', 'frozen'].includes(status)) {
-                    out.textContent = 'REFUSED: this tournament is ' + status.toUpperCase() + ', so its '
-                        + held.length + ' box(es) are in use RIGHT NOW.\n\nNothing was released.\n\n'
-                        + 'Releasing them would free the pool entry while each team keeps a WORKING '
-                        + 'credential, so the next tournament wired would land on the same machine and '
-                        + 'two teams would be on one box. End the tournament first, or delete it if it '
-                        + 'was a mistake (Delete releases its boxes for you).';
-                    showToast('Refused: tournament is ' + status + ', boxes are in use.', 'warning');
+                /* AN ALLOWLIST, NOT A BLOCKLIST. The first version refused ['lobby','active','frozen']
+                 * and let everything else through, which Mallory took apart: `draft`, a tournament with
+                 * NO status field, and `Active` with a capital A all fell through to releasable. The
+                 * failure mode of a blocklist on a safety gate is that anything unenumerated becomes
+                 * permissive, which is backwards. She measured the consequence as degraded rather than
+                 * a collision (revoke fires anyway, so the team is disconnected rather than sharing a
+                 * machine) but a data-shape accident silently cutting off a live team is still wrong.
+                 * Enumerate what is SAFE to release and refuse everything else, including values
+                 * nobody has thought of yet. */
+                const status = tSnap.exists() ? String(tSnap.data().status || '').toLowerCase() : 'missing';
+                const SAFE_TO_RELEASE = ['ended', 'draft', 'missing'];
+                if (!SAFE_TO_RELEASE.includes(status)) {
+                    const shown = tSnap.exists() ? (tSnap.data().status || '(no status field)') : 'missing';
+                    out.textContent = 'REFUSED: this tournament\'s status is "' + shown + '", which is not one '
+                        + 'this release recognises as safe (' + SAFE_TO_RELEASE.join(', ') + ').\n\n'
+                        + 'Nothing was released. Its ' + held.length + ' box(es) may be in use RIGHT NOW.\n\n'
+                        + 'Releasing a live tournament\'s boxes disconnects teams from machines they may be '
+                        + 'working on. End the tournament first, or delete it if it was a mistake. If that '
+                        + 'status looks like a typo or a missing field, fix the tournament document rather '
+                        + 'than working around this refusal.';
+                    showToast('Refused: status "' + shown + '" is not recognised as safe to release.', 'warning');
                     return;
                 }
 

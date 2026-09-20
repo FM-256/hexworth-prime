@@ -472,7 +472,12 @@ const TEAMS = [
         const snap = await getDocs(collection(c.firestore(), 'box_pool'));
         stillHeld = snap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === F1).length;
     });
-    chk('release on an ACTIVE tournament: REFUSED', /is ACTIVE, so its/.test(report.textContent), report.textContent.split('\n')[0].slice(0, 74));
+    /* Matches the status being NAMED, not a bare /REFUSED/: the gate must refuse for the right
+     * reason. The wording changed when the blocklist became an allowlist, and a loosened regex
+     * would have passed for any refusal, including one caused by an unrelated bug. */
+    chk('release on an ACTIVE tournament: REFUSED for being active',
+        /REFUSED/.test(report.textContent) && /status is "active"/.test(report.textContent),
+        report.textContent.split('\n')[0].slice(0, 74));
     chk('release on an ACTIVE tournament: boxes still held (nothing freed)', stillHeld === TEAMS.length, `${stillHeld} still held`);
 
     /* End it, then release: now it is allowed AND it revokes the assignments, so the pool cannot
@@ -514,6 +519,90 @@ const TEAMS = [
     chk('the next tournament got the boxes', f2Urls.length === TEAMS.length, `${f2Urls.length}`);
     chk('NO credential collision: the old tournament holds none', f1Urls.length === 0 && f1Urls.filter(u => f2Urls.includes(u)).length === 0,
         `old=${f1Urls.length} overlap=${f1Urls.filter(u => f2Urls.includes(u)).length}`);
+
+    /* ── MALLORY'S BLOCKLIST INVERSION: unenumerated statuses must REFUSE, not fall through ──
+     * She showed `draft`, a missing status field, and `Active` with a capital A all passed the old
+     * blocklist. The gate is now an allowlist, so the typo and the absent field refuse while the
+     * genuinely-safe values still work. Each case carries its own fixture rather than one shared
+     * tournament, because a status left over from a previous case would make this prove nothing. */
+    eval(extractShipped(CONSOLE, 'releasePoolFromTournament'));
+    const statusCase = async (label, statusValue, expectAllowed) => {
+        const tid = 't-status-' + label;
+        await testEnv.withSecurityRulesDisabled(async (c) => {
+            const d = c.firestore();
+            const snap = await getDocs(collection(d, 'box_pool'));
+            for (const dd of snap.docs) await setDoc(doc(d, 'box_pool', dd.id), { assignedTo: deleteField() }, { merge: true });
+            const body = { name: label };
+            if (statusValue !== null) body.status = statusValue;
+            await setDoc(doc(d, `tournaments/${tid}`), body);
+            await setDoc(doc(d, `tournaments/${tid}/teams/team-blue`), { name: 'Blue Shield', members: [] });
+            await setDoc(doc(d, `tournaments/${tid}/challenges/ch-01`), { title: 'S', order: 1 });
+            await setDoc(doc(d, 'box_pool/engine1-blue-shield'),
+                { assignedTo: { tournamentId: tid, teamId: 'team-blue', challengeId: 'ch-01' } }, { merge: true });
+        });
+        global._ctfEditingId = tid;
+        report.textContent = '';
+        await global.releasePoolFromTournament();
+        const allowed = /released \d+ box\(es\)/.test(report.textContent);
+        chk(`status "${statusValue === null ? '(absent)' : statusValue}": ${expectAllowed ? 'allowed' : 'REFUSED'}`,
+            allowed === expectAllowed, report.textContent.split('\n')[0].slice(0, 66));
+    };
+    await statusCase('ended', 'ended', true);
+    await statusCase('draft', 'draft', true);
+    await statusCase('typo', 'Active', false);      // capital A fell through the old blocklist
+    await statusCase('absent', null, false);        // no status field at all fell through too
+    await statusCase('active', 'active', false);    // positive control: the case the old gate DID catch
+    await statusCase('nonsense', 'paused-for-lunch', false);  // a value nobody has thought of
+
+    /* ── NANCY'S FOURTH PATH: delete must revoke, not just free ────────────────────────────
+     * Delete an ACTIVE tournament holding a box: it frees the pool entry, and before this fix the
+     * team's assignment (with the real url and password) survived because subcollections do not
+     * cascade. The next tournament then wired the same machine while the old team still had a working
+     * login. The dialog even vouched for it: "so they are not stranded". */
+    const D1 = 't-del-live', D2 = 't-del-next';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        const snap = await getDocs(collection(d, 'box_pool'));
+        for (const dd of snap.docs) await setDoc(doc(d, 'box_pool', dd.id), { assignedTo: deleteField() }, { merge: true });
+        for (const tid of [D1, D2]) {
+            await setDoc(doc(d, `tournaments/${tid}`), { name: tid, status: tid === D1 ? 'active' : 'lobby' });
+            for (const t of TEAMS) await setDoc(doc(d, `tournaments/${tid}/teams/${t.id}`), { name: t.name, members: [] });
+            await setDoc(doc(d, `tournaments/${tid}/challenges/ch-01`), { title: 'D', order: 1 });
+        }
+    });
+    global._ctfEditingId = D1;
+    setFields({ rbChallenge: 'ch-01' });
+    eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    await global.wirePoolToTeams();
+    const d1Before = await (async () => { let n = 0; await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) n += (await getDocs(collection(c.firestore(), `tournaments/${D1}/teams/${t.id}/assignments`))).size; }); return n; })();
+    chk('delete fixture: the live tournament is wired', d1Before === TEAMS.length, `${d1Before}`);
+
+    eval(extractShipped(CONSOLE, 'deleteTournament'));
+    global.loadTournaments = () => {};
+    await global.deleteTournament(D1, 'Live One');
+    let d1After = 0, poolFree = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) d1After += (await getDocs(collection(c.firestore(), `tournaments/${D1}/teams/${t.id}/assignments`))).size;
+        const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+        poolFree = snap.docs.filter(d => !(d.data().assignedTo)).length;
+    });
+    chk('delete: REVOKED the surviving assignments (was the collision)', d1After === 0, `${d1After} survived`);
+    chk('delete: freed the boxes too', poolFree >= TEAMS.length, `${poolFree} free`);
+
+    global._ctfEditingId = D2;
+    setFields({ rbChallenge: 'ch-01' });
+    await global.wirePoolToTeams();
+    let overlap = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const older = [], newer = [];
+        for (const t of TEAMS) {
+            (await getDocs(collection(c.firestore(), `tournaments/${D1}/teams/${t.id}/assignments`))).docs.forEach(d => older.push(d.data().url));
+            (await getDocs(collection(c.firestore(), `tournaments/${D2}/teams/${t.id}/assignments`))).docs.forEach(d => newer.push(d.data().url));
+        }
+        overlap = older.filter(u => newer.includes(u)).length;
+    });
+    chk('delete then re-wire: NO credential collision', overlap === 0, `overlap ${overlap}`);
 
     await testEnv.cleanup();
     console.log(`\n  ${pass} passed, ${fail} failed\n`);
