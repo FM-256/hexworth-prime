@@ -31,7 +31,7 @@
  * traced back to the machine it came from without reading credentials.
  */
 const { initializeTestEnvironment } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, getDocs, collection, setDoc, serverTimestamp } = require('firebase/firestore');
+const { doc, getDoc, getDocs, collection, setDoc, writeBatch, deleteField, serverTimestamp } = require('firebase/firestore');
 const fs = require('fs');
 const path = require('path');
 const { extractShipped } = require('./lib/extract-shipped');
@@ -70,7 +70,7 @@ const TEAMS = [
     global.document = { getElementById: (id) => (id.endsWith('Report') ? report : (fields[id] = fields[id] || { value: '' })) };
     global.showToast = () => {};
     global.window = global;
-    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, serverTimestamp };
+    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, writeBatch, deleteField, serverTimestamp };
     global.db = adminDb;
     global._ctfEditingId = T;
     global.escHtml = (v) => String(v);
@@ -78,6 +78,8 @@ const TEAMS = [
     eval(extractShipped(CONSOLE, 'saveBoxPoolEntry'));
     eval(extractShipped(CONSOLE, 'listBoxPool'));
     eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    eval(extractShipped(CONSOLE, 'releasePoolFromTournament'));
+    global.confirm = () => true;
     chk('extracted all three shipped pool functions', typeof global.wirePoolToTeams === 'function'
         && typeof global.saveBoxPoolEntry === 'function' && typeof global.listBoxPool === 'function');
 
@@ -130,7 +132,20 @@ const TEAMS = [
     chk('full pool: the credential came with it', blue && blue.username === 'player' && /tok-engine1-blue-shield/.test(blue.url || ''));
     chk('full pool: every assignment records provenance', full.rows.every(r => !!r.fromPool));
     chk('full pool: challengeId set on every assignment', full.rows.every(r => r.challengeId === 'ch-01'));
-    chk('full pool: no two teams share a box', new Set(full.rows.map(r => r.fromPool)).size === TEAMS.length);
+    /* Was `new Set(fromPool).size`, which is DOC ID uniqueness and therefore guaranteed by Firestore
+     * for free: it proved nothing. Nancy caught that two pool entries can hold the same URL, which is
+     * two teams on one physical machine. Measure the thing that matters. */
+    chk('full pool: no two teams share a MACHINE (url, not doc id)', new Set(full.rows.map(r => r.url)).size === TEAMS.length,
+        `${new Set(full.rows.map(r => r.url)).size} distinct urls for ${TEAMS.length} teams`);
+    chk('full pool: every box is CLAIMED after wiring', await (async () => {
+        let ok = true;
+        await testEnv.withSecurityRulesDisabled(async (c) => {
+            const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+            const claimed = snap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === T);
+            ok = claimed.length === TEAMS.length;
+        });
+        return ok;
+    })());
 
     // ── An existing assignment is left alone, not clobbered ──────────────────
     await testEnv.withSecurityRulesDisabled(async (c) => {
@@ -157,6 +172,125 @@ const TEAMS = [
     chk('listing shows the boxes', /6 box\(es\) in the pool/.test(report.textContent), report.textContent.split('\n')[0]);
     chk('listing NEVER prints a password', !/pw-engine1/.test(report.textContent));
     chk('listing NEVER prints a token URL', !/tok-engine1/.test(report.textContent));
+
+    /* ── MALLORY'S FINDING 1: the same box must not be handed to two tournaments ───────────
+     * She wired one pool to two tournaments and both succeeded silently, leaving t-fixD1/team-blue
+     * and t-fixD2/team-blue with the same fromPool AND the same url. Two unrelated teams on one live
+     * Windows box, each believing it is theirs, either able to sabotage the other. */
+    const T2 = 't-pool-second';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        await setDoc(doc(d, `tournaments/${T2}`), { name: 'Second Event', status: 'lobby' });
+        for (const t of TEAMS) await setDoc(doc(d, `tournaments/${T2}/teams/${t.id}`), { name: t.name, members: [] });
+        await setDoc(doc(d, `tournaments/${T2}/challenges/ch-01`), { title: 'Also The Real Box', order: 1 });
+    });
+    global._ctfEditingId = T2;
+    setFields({ rbChallenge: 'ch-01' });
+    report.textContent = '';
+    await global.wirePoolToTeams();
+    let secondCount = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) {
+            const snap = await getDocs(collection(c.firestore(), `tournaments/${T2}/teams/${t.id}/assignments`));
+            secondCount += snap.size;
+        }
+    });
+    chk('second tournament: REFUSED, boxes already claimed', /already wired to a live tournament/.test(report.textContent),
+        report.textContent.split('\n')[0].slice(0, 80));
+    chk('second tournament: wrote ZERO (no shared machine)', secondCount === 0, `found ${secondCount}`);
+
+    // ── RELEASE frees them, without deleting anyone's assignment ─────────────
+    global._ctfEditingId = T;
+    report.textContent = '';
+    await global.releasePoolFromTournament();
+    chk('release: reports what it freed', /released 6 box\(es\)/.test(report.textContent), report.textContent.split('\n')[0]);
+    const afterRelease = await assignments();
+    chk('release: per-team assignments NOT deleted', afterRelease.n === TEAMS.length, `${afterRelease.n} remain`);
+
+    global._ctfEditingId = T2;
+    setFields({ rbChallenge: 'ch-01' });
+    report.textContent = '';
+    await global.wirePoolToTeams();
+    let secondAfter = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) secondAfter += (await getDocs(collection(c.firestore(), `tournaments/${T2}/teams/${t.id}/assignments`))).size;
+    });
+    chk('after release: the second tournament CAN be wired', secondAfter === TEAMS.length, `${secondAfter} of ${TEAMS.length}`);
+
+    /* ── NANCY AND MALLORY BOTH PROVED THIS: a throw mid-write left a PARTIAL wiring ───────
+     * The writes are now one batch, so a failing commit must leave nothing. This is the test the
+     * original 18/0 did not contain: my mutation testing covered the two PLANNING guards and never
+     * threw during the write phase, which is exactly where the gap was. */
+    const T3 = 't-pool-atomic';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        await setDoc(doc(d, `tournaments/${T3}`), { name: 'Atomic Event', status: 'lobby' });
+        for (const t of TEAMS) await setDoc(doc(d, `tournaments/${T3}/teams/${t.id}`), { name: t.name, members: [] });
+        await setDoc(doc(d, `tournaments/${T3}/challenges/ch-01`), { title: 'Atomic', order: 1 });
+        const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+        for (const dd of snap.docs) await setDoc(doc(c.firestore(), 'box_pool', dd.id), { label: dd.id, teamId: dd.data().teamId, url: dd.data().url, username: dd.data().username, password: dd.data().password }, { merge: false });
+    });
+    global._ctfEditingId = T3;
+    global._firestoreModule = {
+        doc, getDoc, getDocs, collection, setDoc, deleteField, serverTimestamp,
+        writeBatch: (dbArg) => { const b = writeBatch(dbArg); return { set: b.set.bind(b), commit: async () => { throw new Error('SIMULATED commit failure'); } }; },
+    };
+    eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    setFields({ rbChallenge: 'ch-01' });
+    report.textContent = '';
+    await global.wirePoolToTeams();
+    let atomicCount = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) atomicCount += (await getDocs(collection(c.firestore(), `tournaments/${T3}/teams/${t.id}/assignments`))).size;
+    });
+    /* Capture BEFORE the control below re-runs the function: the shared `report` object is mutated by
+     * every call, and asserting on it after the control had already overwritten it is how this test
+     * briefly claimed the failure message was wrong when it was fine. Same shape as a harness
+     * carrying state between cases. */
+    const failureReport = report.textContent;
+    chk('commit failure: wrote ZERO assignments (genuinely atomic)', atomicCount === 0, `found ${atomicCount}`);
+    /* POSITIVE CONTROL for the line above. Zero writes could mean "atomic" or it could mean "nothing
+     * was ever planned", and those look identical in the assertion. Re-run the SAME fixture with a
+     * working commit: if it writes 6, then the 0 above was caused by the failure and not by an empty
+     * plan. Without this, the atomicity test could pass on a fixture that does nothing. */
+    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, writeBatch, deleteField, serverTimestamp };
+    eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    report.textContent = '';
+    await global.wirePoolToTeams();
+    let atomicControl = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS) atomicControl += (await getDocs(collection(c.firestore(), `tournaments/${T3}/teams/${t.id}/assignments`))).size;
+    });
+    chk('control: the SAME fixture writes 6 when commit works (so the 0 above was the failure)',
+        atomicControl === TEAMS.length, `${atomicControl} of ${TEAMS.length}`);
+    chk('commit failure: the operator is TOLD nothing was written', /NOTHING was written/.test(failureReport),
+        failureReport.slice(0, 90));
+
+    /* ── THE SAME MACHINE RECORDED TWICE under two labels ─────────────────────────────────── */
+    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, writeBatch, deleteField, serverTimestamp };
+    eval(extractShipped(CONSOLE, 'wirePoolToTeams'));
+    const T4 = 't-pool-dup';
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        await setDoc(doc(d, `tournaments/${T4}`), { name: 'Dup Event', status: 'lobby' });
+        for (const t of TEAMS.slice(0, 2)) await setDoc(doc(d, `tournaments/${T4}/teams/${t.id}`), { name: t.name, members: [] });
+        await setDoc(doc(d, `tournaments/${T4}/challenges/ch-01`), { title: 'Dup', order: 1 });
+        const snap = await getDocs(collection(c.firestore(), 'box_pool'));
+        for (const dd of snap.docs) await setDoc(doc(c.firestore(), 'box_pool', dd.id), { assignedTo: deleteField() }, { merge: true });
+        /* Two labels, ONE machine: the copy-paste an operator makes at 8am before an event. */
+        await setDoc(doc(d, 'box_pool/typo-copy'), { label: 'typo-copy', teamId: 'team-cyan', url: 'https://engine1.example.test/t/tok-engine1-blue-shield/', username: 'player', password: 'x' });
+    });
+    global._ctfEditingId = T4;
+    setFields({ rbChallenge: 'ch-01' });
+    report.textContent = '';
+    await global.wirePoolToTeams();
+    let dupCount = 0;
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        for (const t of TEAMS.slice(0, 2)) dupCount += (await getDocs(collection(c.firestore(), `tournaments/${T4}/teams/${t.id}/assignments`))).size;
+    });
+    chk('duplicate URL: REFUSED', /SAME machine/.test(report.textContent), report.textContent.split('\n')[0].slice(0, 70));
+    chk('duplicate URL: wrote ZERO', dupCount === 0, `found ${dupCount}`);
+    chk('duplicate URL: the URL itself is not printed', !/tok-engine1-blue-shield/.test(report.textContent));
 
     await testEnv.cleanup();
     console.log(`\n  ${pass} passed, ${fail} failed\n`);

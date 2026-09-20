@@ -90,11 +90,30 @@ if [ "$DRY" = true ]; then
 fi
 
 # Shut down the current instances so the host is not oversubscribed. Shut off, NOT undefined.
+# WAIT FOR THE SHUTDOWN, do not assume it. `virsh shutdown` is fire-and-forget ACPI: it returns
+# immediately and confirms nothing, and these are Windows guests that routinely take tens of seconds
+# to power off. The first version went straight from here to starting a NEW 4 GiB instance, so old
+# and new were briefly both resident -- 8 GiB for one team against a 31 GiB host already carrying the
+# other five plus the shared box. Nancy caught it, and the dry run could not have: --dry skips this
+# block entirely, so the one safety step this script documents was the one step never exercised.
 for d in $CURRENT; do
-    if sudo virsh domstate "$d" 2>/dev/null | grep -q running; then
-        echo "shutting down $d (retained, not deleted)"
-        sudo virsh shutdown "$d" >/dev/null 2>&1 || true
+    sudo virsh domstate "$d" 2>/dev/null | grep -q running || continue
+    echo "shutting down $d (retained, not deleted) ..."
+    sudo virsh shutdown "$d" >/dev/null 2>&1 || true
+    WAITED=0
+    while [ "$WAITED" -lt 120 ]; do
+        sudo virsh domstate "$d" 2>/dev/null | grep -q "shut off" && break
+        sleep 3; WAITED=$((WAITED + 3))
+        [ $((WAITED % 30)) -eq 0 ] && echo "  still shutting down after ${WAITED}s ..."
+    done
+    if ! sudo virsh domstate "$d" 2>/dev/null | grep -q "shut off"; then
+        echo "FATAL: $d did not power off within 120s (state: $(sudo virsh domstate "$d" 2>/dev/null))." >&2
+        echo "Refusing to start a second 4 GiB instance beside it: this host has no room for both," >&2
+        echo "and an oversubscribed host during an event is worse than a reset that did not happen." >&2
+        echo "Shut it down by hand, or use 'virsh destroy $d' if the guest is wedged, then re-run." >&2
+        exit 1
     fi
+    echo "  $d is shut off"
 done
 
 echo "creating $NEWDOM ..."

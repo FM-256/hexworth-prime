@@ -4249,7 +4249,7 @@
                         <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(46,204,113,0.25);">
                             <div class="ac-card-title">Real Box Pool</div>
                             <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
-                                Record each physical machine ONCE. <code>Team id</code> is optional and pins a box to a specific team (the Engine 1 clones are already named per team, so <code>team-blue</code> maps to the blue-shield box). Then <strong>Wire pool to all teams</strong> writes every per-team assignment for the challenge selected above. Students never read these documents: the board asks a Cloud Function that checks membership server side.
+                                Record each physical machine ONCE. <code>Team id</code> is optional and pins a box to a specific team (the Engine 1 clones are already named per team, so <code>team-blue</code> maps to the blue-shield box). Then <strong>Wire pool to all teams</strong> writes every per-team assignment for the challenge selected above, in one atomic batch, and <strong>claims</strong> each box so it cannot be wired to a second tournament at the same time. <strong>Release pool</strong> frees this tournament's boxes for the next event without deleting any team's assignment. Students never read these documents: the board asks a Cloud Function that checks membership server side.
                             </div>
                             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin-bottom:8px;">
                                 <input id="bpLabel" class="ac-input" placeholder="label, e.g. engine1-red-cell">
@@ -4264,6 +4264,7 @@
                                 <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="listBoxPool()">List pool</button>
                                 <div style="border-left:1px solid rgba(255,255,255,0.1); height:28px;"></div>
                                 <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="wirePoolToTeams()">Wire pool to all teams</button>
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="releasePoolFromTournament()">Release pool</button>
                             </div>
                             <pre id="bpReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
                         </div>
@@ -12901,7 +12902,7 @@
             const chId = document.getElementById('rbChallenge').value;
             const out = document.getElementById('bpReport');
             if (!chId) { showToast('Pick the challenge (in the panel above) that uses the real box.', 'warning'); return; }
-            const { collection, getDocs, doc, getDoc, setDoc, serverTimestamp } = _firestoreModule;
+            const { collection, getDocs, doc, getDoc, setDoc, writeBatch, serverTimestamp } = _firestoreModule;
             out.textContent = 'reading pool and teams...';
             try {
                 const [poolSnap, teamSnap] = await Promise.all([
@@ -12933,12 +12934,62 @@
                     plan.push({ team: t, box: pick });
                 }
 
+                /* ── TWO REFUSALS MALLORY AND NANCY PROVED WERE MISSING ────────────────────────
+                 *
+                 * ALREADY LIVE ELSEWHERE. A pool entry had no notion of being in use, so wiring the
+                 * same pool to a SECOND tournament silently handed one physical machine to two
+                 * unrelated teams. Mallory proved it end to end: t-fixD1/team-blue and
+                 * t-fixD2/team-blue ended up with the same fromPool AND the same url, neither call
+                 * erroring. Each team believes the box is theirs; a flag captured by one is visible
+                 * to the other, and either can sabotage the other's machine. That is precisely the
+                 * isolation the six clones exist to provide. The claim below is what closes it, and
+                 * it is written in the SAME batch as the assignment so a box cannot be assigned
+                 * without being claimed.
+                 *
+                 * THE SAME MACHINE RECORDED TWICE. Uniqueness of `fromPool` is uniqueness of a
+                 * DOCUMENT ID, which Firestore guarantees for free and which therefore proved
+                 * nothing. Two pool entries with different labels and the same URL are two teams on
+                 * one box, and `listBoxPool` deliberately withholds URLs so an admin cannot catch it
+                 * by eye either. Nancy caught that my assertion was measuring the wrong thing. */
+                const claimed = plan.filter(r => r.box.assignedTo
+                    && !(r.box.assignedTo.tournamentId === _ctfEditingId
+                         && r.box.assignedTo.teamId === r.team.id
+                         && r.box.assignedTo.challengeId === chId));
+                if (claimed.length) {
+                    out.textContent = 'REFUSED: ' + claimed.length + ' box(es) are already wired to a live tournament.'
+                        + '\n\nNothing was written. Handing one machine to two teams is the failure the per-team '
+                        + 'clones exist to prevent.\n\n'
+                        + claimed.map(r => '  ' + r.box.id + ' -> already held by tournament '
+                            + r.box.assignedTo.tournamentId + ' team ' + r.box.assignedTo.teamId).join('\n')
+                        + '\n\nRelease them first (Release pool) or add more boxes.';
+                    showToast('Refused: ' + claimed.length + ' box(es) already in use.', 'warning');
+                    return;
+                }
+                const urls = plan.map(r => String(r.box.url).trim());
+                const dupUrl = urls.find((u, ix) => urls.indexOf(u) !== ix);
+                if (dupUrl) {
+                    const who = plan.filter(r => String(r.box.url).trim() === dupUrl).map(r => r.box.id);
+                    out.textContent = 'REFUSED: two pool entries point at the SAME machine.\n\nNothing was written.\n\n'
+                        + '  ' + who.join(' and ') + ' share one URL, so those teams would be on one box.\n\n'
+                        + '(the URL itself is not printed here)';
+                    showToast('Refused: duplicate box URL in the pool.', 'warning');
+                    return;
+                }
+
+                /* ONE BATCH, so the writes are atomic. The first version used sequential awaits
+                 * inside one try/catch, and BOTH reviewers proved the consequence independently: a
+                 * throw on the 4th of 6 writes left 3 teams wired and printed "FAILED: <message>",
+                 * which is indistinguishable from having written nothing. The commit claimed "writes
+                 * all of them or none" while only the pool-too-small path actually did that. The
+                 * mutation testing I had done covered the two PLANNING guards and could not see this,
+                 * because it never threw mid-loop. */
+                const batch = writeBatch(db);
                 const wrote = [], left = [];
                 for (const row of plan) {
                     const aRef = doc(db, 'tournaments', _ctfEditingId, 'teams', row.team.id, 'assignments', chId);
                     const existing = await getDoc(aRef);
                     if (existing.exists()) { left.push(row.team.name + ' (already assigned, untouched)'); continue; }
-                    await setDoc(aRef, {
+                    batch.set(aRef, {
                         challengeId: chId,
                         url: row.box.url,
                         username: row.box.username || null,
@@ -12947,16 +12998,56 @@
                         fromPool: row.box.id,
                         assignedAt: serverTimestamp()
                     });
+                    batch.set(doc(db, 'box_pool', row.box.id), {
+                        assignedTo: { tournamentId: _ctfEditingId, teamId: row.team.id, challengeId: chId },
+                        assignedAt: serverTimestamp()
+                    }, { merge: true });
                     wrote.push(row.team.name + ' -> ' + row.box.id);
                 }
-                out.textContent = 'challenge ' + chId + '\n\nwrote ' + wrote.length + ' assignment(s):\n'
+                if (wrote.length) await batch.commit();
+                out.textContent = 'challenge ' + chId + '\n\nwrote ' + wrote.length + ' assignment(s) in ONE batch:\n'
                     + (wrote.map(w => '  ' + w).join('\n') || '  (none)')
                     + (left.length ? '\n\nleft alone (' + left.length + '):\n' + left.map(l => '  ' + l).join('\n') : '')
+                    + '\n\neach box is now CLAIMED, so it cannot be wired to another tournament until released.'
                     + '\n\n(URLs and passwords deliberately not printed)';
                 showToast('Wired ' + wrote.length + ' team(s).', 'success');
             } catch (e) {
-                out.textContent = 'FAILED: ' + e.message;
+                /* A batch either commits or it does not, so this path no longer implies a partial
+                 * write. Saying so matters: the operator's next question is always "did some of it
+                 * land", and previously the honest answer was "unknown". */
+                out.textContent = 'FAILED, and NOTHING was written (the writes are one atomic batch): ' + e.message;
                 showToast('Could not wire: ' + e.message, 'error');
+            }
+        };
+
+        /* RELEASE. The counterpart to the claim above: without a way to let a box go, a pool entry
+         * would be permanently stuck to the first tournament that ever used it, and the next event
+         * would be refused with no remedy. Scoped to ONE tournament on purpose rather than clearing
+         * every claim, so releasing last month's event cannot quietly unclaim a running one. */
+        window.releasePoolFromTournament = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const out = document.getElementById('bpReport');
+            const { collection, getDocs, doc, writeBatch, deleteField } = _firestoreModule;
+            out.textContent = 'reading pool...';
+            try {
+                const poolSnap = await getDocs(collection(db, 'box_pool'));
+                const held = poolSnap.docs.filter(d => (d.data().assignedTo || {}).tournamentId === _ctfEditingId);
+                if (!held.length) { out.textContent = 'No pool boxes are claimed by this tournament.'; return; }
+                if (!confirm('Release ' + held.length + ' box(es) from this tournament?\n\n'
+                    + 'Their per-team assignments are NOT deleted, so teams keep whatever they were given. '
+                    + 'This only frees the boxes to be wired to another event.')) return;
+                const batch = writeBatch(db);
+                held.forEach(d => batch.set(doc(db, 'box_pool', d.id),
+                    { assignedTo: deleteField(), assignedAt: deleteField() }, { merge: true }));
+                await batch.commit();
+                out.textContent = 'released ' + held.length + ' box(es):\n'
+                    + held.map(d => '  ' + d.id).join('\n')
+                    + '\n\nThe per-team assignment documents were left alone on purpose: deleting a '
+                    + 'credential a team may still be using is a different decision from freeing the pool.';
+                showToast('Released ' + held.length + ' box(es).', 'success');
+            } catch (e) {
+                out.textContent = 'FAILED: ' + e.message;
+                showToast('Could not release: ' + e.message, 'error');
             }
         };
 
