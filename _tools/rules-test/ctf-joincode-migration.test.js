@@ -48,15 +48,24 @@ function extractShipped(name) {
     const src = fs.readFileSync(process.env.CONSOLE_PATH || path.join(__dirname, '..', '..', '_app', 'admin', 'console.html'), 'utf8');
     const start = src.indexOf(`window.${name} = async function(`);
     if (start === -1) throw new Error(`${name} not found in console.html — did it get renamed?`);
-    let i = src.indexOf('{', start), depth = 0, inStr = null, prev = '';
+    /* MUST SKIP COMMENTS, NOT JUST STRINGS. The first version tracked quotes only, so an
+     * apostrophe inside a block comment ("the card's own claim") opened a phantom string, brace
+     * tracking desynchronised, and extraction ran 43230 chars past the end of the function —
+     * failing loudly with a SyntaxError rather than silently, which is the only reason it was
+     * caught. A heavily commented codebase makes this the common case, not an edge one. */
+    let i = src.indexOf('{', start), depth = 0, inStr = null;
     for (; i < src.length; i++) {
-        const c = src[i];
+        const c = src[i], next2 = src.substr(i, 2);
         if (inStr) {
-            if (c === inStr && prev !== '\\') inStr = null;
-        } else if (c === '"' || c === "'" || c === '`') inStr = c;
-        else if (c === '{') depth++;
+            if (c === '\\') { i++; continue; }          // escape: skip the next char entirely
+            if (c === inStr) inStr = null;
+            continue;
+        }
+        if (next2 === '//') { const nl = src.indexOf('\n', i); if (nl === -1) break; i = nl; continue; }
+        if (next2 === '/*') { const close = src.indexOf('*/', i + 2); if (close === -1) break; i = close + 1; continue; }
+        if (c === '"' || c === "'" || c === '`') { inStr = c; continue; }
+        if (c === '{') depth++;
         else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
-        prev = c;
     }
     return src.slice(start, i) + ';';
 }
@@ -181,6 +190,85 @@ function extractShipped(name) {
     let pubHasCode = null;
     try { const s = await getDoc(doc(studentDb, 'tournaments/t-legacy')); pubHasCode = s.data().joinCode; } catch (e) { pubHasCode = 'READ_FAILED'; }
     chk('the public doc a student CAN read no longer carries the code', pubHasCode === undefined, `got ${JSON.stringify(pubHasCode)}`);
+
+    /* ── COPY MUST BE ATOMIC AND MUST NOT LET ONE FAILURE KILL THE BATCH ──────────────────
+     * Nancy's finding: the first version did two bare awaits outside any try/catch, so a throw on
+     * the second aborted the for...of and the run never printed its summary — a silent partial
+     * migration that looked complete. These two cases are the regression tests for that. */
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        const d = c.firestore();
+        await setDoc(doc(d, 'tournaments/t-batch-a'), { name: 'Batch A', status: 'lobby', joinCode: 'HEX-AAA' });
+        await setDoc(doc(d, 'tournaments/t-batch-boom'), { name: 'Batch Boom', status: 'lobby', joinCode: 'HEX-BOOM' });
+        await setDoc(doc(d, 'tournaments/t-batch-z'), { name: 'Batch Z', status: 'lobby', joinCode: 'HEX-ZZZ' });
+    });
+
+    /* Make the FIRST transaction of the run throw, leaving every later one to succeed. That is
+     * precisely the shape of the bug: one tournament blips, and the question is whether the rest of
+     * the batch still runs and whether the operator is told. Tournament ids are processed sorted,
+     * so the casualty is t-batch-a and t-batch-z comes after it. */
+    const realRunTransaction = runTransaction;
+    let calls = 0;
+    global._firestoreModule = {
+        doc, getDoc, getDocs, collection, setDoc, deleteField, serverTimestamp,
+        runTransaction: async (dbArg, fn) => {
+            calls++;
+            if (calls === 1) throw new Error('simulated network blip');
+            return realRunTransaction(dbArg, fn);
+        },
+    };
+    eval(shipped);              // re-bind the shipped function to the wrapped module
+    report.textContent = '';
+    /* Capture instead of propagating: an UNPROTECTED copy rejects out of the handler, which in the
+     * browser is an unhandled rejection with a dead loop. Swallowing it here lets the assertions
+     * below measure what the OPERATOR would have seen, rather than killing the suite. */
+    let batchRejected = null;
+    try { await global.migrateJoinCode('copy', true); } catch (e) { batchRejected = e.message; }
+    const batchOut = report.textContent;
+    global._firestoreModule = { doc, getDoc, getDocs, collection, setDoc, runTransaction, deleteField, serverTimestamp };
+    eval(shipped);              // restore
+
+    chk('COPY: the run did not reject out of the handler', batchRejected === null, batchRejected || 'no rejection');
+    chk('COPY: a failing tournament is NAMED, not silent', /FAILED |copy failed/.test(batchOut), batchOut.split('\n').find(l => /FAILED|failed:/.test(l)) || '(nothing)');
+    chk('COPY: the batch CONTINUED past the failure (summary line printed)', /copied: \d+/.test(batchOut), batchOut.split('\n').find(l => l.startsWith('copied:')) || '(no summary — batch died)');
+    chk('COPY: tournaments after the failure were still migrated', (await priv('t-batch-z')) !== null && (await priv('t-batch-z')).joinCode === 'HEX-ZZZ');
+
+    /* Atomicity: no tournament may end up with a private copy but hasJoinCode still unset, which is
+     * the state that voided the fail-closed guarantee. */
+    let halfStates = [];
+    for (const id of ['t-batch-a', 't-batch-boom', 't-batch-z', 't-legacy']) {
+        const pv = await priv(id), pb = await pub(id);
+        if (pv && pv.joinCode && pb && pb.hasJoinCode !== true) halfStates.push(id);
+    }
+    chk('COPY: no tournament has a private code without hasJoinCode (fail-closed holds)', halfStates.length === 0, halfStates.join(',') || 'none');
+
+    /* ── ROTATE ───────────────────────────────────────────────────────────────────────────
+     * Until this existed there was NO way to change a live code, and editing the public field
+     * post-purge would have done nothing but re-publish a stale value. */
+    const rotate = extractShipped('rotateJoinCode');
+    chk('extracted the shipped rotate function', rotate.includes('getRandomValues') && rotate.includes('deleteField'), `${rotate.length} chars`);
+    global.confirm = () => true;
+    global._ctfEditingId = 't-legacy';
+    eval(rotate);
+    const beforeRotate = (await priv('t-legacy')).joinCode;
+    await global.rotateJoinCode();
+    const afterPriv = await priv('t-legacy'), afterPub = await pub('t-legacy');
+    chk('ROTATE: the private code actually changed', afterPriv.joinCode !== beforeRotate, `${beforeRotate} -> (changed: ${afterPriv.joinCode !== beforeRotate})`);
+    chk('ROTATE: new code matches the projector-safe format', /^HEX-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/.test(afterPriv.joinCode), afterPriv.joinCode);
+    chk('ROTATE: ambiguous characters excluded (O,0,I,1,L)', !/[O0I1L]/.test(afterPriv.joinCode.slice(4)), afterPriv.joinCode);
+    chk('ROTATE: public joinCode field absent afterwards', afterPub.joinCode === undefined);
+    chk('ROTATE: hasJoinCode still true, so the gate is still declared', afterPub.hasJoinCode === true);
+    chk('ROTATE: recorded when it happened', !!afterPriv.rotatedAt);
+
+    /* A rotation on a tournament with a public field still present must also clear it — that is
+     * the trap Nancy identified, where "rotating" re-publishes a value. */
+    await testEnv.withSecurityRulesDisabled(async (c) => {
+        await setDoc(doc(c.firestore(), 'tournaments/t-rot-legacy'), { name: 'Rot Legacy', status: 'lobby', joinCode: 'HEX-OLD' });
+    });
+    global._ctfEditingId = 't-rot-legacy';
+    await global.rotateJoinCode();
+    const rlPub = await pub('t-rot-legacy'), rlPriv = await priv('t-rot-legacy');
+    chk('ROTATE: on a legacy tournament it removes the public field too', rlPub.joinCode === undefined, `got ${JSON.stringify(rlPub.joinCode)}`);
+    chk('ROTATE: and the new code is private, not the old public one', rlPriv.joinCode !== 'HEX-OLD' && /^HEX-/.test(rlPriv.joinCode));
 
     await testEnv.cleanup();
     console.log(`\n  ${pass} passed, ${fail} failed\n`);

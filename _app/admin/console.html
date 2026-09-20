@@ -4140,6 +4140,14 @@
                                     <div id="ctfEditJoinCode" style="font-family:'Courier New',monospace; font-size:1.4rem; font-weight:700; color:var(--ac-accent-bright); letter-spacing:2px;"></div>
                                 </div>
                                 <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyJoinCode()">Copy Code</button>
+                                <!-- Rotate (taskboard 411). Until this existed there was NO path
+                                     in the repo to change a live tournament's code: the only writes
+                                     were at creation. After the migration purges the public field,
+                                     editing that field by hand does NOTHING except re-publish a
+                                     stale value, because ctfJoinTeam reads private first. Nancy
+                                     found that shipping the migration without this would remove a
+                                     capability the operator had asked for. -->
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="rotateJoinCode()">Rotate Code</button>
                                 <div style="border-left:1px solid rgba(255,255,255,0.1); height:36px;"></div>
                                 <div style="text-align:center;">
                                     <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Scan to join</div>
@@ -12318,6 +12326,59 @@
         };
 
 
+        /* ── ROTATE THE JOIN CODE (taskboard 411) ──────────────────────────────────────────────
+         * Before this, NOTHING in the repo could change an existing tournament's join code. The
+         * only writes were at creation (console.html:11236) and the migration below. Nancy caught
+         * the consequence: once the migration purges the public field, an operator who "rotates"
+         * by editing `tournaments/{id}.joinCode` changes nothing — ctfJoinTeam reads
+         * private/config first (functions/index.js:7946) — while re-publishing a value to a
+         * world-readable document. The migration would have removed a capability the operator
+         * explicitly wanted, and left a trap where exercising it re-opened the exposure.
+         *
+         * WRITES THE PRIVATE DOC AND DELETES THE PUBLIC FIELD, in one transaction. A rotation
+         * makes the old value dead, so leaving a stale copy published has no upside and is exactly
+         * the exposure being closed. This is why rotation and migration are RELATED but not the
+         * same operation: migration alone (COPY+PURGE, no new value) fully closes the exposure,
+         * and rotation without migration closes nothing. Nancy corrected that wording.
+         *
+         * crypto.getRandomValues, not Math.random: this is a gate, and Math.random is predictable
+         * enough that a seeded guess is cheaper than reading the document used to be. The alphabet
+         * omits O/0/I/1/L so a code read off a projector is not ambiguous, which is how these are
+         * actually distributed. */
+        window.rotateJoinCode = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+            const bytes = new Uint32Array(4);
+            crypto.getRandomValues(bytes);
+            const suffix = Array.from(bytes).map(n => ALPHABET[n % ALPHABET.length]).join('');
+            const next = 'HEX-' + suffix;
+
+            if (!confirm('Rotate this tournament\'s join code to ' + next + '?\n\n'
+                + 'Anyone holding the old code can no longer join. Teams already joined are NOT affected.\n'
+                + 'The new code is stored where students cannot read it, and the public copy is removed.')) return;
+
+            const { doc, runTransaction, deleteField, serverTimestamp } = _firestoreModule;
+            const tRef = doc(db, 'tournaments', _ctfEditingId);
+            const privRef = doc(db, 'tournaments', _ctfEditingId, 'private', 'config');
+            try {
+                await runTransaction(db, async (tx) => {
+                    const tNow = await tx.get(tRef);
+                    if (!tNow.exists()) throw new Error('Tournament no longer exists.');
+                    tx.set(privRef, { joinCode: next, rotatedAt: serverTimestamp() }, { merge: true });
+                    /* hasJoinCode stays true so any later broken state fails CLOSED, and the public
+                     * field goes: a rotated-away value has no reason to remain published. */
+                    tx.set(tRef, { joinCode: deleteField(), hasJoinCode: true }, { merge: true });
+                });
+                const el = document.getElementById('ctfEditJoinCode');
+                if (el) el.textContent = next;
+                showToast('Join code rotated. Read out the new one.', 'success');
+            } catch (e) {
+                /* Loud, because a rotation the operator BELIEVES happened is worse than one that
+                 * visibly failed: they would read out a code nobody can use. */
+                showToast('Rotation FAILED, the old code is still in effect: ' + e.message, 'error');
+            }
+        };
+
         /* ── JOIN CODE MIGRATION (taskboard 411) ───────────────────────────────────────────────
          * Moves the join code off the publicly readable tournament document and into
          * tournaments/{id}/private/config, which rules grant to admins only.
@@ -12382,26 +12443,64 @@
                 const label = `${tid} (${td.name || 'unnamed'})`;
 
                 if (phase === 'copy') {
-                    const existing = await getDoc(privRef);
-                    if (existing.exists() && existing.data().joinCode) { alreadyHad++; continue; }
-                    if (!td.joinCode) {
-                        /* No private copy and no public field. Either genuinely ungated, or the
-                         * half-written creation Nancy identified. Do NOT invent a code and do NOT
-                         * set hasJoinCode — either would lock joins on a tournament that may be
-                         * intentionally open. Report it and let a human decide. */
-                        if (td.hasJoinCode === true) { problemIds.push(`${label} CLAIMS a code but none exists anywhere — re-save it in Manage`); }
-                        else { ungated++; ungatedIds.push(label); }
-                        continue;
+                    /* ONE TRANSACTION, AND A CATCH THAT CANNOT KILL THE BATCH.
+                     *
+                     * The first version did two bare awaits here — setDoc(private) then
+                     * setDoc(hasJoinCode) — outside any try/catch, and Nancy took it apart:
+                     *   - the onclick handler never catches, so a throw on the SECOND write became
+                     *     an unhandled rejection that aborted the plain for...of. Every tournament
+                     *     after the failing one was skipped, and the run never reached its summary
+                     *     line or toast. The header count is printed BEFORE the loop, so the
+                     *     operator saw a full intended count and a truncated list: indistinguishable
+                     *     from a clean run. A silent partial migration on a security fix.
+                     *   - and it falsified this card's own headline claim. `hasJoinCode` is what
+                     *     makes a later broken state fail CLOSED, so if only the first write landed
+                     *     that guarantee did not exist for that tournament.
+                     * It was NOT "the same shape as migrateFlagSecrets" either: that COPY makes ONE
+                     * write per item and so never had a pair to keep consistent. Mirroring its shape
+                     * while adding a second write, without adding protection, was a regression
+                     * against the pattern being copied.
+                     *
+                     * Reading INSIDE the transaction also closes the staleness window Nancy asked
+                     * about: the outer getDoc(tRef) above is only used for the label. If the public
+                     * code changed between that read and this write, the transaction sees the new
+                     * value — it cannot enshrine a stale code in the location that becomes
+                     * authoritative (functions/index.js:7946). */
+                    try {
+                        const result = await runTransaction(db, async (tx) => {
+                            const tNow = await tx.get(tRef);
+                            if (!tNow.exists()) return 'gone';
+                            const nd = tNow.data();
+                            const pNow = await tx.get(privRef);
+                            if (pNow.exists() && pNow.data().joinCode) return 'already';
+                            if (!nd.joinCode) {
+                                /* No private copy and no public field. Either genuinely ungated, or
+                                 * the half-written creation Nancy identified during TOURN-03. Do NOT
+                                 * invent a code and do NOT set hasJoinCode — either would lock joins
+                                 * on an event that may be intentionally open. Report, do not decide. */
+                                return nd.hasJoinCode === true ? 'claims-no-code' : 'ungated';
+                            }
+                            /* Merge, never overwrite: private/config may hold unrelated config. */
+                            tx.set(privRef, {
+                                joinCode: nd.joinCode,
+                                migratedAt: serverTimestamp(),
+                                migratedFrom: 'tournament-doc'
+                            }, { merge: true });
+                            tx.set(tRef, { hasJoinCode: true }, { merge: true });
+                            return 'copied';
+                        });
+                        if (result === 'gone') { skipped++; problemIds.push(`${label} (gone)`); }
+                        else if (result === 'already') { alreadyHad++; }
+                        else if (result === 'ungated') { ungated++; ungatedIds.push(label); }
+                        else if (result === 'claims-no-code') { problemIds.push(`${label} CLAIMS a code but none exists anywhere — re-save it in Manage`); }
+                        else { copied++; say(`  copied ${label}`); }
+                    } catch (e) {
+                        /* One tournament failing must not decide the fate of the rest. Counted and
+                         * named, so a partial run is VISIBLE instead of looking complete. */
+                        skipped++;
+                        problemIds.push(`${label} (copy failed: ${e.message})`);
+                        say(`  FAILED ${label}: ${e.message}`);
                     }
-                    await setDoc(privRef, {
-                        joinCode: td.joinCode,
-                        migratedAt: serverTimestamp(),
-                        migratedFrom: 'tournament-doc'
-                    }, { merge: true });
-                    /* Merge, never overwrite: private/config may already hold unrelated config. */
-                    await setDoc(tRef, { hasJoinCode: true }, { merge: true });
-                    copied++;
-                    say(`  copied ${label}`);
                     continue;
                 }
 
