@@ -13133,7 +13133,15 @@
                 await runTransaction(db, async (tx) => {
                     wrote.length = 0; left.length = 0;   // a retry must not double-count
                     const poolNow = new Map();
-                    for (const id of new Set(plan.map(r => r.box.id).concat(twinIds))) {
+                    /* Hoisted out of the for-of header on purpose. With the .map() inline, EduScan's
+                     * JS-006 heuristic sees `.map(` and the `await` on the next line and reports
+                     * "await inside a non-async .map() callback", which would fail post-verify on
+                     * every future deploy. It is a false positive (the await is in the loop BODY,
+                     * and node --check passes, which a real one could not), but a HIGH finding that
+                     * fires falsely every time is a finding people stop reading. Cheaper to remove
+                     * the ambiguity than to teach everyone to ignore the rule. */
+                    const idsToRead = new Set(plan.map(r => r.box.id).concat(twinIds));
+                    for (const id of idsToRead) {
                         const snap = await tx.get(doc(db, 'box_pool', id));
                         poolNow.set(id, snap.exists() ? snap.data() : null);
                     }
@@ -13347,8 +13355,12 @@
                     const now = new Map();
                     for (const id of ids) now.set(id, (await tx.get(doc(db, 'box_pool', id))).data() || null);
                     const asg = [];
+                    /* Hoisted for the same reason as the wiring transaction: inline, EduScan's JS-006
+                     * heuristic pairs the `.map(` with the `await` below and reports a syntax error
+                     * that node --check disproves. It also stops rebuilding this set once per team. */
+                    const heldChallengeIds = new Set(held.map(h => (h.data().assignedTo || {}).challengeId).filter(Boolean));
                     for (const teamId of teamIds) {
-                        for (const chId of new Set(held.map(h => (h.data().assignedTo || {}).challengeId).filter(Boolean))) {
+                        for (const chId of heldChallengeIds) {
                             const ref = doc(db, 'tournaments', _ctfEditingId, 'teams', teamId, 'assignments', chId);
                             const snap = await tx.get(ref);
                             if (snap.exists() && ids.includes(snap.data().fromPool)) asg.push({ ref: ref, teamId: teamId, box: snap.data().fromPool });
