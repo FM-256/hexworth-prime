@@ -96,13 +96,28 @@ Engine 1 is a real Windows Server 2022 VM under KVM on `bc2`, one instance per t
 own hostname, credentials, and an unguessable per-team token URL. Full build history and rollback
 in `_docs/operations/engine1-versions-and-rollback.md`.
 
-To attach it to a challenge:
+**LEAVE `boxId` EMPTY ON A REAL-BOX CHALLENGE.** That field means "this challenge has a SIMULATED
+arena box", and the board renders a **Launch Box** button from it pointing at
+`/arena/boxes/{boxId}/index.html` (`_app/arena/tournament-board.html:831`). A real machine has no
+arena box, so any value there produces a 404 and shows the student two routes to the machine, one of
+them broken. This was hit live on 2026-09-22: a challenge created with `boxId: engine1` rendered a
+Launch Box link to a path that does not exist.
 
-1. Get the six per-team token URLs from `bc2`, `config/tokens/` (0600, never printed to a
-   transcript). As of this writing this is a manual step — the token URLs are not surfaced by any
-   tool inside this repo.
-2. Console -> Manage panel -> **Real Box Assignment** card. Pick the team, pick the challenge,
-   paste the URL, username, and password. Save. Repeat per team.
+The catch worth knowing: omitting `boxId` is correct for a REAL box and WRONG for a simulated one,
+because `deliverFlag`'s guard (`functions/index.js:774`) uses `boxId` to withhold flag values for an
+arena box that is in use as a tournament challenge. Nothing in the console warns you either way.
+Taskboard 418 tracks making this explicit rather than implicit.
+
+To attach a real box to a challenge:
+
+1. **Record the boxes in the pool once** (Console -> Manage -> **Real Box Pool**), then use
+   **Wire pool to all teams** with the challenge selected. This is the supported path: it allocates
+   each team its own machine, claims it so no second tournament can take it, refuses a partial
+   wiring, and writes everything in one transaction. The per-team card below still exists for
+   one-off corrections.
+2. The token URLs live on `bc2` at `config/tokens/` (0600, never printed to a transcript). Since
+   the terminals log the student in (`--ssh-pass`, see `token-terminals.sh`), a pool entry needs no
+   password: fewer copies of a working login.
 3. This writes `tournaments/{id}/teams/{teamId}/assignments/{challengeId}` — `isAdmin()`-only in
    `firestore.rules:1434`. No student ever reads that document directly.
 4. A student who opens the challenge modal on the board sees a box slot fill in asynchronously via
@@ -202,7 +217,7 @@ pause.
 | Model | Behavior |
 |---|---|
 | **Static** | Each challenge is worth its authored `points`, unchanged for the life of the event. |
-| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`_app/admin/console.html:11211`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
+| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`_app/admin/console.html:11241`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
 
 Historical note, in case you inherit an older tournament: a live event was once found configured
 as `dynamic` with no `dynamicConfig` at all, so it silently scored flat static points forever —
