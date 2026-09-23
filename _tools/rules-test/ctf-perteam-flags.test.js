@@ -120,8 +120,14 @@ const FLAG = (t) => `flag{engine1_${t}_${t.length}aa}`;
     await db.doc('tournaments/t-pt3/challenges/ch-01').set({ title: 'Real box', points: 500, currentPoints: 500, visible: true, solveCount: 0 });
     await db.doc('tournaments/t-pt3/flagSecrets/ch-01').set({ perTeam, flagSalt: 'sharedsalt', flagHash: hash('sharedsalt', 'flag{shared_leftover}') });
     const g1 = await call('ctfSubmitFlag', goldTok.idToken, { tournamentId: 't-pt3', challengeId: 'ch-01', flag: 'flag{shared_leftover}' });
+    /* Asserted as a REFUSAL, not merely as "not correct". The looser form (status !== 200 || !correct)
+     * passed against a mutant that graded this team against ANOTHER team's entry and returned
+     * "Incorrect flag." -- the right verdict for the wrong reason, and indistinguishable from a
+     * student who simply typed the flag wrong. A misconfigured team must be TOLD, or it burns the
+     * event hammering a flag that can never be accepted. So: non-200, and a message that says so. */
+    const g1msg = (g1.body && g1.body.error && g1.body.error.message) || '';
     chk('a team with NO per-team entry is REFUSED, not graded on the shared value',
-        g1.status !== 200 || !(g1.body && g1.body.result && g1.body.result.correct),
+        g1.status !== 200 && /no flag configured/i.test(g1msg),
         `status=${g1.status} ${JSON.stringify(g1.body).slice(0, 90)}`);
 
     /* CONTROL: a challenge with NO perTeam must still grade on the single shared flag. Without this,
