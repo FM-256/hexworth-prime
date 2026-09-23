@@ -7570,19 +7570,55 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
      */
     const secretSnap = await tRef.collection('flagSecrets').doc(challengeId).get();
     const secret = secretSnap.exists ? secretSnap.data() : null;
-    if (!secret || !secret.flagSalt || !secret.flagHash) {
-        console.error(`[ctfSubmitFlag] tournament ${tournamentId} challenge ${challengeId} has no flagSecrets entry — refusing to grade. Run the migration in the admin console Manage panel.`);
+    if (!secret) {
+        console.error(`[ctfSubmitFlag] tournament ${tournamentId} challenge ${challengeId} has no flagSecrets entry, refusing to grade. Run the migration in the admin console Manage panel.`);
         throw new HttpsError('failed-precondition',
             'This challenge is not fully configured yet. Ask your instructor to re-save its flag.');
     }
 
-    // Hash the submitted flag with the challenge's salt
+    /* PER-TEAM FLAGS (taskboard 407).
+     *
+     * A challenge backed by a REAL machine gives every team its own box, and until now every box
+     * carried the SAME flag: verified by hashing the proof file on all six Engine 1 clones and
+     * getting one identical digest. So the first team to escalate could hand the string to everyone
+     * else, and the scoreboard measured who pasted fastest. Per-team boxes without per-team flags is
+     * isolation in the infrastructure and none in the scoring.
+     *
+     * `perTeam` is keyed by teamId, and its PRESENCE changes the rule rather than adding a fallback:
+     *   perTeam present, this team HAS an entry  -> grade against that entry and only that entry
+     *   perTeam present, this team has NO entry  -> REFUSE. Falling through to the shared value is
+     *       exactly how a team ends up able to submit another team's flag, and a posture fallback is
+     *       what made TOURN-03's joinCode gap permanent.
+     *   perTeam absent                           -> the single shared flag, unchanged. That is
+     *       correct rather than a legacy compromise: a simulated challenge has one flag for everyone
+     *       because there is one box for everyone.
+     *
+     * The team is already resolved at step 2 above, so this costs no extra read. */
+    let useSalt = secret.flagSalt;
+    let useHash = secret.flagHash;
+    if (secret.perTeam) {
+        const mine = secret.perTeam[userTeamId];
+        if (!mine || !mine.flagSalt || !mine.flagHash) {
+            console.error(`[ctfSubmitFlag] ${tournamentId}/${challengeId} uses per-team flags but team ${userTeamId} has no entry, refusing rather than grading against another team's secret.`);
+            throw new HttpsError('failed-precondition',
+                'Your team has no flag configured for this challenge yet. Tell your instructor.');
+        }
+        useSalt = mine.flagSalt;
+        useHash = mine.flagHash;
+    }
+    if (!useSalt || !useHash) {
+        console.error(`[ctfSubmitFlag] tournament ${tournamentId} challenge ${challengeId} has no usable salt or hash, refusing to grade.`);
+        throw new HttpsError('failed-precondition',
+            'This challenge is not fully configured yet. Ask your instructor to re-save its flag.');
+    }
+
+    // Hash the submitted flag with the salt belonging to THIS team's flag
     const submittedHash = 'sha256:' + crypto
         .createHash('sha256')
-        .update(secret.flagSalt + ':' + flag)
+        .update(useSalt + ':' + flag)
         .digest('hex');
 
-    const correct = submittedHash === secret.flagHash;
+    const correct = submittedHash === useHash;
 
     /* 6. Record the submission.
      *
