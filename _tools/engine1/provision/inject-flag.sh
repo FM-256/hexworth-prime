@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Engine 1: put an ALREADY-MINTED flag onto a team's instance and verify it by reading it back.
 #
-# Every team's box carries the SAME flag, because the platform stores one flagHash per CHALLENGE,
-# not per team. Per-team flags would be stronger against one team simply telling another, and a
-# real box could mint them trivially, but tournaments/{tid}/flagSecrets/{chId} has no per-team
-# dimension. Recorded as a real limitation rather than pretended away.
+# HISTORY, because this file used to state the opposite as permanent. It said every team's box
+# carries the SAME flag since flagSecrets/{chId} had no per-team dimension, recorded as a real
+# limitation. That limitation is gone: flagSecrets/{chId} now takes an optional `perTeam` map keyed
+# by teamId, ctfSubmitFlag grades each team against its own entry and refuses rather than falling
+# back, and perteam-flags.sh drives the minting. Use THAT for a real-box challenge. This script
+# remains the right tool for placing one already-minted flag on one box, which is what
+# perteam-flags.sh calls it to do.
 set -euo pipefail
 BASE=/srv/hexworth/engine1
 DOMAIN="${1:?usage: inject-flag.sh <domain> <flagfile>}"
