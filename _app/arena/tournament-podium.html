@@ -198,6 +198,13 @@
             margin-right: 8px;
             vertical-align: middle;
         }
+        /* A crest instead of a dot. The dot carried the team colour and nothing else, and the top
+           three places carried no colour at all, so a screenshot of the podium showed three names
+           with no identity attached. No new assets: the shape is inline SVG and the colour is the
+           team's own, already whitelisted by safeColor. */
+        .team-crest { vertical-align: middle; margin-right: 8px; flex-shrink: 0; }
+        .podium-place-name { display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .podium-place .team-crest { margin-right: 0; }
         .podium-score { font-weight: 700; font-size: 1rem; }
 
         /* ── Frozen overlay ── */
@@ -584,7 +591,7 @@
                 html += '<tr>';
                 html += '<td class="podium-rank">' + rank + '</td>';
                 html += '<td class="podium-team-name">';
-                html += '<span class="podium-team-dot" style="background:' + safeColor(t.color) + ';"></span>';
+                html += teamCrest(t, 14);
                 html += escHtml(t.name || 'Unnamed');
                 html += '</td>';
                 html += '<td class="podium-score">' + num(t.score) + '</td>';
@@ -603,7 +610,8 @@
             let h = '<div class="podium-place ' + cls + '">';
             h += '<div class="podium-place-box">';
             h += '<div class="podium-place-rank">#' + place + '</div>';
-            h += '<div class="podium-place-name">' + escHtml(team.name || 'Unnamed') + '</div>';
+            h += '<div class="podium-place-name">' + teamCrest(team, place === 1 ? 26 : 22)
+                + '<span>' + escHtml(team.name || 'Unnamed') + '</span></div>';
             h += '<div class="podium-place-score">' + num(team.score) + ' pts</div>';
             h += '<div class="podium-place-solves">' + solveCount(team) + ' solves</div>';
             h += '</div>';
@@ -626,6 +634,35 @@
         // anything else falls back to the accent var, so a crafted color cannot break out of
         // the style attribute and inject markup/handlers.
         function safeColor(c) { return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : 'var(--accent)'; }
+
+        /* SANITISED, NOT ESCAPED, and the difference matters here. A team name is
+         * attacker-controllable: firestore.rules leaves teams.create wide open, which is the same
+         * hole that made num() and safeColor() necessary (BUG-023/BUG-024). These initials are
+         * injected into SVG text, where escHtml's HTML-entity encoding is the wrong tool, so the
+         * value is reduced to at most two characters from [A-Z0-9] and anything else is discarded.
+         * A crafted name cannot produce markup because no character that could form markup
+         * survives. */
+        function teamInitials(name) {
+            const words = String(name == null ? '' : name).trim().split(/\s+/).filter(Boolean);
+            const raw = words.length > 1 ? (words[0][0] + words[1][0]) : (words[0] || '').slice(0, 2);
+            return raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 2) || '?';
+        }
+
+        /* aria-hidden because the team NAME is always rendered as text beside it. Announcing the
+         * crest too would read every team twice to a screen reader, which is worse than silence. */
+        function teamCrest(team, px) {
+            const fill = safeColor(team && team.color);
+            const ini = teamInitials(team && team.name);
+            const fs = px <= 16 ? 11 : 10;
+            return '<svg class="team-crest" width="' + px + '" height="' + Math.round(px * 1.16) + '" '
+                + 'viewBox="0 0 24 28" aria-hidden="true" focusable="false">'
+                + '<path d="M12 1 L22 4.2 V14.5 C22 21.2 12 27 12 27 C12 27 2 21.2 2 14.5 V4.2 Z" '
+                + 'fill="' + fill + '" stroke="rgba(0,0,0,0.45)" stroke-width="1.2"/>'
+                + '<path d="M12 1 L22 4.2 V9 H2 V4.2 Z" fill="rgba(255,255,255,0.18)"/>'
+                + '<text x="12" y="18.5" text-anchor="middle" font-size="' + fs + '" font-weight="700" '
+                + 'fill="#ffffff" style="paint-order:stroke;stroke:rgba(0,0,0,0.5);stroke-width:2px;">'
+                + ini + '</text></svg>';
+        }
 
         init();
     })();
