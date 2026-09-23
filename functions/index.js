@@ -7620,6 +7620,37 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
     const correct = submittedHash === useHash;
 
+    /* COLLUSION DETECTION, and the reason per-team flags are worth more than the defect they fix.
+     *
+     * Per-team flags stop a shared string from winning the event, but they also turn a wrong answer
+     * into evidence: if this team submitted a flag that hashes to ANOTHER team's registered value,
+     * that string cannot have come off this team's box. There is no guessing it -- the flag is 128
+     * bits of CSPRNG minted at provision time -- so a match is proof it was handed over.
+     *
+     * DELIBERATELY A LOG AND NOT A FIELD. The submission record for an incorrect guess is written
+     * below and is not admin-only, so naming the other team on it would both out that team on a
+     * document students can reach and, worse, tell the submitter their borrowed flag was recognised.
+     * Cloud Logging is admin-only by construction, so the signal goes there and the blast radius of
+     * adding it is zero: no new document, no new field, no rules change.
+     *
+     * AND THE RESPONSE MUST NOT CHANGE. A cheating team learns nothing: this runs only when the
+     * answer is already wrong, alters no return value, and leaves the student-visible body byte
+     * identical to any other wrong flag. Asserted in the suite rather than asserted here, because a
+     * response that quietly differed would be an oracle confirming the flag was real. */
+    if (!correct && secret.perTeam) {
+        for (const [otherId, other] of Object.entries(secret.perTeam)) {
+            if (otherId === userTeamId || !other || !other.flagSalt || !other.flagHash) continue;
+            const asOther = 'sha256:' + crypto.createHash('sha256')
+                .update(other.flagSalt + ':' + flag).digest('hex');
+            if (asOther === other.flagHash) {
+                console.error(`[ctfSubmitFlag] COLLUSION: ${tournamentId}/${challengeId} team ${userTeamId} `
+                    + `submitted a flag that matches team ${otherId}'s registered value. A per-team flag is `
+                    + `128 bits of CSPRNG minted on that team's own box, so this was handed over, not guessed.`);
+                break;
+            }
+        }
+    }
+
     /* 6. Record the submission.
      *
      * A CORRECT submission's record is written INSIDE the credit transaction below, not here.

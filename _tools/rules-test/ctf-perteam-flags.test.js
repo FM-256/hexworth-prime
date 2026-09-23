@@ -100,18 +100,69 @@ const FLAG = (t) => `flag{engine1_${t}_${t.length}aa}`;
     await db.doc('tournaments/t-pt2/challenges/ch-01').set({ title: 'Real box', points: 500, currentPoints: 500, visible: true, solveCount: 0 });
     await db.doc('tournaments/t-pt2/flagSecrets/ch-01').set({ perTeam });
 
-    let crossAccepted = [];
+    /* ONE CHALLENGE PER SUBMISSION SLOT, and this is a correction to the first version of this test.
+     * The submission rate limit is keyed `tc_{teamId}_{challengeId}` with a 10s cooldown, so when all
+     * six cross pairs ran against a single challenge only THREE were ever graded -- the rest came
+     * back 429, and `correct !== true` is true of a 429, so those pairs "passed" without the grading
+     * logic being reached at all. The assertion I was most confident in was matching the wrong
+     * wrong-answer. Each team's k-th borrowed flag therefore goes to its own challenge, which makes
+     * every (team, challenge) pair unique and every submission a real graded attempt, and the check
+     * below now demands the GRADED shape (200 with correct:false) rather than merely "not correct".
+     * Identical configs, so the response bodies are comparable. */
+    const SLOTS = TEAMS.length - 1;
+    for (let k = 0; k < SLOTS; k++) {
+        await db.doc(`tournaments/t-pt2/challenges/ch-x${k}`)
+            .set({ title: 'Real box', points: 500, currentPoints: 500, visible: true, solveCount: 0 });
+        await db.doc(`tournaments/t-pt2/flagSecrets/ch-x${k}`).set({ perTeam });
+    }
+
+    const crossAccepted = [], notGraded = [], crossBodies = [];
     for (const submitter of TEAMS) {
+        let k = 0;
         for (const owner of TEAMS) {
             if (submitter === owner) continue;
+            const chId = `ch-x${k++}`;
             const r = await call('ctfSubmitFlag', uid2[submitter].idToken,
-                { tournamentId: 't-pt2', challengeId: 'ch-01', flag: FLAG(owner) });
-            const acc = r.body && r.body.result && r.body.result.correct === true;
-            if (acc) crossAccepted.push(`${submitter} accepted ${owner}'s flag`);
+                { tournamentId: 't-pt2', challengeId: chId, flag: FLAG(owner) });
+            const res = r.body && r.body.result;
+            if (res && res.correct === true) crossAccepted.push(`${submitter} accepted ${owner}'s flag`);
+            /* A refusal, a 429 or an error is NOT evidence of isolation: it means the comparison never
+             * happened. Tracked separately so it can never be mistaken for a rejection. */
+            if (r.status !== 200 || !res || res.correct !== false) {
+                notGraded.push(`${submitter}<-${owner} status=${r.status} ${JSON.stringify(r.body).slice(0, 80)}`);
+            }
+            crossBodies.push({ pair: `${submitter}<-${owner}`, status: r.status, body: JSON.stringify(r.body) });
         }
     }
+    const pairCount = TEAMS.length * (TEAMS.length - 1);
+    chk('every cross pair was actually GRADED, not refused or rate limited',
+        notGraded.length === 0 && crossBodies.length === pairCount,
+        notGraded.join(' | ') || `${crossBodies.length}/${pairCount} graded`);
     chk('NO team can submit another team\'s flag', crossAccepted.length === 0,
-        crossAccepted.join(' | ') || `${TEAMS.length * (TEAMS.length - 1)} cross pairs all rejected`);
+        crossAccepted.join(' | ') || `${pairCount} cross pairs all graded and all rejected`);
+
+    /* NO ORACLE. Grading now logs a collusion signal when a wrong flag matches another team's
+     * registered hash, and that signal must be invisible to the submitter: if a borrowed flag drew
+     * any different status, message or shape than a typo does, the response would CONFIRM the flag
+     * was genuine and tell a cheating team to keep hunting for the right box rather than that their
+     * guess was junk. So a recognised flag and pure garbage must be byte identical.
+     *
+     * Same challenge and same identity, so the flag is the ONLY difference -- which means waiting out
+     * the 10s team+challenge cooldown rather than comparing across two challenges, because a
+     * difference in points or config would make a matching body prove nothing. */
+    const OCH = 'ch-oracle';
+    await db.doc(`tournaments/t-pt2/challenges/${OCH}`)
+        .set({ title: 'Real box', points: 500, currentPoints: 500, visible: true, solveCount: 0 });
+    await db.doc(`tournaments/t-pt2/flagSecrets/${OCH}`).set({ perTeam });
+    const borrowed = await call('ctfSubmitFlag', uid2[TEAMS[1]].idToken,
+        { tournamentId: 't-pt2', challengeId: OCH, flag: FLAG(TEAMS[0]) });
+    await new Promise(r => setTimeout(r, 10500));
+    const garbage = await call('ctfSubmitFlag', uid2[TEAMS[1]].idToken,
+        { tournamentId: 't-pt2', challengeId: OCH, flag: 'flag{not_a_real_flag_at_all}' });
+    chk('a BORROWED flag is indistinguishable from garbage (the collusion log is not an oracle)',
+        borrowed.status === 200 && garbage.status === 200
+        && JSON.stringify(borrowed.body) === JSON.stringify(garbage.body),
+        `borrowed ${borrowed.status} ${JSON.stringify(borrowed.body)} | garbage ${garbage.status} ${JSON.stringify(garbage.body)}`);
 
     // A team with no per-team entry is REFUSED, not graded against anything.
     const goldTok = (await identity());
