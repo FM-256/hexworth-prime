@@ -24,10 +24,10 @@
  */
 const fs = require('fs');
 
-function extractShipped(htmlPath, name) {
-    const src = fs.readFileSync(htmlPath, 'utf8');
-    const start = src.indexOf(`window.${name} = async function(`);
-    if (start === -1) throw new Error(`${name} not found in ${htmlPath} — renamed, or not an async function?`);
+/* The scanner, factored out because there are now two entry points and this is the part that was
+ * wrong the first time. A third hand-written copy of a brace matcher is a third chance to get the
+ * comment handling wrong. */
+function matchBraces(src, start, name) {
     let i = src.indexOf('{', start), depth = 0, inStr = null;
     for (; i < src.length; i++) {
         const c = src[i], next2 = src.substr(i, 2);
@@ -48,4 +48,23 @@ function extractShipped(htmlPath, name) {
     return body;
 }
 
-module.exports = { extractShipped };
+/* `window.fn = async function(` — a handler the page installs globally. */
+function extractShipped(htmlPath, name) {
+    const src = fs.readFileSync(htmlPath, 'utf8');
+    const start = src.indexOf(`window.${name} = async function(`);
+    if (start === -1) throw new Error(`${name} not found in ${htmlPath} — renamed, or not an async function?`);
+    return matchBraces(src, start, name);
+}
+
+/* `function fn(` — a plain declaration inside the page's inline script. Needed because the logic
+ * worth testing hardest is usually the PURE part, and pure helpers are not installed on window:
+ * planPerTeamFlags decides which team receives which flag, so a resolver bug there would hand one
+ * team another team's flag, which is the very defect per-team flags exist to remove. */
+function extractDecl(htmlPath, name) {
+    const src = fs.readFileSync(htmlPath, 'utf8');
+    const start = src.indexOf(`function ${name}(`);
+    if (start === -1) throw new Error(`function ${name}( not found in ${htmlPath}`);
+    return matchBraces(src, start, name);
+}
+
+module.exports = { extractShipped, extractDecl };

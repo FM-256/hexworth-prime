@@ -4269,6 +4269,28 @@
                             </div>
                             <pre id="bpReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:240px; overflow:auto;"></pre>
                         </div>
+
+                        <!-- PER-TEAM FLAGS (taskboard 407). Every team got its own Windows box and
+                             every box carried the SAME flag, so the first team to escalate could hand
+                             the string to the rest and the scoreboard measured who pasted fastest.
+                             Per-team boxes with a shared flag is isolation in the infrastructure and
+                             none in the scoring. The flags are minted ON bc2 by perteam-flags.sh --
+                             the plaintext never leaves that host and never enters this page -- and
+                             only the salt and hash are pasted here. Written to
+                             flagSecrets/{challengeId}.perTeam, which rules deny to every non-admin
+                             client. -->
+                        <div class="ac-card" style="background:var(--ac-surface); margin-bottom:12px; border:1px solid rgba(155,89,182,0.3);">
+                            <div class="ac-card-title">Per-Team Flags</div>
+                            <div style="font-size:0.8rem; color:var(--ac-text-muted); margin-bottom:10px;">
+                                For a challenge backed by REAL per-team machines. Run <code class="ql-inline-code">sudo _tools/engine1/provision/perteam-flags.sh</code> on bc2, which mints one flag per box and prints a JSON block, then paste that block here. Each team is then graded against its own flag only, and a team with no entry is <strong>refused</strong> rather than graded against another team's secret. Keys are matched to teams through each team's existing box assignment for the challenge selected above, so <strong>wire the pool first</strong>. Use <strong>Preview</strong> to see the mapping before anything is written; nothing is written unless every team resolves. Leave this alone for simulated challenges, where one shared flag is correct because there is one box.
+                            </div>
+                            <textarea id="ptfJson" class="ac-input" rows="6" placeholder='{&#10;  "red-cell": { "flagSalt": "...", "flagHash": "sha256:..." },&#10;  "blue-shield-v3": { "flagSalt": "...", "flagHash": "sha256:..." }&#10;}' style="width:100%; font-family:ui-monospace,monospace; font-size:0.74rem; margin-bottom:8px;"></textarea>
+                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="previewPerTeamFlags()">Preview mapping</button>
+                                <button class="ac-btn ac-btn-primary ac-btn-sm" onclick="writePerTeamFlags()">Write per-team flags</button>
+                            </div>
+                            <pre id="ptfReport" style="margin-top:10px; font-size:0.74rem; color:var(--ac-text-muted); white-space:pre-wrap; max-height:260px; overflow:auto;"></pre>
+                        </div>
                     </div>
 
                     <!-- Teams card -->
@@ -13390,6 +13412,211 @@
             } catch (e) {
                 out.textContent = 'FAILED, and NOTHING was released (one transaction): ' + e.message;
                 showToast('Could not release: ' + e.message, 'error');
+            }
+        };
+
+        /* ── PER-TEAM FLAGS (taskboard 407) ───────────────────────────────────────────────
+         *
+         * Every team got its own Windows box and every box carried the SAME flag -- measured by
+         * hashing C:\Hexworth\loot\proof.txt on all six Engine 1 clones and getting one identical
+         * digest. So the first team to escalate could hand the string to the rest and the scoreboard
+         * measured who pasted fastest. Per-team boxes with a shared flag is isolation in the
+         * infrastructure and none in the scoring, which is the half that decides who wins.
+         *
+         * THE PLAINTEXT NEVER COMES HERE. perteam-flags.sh mints on bc2, injects into each box,
+         * verifies by reading the value back OUT of the machine, and prints only salts and hashes.
+         * This page pastes those into flagSecrets/{challengeId}.perTeam, which rules deny to every
+         * non-admin client. A hash is useless without the box.
+         *
+         * PLANNING IS A PURE FUNCTION, separate from the write, for two reasons: Preview and Write
+         * must agree by construction rather than by two code paths that look similar, and a resolver
+         * that maps a pasted key to the wrong team would hand one team another team's flag -- the
+         * exact defect being fixed, wearing a different hat. So it is testable without a browser. */
+        function planPerTeamFlags(raw, teams, poolByTeam) {
+            const refusals = [];
+            let parsed = null;
+            try { parsed = JSON.parse(String(raw || '').trim()); }
+            catch (e) { return { plan: [], refusals: ['The pasted text is not valid JSON: ' + e.message] }; }
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                return { plan: [], refusals: ['Expected a JSON object keyed by box name, got ' + (Array.isArray(parsed) ? 'an array' : typeof parsed) + '.'] };
+            }
+            const keys = Object.keys(parsed);
+            if (!keys.length) return { plan: [], refusals: ['The JSON object is empty.'] };
+
+            /* Shape first. A salt or hash that is subtly wrong would be written happily and then
+             * reject every flag the team ever submits, which reads to a student as a broken box. */
+            const seenHash = new Map();
+            for (const k of keys) {
+                const v = parsed[k];
+                if (!v || typeof v !== 'object') { refusals.push('"' + k + '": expected an object with flagSalt and flagHash.'); continue; }
+                if (!/^[0-9a-f]{16,128}$/.test(String(v.flagSalt || ''))) refusals.push('"' + k + '": flagSalt is not lowercase hex of at least 16 chars.');
+                if (!/^sha256:[0-9a-f]{64}$/.test(String(v.flagHash || ''))) refusals.push('"' + k + '": flagHash is not sha256:<64 lowercase hex>.');
+                /* Two boxes on the same hash means one flag on two boxes, which is the defect.
+                 * NOTE THE LIMIT, stated rather than implied: two teams sharing a FLAG under
+                 * different SALTS produce different hashes and are invisible from here. Only the
+                 * host holding the plaintext can see that, which is why perteam-flags.sh checks
+                 * plaintext distinctness too and refuses to print anything when it collides. */
+                if (v && v.flagHash) {
+                    if (seenHash.has(v.flagHash)) refusals.push('"' + k + '" and "' + seenHash.get(v.flagHash) + '" have the SAME flagHash, so one flag is on two boxes.');
+                    else seenHash.set(v.flagHash, k);
+                }
+            }
+
+            /* Resolution. A key names a MACHINE; teams are named separately; the link is the
+             * assignment each team already holds for this challenge. Matched against the team id, the
+             * pool label, or the label with one leading prefix segment removed
+             * (engine1-red-cell -> red-cell), and never by loose suffix: "cell" must not match
+             * "engine1-red-cell", because a near-match is not a match. */
+            const norm = (x) => String(x == null ? '' : x).trim().toLowerCase();
+            const matched = new Map();   // teamId -> key
+            const usedBy = new Map();    // key -> [teamId]
+            for (const t of teams) {
+                const poolId = poolByTeam.get(t.id);
+                const names = [norm(t.id)];
+                if (poolId) { names.push(norm(poolId)); names.push(norm(String(poolId).replace(/^[^-]+-/, ''))); }
+                const hits = keys.filter(k => names.includes(norm(k)));
+                if (hits.length > 1) { refusals.push('Team "' + (t.name || t.id) + '" is matched by ' + hits.length + ' keys (' + hits.join(', ') + '). Ambiguous, so nothing is written.'); continue; }
+                if (hits.length === 1) {
+                    matched.set(t.id, hits[0]);
+                    usedBy.set(hits[0], (usedBy.get(hits[0]) || []).concat(t.id));
+                }
+            }
+            for (const [k, ts] of usedBy) {
+                if (ts.length > 1) refusals.push('Key "' + k + '" matches ' + ts.length + ' teams (' + ts.join(', ') + '). One box cannot be two teams\' flag.');
+            }
+
+            /* ALL OR NOTHING, the same rule the pool wiring uses. A tournament where four teams can
+             * submit a flag and two are refused is unfair rather than partially ready -- and because
+             * a team with no entry is REFUSED by design rather than falling back, a partial write
+             * would silently bench those teams for the whole event. */
+            for (const t of teams) {
+                if (matched.has(t.id)) continue;
+                const poolId = poolByTeam.get(t.id);
+                refusals.push(poolId
+                    ? 'Team "' + (t.name || t.id) + '" (box ' + poolId + ') has no entry in the pasted JSON.'
+                    : 'Team "' + (t.name || t.id) + '" has NO box assignment for challenge -- wire the pool first, '
+                      + 'because a key is matched to a team through that assignment.');
+            }
+            const unknown = keys.filter(k => !usedBy.has(k));
+            for (const k of unknown) refusals.push('Key "' + k + '" matches no team in this tournament. Boxes here: ' + (Array.from(poolByTeam.values()).join(', ') || '(none assigned)') + '.');
+
+            const plan = [];
+            if (!refusals.length) {
+                for (const t of teams) {
+                    const k = matched.get(t.id), v = parsed[k];
+                    plan.push({ teamId: t.id, teamName: t.name || t.id, key: k, poolId: poolByTeam.get(t.id) || null, flagSalt: v.flagSalt, flagHash: v.flagHash });
+                }
+            }
+            return { plan: plan, refusals: refusals };
+        }
+
+        /* Reads teams and their assignments for the selected challenge, then plans. Shared by Preview
+         * and Write so the thing previewed IS the thing written. */
+        async function readPerTeamContext() {
+            const chId = document.getElementById('rbChallenge').value;
+            if (!chId) throw new Error('Pick the challenge (in the panel above) that uses the real boxes.');
+            const { collection, getDocs, doc, getDoc } = _firestoreModule;
+            const teamSnap = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
+            const teams = teamSnap.docs.map(d => ({ id: d.id, name: (d.data().name || d.id) }))
+                .sort((a, b) => a.id.localeCompare(b.id));
+            if (!teams.length) throw new Error('This tournament has no teams.');
+            const poolByTeam = new Map();
+            for (const t of teams) {
+                const a = await getDoc(doc(db, 'tournaments', _ctfEditingId, 'teams', t.id, 'assignments', chId));
+                if (a.exists() && a.data().fromPool) poolByTeam.set(t.id, a.data().fromPool);
+            }
+            return { chId: chId, teams: teams, poolByTeam: poolByTeam };
+        }
+
+        function renderPerTeamPlan(chId, ctx, res) {
+            if (res.refusals.length) {
+                return 'REFUSED: ' + res.refusals.length + ' problem(s). NOTHING would be written.\n\n'
+                    + res.refusals.map(r => '  - ' + r).join('\n')
+                    + '\n\nAll teams or none: a team with no per-team entry is REFUSED at grading time by '
+                    + 'design, so a partial write would bench those teams for the whole event.';
+            }
+            return 'OK: ' + res.plan.length + ' team(s) resolved for challenge ' + chId + '.\n\n'
+                + res.plan.map(r => '  ' + r.teamName + '  <-  key "' + r.key + '"'
+                    + (r.poolId ? '  (box ' + r.poolId + ')' : '')
+                    + '  hash ' + r.flagHash.slice(0, 18) + '...').join('\n')
+                + '\n\nEach team will be graded against its own flag only. A team missing from this list '
+                + 'would be refused at submit time rather than graded against another team\'s secret.';
+        }
+
+        window.previewPerTeamFlags = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const out = document.getElementById('ptfReport');
+            out.textContent = 'reading teams and assignments...';
+            try {
+                const ctx = await readPerTeamContext();
+                const res = planPerTeamFlags(document.getElementById('ptfJson').value, ctx.teams, ctx.poolByTeam);
+                out.textContent = 'PREVIEW ONLY, nothing written.\n\n' + renderPerTeamPlan(ctx.chId, ctx, res);
+                showToast(res.refusals.length ? 'Preview: ' + res.refusals.length + ' problem(s).' : 'Preview: ' + res.plan.length + ' team(s) resolve.',
+                    res.refusals.length ? 'warning' : 'success');
+            } catch (e) {
+                out.textContent = 'Could not preview: ' + e.message;
+                showToast(e.message, 'warning');
+            }
+        };
+
+        window.writePerTeamFlags = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const out = document.getElementById('ptfReport');
+            const { doc, getDoc, collection, getDocs, runTransaction, serverTimestamp } = _firestoreModule;
+            out.textContent = 'reading teams and assignments...';
+            let ctx, res;
+            try {
+                ctx = await readPerTeamContext();
+                res = planPerTeamFlags(document.getElementById('ptfJson').value, ctx.teams, ctx.poolByTeam);
+            } catch (e) {
+                out.textContent = 'Could not plan: ' + e.message; showToast(e.message, 'warning'); return;
+            }
+            if (res.refusals.length) {
+                out.textContent = renderPerTeamPlan(ctx.chId, ctx, res);
+                showToast('Refused: ' + res.refusals.length + ' problem(s).', 'warning'); return;
+            }
+
+            const existing = await getDoc(doc(db, 'tournaments', _ctfEditingId, 'flagSecrets', ctx.chId));
+            const hadShared = existing.exists() && existing.data().flagSalt && existing.data().flagHash;
+            const hadPerTeam = existing.exists() && !!existing.data().perTeam;
+            if (!confirm('Write per-team flags for ' + res.plan.length + ' team(s) on challenge ' + ctx.chId + '?\n\n'
+                + res.plan.map(r => r.teamName + ' <- ' + r.key).join('\n')
+                + (hadPerTeam ? '\n\nThis REPLACES the per-team flags already registered for this challenge.' : '')
+                + (hadShared ? '\n\nThe existing shared flag stays on the document but becomes INERT: once perTeam '
+                    + 'is present, grading uses it and never falls back. It is left rather than removed, and it '
+                    + 'now corresponds to no box.' : '')
+                + '\n\nEach team can then submit only the flag from its own machine.')) {
+                out.textContent = 'Cancelled. Nothing written.'; return;
+            }
+
+            try {
+                /* Re-read the team list INSIDE the transaction. The confirm above blocks on a human
+                 * for an unbounded time, so the snapshot the plan was built from can be minutes old;
+                 * a team added in that window would be absent from perTeam and, because absence means
+                 * REFUSE rather than fall back, would be silently unable to submit all event. Refuse
+                 * and make the operator re-plan instead. */
+                await runTransaction(db, async (tx) => {
+                    const fresh = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
+                    const freshIds = fresh.docs.map(d => d.id).sort().join(',');
+                    const plannedIds = ctx.teams.map(t => t.id).sort().join(',');
+                    if (freshIds !== plannedIds) {
+                        throw new Error('The team list CHANGED while the dialog was open (' + fresh.size
+                            + ' now, ' + ctx.teams.length + ' when planned). Nothing written -- preview again, '
+                            + 'because a team missing from perTeam cannot submit at all.');
+                    }
+                    const perTeam = {};
+                    for (const r of res.plan) perTeam[r.teamId] = { flagSalt: r.flagSalt, flagHash: r.flagHash };
+                    tx.set(doc(db, 'tournaments', _ctfEditingId, 'flagSecrets', ctx.chId),
+                        { perTeam: perTeam, perTeamWrittenAt: serverTimestamp() }, { merge: true });
+                });
+                out.textContent = 'WROTE per-team flags for ' + res.plan.length + ' team(s) on ' + ctx.chId + '.\n\n'
+                    + res.plan.map(r => '  ' + r.teamName + '  <-  ' + r.key).join('\n')
+                    + '\n\nGrading now uses each team\'s own entry and refuses any team without one.'
+                    + (hadShared ? '\n\nThe shared flag on this document is now INERT and corresponds to no box.' : '');
+                showToast('Per-team flags written for ' + res.plan.length + ' team(s).', 'success');
+            } catch (e) {
+                out.textContent = 'FAILED, and NOTHING was written (one transaction): ' + e.message;
+                showToast('Could not write: ' + e.message, 'error');
             }
         };
 
