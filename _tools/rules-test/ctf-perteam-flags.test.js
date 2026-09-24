@@ -7,7 +7,9 @@
  * @catalog run    firebase emulators:exec --only firestore,functions,auth --project=demo-hexworth "NODE_PATH=$(pwd)/functions/node_modules node _tools/rules-test/ctf-perteam-flags.test.js"
  * @catalog status TOOL
  *
- * WHY IT EXISTS (taskboard 407). Engine 1 gives every team its own Windows box, and every box carried
+ * WHY IT EXISTS (taskboard 419, NOT 407 -- 407 is the console Import-from-Boxes path copying a
+ * SIMULATED box's public flag into a challenge, a different defect on a different surface).
+ * Engine 1 gives every team its own Windows box, and every box carried
  * the SAME flag: measured by hashing the proof file on all six clones and getting one identical
  * digest. So the first team to escalate could hand the string to the rest and the scoreboard measured
  * who pasted fastest. Per-team boxes with a shared flag is isolation in the infrastructure and none

@@ -7576,7 +7576,8 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             'This challenge is not fully configured yet. Ask your instructor to re-save its flag.');
     }
 
-    /* PER-TEAM FLAGS (taskboard 407).
+    /* PER-TEAM FLAGS (taskboard 419; not 407, which is the Import-from-Boxes path reusing a
+     * SIMULATED box's own public flag -- related in spirit, different surface).
      *
      * A challenge backed by a REAL machine gives every team its own box, and until now every box
      * carried the SAME flag: verified by hashing the proof file on all six Engine 1 clones and

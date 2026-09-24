@@ -7,7 +7,7 @@
 # @catalog run    sudo _tools/engine1/provision/perteam-flags.sh [short-name ...]   # on bc2
 # @catalog status TOOL
 #
-# WHY (taskboard 407). Every team got its own Windows box and every box carried the SAME flag --
+# WHY (taskboard 419). Every team got its own Windows box and every box carried the SAME flag --
 # measured by hashing C:\Hexworth\loot\proof.txt on all six clones and getting one identical digest.
 # Per-team boxes with a shared flag is isolation in the infrastructure and none in the scoring, which
 # is the half that decides who wins: the first team to escalate could hand the string to the rest and

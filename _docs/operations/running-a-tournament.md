@@ -52,9 +52,9 @@ Two lifecycle facts that surprise people:
 
 - **Credentials and flag submission open together, at `active`, not at `lobby`.** A team cannot
   pre-solve a real box during registration and sit on the answer until the bell — `ctfGetBoxCredential`
-  is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8214`).
+  is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8259`).
 - **The join code is required at creation** — the console refuses to save a tournament with no
-  code or a code under 4 characters (`_app/admin/console.html:11176`). There is no "no code" tournament you
+  code or a code under 4 characters (`_app/admin/console.html:11228`). There is no "no code" tournament you
   can create today; every new tournament is gated by construction.
 
 ## 2. Staffing challenges — and the box-import trap
@@ -131,13 +131,61 @@ parameter a caller could substitute. Every successful disclosure is logged to
 `ctf_credential_audit` (best-effort, fire-and-forget — a gap in that log is not proof nobody
 accessed the box).
 
+### 3a. Per-team flags — do this, or the scoreboard measures who pasted fastest
+
+**A real-box challenge is not finished when the boxes are wired.** Every team gets its own machine,
+but until you mint per-team flags every machine carries the *same* flag. That was measured, not
+assumed: hashing `C:\Hexworth\loot\proof.txt` on all six Engine 1 clones returned one identical
+digest. The first team to escalate can hand that string to everyone else, and the scoreboard then
+ranks teams by who pasted fastest. Per-team boxes with a shared flag is isolation in the
+infrastructure and none in the scoring — the half that decides who wins.
+
+Wire the pool first (§3 above), because keys are matched to teams through each team's assignment.
+
+1. **On `bc2`**, mint and inject one flag per box:
+
+   ```
+   sudo _tools/engine1/provision/perteam-flags.sh
+   ```
+
+   It mints 128 bits of CSPRNG per team, injects into that team's box, verifies by reading the value
+   back *out* of the machine, and proves the `player` account is denied. It refuses to print anything
+   unless every box verifies and all flags and hashes are pairwise distinct — a driver that minted one
+   flag twice would recreate the original defect while every per-box check still passed. Plaintext
+   stays in 0600 files under `config/flags/`; the script prints salts and hashes only.
+
+2. **Paste the JSON it prints** into Console → Manage → **Per-Team Flags**, with the same challenge
+   selected. Click **Preview mapping** first: it shows which key resolved to which team and writes
+   nothing. Then **Write per-team flags**.
+
+3. It is **all or nothing**, deliberately. A team with no `perTeam` entry is *refused* at submit time
+   ("Your team has no flag configured for this challenge yet") rather than graded against a shared
+   value, because falling back is exactly how a team ends up able to submit another team's flag. So a
+   partial write would bench those teams for the whole event instead of degrading.
+
+**What this buys beyond fairness:** a wrong submission that hashes to another team's registered value
+is *proof of collusion*. The flag is CSPRNG minted on that team's own box, so it cannot be guessed —
+it was handed over. `ctfSubmitFlag` logs it:
+
+```
+[ctfSubmitFlag] COLLUSION: {tid}/{chId} team X submitted a flag that matches team Y's registered value
+```
+
+Query Cloud Logging for `COLLUSION` after an event. It is deliberately a log and not a field: the
+incorrect-submission record is not admin-only, so naming the other team there would out that team on
+a document students can reach *and* tell the submitter their borrowed flag was recognised. The
+student-visible response is byte-identical to any other wrong flag, so the detector is not an oracle.
+
+Simulated challenges need none of this: one box for everyone means one flag for everyone, which is
+why a challenge with no `perTeam` keeps grading against the single shared flag.
+
 ## 4. Inviting people
 
 Three real invite paths exist. Two more do not exist at all.
 
 | Path | What it does | What it does NOT do |
 |---|---|---|
-| **Join QR** (Manage panel, `_app/admin/console.html:12836`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
+| **Join QR** (Manage panel, `_app/admin/console.html:13663`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
 | **Discord `/tournament` command** | Ephemeral reply (flags 64 — only the asker sees it). Lists tournaments at `lobby` or `active`, names the Competitor badge and its 25 points, and tells the student to ask their instructor for the code (`functions/index.js:9068-9106`). | **It never reads out a join code, under any condition** — an earlier draft did, for "legacy" tournaments, and that branch turned out to be the live case for both real tournaments today (BUG-270). |
 | **Direct lobby link** | Copy/paste the URL yourself. Works today, always has. | — |
 | Email | Does not exist. `functions/index.js:5675` states auto-email was never built for v1. | — |
@@ -278,7 +326,7 @@ the live, admin-writable `teams` collection, once it exists.
 | **Competitor** (`tournament_competitor`) | Automatically, inside `ctfJoinTeam`, the moment a student joins a team. | `users/{uid}/server_awards` AND `users/{uid}.achievements` (union-merged). | **No.** Joining is a fact; it cannot un-happen. This is why it is safe to also keep it in the union-merged `achievements` array — a stale device re-syncing the id back in changes nothing false. |
 | **Champion / Runner-Up / Third** (`tournament_champion` etc.) | Manually, by an admin calling `ctfAwardTournamentBadges` — never automatic. This is Hexworth Credential Authority doctrine: competition never automatically grants an award of record. | `users/{uid}/server_awards` **only** — never `achievements`. | **Yes.** A corrected result must be able to take a trophy back; `achievements` is union-merged and a revocation there would silently self-reverse the next time a stale device synced. |
 
-Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11881`) calls
+Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11933`) calls
 `ctfAwardTournamentBadges`. It refuses to run until `results/final` exists — it will not derive
 placements from the live `teams` collection, because that collection is admin-writable and
 therefore not evidence of anything. Safe to click more than once: it is idempotent by content, and
