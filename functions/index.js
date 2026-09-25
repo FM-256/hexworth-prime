@@ -7666,9 +7666,11 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
             console.error(`[ctfSubmitFlag] FLAG-MATCH ${tournamentId}/${challengeId}: team ${userTeamId} `
                 + `(flag minted on box ${mineBox || 'unrecorded'}) submitted a flag matching `
                 + matches.map(m => `${m.teamId} (box ${m.box || 'unrecorded'})`).join(', ')
-                + `. TWO possible causes, and this signal cannot tell them apart: the flag was passed `
-                + `between teams, OR a box was reassigned after per-team flags were registered so this `
-                + `team is playing a machine whose flag belongs to the other team. CHECK WHICH: compare `
+                + `. DO NOT TREAT THIS AS CHEATING UNTIL CHECKED. Two causes produce it and this signal `
+                + `cannot tell them apart. The ORDINARY one first: a box was reassigned after per-team `
+                + `flags were registered, so this team is playing a machine whose flag belongs to the `
+                + `other team and their own correct flag lands here. The other is that the flag was `
+                + `passed between teams. CHECK WHICH: compare `
                 + `the box ids above against tournaments/${tournamentId}/teams/{teamId}/assignments/`
                 + `${challengeId}.fromPool. If they disagree, it is a reassignment, NOT cheating, and `
                 + `per-team flags must be re-minted and re-registered before this team can score.`);

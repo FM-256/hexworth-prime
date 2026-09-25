@@ -92,6 +92,17 @@ async function seed() {
     await db.doc(`tournaments/${TID}/teams/team-a/assignments/ch-noprov`).set({ challengeId: 'ch-noprov', fromPool: 'e1-a' });
     await db.doc(`tournaments/${TID}/teams/team-b/assignments/ch-noprov`).set({ challengeId: 'ch-noprov', fromPool: 'e1-b' });
 
+    /* ch-noasg: NANCY'S REPRODUCTION, kept as a permanent test. A valid per-team entry whose team has
+     * NO assignment document at all used to pass here with zero findings, while describePerTeamDrift
+     * in the console flagged the same input as "now on NO box". Two consumers of one root cause
+     * disagreeing is worse than either alone, because the runbook offers them as equivalent checks.
+     * And it is the ordinary residue of releasePoolFromTournament, which DELETES assignment docs. */
+    await db.doc(`tournaments/${TID}/challenges/ch-noasg`).set({ title: 'noasg', points: 500, visible: true });
+    await db.doc(`tournaments/${TID}/flagSecrets/ch-noasg`).set({
+        perTeam: { 'team-a': { flagSalt: S(10), flagHash: H(10), box: 'e1-a' },
+                   'team-b': { flagSalt: S(11), flagHash: H(11), box: 'e1-b' } } });
+    // Deliberately NO assignments/ch-noasg document for either team.
+
     /* CONTROLS. ch-shared is a legacy simulated challenge and must stay clean; ch-none has no
      * secret of either shape and must STILL be reported, or the fix has loosened the gate away. */
     await db.doc(`tournaments/${TID}/challenges/ch-shared`).set({ title: 'shared', points: 100, visible: true });
@@ -127,7 +138,15 @@ async function seed() {
     const stale = (out.match(/minted on a DIFFERENT box[^\n]*/) || [''])[0];
     chk('provenance DRIFT is reported and names both boxes',
         /ch-stale/.test(stale) && /e1-a/.test(stale) && /e1-z/.test(stale), stale.slice(0, 160) || '(not reported)');
-    chk('a team whose box still matches is NOT reported as drifted', !/team-b|TEAM-B/.test(stale.replace(/ch-stale\/TEAM-A[^|]*/gi, '')), stale.slice(0, 120));
+    /* Stated as the precise pair rather than by stripping text and searching what is left: the loose
+     * version searched the WHOLE line for team-b after deleting only the ch-stale/TEAM-A entry, so it
+     * broke the moment another challenge legitimately flagged team-b. An assertion that has to
+     * subtract the things it does not mean is an assertion about the wrong thing. */
+    chk('on the drifted challenge, only the MOVED team is named',
+        /ch-stale\/TEAM-A/i.test(stale) && !/ch-stale\/TEAM-B/i.test(stale), stale.slice(0, 130));
+
+    chk('a per-team flag whose team has NO assignment document is reported as drift',
+        /ch-noasg/.test(stale) && /NO box/.test(stale), stale.slice(0, 170) || '(not reported)');
 
     const unver = (out.match(/record no box provenance[^\n]*/) || [''])[0];
     chk('entries with NO provenance are reported as unverifiable, not as agreeing',

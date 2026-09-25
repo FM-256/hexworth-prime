@@ -164,9 +164,16 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
         for (const id of rosterIds) {
           const e = shape.perTeam[id];
           if (!e || !e.flagSalt || !e.flagHash) continue;
-          const asg = assignmentBox.get(`${id}|${c.id}`);
+          /* A MISSING assignment document counts as drift, and gating this on `asg !== undefined`
+           * was a blind spot Nancy reproduced: a team holding a per-team flag with NO assignment at
+           * all passed with zero findings here, while describePerTeamDrift in the console correctly
+           * reports it as "now on NO box". Two consumers built from one root cause disagreeing on one
+           * input is worse than either behaviour alone, because the runbook offers them as equivalent
+           * ways to check the same thing. Not contrived either: releasePoolFromTournament DELETES
+           * assignment documents, so this is the ordinary residue of a documented admin action. */
+          const asg = assignmentBox.has(`${id}|${c.id}`) ? assignmentBox.get(`${id}|${c.id}`) : null;
           if (!e.box) unverifiablePerTeam.push(`${c.id}/${teamLabel.get(id) || id}`);
-          else if (asg !== undefined && e.box !== asg) {
+          else if (e.box !== asg) {
             staleProvenance.push(`${c.id}/${teamLabel.get(id) || id}: flag minted on ${e.box}, team now wired to ${asg || 'NO box'}`);
           }
         }
