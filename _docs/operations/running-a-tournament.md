@@ -407,7 +407,9 @@ verifies it — none of these are "should be fine."
 
 | # | Check | How | What "clean" looks like |
 |---|---|---|---|
-| 1 | Every challenge has a flag secret | `node _tools/tournament/inspect-tournaments.js --tournament <id>` | No "NO flagSecrets entry" problem line for this tournament. |
+| 1 | Every challenge has a flag secret | `node _tools/tournament/inspect-tournaments.js --tournament <id>` | No "NO flagSecrets entry" problem line for this tournament. A **shared** flag or a **per-team** map both count as present. |
+| 1a | Per-team flags are COMPLETE, if any challenge uses them | Same command | No "INCOMPLETE perTeam map" line. A team with no entry is *refused* at submit time, not graded, so it cannot score at all for the whole event. |
+| 1b | Per-team flags still match the boxes teams are wired to | Same command | No "minted on a DIFFERENT box" line, and no "record no box provenance" line. A drifted entry both locks that team out and makes their correct flag log as a flag-match against them — see Section 3b. |
 | 2 | No challenge still exposes public crypto | Same command | No "STILL carry flagHash/flagSalt on the world-readable doc" problem line. If present, run the Flag Secrets Migration (Manage panel, "Copy" then "Purge," this tournament) — read `_docs/operations/tournament-flag-secrets-migration.md` first; PURGE must run only after a functions deploy that reads the new location is confirmed live. |
 | 3 | Every challenge has positive points | Same command | No "no positive points" problem line. |
 | 4 | No challenge carries a raw `flag`/`answer`/`solution` field | Same command | No "carry a RAW flag field" problem line. |

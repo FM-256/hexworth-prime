@@ -71,11 +71,20 @@ function extractDecl(htmlPath, name) {
     const re = new RegExp(`^[ \t]*(?:async\\s+)?function ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'gm');
     const hits = [];
     let m;
-    while ((m = re.exec(src)) !== null) hits.push(m.index + m[0].indexOf('function'));
+    /* Start at the first non-whitespace of the match, which KEEPS a leading `async`. Starting at the
+     * word `function` dropped it, and a body containing `await` then cannot be parsed at all:
+     * `new Function(extractDecl(page, 'readPerTeamContext'))` threw "await is only valid in async
+     * functions". Loud rather than dangerous, but it made async functions un-extractable, which is the
+     * thing async support was added for. Found by the test file that should have existed already. */
+    while ((m = re.exec(src)) !== null) hits.push(m.index + m[0].search(/\S/));
     if (!hits.length) throw new Error(`function ${name}( not found at a line start in ${htmlPath}`);
     if (hits.length > 1) {
         throw new Error(`function ${name}( is declared ${hits.length} times in ${htmlPath} `
-            + `(offsets ${hits.join(', ')}) — ambiguous, so refusing rather than certifying one of them`);
+            + `(offsets ${hits.join(', ')}) — ambiguous, so refusing rather than certifying one of them. `
+            + `NOTE: a line INSIDE a /* */ block comment that begins at column 0 with "function ${name}(" `
+            + `counts as a hit here — the anchor is line-based, not comment-aware. That produces this `
+            + `refusal rather than a silently wrong span, which is the safe direction, but if the real `
+            + `declaration is unique then re-indent the commented one.`);
     }
     return matchBraces(src, hits[0], name);
 }
