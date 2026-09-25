@@ -62,9 +62,22 @@ function extractShipped(htmlPath, name) {
  * team another team's flag, which is the very defect per-team flags exist to remove. */
 function extractDecl(htmlPath, name) {
     const src = fs.readFileSync(htmlPath, 'utf8');
-    const start = src.indexOf(`function ${name}(`);
-    if (start === -1) throw new Error(`function ${name}( not found in ${htmlPath}`);
-    return matchBraces(src, start, name);
+    /* ANCHORED TO A LINE START, and ambiguity is an error rather than a silent first-wins pick.
+     * A bare indexOf returns the first TEXTUAL occurrence anywhere in a 14,000-line page, so a
+     * mention in a comment, a doc example, or a second same-named local would hand the suite a
+     * different span than the one it certified -- or a confusing brace mismatch. The suite would
+     * still say PASS, about the wrong function. Nancy flagged it as fragility that compounds each
+     * time this is reused; making it loud now is cheaper than debugging it later. */
+    const re = new RegExp(`^[ \t]*(?:async\\s+)?function ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(`, 'gm');
+    const hits = [];
+    let m;
+    while ((m = re.exec(src)) !== null) hits.push(m.index + m[0].indexOf('function'));
+    if (!hits.length) throw new Error(`function ${name}( not found at a line start in ${htmlPath}`);
+    if (hits.length > 1) {
+        throw new Error(`function ${name}( is declared ${hits.length} times in ${htmlPath} `
+            + `(offsets ${hits.join(', ')}) — ambiguous, so refusing rather than certifying one of them`);
+    }
+    return matchBraces(src, hits[0], name);
 }
 
 module.exports = { extractShipped, extractDecl };

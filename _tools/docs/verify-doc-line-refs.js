@@ -5,7 +5,12 @@
  *
  * @catalog what    Flags `file.ext:123` references in docs that no longer point at real code
  * @catalog run     node _tools/docs/verify-doc-line-refs.js [<doc paths>...] [--all] [--quiet]
- * @catalog status  TOOL
+ * @catalog status  GATE
+ *
+ * GATE, not TOOL: _tools/confluence/sync-published-docs.sh:70 runs this before publishing any
+ * registered runbook and REFUSES to publish one whose refs have rotted, and deploy.sh:675 calls
+ * that on every hosting deploy. The header said TOOL, which is the one thing CATALOG.md exists to
+ * get right -- whether anything actually runs a script.
  *
  * WHY THIS EXISTS. A `file:line` citation is the convention for every technical claim in
  * `_docs/`, and it silently rots the moment anyone inserts a line above it. On 2026-09-19 that

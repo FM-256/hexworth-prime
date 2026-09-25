@@ -52,7 +52,7 @@ Two lifecycle facts that surprise people:
 
 - **Credentials and flag submission open together, at `active`, not at `lobby`.** A team cannot
   pre-solve a real box during registration and sit on the answer until the bell — `ctfGetBoxCredential`
-  is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8259`).
+  is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8282`).
 - **The join code is required at creation** — the console refuses to save a tournament with no
   code or a code under 4 characters (`_app/admin/console.html:11228`). There is no "no code" tournament you
   can create today; every new tournament is gated by construction.
@@ -163,18 +163,73 @@ Wire the pool first (§3 above), because keys are matched to teams through each 
    value, because falling back is exactly how a team ends up able to submit another team's flag. So a
    partial write would bench those teams for the whole event instead of degrading.
 
+### 3b. Re-mint after ANY box change — or a correct flag gets rejected and logged as suspicious
+
+`perTeam` is written once and nothing invalidates it. Each entry records the box it was minted
+against (`box`), which is what makes the following checkable at all — but nothing re-checks it for you
+at submit time, because grading never reads the assignment documents.
+
+**If a team is moved to a different machine after per-team flags were registered** — a box crash, a
+mid-event correction, a re-run of the event on re-imaged boxes, or a `reset-team-box.sh` run — then
+that team's registered hash still belongs to the *old* machine, and two things happen, both silent:
+
+1. The team can never submit correctly, no matter what they do. To them it is indistinguishable from
+   "you typed it wrong."
+2. When they submit the real flag off their own box, it matches the team that *previously* held that
+   machine, and grading logs a flag-match naming them. **A student who did everything right gets
+   locked out and implicated.**
+
+So: **after any box change, re-run `perteam-flags.sh` for the affected teams and re-register.** Two
+ways to catch it if you are unsure:
+
+- **Console → Per-Team Flags → Preview mapping with the paste box EMPTY.** That reports what is
+  registered against what is wired now, and names any team whose flag was minted on a different box.
+- **`node _tools/tournament/inspect-tournaments.js --tournament <id>`**, which now reports incomplete
+  `perTeam` maps and provenance drift as pre-flight problems (§9).
+
+**`reset-team-box.sh` deserves particular care**, because it creates a *versioned* domain
+(`engine1-team-blue-shield-v3` → `-v4`) and leaves the old one shut off but not deleted. Its printed
+next steps predate per-team flags and tell you to run `mint-flag.sh` directly, which touches the VM
+and never Firestore. After a reset: confirm the domain `token-terminals.sh` points at is the new one,
+then re-run `perteam-flags.sh` naming the affected team, then re-register. `perteam-flags.sh` refuses
+loudly if a domain has no IP — but if a *stale* domain is still reachable it will happily mint,
+verify and emit a valid-looking block for a machine no student can reach.
+
 **What this buys beyond fairness:** a wrong submission that hashes to another team's registered value
-is *proof of collusion*. The flag is CSPRNG minted on that team's own box, so it cannot be guessed —
-it was handed over. `ctfSubmitFlag` logs it:
+cannot have been guessed — the flag is 128 bits of CSPRNG minted on that team's own box. `ctfSubmitFlag`
+logs it:
 
 ```
-[ctfSubmitFlag] COLLUSION: {tid}/{chId} team X submitted a flag that matches team Y's registered value
+[ctfSubmitFlag] FLAG-MATCH {tid}/{chId}: team X (flag minted on box B1) submitted a flag matching Y (box B2). ...
 ```
 
-Query Cloud Logging for `COLLUSION` after an event. It is deliberately a log and not a field: the
-incorrect-submission record is not admin-only, so naming the other team there would out that team on
-a document students can reach *and* tell the submitter their borrowed flag was recognised. The
-student-visible response is byte-identical to any other wrong flag, so the detector is not an oracle.
+**It is a signal, not a verdict.** It has exactly two causes and the log cannot tell them apart: the
+flag was passed between teams, or a box was reassigned (above). Always check the box ids in the log
+line against `tournaments/{tid}/teams/{teamId}/assignments/{chId}.fromPool` before treating it as
+cheating. Do not accuse a student on this line alone.
+
+To read it after an event:
+
+```bash
+# Every flag-match signal, newest first
+gcloud logging read \
+  'resource.type="cloud_function" AND resource.labels.function_name="ctfSubmitFlag" AND textPayload:"FLAG-MATCH"' \
+  --limit 50 --format="value(timestamp,textPayload)"
+
+# Narrow to one tournament
+gcloud logging read \
+  'resource.type="cloud_function" AND resource.labels.function_name="ctfSubmitFlag" AND textPayload:"FLAG-MATCH" AND textPayload:"<tournamentId>"' \
+  --limit 50 --format="value(timestamp,textPayload)"
+```
+
+(Gen-2 functions log under `resource.type="cloud_run_revision"` with
+`resource.labels.service_name="ctfsubmitflag"`; if the first query returns nothing, try that before
+concluding there were no matches.)
+
+It is deliberately a log and not a field: the incorrect-submission record is not admin-only, so naming
+the other team there would out that team on a document students can reach *and* tell the submitter
+their borrowed flag was recognised. The student-visible response is byte-identical to any other wrong
+flag, so the detector is not an oracle.
 
 Simulated challenges need none of this: one box for everyone means one flag for everyone, which is
 why a challenge with no `perTeam` keeps grading against the single shared flag.
@@ -185,7 +240,7 @@ Three real invite paths exist. Two more do not exist at all.
 
 | Path | What it does | What it does NOT do |
 |---|---|---|
-| **Join QR** (Manage panel, `_app/admin/console.html:13663`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
+| **Join QR** (Manage panel, `_app/admin/console.html:13774`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
 | **Discord `/tournament` command** | Ephemeral reply (flags 64 — only the asker sees it). Lists tournaments at `lobby` or `active`, names the Competitor badge and its 25 points, and tells the student to ask their instructor for the code (`functions/index.js:9068-9106`). | **It never reads out a join code, under any condition** — an earlier draft did, for "legacy" tournaments, and that branch turned out to be the live case for both real tournaments today (BUG-270). |
 | **Direct lobby link** | Copy/paste the URL yourself. Works today, always has. | — |
 | Email | Does not exist. `functions/index.js:5675` states auto-email was never built for v1. | — |
@@ -218,7 +273,7 @@ need to know whether to prompt for a code, and that fact is not itself secret.
 **That is the correct architecture, and it only applies to tournaments created after 2026-08-29.**
 Tournaments created before the fix have no `private/config` document, and `ctfJoinTeam` falls back
 to a legacy **public** `joinCode` field on the tournament document itself
-(`functions/index.js:7957-7961`) — which `firestore.rules` grants `allow read: if true`. An
+(`functions/index.js:8048-8051`) — which `firestore.rules` grants `allow read: if true`. An
 unauthenticated Firestore REST GET on that document returns the code in plaintext.
 
 **Verify which state your tournament is in before you rely on the code as a gate:**

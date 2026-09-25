@@ -26,6 +26,8 @@ const PAGE = process.env.CONSOLE_PATH || path.join(__dirname, '..', '..', '_app'
  * inside an eval to the eval itself, so the extracted function came out invisible. */
 const planPerTeamFlags = new Function(extractDecl(PAGE, 'planPerTeamFlags')
     + '\nreturn planPerTeamFlags;')();
+const describePerTeamDrift = new Function(extractDecl(PAGE, 'describePerTeamDrift')
+    + '\nreturn describePerTeamDrift;')();
 
 let pass = 0, fail = 0;
 const chk = (n, ok, d) => { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}${d ? ' :: ' + d : ''}`); ok ? pass++ : fail++; };
@@ -68,13 +70,30 @@ console.log('\n== per-team flag resolver (admin console) ==');
         && r.plan.find(p => p.teamId === 'team-blue').flagHash === H(2));
 }
 
-// 2. Full pool labels also resolve, and so do raw team ids.
+// 2. Full pool labels also resolve, and so do raw team ids -- WHEN the team is on a box.
 {
     const { teams, pool } = fx();
     const r = planPerTeamFlags(JSON.stringify({
         'engine1-red-cell': entry(1), 'engine1-blue-shield-v3': entry(2), 'team-green': entry(3),
     }), teams, pool);
     chk('full pool labels and raw team ids both resolve', r.refusals.length === 0 && r.plan.length === 3, r.refusals.join(' | '));
+    chk('the plan records the BOX each flag was minted against (provenance)',
+        r.plan.every(p => !!p.poolId) && r.plan.find(p => p.teamId === 'team-red').poolId === 'engine1-red-cell',
+        JSON.stringify(r.plan.map(p => p.poolId)));
+}
+
+/* 2a. NANCY'S REPRODUCED HOLE, kept as a permanent regression test. `names` always included the raw
+ * team id, so JSON keyed by teamId resolved for teams with NO assignment at all -- zero refusals --
+ * while this card's own copy says keys are matched THROUGH the assignment. The assignment is not just
+ * the lookup route, it is the claim being made: this team plays this machine, so this is its flag. */
+{
+    const { teams } = fx();
+    const r = planPerTeamFlags(JSON.stringify({
+        'team-red': entry(1), 'team-blue': entry(2), 'team-green': entry(3),
+    }), teams, new Map());   // nobody is wired to anything
+    chk('a raw TEAM-ID key cannot bypass the box-assignment requirement',
+        r.plan.length === 0 && r.refusals.filter(x => /NO box assignment/.test(x)).length === 3,
+        r.refusals.length + ' refusals: ' + (r.refusals[0] || '').slice(0, 95));
 }
 
 /* 3. THE ONE THAT MATTERS MOST. "cell" is a suffix of "engine1-red-cell" but it is not the box's
@@ -118,7 +137,7 @@ console.log('\n== per-team flag resolver (admin console) ==');
     const missing = new Map([['team-red', 'engine1-red-cell'], ['team-blue', 'engine1-blue-shield-v3']]);
     const r = planPerTeamFlags(GOOD(), teams, missing);
     chk('a team with no box ASSIGNMENT says to wire the pool first',
-        r.plan.length === 0 && r.refusals.some(x => /wire the pool first/.test(x)), r.refusals.join(' | ').slice(0, 130));
+        r.plan.length === 0 && r.refusals.some(x => /wire the pool first/i.test(x)), r.refusals.join(' | ').slice(0, 130));
 }
 
 // 6. THE COLLISION. Two boxes on one hash is the original defect arriving through the paste box.
@@ -148,6 +167,65 @@ for (const [raw, needle] of badShapes) {
     if (r.plan.length !== 0 || !said.includes(needle)) { shapeOk = false; shapeBad.push(`${JSON.stringify(raw).slice(0, 34)} -> ${said.slice(0, 60)}`); }
 }
 chk('malformed salt, hash, or JSON is refused with a reason', shapeOk, shapeBad.join(' ;; '));
+
+/* ── DRIFT: what is registered versus what is wired NOW ──────────────────────────────────────
+ * Three reviewers arrived at this failure independently. perTeam is written once and nothing
+ * invalidates it, so moving a team to a different machine afterwards leaves its registered hash
+ * pointing at the old box: the team can never submit correctly, AND when they submit the real flag
+ * off their own box it matches the team that previously held that machine, so grading logs a
+ * flag-match against a student who did nothing wrong. Detectable only because entries record the
+ * box they were minted on. */
+{
+    const { teams, pool } = fx();
+    const registered = {
+        'team-red': { ...entry(1), box: 'engine1-red-cell' },
+        'team-blue': { ...entry(2), box: 'engine1-blue-shield-v3' },
+        'team-green': { ...entry(3), box: 'engine1-green-ops' },
+    };
+    const d = describePerTeamDrift(registered, teams, pool);
+    chk('DRIFT: everything matching the current wiring reports clean',
+        d.drifted.length === 0 && d.missing.length === 0 && d.orphaned.length === 0 && d.unknown.length === 0
+        && d.registered === 3, JSON.stringify(d));
+}
+{
+    const { teams } = fx();
+    const moved = new Map([
+        ['team-red', 'engine1-purple-haze'],          // reassigned after registration
+        ['team-blue', 'engine1-blue-shield-v3'],
+        ['team-green', 'engine1-green-ops'],
+    ]);
+    const registered = {
+        'team-red': { ...entry(1), box: 'engine1-red-cell' },
+        'team-blue': { ...entry(2), box: 'engine1-blue-shield-v3' },
+        'team-green': { ...entry(3), box: 'engine1-green-ops' },
+    };
+    const d = describePerTeamDrift(registered, teams, moved);
+    chk('DRIFT: a reassigned team is reported, and names BOTH boxes',
+        d.drifted.length === 1 && /engine1-red-cell/.test(d.drifted[0]) && /engine1-purple-haze/.test(d.drifted[0]),
+        d.drifted.join(' | '));
+    chk('DRIFT: teams still on their own box are NOT reported', d.drifted.length === 1, JSON.stringify(d.drifted));
+}
+{
+    const { teams, pool } = fx();
+    // An entry written before provenance existed: absence of evidence is not evidence of a match.
+    const d = describePerTeamDrift({ 'team-red': entry(1), 'team-blue': { ...entry(2), box: 'engine1-blue-shield-v3' } }, teams, pool);
+    chk('DRIFT: an entry with NO box is UNVERIFIABLE, not treated as agreeing',
+        d.unknown.length === 1 && /team-red|Red Cell/.test(d.unknown[0]) && d.drifted.length === 0, JSON.stringify(d.unknown));
+    chk('DRIFT: a team with no entry at all is reported as missing',
+        d.missing.length === 1 && /Green Ops/.test(d.missing[0]), JSON.stringify(d.missing));
+}
+{
+    const { teams, pool } = fx();
+    const d = describePerTeamDrift({ 'team-ghost': { ...entry(9), box: 'engine1-gone' } }, teams, pool);
+    chk('DRIFT: an entry for a team not in the tournament is reported as orphaned',
+        d.orphaned.length === 1 && /team-ghost/.test(d.orphaned[0]), JSON.stringify(d.orphaned));
+}
+{
+    const { teams, pool } = fx();
+    const d = describePerTeamDrift(null, teams, pool);
+    chk('DRIFT: nothing registered reports nothing, rather than inventing findings',
+        d.registered === 0 && d.drifted.length === 0 && d.missing.length === 0, JSON.stringify(d));
+}
 
 /* THE INVARIANT ACROSS ALL OF IT is that every refusal path returns an EMPTY plan, because a team
  * absent from perTeam cannot submit at all -- a partial write benches that team for the whole event

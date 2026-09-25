@@ -48,9 +48,38 @@ fi
 declare -A SALT HASH FLAGFILE
 FAILED=()
 
+# WHICH DOMAIN IS THIS TEAM ACTUALLY ON? reset-team-box.sh creates VERSIONED domains
+# (engine1-team-blue-shield-v3 -> -v4) and leaves the old one defined but shut off rather than
+# deleting it, so "engine1-team-$t" is an assumption, not a fact. Chris found the failure it allows:
+# if a stale sibling domain happens to be RUNNING, this script would mint, inject, verify readback and
+# emit a perfectly valid-looking block for a machine no student's terminal points at -- nothing
+# refuses, and the team simply cannot score. So ambiguity is refused: exactly one domain matching this
+# team may be running, and if two are, the operator is told to shut the old one down rather than this
+# script guessing which one the event is using.
+VIRSH="${VIRSH:-sudo virsh}"   # indirected so the refusal paths can be exercised with a stub
+running_for_team() {
+    $VIRSH list --name 2>/dev/null | grep -E "^engine1-team-$1(-v[0-9]+)?$" || true
+}
+
 for t in "${TEAMS[@]}"; do
     DOMAIN="engine1-team-$t"
     echo "=== $t ($DOMAIN) ==="
+
+    mapfile -t live < <(running_for_team "$t")
+    if [ "${#live[@]}" -eq 0 ]; then
+        echo "  NO RUNNING DOMAIN matching engine1-team-$t (checked for -vN variants too)"
+        FAILED+=("$t: no running domain"); continue
+    fi
+    if [ "${#live[@]}" -gt 1 ]; then
+        echo "  AMBIGUOUS: ${#live[@]} domains for this team are running: ${live[*]}"
+        echo "  Shut down the retired one(s) first. Minting against the wrong one produces a flag that"
+        echo "  verifies on a box no student can reach, and nothing downstream would catch it."
+        FAILED+=("$t: ${#live[@]} running domains (${live[*]})"); continue
+    fi
+    if [ "${live[0]}" != "$DOMAIN" ]; then
+        echo "  Using ${live[0]} rather than $DOMAIN (a reset created a versioned domain)"
+        DOMAIN="${live[0]}"
+    fi
 
     # Mint + inject + read back out of the machine. Writes a 0600 flagfile under $BASE/config/flags.
     if ! "$MINT" "$DOMAIN" "$SCENARIO" >/dev/null; then

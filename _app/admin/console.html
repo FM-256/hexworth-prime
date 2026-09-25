@@ -13470,6 +13470,18 @@
             const norm = (x) => String(x == null ? '' : x).trim().toLowerCase();
             const matched = new Map();   // teamId -> key
             const usedBy = new Map();    // key -> [teamId]
+            /* EVERY team must have a box assignment, whatever the key looked like. Nancy reproduced
+             * the hole: `names` always included the raw team id, so JSON keyed by teamId resolved for
+             * a team with NO assignment at all -- zero refusals -- while this card's own copy says
+             * keys are matched THROUGH the assignment. The assignment is not merely the lookup route,
+             * it is the thing being asserted (this team plays this machine, so this is its flag), so a
+             * team without one cannot be registered by any route. */
+            const unassigned = teams.filter(t => !poolByTeam.get(t.id));
+            for (const t of unassigned) {
+                refusals.push('Team "' + (t.name || t.id) + '" has NO box assignment for this challenge. '
+                    + 'Wire the pool first: a per-team flag asserts which machine the team plays, so it '
+                    + 'cannot be registered for a team that is not on one.');
+            }
             for (const t of teams) {
                 const poolId = poolByTeam.get(t.id);
                 const names = [norm(t.id)];
@@ -13490,12 +13502,9 @@
              * a team with no entry is REFUSED by design rather than falling back, a partial write
              * would silently bench those teams for the whole event. */
             for (const t of teams) {
-                if (matched.has(t.id)) continue;
-                const poolId = poolByTeam.get(t.id);
-                refusals.push(poolId
-                    ? 'Team "' + (t.name || t.id) + '" (box ' + poolId + ') has no entry in the pasted JSON.'
-                    : 'Team "' + (t.name || t.id) + '" has NO box assignment for challenge -- wire the pool first, '
-                      + 'because a key is matched to a team through that assignment.');
+                if (matched.has(t.id) || !poolByTeam.get(t.id)) continue;   // unassigned already refused above
+                refusals.push('Team "' + (t.name || t.id) + '" (box ' + poolByTeam.get(t.id)
+                    + ') has no entry in the pasted JSON.');
             }
             const unknown = keys.filter(k => !usedBy.has(k));
             for (const k of unknown) refusals.push('Key "' + k + '" matches no team in this tournament. Boxes here: ' + (Array.from(poolByTeam.values()).join(', ') || '(none assigned)') + '.');
@@ -13504,10 +13513,58 @@
             if (!refusals.length) {
                 for (const t of teams) {
                     const k = matched.get(t.id), v = parsed[k];
+                    /* `poolId` becomes `box` on the stored entry: PROVENANCE, so a later flag-match can
+                     * be told apart from a box reassignment, and so drift is detectable at all. Without
+                     * it an entry records a secret with no statement of which machine it came from. */
                     plan.push({ teamId: t.id, teamName: t.name || t.id, key: k, poolId: poolByTeam.get(t.id) || null, flagSalt: v.flagSalt, flagHash: v.flagHash });
                 }
             }
             return { plan: plan, refusals: refusals };
+        }
+
+        /* DRIFT: what is registered versus what is wired NOW. Pure, so it is testable.
+         *
+         * This exists because of a failure mode three reviewers arrived at independently. perTeam is
+         * written once and nothing invalidates it, so if a team is later moved to a different machine
+         * -- a box crash, a mid-event correction, a re-run of the event on re-imaged boxes -- that
+         * team's registered hash still belongs to the OLD machine. Two consequences, both silent: the
+         * team can never submit correctly no matter what they do, and when they submit the real flag
+         * from their own box it matches the team that previously held that machine, so grading logs a
+         * flag-match against them. A student doing everything right gets locked out and implicated.
+         *
+         * Detectable only because each entry records the box it was minted against. An entry written
+         * before provenance existed has no `box`, which is reported as UNKNOWN rather than as agreement
+         * -- absence of evidence is not evidence of a match. */
+        function describePerTeamDrift(existingPerTeam, teams, poolByTeam) {
+            if (!existingPerTeam) return { registered: 0, drifted: [], unknown: [], orphaned: [], missing: [] };
+            const drifted = [], unknown = [], orphaned = [], missing = [];
+            const teamIds = new Set(teams.map(t => t.id));
+            for (const t of teams) {
+                const e = existingPerTeam[t.id];
+                const nowBox = poolByTeam.get(t.id) || null;
+                if (!e) { missing.push((t.name || t.id) + (nowBox ? ' (now on ' + nowBox + ')' : '')); continue; }
+                if (!e.box) { unknown.push((t.name || t.id) + ': registered before provenance was recorded, now on ' + (nowBox || 'no box')); continue; }
+                if (e.box !== nowBox) drifted.push((t.name || t.id) + ': flag was minted on ' + e.box + ' but the team is now on ' + (nowBox || 'NO box'));
+            }
+            for (const k of Object.keys(existingPerTeam)) {
+                if (!teamIds.has(k)) orphaned.push(k + ': an entry for a team that is not in this tournament');
+            }
+            return { registered: Object.keys(existingPerTeam).length, drifted: drifted, unknown: unknown, orphaned: orphaned, missing: missing };
+        }
+
+        function renderPerTeamDrift(d) {
+            if (!d.registered) return 'Nothing registered for this challenge yet.';
+            const bad = d.drifted.length + d.orphaned.length + d.missing.length;
+            let out = 'ALREADY REGISTERED: ' + d.registered + ' entr(ies).';
+            if (d.drifted.length) out += '\n\nSTALE -- these teams cannot score until flags are re-minted and '
+                + 'rewritten, and their correct flag will be logged as a flag-match against them:\n'
+                + d.drifted.map(x => '  - ' + x).join('\n');
+            if (d.missing.length) out += '\n\nNO ENTRY -- refused at submit time:\n' + d.missing.map(x => '  - ' + x).join('\n');
+            if (d.orphaned.length) out += '\n\nORPHANED:\n' + d.orphaned.map(x => '  - ' + x).join('\n');
+            if (d.unknown.length) out += '\n\nCANNOT VERIFY (no provenance recorded; re-register to fix):\n'
+                + d.unknown.map(x => '  - ' + x).join('\n');
+            if (!bad && !d.unknown.length) out += ' Every entry matches the machine the team is wired to now.';
+            return out;
         }
 
         /* Reads teams and their assignments for the selected challenge, then plans. Shared by Preview
@@ -13549,8 +13606,23 @@
             out.textContent = 'reading teams and assignments...';
             try {
                 const ctx = await readPerTeamContext();
-                const res = planPerTeamFlags(document.getElementById('ptfJson').value, ctx.teams, ctx.poolByTeam);
-                out.textContent = 'PREVIEW ONLY, nothing written.\n\n' + renderPerTeamPlan(ctx.chId, ctx, res);
+                const { doc, getDoc } = _firestoreModule;
+                const cur = await getDoc(doc(db, 'tournaments', _ctfEditingId, 'flagSecrets', ctx.chId));
+                const drift = describePerTeamDrift(cur.exists() ? cur.data().perTeam : null, ctx.teams, ctx.poolByTeam);
+                const driftText = renderPerTeamDrift(drift);
+                const raw = document.getElementById('ptfJson').value;
+                /* An empty paste box makes this a pure health check on what is already registered,
+                 * which is the question an operator actually has before an event: is this still valid? */
+                if (!String(raw || '').trim()) {
+                    out.textContent = 'PREVIEW ONLY, nothing written.\n\n' + driftText
+                        + '\n\n(Paste the output of perteam-flags.sh above to plan a new registration.)';
+                    showToast(drift.drifted.length || drift.missing.length ? 'Registered flags are STALE.' : 'Checked what is registered.',
+                        drift.drifted.length || drift.missing.length ? 'warning' : 'success');
+                    return;
+                }
+                const res = planPerTeamFlags(raw, ctx.teams, ctx.poolByTeam);
+                out.textContent = 'PREVIEW ONLY, nothing written.\n\n' + driftText + '\n\n'
+                    + '─'.repeat(60) + '\n\n' + renderPerTeamPlan(ctx.chId, ctx, res);
                 showToast(res.refusals.length ? 'Preview: ' + res.refusals.length + ' problem(s).' : 'Preview: ' + res.plan.length + ' team(s) resolve.',
                     res.refusals.length ? 'warning' : 'success');
             } catch (e) {
@@ -13589,25 +13661,64 @@
                 out.textContent = 'Cancelled. Nothing written.'; return;
             }
 
+            const secretRef = doc(db, 'tournaments', _ctfEditingId, 'flagSecrets', ctx.chId);
+            const beforeFingerprint = JSON.stringify(existing.exists() && existing.data().perTeam
+                ? Object.keys(existing.data().perTeam).sort().map(k => k + ':' + (existing.data().perTeam[k] || {}).flagHash)
+                : null);
             try {
-                /* Re-read the team list INSIDE the transaction. The confirm above blocks on a human
-                 * for an unbounded time, so the snapshot the plan was built from can be minutes old;
-                 * a team added in that window would be absent from perTeam and, because absence means
-                 * REFUSE rather than fall back, would be silently unable to submit all event. Refuse
-                 * and make the operator re-plan instead. */
+                /* WHAT THIS TRANSACTION ACTUALLY GUARANTEES, corrected after Nancy's review. The first
+                 * version read the team list with a plain getDocs() inside the callback and tx.set the
+                 * secret document without ever tx.get-ing it, so there was NOTHING in the read set for
+                 * Firestore to detect a conflict against: two admins writing the same challenge would
+                 * last-write-wins in silence while a comment claimed atomicity. wirePoolToTeams thirty
+                 * lines away does it correctly, which is what made the omission obvious once pointed at.
+                 *
+                 * So the document being written is now tx.get'd, and its perTeam fingerprint is compared
+                 * against what the confirm dialog described. That is the real guarantee: a concurrent
+                 * write to this challenge's secrets aborts this one instead of overwriting it.
+                 *
+                 * The team list is still read with getDocs, and that is a LIMIT, not an oversight: the
+                 * Firestore web SDK's Transaction can only get a DocumentReference, never a query, so a
+                 * collection cannot be part of a transactional read set from a browser. Each PLANNED
+                 * team doc is therefore tx.get'd individually -- which does put team deletion and
+                 * renaming under conflict detection -- and the getDocs count check remains as a
+                 * narrowing check for a team ADDED in the dialog window, a case no client-side
+                 * transaction can close. It shrinks that window from human-dialog length to one round
+                 * trip; it does not eliminate it, and it is no longer described as if it did. */
                 await runTransaction(db, async (tx) => {
+                    const live = await tx.get(secretRef);
+                    const nowFingerprint = JSON.stringify(live.exists() && live.data().perTeam
+                        ? Object.keys(live.data().perTeam).sort().map(k => k + ':' + (live.data().perTeam[k] || {}).flagHash)
+                        : null);
+                    if (nowFingerprint !== beforeFingerprint) {
+                        throw new Error('The per-team flags for this challenge CHANGED while the dialog was '
+                            + 'open -- another admin or another tab wrote them. Nothing written. Preview again '
+                            + 'so you can see what is actually registered before replacing it.');
+                    }
+                    /* Each planned team must still exist, read through the transaction so a deletion or
+                     * rename between plan and commit conflicts rather than being written over. */
+                    for (const r of res.plan) {
+                        const tSnap = await tx.get(doc(db, 'tournaments', _ctfEditingId, 'teams', r.teamId));
+                        if (!tSnap.exists()) {
+                            throw new Error('Team ' + r.teamName + ' (' + r.teamId + ') no longer exists. '
+                                + 'Nothing written.');
+                        }
+                    }
                     const fresh = await getDocs(collection(db, 'tournaments', _ctfEditingId, 'teams'));
-                    const freshIds = fresh.docs.map(d => d.id).sort().join(',');
-                    const plannedIds = ctx.teams.map(t => t.id).sort().join(',');
-                    if (freshIds !== plannedIds) {
+                    if (fresh.size !== ctx.teams.length) {
                         throw new Error('The team list CHANGED while the dialog was open (' + fresh.size
                             + ' now, ' + ctx.teams.length + ' when planned). Nothing written -- preview again, '
                             + 'because a team missing from perTeam cannot submit at all.');
                     }
                     const perTeam = {};
-                    for (const r of res.plan) perTeam[r.teamId] = { flagSalt: r.flagSalt, flagHash: r.flagHash };
-                    tx.set(doc(db, 'tournaments', _ctfEditingId, 'flagSecrets', ctx.chId),
-                        { perTeam: perTeam, perTeamWrittenAt: serverTimestamp() }, { merge: true });
+                    /* `box` is PROVENANCE and is the reason it is stored. A flag hash with no record of
+                     * which machine it was minted against cannot be checked against the current wiring,
+                     * which is what let a box reassignment turn a student's own correct flag into a
+                     * logged cheating signal. */
+                    for (const r of res.plan) {
+                        perTeam[r.teamId] = { flagSalt: r.flagSalt, flagHash: r.flagHash, box: r.poolId || null };
+                    }
+                    tx.set(secretRef, { perTeam: perTeam, perTeamWrittenAt: serverTimestamp() }, { merge: true });
                 });
                 out.textContent = 'WROTE per-team flags for ' + res.plan.length + ' team(s) on ' + ctx.chId + '.\n\n'
                     + res.plan.map(r => '  ' + r.teamName + '  <-  ' + r.key).join('\n')

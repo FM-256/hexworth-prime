@@ -7621,34 +7621,57 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 
     const correct = submittedHash === useHash;
 
-    /* COLLUSION DETECTION, and the reason per-team flags are worth more than the defect they fix.
+    /* FLAG-MATCH SIGNAL: a wrong flag that matches ANOTHER team's registered value.
      *
-     * Per-team flags stop a shared string from winning the event, but they also turn a wrong answer
-     * into evidence: if this team submitted a flag that hashes to ANOTHER team's registered value,
-     * that string cannot have come off this team's box. There is no guessing it -- the flag is 128
-     * bits of CSPRNG minted at provision time -- so a match is proof it was handed over.
+     * A per-team flag is 128 bits of CSPRNG minted on that team's own box, so it cannot be guessed.
+     * A match therefore means the string reached this team from somewhere other than their own
+     * machine -- which is worth recording, because per-team flags make it detectable at all.
+     *
+     * IT IS NOT LOGGED AS PROOF OF CHEATING, and the first version of this was wrong to say it was.
+     * Mallory found the case: if an admin reassigns which machine a team plays AFTER perTeam was
+     * written, that team submits the physically real flag off their own box, it matches the team that
+     * previously owned that machine, and this fires. Nothing here can distinguish "handed over" from
+     * "the operator moved the boxes" -- grading never reads the assignment documents, by design, so
+     * it cannot see the current wiring at all. A log line that asserted collusion would therefore
+     * manufacture a cheating accusation out of routine administration, against a real student. So it
+     * states the fact, names BOTH causes, and names the check that tells them apart.
+     *
+     * The provenance recorded at registration (`box`, the pool id the flag was minted against) is
+     * included precisely so that check is possible: if the two teams' recorded boxes do not match
+     * the current assignments, the reassignment explanation is the live one.
      *
      * DELIBERATELY A LOG AND NOT A FIELD. The submission record for an incorrect guess is written
      * below and is not admin-only, so naming the other team on it would both out that team on a
      * document students can reach and, worse, tell the submitter their borrowed flag was recognised.
-     * Cloud Logging is admin-only by construction, so the signal goes there and the blast radius of
-     * adding it is zero: no new document, no new field, no rules change.
+     * Cloud Logging is admin-only by construction, so the blast radius of adding this is zero: no new
+     * document, no new field, no rules change.
      *
-     * AND THE RESPONSE MUST NOT CHANGE. A cheating team learns nothing: this runs only when the
-     * answer is already wrong, alters no return value, and leaves the student-visible body byte
-     * identical to any other wrong flag. Asserted in the suite rather than asserted here, because a
-     * response that quietly differed would be an oracle confirming the flag was real. */
+     * AND THE RESPONSE MUST NOT CHANGE. This runs only when the answer is already wrong, alters no
+     * return value, and leaves the student-visible body byte identical to any other wrong flag --
+     * asserted in the suite, because a response that quietly differed would be an oracle confirming
+     * the flag was real. The scan is also unconditional rather than breaking on the first match, so
+     * the work done does not depend on whether there was one; Mallory measured the early-break
+     * version at 10x realistic team count and found the difference well inside the noise floor, so
+     * this closes a question rather than a proven channel. */
     if (!correct && secret.perTeam) {
+        const matches = [];
         for (const [otherId, other] of Object.entries(secret.perTeam)) {
             if (otherId === userTeamId || !other || !other.flagSalt || !other.flagHash) continue;
             const asOther = 'sha256:' + crypto.createHash('sha256')
                 .update(other.flagSalt + ':' + flag).digest('hex');
-            if (asOther === other.flagHash) {
-                console.error(`[ctfSubmitFlag] COLLUSION: ${tournamentId}/${challengeId} team ${userTeamId} `
-                    + `submitted a flag that matches team ${otherId}'s registered value. A per-team flag is `
-                    + `128 bits of CSPRNG minted on that team's own box, so this was handed over, not guessed.`);
-                break;
-            }
+            if (asOther === other.flagHash) matches.push({ teamId: otherId, box: other.box || null });
+        }
+        if (matches.length) {
+            const mineBox = (secret.perTeam[userTeamId] || {}).box || null;
+            console.error(`[ctfSubmitFlag] FLAG-MATCH ${tournamentId}/${challengeId}: team ${userTeamId} `
+                + `(flag minted on box ${mineBox || 'unrecorded'}) submitted a flag matching `
+                + matches.map(m => `${m.teamId} (box ${m.box || 'unrecorded'})`).join(', ')
+                + `. TWO possible causes, and this signal cannot tell them apart: the flag was passed `
+                + `between teams, OR a box was reassigned after per-team flags were registered so this `
+                + `team is playing a machine whose flag belongs to the other team. CHECK WHICH: compare `
+                + `the box ids above against tournaments/${tournamentId}/teams/{teamId}/assignments/`
+                + `${challengeId}.fromPool. If they disagree, it is a reassignment, NOT cheating, and `
+                + `per-team flags must be re-minted and re-registered before this team can score.`);
         }
     }
 

@@ -67,7 +67,10 @@ const FLAG = (t) => `flag{engine1_${t}_${t.length}aa}`;
     const perTeam = {};
     for (const t of TEAMS) {
         const salt = crypto.randomBytes(16).toString('hex');
-        perTeam[t] = { flagSalt: salt, flagHash: hash(salt, FLAG(t)) };
+        /* `box` is provenance and is set here because the FLAG-MATCH log prints it: the whole point is
+         * that an operator can tell a handover from a box reassignment, and a log line reading
+         * "box unrecorded" cannot support that. Fixtures without it were testing the degraded shape. */
+        perTeam[t] = { flagSalt: salt, flagHash: hash(salt, FLAG(t)), box: 'e1-' + t };
     }
     /* team-gold exists as a team but deliberately has NO per-team entry. */
     const ALL = TEAMS.concat(['team-gold']);

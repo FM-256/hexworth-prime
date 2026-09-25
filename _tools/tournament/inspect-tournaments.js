@@ -58,6 +58,16 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
       doc.ref.collection('submissions').get(),
     ]);
     console.log(`     challenges ${challenges.size} · teams ${teams.size} · submissions ${submissions.size}`);
+
+    /* Which physical box each team is wired to, per challenge. Read here so a per-team flag can be
+     * checked against the machine the team is ACTUALLY on: a hash is only meaningful relative to a
+     * box, and the pairing is the thing that silently rots. One read per team, and a tournament has
+     * a handful of teams. */
+    const assignmentBox = new Map();   // `${teamId}|${challengeId}` -> fromPool (may be undefined)
+    for (const tm of teams.docs) {
+      const asg = await tm.ref.collection('assignments').get();
+      for (const a of asg.docs) assignmentBox.set(`${tm.id}|${a.id}`, a.data().fromPool || null);
+    }
     console.log(`     limits  : maxTeams=${t.maxTeams} maxTeamSize=${t.maxTeamSize} scoringModel=${t.scoringModel} freezeMinutes=${t.freezeMinutes}`);
 
     // ── DENORMALISED COUNTERS on the tournament doc. The board and podium can render these
@@ -107,13 +117,60 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
      *    The inverse is now a finding in its own right: crypto still sitting on the challenge
      *    doc means this tournament has not been migrated, or something wrote the old shape
      *    after the migration ran. */
+    /*    AND THE SECRET CAN NOW BE PER TEAM (taskboard 419), which this check got wrong in BOTH
+     *    directions until Chris caught it. A real-box challenge stores
+     *    flagSecrets/{chId}.perTeam = { teamId: {flagSalt, flagHash, box} } and correctly has NO
+     *    top-level flagSalt/flagHash at all -- so the doc-level test alone reported a perfectly
+     *    configured challenge as having no secret, which is exactly the crying-wolf failure the
+     *    comment above warns against, reintroduced one paragraph below it.
+     *
+     *    The inverse was worse because it was silent: a PARTIAL perTeam (four of six teams) passed
+     *    without comment, and a team with no entry is REFUSED by ctfSubmitFlag rather than graded,
+     *    so those teams could not score at all for the whole event and this tool said nothing.
+     *    Completeness is therefore checked per team, not per challenge.
+     *
+     *    Provenance too: each entry records the box it was minted against, and an entry whose box
+     *    no longer matches that team's assignment means the team is playing a machine whose flag
+     *    belongs to someone else -- they cannot score, and their correct flag gets logged as a
+     *    flag-match against them. That is a pre-flight finding, not a runtime surprise. */
     const secretsSnap = await doc.ref.collection('flagSecrets').get();
-    const secretIds = new Set(secretsSnap.docs.filter(d => d.data().flagHash && d.data().flagSalt).map(d => d.id));
+    const secretShape = new Map();
+    for (const d of secretsSnap.docs) {
+      const v = d.data();
+      const hasShared = !!(v.flagHash && v.flagSalt);
+      const perTeam = (v.perTeam && typeof v.perTeam === 'object') ? v.perTeam : null;
+      secretShape.set(d.id, { hasShared, perTeam });
+    }
+    const rosterIds = teams.docs.map((t) => t.id);
+    const teamLabel = new Map(teams.docs.map((t) => [t.id, t.data().name || t.id]));
     const noHash = [], noPoints = [], hasRawFlag = [], stillPublic = [];
+    const partialPerTeam = [], staleProvenance = [], unverifiablePerTeam = [];
     for (const c of challenges.docs) {
       const d = c.data();
       if (d.flagHash || d.flagSalt) stillPublic.push(c.id);
-      if (!secretIds.has(c.id)) noHash.push(c.id);
+      const shape = secretShape.get(c.id);
+      /* A challenge is gradeable if it has a shared secret OR a per-team map. Either shape alone is
+       * correct: one box for everyone means one flag, per-team boxes mean per-team flags. */
+      if (!shape || (!shape.hasShared && !shape.perTeam)) noHash.push(c.id);
+      if (shape && shape.perTeam) {
+        const missing = rosterIds.filter((id) => {
+          const e = shape.perTeam[id];
+          return !e || !e.flagSalt || !e.flagHash;
+        });
+        if (missing.length) {
+          partialPerTeam.push(`${c.id} missing ${missing.length}/${rosterIds.length}: `
+            + missing.slice(0, 6).map((id) => teamLabel.get(id) || id).join(', '));
+        }
+        for (const id of rosterIds) {
+          const e = shape.perTeam[id];
+          if (!e || !e.flagSalt || !e.flagHash) continue;
+          const asg = assignmentBox.get(`${id}|${c.id}`);
+          if (!e.box) unverifiablePerTeam.push(`${c.id}/${teamLabel.get(id) || id}`);
+          else if (asg !== undefined && e.box !== asg) {
+            staleProvenance.push(`${c.id}/${teamLabel.get(id) || id}: flag minted on ${e.box}, team now wired to ${asg || 'NO box'}`);
+          }
+        }
+      }
       if (typeof d.points !== 'number' || d.points <= 0) noPoints.push(`${c.id}(${d.points})`);
       // A raw flag in a world-readable doc is a giveaway, not a hash.
       if (d.flag || d.answer || d.solution) hasRawFlag.push(c.id);
@@ -125,6 +182,9 @@ const pad = (s, n) => String(s === undefined || s === null ? '' : s).padEnd(n);
     if (stillPublic.length) { problems.push(`${doc.id}: ${stillPublic.length} challenge(s) STILL carry flagHash/flagSalt on the world-readable doc, run the Flag Secrets Migration (taskboard 401): ${stillPublic.slice(0, 8)}`); }
     if (noPoints.length)   { problems.push(`${doc.id}: ${noPoints.length} challenge(s) have no positive points — solving them scores nothing: ${noPoints.slice(0, 8)}`); }
     if (hasRawFlag.length) { problems.push(`${doc.id}: ${hasRawFlag.length} challenge(s) carry a RAW flag field in a world-readable doc: ${hasRawFlag.slice(0, 8)}`); }
+    if (partialPerTeam.length) { problems.push(`${doc.id}: ${partialPerTeam.length} challenge(s) have an INCOMPLETE perTeam map, and a team with no entry is REFUSED rather than graded, so those teams cannot score at all: ${partialPerTeam.slice(0, 6).join(' | ')}`); }
+    if (staleProvenance.length) { problems.push(`${doc.id}: ${staleProvenance.length} per-team flag(s) were minted on a DIFFERENT box than the team is wired to now, so those teams cannot score and their correct flag will be logged as a flag-match against them — re-mint and re-register (taskboard 419): ${staleProvenance.slice(0, 6).join(' | ')}`); }
+    if (unverifiablePerTeam.length) { problems.push(`${doc.id}: ${unverifiablePerTeam.length} per-team flag(s) record no box provenance, so drift against the current wiring CANNOT be checked — re-register them to record it: ${unverifiablePerTeam.slice(0, 6).join(' | ')}`); }
 
     // ── THE RECONCILIATION. Recompute each team's score from accepted submissions.
     const byTeam = new Map();

@@ -37,7 +37,14 @@ set -euo pipefail
 [ "${STUB_MODE:-ok}" = "boxfail" ] && [ "$1" = "engine1-team-b" ] && { echo "b: LEAK"; exit 1; }
 echo "$1: flag present and hash-verified, and DENIED to the player account"
 EOF
-    chmod +x "$ROOT/bin/"*.sh
+    # virsh stub: STUB_DOMAINS lists the "running" domains, one per line, so the domain-resolution
+    # refusals can be driven without libvirt. Default: one plain domain per team.
+    cat > "$ROOT/bin/virsh" <<'EOF'
+#!/usr/bin/env bash
+if [ "${1:-}" = "list" ]; then printf '%s\n' ${STUB_DOMAINS:-}; fi
+EOF
+    chmod +x "$ROOT/bin/"*.sh "$ROOT/bin/virsh"
+    export VIRSH="$ROOT/bin/virsh"
     # The SUT resolves mint/inject as siblings of itself, so the fixture gets its own copy of it.
     cp "$SUT" "$ROOT/bin/perteam-flags.sh"; chmod +x "$ROOT/bin/perteam-flags.sh"
 }
@@ -46,7 +53,8 @@ echo
 echo "== perteam-flags.sh refusal paths =="
 
 # 1. HAPPY PATH: distinct flags, all boxes verified, JSON emitted.
-mkfixture; STUB_MODE=ok "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
+mkfixture; export STUB_DOMAINS="engine1-team-a engine1-team-b engine1-team-c"
+STUB_MODE=ok "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
 json=$(sed -n '/^{$/,/^}$/p' "$ROOT/out.txt")
 chk "happy path exits 0" "$([ $rc -eq 0 ] && echo 1 || echo 0)" "rc=$rc"
 chk "emits one JSON object with an entry per team" \
@@ -69,18 +77,48 @@ chk "no plaintext flag is printed" "$(grep -qE 'flag\{' "$ROOT/out.txt" && echo 
 chk "says it verified distinctness" "$(grep -q 'DISTINCT: 3 teams' "$ROOT/out.txt" && echo 1 || echo 0)"
 
 # 2. THE ONE THAT MATTERS: two teams sharing a flag must refuse, and emit NOTHING.
-mkfixture; STUB_MODE=dupe "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
+mkfixture; export STUB_DOMAINS="engine1-team-a engine1-team-b engine1-team-c"
+STUB_MODE=dupe "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
 chk "DUPLICATE flags across teams refuses (nonzero exit)" "$([ $rc -ne 0 ] && echo 1 || echo 0)" "rc=$rc"
 chk "duplicate run emits NO JSON to paste" \
   "$(grep -q 'flagSalt' "$ROOT/out.txt" && echo 0 || echo 1)" "$(grep -m1 'DUPLICATE' "$ROOT/out.txt")"
 
 # 3. A single unverified box refuses the whole run, rather than half-registering.
-mkfixture; STUB_MODE=boxfail "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
+mkfixture; export STUB_DOMAINS="engine1-team-a engine1-team-b engine1-team-c"
+STUB_MODE=boxfail "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
 chk "one failed box refuses the whole run" "$([ $rc -ne 0 ] && echo 1 || echo 0)" "rc=$rc"
 chk "failed run emits NO JSON to paste" "$(grep -q 'flagSalt' "$ROOT/out.txt" && echo 0 || echo 1)"
 chk "names which team failed and why" \
   "$(grep -q 'b: verify or player-denied' "$ROOT/out.txt" && echo 1 || echo 0)" \
   "$(grep -m1 ' - ' "$ROOT/out.txt")"
+
+# ── DOMAIN RESOLUTION (Chris's finding). reset-team-box.sh makes VERSIONED domains and keeps the old
+# one defined but shut off, so "engine1-team-$t" is an assumption. The dangerous case is a stale
+# sibling that is still RUNNING: minting against it verifies perfectly and produces a flag for a box
+# no student's terminal points at, and nothing downstream catches it.
+mkfixture; export STUB_DOMAINS="engine1-team-a engine1-team-b"
+STUB_MODE=ok "$ROOT/bin/perteam-flags.sh" a b c > "$ROOT/out.txt" 2>&1; rc=$?
+chk "a team with NO running domain refuses the run" "$([ $rc -ne 0 ] && echo 1 || echo 0)" "rc=$rc"
+chk "names the team whose domain is absent" \
+  "$(grep -q 'c: no running domain' "$ROOT/out.txt" && echo 1 || echo 0)" "$(grep -m1 'no running domain' "$ROOT/out.txt")"
+chk "that run emits NO JSON" "$(grep -q 'flagSalt' "$ROOT/out.txt" && echo 0 || echo 1)"
+
+mkfixture; export STUB_DOMAINS="engine1-team-a engine1-team-a-v2 engine1-team-b"
+STUB_MODE=ok "$ROOT/bin/perteam-flags.sh" a b > "$ROOT/out.txt" 2>&1; rc=$?
+chk "TWO running domains for one team is AMBIGUOUS and refuses" "$([ $rc -ne 0 ] && echo 1 || echo 0)" "rc=$rc"
+chk "names both domains so the operator knows which to shut down" \
+  "$(grep -q 'engine1-team-a-v2' "$ROOT/out.txt" && grep -qi 'ambiguous' "$ROOT/out.txt" && echo 1 || echo 0)" \
+  "$(grep -m1 -i 'ambiguous' "$ROOT/out.txt")"
+chk "ambiguous run emits NO JSON" "$(grep -q 'flagSalt' "$ROOT/out.txt" && echo 0 || echo 1)"
+
+# The GOOD versioned case: only -v3 is running, so that is the box, and it must be USED not refused.
+mkfixture; export STUB_DOMAINS="engine1-team-a-v3 engine1-team-b"
+STUB_MODE=ok "$ROOT/bin/perteam-flags.sh" a b > "$ROOT/out.txt" 2>&1; rc=$?
+chk "a single VERSIONED domain is used rather than refused" "$([ $rc -eq 0 ] && echo 1 || echo 0)" "rc=$rc"
+chk "says which domain it used instead of the assumed name" \
+  "$(grep -q 'Using engine1-team-a-v3' "$ROOT/out.txt" && echo 1 || echo 0)" "$(grep -m1 'Using engine1' "$ROOT/out.txt")"
+chk "versioned run still emits JSON for both teams" \
+  "$([ "$(grep -c 'flagSalt' "$ROOT/out.txt")" = 2 ] && echo 1 || echo 0)" "$(grep -c 'flagSalt' "$ROOT/out.txt") entries"
 
 echo
 echo "  $pass passed, $fail failed"
