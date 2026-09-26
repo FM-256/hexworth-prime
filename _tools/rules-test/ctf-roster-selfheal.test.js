@@ -50,7 +50,9 @@ async function call(fn, token, data) {
     });
     return { status: r.status, body: await r.json().catch(() => ({})) };
 }
-const placeholder = (uid) => 'Player-' + crypto.createHash('sha256').update(uid).digest('hex').slice(0, 4);
+const placeholder = (uid, tid) => 'Player-' + crypto.createHash('sha256').update(uid + ':' + tid).digest('hex').slice(0, 4);
+/* Kept so a test can assert the new value is NOT the old one, rather than only that it looks right. */
+const placeholderUnsalted = (uid) => 'Player-' + crypto.createHash('sha256').update(uid).digest('hex').slice(0, 4);
 
 async function mkTournament(tid, maxTeamSize = 4) {
     await db.doc(`tournaments/${tid}`).set({ name: tid, status: 'lobby', hasJoinCode: false, maxTeamSize });
@@ -125,16 +127,26 @@ async function mkTournament(tid, maxTeamSize = 4) {
             r2.status !== 200 && mb.length === 0, `status=${r2.status} team-b members=${mb.length}`);
     }
 
-    /* 4. A lock on a DIFFERENT team must still be refused, not silently healed onto this one. */
+    /* 4. A lock on a DIFFERENT team must not seat them on the team they CLICKED.
+     *
+     * THIS CONTROL ASSERTED THE OLD BEHAVIOUR and I corrected it rather than the code. It required a
+     * flat refusal, which was right when the clicked team decided everything. Now the LOCK decides: an
+     * orphaned student is healed onto the team their lock names, precisely so a wrong guess in a lobby
+     * that cannot show them the right one is not a dead end. The property worth guarding is unchanged
+     * and is what this now asserts -- they are NOT added to the team they clicked. */
     {
         const TID = 't-other';
         await mkTournament(TID);
         const u = await identity();
         await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).set({ teamId: 'team-b', joinedAt: new Date() });
         const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-a' });
-        const m = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
-        chk('CONTROL: a lock on ANOTHER team is still refused and does not join this one',
-            r.status !== 200 && m.length === 0, `status=${r.status} members=${m.length}`);
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        const b = (await db.doc(`tournaments/${TID}/teams/team-b`).get()).get('members') || [];
+        chk('a lock on ANOTHER team never seats them on the team they clicked',
+            a.length === 0, `team-a=${a.length}`);
+        chk('and they end up on the LOCKED team instead of nowhere',
+            r.status === 200 && b.includes(u.localId) && r.body.result.teamId === 'team-b',
+            `status=${r.status} team-b=${b.length}`);
     }
 
     /* 5. A full team cannot be silently over-filled by the repair, and the user is TOLD. */
@@ -161,7 +173,7 @@ async function mkTournament(tid, maxTeamSize = 4) {
         const names = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('memberNames') || [];
         const n = names[0] || '';
         chk('a user with no callsign gets a placeholder, NOT their uid and NOT their email',
-            n !== u.localId && !n.includes('@') && n === placeholder(u.localId), `got "${n}"`);
+            n !== u.localId && !n.includes('@') && n === placeholder(u.localId, TID), `got "${n}"`);
         chk('and the placeholder is stable and non-identifying in shape',
             /^Player-[0-9a-f]{4}$/.test(n), n);
     }
@@ -176,6 +188,104 @@ async function mkTournament(tid, maxTeamSize = 4) {
         const names = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('memberNames') || [];
         chk('CONTROL: a real callsign is still used as the display name',
             names[0] === 'Ghostwire', JSON.stringify(names));
+    }
+
+    /* ── THE CASE THE REAL UI PRODUCES, which Chris blocked the first version for. ─────────────
+     * A student whose lock exists but whose members entry does not sees "NO TEAM" in the lobby: it
+     * derives myTeamId by scanning members[], and it cannot do otherwise because rules deny
+     * rosterLocks to every client including its owner. So a Join button renders on EVERY card and the
+     * student has no way to know which team their lock names. The first fix only healed when the click
+     * happened to match, so a wrong guess -- five times in six on a six-team event -- hit "leave it
+     * first" with no team named and no Leave button on screen. Every server-side test passed because
+     * every server-side test sends the matching teamId. These send the WRONG one on purpose. */
+    {
+        const TID = 't-mismatch';
+        await mkTournament(TID);
+        const u = await identity();
+        await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).set({ teamId: 'team-a', joinedAt: new Date() });
+        // Orphaned, and clicks the OTHER team.
+        const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-b' });
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        const b = (await db.doc(`tournaments/${TID}/teams/team-b`).get()).get('members') || [];
+        chk('clicking the WRONG team heals onto the LOCKED team, not the clicked one',
+            r.status === 200 && a.includes(u.localId) && b.length === 0,
+            `status=${r.status} team-a=${a.length} team-b=${b.length}`);
+        chk('and the response says which team they actually landed on',
+            r.body && r.body.result && r.body.result.teamId === 'team-a' && r.body.result.healed === true
+            && r.body.result.requestedTeamId === 'team-b', JSON.stringify(r.body && r.body.result));
+        const names = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('memberNames') || [];
+        chk('the healed team stays index-aligned', names.length === a.length, `members=${a.length} names=${names.length}`);
+    }
+
+    /* A student GENUINELY on another team must still be refused -- but the refusal has to name the
+     * team, or the client cannot render the Leave button it is telling them to use. */
+    {
+        const TID = 't-mismatch-legit';
+        await mkTournament(TID);
+        const u = await identity();
+        await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-a' });   // properly joined
+        const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-b' });
+        const b = (await db.doc(`tournaments/${TID}/teams/team-b`).get()).get('members') || [];
+        const err = (r.body && r.body.error) || {};
+        chk('a student really on another team is still refused, and NOT moved',
+            r.status !== 200 && b.length === 0, `status=${r.status} team-b=${b.length}`);
+        chk('and the refusal NAMES the team so the client can offer Leave',
+            /team-a|A\b/i.test(String(err.message || '')) && err.details && err.details.teamId === 'team-a',
+            `${String(err.message || '').slice(0, 60)} details=${JSON.stringify(err.details)}`);
+    }
+
+    /* A lock pointing at a team that no longer exists is debris, not a life sentence. */
+    {
+        const TID = 't-mismatch-gone';
+        await mkTournament(TID);
+        const u = await identity();
+        await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).set({ teamId: 'team-gone', joinedAt: new Date() });
+        const r1 = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-a' });
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        const lock = await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).get();
+        /* Falls through to a normal join in the SAME call: no delete-then-throw, which would roll the
+         * delete back with the abort. The stale lock is overwritten by the normal path's own tx.set. */
+        chk('a lock on a DELETED team does not refuse: the student joins the team they clicked',
+            r1.status === 200 && a.includes(u.localId), `status=${r1.status} team-a=${a.length}`);
+        chk('and the stale lock is replaced, now pointing at the team they actually joined',
+            lock.exists && lock.get('teamId') === 'team-a', `lock=${lock.exists} -> ${lock.get('teamId')}`);
+    }
+
+    /* Orphaned, locked team FULL, clicked elsewhere: must refuse and name the locked team, not
+     * silently seat them on the team they clicked. */
+    {
+        const TID = 't-mismatch-full';
+        await mkTournament(TID, 1);
+        const other = await identity();
+        const u = await identity();
+        await db.doc(`tournaments/${TID}/teams/team-a`).set({ name: 'A', members: [other.localId], memberNames: ['X'], score: 0, solves: [] });
+        await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).set({ teamId: 'team-a', joinedAt: new Date() });
+        const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-b' });
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        const b = (await db.doc(`tournaments/${TID}/teams/team-b`).get()).get('members') || [];
+        const err = (r.body && r.body.error) || {};
+        chk('orphaned but locked team FULL: refused, names the locked team, seats them nowhere',
+            r.status !== 200 && a.length === 1 && b.length === 0 && err.details && err.details.teamId === 'team-a',
+            `status=${r.status} a=${a.length} b=${b.length} details=${JSON.stringify(err.details)}`);
+    }
+
+    /* ── THE PLACEHOLDER IS NOW TOURNAMENT-SALTED (Mallory, Nancy). ────────────────────────────
+     * Unsalted it was the same string on every event the same account joined unnamed, so the public
+     * podium docs became a durable cross-event pseudonym. */
+    {
+        const u = await identity();
+        const ids = ['t-salt-1', 't-salt-2'];
+        const got = [];
+        for (const TID of ids) {
+            await mkTournament(TID);
+            await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-a' });
+            got.push(((await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('memberNames') || [])[0]);
+        }
+        chk('the same account gets DIFFERENT placeholders in different tournaments (no cross-event link)',
+            got[0] !== got[1] && got.every(n => /^Player-[0-9a-f]{4}$/.test(String(n))), got.join(' vs '));
+        chk('and it matches the salted derivation, not the bare-uid one',
+            got[0] === placeholder(u.localId, ids[0]) && got[0] !== placeholderUnsalted(u.localId),
+            `${got[0]} salted=${placeholder(u.localId, ids[0])} unsalted=${placeholderUnsalted(u.localId)}`);
     }
 
     console.log(`\n  ${pass} passed, ${fail} failed\n`);

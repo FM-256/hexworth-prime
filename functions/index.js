@@ -7996,19 +7996,32 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
  * teammates stay distinguishable on the podium, and it is truncated to 4 hex characters so it carries
  * no more identity than a seat number. It is stable across re-joins, which is what makes it usable as
  * a display name at all. */
-function _placeholderName(uid) {
-    const h = crypto.createHash('sha256').update(String(uid || '')).digest('hex').slice(0, 4);
+function _placeholderName(uid, tournamentId) {
+    /* SALTED WITH THE TOURNAMENT, which the first version was not. Unsalted, sha256(uid) gave the same
+     * Player-xxxx on every event the same account ever joined unnamed, so the public podium documents
+     * became a durable cross-event pseudonym: anyone who learned that uid once could confirm the
+     * person's participation in every past and future tournament without ever seeing a name. Mallory
+     * and Nancy both flagged it. Including the tournamentId keeps what the design actually needs --
+     * stable within an event so it works as a display name, distinguishable between teammates -- and
+     * drops the part nobody wanted.
+     *
+     * WHAT THIS DOES NOT CLAIM. It is not anonymity against someone reading the raw document:
+     * `members[]` sits on the same world-readable doc carrying the raw uid, index-aligned with these
+     * names, so that reader already has the pairing. This closes cross-event correlation and stops a
+     * uid being RENDERED as a person's name; the raw-uid exposure is its own, larger problem. */
+    const h = crypto.createHash('sha256')
+        .update(String(uid || '') + ':' + String(tournamentId || '')).digest('hex').slice(0, 4);
     return `Player-${h}`;
 }
-async function _resolveUserName(uid, token) {
+async function _resolveUserName(uid, token, tournamentId) {
     try {
         const snap = await db.collection('users').doc(uid).get();
         if (snap.exists) {
             const d = snap.data();
-            return d.callsign || d.displayName || (token && token.name) || _placeholderName(uid);
+            return d.callsign || d.displayName || (token && token.name) || _placeholderName(uid, tournamentId);
         }
     } catch (e) { /* fall through to token */ }
-    return (token && token.name) || _placeholderName(uid);
+    return (token && token.name) || _placeholderName(uid, tournamentId);
 }
 
 exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
@@ -8121,17 +8134,38 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
         });
         return { ok: true, teamId };
     }
-    if (existing) throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
+    if (existing) {
+        /* NAME THE TEAM. This is the throw a legitimately-placed member actually hits -- the scan above
+         * returns before the transaction, so the message written inside it never ran for this case, and
+         * my first attempt improved only the unreachable one. The client is told to "leave it first",
+         * and _app/arena/tournament-lobby.html renders Leave off the team it identifies as theirs, so a
+         * refusal that names no team is an instruction with nothing to act on. `details` carries the id
+         * so the client can act without re-deriving it. */
+        const exTeam = teamsSnap.docs.find(d => d.id === existing);
+        const exName = (exTeam && exTeam.data().name) || existing;
+        throw new HttpsError('failed-precondition',
+            `You are already on ${exName} in this tournament. Leave it first.`,
+            { teamId: existing, teamName: exName });
+    }
 
-    const name = await _resolveUserName(uid, request.auth.token);
+    const name = await _resolveUserName(uid, request.auth.token, tournamentId);
     const maxSize = tournament.maxTeamSize || 4;
     const teamRef = tRef.collection('teams').doc(teamId);
     const lockRef = tRef.collection('rosterLocks').doc(uid);
+
+    /* Set when a mismatched click was resolved by the lock instead of refused, so the caller can be
+     * told which team it actually landed on rather than silently getting a different one than it asked
+     * for. Declared out here because the transaction callback may retry. */
+    let healedTo = null;
 
     // Transaction serializes per-user on the rosterLock doc (one lock = one team claim), so
     // concurrent joins to DIFFERENT teams cannot flood multiple rosters (a real registration-DoS,
     // since per-team transactions don't serialize against each other). Also re-checks team-full.
     await db.runTransaction(async (tx) => {
+        /* RESET PER ATTEMPT. A transaction callback is re-run on contention, so a value set by an
+         * earlier attempt would otherwise leak into a later one that took a different branch -- and
+         * this one decides which team the caller is told it joined and which team gets the badge. */
+        healedTo = null;
         const lockSnap = await tx.get(lockRef);
         const snap = await tx.get(teamRef);
         if (!snap.exists) throw new HttpsError('not-found', 'Team not found.');
@@ -8161,7 +8195,60 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
                 }
                 return; // idempotent — already on this team
             }
-            throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
+            /* ── THE LOCK IS AUTHORITATIVE, NOT THE CARD THEY CLICKED. ────────────────────────
+             * Chris blocked the previous version for a reason that only shows up in the UI. A student
+             * whose lock exists but whose members entry does not sees "NO TEAM" in the lobby, because
+             * _app/arena/tournament-lobby.html derives myTeamId by scanning members[] -- and it cannot
+             * do otherwise, since rules deny rosterLocks to every client including its owner. So a Join
+             * button renders on EVERY team card, no Leave button renders anywhere, and the old self-heal
+             * only fired if they happened to click the one team their INVISIBLE lock named. A wrong
+             * guess, five times out of six here, landed on this throw: "leave it first", naming no team,
+             * with nothing on screen to leave. That is a worse dead end than the one it replaced, and no
+             * server-side test could catch it because every test passes the matching teamId.
+             *
+             * So a mismatch is now resolved by the lock rather than refused on the request:
+             *   locked elsewhere AND on that team's roster -> genuinely on another team. Still refused,
+             *       but the refusal now NAMES the team in `details` so the client can offer Leave.
+             *   locked elsewhere and on NO roster           -> orphaned. Healed onto the LOCKED team and
+             *       that team is returned, because that is where they are actually registered. This is
+             *       restoring the truth, not choosing for them: the lock was written by this function
+             *       inside the transaction that adds the member, and no client can forge one. */
+            const lockedTeamId = lockSnap.data().teamId;
+            const lockedRef = tRef.collection('teams').doc(lockedTeamId);
+            const lockedSnap = await tx.get(lockedRef);
+            const lockedMembers = lockedSnap.exists && Array.isArray(lockedSnap.get('members'))
+                ? lockedSnap.get('members').slice() : [];
+            if (!lockedSnap.exists) {
+                /* THE LOCKED TEAM IS GONE, so the lock is debris and must not be a life sentence.
+                 *
+                 * The first version deleted the lock and then threw, which does not work: a throw
+                 * ABORTS the transaction and rolls the delete back with it, so the lock survived and
+                 * the student was refused forever by the very record the code believed it had cleared.
+                 * The test caught it as a 409 with the lock still present.
+                 *
+                 * So it falls THROUGH to the normal join path instead. That path ends in
+                 * tx.set(lockRef, { teamId, ... }), which overwrites the stale lock in the same
+                 * transaction -- one write, no delete, and the student simply joins the team they
+                 * actually clicked. */
+            } else if (lockedMembers.includes(uid)) {
+                throw new HttpsError('failed-precondition',
+                    `You are already on ${lockedSnap.get('name') || lockedTeamId} in this tournament. Leave it first.`,
+                    { teamId: lockedTeamId, teamName: lockedSnap.get('name') || lockedTeamId });
+            } else {
+                const lockedNames = Array.isArray(lockedSnap.get('memberNames'))
+                    ? lockedSnap.get('memberNames').slice() : [];
+                if (lockedMembers.length >= maxSize) {
+                    throw new HttpsError('failed-precondition',
+                        `You are registered to ${lockedSnap.get('name') || lockedTeamId}, but it is full so your `
+                        + 'membership cannot be repaired automatically. Tell your instructor.',
+                        { teamId: lockedTeamId, teamName: lockedSnap.get('name') || lockedTeamId });
+                }
+                lockedMembers.push(uid);
+                lockedNames.push(name);
+                tx.update(lockedRef, { members: lockedMembers, memberNames: lockedNames });
+                healedTo = lockedTeamId;
+                return;
+            }
         }
         // Legacy member (in members[] but no lock, e.g. admin-assigned): backfill the lock, no dup.
         if (members.includes(uid)) { tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() }); return; }
@@ -8198,13 +8285,19 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
      *     reachable only if the roster changes between the scan and the transaction.
      *   - A genuinely NEW join: the normal path, and the one this line exists for.
      * Re-running is harmless either way: merge + arrayUnion converges rather than duplicating. */
+    /* The badge follows the team they are actually ON, not the card they clicked. */
+    const finalTeamId = healedTo || teamId;
     await ctfBadges.awardParticipation({
-        db, FieldValue, uid, tournamentId, teamId,
+        db, FieldValue, uid, tournamentId, teamId: finalTeamId,
         tournamentName: tournament.name || '',
         verifiedJoin: codeSource !== 'none',
     });
 
-    return { ok: true, teamId };
+    /* `teamId` is the team they ended up on, which is not always the one requested: a mismatched click
+     * resolved by the lock lands them where they were already registered. `healed` lets the client say
+     * so instead of appearing to ignore the button that was pressed. */
+    return healedTo ? { ok: true, teamId: finalTeamId, healed: true, requestedTeamId: teamId }
+                    : { ok: true, teamId: finalTeamId };
 });
 
 exports.ctfLeaveTeam = onCall(cfOptions, async (request) => {
