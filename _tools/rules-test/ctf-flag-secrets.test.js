@@ -125,6 +125,48 @@ async function addMember(tRef, uid) {
     chk('the publicly readable challenge doc has NO flagHash', !fields.includes('flagHash'), fields.join(','));
     chk('the publicly readable challenge doc has NO flagSalt', !fields.includes('flagSalt'), fields.join(','));
 
+    /* ── 4b. AND THE CONSOLE'S CREATE PATH MUST NOT PUT IT THERE EITHER. ───────────────────────
+     * The checks above seed their own fixtures, so they prove what the RULES expose, not what the
+     * product WRITES. The admin console's create path wrote flagHash and flagSalt to the challenge
+     * document as well as to flagSecrets -- a deliberate dual-write to survive a deploy window whose
+     * own comment said to remove it once the functions deploy was live. It outlived that window, so
+     * every tournament created was born publishing its own crypto, and the fixtures above could
+     * never have caught it. Removed 2026-09-26 (401, hosting deploy B).
+     *
+     * Asserted on the SHIPPED source, and TWO-SIDED on purpose: it is not enough to find the fields
+     * absent from the challenges write, because a matcher that located nothing would report exactly
+     * that. So the same parse must also still find them PRESENT on the flagSecrets write. One side
+     * catches a regression; the other catches the check having stopped looking. */
+    {
+        const fs2 = require('fs');
+        const path2 = require('path');
+        const src = fs2.readFileSync(path2.join(__dirname, '..', '..', '_app', 'admin', 'console.html'), 'utf8');
+        const grab = (collection) => {
+            const at = src.indexOf(`'tournaments', tRef.id, '${collection}', chId)`);
+            if (at === -1) return null;
+            const open = src.indexOf('{', at);
+            let i = open, depth = 0;
+            for (; i < src.length; i++) {
+                if (src[i] === '{') depth++;
+                else if (src[i] === '}') { depth--; if (depth === 0) { i++; break; } }
+            }
+            return src.slice(open, i);
+        };
+        const chWrite = grab('challenges');
+        const secretWrite = grab('flagSecrets');
+        const hasCrypto = (b) => b !== null && /\bflagHash\s*:/.test(b) && /\bflagSalt\s*:/.test(b);
+        chk('console create: the flagSecrets write STILL carries the crypto (proves this check looks)',
+            hasCrypto(secretWrite), secretWrite === null ? 'flagSecrets write NOT FOUND' : 'both fields present');
+        /* The detail names what was actually FOUND rather than printing a fixed word. The first version
+         * printed "clean" from a ternary that ignored the verdict, so the mutation run reported
+         * `FAIL ... :: clean` -- a failure message asserting the opposite of the failure. */
+        const leaked = chWrite === null ? [] : ['flagHash', 'flagSalt'].filter(f => new RegExp('\\b' + f + '\\s*:').test(chWrite));
+        chk('console create: the CHALLENGE write carries neither flagHash nor flagSalt',
+            chWrite !== null && leaked.length === 0,
+            chWrite === null ? 'challenges write NOT FOUND'
+                : (leaked.length ? 'LEAKS: ' + leaked.join(', ') : 'clean'));
+    }
+
     // ── 2. A correct flag is still credited, graded from the new location. ──────────────────
     await addMember(healthy.tRef, anon.localId);
 
