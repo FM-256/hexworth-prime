@@ -57,7 +57,14 @@ const placeholderUnsalted = (uid) => 'Player-' + crypto.createHash('sha256').upd
 async function mkTournament(tid, maxTeamSize = 4) {
     await db.doc(`tournaments/${tid}`).set({ name: tid, status: 'lobby', hasJoinCode: false, maxTeamSize });
     for (const t of ['team-a', 'team-b']) {
-        await db.doc(`tournaments/${tid}/teams/${t}`).set({ name: t.toUpperCase(), members: [], memberNames: [], score: 0, solves: [] });
+        /* createdAt is set because BOTH real creators set it (the console's batch write and
+         * create-tournament.js) and the lock's team-identity check compares against it. A fixture that
+         * omitted it made that check unverifiable while looking like a code failure -- the first run of
+         * the lock-shape assertion reported team=false, which was this, not the product. */
+        await db.doc(`tournaments/${tid}/teams/${t}`).set({
+            name: t.toUpperCase(), members: [], memberNames: [], score: 0, solves: [],
+            createdAt: admin.firestore.Timestamp.now(),
+        });
     }
 }
 
@@ -286,6 +293,64 @@ async function mkTournament(tid, maxTeamSize = 4) {
         chk('and it matches the salted derivation, not the bare-uid one',
             got[0] === placeholder(u.localId, ids[0]) && got[0] !== placeholderUnsalted(u.localId),
             `${got[0]} salted=${placeholder(u.localId, ids[0])} unsalted=${placeholderUnsalted(u.localId)}`);
+    }
+
+    /* ── SAME ID IS NOT THE SAME TEAM (Mallory's reproduction). ────────────────────────────────
+     * Delete a team and recreate it as an unrelated roster, and a stale lock from the old one used to
+     * reattach its holder to strangers while reporting "healed". The id is a name, not an identity, so
+     * the lock records the team's createdAt and a mismatch is treated as debris. */
+    {
+        const TID = 't-recreated';
+        await mkTournament(TID);
+        const u = await identity();
+        const oldCreated = admin.firestore.Timestamp.fromMillis(Date.now() - 600000);
+        // A lock from the ORIGINAL team-a, recorded against that team's creation time.
+        await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`)
+            .set({ teamId: 'team-a', teamCreatedAt: oldCreated, joinedAt: oldCreated });
+        // team-a is now a DIFFERENT roster, created later, already holding an unrelated member.
+        const stranger = await identity();
+        await db.doc(`tournaments/${TID}/teams/team-a`).set({
+            name: 'A (round 2)', members: [stranger.localId], memberNames: ['Stranger'],
+            score: 0, solves: [], createdAt: admin.firestore.Timestamp.fromMillis(Date.now()),
+        });
+        const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-b' });
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        const b = (await db.doc(`tournaments/${TID}/teams/team-b`).get()).get('members') || [];
+        chk('a RECREATED team at the same id does NOT absorb the stale lock holder',
+            !a.includes(u.localId) && a.length === 1, `team-a members=${a.length}`);
+        chk('and they join the team they actually clicked instead',
+            r.status === 200 && b.includes(u.localId), `status=${r.status} team-b=${b.length}`);
+        const lock = await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).get();
+        chk('the debris lock is replaced, now naming the team they joined',
+            lock.exists && lock.get('teamId') === 'team-b', `lock -> ${lock.get('teamId')}`);
+    }
+
+    /* The SAME team must still be honoured: the identity check must not break ordinary healing. */
+    {
+        const TID = 't-sameteam';
+        await mkTournament(TID);
+        const u = await identity();
+        const teamDoc = await db.doc(`tournaments/${TID}/teams/team-a`).get();
+        await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`)
+            .set({ teamId: 'team-a', teamCreatedAt: teamDoc.get('createdAt') || null, joinedAt: new Date() });
+        const r = await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-b' });
+        const a = (await db.doc(`tournaments/${TID}/teams/team-a`).get()).get('members') || [];
+        chk('CONTROL: a lock matching the CURRENT team still heals onto it',
+            r.status === 200 && a.includes(u.localId) && r.body.result.healed === true,
+            `status=${r.status} team-a=${a.length}`);
+    }
+
+    /* A normal join must now RECORD the team identity, or the check above has nothing to compare. */
+    {
+        const TID = 't-lockshape';
+        await mkTournament(TID);
+        const u = await identity();
+        await call('ctfJoinTeam', u.idToken, { tournamentId: TID, teamId: 'team-a' });
+        const lock = await db.doc(`tournaments/${TID}/rosterLocks/${u.localId}`).get();
+        const team = await db.doc(`tournaments/${TID}/teams/team-a`).get();
+        const lt = lock.get('teamCreatedAt'), tt = team.get('createdAt');
+        chk('a normal join records teamCreatedAt on the lock, matching the team',
+            !!lt && !!tt && lt.toMillis() === tt.toMillis(), `lock=${!!lt} team=${!!tt}`);
     }
 
     console.log(`\n  ${pass} passed, ${fail} failed\n`);

@@ -39,7 +39,21 @@ const TEAMS = parseInt(arg('--teams', '6'), 10);
 const CODE = arg('--join-code');
 const FLAG = arg('--flag');
 const TITLE = arg('--challenge-title', 'Engine 1: Foothold to Loot');
+/* VALIDATED, because `parseInt('foo')` is NaN and nothing downstream rescues it. Nancy traced the
+ * consequence: ctfSubmitFlag awards `currentPoints || points || 0`, and NaN is falsy, so both fields
+ * being NaN makes the challenge score ZERO forever -- it degrades rather than corrupting, but silently,
+ * and a challenge that can never award anything is indistinguishable from a scoring bug at the event.
+ * --teams escaped this only because buildTeamRoster clamps internally; points is a raw passthrough,
+ * which is exactly the gap "extract, don't reimplement" does not cover. */
 const POINTS = parseInt(arg('--points', '500'), 10);
+if (!Number.isFinite(POINTS) || POINTS <= 0 || POINTS > 100000) {
+    console.error(`--points must be a positive number under 100000; got ${JSON.stringify(arg('--points', '500'))}`);
+    process.exit(2);
+}
+if (!Number.isFinite(TEAMS) || TEAMS < 1) {
+    console.error(`--teams must be a positive number; got ${JSON.stringify(arg('--teams', '6'))}`);
+    process.exit(2);
+}
 const DESC = arg('--description', 'A real Windows box per team. Get a foothold, escalate, take the loot.');
 const WRITE = process.argv.includes('--write');
 const PROD = process.argv.includes('--production');

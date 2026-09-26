@@ -525,11 +525,38 @@
             try {
                 // Server-validated self-join (Cloud Function). Teams are admin-write-only at the
                 // rules layer (BUG-024); the CF binds the joiner's name to their uid server-side.
-                await firebase.functions().httpsCallable('ctfJoinTeam')({ tournamentId, teamId, joinCode });
-                myTeamId = teamId;
-                toast('Joined ' + team.name + '!', 'success');
+                const res = await firebase.functions().httpsCallable('ctfJoinTeam')({ tournamentId, teamId, joinCode });
+                /* TRUST THE SERVER'S TEAM, NOT THE BUTTON. ctfJoinTeam can seat you somewhere other
+                 * than the card you clicked: if a roster lock says you already registered for another
+                 * team but your membership went missing, it repairs that and returns `healed: true`
+                 * with the team you actually belong to. This used to set myTeamId to the REQUESTED id
+                 * and toast "Joined <clicked team>", which was simply wrong for that case -- the
+                 * reload below corrected the view a moment later, so the only lasting artefact was a
+                 * lie in the toast, but the server started returning the truth and nothing read it. */
+                const out = (res && res.data) || {};
+                const landedId = out.teamId || teamId;
+                const landed = teamsData.find(t => t.id === landedId);
+                myTeamId = landedId;
+                if (out.healed && landedId !== teamId) {
+                    toast('You were already registered to ' + ((landed && landed.name) || landedId)
+                        + ', so you have been put back on it.', 'success');
+                } else {
+                    toast('Joined ' + ((landed && landed.name) || team.name) + '!', 'success');
+                }
                 await loadTournament();
             } catch (e) {
+                /* A refusal can NAME the team you are already on, which matters because this lobby
+                 * derives "your team" from members[] and cannot read rosterLocks -- so when it tells
+                 * you to leave a team first, it may be one the page does not know is yours and shows
+                 * no Leave button for. Adopting details.teamId makes the very next render draw that
+                 * button instead of leaving the instruction unactionable. */
+                const d = (e && e.details) || {};
+                if (d.teamId && teamsData.some(t => t.id === d.teamId)) {
+                    myTeamId = d.teamId;
+                    toast(e.message || 'Failed to join.', 'error');
+                    await loadTournament();
+                    return;
+                }
                 toast(e.message || 'Failed to join.', 'error');
             }
         };

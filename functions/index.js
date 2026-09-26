@@ -8218,8 +8218,35 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
             const lockedSnap = await tx.get(lockedRef);
             const lockedMembers = lockedSnap.exists && Array.isArray(lockedSnap.get('members'))
                 ? lockedSnap.get('members').slice() : [];
-            if (!lockedSnap.exists) {
-                /* THE LOCKED TEAM IS GONE, so the lock is debris and must not be a life sentence.
+            /* IS IT THE SAME TEAM, or just the same ID? Mallory reproduced the difference: delete
+             * team-a and recreate it as an unrelated roster, and a stale lock from the old one would
+             * silently reattach its holder to strangers -- reported as "healed", when they belong
+             * nowhere in the new layout. The id is a name, not an identity.
+             *
+             * So the lock records the team's createdAt and it is compared here. A mismatch means the
+             * document at that id is a different team, so the lock is debris and is treated exactly
+             * like a deleted team: fall through and join the team they actually clicked.
+             *
+             * A lock written before this field existed has nothing to compare, and is honoured as
+             * before rather than refused -- turning legacy locks into lockouts would reintroduce the
+             * bug this whole branch exists to fix. Those locks disappear with the tournaments that
+             * hold them. */
+            let sameTeam = true;
+            if (lockedSnap.exists) {
+                const wasAt = lockSnap.data().teamCreatedAt;
+                const isAt = lockedSnap.get('createdAt');
+                if (wasAt && isAt && typeof wasAt.toMillis === 'function' && typeof isAt.toMillis === 'function') {
+                    sameTeam = wasAt.toMillis() === isAt.toMillis();
+                }
+            }
+            if (lockedSnap.exists && !sameTeam) {
+                console.warn(`[ctfJoinTeam] ${tournamentId}: ${uid}'s lock names ${lockedTeamId}, but that `
+                    + `document was created later than the lock recorded, so it is a DIFFERENT team reusing `
+                    + `the id. Treating the lock as debris rather than seating them on a roster they never joined.`);
+            }
+            if (!lockedSnap.exists || !sameTeam) {
+                /* THE LOCKED TEAM IS GONE OR IS NO LONGER THE SAME TEAM, so the lock is debris and
+                 * must not be a life sentence.
                  *
                  * The first version deleted the lock and then threw, which does not work: a throw
                  * ABORTS the transaction and rolls the delete back with it, so the lock survived and
@@ -8251,11 +8278,12 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
             }
         }
         // Legacy member (in members[] but no lock, e.g. admin-assigned): backfill the lock, no dup.
-        if (members.includes(uid)) { tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() }); return; }
+        if (members.includes(uid)) { tx.set(lockRef, { teamId, teamCreatedAt: team.createdAt || null, joinedAt: FieldValue.serverTimestamp() }); return; }
         if (members.length >= maxSize) throw new HttpsError('failed-precondition', 'That team is full.');
         members.push(uid);
         memberNames.push(name);
-        tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() });
+        /* `teamCreatedAt` records WHICH team, not merely which id. See the recreation check above. */
+        tx.set(lockRef, { teamId, teamCreatedAt: team.createdAt || null, joinedAt: FieldValue.serverTimestamp() });
         tx.update(teamRef, { members, memberNames });
     });
 
