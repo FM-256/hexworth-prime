@@ -1,0 +1,24 @@
+# Belt and braces for the cases PartOf=libvirtd cannot see.
+#
+# libvirtd is not the only thing that rewrites packet filters: `virsh net-start`, a firewalld reload,
+# a docker restart and manual iptables surgery all can. The service unit catches libvirtd; this timer
+# catches everything else. It runs netguard.sh --ensure, which does NOTHING when the rules are already
+# correct, so the steady-state cost is one structural check and no window where traffic passes.
+[Unit]
+Description=Re-assert Engine 1 box network isolation periodically
+Documentation=file:///srv/hexworth/engine1/provision/netguard.sh
+
+# OnCalendar, NOT OnUnitActiveSec, and this was a real trap. The service sets RemainAfterExit=yes so
+# it stays "active (exited)" forever, which means it never re-activates, which means OnUnitActiveSec
+# has no activation to count from: systemd computed NextElapseUSecMonotonic=infinity and the timer
+# would NEVER have fired again while reporting enabled and active. A wall-clock schedule does not
+# depend on the unit's state at all.
+[Timer]
+OnBootSec=2min
+OnCalendar=*:0/5
+AccuracySec=30s
+Persistent=true
+Unit=engine1-netguard.service
+
+[Install]
+WantedBy=timers.target

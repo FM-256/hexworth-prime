@@ -1,0 +1,38 @@
+# Engine 1 team-box network isolation, re-asserted whenever libvirt rebuilds its chains.
+#
+# WHY THIS UNIT EXISTS. netguard.sh installs an iptables chain and an ebtables among-rule, and libvirt
+# REWRITES its own chains on start and restart. Without this, a reboot or a `systemctl restart libvirtd`
+# removed team isolation SILENTLY: no error, nothing logged, the boxes simply became mutually
+# reachable again in the middle of an event. That is the worst shape a security control can fail in,
+# because nothing announces it.
+#
+# PartOf=libvirtd.service is the load-bearing line, not After=. After= only orders us at boot;
+# PartOf= makes systemd restart this unit whenever libvirtd is restarted, which is the case that
+# actually loses the rules while the machine stays up.
+[Unit]
+Description=Engine 1 CTF box network isolation (guest-to-guest and egress)
+Documentation=file:///srv/hexworth/engine1/provision/netguard.sh
+After=libvirtd.service network-online.target
+Wants=libvirtd.service
+PartOf=libvirtd.service
+
+# NO RemainAfterExit, and this cost two rounds to get right. With it set, the service stayed
+# "active (exited)" forever, and systemd will neither re-trigger an already-active oneshot nor
+# schedule a timer's next elapse while its unit is active. The result looked perfect from every
+# angle -- unit enabled, timer enabled, `list-timers` showing LAST fired -- while the service had not
+# actually run since boot. A control that reports healthy and does nothing is the exact failure this
+# whole unit exists to prevent, so it is worth the two lines of explanation.
+# An inactive oneshot between runs is correct and expected; `journalctl -u engine1-netguard` is where
+# you see it working, not `is-active`.
+[Service]
+Type=oneshot
+# --ensure so a restart of this unit is a no-op when the rules are already correct, rather than a
+# flush-and-rebuild that briefly opens what it is meant to close.
+ExecStart=/srv/hexworth/engine1/provision/netguard.sh --ensure
+# libvirt can take a moment to finish writing its chains after it reports ready.
+ExecStartPre=/bin/sleep 5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
