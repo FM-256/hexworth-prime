@@ -7983,16 +7983,32 @@ exports.ctfSubmitFlag = onCall(cfOptions, async (request) => {
 // THEMSELVES. members[] and memberNames[] are kept index-aligned inside a transaction (push/splice
 // both together), binding each name to its uid positionally without a schema change.
 
-// Resolve a display name the way the lobby does: profile callsign > displayName > token > uid.
+/* Resolve a display name: profile callsign > displayName > token name > a NON-IDENTIFYING placeholder.
+ *
+ * WHAT THIS DELIBERATELY NO LONGER DOES. It used to end `|| token.email || uid`, and the value lands in
+ * teams/{teamId}.memberNames, which firestore.rules:1431 makes `allow read: if true` so the live podium
+ * can render it. That is a world-readable document, so the fallback published either a student's EMAIL
+ * ADDRESS or their Firebase UID to anyone who asked. Measured in production: two UID-shaped entries
+ * were already sitting on the live tournament, from the two accounts with no callsign and no
+ * displayName. No email had landed yet, which is luck rather than design.
+ *
+ * The placeholder is derived from a hash of the uid rather than being a bare "Player" so two unnamed
+ * teammates stay distinguishable on the podium, and it is truncated to 4 hex characters so it carries
+ * no more identity than a seat number. It is stable across re-joins, which is what makes it usable as
+ * a display name at all. */
+function _placeholderName(uid) {
+    const h = crypto.createHash('sha256').update(String(uid || '')).digest('hex').slice(0, 4);
+    return `Player-${h}`;
+}
 async function _resolveUserName(uid, token) {
     try {
         const snap = await db.collection('users').doc(uid).get();
         if (snap.exists) {
             const d = snap.data();
-            return d.callsign || d.displayName || (token && token.name) || (token && token.email) || uid;
+            return d.callsign || d.displayName || (token && token.name) || _placeholderName(uid);
         }
     } catch (e) { /* fall through to token */ }
-    return (token && token.name) || (token && token.email) || uid;
+    return (token && token.name) || _placeholderName(uid);
 }
 
 exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
@@ -8119,13 +8135,34 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
         const lockSnap = await tx.get(lockRef);
         const snap = await tx.get(teamRef);
         if (!snap.exists) throw new HttpsError('not-found', 'Team not found.');
-        if (lockSnap.exists) {
-            if (lockSnap.data().teamId === teamId) return; // idempotent — already on this team
-            throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
-        }
         const team = snap.data();
         const members = Array.isArray(team.members) ? team.members.slice() : [];
         const memberNames = Array.isArray(team.memberNames) ? team.memberNames.slice() : [];
+        if (lockSnap.exists) {
+            if (lockSnap.data().teamId === teamId) {
+                /* SELF-HEAL, and this early return used to be a PERMANENT LOCKOUT. A lock pointing at
+                 * this team while members[] does not list the uid means the user cannot score at all:
+                 * ctfSubmitFlag resolves their team from members.includes(uid), and returning here
+                 * without touching members meant re-joining could never repair it. They were told
+                 * "already on this team" forever while being unable to submit anything.
+                 *
+                 * Found in production on the live tournament: two accounts held valid locks, were
+                 * absent from members[], and were silently unscoreable. Note the asymmetry this fixes:
+                 * the branch below already backfilled the opposite case (in members[], no lock), so one
+                 * direction was handled and its mirror was not. */
+                if (!members.includes(uid)) {
+                    if (members.length >= maxSize) {
+                        throw new HttpsError('failed-precondition',
+                            'Your team is full, so your membership cannot be repaired automatically. Tell your instructor.');
+                    }
+                    members.push(uid);
+                    memberNames.push(name);
+                    tx.update(teamRef, { members, memberNames });
+                }
+                return; // idempotent — already on this team
+            }
+            throw new HttpsError('failed-precondition', 'You are already on a team in this tournament. Leave it first.');
+        }
         // Legacy member (in members[] but no lock, e.g. admin-assigned): backfill the lock, no dup.
         if (members.includes(uid)) { tx.set(lockRef, { teamId, joinedAt: FieldValue.serverTimestamp() }); return; }
         if (members.length >= maxSize) throw new HttpsError('failed-precondition', 'That team is full.');
