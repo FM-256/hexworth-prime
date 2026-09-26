@@ -143,6 +143,14 @@ const FieldValue = admin.firestore.FieldValue;
         });
     }
     await batch.commit();
+    /* AND CORRECT teamCount, which the console does too (admin/console.html:11398) as a separate write
+     * after the roster batch. I had omitted it: the tournament document is created with teamCount: 0
+     * because the teams do not exist yet, and leaving it there makes the counter disagree with the
+     * collection from the moment the tournament is born -- which inspect-tournaments reports as drift,
+     * and the admin list renders as "0 teams". My own test asserted 0 as the expected value, so it
+     * encoded the bug as the contract; the field-set oracle could not catch it either, because it
+     * compares field NAMES and for this field the VALUE is the whole point. */
+    await tRef.set({ teamCount: roster.length }, { merge: true });
 
     /* Verify by reading it back, including the two things that would be silent failures: crypto on the
      * public challenge doc, and the join code on the public tournament doc. */

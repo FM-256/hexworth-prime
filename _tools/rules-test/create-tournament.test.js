@@ -122,8 +122,14 @@ async function call(fn, token, data) {
         teams.docs.map(d => d.id).sort().join(','));
     chk('every team starts empty and scoreless',
         teams.docs.every(d => (d.get('members') || []).length === 0 && d.get('score') === 0 && (d.get('memberNames') || []).length === 0));
-    chk('teamCount starts at 0 and status is lobby', t.get('teamCount') === 0 && t.get('status') === 'lobby',
-        `${t.get('teamCount')} / ${t.get('status')}`);
+    /* teamCount must equal the roster, not 0. This assertion USED to require 0, which is what the
+     * tournament document is created with before any team exists -- so it encoded my own omission as
+     * the contract and hid that the console does a second write (admin/console.html:11398) to correct
+     * it. The field-set comparison above could not catch it either: it compares field NAMES, and for a
+     * denormalised counter the VALUE is the entire point. */
+    chk('teamCount equals the roster size, not the 0 the doc is created with',
+        t.get('teamCount') === teams.size && t.get('status') === 'lobby',
+        `teamCount=${t.get('teamCount')} teams=${teams.size} / ${t.get('status')}`);
 
     /* 6. THE SALT AND HASH AGREE. This is the defect shape cannot see. */
     const recomputed = 'sha256:' + crypto.createHash('sha256').update(sec.get('flagSalt') + ':' + FLAG).digest('hex');
