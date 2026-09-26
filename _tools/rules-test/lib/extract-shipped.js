@@ -27,8 +27,9 @@ const fs = require('fs');
 /* The scanner, factored out because there are now two entry points and this is the part that was
  * wrong the first time. A third hand-written copy of a brace matcher is a third chance to get the
  * comment handling wrong. */
-function matchBraces(src, start, name) {
-    let i = src.indexOf('{', start), depth = 0, inStr = null;
+function matchBraces(src, start, name, open, close) {
+    open = open || '{'; close = close || '}';
+    let i = src.indexOf(open, start), depth = 0, inStr = null;
     for (; i < src.length; i++) {
         const c = src[i], next2 = src.substr(i, 2);
         if (inStr) {
@@ -39,8 +40,8 @@ function matchBraces(src, start, name) {
         if (next2 === '//') { const nl = src.indexOf('\n', i); if (nl === -1) break; i = nl; continue; }
         if (next2 === '/*') { const close = src.indexOf('*/', i + 2); if (close === -1) break; i = close + 1; continue; }
         if (c === '"' || c === "'" || c === '`') { inStr = c; continue; }
-        if (c === '{') depth++;
-        else if (c === '}') { depth--; if (depth === 0) { i++; break; } }
+        if (c === open) depth++;
+        else if (c === close) { depth--; if (depth === 0) { i++; break; } }
     }
     const body = src.slice(start, i) + ';';
     /* A sanity floor: a silent 20-char "success" would mean the matcher broke again. */
@@ -89,4 +90,20 @@ function extractDecl(htmlPath, name) {
     return matchBraces(src, hits[0], name);
 }
 
-module.exports = { extractShipped, extractDecl };
+/* `const NAME = [...]` or `= {...}` — a shipped data table rather than a function.
+ *
+ * Needed because a table can be as load-bearing as logic: NAMED_TEAMS decides the team DOCUMENT IDS
+ * a tournament is created with, and box_pool entries are pinned to those exact ids, so a scripted
+ * creator that reimplemented the list would wire boxes to teams that do not exist. Reading the
+ * shipped table makes that class of drift impossible rather than merely unlikely. */
+function extractConst(htmlPath, name) {
+    const src = fs.readFileSync(htmlPath, 'utf8');
+    const re = new RegExp(`^[ \t]*const ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*=\\s*([\\[{])`, 'm');
+    const m = re.exec(src);
+    if (!m) throw new Error(`const ${name} = [ or { not found at a line start in ${htmlPath}`);
+    const open = m[1], close = open === '[' ? ']' : '}';
+    const body = matchBraces(src, m.index, name, open, close);
+    return body.slice(body.indexOf(open));
+}
+
+module.exports = { extractShipped, extractDecl, extractConst };
