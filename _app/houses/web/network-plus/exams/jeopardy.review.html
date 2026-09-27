@@ -747,11 +747,17 @@ function markComplete() {
     ModuleProgress.complete('web', 'web-netplus-jeopardy', { returnUrl: '../index.html' });
   }
 
-  // Fallback local progress record
+  // Fallback local progress record, for the case where ModuleProgress.js failed to load.
+  // THE KEY HERE MUST MATCH ModuleProgress' KEY, and for a long time it did not. This wrote
+  // 'netplus-jeopardy' while ModuleProgress.complete above records 'web-netplus-jeopardy' --
+  // the id the hub card carries (network-plus/index.html data-module) and the one the tenant
+  // map declares (tenant/network-plus-map.js). Nothing but this page's own badge ever read the
+  // short key, and Firestore never synced it, so a student who finished on one device saw the
+  // hub say complete and this page still offer "Mark Complete" on the next one.
   try {
     const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
     if (!progress.web) progress.web = {};
-    progress.web['netplus-jeopardy'] = { completed: true, timestamp: Date.now() };
+    progress.web['web-netplus-jeopardy'] = { completed: true, timestamp: Date.now() };
     localStorage.setItem('hexworth_progress', JSON.stringify(progress));
   } catch (e) {
     console.error('Failed to save local progress:', e);
@@ -774,8 +780,17 @@ function checkAllRevealed() {
 
 function checkCompletionStatus() {
   try {
-    const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
-    if (progress.web && progress.web['netplus-jeopardy'] && progress.web['netplus-jeopardy'].completed) {
+    // Ask ModuleProgress, which is the only thing that sees a completion synced from another
+    // device. Reading localStorage directly is the fallback, not the primary path.
+    let done = false;
+    if (typeof ModuleProgress !== 'undefined' && typeof ModuleProgress.isCompleted === 'function') {
+      done = ModuleProgress.isCompleted('web', 'web-netplus-jeopardy');
+    }
+    if (!done) {
+      const progress = JSON.parse(localStorage.getItem('hexworth_progress') || '{}');
+      done = !!(progress.web && progress.web['web-netplus-jeopardy'] && progress.web['web-netplus-jeopardy'].completed);
+    }
+    if (done) {
       const btn = document.getElementById('jeopardyCompleteBtn');
       btn.textContent = 'Completed!';
       btn.classList.add('completed');
