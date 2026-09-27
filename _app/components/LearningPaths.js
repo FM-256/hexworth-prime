@@ -4120,7 +4120,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/web/labs/web-static-routes.lab.html',
+                    href: 'houses/web/network-plus/labs/static-routes.lab.html',
                     prerequisites: ['web-troubleshoot-viz']
                 },
                 // Hands-on & Final
@@ -5034,7 +5034,7 @@ class LearningPaths {
                     type: 'lab',
                     difficulty: 'intermediate',
                     duration: '30 min',
-                    href: 'houses/web/labs/web-static-routes.lab.html',
+                    href: 'houses/web/network-plus/labs/static-routes.lab.html',
                     prerequisites: ['web-fhrp']
                 },
                 // Domain 4: IP Services

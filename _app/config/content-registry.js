@@ -6547,7 +6547,7 @@ const ContentRegistry = {
             topics: ['labs', 'networking'],
             paths: ['comptia-network', 'ccna'],
             components: {
-                lab: 'houses/web/labs/web-networking-fundamentals.lab.html'
+                lab: 'houses/web/network-plus/labs/networking-fundamentals.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -6568,7 +6568,7 @@ const ContentRegistry = {
             topics: ['labs', 'networking'],
             paths: ['comptia-network', 'ccna'],
             components: {
-                lab: 'houses/web/labs/web-static-routes.lab.html'
+                lab: 'houses/web/network-plus/labs/static-routes.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -12501,7 +12501,7 @@ const ContentRegistry = {
             topics: ['dns', 'troubleshooting', 'networking', 'protocols'],
             paths: ['comptia-network'],
             components: {
-                lab: 'houses/web/labs/web-dns-troubleshooting.lab.html'
+                lab: 'houses/web/network-plus/labs/dns-troubleshooting.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -12517,7 +12517,7 @@ const ContentRegistry = {
             topics: ['firewall', 'rules', 'networking', 'protocols'],
             paths: ['comptia-network'],
             components: {
-                lab: 'houses/web/labs/web-firewall-rules.lab.html'
+                lab: 'houses/web/network-plus/labs/firewall-rules.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -12663,7 +12663,7 @@ const ContentRegistry = {
             topics: ['packet', 'analysis', 'networking', 'protocols'],
             paths: ['comptia-network'],
             components: {
-                lab: 'houses/web/labs/web-packet-analysis.lab.html'
+                lab: 'houses/web/network-plus/labs/packet-analysis.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -12727,7 +12727,7 @@ const ContentRegistry = {
             topics: ['subnetting', 'networking', 'protocols'],
             paths: ['comptia-network'],
             components: {
-                lab: 'houses/web/labs/web-subnetting-practice.lab.html'
+                lab: 'houses/web/network-plus/labs/subnetting-practice.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -12743,7 +12743,7 @@ const ContentRegistry = {
             topics: ['vlan', 'configuration', 'networking', 'protocols'],
             paths: ['ccna'],
             components: {
-                lab: 'houses/web/labs/web-vlan-config.lab.html'
+                lab: 'houses/web/network-plus/labs/vlan-config.lab.html'
             },
             prerequisites: [],
             objectives: []
@@ -19806,7 +19806,7 @@ const ContentRegistry = {
             topics: ['network', 'troubleshooting', 'networking', 'protocols'],
             paths: ['comptia-network'],
             components: {
-                lab: 'houses/web/labs/web-troubleshooting.lab.html'
+                lab: 'houses/web/network-plus/labs/troubleshooting.lab.html'
             },
             prerequisites: [],
             objectives: []
