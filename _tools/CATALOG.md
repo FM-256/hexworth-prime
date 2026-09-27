@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-20 15:28 · **1333 scripts** · 48 wired into a gate · 314 called by other code · 203 only mentioned in docs · 768 referenced by nothing · 550 not in git
+**Generated:** 2026-09-26 18:40 · **1353 scripts** · 48 wired into a gate · 329 called by other code · 201 only mentioned in docs · 775 referenced by nothing · 550 not in git
 
 ## Read this before writing a new script
 
@@ -375,7 +375,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `verify-doc-line-refs.js` | CALLED | 2 | 2026-09-20 | yes | Flags `file.ext:123` references in docs that no longer point at real code |
+| `verify-doc-line-refs.js` | CALLED | 2 | 2026-09-25 | yes | Flags `file.ext:123` references in docs that no longer point at real code |
 
 ### `_tools/dr-hex` — 1 scripts, 0 referenced by nothing
 
@@ -704,27 +704,33 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `xp-audit.js` | ORPHAN | 0 | 2026-08-04 | yes |  |
 | `xref.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
 
-### `_tools/engine1` — 1 scripts, 0 referenced by nothing
+### `_tools/engine1` — 3 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `perteam-flags.test.sh` | CALLED | 1 | 2026-09-25 | yes | Exercises perteam-flags.sh refusal paths against stubbed mint/inject in a fixture |
 | `roster-open.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Set who may reach Engine 1 (the real Windows CTF box) through Cloudflare Access. |
+| `verify-student-shell.js` | CALLED | 1 | 2026-09-20 | yes | Opens each team's REAL token URL in a browser and proves a student reaches a SHELL |
 
-### `_tools/engine1/provision` — 13 scripts, 7 referenced by nothing
+### `_tools/engine1/provision` — 17 scripts, 6 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `build-unattend.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
-| `clone-team.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
+| `clone-team.sh` | CALLED | 1 | 2026-09-18 | yes |  |
 | `create-engine1.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
 | `crosstest.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `dhcp-reserve.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `golden.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
-| `inject-flag.sh` | CALLED | 2 | 2026-09-18 | yes |  |
-| `mint-flag.sh` | CALLED | 1 | 2026-09-18 | yes |  |
-| `netguard.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Isolate Engine 1's Windows CTF boxes from each other and from the internet. |
+| `inject-flag.sh` | CALLED | 6 | 2026-09-23 | yes |  |
+| `mint-flag.sh` | CALLED | 4 | 2026-09-18 | yes |  |
+| `netguard.sh` | CALLED | 2 | 2026-09-26 | yes | Isolate Engine 1's Windows CTF boxes from each other and from the internet |
+| `perteam-flags.sh` | CALLED | 3 | 2026-09-25 | yes | Mints one unique CSPRNG flag per Engine 1 team box, verifies each box holds its own |
+| `plant-story.sh` | DOCS-ONLY | 0 | 2026-09-22 | yes | Plants in-world onboarding + a ticket stub that lead a student to the privesc path |
 | `player-account.sh` | CALLED | 1 | 2026-09-18 | yes |  |
-| `prepare-clone.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes |  |
+| `prepare-clone.sh` | CALLED | 1 | 2026-09-18 | yes |  |
+| `reset-team-box.sh` | CALLED | 2 | 2026-09-20 | yes | Pre-event reset: new versioned clone off the golden, old instance retained |
+| `token-terminals.sh` | CALLED | 1 | 2026-09-20 | yes | Recreates each team's wetty container with --ssh-pass so students get a shell, not a prompt |
 | `unique-creds.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 | `wire-teams.sh` | ORPHAN | 0 | 2026-09-18 | yes |  |
 
@@ -811,7 +817,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `request_filter.py` | DOCS-ONLY | 0 | 2026-05-24 | yes |  |
 | `security_log.py` | CALLED | 1 | 2026-05-25 | yes |  |
 
-### `_tools/hexos` — 110 scripts, 86 referenced by nothing
+### `_tools/hexos` — 112 scripts, 88 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -922,6 +928,8 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `nt1-scenarios-e2e.test.js` | CALLED | 1 | 2026-09-09 | yes | Drives ALL FIVE NT1 scenarios end-to-end in a real browser: selects the |
 | `os002-completability.test.js` | ORPHAN | 0 | 2026-09-16 | yes | Plays every os002 scenario the way a student does — opens the ticket, |
 | `os003-completability.test.js` | CALLED | 1 | 2026-09-17 | yes | Plays every os003 scenario as a student does and asserts each ENDS with a |
+| `podium-crest.render.test.js` | ORPHAN | 0 | 2026-09-23 | yes | Renders the REAL podium top-three markup in a browser and proves a long team name |
+| `podium-crest.test.js` | ORPHAN | 0 | 2026-09-23 | yes | Proves the podium team crest renders and that a crafted team NAME cannot inject |
 | `unknown-command-dialect.test.js` | CALLED | 1 | 2026-09-16 | yes | Types a command NO box implements into EVERY box that declares a |
 | `verify-live-hexos.js` | ORPHAN | 0 | 2026-09-02 | yes | Drives the LIVE Hex OS shell in Chrome and proves the eight case-sensitivity fixes are actually in the deployed build. Runs a lowercase CONTROL first. |
 | `walkthrough-verbatim.test.js` | CALLED | 1 | 2026-09-16 | yes | Types each walkthrough command EXACTLY as printed at a prompt, in order, |
@@ -1324,26 +1332,34 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 25 scripts, 7 referenced by nothing
+### `_tools/rules-test` — 33 scripts, 12 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `addxp-dedup.test.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
+| `create-tournament.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Runs the real create-tournament.js against the emulator and proves its output matches |
 | `ctf-box-assignment.test.js` | CALLED | 1 | 2026-09-18 | yes | Proves a team gets its OWN real-box credential and nobody else's: the callable |
+| `ctf-box-pool.test.js` | CALLED | 1 | 2026-09-20 | yes | Runs the SHIPPED box-pool functions against a rules-enforced emulator: the pool |
 | `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
-| `ctf-flag-secrets.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Proves tournament flag crypto is unreachable by clients and that a challenge |
+| `ctf-flag-secrets.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Proves tournament flag crypto is unreachable by clients and that a challenge |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `ctf-joincode-gate.test.js` | CALLED | 2 | 2026-08-29 | yes | Functions-emulator test of the ctfJoinTeam join-code gate (right/wrong/absent) |
-| `ctf-joincode-migration.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Runs the SHIPPED migrateJoinCode from console.html against a rules-enforced |
+| `ctf-joincode-migration.test.js` | ORPHAN | 0 | 2026-09-20 | yes | Runs the SHIPPED migrateJoinCode from console.html against a rules-enforced |
+| `ctf-perteam-flags.test.js` | CALLED | 2 | 2026-09-25 | yes | Proves per-team flags actually isolate scoring: a team's flag is CORRECT for that |
+| `ctf-perteam-plan.test.js` | CALLED | 1 | 2026-09-25 | yes | Proves the admin console's per-team flag RESOLVER maps each pasted box key to the |
 | `ctf-ratelimit.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of the ctfSubmitFlag rate limit, both bypasses |
+| `ctf-roster-selfheal.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Proves a roster lock without a members[] entry is REPAIRED rather than being a |
 | `discord-link.test.js` | CALLED | 1 | 2026-09-19 | yes | Proves a student can link their Hexworth account to Discord and that the link |
 | `discord-tournament-command.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Invokes the real discordInteraction function with a properly SIGNED /tournament |
+| `extract-shipped.test.js` | ORPHAN | 0 | 2026-09-25 | yes | Tests the extractor two suites depend on: that it finds the RIGHT span, ignores |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `home-directory-subcollections.test.js` | ORPHAN | 0 | 2026-08-31 | yes | pin owner-read + no-client-write on server_awards, quiz_attempts, gates, flag_captures |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
+| `inspect-perteam-preflight.test.js` | ORPHAN | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
+| `lobby-join-heal.render.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
@@ -1353,6 +1369,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `tournament-joincode.test.js` | CALLED | 1 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | CALLED | 1 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
+
+### `_tools/rules-test/lib` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `extract-shipped.js` | CALLED | 1 | 2026-09-26 | yes | Brace-matches a `window.fn = async function(...) {...}` out of an HTML page |
 
 ### `_tools/runtime-monitor` — 3 scripts, 0 referenced by nothing
 
@@ -2021,21 +2043,24 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
 
-### `_tools/tournament` — 14 scripts, 1 referenced by nothing
+### `_tools/tournament` — 17 scripts, 2 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `badges.test.js` | CALLED | 1 | 2026-09-07 | yes | Runs functions/ctf-badges.js against the FIRESTORE emulator: participation on join, placements from the certified record, and the case that drove the whole design, a corrected result must REVOKE a champion without touching a champion legitimately earned at a different tournament. |
 | `benchmark-tournament.js` | CALLED | 1 | 2026-09-17 | yes | production benchmark: team/challenge scale, submission latency, breaking point |
 | `broadcast-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of broadcast.html's frozen board and its three consumers |
+| `create-tournament.js` | CALLED | 2 | 2026-09-26 | yes | Creates a tournament with the SAME shape the admin console produces, by running the |
 | `dump-record.js` | CALLED | 1 | 2026-09-07 | yes | Runs the actual finalization transaction against the Firestore emulator and dumps the resulting results/final (v1 and a corrected v2) to JSON, so the render harness drives the pages with data the real function produced, not a hand-typed fixture that could quietly disagree with the schema. |
 | `finalize.test.js` | CALLED | 2 | 2026-09-07 | yes | Runs functions/ctf-finalize.js against the FIRESTORE emulator through the four cases that matter: fresh finalize, idempotent retry, backfill of an already- ended tournament, and a versioned correction. Proves behaviour, not shape. |
-| `inspect-tournaments.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
+| `inspect-tournaments.js` | CALLED | 3 | 2026-09-25 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
 | `join-badge.integration.test.js` | ORPHAN | 0 | 2026-09-07 | yes | Invokes the REAL ctfJoinTeam callable against the Firestore emulator and asserts the participation badge is written. Covers fresh join, repeat join, and the legacy-member backfill path, which do NOT all take the same route to the award. |
 | `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
 | `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
 | `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
+| `register-perteam-flags.js` | CALLED | 1 | 2026-09-26 | yes | Registers per-team flag salts/hashes into flagSecrets/{chId}.perTeam by running the |
 | `render-verify.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Loads tournament-podium.html and broadcast.html in headless Chrome with a stubbed Firestore serving a REAL results-of-record (produced by ctf-finalize.js), then asserts the boards actually paint the certified standings and screenshots them. |
+| `repair-roster.js` | ORPHAN | 0 | 2026-09-26 | yes | Repairs a tournament's roster: adds locked-but-missing members, rebuilds |
 | `results-rules.test.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Runs firestore.rules against the emulator and proves a client cannot land a tournament in 'ended' by ANY verb, and cannot write the certified record — while legitimate admin transitions still work. |
 | `roster-browser-check.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
 | `writebatch-runtime-proof.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | runtime proof that console.html's batched team-roster write works |
