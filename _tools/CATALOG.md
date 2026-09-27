@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-26 18:40 · **1353 scripts** · 48 wired into a gate · 329 called by other code · 201 only mentioned in docs · 775 referenced by nothing · 550 not in git
+**Generated:** 2026-09-27 17:53 · **1357 scripts** · 48 wired into a gate · 332 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 550 not in git
 
 ## Read this before writing a new script
 
@@ -48,7 +48,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `_tools/deploy/post-verify.sh` | `deploy.sh`, `_tools/deploy/post-verify.sh`, `_tools/eduscan/smoke/deploy.sh` | yes | _(no header)_ |
 | `_tools/deploy/record-chris-pass.sh` | `deploy.sh` | yes | _(no header)_ |
 | `_tools/eduscan/answer-balance-audit.js` | `deploy.sh` | yes | Audits every QuizEngine quiz for correct-answer LENGTH bias and POSITION |
-| `_tools/eduscan/answer-balance-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option |
+| `_tools/eduscan/answer-balance-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when a CHANGED quiz has the correct answer as the longest option, or when ANY server-graded quiz words two options in one question identically |
 | `_tools/eduscan/cli.js` | `deploy.sh`, `package.json`, `_tools/deploy/post-verify.sh` | yes | _(no header)_ |
 | `_tools/eduscan/client-query-rules-parity.js` | `deploy.sh` | yes | Cross-checks every client-side Firestore collection query against the `list` rule for that collection. Catches client code asking a question the rules forbid, which fails at runtime for ordinary users and often gets swallowed. |
 | `_tools/eduscan/dash-hygiene-gate.js` | `deploy.sh`, `_tools/deploy/post-verify.sh` | yes | Blocks a deploy when CHANGED _app content introduces an em-dash or a " -- " substitute |
@@ -389,10 +389,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 88 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 90 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
+| `answer-length-detail.js` | CALLED | 2 | 2026-09-27 | yes | Per-QUESTION length-bias detail for a server-graded quiz: option texts, their |
 | `armory-terminal-cheat-audit.js` | CALLED | 1 | 2026-08-01 | yes |  |
 | `armsql-garbage-audit.js` | ORPHAN | 0 | 2026-08-01 | yes |  |
 | `armsql-generative-adversary.js` | ORPHAN | 0 | 2026-08-01 | no |  |
@@ -481,6 +482,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `terminal-grader-cheat-e2e.js` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `untracked-secret-scan.sh` | DOCS-ONLY | 0 | 2026-08-01 | yes |  |
 | `verify-progress-keys-changed.js` | DOCS-ONLY | 0 | 2026-05-04 | yes |  |
+| `verify-quiz-edit.js` | CALLED | 2 | 2026-09-27 | yes | Proves an edit to a server-graded quiz did not regrade anyone: same questions, same |
 
 ### `_tools/eduscan/fixers` — 16 scripts, 2 referenced by nothing
 
@@ -710,7 +712,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `perteam-flags.test.sh` | CALLED | 1 | 2026-09-25 | yes | Exercises perteam-flags.sh refusal paths against stubbed mint/inject in a fixture |
 | `roster-open.sh` | DOCS-ONLY | 0 | 2026-09-18 | yes | Set who may reach Engine 1 (the real Windows CTF box) through Cloudflare Access. |
-| `verify-student-shell.js` | CALLED | 1 | 2026-09-20 | yes | Opens each team's REAL token URL in a browser and proves a student reaches a SHELL |
+| `verify-student-shell.js` | CALLED | 2 | 2026-09-20 | yes | Opens each team's REAL token URL in a browser and proves a student reaches a SHELL |
 
 ### `_tools/engine1/provision` — 17 scripts, 6 referenced by nothing
 
@@ -1332,7 +1334,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 33 scripts, 12 referenced by nothing
+### `_tools/rules-test` — 34 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1340,7 +1342,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `arena-sessions-membership.test.js` | CALLED | 1 | 2026-08-29 | yes | both-directions proof for the arena_sessions update rule (membership boundary) |
 | `create-tournament.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Runs the real create-tournament.js against the emulator and proves its output matches |
 | `ctf-box-assignment.test.js` | CALLED | 1 | 2026-09-18 | yes | Proves a team gets its OWN real-box credential and nobody else's: the callable |
-| `ctf-box-pool.test.js` | CALLED | 1 | 2026-09-20 | yes | Runs the SHIPPED box-pool functions against a rules-enforced emulator: the pool |
+| `ctf-box-pool.test.js` | CALLED | 2 | 2026-09-20 | yes | Runs the SHIPPED box-pool functions against a rules-enforced emulator: the pool |
 | `ctf-dynamic-scoring.test.js` | DOCS-ONLY | 0 | 2026-09-17 | yes | Functions-emulator test of ctfSubmitFlag dynamic point decay |
 | `ctf-flag-secrets.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Proves tournament flag crypto is unreachable by clients and that a challenge |
 | `ctf-join-concurrency.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
@@ -1352,20 +1354,21 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `ctf-roster-selfheal.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Proves a roster lock without a members[] entry is REPAIRED rather than being a |
 | `discord-link.test.js` | CALLED | 1 | 2026-09-19 | yes | Proves a student can link their Hexworth account to Discord and that the link |
 | `discord-tournament-command.test.js` | ORPHAN | 0 | 2026-09-19 | yes | Invokes the real discordInteraction function with a properly SIGNED /tournament |
-| `extract-shipped.test.js` | ORPHAN | 0 | 2026-09-25 | yes | Tests the extractor two suites depend on: that it finds the RIGHT span, ignores |
+| `extract-shipped.test.js` | DOCS-ONLY | 0 | 2026-09-25 | yes | Tests the extractor two suites depend on: that it finds the RIGHT span, ignores |
 | `freeplay-classification.test.js` | DOCS-ONLY | 0 | 2026-08-28 | yes | cross-repo check: Rig browsable labs vs lab-manager free-play classification |
 | `hed-reports-rules.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `home-directory-subcollections.test.js` | ORPHAN | 0 | 2026-08-31 | yes | pin owner-read + no-client-write on server_awards, quiz_attempts, gates, flag_captures |
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
-| `inspect-perteam-preflight.test.js` | ORPHAN | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
-| `lobby-join-heal.render.test.js` | ORPHAN | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
+| `inspect-perteam-preflight.test.js` | DOCS-ONLY | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
+| `lobby-join-heal.render.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
 | `mallory-verify-users-create-2026-08-05.test.js` | ORPHAN | 0 | 2026-08-05 | no |  |
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
+| `swap-box-pool.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the real swap-box-pool.js against the emulator: the happy swap, and every |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `tournament-joincode.test.js` | CALLED | 1 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | CALLED | 1 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
@@ -2043,7 +2046,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
 
-### `_tools/tournament` — 17 scripts, 2 referenced by nothing
+### `_tools/tournament` — 18 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -2060,9 +2063,10 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
 | `register-perteam-flags.js` | CALLED | 1 | 2026-09-26 | yes | Registers per-team flag salts/hashes into flagSecrets/{chId}.perTeam by running the |
 | `render-verify.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Loads tournament-podium.html and broadcast.html in headless Chrome with a stubbed Firestore serving a REAL results-of-record (produced by ctf-finalize.js), then asserts the boards actually paint the certified standings and screenshots them. |
-| `repair-roster.js` | ORPHAN | 0 | 2026-09-26 | yes | Repairs a tournament's roster: adds locked-but-missing members, rebuilds |
+| `repair-roster.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Repairs a tournament's roster: adds locked-but-missing members, rebuilds |
 | `results-rules.test.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Runs firestore.rules against the emulator and proves a client cannot land a tournament in 'ended' by ANY verb, and cannot write the certified record — while legitimate admin transitions still work. |
 | `roster-browser-check.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | browser check of buildTeamRoster/clampInt inside admin/console.html |
+| `swap-box-pool.js` | CALLED | 1 | 2026-09-26 | yes | Releases the real-box pool from one tournament and wires it to another, carrying the |
 | `writebatch-runtime-proof.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | runtime proof that console.html's batched team-roster write works |
 
 ### `_tools/walkthrough-pdf` — 1 scripts, 0 referenced by nothing

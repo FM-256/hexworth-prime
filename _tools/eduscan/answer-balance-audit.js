@@ -124,12 +124,13 @@ function analyseQuiz(cfgObj, rel, registry) {
     const qs = Array.isArray(cfgObj.questions) ? cfgObj.questions : [];
     const correctIdx = resolveCorrect(qs, cfgObj, registry);
     const mc = qs
-        .map((q, i) => ({ ...q, correct: correctIdx[i] }))
+        .map((q, i) => ({ ...q, correct: correctIdx[i], _qIndex: i }))
         .filter(q => Array.isArray(q.options) && typeof q.correct === 'number'
             && q.correct >= 0 && q.correct < q.options.length);
     if (!mc.length) return null;
 
     const pos = {};
+    const dupOptionItems = [];
     let longest = 0, tiedLongest = 0, aotaTotal = 0, aotaCorrect = 0, aotaNotLast = 0;
 
     for (const q of mc) {
@@ -143,6 +144,20 @@ function analyseQuiz(cfgObj, rel, registry) {
         // Strict wins only: if three options tie at the maximum, "longest" carries no signal.
         if (correctLen === max && winners === 1) longest++;
         else if (correctLen === max) tiedLongest++;
+
+        // DUPLICATE OPTION TEXT is the one tell here that actively MIS-GRADES, and unlike
+        // position it is not masked by the shuffle -- the shuffle is what exposes it.
+        // QuizEngine maps a student's shuffled choice back to the authored index with
+        // `_originalOptions.indexOf(selectedText)` (QuizEngine.js:484), and indexOf returns
+        // the FIRST match. Two options in one question carrying identical text therefore
+        // collapse: a student who clicks the second copy is submitted as having clicked the
+        // first, and is graded against an answer they did not choose.
+        // SERVER-ONLY BY CONSTRUCTION. That lookup lives in the _gradeViaServer path.
+        // Client grading compares the remapped correct index and never resolves text back
+        // to a position, so an identical pair there is a content defect, not a mis-grade.
+        const texts = q.options.map(o => String(o).trim());
+        const dupAt = texts.findIndex((t, i) => t && texts.indexOf(t) !== i);
+        if (dupAt !== -1) dupOptionItems.push({ q: q._qIndex + 1, text: texts[dupAt] });
 
         const aotaIdx = q.options.findIndex(o => AOTA.test(String(o)));
         if (aotaIdx !== -1) {
@@ -194,6 +209,15 @@ function analyseQuiz(cfgObj, rel, registry) {
     // NOT latent: the shuffle cannot mask this one. If anything the shuffle causes it —
     // an "All of the above" that renders in position B, with two more options under it,
     // is incoherent on screen no matter where it was authored.
+    if (dupOptionItems.length) {
+        const where = dupOptionItems.slice(0, 3).map(d => `Q${d.q}`).join(', ')
+            + (dupOptionItems.length > 3 ? ', …' : '');
+        if (cfgObj.serverGrading === true) {
+            flags.push(`DUPLICATE OPTION TEXT in ${dupOptionItems.length} item(s) (${where}) — server grading resolves the choice by text, so picking the later copy is submitted as the earlier one`);
+        } else {
+            latent.push(`DUPLICATE OPTION TEXT in ${dupOptionItems.length} item(s) (${where}) — client-graded, so it does not mis-grade today, but two identical choices are on screen`);
+        }
+    }
     if (aotaNotLast) flags.push(`AOTA/NOTA not authored last in ${aotaNotLast} item(s)`);
     if (aotaTotal >= 4 && (aotaCorrect === 0 || aotaCorrect === aotaTotal)) {
         flags.push(`AOTA/NOTA correct in ${aotaCorrect}/${aotaTotal} — presence signals the answer regardless of position`);
@@ -210,6 +234,7 @@ function analyseQuiz(cfgObj, rel, registry) {
         correctIsLongestPct: Math.round(longestPct * 1000) / 10,
         tiedLongest,
         aota: { total: aotaTotal, correct: aotaCorrect, notLast: aotaNotLast },
+        duplicateOptionItems: dupOptionItems,
         flags,
         latent
     };
