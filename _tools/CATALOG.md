@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-27 17:53 · **1357 scripts** · 48 wired into a gate · 332 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 550 not in git
+**Generated:** 2026-09-27 18:37 · **1359 scripts** · 48 wired into a gate · 334 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 552 not in git
 
 ## Read this before writing a new script
 
@@ -389,7 +389,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `preflight.js` | DOCS-ONLY | 0 | 2026-06-05 | no |  |
 
-### `_tools/eduscan` — 90 scripts, 19 referenced by nothing
+### `_tools/eduscan` — 91 scripts, 19 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -424,6 +424,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `bug048-classify.js` | CALLED | 1 | 2026-07-29 | yes |  |
 | `card-click-probe.js` | DOCS-ONLY | 0 | 2026-07-31 | yes |  |
 | `card-shot-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
+| `catalog-dup-count.js` | CALLED | 1 | 2026-09-27 | no | Authoritative counts for ContentCatalog: total module ids, duplicate (house,href) |
 | `catalog-live-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
 | `catalog-reachability-audit.js` | CALLED | 4 | 2026-07-31 | yes |  |
@@ -692,7 +693,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `js.js` | DOCS-ONLY | 0 | 2026-05-05 | yes |  |
 | `learning-paths.js` | CALLED | 1 | 2026-08-04 | yes |  |
 | `linux-terminal.js` | DOCS-ONLY | 0 | 2026-07-23 | yes |  |
-| `naming.js` | CALLED | 4 | 2026-05-28 | yes |  |
+| `naming.js` | CALLED | 5 | 2026-09-27 | yes |  |
 | `navigation.js` | CALLED | 1 | 2026-07-31 | yes |  |
 | `palette.js` | DOCS-ONLY | 0 | 2026-08-04 | yes |  |
 | `paths.js` | CALLED | 2 | 2026-07-07 | yes |  |
@@ -1334,7 +1335,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 34 scripts, 9 referenced by nothing
+### `_tools/rules-test` — 35 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1361,6 +1362,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
 | `inspect-perteam-preflight.test.js` | DOCS-ONLY | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
+| `instructor-id-aliases.test.js` | CALLED | 1 | 2026-09-27 | no | Proves the instructor dashboard counts a Network+ completion under EITHER the |
 | `lobby-join-heal.render.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |

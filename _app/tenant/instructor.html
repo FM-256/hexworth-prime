@@ -1753,6 +1753,61 @@
     var _sessionStart = Date.now();
 
     /**
+     * applyCourseIdAliases — expand legacy content ids in the loaded student records to the
+     * ids the active course map now uses. IN MEMORY ONLY; nothing is written back.
+     *
+     * WHY THIS EXISTS. Network+ migrated 28 content ids from web-<name> to
+     * web-np-<name>-<type>. That is what ModuleProgress.complete() writes today and what the
+     * hub's data-module attributes carry. A student's STORED record is not rewritten by that
+     * migration: content pages call copyLegacyKey(old -> new) on load, which only runs for
+     * someone who opens the page again and never writes back from new to old. So Firestore
+     * holds two populations — older records with only the OLD id, current records with the NEW.
+     *
+     * Every completion test on this page compares a map item id against those record fields,
+     * in about a dozen places (chapter percentages, the heatmap, the per-student drilldown, the
+     * CSV export). Threading an alias through each one invites exactly the drift where two
+     * panels disagree about the same student, so the expansion happens ONCE here, on load,
+     * before any render runs. Each of those sites builds its lookup from modulesCompleted,
+     * quizScores and labsCompleted, so normalising those three fields covers all of them.
+     *
+     * READ-SIDE ONLY, DELIBERATELY. The instructor dashboard is not the authority on student
+     * progress and must not quietly rewrite it; this makes the view complete without touching
+     * stored state. Courses whose map declares no idAliases are untouched.
+     */
+    function applyCourseIdAliases(students) {
+        var map = getActiveCourseMap();
+        var aliases = map && map.idAliases;
+        if (!aliases || !Array.isArray(students) || !students.length) return 0;
+        var oldIds = Object.keys(aliases);
+        var added = 0;
+        students.forEach(function (s) {
+            if (!s) return;
+            ['modulesCompleted', 'labsCompleted'].forEach(function (field) {
+                var arr = s[field];
+                if (!Array.isArray(arr)) return;
+                oldIds.forEach(function (oldId) {
+                    var newId = aliases[oldId];
+                    if (arr.indexOf(oldId) !== -1 && arr.indexOf(newId) === -1) {
+                        arr.push(newId);
+                        added++;
+                    }
+                });
+            });
+            var qs = s.quizScores;
+            if (qs && typeof qs === 'object') {
+                oldIds.forEach(function (oldId) {
+                    var newId = aliases[oldId];
+                    if (qs[oldId] != null && qs[newId] == null) {
+                        qs[newId] = qs[oldId];
+                        added++;
+                    }
+                });
+            }
+        });
+        return added;
+    }
+
+    /**
      * getActiveCourseMap — Returns the course content map for the active class.
      * Maps courseId to the corresponding global variable loaded from script tags.
      * Returns null if no map exists for the course or no class is active.
@@ -2570,6 +2625,7 @@
                 // No studentUid — admin path returns all students
             });
             _studentData = result.data.students || [];
+            applyCourseIdAliases(_studentData);
             renderStudentsTable();
             renderAnalytics();
             updateClassStats();

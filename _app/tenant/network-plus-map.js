@@ -11,6 +11,54 @@
 var NETWORK_PLUS_MAP = {
     courseId: "network-plus",
     title: "CompTIA Network+ N10-009",
+    /* ── LEGACY ID ALIASES ──────────────────────────────────────────────────────────
+       The 28 ids above were migrated from web-<name> to web-np-<name>-<type>, which is
+       what ModuleProgress.complete() now writes and what the hub card data-module
+       attributes now carry (network-plus/index.html).
+
+       A student's stored record is NOT rewritten by that migration. Content pages call
+       copyLegacyKey(old -> new) on load, but that only runs for someone who opens the
+       page again, and it never writes back from new to old. So two populations coexist
+       in Firestore: older records holding only the OLD id, and current records holding
+       the NEW one.
+
+       Swapping the ids above WITHOUT this table would therefore have traded one silent
+       under-count for its mirror image: new completions would start appearing on the
+       instructor dashboard while every historical completion vanished from it. The
+       dashboard maps old -> new through this table when it loads student data, so both
+       populations count. Entries are keyed OLD -> NEW and are safe to keep forever.
+       ───────────────────────────────────────────────────────────────────────────────── */
+    idAliases: {
+        "web-osi": "web-np-osi-pres",
+        "web-osi-deep-dive": "web-np-osi-deep-dive-pres",
+        "web-ne01-osi-scenario": "web-np-ne01-osi-scenario-lab",
+        "web-tcp": "web-np-tcp-pres",
+        "web-port": "web-np-port-tool",
+        "web-ne02-tcpip-scenario": "web-np-ne02-tcpip-scenario-lab",
+        "web-ne03-subnet-scenario": "web-np-ne03-subnet-scenario-lab",
+        "web-subnetting-practice": "web-np-subnetting-practice-lab",
+        "web-switch-operations": "web-np-switch-operations-pres",
+        "web-vlan": "web-np-vlan-pres",
+        "web-stp": "web-np-stp-pres",
+        "web-ospf": "web-np-ospf-pres",
+        "web-fhrp": "web-np-fhrp-pres",
+        "web-ospf-cost": "web-np-ospf-cost-tool",
+        "web-wan-technologies": "web-np-wan-technologies-pres",
+        "web-cloud-networking": "web-np-cloud-networking-pres",
+        "web-ne07-nat-scenario": "web-np-ne07-nat-scenario-lab",
+        "web-wireless": "web-np-wireless-pres",
+        "web-wireless-architecture": "web-np-wireless-architecture-pres",
+        "web-ne08-wireless-scenario": "web-np-ne08-wireless-scenario-lab",
+        "web-network-monitoring": "web-np-network-monitoring-pres",
+        "web-high-availability": "web-np-high-availability-pres",
+        "web-qos": "web-np-qos-tool",
+        "web-network-security": "web-np-network-security-pres",
+        "web-networking-ch7-20": "web-np-ch7-20-quiz",
+        "web-packet-analysis": "web-np-packet-analysis-lab",
+        "web-vlan-config": "web-np-vlan-config-lab",
+        "web-troubleshooting-lab": "web-np-troubleshooting-lab"
+    },
+
     chapters: [
         {
             id: "ch1",
@@ -18,13 +66,13 @@ var NETWORK_PLUS_MAP = {
             title: "OSI Model",
             items: [
                 { id: "web-ne-01", type: "module", title: "OSI Model Deep Dive" },
-                { id: "web-osi", type: "presentation", title: "OSI Model Overview" },
+                { id: "web-np-osi-pres", type: "presentation", title: "OSI Model Overview" },
                 { id: "web-osi-model", type: "presentation", title: "OSI Model" },
-                { id: "web-osi-deep-dive", type: "presentation", title: "OSI Deep Dive" },
+                { id: "web-np-osi-deep-dive-pres", type: "presentation", title: "OSI Deep Dive" },
                 { id: "web-osi-tool", type: "tool", title: "OSI Reference Tool" },
                 { id: "web-osi-deep-dive-tool", type: "tool", title: "OSI Deep Dive Tool" },
                 { id: "gui-ne01-wireshark", type: "lab", title: "Wireshark Packet Inspector" },
-                { id: "web-ne01-osi-scenario", type: "lab", title: "OSI Layer Diagnosis" },
+                { id: "web-np-ne01-osi-scenario-lab", type: "lab", title: "OSI Layer Diagnosis" },
                 { id: "web-osi-quiz", type: "quiz", title: "Chapter 1: OSI Quiz" },
             ]
         },
@@ -34,15 +82,15 @@ var NETWORK_PLUS_MAP = {
             title: "TCP/IP & Protocols",
             items: [
                 { id: "web-ne-02", type: "module", title: "TCP/IP Protocol Suite" },
-                { id: "web-tcp", type: "presentation", title: "TCP Fundamentals" },
+                { id: "web-np-tcp-pres", type: "presentation", title: "TCP Fundamentals" },
                 { id: "web-ports", type: "presentation", title: "Ports &amp; Protocols" },
                 { id: "web-arp", type: "presentation", title: "ARP" },
                 { id: "web-icmp", type: "presentation", title: "ICMP Protocol" },
                 { id: "web-traffic-types", type: "presentation", title: "Traffic Types" },
                 { id: "web-ipsec-gre", type: "presentation", title: "IPSec &amp; GRE" },
-                { id: "web-port", type: "presentation", title: "Port Reference Tool" },
+                { id: "web-np-port-tool", type: "presentation", title: "Port Reference Tool" },
                 { id: "gui-ne02-windows-nic", type: "lab", title: "Windows NIC Configuration" },
-                { id: "web-ne02-tcpip-scenario", type: "lab", title: "TCP/IP Troubleshooting" },
+                { id: "web-np-ne02-tcpip-scenario-lab", type: "lab", title: "TCP/IP Troubleshooting" },
                 { id: "web-tcpip-quiz", type: "quiz", title: "Chapter 2: TCP/IP Quiz" },
             ]
         },
@@ -56,8 +104,8 @@ var NETWORK_PLUS_MAP = {
                 { id: "web-ipv6", type: "presentation", title: "IPv6" },
                 { id: "web-subnetting-tool", type: "tool", title: "Subnet Calculator Tool" },
                 { id: "web-ipv6-tool", type: "tool", title: "IPv6 Reference Tool" },
-                { id: "web-ne03-subnet-scenario", type: "lab", title: "Subnetting After Merger" },
-                { id: "web-subnetting-practice", type: "presentation", title: "Subnetting Practice" },
+                { id: "web-np-ne03-subnet-scenario-lab", type: "lab", title: "Subnetting After Merger" },
+                { id: "web-np-subnetting-practice-lab", type: "presentation", title: "Subnetting Practice" },
                 { id: "web-subnetting-quiz", type: "quiz", title: "Chapter 3: Subnetting Quiz" },
             ]
         },
@@ -84,9 +132,9 @@ var NETWORK_PLUS_MAP = {
             title: "Ethernet & Switching",
             items: [
                 { id: "web-ne-04", type: "module", title: "Ethernet &amp; Switching" },
-                { id: "web-switch-operations", type: "presentation", title: "Switch Operations" },
-                { id: "web-vlan", type: "presentation", title: "VLANs" },
-                { id: "web-stp", type: "presentation", title: "Spanning Tree Protocol" },
+                { id: "web-np-switch-operations-pres", type: "presentation", title: "Switch Operations" },
+                { id: "web-np-vlan-pres", type: "presentation", title: "VLANs" },
+                { id: "web-np-stp-pres", type: "presentation", title: "Spanning Tree Protocol" },
                 { id: "web-etherchannel", type: "presentation", title: "EtherChannel" },
                 { id: "web-switch-operations-tool", type: "tool", title: "Switch Operations Tool" },
                 { id: "web-vlan-tool", type: "tool", title: "VLAN Tool" },
@@ -102,10 +150,10 @@ var NETWORK_PLUS_MAP = {
             title: "Routing Fundamentals",
             items: [
                 { id: "web-ne-05", type: "module", title: "Routing Fundamentals" },
-                { id: "web-ospf", type: "presentation", title: "OSPF" },
+                { id: "web-np-ospf-pres", type: "presentation", title: "OSPF" },
                 { id: "web-eigrp", type: "presentation", title: "EIGRP" },
-                { id: "web-fhrp", type: "presentation", title: "FHRP" },
-                { id: "web-ospf-cost", type: "presentation", title: "OSPF Cost Tool" },
+                { id: "web-np-fhrp-pres", type: "presentation", title: "FHRP" },
+                { id: "web-np-ospf-cost-tool", type: "presentation", title: "OSPF Cost Tool" },
                 { id: "gui-ne05-pfsense", type: "lab", title: "pfSense Firewall / Router" },
                 { id: "web-static-routes", type: "presentation", title: "Static Routes" },
                 { id: "web-routing-quiz", type: "quiz", title: "Chapter 6: Routing Quiz" },
@@ -133,11 +181,11 @@ var NETWORK_PLUS_MAP = {
             items: [
                 { id: "web-ne-07", type: "module", title: "Network Address Translation" },
                 { id: "web-nat", type: "presentation", title: "NAT" },
-                { id: "web-wan-technologies", type: "presentation", title: "WAN Technologies" },
-                { id: "web-cloud-networking", type: "presentation", title: "Cloud Networking" },
+                { id: "web-np-wan-technologies-pres", type: "presentation", title: "WAN Technologies" },
+                { id: "web-np-cloud-networking-pres", type: "presentation", title: "Cloud Networking" },
                 { id: "web-network-access-methods", type: "presentation", title: "Network Access Methods" },
                 { id: "gui-ne07-paloalto", type: "lab", title: "Palo Alto Firewall" },
-                { id: "web-ne07-nat-scenario", type: "lab", title: "NAT Troubleshooting" },
+                { id: "web-np-ne07-nat-scenario-lab", type: "lab", title: "NAT Troubleshooting" },
                 { id: "web-wan-cloud-quiz", type: "quiz", title: "Chapter 8: WAN & Cloud Quiz" },
             ]
         },
@@ -147,12 +195,12 @@ var NETWORK_PLUS_MAP = {
             title: "Wireless Networking",
             items: [
                 { id: "web-ne-08", type: "module", title: "Wireless Networking" },
-                { id: "web-wireless", type: "presentation", title: "Wireless Networking" },
-                { id: "web-wireless-architecture", type: "presentation", title: "Wireless Architecture" },
+                { id: "web-np-wireless-pres", type: "presentation", title: "Wireless Networking" },
+                { id: "web-np-wireless-architecture-pres", type: "presentation", title: "Wireless Architecture" },
                 { id: "web-wireless-tool", type: "tool", title: "Wireless Reference Tool" },
                 { id: "web-wireless-architecture-tool", type: "tool", title: "Wireless Architecture Tool" },
                 { id: "gui-ne08-unifi-wireless", type: "lab", title: "UniFi Wireless Controller" },
-                { id: "web-ne08-wireless-scenario", type: "lab", title: "Wireless Site Survey" },
+                { id: "web-np-ne08-wireless-scenario-lab", type: "lab", title: "Wireless Site Survey" },
                 { id: "web-wireless-quiz", type: "quiz", title: "Chapter 9: Wireless Quiz" },
             ]
         },
@@ -163,10 +211,10 @@ var NETWORK_PLUS_MAP = {
             items: [
                 { id: "web-ne-10-operations", type: "module", title: "Network Operations & Monitoring" },
                 { id: "web-organizational-processes", type: "presentation", title: "Organizational Processes" },
-                { id: "web-network-monitoring", type: "presentation", title: "Network Monitoring" },
-                { id: "web-high-availability", type: "presentation", title: "High Availability" },
+                { id: "web-np-network-monitoring-pres", type: "presentation", title: "Network Monitoring" },
+                { id: "web-np-high-availability-pres", type: "presentation", title: "High Availability" },
                 { id: "web-performance-issues", type: "presentation", title: "Performance Issues" },
-                { id: "web-qos", type: "presentation", title: "QoS Tool" },
+                { id: "web-np-qos-tool", type: "presentation", title: "QoS Tool" },
                 { id: "gui-ne10-monitoring", type: "lab", title: "SNMP & Syslog Monitoring" },
                 { id: "gui-ne10-change-mgmt", type: "lab", title: "Change Management Workflow" },
                 { id: "web-operations-quiz", type: "quiz", title: "Chapter 10: Operations Quiz" },
@@ -178,7 +226,7 @@ var NETWORK_PLUS_MAP = {
             title: "Network Security",
             items: [
                 { id: "web-ne-10", type: "module", title: "Network Security Fundamentals" },
-                { id: "web-network-security", type: "presentation", title: "Network Security" },
+                { id: "web-np-network-security-pres", type: "presentation", title: "Network Security" },
                 { id: "web-security-tool", type: "tool", title: "Security Reference Tool" },
                 { id: "web-acl-tool", type: "tool", title: "ACL Tool" },
                 { id: "gui-ne10-juniper", type: "lab", title: "Juniper SRX Firewall" },
@@ -198,16 +246,16 @@ var NETWORK_PLUS_MAP = {
                 { id: "web-troubleshooting-quiz", type: "quiz", title: "Chapter 12: Troubleshooting Quiz" },
                 { id: "gui-midterm-comprehensive", type: "lab", title: "Midterm Lab" },
                 { id: "web-netplus-final-practice", type: "presentation", title: "N10-009 Practice Exam" },
-                { id: "web-networking-ch7-20", type: "presentation", title: "Workbook Ch 7-20" },
+                { id: "web-np-ch7-20-quiz", type: "presentation", title: "Workbook Ch 7-20" },
                 { id: "web-netplus-jeopardy", type: "presentation", title: "Jeopardy Review Game" },
                 { id: "web-pbq-vlan-switch", type: "presentation", title: "PBQ: VLAN Switch Config" },
                 { id: "web-pbq-network-discovery", type: "presentation", title: "PBQ: Network Discovery" },
                 { id: "web-pbq-routing-troubleshoot", type: "presentation", title: "PBQ: Routing Troubleshoot" },
                 { id: "web-pbq-network-design", type: "presentation", title: "PBQ: Network Design" },
-                { id: "web-packet-analysis", type: "presentation", title: "Packet Analysis" },
+                { id: "web-np-packet-analysis-lab", type: "presentation", title: "Packet Analysis" },
                 { id: "web-networking-fundamentals", type: "presentation", title: "Networking Fundamentals" },
-                { id: "web-vlan-config", type: "presentation", title: "VLAN Configuration" },
-                { id: "web-troubleshooting-lab", type: "presentation", title: "Troubleshooting Lab" },
+                { id: "web-np-vlan-config-lab", type: "presentation", title: "VLAN Configuration" },
+                { id: "web-np-troubleshooting-lab", type: "presentation", title: "Troubleshooting Lab" },
             ]
         },
     ]
