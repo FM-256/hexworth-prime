@@ -85,6 +85,23 @@ fi
 # ── 1. guest -> elsewhere, via iptables. This half genuinely works: that traffic is routed. ─────────
 iptables -N $CHAIN 2>/dev/null || iptables -F $CHAIN
 iptables -C FORWARD -j $CHAIN 2>/dev/null || iptables -I FORWARD 1 -j $CHAIN
+
+# ESTABLISHED/RELATED FIRST, AND THIS LINE IS WHY THE TERMINALS WORK.
+#
+# The `! -o virbr0` DROP below is meant to stop a guest reaching the internet. It also matched the
+# guests' REPLIES to the browser terminals: each wetty container lives on a docker bridge, so a reply
+# travels guest -> docker bridge, which is not virbr0, and was dropped. I applied the guard, verified
+# the terminals' HTTP endpoints still returned 200 with terminal markers, and called it verified --
+# but that only proves wetty's own page serves, not that it can reach the box behind it. The counters
+# showed ~1800 dropped packets per guest and `nc` from inside a container could not open port 22.
+# Students would have found a terminal that connects to nothing.
+#
+# Allowing ESTABLISHED,RELATED fixes it precisely: a reply belongs to a connection the CONTAINER
+# opened, so it returns here before reaching the drops, while a guest-INITIATED connection is NEW,
+# never matches this line, and is still dropped. Host-to-guest was never affected either way (local
+# delivery, not FORWARD).
+iptables -A $CHAIN -m conntrack --ctstate ESTABLISHED,RELATED -j RETURN
+
 for m in $MACS; do
   # Kept for defence in depth if br_netfilter is ever loaded. INERT on a host without it, which is
   # why it is no longer the only thing standing between two teams.
@@ -121,7 +138,9 @@ cat <<'VERIFY'
 
 VERIFY AFTER APPLYING. Do not trust this script's own output for 3 and 4; the first version of it
 printed success while isolating nothing.
-  1. a terminal still works        curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:7701/
+  1. a terminal still works        node _tools/engine1/verify-student-shell.js
+     NOT a curl of the wetty port: that proves the web page serves, not that it can reach the box.
+     Curling the endpoint is exactly how the ESTABLISHED gap above went unnoticed.
   2. provisioning still works      bash provision/inject-flag.sh engine1-team-red-cell <flagfile>
   3. teams cannot reach each other FROM INSIDE A BOX: a peer's port 22 must be unreachable
   4. no internet FROM INSIDE A BOX: 1.1.1.1:443 must be unreachable
