@@ -323,6 +323,28 @@ class NamingValidator {
             return null;
         }
 
+        // CATALOG-DECLARED TYPE WINS OVER THE FILENAME.
+        // NAME-002 exists to catch a file whose type you cannot tell. When ContentCatalog
+        // declares `components: ['module']` for a file, its type IS declared, explicitly, by
+        // the thing the platform actually reads at runtime. The missing suffix is then a
+        // convention the file does not follow, not a fact anything depends on.
+        //
+        // This mirrors the catalog-aware skips already documented on NAME-003 and NAME-001,
+        // with one difference that matters: those skip on mere PRESENCE in the catalog, because
+        // presence is what establishes identity. NAME-002 is about TYPE, so presence is not
+        // enough -- the declared components must actually CONTAIN the detected type. A file
+        // under labs/ that the catalog calls a 'quiz' is a real contradiction and keeps firing.
+        //
+        // Concretely this retires 12 fires on network-plus/modules/ne-*.html, the ten core
+        // module pages of a live course plus two variants. Renaming them to satisfy the
+        // convention would change 10 live URLs with 121 inbound references across _app and
+        // break student bookmarks, to restate a type the catalog already declares.
+        const declaredTypes = this._getCatalogTypes();
+        const declaredForFile = declaredTypes ? declaredTypes.get(normalized) : null;
+        if (declaredForFile && declaredForFile.has(detectedType)) {
+            return null;
+        }
+
         const nameWithoutExt = filename.replace(/\.html$/, '');
 
         // Check for both dot-separator and dash-separator formats
@@ -561,6 +583,51 @@ class NamingValidator {
      * Returns null if the catalog can't be loaded — callers should fall back
      * to today's strict-prefix behavior in that case.
      */
+    /**
+     * Lazily build and memoize the catalog type map for this instance.
+     *
+     * Built from this.rootPath rather than passed in as an option on purpose: the three
+     * existing callers already pass catalogHrefs, and an exemption that only works when a
+     * caller remembers a second option is an exemption that silently stops applying. Against
+     * synthetic fixtures (tests/run.js) there is no ContentCatalog.js, the map is null, and
+     * NAME-002 keeps its strict behaviour -- which is what those expectations assert.
+     */
+    _getCatalogTypes() {
+        if (this._catalogTypes === undefined) {
+            this._catalogTypes = NamingValidator.buildCatalogTypeMap(this.rootPath);
+        }
+        return this._catalogTypes;
+    }
+
+    /**
+     * Map of catalog-registered file path -> Set of components the catalog declares for it.
+     * Same extraction and href resolution as buildCatalogHrefSet below; it carries the
+     * declared `components` instead of only the fact of registration.
+     */
+    static buildCatalogTypeMap(rootPath) {
+        const catalogPath = path.resolve(rootPath, 'components', 'ContentCatalog.js');
+        if (!fs.existsSync(catalogPath)) return null;
+        try {
+            const code = fs.readFileSync(catalogPath, 'utf8');
+            const context = vm.createContext({ window: {} });
+            vm.runInContext(code, context);
+            const catalog = context.window.ContentCatalog;
+            if (!catalog || !catalog.HOUSES || !catalog.MODULES) return null;
+            const map = new Map();
+            for (const mod of catalog.MODULES) {
+                const house = catalog.HOUSES[mod.house];
+                if (!house || !mod.href || !Array.isArray(mod.components)) continue;
+                const resolved = NamingValidator._resolveCatalogHref(house.basePath, mod.href);
+                if (!resolved || !resolved.endsWith('.html')) continue;
+                if (!map.has(resolved)) map.set(resolved, new Set());
+                for (const c of mod.components) map.get(resolved).add(String(c));
+            }
+            return map;
+        } catch (e) {
+            return null;
+        }
+    }
+
     static buildCatalogHrefSet(rootPath) {
         const catalogPath = path.resolve(rootPath, 'components', 'ContentCatalog.js');
         if (!fs.existsSync(catalogPath)) return null;
