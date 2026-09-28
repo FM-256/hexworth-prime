@@ -62,6 +62,9 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   NOT deployed. NOT verified on production.
 - **Related:** BUG-270, BUG-271, taskboard 400/401/404/405, sprints TOURN-07
 
+- **STATE MEASURED 2026-09-28.** Hosting deploy B (runbook step 7, "remove the two dual-write lines") is DONE AND LIVE, not pending: on hexworth.com the world-readable `challenges` document write carries 0 crypto fields while the admin-only `flagSecrets` write carries both. The runbook's step 7 "PENDING" was stale.
+- **Remaining exposure, by the bug's own unauthenticated repro:** 5 challenge documents still publish `flagHash`+`flagSalt` -- 2 under Special Event, 3 under Cyber Tech -- and ALL FIVE BELONG TO `ended` TOURNAMENTS. The ACTIVE tournament's challenge document is clean (0/0). So offline brute force buys an attacker flags for events that are over; it is not an attack on live scoring. Worth clearing (flag values can be reused, and the platform's documented guarantee is still false for those docs) but it is not an active compromise.
+- **What remains:** runbook step 8, `Purge: ALL tournaments` on the flag-secrets card (`migrateFlagSecrets('purge', true)`), an operator console click. Also still formally gated on step 6, where production end-to-end grading has not been observed because a real capture fires the Discord webhook and is operator-gated.
 ### BUG-270 — pre-TOURN-03 tournaments are permanently stuck on the published join code  ·  [P1]  ·  open
 - **Found:** 2026-09-17 · by self during the A-to-Z tournament QA · taskboard 400
 - **Area:** `functions/index.js:7860-7867` · `_app/admin/console.html:11157`
@@ -76,9 +79,9 @@ Status: `open` · `in-progress` · `fixed-not-deployed` · `resolved`.
   so there is no admin action that can migrate an existing tournament off the fallback, and
   `functions/index.js:7863` instructs operators to "re-save it in the admin console" — a feature
   that does not exist. `deleteField` is used for unfreeze but never for `joinCode`.
-- **Fix:** not yet written. Needs a manage-panel action that writes `private/config` and clears the
-  public field in one operation. Deliberately NOT bundled into BUG-269's migration: different
-  consumer, different target, different verification query.
+- **Fix:** BUILT AND LIVE. `window.migrateJoinCode(phase, allTournaments)` (`_app/admin/console.html:12597`, taskboard 411) with four buttons in the Manage panel: copy/purge x this-tournament/all. Confirmed live on hexworth.com 2026-09-28. This entry's earlier "not yet written" was stale.
+- **CURRENT EXPOSURE, measured 2026-09-28 by the documented unauthenticated repro:** 2 of 4 tournaments still publish a plaintext `joinCode` -- Special Event and Cyber Tech -- and BOTH ARE `ended`. The ACTIVE tournament (Engine 1 Live Fire II) carries NO public joinCode field at all; it was created after the fix. And `functions/index.js:7795` re-checks status and refuses anything that is not `active` or `frozen`, so the two published codes open nothing. The symptom above -- "including Special Event which is `active` and therefore joinable" -- is no longer true. Still a real information leak worth clearing, no longer an exploitable join.
+- **What remains:** an operator click in the admin console Manage panel -- `1. Copy code` then `2. Purge public field`, or the ALL variants. Not scriptable by design: an admin-auth browser action, and a direct firebase-admin write against production is precisely what the write gate exists to prevent (CLAUDE.md rule 10, and the migration runbook says so in its own words).
 - **Verified:** n/a
 - **Related:** BUG-269, taskboard 400
 
