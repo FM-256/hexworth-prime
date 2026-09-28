@@ -929,6 +929,24 @@ service cloud.firestore {
         // via AssignmentManager.getClassProgress(), and written by
         // AssignmentManager.submitProgress (:276).
         //
+        // WRITER INVENTORY CORRECTED 2026-09-27 by Nancy: AssignmentManager is NOT the only client
+        // writer here. InstructorDashboard.js mergeStudents() (:2525-2610) does raw
+        // setDoc/deleteDoc against classes/{classId}/progress/{sourceUid} and /{targetUid} plus the
+        // /{uid}/activity sub-subcollection, as the HANDLER acting on OTHER students' rows. My
+        // original sweep named only AssignmentManager, SignalProgressSync and ProjectsProgressSync
+        // and missed it.
+        //
+        // It does not affect THIS change: the reads it performs are authorized by the handler
+        // clause below, and its writes were already denied before and after, because the
+        // create/update rule requires uid == studentUid and the caller is the handler. Which means
+        // the "Merge students" button rendered on every roster row (InstructorDashboard.js:918)
+        // CANNOT WORK TODAY and has not been able to. Filed in SEC-8 followups, with the
+        // reachability question answered: it is live UI, not dead code.
+        //
+        // The lesson for the deferred write-allowlist work below: an allowlist built only against
+        // AssignmentManager.submitProgress would lock mergeStudents out permanently and call it a
+        // fix.
+        //
         // Narrowed to the three readers that legitimately exist. Verified no student-facing
         // caller lists this collection: getClassProgress's only call sites are the two
         // instructor surfaces above. The handlerUid get() is the identical expression the

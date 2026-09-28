@@ -119,6 +119,27 @@ const FORGERY = {
     totalTimeSpent: 999999999
 };
 
+// Re-open the tenant write in memory and confirm the very assertions that pass as [clean deny]
+// in the CURRENT block flip to ALLOW. If they do not, those assertions are not measuring the rule.
+async function runMutantWrites() {
+    const env = await initializeTestEnvironment({
+        projectId: 'demo-hexworth',
+        firestore: { rules: RULES_MUTANT, host: '127.0.0.1', port: 8181 }
+    });
+    await env.clearFirestore();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+        const db = ctx.firestore();
+        await setDoc(doc(db, `tenants/${TENANT}`), { adminUids: [ADMIN], name: 'Acme' });
+        await setDoc(doc(db, PROG), { modulesCompleted: ['real-module'], quizScores: {} });
+    });
+    const student = env.authenticatedContext(STUDENT).firestore();
+    await ok('[MUTANT] re-opening the rule makes the forged write SUCCEED again (falsifiability)',
+             setDoc(doc(student, PROG), FORGERY, { merge: true }));
+    await ok('[MUTANT] re-opening the rule makes the forged updateDoc SUCCEED again',
+             updateDoc(doc(student, PROG), { quizScores: { 'web-security-quiz': 100 } }));
+    await env.cleanup();
+}
+
 async function run(label, rules, expectForgery /* 'allow' | 'deny' */) {
     const env = await initializeTestEnvironment({
         projectId: 'demo-hexworth',
@@ -185,9 +206,26 @@ async function run(label, rules, expectForgery /* 'allow' | 'deny' */) {
     await env.cleanup();
 }
 
+// MUTANT: the CURRENT rules with the tenant write put back, IN MEMORY ONLY. This is the
+// falsifiability run — it proves the CURRENT-block assertions would actually go red if someone
+// weakened the rule again, rather than passing because they can only ever pass.
+//
+// Nancy tried to establish this during review by editing firestore.rules on disk, and the repo's
+// own PostToolUse QC hook correctly stopped her (an access-control regression written to a real
+// rules file). She reverted and reported the gap honestly rather than claiming coverage. Doing it
+// in memory gets the same proof with nothing written anywhere: the string never reaches disk, so
+// there is no window in which a weakened rules file exists in the tree.
+const RULES_MUTANT = RULES_NOW.replace(ANCHOR_W,
+    `        allow write: if request.auth != null && request.auth.uid == studentUid;\n${ANCHOR_W}`);
+if (RULES_MUTANT === RULES_NOW) { console.error('SETUP FAILED: mutant construction was a no-op.'); process.exit(2); }
+
 (async () => {
     await run('PRE-FIX', RULES_PREFIX, 'allow');   // must ALLOW — proves the test measures the fix
     await run('CURRENT', RULES_NOW,   'deny');     // must DENY  — proves the fix works
+    // Only the tenant-write attacks are re-opened in the mutant, so only those are expected to
+    // flip. The legacy-read assertions stay in their CURRENT (denied) state, which is why this
+    // run uses the 'allow' expectation for writes but still passes the read checks.
+    await runMutantWrites();
     for (const [v, n] of out) console.log(`  ${v.startsWith('PASS') ? '\x1b[32m' + v + '\x1b[0m' : '\x1b[31m' + v + '\x1b[0m'}  ${n}`);
     console.log(`\n${pass} passed, ${fail} failed`);
     process.exit(fail ? 1 : 0);
