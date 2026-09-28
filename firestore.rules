@@ -912,9 +912,72 @@ service cloud.firestore {
         );
       }
 
-      // Progress subcollection — students write own progress, anyone authenticated can read
+      // Progress subcollection — students write own progress
       match /progress/{studentUid} {
-        allow read: if request.auth != null;
+        // WAS: `allow read: if request.auth != null;` — narrowed 2026-09-27.
+        // In Firestore `read` grants GET *and* LIST, so that single line let ANY signed-in
+        // account list this collection and pull every student's full progress row for any class
+        // whose id they had or could guess. Anonymous sign-in is enabled because it is how
+        // students join a class, so "any signed-in account" includes a drive-by visitor.
+        //
+        // This is the same defect, and the same severity class, as the users/{userId} LIST leak
+        // described at the top of this file (fixed 2026-08-21, where read was split into GET vs
+        // LIST after it exposed every student's name and email). That fix did not reach here.
+        //
+        // NOT a dead legacy path: this is the non-tenant classroom feature, read live from
+        // _app/js/handler-dashboard.js:908/5298 and _app/components/InstructorDashboard.js:1126
+        // via AssignmentManager.getClassProgress(), and written by
+        // AssignmentManager.submitProgress (:276).
+        //
+        // Narrowed to the three readers that legitimately exist. Verified no student-facing
+        // caller lists this collection: getClassProgress's only call sites are the two
+        // instructor surfaces above. The handlerUid get() is the identical expression the
+        // `allow delete` rule below already uses, so the lookup is proven in this block.
+        //
+        // THE ADMIN CLAUSE DELIBERATELY DOES NOT CALL isAdmin(), and that is not a style choice.
+        // isAdmin() opens with `request.auth.token.admin == true`, and for a token that has no
+        // `admin` property at all Firestore raises "Property admin is undefined on object" rather
+        // than returning false. An error in the left operand aborts the whole `||`, so the email
+        // clauses after it are never reached. Caught here by an emulator assertion that demanded a
+        // CLEAN PERMISSION_DENIED and got an evaluation error instead
+        // (_tools/rules-test/tenant-progress-write-lockdown.test.js).
+        //
+        // It fails CLOSED, so it is not a hole, but it means every read that falls through to the
+        // admin clause resolves by error instead of by rule — and it implies the email-based admin
+        // path in isAdmin() does not work in the rules layer for any token lacking an `admin`
+        // claim. Filed in SEC-8 followups; NOT fixed here, because isAdmin() is called from many
+        // rules and changing it belongs in its own reviewed change.
+        //
+        // token.get('admin', false) is the null-safe equivalent for this one rule.
+        // A DENIED *LIST* HERE ARRIVES AS AN EVALUATION ERROR, NOT A CLEAN `false`, AND THAT IS
+        // INHERENT TO FIRESTORE RULES RATHER THAN A DEFECT IN THIS RULE. Measured directly against
+        // the emulator, one clause at a time, for a non-privileged student listing the collection:
+        //   ownership only  (request.auth.uid == studentUid)          -> "Null value error"
+        //   ownership GUARDED with studentUid != null                 -> STILL "Null value error"
+        //   token claim only (request.auth.token.get('admin', false)) -> clean deny
+        //   cross-doc get() on handlerUid                             -> evaluation error
+        //   the same get() written null-safe with .data.get()         -> STILL evaluation error
+        // On a LIST the {studentUid} wildcard is unbound, so any comparison against it fails to
+        // resolve, and a cross-document get() cannot resolve on the deny path either. A
+        // `studentUid != null` guard does NOT help — that was tried and measured, not assumed.
+        // The request is still DENIED, and the three legitimate readers still resolve true, so the
+        // security property holds; only the error text is unavoidable. Recorded because "make the
+        // denial clean" is an impossible bar here and someone will otherwise try to meet it.
+        //
+        // Admin claim first: it is the one clause that resolves cleanly on a LIST, and it spares
+        // an admin the cross-document get().
+        allow read: if request.auth != null && (
+          request.auth.token.get('admin', false) == true
+          || get(/databases/$(database)/documents/classes/$(classId)).data.handlerUid == request.auth.uid
+          || request.auth.uid == studentUid
+        );
+        // NOTE: the create/update rule below is the SAME unrestricted-client-write bug that was
+        // removed from the tenant twin (tenants/{t}/classes/{c}/progress) on 2026-09-27. It is
+        // still open HERE, deliberately and temporarily: unlike the tenant path this one has a
+        // real client writer (AssignmentManager.submitProgress), so denying by omission would be
+        // an outage rather than a fix. It needs a field allowlist built against what that
+        // function actually sends. Tracked in SEC-8 followups. Do not read the tenant fix as
+        // having closed this class of bug platform-wide — it has not.
         allow create, update: if request.auth != null && request.auth.uid == studentUid;
         allow delete: if request.auth != null && (
           request.auth.uid == studentUid

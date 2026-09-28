@@ -6563,7 +6563,23 @@ exports.syncClassProgress = onCall(cfOptions, async (request) => {
         }
 
         if (type === 'quiz' && score !== undefined) {
-            updates[`quizScores.${moduleId}`] = Number(score);
+            // BOUNDS-CHECK THE SCORE. This was `Number(score)` with nothing else: no range, no
+            // finite check. `score` arrives from the client, so a signed-in student could call
+            // this callable directly with score: 999999 and have it land in the document the
+            // instructor's Course Progress view renders. Removing the rules-layer write on the
+            // tenant progress doc (firestore.rules, 2026-09-27) closed the RAW-PATCH route to the
+            // same forgery and left this one open — the front door.
+            //
+            // A clamp is not a substitute for validating WHAT was completed: `moduleId` is still
+            // unchecked while _ENFORCE_COMPLETION_REGISTRY is false, so a student can still post a
+            // plausible score for a quiz they never opened. This only stops the value itself being
+            // arbitrary, so a forged row can no longer be distinguished-by-absurdity OR inflate
+            // class averages without bound. Tracked in SEC-8.
+            const _n = Number(score);
+            if (!Number.isFinite(_n)) {
+                throw new HttpsError('invalid-argument', 'score must be a finite number');
+            }
+            updates[`quizScores.${moduleId}`] = Math.max(0, Math.min(100, Math.round(_n)));
         }
 
         if (type === 'module' || type === 'presentation' || type === 'tool') {
