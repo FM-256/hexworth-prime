@@ -1183,7 +1183,45 @@ service cloud.firestore {
           request.auth.uid == studentUid ||
           request.auth.uid in get(/databases/$(database)/documents/tenants/$(tenantId)).data.adminUids
         );
-        allow write: if request.auth != null && request.auth.uid == studentUid;
+
+        // WAS: `allow write: if request.auth != null && request.auth.uid == studentUid;`
+        // Removed 2026-09-27. That was an UNRESTRICTED client write — no field allowlist, no
+        // hasOnly(), no id validation — on the exact document the instructor's Course Progress
+        // view renders. getStudentProgress (functions/index.js:5245 reads the whole collection,
+        // :5273 a single student) forwards modulesCompleted, quizScores, labsCompleted,
+        // chaptersCompleted and totalTimeSpent from here VERBATIM to the professor.
+        //
+        // So a signed-in student could PATCH their own document over the REST API, skipping the
+        // validating syncClassProgress Cloud Function entirely, and write a 100% on a quiz they
+        // never opened, forty fabricated module ids, or any totalTimeSpent they liked. The
+        // gradebook would render it as fact. That is a misrepresentation of completion and
+        // scores, not a cosmetic XP inflation.
+        //
+        // DENIED BY OMISSION rather than tightened to a field allowlist, because nothing
+        // client-side writes here at all. Every writer is Admin SDK inside a Cloud Function,
+        // which bypasses these rules: functions/index.js:5191/5195 (recordModuleProgress),
+        // :6157, :6382. Swept _app for any client write to this path — setDoc/updateDoc/addDoc
+        // against a progress ref — and the only hits are OTHER collections:
+        // AssignmentManager.js:277 writes classes/{classId}/progress (the legacy non-tenant
+        // path, see its own block above), SignalProgressSync writes signal_progress, and
+        // ProjectsProgressSync writes projects_progress. Closing this breaks no caller.
+        //
+        // This also makes the parent consistent with its own children: every subcollection
+        // below already carries `allow write: if false` under the comment "ALL writes go via
+        // Cloud Functions". The parent document was the one place that contradicted it.
+        //
+        // Found by Mallory 2026-09-27 while auditing whether a student can self-award
+        // completion. The file had ALREADY named this exact failure mode twelve lines above, on
+        // the assignments block: "Fixing the parent and not the child is how a sibling survives
+        // a fix — check one level down." The users/{userId} rule was hardened twice for the same
+        // class of bug (BUG-262, BUG-263); this sibling never was.
+        //
+        // NOT A COMPLETE FIX FOR SELF-AWARDED COMPLETION, and that must not be implied. The
+        // honest path remains open: _ENFORCE_COMPLETION_REGISTRY is false at
+        // functions/index.js:414, so syncClassProgress still accepts ANY moduleId string from a
+        // signed-in caller. That flag was disabled deliberately on 2026-09-07 after it broke 74
+        // live AI-102 pages. This change closes the RULES bypass only; the callable's own
+        // validation is tracked separately.
 
         // ─── Analytics v2 — Event Log Subcollections ──────────────
         // Architecture: _docs/architecture/student-analytics-v2.md §4.5
