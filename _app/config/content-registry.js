@@ -6307,7 +6307,7 @@ const ContentRegistry = {
             topics: ['cloud', 'virtualization', 'sdn', 'networking'],
             paths: ['comptia-network'],
             components: {
-                presentation: 'houses/web/presentations/web-cloud-networking.presentation.html'
+                presentation: 'houses/web/network-plus/presentations/cloud-networking.presentation.html'
             },
             prerequisites: [],
             objectives: ['N10-009 1.2', 'N10-009 1.6']
@@ -6323,7 +6323,7 @@ const ContentRegistry = {
             topics: ['wan', 'mpls', 'vpn', 'networking'],
             paths: ['comptia-network'],
             components: {
-                presentation: 'houses/web/presentations/web-wan-technologies.presentation.html'
+                presentation: 'houses/web/network-plus/presentations/wan-technologies.presentation.html'
             },
             prerequisites: [],
             objectives: ['N10-009 1.2', 'N10-009 2.4']
@@ -6339,7 +6339,7 @@ const ContentRegistry = {
             topics: ['security', 'firewalls', 'aaa', 'zero-trust', 'networking'],
             paths: ['comptia-network', 'comptia-security'],
             components: {
-                presentation: 'houses/web/presentations/web-network-security.presentation.html'
+                presentation: 'houses/web/network-plus/presentations/network-security.presentation.html'
             },
             prerequisites: [],
             objectives: ['N10-009 4.1', 'N10-009 4.2', 'N10-009 4.3']
@@ -6355,7 +6355,7 @@ const ContentRegistry = {
             topics: ['snmp', 'syslog', 'netflow', 'qos', 'networking'],
             paths: ['comptia-network'],
             components: {
-                presentation: 'houses/web/presentations/web-network-monitoring.presentation.html'
+                presentation: 'houses/web/network-plus/presentations/network-monitoring.presentation.html'
             },
             prerequisites: [],
             objectives: ['N10-009 3.1', 'N10-009 3.2', 'N10-009 3.3']
@@ -6371,7 +6371,7 @@ const ContentRegistry = {
             topics: ['high-availability', 'disaster-recovery', 'redundancy', 'networking'],
             paths: ['comptia-network'],
             components: {
-                presentation: 'houses/web/presentations/web-high-availability.presentation.html'
+                presentation: 'houses/web/network-plus/presentations/high-availability.presentation.html'
             },
             prerequisites: [],
             objectives: ['N10-009 3.1', 'N10-009 3.4']
