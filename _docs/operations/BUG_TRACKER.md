@@ -14,6 +14,17 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-272 — students can fabricate completed:true / score:100 for any REAL assignment via the completions map  ·  [P1]  ·  open
+- **Found:** 2026-10-01 · by Mallory during the SEC-9 gate, reproduced independently by self and by Nancy · taskboard 426
+- **Area:** `firestore.rules` `classes/{classId}/progress/{studentUid}` · consumers in `_app/js/handler-dashboard.js`, `_app/components/InstructorDashboard.js`, `_app/dashboard.html`
+- **Symptom:** a signed-in student writes `completions: {'<real-assignment-id>': {completed:true, score:100}}` to their own progress row and it is accepted. The instructor sees a fabricated completion and perfect score as genuine. Nancy additionally proved an EXISTING `{completed:false, score:40}` can be overwritten to `{completed:true, score:100}` in a single write.
+- **Repro:** emulator, rules read live from `firestore.rules`: `setDoc(doc(db,'classes/<c>/progress/<ownUid>'), {uid, displayName, updatedAt, completions:{'aplus-core1-ch05':{completed:true,score:100}}}, {merge:true})` → ALLOWED under both the pre-SEC-9 and post-SEC-9 rule. Real assignment ids are harvestable: `classes/{classId}/assignments` is `allow read: if request.auth != null`; module ids are static client JS.
+- **Root cause:** SEC-9's `hasOnly()` allowlist constrains TOP-LEVEL keys only, and `completions` is a free-form map ON the allowlist, so its contents are never inspected. Firestore rules have no iteration primitive, so per-key VALUES cannot be validated against ground truth. (Correction to an earlier overstatement of mine: rules CAN see which keys changed, via `completions.diff(resource.data.completions).affectedKeys()`; what is impossible is validating the value at each dynamic key.)
+- **Blast radius:** per-assignment completion badge (`handler-dashboard.js:857-862`); overall completion %, labs-completed and the <40% at-risk flag (`:1097-1104`, `InstructorDashboard.js:1156-1163`); grade-breakdown score average (`:1271+`); completion trend chart (`:1187-1209`). `dashboard.html:8875` also pulls the forged map back into the student's own localStorage, reaching anything that trusts those keys for content gating.
+- **Fix:** NOT FIXED. SEC-9 (commit `c48214d27`) narrowed the same document to an allowlist and closed arbitrary top-level fields plus uid forgery, but explicitly NOT this. Structural fix: route completion writes through a Cloud Function validating contentId against the class's assignments and bounding the score — the shape already used on the tenant path — and re-enable `_ENFORCE_COMPLETION_REGISTRY` (`functions/index.js:414`), which is false and makes `syncClassProgress` accept any moduleId.
+- **Verified:** open. Emulator-proven three times independently (Mallory, self, Nancy). No production write attempted.
+- **Related:** SEC-9, taskboard 426, and the sibling client-trust defects taskboard 304 / 343 / 355 (`syncProgress` unions client-supplied achievements; `ModuleProgress.complete()` is a client-side XP mint). BUG-262/263 closed this same class on `users/{userId}`.
+
 ### BUG-NNN — <one-line title>  ·  [severity P0-P3]  ·  [status]
 - **Found:** YYYY-MM-DD · by <Nancy|Chris|Karl|user|scan|self> · in <session/task>
 - **Area:** <file:line or feature>

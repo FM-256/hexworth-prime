@@ -75,6 +75,18 @@ async function run(label, rules, expectForged) {
     // THE OUTAGE CASE the census exists to prove
     await no(t('STRAY-FIELD doc is BLOCKED until cleaned (census precondition)'), setDoc(doc(stray, STRAY), { updatedAt: new Date(), uid: 'stray-student' }, { merge: true }));
   }
+  /* SEC-10 / BUG-272, KNOWN OPEN AND ASSERTED AS SUCH. The allowlist constrains TOP-LEVEL keys, and
+     `completions` is a free-form map ON the list, so hasOnly() never inspects it. A student can
+     therefore fabricate a completion and a perfect score for a REAL assignment id, and can overwrite
+     an existing honest score upward. Both are asserted here with ok() rather than no(), deliberately:
+     the suite was previously SILENT on the residual, so a future edit that widened the hole further —
+     or a tightening attempt that closed it — would have produced no signal either way. These two
+     assertions are the ones to FLIP to no() when SEC-10 is fixed. Nancy's gate finding. */
+  await ok(t('SEC-10 OPEN: fabricate completed+perfect score for a REAL assignment id'),
+           setDoc(doc(me, MINE), { ...LEGIT, completions: { 'aplus-core1-ch05': { completed: true, score: 100, completedAt: '2026-10-01', duration: 1 } } }, { merge: true }));
+  await ok(t('SEC-10 OPEN: overwrite an existing honest score upward'),
+           setDoc(doc(me, MINE), { ...LEGIT, completions: { 'web-osi': { completed: true, score: 100, completedAt: '2026-10-01', duration: 1 } } }, { merge: true }));
+
   // unchanged in both: nobody writes another student's row
   await no(t("another student cannot write my row"), setDoc(doc(other, MINE), LEGIT, { merge: true }));
   await env.cleanup();
