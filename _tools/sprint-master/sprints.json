@@ -28293,6 +28293,20 @@
         "The standing editorial question needs convening. Nancy's framing note: the SIEM/ransomware/C2 scenario Chris praises as network-security's spine is itself an instance of the pattern that vote is about, so it should be the worked example."
       ],
       "deploy_state": "decision only — no file or catalog change made"
+    },
+    {
+      "id": "SEC-9",
+      "series": "SEC",
+      "status": "in-progress",
+      "priority": "high",
+      "houses": [
+        "all"
+      ],
+      "created": "2026-10-01",
+      "updated": "2026-10-01",
+      "title": "Legacy classes/{id}/progress field allowlist — WRITTEN AND A/B PROVEN, blocked on a 2-field data cleanup before deploy",
+      "notes": "Closes the last unrestricted client write of the SEC-8 family. `classes/{classId}/progress/{studentUid}` allowed `create, update` on nothing but `uid == studentUid`, so a student could write ANY field with ANY value to their own row -- the same shape removed from the tenant twin on 2026-09-27, which could not be closed the same way because this path HAS real client writers.\n\nWRITER SET, enumerated from code and verified complete:\n  AssignmentManager.submitProgress (:276)   -> uid, displayName, completions, updatedAt  (merge)\n  InstructorDashboard.mergeStudents (:2580) -> uid, completions, mergedFrom + a SPREAD of the whole existing target doc. Currently DENIED by the uid rule, so merge has never worked.\n  ProgressManager: 0 write calls, delegates to AssignmentManager.\n  Cloud Functions: NONE. All 11 progress references in functions/index.js are the TENANT path; verified precisely after an earlier looser grep suggested otherwise.\n\nALLOWLIST = the UNION of both writers: uid, displayName, completions, updatedAt, mergedFrom. uid is also PINNED to the document id so a student cannot write another uid into their own row (the instructor dashboard keys on that field). `mergedFrom` is included although 0 of 69 docs carry it, so that fixing merge later needs only the uid rule relaxed -- Nancy's warning that an allowlist from submitProgress alone would lock the handler out and look like a fix.\n\nWHY A PRODUCTION CENSUS WAS REQUIRED, and it found a real precondition. hasOnly() constrains the RESULTING document, not the delta, so any field already on a doc but absent from the list denies that student's NEXT merge write and silently ends their progress recording. Static analysis cannot see fields written by code that no longer exists. Read-only census, key names and counts only, no values: 69 progress documents across 6 of 7 classes. uid/displayName/completions/updatedAt on all 69. mergedFrom on ZERO. And ONE document carrying two literal dotted keys, `completions.shield-cia-triad` and `completions.code-git-basics`, left by code that no longer exists (no current source can produce the pattern). Both DUPLICATE entries already present in that document's real completions map, which has 128 entries -- so NO completion is lost and the strays are inert.\n\nPROVEN: _tools/rules-test/legacy-progress-allowlist.test.js, 10/10, A/B against the pre-fix rule. PRE-FIX the forged write (xp: 999999, role: 'admin') SUCCEEDS and so does writing another student's uid into your own row; CURRENT both are denied. submitProgress's exact shape is accepted in BOTH versions, so the allowlist costs no legitimate write. A cross-student write is denied in both. AND the test asserts the stray-field document is BLOCKED under the new rule, so the cleanup is a proven precondition rather than a line in a commit message.\n\nBLOCKED ON ONE OPERATOR-AUTHORISED WRITE: delete those 2 stray fields from that 1 document BEFORE this rule deploys, or its owner stops recording progress. They are verified duplicates, so the deletion loses nothing. Will archive the document first (0600, outside the repo) and delete behind a transaction interlock that re-confirms each stray's contentId is still present in the real completions map.",
+      "deploy_state": "rule written + A/B proven, NOT deployed — requires the 2-field data cleanup first"
     }
   ]
 }

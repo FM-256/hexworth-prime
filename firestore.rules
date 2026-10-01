@@ -996,7 +996,39 @@ service cloud.firestore {
         // an outage rather than a fix. It needs a field allowlist built against what that
         // function actually sends. Tracked in SEC-8 followups. Do not read the tenant fix as
         // having closed this class of bug platform-wide — it has not.
-        allow create, update: if request.auth != null && request.auth.uid == studentUid;
+        // FIELD ALLOWLIST added 2026-10-01. The uid restriction alone let a student write ANY
+        // field, with any value, to their own row on this collection -- the same unrestricted-write
+        // shape that was removed from the tenant twin (tenants/{t}/classes/{c}/progress) on
+        // 2026-09-27. It could not be closed the same way, by denying client writes outright,
+        // because unlike the tenant path this one HAS real client writers.
+        //
+        // THE ALLOWLIST IS THE UNION OF WHAT BOTH WRITERS SEND, not just the one that works today:
+        //   AssignmentManager.submitProgress (:276)  -> uid, displayName, completions, updatedAt
+        //   InstructorDashboard.mergeStudents (:2580) -> uid, completions, mergedFrom, and a
+        //       SPREAD of the whole existing target document
+        // `mergedFrom` is listed although no document carries it (census: 0 of 69) and merge cannot
+        // currently succeed, precisely so that fixing merge later needs only the uid rule relaxed
+        // and not this allowlist re-derived. Nancy's warning: an allowlist built from submitProgress
+        // alone would lock the handler out permanently and look like a fix.
+        //
+        // WHY A PRODUCTION CENSUS WAS REQUIRED FIRST, and this is the part worth keeping. hasOnly()
+        // constrains the RESULTING document, not the delta, so any field already sitting on a doc
+        // that is absent from this list would deny that student's NEXT merge write -- silently
+        // ending their progress recording. Static analysis cannot see fields written by code that
+        // no longer exists. Census of all 69 documents across 6 classes (2026-10-01, read-only, key
+        // names and counts only): uid / displayName / completions / updatedAt on all 69, and TWO
+        // stray literal dotted keys `completions.shield-cia-triad` and `completions.code-git-basics`
+        // on ONE document. Both duplicate entries already present in that doc's real completions
+        // map, so no completion is lost, and no current code can produce the pattern -- it is a
+        // historical artifact. THAT ONE DOCUMENT MUST BE CLEANED BEFORE THIS RULE DEPLOYS, or its
+        // owner stops recording progress. Tracked with the deploy.
+        //
+        // uid is also PINNED to the document id so a student cannot write someone else's uid into
+        // their own row and confuse the instructor dashboard, which keys on that field.
+        allow create, update: if request.auth != null
+          && request.auth.uid == studentUid
+          && request.resource.data.keys().hasOnly(['uid', 'displayName', 'completions', 'updatedAt', 'mergedFrom'])
+          && request.resource.data.uid == studentUid;
         allow delete: if request.auth != null && (
           request.auth.uid == studentUid
           || get(/databases/$(database)/documents/classes/$(classId)).data.handlerUid == request.auth.uid
