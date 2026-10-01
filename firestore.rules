@@ -1025,6 +1025,33 @@ service cloud.firestore {
         //
         // uid is also PINNED to the document id so a student cannot write someone else's uid into
         // their own row and confuse the instructor dashboard, which keys on that field.
+        // THIS IS NOT AN INTEGRITY FIX, AND THAT MUST NOT BE IMPLIED. It closes TWO vectors --
+        // arbitrary top-level fields (xp, role, anything invented) and writing another student's uid
+        // into your own row -- and it leaves the one that matters most WIDE OPEN.
+        //
+        // `completions` is a free-form MAP and it is ON the allowlist, so hasOnly() never looks
+        // inside it. A signed-in student can write
+        //     completions: { '<any real assignment id>': { completed: true, score: 100 } }
+        // to their own row and it is ACCEPTED -- a fabricated perfect score, which the instructor's
+        // gradebook renders as genuine (per-assignment badge, overall completion %, labs-completed,
+        // the <40% at-risk flag, the grade-breakdown average, the completion trend chart). An
+        // EXISTING honest score can also be overwritten upward in a single write. Real assignment
+        // ids are harvestable because classes/{classId}/assignments is `allow read: if
+        // request.auth != null`. Proven in the emulator three times independently.
+        //
+        // Tracked as SEC-10 / BUG-272 / taskboard 426, filed beside the sibling client-trust defects
+        // taskboard 304, 343 and 355. The two SEC-10-OPEN assertions in
+        // _tools/rules-test/legacy-progress-allowlist.test.js deliberately assert the hole as `ok()`
+        // so it cannot be silently widened or silently believed fixed; flip them to `no()` when it is.
+        //
+        // RULES CANNOT CLOSE IT. There is no iteration primitive, so the VALUE at each dynamic key
+        // cannot be checked against ground truth. (Precisely: rules CAN see which keys changed, via
+        // completions.diff(resource.data.completions).affectedKeys() -- an earlier version of this
+        // comment overstated it as the map being opaque. What is impossible is validating per-key
+        // values.) The structural fix is the shape used on the tenant twin below: deny client writes
+        // and route completion recording through a Cloud Function that validates the contentId
+        // against the class's assignments and bounds the score -- which also requires re-enabling
+        // _ENFORCE_COMPLETION_REGISTRY (functions/index.js:414), currently false.
         allow create, update: if request.auth != null
           && request.auth.uid == studentUid
           && request.resource.data.keys().hasOnly(['uid', 'displayName', 'completions', 'updatedAt', 'mergedFrom'])
