@@ -114,6 +114,7 @@ const { rejectReason } = require(path.join(__dirname, 'refresh-legacy-floor.js')
 function armB(known) {
     const APP = path.join(__dirname, '..', '..', '_app');
     const out = [];
+    const unresolvable = [];
     const seen = new Set();
 
     /* Independent declarator scan: take each declaration statement, then pull every
@@ -240,7 +241,12 @@ function armB(known) {
             for (const m of src.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
                 const house = resolve(m[1], vars);
                 const key = resolve(m[2], vars);
-                if (!house || !key) continue;           // genuinely undeterminable without running it
+                if (!house || !key) {
+                    // Genuinely undeterminable without running the page. Counted, not skipped —
+                    // see ARM C. An unresolvable site is the ONE case neither arm can vouch for.
+                    unresolvable.push({ where: path.relative(path.join(APP, '..'), fp), expr: m[0].slice(25).trim().slice(0, 48) });
+                    continue;
+                }
                 if (known.has(key) || known.has(house + '-' + key)) continue;
                 const dedupe = house + '|' + key;
                 if (seen.has(dedupe)) continue;
@@ -249,7 +255,9 @@ function armB(known) {
             }
         }
     })(APP);
-    return out.sort((a, b) => a.id.localeCompare(b.id));
+    out.sort((a, b) => a.id.localeCompare(b.id));
+    out.unresolvable = unresolvable;
+    return out;
 }
 
 async function main() {
@@ -327,7 +335,8 @@ async function main() {
 
     // ── ARM B: STATIC. Ids built at runtime, which no live read can see until someone earns one ──
     console.log('\n  ARM B — runtime-built ids resolved statically (catches unused/new content):');
-    const staticMiss = armB(known);
+    const staticMissRaw = armB(known);
+    const staticMiss = staticMissRaw;
     if (staticMiss.length) {
         console.error(`  ${staticMiss.length} resolvable id(s) are NOT in the registry. These reject on a student's FIRST completion.`);
         for (const m of staticMiss.slice(0, 24)) console.error(`     ${m.id}   (${m.where})`);
@@ -336,13 +345,43 @@ async function main() {
         console.log('    no gaps — every statically resolvable runtime-built id is registered.');
     }
 
+    /* ── ARM C: THE RESIDUAL NEITHER ARM CAN VOUCH FOR ──────────────────────────────────────────
+     * Both arms reporting zero is easy to read as "enforcement is safe now". It is not, and this
+     * is the honest reason. Some call sites build the id from an object property or a loop
+     * variable — `ModuleProgress.complete('divergent', _config.id)` — and no static pass can
+     * resolve those without running the page. For such content the ONLY coverage is the legacy
+     * floor, which records what students already hold. So an unresolvable site whose content
+     * NOBODY HAS COMPLETED YET is invisible to every check here: ARM A sees no live id, ARM B
+     * cannot resolve it, and the drift gate compares the generator to itself.
+     *
+     * That is precisely the 2026-09-07 shape. It is reported as a NUMBER rather than left as a
+     * silence, because a zero from the other two arms is otherwise indistinguishable from proof. */
+    const unres = staticMissRaw.unresolvable || [];
+    console.log('\n  ARM C — call sites no static pass can resolve (residual, NOT a blocker):');
+    if (!unres.length) console.log('    none.');
+    else {
+        const byFile = new Map();
+        for (const u of unres) byFile.set(u.where, (byFile.get(u.where) || 0) + 1);
+        console.log(`    ${unres.length} call site(s) across ${byFile.size} file(s) build the id at runtime from an`);
+        console.log('    object property or loop variable. Their ids are covered ONLY if a student already holds');
+        console.log('    one (via the legacy floor). New content behind these sites is invisible to ARM A and ARM B.');
+        for (const [f, n] of [...byFile.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6)) {
+            console.log(`      ${String(n).padStart(3)}x  ${f}`);
+        }
+        if (byFile.size > 6) console.log(`      … +${byFile.size - 6} more file(s)`);
+    }
+
     const total = blockers + staticMiss.length;
     console.log();
     if (total) {
         console.error(`  ${total} TOTAL BLOCKER(S). Enforcement is NOT safe to enable.`);
         return 1;
     }
-    console.log('  NO BLOCKERS on either arm.');
+    console.log('  NO BLOCKERS on ARM A or ARM B.');
+    if (unres.length) {
+        console.log(`  ARM C's ${unres.length} unresolvable call site(s) remain the residual: content behind them is`);
+        console.log('  covered only once a student has completed it, so it is UNPROVEN rather than clear.');
+    }
     console.log('  This is NOT clearance to flip _ENFORCE_COMPLETION_REGISTRY; read this file\'s header.');
     return 0;
 }
