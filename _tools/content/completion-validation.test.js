@@ -135,6 +135,64 @@ function main() {
                     'ctf_fake99', 'anything-i-want-not-even-house-shaped', 'module_XXXXXX'];
     for (const f of forged) chk(`fabricated id rejected: ${f}`, !R.has(f), 'ACCEPTED by the registry');
 
+    /* ---- 4. THE FLOOR-REFRESHER PREDICATE MUST NOT REJECT A REAL ID -------------------
+       Nancy BLOCKED the floor refresher because its reject predicate threw out any id containing
+       a dot as "a dotted field NAME artifact." Two real, declared, currently-reachable ids contain
+       dots, are written by ModuleProgress.complete() to the very surfaces the refresher reads, and
+       were ALREADY in the registry via the call-site extractor:
+
+           dark-arts-redteam.barricade   _app/dark-arts/vault/modules/redteam.barricade.html:15
+           shield-eh-exam-1-a.exam       _app/houses/shield/exams/shield-eh-exam-1-a.exam.html:264
+
+       Because registry-coverage.js SHARES that predicate, a wrong answer mis-filed the same id in
+       both tools at once — reporting a real coverage BLOCKER as "malformed, expected" and hiding
+       precisely the failure the chain exists to catch. It stayed invisible in the first run only
+       because no live completion for that family happened to be missing from the registry yet.
+       Luck is not a test, so here is the test. */
+    const { rejectReason } = require(path.join(REPO, '_tools/content/refresh-legacy-floor.js'));
+
+    for (const [id, where] of [['dark-arts-redteam.barricade', '_app/dark-arts/vault/modules/redteam.barricade.html:15'],
+                               ['shield-eh-exam-1-a.exam', '_app/houses/shield/exams/shield-eh-exam-1-a.exam.html:264']])
+        chk(`floor predicate accepts the real dotted id ${id}`, rejectReason(id) === null,
+            `REJECTED as "${rejectReason(id)}" — declared at ${where}`);
+
+    /* The two named ids are the ones that were caught. Enumerating only those would re-test the
+       last mistake and miss the next one, so sweep the WHOLE canonical id space: anything the
+       registry's own extractor produced must survive the predicate. The exceptions below are not
+       content ids at all — they are gen-completion-registry.js capturing a JS expression as a
+       string literal from a template call site. Asserting EQUALITY rather than membership means a
+       new artifact, or a newly-rejected real id, fails this test instead of quietly joining a
+       growing allowlist of excuses. */
+    const EXTRACTOR_ARTIFACTS = [
+        "code-pyh-' + LAB_ID", "code-pyh-' + QUIZ_ID", "code-pyh-' + moduleId",
+        "matrix-op-' + config.id", "op-' + config.id",
+        "pyh-' + LAB_ID", "pyh-' + QUIZ_ID", "pyh-' + moduleId"
+    ];
+    /* I first enumerated only the 2 of these that Nancy surfaced, because she found them by
+       filtering the registry for dots and these other 6 contain none. Sweeping with the whole
+       predicate instead of a hand-picked filter immediately found all 8 — which is the argument
+       for the sweep. Each is `gen-completion-registry.js` storing unresolved JS expression text.
+       They are inert as allowlist entries (no student can hold one), but they are the VISIBLE HALF
+       of a real gap: the REAL ids those call sites build at runtime are absent from the registry.
+       See BUG-273 and ARM B of _tools/content/registry-coverage.js, which resolves them. */
+    const rejectedRegistryIds = [...R].filter(id => rejectReason(id) !== null).sort();
+    chk(`floor predicate accepts every registry id except the ${EXTRACTOR_ARTIFACTS.length} known extractor artifacts`,
+        JSON.stringify(rejectedRegistryIds) === JSON.stringify([...EXTRACTOR_ARTIFACTS].sort()),
+        `rejected ${rejectedRegistryIds.length}: ${JSON.stringify(rejectedRegistryIds)}`);
+
+    /* Self-consistency: the committed floor must never hold an id its own predicate would throw
+       out. If it does, one of the two is wrong and students are the ones who pay. */
+    const floorIds = JSON.parse(fs.readFileSync(path.join(REPO, '_tools/content/legacy-completion-ids.json'), 'utf8')).ids || [];
+    const selfRejected = floorIds.filter(id => rejectReason(id) !== null);
+    chk('committed floor holds nothing its own predicate rejects', selfRejected.length === 0,
+        `${selfRejected.length} self-rejected: ${JSON.stringify(selfRejected.slice(0, 6))}`);
+
+    /* And the narrowing must not have gone so far that the PROVEN-malformed keys slip through.
+       These three are in production completion maps right now (BUG-272 production evidence). */
+    for (const bad of ['undefined', '[object Object]', 'any_id'])
+        chk(`floor predicate still rejects the proven-malformed key ${JSON.stringify(bad)}`,
+            rejectReason(bad) !== null, 'ACCEPTED — it would be blessed into the allowlist');
+
     console.log(`\n  ${pass}/${pass + fail} passed`);
     return fail ? 1 : 0;
 }

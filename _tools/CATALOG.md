@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-09-27 18:37 · **1359 scripts** · 48 wired into a gate · 334 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 552 not in git
+**Generated:** 2026-10-07 21:53 · **1364 scripts** · 48 wired into a gate · 339 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 550 not in git
 
 ## Read this before writing a new script
 
@@ -301,6 +301,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `publish-solution.py` | CALLED | 4 | 2026-09-20 | yes |  |
 | `publish-wsa.py` | ORPHAN | 0 | 2026-06-25 | yes |  |
 
+### `_tools/content` — 2 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `refresh-legacy-floor.js` | CALLED | 4 | 2026-10-07 | yes | Refreshes _tools/content/legacy-completion-ids.json from LIVE progress data so the completion registry cannot reject work a student has already earned. --check fails if live data holds an id the committed floor does not. |
+| `registry-coverage.js` | CALLED | 2 | 2026-10-07 | yes | Measures whether functions/completion-registry.json covers every completion id students actually hold, per surface. Answers ONE question: would turning on _ENFORCE_COMPLETION_REGISTRY reject work a real student already earned? |
+
 ### `_tools/covers` — 10 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
@@ -424,7 +431,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `bug048-classify.js` | CALLED | 1 | 2026-07-29 | yes |  |
 | `card-click-probe.js` | DOCS-ONLY | 0 | 2026-07-31 | yes |  |
 | `card-shot-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
-| `catalog-dup-count.js` | CALLED | 1 | 2026-09-27 | no | Authoritative counts for ContentCatalog: total module ids, duplicate (house,href) |
+| `catalog-dup-count.js` | CALLED | 1 | 2026-09-27 | yes | Authoritative counts for ContentCatalog: total module ids, duplicate (house,href) |
 | `catalog-live-probe.js` | ORPHAN | 0 | 2026-07-31 | yes |  |
 | `catalog-probe.js` | CALLED | 1 | 2026-07-31 | yes |  |
 | `catalog-reachability-audit.js` | CALLED | 4 | 2026-07-31 | yes |  |
@@ -1335,7 +1342,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 35 scripts, 9 referenced by nothing
+### `_tools/rules-test` — 38 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1362,16 +1369,19 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `hub-registry-e2e.test.js` | DOCS-ONLY | 0 | 2026-07-25 | yes |  |
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
 | `inspect-perteam-preflight.test.js` | DOCS-ONLY | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
-| `instructor-id-aliases.test.js` | CALLED | 1 | 2026-09-27 | no | Proves the instructor dashboard counts a Network+ completion under EITHER the |
+| `instructor-id-aliases.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves the instructor dashboard counts a Network+ completion under EITHER the |
+| `legacy-progress-allowlist.test.js` | CALLED | 1 | 2026-10-01 | yes | Proves the classes/{id}/progress field allowlist blocks forged fields, preserves both |
 | `lobby-join-heal.render.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
 | `mallory-verify-fix-2026-08-04.test.js` | CALLED | 1 | 2026-08-04 | no |  |
 | `mallory-verify-users-create-2026-08-05.test.js` | ORPHAN | 0 | 2026-08-05 | no |  |
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
+| `score-clamp.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves syncClassProgress's score clamp rejects non-finite input and bounds 0-100 |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
 | `swap-box-pool.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the real swap-box-pool.js against the emulator: the happy swap, and every |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
+| `tenant-progress-write-lockdown.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves a student cannot forge their own gradebook row, and that the fix is what stops them |
 | `tournament-joincode.test.js` | CALLED | 1 | 2026-08-29 | yes | proves the private join-code doc is client-inaccessible and the gate holds |
 | `users-read-scope.test.js` | CALLED | 1 | 2026-08-22 | yes | pin the users/{userId} get+list scope (self / handler / admin) |
 
