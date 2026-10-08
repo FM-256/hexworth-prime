@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-10-07 21:53 · **1364 scripts** · 48 wired into a gate · 339 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 550 not in git
+**Generated:** 2026-10-07 23:57 · **1365 scripts** · 48 wired into a gate · 340 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 551 not in git
 
 ## Read this before writing a new script
 
@@ -301,12 +301,13 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `publish-solution.py` | CALLED | 4 | 2026-09-20 | yes |  |
 | `publish-wsa.py` | ORPHAN | 0 | 2026-06-25 | yes |  |
 
-### `_tools/content` — 2 scripts, 0 referenced by nothing
+### `_tools/content` — 3 scripts, 0 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `refresh-legacy-floor.js` | CALLED | 4 | 2026-10-07 | yes | Refreshes _tools/content/legacy-completion-ids.json from LIVE progress data so the completion registry cannot reject work a student has already earned. --check fails if live data holds an id the committed floor does not. |
-| `registry-coverage.js` | CALLED | 2 | 2026-10-07 | yes | Measures whether functions/completion-registry.json covers every completion id students actually hold, per surface. Answers ONE question: would turning on _ENFORCE_COMPLETION_REGISTRY reject work a real student already earned? |
+| `registry-coverage.js` | CALLED | 5 | 2026-10-07 | yes | Measures whether functions/completion-registry.json covers every completion id students actually hold, per surface. Answers ONE question: would turning on _ENFORCE_COMPLETION_REGISTRY reject work a real student already earned? |
+| `registry-parser-parity.js` | CALLED | 1 | 2026-10-07 | no | Cross-checks the TWO independent expression resolvers — gen-completion-registry's (which BUILDS the allowlist) and registry-coverage ARM B's (which VERIFIES it) — across every _app file containing a ModuleProgress.complete call. Fails if they disagree about any id that actually reaches the registry. |
 
 ### `_tools/covers` — 10 scripts, 3 referenced by nothing
 

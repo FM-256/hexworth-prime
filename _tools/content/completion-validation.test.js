@@ -163,18 +163,17 @@ function main() {
        string literal from a template call site. Asserting EQUALITY rather than membership means a
        new artifact, or a newly-rejected real id, fails this test instead of quietly joining a
        growing allowlist of excuses. */
-    const EXTRACTOR_ARTIFACTS = [
-        "code-pyh-' + LAB_ID", "code-pyh-' + QUIZ_ID", "code-pyh-' + moduleId",
-        "matrix-op-' + config.id", "op-' + config.id",
-        "pyh-' + LAB_ID", "pyh-' + QUIZ_ID", "pyh-' + moduleId"
-    ];
-    /* I first enumerated only the 2 of these that Nancy surfaced, because she found them by
-       filtering the registry for dots and these other 6 contain none. Sweeping with the whole
-       predicate instead of a hand-picked filter immediately found all 8 — which is the argument
-       for the sweep. Each is `gen-completion-registry.js` storing unresolved JS expression text.
-       They are inert as allowlist entries (no student can hold one), but they are the VISIBLE HALF
-       of a real gap: the REAL ids those call sites build at runtime are absent from the registry.
-       See BUG-273 and ARM B of _tools/content/registry-coverage.js, which resolves them. */
+    /* EMPTY, AND THAT IS THE ASSERTION. This list held 8 entries like "code-pyh-' + LAB_ID" —
+       gen-completion-registry.js storing unresolved JS expression text as if it were a content id,
+       the visible half of BUG-273 (all 22 Python-for-IT ids absent from the registry). BUG-273 is
+       now FIXED: the generator tokenises and resolves concatenated arguments, so it emits the real
+       ids and no expression text. Keeping the equality check with an empty list turns this into the
+       stronger invariant — THE REGISTRY CONTAINS NOTHING THE PREDICATE CALLS MALFORMED — and any
+       new artifact fails here instead of quietly joining a growing list of excuses.
+       History worth keeping: I first enumerated only the 2 that Nancy surfaced, because she found
+       them by filtering for dots and 6 of the 8 contain none. Sweeping the whole id space with the
+       predicate found all 8. That is the argument for the sweep over the hand-picked filter. */
+    const EXTRACTOR_ARTIFACTS = [];
     const rejectedRegistryIds = [...R].filter(id => rejectReason(id) !== null).sort();
     chk(`floor predicate accepts every registry id except the ${EXTRACTOR_ARTIFACTS.length} known extractor artifacts`,
         JSON.stringify(rejectedRegistryIds) === JSON.stringify([...EXTRACTOR_ARTIFACTS].sort()),
@@ -192,6 +191,74 @@ function main() {
     for (const bad of ['undefined', '[object Object]', 'any_id'])
         chk(`floor predicate still rejects the proven-malformed key ${JSON.stringify(bad)}`,
             rejectReason(bad) !== null, 'ACCEPTED — it would be blessed into the allowlist');
+
+    /* ---- 5. THE COVERAGE DETECTOR MUST BE ABLE TO FAIL --------------------------------
+       ARM B of registry-coverage.js is what stands between a runtime-built id and a student's
+       first completion being rejected. A green detector proves nothing until you have watched it go
+       red, and this one has already produced a false clean: an early harness invoked it with the
+       wrong __dirname, so it walked a nonexistent directory and reported 0 blockers against a
+       registry that had 72 real gaps (50 AI Cortex + 22 Python).
+
+       So: run it against a MUTANT registry with a known id removed, and require that it notices.
+       Historically verified too — against the pre-fix registries it reported 72 and then 50
+       blockers, reaching 0 only once both BUG-273 and BUG-274 were fixed. */
+    const { armB } = require(path.join(REPO, '_tools/content/registry-coverage.js'));
+
+    chk('coverage ARM B reports no gaps against the real registry', armB(R).length === 0,
+        `${armB(R).length} gap(s): ${JSON.stringify(armB(R).slice(0, 4))}`);
+
+    for (const victim of ['pyh-lab-graphics-01', 'cx-nlp-02']) {
+        const mutant = new Set(R);
+        mutant.delete(victim);
+        for (const h of ['code', 'ai']) mutant.delete(h + '-' + victim);
+        const found = armB(mutant).some(m => m.id.startsWith(victim + ' '));
+        chk(`coverage ARM B CATCHES a removed id (${victim})`, found,
+            'detector stayed silent on a known-missing id — it cannot be trusted');
+    }
+
+    /* ---- 6. NO REGISTRY ENTRY MAY BE A TRUNCATION ARTIFACT ----------------------------
+       BUG-275 put the ids `script-` and `script-script-` into the allowlist: the extractor stored
+       the leading literal of `const longKey = 'script-' + MODULE_ID` and used it as a content id.
+       NOTHING IN THIS SUITE CAUGHT THAT, and it is worth being precise about why, because the
+       obvious candidates all legitimately failed to:
+         - ARM B of registry-coverage.js detects MISSING ids. This was an EXTRA id. Wrong direction.
+         - the floor predicate sweep (section 4) accepts `script-` — it IS identifier-shaped.
+         - the static drift gate compares the generator to itself, so it agreed with the artifact.
+       Nancy found it by reading the code. That is not a repeatable gate, so here is one.
+
+       The invariant: a completion id never ENDS with a separator, and is never just a house name.
+       A truncated concatenation always lands in exactly that shape, which is what makes this a
+       cheap and falsifiable check rather than a vague tidiness rule. */
+    const HOUSES_FOR_SHAPE = (idx.match(/_KNOWN_HOUSES\s*=\s*\[([^\]]+)\]/) || [, ''])[1]
+        .split(',').map(h => h.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
+    const truncated = [...R].filter(id => /[-_.]$/.test(id)).sort();
+    chk('no registry id ends with a separator (truncated concatenation)', truncated.length === 0,
+        `${truncated.length} truncation artifact(s): ${JSON.stringify(truncated.slice(0, 8))}`);
+
+    const bareHouse = [...R].filter(id => HOUSES_FOR_SHAPE.includes(id)).sort();
+    chk(`no registry id is bare a house name (${HOUSES_FOR_SHAPE.length} houses read from _KNOWN_HOUSES)`,
+        bareHouse.length === 0, `${bareHouse.length}: ${JSON.stringify(bareHouse)}`);
+
+    /* ---- 7. THE TWO RESOLVERS MUST AGREE ABOUT WHAT SHIPS -----------------------------
+       gen-completion-registry.js BUILDS the allowlist and registry-coverage.js ARM B VERIFIES it,
+       each with its own expression resolver — deliberately, because a verifier that calls into the
+       thing it verifies agrees by construction and proves nothing.
+
+       Keeping two implementations only helps while they are actually compared. When BUG-275 was
+       fixed in the generator and not in ARM B, ARM B caught the stale half within one run. But the
+       two then agreed on every call site while differing on 572 VARIABLES, and "they agree on
+       everything that matters today" is a coincidence, not a property. So the comparison is a gate
+       now, and because this test file is itself wired at deploy.sh:494, it reaches the deploy.
+
+       Enforced: CALL-SITE agreement, the ids that actually reach the registry. Reported but not
+       enforced: variable-level divergence on backtick template literals neither resolver parses.
+       Mutation-proven — reintroducing the BUG-275 truncation into ARM B alone makes it report 52
+       call-site disagreements and exit 1. */
+    const parity = require('child_process').spawnSync('node',
+        [path.join(REPO, '_tools/content/registry-parser-parity.js')], { encoding: 'utf8' });
+    chk('the registry builder and its verifier agree on every call site',
+        parity.status === 0,
+        `registry-parser-parity exited ${parity.status}: ${String(parity.stdout || '').split('\n').filter(l => /disagree/i.test(l)).join(' | ') || String(parity.stderr || '').slice(0, 200)}`);
 
     console.log(`\n  ${pass}/${pass + fail} passed`);
     return fail ? 1 : 0;

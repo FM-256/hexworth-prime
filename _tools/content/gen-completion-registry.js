@@ -74,6 +74,197 @@ function walk(dir, fn) {
     }
 }
 
+/* ── BUG-274: READ EVERY DECLARATOR, NOT JUST THE FIRST IN THE STATEMENT ─────────────────────────
+ * The previous declaration scan was one regex:
+ *     /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*['"]([^'"]+)['"]/g
+ * It anchors the identifier directly to the keyword, so in a comma-separated declaration it sees
+ * the FIRST declarator and nothing after it:
+ *     const MODULE_ID='cx-nlp-02', HOUSE_ID='ai';     -> HOUSE_ID never recorded
+ *     var M='cx-adv-02',H='ai',done=false;            -> H never recorded
+ * With the house unresolvable, the call site was skipped entirely, so the ENTIRE AI Cortex series
+ * (cx-nlp / cx-adv / cx-cap / cx-ops / cx-sec, ~50 pages) was absent from the registry. Same
+ * consequence as BUG-273 by a different mechanism, and the same one this file's header was written
+ * about: enforcement would reject honest students finishing shipped content.
+ *
+ * AMBIGUITY IS DELETED, NOT RESOLVED. Capturing more declarators also means more chance that one
+ * file declares the same name twice with different literals in different scopes. The old scan took
+ * last-wins silently. A WRONG id is worse than a missing one — the floor covers a miss, while a
+ * wrong entry pollutes the allowlist — so a name declared with conflicting literals is dropped and
+ * its call sites become unresolvable. Safe direction, and the count is reported.
+ *
+ * Known and deliberate limit: a non-literal initializer ends the scan of that statement, so
+ * `var a = fn(), B = 'x'` loses B. Conservative by choice — correctly parsing an arbitrary
+ * initializer means writing a JS parser, and a miss is the cheap failure.
+ *
+ * THE LIMIT THAT MATTERS MOST, AND IT IS NOT FIXED: `vars` IS FILE-SCOPED AND FLAT. There is no
+ * model of JS scope here, so a `const` declared inside one IIFE or one <script> block can resolve
+ * a call site in a DIFFERENT block of the same file that never sees that binding, and identical
+ * redeclarations pass the ambiguity guard untouched — only CONFLICTING literals are dropped. The
+ * consequence is bounded in the safe direction: over-resolution ADDS an allowlist entry rather
+ * than removing one, so it cannot reject work a student earned; the cost is a possibly-unreachable
+ * entry, which matters only because BUG-272 makes every entry claimable. Fixing it properly means
+ * scope tracking, i.e. a real parser. registry-coverage.js ARM B shares this limitation by
+ * construction and therefore cannot detect it — the two implementations are independent in their
+ * parsing strategy, NOT in this assumption. Filed as the standing limitation on BUG-275. */
+/* Returns the initializer expression text for a declarator, so resolveExpr can evaluate it whole.
+ * Scans honouring quote state and stops at a top-level `,` or `;`. A newline also ends it UNLESS
+ * the text so far ends in `+`, which keeps a concatenation split across lines intact. Capped so a
+ * malformed file cannot make this run away. */
+function readRhs(s, start) {
+    const CAP = 400;
+    let i = start, q = null, out = '';
+    while (i < s.length && out.length < CAP) {
+        const c = s[i];
+        if (q) {
+            out += c;
+            if (c === '\\') { out += s[i + 1] || ''; i += 2; continue; }
+            if (c === q) q = null;
+            i++;
+            continue;
+        }
+        if (c === "'" || c === '"') { q = c; out += c; i++; continue; }
+        if (c === ',' || c === ';') break;
+        if (c === '\n') {
+            /* A concatenation may continue across a newline in EITHER style, and the first version
+             * of this only handled one of them:
+             *     const a = 'x-' +        <- trailing operator, handled from the start
+             *               ID;
+             *     const a = 'x-'          <- LEADING operator, silently truncated to 'x-'
+             *               + ID;
+             * Nancy found the gap and swept for it: the leading style exists in this codebase
+             * (_app/admin/console.html:5025, _app/hex/apps.html:219 and 7 more) though none of the
+             * 9 currently feed a ModuleProgress.complete argument. Latent, but the failure mode is
+             * the bad kind — it hands resolveExpr a complete-LOOKING truncated string, which
+             * resolves successfully instead of returning null. Confidently wrong beats silently
+             * absent only in the sense that it is worse. So look ahead: continue only if the next
+             * non-whitespace character is the operator itself, which cannot swallow a following
+             * statement (`const B = ...` starts with 'c', not '+'). */
+            if (/\+\s*$/.test(out)) { out += ' '; i++; continue; }
+            let j = i;
+            while (j < s.length && /\s/.test(s[j])) j++;
+            if (s[j] === '+') { out += ' '; i = j; continue; }
+            break;
+        }
+        out += c;
+        i++;
+    }
+    const text = out.trim();
+    return text ? { text, len: i - start } : null;
+}
+
+function collectVars(s) {
+    const vars = {};
+    const conflict = new Set();
+    const DECL = /(?:^|[^\w$.])(?:const|let|var)\s+/g;
+    let dm;
+    while ((dm = DECL.exec(s)) !== null) {
+        let i = dm.index + dm[0].length;
+        for (;;) {
+            const name = /^([A-Za-z_$][\w$]*)\s*/.exec(s.slice(i));
+            if (!name) break;
+            i += name[0].length;
+            if (s[i] === '=' && s[i + 1] !== '=') {
+                i++;
+                /* RESOLVE THE WHOLE RIGHT-HAND SIDE, not just a leading literal. Nancy caught the
+                 * leading-literal version carrying the IDENTICAL defect as BUG-273 one scope over:
+                 * given `const longKey = 'script-' + MODULE_ID;` it matched `'script-'` and stored
+                 * that as longKey's value. 52 Linux-Mastery pages declare exactly that
+                 * (_app/houses/script/modules/linux-mastery/script-lm-*.module.html:583), and the
+                 * truncated value reached the registry as the entries "script-" and
+                 * "script-script-" — ids no page writes. I fixed the call-site half and left the
+                 * declaration half with the same bug, which is why the same reviewer caught the
+                 * same mistake twice in two rounds. resolveExpr already does this correctly; the
+                 * fix is to CALL it rather than restate a weaker version. */
+                const rhs = readRhs(s, i);
+                if (!rhs) break;                      // non-literal initializer: stop this statement
+                const v = resolveExpr(rhs.text, vars);
+                if (v === null) break;                // unresolvable: do not guess at a partial value
+                if (Object.prototype.hasOwnProperty.call(vars, name[1]) && vars[name[1]] !== v) {
+                    conflict.add(name[1]);
+                }
+                vars[name[1]] = v;
+                i += rhs.len;
+            }
+            const comma = /^\s*,\s*/.exec(s.slice(i));
+            if (!comma) break;
+            i += comma[0].length;
+        }
+    }
+    for (const c of conflict) delete vars[c];          // ambiguous: refuse to guess
+    if (conflict.size) collectVars.conflicts = (collectVars.conflicts || 0) + conflict.size;
+    return vars;
+}
+
+/* ── BUG-273: RESOLVE CONCATENATED ARGUMENTS, NOT JUST LITERALS AND BARE IDENTIFIERS ────────────
+ * The previous resolution was `isLit(x) ? unquote(x) : vars[x]`, where isLit tested only for a
+ * LEADING quote and unquote stripped a leading and trailing one. Given
+ * `ModuleProgress.complete('code', 'pyh-' + LAB_ID)` the second argument is the whole expression
+ * `'pyh-' + LAB_ID`: it starts with a quote so isLit said literal, and unquote found no trailing
+ * quote to strip, so the registry received the EXPRESSION TEXT `pyh-' + LAB_ID` as if it were a
+ * content id. Eight such entries were committed. The real ids never arrived — all 22 Python-for-IT
+ * (COP1034C) lab and quiz ids were absent, so enabling _ENFORCE_COMPLETION_REGISTRY would have
+ * rejected every Python student's first completion. That is the 2026-09-07 AI-102 incident, which
+ * this file's own header describes, reproduced by the very parser the header is about.
+ *
+ * Note the failure was WORSE THAN A MISS: a silent miss leaves a gap, but emitting the expression
+ * text also made the registry assert something false, and made `--check` pass happily because the
+ * generator and the committed file agreed on the same garbage. A gate comparing a generator to
+ * itself cannot see a generator-side defect.
+ *
+ * TOKENISED, not split on '+'. `expr.split('+')` is the obvious version and it corrupts any
+ * literal containing a plus ('c++' would become two operands). This walks the expression, honours
+ * quotes and escapes, and requires a strict operand (+ operand)* alternation. Anything else —
+ * a function call, a member expression like `_config.id`, a template literal, an unterminated
+ * string — returns null and the call site is skipped, exactly as an unresolvable one was before.
+ * Returning null is the safe direction: a missing id is covered by the legacy floor, whereas a
+ * WRONG id pollutes the allowlist.
+ *
+ * Measured in _app at the time of writing: 2212 call sites pass a literal, 639 a bare identifier,
+ * 24 a concatenation (this fix), 8 an object property (still unresolvable), 0 a template literal.
+ * Verify with _tools/content/registry-coverage.js ARM B, which resolves these independently —
+ * deliberately a SECOND implementation, so the two disagreeing is itself the alarm. */
+function resolveExpr(expr, vars) {
+    const toks = [];
+    let i = 0;
+    while (i < expr.length) {
+        const c = expr[i];
+        if (/\s/.test(c)) { i++; continue; }
+        if (c === '+') { toks.push({ t: '+' }); i++; continue; }
+        if (c === "'" || c === '"') {
+            const q = c;
+            let j = i + 1, buf = '';
+            while (j < expr.length && expr[j] !== q) {
+                if (expr[j] === '\\') { buf += expr[j + 1]; j += 2; continue; }
+                buf += expr[j]; j++;
+            }
+            if (j >= expr.length) return null;            // unterminated — not ours to guess at
+            toks.push({ t: 'str', v: buf });
+            i = j + 1;
+            continue;
+        }
+        const id = /^[A-Za-z_$][\w$]*/.exec(expr.slice(i));
+        if (!id) return null;                             // punctuation we do not interpret
+        toks.push({ t: 'id', v: id[0] });
+        i += id[0].length;
+    }
+    /* Strict operand (+ operand)* means an ODD token count. Without this, `'a' +` — which the
+     * `[^,)]+` capture can produce when an expression is cut short — resolved to 'a' and would have
+     * put a truncated id into the allowlist. Caught by the resolver's own unit cases, not by a
+     * regeneration, because a half-right id looks perfectly plausible in a 20,000-line registry. */
+    if (!toks.length || toks.length % 2 === 0) return null;
+    let out = '';
+    for (let k = 0; k < toks.length; k++) {
+        if (k % 2 === 1) { if (toks[k].t !== '+') return null; continue; }
+        const t = toks[k];
+        if (t.t === 'str') out += t.v;
+        else if (t.t === 'id') {
+            if (!Object.prototype.hasOwnProperty.call(vars, t.v)) return null;
+            out += vars[t.v];
+        } else return null;                               // a '+' where an operand belongs
+    }
+    return out || null;
+}
+
 function collect() {
     const sources = { learningPaths: 0, trackerKeys: 0, callSites: 0, legacy: 0 };
     const ids = new Set();
@@ -116,16 +307,10 @@ function collect() {
     walk(path.join(REPO, '_app'), (p, name) => {
         if (!/\.(html|js)$/.test(name)) return;
         const s = fs.readFileSync(p, 'utf8');
-        const vars = {};
-        for (const m of s.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*['"]([^'"]+)['"]/g)) {
-            vars[m[1]] = m[2];
-        }
-        const unquote = (x) => x.replace(/^['"]|['"]$/g, '');
-        const isLit = (x) => /^['"]/.test(x.trim());
+        const vars = collectVars(s);
         for (const m of s.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
-            const a = m[1].trim(), b = m[2].trim();
-            const house = isLit(a) ? unquote(a) : vars[a];
-            const key = isLit(b) ? unquote(b) : vars[b];
+            const house = resolveExpr(m[1], vars);
+            const key = resolveExpr(m[2], vars);
             if (!house || !key) continue;          // unresolvable: an object property or loop var
             ids.add(house + '-' + key);
             ids.add(key);

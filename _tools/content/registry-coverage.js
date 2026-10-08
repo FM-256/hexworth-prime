@@ -91,37 +91,161 @@ const REG = path.join(__dirname, '..', '..', 'functions', 'completion-registry.j
  * So they are reported loudly and separately, never filtered out of the count. */
 const { rejectReason } = require(path.join(__dirname, 'refresh-legacy-floor.js'));
 
-/* Resolves `ModuleProgress.complete('<house>', '<prefix>' + <IDENT>)` by finding `const <IDENT> =
- * '<literal>'` in the SAME file — exactly the resolution the page performs at runtime and the one
- * the static extractor gives up on. Both the bare and house-prefixed forms count as registered,
- * because the writers differ in which they store. */
+/* ── ARM B: AN INDEPENDENT VERIFIER OF THE REGISTRY'S STATIC COVERAGE ────────────────────────────
+ * Resolves `ModuleProgress.complete(<house>, <key>)` for every argument shape that can be
+ * determined without running the page — a literal, a same-file `const`/`let`/`var` holding a
+ * literal, or a `+` concatenation of those — and reports any resolved id the registry does not
+ * contain, in either the bare or house-prefixed form. Both forms count because the writers differ
+ * in which they store.
+ *
+ * WHY IT IS DELIBERATELY A SECOND IMPLEMENTATION, WRITTEN DIFFERENTLY. gen-completion-registry.js
+ * does the same resolution to BUILD the registry, so if this file called into it, agreement would
+ * be guaranteed and meaningless — the cache-trusting-gate mistake. The parsing here is therefore
+ * structured differently on purpose: statement-slice then pair-scan, rather than the generator's
+ * character walk. The two agreeing is evidence; the two disagreeing is the alarm, and either one
+ * being wrong is a finding.
+ *
+ * IT EARNED THIS WIDENING THE HARD WAY. The first version resolved ONLY concatenations, because
+ * that was the shape of BUG-273 — the bug in hand. It therefore never looked at
+ * `ModuleProgress.complete(H, M)` and could not have caught BUG-274, where the generator's
+ * declaration regex read only the FIRST declarator of `var M='cx-adv-02',H='ai'` and so dropped
+ * the entire AI Cortex series (~50 pages, 100 ids) out of the registry. A verifier scoped to the
+ * last defect only re-checks the last defect. */
 function armB(known) {
     const APP = path.join(__dirname, '..', '..', '_app');
-    const CALL = /ModuleProgress\.complete\(\s*'([^']+)'\s*,\s*'([^']*)'\s*\+\s*([A-Za-z_$][\w$]*)/g;
     const out = [];
     const seen = new Set();
+
+    /* Independent declarator scan: take each declaration statement, then pull every
+     * `IDENT = 'literal'` pair out of it. A name declared twice with DIFFERENT literals is
+     * AMBIGUOUS and dropped — resolving it last-wins could invent an id the page never writes and
+     * report a blocker that does not exist. A verifier's false alarm costs trust, so it abstains. */
+    function varsOf(src) {
+        const vars = {};
+        const conflict = new Set();
+        /* Split a declarator list on TOP-LEVEL commas and resolve each initializer WHOLE, with the
+         * same resolve() the call sites use. The first version matched `IDENT = 'literal'` pairs and
+         * took the leading literal, which is BUG-275 — it resolved `const longKey = 'script-' +
+         * MODULE_ID` to `script-`. When the generator was fixed and this was not, the two
+         * implementations disagreed and this arm reported a blocker for the id `script-`. That
+         * disagreement is precisely what a second implementation is FOR, and it worked: the alarm
+         * fired on the stale half. Noting it because the lesson is cheap to lose — the arms are
+         * independent in parsing STRATEGY (statement-slice and comma-split here, character walk in
+         * the generator) but they must agree on what an expression MEANS. */
+        const topLevel = (str, ch) => {
+            const out = [];
+            let q = null, buf = '', i = 0;
+            while (i < str.length) {
+                const c = str[i];
+                if (q) { buf += c; if (c === '\\') { buf += str[i + 1] || ''; i += 2; continue; } if (c === q) q = null; i++; continue; }
+                if (c === "'" || c === '"') { q = c; buf += c; i++; continue; }
+                if (c === ch) { out.push(buf); buf = ''; i++; continue; }
+                buf += c; i++;
+            }
+            out.push(buf);
+            return out;
+        };
+        /* Statement slicing must be QUOTE-AWARE. The first version used
+         * a regex ending in [^;\n]* — i.e. "anything but semicolon or newline" — which stops at the
+         * first `;` or newline even INSIDE a
+         * string — and this codebase is full of `const html = '<div style="display:flex; gap:8px">'`,
+         * where the CSS semicolons cut the slice mid-literal. Measured across the 2728 files
+         * containing a complete() call, that accounted for 26 of the surviving variable-level
+         * disagreements with the generator (down from 572 before the parity fixes). None reached a
+         * completion call, but a verifier that is weaker than the thing it verifies is not a
+         * verifier. Scan to the first top-level `;` or newline instead. */
+        const statements = [];
+        const KW = /(?:^|[^\w$.])(?:const|let|var)\s+/g;
+        let km;
+        while ((km = KW.exec(src)) !== null) {
+            let i = km.index + km[0].length, q = null, buf = '';
+            while (i < src.length) {
+                const ch = src[i];
+                if (q) { buf += ch; if (ch === '\\') { buf += src[i + 1] || ''; i += 2; continue; } if (ch === q) q = null; i++; continue; }
+                if (ch === "'" || ch === '"') { q = ch; buf += ch; i++; continue; }
+                if (ch === ';') break;
+                if (ch === '\n') { if (!/\+\s*$/.test(buf)) break; buf += ' '; i++; continue; }
+                buf += ch; i++;
+            }
+            statements.push(buf);
+        }
+        for (const body of statements) {
+            for (const decl of topLevel(body, ',')) {
+                const halves = topLevel(decl, '=');
+                if (halves.length < 2) continue;                 // no initializer
+                const name = halves[0].trim();
+                if (!/^[A-Za-z_$][\w$]*$/.test(name)) continue;  // destructuring, member expr, ==
+                const v = resolve(halves.slice(1).join('='), vars);
+                if (v === null) continue;
+                if (Object.prototype.hasOwnProperty.call(vars, name) && vars[name] !== v) conflict.add(name);
+                vars[name] = v;
+            }
+        }
+        for (const c of conflict) delete vars[c];
+        return vars;
+    }
+
+    // Literal | identifier | concatenation of those. Anything else yields null and is skipped.
+    function resolve(arg, vars) {
+        /* TWO DIVERGENCES FROM THE GENERATOR THAT NANCY MEASURED ACROSS ALL 2728 FILES, BOTH FIXED
+         * HERE RATHER THAN DOCUMENTED. Call-site agreement was already 0 disagreements, but the two
+         * arms differed on 572 variables, and "they agree on everything that matters today" is not
+         * a property — it is a coincidence that holds until someone writes a new page.
+         *   1. EMPTY STRING. The generator's resolveExpr ends `return out || null`, so `''` is
+         *      unresolvable; this returned `''`. A `const X = ''` feeding a call would then make
+         *      this arm report a phantom blocker for `"house-"`. Matched to the generator: empty
+         *      resolves to null.
+         *   2. QUOTE IDENTITY. The old literal pattern was /^(['"])((?:[^'"\\]|\\.)*)\1/, whose
+         *      character class excludes BOTH quote characters, so it treats the opposite quote as a
+         *      terminator and fails on a single-quoted literal containing double quotes — common in
+         *      this codebase's HTML-building vars. The generator's character walk tracks the
+         *      delimiter correctly, making this arm STRICTLY WEAKER, which is the wrong kind of
+         *      asymmetry for a verifier. Two delimiter-specific alternatives fix it. */
+        const pieces = [];
+        let rest = arg.trim();
+        while (rest.length) {
+            let m = /^'((?:[^'\\]|\\.)*)'/.exec(rest) || /^"((?:[^"\\]|\\.)*)"/.exec(rest);
+            if (m) pieces.push(m[1].replace(/\\(.)/g, '$1'));
+            else {
+                m = /^([A-Za-z_$][\w$]*)/.exec(rest);
+                if (!m) return null;
+                if (!Object.prototype.hasOwnProperty.call(vars, m[1])) return null;
+                pieces.push(vars[m[1]]);
+            }
+            rest = rest.slice(m[0].length).trim();
+            if (!rest.length) break;
+            if (rest[0] !== '+') return null;          // member access, call, template — not ours
+            rest = rest.slice(1).trim();
+            if (!rest.length) return null;             // trailing operator
+        }
+        const joined = pieces.join('');
+        return joined || null;                         // empty resolves to null, matching the generator
+    }
+
     (function walk(dir) {
         let ents = [];
         try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
         for (const e of ents) {
             const fp = path.join(dir, e.name);
-            if (e.isDirectory()) { walk(fp); continue; }
+            if (e.isDirectory()) {
+                if (/node_modules|_archive|_backups/.test(fp)) continue;
+                walk(fp);
+                continue;
+            }
             if (!/\.(html|js)$/.test(e.name)) continue;
             let src = '';
             try { src = fs.readFileSync(fp, 'utf8'); } catch (e2) { continue; }
             if (!src.includes('ModuleProgress.complete(')) continue;
-            CALL.lastIndex = 0;
-            let m;
-            while ((m = CALL.exec(src)) !== null) {
-                const [, house, prefix, ident] = m;
-                const cm = src.match(new RegExp('const\\s+' + ident + "\\s*=\\s*'([^']+)'"));
-                if (!cm) continue;                       // not resolvable here; not a claim either way
-                const id = prefix + cm[1];
-                if (known.has(id) || known.has(house + '-' + id)) continue;
-                const key = id + '|' + house;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                out.push({ id: `${id}  (house '${house}')`, where: path.relative(path.join(APP, '..'), fp) });
+            const vars = varsOf(src);
+            for (const m of src.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
+                const house = resolve(m[1], vars);
+                const key = resolve(m[2], vars);
+                if (!house || !key) continue;           // genuinely undeterminable without running it
+                if (known.has(key) || known.has(house + '-' + key)) continue;
+                const dedupe = house + '|' + key;
+                if (seen.has(dedupe)) continue;
+                seen.add(dedupe);
+                out.push({ id: `${key}  (house '${house}')`, where: path.relative(path.join(APP, '..'), fp) });
             }
         }
     })(APP);
@@ -223,4 +347,14 @@ async function main() {
     return 0;
 }
 
-main().then((c) => process.exit(c)).catch((e) => { console.error('  registry-coverage failed:', e && e.message); process.exit(2); });
+/* armB is exported so completion-validation.test.js can run an in-memory MUTANT against it —
+ * delete a known id from the registry set and assert the arm reports it. A detector nobody has
+ * watched fail is a detector nobody should trust, and this one has already fooled me once: an
+ * earlier harness called armB with the wrong __dirname, so it walked a directory that does not
+ * exist and reported a confident 0 blockers against a registry with 72 real gaps. The clean result
+ * was the harness being broken, not the tree being clean. */
+module.exports = { armB };
+
+if (require.main === module) {
+    main().then((c) => process.exit(c)).catch((e) => { console.error('  registry-coverage failed:', e && e.message); process.exit(2); });
+}
