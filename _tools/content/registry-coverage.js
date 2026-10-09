@@ -283,6 +283,7 @@ function armB(known) {
                     // Genuinely undeterminable without running the page. Counted, not skipped —
                     // see ARM C. An unresolvable site is the ONE case neither arm can vouch for.
                     unresolvable.push({ where: path.relative(path.join(APP, '..'), fp), expr: m[0].slice(25).trim().slice(0, 48) });
+                    // classification happens in ARM C, against the generator's exported table
                     continue;
                 }
                 if (known.has(key) || known.has(house + '-' + key)) continue;
@@ -395,18 +396,49 @@ async function main() {
      * That is precisely the 2026-09-07 shape. It is reported as a NUMBER rather than left as a
      * silence, because a zero from the other two arms is otherwise indistinguishable from proof. */
     const unres = staticMissRaw.unresolvable || [];
-    console.log('\n  ARM C — call sites no static pass can resolve (residual, NOT a blocker):');
+    console.log('\n  ARM C — call sites no static pass can resolve:');
     if (!unres.length) console.log('    none.');
     else {
-        const byFile = new Map();
-        for (const u of unres) byFile.set(u.where, (byFile.get(u.where) || 0) + 1);
-        console.log(`    ${unres.length} call site(s) across ${byFile.size} file(s) build the id at runtime from an`);
-        console.log('    object property or loop variable. Their ids are covered ONLY if a student already holds');
-        console.log('    one (via the legacy floor). New content behind these sites is invisible to ARM A and ARM B.');
-        for (const [f, n] of [...byFile.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6)) {
-            console.log(`      ${String(n).padStart(3)}x  ${f}`);
+        /* CLASSIFY, DO NOT JUST COUNT. Before BUG-279 this printed a bare count and said the ids
+         * were covered "ONLY if a student already holds one". That is now false for the
+         * config-driven engines: their ids come from a config FILE, which the generator enumerates,
+         * so the call site being unresolvable no longer implies the content is uncovered. Reporting
+         * them as unknown risk would overstate the residual — and overstating a risk is how a real
+         * one gets lost in the noise.
+         *
+         * The engine list is READ FROM the generator's exported ENGINE_CONFIG_SOURCES rather than
+         * restated here, so this classification cannot claim a coverage path the build does not
+         * actually have. */
+        let covered = [], unknown = [];
+        try {
+            const gen = require(path.join(__dirname, 'gen-completion-registry.js'));
+            /* BOTH tables: engines configured from a FILE (BUG-279) and engines configured by an
+             * INLINE literal in the page (BUG-280). Reading only the first one understated coverage
+             * and overstated the residual — which is what Nancy blocked BUG-279 for, in prose. */
+            const enginePaths = [...(gen.ENGINE_CONFIG_SOURCES || []), ...(gen.ENGINE_INLINE_SOURCES || [])]
+                .map((s) => String(s.writer || '').split(/[:\s]/)[0])
+                .filter(Boolean);
+            for (const u of unres) {
+                (enginePaths.some((ep) => ep && u.where === ep) ? covered : unknown).push(u);
+            }
+        } catch (e) {
+            unknown = unres.slice();
+            console.log(`    (could not read the engine-config table: ${e && e.message} — treating all as unknown)`);
         }
-        if (byFile.size > 6) console.log(`      … +${byFile.size - 6} more file(s)`);
+
+        console.log(`    ${unres.length} total. Of these:`);
+        if (covered.length) {
+            console.log(`      ${covered.length} are GENERIC ENGINES whose ids the generator enumerates from their configuration`);
+            console.log('        — a config file (BUG-279) or an inline literal in the page (BUG-280). The call site is');
+            console.log('        unresolvable; the id space is NOT. These are covered.');
+            for (const u of covered) console.log(`          ${u.where}`);
+        }
+        if (unknown.length) {
+            console.log(`      ${unknown.length} have NO enumerable source — this is the real residual. Their ids exist only`);
+            console.log('        once a student completes the content, via the legacy floor, so NEW content behind');
+            console.log('        them is invisible to ARM A, ARM B and the drift gate alike. That is the 2026-09-07 shape.');
+            for (const u of unknown) console.log(`          ${u.where}   ${u.expr}`);
+        }
     }
 
     const total = blockers + staticMiss.length;
@@ -417,8 +449,8 @@ async function main() {
     }
     console.log('  NO BLOCKERS on ARM A or ARM B.');
     if (unres.length) {
-        console.log(`  ARM C's ${unres.length} unresolvable call site(s) remain the residual: content behind them is`);
-        console.log('  covered only once a student has completed it, so it is UNPROVEN rather than clear.');
+        console.log(`  ARM C: ${unres.length} unresolvable call site(s), split above into config-driven (covered) and`);
+        console.log('  no-enumerable-source (the real residual, UNPROVEN rather than clear).');
     }
     console.log('  This is NOT clearance to flip _ENFORCE_COMPLETION_REGISTRY; read this file\'s header.');
     return 0;

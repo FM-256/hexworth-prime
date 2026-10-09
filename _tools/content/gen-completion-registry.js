@@ -345,8 +345,156 @@ function resolveExpr(expr, vars) {
     return out || null;
 }
 
+/* ── BUG-279: ENGINE CONFIG OBJECTS ARE A SOURCE, AND 138 SHIPPED IDS WERE MISSING ──────────────
+ * Several engines are generic: the page hands them a config object and the engine writes the
+ * completion from `config.id`. The call site therefore reads `complete('matrix', 'op-' + config.id)`
+ * and NO static pass over the call sites can resolve it — ARM C of registry-coverage.js counts
+ * exactly these as the unresolvable residual. The ids are nonetheless perfectly static: they are
+ * declared in config FILES. Nobody had looked there.
+ *
+ * Measured 2026-10-09, all absent from the allowlist before this:
+ *     122  OperatorEngine missions  (op-crypto-01 … 124 configs, 125 mission pages)
+ *       8  EDTEngine ethics labs    (cse-l01 … cse-l08)
+ *       8  GUILabEngine labs        (gui-ne08-unifi-wireless, gui-ne10-juniper, …)
+ * That is larger than BUG-273 (22) and BUG-274 (100) and it was invisible to every gate: the call
+ * sites are unresolvable so ARM B skipped them, and ARM A saw nothing because ZERO students hold an
+ * `op-` id yet — the content ships but has not been completed. Enforcement switched on would have
+ * rejected the first completion of every Operator mission and every CSE lab.
+ *
+ * THE ID TRANSFORM IS PER-ENGINE AND IS TAKEN FROM THE ENGINE'S OWN CALL SITE, not guessed:
+ *   OperatorEngine.js:827  complete('matrix', 'op-' + config.id)   -> prefix 'op-', house matrix
+ *   GUILabEngine.js        complete('web', _config.id)             -> no prefix,   house web
+ *   EDTEngine.js           complete('divergent', _config.id)       -> no prefix,   house divergent
+ * If an engine changes its transform, this table is wrong and the ids drift. That is why each entry
+ * records the writer: the next person can re-check the claim without re-deriving it.
+ *
+ * SKIPS ARE COUNTED AND PRINTED. Some config files are deliberately comment-only placeholders —
+ * `gui-ne04-cable-testing.config.js` says in its own header that the lab is self-contained and does
+ * NOT use GUILabEngine. Skipping those is correct. But a silent skip is indistinguishable from a
+ * parse failure, and a parse failure here means a missing id, which is the whole failure class this
+ * file exists to prevent. So the count is reported every run.
+ *
+ * DominoEngine (18 ids) and PythonSandbox (1) take an INLINE object literal in the page rather than
+ * a config file. Both measured fully covered already via other sources, so they are deliberately
+ * not handled here. */
+const ENGINE_CONFIG_SOURCES = [
+    { dir: '_app/operator/configs', file: /\.config\.js$/, house: 'matrix', prefix: 'op-',
+      engine: 'OperatorEngine', writer: "_app/operator/engine/OperatorEngine.js:827 complete('matrix', 'op-' + config.id)" },
+    { dir: '_app/houses/web/labs/configs', file: /\.config\.js$/, house: 'web', prefix: '',
+      engine: 'GUILabEngine', writer: "_app/houses/web/labs/engine/GUILabEngine.js complete('web', _config.id)" },
+    { dir: '_app/houses/web/network-plus/configs', file: /\.config\.js$/, house: 'web', prefix: '',
+      engine: 'GUILabEngine (Network+)', writer: "_app/houses/web/network-plus/engine/GUILabEngine.js complete('web', _config.id)" },
+    { dir: '_app/houses/divergent', file: /^config\.js$/, house: 'divergent', prefix: '', recurse: true,
+      engine: 'EDTEngine', writer: "_app/arena/engine/EDTEngine.js complete('divergent', _config.id)" }
+];
+
+/* Finds the config object's OWN id. Declaration forms present in the tree:
+ *     const X_CONFIG = {                       window.XConfig = {
+ *     var X_CONFIG = (function() { ... return {   <- IIFE; the id is further down
+ * So the brace is NOT required immediately after `=`. The window is bounded and the FIRST `id:` is
+ * taken, which is the config's own — nested entries (`id: 'E1'` for a lab step) appear later. */
+/* ── BUG-280: ENGINES CONFIGURED INLINE, NOT FROM A FILE ─────────────────────────────────────────
+ * BUG-279 covered engines whose config lives in a FILE. Two engines are configured by an INLINE
+ * object literal in the page itself:
+ *     PythonSandbox.init({ ..., moduleId: 'hexgrad-engine', houseId: 'ai', ... })
+ *     DominoEngine.init({ ..., moduleId: 'csp-w1-workforce', ... })
+ * so the id is static and in the page, but the call site reads
+ * `complete(_state.config.houseId, _state.config.moduleId)` and resolves to nothing.
+ *
+ * NANCY BLOCKED BUG-279 OVER THIS AND SHE WAS RIGHT. I had written "PythonSandbox (1) 1/1 present"
+ * into the tracker. I had counted CALL SITES IN THE ENGINE (there is 1) instead of PAGES THAT
+ * INSTANTIATE IT (14 — the 15th file matching the call is the ENGINE ITSELF, so even the
+ * correction of this defect repeated it). Six real, shipped, reachable ids were missing: hextalk-bigram,
+ * hexgrad-engine, hexnet-network, hexmemory-rnn, hextoken-vocabulary (house ai — all five are
+ * `status: 'available'` in ContentCatalog and linked from the Cortex index as Gates 2-6) and
+ * pfi-w3-sandbox (house code). The wrong denominator produced a confident, false "covered".
+ *
+ * AND MY SCAN HAD A SECOND, INDEPENDENT BUG: it matched /moduleId:\s*'/, requiring the colon to
+ * follow the key immediately. These pages use ALIGNED colons — `moduleId    : 'hexgrad-engine'` —
+ * so 13 of the 14 pages silently did not match and the scan reported 1. A 1-of-14 result should have
+ * smelled; "a clean 0 is a smell" applies just as much to a suspiciously small count. The patterns
+ * here are whitespace-tolerant.
+ *
+ * HOUSE comes from the config when the engine passes it through (PythonSandbox uses
+ * `_state.config.houseId`) and is FIXED when the engine hardcodes it (DominoEngine passes
+ * 'divergent'). Taken from the engine's own call site, same discipline as BUG-279's table. */
+const ENGINE_INLINE_SOURCES = [
+    { call: 'PythonSandbox.init', idKey: 'moduleId', houseKey: 'houseId', house: null, prefix: '',
+      engine: 'PythonSandbox', writer: "_app/components/PythonSandbox.js complete(_state.config.houseId, _state.config.moduleId)" },
+    { call: 'DominoEngine.init', idKey: 'moduleId', houseKey: null, house: 'divergent', prefix: '',
+      engine: 'DominoEngine', writer: "_app/components/DominoEngine.js complete('divergent', this._moduleId)" }
+];
+
+function collectInlineConfigs(ids) {
+    let added = 0, pages = 0;
+    const unresolved = [];
+    walk(path.join(REPO, '_app'), (p, name) => {
+        if (!/\.(html|js)$/.test(name)) return;
+        let src;
+        try { src = stripComments(fs.readFileSync(p, 'utf8')); } catch (e) { return; }
+        for (const sp of ENGINE_INLINE_SOURCES) {
+            let at = src.indexOf(sp.call + '(');
+            let resolvedHere = 0, sawHere = 0;
+            while (at !== -1) {
+                const win = src.slice(at, at + 1200);
+                const idm = win.match(new RegExp('\\b' + sp.idKey + '\\s*:\\s*[\'"]([^\'"]+)[\'"]'));
+                let house = sp.house;
+                if (sp.houseKey) {
+                    const hm = win.match(new RegExp('\\b' + sp.houseKey + '\\s*:\\s*[\'"]([^\'"]+)[\'"]'));
+                    house = hm ? hm[1] : null;
+                }
+                sawHere++;
+                if (idm && house) {
+                    const key = sp.prefix + idm[1];
+                    ids.add(key);
+                    ids.add(house + '-' + key);
+                    added += 2;
+                    resolvedHere++;
+                }
+                at = src.indexOf(sp.call + '(', at + 1);
+            }
+            if (sawHere) pages++;
+            /* UNRESOLVED IS PER FILE, NOT PER OCCURRENCE. Three python-for-it labs close the call
+             * with `}); /* end PythonSandbox.init() *''/` — a MID-LINE block comment, which
+             * stripComments documents as its known limit, so that trailing mention counts as a
+             * second occurrence and resolves nothing. Reporting it flagged 3 files whose ids had
+             * in fact resolved from the real call. A false alarm in a skip report is not harmless:
+             * the report exists so a genuine parse failure is visible, and noise is how a real one
+             * gets ignored. So a file is unresolved only when NO occurrence in it resolved. */
+            if (sawHere && !resolvedHere) unresolved.push(path.relative(REPO, p) + ' (' + sp.engine + ')');
+        }
+    });
+    return { added, pages, unresolved };
+}
+
+function configId(src) {
+    const m = src.match(/(?:window\.[A-Za-z0-9_$]+|(?:const|var|let)\s+[A-Za-z0-9_$]+)\s*=[\s\S]{0,200}?\{[\s\S]{0,400}?\bid:\s*'([^']+)'/);
+    return m ? m[1] : null;
+}
+
+function collectEngineConfigs(ids) {
+    let added = 0, skipped = 0;
+    const skippedFiles = [];
+    for (const src of ENGINE_CONFIG_SOURCES) {
+        const root = path.join(REPO, src.dir);
+        if (!fs.existsSync(root)) continue;
+        const files = [];
+        if (src.recurse) walk(root, (p, name) => { if (src.file.test(name)) files.push(p); });
+        else for (const n of fs.readdirSync(root)) if (src.file.test(n)) files.push(path.join(root, n));
+        for (const f of files) {
+            const id = configId(fs.readFileSync(f, 'utf8'));
+            if (!id) { skipped++; skippedFiles.push(path.relative(REPO, f)); continue; }
+            const key = src.prefix + id;
+            ids.add(key);
+            ids.add(src.house + '-' + key);
+            added += 2;
+        }
+    }
+    return { added, skipped, skippedFiles };
+}
+
 function collect() {
-    const sources = { learningPaths: 0, trackerKeys: 0, callSites: 0, legacy: 0 };
+    const sources = { learningPaths: 0, trackerKeys: 0, callSites: 0, engineConfigs: 0, inlineConfigs: 0, legacy: 0 };
     const ids = new Set();
 
     // 1. LearningPaths declares module ids, bare. path-view.html strips the house prefix to match,
@@ -403,10 +551,18 @@ function collect() {
         throw new Error('legacy-completion-ids.json missing — refusing to build a registry that ' +
                         'would reject work students have already earned');
     }
+    // 4. Engine config objects — see BUG-279. Runs BEFORE the floor merge so its count is its own.
+    const engine = collectEngineConfigs(ids);
+    sources.engineConfigs = engine.added;
+
+    // 5. Engines configured by an INLINE object literal in the page — see BUG-280.
+    const inline = collectInlineConfigs(ids);
+    sources.inlineConfigs = inline.added;
+
     const legacy = JSON.parse(fs.readFileSync(LEGACY, 'utf8'));
     for (const id of legacy.ids) { ids.add(id); sources.legacy++; }
 
-    return { ids: [...ids].sort(), sources, excluded: legacy.excluded };
+    return { ids: [...ids].sort(), sources, excluded: legacy.excluded, engineSkipped: engine.skippedFiles, inlineUnresolved: inline.unresolved };
 }
 
 function main() {
@@ -465,9 +621,36 @@ function main() {
     console.log(`    LearningPaths   ${built.sources.learningPaths} declared (expanded across ${HOUSES.length} houses)`);
     console.log(`    trackerKeys     ${built.sources.trackerKeys}`);
     console.log(`    literal calls   ${built.sources.callSites}`);
+    console.log(`    engine configs  ${built.sources.engineConfigs}  <- ids engines build from a config file (BUG-279)`);
+    console.log(`    inline configs  ${built.sources.inlineConfigs}  <- ids engines take from an inline literal (BUG-280)`);
+    if (built.inlineUnresolved && built.inlineUnresolved.length) {
+        console.log(`    inline cfg unresolved ${built.inlineUnresolved.length}:`);
+        for (const f of built.inlineUnresolved) console.log(`      ${f}`);
+    }
+    if (built.engineSkipped && built.engineSkipped.length) {
+        /* Printed every run, never silent: a config file with no resolvable id is either a
+         * deliberate comment-only placeholder (correct to skip) or a parse failure (a MISSING id,
+         * which is the failure this whole file exists to prevent). The reader decides which. */
+        console.log(`    engine cfg skipped ${built.engineSkipped.length} file(s) with no resolvable id:`);
+        for (const f of built.engineSkipped) console.log(`      ${f}`);
+    }
     console.log(`    legacy floor    ${built.sources.legacy}  <- ids students already hold`);
     return 0;
 }
 
-try { process.exit(main()); }
-catch (e) { console.error('  gen-completion-registry failed:', e && e.message); process.exit(2); }
+/* The engine-config TABLE is exported so registry-coverage.js ARM C can classify an unresolvable
+ * call site as "covered by a config source" instead of reporting it as unknown risk. Note this is a
+ * declarative table, NOT a resolver: the parity doctrine says the two resolvers must stay separate
+ * implementations so their disagreement is an alarm, but there must be exactly ONE statement of
+ * which engines are config-driven, or ARM C will describe a world that does not match the build. */
+module.exports = { ENGINE_CONFIG_SOURCES, ENGINE_INLINE_SOURCES };
+
+/* GUARDED, because exporting the table made this file requirable and it had no guard: a bare
+ * require() RAN main(), rewrote functions/completion-registry.json as a side effect, and then
+ * process.exit() killed the REQUIRING process before it could use the export. A module that
+ * regenerates a production artifact merely by being imported is a trap. Same guard
+ * refresh-legacy-floor.js already carries, for the same reason. */
+if (require.main === module) {
+    try { process.exit(main()); }
+    catch (e) { console.error('  gen-completion-registry failed:', e && e.message); process.exit(2); }
+}
