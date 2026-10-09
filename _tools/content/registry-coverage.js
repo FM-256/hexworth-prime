@@ -91,6 +91,43 @@ const REG = path.join(__dirname, '..', '..', 'functions', 'completion-registry.j
  * So they are reported loudly and separately, never filtered out of the count. */
 const { rejectReason } = require(path.join(__dirname, 'refresh-legacy-floor.js'));
 
+/* ARM B's own comment stripper. Same RULE as the generator's stripComments (BUG-277) —
+ * documentation showing how to call the API is not a call site; 8 placeholder ids reached the
+ * shipped allowlist that way, including `capi-owasp-NN` from a block-comment CONTINUATION line
+ * with no leading `*`.
+ *
+ * LINE-ORIENTED for the reason written at length in the generator: a character-level JS tokeniser
+ * blanked 87 REAL ids, because these .html files carry shell teaching content such as
+ * `rm -rf /var/lib/apt/lists/*` whose trailing slash-star opens a comment in any such scanner.
+ *
+ * NAMED AND EXPORTED RATHER THAN INLINE, because Nancy pointed out the structural hole: the parity
+ * gate compares RESOLVERS, and comment handling is not a resolver, so a divergence between this
+ * copy and the generator's would be invisible to the one gate built to catch exactly that class of
+ * drift. It is still a separate implementation — the arm is deliberately independent — but now it
+ * can be compared, and completion-validation.test.js asserts the two produce identical output on a
+ * shared fixture set. Re-implementation without comparison is how BUG-275 happened. */
+function stripCommentsB(src) {
+    const OPEN = '/' + '*';
+    const CLOSE = '*' + '/';
+    let inBlock = false;
+    const kept = [];
+    for (const ln of src.split('\n')) {
+        const t = ln.trimStart();
+        if (inBlock) {
+            if (t.includes(CLOSE)) inBlock = false;
+            kept.push('');
+            continue;
+        }
+        if (t.startsWith(OPEN)) {
+            if (!t.includes(CLOSE)) inBlock = true;
+            kept.push('');
+            continue;
+        }
+        kept.push(t.startsWith('//') || t.startsWith('*') ? '' : ln);
+    }
+    return kept.join('\n');
+}
+
 /* ── ARM B: AN INDEPENDENT VERIFIER OF THE REGISTRY'S STATIC COVERAGE ────────────────────────────
  * Resolves `ModuleProgress.complete(<house>, <key>)` for every argument shape that can be
  * determined without running the page — a literal, a same-file `const`/`let`/`var` holding a
@@ -237,6 +274,7 @@ function armB(known) {
             let src = '';
             try { src = fs.readFileSync(fp, 'utf8'); } catch (e2) { continue; }
             if (!src.includes('ModuleProgress.complete(')) continue;
+            src = stripCommentsB(src);
             const vars = varsOf(src);
             for (const m of src.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
                 const house = resolve(m[1], vars);
@@ -392,7 +430,7 @@ async function main() {
  * earlier harness called armB with the wrong __dirname, so it walked a directory that does not
  * exist and reported a confident 0 blockers against a registry with 72 real gaps. The clean result
  * was the harness being broken, not the tree being clean. */
-module.exports = { armB };
+module.exports = { armB, stripCommentsB };
 
 if (require.main === module) {
     main().then((c) => process.exit(c)).catch((e) => { console.error('  registry-coverage failed:', e && e.message); process.exit(2); });

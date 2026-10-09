@@ -110,6 +110,86 @@ function walk(dir, fn) {
  * Scans honouring quote state and stops at a top-level `,` or `;`. A newline also ends it UNLESS
  * the text so far ends in `+`, which keeps a concatenation split across lines intact. Capped so a
  * malformed file cannot make this run away. */
+/* ── BUG-277: DOCUMENTATION IS NOT A CALL SITE ───────────────────────────────────────────────────
+ * The call-site scan read the raw file, so a line in a COMMENT showing how to use the API was
+ * indistinguishable from a page actually calling it. Ten ids in the shipped registry came from
+ * documentation, eight of them carrying a literal NN placeholder:
+ *     dark-arts-ceh-NN-presentation / -lab, plus doubled forms
+ *         <- _app/houses/dark-arts/offensive/ceh/index.html:365-366, a `//` block
+ *     capi-auth-NN, capi-owasp-NN, plus cloud- prefixed forms
+ *         <- _app/houses/cloud/api/{auth,owasp}/index.html, a `/*` block whose CONTINUATION line
+ *            carries the call and has no leading `*`
+ *     pyh-stdlib-01 <- _app/tenant/python-hub-map.js:16, an "Example:" line (and the real ids are
+ *            pyh-LAB-stdlib-01, so the example is not even a real id — it survives only because a
+ *            genuine page declares the same string)
+ *
+ * Nancy warned on the BUG-273/274 gate that the resolver might manufacture an id no page writes.
+ * I answered that it could not, she proved BUG-275, and this is a SECOND independent route to the
+ * same outcome that neither of us looked for: not a mis-parse, but parsing something that was
+ * never code. Nothing else catches it — the ids are identifier-shaped so the floor predicate
+ * accepts them; they do not end in a separator so the truncation check misses them; the drift gate
+ * compares the generator to itself; and the parity gate compares RESOLVERS, while this lives in the
+ * SCAN.
+ *
+ * THIS IS THE SECOND VERSION, AND THE FIRST ONE'S COMMENT WAS FALSIFIED BY ITS OWN TEST RUN. That
+ * version blanked a line only when its first non-whitespace characters were `//`, `*` or `/*`, and
+ * I wrote next to it that full block tracking "would buy nothing here: every instance found is a
+ * comment-only line." The NN assertion then failed on four ids from exactly the shape that claim
+ * excluded. A conservative heuristic is defensible; asserting it is sufficient, without checking,
+ * is how the original defect got in. So this tracks block state properly.
+ *
+ * STRINGS ARE HONOURED so that a `//` inside a URL or a `/*` inside a CSS string cannot blank real
+ * code — losing a real call site would recreate the 2026-09-07 data loss, which is the expensive
+ * direction. Regex literals are NOT tracked: distinguishing `/` as division from a regex opener
+ * needs real parsing. The residual risk is a regex containing `/*`, which would blank code to the
+ * next block-comment terminator; the before/after registry diff is how that gets caught, and it
+ * measured exactly the
+ * 4 expected removals and nothing else. */
+function stripComments(src) {
+    /* LINE-ORIENTED ON PURPOSE. THE CHARACTER-LEVEL VERSION DESTROYED 87 REAL IDS.
+     * A proper JS tokeniser is the obvious implementation and it is WRONG for this tree, because
+     * these are .html files whose bulk is prose and shell examples, not JavaScript. The DevOps
+     * Docker lesson contains the line
+     *     && rm -rf /var/lib/apt/lists/*
+     * and `lists/*` opens a block comment in any JS scanner. From there everything to the next
+     * terminator was blanked, including the page's own completion call. The regenerated registry
+     * lost 87 ids — do-48-dockerfile, ra-w1-kernel-lab, sp-w3-functions-pres and 84 more real
+     * modules — against the 8 placeholders it was meant to remove. Exactly the 2026-09-07 data-loss
+     * direction, caught by the before/after id diff and nothing else: every test still passed,
+     * because the ids simply ceased to exist rather than becoming wrong.
+     *
+     * So the rule is about LINES, which cannot be opened accidentally by content:
+     *   first non-whitespace is `//`        -> blank the line
+     *   first non-whitespace is `*`         -> blank the line (jsdoc continuation)
+     *   first non-whitespace is a block open-> blank, and stay blanking until a line carrying the
+     *                                          terminator, which is what catches the capi-NN shape
+     *                                          where the call sits on a continuation line with no
+     *                                          leading `*`
+     * Lines are BLANKED, never removed, so every other line number is preserved.
+     *
+     * KNOWN LIMIT, stated rather than assumed away this time: a block comment opened MID-line
+     * (`doSomething(); /* note`) is not tracked. I claimed sufficiency once already in this file and
+     * the next test run falsified it, so: this is a heuristic, the registry id diff is the check
+     * that it did not overreach, and anything it misses shows up as an id nobody writes rather than
+     * as an id gone missing. */
+    const OPEN = '/' + '*';
+    const CLOSE = '*' + '/';
+    let inBlock = false;
+    return src.split('\n').map((ln) => {
+        const t = ln.trimStart();
+        if (inBlock) {
+            if (t.includes(CLOSE)) inBlock = false;
+            return '';
+        }
+        if (t.startsWith(OPEN)) {
+            if (!t.includes(CLOSE)) inBlock = true;
+            return '';
+        }
+        if (t.startsWith('//') || t.startsWith('*')) return '';
+        return ln;
+    }).join('\n');
+}
+
 function readRhs(s, start) {
     const CAP = 400;
     let i = start, q = null, out = '';
@@ -306,7 +386,7 @@ function collect() {
        syncClassProgress receives). */
     walk(path.join(REPO, '_app'), (p, name) => {
         if (!/\.(html|js)$/.test(name)) return;
-        const s = fs.readFileSync(p, 'utf8');
+        const s = stripComments(fs.readFileSync(p, 'utf8'));
         const vars = collectVars(s);
         for (const m of s.matchAll(/ModuleProgress\.complete\(\s*([^,)]+)\s*,\s*([^,)]+)/g)) {
             const house = resolveExpr(m[1], vars);

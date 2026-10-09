@@ -260,6 +260,133 @@ function main() {
         parity.status === 0,
         `registry-parser-parity exited ${parity.status}: ${String(parity.stdout || '').split('\n').filter(l => /disagree/i.test(l)).join(' | ') || String(parity.stderr || '').slice(0, 200)}`);
 
+    /* ---- 8. DOCUMENTATION IS NOT A CALL SITE (BUG-277) --------------------------------
+       Six ids in the shipped registry came from COMMENTS showing how to call the API — four with a
+       literal NN placeholder (`dark-arts-ceh-NN-presentation` and its doubled form, from a `//`
+       block at _app/houses/dark-arts/offensive/ceh/index.html:365-366).
+
+       This is a SECOND independent route to "an id no page writes", after BUG-275, and neither
+       Nancy nor I went looking for it: not a mis-parse, but parsing something that was never code.
+       Nothing in the suite could catch it — the ids are identifier-shaped so the floor predicate
+       accepts them, they do not end in a separator so section 6 misses them, and the drift gate
+       compares the generator to itself. Parity cannot see it either: comment stripping lives in the
+       SCAN, not in the resolvers parity compares.
+
+       TWO FIXTURES, because a test that only proves the comment case is dropped cannot tell that
+       from dropping everything. */
+    const gen = fs.readFileSync(path.join(REPO, '_tools/content/gen-completion-registry.js'), 'utf8');
+    const strip = new Function(gen.match(/function stripComments[\s\S]*?\n}\n/)[0] + '\n return stripComments;')();
+
+    const liveCall = "const H='ai', M='real-module';\nModuleProgress.complete(H, M);";
+    chk('scan KEEPS a real call site (negative control for the comment strip)',
+        /ModuleProgress\.complete/.test(strip(liveCall)), 'the strip removed a live call — it is too aggressive');
+
+    for (const [fixture, label] of [
+        ["const H='ai', M='doc-example';\n//   ModuleProgress.complete(H, M);", 'a // line comment'],
+        ["const H='ai', M='doc-example';\n *   ModuleProgress.complete(H, M);", 'a * block-comment line'],
+        ["const H='ai', M='doc-example';\n/* ModuleProgress.complete(H, M); */", 'a /* comment line']
+    ]) {
+        chk(`scan DROPS a call site inside ${label}`, !/ModuleProgress\.complete/.test(strip(fixture)),
+            'a documented example would enter the allowlist as a real id');
+    }
+
+    /* THE TWO CASES MY BUG-277 RECORD CLAIMED WERE TESTED AND WERE NOT. I wrote into the tracker
+       that stripComments had been checked against "a URL's // and a string's /*". Both checks were
+       real, but they lived in a scratchpad script, not in this file — so a permanent record claimed
+       repo coverage that the repo did not have. Nancy caught it, and it is the same unearned-claim
+       pattern BUG-277 itself documents about its own first draft. Making the claim true is the fix;
+       weakening the claim was the alternative and these cases are worth having. */
+    const DQUOTE = String.fromCharCode(34);
+    for (const [fixture, label] of [
+        ['const u = ' + DQUOTE + 'http://x//y' + DQUOTE + '; ModuleProgress.complete(H, M);',
+         "a URL's // mid-line does not blank the code"],
+        ['const css = ' + DQUOTE + 'a /* b' + DQUOTE + '; ModuleProgress.complete(H, M);',
+         "a string literal's block opener does not blank the code"]
+    ]) {
+        chk(`scan KEEPS the call when ${label}`, /ModuleProgress\.complete/.test(strip(fixture)),
+            'the stripper treated in-string punctuation as a comment and dropped a real call');
+    }
+
+    /* THE REGRESSION THAT COST 87 REAL IDS, as a fixture. The first block-aware stripper was a
+       character-level JS tokeniser, and these .html files carry shell teaching content: the DevOps
+       Docker lesson has the line `&& rm -rf /var/lib/apt/lists/*`, whose trailing `/*` opens a
+       comment in any such scanner. Everything to the next terminator was blanked, including that
+       page's own completion call, and the registry lost 87 real ids against the 8 placeholders the
+       change was meant to remove. EVERY TEST STILL PASSED — the ids ceased to exist rather than
+       becoming wrong, so only the before/after id diff caught it. Hence a fixture. */
+    const dockerish = "<span>RUN</span> rm -rf /var/lib/apt/lists/*\nModuleProgress.complete('code', 'do-48-dockerfile');";
+    chk('a shell path ending in /* does NOT blank the code after it',
+        /ModuleProgress\.complete/.test(strip(dockerish)),
+        'the stripper treats teaching content as a comment opener — this deleted 87 real ids once');
+
+    /* And the specific placeholders, so a regression is named rather than merely counted. */
+    const placeholders = [...R].filter(id => /(^|-)NN(-|$)/.test(id)).sort();
+    chk('no registry id carries an NN placeholder from documentation', placeholders.length === 0,
+        `${placeholders.length}: ${JSON.stringify(placeholders)}`);
+
+    /* ---- 9. THE TWO COMMENT STRIPPERS, AND A FLOOR ON WHAT MUST SURVIVE ---------------
+       Nancy's two residual concerns from the BUG-277 gate, both closed here.
+
+       (a) THE PARITY GATE CANNOT SEE THIS DIVERGENCE. registry-parser-parity.js compares the two
+       RESOLVERS, and comment handling is not a resolver — it lives in the scan, on raw source. So a
+       future edit to the generator's stripComments without the matching edit to ARM B's
+       stripCommentsB would be invisible to the one gate built to catch exactly that drift, and
+       invisible in the DANGEROUS direction too: a generator that under-strips reintroduces BUG-277
+       while ARM B stays correct and reports nothing. Re-implementation without comparison is how
+       BUG-275 happened. So: same fixtures through both, identical output required. */
+    const { stripCommentsB } = require(path.join(REPO, '_tools/content/registry-coverage.js'));
+    const stripFixtures = [
+        "ModuleProgress.complete(H, M);",
+        "// ModuleProgress.complete(H, M);",
+        " *  ModuleProgress.complete(H, M);",
+        "/* open\n   ModuleProgress.complete(H, M)\n" + '*' + "/",
+        "const u = " + DQUOTE + "http://x//y" + DQUOTE + "; ModuleProgress.complete(H, M);",
+        "<span>RUN</span> rm -rf /var/lib/apt/lists/*\nModuleProgress.complete('code', 'x');",
+        "/* one-liner " + '*' + "/ ModuleProgress.complete(H, M);",
+        "",
+        "no comments at all\njust two lines"
+    ];
+    const mismatched = stripFixtures.filter(f => strip(f) !== stripCommentsB(f));
+    chk(`the generator and ARM B strip comments identically (${stripFixtures.length} fixtures)`,
+        mismatched.length === 0,
+        `${mismatched.length} fixture(s) differ, first: ${JSON.stringify(mismatched[0])}`);
+
+    /* (b) A FLOOR ON WHAT MUST SURVIVE, NAMED RATHER THAN COUNTED. `--check` only proves the
+       committed registry matches what the generator currently emits — both sides come from the same
+       code, so a generator that silently stops emitting real ids passes it. That is what happened:
+       the discarded BUG-277 fix dropped 87 real ids and every test here still passed, because an
+       absence is invisible to any assertion that was not told to expect the thing. It was caught by
+       a hand-run before/after diff — a habit, not a gate. These canaries are the gate. A SET, not a
+       size threshold: the registry legitimately shrinks when a placeholder is removed (BUG-277's
+       correct fix was -8), so a number would have been both wrong and in the way. */
+    /* READ DEFENSIVELY, AND FAIL RATHER THAN CRASH. The first version read this file with a bare
+       readFileSync inside main(), whose only handler is the file-level try/catch that prints
+       "could not run" and exits 2. `_tools/` is gitignored, so on any clone that did not happen to
+       carry the untracked local file — a fresh clone, CI, another machine — the WHOLE suite would
+       have gone from 36/36 green to a hard ENOENT crash. Nancy caught that; it is strictly worse
+       than the gate quietly vanishing, and it is the same gitignore trap CLAUDE.md's catalog rule
+       exists for, which this session had already hit once.
+
+       A missing canary file is a FAILED ASSERTION, never a skip: a skip would let anyone delete the
+       file to go green, which is exactly the move the file's own text warns against. */
+    let canaries = null, canaryErr = null;
+    try {
+        canaries = JSON.parse(fs.readFileSync(path.join(REPO, '_tools/content/registry-canaries.json'), 'utf8'));
+    } catch (e) {
+        canaryErr = e && e.message;
+    }
+    if (!canaries || !Array.isArray(canaries.ids) || !canaries.ids.length) {
+        chk('registry-canaries.json is present and non-empty', false,
+            canaryErr ? `cannot read it: ${canaryErr} — _tools/ is gitignored, so it needs \`git add -f\`` : 'it parsed but holds no ids');
+    } else {
+        const vanished = canaries.ids.filter(id => !R.has(id));
+        chk(`all ${canaries.ids.length} canary ids survive regeneration`, vanished.length === 0,
+            `${vanished.length} REAL id(s) vanished from the registry: ${JSON.stringify(vanished)} — the generator regressed; do NOT delete the canary to go green`);
+        const unexplained = canaries.ids.filter(id => !(canaries.provenance || {})[id]);
+        chk('every canary states why it is a canary', unexplained.length === 0,
+            `${unexplained.length} without provenance: ${JSON.stringify(unexplained)} — an unexplained canary cannot be safely retired later`);
+    }
+
     console.log(`\n  ${pass}/${pass + fail} passed`);
     return fail ? 1 : 0;
 }
