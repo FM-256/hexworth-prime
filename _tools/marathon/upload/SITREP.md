@@ -15,18 +15,50 @@
 - 8c1455138 Floor refresher: the legacy completion floor is regenerable, and the registry gap on the Python course is now visible
 <!-- AUTO:END -->
 
-**Manual section updated:** 2026-10-08. **THE COMPLETION-REGISTRY COVERAGE CHAIN IS DONE AND GATED:
-floor regenerable, and FOUR defects found and three fixed — the active Python course AND the entire
-AI Cortex series were missing from the server-side allowlist. `_ENFORCE_COMPLETION_REGISTRY` STAYS
+**Manual section updated:** 2026-10-08. **THE COMPLETION-REGISTRY COVERAGE CHAIN IS DONE, GATED AND
+PUSHED: floor regenerable, and FIVE defects found with four fixed — the active Python course AND the
+entire AI Cortex series were missing from the server-side allowlist, and documentation was being
+read as call sites. `_ENFORCE_COMPLETION_REGISTRY` STAYS
 FALSE: ARM C's 15 unresolvable call sites are UNPROVEN, not cleared. Nothing pushed, nothing
 deployed. The tournament is still fully verified and NEVER PLAYED. The objective-tag fix is still
 HALTED on purpose.**
 
-## NOW: nothing in flight. FOUR commits sit local and unpushed (`8c1455138`, `d8f791e4a`, `c235c3c0b`, `fe27e8ec1`) — pushing is the one mechanical next action.
+## NOW: nothing in flight. ALL PUSHED through `45fd34c6d`. Next decision is taskboard 429 — accept ARM C's residual or refactor those 15 call sites — before `_ENFORCE_COMPLETION_REGISTRY` can be flipped.
 
 Nothing in this stretch was deployed. The regenerated `functions/completion-registry.json` is inert
 until a functions deploy, and enforcement is off regardless. Post-deploy `_tools/` churn from the
 PREVIOUS stretch is still uncommitted and expected (nexus/BOX report snapshots, gate markers).
+
+### ★★ LANDED THIS STRETCH, PART 3 — BUG-277, AND THE FIX THAT WAS WORSE THAN THE BUG
+- **BUG-277** — the scan read raw bytes, so DOCUMENTATION demonstrating `ModuleProgress.complete`
+  was indistinguishable from a page calling it. 8 placeholder ids in the shipped allowlist, 4 with a
+  literal `NN`. Registry 20,150 -> 20,142, exactly the placeholders, 0 real ids lost.
+- **MY FIRST FIX DESTROYED 87 REAL IDS AND EVERY TEST STILL PASSED.** A character-level JS tokeniser
+  is the obvious implementation and is wrong here: these `.html` files carry shell content like
+  `&& rm -rf /var/lib/apt/lists/*`, whose trailing slash-star opens a comment in any JS scanner. It
+  blanked `do-48-dockerfile`, `ra-w1-kernel-lab`, `sp-w3-functions-pres` and 84 more. **No assertion
+  could see it** — the ids ceased to EXIST rather than becoming wrong. Only a hand-run before/after
+  id diff caught it. Now line-oriented, and the shell-path case is a test fixture.
+- **NANCY BLOCKED TWICE, BOTH RIGHT.** (1) My own verification record claimed two `stripComments`
+  tests that lived in a SCRATCHPAD, not the repo — a permanent record asserting coverage the repo
+  did not have. Cleared by making it true. (2) The canary gate nearly shipped broken: the file sits
+  under gitignored `_tools/` and the test read it with a bare `readFileSync`, so on a fresh clone the
+  WHOLE suite went green -> hard ENOENT crash. Fixed by `git add -f` AND a defensive read where a
+  missing file FAILS rather than skips. All 7 tools in the chain re-audited; all tracked.
+- **THREE NEW GATES, each proven to fail before being trusted:** no registry id may end in a
+  separator or be bare a house name · the generator and ARM B must strip comments identically across
+  9 shared fixtures (parity cannot see this — comment handling is not a resolver) ·
+  **`registry-canaries.json`, 24 named real ids with provenance, asserted to survive regeneration**.
+  `--check` cannot catch a generator that stops emitting real ids; both sides come from the same code.
+- **Nancy measured my canary selection at 7 of 22 houses** — a regression in `web` or `matrix` would
+  have passed everything. Now 12 of 22 by real call site (the 5 added DERIVED from a sweep, not
+  hand-picked), plus one guard per EXTRACTION SOURCE: `shield-cia-triad` LearningPaths, `ctf_a1`
+  trackerKeys, `CLH-001` floor-only. The other 10 houses have no literal completion call site at all.
+- **ARM C corrected 20 -> 15**: five of those sites were DOCUMENTATION. Nancy caught the stale 20
+  still circulating in my summaries. Volatile counts removed from the memory entry, not updated.
+- **BUG-278 filed, not fixed** — 20 Backbone pages declare `var HOUSE='backbone'`, which is in no
+  house list anywhere. Registry covers the ids, so not a coverage gap; the house taxonomy is the
+  question and the first step is a measurement.
 
 ### ★★ LANDED THIS STRETCH, PART 2 — THREE REGISTRY-EXTRACTOR DEFECTS, ALL THE 2026-09-07 FAMILY
 `functions/completion-registry.json` is the server-side allowlist `_isKnownCompletion` checks before
