@@ -6224,6 +6224,90 @@ exports.resolveJoinCode = onCall(cfOptions, async (request) => {
     const cleanCode = code.trim().toUpperCase();
     const uid = request.auth ? request.auth.uid : null;
 
+    /* ── THROTTLE: THIS WAS AN UNRATED ORACLE OVER A 923,521-CODE SPACE ──────────────────────────
+     *
+     * Mallory, 2026-10-11: 60 unauthenticated guesses in 681ms, zero backoff, zero errors, and the
+     * real code still resolved instantly afterwards — nothing upstream throttled anything. Codes are
+     * `HEX-` + 4 chars from a deliberately unambiguous 31-char alphabet (O/0/I/1/L excluded so they
+     * read off a projector), so the whole space is 31^4 = 923,521. At the measured single-process
+     * rate that is inside an event's registration window, and `ENFORCE_APP_CHECK` is false
+     * (functions/index.js:45) so there is no bot layer to defeat even in principle.
+     *
+     * Why it matters more than "someone joins an event they were not invited to": a correct code is
+     * what the box-credential guard above now trusts. Cracking a code is therefore a step on the
+     * path to an interactive login on the operator's own machines.
+     *
+     * KEYED ON A HASH OF THE CALLER IP, NEVER THE IP. This platform's standing rule is that
+     * addresses do not get written down, and a rate-limit counter is not a reason to start: the salt
+     * is the project id and only the digest is stored, which is all a counter needs. A missing
+     * header degrades to a shared bucket rather than to no limit at all — the generous path is for
+     * real people retyping a code, not for a script.
+     *
+     * FAILS CLOSED. The existing submission limiter (ctfSubmitFlag) throws resource-exhausted on a
+     * limiter fault and that posture is copied deliberately: failing OPEN on a brute-force control
+     * hands an attacker a bypass, because inducing limiter errors becomes the attack. A real person
+     * who hits this waits a minute; a script loses its throughput. */
+    const JC_WINDOW_MS = 60000;
+    const JC_MAX = 12;              // ample for a person mistyping a projected code, useless for a sweep
+    /* The ceiling that does not depend on reading a header correctly. 600/min is ~10/s across the
+     * whole platform: a classroom of 30 all fumbling a code at once stays far beneath it, while the
+     * measured attack (88/s single-process, autoscaling behind it) hits it immediately. */
+    const JC_GLOBAL_MAX = 600;
+    try {
+        /* WHICH END OF X-FORWARDED-FOR TO TRUST — I HAD THIS BACKWARDS AND NANCY CAUGHT IT.
+         *
+         * The first version keyed on `split(',')[0]`, the LEFTMOST entry. On Cloud Run behind
+         * Google's load balancer the header is built by APPENDING, so a caller who sends their own
+         * `X-Forwarded-For: 1.2.3.4` produces `1.2.3.4, <real client>, <lb hop>` — and the leftmost
+         * entry is the value the ATTACKER chose. Rotating it per request puts every attempt in a
+         * fresh bucket and the limiter never engages. That is not a weak limiter, it is no limiter,
+         * dressed as one, on the platform's own stated P0.
+         *
+         * The trustworthy end is the one nearest the trusted hop. GCP appends the real client
+         * address and then its own hop, so the client is the SECOND FROM LAST entry; anything to
+         * the left of it is caller-suppliable and discarded.
+         *
+         * AND A GLOBAL CEILING REGARDLESS, because this reasoning is about one deployment's proxy
+         * behaviour and I have now been wrong about it once. If per-caller bucketing is defeated by
+         * some header shape I have not anticipated, the shared bucket still caps the whole endpoint
+         * at a rate no brute force can live with, while sitting far above any plausible real event.
+         * A limiter whose correctness rests entirely on parsing a header the caller can write is a
+         * limiter with a single point of failure. */
+        const hdrs = (request.rawRequest && request.rawRequest.headers) || {};
+        const fwd = hdrs['x-forwarded-for'] || hdrs['X-Forwarded-For'] || '';
+        const chain = String(fwd).split(',').map(x => x.trim()).filter(Boolean);
+        const peer = (chain.length >= 2 ? chain[chain.length - 2] : chain[chain.length - 1])
+            || (request.rawRequest && request.rawRequest.ip) || 'unknown';
+        const bucket = require('crypto').createHash('sha256')
+            .update('hexworth-prime:joincode:' + peer).digest('hex').slice(0, 32);
+        const rlRef = db.collection('joinCodeRateLimits').doc(bucket);
+        const globalRef = db.collection('joinCodeRateLimits').doc('_global');
+        const step = async (ref, max, label) => {
+            await db.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                const now = Date.now();
+                const d = snap.exists ? snap.data() : null;
+                const windowStart = d && typeof d.windowStart === 'number' ? d.windowStart : 0;
+                const count = d && typeof d.count === 'number' ? d.count : 0;
+                if (now - windowStart < JC_WINDOW_MS) {
+                    if (count >= max) { const e = new Error('JC_RL'); e.code = 'JC_RL'; e.which = label; throw e; }
+                    tx.set(ref, { windowStart, count: count + 1, updatedAt: now }, { merge: true });
+                } else {
+                    tx.set(ref, { windowStart: now, count: 1, updatedAt: now }, { merge: true });
+                }
+            });
+        };
+        await step(rlRef, JC_MAX, 'peer');
+        await step(globalRef, JC_GLOBAL_MAX, 'global');
+    } catch (e) {
+        if (e && e.code === 'JC_RL') {
+            throw new HttpsError('resource-exhausted',
+                'Too many join-code attempts. Wait a minute and try again, or ask the organiser for the full link.');
+        }
+        console.error('[resolveJoinCode] rate limiter fault — refusing rather than failing open:', e && e.message);
+        throw new HttpsError('resource-exhausted', 'Join-code lookup is temporarily unavailable. Try again shortly.');
+    }
+
     // 1. Check tenant classes (collectionGroup query on 'classes')
     const classSnap = await db.collectionGroup('classes')
         .where('joinCode', '==', cleanCode)
@@ -8164,7 +8248,33 @@ exports.ctfJoinTeam = onCall(cfOptions, async (request) => {
             { teamId: existing, teamName: exName });
     }
 
-    const name = await _resolveUserName(uid, request.auth.token, tournamentId);
+    /* OPTIONAL CALLER-SUPPLIED CALLSIGN, for competitors who have no Hexworth account at all.
+     *
+     * WHY IT HAS TO BE A PARAMETER HERE. A tournament may be a public event for people who have
+     * never used the platform. They arrive through tournament-join.html, sign in anonymously, and
+     * have nothing in `users/{uid}` — so _resolveUserName falls all the way through to
+     * _placeholderName and the roster shows `Player-3f9a`. That is privacy-correct and useless: a
+     * teammate cannot find them on the board. The obvious fix, writing `callsign` from the client,
+     * is impossible by design — `callsign` is absent from the `users/{uid}` create allowlist in
+     * firestore.rules, and the comment on the teams rule says this callable exists precisely
+     * because "a client rule cannot secure the parallel members[]/memberNames[] arrays". So the
+     * name arrives as an argument and is validated here, where the binding is already server-side.
+     *
+     * CHARSET-RESTRICTED EVEN THOUGH BOTH KNOWN RENDERERS ESCAPE. tournament-lobby.html uses
+     * escHtml() and tournament-join.html uses esc(), but memberNames[] is read by the podium, the
+     * broadcast view and the Discord webhook path too, and BUG-023/025 were a crafted-team-field
+     * XSS class on this exact collection. A restricted charset is the control that does not depend
+     * on every current and future consumer remembering to escape.
+     *
+     * Absent or invalid falls back to the previous behaviour exactly, so existing callers that send
+     * no callsign are unaffected. */
+    const suppliedCallsign = typeof (request.data || {}).callsign === 'string'
+        ? request.data.callsign.trim().slice(0, 24)
+        : '';
+    const callsignOk = /^[A-Za-z0-9][A-Za-z0-9 _-]{1,23}$/.test(suppliedCallsign);
+    const name = callsignOk
+        ? suppliedCallsign
+        : await _resolveUserName(uid, request.auth.token, tournamentId);
     const maxSize = tournament.maxTeamSize || 4;
     const teamRef = tRef.collection('teams').doc(teamId);
     const lockRef = tRef.collection('rosterLocks').doc(uid);
@@ -8482,6 +8592,42 @@ exports.ctfGetBoxCredential = onCall(cfOptions, async (request) => {
         throw new HttpsError('failed-precondition', 'This tournament is not running, so boxes are not open.');
     }
 
+    /* ── BOX CREDENTIALS REQUIRE A GATED TOURNAMENT (P0, found by Mallory 2026-10-11) ────────────
+     *
+     * THE CHAIN SHE PROVED, END TO END, on the real callables:
+     *     anonymous session -> ctfJoinTeam writes itself into members[] (no vetting, and no join
+     *     code at all when hasJoinCode is unset) -> ctfGetBoxCredential hands that same session the
+     *     url, username and password of a REAL VM on the operator's own infrastructure.
+     *
+     * The membership check below is sound as far as it goes, and the comment above it is accurate:
+     * members[] IS the right authority for "which team are you on". The defect is that nothing
+     * asked how that membership was obtained. `box_pool` and the per-team `assignments` subdoc are
+     * both admin-only in firestore.rules, so there is no rules leak — the escalation runs entirely
+     * through this callable, which is why reading the rules and concluding "a roster, not a VM" was
+     * wrong. Verified independently: 6 of 6 teams on the live active tournament have a box wired.
+     *
+     * WHY THE GATE IS THE TOURNAMENT AND NOT THE USER. Three shapes were available:
+     *   - refuse anonymous callers: 2 of the 3 competitors who have ever joined are anonymous, so
+     *     this breaks a pattern the platform already uses, and it makes credential access depend on
+     *     an identity property that says nothing about whether the person was invited.
+     *   - require a verified (code-supplying) join: the per-user signal exists on the badge, but an
+     *     OPEN event has no code, so verifiedJoin is false for everyone and nobody could ever get a
+     *     credential — a silent, confusing failure on a legitimately configured event.
+     *   - require the EVENT to be gated, which is this. If an organiser is handing out interactive
+     *     logins to their own machines, the event must have a join code. It is one check, it does
+     *     not care who you are, and it fails loudly and explainably when it fires.
+     *
+     * Open events remain fully usable for everything that is not infrastructure: scoreboard,
+     * non-box challenges, standings, badges. Only the door to a live machine now requires that the
+     * event had a door at all.
+     *
+     * WHAT THIS DOES NOT FIX, stated so nobody reads it as more than it is: a correct join code
+     * still yields a credential, and `resolveJoinCode` is an unthrottled oracle over a 923,521-code
+     * space, so a determined attacker can still crack the code and walk in. That is a separate
+     * finding with a separate fix; this guard removes the ZERO-effort path, not every path. */
+    /* The guard itself runs AFTER the assignment lookup below, which is both cheaper and more
+     * correct. See the comment at that point. */
+
     /* Derive the team from membership, never from a parameter. Same scan ctfSubmitFlag uses.
      * members[] is the authority: an admin-assigned player has NO rosterLocks document until
      * they call ctfJoinTeam themselves, so keying off rosterLocks would lock exactly those
@@ -8496,6 +8642,36 @@ exports.ctfGetBoxCredential = onCall(cfOptions, async (request) => {
 
     const aRef = tRef.collection('teams').doc(teamId).collection('assignments').doc(challengeId);
     const aSnap = await aRef.get();
+
+    /* ── THE GATED-EVENT GUARD, SITED HERE ON PURPOSE (P0 fix, Mallory; shape fixed by Nancy) ────
+     *
+     * The escalation: an anonymous session joins via ctfJoinTeam with no vetting, then calls this
+     * function, which derived the team from `members[].includes(uid)` and nothing else — and got
+     * the url, username and password of a real VM. The rule is that if an organiser is handing out
+     * interactive logins to their own machines, the event must have a join code.
+     *
+     * MY FIRST VERSION OF THIS GUARD RAN BEFORE THE TEAM WAS DERIVED, AND IT WAS WRONG TWICE:
+     *   - It read the whole `teams` collection and then a per-team `assignments` subquery, and the
+     *     function then re-read the SAME `teams` collection 19 lines later to find the caller. Two
+     *     full collection reads per call, on the exact endpoint a public on-ramp multiplies traffic
+     *     to, with no limiter on this callable and ENFORCE_APP_CHECK false. A free read-amplification
+     *     vector the feature itself invites.
+     *   - Its predicate was "ANY team in this tournament has an assignment", which gates the WHOLE
+     *     event. One stale subdoc — an admin's test team, a deleted team whose assignment was never
+     *     cleaned — silently converts a correctly-configured OPEN event into fully gated, for teams
+     *     that never had a machine, with a confusing "ask the organiser for a join code" on an event
+     *     the organiser deliberately left open.
+     *
+     * Sited here it costs NOTHING: `aSnap` is already fetched, and the predicate is exactly the
+     * question that matters — is THIS caller being handed a real credential on an ungated event. A
+     * team with no machine still falls through to the ordinary not-found below, unchanged. */
+    if (aSnap.exists && tournament.hasJoinCode !== true) {
+        console.warn(`[ctfGetBoxCredential] REFUSED: tournament ${tournamentId} team ${teamId} has a machine `
+            + 'assigned but the event has NO join code. Credentials are not issued for an ungated event.');
+        throw new HttpsError('failed-precondition',
+            'This event has a machine assigned to your team but no join code, so box credentials are not '
+            + 'issued. Ask the organiser to set a join code for the event.');
+    }
 
     /* not-found is the ORDINARY case: most challenges are simulated and have no real machine.
      * The client treats this one code as "nothing here, render as before" and treats every OTHER

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Join the Event — Hexworth Prime</title>
+<meta name="robots" content="noindex">
+<!--
+    tournament-join.html — the public on-ramp for a tournament.
+
+    WHAT THIS IS FOR. A tournament has nothing necessarily to do with Hexworth users. It may be a
+    public event for people who have never heard of the platform. Before this page the only way in
+    was a long arena URL plus a join code handed over separately, and the arena lobby offers Google
+    sign-in only — so a stranger could not get in at all.
+
+    THE ARTIFACT IS ONE LINK: hexworth.com/join/<slug> , which works pasted into chat, spoken aloud,
+    printed, or rendered as a QR code. A QR is only a URL in a picture, so everything that matters is
+    what the URL carries and what opens. If the link carries the code there is no separate "receive a
+    code" step at all, and distributing codes stops being a workflow.
+
+    THIS IS AN ON-RAMP, NOT A REPLACEMENT. It hands off to arena/tournament-lobby.html, which stays
+    the competition surface. None of the verified tournament machinery — scoring, flags, standings,
+    badges, roster locks — is duplicated here.
+
+    CALLSIGN, NEVER A REAL NAME. tournaments/{id}/teams/{teamId} is `allow read: if true` and carries
+    memberNames[] alongside raw uids. The class guest path in lobby.html asks for a full name
+    "visible to instructor", which is right for a class roster and wrong here: these are strangers at
+    a public event who signed nothing, and publishing their real names on a world-readable document
+    is a dox risk. So this page collects a callsign and has no real-name field.
+
+    SECURITY NOTES, because this is an unauthenticated public surface:
+      - The join code is NEVER validated here. It is passed to ctfJoinTeam, which compares it against
+        tournaments/{id}/private/config — a document no client can read. A code in a URL is exactly
+        as secret as a code read off a projector; the secret is the distribution, not the transport.
+      - A link carrying its own code is therefore a BEARER TOKEN. Anyone who receives, forwards or
+        screenshots it can join. That is the intended behaviour for a public event. For a private
+        event, send a bare /join/<slug> link and say the code aloud at the start.
+      - Every string that reaches the DOM goes through esc(). Team names and callsigns are
+        attacker-influenced: memberNames[] is written by whoever joins, and this page renders it.
+
+    Design: _docs/architecture/tournament-public-enrollment-design.md
+-->
+<style>
+    :root {
+        color-scheme: dark;
+        --bg: #0a0e17;
+        --panel: #121826;
+        --panel-2: #1a2234;
+        --line: rgba(255,255,255,0.08);
+        --text: #e8edf7;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-2: #0ea5e9;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.55 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        min-height: 100vh;
+        padding: calc(24px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px));
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+    .wrap { width: 100%; max-width: 520px; }
+    .brand {
+        font-size: 0.7rem; letter-spacing: 0.3em; text-transform: uppercase;
+        color: var(--muted); text-align: center; margin-bottom: 22px;
+    }
+    .card {
+        background: var(--panel); border: 1px solid var(--line);
+        border-radius: 14px; padding: 22px;
+    }
+    .ev-name { font-size: 1.45rem; font-weight: 700; line-height: 1.2; margin: 0 0 8px; }
+    .ev-meta { color: var(--muted); font-size: 0.86rem; margin-bottom: 14px; }
+    .ev-meta span + span::before { content: ' · '; }
+    .ev-desc {
+        color: #c3cddf; font-size: 0.9rem; margin: 0 0 18px;
+        white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    input[type=text] {
+        width: 100%; padding: 13px 14px; font-size: 1rem;
+        background: var(--panel-2); color: var(--text);
+        border: 1px solid var(--line); border-radius: 10px;
+        font-family: inherit;
+    }
+    input[type=text]:focus { outline: none; border-color: var(--accent); }
+    .hint { font-size: 0.75rem; color: var(--muted); margin-top: 7px; }
+    .btn {
+        width: 100%; margin-top: 16px; padding: 14px;
+        font-size: 1rem; font-weight: 650; font-family: inherit;
+        color: #04121c; background: var(--accent);
+        border: 0; border-radius: 10px; cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: var(--accent-2); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .teams { display: grid; gap: 10px; margin-top: 4px; }
+    .team {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 14px; background: var(--panel-2);
+        border: 1px solid var(--line); border-radius: 10px;
+        cursor: pointer; text-align: left; width: 100%;
+        color: var(--text); font: inherit;
+    }
+    .team:hover:not(:disabled) { border-color: var(--accent); }
+    .team:disabled { opacity: 0.4; cursor: not-allowed; }
+    .team-name { font-weight: 650; }
+    .team-roster { font-size: 0.76rem; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+    .team-count { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    .msg { margin-top: 14px; padding: 12px; border-radius: 9px; font-size: 0.86rem; }
+    .msg.bad { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+    .msg.warn { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d; }
+    .msg.ok { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+    .skel { height: 15px; background: var(--panel-2); border-radius: 6px; margin-bottom: 10px; }
+    .skel.w70 { width: 70%; } .skel.w40 { width: 40%; } .skel.w90 { width: 90%; }
+    .foot { text-align: center; margin-top: 18px; font-size: 0.76rem; color: var(--muted); }
+    .foot a { color: var(--muted); }
+    [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+    <div class="brand">Hexworth Prime</div>
+
+    <!-- 1. RESOLVING -->
+    <div class="card" id="s-load">
+        <div class="skel w70"></div>
+        <div class="skel w40"></div>
+        <div class="skel w90"></div>
+    </div>
+
+    <!-- 2. EVENT CARD -->
+    <div class="card" id="s-event" hidden>
+        <h1 class="ev-name" id="ev-name"></h1>
+        <div class="ev-meta" id="ev-meta"></div>
+        <p class="ev-desc" id="ev-desc"></p>
+        <label for="callsign">Choose your callsign</label>
+        <input type="text" id="callsign" maxlength="24" autocomplete="off" autocapitalize="off"
+               spellcheck="false" placeholder="ShadowFox">
+        <div class="hint" id="cs-hint">This is the only name shown to other competitors. Do not use your real name.</div>
+        <button class="btn" id="btn-go" disabled>Join the event</button>
+        <div id="ev-msg"></div>
+    </div>
+
+    <!-- 3. TEAM PICKER -->
+    <div class="card" id="s-teams" hidden>
+        <h1 class="ev-name" style="font-size:1.15rem;">Pick your team</h1>
+        <div class="ev-meta" id="tm-as"></div>
+        <div class="teams" id="tm-list"></div>
+        <div id="tm-msg"></div>
+    </div>
+
+    <!-- 4. JOINED -->
+    <div class="card" id="s-done" hidden>
+        <h1 class="ev-name" style="font-size:1.15rem;">You are in</h1>
+        <div class="msg ok" id="done-msg"></div>
+        <button class="btn" id="btn-lobby">Go to the event lobby</button>
+    </div>
+
+    <!-- 5. CANNOT JOIN -->
+    <div class="card" id="s-stop" hidden>
+        <h1 class="ev-name" style="font-size:1.15rem;" id="stop-title">Cannot join</h1>
+        <div class="msg bad" id="stop-msg"></div>
+        <div class="foot" style="margin-top:16px;">
+            <a href="/">Hexworth Prime</a>
+        </div>
+    </div>
+
+    <div class="foot" id="foot" hidden>No account needed. Your progress in this event is tied to this browser.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-functions.js';
+import { getFirestore, collection, doc, getDoc, getDocs, query, where, limit, orderBy }
+    from 'https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js';
+
+const app = initializeApp({
+    apiKey: "AIzaSyC3tWNETi36DA8Q1I60n7t09YfU9HapA4M",
+    authDomain: "hexworth-prime.firebaseapp.com",
+    projectId: "hexworth-prime",
+    storageBucket: "hexworth-prime.firebasestorage.app",
+    messagingSenderId: "11726236962",
+    appId: "1:11726236962:web:1829ea0839f2587121497b"
+});
+const auth = getAuth(app);
+const db = getFirestore(app);
+const functions = getFunctions(app);
+
+const $ = (id) => document.getElementById(id);
+
+/* Every value rendered below originates off-platform: team names are authored in the admin console,
+   but memberNames[] is written by whoever joined and this page renders it to strangers. Escaped at
+   the point of insertion rather than at the source, because the source is not ours. */
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+const STATES = ['s-load', 's-event', 's-teams', 's-done', 's-stop'];
+
+// Exactly one state card is visible at a time. The footer note only applies while the visitor is
+// still registering, so it is tied to the two states that collect input rather than shown always.
+function show(id) {
+    for (const s of STATES) $(s).hidden = (s !== id);
+    $('foot').hidden = (id !== 's-event' && id !== 's-teams');
+}
+
+// Terminal refusal. Every caller supplies a cause-specific title and sentence: a stranger who reads
+// "something went wrong" closes the tab, so no generic message is used anywhere in this file.
+function stop(title, msg) {
+    $('stop-title').textContent = title;
+    $('stop-msg').textContent = msg;
+    show('s-stop');
+}
+
+// Inline, non-terminal message under a card. Builds the node then sets textContent, so a message
+// containing a server string can never inject markup.
+function note(elId, cls, msg) {
+    $(elId).innerHTML = '<div class="msg ' + cls + '"></div>';
+    $(elId).firstChild.textContent = msg;
+}
+
+/* ── URL CONTRACT ─────────────────────────────────────────────────────────────────────────────────
+   /join/<slug>         the shareable artifact; resolved by an equality query on `slug`
+   /join/?id=<docId>    works with no schema change, so this page is useful before any tournament
+                        has a slug — all four live tournaments currently have none
+   ?c=<code>            optional, so a private-event link can carry its own code and nobody types it
+
+   WHY `/join/` AND NOT `/t/`. `/t/` was the first choice and it is ALREADY TAKEN by something far
+   more dangerous to confuse this with: every real-box access URL in `box_pool` is shaped
+   `https://<host>/t/<32-hex-token>/` and is a BEARER CAPABILITY to a live VM, carried alongside a
+   username and password. Those live on a .tech host, so there is no literal collision on
+   hexworth.com today — verified, 6 of 6 box hosts are .tech. But two URL shapes one path segment
+   apart, where one is a public join page and the other is credentialed shell access to the
+   operator's infrastructure, is a confusion waiting for an incident. `/join/` cannot be mistaken
+   for either.
+
+   The slug is deliberately PUBLIC: tournaments/{id} is `allow read: if true`, which grants GET and
+   LIST, so a single-field equality query needs no composite index and no new rule. A slug is an
+   address, not a secret. The code is the secret and it never touches this page's logic. */
+function readTarget() {
+    const qs = new URLSearchParams(location.search);
+    const code = (qs.get('c') || qs.get('code') || '').trim();
+    const id = (qs.get('id') || '').trim();
+    // /join/<slug> — last non-empty path segment, ignoring a trailing slash or the page filename
+    const segs = location.pathname.split('/').filter(Boolean)
+        .filter((s) => s !== 'join' && !s.endsWith('.html'));
+    const slug = (qs.get('slug') || segs[segs.length - 1] || '').trim();
+    return { code, id, slug };
+}
+
+const SLUG_OK = /^[a-z0-9][a-z0-9-]{0,63}$/i;
+
+let T = null;          // { id, data }
+let CODE = '';
+let CALLSIGN = '';
+
+// Turns the URL target into a tournament document. Prefers an explicit ?id= because that needs no
+// schema change and works today; falls back to the slug equality query. Returns null rather than
+// throwing on a malformed id or an unmatched slug, so boot() renders one honest refusal.
+async function resolveTournament({ id, slug }) {
+    if (id) {
+        if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) return null;
+        const snap = await getDoc(doc(db, 'tournaments', id));
+        return snap.exists() ? { id: snap.id, data: snap.data() } : null;
+    }
+    if (slug && SLUG_OK.test(slug)) {
+        const qs = await getDocs(query(collection(db, 'tournaments'), where('slug', '==', slug), limit(1)));
+        if (!qs.empty) return { id: qs.docs[0].id, data: qs.docs[0].data() };
+    }
+    return null;
+}
+
+/* Status gates the UI, not just the callable. ctfJoinTeam accepts only `lobby` and `active`; letting
+   someone through to a failed call is the difference between a stranger competing and a stranger
+   closing the tab. Each refusal says WHY. */
+function statusProblem(t) {
+    const s = t.status || 'draft';
+    if (s === 'lobby' || s === 'active') return null;
+    if (s === 'draft') return ['Not open yet', 'This event has not opened for registration. Check back closer to the start time.'];
+    if (s === 'suspended') return ['Paused', 'This event is paused. Ask the organiser when it resumes.'];
+    if (s === 'ended') return ['This event has ended', 'Registration is closed. Final standings are on the event podium.'];
+    return ['Not open', 'This event is not accepting competitors right now.'];
+}
+
+// State 2: the landing card. No auth has happened yet and none is implied. Warns up front when the
+// event needs a code and the link did not carry one, because finding that out after choosing a
+// callsign and a team is the worst moment to learn it.
+function renderEvent() {
+    const t = T.data;
+    $('ev-name').textContent = t.name || 'Tournament';
+    const bits = [];
+    if (t.status === 'active') bits.push('In progress');
+    else if (t.status === 'lobby') bits.push('Open for registration');
+    if (typeof t.teamCount === 'number') bits.push(t.teamCount + ' teams');
+    $('ev-meta').innerHTML = bits.map((b) => '<span>' + esc(b) + '</span>').join('');
+    const d = (t.description || '').trim();
+    $('ev-desc').textContent = d;
+    $('ev-desc').hidden = !d;
+    if (t.hasJoinCode && !CODE) {
+        note('ev-msg', 'warn', 'This event needs a join code. Ask the organiser for the full link, or for the code.');
+    }
+    show('s-event');
+}
+
+// State 3: the team picker, read from the public nested teams collection. Capacity comes from the
+// tournament's own maxTeamSize (default 4, matching the arena lobby) rather than a value invented
+// here, so the two surfaces cannot disagree about whether a team is full.
+async function renderTeams() {
+    $('tm-as').textContent = 'Joining as ' + CALLSIGN;
+    $('tm-list').innerHTML = '';
+    let snap;
+    try {
+        snap = await getDocs(query(collection(db, 'tournaments', T.id, 'teams'), orderBy('name')));
+    } catch (e) {
+        note('tm-msg', 'bad', 'Could not load the teams. Check your connection and reload.');
+        show('s-teams');
+        return;
+    }
+    if (snap.empty) {
+        note('tm-msg', 'warn', 'This event has no teams yet. Ask the organiser to add them.');
+        show('s-teams');
+        return;
+    }
+    const maxSize = T.data.maxTeamSize || 4;
+    snap.forEach((d) => {
+        const team = d.data();
+        const n = Array.isArray(team.members) ? team.members.length : 0;
+        const full = n >= maxSize;
+        const names = Array.isArray(team.memberNames) ? team.memberNames.filter(Boolean) : [];
+        const btn = document.createElement('button');
+        btn.className = 'team';
+        btn.type = 'button';
+        btn.disabled = full;
+        btn.innerHTML =
+            '<span><span class="team-name">' + esc(team.name || d.id) + '</span>' +
+            (names.length ? '<span class="team-roster">' + names.map(esc).join(', ') + '</span>' : '') +
+            '</span><span class="team-count">' + (full ? 'FULL' : n + '/' + maxSize) + '</span>';
+        btn.addEventListener('click', () => joinTeam(d.id, team.name || d.id, btn));
+        $('tm-list').appendChild(btn);
+    });
+    show('s-teams');
+}
+
+// State 4: the only write this page makes. All validation — code, status, roster lock, capacity —
+// happens inside ctfJoinTeam against documents no client can read. Failures are mapped to a cause
+// the visitor can act on, then the picker is re-rendered so they can try another team.
+async function joinTeam(teamId, teamName, btn) {
+    for (const b of $('tm-list').querySelectorAll('button')) b.disabled = true;
+    btn.querySelector('.team-count').textContent = 'joining';
+    $('tm-msg').innerHTML = '';
+    try {
+        if (!auth.currentUser) await signInAnonymously(auth);
+        /* `callsign` is sent for the server to validate and store. It is deliberately NOT written to
+           users/{uid} from here: `callsign` is absent from that document's create allowlist
+           (firestore.rules), and the name<->uid binding is the reason ctfJoinTeam exists at all.
+           Until the callable accepts it, the parameter is ignored and the roster shows the
+           privacy-preserving Player-xxxx placeholder from _resolveUserName — degraded, not broken. */
+        await httpsCallable(functions, 'ctfJoinTeam')({
+            tournamentId: T.id,
+            teamId: teamId,
+            joinCode: CODE,
+            callsign: CALLSIGN
+        });
+        $('done-msg').textContent = 'You joined ' + teamName + ' as ' + CALLSIGN + '.';
+        show('s-done');
+    } catch (err) {
+        const code = (err && err.code) || '';
+        const raw = (err && err.message) || 'Something went wrong.';
+        let msg = raw;
+        if (/permission-denied/.test(code) || /join code/i.test(raw)) {
+            msg = 'That join code is not correct for this event. Ask the organiser for the full link.';
+        } else if (/failed-precondition/.test(code)) {
+            msg = 'Registration is closed for this event.';
+        } else if (/unauthenticated/.test(code)) {
+            msg = 'Could not start a session in this browser. If you are in private browsing or have site data blocked, try a normal window.';
+        }
+        note('tm-msg', 'bad', msg);
+        await renderTeams().catch(() => {});
+        note('tm-msg', 'bad', msg);
+    }
+}
+
+/* THE SAME RULE THE SERVER APPLIES, ENFORCED HERE SO THE TWO CANNOT DISAGREE.
+ * ctfJoinTeam validates /^[A-Za-z0-9][A-Za-z0-9 _-]{1,23}$/ and silently falls back to the
+ * Player-xxxx placeholder when it fails. The client previously checked only length >= 2, so a
+ * callsign with a leading space or an emoji was accepted here, refused there, and the visitor was
+ * then told "You joined Red as EmojiFox" while the roster everyone else saw said Player-3f9a.
+ * Nancy caught it as exactly the class of thing a browser render finds in five seconds and code
+ * review does not. Rejecting it up front is better than reporting it afterwards. */
+const CALLSIGN_RE = /^[A-Za-z0-9][A-Za-z0-9 _-]{1,23}$/;
+$('callsign').addEventListener('input', (e) => {
+    const v = e.target.value.trim();
+    const ok = CALLSIGN_RE.test(v);
+    $('btn-go').disabled = !ok;
+    $('cs-hint').textContent = (v.length === 0 || ok)
+        ? 'This is the only name shown to other competitors. Do not use your real name.'
+        : 'Letters, digits, spaces, hyphens and underscores only. Start with a letter or digit, 2-24 characters.';
+    $('cs-hint').style.color = (v.length === 0 || ok) ? '' : 'var(--warn)';
+});
+$('callsign').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !$('btn-go').disabled) $('btn-go').click();
+});
+
+$('btn-go').addEventListener('click', async () => {
+    CALLSIGN = $('callsign').value.trim();
+    // Re-check rather than trusting the button state: the field can be set programmatically.
+    if (!CALLSIGN_RE.test(CALLSIGN)) return;
+    $('btn-go').disabled = true;
+    $('btn-go').textContent = 'Starting...';
+    try {
+        if (!auth.currentUser) await signInAnonymously(auth);
+        await renderTeams();
+    } catch (e) {
+        note('ev-msg', 'bad', 'Could not start a session in this browser. If site data is blocked or you are in private browsing, try a normal window.');
+        $('btn-go').disabled = false;
+        $('btn-go').textContent = 'Join the event';
+    }
+});
+
+$('btn-lobby').addEventListener('click', () => {
+    location.href = '/arena/tournament-lobby.html?id=' + encodeURIComponent(T.id);
+});
+
+// Entry point: resolve the target, refuse clearly if it cannot be joined, otherwise show the event.
+(async function boot() {
+    const target = readTarget();
+    CODE = target.code;
+    if (!target.id && !target.slug) {
+        stop('No event specified', 'This link is missing the event it belongs to. Ask the organiser for the full link.');
+        return;
+    }
+    let found;
+    try {
+        found = await resolveTournament(target);
+    } catch (e) {
+        stop('Could not load the event', 'Check your connection and reload. If it keeps failing, tell the organiser.');
+        return;
+    }
+    if (!found) {
+        stop('Event not found', 'This link does not match an event. Check it for typos, or ask the organiser for a new one.');
+        return;
+    }
+    T = found;
+    document.title = (T.data.name ? T.data.name + ' — ' : '') + 'Join the Event';
+    const problem = statusProblem(T.data);
+    if (problem) { stop(problem[0], problem[1]); return; }
+    /* Already on a team? Skip straight past registration rather than letting them pick again and
+       collide with the roster lock. onAuthStateChanged covers the returning-visitor case where the
+       anonymous session is restored from browser storage after the boot read. */
+    onAuthStateChanged(auth, async (u) => {
+        if (!u || $('s-teams').hidden === false || $('s-done').hidden === false) return;
+        try {
+            const snap = await getDocs(collection(db, 'tournaments', T.id, 'teams'));
+            let mine = null;
+            snap.forEach((d) => {
+                const m = d.data().members;
+                if (Array.isArray(m) && m.includes(u.uid)) mine = d.data().name || d.id;
+            });
+            if (mine) {
+                $('done-msg').textContent = 'You are already on ' + mine + '.';
+                show('s-done');
+            }
+        } catch (e) { /* non-fatal: fall through to normal registration */ }
+    });
+    renderEvent();
+})();
+</script>
+</body>
+</html>

@@ -159,6 +159,74 @@ async function main() {
         chk('C5 the award records the right tournament', b5.exists && !!b5.data().placements[TID],
             b5.exists ? JSON.stringify(b5.data().placements) : 'n/a');
 
+        /* ── CASE 6-8: THE CALLSIGN PARAMETER (public-enrollment work, 2026-10-11) ────────────
+           A tournament may be a public event for people with no Hexworth account. They arrive via
+           tournament-join.html, sign in ANONYMOUSLY, and have nothing in users/{uid} and no name on
+           their token — so _resolveUserName falls through to _placeholderName and the roster reads
+           `Player-3f9a`. Privacy-correct, and useless to a teammate looking for them on the board.
+           `callsign` is the parameter that fixes it, and these cases prove the three things that
+           matter: it is USED when valid, REFUSED when not, and changes NOTHING when absent.
+
+           The anonymous caller is modelled with a token carrying NO name, which is what Firebase
+           actually sends for signInAnonymously. The existing cases above all use a token with
+           `name: 'Joiner One'`, so they could never have exercised the placeholder path. */
+        const callAnon = (data) => fns.ctfJoinTeam.run({
+            data,
+            auth: { uid: UID, token: {} },
+            rawRequest: { headers: {} },
+        });
+        const rosterName = async (teamId) => {
+            const t = await tRef.collection('teams').doc(teamId).get();
+            const names = t.data().memberNames || [];
+            return names[0];
+        };
+
+        // C6: a valid callsign is what the public roster shows.
+        await wipe();
+        await tRef.set({ name: 'Open Cup', status: 'lobby', maxTeamSize: 4 });
+        await tRef.collection('teams').doc('red').set({ name: 'Red', members: [], memberNames: [], score: 0 });
+        const r6 = await callAnon({ tournamentId: TID, teamId: 'red', callsign: 'ShadowFox' });
+        chk('C6 anonymous join with a callsign succeeds', r6 && r6.ok === true, JSON.stringify(r6));
+        chk('C6 THE CALLSIGN IS WHAT THE PUBLIC ROSTER SHOWS', (await rosterName('red')) === 'ShadowFox',
+            'roster shows ' + JSON.stringify(await rosterName('red')));
+
+        /* C7: a callsign that could break a renderer is REFUSED, and the fallback still names them.
+           Both known consumers escape (escHtml in tournament-lobby.html, esc in tournament-join.html)
+           but memberNames[] is also read by the podium, the broadcast view and the Discord path, and
+           BUG-023/025 were a crafted-team-field XSS class on this very collection. The charset rule
+           is the control that does not depend on every future consumer remembering to escape. */
+        await wipe();
+        await tRef.set({ name: 'Open Cup', status: 'lobby', maxTeamSize: 4 });
+        await tRef.collection('teams').doc('red').set({ name: 'Red', members: [], memberNames: [], score: 0 });
+        const r7 = await callAnon({ tournamentId: TID, teamId: 'red', callsign: '<img src=x onerror=alert(1)>' });
+        chk('C7 join still succeeds with a refused callsign (never a hard failure for the competitor)',
+            r7 && r7.ok === true, JSON.stringify(r7));
+        const n7 = await rosterName('red');
+        chk('C7 THE MARKUP NEVER REACHES THE ROSTER', typeof n7 === 'string' && n7.indexOf('<') === -1,
+            'roster shows ' + JSON.stringify(n7));
+        chk('C7 the refused callsign falls back to the placeholder, so they are still named',
+            typeof n7 === 'string' && /^Player-/.test(n7), 'roster shows ' + JSON.stringify(n7));
+
+        // C8: absent callsign is the OLD behaviour exactly — the regression guard for every
+        // existing caller, none of which sends this parameter.
+        await wipe();
+        await tRef.set({ name: 'Open Cup', status: 'lobby', maxTeamSize: 4 });
+        await tRef.collection('teams').doc('red').set({ name: 'Red', members: [], memberNames: [], score: 0 });
+        const r8 = await callAnon({ tournamentId: TID, teamId: 'red' });
+        chk('C8 join with NO callsign still succeeds', r8 && r8.ok === true, JSON.stringify(r8));
+        const n8 = await rosterName('red');
+        chk('C8 no callsign yields the unchanged placeholder behaviour',
+            typeof n8 === 'string' && /^Player-/.test(n8), 'roster shows ' + JSON.stringify(n8));
+
+        // C9: a too-short callsign is refused by the same rule, not silently accepted.
+        await wipe();
+        await tRef.set({ name: 'Open Cup', status: 'lobby', maxTeamSize: 4 });
+        await tRef.collection('teams').doc('red').set({ name: 'Red', members: [], memberNames: [], score: 0 });
+        await callAnon({ tournamentId: TID, teamId: 'red', callsign: 'X' });
+        const n9 = await rosterName('red');
+        chk('C9 a 1-char callsign is refused and falls back', typeof n9 === 'string' && /^Player-/.test(n9),
+            'roster shows ' + JSON.stringify(n9));
+
         await wipe();
     } catch (e) {
         console.error('\n  harness fault:', e && e.stack ? e.stack : e);

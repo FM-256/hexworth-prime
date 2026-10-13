@@ -4152,15 +4152,28 @@
                                 <div style="text-align:center;">
                                     <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase; letter-spacing:0.3px; margin-bottom:4px;">Scan to join</div>
                                     <div id="ctfJoinQr" style="display:inline-block; padding:6px; background:#12121a; border-radius:6px; min-width:120px; min-height:120px; font-size:0.72rem; color:var(--ac-text-muted);"></div>
-                                    <div style="font-size:0.68rem; color:var(--ac-text-muted); margin-top:4px; max-width:190px;">Opens the lobby. The join code is NOT in the QR: read it out, so a photographed code does not become the gate.</div>
+                                    <div id="ctfJoinQrUrl" style="font-size:0.66rem; color:var(--ac-accent); margin-top:4px; max-width:190px; word-break:break-all; font-family:monospace;"></div>
+                                    <div style="font-size:0.68rem; color:var(--ac-text-muted); margin-top:4px; max-width:190px;">Opens the public join page &mdash; no Google account needed. The join code is NOT in the QR: read it out, so a photographed code does not become the gate.</div>
                                 </div>
                                 <div style="border-left:1px solid rgba(255,255,255,0.1); height:36px;"></div>
                                 <div>
                                     <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase;">Share Links</div>
                                     <div style="display:flex; gap:10px; margin-top:4px;">
+                                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyJoinLink(false)">Copy Join Link</button>
+                                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyJoinLink(true)" title="Bearer token: anyone holding this link can join. Send privately, never project.">+ Code</button>
                                         <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyLobbyLink()">Copy Lobby</button>
                                         <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyBoardLink()">Copy Board</button>
                                         <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="copyPodiumLink()">Copy Podium</button>
+                                    </div>
+                                    <!-- The slug is what makes the link sayable out loud. Public on purpose: tournaments/{id}
+                                         is `allow read: if true`, and a slug is an address, not a secret. Empty is valid and
+                                         falls back to the /join/?id= form, so this is an upgrade rather than a requirement. -->
+                                    <div style="font-size:0.72rem; color:var(--ac-text-muted); text-transform:uppercase; margin-top:10px;">Short Link</div>
+                                    <div style="display:flex; gap:8px; margin-top:4px; align-items:center;">
+                                        <span style="font-size:0.72rem; color:var(--ac-text-muted); font-family:monospace;">/join/</span>
+                                        <input type="text" id="ctfSlugInput" maxlength="64" placeholder="spring26" autocomplete="off" spellcheck="false"
+                                               style="width:140px; padding:5px 8px; font-size:0.78rem; font-family:monospace; background:#12121a; color:var(--ac-text); border:1px solid rgba(255,255,255,0.12); border-radius:5px;">
+                                        <button class="ac-btn ac-btn-ghost ac-btn-sm" onclick="saveTournamentSlug()">Save</button>
                                     </div>
                                 </div>
                                 <div style="margin-left:auto; display:flex; gap:8px;">
@@ -11232,6 +11245,11 @@
                 const { collection, addDoc, serverTimestamp, doc, setDoc } = _firestoreModule;
 
                 // Create tournament document
+                /* Slug is NOT set at creation on purpose. A tournament is created as `draft`, the
+                 * name is often still being decided, and a slug typed now would have to be changed
+                 * later anyway — while any link already shared against it would break. It is set
+                 * from the manage view once the event is real. The join link works without one via
+                 * the /t/?id= form, so nothing is blocked by leaving it empty. */
                 const tournamentData = {
                     name: name,
                     description: document.getElementById('ctfDescription').value.trim(),
@@ -11876,6 +11894,13 @@
 
                 const t = { id: tSnap.id, ...tSnap.data() };
                 title.textContent = t.name || 'Untitled';
+
+                /* Short-link slug. Populated from the doc so the field shows the live value rather
+                 * than whatever the previous tournament left in the DOM — these panels are reused
+                 * across tournaments, so an unset field would silently display a stale slug and
+                 * invite the operator to save it onto the wrong event. */
+                const slugInput = document.getElementById('ctfSlugInput');
+                if (slugInput) slugInput.value = t.slug || '';
 
                 // Status badge
                 const status = t.status || 'draft';
@@ -13774,14 +13799,49 @@
          * which is the platform's existing precedent for this: guard on typeof, try/catch the
          * render, and fall back to legible text rather than an empty box, so a failed script load
          * still leaves the instructor something to read to the room. */
-        window.renderJoinQr = function(tournamentId) {
+        /* THE QR NOW POINTS AT /t/ , THE PUBLIC ON-RAMP, NOT THE ARENA LOBBY.
+         *
+         * The arena lobby offers Google sign-in ONLY, so a QR aimed at it is unusable by anyone who
+         * does not have (or will not use) a Google account — which is most of the room at a public
+         * event. tournament-join.html takes a callsign, signs in anonymously, and joins. Same QR,
+         * same one-scan gesture, but it now works for someone who has never heard of Hexworth.
+         *
+         * THE NO-CODE DECISION IS PRESERVED DELIBERATELY. The comment above this function records
+         * TOURN-03's lesson: the join code is a real gate, "a QR gets photographed and forwarded, so
+         * putting the code inside it would hand that gate away again in a nicer format." That is
+         * still true and nothing here changes it — the QR carries the URL and never `?c=`. The join
+         * page accepts a code in the query string so the operator CAN send one private full link by
+         * hand, but this QR will not make that decision for them.
+         *
+         * Reads the doc for a slug so the encoded URL is the short, human-readable one when it
+         * exists. Self-contained rather than taking the slug as a parameter, because openTournament
+         * calls this before the document has loaded, so a parameter would always be undefined. */
+        window.buildJoinUrl = function(tournamentId, slug) {
+            const base = window.location.origin;
+            /* `/join/`, NOT `/t/`. Every box_pool access URL is shaped <host>/t/<token> and is a
+             * bearer capability to a live VM with credentials beside it; those are on a .tech host
+             * so there is no literal collision, but two URL shapes one segment apart with wildly
+             * different blast radii is a confusion waiting for an incident. */
+            return slug ? (base + '/join/' + encodeURIComponent(slug))
+                        : (base + '/join/?id=' + encodeURIComponent(tournamentId));
+        };
+
+        window.renderJoinQr = async function(tournamentId) {
             const el = document.getElementById('ctfJoinQr');
             if (!el) return;
-            const url = window.location.origin + '/arena/tournament-lobby.html?id=' + tournamentId;
+            let slug = '';
+            try {
+                const { doc, getDoc } = _firestoreModule;
+                const snap = await getDoc(doc(db, 'tournaments', tournamentId));
+                if (snap.exists()) slug = snap.data().slug || '';
+            } catch (e) { /* non-fatal: fall back to the ?id= form, which always works */ }
+            const url = buildJoinUrl(tournamentId, slug);
+            const cap = document.getElementById('ctfJoinQrUrl');
+            if (cap) cap.textContent = url.replace(/^https?:\/\//, '');
             el.innerHTML = '';
             if (typeof QRCode === 'undefined') {
                 console.warn('[AdminConsole] QRCode library not loaded');
-                el.textContent = 'QR unavailable. Lobby: ' + url;
+                el.textContent = 'QR unavailable. Join: ' + url;
                 return;
             }
             try {
@@ -13795,7 +13855,71 @@
                 });
             } catch (e) {
                 console.warn('[AdminConsole] QRCode render failed:', e);
-                el.textContent = 'QR unavailable. Lobby: ' + url;
+                el.textContent = 'QR unavailable. Join: ' + url;
+            }
+        };
+
+        /* Copies the public join link. Two buttons on purpose, because they are not interchangeable
+         * and the difference matters: the bare link is safe to project, print or forward, while the
+         * with-code link is a BEARER TOKEN — anyone who receives or screenshots it can join. The
+         * second button says so in its confirmation rather than leaving the operator to infer it. */
+        window.copyJoinLink = async function(withCode) {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            let slug = '', code = '';
+            try {
+                const { doc, getDoc } = _firestoreModule;
+                const snap = await getDoc(doc(db, 'tournaments', _ctfEditingId));
+                if (snap.exists()) slug = snap.data().slug || '';
+                if (withCode) {
+                    const priv = await getDoc(doc(db, 'tournaments', _ctfEditingId, 'private', 'config'));
+                    if (priv.exists()) code = priv.data().joinCode || '';
+                }
+            } catch (e) {
+                showToast('Could not read the tournament: ' + e.message, 'error');
+                return;
+            }
+            let url = buildJoinUrl(_ctfEditingId, slug);
+            if (withCode) {
+                if (!code) { showToast('This event has no join code to embed.', 'warning'); return; }
+                url += (url.indexOf('?') === -1 ? '?c=' : '&c=') + encodeURIComponent(code);
+            }
+            try {
+                await navigator.clipboard.writeText(url);
+                showToast(withCode
+                    ? 'Link WITH CODE copied. Anyone holding this link can join — send it privately, never project it.'
+                    : 'Join link copied. Safe to project, print or post.', withCode ? 'warning' : 'success');
+            } catch (e) {
+                showToast('Copy failed. Link: ' + url, 'warning');
+            }
+        };
+
+        /* Sets the tournament's slug — the half of /t/<slug> that makes the link sayable out loud.
+         * PUBLIC ON PURPOSE: tournaments/{id} is `allow read: if true`, and a slug is an address, not
+         * a secret. It is validated here to the same shape the join page will accept, because a slug
+         * the page cannot parse produces a dead link that looks fine in the console. Uniqueness is
+         * checked before writing: two tournaments sharing a slug makes the equality query return an
+         * arbitrary one of them, which is a silently wrong event rather than an error. */
+        window.saveTournamentSlug = async function() {
+            if (!_ctfEditingId) { showToast('Open a tournament first.', 'warning'); return; }
+            const input = document.getElementById('ctfSlugInput');
+            if (!input) return;
+            const slug = (input.value || '').trim().toLowerCase();
+            if (slug && !/^[a-z0-9][a-z0-9-]{1,63}$/.test(slug)) {
+                showToast('Slug must be 2-64 chars: lowercase letters, digits and hyphens, starting with a letter or digit.', 'error');
+                return;
+            }
+            const { doc, getDocs, collection, query, where, limit, updateDoc, deleteField } = _firestoreModule;
+            try {
+                if (slug) {
+                    const dupe = await getDocs(query(collection(db, 'tournaments'), where('slug', '==', slug), limit(2)));
+                    const taken = dupe.docs.some(d => d.id !== _ctfEditingId);
+                    if (taken) { showToast('That slug is already used by another tournament.', 'error'); return; }
+                }
+                await updateDoc(doc(db, 'tournaments', _ctfEditingId), { slug: slug || deleteField() });
+                showToast(slug ? 'Slug saved. Join link: /join/' + slug : 'Slug cleared. Join link falls back to the ?id= form.', 'success');
+                renderJoinQr(_ctfEditingId);
+            } catch (e) {
+                showToast('Could not save the slug: ' + e.message, 'error');
             }
         };
 

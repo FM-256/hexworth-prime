@@ -14,6 +14,28 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-282 — the admin console's "+ Code" button puts a one-click, unrevocable bearer link on the clipboard with only a disappearing toast as a warning  ·  [P2]  ·  open
+- **Found:** 2026-10-13 · by self while building the public enrollment on-ramp; held open through Nancy's and Chris's gates as a deliberate scope boundary, then filed on Chris's block because it lived only in prose
+- **Area:** `_app/admin/console.html` `copyJoinLink(withCode)` · `_app/tournament-join.html` (accepts `?c=`)
+- **Symptom:** `/join/<slug>?c=<code>` is a BEARER TOKEN — anyone who receives, forwards or screenshots it can join the event. The console offers it as a button sitting immediately beside the safe "Copy Join Link", distinguished only by a `+ Code` label, a `title` attribute, and a toast that says "send it privately, never project" and then disappears. There is no confirmation step and no undo: once the link leaves the room it cannot be recalled.
+- **Why it is only P2:** it grants a roster slot, not infrastructure. BUG-281's sibling guard means box credentials require a gated event, and `ctfGetBoxCredential` will not issue them to someone who merely holds a code on an ungated one. So the blast radius is an uninvited competitor, not a VM login.
+- **The unresolved question:** can `joinCode` be rotated on a live event without breaking bare `/join/<slug>` links already distributed? `rotateJoinCode` exists in the console and writes `private/config`, and bare links carry no code, so rotation *should* be safe — but that has not been tested, and if it is not, this one click has no remedy at all.
+- **Fix:** NOT FIXED, deliberately. Candidate shapes: a confirm dialog naming the consequence; making the bare link the only one-click action and putting the coded form behind a disclosure; or a short-lived single-use link instead of an embedded static code. All three are UX decisions, and bundling an unrequested redesign into a security-fix round was the wrong call.
+- **Verified:** behaviour read from the shipped `copyJoinLink` implementation; the bearer-token property is documented in `_app/tournament-join.html`'s header and in the design doc.
+- **Related:** BUG-281, `_docs/architecture/tournament-public-enrollment-design.md`, taskboard 423 (teams world-readable).
+
+### BUG-281 — one actor with free anonymous identities can fill every team slot in a tournament in under a second  ·  [P1]  ·  open
+- **Found:** 2026-10-11 · **by Mallory**, exploit-proven, during the audit of the public enrollment surface · severity re-rated upward 2026-10-13 because a public on-ramp now ships
+- **Area:** `functions/index.js` `ctfJoinTeam` · `ENFORCE_APP_CHECK = false` (`functions/index.js:45`) · `tournaments/{id}/rosterLocks/{uid}`
+- **Symptom:** a single person can occupy every competitor slot in an event before any real competitor loads the page. A real student arriving afterwards is refused on every team with "full".
+- **Repro (Mallory, emulator, real callable via `.run()`):** 24 distinct forged uids, one `ctfJoinTeam` call each, no delay. **All 24 slots across 6 teams filled in 779ms.** `rosterLocks` read back afterwards held 24 independent lock documents — one per uid. A simulated real student was then refused on all six teams.
+- **Root cause:** the roster lock is keyed per uid and serialises correctly *per identity*; it has no way to see that many identities are one actor. Anonymous sign-in is free, unlimited and enabled platform-wide (it is how students join classes), and `ENFORCE_APP_CHECK` is false, so there is no bot-defence layer to defeat even in principle.
+- **Why the severity went UP rather than staying put:** before `_app/tournament-join.html`, reaching `ctfJoinTeam` meant knowing arena URLs and team ids. The on-ramp makes it one public link with anonymous sign-in on its own happy path. Nancy's words on the gate: filing it is defensible, but its classification should not be left at its pre-feature priority. This entry is that re-rating.
+- **Made worse by a second fact:** team ids are the fixed public preset `team-red`…`team-cyan` (`_app/admin/console.html:11436-11449`), published in unauthenticated static HTML, and `box_pool.assignedTo` binds a machine to a `teamId`. So squatting a *specific* team is not only denial — it is pre-positioning for credentials an operator will later hand to that team. BUG-281's sibling guard (gated-event requirement on `ctfGetBoxCredential`) is what stops that converting into a VM login.
+- **Fix:** NOT FIXED. The real options are App Check (currently disabled platform-wide — a bigger decision than this feature), a server-side cap on anonymous joins per event, or requiring a durable identity for events with machines wired. Deliberately not bundled into the security-fix round that closed the credential escalation.
+- **Verified:** open, exploit-proven in the emulator by Mallory with a reproduction and timing. No production write attempted.
+- **Related:** BUG-282, the gated-event guard in `ctfGetBoxCredential`, `_docs/architecture/tournament-public-enrollment-design.md`, taskboard 423.
+
 ### BUG-280 — engines configured by an INLINE object literal were not a source either; 6 shipped AI Cortex / Python-for-IT ids were missing  ·  [P1]  ·  fixed-not-deployed
 - **Found:** 2026-10-09 · **by Nancy, blocking BUG-279** — she checked my claim that PythonSandbox's ids were covered and found I had measured the wrong population
 - **Area:** `_tools/content/gen-completion-registry.js` · `_app/components/PythonSandbox.js` · `_app/components/DominoEngine.js` · 15 lab pages under `_app/houses/ai/cortex/labs/` and `_app/houses/code/python-for-it/labs/`
