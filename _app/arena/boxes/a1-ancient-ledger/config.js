@@ -84,7 +84,7 @@ const A1Config = {
                 trigger: { event: 'navigate' }
             },
             {
-                title: 'Test the login form for vulnerabilities',
+                title: 'Test the search form for SQL injection',
                 tip: 'Try SQL injection in the search form, or use sqlmap from the terminal.',
                 trigger: {
                     event: 'command',
@@ -330,6 +330,69 @@ const A1Config = {
                 formHandler: function(data, engine) {
                     return A1Config._handleSearch(data.q || data.search || '', engine);
                 }
+            },
+
+            /* ── /ledger/admin/ — A REAL 403, BECAUSE ENUMERATION ALREADY PROMISED ONE ───────────
+             * The walkthrough's gobuster and nikto output both report `/ledger/admin/ (Status: 403)`
+             * and the prose explains "Admin directory exists but is access-restricted." That page
+             * did not exist in webApp.pages, so Browser.js fell through to _render404 and a player
+             * who followed their own recon output got a 404 instead. Those mean opposite things: a
+             * 403 says "it is there and you cannot have it", a 404 says "you misread the scan". On a
+             * box whose entire first phase is enumeration, that difference is the lesson.
+             *
+             * Deliberately gives nothing away. A real Apache 403 does not advertise the login path,
+             * and neither does this — the portal is discovered through the SQL injection, which is
+             * what the box is actually teaching. */
+            '/ledger/admin/': {
+                title: '403 Forbidden',
+                html: `
+                    <div style="font-family:Georgia,serif; max-width:640px; margin:0 auto; padding:10px 0;">
+                        <h1 style="font-size:1.5rem; color:#111; margin:0 0 10px;">Forbidden</h1>
+                        <p style="color:#333; font-size:0.86rem; margin:0 0 18px;">
+                            You don't have permission to access this resource.
+                        </p>
+                        <hr style="border:none; border-top:1px solid #ccc; margin:18px 0;">
+                        <div style="color:#666; font-size:0.76rem;">Apache/2.4.57 (Debian) Server at 10.10.14.5 Port 80</div>
+                    </div>
+                `,
+                formHandler: null
+            },
+
+            /* ── /ledger/admin/login.php — THE OPERATOR PORTAL ──────────────────────────────────
+             * REACHABLE FROM THE START AND USELESS WITHOUT THE DATABASE. There is no unlock flag
+             * and no engine state behind this: the gate is simply knowing an operator password, and
+             * the only place in the box those exist is the `users` table. Dumping that table is the
+             * unlock, which makes the SQL injection the key rather than a checkbox somewhere.
+             *
+             * An earlier draft of this change DID add an engine.state flag to gate the page. It was
+             * removed: it gated nothing the credentials did not already gate, and it would have put
+             * mutable progress state on a box that carries none today, for no gameplay difference.
+             *
+             * The path is learned from the users-table dump, which now names it. */
+            '/ledger/admin/login.php': {
+                title: 'Ledger Operations — Sign In',
+                html: `
+                    <div style="max-width:380px; margin:28px auto; font-family:Georgia,serif;">
+                        <div style="text-align:center; margin-bottom:22px; padding-bottom:16px; border-bottom:1px solid #ddd;">
+                            <h1 style="color:#8B6914; font-size:1.3rem; margin:0 0 4px;">Ledger Operations</h1>
+                            <div style="color:#888; font-size:0.74rem;">Crimson Dawn Confederacy &mdash; Operator Access</div>
+                        </div>
+                        <label style="display:block; color:#808080; font-size:0.78rem; margin-bottom:5px;">Operator</label>
+                        <input type="text" data-field="username" autocomplete="off" spellcheck="false"
+                               style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.9rem; margin-bottom:12px;">
+                        <label style="display:block; color:#808080; font-size:0.78rem; margin-bottom:5px;">Passphrase</label>
+                        <input type="password" data-field="password" autocomplete="off"
+                               style="width:100%; padding:8px 12px; border:1px solid #ccc; border-radius:4px; font-family:inherit; font-size:0.9rem; margin-bottom:16px;">
+                        <button data-action="login"
+                                style="width:100%; padding:9px; background:#8B6914; color:#fff; border:none; border-radius:4px; font-family:inherit; font-size:0.9rem; cursor:pointer;">Sign In</button>
+                        <div style="color:#999; font-size:0.7rem; margin-top:14px; text-align:center;">
+                            Unauthorised access is logged and reported to the Overseer.
+                        </div>
+                    </div>
+                `,
+                formHandler: function(data, engine) {
+                    return A1Config._handleAdminLogin(data.username || '', data.password || '', engine);
+                }
             }
         }
     },
@@ -426,6 +489,173 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
         </div>`;
     },
 
+    /* ══════════════════════════════════════════════════════════════════════════════════════════
+     * OPERATOR PORTAL — login and the admin log
+     * ══════════════════════════════════════════════════════════════════════════════════════════
+     *
+     * WHAT THIS IS FOR, AND WHAT IT DELIBERATELY IS NOT. The admin log is a SIGNPOST, never a
+     * shortcut. Both flags stay exactly where they were: `user` behind
+     * LOAD_FILE('/home/www-data/user.txt') and `root` inside the stellar_forge_codes table, both
+     * reached through the search field. This page REVEALS WHY that table matters and names it in
+     * an in-world voice, so a player who dumped credentials is rewarded with direction rather than
+     * with the answer. Nothing here can be read instead of doing the injection.
+     *
+     * Consequence worth stating plainly: adding a flag here was considered and rejected. It would
+     * have meant touching the flags array, flag_registry and the BOX_FLAG_* audit family for a step
+     * that works better as narrative, and it would have given the box a fifth objective its phase
+     * structure does not have.
+     *
+     * TWO WAYS IN, because the walkthrough teaches both. Correct credentials work, and so does the
+     * classic auth bypass `admin'--` which the solution document already lists among its payloads.
+     * Rewarding only one of two techniques the box itself taught would be the wrong lesson.
+     *
+     * ROLE MATTERS. `viewer`, `data_scribe` and `logistics_bot` authenticate but are NOT
+     * administrators, so they get a refusal that confirms the password worked. That distinction is
+     * the point of dumping a `role` column, and it gives a player who cracked the wrong account a
+     * reason to go back rather than a dead end.
+     */
+    _handleAdminLogin(rawUser, rawPass, engine) {
+        const user = String(rawUser || '').trim();
+        const pass = String(rawPass || '');
+
+        /* AUTH BYPASS FIRST, before any credential comparison, because that is the order the real
+         * vulnerability has: the payload terminates the WHERE clause so the password is never
+         * evaluated at all. Checking credentials first and falling back would model it backwards. */
+        /* THE QUOTE IS MANDATORY, and the first version of this regex did not require it.
+         * Every group before the comment marker was optional, so a bare `--`, `#` or `/*` with NO
+         * quote at all matched and granted full administrator access. That is not a SQL injection:
+         * without a quote to terminate the string literal, `#` is just a username that happens to
+         * be one character long, and against the vulnerable query this box describes it would fail
+         * auth like any other wrong name. Nancy caught it as a PEDAGOGY bug rather than a code nit,
+         * and she is right — this box exists to teach why the quote matters, and rewarding the
+         * wrong mental model with the same success as the correct one teaches the opposite. */
+        const q = "('|%27)";
+        // A quote SOMEWHERE before the comment marker — `admin'--` and `'--` both qualify, a bare
+        // `--` does not. Anchoring the quote at position 0 was my first correction and it broke the
+        // canonical payload the walkthrough teaches, which is worse than the bug it fixed.
+        const bypassComment = new RegExp("^[^'%]*" + q + "\\s*(--|#|/\\*)", 'i');
+        // Tautology: a quote, then OR, then a condition that is always true. Trailing quote optional
+        // so `' OR 'a'='a` (the walkthrough's own form, unterminated) is accepted.
+        const bypassTautology = new RegExp(q + "\\s*(or)\\s+('?[0-9]+'?\\s*=\\s*'?[0-9]+'?|'?[a-z]+'?\\s*=\\s*'?[a-z]+'?)", 'i');
+        const bypass = bypassComment.test(user) || bypassTautology.test(user);
+        if (bypass) {
+            return A1Config._adminLogHtml('admin', true);
+        }
+
+        /* The stored password_hash values are truncated bcrypt with the plaintext readable at the
+         * tail — `$2b$12$LJ3m4ys5Rn...Cr1ms0nD4wn`. That is the authored crack: the player reads the
+         * passphrase straight off the dump. So the comparison is against that tail, not against a
+         * real hash, and no bcrypt is pretended here. */
+        const match = A1Config._db.users.find(u => u.username.toLowerCase() === user.toLowerCase());
+        const tail = match ? String(match.password_hash).split('...').pop() : '';
+        if (!match || !tail || pass !== tail) {
+            return `
+                <div style="max-width:380px; margin:28px auto; font-family:Georgia,serif;">
+                    <div style="color:#c0392b; background:#fdecea; border:1px solid #f5c6cb; border-radius:4px; padding:12px; font-size:0.84rem;">
+                        <strong>Sign-in failed.</strong><br>
+                        The operator name or passphrase is not recognised.
+                    </div>
+                    <div style="color:#999; font-size:0.72rem; margin-top:12px;">
+                        Attempt recorded in the operations log.
+                    </div>
+                </div>
+            `;
+        }
+
+        if (match.role !== 'administrator') {
+            // Authenticated, not authorised. Says so, so the player knows the password was right.
+            return `
+                <div style="max-width:420px; margin:28px auto; font-family:Georgia,serif;">
+                    <div style="color:#8a6d3b; background:#fcf8e3; border:1px solid #faebcc; border-radius:4px; padding:12px; font-size:0.84rem;">
+                        <strong>Signed in as ${A1Config._esc(match.username)}.</strong><br>
+                        Role <code>${A1Config._esc(match.role)}</code> is not permitted to view the operations log.
+                        Administrator access is required.
+                    </div>
+                    <div style="color:#666; font-size:0.76rem; margin-top:12px;">
+                        The ledger lists more than one account with the <code>administrator</code> role.
+                    </div>
+                </div>
+            `;
+        }
+
+        return A1Config._adminLogHtml(match.username, false);
+    },
+
+    /* The admin log itself. Every entry is in-world and each one earns its place:
+     *   - the unreviewed deploy and the CTO sign-off are the box's own ECER findings, now visible
+     *     as evidence rather than only as lore text on the briefing screen
+     *   - the arch_overseer entries NAME stellar_forge_codes and show it being read, which is the
+     *     signpost: the player now knows the table exists, who touched it and why it matters
+     *   - the value column is explicitly marked as not held in the log, so nobody reads this page
+     *     expecting the root flag to be in it
+     *   - the last entry is the player's own session, because an audit log that fails to record the
+     *     intrusion is the ECER lesson stated in one line */
+    _adminLogHtml(username, viaInjection) {
+        const rows = [
+            ['2157-03-02 08:14:22', 'ops_deploy', 'DEPLOY', 'ledger v2.1.4 pushed to production &mdash; code review WAIVED (ref: CTO-APPROVAL-0071)'],
+            ['2157-03-02 08:15:01', 'ops_deploy', 'CONFIG', 'search.php committed with string-concatenated query &mdash; flagged by linter, override accepted'],
+            ['2157-03-04 11:47:55', 'data_scribe', 'AUTH', 'Sign-in from unregistered terminal &mdash; no alert configured'],
+            ['2157-03-09 02:31:40', 'arch_overseer', 'SELECT', 'Read 1 row from <strong>stellar_forge_codes</strong> (classification: TOP SECRET)'],
+            ['2157-03-09 02:33:12', 'arch_overseer', 'EXPORT', 'Allocation codes exported to offline media &mdash; destination not logged'],
+            ['2157-03-11 19:02:08', 'logistics_bot', 'SELECT', 'Scheduled read of allocations &mdash; service account, credentials unrotated since deploy'],
+            ['2157-03-14 00:00:00', 'SYSTEM', 'RETENTION', 'Log rotation disabled by operator request &mdash; retention indefinite']
+        ];
+        const body = rows.map(r => `
+            <tr>
+                <td style="padding:5px 9px; border-bottom:1px solid #eee; font-family:monospace; font-size:0.74rem; color:#555; white-space:nowrap;">${r[0]}</td>
+                <td style="padding:5px 9px; border-bottom:1px solid #eee; font-size:0.78rem; color:#333;">${r[1]}</td>
+                <td style="padding:5px 9px; border-bottom:1px solid #eee; font-size:0.72rem; color:#8B6914; font-weight:bold;">${r[2]}</td>
+                <td style="padding:5px 9px; border-bottom:1px solid #eee; font-size:0.78rem; color:#444;">${r[3]}</td>
+            </tr>
+        `).join('');
+
+        return `
+            <div style="font-family:Georgia,serif;">
+                <div style="text-align:center; margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid #ddd;">
+                    <h1 style="color:#8B6914; font-size:1.3rem; margin:0 0 4px;">Operations Log</h1>
+                    <div style="color:#888; font-size:0.74rem;">
+                        Signed in as <strong>${A1Config._esc(username)}</strong> (administrator)${viaInjection
+                            ? ' &mdash; <span style="color:#c0392b;">authentication bypassed, no passphrase presented</span>'
+                            : ''}
+                    </div>
+                </div>
+
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f0e0;">
+                            <th style="padding:6px 9px; text-align:left; color:#8B6914; border-bottom:2px solid #ddd; font-size:0.74rem;">TIMESTAMP</th>
+                            <th style="padding:6px 9px; text-align:left; color:#8B6914; border-bottom:2px solid #ddd; font-size:0.74rem;">OPERATOR</th>
+                            <th style="padding:6px 9px; text-align:left; color:#8B6914; border-bottom:2px solid #ddd; font-size:0.74rem;">ACTION</th>
+                            <th style="padding:6px 9px; text-align:left; color:#8B6914; border-bottom:2px solid #ddd; font-size:0.74rem;">DETAIL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${body}
+                        <tr style="background:rgba(192,57,43,0.06);">
+                            <td style="padding:5px 9px; font-family:monospace; font-size:0.74rem; color:#c0392b; white-space:nowrap;">&mdash; now &mdash;</td>
+                            <td style="padding:5px 9px; font-size:0.78rem; color:#c0392b;">${A1Config._esc(username)}</td>
+                            <td style="padding:5px 9px; font-size:0.72rem; color:#c0392b; font-weight:bold;">AUTH</td>
+                            <td style="padding:5px 9px; font-size:0.78rem; color:#c0392b;">Administrator session opened &mdash; <em>no alert dispatched</em></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="margin-top:16px; padding:11px; background:#f5f0e0; border-left:3px solid #8B6914; font-size:0.79rem; color:#4a4a4a;">
+                    <strong>Note:</strong> allocation code values are not held in this log. They are stored in the
+                    <code>stellar_forge_codes</code> table and must be read from the ledger database directly.
+                </div>
+            </div>
+        `;
+    },
+
+    // Minimal escape for values echoed into the operator portal. The usernames here come from the
+    // config, but the login form is attacker-controlled input and this file renders it back.
+    _esc(v) {
+        return String(v == null ? '' : v)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+
     _handleUnion(selectPart, fullInput) {
         // Strip trailing SQL comment markers
         selectPart = selectPart.replace(/--.*$/, '').trim();
@@ -508,7 +738,7 @@ ledger_app:x:1001:1001::/home/ledger_app:/bin/bash</td></tr>
             const db = A1Config._db;
             return A1Config._tableHtml(['id', 'username', 'password_hash', 'role'],
                 db.users.map(u => [u.id, u.username, u.password_hash, u.role])) +
-                '<div style="color:#2ecc71; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:4px; padding:10px; margin-top:10px; font-size:0.8rem;">Credentials extracted from users table! The data_scribe account looks interesting...</div>';
+                '<div style="color:#2ecc71; background:rgba(46,204,113,0.08); border:1px solid rgba(46,204,113,0.2); border-radius:4px; padding:10px; margin-top:10px; font-size:0.8rem;">Credentials extracted from users table! The data_scribe account looks interesting... Note the <strong>role</strong> column &mdash; and the operator portal at <code>/ledger/admin/login.php</code>.</div>';
         }
 
         // SELECT from stellar_forge_codes
