@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-10-09 01:48 · **1365 scripts** · 48 wired into a gate · 340 called by other code · 206 only mentioned in docs · 771 referenced by nothing · 550 not in git
+**Generated:** 2026-10-17 16:02 · **1369 scripts** · 48 wired into a gate · 342 called by other code · 207 only mentioned in docs · 772 referenced by nothing · 552 not in git
 
 ## Read this before writing a new script
 
@@ -265,6 +265,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `sql-injection-defense-check.js` | ORPHAN | 0 | 2026-07-04 | yes |  |
 | `subnet-siege-winnability.js` | CALLED | 1 | 2026-07-04 | yes |  |
 
+### `_tools/arena` — 1 scripts, 1 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `a1-admin-portal.test.js` | ORPHAN | 0 | 2026-10-13 | yes | Drives the SHIPPED A1 config's operator-portal handlers: credential login, the auth bypass, role refusal, and the invariant that the admin log SIGNPOSTS the stellar_forge_codes table without ever containing the root flag. |
+
 ### `_tools/audit` — 3 scripts, 2 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
@@ -306,7 +312,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `refresh-legacy-floor.js` | CALLED | 5 | 2026-10-07 | yes | Refreshes _tools/content/legacy-completion-ids.json from LIVE progress data so the completion registry cannot reject work a student has already earned. --check fails if live data holds an id the committed floor does not. |
-| `registry-coverage.js` | CALLED | 6 | 2026-10-09 | yes | Measures whether functions/completion-registry.json covers every completion id students actually hold, per surface. Answers ONE question: would turning on _ENFORCE_COMPLETION_REGISTRY reject work a real student already earned? |
+| `registry-coverage.js` | CALLED | 7 | 2026-10-09 | yes | Measures whether functions/completion-registry.json covers every completion id students actually hold, per surface. Answers ONE question: would turning on _ENFORCE_COMPLETION_REGISTRY reject work a real student already earned? |
 | `registry-parser-parity.js` | CALLED | 1 | 2026-10-07 | yes | Cross-checks the TWO independent expression resolvers — gen-completion-registry's (which BUILDS the allowlist) and registry-coverage ARM B's (which VERIFIES it) — across every _app file containing a ModuleProgress.complete call. Fails if they disagree about any id that actually reaches the registry. |
 
 ### `_tools/covers` — 10 scripts, 3 referenced by nothing
@@ -1101,6 +1107,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `openstack-compute-probe.sh` | CALLED | 1 | 2026-08-19 | yes | Probes nova-compute liveness and placement capacity, emits node_exporter |
 | `service-probe.sh` | CALLED | 2 | 2026-08-20 | yes | probe real service behaviour and expose it to prometheus via node_exporter |
 
+### `_tools/netfinal` — 1 scripts, 0 referenced by nothing
+
+| Script | Wiring | Called by | Modified | In git | What |
+|---|---|---|---|---|---|
+| `netfinal-core.test.js` | DOCS-ONLY | 0 | 2026-10-17 | no | Drives the seeded generator, the derived tables and reach() for the Network+ final exam core: determinism, the spec's four generator constraints over 1,000 seeds, the healthy-path baseline, and a mutation per reach() layer. |
+
 ### `_tools/nexus` — 5 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
@@ -1343,7 +1355,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `scout.js` | CALLED | 2 | 2026-02-27 | yes |  |
 
-### `_tools/rules-test` — 38 scripts, 9 referenced by nothing
+### `_tools/rules-test` — 39 scripts, 9 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -1371,7 +1383,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `hub-registry-rules.test.js` | CALLED | 2 | 2026-07-25 | yes |  |
 | `inspect-perteam-preflight.test.js` | DOCS-ONLY | 0 | 2026-09-25 | yes | Drives the real inspect-tournaments.js against seeded fixtures to prove the |
 | `instructor-id-aliases.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves the instructor dashboard counts a Network+ completion under EITHER the |
-| `legacy-progress-allowlist.test.js` | CALLED | 1 | 2026-10-01 | yes | Proves the classes/{id}/progress field allowlist blocks forged fields, preserves both |
+| `legacy-progress-allowlist.test.js` | CALLED | 4 | 2026-10-17 | yes | Proves the classes/{id}/progress field allowlist blocks forged fields, preserves both |
 | `lobby-join-heal.render.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the SHIPPED window.joinTeam from tournament-lobby.html to prove it reports the |
 | `mallory-sweep-2026-08-04.test.js` | CALLED | 1 | 2026-08-29 | yes |  |
 | `mallory-verify-classes-fix-2026-08-04.test.js` | ORPHAN | 0 | 2026-08-04 | no |  |
@@ -1380,6 +1392,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `mission-progress-rules.test.js` | ORPHAN | 0 | 2026-08-10 | yes | Proves users/{uid}/mission_progress is READ-ONLY to clients (#306). |
 | `score-clamp.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves syncClassProgress's score clamp rejects non-finite input and bounds 0-100 |
 | `setadminclaim-preserves-handler.test.js` | DOCS-ONLY | 0 | 2026-08-22 | yes | prove setAdminClaim preserves a handler grant but still downgrades ex-admins |
+| `submit-class-progress.test.js` | CALLED | 1 | 2026-10-17 | no | Invokes the REAL submitClassProgress callable against the Firestore emulator and asserts what it accepts and refuses: enrollment, contentId against the completion registry, score bounds, and the dotted-key rejection. |
 | `swap-box-pool.test.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Drives the real swap-box-pool.js against the emulator: the happy swap, and every |
 | `teams-rules.test.js` | DOCS-ONLY | 0 | 2026-07-24 | yes |  |
 | `tenant-progress-write-lockdown.test.js` | CALLED | 1 | 2026-09-27 | yes | Proves a student cannot forge their own gradebook row, and that the fix is what stops them |
@@ -2059,7 +2072,7 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 |---|---|---|---|---|---|
 | `licence-preflight.js` | CALLED | 1 | 2026-08-04 | yes |  |
 
-### `_tools/tournament` — 18 scripts, 1 referenced by nothing
+### `_tools/tournament` — 19 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
@@ -2070,10 +2083,11 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `dump-record.js` | CALLED | 1 | 2026-09-07 | yes | Runs the actual finalization transaction against the Firestore emulator and dumps the resulting results/final (v1 and a corrected v2) to JSON, so the render harness drives the pages with data the real function produced, not a hand-typed fixture that could quietly disagree with the schema. |
 | `finalize.test.js` | CALLED | 2 | 2026-09-07 | yes | Runs functions/ctf-finalize.js against the FIRESTORE emulator through the four cases that matter: fresh finalize, idempotent retry, backfill of an already- ended tournament, and a versioned correction. Proves behaviour, not shape. |
 | `inspect-tournaments.js` | CALLED | 3 | 2026-09-25 | yes | read-only audit of live tournaments: boxes, teams, scores, podium accuracy |
-| `join-badge.integration.test.js` | ORPHAN | 0 | 2026-09-07 | yes | Invokes the REAL ctfJoinTeam callable against the Firestore emulator and asserts the participation badge is written. Covers fresh join, repeat join, and the legacy-member backfill path, which do NOT all take the same route to the award. |
+| `join-badge.integration.test.js` | CALLED | 1 | 2026-10-11 | yes | Invokes the REAL ctfJoinTeam callable against the Firestore emulator and asserts the participation badge is written. Covers fresh join, repeat join, and the legacy-member backfill path, which do NOT all take the same route to the award. |
 | `limits-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | probes maxTeamSize, one-team-per-user, rate limit, replay, cross-tournament credit |
 | `load-tournament.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | end-to-end load test of ctfJoinTeam/ctfSubmitFlag against a benchmark tournament |
 | `podium-freeze.test.js` | DOCS-ONLY | 0 | 2026-08-29 | yes | state-machine test of the TOURN-08 podium freeze + the listener bound |
+| `public-enrollment-guards.test.js` | ORPHAN | 0 | 2026-10-13 | yes | Proves the two guards added after the 2026-10-11 exploit audit of the public tournament-join surface: box credentials are refused on an UNGATED event that has real machines wired, and resolveJoinCode throttles brute force. Invokes the REAL callables against the Firestore emulator. |
 | `register-perteam-flags.js` | CALLED | 1 | 2026-09-26 | yes | Registers per-team flag salts/hashes into flagSecrets/{chId}.perTeam by running the |
 | `render-verify.js` | DOCS-ONLY | 0 | 2026-09-07 | yes | Loads tournament-podium.html and broadcast.html in headless Chrome with a stubbed Firestore serving a REAL results-of-record (produced by ctf-finalize.js), then asserts the boards actually paint the certified standings and screenshots them. |
 | `repair-roster.js` | DOCS-ONLY | 0 | 2026-09-26 | yes | Repairs a tournament's roster: adds locked-but-missing members, rebuilds |
