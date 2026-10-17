@@ -272,6 +272,14 @@
                 studentId: String(studentId), examId: String(examId),
                 seedStr: seedStr, seed32: rng.seed32, generatorVersion: '1.0.0'
             },
+            /* HOW LONG THE FAULTS HAVE BEEN RUNNING WHEN THE STUDENT ARRIVES. A fixed number, not a
+             * clock read, so the lab stays byte-identical for a given seed. It is not zero because
+             * interface counters derive from it: at zero, S1A's late collisions and S1B's CRC errors
+             * are both 0 and the two faults are indistinguishable from a healthy port. Tickets reach
+             * a help desk after users have noticed, so a fault that has been live for half an hour
+             * is the realistic starting condition. Stage 7 advances this as the exam runs, which is
+             * what makes "errors rising between two runs" true. */
+            examElapsedSec: 1800,
             params: {}, subnets: {}, devices: {}, links: [], ports: {}, svis: {},
             routes: {}, acls: {}, nat: {}, ipsec: {}, dhcp: {}, dns: {},
             services: {}, endpoints: [], ssids: [], faults: [], events: []
@@ -632,7 +640,7 @@
         state.services = {
             'MER-FS01': { tcp: [139, 445], udp: [] },
             'PRN-SALES01': { tcp: [9100], udp: [] },
-            'MER-SRV01': { tcp: [22, 53], udp: [53, 67] },
+            'MER-SRV01': { tcp: [22, 53], udp: [53, 67, 123] },   // 123: the NTP source S12B's fix points at
             'MER-NOC01': { tcp: [80, 443], udp: [162] },
             'MER-WEB01': { tcp: [22, 80, 443], udp: [] },
             'BR-NAS01': { tcp: [139, 445], udp: [] },
@@ -1392,7 +1400,8 @@
             /* A placed rogue appears like any other host. Both S4 variants end with the student
              * locating this MAC on a port and shutting it, so the MAC table is where the hunt
              * lands and the row has to be real rather than narrated. */
-            if (state.rogue && state.rogue.placed) {
+            if (state.rogue && state.rogue.placed
+                && !((state.ports[state.rogue.switch] || {})[state.rogue.port] || {}).shutdown) {
                 var rg = state.rogue;
                 if (rg.switch === sw) {
                     rows.push({ vlan: rg.vlan, mac: rg.mac, type: 'DYNAMIC', port: rg.port, rogue: true });
@@ -1436,7 +1445,12 @@
              * which is why connectivity survives but the victim talks to the rogue first. S4B
              * ('duplicate-address') leaves BOTH rows present, which is the entry the student sees
              * flipping between two MACs. */
-            if (state.rogue && state.rogue.placed && state.rogue.claimsIp) {
+            /* A placed rogue whose port is SHUT is unplugged, so it claims nothing. The graded fix
+             * for both S4 variants is exactly that shutdown, so without this the repair could never
+             * satisfy fixed() -- the spoofed row would outlive the device. */
+            var rogueLive = state.rogue && state.rogue.placed
+                && !((state.ports[state.rogue.switch] || {})[state.rogue.port] || {}).shutdown;
+            if (rogueLive && state.rogue.claimsIp) {
                 var claim = state.rogue.claimsIp;
                 var mine = rows.some(function (r) { return r.ip === claim; });
                 var reachesMe = (node.addresses || []).some(function (a) {
