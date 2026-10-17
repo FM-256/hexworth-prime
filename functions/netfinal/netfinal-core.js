@@ -166,18 +166,6 @@
 
     var MAX_ATTEMPTS = 64;
 
-    /* The six NOC alerts one of which is drawn per lab (spec section 4: "NOC decoy alert | One drawn
-     * from a pool of six | Triage answer differs"). Every one is NOISE — the student's job is to
-     * triage it as such and not chase it, so none may describe a condition any fault slot creates.
-     * Provisional wording, to be reviewed with the question bank in stage 6. */
-    var NOC_DECOYS = [
-        { id: 'noc-d1', text: 'MeridianSW-01 Fa0/23 link down', why: 'Fa0/23 is the documented spare port; nothing is connected to it.' },
-        { id: 'noc-d2', text: 'MER-WEB01 disk usage 81%', why: 'A capacity note, not a network fault, and below the 90% action threshold.' },
-        { id: 'noc-d3', text: 'MER-FW01 WAN latency 48 ms (threshold 45 ms)', why: 'Marginally over a tight threshold; no user-reported impact.' },
-        { id: 'noc-d4', text: 'MeridianSW-02 Fa0/19 link down', why: 'Fa0/15-24 on SW-02 are administratively shut by design.' },
-        { id: 'noc-d5', text: 'MER-NOC01 poller restarted', why: 'The monitoring system reporting on itself; polling resumed.' },
-        { id: 'noc-d6', text: 'MeridianRTR-01 CPU 62% for 5 min', why: 'Within normal range for this platform; no interface drops accompany it.' }
-    ];
 
     /* Every assignment of one variant per slot that violates none of the spec's conflict pairs.
      * 2^12 = 4,096 candidates filtered once and memoised, which is legitimate here precisely
@@ -301,7 +289,7 @@
             /* S9A shrinks the Sales pool to 1-3 fewer than its active clients. Drawn now so the
              * number is part of the seed rather than invented when the fault is applied. */
             s9aShortfall: rng.int(1, 3),
-            nocDecoy: rng.pick(NOC_DECOYS).id
+            nocDecoy: rng.pick(TOPO.NOC_DECOYS).id
         };
 
         TOPO.VLANS.forEach(function (v) {

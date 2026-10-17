@@ -138,8 +138,13 @@ section('3. for each variant: fixed() false at start, true after the repair, inv
         v.correctFix(st, st.faults[0]);
         chk(id + ': (c) the canonical repair makes fixed() true', FAULTS.fixedMap(st)[id] === true);
 
-        const afterInv = FAULTS.checkInvariants(st);
-        chk(id + ': (d) every invariant still holds after the repair',
+        /* COLLATERAL DAMAGE, not raw violations. A fault legitimately breaks the invariant that
+         * describes its own symptom -- S11B puts two APs on one channel, which is what
+         * wireless-channel-plan forbids -- so the graded question is whether the FIX broke
+         * something new. Spec section 8: "A fix that passes its own check but BREAKS an invariant
+         * gets zero." */
+        const afterInv = FAULTS.collateralDamage(st);
+        chk(id + ': (d) the repair caused no collateral damage',
             afterInv.length === 0, JSON.stringify(afterInv.map(x => x.id + ': ' + x.detail)));
     });
 }
@@ -152,7 +157,7 @@ section('4. for each variant, a plausible WRONG fix violates an invariant or lea
         const st = labWith(id);
         FAULTS.applyAll(st);
         v.wrongFix(st, st.faults[0]);
-        const inv = FAULTS.checkInvariants(st);
+        const inv = FAULTS.collateralDamage(st);
         const stillBroken = FAULTS.fixedMap(st)[id] === false;
         /* Either outcome is a correct rejection: the wrong fix collaterally damaged the network, or
          * it simply did not repair the fault. What must NOT happen is a clean pass. */
@@ -200,7 +205,7 @@ section('6. a real generated lab with all 12 faults applied together');
 
         /* The management path must survive TWELVE simultaneous faults — spec constraint 2, and the
          * thing that decides whether a student can work the exam at all. */
-        const mgmt = FAULTS.checkInvariants(st).filter(x => x.id === 'mgmt-path' || x.id === 'vlan99-intact');
+        const mgmt = FAULTS.collateralDamage(st).filter(x => x.id === 'mgmt-path' || x.id === 'vlan99-intact');
         if (mgmt.length) { dirty++; firstProblem.mgmt = firstProblem.mgmt || JSON.stringify(mgmt.map(x => x.id + ': ' + x.detail)); }
 
         st.faults.forEach(f => FAULTS.VARIANTS[f.id].correctFix(st, f));
@@ -244,9 +249,51 @@ section('7. invariants fire on a MINIMAL breach, not only on the wrong fixes tha
     breach('one wrongly-shut port trips only-rogue-port-shut', st => {
         st.ports['MeridianSW-01']['Fa0/9'].shutdown = true;
     }, 'only-rogue-port-shut');
-    breach('VLAN 30 on the floor-2 trunk trips no-servers-on-floor2-trunk', st => {
+    breach('VLAN 30 added to the floor-2 trunk trips no-trunk-vlan-added', st => {
         ['MeridianSW-01', 'MeridianSW-02'].forEach(sw => st.ports[sw]['Gi0/1'].allowed.push(30));
-    }, 'no-servers-on-floor2-trunk');
+    }, 'no-trunk-vlan-added');
+
+    /* The four baseline-relative invariants from spec section 8. Each needs exam start to exist, so
+     * these apply the faults first and then do the damage -- which is also the real sequence: a
+     * student breaks something while repairing something. */
+    const breachAfterStart = (name, mutate, wantId) => {
+        const st = CORE.generate('inv-rel-' + wantId, EXAM);
+        FAULTS.applyAll(st);
+        mutate(st);
+        const ids = FAULTS.collateralDamage(st).map(x => x.id);
+        chk(name, ids.indexOf(wantId) >= 0, 'got [' + ids.join(',') + ']');
+    };
+    breachAfterStart('removing a VLAN a trunk carried at exam start trips no-trunk-vlan-removed', st => {
+        const p = st.ports['MeridianSW-01']['Fa0/24'];
+        p.allowed = p.allowed.filter(v => v !== 20);
+    }, 'no-trunk-vlan-removed');
+    breachAfterStart('deleting an untouched ACL line trips no-acl-line-removed', st => {
+        /* GUEST-IN is only S8A's target; on a lab that drew S8B it must be untouchable. */
+        const s8 = st.faults.filter(f => f.slot === 'S8')[0];
+        const name = s8.variant === 'A' ? 'SERVERS-OUT' : 'GUEST-IN';
+        const acl = st.acls['MeridianRTR-01'][name];
+        acl.lines = acl.lines.slice(1);
+    }, 'no-acl-line-removed');
+    breachAfterStart('repointing the default route trips default-route-intact', st => {
+        st.routes['MeridianRTR-01'].filter(r => r.prefix === 0)[0].nextHop = '172.16.0.6';
+    }, 'default-route-intact');
+    breachAfterStart('stranding a host that had its gateway trips gateways-still-reachable', st => {
+        const victim = st.endpoints.filter(e => st.baseline.gateways[e.name] && e.switch && e.port)[0];
+        st.ports[victim.switch][victim.port].shutdown = true;
+    }, 'gateways-still-reachable');
+    /* And the contrast: a fault's OWN violation is not collateral damage. */
+    {
+        const st = CORE.generate('inv-rel-contrast', EXAM);
+        FAULTS.applyAll(st);
+        chk('a fault\u2019s own invariant violation is NOT counted as collateral damage',
+            FAULTS.collateralDamage(st).length === 0,
+            JSON.stringify(FAULTS.collateralDamage(st).map(x => x.id)));
+        chk('...while the raw reading does show it, so nothing is hidden',
+            FAULTS.checkInvariants(st).length >= 0
+            && st.baseline.violatedAtStart.length === FAULTS.checkInvariants(st).length,
+            'start=' + JSON.stringify(st.baseline.violatedAtStart)
+            + ' now=' + JSON.stringify(FAULTS.checkInvariants(st).map(x => x.id)));
+    }
     breach('VLAN 99 off the trunk trips vlan99-intact', st => {
         ['MeridianSW-01', 'MeridianSW-02'].forEach(sw => {
             st.ports[sw]['Gi0/1'].allowed = st.ports[sw]['Gi0/1'].allowed.filter(v => v !== 99);
@@ -282,8 +329,10 @@ section('7. invariants fire on a MINIMAL breach, not only on the wrong fixes tha
             { seq: 10, action: 'deny', proto: 'ip', src: st.subnets[40].cidr, dst: 'any', hits: 0 }
         ];
     }, 'guest-keeps-internet');
-    chk('every invariant has at least one isolation case above',
-        FAULTS.INVARIANTS.length === 11, 'invariants: ' + FAULTS.INVARIANTS.map(i => i.id).join(','));
+    /* The count is asserted so a new invariant cannot arrive without an isolation case. It rose
+     * from 11 to 15 when spec section 8's baseline-relative set replaced my approximations of it. */
+    chk('the invariant set is the expected size',
+        FAULTS.INVARIANTS.length === 15, 'invariants: ' + FAULTS.INVARIANTS.map(i => i.id).join(','));
 
     /* S8A's fixed() must require BOTH halves. Mutation showed dropping the "guest keeps internet"
      * half changed no outcome, because the blanket-deny wrong fix was being caught by the invariant

@@ -374,8 +374,8 @@ section('6. each fault repaired through the parser a student uses, then fixed() 
             res.out.split('\n').filter(l => /Invalid|Incomplete|rejected|not found|not recognized/.test(l)).join(' | '));
         chk(id + ': fixed() is true after typing the repair', FAULTS.fixedMap(st)[id] === true,
             res.out.slice(-200));
-        const inv = FAULTS.checkInvariants(st);
-        chk(id + ': and no invariant was broken by doing it', inv.length === 0,
+        const inv = FAULTS.collateralDamage(st);
+        chk(id + ': and the typed repair caused no collateral damage', inv.length === 0,
             JSON.stringify(inv.map(x => x.id + ': ' + x.detail)));
     });
 }

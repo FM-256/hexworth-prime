@@ -257,6 +257,68 @@
         ['S5A', 'S11A'], ['S8A', 'S11A']
     ];
 
+    /* The six NOC alerts one of which is drawn per lab (spec section 4: "NOC decoy alert | One drawn
+     * from a pool of six | Triage answer differs"). Every one is NOISE — the student's job is to
+     * triage it as such and not chase it, so none may describe a condition any fault slot creates.
+     * Provisional wording, to be reviewed with the question bank in stage 6. */
+    var NOC_DECOYS = [
+        { id: 'noc-d1', text: 'MeridianSW-01 Fa0/23 link down', why: 'Fa0/23 is the documented spare port; nothing is connected to it.' },
+        { id: 'noc-d2', text: 'MER-WEB01 disk usage 81%', why: 'A capacity note, not a network fault, and below the 90% action threshold.' },
+        { id: 'noc-d3', text: 'MER-FW01 WAN latency 48 ms (threshold 45 ms)', why: 'Marginally over a tight threshold; no user-reported impact.' },
+        { id: 'noc-d4', text: 'MeridianSW-02 Fa0/19 link down', why: 'Fa0/15-24 on SW-02 are administratively shut by design.' },
+        { id: 'noc-d5', text: 'MER-NOC01 poller restarted', why: 'The monitoring system reporting on itself; polling resumed.' },
+        { id: 'noc-d6', text: 'MeridianRTR-01 CPU 62% for 5 min', why: 'Within normal range for this platform; no interface drops accompany it.' }
+    ];
+
+    /* Every assignment of one variant per slot that violates none of the spec's conflict pairs.
+     * 2^12 = 4,096 candidates filtered once and memoised, which is legitimate here precisely
+     * because the inputs are frozen module constants: FAULT_SLOTS and CONFLICT_PAIRS are literals
+     * in netfinal-topology.js and nothing at runtime writes them. A cache over mutable lab state
+     * would be the hazard this repo has been bitten by; this is a cache over a constant.
+     *
+     * MEASURED, AND IT IS A FINDING RATHER THAN A DETAIL: 128 of the 4,096 pass, and five slots end
+     * up with exactly ONE legal variant -- S2A, S3A, S5A, S7B, S11B. Spec section 4 advertises
+     * "4,096 possible fault combinations"; its own conflict list permits 128, and every student
+     * receives the same variant for those five slots. The cause is that two slots conflict with
+     * BOTH variants of a third (S3B and S2B each conflict with S9A and S9B), which forces S3=A and
+     * S2=A, which then forces S5=A, S7=B and S11=B by cascade. That is a content decision for the
+     * exam author, not something this module should quietly adjust, so it is reported instead:
+     * generate() puts the real numbers in state.meta.variantSpace. */
+    var _cleanCombos = null;
+    function conflictFreeCombinations() {
+        if (_cleanCombos) return _cleanCombos;
+        var slots = TOPO.FAULT_SLOTS.map(function (s) { return s.slot; });
+        var out = [];
+        for (var mask = 0; mask < Math.pow(2, slots.length); mask++) {
+            var combo = slots.map(function (sl, i) {
+                return sl + ((Math.floor(mask / Math.pow(2, i)) % 2) ? 'B' : 'A');
+            });
+            var set = {};
+            combo.forEach(function (id) { set[id] = true; });
+            var bad = TOPO.CONFLICT_PAIRS.some(function (pr) { return set[pr[0]] && set[pr[1]]; });
+            if (!bad) out.push(combo);
+        }
+        _cleanCombos = out;
+        return out;
+    }
+
+    /* Which slots the conflict list leaves a genuine choice on, and which it pins to one variant.
+     * Exposed so a test asserts the number instead of a comment claiming it -- a count written in
+     * prose is stale the moment the conflict list changes. */
+    function variantSpace() {
+        var clean = conflictFreeCombinations();
+        var opts = {};
+        TOPO.FAULT_SLOTS.forEach(function (sl) { opts[sl.slot] = {}; });
+        clean.forEach(function (c) { c.forEach(function (id) { opts[id.slice(0, -1)][id.slice(-1)] = true; }); });
+        var pinned = [], varying = [];
+        Object.keys(opts).forEach(function (sl) {
+            var ks = Object.keys(opts[sl]).sort();
+            if (ks.length === 1) pinned.push(sl + ks[0]); else varying.push(sl);
+        });
+        return { total: Math.pow(2, TOPO.FAULT_SLOTS.length), legal: clean.length,
+                 pinnedVariants: pinned.sort(), varyingSlots: varying.sort() };
+    }
+
     /* The outdated diagram handed to students. Spec section 2: it shows DNS where the MIDTERM put
      * it and omits the guest VLAN, so questions 3 and 4 can only be answered from live evidence.
      * These values are deliberately WRONG and must never be used to generate state — they exist to
@@ -281,7 +343,8 @@
         DNS_ZONE: DNS_ZONE,
         FAULT_SLOTS: FAULT_SLOTS,
         CONFLICT_PAIRS: CONFLICT_PAIRS,
-        DECOY_DIAGRAM: DECOY_DIAGRAM
+        DECOY_DIAGRAM: DECOY_DIAGRAM,
+        NOC_DECOYS: NOC_DECOYS
     };
 
     if (typeof module !== 'undefined' && module.exports) { module.exports = TOPOLOGY; }

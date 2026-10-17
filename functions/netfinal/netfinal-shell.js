@@ -1089,7 +1089,12 @@
 
     function record(state, session, line, out) {
         state.events = state.events || [];
-        state.events.push({ t: state.events.length, actor: top(session).device, kind: 'command', detail: line });
+        var idx = state.events.length;
+        state.events.push({ t: idx, actor: top(session).device, kind: 'command', detail: line });
+        /* A fix made by TYPING is stamped against the command that made it, exactly as a GUI fix is
+         * stamped against its click. The change-request credit rule compares those positions, so a
+         * fix typed at a terminal and a fix clicked in a window have to be measured the same way. */
+        FAULTS.recordProgress(state, idx);
         return out;
     }
 
