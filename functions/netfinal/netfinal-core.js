@@ -27,10 +27,23 @@
  * `snmp` and `ntp`. All 24 are now demonstrated expressible in netfinal-core.test.js section 6/6b —
  * asserted there rather than claimed here, because a claim in a header is not a check.
  *
+ * SERVER-ONLY, AND THAT IS AN INTEGRITY DECISION, NOT A DEPLOYMENT DETAIL. This module lives under
+ * functions/ and never ships to a browser. The exam page is a thin terminal: it posts a command and
+ * renders the text that comes back, so grading and rendering share ONE code path.
+ *
+ * The alternative -- a client copy for rendering plus a server copy for grading -- means any drift
+ * between the copies shows a student one network and grades them on a different one. That is the
+ * worst defect an exam can have, and this repo already carries two GUILabEngine copies 237 lines
+ * apart as evidence of how that ends. Keeping one copy also satisfies the spec's stage-7 criterion
+ * ("the browser bundle contains no answerKey, no fixed() source, no slot or variant labels") by
+ * construction rather than by auditing a bundle, and makes refresh-resume trivial because the
+ * server already holds authoritative state.
+ *
  * PURE AND DOM-FREE, ON PURPOSE. Nothing here reads the DOM, the network, or the clock — `generate`
  * takes no Date, and interface counters advance from an explicit `elapsedSec` argument. That is what
  * makes the spec's acceptance criterion ("the same seed produces byte-identical initialState and
  * answerKey on repeated runs") testable at all; a single `Date.now()` would make it unprovable.
+ * The purity is also what lets a Cloud Function call it per request with no warm-up state.
  *
  * WHY NOT GUILabEngine: see the header of netfinal-topology.js. 23 lab pages, two copies of the
  * engine already 237 lines apart, and a connectivity model that is three booleans. Not touched.
@@ -217,6 +230,38 @@
 
     function hostIp(subnet, host) { return intToIp(subnet.parsed.net + host); }
 
+    /* The seeded target for one fault variant. The spec writes `{p}` and `{mac}` as seeded values,
+     * so "which port is half duplex" has to be part of the seed to survive a regrade. Pulled out of
+     * the generator so a caller can construct any variant against an existing lab. */
+    function pickFaultTarget(state, rng, slot, variant) {
+        var byName = function (names) {
+            var cands = state.endpoints.filter(function (e) { return names.indexOf(e.name) >= 0 && e.port; });
+            return cands.length ? rng.pick(cands) : null;
+        };
+        var e;
+        if (slot === 'S1') {
+            e = byName(['ENG-PC04', 'ENG-PC05', 'ENG-PC06']);          // floor-2 Engineering
+            return e ? { host: e.name, switch: e.switch, port: e.port } : null;
+        }
+        if (slot === 'S2' && variant === 'A') {
+            e = state.endpoints.filter(function (x) { return x.reservation; })[0];   // the printer, pinned to SW-01
+            return e ? { host: e.name, switch: e.switch, port: e.port } : null;
+        }
+        if (slot === 'S2' && variant === 'B') {
+            e = byName(['SALES-PC01', 'SALES-PC02', 'SALES-PC03', 'SALES-PC04', 'SALES-PC05', 'SALES-PC06']);
+            return e ? { host: e.name, switch: e.switch, port: e.port } : null;
+        }
+        if (slot === 'S5' && variant === 'A') {
+            /* A static kiosk ABOVE .127. Not a leased guest: the pool stops at .127 so the leased
+             * ones keep working and the ticket's "others are fine" half stays true. */
+            return { host: rng.pick(['KIOSK-GUEST01', 'KIOSK-GUEST02']) };
+        }
+        if (slot === 'S11' && variant === 'B') {
+            return { aps: ['AP-2', 'AP-3'], channel: rng.pick([1, 6, 11]) };
+        }
+        return null;
+    }
+
     /* One attempt at a lab. Returns a draft; `validate` decides whether it stands. Split from
      * `generate` so the redraw loop has nothing to undo — a rejected draft is simply discarded,
      * rather than a half-mutated state needing repair. */
@@ -394,6 +439,12 @@
             } else if (typeof e.host === 'number') {
                 ep.ip = hostIp(sub, e.host);
                 ep.gw = sub.gateway;
+            } else if (e.hostRange) {
+                /* A static address drawn from an explicit range, used for devices that must sit
+                 * outside the DHCP pool -- the guest kiosks above the /25 boundary that give S5A
+                 * its symptom. Keyed per endpoint so two kiosks cannot collide. */
+                ep.ip = hostIp(sub, rng.int(e.hostRange[0], e.hostRange[1]));
+                ep.gw = sub.gateway;
             } else if (!e.dhcp) {
                 if (!staticPool[vlan]) {
                     var c = [];
@@ -440,7 +491,7 @@
             var s = state.subnets[v.id];
             state.dhcp.subnets[v.id] = {
                 vlan: v.id, subnet: s.cidr,
-                pool: { start: hostIp(s, 100), end: hostIp(s, 199) },
+                pool: { start: hostIp(s, (v.pool || [100, 199])[0]), end: hostIp(s, (v.pool || [100, 199])[1]) },
                 routers: s.gateway,
                 /* Guests get a public resolver so a CORRECT guest ACL (which denies guest->internal)
                  * never breaks guest name resolution — spec section 6's closing note. Without this,
@@ -474,6 +525,24 @@
             ap: null, ssid: null, network: null, reservation: false
         });
         if (wsPorts.length) { (usedPorts['MeridianSW-01'] = usedPorts['MeridianSW-01'] || {})[state.endpoints[state.endpoints.length - 1].port] = true; }
+
+        /* ADMIN-WS01 IS RESERVED, WITH ITS OWN GATEWAY OPTION, and that is a constraint-2 fix
+         * rather than a convenience. It was a plain Sales DHCP client, so fault S9B -- which sets
+         * the Sales `routers` option to .254 -- handed the STUDENT'S OWN workstation a gateway
+         * nothing answers for and severed its path to every management address. Spec constraint 2
+         * forbids any fault from touching that path, and constraint 3 requires this host to hold a
+         * valid lease even under S9A.
+         *
+         * A host reservation carrying per-host options satisfies both BY CONSTRUCTION: the address
+         * sits outside the pool so a shrink cannot strand it, and the host-level `routers` option
+         * overrides the subnet-level one that S9B breaks. Per-host options are ordinary DHCP, so
+         * nothing here is a special case for the exam -- and the S9B ticket stays accurate, because
+         * it is about NEW Sales PCs, not the admin's own machine. */
+        var adminWs = state.endpoints[state.endpoints.length - 1];
+        state.dhcp.reservations.push({
+            host: 'ADMIN-WS01', mac: adminWs.mac, ip: hostIp(state.subnets[10], 40), vlan: 10,
+            options: { routers: state.subnets[10].gateway, dns: state.devices['MER-SRV01'].mgmtIp }
+        });
 
         /* ── routes ─────────────────────────────────────────────────────────────────────────────── */
         var rtr = [];
@@ -586,36 +655,19 @@
             return { slot: slot, variant: variant, id: id, active: true, applied: false, layer: v.layer, group: v.group };
         });
 
-        /* The rogue device for S4. Its position is seeded (spec section 4: "Rogue device port |
-         * Random active port on SW-01 or SW-02") and the FIX is `shutdown` on that port — which is
-         * exactly why it must never land on a trunk, on VLAN 99, or on an administratively shut
-         * port: shutting a trunk would sever the management path that spec constraint 2 protects,
-         * and the student's correct answer would end their exam. Candidates are therefore access
-         * ports in the user VLANs only. validate() re-checks this rather than trusting it. */
-        var rogueCands = [];
-        ['MeridianSW-01', 'MeridianSW-02'].forEach(function (sw) {
-            Object.keys(state.ports[sw]).forEach(function (pn) {
-                var p = state.ports[sw][pn];
-                if (p.mode === 'access' && !p.shutdown && [10, 20, 30].indexOf(p.vlan) >= 0) rogueCands.push({ sw: sw, port: pn, vlan: p.vlan });
-            });
+        /* Targets are chosen by pickFaultTarget (below) rather than inline, so ANY variant can be
+         * built on demand -- which the test suite and any instructor preview both need, because
+         * generate() can only ever produce 19 of the 24: the conflict list pins S2B, S3B, S5B, S7A
+         * and S11A out of every legal combination (taskboard 436). Authored content no student can
+         * reach still has to be verifiable. */
+        state.faults.forEach(function (f) {
+            f.target = pickFaultTarget(state, rng, f.slot, f.variant);
         });
-        var rp = rng.pick(rogueCands);
-        var s4 = state.faults.filter(function (f) { return f.slot === 'S4'; })[0];
-        /* `claimsIp` is the address the rogue answers for, and it is what makes S4 representable at
-         * all. The index maps one IP to one node, so without an explicit claim there is nowhere to
-         * say "this address now resolves to a second MAC" -- and both S4 variants are exactly that.
-         * S4A claims the VLAN 10 GATEWAY (ARP spoofing: the victim's cache points at the rogue).
-         * S4B claims the FILE SERVER's address (a duplicate static IP, which is why the router logs
-         * %IP-4-DUPADDR and its ARP entry flips between two MACs).
-         *
-         * `placed` is false here on purpose: stage 1 only chooses and positions. Stage 3 sets it. */
-        state.rogue = {
-            switch: rp.sw, port: rp.port, vlan: rp.vlan, mac: rng.mac(TOPO.OUI.dell),
-            variant: s4 ? s4.variant : 'A',
-            claimsIp: (s4 && s4.variant === 'B') ? hostIp(state.subnets[30], 20) : state.subnets[10].gateway,
-            mode: (s4 && s4.variant === 'B') ? 'duplicate-address' : 'arp-spoof',
-            placed: false
-        };
+
+        /* The rogue is placed by placeRogue() AFTER attachDevices, not here: its candidate list
+         * must exclude ports that managed devices occupy, and those attachments do not exist yet at
+         * this point in draftLab. Picking it here consulted an empty device map and put the rogue on
+         * MER-NOC01's port in 37 of 300 seeds, where the graded fix severed the management path. */
 
         /* S12 needs three things that did not exist: a community string ON each device, the
          * community the NOC POLLS WITH, and per-device clock/NTP state. `state.services` only ever
@@ -661,6 +713,14 @@
      * discover arrives is a question about ports and trunks, never about addresses. */
     function resolveLeases(state) {
         var byName = {};
+        /* RELEASE FIRST, so the function is idempotent. Without this it had to be preceded by a
+         * manual loop clearing every dhcp endpoint's ip and lease -- every caller in the test suite
+         * did exactly that, which is a footgun rather than an API. Stage 3 re-resolves leases after
+         * any fault that moves a VLAN, changes an SSID mapping or resizes a pool, so calling it
+         * twice must give the same answer as calling it once. */
+        state.endpoints.forEach(function (e) {
+            if (e.dhcp) { e.ip = null; e.lease = null; e.gw = null; e.dns = null; e.vlanEffective = undefined; }
+        });
         state.endpoints.forEach(function (e) { byName[e.name] = e; });
         var issued = {};   // vlan -> next free host octet
         var taken = {};    // vlan -> { host: true }
@@ -708,6 +768,16 @@
             }
             if (res && res.vlan === vlan) {
                 e.ip = res.ip;
+                /* A reservation may carry its own options, which override the subnet's. This is how
+                 * ADMIN-WS01 keeps a working gateway while S9B breaks the Sales option. */
+                if (res.options) {
+                    e.mask = sub.mask;
+                    e.gw = res.options.routers || conf.routers;
+                    e.dns = res.options.dns || conf.dns;
+                    e.vlanEffective = vlan;
+                    e.lease = { vlan: vlan, server: state.dns.server, pool: 'reservation ' + res.ip };
+                    return;
+                }
             } else {
                 var lo = ipToInt(conf.pool.start) - sub.parsed.net;
                 var hi = ipToInt(conf.pool.end) - sub.parsed.net;
@@ -1588,6 +1658,45 @@
         return { ok: problems.length === 0, problems: problems };
     }
 
+    /* === 7b. THE ROGUE DEVICE (S4) =================================================================
+     * Called after attachDevices, because the candidate list must exclude every port a real host or
+     * managed device occupies. The fix for S4 is `shutdown` on this port, so a rogue sharing a port
+     * with a legitimate device makes the CORRECT answer take that device offline -- which is how it
+     * severed the path to MER-NOC01 and tripped spec constraint 2. A rogue plugs into a spare wall
+     * port: realistic, and the only placement where the graded fix is harmless. */
+    function placeRogue(state, rng) {
+        var occupied = {};
+        state.endpoints.forEach(function (e) { if (e.switch && e.port) occupied[e.switch + ' ' + e.port] = e.name; });
+        Object.keys(state.devices).forEach(function (d) {
+            var at = state.devices[d].attach;
+            if (at) occupied[at.sw + ' ' + at.port] = d;
+        });
+        var cands = [];
+        ['MeridianSW-01', 'MeridianSW-02'].forEach(function (sw) {
+            Object.keys(state.ports[sw]).forEach(function (pn) {
+                var p = state.ports[sw][pn];
+                if (p.mode !== 'access' || p.shutdown) return;
+                if ([10, 20, 30].indexOf(p.vlan) < 0) return;      // never VLAN 99: management
+                if (occupied[sw + ' ' + pn]) return;                // never a port already in use
+                cands.push({ sw: sw, port: pn, vlan: p.vlan });
+            });
+        });
+        if (!cands.length) { state.rogue = null; return state; }    // validate() rejects the draft
+        var rp = rng.pick(cands);
+        var s4 = state.faults.filter(function (f) { return f.slot === 'S4'; })[0];
+        var fs = state.endpoints.filter(function (e) { return e.name === 'MER-FS01'; })[0];
+        state.rogue = {
+            switch: rp.sw, port: rp.port, vlan: rp.vlan, mac: rng.mac(TOPO.OUI.dell),
+            variant: s4 ? s4.variant : 'A',
+            /* S4A claims the VLAN 10 GATEWAY (ARP spoofing). S4B claims the FILE SERVER's address
+             * (a duplicate static IP, hence %IP-4-DUPADDR and an ARP entry that flips). */
+            claimsIp: (s4 && s4.variant === 'B') ? (fs ? fs.ip : null) : state.subnets[10].gateway,
+            mode: (s4 && s4.variant === 'B') ? 'duplicate-address' : 'arp-spoof',
+            placed: false
+        };
+        return state;
+    }
+
     /* ═══ 8. DEVICE ATTACHMENT ════════════════════════════════════════════════════════════════════ */
     function attachDevices(state, rng) {
         /* A managed device is also a HOST: MER-SRV01 forwards DNS, MER-NOC01 polls SNMP, the
@@ -1643,6 +1752,7 @@
             var seedStr = String(studentId) + '|' + String(examId) + (i ? '|r' + i : '');
             var state = draftLab(studentId, examId, seedStr);
             attachDevices(state, makeRng(seedStr + '|attach'));
+            placeRogue(state, makeRng(seedStr + '|rogue'));
             resolveLeases(state);
             var v = validate(state);
             if (v.ok) {
@@ -1661,8 +1771,9 @@
     var API = {
         generate: generate, validate: validate, reach: reach, tables: tables,
         conflictFreeCombinations: conflictFreeCombinations, variantSpace: variantSpace,
+        pickFaultTarget: pickFaultTarget,
         switchAdjacency: switchAdjacency, trunkIngress: trunkIngress, physOk: physOk,
-        resolveLeases: resolveLeases, attachDevices: attachDevices,
+        resolveLeases: resolveLeases, attachDevices: attachDevices, placeRogue: placeRogue,
         l2Path: l2Path, l2Position: l2Position, portCarries: portCarries,
         routeLookup: routeLookup, aclVerdict: aclVerdict, buildIndex: buildIndex,
         makeRng: makeRng, ip: { toInt: ipToInt, toStr: intToIp, parseCidr: parseCidr, inNet: inNet,

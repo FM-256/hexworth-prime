@@ -28,9 +28,9 @@
  * lesson of feedback_measure_the_claim_not_a_proxy: could this check have failed?
  */
 const path = require('path');
-const CORE = path.resolve(__dirname, '../../_app/houses/web/network-plus/final/netfinal-core.js');
+const CORE = path.resolve(__dirname, '../../functions/netfinal/netfinal-core.js');
 const core = require(CORE);
-const TOPO = require(path.resolve(__dirname, '../../_app/houses/web/network-plus/final/netfinal-topology.js'));
+const TOPO = require(path.resolve(__dirname, '../../functions/netfinal/netfinal-topology.js'));
 
 let pass = 0, fail = 0;
 const chk = (name, cond, detail) => {
@@ -577,14 +577,23 @@ section('6. each reach() layer demonstrably fires (hand-applied, in the shape of
         st.dhcp.subnets[10].routers = sub(10) + '.254';
         st.endpoints.forEach(e => { if (e.dhcp) { e.ip = null; e.lease = null; } });
         core.resolveLeases(st);
-        const ws = ep(st, 'ADMIN-WS01');
-        chk('S9B: the client still gets a valid pool address', !/^169\.254\./.test(ws.ip) && !!ws.lease);
-        chk('S9B: but its gateway is .254', ws.gw === sub(10) + '.254');
-        const r = core.reach(st, 'ADMIN-WS01', sub(30) + '.20', { proto: 'tcp', port: 445 });
-        chk('S9B: and nothing outside the subnet is reachable',
+        /* A NON-RESERVED Sales host, because ADMIN-WS01 is deliberately immune. It holds a DHCP
+         * reservation carrying its own `routers` option, so the subnet-level option S9B breaks
+         * cannot reach it -- spec constraint 2 forbids any fault from touching the student's path
+         * to the management addresses, and this fault used to sever exactly that. The earlier
+         * version of this case asserted ADMIN-WS01 DID get .254, i.e. it asserted the bug. */
+        const victim = ep(st, 'SALES-PC01');
+        chk('S9B: a pool client still gets a valid address', !/^169\.254\./.test(victim.ip) && !!victim.lease);
+        chk('S9B: but its gateway is .254', victim.gw === sub(10) + '.254', String(victim.gw));
+        const r = core.reach(st, 'SALES-PC01', sub(30) + '.20', { proto: 'tcp', port: 445 });
+        chk('S9B: and nothing outside the subnet is reachable for it',
             !r.ok && r.failedAt.layer === 3 && /no device answers for gateway/.test(r.failedAt.reason), why(r));
         chk('S9B: same-subnet traffic still works, as the ticket implies',
-            core.reach(st, 'ADMIN-WS01', ep(st, 'PRN-SALES01').ip, { proto: 'tcp', port: 9100 }).ok);
+            core.reach(st, 'SALES-PC01', ep(st, 'PRN-SALES01').ip, { proto: 'tcp', port: 9100 }).ok);
+        chk('S9B: ADMIN-WS01 is NOT affected, so the student keeps their management path',
+            ep(st, 'ADMIN-WS01').gw === st.subnets[10].gateway
+            && core.reach(st, 'ADMIN-WS01', st.devices['MeridianSW-02'].mgmtIp).ok,
+            String(ep(st, 'ADMIN-WS01').gw));
         cover('S9B');
     }
 
@@ -993,6 +1002,16 @@ section('8. derived tables recompute from config rather than reporting a stored 
     chk('every lease gateway is its subnet’s .1', leases.every(l => l.gateway === S.subnets[l.vlan].gateway));
     chk('the printer holds its reservation, not a pool address',
         leases.filter(l => l.host === 'PRN-SALES01')[0].ip === sub(10) + '.50');
+    /* ADMIN-WS01's reservation is how constraints 2 and 3 hold BY CONSTRUCTION rather than by
+     * luck: outside the pool so S9A cannot strand it, and carrying its own gateway option so S9B
+     * cannot misdirect it. */
+    chk('ADMIN-WS01 holds a reservation outside the pool, with its own gateway option', (() => {
+        const r = S.dhcp.reservations.filter(x => x.host === 'ADMIN-WS01')[0];
+        if (!r || !r.options) return false;
+        const lo = core.ip.toInt(S.dhcp.subnets[10].pool.start), hi = core.ip.toInt(S.dhcp.subnets[10].pool.end);
+        const ri = core.ip.toInt(r.ip);
+        return (ri < lo || ri > hi) && r.options.routers === S.subnets[10].gateway;
+    })(), JSON.stringify(S.dhcp.reservations.filter(x => x.host === 'ADMIN-WS01')));
     chk('no lease collides with a static address', (() => {
         const statics = S.endpoints.filter(e => !e.dhcp && e.ip).map(e => e.ip);
         return leases.every(l => statics.indexOf(l.ip) < 0);
@@ -1086,32 +1105,35 @@ section('9. the fixed/seeded split the integrity model depends on');
     chk('the S9A shortfall is always 1-3', labs.every(l => l.params.s9aShortfall >= 1 && l.params.s9aShortfall <= 3));
 }
 
-/* ─── 10. the browser load path ───────────────────────────────────────────────────────────────── */
-section('10. the same files load and agree in a browser-shaped context');
+/* ─── 10. purity ──────────────────────────────────────────────────────────────────────────────── */
+section('10. the core is pure: no Node built-ins, no DOM, no ambient globals');
 {
-    /* Stage 7 generates on the server and renders in the browser, so the two must agree exactly.
-     * Run in a vm context with NO `require` and NO `module` -- a plain <script> tag -- which is the
-     * only way to exercise the window half of the dual export. Asserted here rather than checked by
-     * hand once, because the window branch has no other caller yet and would rot unnoticed. */
+    /* The core now lives in functions/ and is SERVER-ONLY: it never ships to a browser, because
+     * grading and rendering must share one code path (see the module header). This section is no
+     * longer a browser-parity check -- it is a PURITY check, run in a bare vm context with no
+     * `require`, no `module`, no `process` and no DOM. That it still generates an identical lab
+     * there proves the module reaches for nothing ambient: no clock, no filesystem, no Node
+     * built-in, no global state. That purity is exactly what lets a Cloud Function call it per
+     * request and what lets this suite drive it in isolation. */
     const vm = require('vm'), fs = require('fs');
     const win = {};
     const ctx = vm.createContext({ window: win, console: { log: () => {} } });
     let loadErr = null;
     try {
         ['netfinal-topology.js', 'netfinal-core.js'].forEach(f => {
-            vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../_app/houses/web/network-plus/final/', f), 'utf8'), ctx, { filename: f });
+            vm.runInContext(fs.readFileSync(path.resolve(__dirname, '../../functions/netfinal/', f), 'utf8'), ctx, { filename: f });
         });
     } catch (e) { loadErr = e.message; }
-    chk('both files load with no require() and no module', loadErr === null, loadErr);
-    chk('the topology publishes window.NetFinalTopology', win.NetFinalTopology && win.NetFinalTopology.VLANS.length === 5);
-    chk('the core publishes window.NetFinalCore', win.NetFinalCore && typeof win.NetFinalCore.generate === 'function');
+    chk('both files load with no require, no module, no process and no DOM', loadErr === null, loadErr);
+    chk('the topology exposes itself without a module system', win.NetFinalTopology && win.NetFinalTopology.VLANS.length === 5);
+    chk('the core exposes itself without a module system', win.NetFinalCore && typeof win.NetFinalCore.generate === 'function');
     if (win.NetFinalCore) {
         const b = win.NetFinalCore.generate('parity-student', EXAM);
-        chk('the browser build generates byte-identical state to Node',
+        chk('the sandboxed build generates byte-identical state to the normal one',
             JSON.stringify(b) === JSON.stringify(core.generate('parity-student', EXAM)));
-        chk('reach() works on the browser build',
+        chk('reach() works in the sandbox',
             win.NetFinalCore.reach(b, 'ADMIN-WS01', 'fs01.meridian.local', { proto: 'tcp', port: 445 }).ok);
-        chk('the browser build agrees on the variant space',
+        chk('the sandbox agrees on the variant space',
             JSON.stringify(win.NetFinalCore.variantSpace()) === JSON.stringify(core.variantSpace()));
     }
 }

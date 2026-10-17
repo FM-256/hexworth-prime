@@ -43,7 +43,13 @@
         { id: 10, name: 'Sales',             seeded: true,  dhcp: true  },
         { id: 20, name: 'Engineering',       seeded: true,  dhcp: true  },
         { id: 30, name: 'Servers',           seeded: true,  dhcp: false },
-        { id: 40, name: 'Guest',             seeded: true,  dhcp: true  },
+        /* THE GUEST POOL STOPS AT .127 ON PURPOSE. Fault S5A sets this sub-interface to a /25,
+         * whose boundary is .128, and its ticket is "Guests with addresses above .127 can't browse.
+         * Others are fine." With a .100-.199 pool and three guest clients nobody ever leases above
+         * .127, so the fault would have had NO symptom and no contrast. Leasing below the boundary
+         * and placing the static guest devices above it is what makes both halves of that ticket
+         * real. */
+        { id: 40, name: 'Guest',             seeded: true,  dhcp: true, pool: [100, 127] },
         { id: 99, name: 'Network management', seeded: false, dhcp: false, fixedSubnet: '10.0.0.0/24' }
     ];
 
@@ -177,6 +183,11 @@
         { name: 'WIFI-GUEST01',  kind: 'wifi', vlan: 40, dhcp: true, oui: 'dell', ap: 'AP-1', ssid: 'Meridian-Guest' },
         { name: 'WIFI-GUEST02',  kind: 'wifi', vlan: 40, dhcp: true, oui: 'dell', ap: 'AP-2', ssid: 'Meridian-Guest' },
         { name: 'WIFI-GUEST03',  kind: 'wifi', vlan: 40, dhcp: true, oui: 'dell', ap: 'AP-3', ssid: 'Meridian-Guest' },
+        /* Static guest devices ABOVE the /25 boundary and OUTSIDE the pool, so S5A strands them
+         * while the leased guests keep working -- and so the pool still excludes every reserved and
+         * static address, which the dhcp-pools-sane invariant requires. */
+        { name: 'KIOSK-GUEST01', kind: 'kiosk', vlan: 40, hostRange: [130, 164], oui: 'dell', ap: 'AP-1', ssid: 'Meridian-Guest' },
+        { name: 'KIOSK-GUEST02', kind: 'kiosk', vlan: 40, hostRange: [165, 199], oui: 'dell', ap: 'AP-2', ssid: 'Meridian-Guest' },
         { name: 'BR-NAS01',      kind: 'server', network: 'branch', host: 25, oui: 'supermicro', tcpPorts: [445] }
     ];
 

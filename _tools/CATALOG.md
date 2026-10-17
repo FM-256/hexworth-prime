@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-10-17 16:02 · **1369 scripts** · 48 wired into a gate · 342 called by other code · 207 only mentioned in docs · 772 referenced by nothing · 552 not in git
+**Generated:** 2026-10-17 17:15 · **1370 scripts** · 48 wired into a gate · 343 called by other code · 206 only mentioned in docs · 773 referenced by nothing · 552 not in git
 
 ## Read this before writing a new script
 
@@ -1107,11 +1107,12 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `openstack-compute-probe.sh` | CALLED | 1 | 2026-08-19 | yes | Probes nova-compute liveness and placement capacity, emits node_exporter |
 | `service-probe.sh` | CALLED | 2 | 2026-08-20 | yes | probe real service behaviour and expose it to prometheus via node_exporter |
 
-### `_tools/netfinal` — 1 scripts, 0 referenced by nothing
+### `_tools/netfinal` — 2 scripts, 1 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
-| `netfinal-core.test.js` | DOCS-ONLY | 0 | 2026-10-17 | no | Drives the seeded generator, the derived tables and reach() for the Network+ final exam core: determinism, the spec's four generator constraints over 1,000 seeds, the healthy-path baseline, and a mutation per reach() layer. |
+| `netfinal-core.test.js` | CALLED | 1 | 2026-10-17 | yes | Drives the seeded generator, the derived tables and reach() for the Network+ final exam core: determinism, the spec's four generator constraints over 1,000 seeds, the healthy-path baseline, and a mutation per reach() layer. |
+| `netfinal-faults.test.js` | ORPHAN | 0 | 2026-10-17 | no | Drives all 24 fault variants: evidence present, fixed() false at exam start, true after the canonical repair, invariants clean after it, and an invariant violated by the common wrong fix. Plus determinism of apply(). |
 
 ### `_tools/nexus` — 5 scripts, 1 referenced by nothing
 
