@@ -43,7 +43,7 @@ Admin Console -> CTF Tournament Management panel (`_app/admin/console.html`, `da
 | Status | Set by | What it actually permits |
 |---|---|---|
 | `draft` | Created here | Edit freely. `ctfJoinTeam` and `ctfSubmitFlag` both refuse. Boxes staffed via "Import from Boxes" still disclose their flags through `deliverFlag` — authoring is not competing (`functions/index.js:739`). |
-| `lobby` | Admin clicks "Open Registration" | `ctfJoinTeam` admits joins (`functions/index.js:7921` checks `lobby` OR `active`). `ctfSubmitFlag` and `ctfGetBoxCredential` still refuse — a team can register before the box or the flag input opens. |
+| `lobby` | Admin clicks "Open Registration" | `ctfJoinTeam` admits joins (`functions/index.js:8143` checks `lobby` OR `active`). `ctfSubmitFlag` and `ctfGetBoxCredential` still refuse — a team can register before the box or the flag input opens. |
 | `active` | Admin clicks "Start Tournament" | Everything opens: joins, flag submission, real-box credentials. `startTime` is set. |
 | `frozen` | Admin clicks "Freeze Scoreboard" | Submissions still graded server-side. Display freezes (see Section 6) — this is a projection control, not an access control. `ctfJoinTeam` refuses (not `lobby`/`active`). `ctfGetBoxCredential` still serves. |
 | `ended` | Admin clicks "End Tournament" | Submissions and box credentials both refuse. Podium reveals final standings once `results/final` exists (Section 8). |
@@ -119,7 +119,7 @@ To attach a real box to a challenge:
    the terminals log the student in (`--ssh-pass`, see `token-terminals.sh`), a pool entry needs no
    password: fewer copies of a working login.
 3. This writes `tournaments/{id}/teams/{teamId}/assignments/{challengeId}` — `isAdmin()`-only in
-   `firestore.rules:1434`. No student ever reads that document directly.
+   `firestore.rules:1660`. No student ever reads that document directly.
 4. A student who opens the challenge modal on the board sees a box slot fill in asynchronously via
    `ctfGetBoxCredential` (`_app/arena/tournament-board.html:905`). If their team has an assignment
    for that challenge, an **"Open your box"** button renders (`_app/arena/tournament-board.html:950`). If not,
@@ -347,10 +347,10 @@ in the tournament path — this is architecturally the same "never client-grade"
 of the platform enforces.
 
 The flag crypto (`flagSalt`, `flagHash`) lives at `tournaments/{id}/flagSecrets/{challengeId}`,
-`isAdmin()`-only at the rules layer (`firestore.rules:1392`). `ctfSubmitFlag` reads it with the
+`isAdmin()`-only at the rules layer (`firestore.rules:1618`). `ctfSubmitFlag` reads it with the
 admin SDK. **A challenge with no stored secret is refused outright** —
 `failed-precondition`, "This challenge is not fully configured yet" — it is never silently
-mis-graded (`functions/index.js:7571-7577`). This is deliberate: comparing a submission against a
+mis-graded (`functions/index.js:7671-7677`). This is deliberate: comparing a submission against a
 missing hash would make every submission false, including a genuinely correct one, and because an
 incorrect submission is logged with its raw text, that would write the correct flag straight into
 a collection any signed-in user can read.
@@ -381,7 +381,7 @@ the live, admin-writable `teams` collection, once it exists.
 | **Competitor** (`tournament_competitor`) | Automatically, inside `ctfJoinTeam`, the moment a student joins a team. | `users/{uid}/server_awards` AND `users/{uid}.achievements` (union-merged). | **No.** Joining is a fact; it cannot un-happen. This is why it is safe to also keep it in the union-merged `achievements` array — a stale device re-syncing the id back in changes nothing false. |
 | **Champion / Runner-Up / Third** (`tournament_champion` etc.) | Manually, by an admin calling `ctfAwardTournamentBadges` — never automatic. This is Hexworth Credential Authority doctrine: competition never automatically grants an award of record. | `users/{uid}/server_awards` **only** — never `achievements`. | **Yes.** A corrected result must be able to take a trophy back; `achievements` is union-merged and a revocation there would silently self-reverse the next time a stale device synced. |
 
-Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11933`) calls
+Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11961`) calls
 `ctfAwardTournamentBadges`. It refuses to run until `results/final` exists — it will not derive
 placements from the live `teams` collection, because that collection is admin-writable and
 therefore not evidence of anything. Safe to click more than once: it is idempotent by content, and
