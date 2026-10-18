@@ -46,6 +46,38 @@
      * be silently rewritten by a later repair, restore or lease re-resolution, and the stored
      * "correct answer" would change under the grader. Freezing turns a future accidental mutation
      * into a throw instead of a wrong grade. */
+    /* ═══ EVERY INTERFACE VALUE AN ANSWER COULD BE GRADED AGAINST ════════════════════════════════
+     *
+     * Exported, and the ONLY definition of "where does an iface value live in an answer". The first
+     * version of this lived inline here and covered a top-level string only, which missed Q18's
+     * `parts: ['iface','select']` -- 4 points, in every lab, scoring full marks for a bare port on a
+     * port active on both switches. Then the ledger test that was supposed to guard against exactly
+     * that drift reimplemented its own narrower copy of this walk, with the same blind spot as the
+     * code it was checking. A test that re-derives the thing under test proves the two agree, not
+     * that either is right.
+     *
+     * An unrecognised shape is RECURSED INTO rather than skipped. A future question whose iface half
+     * is an object (say `{sw, port}` instead of one string) would otherwise pass through silently and
+     * revert to "the switch is always omittable", which is a scoring change nobody would see. */
+    function ifaceAnswers(entry) {
+        var out = [];
+        var walk = function (v, depth) {
+            if (v === null || v === undefined || depth > 4) { return; }
+            if (typeof v === 'string') { out.push(v); return; }
+            if (Array.isArray(v)) { v.forEach(function (x) { walk(x, depth + 1); }); return; }
+            if (typeof v === 'object') {
+                Object.keys(v).forEach(function (k) { walk(v[k], depth + 1); });
+            }
+        };
+        if (!entry) { return out; }
+        if (entry.norm === 'iface') { walk(entry.answer, 0); }
+        if (entry.parts && entry.parts.indexOf('iface') >= 0
+            && entry.answer && typeof entry.answer === 'object' && !Array.isArray(entry.answer)) {
+            walk(entry.answer.iface, 0);
+        }
+        return out;
+    }
+
     function buildAnswerKey(state) {
         var key = { builtAtEvent: (state.events || []).length, questions: {} };
         /* Which ports have an endpoint on more than one switch IN THIS LAB. Spec section 8 allows the
@@ -93,17 +125,7 @@
              * So: collect EVERY candidate interface answer this entry could be graded against -- the
              * top-level value, each part, and each alternative inside an array of accepted answers --
              * and require the switch if any of them names an ambiguous port. */
-            var ifaceCandidates = [];
-            var collectIface = function (v) {
-                if (typeof v === 'string') { ifaceCandidates.push(v); return; }
-                if (Array.isArray(v)) { v.forEach(collectIface); }
-            };
-            if (entry.norm === 'iface') { collectIface(entry.answer); }
-            if (entry.parts && entry.parts.indexOf('iface') >= 0
-                && entry.answer && typeof entry.answer === 'object' && !Array.isArray(entry.answer)) {
-                collectIface(entry.answer.iface);
-            }
-            if (ifaceCandidates.some(function (v) {
+            if (ifaceAnswers(entry).some(function (v) {
                 var parsed = QUESTIONS.NORM.iface(v);
                 return !!(parsed && parsed.iface && ambiguous[parsed.iface]);
             })) {
@@ -119,6 +141,37 @@
             if (f.ticketId) { key.ticketLayers[f.ticketId] = f.layer; }
         });
         return deepFreeze(key);
+    }
+
+    /* ═══ DOES A STATED OSI LAYER MATCH THE CATALOG'S? ═══════════════════════════════════════════
+     *
+     * ONE rule, called from both places that grade a layer, because they disagreed. Spec section 6's
+     * catalog lists some faults as "2/3" and "3/4" -- the spec declaring the fault genuinely spans
+     * two layers -- and the generator stores those as 2.5 and 3.5. `gradeIncidentLayers` accepted
+     * either side; `gradeFix` did a bare string compare against 2.5 and could never match anything a
+     * student can state. The same answer was right in one grader and wrong in the other:
+     *
+     *   S4A, catalog layer 2.5, student states "2"
+     *     Q43      -> {"ticket":"TKT-112","got":"2","want":2.5,"ok":true}
+     *     gradeFix -> {"earned":0,"note":"not fixed"}      with no pending credit at all
+     *
+     * S4 and S7 are half-layer on EVERY variant, so every student's lab had at least two of twelve
+     * fix questions permanently unable to earn the "change request names the correct root cause and
+     * layer" credit, plus a coin-flip third in S8A. Nothing in section 8 asks the change request to
+     * meet a stricter standard than the incident log, and the catalog refuses to assign one layer,
+     * so neither artifact may demand one.
+     *
+     * Deliberately NOT a second copy of the tolerance inside gradeFix: two copies of this rule is
+     * exactly how they came to disagree. */
+    function layerMatches(got, want) {
+        if (got === null || got === undefined || got === '') { return false; }
+        var g = String(got).trim();
+        if (g === String(want)) { return true; }
+        /* A half value spans the two integers it sits between, and either is correct. */
+        if (!Number.isInteger(want) && isFinite(want)) {
+            return g === String(Math.floor(want)) || g === String(Math.ceil(want));
+        }
+        return false;
     }
 
     /* ═══ GRADING ONE TYPED ANSWER ════════════════════════════════════════════════════════════════ */
@@ -211,7 +264,7 @@
                 return { earned: 0, of: entry.points, note: 'fixed and then undone' };
             }
             var cr = (state.changeRequests || []).filter(function (c) { return c.ticket === entry.ticket; })[0];
-            if (cr && String(cr.layer) === String(entry.layerForTicket)) {
+            if (cr && layerMatches(cr.layer, entry.layerForTicket)) {
                 /* The layer matches; the root cause is prose and is NOT auto-scored. 2 of 6 is the
                  * spec's award for naming both, so it is offered as PENDING for an instructor to
                  * confirm rather than granted on a keyword match. */
@@ -287,12 +340,9 @@
             var e = log.filter(function (x) { return x.ticket === tid; })[0];
             var want = ctx.key.ticketLayers[tid];
             if (!e) { detail.push({ ticket: tid, got: null, want: want, ok: false }); return; }
-            /* A 2/3 slot accepts either, per spec Q43. The catalog stores 2.5 for those. */
-            var ok = (want === 2.5)
-                ? (String(e.layer) === '2' || String(e.layer) === '3')
-                : String(e.layer) === String(want);
-            /* 3.5 is the spec's "3/4" family and accepts either, for the same reason. */
-            if (!ok && want === 3.5) { ok = (String(e.layer) === '3' || String(e.layer) === '4'); }
+            /* The 2/3 and 3/4 families each accept either side, per spec Q43 -- see layerMatches,
+             * which gradeFix now calls too so the two graders cannot disagree about one answer. */
+            var ok = layerMatches(e.layer, want);
             if (ok) { right++; }
             detail.push({ ticket: tid, got: e.layer, want: want, ok: ok });
         });
@@ -429,6 +479,8 @@
         return lines.join('\n');
     }
 
-    module.exports = { buildAnswerKey: buildAnswerKey, grade: grade, toCsv: toCsv,
+    module.exports = {
+        layerMatches: layerMatches,
+        ifaceAnswers: ifaceAnswers, buildAnswerKey: buildAnswerKey, grade: grade, toCsv: toCsv,
                        gradeTyped: gradeTyped, gradeFix: gradeFix, gradeSequence: gradeSequence };
 })();

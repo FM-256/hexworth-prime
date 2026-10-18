@@ -463,6 +463,38 @@ section('the action schema the page renders from');
     }));
     /* The offered values must be the ones the catalog actually uses, or the closed list is a
      * different trap: a student picking from it could still be unable to state the right answer. */
+    /* THE LIST IS HARDCODED, AND THAT IS FINE AS LONG AS SOMETHING CHECKS IT. Deriving it from the
+     * catalog was the obvious alternative, but the review that found the half-layer defect said
+     * explicitly to leave the offered values alone -- they are correct, and the bug was in the
+     * grader. So the constant stays and this asserts it against the catalog instead: every layer any
+     * variant declares, with a half value expanded to the two integers it spans, must be offered.
+     * The day someone authors a layer-5 fault, this fails instead of the student silently being
+     * unable to state the answer. A count in prose is stale on arrival; a derived assertion is not. */
+    chk('the offered list equals what the CATALOG needs, expanded over half layers', (() => {
+        const declared = [];
+        TOPO.FAULT_SLOTS.forEach(sl => Object.keys(sl.variants).forEach(v => {
+            declared.push(sl.variants[v].layer);
+        }));
+        const statable = [];
+        declared.forEach(l => {
+            (Number.isInteger(l) ? [l] : [Math.floor(l), Math.ceil(l)]).forEach(n => {
+                if (statable.indexOf(n) < 0) { statable.push(n); }
+            });
+        });
+        statable.sort((a, b) => a - b);
+        const offered = (GUI.render(lab, 'incident-log').layerOptions || []).slice().sort((a, b) => a - b);
+        return JSON.stringify(offered) === JSON.stringify(statable);
+    })(), JSON.stringify({
+        offered: GUI.render(lab, 'incident-log').layerOptions,
+        catalogDeclares: (() => {
+            const d = [];
+            TOPO.FAULT_SLOTS.forEach(sl => Object.keys(sl.variants).forEach(v => {
+                if (d.indexOf(sl.variants[v].layer) < 0) { d.push(sl.variants[v].layer); }
+            }));
+            return d.sort((a, b) => a - b);
+        })()
+    }));
+
     chk('every layer the fault catalog grades is offered', (() => {
         const offered = GUI.actionSchema(lab, 'incident-log')[0].params
             .filter(x => x.name === 'layer')[0].options.map(String);

@@ -774,16 +774,38 @@ section('7b. a parts-based interface answer is still an interface answer');
         ifaceQs.some(id => key.questions[id].norm === 'iface')
         && ifaceQs.some(id => (key.questions[id].parts || []).indexOf('iface') >= 0),
         JSON.stringify(ifaceQs.map(id => id + ':' + (key.questions[id].norm === 'iface' ? 'string' : 'parts'))));
+    /* USES THE REAL COLLECTOR. This block used to re-derive its own narrower idea of where an iface
+     * value lives -- string-only, no array handling -- which is a second copy of the thing under
+     * test, carrying the same blind spot, written to guard against that very drift. It proved the
+     * two copies agreed, not that either was right. */
     const amb = QQ.ambiguousPorts(st);
     const missed = ifaceQs.filter(id => {
         const e = key.questions[id];
-        const raw = e.norm === 'iface' ? e.answer : (e.answer || {}).iface;
-        if (typeof raw !== 'string') { return false; }
-        const pp = QQ.NORM.iface(raw);
-        return pp && pp.iface && amb[pp.iface] && e.requireSw !== true;
+        return GR.ifaceAnswers(e).some(raw => {
+            const pp = QQ.NORM.iface(raw);
+            return pp && pp.iface && amb[pp.iface];
+        }) && e.requireSw !== true;
     });
     chk('no iface question sits on an ambiguous port without requiring the switch',
         missed.length === 0, 'missed: ' + missed.join(', '));
+    chk('the collector finds a value for every iface question, so the sweep is not empty',
+        ifaceQs.every(id => GR.ifaceAnswers(key.questions[id]).length > 0),
+        JSON.stringify(ifaceQs.map(id => id + ':' + GR.ifaceAnswers(key.questions[id]).length)));
+    /* The shapes it must survive, including the one that does not exist yet: an object-valued iface
+     * half would previously have been skipped in silence. */
+    chk('the collector handles string, array and OBJECT shapes', (() => {
+        const str = GR.ifaceAnswers({ norm: 'iface', answer: 'MeridianSW-01 Fa0/7' });
+        const arr = GR.ifaceAnswers({ norm: 'iface', answer: ['SW-01 Fa0/1', 'SW-02 Fa0/2'] });
+        const obj = GR.ifaceAnswers({ parts: ['iface'], answer: { iface: { sw: 'SW-01', port: 'Fa0/9' } } });
+        return str.length === 1 && arr.length === 2 && obj.length === 2;
+    })(), JSON.stringify({
+        str: GR.ifaceAnswers({ norm: 'iface', answer: 'x Fa0/7' }),
+        arr: GR.ifaceAnswers({ norm: 'iface', answer: ['a', 'b'] }),
+        obj: GR.ifaceAnswers({ parts: ['iface'], answer: { iface: { sw: 'S', port: 'P' } } })
+    }));
+    chk('and returns nothing for a question with no iface half',
+        GR.ifaceAnswers({ norm: 'text', answer: 'hello' }).length === 0
+        && GR.ifaceAnswers(null).length === 0);
 }
 
 /* ─── 7c. an ACL reference scores like the two-part answer it is ────────────────────────────────── */
@@ -833,6 +855,125 @@ section('7c. Q24 half credit, and the spelling regression the last fix introduce
     chk('and half is actually half of this question, not a fixed number',
         GR.gradeTyped(e, 'wrong-acl ' + seq).earned === e.points / 2
         && e.points > 0, e.points + ' points');
+}
+
+/* ─── 7d. the ACL name is the one the student pointed at ───────────────────────────────────────── */
+section('7d. prose around an ACL reference, in both directions');
+{
+    /* THE JOIN FIX MANUFACTURED A CANDIDATE AND RANKED IT FIRST. Ordering candidates by how they
+     * were BUILT -- joined, then hyphenated, then bare -- meant any ordinary word before "in" or
+     * "out" beat the real name wherever prose put one there. Ranking is now by PROXIMITY to the
+     * sequence number, because that is what the student actually signals: they write the name and
+     * its number together. It also settles an answer that dismisses the healthy ACL by name before
+     * naming the culprit, in either direction, which the normalizer cannot do by knowing which ACL
+     * is healthy -- it sees one answer and never the key. */
+    const t = (a, b) => QQ.sameAnswer('aclRef', a, b);
+    const nm = (a) => (QQ.NORM.aclRef(a) || {}).name;
+
+    chk('an ordinary word before "in" no longer beats the real name',
+        nm('the issue lives in guest-in, seq 10') === 'guest-in',
+        JSON.stringify(QQ.NORM.aclRef('the issue lives in guest-in, seq 10')));
+    chk('and the answer scores', t('the issue lives in guest-in, seq 10', 'GUEST-IN 10') === true);
+    chk('the second of Nancy’s prose cases scores too',
+        t('the deny line sits in GUEST-IN seq 10', 'GUEST-IN 10') === true,
+        JSON.stringify(QQ.NORM.aclRef('the deny line sits in GUEST-IN seq 10')));
+
+    /* Dismissal, BOTH WAYS ROUND. One direction alone would pass on a rule that always picked the
+     * last candidate, which is a different wrong answer. */
+    chk('dismissing SERVERS-OUT then naming GUEST-IN scores as GUEST-IN',
+        t('SERVERS-OUT is fine, the problem is GUEST-IN seq 10', 'GUEST-IN 10') === true);
+    chk('dismissing GUEST-IN then naming SERVERS-OUT scores as SERVERS-OUT',
+        t('GUEST-IN is fine, the problem is SERVERS-OUT seq 20', 'SERVERS-OUT 20') === true);
+    chk('and the DISMISSED ACL is not accepted as the answer',
+        t('GUEST-IN is fine, the problem is SERVERS-OUT seq 20', 'GUEST-IN 20') === false
+        && t('SERVERS-OUT is fine, the problem is GUEST-IN seq 10', 'SERVERS-OUT 10') === false);
+
+    chk('a sequence stated before the name still resolves',
+        t('seq 10 on GUEST-IN', 'GUEST-IN 10') === true);
+    chk('the plain spellings all still work',
+        t('guest-in 10', 'GUEST-IN 10') && t('guest in 10', 'GUEST-IN 10')
+        && t('GUEST IN 10', 'GUEST-IN 10') && t('ip access-list GUEST IN seq 10', 'GUEST-IN 10'));
+    chk('and every wrong answer is still wrong',
+        !t('wrong-acl 10', 'GUEST-IN 10') && !t('wrong acl 10', 'GUEST-IN 10')
+        && !t('guest out 10', 'GUEST-IN 10') && !t('servers-out 10', 'GUEST-IN 10')
+        && !t('10', 'GUEST-IN 10') && !t('guest-in', 'GUEST-IN 10'));
+
+    /* THE LATENT TRAP, named so the next person is told rather than left to find it. The Q24 half
+     * credit lives in gradeTyped's single-value branch. A future question declaring aclRef as one of
+     * several `parts` would be scored by the generic per-part branch, which knows nothing about the
+     * name/seq split inside that one field -- the same "second copy, one exception" shape as the
+     * layer rule that just had to be extracted. Not live today; this fails the day it becomes live. */
+    const st = CORE.generate('aclref-ledger', EXAM, { secret: 'server-secret' });
+    FAULTS.applyAll(st);
+    const key = GR.buildAnswerKey(st);
+    const aclQs = Object.keys(key.questions).filter(id => {
+        const e = key.questions[id];
+        return e.norm === 'aclRef' || (e.parts && e.parts.indexOf('aclRef') >= 0);
+    });
+    chk('exactly one question grades an ACL reference, and it is a single-value question',
+        aclQs.length === 1 && !(key.questions[aclQs[0]].parts || []).length,
+        'If this fails, a second aclRef question exists. The half-credit rule in gradeTyped’s '
+        + 'single-value branch does NOT apply to a parts-based one -- extend it before shipping. Found: '
+        + JSON.stringify(aclQs.map(id => id + ':' + JSON.stringify(key.questions[id].parts || null))));
+}
+
+/* ─── 7e. one layer rule, for both artifacts that state a layer ─────────────────────────────────── */
+section('7e. a half-layer fault, stated from the closed list');
+{
+    /* THE SAME ANSWER WAS RIGHT IN ONE GRADER AND WRONG IN THE OTHER. gradeIncidentLayers accepted
+     * either side of a 2/3 or 3/4 fault; gradeFix string-compared against 2.5 and could never match
+     * anything a student can state. S4 and S7 are half-layer on EVERY variant, so every lab had at
+     * least two of twelve fix questions unable to earn the change-request credit, plus a coin-flip
+     * third in S8A. One extracted rule now, called from both. */
+    chk('layerMatches is exported, so the rule can be tested directly',
+        typeof GR.layerMatches === 'function');
+    [[2, 2, true], ['2', 2, true], ['2', 2.5, true], ['3', 2.5, true], ['4', 2.5, false],
+     ['3', 3.5, true], ['4', 3.5, true], ['2', 3.5, false], ['4', 4, true], ['7', 7, true],
+     ['', 2.5, false], [null, 2, false], [undefined, 2, false]].forEach(([got, want, expect]) => {
+        chk('layerMatches(' + JSON.stringify(got) + ', ' + want + ') === ' + expect,
+            GR.layerMatches(got, want) === expect);
+    });
+
+    /* End to end, on a lab's real half-layer faults, through the real GUI action. */
+    const st = CORE.generate('halflayer', EXAM, { secret: 'server-secret' });
+    FAULTS.applyAll(st);
+    const key = GR.buildAnswerKey(st);
+    const half = st.faults.filter(f => !Number.isInteger(f.layer));
+    chk('this lab has half-layer faults, so the rest of this section is not vacuous',
+        half.length >= 2, JSON.stringify(st.faults.map(f => f.id + ':' + f.layer)));
+
+    half.forEach(f => {
+        GUI.act(st, 'change-requests', 'submit', {
+            ticket: f.ticketId, rootCause: 'stated', layer: String(Math.floor(f.layer)),
+            plannedChange: 'p', rollback: 'r'
+        });
+        GUI.act(st, 'incident-log', 'submit', {
+            ticket: f.ticketId, symptom: 's', layer: String(Math.ceil(f.layer)),
+            rootCause: 'r', fix: 'x', verification: 'v'
+        });
+    });
+    const rep = GR.grade(st, key);
+    half.forEach(f => {
+        const row = rep.questions.filter(r => r.slot === f.slot && r.phase === 'fix')[0];
+        chk(f.id + ' (layer ' + f.layer + '): the change request’s lower integer earns the credit',
+            row && row.pending === 2, JSON.stringify(row && { earned: row.earned, pending: row.pending }));
+    });
+    const q43 = rep.questions.filter(r => r.n === 43)[0];
+    half.forEach(f => {
+        const d = (q43.detail || []).filter(x => x.ticket === f.ticketId)[0];
+        chk(f.id + ': the incident log’s UPPER integer is accepted too',
+            d && d.ok === true, JSON.stringify(d));
+    });
+    /* AND THE CONTROL: the two graders must agree on the same value, which is the property that was
+     * actually broken -- not merely that each is lenient. */
+    half.forEach(f => {
+        const lo = String(Math.floor(f.layer)), hi = String(Math.ceil(f.layer));
+        chk(f.id + ': both graders agree on both integers',
+            GR.layerMatches(lo, f.layer) === true && GR.layerMatches(hi, f.layer) === true);
+    });
+    /* A WRONG layer must still be wrong, or the leniency has eaten the question. */
+    chk('a layer outside the span is still refused',
+        GR.layerMatches('7', 2.5) === false && GR.layerMatches('1', 3.5) === false);
 }
 
 /* ─── 8. a verify sequence must happen IN ORDER ─────────────────────────────────────────────────── */

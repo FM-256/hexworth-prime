@@ -154,28 +154,62 @@
 
     NORM.aclRef = function (v) {
         var s = String(v || '').trim();
-        var tokens = s.match(/[A-Za-z][A-Za-z0-9_-]*/g) || [];
-        var cands = tokens.filter(function (t) {
-            return !ACL_NOISE[t.toLowerCase()] && t.length >= 3;
-        });
-        /* "GUEST IN" -> "GUEST-IN": a candidate immediately followed by a direction word is one name
-         * written with a space. Built from adjacent tokens, so "guest" and a stray "out" elsewhere in
-         * the sentence are never joined. */
-        var joined = [];
-        for (var i = 0; i < tokens.length - 1; i++) {
-            var head = tokens[i], tailWord = tokens[i + 1];
-            if (ACL_DIRECTION[tailWord.toLowerCase()]
-                && !ACL_NOISE[head.toLowerCase()] && head.length >= 3 && !/[-_]/.test(head)) {
-                joined.push(head + '-' + tailWord);
+        var seqMatch = s.match(/\b(?:seq(?:uence)?\s*)?(\d{1,5})\b/);
+        var seq = seqMatch ? Number(seqMatch[1]) : null;
+        /* With no sequence number the answer is incomplete anyway, but the position still has to be
+         * defined for the ranking below; end-of-string makes the LAST candidate win, which is where
+         * a student states their conclusion in prose. */
+        var seqAt = seqMatch ? seqMatch.index : s.length;
+
+        var toks = [], re = /[A-Za-z][A-Za-z0-9_-]*/g, m;
+        while ((m = re.exec(s)) !== null) { toks.push({ text: m[0], at: m.index }); }
+
+        var cands = [];
+        toks.forEach(function (t, i) {
+            var low = t.text.toLowerCase();
+            var usable = !ACL_NOISE[low] && t.text.length >= 3;
+            if (usable) {
+                cands.push({ name: t.text, at: t.at, hyphenated: /[-_]/.test(t.text) });
             }
-        }
-        /* Prefer a hyphenated or underscored token: every ACL in this lab is GUEST-IN or SERVERS-OUT,
-         * and the shape is the strongest available signal for "this is a name, not prose". A joined
-         * pair ranks with them, ahead of a bare word. */
-        var hyphenated = joined.concat(cands.filter(function (t) { return /[-_]/.test(t); }));
-        var name = (hyphenated.length ? hyphenated[0] : cands[0]) || null;
-        var seq = (s.match(/\b(?:seq(?:uence)?\s*)?(\d{1,5})\b/) || [])[1];
-        return { name: name ? name.toLowerCase() : null, seq: seq === undefined ? null : Number(seq) };
+            /* "GUEST IN" -> "GUEST-IN": one name written with a space. Built from ADJACENT tokens
+             * only, so a stray direction word elsewhere in the sentence joins nothing. */
+            var next = toks[i + 1];
+            if (usable && next && ACL_DIRECTION[next.text.toLowerCase()] && !/[-_]/.test(t.text)) {
+                cands.push({ name: t.text + '-' + next.text, at: t.at, hyphenated: true });
+            }
+        });
+        if (!cands.length) { return { name: null, seq: seq }; }
+
+        /* ── THE NAME THAT BELONGS WITH THE SEQUENCE NUMBER IS THE ONE NEAREST IT ─────────────────
+         *
+         * Ranking used to be "joined first, then any hyphenated token, then any word", which put a
+         * MANUFACTURED candidate ahead of the real name wherever prose happened to put an ordinary
+         * word before "in" or "out":
+         *
+         *   "the issue lives in guest-in, seq 10"  ->  name "lives-in"   (guest-in was right there)
+         *   "the deny line sits in GUEST-IN seq 10" ->  name "sits-in"
+         *
+         * And the older "first hyphenated token wins" rule mis-read an answer that dismissed the
+         * healthy ACL by name before naming the culprit -- in either direction:
+         *
+         *   "SERVERS-OUT is fine, the problem is GUEST-IN seq 10"  ->  name "servers-out"
+         *   "GUEST-IN is fine, the problem is SERVERS-OUT seq 20"  ->  name "guest-in"
+         *
+         * Both are correct answers scored wrong, and both came from ranking candidates by how they
+         * were BUILT rather than by what the student was pointing at. Proximity is what the student
+         * actually signals: they write the name and its sequence number together. It handles the
+         * dismissal case in both directions without knowing which ACL is healthy, which the
+         * normalizer cannot know -- it sees one answer, never the key.
+         *
+         * Ties (a bare head and the pair it joins into share a position) prefer the hyphenated form,
+         * then the longer one, so "guest in 10" resolves to GUEST-IN and not to "guest". */
+        cands.sort(function (a, b) {
+            var da = Math.abs(a.at - seqAt), db = Math.abs(b.at - seqAt);
+            if (da !== db) { return da - db; }
+            if (a.hyphenated !== b.hyphenated) { return a.hyphenated ? -1 : 1; }
+            return b.name.length - a.name.length;
+        });
+        return { name: cands[0].name.toLowerCase(), seq: seq };
     };
 
     NORM.integer = function (v) {
