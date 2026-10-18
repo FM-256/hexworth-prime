@@ -29,6 +29,7 @@
     var CLIENT = require('./netfinal-client.js');
     var QUESTIONS = require('./netfinal-questions.js');
     var GRADE = require('./netfinal-grade.js');
+    var EXAMS = require('./netfinal-exams.js');
 
     /* Spec section 12 leaves the duration open; the pilot in section 11 targets 100 minutes, so that
      * is the default and the caller may override it per sitting. */
@@ -98,7 +99,12 @@
         var session = {
             sessionId: sessionId, studentId: studentId, examId: examId,
             startedAt: nowMs(opts),
-            durationMs: (Number(args.minutes) > 0 ? Number(args.minutes) : DEFAULT_MINUTES) * 60000,
+            /* CLAMPED, not trusted. This read `Number(args.minutes)` with no ceiling, and the
+             * callable handed it `c.data.minutes` straight from the browser -- so an exam could be
+             * started with a duration of 694,444 days and never expire. The callable no longer
+             * forwards a client value at all; this clamp is the second layer, because a guard that
+             * only exists at the edge is one a new caller removes without noticing. */
+            durationMs: EXAMS.clampMinutes(args.minutes) * 60000,
             state: state,
             answerKey: answerKey,
             shell: SHELL.newSession(),

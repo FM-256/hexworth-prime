@@ -11244,8 +11244,15 @@ const netfinalOpts = { ...cfOptions, secrets: [netfinalSeedSecret] };
 
 /* Start or RESUME. One attempt: a second call returns the same lab and the same clock, which is
  * also what makes a browser refresh work. */
+/* `minutes` is NOT taken from the request. It was, and an unclamped client number became the
+ * session's durationMs -- the field the expiry check reads -- so a student calling this from
+ * devtools before the page's own call got an exam that never expired, permanently, because resume
+ * keeps the duration fixed at creation. The server decides how long its own exam runs; see
+ * netfinal-exams.js. */
 exports.netfinalStart = onCall(netfinalOpts, netfinalCall(async (c) =>
-    NETFINAL.startExam(c.store, { studentId: c.uid, examId: c.examId, minutes: c.data.minutes }, c.opts)));
+    NETFINAL.startExam(c.store,
+        { studentId: c.uid, examId: c.examId, minutes: NETFINAL_EXAMS.durationMinutes(c.examId) },
+        c.opts)));
 
 /* One command. The LINE crosses the wire; the lab does not. */
 exports.netfinalCommand = onCall(netfinalOpts, netfinalCall(async (c) =>

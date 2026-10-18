@@ -22,6 +22,45 @@
 
     var DEFAULT_EXAM_ID = EXAM_IDS[0];
 
+    /* ═══ HOW LONG EACH EXAM RUNS, DECIDED BY THE SERVER ═════════════════════════════════════════
+     *
+     * The duration used to come from the client: `netfinalStart` forwarded `c.data.minutes` into
+     * `startExam`, which multiplied it by 60000 and stored it as `durationMs` -- the field the
+     * expiry check reads on every later call. No allowlist, no ceiling, no sanity check. A student
+     * who called the callable from devtools before the page's own call got an exam that never ends:
+     *
+     *   startExam(store, { studentId, examId, minutes: 999999999 })
+     *     -> remainingMs 59999999939998, durationMs stored 59999999940000  (694,444 days)
+     *
+     * And permanently, because resume returns the same session with the duration fixed at creation.
+     * Spec section 9 says "One attempt, server-timed. The timer runs on the server" -- a timer whose
+     * length the client chooses is not server-timed, it is server-enforced against a client's number.
+     *
+     * This is the SAME defect as the examId format check, in the same file, found by a different
+     * reviewer a few hours later: a client-supplied value trusted into session state. The remedy is
+     * the same one -- which exams exist and how long they run are both server knowledge, so they
+     * live together. A different sitting length is a deliberate edit here plus a deploy. */
+    var DURATION_MINUTES = { 'net-final-2026': 120 };
+
+    /* Hard bounds, applied to whatever reaches the engine from any caller including a test. The
+     * allowlist above stops the CALLABLE forwarding a forged value; this stops any other path
+     * storing an absurd one, because a single guard at the edge is a guard that one new caller
+     * removes. 240 is four hours -- generous for a 100-minute pilot, and finite. */
+    var MIN_MINUTES = 1;
+    var MAX_MINUTES = 240;
+    var FALLBACK_MINUTES = 120;
+
+    function durationMinutes(examId) {
+        var m = DURATION_MINUTES[String(examId)];
+        return clampMinutes(m === undefined ? FALLBACK_MINUTES : m);
+    }
+
+    function clampMinutes(value) {
+        var n = Number(value);
+        if (!isFinite(n) || n <= 0) { return FALLBACK_MINUTES; }
+        return Math.min(MAX_MINUTES, Math.max(MIN_MINUTES, Math.floor(n)));
+    }
+
     /* Returns the exam id to serve, or null if the caller named one that does not exist. Null rather
      * than a throw, so the caller owns the error type (HttpsError in production, a plain assertion
      * in a test) and this module stays free of both. */
@@ -32,6 +71,9 @@
     }
 
     module.exports = {
-        EXAM_IDS: EXAM_IDS, DEFAULT_EXAM_ID: DEFAULT_EXAM_ID, resolveExamId: resolveExamId
+        EXAM_IDS: EXAM_IDS, DEFAULT_EXAM_ID: DEFAULT_EXAM_ID, resolveExamId: resolveExamId,
+        DURATION_MINUTES: DURATION_MINUTES, durationMinutes: durationMinutes,
+        clampMinutes: clampMinutes,
+        MIN_MINUTES: MIN_MINUTES, MAX_MINUTES: MAX_MINUTES, FALLBACK_MINUTES: FALLBACK_MINUTES
     };
 })();

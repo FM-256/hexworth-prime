@@ -23,6 +23,13 @@ const path = require('path');
 const NF = path.resolve(__dirname, '../../functions/netfinal');
 const EX = require(path.join(NF, 'netfinal-exam.js'));
 const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
+
+/* Did this session's clock run out? Asked by driving a real call and reading the error code, rather
+ * than recomputing the arithmetic the code under test uses. */
+async function expired(r, sessionId) {
+    try { await EX.renderWindow(r.store, { sessionId: sessionId, window: 'noc' }, r.opts); return false; }
+    catch (e) { return e && e.code === 'deadline-exceeded'; }
+}
 const CORE = require(path.join(NF, 'netfinal-core.js'));
 const FAULTS = require(path.join(NF, 'netfinal-faults.js'));
 const CLIENT = require(path.join(NF, 'netfinal-client.js'));
@@ -489,6 +496,79 @@ section('a resume carries the student’s saved answers back');
     })(), JSON.stringify(EX.savedAnswers({ answers: { q1: { value: 'x', atEvent: 3 } } })));
     chk('and it is empty, not undefined, for a lab with no answers',
         JSON.stringify(EX.savedAnswers({})) === '{}' && JSON.stringify(EX.savedAnswers({ answers: {} })) === '{}');
+}
+
+/* ─── THE CLOCK'S LENGTH IS NOT THE CLIENT'S TO CHOOSE ─────────────────────────────────────────── */
+section('the exam duration is server-declared, and clamped whatever a caller sends');
+{
+    /* `netfinalStart` forwarded `c.data.minutes` into startExam, which multiplied it by 60000 and
+     * stored it as durationMs -- the field the expiry check reads on every later call. No ceiling.
+     * A student calling the callable from devtools before the page's own call got:
+     *
+     *   startExam(store, { studentId, examId, minutes: 999999999 })
+     *     -> remainingMs 59999999939998, durationMs stored 59999999940000   (694,444 days)
+     *
+     * permanently, because resume returns the same session with the duration fixed at creation. Spec
+     * section 9 says the timer runs on the SERVER; a timer whose length the client picks does not.
+     *
+     * Same defect as the examId format check, in the same file, found by a different reviewer hours
+     * later: a client value trusted into session state. Same remedy -- which exams exist and how long
+     * they run are both server knowledge, so they live together. */
+    chk('the server declares a duration for the real exam',
+        EXAMS.durationMinutes(EXAMS.DEFAULT_EXAM_ID) === 120,
+        String(EXAMS.durationMinutes(EXAMS.DEFAULT_EXAM_ID)));
+    chk('and an unknown id still gets a finite fallback rather than undefined',
+        EXAMS.durationMinutes('no-such-exam') === EXAMS.FALLBACK_MINUTES);
+
+    /* THE EXACT PAYLOAD FROM THE AUDIT, plus the neighbours that break naive clamps. */
+    const cases = [
+        [999999999, EXAMS.MAX_MINUTES, 'the reproduced exploit'],
+        [1e12, EXAMS.MAX_MINUTES, 'bigger still'],
+        [EXAMS.MAX_MINUTES + 1, EXAMS.MAX_MINUTES, 'one over the ceiling'],
+        [EXAMS.MAX_MINUTES, EXAMS.MAX_MINUTES, 'exactly the ceiling is allowed'],
+        [100, 100, 'the spec pilot length passes through'],
+        [1, 1, 'the floor is allowed, for the expiry tests'],
+        [0, EXAMS.FALLBACK_MINUTES, 'zero is not a duration'],
+        [-5, EXAMS.FALLBACK_MINUTES, 'negative is not a duration'],
+        [NaN, EXAMS.FALLBACK_MINUTES, 'NaN'],
+        [Infinity, EXAMS.FALLBACK_MINUTES, 'Infinity'],
+        ['600', EXAMS.MAX_MINUTES, 'a numeric STRING is still clamped, not concatenated'],
+        [undefined, EXAMS.FALLBACK_MINUTES, 'omitted'],
+        [null, EXAMS.FALLBACK_MINUTES, 'null'],
+        [{}, EXAMS.FALLBACK_MINUTES, 'an object']
+    ];
+    cases.forEach(([given, want, why]) => {
+        chk('clampMinutes(' + JSON.stringify(given) + ') === ' + want + '  (' + why + ')',
+            EXAMS.clampMinutes(given) === want, String(EXAMS.clampMinutes(given)));
+    });
+
+    /* END TO END: the engine stores a clamped duration no matter what it is handed, because a guard
+     * that only exists at the callable is one a new caller removes without noticing. */
+    const r = rig();
+    const forged = await EX.startExam(r.store,
+        { studentId: 'clock-forger', examId: EXAMS.DEFAULT_EXAM_ID, minutes: 999999999 }, r.opts);
+    const stored = await r.store.get(forged.sessionId);
+    chk('a forged minutes value does not reach the stored session',
+        stored.durationMs === EXAMS.MAX_MINUTES * 60000,
+        stored.durationMs + 'ms = ' + (stored.durationMs / 86400000).toFixed(2) + ' days');
+    chk('and the envelope it returns agrees with what was stored',
+        forged.remainingMs <= EXAMS.MAX_MINUTES * 60000, String(forged.remainingMs));
+    chk('the forged exam still EXPIRES, which is the property that was lost', (() => {
+        r.advance(EXAMS.MAX_MINUTES * 60000 + 1000);
+        return expired(r, forged.sessionId);
+    })(), 'it did not expire after the maximum duration');
+
+    /* AND THE CALLABLE DOES NOT FORWARD A CLIENT VALUE AT ALL -- the first layer. Asserted against
+     * the source, because this suite cannot invoke onCall wrappers. */
+    const idx = require('fs').readFileSync(path.join(NF, '..', 'index.js'), 'utf8');
+    chk('netfinalStart does not read minutes from the request',
+        !/minutes: c\.data\.minutes/.test(idx),
+        'c.data.minutes is back in the start callable');
+    chk('it passes the SERVER-declared duration instead',
+        /minutes: NETFINAL_EXAMS\.durationMinutes\(c\.examId\)/.test(idx));
+    chk('and no other callable forwards a numeric client field into session state',
+        (idx.match(/c\.data\.(minutes|durationMs|rev|startedAt)/g) || []).length === 0,
+        JSON.stringify(idx.match(/c\.data\.[a-zA-Z]+/g) || []));
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
