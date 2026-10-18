@@ -269,7 +269,10 @@
         + '</div>';
     }).join('');
     restoreAnswers();
-    el('qcount').textContent = Object.keys(answers).length + ' / ' + questions.length + ' answered';
+    /* Counted from the DOM's own answered markers, so the number and the cards can never disagree --
+       a blank saved answer is neither marked nor counted. */
+    el('qcount').textContent = el('questions').querySelectorAll('.q.answered').length
+      + ' / ' + questions.length + ' answered';
   }
 
   /* PUT THE STUDENT'S SAVED ANSWERS BACK INTO THE CONTROLS.
@@ -286,15 +289,31 @@
       var v = answers[qid];
       var nodes = el('questions').querySelectorAll('[data-q="' + qid + '"]');
       if (!nodes.length) { return; }
+      var filled = false;
       Array.prototype.forEach.call(nodes, function (ctl) {
         /* A multi-field answer is an object keyed by data-part; everything else is one value. */
         var part = ctl.dataset.part;
-        var val = (part && v && typeof v === 'object') ? v[part] : v;
-        if (val === null || val === undefined || typeof val === 'object') { return; }
-        ctl.value = String(val);
+        if (part) {
+          /* A multi-field control only restores from an OBJECT. Applying a bare string to both
+             halves put the same text in the select and the number field -- reachable only by a raw
+             API call, but confusing enough to be worth refusing rather than displaying. */
+          if (!v || typeof v !== 'object') { return; }
+          var pv = v[part];
+          if (pv === null || pv === undefined || typeof pv === 'object') { return; }
+          ctl.value = String(pv);
+          if (String(pv) !== '') { filled = true; }
+          return;
+        }
+        if (v === null || v === undefined || typeof v === 'object') { return; }
+        ctl.value = String(v);
+        if (String(v) !== '') { filled = true; }
       });
+      /* MARKED ANSWERED ONLY IF SOMETHING IS ACTUALLY IN IT. The server stores an empty string
+         without complaint, and the marker was applied unconditionally -- so a question saved blank
+         came back looking answered while gradeTyped still scores '' as unanswered. Telling a student
+         they have answered something they have not is worse than showing them nothing. */
       var card = el('qq-' + qid);
-      if (card) { card.classList.add('answered'); }
+      if (card && filled) { card.classList.add('answered'); }
     });
   }
 

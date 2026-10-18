@@ -158,30 +158,74 @@
         };
     }
 
+    /* ═══ FIELDS WHOSE CONTENTS THE STUDENT WROTE ════════════════════════════════════════════════
+     *
+     * Their VALUES are exempt from the pattern sweep. Not from the forbidden-key check, not from the
+     * fault-target shape check -- only from "does this text look like a fault id".
+     *
+     * WHY, AND IT IS NOT A CONVENIENCE. The comment above FORBIDDEN_KEYS records that `rootCause`
+     * and `ticket` were deliberately left OFF the key list because the change-request form has
+     * fields by those names and echoes the student's own words back: "a detector that fires on
+     * innocent data is one people learn to ignore." The value-pattern sweep one check later never
+     * got the same exemption, so the same innocent text the key exemption exists to protect was
+     * caught anyway, one line down.
+     *
+     * The consequence was not a stray warning. `renderWindow` REFUSES to send a window that
+     * discloses, and `CR_ACTIONS.submit` only pushes -- there is no replace-by-ticket the way the
+     * incident log has. So a student who wrote "I think this is fault S7B" in a root cause poisoned
+     * the array permanently: every later render re-scanned the stored entry and threw, locking them
+     * out of filing or reading ANY change request for the rest of the exam. That destroys the
+     * "change request filed before the change" full-credit path on every remaining fix question --
+     * six points against three, per fix, with no recovery and no UI that explains it. Reproduced:
+     * three consecutive renders, three refusals, from one sentence a confident student might write.
+     *
+     * The scan still protects what it exists to protect. Fault definitions live in netfinal-faults.js
+     * and never enter `state`, so there is no path for an AUTHORED fault string to arrive inside one
+     * of these fields -- the only writer is the student, through GUI actions that take their input
+     * verbatim. A server-placed fault id anywhere else is still caught, and the leak suite asserts
+     * both halves of that. */
+    var STUDENT_AUTHORED_FIELDS = [
+        'rootCause', 'symptom', 'fix', 'verification', 'plannedChange', 'rollback',
+        /* The student's saved answers, returned so a refresh can restore the form. Exempted
+         * pre-emptively: nothing scans that envelope today, and a typed answer is the same class of
+         * student-authored text as a root cause. */
+        'answers'
+    ];
+
     /* Deep scan for a disclosure. Exported so the leak test can point it at ANY value -- a GUI
-     * render, a command's text output, a callable's return -- rather than only at this projector. */
+     * render, a command's text output, a callable's return -- rather than only at this projector.
+     *
+     * `exempt` is inherited down a subtree, so `answers.q24.name` is covered by `answers` without
+     * every nested field having to be listed. */
     function findDisclosures(value, path) {
         var hits = [];
-        var walk = function (v, p) {
+        var walk = function (v, p, exempt) {
             if (v === null || v === undefined) { return; }
             if (typeof v === 'string') {
+                if (exempt) { return; }
                 FORBIDDEN_PATTERNS.forEach(function (re) {
                     if (re.test(v)) { hits.push({ path: p, why: 'text matches ' + re, sample: v.slice(0, 90) }); }
                 });
                 return;
             }
             if (typeof v !== 'object') { return; }
-            if (Array.isArray(v)) { v.forEach(function (x, i) { walk(x, p + '[' + i + ']'); }); return; }
+            if (Array.isArray(v)) {
+                v.forEach(function (x, i) { walk(x, p + '[' + i + ']', exempt); });
+                return;
+            }
             Object.keys(v).forEach(function (k) {
+                /* These two run REGARDLESS of exemption: a forbidden key or a fault-target object
+                 * inside a student-authored field would mean the SERVER put it there, which is
+                 * exactly the disclosure this scanner exists for. */
                 if (FORBIDDEN_KEYS.indexOf(k) >= 0) {
                     hits.push({ path: p + '.' + k, why: 'forbidden key', sample: JSON.stringify(v[k]).slice(0, 90) });
                 } else if (k === 'target' && isFaultTarget(v[k])) {
                     hits.push({ path: p + '.' + k, why: 'fault target object', sample: JSON.stringify(v[k]).slice(0, 90) });
                 }
-                walk(v[k], p + '.' + k);
+                walk(v[k], p + '.' + k, exempt || STUDENT_AUTHORED_FIELDS.indexOf(k) >= 0);
             });
         };
-        walk(value, path || '$');
+        walk(value, path || '$', false);
         return hits;
     }
 
@@ -189,6 +233,7 @@
         toInitialState: toInitialState, findDisclosures: findDisclosures,
         FORBIDDEN_KEYS: FORBIDDEN_KEYS, FORBIDDEN_PATTERNS: FORBIDDEN_PATTERNS,
         BENIGN_FAULT_FIELDS: BENIGN_FAULT_FIELDS, VALUE_CHECKED_KEYS: VALUE_CHECKED_KEYS,
-        SHAPE_CHECKED_KEYS: SHAPE_CHECKED_KEYS, isFaultTarget: isFaultTarget
+        SHAPE_CHECKED_KEYS: SHAPE_CHECKED_KEYS, isFaultTarget: isFaultTarget,
+        STUDENT_AUTHORED_FIELDS: STUDENT_AUTHORED_FIELDS
     };
 })();

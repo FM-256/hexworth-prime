@@ -231,21 +231,36 @@ section('3c. the page restores what the student already answered');
         'the restore must be inside the render, not a step a caller has to remember');
     chk('a multi-field answer is restored PER FIELD, by data-part',
         /var part = ctl\.dataset\.part;/.test(page)
-        && /var val = \(part && v && typeof v === 'object'\) \? v\[part\] : v;/.test(page));
+        && /var pv = v\[part\];/.test(page));
+    /* A bare string must NOT be spread across both halves of a pair: it put the same text in the
+     * select and the number field. Only reachable by a raw API call, but worth refusing. */
+    chk('a multi-field control restores only from an object, never from a bare string',
+        /if \(!v \|\| typeof v !== 'object'\) \{ return; \}/.test(page));
     chk('the answered marker is restored too, so progress does not read as lost',
         /card\.classList\.add\('answered'\)/.test(page));
-    chk('the answered COUNT comes from the saved answers, not a per-render tally',
-        /Object\.keys\(answers\)\.length \+ ' \/ ' \+ questions\.length/.test(page),
-        'a tally of q.answeredLocal resets to zero on every reload');
+    /* A BLANK saved answer must not look answered. The server stores '' without complaint and the
+     * marker was applied unconditionally, so a question saved empty came back marked while
+     * gradeTyped still scores '' as unanswered -- telling a student they answered something they
+     * did not. */
+    chk('the marker is applied only when a field actually has content',
+        /var filled = false;/.test(page) && /if \(card && filled\)/.test(page));
+    chk('and content is what sets it, not merely the key existing',
+        (page.match(/if \(String\((?:pv|v)\) !== ''\) \{ filled = true; \}/g) || []).length === 2,
+        'both the paired and the single-value paths must set it');
+    /* The count is now read off the DOM's own markers, so the number and the cards cannot disagree. */
+    chk('the answered COUNT is derived from the rendered markers, not a separate tally',
+        /querySelectorAll\('\.q\.answered'\)\.length/.test(page),
+        'a tally of q.answeredLocal reset to zero on every reload, and a count of saved keys would '
+        + 'disagree with the cards for a blank answer');
     chk('a saved answer is recorded locally after the server accepts it',
         /answers\[id\] = value;/.test(page));
     /* Values are assigned, not interpolated into the markup: a student's text would otherwise have
      * to survive attribute escaping to come back correctly. */
     chk('values are assigned to controls rather than written into the HTML',
-        /ctl\.value = String\(val\);/.test(page)
+        (page.match(/ctl\.value = String\((?:pv|v)\);/g) || []).length === 2
         && !/value="' \+ esc\(answers/.test(page));
     chk('and a non-scalar is skipped rather than stringified into a control',
-        /if \(val === null \|\| val === undefined \|\| typeof val === 'object'\) \{ return; \}/.test(page));
+        (page.match(/=== null \|\| (?:pv|v) === undefined \|\| typeof (?:pv|v) === 'object'\) \{ return; \}/g) || []).length === 2);
 }
 
 /* ─── 4. every class the script uses is defined in the stylesheet ───────────────────────────────── */

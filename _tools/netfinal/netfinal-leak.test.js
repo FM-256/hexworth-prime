@@ -389,6 +389,82 @@ section('5. the detector is not decoration');
         JSON.stringify(CL.findDisclosures({ submitted: [{ ticket: 'S3', rootCause: 'x', layer: 2 }] })));
 }
 
+/* ─── 5b. THE STUDENT'S OWN WORDS ARE NOT A DISCLOSURE ──────────────────────────────────────────
+ *
+ * The comment above FORBIDDEN_KEYS records that `rootCause` and `ticket` were left OFF the key list
+ * because the change-request form echoes the student's own words back, and "a detector that fires on
+ * innocent data is one people learn to ignore." The VALUE pattern sweep one check later never got
+ * the same exemption, so the text the key exemption exists to protect was caught anyway, one line
+ * down -- and the consequence was not a stray warning.
+ *
+ * `renderWindow` REFUSES to send a window that discloses, and `CR_ACTIONS.submit` only pushes; there
+ * is no replace-by-ticket the way the incident log has. A student who wrote "I think this is fault
+ * S7B" in a root cause poisoned the array permanently: every later render re-scanned the stored
+ * entry and threw, locking them out of filing or reading ANY change request for the rest of the
+ * exam. That destroys the "change request filed before the change" full-credit path on every
+ * remaining fix question -- six points against three, per fix, no recovery, and the student sees a
+ * raw error message rather than an explanation.
+ *
+ * So student-authored VALUES are exempt from the pattern sweep. The hard part is that the exemption
+ * must not become a hole, and that is what most of this section asserts. */
+section('5b. a student quoting a fault name does not lock themselves out');
+{
+    const tkt = (() => {
+        const lab = CORE.generate('echo-lab', EXAM, { secret: 's' });
+        FAULTS.applyAll(lab);
+        FAULTS.assignTickets(lab, CORE.makeRng('echo-t'));
+        return { lab, ticket: lab.faults[0].ticketId };
+    })();
+
+    /* THE REPRODUCTION. Three renders, because the defect was that it never recovered. */
+    GUI.act(tkt.lab, 'change-requests', 'submit', {
+        ticket: tkt.ticket, rootCause: 'I think this is fault S7B', layer: 3,
+        plannedChange: 'p', rollback: 'r'
+    });
+    const renders = [1, 2, 3].map(() => CL.findDisclosures(GUI.render(tkt.lab, 'change-requests'), 'cr').length);
+    chk('a change request quoting a fault id does not make the window refuse to render',
+        renders.every(n => n === 0), JSON.stringify(renders));
+    chk('and the entry is still there to be read, not silently dropped',
+        (GUI.render(tkt.lab, 'change-requests').submitted || []).length === 1);
+
+    /* The incident log takes the same free text. */
+    GUI.act(tkt.lab, 'incident-log', 'submit', {
+        ticket: tkt.ticket, symptom: 'looks like S3A to me', layer: 2,
+        rootCause: 'S7B again', fix: 'did the S12B thing', verification: 'checked S1A'
+    });
+    chk('every free-text field of the incident log is exempt, not just rootCause',
+        CL.findDisclosures(GUI.render(tkt.lab, 'incident-log'), 'log').length === 0,
+        JSON.stringify(CL.findDisclosures(GUI.render(tkt.lab, 'incident-log'), 'log').slice(0, 3)));
+
+    /* ── AND NOW THE PART THAT MATTERS: THE EXEMPTION IS NOT A HOLE ───────────────────────────── */
+    chk('a FORBIDDEN KEY inside a student-authored field is still caught',
+        CL.findDisclosures({ submitted: [{ rootCause: { baseline: { x: 1 } } }] }).length > 0);
+    chk('a FAULT TARGET object inside a student-authored field is still caught',
+        CL.findDisclosures({ submitted: [{ rootCause: { target: { host: 'X', switch: 'SW', port: 'Fa0/1' } } }] }).length > 0);
+    chk('a ticketId inside the answers map is still caught',
+        CL.findDisclosures({ answers: { q1: { ticketId: 'TKT-104' } } }).length > 0);
+    chk('a fault id OUTSIDE an exempt field is still caught',
+        CL.findDisclosures({ alerts: [{ id: 'alert-S12B' }] }).length > 0);
+    chk('a fault id in a field NEXT TO an exempt one is still caught',
+        CL.findDisclosures({ submitted: [{ rootCause: 'fine', note: 'the problem is S7B' }] }).length > 0,
+        'exemption must be per-field, not per-object');
+    chk('the exemption does NOT leak upward out of the subtree it applies to',
+        CL.findDisclosures({ wrap: { answers: { q1: 'S7B' }, leak: 'S7B' } })
+            .filter(h => /leak/.test(h.path)).length > 0);
+    chk('and it DOES reach a nested value inside an exempt subtree',
+        CL.findDisclosures({ answers: { q24: { name: 'S7B', seq: 'S3A' } } }).length === 0);
+
+    /* The list is small and explicit; if it grows, that should be a decision someone made. */
+    chk('the exempt list is exactly the student-input fields it was justified for',
+        CL.STUDENT_AUTHORED_FIELDS.slice().sort().join(',')
+            === 'answers,fix,plannedChange,rollback,rootCause,symptom,verification',
+        JSON.stringify(CL.STUDENT_AUTHORED_FIELDS));
+    /* THE CONTROL. If the sweep ever stops firing at all, every assertion above goes green for the
+     * wrong reason. */
+    chk('the pattern sweep still fires on ordinary data, so these are not passing vacuously',
+        CL.findDisclosures({ msg: 'the problem is S7B' }).length > 0);
+}
+
 /* ─── 6. THE RESPONSE ENVELOPES A STUDENT ACTUALLY RECEIVES ───────────────────────────────────────
  *
  * WHY THIS SECTION EXISTS, written the day it was added. Sections 1-5 scan the STATE, the GUI
