@@ -192,6 +192,38 @@
         'answers'
     ];
 
+    /* ═══ THE ACTUAL MATCHED TOKENS IN A PIECE OF TEXT ══════════════════════════════════════════
+     *
+     * `findDisclosures` says THAT a string matched and hands back a sample; this says WHICH
+     * substrings matched. The difference matters for the one surface that echoes the student's own
+     * typing back at them: the shell.
+     *
+     * `ssh S7B` replies "ssh: connect to host S7B port 22: No route to host". That output contains a
+     * fault id -- because the STUDENT put it there. A scan that refused it would hand the student a
+     * 500 for typing a hostname, which is the same defect as the change-request lockout, reached
+     * through a different door. Knowing the matched token lets the caller ask the only question that
+     * distinguishes the two cases: did this text come back out of what they just sent in. */
+    function matchedSecrets(value) {
+        var found = [];
+        var walk = function (v) {
+            if (typeof v === 'string') {
+                FORBIDDEN_PATTERNS.forEach(function (re) {
+                    var g = new RegExp(re.source, re.flags.indexOf('g') >= 0 ? re.flags : re.flags + 'g');
+                    var m;
+                    while ((m = g.exec(v)) !== null) {
+                        if (found.indexOf(m[0]) < 0) { found.push(m[0]); }
+                        if (m.index === g.lastIndex) { g.lastIndex++; }
+                    }
+                });
+                return;
+            }
+            if (Array.isArray(v)) { v.forEach(walk); return; }
+            if (v && typeof v === 'object') { Object.keys(v).forEach(function (k) { walk(v[k]); }); }
+        };
+        walk(value);
+        return found;
+    }
+
     /* Deep scan for a disclosure. Exported so the leak test can point it at ANY value -- a GUI
      * render, a command's text output, a callable's return -- rather than only at this projector.
      *
@@ -244,6 +276,7 @@
         FORBIDDEN_KEYS: FORBIDDEN_KEYS, FORBIDDEN_PATTERNS: FORBIDDEN_PATTERNS,
         BENIGN_FAULT_FIELDS: BENIGN_FAULT_FIELDS, VALUE_CHECKED_KEYS: VALUE_CHECKED_KEYS,
         SHAPE_CHECKED_KEYS: SHAPE_CHECKED_KEYS, isFaultTarget: isFaultTarget,
+        matchedSecrets: matchedSecrets,
         STUDENT_AUTHORED_FIELDS: STUDENT_AUTHORED_FIELDS
     };
 })();

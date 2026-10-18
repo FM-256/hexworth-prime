@@ -1087,11 +1087,22 @@
         var name = args[0];
         if (!name) { return '% Incomplete command'; }
         state.acls[f.device] = state.acls[f.device] || {};
-        if (!state.acls[f.device][name]) {
-            /* The ACL NAME is typed by the student, so it cannot be written unguarded either --
-             * flagged in the audit as the same shape with unproven impact, fixed with the rest of
-             * the family rather than left to be rediscovered. */
-            CORE.setOwn(state.acls[f.device], name, { name: name, applied: [], lines: [] });
+        /* GUARDED READ, not just a guarded write. The write below went through setOwn in the
+         * previous commit and this read, two lines up, did not -- so `name:'__proto__'` resolved to
+         * Object.prototype, the guard read TRUTHY, setOwn was never called, no ACL was created, and
+         * `f.acl` was set anyway. The next line-edit then read `acl.lines` off Object.prototype,
+         * got undefined, and threw an uncoded TypeError straight out of the callable: an opaque 500
+         * from a typed command, which is the exact bar the commit that fixed renderFile set for
+         * itself, missed one function later. Fourth member of this family. */
+        if (!CORE.own(state.acls[f.device], name)) {
+            /* The ACL NAME is typed by the student, so the write is guarded too. AND THE REFUSAL IS
+             * HANDLED: guarding the lookup alone was not enough -- setOwn correctly refuses
+             * `__proto__`, and the code then carried on setting `f.acl` as though the ACL existed, so
+             * the next line-edit read `acl.lines` off nothing and threw the same uncoded TypeError.
+             * A guard whose refusal the caller ignores is not a guard. */
+            if (!CORE.setOwn(state.acls[f.device], name, { name: name, applied: [], lines: [] })) {
+                return '% Invalid ACL name: ' + name;
+            }
         }
         f.mode = 'config-acl';
         f.acl = name;
@@ -1206,7 +1217,13 @@
 
         /* ACL line editing inside config-acl. */
         if (f.mode === 'config-acl') {
-            var acl = state.acls[f.device][f.acl];
+            var acl = CORE.own(state.acls[f.device], f.acl);
+            /* DEFENCE IN DEPTH. The create path now refuses an unusable name, so this should never be
+             * missing -- but reading `.lines` off undefined is how a typed command became an opaque
+             * 500, and the cost of saying so instead is one line. */
+            if (!acl || !Array.isArray(acl.lines)) {
+                return '% ACL ' + f.acl + ' is no longer available; re-enter configuration mode';
+            }
             if (first === 'no' && /^\d+$/.test(tokens[1] || '')) {
                 var seq = Number(tokens[1]);
                 var before = acl.lines.length;

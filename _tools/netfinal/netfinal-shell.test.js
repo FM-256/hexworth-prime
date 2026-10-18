@@ -512,6 +512,30 @@ section('an ACL named __proto__, and a file path that is one');
         namesBefore + ' -> ' + Object.keys(st.acls[dev]).sort().join(','));
     /* THE CONTROL: a legitimate ACL name must still be creatable, or the guard has eaten the feature. */
     drive(['ssh admin@' + mgmtIp, 'enable', 'conf t', 'ip access-list extended TEST-IN', 'end', 'exit']);
+    /* THE READ, not just the write. The previous commit routed the ACL WRITE through setOwn and left
+     * the read two lines above it as a bare bracket lookup, so `__proto__` resolved to
+     * Object.prototype, the `if` read truthy, setOwn was never called, no ACL was created, and
+     * `f.acl` was set anyway -- then the next line-edit read `.lines` off nothing and threw an
+     * UNCODED TypeError out of the callable. An opaque 500 from a typed command, which is the exact
+     * bar the same commit set for itself when it fixed renderFile one function earlier.
+     *
+     * Guarding the read was ALSO not enough: setOwn then refused the name and the code carried on as
+     * though the ACL existed. A guard whose refusal the caller ignores is not a guard. */
+    chk('no ACL name can make a typed command throw', (() => {
+        for (const name of ['__proto__', 'constructor', 'prototype', 'toString', 'hasOwnProperty', 'valueOf']) {
+            try {
+                drive(['ssh admin@' + mgmtIp, 'enable', 'conf t', 'ip access-list extended ' + name,
+                       '10 permit ip any any', 'no 10', 'end', 'exit']);
+            } catch (e) { return false; }
+        }
+        return true;
+    })(), 'a typed ACL name threw out of the shell');
+    chk('an unusable ACL name is REFUSED with an IOS-style message, not accepted silently', (() => {
+        const out = drive(['ssh admin@' + mgmtIp, 'enable', 'conf t',
+                           'ip access-list extended __proto__', 'end', 'exit']);
+        return /Invalid ACL name: __proto__/.test(out);
+    })(), 'the refusal must be visible to the student, or they retype it forever');
+
     chk('a legitimate ACL name still creates one',
         !!st.acls[dev]['TEST-IN'], JSON.stringify(Object.keys(st.acls[dev])));
 

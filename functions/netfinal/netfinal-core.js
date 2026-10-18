@@ -1003,6 +1003,12 @@
         if (obj === null || obj === undefined || typeof obj !== 'object') { return false; }
         if (typeof key !== 'string' && typeof key !== 'number') { return false; }
         if (UNSAFE_WRITE_KEYS.indexOf(String(key)) >= 0) { return false; }
+        /* An ARRAY target with key 'length' is not a prototype attack, but it truncates or extends
+         * the array through ordinary JS semantics -- so a future call site pointing setOwn at an
+         * array with a client-chosen key would get a silent data loss rather than a refusal. No
+         * current call site targets an array; this is the audit's forward-looking note, taken now
+         * because it is one line and the alternative is finding out. */
+        if (Array.isArray(obj) && String(key) === 'length') { return false; }
         obj[key] = value;
         return true;
     }

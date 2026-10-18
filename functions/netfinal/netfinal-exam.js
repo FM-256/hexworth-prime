@@ -238,6 +238,29 @@
             if (line.length > 500) { throw err('invalid-argument', 'Command too long.'); }
             var res = SHELL.exec(session.state, session.shell, line);
             session.shell = res.session;
+            /* THE FOURTH EMITTING SURFACE. renderWindow, runAction and restoreDevice were scanned;
+             * this one returns engine-generated TEXT to the client and never was. The audit swept it
+             * and found nothing it would have caught -- but the gap is structural, and the whole
+             * lesson of the last three rounds is that "I looked and found nothing" is not the same
+             * as "something is looking".
+             *
+             * THE ECHO EXEMPTION IS NOT OPTIONAL HERE. `ssh S7B` replies "ssh: connect to host S7B
+             * port 22: No route to host", which contains a fault id because the STUDENT typed it. A
+             * plain scan would refuse that and hand them a 500 for typing a hostname -- the
+             * change-request lockout again, through a different door. So a matched token that appears
+             * in the line they just submitted is their own words coming back, and only a token that
+             * does NOT is a disclosure. */
+            var tokens = CLIENT.matchedSecrets(res.out);
+            if (tokens.length) {
+                var lineLc = String(line).toLowerCase();
+                var disclosed = tokens.filter(function (t) {
+                    return lineLc.indexOf(String(t).toLowerCase()) < 0;
+                });
+                if (disclosed.length) {
+                    throw err('internal', 'Refusing to return command output that discloses fault data: '
+                        + disclosed.join(', '));
+                }
+            }
             return {
                 out: res.out,
                 prompt: SHELL.prompt(session.state, session.shell),
