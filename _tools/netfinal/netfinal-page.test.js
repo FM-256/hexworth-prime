@@ -238,20 +238,37 @@ section('3c. the page restores what the student already answered');
         /if \(!v \|\| typeof v !== 'object'\) \{ return; \}/.test(page));
     chk('the answered marker is restored too, so progress does not read as lost',
         /card\.classList\.add\('answered'\)/.test(page));
-    /* A BLANK saved answer must not look answered. The server stores '' without complaint and the
-     * marker was applied unconditionally, so a question saved empty came back marked while
-     * gradeTyped still scores '' as unanswered -- telling a student they answered something they
-     * did not. */
-    chk('the marker is applied only when a field actually has content',
-        /var filled = false;/.test(page) && /if \(card && filled\)/.test(page));
-    chk('and content is what sets it, not merely the key existing',
-        (page.match(/if \(String\((?:pv|v)\) !== ''\) \{ filled = true; \}/g) || []).length === 2,
-        'both the paired and the single-value paths must set it');
-    /* The count is now read off the DOM's own markers, so the number and the cards cannot disagree. */
-    chk('the answered COUNT is derived from the rendered markers, not a separate tally',
-        /querySelectorAll\('\.q\.answered'\)\.length/.test(page),
-        'a tally of q.answeredLocal reset to zero on every reload, and a count of saved keys would '
-        + 'disagree with the cards for a blank answer');
+    /* ONE DEFINITION OF "ANSWERED", FOR BOTH PATHS. There were three: restoreAnswers checked for
+     * content, saveAnswer's success handler marked the card unconditionally and counted from the
+     * server's raw key count, and an `answeredLocal` flag set on save and reset on every reload.
+     * Same stored state, three answers -- so a student who typed something and deleted it saw the
+     * question marked and counted, then watched both drop on refresh. Three copies of a display rule
+     * is how they disagreed; there is one now, and the assertions below are about there being one. */
+    chk('a single predicate decides whether an answer counts as content',
+        /function hasContent\(v\)/.test(page));
+    chk('it treats a blank string and a blank pair as unanswered',
+        /return String\(v\) !== '';/.test(page)
+        && /typeof x !== 'object' && String\(x\) !== ''/.test(page),
+        'a multi-field answer with every half blank must not count');
+    chk('one function marks the card, and it can UNMARK it too',
+        /function markAnswered\(qid\)/.test(page)
+        && /classList\.add\('answered'\)/.test(page)
+        && /classList\.remove\('answered'\)/.test(page),
+        'a value cleared to blank has to lose the marker, not merely fail to gain it');
+    chk('one function derives the count, off the markers',
+        /function refreshAnswerCount\(\)/.test(page)
+        && /querySelectorAll\('\.q\.answered'\)\.length/.test(page));
+    /* THE POINT OF THE REFACTOR: the live path and the resumed path call the SAME two functions. */
+    chk('the live save path and the question render BOTH use them',
+        (page.match(/markAnswered\(/g) || []).length >= 3
+        && (page.match(/refreshAnswerCount\(\)/g) || []).length >= 3,
+        'definition plus at least one call from each path');
+    chk('the live path no longer counts from the server\u2019s raw key count',
+        !/el\('qcount'\)\.textContent = r\.answered/.test(page),
+        'r.answered counts a blank entry the same as a filled one');
+    chk('and the third source of truth is gone, not merely kept in step',
+        (page.match(/q\.answeredLocal/g) || []).length === 0,
+        'answeredLocal was set on save, never cleared, and reset on every reload');
     chk('a saved answer is recorded locally after the server accepts it',
         /answers\[id\] = value;/.test(page));
     /* Values are assigned, not interpolated into the markup: a student's text would otherwise have

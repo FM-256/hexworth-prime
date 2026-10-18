@@ -230,9 +230,12 @@
   }
 
   function renderQuestions() {
-    var answered = 0;
+    /* No local tally and no inline answered class: `restoreAnswers` applies the marker from the saved
+       answers immediately below, and `refreshAnswerCount` reads the count off the markers. The
+       `answeredLocal` flag was a THIRD idea of what "answered" means -- set on a successful save,
+       never cleared, and reset to nothing on every reload -- so it both disagreed with the other two
+       and vanished across a refresh. Removed rather than kept in step. */
     el('questions').innerHTML = questions.map(function (q) {
-      if (q.answeredLocal) { answered++; }
       var body;
       if (q.kind === 'aclref') {
         /* TWO FIELDS, NOT A SENTENCE. The ACL name is picked from the router's own ACLs; the
@@ -261,7 +264,7 @@
       } else {
         body = '<input type="text" data-q="' + esc(q.id) + '" placeholder="your answer">';
       }
-      return '<div class="q' + (q.answeredLocal ? ' answered' : '') + '" id="qq-' + esc(q.id) + '">'
+      return '<div class="q" id="qq-' + esc(q.id) + '">'
         + '<div class="n">Q' + q.n + ' · ' + q.points + ' pt · ' + esc(q.phase) + '</div>'
         + '<p>' + esc(q.prompt) + '</p>' + body
         + (q.where ? '<div class="where">' + esc(q.where) + '</div>' : '')
@@ -269,10 +272,7 @@
         + '</div>';
     }).join('');
     restoreAnswers();
-    /* Counted from the DOM's own answered markers, so the number and the cards can never disagree --
-       a blank saved answer is neither marked nor counted. */
-    el('qcount').textContent = el('questions').querySelectorAll('.q.answered').length
-      + ' / ' + questions.length + ' answered';
+    refreshAnswerCount();
   }
 
   /* PUT THE STUDENT'S SAVED ANSWERS BACK INTO THE CONTROLS.
@@ -284,12 +284,44 @@
      student lost half a question for re-affirming a field they had got right.
      Values are applied here rather than interpolated into the markup, so nothing depends on getting
      attribute escaping right for text a student typed. */
+  /* ONE DEFINITION OF "ANSWERED", for the live path and the resumed path both.
+     There were two: `restoreAnswers` checked whether a field actually had content, and
+     `saveAnswer`'s success handler marked the card unconditionally and counted from the server's raw
+     key count. Same state, two answers -- a student who typed something and deleted it saw the
+     question marked answered and counted, then watched both drop on refresh, with nothing about the
+     stored data having changed in between. That is the same "the number and the cards disagree"
+     defect as before, moved to the refresh boundary instead of resolved. Two copies of a display
+     rule is how they came to disagree, so now there is one. */
+  function hasContent(v) {
+    if (v === null || v === undefined) { return false; }
+    if (typeof v === 'object') {
+      return Object.keys(v).some(function (k) {
+        var x = v[k];
+        return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
+      });
+    }
+    return String(v) !== '';
+  }
+
+  /* Mark or unmark one question's card from its saved value. */
+  function markAnswered(qid) {
+    var card = el('qq-' + qid);
+    if (!card) { return; }
+    if (hasContent(answers[qid])) { card.classList.add('answered'); }
+    else { card.classList.remove('answered'); }
+  }
+
+  /* The count is read off the cards, so it cannot disagree with them. */
+  function refreshAnswerCount() {
+    el('qcount').textContent = el('questions').querySelectorAll('.q.answered').length
+      + ' / ' + questions.length + ' answered';
+  }
+
   function restoreAnswers() {
     Object.keys(answers).forEach(function (qid) {
       var v = answers[qid];
       var nodes = el('questions').querySelectorAll('[data-q="' + qid + '"]');
       if (!nodes.length) { return; }
-      var filled = false;
       Array.prototype.forEach.call(nodes, function (ctl) {
         /* A multi-field answer is an object keyed by data-part; everything else is one value. */
         var part = ctl.dataset.part;
@@ -301,19 +333,12 @@
           var pv = v[part];
           if (pv === null || pv === undefined || typeof pv === 'object') { return; }
           ctl.value = String(pv);
-          if (String(pv) !== '') { filled = true; }
           return;
         }
         if (v === null || v === undefined || typeof v === 'object') { return; }
         ctl.value = String(v);
-        if (String(v) !== '') { filled = true; }
       });
-      /* MARKED ANSWERED ONLY IF SOMETHING IS ACTUALLY IN IT. The server stores an empty string
-         without complaint, and the marker was applied unconditionally -- so a question saved blank
-         came back looking answered while gradeTyped still scores '' as unanswered. Telling a student
-         they have answered something they have not is worse than showing them nothing. */
-      var card = el('qq-' + qid);
-      if (card && filled) { card.classList.add('answered'); }
+      markAnswered(qid);
     });
   }
 
@@ -323,11 +348,12 @@
       /* Record what the SERVER accepted, so a re-render restores the stored answer rather than
          whatever happens to be in the DOM at the time. */
       answers[id] = value;
-      var q = questions.filter(function (x) { return x.id === id; })[0];
-      if (q) { q.answeredLocal = true; }
-      var node = el('qq-' + id);
-      if (node) { node.classList.add('answered'); }
-      el('qcount').textContent = r.answered + ' / ' + questions.length + ' answered';
+      /* THE SAME two functions the resumed path uses. This handler marked the card unconditionally
+         and counted from `r.answered` -- the server's raw key count, which counts a blank entry the
+         same as a filled one -- so the live view and the resumed view reported different things
+         about identical stored state. */
+      markAnswered(id);
+      refreshAnswerCount();
       telemetry('answer', id);
     }).catch(fatal);
   }

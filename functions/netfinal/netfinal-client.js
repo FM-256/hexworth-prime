@@ -214,9 +214,19 @@
                 return;
             }
             Object.keys(v).forEach(function (k) {
-                /* These two run REGARDLESS of exemption: a forbidden key or a fault-target object
-                 * inside a student-authored field would mean the SERVER put it there, which is
-                 * exactly the disclosure this scanner exists for. */
+                /* These two run REGARDLESS of exemption: a forbidden key, or an object under the
+                 * key `target` that has a fault target's shape, inside a student-authored field
+                 * would mean the SERVER put it there, which is exactly the disclosure this scanner
+                 * exists for.
+                 *
+                 * BE PRECISE ABOUT THE SECOND ONE. It is gated on the key being spelled `target`;
+                 * it is NOT a generic sweep for target-shaped objects under any key, and an earlier
+                 * comment of mine implied it was. A generic sweep would be actively wrong here:
+                 * `state.endpoints` entries legitimately carry `switch` and `port` and are shown to
+                 * students in the MAC address table and the rack view, so a shape-only rule would
+                 * fire on the lab's own furniture. Nothing in the engine writes a target-shaped
+                 * object under any other key, so the narrow gate is sufficient today -- but a future
+                 * reader should not assume more coverage than the line actually has. */
                 if (FORBIDDEN_KEYS.indexOf(k) >= 0) {
                     hits.push({ path: p + '.' + k, why: 'forbidden key', sample: JSON.stringify(v[k]).slice(0, 90) });
                 } else if (k === 'target' && isFaultTarget(v[k])) {
