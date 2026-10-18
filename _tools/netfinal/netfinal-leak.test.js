@@ -32,6 +32,7 @@ const SH = require(path.join(NF, 'netfinal-shell.js'));
 const GUI = require(path.join(NF, 'netfinal-gui.js'));
 const CL = require(path.join(NF, 'netfinal-client.js'));
 const TOPO = require(path.join(NF, 'netfinal-topology.js'));
+const EX = require(path.join(NF, 'netfinal-exam.js'));
 
 let pass = 0, fail = 0;
 const chk = (name, cond, detail) => {
@@ -169,6 +170,60 @@ section('2. all seven windows, and every action result');
         const hits = CL.findDisclosures(GUI.render(st, w), w);
         chk(w + ': render discloses nothing', hits.length === 0, JSON.stringify(hits));
     });
+
+    /* ONE LAB IS ONE SAMPLE, AND A SAMPLE DOES NOT RENDER EVERY BRANCH. The scan above runs on a
+     * single seeded lab, and that lab's NOC window emitted exactly two alerts -- a poller alert and
+     * a decoy. The two push sites that build an alert FROM A FAULT never executed, so the scan could
+     * not have failed no matter what those lines contained. Proven by mutating them to emit the
+     * fault id instead of the ticket id: sections 1-5 stayed green.
+     *
+     * So sweep every variant with the fault FORCED, the way the faults suite does, rather than hoping
+     * a seed draws it. 24 variants x 7 windows, and a coverage guard below that fails if the sweep
+     * stopped reaching the branches it exists to reach. Audit the partitions; never sample. */
+    {
+        const ALL_IDS = [];
+        TOPO.FAULT_SLOTS.forEach(sl => Object.keys(sl.variants).forEach(v => ALL_IDS.push(sl.slot + v)));
+        let faultAlerts = 0, windowsScanned = 0;
+        const dirty = [];
+        ALL_IDS.forEach(id => {
+            const slot = id.slice(0, -1), variant = id.slice(-1);
+            const meta = TOPO.FAULT_SLOTS.filter(x => x.slot === slot)[0].variants[variant];
+            const lab = CORE.generate('leak-sweep-' + id, EXAM, { secret: 'a-real-server-secret' });
+            const rng = CORE.makeRng('leak-sweep-' + id + '|force|' + id);
+            lab.faults = [{
+                slot, variant, id, active: true, applied: false,
+                layer: meta.layer, group: meta.group,
+                target: CORE.pickFaultTarget(lab, rng, slot, variant)
+            }];
+            if (slot === 'S4') {
+                lab.rogue.variant = variant;
+                lab.rogue.mode = variant === 'B' ? 'duplicate-address' : 'arp-spoof';
+            }
+            /* Tickets must be assigned, or the ids the renders quote are `undefined` and the sweep
+             * would scan a shape production never serves. */
+            FAULTS.assignTickets(lab, CORE.makeRng('leak-sweep-tkt-' + id));
+            FAULTS.applyAll(lab);
+            GUI.WINDOWS.forEach(w => {
+                const view = GUI.render(lab, w);
+                windowsScanned++;
+                if (w === 'noc') {
+                    faultAlerts += (view.alerts || []).filter(a => /^alert-/.test(String(a.id || ''))).length;
+                }
+                const hits = CL.findDisclosures(view, id + '/' + w);
+                if (hits.length) { dirty.push(id + '/' + w + ': ' + JSON.stringify(hits.slice(0, 2))); }
+            });
+        });
+        chk('all 24 variants were swept (' + windowsScanned + ' window renders)',
+            ALL_IDS.length === 24 && windowsScanned === ALL_IDS.length * GUI.WINDOWS.length,
+            ALL_IDS.length + ' variants, ' + windowsScanned + ' renders');
+        chk('no window on any single-variant lab discloses anything',
+            dirty.length === 0, dirty.slice(0, 3).join(' | '));
+        /* THE GUARD THAT MAKES THE ASSERTION ABOVE MEAN SOMETHING. If a refactor stops routing fault
+         * evidence into NOC alerts, this fails loudly instead of letting the sweep pass on empty
+         * arrays -- the exact way the single-lab scan passed for weeks. */
+        chk('the sweep actually rendered fault-derived NOC alerts (' + faultAlerts + ' seen)',
+            faultAlerts > 0, 'the alert branches still never executed; the scan above proves nothing');
+    }
     /* Action RETURNS go to the client too. A rejection message that quoted internal state would
      * leak just as effectively as a render. */
     const probes = [
@@ -334,5 +389,152 @@ section('5. the detector is not decoration');
         JSON.stringify(CL.findDisclosures({ submitted: [{ ticket: 'S3', rootCause: 'x', layer: 2 }] })));
 }
 
-console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
-process.exit(fail ? 1 : 0);
+/* ─── 6. THE RESPONSE ENVELOPES A STUDENT ACTUALLY RECEIVES ───────────────────────────────────────
+ *
+ * WHY THIS SECTION EXISTS, written the day it was added. Sections 1-5 scan the STATE, the GUI
+ * renders, the shell output and the log lines. Stage 7 then put a THIRD surface between the engine
+ * and the browser -- the callable response envelope -- and `startExam` puts the question bank in it:
+ *
+ *     return { sessionId: ..., state: CLIENT.toInitialState(state), questions: QUESTIONS.forStudent(state), ... }
+ *
+ * `forStudent` deletes `proof` and `slot` from every question. I made that deletion as a leak fix,
+ * said the leak gate had caught it, and then checked: REMOVING `delete r.slot` STILL LEFT THIS SUITE
+ * AT 69/69. Nothing here had ever looked at a response envelope, so the fix was asserted, not
+ * verified. The mutation now fails, which is the only evidence that the line is load-bearing.
+ *
+ * This is the same shape as fixing a catalog and calling the content unreachable: a projector is a
+ * claim about the projector, never about what the student receives. The envelope is the delivery
+ * surface, so the envelope is what gets scanned.
+ *
+ * THE LEDGER IS DERIVED, NOT LISTED. Every export of netfinal-exam.js must be classified below, and
+ * the assertion compares the ledger against Object.keys() -- so adding an entry point fails this
+ * suite until someone decides whether a student can see its output. A hand-maintained list would
+ * have gone stale exactly the way the surfaces above went stale. */
+section('6. the response envelope, which is the surface the student is actually handed');
+
+/* role 'student'    -> the value reaches the browser; its envelope MUST be clean.
+ * role 'instructor' -> deliberately carries identifying data; graded by a human, never shipped.
+ * role 'internal'   -> a scalar or a test harness, with no object to disclose. */
+const EXAM_SURFACE = {
+    startExam: 'student', runCommand: 'student', renderWindow: 'student', runAction: 'student',
+    restoreDevice: 'student', saveAnswer: 'student', submitExam: 'student',
+    studentReport: 'student', examModeFlags: 'student',
+    telemetry: 'instructor',
+    memoryStore: 'internal', remainingMs: 'internal', DEFAULT_MINUTES: 'internal'
+};
+
+(async function () {
+    const EXAM_ID = 'netplus-final-leak';
+    let t = 1750000000000;
+    const opts = { secret: 'envelope-scan-secret', now: () => t };
+    const store = EX.memoryStore();
+
+    /* 6a. the ledger covers the module, by derivation */
+    {
+        const actual = Object.keys(EX).sort();
+        const ledger = Object.keys(EXAM_SURFACE).sort();
+        const unclassified = actual.filter(k => !(k in EXAM_SURFACE));
+        const vanished = ledger.filter(k => actual.indexOf(k) < 0);
+        chk('every netfinal-exam export is classified in the ledger',
+            unclassified.length === 0, 'unclassified: ' + JSON.stringify(unclassified));
+        chk('the ledger names nothing that no longer exists',
+            vanished.length === 0, 'stale ledger entries: ' + JSON.stringify(vanished));
+    }
+
+    /* 6b. and the ledger covers what functions/index.js EXPOSES -- the routes that bypass the
+     *     module's own idea of its surface. A callable returning an 'instructor' value would be a
+     *     leak that scanning the module alone could never see. */
+    {
+        const idx = require('fs').readFileSync(path.join(NF, '..', 'index.js'), 'utf8');
+        const callables = (idx.match(/exports\.netfinal[A-Za-z]+/g) || [])
+            .map(x => x.replace('exports.', ''))
+            .filter((v, i, a) => a.indexOf(v) === i);
+        const invoked = (idx.match(/NETFINAL\.([A-Za-z]+)\(/g) || [])
+            .map(x => x.replace('NETFINAL.', '').replace('(', ''))
+            .filter((v, i, a) => a.indexOf(v) === i);
+        chk('functions/index.js exposes at least the seven exam callables',
+            callables.length >= 7, JSON.stringify(callables));
+        chk('every EXAM method a callable invokes is ledger-classified',
+            invoked.every(m => m in EXAM_SURFACE), JSON.stringify(invoked.filter(m => !(m in EXAM_SURFACE))));
+        chk('NO callable returns an instructor-only value to a student',
+            invoked.every(m => EXAM_SURFACE[m] !== 'instructor'),
+            JSON.stringify(invoked.filter(m => EXAM_SURFACE[m] === 'instructor')));
+        /* The submit callable is the one envelope that is NOT a pass-through: submitExam returns the
+         * FULL grading report, and index.js must trim it through studentReport before it leaves. If
+         * that wrapper is ever dropped, the raw report ships -- so assert the composition itself. */
+        chk('the submit callable trims the report through studentReport',
+            /report:\s*NETFINAL\.studentReport\(/.test(idx), 'the raw grading report would ship');
+        chk('and it does not also ship the untrimmed report',
+            !/report:\s*res\.report\b/.test(idx));
+    }
+
+    /* 6c. drive a real session and scan every envelope a student receives */
+    const started = await EX.startExam(store, { studentId: 'leak-stu', examId: EXAM_ID, minutes: 100 }, opts);
+    const sid = started.sessionId;
+
+    chk('the startExam envelope discloses nothing', CL.findDisclosures(started, 'startExam').length === 0,
+        JSON.stringify(CL.findDisclosures(started, 'startExam').slice(0, 3)));
+    /* Named explicitly as well as swept, because THIS is the field the mutation exposed. */
+    chk('no delivered question carries its slot or its proof',
+        (started.questions || []).every(q => !('slot' in q) && !('proof' in q)),
+        JSON.stringify((started.questions || []).filter(q => 'slot' in q || 'proof' in q).slice(0, 2)));
+    chk('the question bank was actually delivered (so the check above could fail)',
+        (started.questions || []).length >= 40, 'questions delivered: ' + (started.questions || []).length);
+    chk('the examMode flags disclose nothing',
+        CL.findDisclosures(EX.examModeFlags(), 'examModeFlags').length === 0);
+
+    for (const w of GUI.WINDOWS || ['noc', 'firewall', 'wireless', 'dhcp', 'dns', 'incident-log', 'questions']) {
+        const env = await EX.renderWindow(store, { sessionId: sid, window: w }, opts);
+        chk('the renderWindow envelope for ' + w + ' discloses nothing',
+            CL.findDisclosures(env, 'renderWindow/' + w).length === 0,
+            JSON.stringify(CL.findDisclosures(env, 'renderWindow/' + w).slice(0, 2)));
+    }
+
+    for (const line of ['ipconfig', 'arp -a', 'ping 10.20.0.10', 'nslookup intranet.meridiancorp.local',
+                        'show vlan brief', 'show interfaces trunk']) {
+        const env = await EX.runCommand(store, { sessionId: sid, line }, opts);
+        chk('the runCommand envelope for "' + line + '" discloses nothing',
+            CL.findDisclosures(env, 'runCommand/' + line).length === 0,
+            JSON.stringify(CL.findDisclosures(env, 'runCommand/' + line).slice(0, 2)));
+    }
+
+    const act = await EX.runAction(store, { sessionId: sid, window: 'noc', action: 'ack-alert',
+        params: { id: 'no-such-alert' } }, opts);
+    chk('the runAction envelope discloses nothing', CL.findDisclosures(act, 'runAction').length === 0,
+        JSON.stringify(CL.findDisclosures(act, 'runAction').slice(0, 2)));
+
+    const ans = await EX.saveAnswer(store, { sessionId: sid, questionId: 'q46', value: 'smf' }, opts);
+    chk('the saveAnswer envelope discloses nothing', CL.findDisclosures(ans, 'saveAnswer').length === 0,
+        JSON.stringify(CL.findDisclosures(ans, 'saveAnswer').slice(0, 2)));
+
+    /* A restore is the one action that REVERTS state, so it is the one most likely to echo a
+     * before/after pair -- and a diff against the pristine device is the answer key stated twice. */
+    const someSwitch = Object.keys((started.state && started.state.devices) || {})
+        .filter(d => /SW/i.test(d))[0] || 'MeridianSW-01';
+    const rest = await EX.restoreDevice(store, { sessionId: sid, device: someSwitch }, opts);
+    chk('the restoreDevice envelope discloses nothing (' + someSwitch + ')',
+        CL.findDisclosures(rest, 'restoreDevice').length === 0,
+        JSON.stringify(CL.findDisclosures(rest, 'restoreDevice').slice(0, 3)));
+
+    const sub = await EX.submitExam(store, { sessionId: sid }, opts);
+    const trimmed = EX.studentReport(sub.report);
+    chk('the TRIMMED student report discloses nothing',
+        CL.findDisclosures(trimmed, 'studentReport').length === 0,
+        JSON.stringify(CL.findDisclosures(trimmed, 'studentReport').slice(0, 3)));
+    chk('the trimmed report still reports a score (so the check above is not scanning an empty object)',
+        typeof trimmed.total === 'number' && typeof trimmed.outOf === 'number'
+        && Array.isArray(trimmed.questions) && trimmed.questions.length > 0,
+        JSON.stringify(Object.keys(trimmed)));
+    /* The CONTROL: the untrimmed report SHOULD disclose, which is why index.js must not ship it.
+     * If this ever passes clean, either the report stopped carrying the key or the detector broke --
+     * and both make every assertion above meaningless. */
+    chk('and the UNTRIMMED report does disclose, which is why it is trimmed',
+        CL.findDisclosures(sub.report, 'rawReport').length > 0,
+        'the raw grading report scanned clean -- check the detector, not the report');
+
+    console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
+    process.exit(fail ? 1 : 0);
+})().catch(e => {
+    console.error('\n  leak suite could not run:', e && e.stack ? e.stack : e);
+    process.exit(2);
+});

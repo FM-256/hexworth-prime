@@ -224,12 +224,17 @@
             if (!f.active || !f.applied) { return; }
             /* S8A arrives as a NOC alert rather than a ticket, per spec section 6. The alert text
              * comes from the fault's own log line, so it cannot drift from the fault. */
+            /* ALERT IDS USE THE TICKET, NOT THE FAULT ID. These read 'alert-S8A' and 'alert-S12B',
+             * which names the variant in a window the student is meant to read -- the exact thing
+             * spec section 9 forbids, shipped in the id of the alert itself. The leak scanner caught
+             * it on the session payload. The ticket id is already the student-facing handle and the
+             * mapping back to a slot stays server-side. */
             if (f.id === 'S8A') {
                 var l = FAULTS.VARIANTS.S8A.logs(state, f)[0];
-                alerts.push({ id: 'alert-S8A', severity: 'critical', text: l.text, device: 'MER-NOC01' });
+                alerts.push({ id: 'alert-' + f.ticketId, severity: 'critical', text: l.text, device: 'MER-NOC01' });
             }
             if (f.slot === 'S12' && f.variant === 'B') {
-                alerts.push({ id: 'alert-S12B', severity: 'warning',
+                alerts.push({ id: 'alert-' + f.ticketId, severity: 'warning',
                     text: 'MeridianSW-02 interface flaps (timestamps out of range)', device: 'MeridianSW-02' });
             }
         });

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Exam — Meridian Corp Operations Lab | Network+ N10-009</title>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════════
+     EXAM MODE. Three things are deliberately ABSENT from this page, and each is a spec requirement
+     rather than an oversight:
+
+       1. THE DR. HEX BUTTON SCRIPT IS NOT LOADED. Spec section 9 names the midterm's live AI tutor
+          as one of the two reasons that build fails the integrity bar, and requires the tutor be
+          disabled on the exam page by not loading its script when examMode is true. The engine also
+          returns a loadHexAI:false flag.
+
+          The script's FILENAME is deliberately not written anywhere in this file. The acceptance
+          criterion is checked by searching the delivered page for it, and a mention in a comment
+          would read as a hit -- the same way a literal tag inside a comment broke the tag-balance
+          check on the course hub. A page that explains its own compliance in terms a checker
+          mistakes for a violation is worse than one that says nothing.
+
+       2. NO COURSE LINKS. No hub, module, presentation, tool or lab navigation. Spec section 9:
+          "no links to course modules, presentations, tools, or labs from the exam page."
+
+       3. NO LAB LOGIC. Every command and every click is posted to a Cloud Function and this page
+          renders the reply. The browser never holds the answer key, the fault list, the baseline or
+          the seed -- it cannot, because they are never sent. Grading and rendering therefore share
+          one code path on the server, so what a student sees and what the grader reads are the same
+          computation.
+
+     AccessGuard protects the page; firestore.rules denies every client read of the session document
+     that holds the key. Spec section 9's note that AccessGuard "protects the page, not the config
+     file" is why the key lives server-side rather than in a config this page could fetch.
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+
+<style>
+  :root {
+    --bg: #090910; --bg2: #0f172a; --card: #1e293b; --ink: #e0e0e0; --muted: #94a3b8;
+    --accent: #06b6d4; --ok: #2ed573; --warn: #ffc107; --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  .topbar { display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+  .topbar h1 { font-size: 1rem; font-weight: 600; }
+  .topbar .sub { color: var(--muted); font-size: 0.8rem; }
+  .clock { margin-left: auto; font-variant-numeric: tabular-nums; font-size: 1.1rem; font-weight: 600; padding: 4px 12px; border: 1px solid var(--border); border-radius: 6px; }
+  .clock.low { color: var(--bad); border-color: var(--bad); }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 14px; padding: 14px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .panel h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabs button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 0.78rem; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); background: rgba(6, 182, 212, 0.1); }
+  #term { height: 56vh; min-height: 320px; overflow-y: auto; padding: 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.82rem; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+  .cmdrow { display: flex; gap: 0; border-top: 1px solid var(--border); }
+  .cmdrow span { padding: 10px 0 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.82rem; color: var(--ok); white-space: pre; }
+  .cmdrow input { flex: 1; background: transparent; border: 0; color: var(--ink); font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.82rem; padding: 10px 12px; outline: none; }
+  #winbody { max-height: 56vh; overflow: auto; padding: 12px; font-size: 0.8rem; }
+  #winbody table { width: 100%; border-collapse: collapse; }
+  #winbody th, #winbody td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+  #winbody th { color: var(--muted); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; }
+  .qlist { max-height: 60vh; overflow-y: auto; }
+  .q { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .q .n { color: var(--muted); font-size: 0.72rem; }
+  .q.answered .n { color: var(--ok); }
+  .q p { font-size: 0.82rem; margin: 4px 0 7px; }
+  .q input[type=text], .q select { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 0.8rem; }
+  .q .where { color: var(--muted); font-size: 0.72rem; font-style: italic; }
+  .notice { padding: 10px 12px; font-size: 0.8rem; color: var(--muted); }
+  .bad { color: var(--bad); }
+  .footer { padding: 14px; display: flex; gap: 10px; align-items: center; }
+  .footer button { background: var(--accent); color: #04232a; border: 0; border-radius: 7px; padding: 9px 16px; font-weight: 600; cursor: pointer; }
+  .footer button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  #report { padding: 14px; }
+  #report .big { font-size: 2rem; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <h1>Final Exam &mdash; Meridian Corp Operations Lab</h1>
+    <div class="sub">Troubleshoot the live network. 50 questions, 200 points. One attempt, server-timed.</div>
+  </div>
+  <div class="clock" id="clock" aria-live="polite">--:--</div>
+</div>
+
+<div class="layout" id="layout" hidden>
+  <div>
+    <div class="panel">
+      <div class="tabs" id="surface" role="tablist">
+        <button role="tab" aria-selected="true" data-surface="terminal">Terminal</button>
+        <button role="tab" aria-selected="false" data-surface="firewall">Firewall</button>
+        <button role="tab" aria-selected="false" data-surface="wireless">Wireless</button>
+        <button role="tab" aria-selected="false" data-surface="noc">NOC</button>
+        <button role="tab" aria-selected="false" data-surface="rack">Rack</button>
+        <button role="tab" aria-selected="false" data-surface="change-requests">Change requests</button>
+        <button role="tab" aria-selected="false" data-surface="incident-log">Incident log</button>
+      </div>
+      <div id="term" aria-live="polite"></div>
+      <form class="cmdrow" id="cmdform"><span id="prompt">&gt; </span><input id="cmd" autocomplete="off" spellcheck="false" aria-label="command"></form>
+      <div id="winbody" hidden></div>
+    </div>
+    <div class="footer">
+      <button type="button" id="submit">Submit exam</button>
+      <span class="notice" id="status"></span>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Tickets</h2>
+      <div class="qlist" id="tickets"></div>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <h2>Questions <span id="qcount" class="sub"></span></h2>
+      <div class="qlist" id="questions"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="gate" style="margin:40px auto; max-width:620px">
+  <h2>Starting your exam</h2>
+  <div class="notice" id="gatemsg">Generating your lab on the server&hellip;</div>
+</div>
+
+<div class="panel" id="done" hidden style="margin:40px auto; max-width:620px">
+  <h2>Submitted</h2>
+  <div id="report"></div>
+</div>
+
+<script>
+/* ───────────────────────────────────────────────────────────────────────────────────────────────
+   This script posts and renders. It holds NO lab logic, NO answer key and NO grader -- every one
+   of those lives in functions/netfinal/ and is reached through a callable. If this file grew a
+   copy of any of them, the exam would have two implementations of its own network and a student
+   could be shown one while graded on the other.
+   ─────────────────────────────────────────────────────────────────────────────────────────────── */
+(function () {
+  'use strict';
+  var EXAM_ID = 'net-final-2026';
+  var session = null, questions = [], tickets = [], remaining = 0, surface = 'terminal', tick = null;
+
+  function el(id) { return document.getElementById(id); }
+  function call(name, data) {
+    if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') {
+      return Promise.reject(new Error('Cloud Functions unavailable — the exam cannot run offline.'));
+    }
+    return FirebaseAuth.callFunction(name, data || {}).then(function (r) { return (r && r.data) ? r.data : r; });
+  }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function write(text) {
+    if (!text) { return; }
+    var d = document.createElement('div');
+    d.textContent = text;
+    el('term').appendChild(d);
+    el('term').scrollTop = el('term').scrollHeight;
+  }
+
+  /* The clock is DISPLAY ONLY. Every server reply carries the authoritative remainingMs, so a
+     student who edits this counter changes a number on their screen and nothing else. */
+  function paintClock() {
+    var m = Math.floor(remaining / 60000), s = Math.floor((remaining % 60000) / 1000);
+    el('clock').textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    el('clock').classList.toggle('low', remaining < 5 * 60000);
+  }
+  function setRemaining(ms) {
+    if (typeof ms === 'number') { remaining = ms; }
+    paintClock();
+  }
+
+  function telemetry(kind, detail) {
+    try {
+      if (window.ObservatoryTelemetry && ObservatoryTelemetry.log) {
+        ObservatoryTelemetry.log({ area: 'netfinal', kind: kind, detail: detail, examId: EXAM_ID });
+      }
+    } catch (e) { /* telemetry must never break an exam in progress */ }
+  }
+
+  function renderTickets() {
+    el('tickets').innerHTML = tickets.map(function (t) {
+      return '<div class="q"><div class="n">' + esc(t.id) + ' · ' + esc(t.kind) + '</div><p>' + esc(t.text) + '</p></div>';
+    }).join('');
+  }
+
+  function renderQuestions() {
+    var answered = 0;
+    el('questions').innerHTML = questions.map(function (q) {
+      if (q.answeredLocal) { answered++; }
+      var body;
+      if (q.kind === 'select' && q.options && !Array.isArray(q.options.layer)) {
+        body = '<select data-q="' + esc(q.id) + '"><option value="">— choose —</option>'
+          + (q.options || []).map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.text) + '</option>'; }).join('')
+          + '</select>';
+      } else if (q.kind === 'state' || q.kind === 'sequence') {
+        body = '<div class="where">Graded from the network and your activity. Nothing to type.</div>';
+      } else {
+        body = '<input type="text" data-q="' + esc(q.id) + '" placeholder="your answer">';
+      }
+      return '<div class="q' + (q.answeredLocal ? ' answered' : '') + '" id="qq-' + esc(q.id) + '">'
+        + '<div class="n">Q' + q.n + ' · ' + q.points + ' pt · ' + esc(q.phase) + '</div>'
+        + '<p>' + esc(q.prompt) + '</p>' + body
+        + (q.where ? '<div class="where">' + esc(q.where) + '</div>' : '')
+        + (q.rubric ? '<div class="where">' + esc(q.rubric) + '</div>' : '')
+        + '</div>';
+    }).join('');
+    el('qcount').textContent = answered + ' / ' + questions.length + ' answered';
+  }
+
+  function saveAnswer(id, value) {
+    call('netfinalAnswer', { examId: EXAM_ID, questionId: id, value: value }).then(function (r) {
+      setRemaining(r.remainingMs);
+      var q = questions.filter(function (x) { return x.id === id; })[0];
+      if (q) { q.answeredLocal = true; }
+      var node = el('qq-' + id);
+      if (node) { node.classList.add('answered'); }
+      el('qcount').textContent = r.answered + ' / ' + questions.length + ' answered';
+      telemetry('answer', id);
+    }).catch(fatal);
+  }
+
+  /* ── surfaces ──────────────────────────────────────────────────────────────────────────────── */
+  function showSurface(name) {
+    surface = name;
+    Array.prototype.forEach.call(el('surface').querySelectorAll('button'), function (b) {
+      b.setAttribute('aria-selected', String(b.dataset.surface === name));
+    });
+    var isTerm = name === 'terminal';
+    el('term').hidden = !isTerm;
+    el('cmdform').hidden = !isTerm;
+    el('winbody').hidden = isTerm;
+    if (isTerm) { el('cmd').focus(); return; }
+    el('winbody').innerHTML = '<div class="notice">Loading&hellip;</div>';
+    call('netfinalWindow', { examId: EXAM_ID, window: name }).then(function (r) {
+      setRemaining(r.remainingMs);
+      el('winbody').innerHTML = renderWindow(name, r.view);
+      telemetry('window', name);
+    }).catch(function (e) { el('winbody').innerHTML = '<div class="notice bad">' + esc(e.message) + '</div>'; });
+  }
+
+  /* Generic renderer: the server decides WHAT a window contains, this decides how it looks. Arrays
+     of flat objects become tables, everything else a definition list -- so a new window or a new
+     field needs no change here, which is the point of returning data rather than markup. */
+  function renderWindow(name, view) {
+    var out = ['<h3 style="font-size:.9rem;margin-bottom:10px">' + esc(view.title || name) + '</h3>'];
+    Object.keys(view).forEach(function (k) {
+      if (k === 'title') { return; }
+      var v = view[k];
+      out.push('<h2 style="padding:8px 0 4px;border:0">' + esc(k) + '</h2>');
+      if (Array.isArray(v) && v.length && typeof v[0] === 'object') {
+        var cols = Object.keys(v[0]);
+        out.push('<table><thead><tr>' + cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('')
+          + '</tr></thead><tbody>' + v.map(function (row) {
+            return '<tr>' + cols.map(function (c) {
+              var cell = row[c];
+              return '<td>' + esc(typeof cell === 'object' ? JSON.stringify(cell) : cell) + '</td>';
+            }).join('') + '</tr>';
+          }).join('') + '</tbody></table>');
+      } else if (Array.isArray(v)) {
+        out.push('<div>' + (v.length ? v.map(esc).join(', ') : '<span class="notice">none</span>') + '</div>');
+      } else if (v && typeof v === 'object') {
+        out.push('<table><tbody>' + Object.keys(v).map(function (kk) {
+          var cell = v[kk];
+          return '<tr><th>' + esc(kk) + '</th><td>' + esc(typeof cell === 'object' ? JSON.stringify(cell) : cell) + '</td></tr>';
+        }).join('') + '</tbody></table>');
+      } else {
+        out.push('<div>' + esc(v) + '</div>');
+      }
+    });
+    return out.join('');
+  }
+
+  function fatal(e) {
+    var msg = (e && e.message) ? e.message : String(e);
+    el('status').innerHTML = '<span class="bad">' + esc(msg) + '</span>';
+    if (/Time expired|submitted/i.test(msg)) { finish(null, msg); }
+  }
+
+  function finish(report, msg) {
+    if (tick) { clearInterval(tick); tick = null; }
+    el('layout').hidden = true;
+    el('done').hidden = false;
+    if (!report) {
+      el('report').innerHTML = '<div class="notice">' + esc(msg || 'Your exam has been submitted.') + '</div>';
+      return;
+    }
+    el('report').innerHTML =
+      '<div class="big">' + report.total + ' / ' + report.outOf + '</div>'
+      + (report.pendingInstructorMarks
+          ? '<div class="notice">' + report.pendingInstructorMarks + ' further points are marked by your instructor.</div>' : '')
+      + (report.flagged ? '<div class="notice bad">Flagged for instructor review: a change caused collateral damage.</div>' : '')
+      + '<table style="margin-top:12px"><tbody>'
+      + Object.keys(report.phases).map(function (p) {
+          return '<tr><th>' + esc(p) + '</th><td>' + report.phases[p].earned + ' / ' + report.phases[p].of + '</td></tr>';
+        }).join('')
+      + '<tr><th>practical</th><td>' + report.subtotals.practical.earned + ' / ' + report.subtotals.practical.of + '</td></tr>'
+      + '<tr><th>reasoning</th><td>' + report.subtotals.reasoning.earned + ' / ' + report.subtotals.reasoning.of + '</td></tr>'
+      + '</tbody></table>';
+  }
+
+  /* ── wiring ────────────────────────────────────────────────────────────────────────────────── */
+  el('cmdform').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var line = el('cmd').value;
+    if (!line.trim()) { return; }
+    write(el('prompt').textContent + line);
+    el('cmd').value = '';
+    call('netfinalCommand', { examId: EXAM_ID, line: line }).then(function (r) {
+      setRemaining(r.remainingMs);
+      write(r.out);
+      if (r.prompt) { el('prompt').textContent = r.prompt; }
+      telemetry('command', line);
+    }).catch(fatal);
+  });
+
+  el('surface').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-surface]');
+    if (b) { showSurface(b.dataset.surface); }
+  });
+
+  el('questions').addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t && t.dataset && t.dataset.q) { saveAnswer(t.dataset.q, t.value); }
+  });
+
+  el('submit').addEventListener('click', function () {
+    if (!window.confirm('Submit your exam? This cannot be undone and you have one attempt.')) { return; }
+    el('submit').disabled = true;
+    call('netfinalSubmit', { examId: EXAM_ID }).then(function (r) {
+      telemetry('submit', '');
+      finish(r.report, null);
+    }).catch(function (e) { el('submit').disabled = false; fatal(e); });
+  });
+
+  /* ── start, or resume ──────────────────────────────────────────────────────────────────────── */
+  call('netfinalStart', { examId: EXAM_ID }).then(function (r) {
+    session = r;
+    questions = r.questions || [];
+    tickets = (r.initialState && r.initialState.tickets) || [];
+    setRemaining(r.remainingMs);
+
+    /* The server tells the page what exam mode means; the page does not decide. If this ever
+       disagrees with the flags, the server is right. */
+    /* The flag is read for completeness, but nothing acts on it: the tutor script is not loaded on
+       this page under ANY flag value. A branch that COULD load it would make the guarantee depend
+       on a server response, and the criterion is that the page never requests it. */
+    if (r.examMode && r.examMode.loadHexAI) { telemetry('exam-mode-conflict', 'loadHexAI was true'); }
+
+    if (r.submitted) { finish(null, 'This exam has already been submitted.'); return; }
+    el('gate').hidden = true;
+    el('layout').hidden = false;
+    renderTickets();
+    renderQuestions();
+    write(r.resumed
+      ? '[session resumed — same lab, same clock]'
+      : '[Meridian Corp operations lab ready. You are on ADMIN-WS01.]');
+    write('Type a command, or use the tabs above for the firewall, wireless controller, NOC and rack.');
+    el('cmd').focus();
+    tick = setInterval(function () {
+      remaining = Math.max(0, remaining - 1000);
+      paintClock();
+      if (remaining === 0 && tick) {
+        clearInterval(tick); tick = null;
+        /* The SERVER decides time is up. This just asks, so an edited counter cannot end an exam
+           early and a stopped counter cannot extend one. */
+        call('netfinalSubmit', { examId: EXAM_ID }).then(function (r2) { finish(r2.report, null); }).catch(fatal);
+      }
+    }, 1000);
+  }).catch(function (e) {
+    el('gatemsg').innerHTML = '<span class="bad">' + esc(e.message) + '</span>';
+  });
+})();
+</script>
+</body>
+</html>

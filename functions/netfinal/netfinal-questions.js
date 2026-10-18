@@ -606,7 +606,11 @@
      * Chris blocked stages 3-5 until it existed. All three are pro-rated across twelve entries. */
     def({ n: 43, phase: 'verify', points: 10, tag: 'practical', kind: 'state',
         prompt: function () { return 'Incident log: record the OSI layer for every resolved ticket, one entry per ticket.'; },
-        rubric: 'Compared to the catalog layer. A slot the catalog records as 2/3 accepts either 2 or 3. Pro-rated across 12 entries.' });
+        /* Written in the STUDENT'S vocabulary, not the engine's. The first wording said "a slot the
+         * catalog records as 2/3", which is internal language a student has no use for -- and the
+         * word `slot` tripped the leak scanner on the session's start payload, correctly: it is one
+         * of the three words spec section 9 says a student-facing payload must not carry. */
+        rubric: 'One entry per ticket. Each layer is marked against the layer the fault actually sits at; a ticket that spans two layers accepts either. Marked proportionally across all twelve tickets.' });
 
     def({ n: 44, phase: 'verify', points: 6, tag: 'practical', kind: 'state',
         prompt: function () { return 'Incident log: in the evidence field, name a command or page that exposes the fault — one you actually used.'; },
@@ -704,6 +708,12 @@
         return Q.map(function (q) {
             var r = resolve(state, q);
             delete r.proof;          // naming the proof command would be the answer to 39-42
+            /* THE SLOT GOES TOO. Spec section 9: initialState carries "no field naming the fault,
+             * slot, or variant". Telling a student that question 27 belongs to S1 and 31 to S5
+             * hands them the exam's structure -- which faults exist, how many, and which questions
+             * share one. The panel does not need it; questions are numbered. Caught by the leak
+             * scanner on the session's start payload, which is where it would have shipped. */
+            delete r.slot;
             return r;
         });
     }

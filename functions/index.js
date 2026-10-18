@@ -11112,3 +11112,129 @@ exports.fetchOpportunities = require('./fetchOpportunities').fetchOpportunities;
 // (tokenized cohort, sextant_cohort_points — no PII). The identified self-view is NOT persisted;
 // it is derived live by getMyTrajectory. Design: _docs/architecture/career-trajectory-navigator.md
 exports.sextantSnapshot = require('./sextant').sextantSnapshot;
+
+/* ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * NETWORK+ MERIDIAN CORP FINAL EXAM — the callables (stage 7)
+ *
+ * Spec: ~/hexworth-shared/etwork essential final/ section 9 and section 10 extensions 9-10.
+ * Engine and rules: functions/netfinal/. Design notes in each module's header.
+ *
+ * ★ EVERY CALLABLE TAKES A sessionId AND NEVER A STATE BLOB. That is the single decision Mallory's
+ * audit said stage 7 had to get right: the engine's functions are pure over whatever state they are
+ * handed and nothing in them enforces provenance, so round-tripping `state` through the browser
+ * would let a student edit `rogue.placed` or `fixedAtEvent` in a request body and bypass the
+ * command interface entirely. The lab lives in Firestore under netfinal_sessions/{sessionId}.
+ *
+ * ★ THE SESSION ID IS DERIVED FROM THE AUTHENTICATED CALLER, never taken from the request. A
+ * student can only ever address their own exam, so there is no cross-session surface to probe.
+ *
+ * The answer key is written to the session document and NEVER returned. firestore.rules must deny
+ * all client access to netfinal_sessions; these callables are the only reader.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+const NETFINAL = require('./netfinal/netfinal-exam.js');
+const netfinalSeedSecret = defineSecret('NETFINAL_SEED_SECRET');
+
+/* The Firestore-backed store the exam service reads through. Same interface the in-memory store in
+ * netfinal-exam.js exposes, which is what lets the exam rules be tested without Firestore. */
+function netfinalStore() {
+    const col = db.collection('netfinal_sessions');
+    return {
+        async get(id) {
+            const snap = await col.doc(id).get();
+            if (!snap.exists) { return null; }
+            const d = snap.data();
+            /* Stored as JSON strings. The lab contains dotted keys (interface names like Fa0/0.10)
+             * which Firestore would read as nested field paths -- the same defect that put literal
+             * dotted field names into class progress documents and had to be cleaned by hand. */
+            return {
+                sessionId: d.sessionId, studentId: d.studentId, examId: d.examId,
+                startedAt: d.startedAt, durationMs: d.durationMs,
+                submittedAt: d.submittedAt || null,
+                state: JSON.parse(d.stateJson),
+                answerKey: JSON.parse(d.answerKeyJson),
+                shell: JSON.parse(d.shellJson),
+                report: d.reportJson ? JSON.parse(d.reportJson) : null
+            };
+        },
+        async put(id, s) {
+            await col.doc(id).set({
+                sessionId: s.sessionId, studentId: s.studentId, examId: s.examId,
+                startedAt: s.startedAt, durationMs: s.durationMs,
+                submittedAt: s.submittedAt || null,
+                stateJson: JSON.stringify(s.state),
+                answerKeyJson: JSON.stringify(s.answerKey),
+                shellJson: JSON.stringify(s.shell),
+                reportJson: s.report ? JSON.stringify(s.report) : null,
+                updatedAt: Date.now()
+            }, { merge: false });
+            return true;
+        }
+    };
+}
+
+/* Translate the service's error codes into HttpsError. The service throws plain errors with a
+ * `code` so it stays testable without firebase-functions loaded. */
+function netfinalCall(fn) {
+    return async (request) => {
+        if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
+        const uid = request.auth.uid;
+        const data = request.data || {};
+        const examId = String(data.examId || 'net-final-2026');
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(examId)) {
+            throw new HttpsError('invalid-argument', 'Invalid examId.');
+        }
+        /* DERIVED, NOT SUPPLIED. A client-chosen sessionId would let one student address another's
+         * exam, and a client-chosen studentId would let anyone generate a lab for any identity --
+         * which, with a known seed secret absent, is how a healthy lab gets regenerated and diffed. */
+        const sessionId = uid + '::' + examId;
+        try {
+            return await fn({
+                store: netfinalStore(),
+                sessionId, uid, examId, data,
+                opts: { secret: netfinalSeedSecret.value() || null }
+            });
+        } catch (e) {
+            const known = ['invalid-argument', 'not-found', 'failed-precondition',
+                           'deadline-exceeded', 'permission-denied', 'internal'];
+            throw new HttpsError(known.indexOf(e.code) >= 0 ? e.code : 'internal',
+                e.message || 'Exam service error.');
+        }
+    };
+}
+
+const netfinalOpts = { ...cfOptions, secrets: [netfinalSeedSecret] };
+
+/* Start or RESUME. One attempt: a second call returns the same lab and the same clock, which is
+ * also what makes a browser refresh work. */
+exports.netfinalStart = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.startExam(c.store, { studentId: c.uid, examId: c.examId, minutes: c.data.minutes }, c.opts)));
+
+/* One command. The LINE crosses the wire; the lab does not. */
+exports.netfinalCommand = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.runCommand(c.store, { sessionId: c.sessionId, line: c.data.line }, c.opts)));
+
+exports.netfinalWindow = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.renderWindow(c.store, { sessionId: c.sessionId, window: c.data.window }, c.opts)));
+
+exports.netfinalAction = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.runAction(c.store, { sessionId: c.sessionId, window: c.data.window,
+        action: c.data.action, params: c.data.params }, c.opts)));
+
+exports.netfinalRestore = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.restoreDevice(c.store, { sessionId: c.sessionId, device: c.data.device }, c.opts)));
+
+exports.netfinalAnswer = onCall(netfinalOpts, netfinalCall(async (c) =>
+    NETFINAL.saveAnswer(c.store, { sessionId: c.sessionId,
+        questionId: c.data.questionId, value: c.data.value }, c.opts)));
+
+/* Submit and grade. The STUDENT'S view comes back -- their marks, never the answers, because the
+ * same lab is still being sat by others. The full report stays in the session document for the
+ * instructor surface. */
+exports.netfinalSubmit = onCall(netfinalOpts, netfinalCall(async (c) => {
+    const res = await NETFINAL.submitExam(c.store, { sessionId: c.sessionId }, c.opts);
+    return {
+        submitted: !res.alreadySubmitted, alreadySubmitted: !!res.alreadySubmitted,
+        submittedAt: res.submittedAt, report: NETFINAL.studentReport(res.report)
+    };
+}));
+
