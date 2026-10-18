@@ -238,29 +238,41 @@
             if (line.length > 500) { throw err('invalid-argument', 'Command too long.'); }
             var res = SHELL.exec(session.state, session.shell, line);
             session.shell = res.session;
-            /* THE FOURTH EMITTING SURFACE. renderWindow, runAction and restoreDevice were scanned;
-             * this one returns engine-generated TEXT to the client and never was. The audit swept it
-             * and found nothing it would have caught -- but the gap is structural, and the whole
-             * lesson of the last three rounds is that "I looked and found nothing" is not the same
-             * as "something is looking".
+            /* ═══ COMMAND TEXT IS DELIBERATELY NOT SCANNED, AND THAT IS A REVERSAL ══════════════
              *
-             * THE ECHO EXEMPTION IS NOT OPTIONAL HERE. `ssh S7B` replies "ssh: connect to host S7B
-             * port 22: No route to host", which contains a fault id because the STUDENT typed it. A
-             * plain scan would refuse that and hand them a 500 for typing a hostname -- the
-             * change-request lockout again, through a different door. So a matched token that appears
-             * in the line they just submitted is their own words coming back, and only a token that
-             * does NOT is a disclosure. */
-            var tokens = CLIENT.matchedSecrets(res.out);
-            if (tokens.length) {
-                var lineLc = String(line).toLowerCase();
-                var disclosed = tokens.filter(function (t) {
-                    return lineLc.indexOf(String(t).toLowerCase()) < 0;
-                });
-                if (disclosed.length) {
-                    throw err('internal', 'Refusing to return command output that discloses fault data: '
-                        + disclosed.join(', '));
-                }
-            }
+             * I added a disclosure scan here on the argument that renderWindow, runAction and
+             * restoreDevice were scanned and this surface was not -- "I looked and found nothing is
+             * not the same as something is looking". The scan had to exempt the student's own echoed
+             * input, because `ssh S7B` replies "ssh: connect to host S7B port 22" and refusing that
+             * would 500 a student for typing a hostname. Both halves were wrong, and the design
+             * review found both:
+             *
+             *   1. THE REFUSAL DISCLOSED THE SECRET IT REFUSED TO SEND. The thrown message was
+             *      'Refusing to return command output that discloses fault data: ' + the matched
+             *      tokens. `err('internal', ...)` is passed through verbatim by netfinalCall, and the
+             *      page writes `esc(e.message)` into a visible element -- so every time the scanner
+             *      did its job it printed the fault id on screen, isolated and labelled. Strictly
+             *      worse than no scan.
+             *   2. THE ECHO EXEMPTION WAS BYPASSABLE FOR FREE. A token was exempt if it appeared
+             *      anywhere in the 500-character line, with no link between that appearance and the
+             *      token's appearance in the OUTPUT. Padding a command with the 24 slot names -- 123
+             *      characters -- exempted everything. Two of the three patterns are the literal
+             *      English words "slot" and "variant", so no guessing was even required.
+             *
+             * I could have written a third version. I am not going to. The scan was speculative
+             * hardening behind no demonstrated leak: the security audit fuzzed 70 command/device
+             * combinations across every registered command and found nothing it would have caught,
+             * and grepped every hardcoded output string for the pattern words with hits only in
+             * comments. Against that, my two rounds of additions here produced two real defects, one
+             * of which leaked. Removing an unproven guard that caused proven harm is the smaller
+             * mistake, and the audited position is the one without it.
+             *
+             * THE GAP IS REAL AND STATED RATHER THAN CLOSED: if a future change makes a command echo
+             * server-authored fault data, nothing here will stop it. The protections that remain are
+             * the three structured surfaces, which are scanned, and the fact that fault definitions
+             * live in netfinal-faults.js and never enter `state`. If this is ever revisited, the
+             * design must satisfy both: a message that names no token, and an exemption that cannot
+             * be manufactured by the attacker supplying the token themselves. */
             return {
                 out: res.out,
                 prompt: SHELL.prompt(session.state, session.shell),

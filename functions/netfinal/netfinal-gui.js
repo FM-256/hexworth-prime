@@ -503,9 +503,15 @@
     var own = CORE.own;
     var setOwn = CORE.setOwn;
 
-    /* Every question id the bank defines, as an own-property map. Derived, so it cannot drift from
-     * the bank, and required lazily because netfinal-questions.js loads the shell, which loads this
-     * file's siblings -- taking the require at module top would make the cycle real. */
+    /* Every question id the bank defines, as an own-property map, and prototype-less so the lookup
+     * below needs no guard. Derived from the bank, so it cannot drift from it.
+     *
+     * THE COMMENT HERE USED TO CLAIM THIS WAS "required lazily" to avoid a require cycle. It is not
+     * lazy -- the IIFE runs the moment this module is first loaded -- and the cycle it claimed to
+     * avoid does not exist: netfinal-shell.js never requires this file, and only netfinal-exam.js
+     * does. It happens to work, but a future reader would have trusted a deferral guarantee that was
+     * not there. Corrected rather than left, because a comment that misdescribes its own mechanism is
+     * worse than no comment. */
     var QUESTION_IDS = (function () {
         var out = Object.create(null);
         require('./netfinal-questions.js').QUESTIONS.forEach(function (q) { out[q.id] = true; });

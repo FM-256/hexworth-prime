@@ -856,117 +856,89 @@ section('prototype pollution, swept across every entry point including the shell
     })(), 'gui must use core’s definition, not a copy of it -- a copy is how the last one survived');
 }
 
-/* ─── THE FOURTH EMITTING SURFACE ───────────────────────────────────────────────────────────────── */
-section('command output is scanned too, without refusing the student their own words');
+/* ─── NO ERROR MESSAGE MAY CARRY THE SECRET IT IS REFUSING ──────────────────────────────────────
+ *
+ * I added a disclosure scan to runCommand and it was removed after review found two defects in it,
+ * both mine, both in code that had no prior review pass:
+ *
+ *   1. The thrown message was 'Refusing to return command output that discloses fault data: ' + the
+ *      MATCHED TOKENS. netfinalCall passes an 'internal' message through verbatim and the page
+ *      writes esc(e.message) into a visible element -- so every time the scanner worked, it printed
+ *      the fault id on screen, isolated and labelled. Strictly worse than no scan.
+ *   2. Its echo exemption let a token through if it appeared anywhere in the 500-character line,
+ *      with no link to why the token was in the OUTPUT. Padding a command with the 24 slot names
+ *      exempted everything, and two of the three patterns are the words "slot" and "variant", so
+ *      no guessing was needed.
+ *
+ * The scan is gone -- see the long note in netfinal-exam.js for why a third version was the wrong
+ * answer. What remains is the lesson, which generalises past the surface that taught it: a refusal
+ * must name WHERE, never WHAT. The three structured surfaces throw `l.path` (structural, e.g.
+ * "noc.alerts[0].id"); mine threw the value. This asserts the property for all three, so the next
+ * one written cannot repeat it. */
+section('a refusal names where, never what');
 {
-    /* renderWindow, runAction and restoreDevice were scanned; runCommand returns engine-generated
-     * TEXT to the client and never was. The audit swept it and found nothing it would have caught --
-     * but "I looked and found nothing" is not "something is looking", and that distinction is the
-     * whole lesson of the rounds before this one.
-     *
-     * THE ECHO EXEMPTION IS THE HARD PART. `ssh S7B` replies "ssh: connect to host S7B port 22: No
-     * route to host" -- which contains a fault id because the STUDENT typed it. A plain scan refuses
-     * that and hands them a 500 for typing a hostname: the change-request lockout again, through a
-     * different door. So a matched token that appears in the submitted line is their own words
-     * coming back; only a token that does not is a disclosure. */
     const r = rig();
-    const s0 = await EX.startExam(r.store, { studentId: 'cmd-scan', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const s0 = await EX.startExam(r.store, { studentId: 'msgs', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
     const sid = s0.sessionId;
-    const run = async (line) => {
-        try { return { ok: true, out: (await EX.runCommand(r.store, { sessionId: sid, line }, r.opts)).out }; }
-        catch (e) { return { ok: false, code: e.code, msg: e.message }; }
-    };
 
-    /* A student may type a fault id. They must get an ordinary answer, not a 500. */
-    for (const line of ['ssh S7B', 'ping S12B', 'nslookup S3A', 'ping S11A']) {
-        const res = await run(line);
-        chk('a student typing "' + line + '" gets output, not a refusal',
-            res.ok === true, res.ok ? '' : res.code + ': ' + String(res.msg).slice(0, 70));
+    /* COMMAND TEXT IS NOT SCANNED, deliberately, and the student's own words come back unharmed --
+     * which was the behaviour the exemption existed to protect and now needs no exemption. */
+    for (const line of ['ssh S7B', 'ping S12B', 'nslookup S3A']) {
+        let ok = false, out = '';
+        try { out = (await EX.runCommand(r.store, { sessionId: sid, line }, r.opts)).out; ok = true; }
+        catch (e) { out = e.code + ': ' + e.message; }
+        chk('a student typing "' + line + '" gets output, not a refusal', ok === true, out.slice(0, 70));
     }
-    /* And the surface is genuinely scanned: a token the student did NOT type must be refused. */
-    chk('matchedSecrets finds the token, which is what makes the echo test possible',
-        JSON.stringify(CLIENT.matchedSecrets('ssh: connect to host S7B port 22')) === '["S7B"]',
-        JSON.stringify(CLIENT.matchedSecrets('ssh: connect to host S7B port 22')));
-    chk('a token NOT present in the submitted line counts as a disclosure', (() => {
-        /* The rule the callable applies, exercised directly: the output names S9B, the line does not.
-         * NOT using the word "slot" in the fixture -- `/\bslot\b/i` is itself one of the forbidden
-         * patterns, so "slot S9B" yields TWO tokens and my first version of this assertion expected
-         * one and failed. The test was wrong, not the code, which is worth saying because the
-         * instinct on a red assertion is to look at the product first. */
-        const tokens = CLIENT.matchedSecrets('internal note: S9B is active');
-        const line = 'show vlan brief';
-        return tokens.length === 1
-            && tokens.filter(t => line.toLowerCase().indexOf(t.toLowerCase()) < 0).length === 1;
-    })(), JSON.stringify(CLIENT.matchedSecrets('internal note: S9B is active')));
-    chk('and the same token IS exempt when the line contains it', (() => {
-        const tokens = CLIENT.matchedSecrets('ssh: connect to host S7B port 22');
-        const line = 'ssh S7B';
-        return tokens.filter(t => line.toLowerCase().indexOf(t.toLowerCase()) < 0).length === 0;
+    chk('and runCommand no longer scans its own text output', (() => {
+        const src = require('fs').readFileSync(path.join(NF, 'netfinal-exam.js'), 'utf8');
+        const body = src.slice(src.indexOf('async function runCommand'), src.indexOf('async function renderWindow'));
+        return body.indexOf('matchedSecrets') < 0 && body.indexOf('findDisclosures') < 0;
+    })(), 'the reverted scan is back');
+
+    /* THE PROPERTY THAT MUST HOLD EVERYWHERE: plant a disclosure, force each of the three structured
+     * surfaces to refuse, and assert the message the CLIENT sees contains no matched token. */
+    const planted = rig();
+    const p0 = await EX.startExam(planted.store,
+        { studentId: 'planted-msg', examId: EXAMS.DEFAULT_EXAM_ID }, planted.opts);
+    const psid = p0.sessionId;
+    const sess = await planted.store.get(psid);
+    /* A fault id in a NOC alert id, which renderWindow reads back and must refuse. */
+    sess.state.ackedAlerts = sess.state.ackedAlerts || {};
+    sess.state.decoyDiagram = Object.assign({}, sess.state.decoyDiagram || {}, { note: 'slot S7B here' });
+    await planted.store.put(psid, sess);
+
+    const messages = [];
+    for (const [label, call] of [
+        ['renderWindow', () => EX.renderWindow(planted.store, { sessionId: psid, window: 'noc' }, planted.opts)],
+        ['runAction', () => EX.runAction(planted.store,
+            { sessionId: psid, window: 'noc', action: 'ack-alert', params: { id: 'noc-d1' } }, planted.opts)],
+        ['restoreDevice', () => EX.restoreDevice(planted.store,
+            { sessionId: psid, device: 'MeridianSW-01' }, planted.opts)]
+    ]) {
+        try { await call(); } catch (e) { messages.push([label, String(e.message || '')]); }
+    }
+    /* Whatever any of them said, none of it may contain a matched secret. */
+    const leakyMessages = messages.filter(([, m]) => CLIENT.matchedSecrets(m).length > 0);
+    chk('no refusal message from any surface contains a matched secret',
+        leakyMessages.length === 0,
+        leakyMessages.map(([l, m]) => l + ': ' + m.slice(0, 60)).join(' | '));
+
+    /* AND THE CHECK ABOVE MUST BE ABLE TO FAIL. The same scanner, pointed at the message shape I
+     * actually shipped, flags it -- so a future refusal built that way is caught. */
+    chk('the detector would catch a message built the way mine was',
+        CLIENT.matchedSecrets('Refusing to return command output that discloses fault data: S7B')
+            .indexOf('S7B') >= 0);
+    chk('while a structural path is clean, which is why the other three are safe',
+        CLIENT.matchedSecrets('Refusing to send a window that discloses fault data: noc.alerts[0].id')
+            .length === 0);
+
+    /* matchedSecrets stays exported and tested, but nothing in production calls it now. Said out
+     * loud so the next reader does not assume a surface is covered because a helper for it exists. */
+    chk('matchedSecrets is not wired to any production surface', (() => {
+        const ex = require('fs').readFileSync(path.join(NF, 'netfinal-exam.js'), 'utf8');
+        const idx = require('fs').readFileSync(path.join(NF, '..', 'index.js'), 'utf8');
+        return ex.indexOf('matchedSecrets') < 0 && idx.indexOf('matchedSecrets') < 0;
     })());
-    /* THE CONTROL, and the thing that would catch this check going wrong in the OTHER direction.
-     * `/\bslot\b/i` is a forbidden pattern, and plenty of network output could plausibly contain
-     * the word -- a chassis slot, say -- so a scan on command text can refuse LEGITIMATE output just
-     * as easily as it can catch a leak. Every real command a student can type, swept: a single
-     * refusal here means the check has started eating the exam. */
-    const realCommands = [
-        'ipconfig', 'arp -a', 'ping 10.0.0.1', 'nslookup intranet.meridiancorp.local', 'tracert 8.8.8.8'
-    ];
-    const iosCommands = [
-        'show vlan brief', 'show interfaces trunk', 'show ip route', 'show running-config',
-        'show logging', 'show ip access-lists', 'show mac address-table', 'show cdp neighbors detail',
-        'show interfaces', 'show ntp status', 'show snmp community', 'show clock',
-        'show ip interface brief', 'show access-lists', 'show arp', 'show ip arp', 'show vlan',
-        'show lldp neighbors detail'
-    ];
-    const refusals = [];
-    for (const c of realCommands) {
-        const res = await run(c);
-        if (!res.ok) { refusals.push(c + ': ' + res.code); }
-    }
-    const rtrIp = (await r.store.get(sid)).state.devices['MeridianRTR-01'].mgmtIp;
-    await run('ssh admin@' + rtrIp);
-    await run('enable');
-    for (const c of iosCommands) {
-        const res = await run(c);
-        if (!res.ok) { refusals.push(c + ': ' + res.code); }
-    }
-    chk('no real command is refused by the new scan (' + (realCommands.length + iosCommands.length) + ' swept)',
-        refusals.length === 0, refusals.slice(0, 3).join(' | '));
-    chk('and the sweep covers the output-heavy ones, so it could fail',
-        iosCommands.indexOf('show running-config') >= 0 && iosCommands.indexOf('show logging') >= 0);
-
-    /* AND THAT runCommand ACTUALLY APPLIES THE RULE, not merely that the rule is correct. Removing
-     * the scan from runCommand passed every assertion above, because they exercise matchedSecrets
-     * and the filter directly -- the rule was tested, the WIRING was not. Tenth time in this build a
-     * check of mine held while the thing it was meant to protect was gone.
-     *
-     * No real command discloses -- that is the point of the engine -- so the disclosure is PLANTED
-     * into a value the shell echoes, and the student does not type it. */
-    {
-        const planted = rig();
-        const p0 = await EX.startExam(planted.store,
-            { studentId: 'planted', examId: EXAMS.DEFAULT_EXAM_ID }, planted.opts);
-        const psid = p0.sessionId;
-        const sess = await planted.store.get(psid);
-        const swIp = sess.state.devices['MeridianSW-01'].mgmtIp;
-        /* A fault id where `show snmp community` will read it back out. */
-        sess.state.devices['MeridianSW-01'].snmp.community = 'S7B';
-        await planted.store.put(psid, sess);
-
-        const step = async (line) => {
-            try { return { ok: true, out: (await EX.runCommand(planted.store, { sessionId: psid, line }, planted.opts)).out }; }
-            catch (e) { return { ok: false, code: e.code, msg: e.message }; }
-        };
-        await step('ssh admin@' + swIp);
-        await step('enable');
-        const shown = await step('show snmp community');
-        chk('runCommand REFUSES output that discloses a fault id the student never typed',
-            shown.ok === false && shown.code === 'internal' && /discloses fault data/.test(shown.msg),
-            shown.ok ? 'it returned: ' + JSON.stringify(String(shown.out).slice(0, 70)) : String(shown.msg).slice(0, 80));
-        /* And the same session is not wedged: an ordinary command still answers. */
-        const after = await step('show clock');
-        chk('and the session still works afterwards', after.ok === true, String(after.msg || '').slice(0, 60));
-    }
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
