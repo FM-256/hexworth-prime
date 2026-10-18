@@ -1263,6 +1263,37 @@
         });
     });
 
+    /* TICKET IDS, which Q43, Q44 and Q45 cannot be graded without -- 25 of the 200 points.
+     *
+     * Chris's block: the incident log stored `ticket` as unconstrained free text while the SAME
+     * window made `layer` a closed list "because the layer is graded". Both are graded. Q43 compares
+     * an entry's layer to the catalog layer, Q44 checks its evidence field against a command the
+     * event log shows the student actually ran for that incident, and Q45 hands three resolved
+     * incidents to an instructor against the right catalog answer. All three need to correlate an
+     * entry to one of the twelve slots, and nothing in state could.
+     *
+     * THE IDS ARE DELIBERATELY NOT THE SLOT NAMES. A ticket called S3 would tell a student which
+     * family of fault they are looking at, and two students' tickets would be comparable. The ids
+     * are a seeded permutation of a neutral range, so TKT-104 is a different fault for every
+     * student, and the id -> slot mapping lives only on `faults[]`, which the client projection
+     * excludes and the leak test forbids. The ticket TEXT is legitimately client-facing: it is the
+     * symptom, and reading it is the first thing the exam asks a student to do. */
+    function assignTickets(state, rng) {
+        var pool = [];
+        for (var n = 101; n <= 148; n++) { pool.push(n); }
+        var shuffled = rng.shuffle(pool);
+        state.tickets = [];
+        state.faults.forEach(function (f, i) {
+            var def = VARIANTS[f.id];
+            if (!def) { return; }
+            f.ticketId = 'TKT-' + shuffled[i];
+            /* S12 arrives as a NOC alert rather than a help-desk ticket (spec section 6). */
+            var kind = f.slot === 'S12' || f.id === 'S8A' ? 'alert' : 'ticket';
+            state.tickets.push({ id: f.ticketId, kind: kind, text: def.ticket });
+        });
+        return state;
+    }
+
     /* Apply every active fault. Leases are re-resolved once at the end as well as inside the
      * variants that need them, because resolveLeases is idempotent and the order faults run in
      * must not decide who holds which address. */
@@ -1275,6 +1306,9 @@
             f.applied = true;
         });
         CORE.resolveLeases(state);
+        /* Tickets before the baseline, so exam start includes them. Seeded off the lab's own seed
+         * string so a regrade reproduces the same ticket numbers. */
+        if (!state.tickets) { assignTickets(state, CORE.makeRng(state.meta.seedStr + '|tickets')); }
         /* Exam start is NOW: faults applied, nothing repaired. */
         if (!state.baseline) { captureBaseline(state); }
         return state;
@@ -1395,10 +1429,18 @@
         return state;
     }
 
+    /* The fault a ticket id refers to, or null. Stage 6 grades Q43/44/45 through this and nothing
+     * else, so the correlation has exactly one implementation. */
+    function faultForTicket(state, ticketId) {
+        if (!ticketId) { return null; }
+        return state.faults.filter(function (f) { return f.ticketId === String(ticketId).trim(); })[0] || null;
+    }
+
     module.exports = {
         VARIANTS: VARIANTS, INVARIANTS: INVARIANTS, checkInvariants: checkInvariants,
         applyAll: applyAll, fixedMap: fixedMap, allLogs: allLogs, reloadZone: reloadZone,
         captureBaseline: captureBaseline, collateralDamage: collateralDamage,
-        restoreDevice: restoreDevice, recordProgress: recordProgress
+        restoreDevice: restoreDevice, recordProgress: recordProgress,
+        assignTickets: assignTickets, faultForTicket: faultForTicket
     };
 })();

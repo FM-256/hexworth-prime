@@ -158,10 +158,25 @@ section('3. a window makes its fault visible, derived rather than narrated');
     {   // S11B: co-channel, with the retry rate that follows from it.
         const st = labWith('S11B');
         const w = GUI.render(st, 'wireless');
-        const hot = w.accessPoints.filter(a => a.coChannelWith.length > 0);
-        chk('S11B: two APs are flagged as co-channel', hot.length === 2, JSON.stringify(w.accessPoints.map(a => [a.name, a.band24Channel])));
-        chk('S11B: and their retry rate is high, derived from the overlap',
-            hot.every(a => a.retriesPct > 20) && w.accessPoints.filter(a => !a.coChannelWith.length).every(a => a.retriesPct < 10));
+        /* THE EVIDENCE, NOT THE CONCLUSION. This case used to read `coChannelWith` and assert the
+         * window named which APs collided -- it was asserting a leak. Chris was right: the spec's
+         * evidence for S11B is "the AP list, with retry counters", and the skill is reading the
+         * channel column across rows and noticing two match. The retry rate is a signal; naming the
+         * partner is the answer. */
+        const chans = {};
+        w.accessPoints.forEach(a => { chans[a.band24Channel] = (chans[a.band24Channel] || 0) + 1; });
+        const collidingChannel = Object.keys(chans).filter(c => chans[c] > 1);
+        chk('S11B: the channel column shows two APs on one channel, for a student to notice',
+            collidingChannel.length === 1, JSON.stringify(w.accessPoints.map(a => [a.name, a.band24Channel])));
+        const hot = w.accessPoints.filter(a => String(a.band24Channel) === collidingChannel[0]);
+        chk('S11B: and those two carry the high retry rate the ticket complains about',
+            hot.length === 2 && hot.every(a => a.retriesPct > 20)
+            && w.accessPoints.filter(a => String(a.band24Channel) !== collidingChannel[0]).every(a => a.retriesPct < 10),
+            JSON.stringify(w.accessPoints.map(a => [a.name, a.band24Channel, a.retriesPct])));
+        chk('S11B: but the window does NOT name which AP each one collides with',
+            w.accessPoints.every(a => a.coChannelWith === undefined)
+            && !/coChannel|collid|interferes with/i.test(JSON.stringify(w)),
+            JSON.stringify(w.accessPoints[0]));
     }
     {   // S1B: the rack view calls it a degraded cable, which no counter does.
         const st = labWith('S1B');
@@ -256,21 +271,39 @@ section('5. the incident log records a layer from a closed list');
     chk('the log offers the OSI layers as a closed list, because the layer is graded',
         log.layerOptions.join(',') === '1,2,3,4,7', log.layerOptions.join(','));
     chk('an entry without a ticket is refused', GUI.act(st, 'incident-log', 'submit', { symptom: 'x' }).ok === false);
+    /* THE TICKET IS A CLOSED LIST TOO, which is what makes Q43/44/45 gradable at all -- 25 of the
+     * 200 points need an entry correlated to a slot, and free text cannot be. Refused at the form
+     * rather than silently scored zero later: the student finds out now. */
+    chk('the log offers the student\u2019s own ticket ids as options',
+        log.ticketOptions.length === st.tickets.length
+        && log.ticketOptions.every(o => /^TKT-\d+$/.test(o.id)), JSON.stringify(log.ticketOptions));
+    chk('an entry naming a ticket that does not exist is refused, and says what is valid', (() => {
+        const bad = GUI.act(st, 'incident-log', 'submit', { ticket: 'S3', layer: 2 });
+        return bad.ok === false && /unknown ticket/.test(bad.reason) && /TKT-/.test(bad.reason);
+    })());
+    const tid = st.faults[0].ticketId;
     const r = GUI.act(st, 'incident-log', 'submit', {
-        ticket: 'S3', symptom: 'floor-2 Engineering on 169.254', layer: 2,
+        ticket: tid, symptom: 'floor-2 Engineering on 169.254', layer: 2,
         rootCause: 'VLAN 20 missing from the trunk allowed list',
         fix: 'switchport trunk allowed vlan add 20 on both ends',
         verification: 'hosts lease and reach the file server'
     });
-    chk('a complete entry is accepted', r.ok);
+    chk('a complete entry naming a real ticket is accepted', r.ok, JSON.stringify(r));
     chk('and it is retrievable with its layer intact',
-        GUI.render(st, 'incident-log').entries[0].layer === '2'
-        || GUI.render(st, 'incident-log').entries[0].layer === 2,
+        String(GUI.render(st, 'incident-log').entries[0].layer) === '2',
         JSON.stringify(GUI.render(st, 'incident-log').entries[0]));
-    /* The graded layer comes from the CATALOG, which is why S8 and S11 carry per-variant layers.
-     * This asserts the two agree for the fault under test, so a correct student answer matches. */
-    chk('the catalog layer for this variant is what a correct entry would say',
-        FAULTS.VARIANTS.S3A.layer === 2);
+    /* The correlation Q43/44/45 depend on: ticket id back to the fault, server-side, one place. */
+    chk('the ticket id resolves to the fault it describes',
+        FAULTS.faultForTicket(st, tid) && FAULTS.faultForTicket(st, tid).id === 'S3A',
+        JSON.stringify(FAULTS.faultForTicket(st, tid)));
+    chk('the graded layer comes from the CATALOG, so a correct entry matches',
+        FAULTS.VARIANTS[FAULTS.faultForTicket(st, tid).id].layer === 2);
+    /* One entry per ticket: a resubmission corrects rather than duplicating, or the grader would
+     * see two conflicting claims for one incident. */
+    GUI.act(st, 'incident-log', 'submit', { ticket: tid, symptom: 'corrected', layer: 2 });
+    chk('resubmitting a ticket replaces its entry rather than adding a second',
+        GUI.render(st, 'incident-log').entries.filter(e => e.ticket === tid).length === 1
+        && GUI.render(st, 'incident-log').entries.filter(e => e.ticket === tid)[0].symptom === 'corrected');
 }
 
 /* ─── 6. device restore ───────────────────────────────────────────────────────────────────────── */

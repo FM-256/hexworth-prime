@@ -72,6 +72,19 @@ section('1. the projection, against the raw state it comes from');
         JSON.stringify(Object.keys(init)));
     chk('it carries the broken config, so the network looks misconfigured as the spec intends',
         JSON.stringify(init.ports).length > 1000);
+    /* Tickets are legitimately client-facing -- the text IS the symptom, and reading it is the
+     * first thing the exam asks for. What must not travel is the id-to-slot mapping. */
+    chk('the ticket queue reaches the student', init.tickets.length === 12
+        && init.tickets.every(t => /^TKT-\d+$/.test(t.id) && t.text && t.text.length > 20),
+        JSON.stringify(init.tickets.slice(0, 2)));
+    chk('but no ticket id is a slot name, so the id reveals no fault family',
+        init.tickets.every(t => !/^S\d/.test(t.id) && !/\bS(?:[1-9]|1[0-2])[AB]\b/.test(t.id)));
+    chk('and the id-to-slot mapping is NOT in the projection',
+        JSON.stringify(init).indexOf('ticketId') < 0
+        && CL.findDisclosures(init.tickets, 'tickets').length === 0);
+    chk('while the mapping IS present server-side, where grading needs it',
+        st.faults.every(f => /^TKT-\d+$/.test(f.ticketId))
+        && FAULTS.faultForTicket(st, st.faults[0].ticketId).id === st.faults[0].id);
 }
 
 /* ─── 2. every GUI window and every action return ─────────────────────────────────────────────── */

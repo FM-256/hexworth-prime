@@ -112,6 +112,12 @@
             }, {}),
             /* The stale diagram, which is handed over deliberately and is deliberately wrong. */
             decoyDiagram: state.decoyDiagram,
+            /* The ticket queue. The TEXT is the symptom and reading it is the first thing the exam
+             * asks for, so it is legitimately client-facing; the id-to-slot mapping is not here and
+             * lives only on faults[], which this projection excludes. */
+            tickets: (state.tickets || []).map(function (t) {
+                return { id: t.id, kind: t.kind, text: t.text };
+            }),
             /* Progress, as counts only. Which questions are answered is the student's own business;
              * whether they are RIGHT is not in this payload and is not computed client-side. */
             progress: {

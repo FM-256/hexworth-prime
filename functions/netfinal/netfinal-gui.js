@@ -160,14 +160,20 @@
                 var e = ep(state, a);
                 var ch = state.wireless.apChannels[a];
                 /* Retries are DERIVED from whether a neighbour shares the channel, so S11B's
-                 * evidence ("high retries") follows from the fault rather than being narrated. */
+                 * evidence ("high retries") follows from the fault rather than being narrated.
+                 *
+                 * `shared` STAYS LOCAL. It used to be returned as `coChannelWith`, and Chris was
+                 * right that this handed over the diagnosis: the spec's evidence for S11B is "the AP
+                 * list, with retry counters", and the skill is reading the channel column across
+                 * rows and noticing two match. Naming the colliding partner in the payload is the
+                 * conclusion, not the evidence. The retry rate is a legitimate signal; the answer
+                 * is not. */
                 var shared = Object.keys(state.wireless.apChannels)
                     .filter(function (o) { return o !== a && state.wireless.apChannels[o] === ch; });
                 return {
                     name: a, address: e ? e.ip : null, mac: e ? e.mac : null,
                     band24Channel: ch, switch: e ? e.switch : null, port: e ? e.port : null,
-                    retriesPct: shared.length ? 34 : 3,
-                    coChannelWith: shared
+                    retriesPct: shared.length ? 34 : 3
                 };
             }),
             clients: state.ssids.reduce(function (acc, s) { return acc.concat(clientsOf(s.name)); }, [])
@@ -353,6 +359,13 @@
             /* The layer is graded (spec section 6's conflict pairs exist so it is unambiguous), so
              * the field is offered as a closed list rather than free text. */
             layerOptions: [1, 2, 3, 4, 7],
+            /* AND SO IS THE TICKET, for the same reason. Q43 compares an entry's layer to the
+             * catalog layer, Q44 checks its evidence against a command the event log shows was run
+             * for that incident, and Q45 hands three resolved incidents to an instructor -- 25 of
+             * the 200 points, all of which need the entry correlated to a slot. Free text could not
+             * be correlated at all. The options are the student's own ticket ids, which they can
+             * read off the ticket queue; the id-to-slot mapping stays server-side. */
+            ticketOptions: (state.tickets || []).map(function (t) { return { id: t.id, kind: t.kind }; }),
             entries: (state.incidentLog || []).slice()
         };
     }
@@ -360,7 +373,20 @@
     var LOG_ACTIONS = {
         'submit': function (state, p) {
             if (!p.ticket) { return { ok: false, reason: 'a ticket is required' }; }
-            state.incidentLog = state.incidentLog || [];
+            /* CLOSED LIST, mirroring `layer`. An entry naming a ticket that does not exist cannot
+             * be graded against anything, so it is refused at the form rather than silently scoring
+             * zero later -- the student finds out now, which is the difference between a form and
+             * a trap. */
+            var known = (state.tickets || []).map(function (t) { return t.id; });
+            if (known.indexOf(String(p.ticket).trim()) < 0) {
+                return { ok: false, reason: 'unknown ticket ' + p.ticket + '. Choose one of: ' + known.join(', ') };
+            }
+            /* One entry per ticket (spec Q43: "one entry per resolved ticket", pro-rated across 12).
+             * A resubmission REPLACES, so a student can correct an entry without the grader seeing
+             * two conflicting claims for one incident. */
+            state.incidentLog = (state.incidentLog || []).filter(function (x) {
+                return x.ticket !== String(p.ticket).trim();
+            });
             var rec = {};
             LOG_FIELDS.forEach(function (f) { rec[f] = p[f] === undefined ? '' : String(p[f]).trim(); });
             rec.atEvent = Math.max(0, (state.events || []).length - 1);
