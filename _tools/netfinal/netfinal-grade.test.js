@@ -412,14 +412,18 @@ section('4b. the key is checked against the lab, not against itself');
     }
     {   /* Q24 under each S8 variant: the ACL and sequence a student would cite. */
         const a = build('S8A'), bb = build('S8B');
+        /* Q24's answer is now STRUCTURED -- {name, seq} -- so these read the fields directly instead
+         * of parsing the key's own string with the normalizer. Reading it through NORM.aclRef was
+         * always a weaker test than it looked: it asserted the key agreed with the parser, which is
+         * the thing the parser was supposed to be checked against. */
         chk('Q24 under S8A cites GUEST-IN and the permit that makes the deny dead',
-            QQ.NORM.aclRef(a.key.questions.q24.answer).name === 'guest-in'
-            && QQ.NORM.aclRef(a.key.questions.q24.answer).seq
+            a.key.questions.q24.answer.name === 'GUEST-IN'
+            && a.key.questions.q24.answer.seq
                === a.st.acls['MeridianRTR-01']['GUEST-IN'].lines.filter(l => l.action === 'permit')[0].seq,
-            a.key.questions.q24.answer);
+            JSON.stringify(a.key.questions.q24.answer));
         chk('Q24 under S8B cites SERVERS-OUT and its deny line',
-            QQ.NORM.aclRef(bb.key.questions.q24.answer).name === 'servers-out'
-            && QQ.NORM.aclRef(bb.key.questions.q24.answer).seq
+            bb.key.questions.q24.answer.name === 'SERVERS-OUT'
+            && bb.key.questions.q24.answer.seq
                === bb.st.acls['MeridianRTR-01']['SERVERS-OUT'].lines.filter(l => l.dstPort === 445)[0].seq,
             bb.key.questions.q24.answer);
     }
@@ -837,24 +841,73 @@ section('7c. Q24 half credit, and the spelling regression the last fix introduce
     const st = CORE.generate('q24-credit', EXAM, { secret: 'server-secret' });
     FAULTS.applyAll(st);
     const e = GR.buildAnswerKey(st).questions.q24;
-    const seq = Number((String(e.answer).match(/\d+/) || [0])[0]);
-    const name = QQ.NORM.aclRef(e.answer).name;
-    chk('q24 is a single-value question, not declared with parts',
-        !e.parts || !e.parts.length, JSON.stringify(e.parts));
-    chk('both halves right scores full', GR.gradeTyped(e, e.answer).earned === e.points);
+    const name = e.answer.name, seq = e.answer.seq;
+    const other = name === 'GUEST-IN' ? 'SERVERS-OUT' : 'GUEST-IN';
+
+    /* THE QUESTION TAKES TWO FIELDS NOW. The grading rule is unchanged -- name and sequence are
+     * worth half each, per spec section 8 -- but it compares fields instead of a parsed string, so
+     * these exercise the structured shape the page actually sends. The string path is exercised
+     * below as the fallback it now is. */
+    chk('q24 asks for a structured ACL reference', e.kind === 'aclref', String(e.kind));
+    chk('its key is an object with both halves',
+        !!e.answer && typeof e.answer === 'object' && typeof e.answer.name === 'string'
+        && typeof e.answer.seq === 'number', JSON.stringify(e.answer));
+    /* The closed list is on the STUDENT-FACING question, not on the key entry, so it is checked
+     * there. Written as `Array.isArray(...) || true` for a moment, which can never fail -- an
+     * assertion that cannot fail is worse than no assertion, because it reports coverage it does not
+     * have. */
+    chk('the ACL name is offered as a closed list of the router\u2019s real ACLs', (() => {
+        const sq = QQ.forStudent(st).filter(x => x.n === 24)[0];
+        const offered = (sq && sq.options || []).map(o => o.id).sort();
+        const real = Object.keys(st.acls['MeridianRTR-01']).sort();
+        return offered.length > 0 && JSON.stringify(offered) === JSON.stringify(real);
+    })(), JSON.stringify({
+        offered: (QQ.forStudent(st).filter(x => x.n === 24)[0] || {}).options,
+        real: Object.keys(st.acls['MeridianRTR-01'])
+    }));
+    chk('and the key\u2019s own ACL name is one of the offered options, so it is answerable', (() => {
+        const sq = QQ.forStudent(st).filter(x => x.n === 24)[0];
+        return (sq && sq.options || []).some(o => o.id === e.answer.name);
+    })(), e.answer.name + ' vs ' + JSON.stringify((QQ.forStudent(st).filter(x => x.n === 24)[0] || {}).options));
+
+    chk('both halves right scores full',
+        GR.gradeTyped(e, { name: name, seq: seq }).earned === e.points);
+    chk('a lowercase pick still scores, so the closed list is not case-brittle',
+        GR.gradeTyped(e, { name: name.toLowerCase(), seq: seq }).earned === e.points);
+    chk('a sequence typed as a string scores, because an input field returns text',
+        GR.gradeTyped(e, { name: name, seq: String(seq) }).earned === e.points);
     chk('name right, sequence wrong scores HALF, and says which half',
-        (() => { const r = GR.gradeTyped(e, name + ' ' + (seq + 70));
+        (() => { const r = GR.gradeTyped(e, { name: name, seq: seq + 70 });
                  return r.earned === e.points / 2 && /ACL name right/.test(r.note); })(),
-        JSON.stringify(GR.gradeTyped(e, name + ' ' + (seq + 70))));
+        JSON.stringify(GR.gradeTyped(e, { name: name, seq: seq + 70 })));
     chk('sequence right, name wrong scores HALF, and says which half',
-        (() => { const r = GR.gradeTyped(e, 'wrong-acl ' + seq);
+        (() => { const r = GR.gradeTyped(e, { name: other, seq: seq });
                  return r.earned === e.points / 2 && /ACL name wrong/.test(r.note); })(),
-        JSON.stringify(GR.gradeTyped(e, 'wrong-acl ' + seq)));
+        JSON.stringify(GR.gradeTyped(e, { name: other, seq: seq })));
+    chk('a name chosen with no sequence typed scores HALF, not zero',
+        GR.gradeTyped(e, { name: name, seq: '' }).earned === e.points / 2,
+        JSON.stringify(GR.gradeTyped(e, { name: name, seq: '' })));
     chk('both halves wrong scores zero',
-        GR.gradeTyped(e, 'nope 999').earned === 0, JSON.stringify(GR.gradeTyped(e, 'nope 999')));
+        GR.gradeTyped(e, { name: other, seq: 999 }).earned === 0,
+        JSON.stringify(GR.gradeTyped(e, { name: other, seq: 999 })));
+    chk('nothing chosen at all is unanswered, not incorrect',
+        GR.gradeTyped(e, '').note === 'unanswered');
     chk('and half is actually half of this question, not a fixed number',
-        GR.gradeTyped(e, 'wrong-acl ' + seq).earned === e.points / 2
-        && e.points > 0, e.points + ' points');
+        GR.gradeTyped(e, { name: other, seq: seq }).earned === e.points / 2 && e.points > 0,
+        e.points + ' points');
+
+    /* THE FALLBACK, exercised as a fallback: a typed sentence still grades, for an instructor
+     * reading a transcript or a re-imported CSV. Including the ticket-id case, which used to take
+     * BOTH halves of the answer with it. */
+    chk('a typed string still grades correctly through the normalizer',
+        GR.gradeTyped(e, name + ' ' + seq).earned === e.points,
+        JSON.stringify(GR.gradeTyped(e, name + ' ' + seq)));
+    chk('a typed string citing a ticket id still grades correctly',
+        GR.gradeTyped(e, 'For TKT-104: the problem is ' + name + ' seq ' + seq).earned === e.points,
+        JSON.stringify(GR.gradeTyped(e, 'For TKT-104: ' + name + ' seq ' + seq)));
+    chk('and a typed string naming the wrong ACL still scores only half',
+        GR.gradeTyped(e, other + ' ' + seq).earned === e.points / 2,
+        JSON.stringify(GR.gradeTyped(e, other + ' ' + seq)));
 }
 
 /* ─── 7d. the ACL name is the one the student pointed at ───────────────────────────────────────── */
@@ -890,6 +943,37 @@ section('7d. prose around an ACL reference, in both directions');
 
     chk('a sequence stated before the name still resolves',
         t('seq 10 on GUEST-IN', 'GUEST-IN 10') === true);
+
+    /* A LITERAL NAME BEATS A RECONSTRUCTED ONE. The space-join exists for one case -- "GUEST IN"
+     * written without the hyphen -- so it only runs when the answer contains no hyphenated
+     * identifier at all. Unconditional, it manufactured "lines-in" out of "the 2 lines in
+     * SERVERS-OUT..." and competed with the two real names sitting in the same sentence. Asserted on
+     * the extraction rather than through sameAnswer, because both the manufactured and the merely
+     * mis-paired result are "wrong" and a match test cannot tell them apart -- which is why making
+     * the join last-resort passed every existing assertion. */
+    chk('no name is manufactured while a literal hyphenated one is present',
+        nm('the 2 lines in SERVERS-OUT are fine; GUEST-IN seq 10') !== 'lines-in'
+        && ['servers-out', 'guest-in'].indexOf(nm('the 2 lines in SERVERS-OUT are fine; GUEST-IN seq 10')) >= 0,
+        JSON.stringify(QQ.NORM.aclRef('the 2 lines in SERVERS-OUT are fine; GUEST-IN seq 10')));
+    chk('and the join still fires when there is no literal name to prefer',
+        nm('guest in 10') === 'guest-in' && nm('servers out 5') === 'servers-out',
+        JSON.stringify([QQ.NORM.aclRef('guest in 10'), QQ.NORM.aclRef('servers out 5')]));
+
+    /* TICKET IDS ARE NOT ACL NAMES AND NOT SEQUENCE NUMBERS. This exam prints "(TKT-xxx)" on every
+     * fix prompt and keys change requests by ticket, so citing one is an encouraged habit -- and it
+     * used to take BOTH halves of the answer with it. */
+    chk('a cited ticket id does not become the ACL name or the sequence',
+        nm('For TKT-104: the problem is in GUEST-IN seq 10') === 'guest-in'
+        && (QQ.NORM.aclRef('For TKT-104: the problem is in GUEST-IN seq 10') || {}).seq === 10,
+        JSON.stringify(QQ.NORM.aclRef('For TKT-104: the problem is in GUEST-IN seq 10')));
+    chk('a trailing ticket id is ignored too',
+        nm('GUEST-IN seq 10 (TKT-104)') === 'guest-in'
+        && (QQ.NORM.aclRef('GUEST-IN seq 10 (TKT-104)') || {}).seq === 10,
+        JSON.stringify(QQ.NORM.aclRef('GUEST-IN seq 10 (TKT-104)')));
+    /* And a bare word can no longer be a name at all, which is what let prose supply one. */
+    chk('a bare English word is never an ACL name',
+        nm('fine 10') === null && nm('the issue is at 10') === null && nm('wrong acl 10') === null,
+        JSON.stringify([QQ.NORM.aclRef('fine 10'), QQ.NORM.aclRef('the issue is at 10')]));
     chk('the plain spellings all still work',
         t('guest-in 10', 'GUEST-IN 10') && t('guest in 10', 'GUEST-IN 10')
         && t('GUEST IN 10', 'GUEST-IN 10') && t('ip access-list GUEST IN seq 10', 'GUEST-IN 10'));

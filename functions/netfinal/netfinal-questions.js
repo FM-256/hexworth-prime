@@ -152,64 +152,84 @@
      * rather than requiring the server's exact string, and this one now does too. */
     var ACL_DIRECTION = { 'in': 1, 'out': 1, 'inbound': 1, 'outbound': 1 };
 
+    /* THIS IS NOW A FALLBACK, NOT THE GRADED PATH. Q24 asks for the ACL name from a closed list and
+     * the sequence number in its own field, so a graded answer arrives as {name, seq} and is never
+     * parsed out of prose. The normalizer stays for a typed string -- an older client, an instructor
+     * reviewing a transcript, a CSV import -- and it is kept honest rather than left knowingly broken.
+     *
+     * THREE ROUNDS OF HEURISTICS EACH FOUND THE NEXT FAILURE INSTEAD OF CONVERGING. Uppercase-only
+     * matching, then a space-join that manufactured "lives-in" out of ordinary prose, then
+     * proximity-to-the-sequence-number which let a bare English word become the ACL name ("fine",
+     * "not", "with"). The review's verdict, which I agree with: this input shape cannot be reliably
+     * parsed, and a fourth heuristic is the same bet at worse odds. Hence the structured input. What
+     * remains here is the most defensible version of the fallback, with the two further defects the
+     * review found on its last pass fixed:
+     *
+     *   - THE ANCHOR WAS THE MATCH START, NOT THE DIGIT. `seqMatch.index` includes the literal word
+     *     "seq", so "GUEST-IN seq 10" anchored several characters left of the number itself and
+     *     shifted the ranking whenever a student wrote "seq" at all.
+     *   - TICKET IDS COLLIDED WITH THE SEQUENCE REGEX. This exam prints "(TKT-xxx)" on every fix
+     *     prompt and keys change requests by ticket, so citing your own ticket is an encouraged
+     *     habit -- and `NORM.aclRef('For TKT-104: the problem is in GUEST-IN seq 10')` returned
+     *     name 'tkt-104', seq 104. Both halves wrong, on a single-ACL answer with no ambiguity in it.
+     *
+     * Candidates are also STRUCTURAL now: an ACL name in this lab is a hyphenated identifier, so a
+     * bare word is never one. That is what stopped prose supplying a name at all. */
+    var TICKET_RE = /\bTKT-\d{1,5}\b/gi;
+
     NORM.aclRef = function (v) {
-        var s = String(v || '').trim();
-        var seqMatch = s.match(/\b(?:seq(?:uence)?\s*)?(\d{1,5})\b/);
-        var seq = seqMatch ? Number(seqMatch[1]) : null;
-        /* With no sequence number the answer is incomplete anyway, but the position still has to be
-         * defined for the ranking below; end-of-string makes the LAST candidate win, which is where
-         * a student states their conclusion in prose. */
-        var seqAt = seqMatch ? seqMatch.index : s.length;
+        /* Ticket references are blanked before anything else looks at the string, so neither the name
+         * nor the number can come from one. Replaced with spaces, not removed, so every remaining
+         * index still lines up. */
+        var s = String(v || '').trim().replace(TICKET_RE, function (m) {
+            return new Array(m.length + 1).join(' ');
+        });
 
-        var toks = [], re = /[A-Za-z][A-Za-z0-9_-]*/g, m;
-        while ((m = re.exec(s)) !== null) { toks.push({ text: m[0], at: m.index }); }
+        var toks = [], tre = /[A-Za-z][A-Za-z0-9_-]*/g, tm;
+        while ((tm = tre.exec(s)) !== null) { toks.push({ text: tm[0], at: tm.index }); }
 
+        /* A LITERAL NAME BEATS A RECONSTRUCTED ONE. The space-join exists for exactly one case -- a
+         * student writing "GUEST IN" instead of "GUEST-IN" -- so it only runs when the answer
+         * contains no hyphenated identifier at all. With it unconditional, "the 2 lines in
+         * SERVERS-OUT are fine; GUEST-IN seq 10" manufactured "lines-in" and competed with the two
+         * real names sitting right there in the text. */
         var cands = [];
-        toks.forEach(function (t, i) {
-            var low = t.text.toLowerCase();
-            var usable = !ACL_NOISE[low] && t.text.length >= 3;
-            if (usable) {
-                cands.push({ name: t.text, at: t.at, hyphenated: /[-_]/.test(t.text) });
-            }
-            /* "GUEST IN" -> "GUEST-IN": one name written with a space. Built from ADJACENT tokens
-             * only, so a stray direction word elsewhere in the sentence joins nothing. */
-            var next = toks[i + 1];
-            if (usable && next && ACL_DIRECTION[next.text.toLowerCase()] && !/[-_]/.test(t.text)) {
-                cands.push({ name: t.text + '-' + next.text, at: t.at, hyphenated: true });
+        toks.forEach(function (t) {
+            if (/[-_]/.test(t.text) && !ACL_NOISE[t.text.toLowerCase()]) {
+                cands.push({ name: t.text, at: t.at });
             }
         });
-        if (!cands.length) { return { name: null, seq: seq }; }
+        if (!cands.length) {
+            toks.forEach(function (t, i) {
+                var low = t.text.toLowerCase();
+                var next = toks[i + 1];
+                if (next && ACL_DIRECTION[next.text.toLowerCase()]
+                    && !ACL_NOISE[low] && t.text.length >= 3) {
+                    cands.push({ name: t.text + '-' + next.text, at: t.at });
+                }
+            });
+        }
 
-        /* ── THE NAME THAT BELONGS WITH THE SEQUENCE NUMBER IS THE ONE NEAREST IT ─────────────────
-         *
-         * Ranking used to be "joined first, then any hyphenated token, then any word", which put a
-         * MANUFACTURED candidate ahead of the real name wherever prose happened to put an ordinary
-         * word before "in" or "out":
-         *
-         *   "the issue lives in guest-in, seq 10"  ->  name "lives-in"   (guest-in was right there)
-         *   "the deny line sits in GUEST-IN seq 10" ->  name "sits-in"
-         *
-         * And the older "first hyphenated token wins" rule mis-read an answer that dismissed the
-         * healthy ACL by name before naming the culprit -- in either direction:
-         *
-         *   "SERVERS-OUT is fine, the problem is GUEST-IN seq 10"  ->  name "servers-out"
-         *   "GUEST-IN is fine, the problem is SERVERS-OUT seq 20"  ->  name "guest-in"
-         *
-         * Both are correct answers scored wrong, and both came from ranking candidates by how they
-         * were BUILT rather than by what the student was pointing at. Proximity is what the student
-         * actually signals: they write the name and its sequence number together. It handles the
-         * dismissal case in both directions without knowing which ACL is healthy, which the
-         * normalizer cannot know -- it sees one answer, never the key.
-         *
-         * Ties (a bare head and the pair it joins into share a position) prefer the hyphenated form,
-         * then the longer one, so "guest in 10" resolves to GUEST-IN and not to "guest". */
-        cands.sort(function (a, b) {
-            var da = Math.abs(a.at - seqAt), db = Math.abs(b.at - seqAt);
-            if (da !== db) { return da - db; }
-            if (a.hyphenated !== b.hyphenated) { return a.hyphenated ? -1 : 1; }
-            return b.name.length - a.name.length;
+        /* Every number, at the position of the DIGITS. */
+        var nums = [], nre = /\d{1,5}/g, nm;
+        while ((nm = nre.exec(s)) !== null) { nums.push({ val: Number(nm[0]), at: nm.index }); }
+
+        if (!cands.length) { return { name: null, seq: nums.length ? nums[0].val : null }; }
+        if (!nums.length) { return { name: cands[0].name.toLowerCase(), seq: null }; }
+
+        /* PAIR the name with ITS number rather than choosing each independently: taking the first
+         * number in the string and then ranking names by distance to THAT number read
+         * "SERVERS-OUT 20 is fine ... GUEST-IN seq 10" as seq 20, and then picked a name near 20. */
+        var best = null;
+        cands.forEach(function (c) {
+            nums.forEach(function (n) {
+                var d = Math.abs(n.at - c.at);
+                if (!best || d < best.d || (d === best.d && c.at < best.c.at)) {
+                    best = { c: c, n: n, d: d };
+                }
+            });
         });
-        return { name: cands[0].name.toLowerCase(), seq: seq };
+        return { name: best.c.name.toLowerCase(), seq: best.n.val };
     };
 
     NORM.integer = function (v) {
@@ -593,20 +613,53 @@
             return { forward: String(f ? f.toIp : ''), actual: String(st.devices['MER-WEB01'].mgmtIp) };
         } });
 
-    def({ n: 24, phase: 'analysis', points: 4, tag: 'reasoning', slot: 'S8', kind: 'text', norm: 'aclRef',
-        prompt: function () { return 'Give the ACL name and sequence number of the line that causes the problem.'; },
+    /* ═══ Q24 TAKES A STRUCTURED ANSWER, NOT A SENTENCE ══════════════════════════════════════════
+     *
+     * The ACL NAME is picked from the router's own ACLs; the SEQUENCE NUMBER is typed.
+     *
+     * This was one free-text field, and grading it meant parsing an ACL reference out of whatever the
+     * student wrote. Three rounds of heuristics each found the next failure rather than converging:
+     * uppercase-only matching refused a lowercase name; a space-join manufactured "lives-in" from
+     * ordinary prose; proximity-to-the-number let bare English words ("fine", "not", "with") become
+     * ACL names; and a ticket id -- which this exam prints on every fix prompt and encourages
+     * students to cite -- hijacked both halves at once. The pattern was the evidence: this input
+     * shape cannot be parsed reliably, so the input changed.
+     *
+     * It is the SAME reasoning already applied to the incident log's `layer` field: a free-text field
+     * feeding an exact comparison is a trap, not an input. Nothing the question tests is lost. The
+     * skill is finding WHICH ACL and WHICH line, and that diagnosis is identical whether the name is
+     * typed or chosen from the two that exist on the router. Only the transcription step, which was
+     * never the point, stops being able to fail.
+     *
+     * THE SEQUENCE STAYS TYPED on purpose. Closing it too would hand over the harder half: the
+     * student must still read `show access-lists` and identify the offending line. Closing the name
+     * removes a spelling trap; closing the number would remove the question.
+     *
+     * Named `kind: 'aclref'` so the page renders the pair and the grader compares fields instead of
+     * strings. `norm: 'aclRef'` is kept as the comparison for a typed string -- an instructor
+     * reviewing a transcript, a CSV import, an older client -- never as the graded path. */
+    def({ n: 24, phase: 'analysis', points: 4, tag: 'reasoning', slot: 'S8', kind: 'aclref', norm: 'aclRef',
+        prompt: function () {
+            return 'Which ACL, and which sequence number, is the line that causes the problem?';
+        },
         where: 'MeridianRTR-01: show access-lists',
+        /* The real ACLs on the router, so the list cannot drift from the lab. */
+        options: function (st) {
+            return Object.keys((st.acls && st.acls['MeridianRTR-01']) || {}).sort().map(function (n) {
+                return { id: n, text: n };
+            });
+        },
         answer: function (st) {
             var v = variantOf(st, 'S8');
             if (v === 'B') {
                 var acl = st.acls['MeridianRTR-01']['SERVERS-OUT'];
                 var line = acl.lines.filter(function (l) { return l.action === 'deny' && l.dstPort === 445; })[0];
-                return 'SERVERS-OUT ' + (line ? line.seq : '');
+                return { name: 'SERVERS-OUT', seq: line ? line.seq : null };
             }
             /* S8A: the offending line is the PERMIT that sits above the deny and makes it dead. */
             var g = st.acls['MeridianRTR-01']['GUEST-IN'];
             var permit = g.lines.filter(function (l) { return l.action === 'permit'; })[0];
-            return 'GUEST-IN ' + (permit ? permit.seq : '');
+            return { name: 'GUEST-IN', seq: permit ? permit.seq : null };
         } });
 
     def({ n: 25, phase: 'analysis', points: 4, tag: 'reasoning', slot: 'S9',

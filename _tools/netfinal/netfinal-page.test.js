@@ -151,6 +151,58 @@ section('3. the page can render every control the engine declares');
         !/return refreshWindow\(\);\s*\}\)\.catch\(fatal\);/.test(page));
 }
 
+/* ─── 3b. the question panel can render every KIND the bank uses ────────────────────────────────── */
+section('3b. every question kind has a control, and the two-field one posts both halves');
+{
+    const QQ = require(path.join(NF, 'netfinal-questions.js'));
+    const lab2 = CORE.generate('page-kinds', EXAMS.DEFAULT_EXAM_ID, { secret: 's' });
+    FAULTS.applyAll(lab2);
+
+    /* THE LEDGER. The panel's renderer is an if/else chain ending in a plain text input, so a kind it
+     * does not know renders as a text box with no complaint -- which is how a question that needs a
+     * closed list or two fields would silently become free text again. Derived from the bank, so
+     * adding a kind fails this until the page learns it. */
+    const kinds = QQ.forStudent(lab2).map(q => q.kind).filter((v, i, a) => a.indexOf(v) === i).sort();
+    const handled = {
+        aclref: /q\.kind === 'aclref'/.test(page),
+        select: /q\.kind === 'select'/.test(page),
+        state: /q\.kind === 'state'/.test(page),
+        sequence: /q\.kind === 'sequence'/.test(page),
+        /* text and multi legitimately fall through to the plain input, which is the right control. */
+        text: /<input type="text" data-q=/.test(page),
+        multi: /<input type="text" data-q=/.test(page)
+    };
+    const unhandled = kinds.filter(k => !handled[k]);
+    chk('every question kind in the bank has a control on the page (' + kinds.join(', ') + ')',
+        unhandled.length === 0, 'no control for: ' + unhandled.join(', '));
+    chk('the kind list is non-empty and includes the structured one, so this could fail',
+        kinds.length >= 3 && kinds.indexOf('aclref') >= 0, JSON.stringify(kinds));
+
+    /* The two-field control specifically. */
+    chk('the ACL reference renders a closed list for the name and a typed field for the sequence',
+        /data-part="name"/.test(page) && /data-part="seq"/.test(page)
+        && /<select data-q="' \+ esc\(q\.id\) \+ '" data-part="name"/.test(page));
+    chk('the sequence half is NOT a closed list, so the harder half is still answered by the student',
+        !/data-part="seq"[\s\S]{0,80}<option/.test(page));
+    chk('both halves carry the same data-q, which is how the pair is collected',
+        (page.match(/data-q="' \+ esc\(q\.id\) \+ '" data-part=/g) || []).length === 2);
+    /* A change to EITHER half must post BOTH, or picking the ACL would wipe a typed sequence. */
+    chk('a change to either half posts the whole pair, not just the field touched',
+        /querySelectorAll\('\[data-q="' \+ t\.dataset\.q \+ '"\]\[data-part\]'\)/.test(page)
+        && /saveAnswer\(t\.dataset\.q, parts\)/.test(page));
+    chk('and a single-control question still posts its own value',
+        /saveAnswer\(t\.dataset\.q, t\.value\)/.test(page));
+
+    /* The offered names must be the lab's real ACLs, which is the whole point of closing the list. */
+    const q24 = QQ.forStudent(lab2).filter(q => q.n === 24)[0];
+    chk('the offered ACL names are the router’s real ACLs',
+        !!q24 && JSON.stringify((q24.options || []).map(o => o.id).sort())
+            === JSON.stringify(Object.keys(lab2.acls['MeridianRTR-01']).sort()),
+        JSON.stringify({ offered: (q24 || {}).options, real: Object.keys(lab2.acls['MeridianRTR-01']) }));
+    chk('and the question still discloses no answer',
+        !!q24 && !('answer' in q24) && !('slot' in q24), JSON.stringify(Object.keys(q24 || {})));
+}
+
 /* ─── 4. every class the script uses is defined in the stylesheet ───────────────────────────────── */
 section('4. no class is referenced but unstyled');
 {

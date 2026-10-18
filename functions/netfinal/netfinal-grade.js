@@ -176,10 +176,52 @@
 
     /* ═══ GRADING ONE TYPED ANSWER ════════════════════════════════════════════════════════════════ */
     /* Spec section 8: "Two-part question, one part correct: half." */
+    /* ═══ AN ACL REFERENCE, COMPARED AS TWO FIELDS ═══════════════════════════════════════════════
+     * Q24's answer is {name, seq}: the name chosen from the router's own ACLs, the sequence typed.
+     * Compared field by field, so nothing is parsed out of a sentence on the graded path.
+     *
+     * A STRING IS STILL ACCEPTED, through the normalizer, because the graded path is not the only
+     * path: an instructor may review a transcript, a CSV may be re-imported, an older client may
+     * post a sentence. That fallback is honest about being a fallback -- it handles every realistic
+     * spelling and both of the ticket-id cases, and it still mis-pairs an answer that names BOTH
+     * ACLs with BOTH their sequence numbers. Which is precisely why the graded input is structured.
+     *
+     * Half credit for one field right, per spec section 8's "two-part question, one part correct:
+     * half" -- the same rule Q24 had before, now applied to fields instead of to a parsed string. */
+    function gradeAclRef(entry, given) {
+        var want = entry.answer || {};
+        var mine;
+        if (given && typeof given === 'object' && !Array.isArray(given)) {
+            mine = { name: given.name, seq: given.seq };
+        } else {
+            var parsed = NORM.aclRef(given);
+            mine = parsed ? { name: parsed.name, seq: parsed.seq } : { name: null, seq: null };
+        }
+        var norm = function (x) {
+            return (x === null || x === undefined || x === '') ? null : String(x).trim().toLowerCase();
+        };
+        var num = function (x) {
+            if (x === null || x === undefined || x === '') { return null; }
+            var n = Number(String(x).replace(/[^0-9-]/g, ''));
+            return isFinite(n) ? n : null;
+        };
+        var nameOk = norm(want.name) !== null && norm(mine.name) === norm(want.name);
+        var seqOk = num(want.seq) !== null && num(mine.seq) === num(want.seq);
+
+        if (nameOk && seqOk) { return { earned: entry.points, of: entry.points, note: 'correct' }; }
+        if (nameOk !== seqOk) {
+            return { earned: Math.round(entry.points / 2 * 100) / 100, of: entry.points,
+                     note: '1 of 2 parts: ' + (nameOk ? 'ACL name right, sequence wrong'
+                                                      : 'sequence right, ACL name wrong') };
+        }
+        return { earned: 0, of: entry.points, note: 'incorrect' };
+    }
+
     function gradeTyped(entry, given) {
         if (given === undefined || given === null || given === '') {
             return { earned: 0, of: entry.points, note: 'unanswered' };
         }
+        if (entry.kind === 'aclref') { return gradeAclRef(entry, given); }
         if (entry.parts && entry.parts.length) {
             var got = 0;
             var detail = {};
@@ -481,6 +523,7 @@
 
     module.exports = {
         layerMatches: layerMatches,
+        gradeAclRef: gradeAclRef,
         ifaceAnswers: ifaceAnswers, buildAnswerKey: buildAnswerKey, grade: grade, toCsv: toCsv,
                        gradeTyped: gradeTyped, gradeFix: gradeFix, gradeSequence: gradeSequence };
 })();

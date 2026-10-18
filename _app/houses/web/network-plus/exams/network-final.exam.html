@@ -73,6 +73,10 @@
   .q p { font-size: 0.82rem; margin: 4px 0 7px; }
   .q input[type=text], .q select { width: 100%; background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 0.8rem; }
   .q .where { color: var(--muted); font-size: 0.72rem; font-style: italic; }
+  /* The two halves of an ACL reference: side by side where there is room, stacked when there is not. */
+  .q .pair { display: flex; gap: 8px; flex-wrap: wrap; }
+  .q .pair select { flex: 1 1 11em; }
+  .q .pair input[type=text] { flex: 1 1 9em; }
   .notice { padding: 10px 12px; font-size: 0.8rem; color: var(--muted); }
   .bad { color: var(--bad); }
   .good { color: var(--ok); }
@@ -227,7 +231,25 @@
     el('questions').innerHTML = questions.map(function (q) {
       if (q.answeredLocal) { answered++; }
       var body;
-      if (q.kind === 'select' && q.options && !Array.isArray(q.options.layer)) {
+      if (q.kind === 'aclref') {
+        /* TWO FIELDS, NOT A SENTENCE. The ACL name is picked from the router's own ACLs; the
+           sequence number is typed. Grading this as free text meant parsing an ACL reference out of
+           whatever the student wrote, and three rounds of heuristics each found the next failure
+           instead of converging -- bare English words became ACL names, and a ticket id, which this
+           exam prints on every fix prompt and encourages students to cite, hijacked both halves at
+           once. The sequence stays typed on purpose: closing it too would hand over the harder half
+           of the question, which is reading the ACL and identifying the offending line. */
+        body = '<div class="pair">'
+          + '<select data-q="' + esc(q.id) + '" data-part="name" aria-label="ACL name">'
+          + '<option value="">&mdash; ACL &mdash;</option>'
+          + (q.options || []).map(function (o) {
+              return '<option value="' + esc(o.id) + '">' + esc(o.text) + '</option>';
+            }).join('')
+          + '</select>'
+          + '<input type="text" data-q="' + esc(q.id) + '" data-part="seq" inputmode="numeric"'
+          + ' placeholder="sequence number" aria-label="sequence number">'
+          + '</div>';
+      } else if (q.kind === 'select' && q.options && !Array.isArray(q.options.layer)) {
         body = '<select data-q="' + esc(q.id) + '"><option value="">— choose —</option>'
           + (q.options || []).map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.text) + '</option>'; }).join('')
           + '</select>';
@@ -493,7 +515,19 @@
 
   el('questions').addEventListener('change', function (ev) {
     var t = ev.target;
-    if (t && t.dataset && t.dataset.q) { saveAnswer(t.dataset.q, t.value); }
+    if (!t || !t.dataset || !t.dataset.q) { return; }
+    /* A MULTI-FIELD QUESTION SENDS ONE OBJECT. Both controls carry the same data-q, so whichever one
+       changes posts the pair -- otherwise choosing the ACL would overwrite the sequence already
+       typed, and the last field touched would be the only one that counted. */
+    if (t.dataset.part) {
+      var parts = {};
+      Array.prototype.forEach.call(
+        el('questions').querySelectorAll('[data-q="' + t.dataset.q + '"][data-part]'),
+        function (ctl) { parts[ctl.dataset.part] = ctl.value; });
+      saveAnswer(t.dataset.q, parts);
+      return;
+    }
+    saveAnswer(t.dataset.q, t.value);
   });
 
   el('submit').addEventListener('click', function () {
