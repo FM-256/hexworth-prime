@@ -46,6 +46,110 @@ function labWith(id, seed) {
     return st;
 }
 
+/* ─── THE DISPATCH GUARD, TESTED AT ITS OWN LEVEL ──────────────────────────────────────────────── */
+section('a client string cannot reach a prototype, tested on act/render directly');
+{
+    /* WHY HERE AND NOT ONLY IN THE EXAM SUITE. The exam suite sweeps 140 prototype-key calls through
+     * runAction and finds nothing -- and it found nothing WITH THE FIX REVERTED TOO, because the
+     * belt-and-braces disclosure scanner I added to runAction catches the leak and throws, so the
+     * sweep records a refusal instead of a disclosure. That sweep tests the NET. It cannot tell a
+     * root fix from a contained failure, which is the whole question when the root fix is the one
+     * that stops arbitrary client JSON being merged into stored state -- the scanner only inspects
+     * what goes OUT, so containment never undid the write.
+     *
+     * So these call GUI.act and GUI.render directly, below the net, where the only thing standing
+     * between a prototype key and `Object.assign(state, params)` is `own()`. Mutating `own(...)` back
+     * to a bare bracket lookup must fail HERE. */
+    const lab = CORE.generate('proto-direct', EXAM, { secret: 's' });
+    FAULTS.applyAll(lab);
+    FAULTS.assignTickets(lab, CORE.makeRng('proto-t'));
+
+    const PROTO = ['constructor', '__proto__', 'prototype', 'toString', 'valueOf', 'hasOwnProperty',
+        'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString'];
+    const stateShaped = (v) => {
+        const j = JSON.stringify(v === undefined ? null : v);
+        return /"faults"|"baseline"|"seedStr"|"deviceConfigs"|"violatedAtStart"/.test(j);
+    };
+
+    chk('own() is exported, so the guard is a named thing and not a habit',
+        typeof GUI.own === 'function');
+    chk('own() returns a value only for an OWN key', (() => {
+        const o = { real: 1 };
+        return GUI.own(o, 'real') === 1
+            && GUI.own(o, 'constructor') === undefined
+            && GUI.own(o, '__proto__') === undefined
+            && GUI.own(o, 'hasOwnProperty') === undefined
+            && GUI.own(null, 'x') === undefined
+            && GUI.own(o, {}) === undefined;
+    })());
+
+    /* RENDER. A prototype key must be refused, not answered by Object(). */
+    /* EVERY PROBE IS WRAPPED. With the guard reverted, a prototype key makes `fn` something that is
+     * not a function and the call THROWS -- which is detection, but it killed the suite in an
+     * unrelated earlier section before these assertions ran, and my mutation accounting counted FAIL
+     * lines rather than exit codes, so I recorded "not caught" twice for a defect that was caught
+     * both times. A throw is now recorded as a leak here, and this section runs FIRST so it reports
+     * before anything else can die. */
+    const renderLeaks = PROTO.filter(k => {
+        try {
+            const v = GUI.render(lab, k);
+            return stateShaped(v) || !v.error;
+        } catch (e) { return true; }
+    });
+    chk('render refuses every prototype key instead of returning the state',
+        renderLeaks.length === 0, 'answered: ' + renderLeaks.join(', '));
+
+    /* ACT, in both positions and both at once -- `window:'firewall', action:'constructor'` was
+     * independently enough, so a window allowlist alone would not have closed it. */
+    const actLeaks = [];
+    PROTO.forEach(k => {
+        [[k, 'assign', { pwned: 'x' }], ['firewall', k, {}], [k, k, { pwned: 'x' }]].forEach(([w, a, p]) => {
+            try {
+                const res = GUI.act(lab, w, a, p);
+                if (stateShaped(res) || res.ok === true) { actLeaks.push(w + '/' + a); }
+            } catch (e) { actLeaks.push(w + '/' + a + ' (threw ' + e.message.slice(0, 30) + ')'); }
+        });
+    });
+    chk('act refuses every prototype key in either position',
+        actLeaks.length === 0, 'accepted: ' + actLeaks.slice(0, 4).join(', '));
+    /* THE WRITE is the part containment could never have undone. */
+    chk('and nothing was merged into the lab state',
+        !Object.prototype.hasOwnProperty.call(lab, 'pwned'), JSON.stringify(lab.pwned));
+
+    /* The two client keys that index state inside a handler, which reached the real Object.assign
+     * and set properties on the shared builtin. */
+    const before = Object.keys(Object.assign).length;
+    PROTO.forEach(k => {
+        try { GUI.act(lab, 'rack', 'replace-cable', { device: k, port: 'assign' }); } catch (e) { /* recorded above */ }
+        try { GUI.act(lab, 'rack', 'reseat-cable', { device: k, port: k }); } catch (e) { /* recorded above */ }
+        try { GUI.act(lab, 'wireless', 'ap-set-channel', { ap: k, channel: 6 }); } catch (e) { /* recorded above */ }
+    });
+    chk('no global builtin gained a property from a handler lookup',
+        Object.keys(Object.assign).length === before
+        && Object.assign.errorRate === undefined && Object.assign.up === undefined,
+        JSON.stringify(Object.keys(Object.assign)));
+
+    /* THE CONTROL: the legitimate surface still works, so none of the above passes vacuously. */
+    chk('every real window still renders and every real action still dispatches', (() => {
+        const okRender = GUI.WINDOWS.every(w => !GUI.render(lab, w).error);
+        const probe = GUI.act(lab, 'noc', 'ack-alert', { id: 'noc-d1' });
+        return okRender && probe.ok === true;
+    })());
+
+    /* The index maps user input is looked up in are prototype-less at the SOURCE, which is what
+     * covers the ~20 call sites in core and shell rather than a guard at each one. */
+    const idx = CORE.buildIndex(lab);
+    chk('buildIndex returns prototype-less maps, so every consumer is covered',
+        Object.getPrototypeOf(idx.byName) === null && Object.getPrototypeOf(idx.byIp) === null,
+        JSON.stringify([typeof Object.getPrototypeOf(idx.byName), typeof Object.getPrototypeOf(idx.byIp)]));
+    chk('and a prototype name resolves to nothing there',
+        idx.byName['constructor'] === undefined && idx.byIp['__proto__'] === undefined
+        && idx.byName['TOSTRING'] === undefined);
+    chk('while a real device still resolves, so the maps are not simply empty',
+        !!idx.byName['MERIDIANSW-01'] && Object.keys(idx.byName).length > 5,
+        String(Object.keys(idx.byName).length) + ' names indexed');
+}
+
 /* ─── 1. the windows exist and render ─────────────────────────────────────────────────────────── */
 section('1. all seven windows render against a real lab');
 {

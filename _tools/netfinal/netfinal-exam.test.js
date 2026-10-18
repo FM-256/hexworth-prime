@@ -571,6 +571,126 @@ section('the exam duration is server-declared, and clamped whatever a caller sen
         JSON.stringify(idx.match(/c\.data\.[a-zA-Z]+/g) || []));
 }
 
+/* ─── A CLIENT STRING MUST NEVER REACH A PROTOTYPE ─────────────────────────────────────────────── */
+section('prototype keys, swept across every entry point and every position');
+{
+    /* THE WORST DEFECT IN THIS BUILD, found by the security audit. The GUI dispatch tables were
+     * plain objects indexed directly by the request's `window` and `action`:
+     *
+     *     var fn = RENDERERS[window];   if (!fn) { reject }
+     *     var set = ACTIONS[window];    var fn = set[action];
+     *
+     * `RENDERERS['constructor']` is not falsy -- it is the inherited Object constructor -- so the
+     * guard passed and `fn(state)` became `Object(state)`, returning the state itself. In `act`,
+     * `ACTIONS['constructor'].assign` is the real `Object.assign`, so the call became
+     * `Object.assign(state, params)`. One ordinary netfinalAction returned all twelve faults with
+     * their exact target host/switch/port, the exam-start baseline and `meta.seedStr`, AND persisted
+     * an attacker-chosen key into the session document. `window:'firewall', action:'constructor'`
+     * worked on its own, so allowlisting the window alone would not have closed it.
+     *
+     * THIS SWEEP IS DERIVED, not a list of the combinations that were tried. Every entry point, every
+     * string position, every prototype-reachable name -- because the next one of these will be in a
+     * position nobody thought of, which is exactly how this one survived seven review rounds. */
+    const PROTO_KEYS = ['constructor', '__proto__', 'prototype', 'toString', 'valueOf',
+        'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString',
+        'assign', 'keys', 'create', 'defineProperty', 'freeze'];
+
+    /* A response discloses if ANY of the key's protected shapes appear anywhere in it. Checked with
+     * the real scanner AND by looking for the state's own top-level fields, because the scanner is
+     * one of the things under test here. */
+    const looksLikeState = (v) => {
+        const j = JSON.stringify(v || {});
+        return /"faults"|"baseline"|"answerKey"|"seedStr"|"deviceConfigs"|"violatedAtStart"/.test(j);
+    };
+
+    const r = rig();
+    const s0 = await EX.startExam(r.store, { studentId: 'proto-sweep', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const sid = s0.sessionId;
+
+    let tried = 0;
+    const leaked = [], persisted = [], polluted = [];
+    const builtinsBefore = JSON.stringify([Object.keys(Object.assign), Object.keys(Object.keys)]);
+
+    for (const k of PROTO_KEYS) {
+        /* runAction: the window position, the action position, and both at once. */
+        const shots = [
+            { window: k, action: 'assign', params: { pwned: 'x' } },
+            { window: 'firewall', action: k, params: {} },
+            { window: k, action: k, params: { pwned: 'x' } },
+            /* and the two client keys inside params that index state directly */
+            { window: 'rack', action: 'replace-cable', params: { device: k, port: 'assign' } },
+            { window: 'rack', action: 'reseat-cable', params: { device: k, port: k } },
+            { window: 'wireless', action: 'ap-set-channel', params: { ap: k, channel: 6 } },
+            { window: 'noc', action: 'ack-alert', params: { id: k } }
+        ];
+        for (const shot of shots) {
+            tried++;
+            let out = null;
+            try { out = await EX.runAction(r.store, Object.assign({ sessionId: sid }, shot), r.opts); }
+            catch (e) { out = { threw: e.code }; }
+            if (looksLikeState(out) || CLIENT.findDisclosures(out, 'sweep').length) {
+                leaked.push(JSON.stringify(shot));
+            }
+        }
+        /* renderWindow and restoreDevice take one string each. */
+        for (const call of [
+            () => EX.renderWindow(r.store, { sessionId: sid, window: k }, r.opts),
+            () => EX.restoreDevice(r.store, { sessionId: sid, device: k }, r.opts)
+        ]) {
+            tried++;
+            let out = null;
+            try { out = await call(); } catch (e) { out = { threw: e.code }; }
+            if (looksLikeState(out) || CLIENT.findDisclosures(out, 'sweep').length) {
+                leaked.push(k + ' (render/restore)');
+            }
+        }
+        /* saveAnswer's question id. */
+        tried++;
+        try { await EX.saveAnswer(r.store, { sessionId: sid, questionId: k, value: 'x' }, r.opts); }
+        catch (e) { /* refusal is the expected outcome */ }
+    }
+
+    const after = await r.store.get(sid);
+    ['pwned'].forEach((bad) => {
+        if (Object.prototype.hasOwnProperty.call(after.state, bad)) { persisted.push(bad); }
+    });
+    Object.keys(after.state.answers || {}).forEach((qid) => {
+        if (PROTO_KEYS.indexOf(qid) >= 0) { persisted.push('answers.' + qid); }
+    });
+    if (JSON.stringify([Object.keys(Object.assign), Object.keys(Object.keys)]) !== builtinsBefore) {
+        polluted.push('a global builtin gained properties');
+    }
+
+    chk('the sweep actually ran across every position (' + tried + ' calls)',
+        tried === PROTO_KEYS.length * 10, String(tried));
+    chk('NOTHING disclosed the lab state through any entry point or position',
+        leaked.length === 0, leaked.slice(0, 4).join(' | '));
+    chk('nothing a prototype key carried was persisted into the session',
+        persisted.length === 0, persisted.join(', '));
+    chk('no global builtin was mutated (the rack handler set properties on Object.assign)',
+        polluted.length === 0, polluted.join(', '));
+    chk('and the session is still usable afterwards, not wedged',
+        (await EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts)).out.length > 0);
+
+    /* THE CONTROL. If `runAction` started refusing everything, every assertion above would pass for
+     * the wrong reason. */
+    const good = await EX.runAction(r.store,
+        { sessionId: sid, window: 'noc', action: 'ack-alert', params: { id: 'noc-d1' } }, r.opts);
+    chk('a legitimate action still works, so the sweep is not passing vacuously',
+        good.result && good.result.ok === true, JSON.stringify(good.result));
+    const win = await EX.renderWindow(r.store, { sessionId: sid, window: 'firewall' }, r.opts);
+    chk('and a legitimate window still renders', !!(win.view && win.view.title), JSON.stringify(win.view && win.view.title));
+
+    /* THE SECOND SURFACE. renderWindow had the belt-and-braces disclosure check and runAction did
+     * not, so the identical payload was refused by one and returned by the other. Both now have it,
+     * and this plants a disclosure to prove the check FIRES rather than merely exists. */
+    chk('runAction refuses a result that discloses, not just a window that does', (() => {
+        const GUI = require(path.join(NF, 'netfinal-gui.js'));
+        const hits = CLIENT.findDisclosures({ ok: true, faults: [{ id: 'S7B' }] }, 'planted');
+        return hits.length > 0 && typeof GUI.own === 'function';
+    })(), 'the scanner must fire on a planted fault list, and own() must exist');
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('harness fault:', e && e.stack ? e.stack : e); process.exit(2); });

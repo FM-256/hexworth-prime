@@ -974,7 +974,14 @@
     var PUBLIC_SITE = '93.184.216.34';
 
     function buildIndex(state) {
-        var byName = {}, byIp = {};
+        /* PROTOTYPE-LESS ON PURPOSE. These two maps are looked up with user-supplied strings in about
+         * twenty places -- `ssh <name>`, `ping <addr>`, `nodeOf`, every hop in `reach()` -- and a
+         * plain object answers `constructor`, `__proto__`, `toString` and `valueOf` from its
+         * prototype chain. Fixing it here fixes every consumer at once, which is the right level:
+         * the alternative was an own-property guard at each call site, and the one that got missed
+         * would be the one someone found. The dispatch tables in netfinal-gui.js had exactly that
+         * defect and it cost the whole answer key. */
+        var byName = Object.create(null), byIp = Object.create(null);
         var reg = function (node) {
             byName[node.name.toUpperCase()] = node;
             (node.addresses || []).forEach(function (a) {

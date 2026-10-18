@@ -267,6 +267,18 @@
     async function runAction(store, args, opts) {
         return withSession(store, args.sessionId, opts, function (session) {
             var res = GUI.act(session.state, String(args.window || ''), String(args.action || ''), args.params || {});
+            /* THE SAME CHECK renderWindow HAS, because there are two surfaces that can emit
+             * arbitrary engine output and the scanner was wired to one of them. A prototype-chain
+             * dispatch confusion made `act` return the whole state -- every fault with its target,
+             * the baseline, the seed -- and renderWindow REFUSED the identical payload while this
+             * returned it, because nothing here looked. The dispatch bug is fixed at its root in
+             * netfinal-gui.js; this is the layer that would have contained it anyway, and the reason
+             * to add it is precisely that it did not exist when it was needed. */
+            var leaks = CLIENT.findDisclosures(res, 'action:' + args.window + '/' + args.action);
+            if (leaks.length) {
+                throw err('internal', 'Refusing to return an action result that discloses fault data: '
+                    + leaks.map(function (l) { return l.path; }).join(', '));
+            }
             return { result: res, remainingMs: remainingMs(session, opts) };
         });
     }
@@ -274,6 +286,12 @@
     async function restoreDevice(store, args, opts) {
         return withSession(store, args.sessionId, opts, function (session) {
             var res = GUI.restore(session.state, String(args.device || ''));
+            /* Third emitting surface, same reasoning as runAction above. */
+            var leaks = CLIENT.findDisclosures(res, 'restore:' + args.device);
+            if (leaks.length) {
+                throw err('internal', 'Refusing to return a restore result that discloses fault data: '
+                    + leaks.map(function (l) { return l.path; }).join(', '));
+            }
             return { result: res, remainingMs: remainingMs(session, opts) };
         });
     }

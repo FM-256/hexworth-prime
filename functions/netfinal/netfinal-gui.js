@@ -200,7 +200,11 @@
             return { ok: true, message: p.ssid + ' now maps to VLAN ' + v + '. Clients will re-associate.' };
         },
         'ap-set-channel': function (state, p) {
-            if (!state.wireless.apChannels.hasOwnProperty(p.ap)) { return { ok: false, reason: 'no AP named ' + p.ap }; }
+            /* Was `apChannels.hasOwnProperty(p.ap)` -- right in intent, but called ON the object,
+             * so a map that ever carried its own `hasOwnProperty` key would break the guard. */
+            if (own(state.wireless.apChannels, p.ap) === undefined) {
+                return { ok: false, reason: 'no AP named ' + p.ap };
+            }
             var ch = Number(p.channel);
             /* 1-14 is the band; the controller accepts any of them, because choosing a non-
              * overlapping set is the lesson and a UI that refused 2 would teach it for the student. */
@@ -268,6 +272,12 @@
     var NOC_ACTIONS = {
         'ack-alert': function (state, p) {
             state.ackedAlerts = state.ackedAlerts || {};
+            /* A client-supplied key being WRITTEN. `id:'__proto__'` would set this object's
+             * prototype rather than a key; harmless after the store's JSON round-trip, but it is the
+             * same unguarded-write shape as the rest of this round and costs nothing to refuse. */
+            if (typeof p.id !== 'string' || p.id === '__proto__') {
+                return { ok: false, reason: 'not an alert id: ' + p.id };
+            }
             state.ackedAlerts[p.id] = true;
             return { ok: true, message: 'Alert ' + p.id + ' acknowledged' };
         }
@@ -299,7 +309,12 @@
 
     var RACK_ACTIONS = {
         'replace-cable': function (state, p) {
-            var port = (state.ports[p.device] || {})[p.port];
+            /* TWO client keys, two own-property lookups. `device:'constructor', port:'assign'`
+             * resolved to the real `Object.assign` function, and the lines below then set
+             * `errorRate` and `up` ON THE SHARED BUILTIN -- outside this student's session entirely,
+             * in whatever warm instance was serving other students. Harmless in its effect; not in
+             * its class, which is why it is fixed rather than noted. */
+            var port = own(own(state.ports, p.device) || {}, p.port);
             if (!port) { return { ok: false, reason: 'no port ' + p.port + ' on ' + p.device }; }
             if (port.errorRate === 0 && port.up !== false) {
                 /* Replacing a healthy cable is allowed and costs nothing but time. Refusing it
@@ -313,7 +328,7 @@
                 + '. Link up, error counters clear.' };
         },
         'reseat-cable': function (state, p) {
-            var port = (state.ports[p.device] || {})[p.port];
+            var port = own(own(state.ports, p.device) || {}, p.port);
             if (!port) { return { ok: false, reason: 'no port ' + p.port + ' on ' + p.device }; }
             /* Reseating clears a disconnection but NOT damage, which is the distinction between
              * S1B and a cable that was merely loose. */
@@ -431,6 +446,17 @@
     var Q_ACTIONS = {
         'answer': function (state, p) {
             if (!p.id) { return { ok: false, reason: 'a question id is required' }; }
+            /* THE ID MUST BE A QUESTION THAT EXISTS. It was any string, so `questionId:'q999'` was
+             * accepted and stored: 200 junk answers took the session document from 60KB to 247KB,
+             * and every call rewrites the whole document, so around 900 would breach Firestore's 1MiB
+             * limit and leave the student unable to write to their own exam, mid-sitting, with no
+             * recovery. The grader never reads these keys -- it iterates the answer KEY's fifty --
+             * so no score was ever at risk; the damage was a student bricking their own session and a
+             * progress counter that read "200 / 50".
+             *
+             * Same family as the examId format check and the unclamped `minutes`: a client value
+             * trusted into stored state. Validated against the bank, not against a pattern. */
+            if (!QUESTION_IDS[p.id]) { return { ok: false, reason: 'no question with id ' + p.id }; }
             state.answers = state.answers || {};
             /* Stored verbatim and ungraded. Grading happens server-side at submission, so an answer
              * that is wrong must not be revealed as wrong while the exam is running. */
@@ -438,6 +464,48 @@
             return { ok: true, message: 'Answer recorded for ' + p.id };
         }
     };
+
+    /* ═══ A CLIENT STRING MUST NEVER REACH A PROTOTYPE ═══════════════════════════════════════════
+     *
+     * `own(obj, key)` returns the value ONLY if the object owns that key. Every lookup below that is
+     * indexed by something the student sent goes through it.
+     *
+     * WHY, in full, because this was the worst defect in the build. The dispatch tables were plain
+     * objects indexed directly by the request's `window` and `action`:
+     *
+     *     var fn = RENDERERS[window];  if (!fn) { ...reject... }
+     *     var set = ACTIONS[window];   var fn = set[action];
+     *
+     * `RENDERERS['constructor']` is not falsy. It is the inherited `Object` constructor, so the guard
+     * passed and `fn(state)` became `Object(state)` -- which for an object argument returns that same
+     * object, unwrapped. And in `act`, `ACTIONS['constructor']` is `Object`, whose `assign` is the
+     * real `Object.assign`, so `fn(state, params)` became `Object.assign(state, params)`: a live
+     * shallow merge of arbitrary client JSON into the stored exam state, which `withSession` then
+     * persisted. One ordinary netfinalAction call returned all twelve faults with their exact target
+     * host/switch/port, the exam-start baseline and `meta.seedStr`, and wrote an attacker key into
+     * the session document. Reproduced end to end, twice.
+     *
+     * `window:'firewall', action:'constructor'` was independently enough, so allowlisting `window`
+     * alone would not have closed it -- which is why this is a helper applied everywhere rather than
+     * one check in one place.
+     *
+     * The shell's command trie was always safe from this, and for the right reason: it computes
+     * `Object.keys(node)` and only ever indexes with a key drawn from that list. That is the pattern;
+     * this helper is how the rest of the engine gets it. */
+    function own(obj, key) {
+        if (obj === null || obj === undefined) { return undefined; }
+        if (typeof key !== 'string' && typeof key !== 'number') { return undefined; }
+        return Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
+    }
+
+    /* Every question id the bank defines, as an own-property map. Derived, so it cannot drift from
+     * the bank, and required lazily because netfinal-questions.js loads the shell, which loads this
+     * file's siblings -- taking the require at module top would make the cycle real. */
+    var QUESTION_IDS = (function () {
+        var out = Object.create(null);
+        require('./netfinal-questions.js').QUESTIONS.forEach(function (q) { out[q.id] = true; });
+        return out;
+    })();
 
     /* ── DISPATCH ────────────────────────────────────────────────────────────────────────────── */
     var RENDERERS = {
@@ -450,7 +518,7 @@
     };
 
     function render(state, window) {
-        var fn = RENDERERS[window];
+        var fn = own(RENDERERS, window);
         if (!fn) { return { error: 'no window named ' + window }; }
         var view = fn(state);
         /* The forms travel WITH the data, so the page never has to know which window has which
@@ -472,7 +540,7 @@
     }
 
     function act(state, window, action, params) {
-        var set = ACTIONS[window];
+        var set = own(ACTIONS, window);
         if (!set) { return { ok: false, reason: 'no window named ' + window }; }
         /* LOGGED BEFORE THE ACTION RUNS, for two reasons. The action needs its own event index to
          * exist -- a change request records the position it was filed at, and that position is
@@ -480,7 +548,7 @@
          * the student tried, which the spec wants for sequence grading and integrity review.
          * Logging afterwards skipped every rejection and left both positions sharing a number. */
         var idx = logEvent(state, 'gui', window, action + ' ' + JSON.stringify(params || {}));
-        var fn = set[action];
+        var fn = own(set, action);
         if (!fn) {
             state.events[idx].detail += ' [rejected: no such action]';
             return { ok: false, reason: window + ' has no action ' + action };
@@ -600,7 +668,7 @@
      * reason this takes state: a student should pick a real ticket from a list, not retype an id
      * they half-remember and lose credit to a typo. */
     function actionSchema(state, window) {
-        var set = ACTION_SCHEMA[window] || {};
+        var set = own(ACTION_SCHEMA, window) || {};
         return Object.keys(set).filter(function (k) { return !set[k].internal; }).map(function (name) {
             var def = set[name];
             return {
@@ -647,6 +715,6 @@
         WINDOWS: WINDOWS, render: render, act: act, restore: restore,
         fields: { changeRequest: CR_FIELDS, incidentLog: LOG_FIELDS },
         actionNames: Object.keys(ACTIONS).reduce(function (acc, w) { acc[w] = Object.keys(ACTIONS[w]); return acc; }, {}),
-        actionSchema: actionSchema, schemaGaps: schemaGaps
+        actionSchema: actionSchema, schemaGaps: schemaGaps, own: own
     };
 })();
