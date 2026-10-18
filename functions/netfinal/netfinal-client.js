@@ -218,7 +218,21 @@
                 return;
             }
             if (Array.isArray(v)) { v.forEach(walk); return; }
-            if (v && typeof v === 'object') { Object.keys(v).forEach(function (k) { walk(v[k]); }); }
+            if (v && typeof v === 'object') {
+                /* KEYS AND SHAPES TOO, not only string patterns. This walked objects as though it
+                 * expected to be reused on structured values while implementing none of
+                 * findDisclosures' other two checks -- so a future caller pointing it at something
+                 * richer than command text would silently pass a {faults:[...]} leak. Which is
+                 * exactly how this function came to exist: someone pointed a scanner at a new
+                 * surface. Covering it now costs four lines; discovering it costs a disclosure. */
+                Object.keys(v).forEach(function (k) {
+                    if (FORBIDDEN_KEYS.indexOf(k) >= 0 && found.indexOf(k) < 0) { found.push(k); }
+                    if (k === 'target' && isFaultTarget(v[k]) && found.indexOf('target') < 0) {
+                        found.push('target');
+                    }
+                    walk(v[k]);
+                });
+            }
         };
         walk(value);
         return found;

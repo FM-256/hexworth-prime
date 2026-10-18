@@ -272,13 +272,17 @@
     var NOC_ACTIONS = {
         'ack-alert': function (state, p) {
             state.ackedAlerts = state.ackedAlerts || {};
-            /* A client-supplied key being WRITTEN. `id:'__proto__'` would set this object's
-             * prototype rather than a key; harmless after the store's JSON round-trip, but it is the
-             * same unguarded-write shape as the rest of this round and costs nothing to refuse. */
-            if (typeof p.id !== 'string' || p.id === '__proto__') {
+            /* ASK setOwn, DO NOT RE-LIST ITS RULES. This hand-checked `p.id === '__proto__'` and
+             * then ignored setOwn's return -- so `constructor` and `prototype` passed the hand-check,
+             * were refused by setOwn, and the student was told "Alert constructor acknowledged" while
+             * nothing was recorded. A guard whose refusal the caller ignores is not a guard, and a
+             * caller that duplicates the guard's rules will always be the stale copy. */
+            if (typeof p.id !== 'string' || !p.id) {
                 return { ok: false, reason: 'not an alert id: ' + p.id };
             }
-            CORE.setOwn(state.ackedAlerts, p.id, true);
+            if (!CORE.setOwn(state.ackedAlerts, p.id, true)) {
+                return { ok: false, reason: 'not an alert id: ' + p.id };
+            }
             return { ok: true, message: 'Alert ' + p.id + ' acknowledged' };
         }
     };

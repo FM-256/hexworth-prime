@@ -784,6 +784,64 @@ section('prototype pollution, swept across every entry point including the shell
      * ordinary JS semantics -- a silent data loss if a future call site ever points setOwn at an
      * array with a client-chosen key. No current call site does; the audit flagged it forward and it
      * is one line, so it is refused rather than remembered. */
+    /* A GUARD'S REFUSAL MUST REACH THE CALLER. Two sites asked setOwn to write and ignored its
+     * answer, so the student was told their work landed when it had not: `ack-alert` replied "Alert
+     * constructor acknowledged" with nothing recorded (its hand-written check listed only
+     * `__proto__`, so it was always going to be the stale copy of setOwn's rules), and `vi
+     * constructor` + :wq replied "applied: written" with the files map still empty. Telling a student
+     * a save succeeded is the worst of the cosmetic bugs, because they have no reason to check. */
+    {
+        const g = rig();
+        const gs = await EX.startExam(g.store, { studentId: 'refusals', examId: EXAMS.DEFAULT_EXAM_ID }, g.opts);
+        const gsid = gs.sessionId;
+        const ack = async (id) => (await EX.runAction(g.store,
+            { sessionId: gsid, window: 'noc', action: 'ack-alert', params: { id } }, g.opts)).result;
+
+        const refusedAcks = [];
+        for (const id of ['constructor', 'prototype', '__proto__']) {
+            const res = await ack(id);
+            if (res.ok !== false) { refusedAcks.push(id); }
+        }
+        chk('ack-alert refuses every key setOwn would refuse, not just the one it hand-listed',
+            refusedAcks.length === 0, 'reported success for: ' + refusedAcks.join(', '));
+        const realAlert = (await EX.renderWindow(g.store, { sessionId: gsid, window: 'noc' }, g.opts))
+            .view.alerts[0];
+        chk('and a real alert is still acknowledged', (await ack(realAlert.id)).ok === true, realAlert.id);
+        chk('only the real acknowledgement was recorded',
+            Object.keys((await g.store.get(gsid)).state.ackedAlerts || {}).join(',') === realAlert.id,
+            JSON.stringify(Object.keys((await g.store.get(gsid)).state.ackedAlerts || {})));
+
+        /* The same shape in saveFile: the refusal must appear in what the student reads. */
+        const srvIp = (await g.store.get(gsid)).state.devices['MER-SRV01'].mgmtIp;
+        await EX.runCommand(g.store, { sessionId: gsid, line: 'ssh admin@' + srvIp }, g.opts);
+        await EX.runCommand(g.store, { sessionId: gsid, line: 'sudo vi constructor' }, g.opts);
+        const wrote = await EX.runCommand(g.store, { sessionId: gsid, line: ':wq' }, g.opts);
+        chk('a refused file write SAYS it was refused instead of reporting a save',
+            /cannot write to a file named constructor/.test(String(wrote.out)),
+            JSON.stringify(String(wrote.out).slice(0, 90)));
+        chk('and nothing was stored under that name',
+            Object.keys((await g.store.get(gsid)).state.devices['MER-SRV01'].files || {}).length === 0,
+            JSON.stringify(Object.keys((await g.store.get(gsid)).state.devices['MER-SRV01'].files || {})));
+    }
+
+    /* matchedSecrets walked objects while implementing only ONE of findDisclosures' three checks, so
+     * a future caller pointing it at something richer than command text would have passed a
+     * {faults:[...]} leak. That is how this function came to exist -- someone pointed a scanner at a
+     * new surface -- so it now covers keys and shapes as well as string patterns. */
+    chk('matchedSecrets covers forbidden KEYS and fault-target SHAPES, not only text', (() => {
+        const k = CLIENT.matchedSecrets({ faults: [{ id: 'x' }] });
+        const b = CLIENT.matchedSecrets({ baseline: {} });
+        const t = CLIENT.matchedSecrets({ target: { host: 'H', switch: 'SW', port: 'Fa0/1' } });
+        const txt = CLIENT.matchedSecrets('host S7B down');
+        const innocent = CLIENT.matchedSecrets({ vlan: 10, name: 'Sales' });
+        return k.indexOf('faults') >= 0 && b.indexOf('baseline') >= 0 && t.indexOf('target') >= 0
+            && txt.join(',') === 'S7B' && innocent.length === 0;
+    })(), JSON.stringify({
+        keys: CLIENT.matchedSecrets({ faults: [] }),
+        shape: CLIENT.matchedSecrets({ target: { host: 'H', switch: 'S', port: 'P' } }),
+        innocent: CLIENT.matchedSecrets({ vlan: 10 })
+    }));
+
     chk('setOwn refuses to write length on an array, but still writes an ordinary index', (() => {
         const arr = [1, 2, 3];
         const refused = CORE2.setOwn(arr, 'length', 0) === false && arr.length === 3;

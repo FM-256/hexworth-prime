@@ -733,7 +733,9 @@
             state.devices[device].files = state.devices[device].files || {};
             /* `path` is typed by the student (`vi <path>`), so the write is guarded: an assignment
              * with `__proto__` replaces the files object's prototype instead of adding a key. */
-            CORE.setOwn(state.devices[device].files, path, text);
+            if (!CORE.setOwn(state.devices[device].files, path, text)) {
+                return { applied: applied, ignored: ignored.concat(['cannot write to a file named ' + path]) };
+            }
             state.devices[device].keaDirty = true;
             return { applied: applied, ignored: ignored };
         }
@@ -749,12 +751,21 @@
             else { state.dns.zoneFile.serial = serial; applied.push('serial ' + serial); }
             if (recs.length) { state.dns.zoneFile.records = recs; applied.push(recs.length + ' A records'); }
             state.devices[device].files = state.devices[device].files || {};
-            CORE.setOwn(state.devices[device].files, path, text);
+            if (!CORE.setOwn(state.devices[device].files, path, text)) {
+                return { applied: applied, ignored: ignored.concat(['cannot write to a file named ' + path]) };
+            }
             return { applied: applied, ignored: ignored };
         }
         state.devices[device] = state.devices[device] || {};
         state.devices[device].files = state.devices[device].files || {};
-        CORE.setOwn(state.devices[device].files, path, text);
+        /* A REFUSED WRITE MUST NOT REPORT A SAVE. All three branches ignored setOwn's return, so
+         * `vi constructor` + :wq answered "Wrote constructor / applied: written" while
+         * state.devices[dev].files stayed empty -- and re-opening the path showed the original empty
+         * buffer. Telling a student their work saved when it did not is the worst of the cosmetic
+         * bugs, because they have no reason to check. */
+        if (!CORE.setOwn(state.devices[device].files, path, text)) {
+            return { applied: applied, ignored: ignored.concat(['cannot write to a file named ' + path]) };
+        }
         return { applied: ['written'], ignored: [] };
     }
 
