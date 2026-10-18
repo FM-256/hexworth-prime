@@ -100,12 +100,42 @@ section('1b. every field on a fault is classified, so a new secret cannot be add
      * The lesson is structural: the projector is a whitelist and fails closed, but the SCANNER is a
      * blacklist and fails open. So its coverage is derived from the real object rather than from
      * someone remembering. */
+    /* SAMPLED ACROSS THE FAULT'S WHOLE LIFECYCLE, not at exam start. Chris's residual on the
+     * previous round: a fault that has only had applyAll() run on it never carries fixedAtEvent,
+     * undone or undoneCount, so the derivation could not reach those three names. They are correctly
+     * forbidden today -- but only because someone remembered, which is precisely the gap ticketId
+     * was. Removing one from the list would not have failed this test, because the field would not
+     * have been present to flag.
+     *
+     * So the fault is driven through fix, undo and re-fix, and the keys are unioned. Every name the
+     * object can ever carry is now exercised by the derivation rather than resting on memory. */
+    const lifecycle = CORE.generate('leak-lifecycle', EXAM, { secret: 's' });
+    FAULTS.applyAll(lifecycle);
+    const lf = lifecycle.faults[0];
+    const seenKeys = {};
+    const sample = () => Object.keys(lf).forEach(k => { seenKeys[k] = true; });
+    sample();                                                            // exam start
+    FAULTS.VARIANTS[lf.id].correctFix(lifecycle, lf);
+    FAULTS.recordProgress(lifecycle, 0); sample();                       // fixed -> fixedAtEvent
+    FAULTS.VARIANTS[lf.id].apply(lifecycle, lf);
+    FAULTS.recordProgress(lifecycle, 1); sample();                       // undone -> undone
+    FAULTS.VARIANTS[lf.id].correctFix(lifecycle, lf);
+    FAULTS.recordProgress(lifecycle, 2); sample();                       // re-fixed -> undoneCount
     const fault = st.faults[0];
+
     /* Four ways a field may be classified, and every field on a fault must use one of them:
      * forbidden by name, checked by value (id -> 'S3A' matches the pattern sweep), checked by shape
      * (target -> only when it carries fault-target fields), or named benign. */
     const classified = CL.FORBIDDEN_KEYS
         .concat(CL.VALUE_CHECKED_KEYS).concat(CL.SHAPE_CHECKED_KEYS).concat(CL.BENIGN_FAULT_FIELDS);
+    const allLifecycleKeys = Object.keys(seenKeys);
+    chk('the lifecycle sample reaches the fields exam start never shows',
+        ['fixedAtEvent', 'undone', 'undoneCount'].every(k => allLifecycleKeys.indexOf(k) >= 0),
+        JSON.stringify(allLifecycleKeys));
+    const unclassifiedLife = allLifecycleKeys.filter(k => classified.indexOf(k) < 0);
+    chk('every field a fault can EVER carry is classified, across its whole lifecycle',
+        unclassifiedLife.length === 0,
+        'unclassified: ' + unclassifiedLife.join(', ') + ' -- add each to FORBIDDEN_KEYS or BENIGN_FAULT_FIELDS');
     const unclassified = Object.keys(fault).filter(k => classified.indexOf(k) < 0);
     chk('every field on a fault object is either forbidden or named benign',
         unclassified.length === 0,
