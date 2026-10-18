@@ -417,6 +417,11 @@
         return out.join('\n');
     };
 
+    IOS_SHOW['show arp'] = function (state, f, args) { return IOS_SHOW['show ip arp'](state, f, args); };
+    IOS_SHOW['show vlan'] = function (state, f, args) { return IOS_SHOW['show vlan brief'](state, f, args); };
+    IOS_SHOW['show ip access-lists'] = function (state, f, args) { return IOS_SHOW['show access-lists'](state, f, args); };
+    IOS_SHOW['show lldp neighbors detail'] = function (state, f, args) { return IOS_SHOW['show cdp neighbors detail'](state, f, args); };
+
     IOS_SHOW['show cdp neighbors detail'] = function (state, f) {
         var out = [];
         state.links.forEach(function (l) {
@@ -538,7 +543,11 @@
         return out.join('\n');
     };
 
-    WIN['arp -a'] = function (state, f, args) {
+    /* Registered as `arp`, not `arp -a`. The two-word key meant the parser walked 'arp' then tried
+     * to prefix-match '-d' against '-a' and failed, so `arp -d *` -- which spec section 5 lists as
+     * accepted, and which question 41's proof REQUIRES -- was "not recognized". Found by the
+     * stage-6 perfect run scoring 41 at half credit for a missing prerequisite. */
+    WIN['arp'] = function (state, f, args) {
         if (/^-d/.test(args[0] || '')) {
             /* `arp -d *` clears the cache. The cache is DERIVED, so clearing it is a no-op on state
              * and the next read re-learns -- which is exactly what the S4A graded state describes:
@@ -580,6 +589,14 @@
         if (!args[0]) { return 'Default Server:  ' + ((epOf(state, f.device) || {}).dns || state.dns.server); }
         return renderLookup(state, f.device, args[0], args[1]);
     };
+    /* THE SPEC'S "ALSO ACCEPTED" COLUMN (section 5). Each is the same handler under the other name,
+     * because a student who types the documented alternative has answered the question. */
+    WIN['netstat'] = function (state, f, args) {
+        if (/^-r/.test(args[0] || '')) { return WIN['route print'](state, f, args); }
+        return 'netstat: only -r is implemented in this lab';
+    };
+    WIN['pathping'] = function (state, f, args) { return WIN['tracert'](state, f, args); };
+    WIN['resolve-dnsname'] = function (state, f, args) { return WIN['nslookup'](state, f, args); };
 
     /* ═══ FILES ON THE LINUX SERVER ═══════════════════════════════════════════════════════════════
      * RENDERED FROM STATE, never stored as the source of truth. `cat` shows the current config
@@ -746,6 +763,10 @@
             + '    inet ' + d.mgmtIp + '/' + pfx + ' brd + scope global eth0';
     };
 
+    LIN['arp'] = function (state, f, args) {
+        if (/^-n/.test(args[0] || '')) { return LIN['ip neigh'](state, f, args); }
+        return 'arp: use -n in this lab';
+    };
     LIN['ip neigh'] = function (state, f) {
         return tables.arpTable(state, f.device).map(function (r) {
             return r.ip + ' dev eth0 lladdr ' + r.mac.toLowerCase() + ' REACHABLE';
@@ -880,6 +901,14 @@
         if (!target) { return 'ping: usage error'; }
         return renderPing(state, f.device, target, { proto: 'icmp' });
     };
+    LIN['ifconfig'] = function (state, f, args) {
+        return '(ifconfig is deprecated; use `ip addr`)\n' + LIN['ip addr'](state, f, args);
+    };
+    LIN['netstat'] = function (state, f, args) {
+        if (/tul/.test(args.join(''))) { return LIN['ss -tulpn'](state, f, args); }
+        return 'netstat: use -tulpn in this lab';
+    };
+    LIN['host'] = function (state, f, args) { return LIN['dig'](state, f, args); };
     LIN['traceroute'] = function (state, f, args) {
         var target = args.filter(function (a) { return !/^-/.test(a); })[0];
         return renderTrace(state, f.device, target, { proto: 'icmp' });
