@@ -122,10 +122,36 @@
         return keys.length ? keys : null;
     };
 
-    /* "Name case-insensitive; `seq 10` = `10`." */
+    /* Words that appear AROUND an ACL name and are not one. Without this list the first plausible
+     * token wins, and "ip access-list GUEST-IN seq 10" names the ACL "access-list". */
+    var ACL_NOISE = {
+        'ip': 1, 'acl': 1, 'access': 1, 'list': 1, 'access-list': 1, 'accesslist': 1,
+        'seq': 1, 'sequence': 1, 'line': 1, 'rule': 1, 'entry': 1, 'statement': 1,
+        'number': 1, 'num': 1, 'no': 1, 'name': 1, 'named': 1, 'called': 1,
+        'the': 1, 'and': 1, 'is': 1, 'at': 1, 'on': 1, 'in': 1, 'out': 1, 'inbound': 1,
+        'outbound': 1, 'permit': 1, 'deny': 1
+    };
+
+    /* "Name case-insensitive; `seq 10` = `10`."
+     *
+     * THE REGEX USED TO REQUIRE AN UPPERCASE FIRST LETTER -- /\b([A-Z][A-Z0-9_-]{2,})\b/ -- directly
+     * contradicting the comment above it. A student who typed the ACL name in lowercase, which is the
+     * natural thing to do, got name:null. That alone would have been a false negative; combined with
+     * sameAnswer's tolerance for an omitted field it became a false POSITIVE, because a null name
+     * read as "omitted" rather than "wrong". `sameAnswer('aclRef', 'wrong-acl 10', 'GUEST-IN 10')`
+     * returned true: name the WRONG ACL in lowercase, state the right sequence number, score full
+     * marks on Q24. Both halves are fixed -- the name is matched case-insensitively here, and
+     * REQUIRED_FIELDS below stops a missing one from being waved through. */
     NORM.aclRef = function (v) {
         var s = String(v || '').trim();
-        var name = (s.match(/\b([A-Z][A-Z0-9_-]{2,})\b/) || [])[1] || null;
+        var tokens = s.match(/[A-Za-z][A-Za-z0-9_-]*/g) || [];
+        var cands = tokens.filter(function (t) {
+            return !ACL_NOISE[t.toLowerCase()] && t.length >= 3;
+        });
+        /* Prefer a hyphenated or underscored token: every ACL in this lab is GUEST-IN or SERVERS-OUT,
+         * and the shape is the strongest available signal for "this is a name, not prose". */
+        var hyphenated = cands.filter(function (t) { return /[-_]/.test(t); });
+        var name = (hyphenated.length ? hyphenated[0] : cands[0]) || null;
         var seq = (s.match(/\b(?:seq(?:uence)?\s*)?(\d{1,5})\b/) || [])[1];
         return { name: name ? name.toLowerCase() : null, seq: seq === undefined ? null : Number(seq) };
     };
@@ -146,21 +172,61 @@
 
     NORM.select = function (v) { return NORM.text(v); };
 
-    /* Compare two normalized values of the same kind. */
-    function sameAnswer(kind, a, b) {
+    /* FIELDS A QUESTION ACTUALLY DEMANDS, which may not be waved through as "omitted".
+     *
+     * The tolerance below was written for ONE case -- iface's switch name, which spec section 8 says
+     * "may be omitted" -- and then applied to every field of every object-valued answer. aclRef
+     * inherited it, so Q24 ("Give the ACL name and sequence number") accepted an answer with no
+     * usable name at all. The spec asks for both halves of an ACL reference, so both are required. */
+    var REQUIRED_FIELDS = { aclRef: ['name', 'seq'] };
+
+    /* Compare two normalized values of the same kind.
+     *
+     * `opts.require` names fields the CALLER knows are mandatory for this particular answer, on top
+     * of the per-kind list above. It exists for iface: the switch name is omissible only "when only
+     * one switch has that port active with that endpoint", which is a property of the lab and so
+     * cannot be decided here. netfinal-grade.js computes it per question at key-build time. */
+    function sameAnswer(kind, a, b, opts) {
         var na = NORM[kind] ? NORM[kind](a) : NORM.text(a);
         var nb = NORM[kind] ? NORM[kind](b) : NORM.text(b);
         if (na === null || nb === null) { return false; }
         if (Array.isArray(na) || Array.isArray(nb)) { return JSON.stringify(na) === JSON.stringify(nb); }
         if (typeof na === 'object' || typeof nb === 'object') {
-            /* iface and aclRef: a missing switch name or sequence on the STUDENT side is tolerated
-             * (spec: "switch name may be omitted"), a wrong one is not. */
+            var required = {};
+            (REQUIRED_FIELDS[kind] || []).forEach(function (f) { required[f] = true; });
+            ((opts && opts.require) || []).forEach(function (f) { required[f] = true; });
             var keys = Object.keys(nb);
             return keys.every(function (k) {
-                return nb[k] === null || na[k] === null || na[k] === nb[k];
+                if (nb[k] === null) { return true; }            /* the key does not constrain it */
+                if (na[k] === null) { return !required[k]; }     /* omitted: only if truly optional */
+                return na[k] === nb[k];                          /* stated: must match */
             }) && keys.some(function (k) { return na[k] !== null && na[k] === nb[k]; });
         }
         return na === nb;
+    }
+
+    /* Which ports carry an endpoint on MORE THAN ONE switch, normalized the way NORM.iface spells
+     * them. A port in this set makes the switch name mandatory, because omitting it would match
+     * either switch and "which switch" is the graded dimension of Q5, Q8, Q17 and Q18.
+     *
+     * Measured rather than assumed: on a sampled lab, 2 of 16 occupied ports are ambiguous this way.
+     * Both switches have Fa0/1-Fa0/24 physically, but physical presence is not what the spec's
+     * condition says -- it says "active with that endpoint". */
+    function ambiguousPorts(state) {
+        var byPort = {};
+        (state.endpoints || []).forEach(function (e) {
+            if (!e.switch || !e.port) { return; }
+            var n = NORM.iface(String(e.port));
+            var k = n && n.iface;
+            if (!k) { return; }
+            byPort[k] = byPort[k] || {};
+            byPort[k][e.switch] = true;
+        });
+        var out = {};
+        Object.keys(byPort).forEach(function (k) {
+            if (Object.keys(byPort[k]).length > 1) { out[k] = true; }
+        });
+        return out;
     }
 
     /* ═══ HELPERS the definitions read from ═══════════════════════════════════════════════════════ */
@@ -722,6 +788,7 @@
 
     module.exports = {
         QUESTIONS: Q, NORM: NORM, sameAnswer: sameAnswer, resolve: resolve,
-        forStudent: forStudent, PHASES: PHASES
+        forStudent: forStudent, PHASES: PHASES,
+        REQUIRED_FIELDS: REQUIRED_FIELDS, ambiguousPorts: ambiguousPorts
     };
 })();

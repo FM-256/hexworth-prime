@@ -22,6 +22,7 @@
 const path = require('path');
 const NF = path.resolve(__dirname, '../../functions/netfinal');
 const EX = require(path.join(NF, 'netfinal-exam.js'));
+const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
 const CORE = require(path.join(NF, 'netfinal-core.js'));
 const FAULTS = require(path.join(NF, 'netfinal-faults.js'));
 const CLIENT = require(path.join(NF, 'netfinal-client.js'));
@@ -267,6 +268,116 @@ section('8. every command, change and answer is logged for telemetry');
     chk('telemetry itself discloses no fault data',
         CLIENT.findDisclosures(tel, 'telemetry').length === 0,
         JSON.stringify(CLIENT.findDisclosures(tel, 'telemetry')));
+}
+
+/* ─── ONE ATTEMPT MEANS ONE LAB, NOT ONE LAB PER STRING THE CALLER INVENTS ──────────────────────
+ *
+ * The session is addressed as uid + '::' + examId and the seed is secret|studentId|examId, so a new
+ * examId is a whole new exam: new faults, new clock, new answer key, under an id that cannot collide
+ * with the real session. The callable validated examId with a FORMAT regex, which decides whether a
+ * string is well-formed and nothing about whether that exam exists -- so `{examId:'attempt2'}` from
+ * devtools bought a second attempt, 'attempt3' a third.
+ *
+ * This suite could not see it: every call here passed the one EXAM constant, so "a second start
+ * returns the same session" was only ever tested for callers who cooperate. The rule now lives in
+ * netfinal-exams.js, which is why it can be tested at all. */
+section('one attempt is enforced on the exam IDENTITY, not on the caller’s goodwill');
+{
+    chk('the allowlist names exactly one exam today',
+        EXAMS.EXAM_IDS.length === 1 && EXAMS.EXAM_IDS[0] === 'net-final-2026',
+        JSON.stringify(EXAMS.EXAM_IDS));
+    chk('the canonical id resolves to itself',
+        EXAMS.resolveExamId('net-final-2026') === 'net-final-2026');
+    chk('an omitted id falls back to the default rather than failing',
+        EXAMS.resolveExamId(undefined) === EXAMS.DEFAULT_EXAM_ID
+        && EXAMS.resolveExamId('') === EXAMS.DEFAULT_EXAM_ID);
+    /* The exact strings that bought extra attempts. */
+    ['attempt2', 'attempt3', 'net-final-2027', 'NET-FINAL-2026', 'net final 2026', 'x'].forEach(bad => {
+        chk('a fabricated examId is refused: ' + JSON.stringify(bad), EXAMS.resolveExamId(bad) === null);
+    });
+    chk('a format-valid but unknown id is refused, which is the whole point',
+        /^[A-Za-z0-9_-]{1,64}$/.test('attempt2') && EXAMS.resolveExamId('attempt2') === null,
+        'attempt2 passes the old regex, so the regex was never the rule');
+
+    /* And the engine still gives ONE session per (student, allowed exam). */
+    const r = rig();
+    const a = await EX.startExam(r.store, { studentId: 'one-shot', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const b = await EX.startExam(r.store, { studentId: 'one-shot', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    chk('a second start on the allowed id resumes rather than regenerating',
+        b.resumed === true && b.sessionId === a.sessionId, JSON.stringify([a.sessionId, b.sessionId]));
+    chk('and only one session exists in the store', Object.keys(r.store.all()).length === 1,
+        JSON.stringify(Object.keys(r.store.all())));
+
+    /* THE CONTROL. The engine itself will happily build a second lab for a second examId -- it has
+     * no opinion about which exams exist. That is exactly why the allowlist sits at the callable,
+     * and this asserts the engine's behaviour so nobody later "fixes" the wrong layer. */
+    const two = await EX.startExam(r.store, { studentId: 'one-shot', examId: 'some-other-exam' }, r.opts);
+    chk('the ENGINE does build a separate lab for a different examId (hence the allowlist above)',
+        two.resumed === false && two.sessionId !== a.sessionId, two.sessionId);
+}
+
+/* ─── CONCURRENCY: a lost write loses graded evidence ───────────────────────────────────────────── */
+section('two calls on one session cannot silently overwrite each other');
+{
+    const r = rig();
+    const s0 = await EX.startExam(r.store, { studentId: 'race', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const sid = s0.sessionId;
+
+    /* Both read the SAME revision, then both write. Under the old read-modify-write this passed
+     * silently and the first mutation vanished -- including, potentially, a verify command the
+     * student watched echo in their terminal and which never reached the event log the grader reads
+     * for Q39-42. */
+    const before = (await r.store.get(sid)).state.events.length;
+    const [first, second] = await Promise.allSettled([
+        EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts),
+        EX.runCommand(r.store, { sessionId: sid, line: 'arp -a' }, r.opts)
+    ]);
+    const outcomes = [first, second];
+    const fulfilled = outcomes.filter(o => o.status === 'fulfilled');
+    const rejected = outcomes.filter(o => o.status === 'rejected');
+    chk('exactly one of two concurrent commands wins',
+        fulfilled.length === 1 && rejected.length === 1,
+        JSON.stringify(outcomes.map(o => o.status)));
+    chk('the loser is told to retry, not given a false success',
+        rejected.length === 1 && rejected[0].reason && rejected[0].reason.code === 'aborted',
+        rejected.length ? String(rejected[0].reason && rejected[0].reason.code) : 'nothing rejected');
+    const afterSession = await r.store.get(sid);
+    chk('the winner’s work is in the stored event log',
+        afterSession.state.events.length > before,
+        before + ' -> ' + afterSession.state.events.length);
+    /* `rev` lives on the SESSION, not on the lab state inside it. */
+    chk('the revision advanced exactly once', Number(afterSession.rev) === 1, String(afterSession.rev));
+
+    /* Sequentially, both must land -- the guard must not cost a student their work under normal use.
+     * A fix that made every second command fail would also pass the assertions above. */
+    const r2 = rig();
+    const s2 = await EX.startExam(r2.store, { studentId: 'serial', examId: EXAMS.DEFAULT_EXAM_ID }, r2.opts);
+    await EX.runCommand(r2.store, { sessionId: s2.sessionId, line: 'ipconfig' }, r2.opts);
+    await EX.runCommand(r2.store, { sessionId: s2.sessionId, line: 'arp -a' }, r2.opts);
+    await EX.saveAnswer(r2.store, { sessionId: s2.sessionId, questionId: 'q46', value: 'smf' }, r2.opts);
+    const st2 = await r2.store.get(s2.sessionId);
+    chk('three sequential calls all landed, and the revision counted all three',
+        Number(st2.rev) === 3, 'rev=' + st2.rev);
+    chk('and the answer survived', !!(st2.state.answers && st2.state.answers.q46),
+        JSON.stringify(st2.state.answers));
+
+    /* A double-clicked Submit must grade once and report the same score twice, never regrade. */
+    const r3 = rig();
+    const s3 = await EX.startExam(r3.store, { studentId: 'dbl', examId: EXAMS.DEFAULT_EXAM_ID }, r3.opts);
+    const subs = await Promise.allSettled([
+        EX.submitExam(r3.store, { sessionId: s3.sessionId }, r3.opts),
+        EX.submitExam(r3.store, { sessionId: s3.sessionId }, r3.opts)
+    ]);
+    const ok = subs.filter(x => x.status === 'fulfilled').map(x => x.value);
+    chk('a double submit never rejects: one submits, the other reports it already was',
+        subs.every(x => x.status === 'fulfilled')
+        && ok.filter(v => v.submitted).length === 1
+        && ok.filter(v => v.alreadySubmitted).length === 1,
+        JSON.stringify(subs.map(x => x.status === 'fulfilled'
+            ? (x.value.submitted ? 'submitted' : 'already') : 'rejected:' + (x.reason && x.reason.code))));
+    chk('and both report the same score, so nothing was regraded',
+        ok[0].report && ok[1].report && ok[0].report.total === ok[1].report.total,
+        JSON.stringify(ok.map(v => v.report && v.report.total)));
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');

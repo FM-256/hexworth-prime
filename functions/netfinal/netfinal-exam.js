@@ -100,7 +100,9 @@
             state: state,
             answerKey: answerKey,
             shell: SHELL.newSession(),
-            submittedAt: null, report: null
+            submittedAt: null, report: null,
+            /* Optimistic-concurrency revision. See withSession for what it defends against. */
+            rev: 0
         };
         await store.put(sessionId, session);
         return {
@@ -143,8 +145,31 @@
             throw err('deadline-exceeded', 'Time expired; the exam was submitted automatically. Score: '
                 + auto.report.total + ' of ' + auto.report.outOf);
         }
+        /* COMPARE-AND-SET, NOT READ-MODIFY-WRITE.
+         *
+         * This was get -> mutate -> put with nothing in between. Two concurrent calls on one session
+         * -- a callable retry on a flaky connection, a double-clicked Submit, a student with two tabs
+         * open -- both read the same prior state, each computed from it, and the second write
+         * silently discarded the first. What gets discarded is not cosmetic: the event log is where
+         * the verify-sequence questions (Q39-42) are graded from, so a student could watch a command
+         * echo in their terminal and have it never reach the log the grader reads. A lost point on a
+         * final with no way to prove it happened is the worst kind of defect -- invisible to both
+         * sides.
+         *
+         * The revision check is part of the store CONTRACT, implemented by the Firestore store in a
+         * transaction and by the in-memory store directly. It is deliberately NOT optional with a
+         * fallback to put(): a guard that silently skips when the store does not implement it is a
+         * guard that protects the test and not production. */
+        var expectedRev = Number(session.rev || 0);
         var out = await fn(session);
-        await store.put(sessionId, session);
+        session.rev = expectedRev + 1;
+        var wrote = await store.putIfRev(sessionId, session, expectedRev);
+        if (!wrote) {
+            /* 'aborted' is the code the client should retry on, and the only safe answer: the action
+             * may or may not have been applied by the writer that won, so the caller must re-read
+             * rather than assume either way. */
+            throw err('aborted', 'The exam session changed while this request was running. Retry.');
+        }
         return out;
     }
 
@@ -221,12 +246,27 @@
         if (session.submittedAt) {
             return { alreadySubmitted: true, submittedAt: session.submittedAt, report: session.report };
         }
+        var expectedRev = Number(session.rev || 0);
         var report = GRADE.grade(session.state, session.answerKey);
         report.auto = !!args.auto;
         report.durationUsedMs = Math.min(session.durationMs, nowMs(opts) - session.startedAt);
         session.submittedAt = nowMs(opts);
         session.report = report;
-        await store.put(args.sessionId, session);
+        session.rev = expectedRev + 1;
+        /* COMPARE-AND-SET here too, for the same reason as withSession. A double-clicked Submit ran
+         * this twice concurrently: both saw submittedAt null, both graded, and the loser's write
+         * landed second. Worse, a Submit racing a command could drop the command -- grading a state
+         * the student had already moved past, or accepting a write after the submit it lost to. */
+        var wrote = await store.putIfRev(args.sessionId, session, expectedRev);
+        if (!wrote) {
+            /* Someone else wrote first. Re-read: if they submitted, that submission stands and this
+             * call is idempotent after all. If they did not, the caller retries. */
+            var fresh = await store.get(args.sessionId);
+            if (fresh && fresh.submittedAt) {
+                return { alreadySubmitted: true, submittedAt: fresh.submittedAt, report: fresh.report };
+            }
+            throw err('aborted', 'The exam session changed while submitting. Retry.');
+        }
         return { submitted: true, submittedAt: session.submittedAt, report: report };
     }
 
@@ -262,9 +302,25 @@
     /* An in-memory store, used by the tests and by nothing else. */
     function memoryStore() {
         var m = {};
+        /* COPIES, NOT REFERENCES, because the Firestore store cannot hand back a reference: it
+         * serializes to JSON on write and parses on read. Storing the live object here made the test
+         * store behave in a way production never does -- and it was not a harmless difference. The
+         * revision check read the SAME object the caller was mutating, so the bump the caller had
+         * just made was already visible and every write looked like a conflict. A harness that
+         * aliases where production copies tests a system nobody runs. */
+        var copy = function (v) { return v === null || v === undefined ? v : JSON.parse(JSON.stringify(v)); };
         return {
-            get: async function (k) { return m[k] || null; },
-            put: async function (k, v) { m[k] = v; return true; },
+            get: async function (k) { return m[k] ? copy(m[k]) : null; },
+            put: async function (k, v) { m[k] = copy(v); return true; },
+            /* The same contract the Firestore store implements with a transaction: write only if the
+             * stored revision is still the one the caller read. Returns false on a mismatch rather
+             * than throwing, so the caller owns the error type. */
+            putIfRev: async function (k, v, expectedRev) {
+                var cur = m[k];
+                if (cur && Number(cur.rev || 0) !== Number(expectedRev)) { return false; }
+                m[k] = copy(v);
+                return true;
+            },
             all: function () { return m; }
         };
     }

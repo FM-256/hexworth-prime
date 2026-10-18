@@ -1,0 +1,225 @@
+#!/usr/bin/env node
+/**
+ * netfinal-page.test.js — the exam PAGE, against the engine it talks to.
+ *
+ * @catalog what    Checks the Network+ final's exam page is actually wired to the engine: every
+ * @catalog what    callable reached, every declared action renderable, every CSS class it uses
+ * @catalog what    defined, and exam-mode lockdown intact.
+ * @catalog run     node _tools/netfinal/netfinal-page.test.js
+ * @catalog status  TOOL
+ *
+ * WHY THIS FILE EXISTS. The engine's reachability was fully proven and the page was still broken.
+ * The shell suite drives 18 of the 24 variants through exec() and the gui suite drives the other 6
+ * through act(), each with a ledger accounting for all 24 -- so "can a student fix every fault" was
+ * answered yes, with evidence. Then the page shipped with a generic read-only table dump for its
+ * window body: 15 actions existed, act() accepted all of them, and the page offered controls for
+ * none. `change-requests/submit` and `incident-log/submit` are GRADED, and neither could be reached.
+ *
+ * Engine reachability is not page reachability, and no suite could see the difference because
+ * nothing looked at the page. This does. It is static analysis, not a browser -- it cannot prove the
+ * page RENDERS -- so every check here is phrased as a claim about wiring that a text search can
+ * actually settle, and the honest limits are stated where they bite.
+ */
+const fs = require('fs');
+const path = require('path');
+const REPO = path.resolve(__dirname, '../..');
+const NF = path.join(REPO, 'functions/netfinal');
+
+const GUI = require(path.join(NF, 'netfinal-gui.js'));
+const CORE = require(path.join(NF, 'netfinal-core.js'));
+const FAULTS = require(path.join(NF, 'netfinal-faults.js'));
+const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
+
+const PAGE_PATH = path.join(REPO, '_app/houses/web/network-plus/exams/network-final.exam.html');
+const INDEX_PATH = path.join(REPO, 'functions/index.js');
+const page = fs.readFileSync(PAGE_PATH, 'utf8');
+const index = fs.readFileSync(INDEX_PATH, 'utf8');
+
+let pass = 0, fail = 0;
+const chk = (name, cond, detail) => {
+    if (cond) { pass++; console.log('  ok   ' + name); }
+    else { fail++; console.log('  FAIL ' + name + (detail ? '  <- ' + detail : '')); }
+};
+const section = (t) => console.log('\n' + t);
+
+/* ─── 1. every callable the server exposes is reached by the page ───────────────────────────────── */
+section('1. the page reaches every callable, and names none that does not exist');
+{
+    const exported = (index.match(/^exports\.netfinal[A-Za-z]+/gm) || [])
+        .map(x => x.replace('exports.', '')).sort();
+    const called = (page.match(/call\('netfinal[A-Za-z]+'/g) || [])
+        .map(x => x.replace("call('", '').replace("'", ''))
+        .filter((v, i, a) => a.indexOf(v) === i).sort();
+
+    chk('the server exposes the seven exam callables', exported.length === 7, JSON.stringify(exported));
+    const unreached = exported.filter(e => called.indexOf(e) < 0);
+    /* THE ONE THAT WAS BROKEN. netfinalAction and netfinalRestore were exported, tested, and never
+     * called by the page -- so every GUI action and the only recovery path were dead. */
+    chk('no exported callable goes unreached by the page',
+        unreached.length === 0, 'unreached: ' + unreached.join(', '));
+    const phantom = called.filter(c => exported.indexOf(c) < 0);
+    chk('the page calls no callable the server does not export',
+        phantom.length === 0, 'phantom: ' + phantom.join(', '));
+    chk('the lists are non-empty, so both checks above could fail',
+        exported.length > 0 && called.length > 0, exported.length + '/' + called.length);
+}
+
+/* ─── 2. the window body can actually act ───────────────────────────────────────────────────────── */
+section('2. the window body renders controls, not just a table');
+{
+    chk('the page builds forms from the schema the server ships',
+        /function renderActions\s*\(/.test(page) && /renderActions\(name, view\._actions\)/.test(page));
+    chk('the generic dumper EXCLUDES the control keys, so they are not printed as data',
+        /k === '_actions'/.test(page) && /k === '_restore'/.test(page));
+    chk('a submit handler is delegated on the window body, not bound per form',
+        /el\('winbody'\)\.addEventListener\('submit'/.test(page),
+        'per-form binding would stop working after the first re-render');
+    chk('the action handler posts window, action and params',
+        /call\('netfinalAction',[\s\S]{0,200}?window: form\.dataset\.window[\s\S]{0,120}?action: form\.dataset\.action/.test(page));
+    chk('the restore handler posts a device', /call\('netfinalRestore', \{ examId: EXAM_ID, device:/.test(page));
+    chk('the window is re-rendered after an action, so the student sees what changed',
+        /function refreshWindow\(/.test(page) && (page.match(/refreshWindow\(\)/g) || []).length >= 2);
+    chk('a rejected action updates the status line instead of throwing the form away',
+        /function actionResult\(/.test(page) && /res\.reason/.test(page));
+}
+
+/* ─── 3. every declared form is renderable by THIS page's renderer ──────────────────────────────── */
+section('3. the page can render every control the engine declares');
+{
+    const lab = CORE.generate('page-lab', EXAMS.DEFAULT_EXAM_ID, { secret: 's' });
+    FAULTS.applyAll(lab);
+    FAULTS.assignTickets(lab, CORE.makeRng('page-tkt'));
+
+    chk('the engine declares no action without a form and no form without an action',
+        GUI.schemaGaps().length === 0, GUI.schemaGaps().join(' | '));
+
+    /* The renderer handles exactly three control shapes. A param that is none of them would render
+     * as nothing at all -- an invisible required field, which is worse than a missing form. */
+    const shapes = [];
+    GUI.WINDOWS.forEach(w => {
+        GUI.actionSchema(lab, w).forEach(f => f.params.forEach(prm => {
+            const kind = (prm.options && prm.options.length) ? 'select' : (prm.textarea ? 'textarea' : 'input');
+            shapes.push(kind);
+        }));
+    });
+    chk('the renderer implements all three control shapes it can be handed',
+        /<select id=/.test(page) && /<textarea id=/.test(page) && /<input id=/.test(page));
+    chk('and every declared param resolves to one of them (' + shapes.length + ' params)',
+        shapes.every(k => ['select', 'textarea', 'input'].indexOf(k) >= 0));
+    chk('each control carries data-param, which is how the handler collects values',
+        (page.match(/data-param="/g) || []).length >= 3
+        && /querySelectorAll\('\[data-param\]'\)/.test(page));
+    /* An empty optional field must be OMITTED, not sent as ''. portforward-set applies toPort only
+     * when present, and '' becomes NaN. */
+    chk('an empty field is omitted rather than sent as an empty string',
+        /if \(v !== '' && v !== null && v !== undefined\) \{ params\[ctl\.dataset\.param\] = v; \}/.test(page));
+}
+
+/* ─── 4. every class the script uses is defined in the stylesheet ───────────────────────────────── */
+section('4. no class is referenced but unstyled');
+{
+    /* `.good` and `.big` were both used by the script and defined nowhere, so the status line
+     * rendered unstyled and the submitted score rendered at body size. A class that does not exist
+     * fails silently, which is why it needs a test rather than a look. */
+    /* COMMENTS STRIPPED FIRST. The stylesheet explains, in a comment, that `.good` and `.big` were
+     * once referenced and undefined -- and a substring search found the class name in that very
+     * comment and called it defined. Mutation caught it: deleting the real `.good` rule left this
+     * section green. That is the third time in this build a comment has satisfied a checker that
+     * was looking for code (an anchor tag inside a comment broke the hub's tag balance, and the AI
+     * tutor's filename inside a comment defeated the lockdown grep). A checker that reads comments
+     * as code is not checking anything. */
+    const styleBlock = ((page.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '')
+        .replace(/\/\*[\s\S]*?\*\//g, ' ');
+    const used = {};
+    /* Only real class TOKENS. Some class attributes in this page are built by string concatenation,
+     * so the raw attribute text can contain JavaScript -- `class="q ' + (q.answeredLocal ...` -- and
+     * feeding that to RegExp threw an unterminated-group error. A token that is not a plain
+     * identifier is not a class name, so it is skipped rather than guessed at. */
+    const isClassToken = (c) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(c);
+    (page.match(/class="([^"]+)"/g) || []).forEach(m => {
+        m.replace(/class="|"/g, '').split(/\s+/).forEach(c => { if (isClassToken(c)) { used[c] = true; } });
+    });
+    (page.match(/classList\.add\('([a-z-]+)'\)/g) || []).forEach(m => {
+        used[m.replace(/classList\.add\('|'\)/g, '')] = true;
+    });
+    /* CLASSES CHOSEN AT RUNTIME. The status line does
+     *     '<span class="' + (okay ? 'good' : 'bad') + '">'
+     * so neither name appears inside a quoted class attribute and the token scan above cannot see
+     * them. Mutation proved it: deleting the `.good` rule left this section at 30/30, because the
+     * class it was supposed to be checking was never in the list. A clean pass on an empty set is
+     * not a pass. So: for every `class="` occurrence, also take the quoted identifiers from the
+     * expression that follows it. */
+    (page.match(/class="[\s\S]{0,160}/g) || []).forEach(win => {
+        /* Bounded at the tag's own '>', or a 160-char window swallows unrelated code and reports
+         * `netfinalWindow` and `object` as missing classes -- a detector so loud it would be turned
+         * off. Everything inside ONE tag's class expression, and nothing past it. */
+        const gt = win.indexOf('>');
+        const expr = gt >= 0 ? win.slice(0, gt) : win;
+        (expr.match(/'([a-zA-Z][a-zA-Z0-9_-]*)'/g) || []).forEach(lit => {
+            const c = lit.replace(/'/g, '');
+            if (isClassToken(c)) { used[c] = true; }
+        });
+    });
+    const undefinedClasses = Object.keys(used)
+        .filter(c => styleBlock.indexOf('.' + c) < 0);
+    chk('every class the markup or script applies is defined (' + Object.keys(used).length + ' classes)',
+        undefinedClasses.length === 0, 'undefined: ' + undefinedClasses.join(', '));
+    chk('the class list is non-empty, so the check above could fail',
+        Object.keys(used).length > 5, String(Object.keys(used).length));
+
+    /* Every custom property the stylesheet READS must also be DECLARED here, or it silently resolves
+     * to nothing -- which is how the action forms briefly had transparent inputs via var(--panel). */
+    const declared = {};
+    (styleBlock.match(/--[a-z0-9-]+\s*:/g) || []).forEach(m => { declared[m.replace(/\s*:/, '').trim()] = true; });
+    const readWithoutFallback = (styleBlock.match(/var\((--[a-z0-9-]+)\)/g) || [])
+        .map(m => m.replace(/var\(|\)/g, ''))
+        .filter((v, i, a) => a.indexOf(v) === i)
+        .filter(v => !declared[v]);
+    chk('every custom property read without a fallback is declared',
+        readWithoutFallback.length === 0, 'undeclared: ' + readWithoutFallback.join(', '));
+}
+
+/* ─── 5. the submitted score does not read as a final grade ─────────────────────────────────────── */
+section('5. the score presentation');
+{
+    /* Q45 is instructor-marked, so a flawless run submits as 191 of 200 with 9 pending. "191 / 200"
+     * in 1.9rem type reads as a final grade to every student who screenshots it. The headline
+     * denominator is now the GRADED total, and the pending points are stated as pending. */
+    chk('the headline denominator excludes the instructor-marked points',
+        /var gradedOutOf = report\.outOf - pending;/.test(page)
+        && /'<div class="big">' \+ report\.total \+ ' <span class="of">\/ ' \+ gradedOutOf/.test(page));
+    chk('the headline is NOT the full point total',
+        !/<div class="big">' \+ report\.total \+ ' \/ ' \+ report\.outOf/.test(page),
+        'the big number is the full total again');
+    chk('the pending points are stated, with the full total for context',
+        /pending \+ ' of the ' \+ report\.outOf/.test(page));
+    chk('collateral damage is still surfaced', /report\.flagged \?/.test(page));
+}
+
+/* ─── 6. exam-mode lockdown ─────────────────────────────────────────────────────────────────────── */
+section('6. spec section 9 lockdown, as the page delivers it');
+{
+    /* The tutor's script filename is deliberately absent from the file, comments included: the
+     * criterion is checked by searching the delivered page, and a mention in a comment reads as a
+     * hit. This asserts the property the spec actually states. */
+    chk('the AI tutor script is not referenced anywhere in the page',
+        !/HexAIButton/.test(page) && !/hex-ai/.test(page));
+    chk('no course or module navigation is offered',
+        !/href="\.\.\/(modules|index)/.test(page) && !/courseLinks: true/.test(page));
+    chk('the access guard runs', /AccessGuard\.require/.test(page));
+    chk('the page loads only the three components it needs', (() => {
+        const srcs = (page.match(/<script[^>]+src="([^"]+)"/g) || []).map(m => m.replace(/.*src="|"/g, ''));
+        return srcs.length === 3 && srcs.every(x => /components\/(AccessGuard|FirebaseAuth|ObservatoryTelemetry)\.js$/.test(x));
+    })(), JSON.stringify((page.match(/<script[^>]+src="([^"]+)"/g) || [])));
+    chk('the clock is display-only and the server value is authoritative',
+        /remainingMs/.test(page) && /setRemaining\(r\.remainingMs\)/.test(page));
+    chk('the exam id the page sends is one the server allows',
+        (() => {
+            const m = page.match(/EXAM_ID = '([^']+)'/);
+            return !!m && EXAMS.resolveExamId(m[1]) === m[1];
+        })(), (page.match(/EXAM_ID = '([^']+)'/) || [])[1] + ' vs ' + JSON.stringify(EXAMS.EXAM_IDS));
+    chk('no emoji', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(page));
+}
+
+console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
+process.exit(fail ? 1 : 0);

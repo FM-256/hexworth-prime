@@ -75,6 +75,35 @@
   .q .where { color: var(--muted); font-size: 0.72rem; font-style: italic; }
   .notice { padding: 10px 12px; font-size: 0.8rem; color: var(--muted); }
   .bad { color: var(--bad); }
+  .good { color: var(--ok); }
+  /* The submitted score. `.good` and `.big` were referenced by the script and never defined, so the
+     status line rendered unstyled and the score rendered at body size. */
+  .big { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.01em; }
+  .big .of { color: var(--muted); font-size: 1rem; font-weight: 400; }
+  .pending-note { color: var(--warn); font-size: 0.82rem; padding: 2px 0 0; }
+
+  /* ── action forms ─────────────────────────────────────────────────────────────────────────────
+     One card per action the server declared for the open window. Stacked, full width: these are
+     short forms a student fills under time pressure, and a multi-column grid would put the submit
+     button somewhere different for every window. */
+  .actions { margin-top: 16px; border-top: 1px solid var(--border); padding-top: 4px; }
+  .actform { border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; margin-top: 10px; background: var(--bg2); }
+  .actform h4 { font-size: 0.8rem; margin: 0 0 8px; font-weight: 600; }
+  .actform .field { margin-bottom: 8px; }
+  .actform label { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 3px; }
+  .actform input, .actform select, .actform textarea {
+      width: 100%; box-sizing: border-box; background: var(--bg); color: var(--ink);
+      border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px;
+      font-size: 0.8rem; font-family: inherit;
+  }
+  .actform textarea { resize: vertical; min-height: 2.4em; }
+  .actform button {
+      background: var(--accent); color: #041014; border: 0; border-radius: 5px;
+      padding: 7px 14px; font-size: 0.78rem; cursor: pointer; font-family: inherit;
+  }
+  .actform button:hover { filter: brightness(1.08); }
+  .actform .opt { color: var(--muted); font-style: italic; }
+  .actform .notice { padding: 8px 0 0; }
   .footer { padding: 14px; display: flex; gap: 10px; align-items: center; }
   .footer button { background: var(--accent); color: #04232a; border: 0; border-radius: 7px; padding: 9px 16px; font-weight: 600; cursor: pointer; }
   .footer button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
@@ -251,10 +280,44 @@
   /* Generic renderer: the server decides WHAT a window contains, this decides how it looks. Arrays
      of flat objects become tables, everything else a definition list -- so a new window or a new
      field needs no change here, which is the point of returning data rather than markup. */
+  /* Build one form per action the SERVER declared for this window. The page does not know which
+     windows have which actions, and must not: the engine ships `_actions` alongside the data, so a
+     new action appears here because it exists. Before this, the window body was a read-only table
+     dump -- fifteen actions existed and the page reached one, which left `incident-log/submit` and
+     `change-requests/submit` unreachable even though both are graded, and left the firewall,
+     wireless and rack repairs with no path at all. */
+  function renderActions(name, forms) {
+    return '<div class="actions">' + forms.map(function (f, fi) {
+      var fid = 'act-' + name + '-' + fi;
+      var inputs = f.params.map(function (prm) {
+        var iid = fid + '-' + prm.name;
+        var lbl = '<label for="' + iid + '">' + esc(prm.label)
+          + (prm.optional ? ' <span class="opt">(optional)</span>' : '') + '</label>';
+        var ctl;
+        if (prm.options && prm.options.length) {
+          ctl = '<select id="' + iid + '" data-param="' + esc(prm.name) + '">'
+            + prm.options.map(function (o) { return '<option value="' + esc(o) + '">' + esc(o) + '</option>'; }).join('')
+            + '</select>';
+        } else if (prm.textarea) {
+          ctl = '<textarea id="' + iid + '" data-param="' + esc(prm.name) + '" rows="2" placeholder="'
+            + esc(prm.placeholder) + '"></textarea>';
+        } else {
+          ctl = '<input id="' + iid + '" data-param="' + esc(prm.name) + '" placeholder="'
+            + esc(prm.placeholder) + '" autocomplete="off" spellcheck="false">';
+        }
+        return '<div class="field">' + lbl + ctl + '</div>';
+      }).join('');
+      return '<form class="actform" data-window="' + esc(name) + '" data-action="' + esc(f.action) + '">'
+        + '<h4>' + esc(f.label) + '</h4>' + inputs
+        + '<button type="submit">' + esc(f.label) + '</button>'
+        + '</form>';
+    }).join('') + '</div>';
+  }
+
   function renderWindow(name, view) {
     var out = ['<h3 style="font-size:.9rem;margin-bottom:10px">' + esc(view.title || name) + '</h3>'];
     Object.keys(view).forEach(function (k) {
-      if (k === 'title') { return; }
+      if (k === 'title' || k === '_actions' || k === '_restore') { return; }
       var v = view[k];
       out.push('<h2 style="padding:8px 0 4px;border:0">' + esc(k) + '</h2>');
       if (Array.isArray(v) && v.length && typeof v[0] === 'object') {
@@ -277,7 +340,41 @@
         out.push('<div>' + esc(v) + '</div>');
       }
     });
+    if (view._actions && view._actions.length) { out.push(renderActions(name, view._actions)); }
+    if (view._restore && view._restore.devices && view._restore.devices.length) {
+      out.push('<div class="actions"><form class="actform" id="restoreform">'
+        + '<h4>' + esc(view._restore.label) + '</h4>'
+        + '<div class="field"><label for="restoredev">Device</label>'
+        + '<select id="restoredev">'
+        + view._restore.devices.map(function (d) { return '<option value="' + esc(d) + '">' + esc(d) + '</option>'; }).join('')
+        + '</select></div>'
+        + '<button type="submit">Restore device</button>'
+        + '<p class="notice">A restore undoes every change you have made to that device, including a '
+        + 'correct one. It is logged.</p>'
+        + '</form></div>');
+    }
     return out.join('');
+  }
+
+  /* Re-render the current window after an action, so the student sees the state they just changed
+     rather than the state they changed it from. */
+  function refreshWindow() {
+    if (surface === 'terminal') { return Promise.resolve(); }
+    return call('netfinalWindow', { examId: EXAM_ID, window: surface }).then(function (r) {
+      setRemaining(r.remainingMs);
+      el('winbody').innerHTML = renderWindow(surface, r.view);
+    });
+  }
+
+  function actionResult(r) {
+    var res = (r && r.result) ? r.result : r;
+    var okay = res && res.ok;
+    el('status').innerHTML = '<span class="' + (okay ? 'good' : 'bad') + '">'
+      + esc(okay ? (res.message || 'Done.') : (res && res.reason ? res.reason : 'Rejected.')) + '</span>';
+    /* A REJECTION IS NOT AN ERROR. The engine logs every attempt, successful or not, and the spec
+       wants the rejected ones as evidence of what the student tried -- so a rejection updates the
+       status line and leaves the form filled in, rather than throwing the work away. */
+    return res;
   }
 
   function fatal(e) {
@@ -294,10 +391,19 @@
       el('report').innerHTML = '<div class="notice">' + esc(msg || 'Your exam has been submitted.') + '</div>';
       return;
     }
+    /* THE HEADLINE NUMBER MUST NOT READ AS A FINAL GRADE WHILE POINTS ARE UNDECIDED.
+       Q45 is instructor-marked, so a flawless run submits as total 191, outOf 200, with 9 pending --
+       and "191 / 200" in 1.9rem type is read as a final score by every student who screenshots it,
+       with the explanation in small grey text underneath. The graded-so-far denominator is the
+       honest one, and the pending points are stated as pending rather than as lost. */
+    var pending = Number(report.pendingInstructorMarks || 0);
+    var gradedOutOf = report.outOf - pending;
     el('report').innerHTML =
-      '<div class="big">' + report.total + ' / ' + report.outOf + '</div>'
-      + (report.pendingInstructorMarks
-          ? '<div class="notice">' + report.pendingInstructorMarks + ' further points are marked by your instructor.</div>' : '')
+      '<div class="big">' + report.total + ' <span class="of">/ ' + gradedOutOf
+        + (pending ? ' graded' : '') + '</span></div>'
+      + (pending
+          ? '<div class="pending-note">' + pending + ' of the ' + report.outOf
+            + ' points on this exam are marked by your instructor and are not included above.</div>' : '')
       + (report.flagged ? '<div class="notice bad">Flagged for instructor review: a change caused collateral damage.</div>' : '')
       + '<table style="margin-top:12px"><tbody>'
       + Object.keys(report.phases).map(function (p) {
@@ -320,6 +426,41 @@
       write(r.out);
       if (r.prompt) { el('prompt').textContent = r.prompt; }
       telemetry('command', line);
+    }).catch(fatal);
+  });
+
+  /* DELEGATED on #winbody, which survives the innerHTML replacement that re-renders a window.
+     Binding to each form would leak a listener per render and stop working after the first
+     refresh. */
+  el('winbody').addEventListener('submit', function (ev) {
+    var form = ev.target.closest('form.actform');
+    if (!form) { return; }
+    ev.preventDefault();
+
+    if (form.id === 'restoreform') {
+      var dev = el('restoredev').value;
+      call('netfinalRestore', { examId: EXAM_ID, device: dev }).then(function (r) {
+        actionResult(r);
+        telemetry('restore', dev);
+        return refreshWindow();
+      }).catch(fatal);
+      return;
+    }
+
+    var params = {};
+    Array.prototype.forEach.call(form.querySelectorAll('[data-param]'), function (ctl) {
+      var v = ctl.value;
+      /* An empty optional field is OMITTED rather than sent as '', because the engine's validators
+         distinguish "not given" from "given as empty" -- portforward-set applies toPort only when
+         present, and sending '' would set the port to NaN. */
+      if (v !== '' && v !== null && v !== undefined) { params[ctl.dataset.param] = v; }
+    });
+    call('netfinalAction', {
+      examId: EXAM_ID, window: form.dataset.window, action: form.dataset.action, params: params
+    }).then(function (r) {
+      actionResult(r);
+      telemetry('action', form.dataset.window + '/' + form.dataset.action);
+      return refreshWindow();
     }).catch(fatal);
   });
 

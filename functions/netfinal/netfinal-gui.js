@@ -442,7 +442,23 @@
     function render(state, window) {
         var fn = RENDERERS[window];
         if (!fn) { return { error: 'no window named ' + window }; }
-        return fn(state);
+        var view = fn(state);
+        /* The forms travel WITH the data, so the page never has to know which window has which
+         * actions. Rendered under a reserved key the page treats as controls rather than as a table;
+         * `_actions` is prefixed so it cannot collide with a renderer's own field. */
+        var forms = actionSchema(state, window);
+        if (forms.length) { view._actions = forms; }
+        /* DEVICE RESTORE is not in ACTIONS -- it lives on the device menu and has its own callable --
+         * so it needs its own declaration or the page has no way to offer it. It is graded (free and
+         * logged, and it re-grants amnesty for what was already broken at exam start), and it is the
+         * only way back from a change that made things worse, so a student with no restore control
+         * can paint themselves into a corner with no exit. Offered on the rack, where the hardware
+         * is. */
+        if (window === 'rack') {
+            view._restore = { label: 'Restore a device to its exam-start configuration',
+                              devices: Object.keys(state.ports || {}).sort() };
+        }
+        return view;
     }
 
     function act(state, window, action, params) {
@@ -474,9 +490,153 @@
         return FAULTS.restoreDevice(state, device);
     }
 
+
+    /* ═══ THE ACTION SCHEMA ═══════════════════════════════════════════════════════════════════════
+     * What each window's actions are called, what they take, and what to label the fields.
+     *
+     * WHY THE SERVER DECLARES THIS. The exam page shipped as a read-only table dumper: it rendered
+     * every window's data and offered no way to act on any of it. Fifteen actions existed and the
+     * page reached exactly one. That made `change-requests/submit` and `incident-log/submit`
+     * unreachable, and both are GRADED -- the incident log's layer field is the graded answer for
+     * Q43/44, and a change request filed before the fix is the difference between full credit and
+     * three of six on every one of the twelve fix questions. The firewall, wireless and rack repairs
+     * had no path at all, so the faults they fix were unfixable from the browser.
+     *
+     * The fix is not a hardcoded list of forms in the page. The page already holds no lab logic, and
+     * a copy of the action set would be a second source of truth that drifts the first time someone
+     * adds an action -- the page would keep rendering the old set and nobody would see a thing. So
+     * the engine declares the forms, the render includes them, and the page builds inputs from what
+     * it is handed. A new action appears in the UI because it exists, not because someone remembered.
+     *
+     * `schemaGaps()` below is the ledger: it reports any action with no schema and any schema with no
+     * action, and the gui suite asserts it is empty. An action that cannot be reached is as broken as
+     * one that does not exist, and this is the check that says so.
+     * ═══════════════════════════════════════════════════════════════════════════════════════════ */
+    var ACTION_SCHEMA = {
+        firewall: {
+            'nat-add-outbound': { label: 'Add outbound NAT rule', params: [
+                { name: 'src', label: 'Source network (CIDR)', placeholder: '10.0.20.0/24' } ] },
+            'nat-remove-outbound': { label: 'Remove outbound NAT rule', params: [
+                { name: 'index', label: 'Rule number (as listed above)', placeholder: '0' } ] },
+            'portforward-set': { label: 'Edit a port forward', params: [
+                { name: 'wanPort', label: 'WAN port', placeholder: '443' },
+                { name: 'toIp', label: 'Forward to address', placeholder: '10.0.30.20' },
+                { name: 'toPort', label: 'Forward to port', placeholder: '443', optional: true } ] },
+            'ipsec-add-phase2': { label: 'Add IPsec phase 2', params: [
+                { name: 'local', label: 'Local network (CIDR)', placeholder: '10.0.30.0/24' },
+                { name: 'remote', label: 'Remote network (CIDR)', placeholder: '192.168.90.0/24' } ] },
+            'ipsec-remove-phase2': { label: 'Remove IPsec phase 2', params: [
+                { name: 'index', label: 'Entry number (as listed above)', placeholder: '0' } ] },
+            'diag-ping': { label: 'Ping from the firewall', params: [
+                { name: 'target', label: 'Target address or name', placeholder: '8.8.8.8' } ] },
+            'diag-test-from-wan': { label: 'Test a port from the WAN side', params: [
+                { name: 'port', label: 'TCP port', placeholder: '443' } ] }
+        },
+        wireless: {
+            'ssid-set-vlan': { label: 'Map an SSID to a VLAN', params: [
+                { name: 'ssid', label: 'SSID', options: function (st) {
+                    return (st.ssids || []).map(function (x) { return x.name; }); } },
+                { name: 'vlan', label: 'VLAN id', placeholder: '99' } ] },
+            'ap-set-channel': { label: 'Set an AP radio channel', params: [
+                { name: 'ap', label: 'Access point', options: function (st) {
+                    return Object.keys((st.wireless && st.wireless.apChannels) || {}); } },
+                { name: 'channel', label: '2.4 GHz channel', placeholder: '1, 6 or 11' } ] }
+        },
+        noc: {
+            'ack-alert': { label: 'Acknowledge an alert', params: [
+                { name: 'id', label: 'Alert', options: function (st) {
+                    var v = renderNoc(st);
+                    return (v.alerts || []).map(function (a) { return a.id; }); } } ] }
+        },
+        rack: {
+            'replace-cable': { label: 'Replace a patch cable', params: [
+                { name: 'device', label: 'Device', options: function (st) {
+                    return Object.keys(st.ports || {}); } },
+                { name: 'port', label: 'Port', placeholder: 'Fa0/8' } ] },
+            'reseat-cable': { label: 'Reseat a patch cable', params: [
+                { name: 'device', label: 'Device', options: function (st) {
+                    return Object.keys(st.ports || {}); } },
+                { name: 'port', label: 'Port', placeholder: 'Fa0/8' } ] }
+        },
+        questions: {
+            /* The question panel has its own callable, so rendering a second form for it would give
+             * the student two controls that disagree about what they answered. Declared so the
+             * ledger sees it covered, and marked internal so no form is built. */
+            'answer': { label: 'Answer a question', internal: true, params: [
+                { name: 'id', label: 'Question id' }, { name: 'value', label: 'Answer' } ] }
+        },
+        'change-requests': {
+            'submit': { label: 'File a change request', params: [
+                { name: 'ticket', label: 'Ticket', options: function (st) {
+                    return (st.tickets || []).map(function (t) { return t.id; }); } },
+                { name: 'rootCause', label: 'Root cause', textarea: true },
+                { name: 'layer', label: 'OSI layer', placeholder: '1-7' },
+                { name: 'plannedChange', label: 'Planned change', textarea: true },
+                { name: 'rollback', label: 'Rollback plan', textarea: true } ] }
+        },
+        'incident-log': {
+            'submit': { label: 'Record an incident-log entry', params: [
+                { name: 'ticket', label: 'Ticket', options: function (st) {
+                    return (st.tickets || []).map(function (t) { return t.id; }); } },
+                { name: 'symptom', label: 'Symptom', textarea: true },
+                { name: 'layer', label: 'OSI layer', placeholder: '1-7' },
+                { name: 'rootCause', label: 'Root cause', textarea: true },
+                { name: 'fix', label: 'Fix applied', textarea: true },
+                { name: 'verification', label: 'How you verified it', textarea: true } ] }
+        }
+    };
+
+    /* The forms for one window, with option lists resolved against THIS lab. Option lists are the
+     * reason this takes state: a student should pick a real ticket from a list, not retype an id
+     * they half-remember and lose credit to a typo. */
+    function actionSchema(state, window) {
+        var set = ACTION_SCHEMA[window] || {};
+        return Object.keys(set).filter(function (k) { return !set[k].internal; }).map(function (name) {
+            var def = set[name];
+            return {
+                action: name,
+                label: def.label || name,
+                params: (def.params || []).map(function (prm) {
+                    var out = {
+                        name: prm.name,
+                        label: prm.label || prm.name,
+                        placeholder: prm.placeholder || '',
+                        optional: !!prm.optional,
+                        textarea: !!prm.textarea
+                    };
+                    if (typeof prm.options === 'function') {
+                        var opts = prm.options(state) || [];
+                        out.options = opts.filter(function (o) { return o !== null && o !== undefined; })
+                            .map(String);
+                    }
+                    return out;
+                })
+            };
+        });
+    }
+
+    /* THE LEDGER. Any action with no schema is unreachable from the UI; any schema with no action is
+     * a form that will always be rejected. Both are defects and both are silent, so the gui suite
+     * asserts this returns nothing. */
+    function schemaGaps() {
+        var gaps = [];
+        Object.keys(ACTIONS).forEach(function (w) {
+            Object.keys(ACTIONS[w]).forEach(function (a) {
+                if (!(ACTION_SCHEMA[w] && ACTION_SCHEMA[w][a])) { gaps.push('action without a schema: ' + w + '/' + a); }
+            });
+        });
+        Object.keys(ACTION_SCHEMA).forEach(function (w) {
+            Object.keys(ACTION_SCHEMA[w]).forEach(function (a) {
+                if (!(ACTIONS[w] && ACTIONS[w][a])) { gaps.push('schema without an action: ' + w + '/' + a); }
+            });
+        });
+        return gaps;
+    }
+
     module.exports = {
         WINDOWS: WINDOWS, render: render, act: act, restore: restore,
         fields: { changeRequest: CR_FIELDS, incidentLog: LOG_FIELDS },
-        actionNames: Object.keys(ACTIONS).reduce(function (acc, w) { acc[w] = Object.keys(ACTIONS[w]); return acc; }, {})
+        actionNames: Object.keys(ACTIONS).reduce(function (acc, w) { acc[w] = Object.keys(ACTIONS[w]); return acc; }, {}),
+        actionSchema: actionSchema, schemaGaps: schemaGaps
     };
 })();

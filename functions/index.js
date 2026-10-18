@@ -11134,10 +11134,28 @@ exports.sextantSnapshot = require('./sextant').sextantSnapshot;
 const NETFINAL = require('./netfinal/netfinal-exam.js');
 const netfinalSeedSecret = defineSecret('NETFINAL_SEED_SECRET');
 
+/* Which exam identities exist. In its own module so the rule is unit-testable without loading
+ * firebase-functions -- see the header of netfinal-exams.js for why it is an allowlist. */
+const NETFINAL_EXAMS = require('./netfinal/netfinal-exams.js');
+
 /* The Firestore-backed store the exam service reads through. Same interface the in-memory store in
  * netfinal-exam.js exposes, which is what lets the exam rules be tested without Firestore. */
 function netfinalStore() {
     const col = db.collection('netfinal_sessions');
+    /* ONE serializer for both writers. put() and putIfRev() wrote the same twelve fields in two
+     * places for about ten minutes, which is exactly how `state.links` ended up with ten entries for
+     * five adjacencies: two construction blocks, and nothing reading the quantity. */
+    const serialize = (s) => ({
+        sessionId: s.sessionId, studentId: s.studentId, examId: s.examId,
+        startedAt: s.startedAt, durationMs: s.durationMs,
+        submittedAt: s.submittedAt || null,
+        stateJson: JSON.stringify(s.state),
+        answerKeyJson: JSON.stringify(s.answerKey),
+        shellJson: JSON.stringify(s.shell),
+        reportJson: s.report ? JSON.stringify(s.report) : null,
+        rev: Number(s.rev || 0),
+        updatedAt: Date.now()
+    });
     return {
         async get(id) {
             const snap = await col.doc(id).get();
@@ -11153,21 +11171,28 @@ function netfinalStore() {
                 state: JSON.parse(d.stateJson),
                 answerKey: JSON.parse(d.answerKeyJson),
                 shell: JSON.parse(d.shellJson),
-                report: d.reportJson ? JSON.parse(d.reportJson) : null
+                report: d.reportJson ? JSON.parse(d.reportJson) : null,
+                rev: Number(d.rev || 0)
             };
         },
         async put(id, s) {
-            await col.doc(id).set({
-                sessionId: s.sessionId, studentId: s.studentId, examId: s.examId,
-                startedAt: s.startedAt, durationMs: s.durationMs,
-                submittedAt: s.submittedAt || null,
-                stateJson: JSON.stringify(s.state),
-                answerKeyJson: JSON.stringify(s.answerKey),
-                shellJson: JSON.stringify(s.shell),
-                reportJson: s.report ? JSON.stringify(s.report) : null,
-                updatedAt: Date.now()
-            }, { merge: false });
+            await col.doc(id).set(serialize(s), { merge: false });
             return true;
+        },
+        /* COMPARE-AND-SET, in a transaction, because the session document is read-modify-written on
+         * every command and a lost write loses graded evidence -- see the long note in
+         * netfinal-exam.js's withSession. Returns false when the stored revision has moved, so the
+         * caller decides whether that is a retry or an idempotent no-op. */
+        async putIfRev(id, s, expectedRev) {
+            const ref = col.doc(id);
+            return db.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (snap.exists && Number(snap.data().rev || 0) !== Number(expectedRev)) {
+                    return false;
+                }
+                tx.set(ref, serialize(s), { merge: false });
+                return true;
+            });
         }
     };
 }
@@ -11179,10 +11204,20 @@ function netfinalCall(fn) {
         if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
         const uid = request.auth.uid;
         const data = request.data || {};
-        const examId = String(data.examId || 'net-final-2026');
-        if (!/^[A-Za-z0-9_-]{1,64}$/.test(examId)) {
-            throw new HttpsError('invalid-argument', 'Invalid examId.');
-        }
+        /* AN ALLOWLIST, NOT A FORMAT CHECK. This was a format check, and a format check is not a
+         * decision about which exams exist -- it is a decision about which STRINGS are well formed.
+         * `examId` is folded into the seed (netfinal-core.js: secret|studentId|examId), and the
+         * session is addressed as uid + '::' + examId, so ANY new string is a brand-new lab with its
+         * own clock, its own faults and its own answer key, under a session id that cannot collide
+         * with the real one. A student calling netfinalStart with examId:'attempt2' from devtools got
+         * a second attempt; 'attempt3' got a third. "One attempt" held only for callers who chose to
+         * reuse the same id, which is every caller except the one the rule exists to stop.
+         *
+         * The page's EXAM_ID constant lives in client JS and is therefore a suggestion. Which exams
+         * exist is server knowledge, so it lives here. A new sitting or cohort is a deliberate edit
+         * to this list plus a deploy -- the right amount of friction for minting an exam identity. */
+        const examId = NETFINAL_EXAMS.resolveExamId(data.examId);
+        if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
         /* DERIVED, NOT SUPPLIED. A client-chosen sessionId would let one student address another's
          * exam, and a client-chosen studentId would let anyone generate a lab for any identity --
          * which, with a known seed secret absent, is how a healthy lab gets regenerated and diffed. */
@@ -11194,8 +11229,11 @@ function netfinalCall(fn) {
                 opts: { secret: netfinalSeedSecret.value() || null }
             });
         } catch (e) {
+            /* 'aborted' is in this list because a concurrency conflict must reach the client AS a
+             * conflict: it is the one error here the caller can resolve by retrying, and collapsing
+             * it to 'internal' would make a retryable blip look like a broken exam. */
             const known = ['invalid-argument', 'not-found', 'failed-precondition',
-                           'deadline-exceeded', 'permission-denied', 'internal'];
+                           'deadline-exceeded', 'permission-denied', 'aborted', 'internal'];
             throw new HttpsError(known.indexOf(e.code) >= 0 ? e.code : 'internal',
                 e.message || 'Exam service error.');
         }

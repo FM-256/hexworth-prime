@@ -48,6 +48,13 @@
      * into a throw instead of a wrong grade. */
     function buildAnswerKey(state) {
         var key = { builtAtEvent: (state.events || []).length, questions: {} };
+        /* Which ports have an endpoint on more than one switch IN THIS LAB. Spec section 8 allows the
+         * switch name to be omitted "when only one switch has that port active with that endpoint" --
+         * a condition about the lab, so it is resolved here, at the same moment and from the same
+         * state as the answer it qualifies, and frozen alongside it. Deciding it at grading time
+         * would read live state to qualify a frozen key, which is the bug class this key exists to
+         * avoid. */
+        var ambiguous = QUESTIONS.ambiguousPorts(state);
         QUESTIONS.QUESTIONS.forEach(function (q) {
             var resolved = QUESTIONS.resolve(state, q);
             var entry = {
@@ -71,6 +78,15 @@
                 /* JSON round-trip: a clone AND a guarantee the value is plain data, so nothing a
                  * grader reads can be a getter or a reference. */
                 entry.answer = JSON.parse(JSON.stringify(q.answer(state)));
+            }
+            /* An interface answer on an AMBIGUOUS port must name its switch. Without this, a bare
+             * "Fa0/5" matched either switch and "which switch" stopped being graded at all on the
+             * questions whose whole point it is. */
+            if (entry.norm === 'iface' && typeof entry.answer === 'string') {
+                var parsed = QUESTIONS.NORM.iface(entry.answer);
+                if (parsed && parsed.iface && ambiguous[parsed.iface]) {
+                    entry.requireSw = true;
+                }
             }
             key.questions[q.id] = entry;
         });
@@ -101,9 +117,10 @@
                 if (mine === undefined && typeof given === 'string') { mine = given; }
                 var kind = ['ipv4', 'prefix', 'mac', 'iface', 'range', 'vlanSet', 'aclRef', 'integer', 'select']
                     .indexOf(part) >= 0 ? part : (entry.norm || 'text');
+                var popts = (kind === 'iface' && entry.requireSw) ? { require: ['sw'] } : undefined;
                 var ok = Array.isArray(want)
-                    ? want.some(function (w) { return sameAnswer(kind, mine, w); })
-                    : sameAnswer(kind, mine, want);
+                    ? want.some(function (w) { return sameAnswer(kind, mine, w, popts); })
+                    : sameAnswer(kind, mine, want, popts);
                 detail[part] = ok;
                 if (ok) { got++; }
             });
@@ -112,10 +129,11 @@
                      note: got + ' of ' + entry.parts.length + ' parts', detail: detail };
         }
         var want2 = entry.answer;
+        var opts2 = ((entry.norm === 'iface') && entry.requireSw) ? { require: ['sw'] } : undefined;
         var ok2 = Array.isArray(want2)
             ? (NORM.multi(given) !== null && JSON.stringify(NORM.multi(given)) === JSON.stringify(NORM.multi(want2)))
-              || want2.some(function (w) { return sameAnswer(entry.norm || 'text', given, w); })
-            : sameAnswer(entry.norm || 'text', given, want2);
+              || want2.some(function (w) { return sameAnswer(entry.norm || 'text', given, w, opts2); })
+            : sameAnswer(entry.norm || 'text', given, want2, opts2);
         return { earned: ok2 ? entry.points : 0, of: entry.points, note: ok2 ? 'correct' : 'incorrect' };
     }
 
@@ -175,15 +193,26 @@
         }
         var re = new RegExp(proof.match.source || proof.match, 'i');
         var events = state.events || [];
-        var hit = null, prereq = !proof.requires;
+
+        /* TWO PASSES, BECAUSE ORDER IS THE WHOLE POINT. One pass set `prereq` for any matching event
+         * after the fix -- including one that ran AFTER the proof. Q41A's prescribed sequence is
+         * `arp -d *`, ping the gateway, THEN `arp -a`: clearing the cache is what makes the table a
+         * measurement rather than a memory, so clearing it after reading it proves nothing and must
+         * not score as if it did. The prerequisite is now required to fall strictly between the fix
+         * and the proof. */
+        var hit = null;
         events.forEach(function (e, i) {
-            if (proof.requires && new RegExp(proof.requires.source || proof.requires, 'i').test(e.detail) && i > fixedAt) {
-                prereq = true;
-            }
             if (hit !== null) { return; }
             var onRight = !proof.on || proof.on.indexOf(e.actor) >= 0;
             if (onRight && re.test(e.detail) && i > fixedAt) { hit = i; }
         });
+        var prereq = !proof.requires;
+        if (proof.requires && hit !== null) {
+            var preRe = new RegExp(proof.requires.source || proof.requires, 'i');
+            prereq = events.some(function (e, i) {
+                return i > fixedAt && i < hit && preRe.test(e.detail);
+            });
+        }
         if (hit === null) {
             /* Spec: "Verify task run before the fix ... 0". Said explicitly, because a student who
              * ran the command early and never again should know why it scored nothing. */
@@ -196,7 +225,7 @@
         }
         if (!prereq) {
             return { earned: Math.round(entry.points / 2), of: entry.points,
-                     note: 'proof run after the fix, but its prerequisite step was not' };
+                     note: 'proof run after the fix, but its prerequisite step did not run before it' };
         }
         return { earned: entry.points, of: entry.points, note: 'proof run after the fix, at event ' + hit };
     }

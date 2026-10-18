@@ -630,5 +630,141 @@ section('6. CSV for the LMS');
     chk('the answered question shows its mark', /,q?46,|,46,/.test(csv) && /planning/.test(csv));
 }
 
+/* ─── 7. the normalizer fixes, each as the exact reproduction that found it ─────────────────────── */
+section('7. two normalizers that scored wrong answers correct');
+{
+    /* AN ACL NAMED WRONG, IN LOWERCASE, SCORED FULL MARKS ON Q24 (4 points).
+     * Two defects compounded. NORM.aclRef matched the name with /\b([A-Z][A-Z0-9_-]{2,})\b/ --
+     * uppercase-only, directly against the spec's "Name case-insensitive" -- so a lowercase name
+     * became null. And sameAnswer treated a null field as "omitted, tolerated", a rule written for
+     * iface's optional switch name. Null-because-wrong read as null-because-omitted. */
+    chk('the reproduction: a WRONG acl name with the right seq is now refused',
+        QQ.sameAnswer('aclRef', 'wrong-acl 10', 'GUEST-IN 10') === false);
+    chk('a lowercase CORRECT name is accepted, which the old regex refused',
+        QQ.sameAnswer('aclRef', 'guest-in 10', 'GUEST-IN 10') === true);
+    chk('mixed case and the spec’s "seq 10" spelling both work',
+        QQ.sameAnswer('aclRef', 'Guest-In seq 10', 'GUEST-IN 10') === true
+        && QQ.sameAnswer('aclRef', 'ip access-list GUEST-IN seq 10', 'GUEST-IN 10') === true);
+    chk('the surrounding words are not mistaken for the name',
+        (QQ.NORM.aclRef('ip access-list GUEST-IN seq 10') || {}).name === 'guest-in',
+        JSON.stringify(QQ.NORM.aclRef('ip access-list GUEST-IN seq 10')));
+    chk('a missing name is refused, because the question asks for name AND sequence',
+        QQ.sameAnswer('aclRef', '10', 'GUEST-IN 10') === false);
+    chk('a missing sequence is refused for the same reason',
+        QQ.sameAnswer('aclRef', 'guest-in', 'GUEST-IN 10') === false);
+    chk('the other real ACL is not accepted for this one',
+        QQ.sameAnswer('aclRef', 'servers-out 10', 'GUEST-IN 10') === false);
+
+    /* THE SWITCH NAME IS OMISSIBLE ONLY WHERE THE SPEC SAYS: "when only one switch has that port
+     * active with that endpoint." The tolerance was unconditional, so a bare port number matched
+     * EITHER switch and "which switch" stopped being graded wherever it was ambiguous.
+     *
+     * Built deterministically rather than hunted for across seeds: take the port an interface
+     * question actually asks about and attach a second endpoint to the same port on the other
+     * switch. That is what ambiguity IS, and constructing it means this cannot quietly become
+     * vacuous when the generator's seeds move. */
+    {
+        const st = CORE.generate('amb-key', EXAM, { secret: 'server-secret' });
+        FAULTS.applyAll(st);
+        const clean = GR.buildAnswerKey(st);
+        const q8 = clean.questions.q8;
+        const parsed = QQ.NORM.iface(q8.answer);
+        chk('the unambiguous baseline does NOT require the switch', q8.requireSw !== true,
+            q8.answer + ' -> requireSw=' + q8.requireSw);
+        chk('and a bare port still scores there, as the spec allows',
+            GR.gradeTyped(q8, parsed.iface).earned === q8.points,
+            JSON.stringify(GR.gradeTyped(q8, parsed.iface)));
+
+        /* Now make that exact port ambiguous. */
+        const owner = (st.endpoints.filter(e => e.port && QQ.NORM.iface(e.port).iface === parsed.iface)[0] || {}).switch;
+        const other = Object.keys(st.ports).filter(d => /SW/i.test(d) && d !== owner)[0];
+        st.endpoints.push({
+            name: 'AMBIG-PC01', kind: 'workstation', vlan: 10, mac: '00:25:90:FF:FF:01',
+            ip: null, mask: null, gw: null, dns: null, dhcp: true,
+            switch: other, port: parsed.iface.replace(/^fa/, 'Fa').replace(/^gi/, 'Gi'),
+            ap: null, ssid: null, network: null, reservation: false
+        });
+        const ambKey = GR.buildAnswerKey(st);
+        chk('the port is now ambiguous between the two switches',
+            QQ.ambiguousPorts(st)[parsed.iface] === true,
+            JSON.stringify(Object.keys(QQ.ambiguousPorts(st))));
+        const q8b = ambKey.questions.q8;
+        chk('so the key now REQUIRES the switch name', q8b.requireSw === true,
+            q8b.answer + ' -> requireSw=' + q8b.requireSw);
+        chk('a bare port no longer scores, because it matches either switch',
+            GR.gradeTyped(q8b, parsed.iface).earned === 0,
+            JSON.stringify(GR.gradeTyped(q8b, parsed.iface)));
+        chk('naming the right switch scores full',
+            GR.gradeTyped(q8b, q8b.answer).earned === q8b.points,
+            JSON.stringify(GR.gradeTyped(q8b, q8b.answer)));
+        chk('naming the WRONG switch scores zero, ambiguous or not',
+            GR.gradeTyped(q8b, other + ' ' + parsed.iface).earned === 0
+            && GR.gradeTyped(q8, other + ' ' + parsed.iface).earned === 0,
+            JSON.stringify([GR.gradeTyped(q8b, other + ' ' + parsed.iface),
+                            GR.gradeTyped(q8, other + ' ' + parsed.iface)]));
+    }
+}
+
+/* ─── 8. a verify sequence must happen IN ORDER ─────────────────────────────────────────────────── */
+section('8. the prerequisite step has to come before the proof');
+{
+    /* Q41A's sequence is `arp -d *`, ping the gateway, THEN `arp -a`. Clearing the cache is what
+     * makes the table a measurement rather than a memory, so clearing it AFTER reading it proves
+     * nothing. gradeSequence set its prerequisite flag for any match after the fix, in a single pass
+     * that kept scanning past the proof -- so the two commands in either order scored the same. */
+    /* S4's variant is drawn from the seed, and only S4A's proof HAS a prerequisite (S4B verifies with
+     * `show ip arp` on the router and needs no cache flush). So find the first seed that draws S4A
+     * and say which one it was -- a deterministic search, repeated identically on every run, rather
+     * than a hardcoded seed that silently stops drawing A when the generator changes. */
+    const SEED = (() => {
+        for (let i = 0; i < 60; i++) {
+            const probe = CORE.generate('seq-order-' + i, EXAM, { secret: 'server-secret' });
+            const f = probe.faults.filter(x => x.slot === 'S4')[0];
+            if (f && f.variant === 'A') { return 'seq-order-' + i; }
+        }
+        return null;
+    })();
+    chk('a seed drawing S4A was found, so this section tests something',
+        SEED !== null, 'no seed in 60 drew S4A');
+
+    const build = () => {
+        const st = CORE.generate(SEED, EXAM, { secret: 'server-secret' });
+        FAULTS.applyAll(st);
+        const key = GR.buildAnswerKey(st);
+        const f = st.faults.filter(x => x.slot === 'S4')[0];
+        return { st, key, f };
+    };
+    const only41 = (report) => report.questions.filter(r => r.n === 41)[0];
+    const drive = (order) => {
+        const { st, key, f } = build();
+        if (f.variant !== 'A') { return null; }            /* S4B's proof has no prerequisite */
+        FAULTS.VARIANTS[f.id].correctFix(st, f);
+        FAULTS.recordProgress(st, (st.events || []).length - 1);
+        let ses = SH.newSession();
+        const type = (l) => { const r = SH.exec(st, ses, l); ses = r.session; };
+        order.forEach(type);
+        return only41(GR.grade(st, key));
+    };
+
+    /* Driven on ADMIN-WS01, which is where Q41A's proof is scoped (`on: ['ADMIN-WS01']`). The
+     * gateway address comes from the lab rather than a literal, because the subnet is seeded. */
+    const gw = (() => { const { st } = build(); return st.subnets[10].gateway; })();
+    const rightOrder = drive(['arp -d *', 'ping ' + gw, 'arp -a']);
+    const wrongOrder = drive(['arp -a', 'arp -d *']);
+    if (rightOrder === null) {
+        chk('S4 variant A was required for this case and the search did not find it', false,
+            'the seed search above failed, so these assertions could not run');
+    } else {
+        chk('prerequisite BEFORE the proof scores full', rightOrder.earned === rightOrder.of,
+            JSON.stringify(rightOrder));
+        chk('prerequisite AFTER the proof scores half, and says why',
+            wrongOrder.earned === Math.round(wrongOrder.of / 2)
+            && /before it/.test(wrongOrder.note), JSON.stringify(wrongOrder));
+        chk('the two orders score DIFFERENTLY, which is the whole claim',
+            rightOrder.earned !== wrongOrder.earned,
+            rightOrder.earned + ' vs ' + wrongOrder.earned);
+    }
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);

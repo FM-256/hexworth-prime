@@ -63,22 +63,27 @@ section('1. all seven windows render against a real lab');
         (st.events || []).some(e => /launch-missiles/.test(e.detail) && /rejected/.test(e.detail)));
 }
 
+/* The six GUI-only repairs, at module scope because two sections need them: section 2 drives
+ * them through act(), and the schema section checks each one is renderable as a form. One
+ * definition, so the two cannot disagree about what the repairs are. */
+const REPAIRS = {
+    S1B: (st, f) => [['rack', 'replace-cable', { device: f.target.switch, port: f.target.port }]],
+    S6B: (st) => [['firewall', 'ipsec-add-phase2',
+                   { local: st.subnets[20].cidr, remote: TOPO.FIXED_NETS.branch.cidr }]],
+    S7A: (st) => [['firewall', 'nat-add-outbound', { src: st.subnets[20].cidr }]],
+    S7B: (st) => [['firewall', 'portforward-set', { wanPort: 443, toIp: '172.16.50.10' }]],
+    S11A: (st) => [['wireless', 'ssid-set-vlan', { ssid: 'Meridian-Guest', vlan: 40 }]],
+    S11B: (st) => [['wireless', 'ap-set-channel', { ap: 'AP-1', channel: 1 }],
+                   ['wireless', 'ap-set-channel', { ap: 'AP-2', channel: 6 }],
+                   ['wireless', 'ap-set-channel', { ap: 'AP-3', channel: 11 }]]
+};
+
+
 /* ─── 2. the six faults a terminal cannot reach ───────────────────────────────────────────────── */
 section('2. the six GUI-only faults, repaired through act()');
 {
     /* These are the exact six stage 4's test refused to claim. If any one of them cannot be fixed
      * here, that fault is unfixable anywhere and a student loses those marks with no recourse. */
-    const REPAIRS = {
-        S1B: (st, f) => [['rack', 'replace-cable', { device: f.target.switch, port: f.target.port }]],
-        S6B: (st) => [['firewall', 'ipsec-add-phase2',
-                       { local: st.subnets[20].cidr, remote: TOPO.FIXED_NETS.branch.cidr }]],
-        S7A: (st) => [['firewall', 'nat-add-outbound', { src: st.subnets[20].cidr }]],
-        S7B: (st) => [['firewall', 'portforward-set', { wanPort: 443, toIp: '172.16.50.10' }]],
-        S11A: (st) => [['wireless', 'ssid-set-vlan', { ssid: 'Meridian-Guest', vlan: 40 }]],
-        S11B: (st) => [['wireless', 'ap-set-channel', { ap: 'AP-1', channel: 1 }],
-                       ['wireless', 'ap-set-channel', { ap: 'AP-2', channel: 6 }],
-                       ['wireless', 'ap-set-channel', { ap: 'AP-3', channel: 11 }]]
-    };
     chk('exactly the six stage-4 could not reach are covered here',
         Object.keys(REPAIRS).sort().join(',') === 'S11A,S11B,S1B,S6B,S7A,S7B',
         Object.keys(REPAIRS).sort().join(','));
@@ -355,6 +360,83 @@ section('7. the question panel: free navigation, answers stored ungraded');
         GUI.act(st, 'questions', 'answer', { id: 'q1', value: '20' });
         return st.answers.q1.value === '20' && GUI.render(st, 'questions').answered === 1;
     })());
+}
+
+/* ─── the action schema, which is what makes an action REACHABLE FROM THE PAGE ──────────────────
+ *
+ * An action the engine accepts but the page offers no control for is as unreachable as one that does
+ * not exist. This suite already proves all six GUI-fixed variants are repairable through act(), and
+ * the shell suite proves the other eighteen through exec() -- both with ledgers accounting for all
+ * 24. What neither could see is that the PAGE rendered no controls at all: its window body was a
+ * generic table dump, so fifteen actions existed, act() accepted them, every assertion was green,
+ * and a student could not file a change request or an incident-log entry. Both are graded.
+ *
+ * Engine reachability is not page reachability. These assert the declaration the page builds its
+ * forms from, so the two cannot drift. */
+section('the action schema the page renders from');
+{
+    chk('no action lacks a schema and no schema lacks an action',
+        GUI.schemaGaps().length === 0, GUI.schemaGaps().join(' | '));
+
+    const lab = CORE.generate('schema-lab', EXAM, { secret: 's' });
+    FAULTS.applyAll(lab);
+    FAULTS.assignTickets(lab, CORE.makeRng('schema-tkt'));
+
+    /* Every action this suite's own GUI repairs use must be renderable, or the variant is fixable in
+     * a test and not in a browser -- which is precisely the gap that existed. */
+    const repairActions = {};
+    Object.keys(REPAIRS).forEach(id => {
+        REPAIRS[id](labWith(id, 'schema-' + id), { target: {} }).forEach(([w, a]) => {
+            repairActions[w + '/' + a] = true;
+        });
+    });
+    const schemaHas = {};
+    GUI.WINDOWS.forEach(w => GUI.actionSchema(lab, w).forEach(f => { schemaHas[w + '/' + f.action] = true; }));
+    const unrenderable = Object.keys(repairActions).filter(k => !schemaHas[k]);
+    chk('every action a GUI repair uses is renderable as a form (' + Object.keys(repairActions).length + ' used)',
+        unrenderable.length === 0, 'not renderable: ' + unrenderable.join(', '));
+    chk('the repair set is non-empty, so the check above could fail',
+        Object.keys(repairActions).length >= 6, String(Object.keys(repairActions).length));
+
+    /* The forms must be usable: a param with no label is a blank input, and an options list that
+     * comes back empty is a select a student cannot choose from. */
+    let forms = 0, params = 0;
+    const defects = [];
+    GUI.WINDOWS.forEach(w => {
+        GUI.actionSchema(lab, w).forEach(f => {
+            forms++;
+            if (!f.label) { defects.push(w + '/' + f.action + ': no label'); }
+            if (!f.params.length) { defects.push(w + '/' + f.action + ': no params'); }
+            f.params.forEach(prm => {
+                params++;
+                if (!prm.name) { defects.push(w + '/' + f.action + ': a param with no name'); }
+                if (!prm.label) { defects.push(w + '/' + f.action + '/' + prm.name + ': no label'); }
+                if (prm.options && !prm.options.length) {
+                    defects.push(w + '/' + f.action + '/' + prm.name + ': an EMPTY options list');
+                }
+            });
+        });
+    });
+    chk('every declared form is labelled, has params, and no select is empty ('
+        + forms + ' forms, ' + params + ' params)', defects.length === 0, defects.slice(0, 4).join(' | '));
+    chk('the ticket pickers offer this lab’s real tickets', (() => {
+        const cr = GUI.actionSchema(lab, 'change-requests')[0];
+        const opts = cr.params.filter(x => x.name === 'ticket')[0].options || [];
+        return opts.length === lab.tickets.length
+            && opts.every(o => lab.tickets.some(t => t.id === o));
+    })(), JSON.stringify((GUI.actionSchema(lab, 'change-requests')[0].params[0] || {}).options));
+
+    /* The rack declares the restore control, because restore is not in ACTIONS and would otherwise
+     * have no way to reach the page at all. It is the only route back from a damaging change. */
+    const rack = GUI.render(lab, 'rack');
+    chk('the rack window declares the device-restore control',
+        !!(rack._restore && rack._restore.devices && rack._restore.devices.length),
+        JSON.stringify(rack._restore));
+    chk('and every device it offers is a real device in this lab',
+        (rack._restore.devices || []).every(d => !!lab.ports[d]),
+        JSON.stringify(rack._restore.devices));
+    chk('windows with no actions declare none rather than an empty list',
+        GUI.render(lab, 'questions')._actions === undefined);
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
