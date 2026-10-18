@@ -87,6 +87,51 @@ section('1. the projection, against the raw state it comes from');
         && FAULTS.faultForTicket(st, st.faults[0].ticketId).id === st.faults[0].id);
 }
 
+/* ─── 1b. the scanner's coverage is DERIVED from the secret object, not remembered ─────────────── */
+section('1b. every field on a fault is classified, so a new secret cannot be added unnoticed');
+{
+    /* Chris found `ticketId` missing from FORBIDDEN_KEYS: it was added to fault objects in the round
+     * that introduced tickets and never classified here, so the generic scanner -- pointed at every
+     * render, action and command -- would have missed a future window that destructured a fault and
+     * returned a new object carrying it. `faults` being forbidden does not help once a field is
+     * copied out of one.
+     *
+     * That is Mallory's original finding reappearing, caused by the very next change to this file.
+     * The lesson is structural: the projector is a whitelist and fails closed, but the SCANNER is a
+     * blacklist and fails open. So its coverage is derived from the real object rather than from
+     * someone remembering. */
+    const fault = st.faults[0];
+    /* Four ways a field may be classified, and every field on a fault must use one of them:
+     * forbidden by name, checked by value (id -> 'S3A' matches the pattern sweep), checked by shape
+     * (target -> only when it carries fault-target fields), or named benign. */
+    const classified = CL.FORBIDDEN_KEYS
+        .concat(CL.VALUE_CHECKED_KEYS).concat(CL.SHAPE_CHECKED_KEYS).concat(CL.BENIGN_FAULT_FIELDS);
+    const unclassified = Object.keys(fault).filter(k => classified.indexOf(k) < 0);
+    chk('every field on a fault object is either forbidden or named benign',
+        unclassified.length === 0,
+        'unclassified: ' + unclassified.join(', ') + ' -- add each to FORBIDDEN_KEYS or BENIGN_FAULT_FIELDS');
+    chk('and the fault object really does carry secrets, so this is not vacuous',
+        Object.keys(fault).some(k => CL.FORBIDDEN_KEYS.indexOf(k) >= 0),
+        JSON.stringify(Object.keys(fault)));
+    /* The specific miss, as a regression: a field COPIED out of a fault must still be caught. */
+    chk('a ticketId copied into a fresh object is caught',
+        CL.findDisclosures({ echo: [{ ticketId: 'TKT-104' }] }).length > 0);
+    chk('a slot copied into a fresh object is caught',
+        CL.findDisclosures({ echo: { slot: 'S3', variant: 'A' } }).length > 0);
+    chk('a layer copied out is NOT caught, because a layer is benign on its own',
+        CL.findDisclosures({ echo: { layer: 2 } }).length === 0);
+    chk('a fault id copied out is caught by VALUE, since the key name is too common to ban',
+        CL.findDisclosures({ echo: { id: 'S11B' } }).length > 0
+        && CL.findDisclosures({ echo: { id: 'TKT-104' } }).length === 0);
+
+    /* And the same discipline for the baseline, the other server-only structure. */
+    const unclassifiedBase = Object.keys(st.baseline).filter(k =>
+        CL.FORBIDDEN_KEYS.indexOf(k) < 0
+        && ['trunks', 'shutPorts', 'aclSeqs', 'gateways', 'defaultNextHop', 'rogue', 'dnsSerial'].indexOf(k) < 0);
+    chk('every field on the exam-start baseline is accounted for',
+        unclassifiedBase.length === 0, 'unclassified: ' + unclassifiedBase.join(', '));
+}
+
 /* ─── 2. every GUI window and every action return ─────────────────────────────────────────────── */
 section('2. all seven windows, and every action result');
 {
@@ -117,6 +162,20 @@ section('2. all seven windows, and every action result');
         const hits = CL.findDisclosures(res, w + '/' + a);
         chk(w + '/' + a + ': result discloses nothing', hits.length === 0, JSON.stringify(hits));
     });
+    /* DEFENCE IN DEPTH on a real surface, not a hand-built object. Simulates the future change Chris
+     * described -- a window echoing the matched fault -- and asserts the generic scanner catches it
+     * through GUI.render, which is what sections 2 and 3 actually rely on. */
+    {
+        const probe = CORE.generate('leak-echo', EXAM, { secret: 's' });
+        FAULTS.applyAll(probe);
+        const real = GUI.render(probe, 'incident-log');
+        chk('the incident-log render is clean today', CL.findDisclosures(real, 'incident-log').length === 0);
+        /* Now leak a copied ticketId the way a careless future render would. */
+        const leaky = Object.assign({}, real, { matched: probe.faults.map(f => ({ ticketId: f.ticketId })) });
+        chk('and a render that echoed a ticketId WOULD be caught by the generic scanner',
+            CL.findDisclosures(leaky, 'incident-log').length > 0,
+            JSON.stringify(CL.findDisclosures(leaky, 'incident-log').slice(0, 2)));
+    }
     chk('a device restore result discloses nothing',
         CL.findDisclosures(GUI.restore(CORE.generate('leak-r', EXAM, { secret: 's' }), 'MeridianSW-01')).length === 0);
 }

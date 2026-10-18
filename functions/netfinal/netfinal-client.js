@@ -49,9 +49,39 @@
     var FORBIDDEN_KEYS = [
         'faults', 'baseline', 'answerKey', 'seedStr', 'seed32', 'violatedAtStart', 'amnesty',
         'deviceConfigs', 'fixedAtEvent', 'undone', 'undoneCount', 'variantSpace', 'rejected',
-        'wrongFix', 'correctFix', 'expectedFix',
-        'claimsIp', 'placed', 's9aShortfall', 'nocDecoy', 'decoyAlert', 'devSeed'
+        'wrongFix', 'correctFix', 'expectedFix', 'ticketId',
+        'claimsIp', 'placed', 's9aShortfall', 'nocDecoy', 'decoyAlert', 'devSeed',
+        /* `slot` and `variant` as KEY NAMES. They were only ever matched as string VALUES by the
+         * patterns below, so an object carrying `{ slot: 'S3', variant: 'A' }` passed cleanly --
+         * and 'S3' alone does not match the S<n><A|B> pattern either. Found by the derived-coverage
+         * test the moment it was written, which is the argument for deriving rather than listing. */
+        'slot', 'variant'
     ];
+
+    /* Checked by VALUE rather than by name, because the name is too common to forbid. A fault's id
+     * is 'S3A', which the pattern sweep below catches wherever it appears; banning the key `id`
+     * would flag every legitimate object in the engine. */
+    var VALUE_CHECKED_KEYS = ['id'];
+
+    /* Checked by SHAPE: see isFaultTarget. The firewall window legitimately uses `target` for a
+     * port forward's destination. */
+    var SHAPE_CHECKED_KEYS = ['target'];
+
+    /* THE SCANNER IS A BLACKLIST, AND A BLACKLIST FAILS OPEN. The projector above is a whitelist and
+     * fails closed, but findDisclosures() below is pointed at every GUI render, every action return
+     * and every command's output, and it only knows the names listed here.
+     *
+     * Chris caught exactly that: `ticketId` was added to the fault objects in the round that
+     * introduced tickets, and nobody added it here -- so the generic scanner would have missed a
+     * future window that destructured a fault and returned a new object carrying it. `faults` being
+     * forbidden does not help once something copies a field out of one. That is Mallory's original
+     * finding reappearing, caused by this file's own next change.
+     *
+     * SO THE COVERAGE IS DERIVED, NOT REMEMBERED. Every field that appears on a fault object must be
+     * either forbidden here or named benign below, and a test asserts it against a real generated
+     * lab. Adding a field to a fault without classifying it now fails a test instead of quietly
+     * widening the hole. */
+    var BENIGN_FAULT_FIELDS = ['active', 'applied', 'layer', 'group'];
 
     /* `target` is SHAPE-CHECKED rather than banned outright. A fault's target is an object naming
      * the host, switch and port it broke -- a disclosure. But the firewall window legitimately uses
@@ -158,6 +188,7 @@
     module.exports = {
         toInitialState: toInitialState, findDisclosures: findDisclosures,
         FORBIDDEN_KEYS: FORBIDDEN_KEYS, FORBIDDEN_PATTERNS: FORBIDDEN_PATTERNS,
-        isFaultTarget: isFaultTarget
+        BENIGN_FAULT_FIELDS: BENIGN_FAULT_FIELDS, VALUE_CHECKED_KEYS: VALUE_CHECKED_KEYS,
+        SHAPE_CHECKED_KEYS: SHAPE_CHECKED_KEYS, isFaultTarget: isFaultTarget
     };
 })();
