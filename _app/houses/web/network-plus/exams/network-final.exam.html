@@ -180,6 +180,9 @@
   'use strict';
   var EXAM_ID = 'net-final-2026';
   var session = null, questions = [], tickets = [], remaining = 0, surface = 'terminal', tick = null;
+  /* The student's own saved answers, as the server last recorded them. Kept so a re-render puts them
+     back into the controls -- see restoreAnswers. */
+  var answers = {};
 
   function el(id) { return document.getElementById(id); }
   function call(name, data) {
@@ -265,12 +268,42 @@
         + (q.rubric ? '<div class="where">' + esc(q.rubric) + '</div>' : '')
         + '</div>';
     }).join('');
-    el('qcount').textContent = answered + ' / ' + questions.length + ' answered';
+    restoreAnswers();
+    el('qcount').textContent = Object.keys(answers).length + ' / ' + questions.length + ' answered';
+  }
+
+  /* PUT THE STUDENT'S SAVED ANSWERS BACK INTO THE CONTROLS.
+     Spec section 9 promises a refresh resumes the exam, and the lab and the clock did -- but every
+     answer field came up blank, because nothing sent the saved values back and nothing here put them
+     in. For a single text box that was re-entry. For the two-field ACL question it was DATA LOSS:
+     both controls post together, so re-picking the ACL after a refresh posted the chosen name with a
+     BLANK sequence and overwrote a complete, already-credited answer with a half-credit one. The
+     student lost half a question for re-affirming a field they had got right.
+     Values are applied here rather than interpolated into the markup, so nothing depends on getting
+     attribute escaping right for text a student typed. */
+  function restoreAnswers() {
+    Object.keys(answers).forEach(function (qid) {
+      var v = answers[qid];
+      var nodes = el('questions').querySelectorAll('[data-q="' + qid + '"]');
+      if (!nodes.length) { return; }
+      Array.prototype.forEach.call(nodes, function (ctl) {
+        /* A multi-field answer is an object keyed by data-part; everything else is one value. */
+        var part = ctl.dataset.part;
+        var val = (part && v && typeof v === 'object') ? v[part] : v;
+        if (val === null || val === undefined || typeof val === 'object') { return; }
+        ctl.value = String(val);
+      });
+      var card = el('qq-' + qid);
+      if (card) { card.classList.add('answered'); }
+    });
   }
 
   function saveAnswer(id, value) {
     call('netfinalAnswer', { examId: EXAM_ID, questionId: id, value: value }).then(function (r) {
       setRemaining(r.remainingMs);
+      /* Record what the SERVER accepted, so a re-render restores the stored answer rather than
+         whatever happens to be in the DOM at the time. */
+      answers[id] = value;
       var q = questions.filter(function (x) { return x.id === id; })[0];
       if (q) { q.answeredLocal = true; }
       var node = el('qq-' + id);
@@ -543,6 +576,7 @@
   call('netfinalStart', { examId: EXAM_ID }).then(function (r) {
     session = r;
     questions = r.questions || [];
+    answers = r.answers || {};
     tickets = (r.initialState && r.initialState.tickets) || [];
     setRemaining(r.remainingMs);
 

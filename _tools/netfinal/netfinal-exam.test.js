@@ -431,6 +431,66 @@ section('rendering a window claims no revision, because it changes nothing');
         !!(await expiredRig.store.get(se.sessionId)).submittedAt);
 }
 
+/* ─── a refresh must resume the ANSWERS, not just the lab and the clock ─────────────────────────── */
+section('a resume carries the student’s saved answers back');
+{
+    /* Spec section 9: "a browser refresh resumes the same lab and the same clock". The lab and the
+     * clock resumed. The answers were never sent back -- they were safe in state.answers the whole
+     * time, but the page had nothing to restore from, so every field came up blank.
+     *
+     * For a single text box that was re-entry. For Q24's two fields it was DATA LOSS: both controls
+     * post together, so re-picking the ACL after a refresh posted the name with a BLANK sequence and
+     * overwrote a complete, credited answer with a half-credit one. */
+    const r = rig();
+    const a = await EX.startExam(r.store, { studentId: 'resume-ans', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    chk('a fresh start returns an answers map, empty but present',
+        !!a.answers && typeof a.answers === 'object' && Object.keys(a.answers).length === 0,
+        JSON.stringify(a.answers));
+
+    await EX.saveAnswer(r.store, { sessionId: a.sessionId, questionId: 'q46', value: 'smf' }, r.opts);
+    await EX.saveAnswer(r.store, { sessionId: a.sessionId, questionId: 'q24',
+        value: { name: 'GUEST-IN', seq: '10' } }, r.opts);
+
+    const b = await EX.startExam(r.store, { studentId: 'resume-ans', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    chk('the refresh resumed rather than regenerating', b.resumed === true);
+    /* GUARDED, so a MISSING answers map reports as a failed assertion rather than crashing the
+     * suite on a property of undefined. Removing the resume path's `answers:` line was caught -- the
+     * suite died -- but it died as a harness fault, which reads like a broken test rather than a
+     * caught defect, and a mutation run counting FAIL lines scored it as missed. */
+    chk('the resume envelope carries an answers map at all',
+        !!b.answers && typeof b.answers === 'object', JSON.stringify(b.answers));
+    chk('a single-value answer comes back',
+        !!b.answers && b.answers.q46 === 'smf', JSON.stringify(b.answers));
+    /* THE SCENARIO THAT COST HALF A QUESTION: both halves of the pair must survive the refresh, or
+     * the page cannot put them back and the next edit posts a blank beside the one just touched. */
+    chk('BOTH halves of the two-field answer come back',
+        !!(b.answers && b.answers.q24) && b.answers.q24.name === 'GUEST-IN'
+        && b.answers.q24.seq === '10', JSON.stringify(b.answers && b.answers.q24));
+    chk('the answers map covers every question answered and nothing else',
+        Object.keys(b.answers || {}).sort().join(',') === 'q24,q46',
+        JSON.stringify(Object.keys(b.answers || {})));
+
+    /* It is the STUDENT'S value, not the key: an answer they got wrong comes back exactly as wrong. */
+    await EX.saveAnswer(r.store, { sessionId: a.sessionId, questionId: 'q24',
+        value: { name: 'SERVERS-OUT', seq: '999' } }, r.opts);
+    const c = await EX.startExam(r.store, { studentId: 'resume-ans', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    chk('a wrong answer resumes as the wrong answer, uncorrected',
+        !!(c.answers && c.answers.q24) && c.answers.q24.name === 'SERVERS-OUT'
+        && c.answers.q24.seq === '999', JSON.stringify(c.answers && c.answers.q24));
+    chk('and the resumed envelope still discloses nothing',
+        CLIENT.findDisclosures(c, 'resume').length === 0,
+        JSON.stringify(CLIENT.findDisclosures(c, 'resume').slice(0, 3)));
+
+    /* savedAnswers is exported and is the one place this projection happens. */
+    chk('savedAnswers is exported and returns values, not the stored wrapper', (() => {
+        const st = { answers: { q1: { value: 'x', atEvent: 3 }, q2: { value: { a: 1 }, atEvent: 4 } } };
+        const out = EX.savedAnswers(st);
+        return out.q1 === 'x' && JSON.stringify(out.q2) === '{"a":1}' && !('atEvent' in out);
+    })(), JSON.stringify(EX.savedAnswers({ answers: { q1: { value: 'x', atEvent: 3 } } })));
+    chk('and it is empty, not undefined, for a lab with no answers',
+        JSON.stringify(EX.savedAnswers({})) === '{}' && JSON.stringify(EX.savedAnswers({ answers: {} })) === '{}');
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('harness fault:', e && e.stack ? e.stack : e); process.exit(2); });

@@ -419,6 +419,11 @@ const EXAM_SURFACE = {
     startExam: 'student', runCommand: 'student', renderWindow: 'student', runAction: 'student',
     restoreDevice: 'student', saveAnswer: 'student', submitExam: 'student',
     studentReport: 'student', examModeFlags: 'student',
+    /* The student's OWN saved answers, returned so a refresh can put them back in the form. Their
+     * input, going back to them: no key, no new information. Classified 'student' and scanned like
+     * every other student-facing value. The ledger caught this export the moment it was added, which
+     * is the whole reason the ledger is derived rather than listed. */
+    savedAnswers: 'student',
     telemetry: 'instructor',
     memoryStore: 'internal', remainingMs: 'internal', DEFAULT_MINUTES: 'internal'
 };

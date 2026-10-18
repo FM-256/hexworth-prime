@@ -203,6 +203,51 @@ section('3b. every question kind has a control, and the two-field one posts both
         !!q24 && !('answer' in q24) && !('slot' in q24), JSON.stringify(Object.keys(q24 || {})));
 }
 
+/* ─── 3c. a resume must put the saved answers back into the controls ────────────────────────────── */
+section('3c. the page restores what the student already answered');
+{
+    /* THE FORM DID NOT CARRY WHAT ITS SAVE HANDLER READ BACK OUT OF IT. renderQuestions built every
+     * control from blank defaults and ran once per load -- on a FIRST load and on a RESUME alike --
+     * so a refresh showed every field empty even though the answers were safe on the server.
+     *
+     * For one text box that was re-entry. For the two-field ACL question it was data loss: both
+     * controls post together, so re-picking the ACL after a refresh posted the name with a blank
+     * sequence and overwrote a complete, credited answer with a half-credit one. The student lost
+     * half a question for re-affirming a field they had got right.
+     *
+     * This is static analysis -- it cannot prove the DOM ends up populated. What it CAN settle is
+     * that the values are requested, kept, applied on every render, and applied per-field for a
+     * multi-field answer. The end-to-end half (the server returning both halves of the pair across a
+     * refresh) is asserted in netfinal-exam.test.js, which drives the real callables. */
+    chk('the page asks the server for the saved answers',
+        /answers = r\.answers \|\| \{\};/.test(page));
+    chk('it keeps them in page state rather than reading them once and discarding',
+        /var answers = \{\};/.test(page));
+    chk('every question re-render restores them, not just the first',
+        /function restoreAnswers\(\)/.test(page)
+        && /^\s*restoreAnswers\(\);$/m.test(page));
+    chk('restoreAnswers is called from renderQuestions, so no caller can forget it',
+        /\}\)\.join\(''\);\s*\n\s*restoreAnswers\(\);/.test(page),
+        'the restore must be inside the render, not a step a caller has to remember');
+    chk('a multi-field answer is restored PER FIELD, by data-part',
+        /var part = ctl\.dataset\.part;/.test(page)
+        && /var val = \(part && v && typeof v === 'object'\) \? v\[part\] : v;/.test(page));
+    chk('the answered marker is restored too, so progress does not read as lost',
+        /card\.classList\.add\('answered'\)/.test(page));
+    chk('the answered COUNT comes from the saved answers, not a per-render tally',
+        /Object\.keys\(answers\)\.length \+ ' \/ ' \+ questions\.length/.test(page),
+        'a tally of q.answeredLocal resets to zero on every reload');
+    chk('a saved answer is recorded locally after the server accepts it',
+        /answers\[id\] = value;/.test(page));
+    /* Values are assigned, not interpolated into the markup: a student's text would otherwise have
+     * to survive attribute escaping to come back correctly. */
+    chk('values are assigned to controls rather than written into the HTML',
+        /ctl\.value = String\(val\);/.test(page)
+        && !/value="' \+ esc\(answers/.test(page));
+    chk('and a non-scalar is skipped rather than stringified into a control',
+        /if \(val === null \|\| val === undefined \|\| typeof val === 'object'\) \{ return; \}/.test(page));
+}
+
 /* ─── 4. every class the script uses is defined in the stylesheet ───────────────────────────────── */
 section('4. no class is referenced but unstyled');
 {

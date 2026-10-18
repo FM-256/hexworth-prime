@@ -75,6 +75,8 @@
                 submitted: !!existing.submittedAt,
                 initialState: CLIENT.toInitialState(existing.state),
                 questions: QUESTIONS.forStudent(existing.state),
+                /* Without this a refresh showed every field blank -- see savedAnswers. */
+                answers: savedAnswers(existing.state),
                 remainingMs: remainingMs(existing, opts),
                 examMode: examModeFlags()
             };
@@ -109,9 +111,38 @@
             sessionId: sessionId, resumed: false, submitted: false,
             initialState: CLIENT.toInitialState(state),
             questions: QUESTIONS.forStudent(state),
+            /* Always present, empty on a fresh start, so the page has one code path. */
+            answers: savedAnswers(state),
             remainingMs: remainingMs(session, opts),
             examMode: examModeFlags()
         };
+    }
+
+    /* ═══ THE STUDENT'S OWN SAVED ANSWERS, FOR A RESUME ══════════════════════════════════════════
+     *
+     * Spec section 9 promises "a browser refresh resumes the same lab and the same clock". The lab
+     * and the clock did resume. The ANSWERS did not -- not because they were lost, they were safe in
+     * `state.answers` the whole time, but because nothing ever sent them back and the page had no way
+     * to put a saved value into a control. Every field came up blank on every reload.
+     *
+     * For a single text box that was a nuisance: retype it, same value, no harm. For Q24's two
+     * fields it is DATA LOSS. Both controls post the pair together, so a student who had saved
+     * {name:'GUEST-IN', seq:'10'}, refreshed, then re-picked the ACL out of habit would post
+     * {name:'GUEST-IN', seq:''} -- overwriting a complete, correct, already-credited answer with a
+     * half-credit one, for re-affirming a field they had got right.
+     *
+     * A form that does not carry what its save handler reads back out of it is the defect; the pair
+     * only made the cost visible. Sent for every question kind, not just the pair.
+     *
+     * This is the student's OWN input going back to the student. It is not the answer key, and it
+     * carries no new information -- they typed it. */
+    function savedAnswers(state) {
+        var out = {};
+        Object.keys((state && state.answers) || {}).forEach(function (qid) {
+            var a = state.answers[qid];
+            if (a && a.value !== undefined) { out[qid] = a.value; }
+        });
+        return out;
     }
 
     /* Spec section 9's lockdown, as data the page reads rather than prose a developer remembers. */
@@ -351,6 +382,7 @@
         runAction: runAction, restoreDevice: restoreDevice, saveAnswer: saveAnswer,
         submitExam: submitExam, studentReport: studentReport, telemetry: telemetry,
         examModeFlags: examModeFlags, memoryStore: memoryStore,
+        savedAnswers: savedAnswers,
         remainingMs: remainingMs, DEFAULT_MINUTES: DEFAULT_MINUTES
     };
 })();
