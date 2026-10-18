@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-10-17 18:49 · **1372 scripts** · 48 wired into a gate · 343 called by other code · 207 only mentioned in docs · 774 referenced by nothing · 552 not in git
+**Generated:** 2026-10-18 12:53 · **1373 scripts** · 48 wired into a gate · 344 called by other code · 206 only mentioned in docs · 775 referenced by nothing · 552 not in git
 
 ## Read this before writing a new script
 
@@ -1107,13 +1107,14 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `openstack-compute-probe.sh` | CALLED | 1 | 2026-08-19 | yes | Probes nova-compute liveness and placement capacity, emits node_exporter |
 | `service-probe.sh` | CALLED | 2 | 2026-08-20 | yes | probe real service behaviour and expose it to prometheus via node_exporter |
 
-### `_tools/netfinal` — 4 scripts, 2 referenced by nothing
+### `_tools/netfinal` — 5 scripts, 3 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `netfinal-core.test.js` | CALLED | 1 | 2026-10-17 | yes | Drives the seeded generator, the derived tables and reach() for the Network+ final exam core: determinism, the spec's four generator constraints over 1,000 seeds, the healthy-path baseline, and a mutation per reach() layer. |
-| `netfinal-faults.test.js` | DOCS-ONLY | 0 | 2026-10-17 | yes | Drives all 24 fault variants: evidence present, fixed() false at exam start, true after the canonical repair, invariants clean after it, and an invariant violated by the common wrong fix. Plus determinism of apply(). |
-| `netfinal-gui.test.js` | ORPHAN | 0 | 2026-10-17 | no | Drives the seven GUI windows: the six faults that cannot be fixed from a terminal, the firewall's Test-from-WAN page, device restore, change requests and the incident log, and that every window shows its fault. |
+| `netfinal-faults.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Drives all 24 fault variants: evidence present, fixed() false at exam start, true after the canonical repair, invariants clean after it, and an invariant violated by the common wrong fix. Plus determinism of apply(). |
+| `netfinal-gui.test.js` | ORPHAN | 0 | 2026-10-17 | yes | Drives the seven GUI windows: the six faults that cannot be fixed from a terminal, the firewall's Test-from-WAN page, device restore, change requests and the incident log, and that every window shows its fault. |
+| `netfinal-leak.test.js` | CALLED | 1 | 2026-10-18 | no | Scans EVERY client-facing surface of the exam engine for fault disclosure: the initialState projection, all seven GUI window renders, every action return, and the output of every command a student can type. Also checks the seed secret. |
 | `netfinal-shell.test.js` | ORPHAN | 0 | 2026-10-17 | yes | Drives the terminal: prefix matching, context stack, privileged modes, the editor and service-reload semantics, golden output before/after each fix, and a full repair of every shell-fixable fault TYPED AS COMMANDS. |
 
 ### `_tools/nexus` — 5 scripts, 1 referenced by nothing

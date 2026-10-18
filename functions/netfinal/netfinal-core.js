@@ -39,6 +39,24 @@
  * construction rather than by auditing a bundle, and makes refresh-resume trivial because the
  * server already holds authoritative state.
  *
+ * ★ WHAT STAGE 7 MUST NOT GET WRONG, from Mallory's audit of stages 1-5. Every function in this
+ * engine -- exec, act, fixed, collateralDamage -- is a PURE function over whatever `state` it is
+ * handed, and NOTHING here enforces where that state came from. That is the right shape for testing
+ * and the wrong shape to expose:
+ *
+ *   STATE MUST LIVE SERVER-SIDE, keyed by session. The callable accepts {sessionId, command} or
+ *   {sessionId, window, action, params} and NEVER a client-supplied state blob.
+ *
+ * If the wire protocol round-trips `state` through the browser -- the obvious way to keep these
+ * functions stateless -- a student edits `services`, `rogue.placed`, `baseline.amnesty` or
+ * `faults[i].fixedAtEvent` in the request body and bypasses the command interface entirely, or
+ * fabricates a change request at an earlier event index than the fix it preceded. The engine would
+ * do exactly as told, because being told is all it does. Mallory could not prove this as a live
+ * exploit only because nothing is deployed.
+ *
+ * The client payload is `netfinal-client.js`'s toInitialState() and nothing else;
+ * `_tools/netfinal/netfinal-leak.test.js` scans every client-facing surface and fails on disclosure.
+ *
  * PURE AND DOM-FREE, ON PURPOSE. Nothing here reads the DOM, the network, or the clock — `generate`
  * takes no Date, and interface counters advance from an explicit `elapsedSec` argument. That is what
  * makes the spec's acceptance criterion ("the same seed produces byte-identical initialState and
@@ -1748,10 +1766,42 @@
      * independent draws rather than correlated nudges, and the sequence is a pure function of
      * (studentId, examId) — so a rejected first attempt still leaves the student's lab reproducible.
      * A draft is discarded whole, never repaired, so there is no half-mutated state to reason about. */
-    function generate(studentId, examId) {
+    /* THE SEED MUST CARRY A SERVER SECRET, and this is the last moment it is free to add.
+     *
+     * Mallory's finding: the seed was `studentId|examId` over xmur3/mulberry32 -- no HMAC, no salt,
+     * nothing a student does not already know. Their own id, and an examId shared by the class. She
+     * proved the consequence by regenerating a HEALTHY lab from the same seed and diffing it against
+     * the faulted one: 29 field-level differences, each one a fault site, in about thirty lines of
+     * script. `ports.MeridianSW-02.Fa0/8.duplex: full -> half`, `nat.portForwards.0.toIp:
+     * 172.16.50.10 -> 172.16.50.11`, and so on for every slot.
+     *
+     * Spec section 9 rests the whole integrity model on "seeding makes shared answers mostly
+     * useless", and spec section 4 requires generate() to be re-runnable for regrading and appeal --
+     * so the capability to regenerate WILL exist on some instructor surface. A zero-secret seed
+     * means anyone who reaches it, or who can run this module, holds every answer.
+     *
+     * A secret mixed into the seed keeps reproducibility exactly where it is needed (the server has
+     * the secret, so a regrade reproduces the lab byte for byte) and removes it where it is not.
+     * Nothing is deployed yet, so changing the seed costs nothing today; after one student has sat
+     * the exam it would invalidate their lab.
+     *
+     * FAIL-VISIBLE, NOT FAIL-OPEN. With no secret supplied the module still works -- tests and local
+     * runs need that -- but it stamps `meta.devSeed: true`, so stage 7 can refuse to serve a lab
+     * that was generated without a real secret rather than silently shipping a guessable one. */
+    var DEV_SEED_SECRET = 'netfinal-dev-seed-not-for-exams';
+
+    function seedSecret(opts) {
+        if (opts && opts.secret) { return { secret: String(opts.secret), dev: false }; }
+        var env = (typeof process !== 'undefined' && process.env && process.env.NETFINAL_SEED_SECRET) || null;
+        if (env) { return { secret: String(env), dev: false }; }
+        return { secret: DEV_SEED_SECRET, dev: true };
+    }
+
+    function generate(studentId, examId, opts) {
+        var sec = seedSecret(opts);
         var attempts = [];
         for (var i = 0; i < MAX_ATTEMPTS; i++) {
-            var seedStr = String(studentId) + '|' + String(examId) + (i ? '|r' + i : '');
+            var seedStr = sec.secret + '|' + String(studentId) + '|' + String(examId) + (i ? '|r' + i : '');
             var state = draftLab(studentId, examId, seedStr);
             attachDevices(state, makeRng(seedStr + '|attach'));
             placeRogue(state, makeRng(seedStr + '|rogue'));
@@ -1761,6 +1811,7 @@
                 state.meta.attempts = i + 1;
                 state.meta.rejected = attempts;
                 state.meta.variantSpace = variantSpace();
+                state.meta.devSeed = sec.dev;
                 return state;
             }
             attempts.push({ attempt: i + 1, problems: v.problems });
