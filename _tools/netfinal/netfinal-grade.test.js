@@ -705,6 +705,136 @@ section('7. two normalizers that scored wrong answers correct');
     }
 }
 
+/* ─── 7b. the switch requirement must cover EVERY shape of iface answer ─────────────────────────── */
+section('7b. a parts-based interface answer is still an interface answer');
+{
+    /* THE SAME DEFECT, ONE QUESTION TO THE LEFT. Round one set `requireSw` only when a question's
+     * top-level `norm` was 'iface' and its answer a bare string -- Q5, Q8 and Q17. Q18 is
+     * `parts: ['iface','select']`, so its norm is 'text' and its answer is an object, and the
+     * condition could never fire. Q18 is 4 points, slot S1, in EVERY student's lab, and a bare port
+     * on a port active on both switches scored full marks there while the three questions beside it
+     * were correctly strict. Nancy reproduced it on the first seed she tried.
+     *
+     * The suite could not see it because its only ambiguity case was q8. So this one is built on the
+     * PARTS shape specifically, and constructed rather than seed-hunted. */
+    const mkAmbiguous = (qid, part) => {
+        const st = CORE.generate('amb-parts', EXAM, { secret: 'server-secret' });
+        FAULTS.applyAll(st);
+        const before = GR.buildAnswerKey(st).questions[qid];
+        const raw = part ? before.answer[part] : before.answer;
+        const parsed = QQ.NORM.iface(raw);
+        const owner = (st.endpoints.filter(e => e.port && QQ.NORM.iface(e.port).iface === parsed.iface)[0] || {}).switch;
+        const other = Object.keys(st.ports).filter(d => /SW/i.test(d) && d !== owner)[0];
+        st.endpoints.push({
+            name: 'AMBIG-' + qid.toUpperCase(), kind: 'workstation', vlan: 10,
+            mac: '00:25:90:FF:FE:02', ip: null, mask: null, gw: null, dns: null, dhcp: true,
+            switch: other, port: parsed.iface.replace(/^fa/, 'Fa').replace(/^gi/, 'Gi'),
+            ap: null, ssid: null, network: null, reservation: false
+        });
+        return { before, after: GR.buildAnswerKey(st).questions[qid], parsed, other, st };
+    };
+
+    const q18 = mkAmbiguous('q18', 'iface');
+    chk('q18 really is a parts-based question with an iface half',
+        Array.isArray(q18.before.parts) && q18.before.parts.indexOf('iface') >= 0
+        && q18.before.norm !== 'iface',
+        JSON.stringify({ parts: q18.before.parts, norm: q18.before.norm }));
+    chk('q18 does NOT require the switch while its port is unambiguous',
+        q18.before.requireSw !== true, String(q18.before.requireSw));
+    chk('and once the port is ambiguous, q18 DOES require it',
+        q18.after.requireSw === true, String(q18.after.requireSw));
+
+    const bareBefore = GR.gradeTyped(q18.before, { iface: q18.parsed.iface, select: q18.before.answer.select });
+    const bareAfter = GR.gradeTyped(q18.after, { iface: q18.parsed.iface, select: q18.after.answer.select });
+    chk('a bare port scores the iface half while unambiguous',
+        bareBefore.detail.iface === true && bareBefore.earned === q18.before.points,
+        JSON.stringify(bareBefore));
+    /* Nancy's exact reproduction: this returned 4 of 4. */
+    chk('a bare port LOSES the iface half once ambiguous, keeping only the other part',
+        bareAfter.detail.iface === false && bareAfter.earned < q18.after.points,
+        JSON.stringify(bareAfter));
+    chk('naming the right switch still scores both parts',
+        GR.gradeTyped(q18.after, q18.after.answer).earned === q18.after.points,
+        JSON.stringify(GR.gradeTyped(q18.after, q18.after.answer)));
+    chk('naming the WRONG switch loses the iface half',
+        GR.gradeTyped(q18.after, { iface: q18.other + ' ' + q18.parsed.iface, select: q18.after.answer.select })
+            .detail.iface === false);
+
+    /* AND THE LEDGER: every question with an iface answer in any shape, so the next one added cannot
+     * quietly miss the check the way Q18 did. */
+    const st = CORE.generate('iface-ledger', EXAM, { secret: 'server-secret' });
+    FAULTS.applyAll(st);
+    const key = GR.buildAnswerKey(st);
+    const ifaceQs = Object.keys(key.questions).filter(id => {
+        const e = key.questions[id];
+        return e.norm === 'iface'
+            || (e.parts && e.parts.indexOf('iface') >= 0);
+    });
+    chk('the bank has iface answers in BOTH shapes, so one shape cannot stand in for the other',
+        ifaceQs.some(id => key.questions[id].norm === 'iface')
+        && ifaceQs.some(id => (key.questions[id].parts || []).indexOf('iface') >= 0),
+        JSON.stringify(ifaceQs.map(id => id + ':' + (key.questions[id].norm === 'iface' ? 'string' : 'parts'))));
+    const amb = QQ.ambiguousPorts(st);
+    const missed = ifaceQs.filter(id => {
+        const e = key.questions[id];
+        const raw = e.norm === 'iface' ? e.answer : (e.answer || {}).iface;
+        if (typeof raw !== 'string') { return false; }
+        const pp = QQ.NORM.iface(raw);
+        return pp && pp.iface && amb[pp.iface] && e.requireSw !== true;
+    });
+    chk('no iface question sits on an ambiguous port without requiring the switch',
+        missed.length === 0, 'missed: ' + missed.join(', '));
+}
+
+/* ─── 7c. an ACL reference scores like the two-part answer it is ────────────────────────────────── */
+section('7c. Q24 half credit, and the spelling regression the last fix introduced');
+{
+    /* THE REGRESSION I SHIPPED. Fixing the case-sensitivity bug introduced a false negative: a
+     * student writing the name with a SPACE lost the direction suffix ("in" is two characters so the
+     * length filter dropped it; "out" is in the noise list so it would not stand alone), the
+     * candidate collapsed to "guest" or "servers", and a CORRECT answer scored zero. */
+    const t = (a, b) => QQ.sameAnswer('aclRef', a, b);
+    chk('a space-separated name is accepted: "guest in 10"', t('guest in 10', 'GUEST-IN 10') === true);
+    chk('upper case and spaced: "GUEST IN 10"', t('GUEST IN 10', 'GUEST-IN 10') === true);
+    chk('the other ACL, spaced: "servers out 5"', t('servers out 5', 'SERVERS-OUT 5') === true);
+    chk('prose around a spaced name still resolves it',
+        t('ip access-list GUEST IN seq 10', 'GUEST-IN 10') === true);
+    chk('the hyphenated spelling still works, so the join did not replace it',
+        t('guest-in 10', 'GUEST-IN 10') === true);
+    /* And the original CRITICAL stays closed. */
+    chk('a WRONG name is still refused, hyphenated or spaced',
+        t('wrong-acl 10', 'GUEST-IN 10') === false && t('wrong acl 10', 'GUEST-IN 10') === false);
+    chk('the right head with the WRONG direction is refused',
+        t('guest out 10', 'GUEST-IN 10') === false);
+    chk('the other real ACL is not accepted for this one',
+        t('servers-out 10', 'GUEST-IN 10') === false);
+
+    /* Q24 is a two-part answer in one field, and spec section 8 gives half for one part right. It
+     * had become all-or-nothing by ACCIDENT -- a side effect of requiring both aclRef fields -- and
+     * was the only question of its shape treated that way. */
+    const st = CORE.generate('q24-credit', EXAM, { secret: 'server-secret' });
+    FAULTS.applyAll(st);
+    const e = GR.buildAnswerKey(st).questions.q24;
+    const seq = Number((String(e.answer).match(/\d+/) || [0])[0]);
+    const name = QQ.NORM.aclRef(e.answer).name;
+    chk('q24 is a single-value question, not declared with parts',
+        !e.parts || !e.parts.length, JSON.stringify(e.parts));
+    chk('both halves right scores full', GR.gradeTyped(e, e.answer).earned === e.points);
+    chk('name right, sequence wrong scores HALF, and says which half',
+        (() => { const r = GR.gradeTyped(e, name + ' ' + (seq + 70));
+                 return r.earned === e.points / 2 && /ACL name right/.test(r.note); })(),
+        JSON.stringify(GR.gradeTyped(e, name + ' ' + (seq + 70))));
+    chk('sequence right, name wrong scores HALF, and says which half',
+        (() => { const r = GR.gradeTyped(e, 'wrong-acl ' + seq);
+                 return r.earned === e.points / 2 && /ACL name wrong/.test(r.note); })(),
+        JSON.stringify(GR.gradeTyped(e, 'wrong-acl ' + seq)));
+    chk('both halves wrong scores zero',
+        GR.gradeTyped(e, 'nope 999').earned === 0, JSON.stringify(GR.gradeTyped(e, 'nope 999')));
+    chk('and half is actually half of this question, not a fixed number',
+        GR.gradeTyped(e, 'wrong-acl ' + seq).earned === e.points / 2
+        && e.points > 0, e.points + ' points');
+}
+
 /* ─── 8. a verify sequence must happen IN ORDER ─────────────────────────────────────────────────── */
 section('8. the prerequisite step has to come before the proof');
 {

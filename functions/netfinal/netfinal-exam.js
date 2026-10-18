@@ -131,8 +131,8 @@
         };
     }
 
-    /* Everything a student action has in common: load, check the clock, check not submitted. */
-    async function withSession(store, sessionId, opts, fn) {
+    /* Load and admit: the checks every entry point shares, with no opinion about writing. */
+    async function admitSession(store, sessionId, opts) {
         if (!sessionId) { throw err('invalid-argument', 'sessionId is required.'); }
         var session = await store.get(sessionId);
         if (!session) { throw err('not-found', 'No such exam session.'); }
@@ -145,6 +145,26 @@
             throw err('deadline-exceeded', 'Time expired; the exam was submitted automatically. Score: '
                 + auto.report.total + ' of ' + auto.report.outOf);
         }
+        return session;
+    }
+
+    /* A READ. No revision claimed, nothing written.
+     *
+     * Rendering a window mutates nothing -- GUI.render is pure -- but it went through the writing
+     * path, which bumped `rev` and ran a full transactional write for every window the student
+     * opened AND for the refresh the page fires after every single action. Reads contended with real
+     * writes for a revision they had no reason to hold, widening the very collision surface the
+     * compare-and-set exists to narrow. A read that takes a write lock is not a cheaper bug than no
+     * lock at all. */
+    async function readSession(store, sessionId, opts, fn) {
+        var session = await admitSession(store, sessionId, opts);
+        return fn(session);
+    }
+
+    /* Everything a student action has in common: load, check the clock, check not submitted, and
+     * commit the mutation under a revision check. */
+    async function withSession(store, sessionId, opts, fn) {
+        var session = await admitSession(store, sessionId, opts);
         /* COMPARE-AND-SET, NOT READ-MODIFY-WRITE.
          *
          * This was get -> mutate -> put with nothing in between. Two concurrent calls on one session
@@ -191,7 +211,8 @@
 
     /* ── the windows ─────────────────────────────────────────────────────────────────────────────── */
     async function renderWindow(store, args, opts) {
-        return withSession(store, args.sessionId, opts, function (session) {
+        /* readSession, not withSession: this is the one entry point that changes nothing. */
+        return readSession(store, args.sessionId, opts, function (session) {
             var view = GUI.render(session.state, String(args.window || ''));
             if (view && view.error) { throw err('invalid-argument', view.error); }
             /* BELT AND BRACES. The leak suite already asserts no render discloses a fault, and this

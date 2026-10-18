@@ -323,6 +323,12 @@
     };
 
     /* ── CHANGE REQUESTS ─────────────────────────────────────────────────────────────────────── */
+    /* The OSI layers this exam grades against. One list, read by the incident-log view AND by both
+     * layer form fields, because the value is String()-compared against the catalog layer in Q43 and
+     * against the change request's layer in every one of the twelve fix questions. A free-text field
+     * feeding an exact comparison is a trap, not an input. */
+    var GRADED_LAYERS = [1, 2, 3, 4, 7];
+
     var CR_FIELDS = ['ticket', 'rootCause', 'layer', 'plannedChange', 'rollback'];
 
     function renderChangeRequests(state) {
@@ -362,8 +368,12 @@
             title: 'Incident log',
             fields: LOG_FIELDS,
             /* The layer is graded (spec section 6's conflict pairs exist so it is unambiguous), so
-             * the field is offered as a closed list rather than free text. */
-            layerOptions: [1, 2, 3, 4, 7],
+             * the field is offered as a closed list rather than free text. ACTION_SCHEMA reads the
+             * same constant, so the form the page builds cannot disagree with the list this view
+             * advertises -- it did, briefly: the renderer documented a closed list while the schema
+             * shipped a free-text input, and a student typing "Layer 2" instead of "2" lost points on
+             * a graded comparison that does nothing but String()-compare. */
+            layerOptions: GRADED_LAYERS,
             /* AND SO IS THE TICKET, for the same reason. Q43 compares an entry's layer to the
              * catalog layer, Q44 checks its evidence against a command the event log shows was run
              * for that incident, and Q45 hands three resolved incidents to an instructor -- 25 of
@@ -570,7 +580,7 @@
                 { name: 'ticket', label: 'Ticket', options: function (st) {
                     return (st.tickets || []).map(function (t) { return t.id; }); } },
                 { name: 'rootCause', label: 'Root cause', textarea: true },
-                { name: 'layer', label: 'OSI layer', placeholder: '1-7' },
+                { name: 'layer', label: 'OSI layer', options: function () { return GRADED_LAYERS; } },
                 { name: 'plannedChange', label: 'Planned change', textarea: true },
                 { name: 'rollback', label: 'Rollback plan', textarea: true } ] }
         },
@@ -579,7 +589,7 @@
                 { name: 'ticket', label: 'Ticket', options: function (st) {
                     return (st.tickets || []).map(function (t) { return t.id; }); } },
                 { name: 'symptom', label: 'Symptom', textarea: true },
-                { name: 'layer', label: 'OSI layer', placeholder: '1-7' },
+                { name: 'layer', label: 'OSI layer', options: function () { return GRADED_LAYERS; } },
                 { name: 'rootCause', label: 'Root cause', textarea: true },
                 { name: 'fix', label: 'Fix applied', textarea: true },
                 { name: 'verification', label: 'How you verified it', textarea: true } ] }

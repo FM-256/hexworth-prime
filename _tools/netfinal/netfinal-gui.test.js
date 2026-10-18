@@ -437,6 +437,42 @@ section('the action schema the page renders from');
         JSON.stringify(rack._restore.devices));
     chk('windows with no actions declare none rather than an empty list',
         GUI.render(lab, 'questions')._actions === undefined);
+
+    /* A NAME THAT MATCHES IS NOT A SHAPE THAT MATCHES. schemaGaps() proves every action has a form
+     * and every form an action, and every param name lines up with what its handler reads -- and the
+     * `layer` field still shipped as free text on both forms while `renderIncidentLog` documented it
+     * as "a closed list rather than free text" and published `layerOptions` in its own payload. The
+     * value is String()-compared against the catalog layer in Q43 and against the change request's
+     * layer in all twelve fix questions, so "Layer 2" instead of "2" costs real points for a
+     * substantively correct answer. Both fields now read the same constant the renderer does. */
+    ['change-requests', 'incident-log'].forEach(w => {
+        const layer = GUI.actionSchema(lab, w)[0].params.filter(x => x.name === 'layer')[0];
+        chk(w + ': the graded layer field is a closed list, not free text',
+            !!(layer && layer.options && layer.options.length) && !layer.placeholder,
+            JSON.stringify(layer));
+    });
+    chk('both layer lists are the SAME list, and the one the renderer advertises', (() => {
+        const a = GUI.actionSchema(lab, 'change-requests')[0].params.filter(x => x.name === 'layer')[0].options;
+        const b = GUI.actionSchema(lab, 'incident-log')[0].params.filter(x => x.name === 'layer')[0].options;
+        const shown = (GUI.render(lab, 'incident-log').layerOptions || []).map(String);
+        return JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) === JSON.stringify(shown);
+    })(), JSON.stringify({
+        cr: GUI.actionSchema(lab, 'change-requests')[0].params.filter(x => x.name === 'layer')[0].options,
+        log: GUI.actionSchema(lab, 'incident-log')[0].params.filter(x => x.name === 'layer')[0].options,
+        shown: GUI.render(lab, 'incident-log').layerOptions
+    }));
+    /* The offered values must be the ones the catalog actually uses, or the closed list is a
+     * different trap: a student picking from it could still be unable to state the right answer. */
+    chk('every layer the fault catalog grades is offered', (() => {
+        const offered = GUI.actionSchema(lab, 'incident-log')[0].params
+            .filter(x => x.name === 'layer')[0].options.map(String);
+        const needed = lab.faults.map(f => String(Math.floor(Number(f.layer))))
+            .filter((v, i, a) => a.indexOf(v) === i);
+        return needed.every(n => offered.indexOf(n) >= 0);
+    })(), JSON.stringify({
+        offered: GUI.actionSchema(lab, 'incident-log')[0].params.filter(x => x.name === 'layer')[0].options,
+        catalog: lab.faults.map(f => f.layer).filter((v, i, a) => a.indexOf(v) === i)
+    }));
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');

@@ -302,8 +302,9 @@
           ctl = '<textarea id="' + iid + '" data-param="' + esc(prm.name) + '" rows="2" placeholder="'
             + esc(prm.placeholder) + '"></textarea>';
         } else {
-          ctl = '<input id="' + iid + '" data-param="' + esc(prm.name) + '" placeholder="'
-            + esc(prm.placeholder) + '" autocomplete="off" spellcheck="false">';
+          ctl = '<input id="' + iid + '" data-param="' + esc(prm.name) + '"'
+            + (prm.optional ? ' data-optional="1"' : '')
+            + ' placeholder="' + esc(prm.placeholder) + '" autocomplete="off" spellcheck="false">';
         }
         return '<div class="field">' + lbl + ctl + '</div>';
       }).join('');
@@ -439,29 +440,50 @@
 
     if (form.id === 'restoreform') {
       var dev = el('restoredev').value;
+      var rbtn = form.querySelector('button[type=submit]');
+      if (rbtn && rbtn.disabled) { return; }
+      if (rbtn) { rbtn.disabled = true; }
+      var rrelease = function () { if (rbtn) { rbtn.disabled = false; } };
       call('netfinalRestore', { examId: EXAM_ID, device: dev }).then(function (r) {
         actionResult(r);
         telemetry('restore', dev);
         return refreshWindow();
-      }).catch(fatal);
+      }).then(rrelease, function (e) { rrelease(); fatal(e); });
       return;
     }
 
     var params = {};
     Array.prototype.forEach.call(form.querySelectorAll('[data-param]'), function (ctl) {
       var v = ctl.value;
-      /* An empty optional field is OMITTED rather than sent as '', because the engine's validators
-         distinguish "not given" from "given as empty" -- portforward-set applies toPort only when
-         present, and sending '' would set the port to NaN. */
-      if (v !== '' && v !== null && v !== undefined) { params[ctl.dataset.param] = v; }
+      /* OMITTED ONLY IF THE SCHEMA SAID IT WAS OPTIONAL. The engine's validators distinguish "not
+         given" from "given as empty" -- portforward-set applies toPort only when present, and
+         sending '' would set the port to NaN -- but blanking a REQUIRED field is a different thing,
+         and it must reach the server as the empty value it is so the rejection names the field
+         instead of reporting it as undefined. */
+      var optional = ctl.dataset.optional === '1';
+      if (v === '' || v === null || v === undefined) {
+        if (!optional) { params[ctl.dataset.param] = ''; }
+        return;
+      }
+      params[ctl.dataset.param] = v;
     });
+    /* DISABLED WHILE IN FLIGHT. The exam-submit button already did this; these forms did not, so a
+       fast double-click or a window switch mid-request raced itself and the loser came back as the
+       compare-and-set 'aborted' error. The server was right to refuse it, but a student who reads a
+       red message and moves on has lost the work just the same. One request per form at a time, and
+       the button comes back whatever happens. */
+    var btn = form.querySelector('button[type=submit]');
+    if (btn && btn.disabled) { return; }
+    if (btn) { btn.disabled = true; }
+    var release = function () { if (btn) { btn.disabled = false; } };
+
     call('netfinalAction', {
       examId: EXAM_ID, window: form.dataset.window, action: form.dataset.action, params: params
     }).then(function (r) {
       actionResult(r);
       telemetry('action', form.dataset.window + '/' + form.dataset.action);
       return refreshWindow();
-    }).catch(fatal);
+    }).then(release, function (e) { release(); fatal(e); });
   });
 
   el('surface').addEventListener('click', function (ev) {

@@ -142,15 +142,37 @@
      * returned true: name the WRONG ACL in lowercase, state the right sequence number, score full
      * marks on Q24. Both halves are fixed -- the name is matched case-insensitively here, and
      * REQUIRED_FIELDS below stops a missing one from being waved through. */
+    /* The direction suffix of this lab's ACL names. Needed because of a regression THIS normalizer
+     * introduced while fixing the case-sensitivity bug: a student writing the name with a SPACE --
+     * "guest in 10" instead of "guest-in 10", an ordinary thing to do from memory -- lost the
+     * suffix. "in" is two characters so the length filter dropped it, and "out" is in ACL_NOISE to
+     * stop it being mistaken for a name on its own. Either way the candidate collapsed to "guest" or
+     * "servers" and did not match the key, so a CORRECT answer scored zero on the exact question the
+     * fix was for. Every other normalizer in this exam tolerates the student's natural spelling
+     * rather than requiring the server's exact string, and this one now does too. */
+    var ACL_DIRECTION = { 'in': 1, 'out': 1, 'inbound': 1, 'outbound': 1 };
+
     NORM.aclRef = function (v) {
         var s = String(v || '').trim();
         var tokens = s.match(/[A-Za-z][A-Za-z0-9_-]*/g) || [];
         var cands = tokens.filter(function (t) {
             return !ACL_NOISE[t.toLowerCase()] && t.length >= 3;
         });
+        /* "GUEST IN" -> "GUEST-IN": a candidate immediately followed by a direction word is one name
+         * written with a space. Built from adjacent tokens, so "guest" and a stray "out" elsewhere in
+         * the sentence are never joined. */
+        var joined = [];
+        for (var i = 0; i < tokens.length - 1; i++) {
+            var head = tokens[i], tailWord = tokens[i + 1];
+            if (ACL_DIRECTION[tailWord.toLowerCase()]
+                && !ACL_NOISE[head.toLowerCase()] && head.length >= 3 && !/[-_]/.test(head)) {
+                joined.push(head + '-' + tailWord);
+            }
+        }
         /* Prefer a hyphenated or underscored token: every ACL in this lab is GUEST-IN or SERVERS-OUT,
-         * and the shape is the strongest available signal for "this is a name, not prose". */
-        var hyphenated = cands.filter(function (t) { return /[-_]/.test(t); });
+         * and the shape is the strongest available signal for "this is a name, not prose". A joined
+         * pair ranks with them, ahead of a bare word. */
+        var hyphenated = joined.concat(cands.filter(function (t) { return /[-_]/.test(t); }));
         var name = (hyphenated.length ? hyphenated[0] : cands[0]) || null;
         var seq = (s.match(/\b(?:seq(?:uence)?\s*)?(\d{1,5})\b/) || [])[1];
         return { name: name ? name.toLowerCase() : null, seq: seq === undefined ? null : Number(seq) };

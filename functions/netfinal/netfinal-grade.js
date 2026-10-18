@@ -81,12 +81,33 @@
             }
             /* An interface answer on an AMBIGUOUS port must name its switch. Without this, a bare
              * "Fa0/5" matched either switch and "which switch" stopped being graded at all on the
-             * questions whose whole point it is. */
-            if (entry.norm === 'iface' && typeof entry.answer === 'string') {
-                var parsed = QUESTIONS.NORM.iface(entry.answer);
-                if (parsed && parsed.iface && ambiguous[parsed.iface]) {
-                    entry.requireSw = true;
-                }
+             * questions whose whole point it is.
+             *
+             * THIS CHECKED ONLY A TOP-LEVEL STRING ANSWER, which covered Q5, Q8 and Q17 and MISSED
+             * Q18 -- `parts: ['iface','select']`, so its norm is 'text' and its answer is an object,
+             * and the condition could never fire. Q18 is 4 points, slot S1, in every student's lab,
+             * and a bare port on an ambiguous port scored full marks there while the three questions
+             * beside it were correctly strict. Fixed one shape of a defect and left the shape next to
+             * it, which is a mistake I have made before on exactly this kind of edit.
+             *
+             * So: collect EVERY candidate interface answer this entry could be graded against -- the
+             * top-level value, each part, and each alternative inside an array of accepted answers --
+             * and require the switch if any of them names an ambiguous port. */
+            var ifaceCandidates = [];
+            var collectIface = function (v) {
+                if (typeof v === 'string') { ifaceCandidates.push(v); return; }
+                if (Array.isArray(v)) { v.forEach(collectIface); }
+            };
+            if (entry.norm === 'iface') { collectIface(entry.answer); }
+            if (entry.parts && entry.parts.indexOf('iface') >= 0
+                && entry.answer && typeof entry.answer === 'object' && !Array.isArray(entry.answer)) {
+                collectIface(entry.answer.iface);
+            }
+            if (ifaceCandidates.some(function (v) {
+                var parsed = QUESTIONS.NORM.iface(v);
+                return !!(parsed && parsed.iface && ambiguous[parsed.iface]);
+            })) {
+                entry.requireSw = true;
             }
             key.questions[q.id] = entry;
         });
@@ -134,7 +155,34 @@
             ? (NORM.multi(given) !== null && JSON.stringify(NORM.multi(given)) === JSON.stringify(NORM.multi(want2)))
               || want2.some(function (w) { return sameAnswer(entry.norm || 'text', given, w, opts2); })
             : sameAnswer(entry.norm || 'text', given, want2, opts2);
-        return { earned: ok2 ? entry.points : 0, of: entry.points, note: ok2 ? 'correct' : 'incorrect' };
+        if (ok2) { return { earned: entry.points, of: entry.points, note: 'correct' }; }
+
+        /* ── AN ACL REFERENCE IS A TWO-PART ANSWER, SO IT SCORES LIKE ONE ─────────────────────────
+         * Spec section 8: "Two-part question, one part correct: half." Q24 asks for "the ACL name and
+         * the sequence number", which is two parts in one field -- and every other question of that
+         * shape in the bank (Q1, Q9, Q16B, Q18, Q21B, Q22A, Q23B, Q25A) is declared with `parts` and
+         * gets half credit. Q24 is not, so it fell to the single-value branch above.
+         *
+         * That made it the only member of the family graded all-or-nothing, and it became so BY
+         * ACCIDENT: requiring both aclRef fields (the fix for an answer that named the wrong ACL and
+         * scored full marks) turned a tolerant comparison into a binary one. Nobody decided that.
+         * This is the decision, written where the behaviour is: the name and the sequence are worth
+         * half each, which is what the spec's table says and what the eight sibling questions do.
+         * Declaring `parts` on Q24 instead would mean inventing part names that are not normalizer
+         * kinds, so the rule lives here rather than distorting the question bank to reach it. */
+        if (entry.norm === 'aclRef' && !Array.isArray(want2)) {
+            var mine = NORM.aclRef(given), theirs = NORM.aclRef(want2);
+            if (mine && theirs) {
+                var nameOk = theirs.name !== null && mine.name !== null && mine.name === theirs.name;
+                var seqOk = theirs.seq !== null && mine.seq !== null && mine.seq === theirs.seq;
+                if (nameOk !== seqOk) {
+                    return { earned: Math.round(entry.points / 2 * 100) / 100, of: entry.points,
+                             note: '1 of 2 parts: ' + (nameOk ? 'ACL name right, sequence wrong'
+                                                             : 'sequence right, ACL name wrong') };
+                }
+            }
+        }
+        return { earned: 0, of: entry.points, note: 'incorrect' };
     }
 
     /* ═══ GRADING A FIX ═══════════════════════════════════════════════════════════════════════════

@@ -106,13 +106,49 @@ section('3. the page can render every control the engine declares');
         /<select id=/.test(page) && /<textarea id=/.test(page) && /<input id=/.test(page));
     chk('and every declared param resolves to one of them (' + shapes.length + ' params)',
         shapes.every(k => ['select', 'textarea', 'input'].indexOf(k) >= 0));
+    /* The two highest-value forms the new UI added. Both `layer` fields feed a String() comparison
+     * that grades Q43 and the layer half of all twelve fix questions, so a free-text input here
+     * costs points for a correct answer typed as "Layer 2". */
+    ['change-requests', 'incident-log'].forEach(w => {
+        const layer = GUI.actionSchema(lab, w)[0].params.filter(x => x.name === 'layer')[0];
+        chk(w + ': the graded layer field reaches the page as a closed list',
+            !!(layer && layer.options && layer.options.length),
+            JSON.stringify(layer));
+    });
+    chk('and the page renders a list-valued param as a <select>, not a text input',
+        /if \(prm\.options && prm\.options\.length\) \{[\s\S]{0,160}?<select id=/.test(page));
+
     chk('each control carries data-param, which is how the handler collects values',
         (page.match(/data-param="/g) || []).length >= 3
         && /querySelectorAll\('\[data-param\]'\)/.test(page));
     /* An empty optional field must be OMITTED, not sent as ''. portforward-set applies toPort only
      * when present, and '' becomes NaN. */
-    chk('an empty field is omitted rather than sent as an empty string',
-        /if \(v !== '' && v !== null && v !== undefined\) \{ params\[ctl\.dataset\.param\] = v; \}/.test(page));
+    /* OMIT ONLY WHAT THE SCHEMA CALLED OPTIONAL. Omitting any blank field made a blank REQUIRED
+     * field arrive as undefined, so the rejection read "not a network in CIDR form: undefined"
+     * instead of naming the field. Optional blanks are still omitted, because portforward-set
+     * applies toPort only when present and '' would become NaN. */
+    chk('a blank OPTIONAL field is omitted, a blank REQUIRED field is sent as empty',
+        /var optional = ctl\.dataset\.optional === '1';/.test(page)
+        && /if \(!optional\) \{ params\[ctl\.dataset\.param\] = ''; \}/.test(page));
+    chk('and the renderer marks which params are optional, so the handler can tell',
+        /prm\.optional \? ' data-optional="1"' : ''/.test(page));
+
+    /* ONE REQUEST PER FORM. The exam-submit button disabled itself while in flight; these forms did
+     * not, so a double-click raced itself and the loser surfaced as the compare-and-set 'aborted'
+     * error. The server was right to refuse it, but a student who reads a red message and moves on
+     * has lost the work anyway. */
+    chk('an action form disables its button while a request is in flight',
+        /if \(btn && btn\.disabled\) \{ return; \}/.test(page)
+        && /if \(btn\) \{ btn\.disabled = true; \}/.test(page));
+    chk('and re-enables it on BOTH outcomes, so a failure does not freeze the form',
+        /\.then\(release, function \(e\) \{ release\(\); fatal\(e\); \}\)/.test(page));
+    chk('the restore form is guarded the same way',
+        /if \(rbtn && rbtn\.disabled\) \{ return; \}/.test(page)
+        && /\.then\(rrelease, function \(e\) \{ rrelease\(\); fatal\(e\); \}\)/.test(page));
+    /* A `.catch(fatal)` on an action form would re-introduce the frozen button, so assert the shape
+     * that replaced it is the only one present on these two handlers. */
+    chk('no action handler still ends in a bare .catch(fatal), which would leave it disabled',
+        !/return refreshWindow\(\);\s*\}\)\.catch\(fatal\);/.test(page));
 }
 
 /* ─── 4. every class the script uses is defined in the stylesheet ───────────────────────────────── */

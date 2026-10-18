@@ -380,6 +380,57 @@ section('two calls on one session cannot silently overwrite each other');
         JSON.stringify(ok.map(v => v.report && v.report.total)));
 }
 
+/* ─── a read is not a write ─────────────────────────────────────────────────────────────────────── */
+section('rendering a window claims no revision, because it changes nothing');
+{
+    /* GUI.render is pure, but renderWindow went through the WRITING path: every window the student
+     * opened, and the refresh the page fires after every single action, bumped `rev` and ran a full
+     * transactional write. Reads contended with real writes for a revision they had no reason to
+     * hold, widening the collision surface the compare-and-set exists to narrow. */
+    const r = rig();
+    const s0 = await EX.startExam(r.store, { studentId: 'reads', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const sid = s0.sessionId;
+    const revOf = async () => Number((await r.store.get(sid)).rev || 0);
+
+    const start = await revOf();
+    for (const w of ['noc', 'firewall', 'rack', 'wireless', 'incident-log', 'change-requests']) {
+        await EX.renderWindow(r.store, { sessionId: sid, window: w }, r.opts);
+    }
+    chk('six window renders moved the revision not at all',
+        (await revOf()) === start, start + ' -> ' + (await revOf()));
+
+    /* THE CONTROL: a write still does move it, so the check above is not passing because nothing
+     * writes at all. */
+    await EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts);
+    chk('a command still advances it, so reads are what is exempt',
+        (await revOf()) === start + 1, start + ' -> ' + (await revOf()));
+
+    /* And reads must not conflict -- with each other, or with a concurrent write. */
+    const mixed = await Promise.allSettled([
+        EX.renderWindow(r.store, { sessionId: sid, window: 'noc' }, r.opts),
+        EX.renderWindow(r.store, { sessionId: sid, window: 'rack' }, r.opts),
+        EX.renderWindow(r.store, { sessionId: sid, window: 'firewall' }, r.opts),
+        EX.runCommand(r.store, { sessionId: sid, line: 'arp -a' }, r.opts)
+    ]);
+    chk('three concurrent reads and one write all succeed',
+        mixed.every(x => x.status === 'fulfilled'),
+        JSON.stringify(mixed.map(x => x.status === 'fulfilled' ? 'ok' : String(x.reason && x.reason.code))));
+
+    /* A read still enforces the gates that are not about writing. */
+    const expiredRig = rig(1);
+    const se = await EX.startExam(expiredRig.store,
+        { studentId: 'reads-exp', examId: EXAMS.DEFAULT_EXAM_ID, minutes: 1 }, expiredRig.opts);
+    expiredRig.advance(61 * 1000);
+    const late = await (async () => {
+        try { await EX.renderWindow(expiredRig.store, { sessionId: se.sessionId, window: 'noc' }, expiredRig.opts); return null; }
+        catch (e) { return e; }
+    })();
+    chk('a read after the clock expires is refused and auto-submits, like any other call',
+        !!late && late.code === 'deadline-exceeded', late ? late.code : 'no error');
+    chk('and that auto-submission was recorded',
+        !!(await expiredRig.store.get(se.sessionId)).submittedAt);
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('harness fault:', e && e.stack ? e.stack : e); process.exit(2); });
