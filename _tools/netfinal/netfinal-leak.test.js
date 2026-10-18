@@ -465,6 +465,98 @@ section('5b. a student quoting a fault name does not lock themselves out');
         CL.findDisclosures({ msg: 'the problem is S7B' }).length > 0);
 }
 
+/* ─── 5c. ALL 24 VARIANTS, AND AFTER THE REPAIR TOO ─────────────────────────────────────────────
+ *
+ * THE TRIPWIRE THAT REPLACES A SCANNER. I added a disclosure scan to the command-output surface and
+ * it produced two defects in two rounds -- a refusal whose message contained the secret, and an
+ * exemption bypassable with 123 characters of padding. It was removed. The design review's
+ * distinction for what to put in its place: the check that kept breaking was a READ-TIME CLASSIFIER
+ * OVER ARBITRARY TEXT; the check that holds is an assertion against a FINITE catalog.
+ *
+ * Section 3 above already runs every command on every device and scans the text -- so the surface is
+ * covered for the faults ONE GENERATED LAB happens to carry. This closes the two gaps that leaves:
+ *
+ *   - FORCED variants, so all 24 are covered and not the 19 the generator can draw. Five variants
+ *     are unreachable by any seed (taskboard 436), and "unreachable by the generator" is not
+ *     "unreachable by a future generator".
+ *   - AFTER THE CANONICAL REPAIR. A fix writes as well as a fault: correctFix assigns NTP servers,
+ *     SNMP communities and file contents, which are exactly the echoable fields this is about. A
+ *     fault that discloses nothing could still be repaired into a state that does.
+ *
+ * Scanned as TEXT, like section 3 -- NOT with matchedSecrets over the state object, which was my
+ * first attempt and was wrong: that collects forbidden KEY names too, and `meta.seedStr`,
+ * `rogue.placed` and `variantSpace` legitimately exist in server state. They are what
+ * toInitialState strips and what section 6 proves never reach a client. Scanning them here reported
+ * seventeen "offenders" that were all correct code, which is the kind of false alarm that gets a
+ * detector switched off. */
+section('5c. every command, across all 24 forced variants, before and after the repair');
+{
+    const ALL_IDS = [];
+    TOPO.FAULT_SLOTS.forEach(sl => Object.keys(sl.variants).forEach(v => ALL_IDS.push(sl.slot + v)));
+    const IOS = ['MeridianRTR-01', 'MeridianSW-01', 'MeridianSW-02'];
+    const SHOWS = SH.commands.iosShow.concat(['show logging', 'show running-config']);
+
+    const forcedLab = (id, seed) => {
+        const slot = id.slice(0, -1), variant = id.slice(-1);
+        const meta = TOPO.FAULT_SLOTS.filter(x => x.slot === slot)[0].variants[variant];
+        const lab = CORE.generate(seed, EXAM, { secret: 'a-real-server-secret' });
+        const rng = CORE.makeRng(seed + '|force|' + id);
+        lab.faults = [{
+            slot, variant, id, active: true, applied: false,
+            layer: meta.layer, group: meta.group,
+            target: CORE.pickFaultTarget(lab, rng, slot, variant)
+        }];
+        if (slot === 'S4') {
+            lab.rogue.variant = variant;
+            lab.rogue.mode = variant === 'B' ? 'duplicate-address' : 'arp-spoof';
+        }
+        FAULTS.assignTickets(lab, CORE.makeRng(seed + '|tkt|' + id));
+        FAULTS.applyAll(lab);
+        return lab;
+    };
+    const sweepText = (lab) => {
+        let text = '';
+        IOS.forEach(d => {
+            let ses = SH.newSession();
+            ['ssh admin@' + lab.devices[d].mgmtIp, 'enable'].concat(SHOWS).forEach(l => {
+                const r = SH.exec(lab, ses, l); ses = r.session; text += '\n' + r.out;
+            });
+        });
+        return text;
+    };
+
+    const broken = [], repaired = [];
+    let chars = 0;
+    ALL_IDS.forEach(id => {
+        const lab = forcedLab(id, 'tw-' + id);
+        const t1 = sweepText(lab);
+        chars += t1.length;
+        if (CL.findDisclosures(t1, id).length) { broken.push(id); }
+
+        const lab2 = forcedLab(id, 'twf-' + id);
+        FAULTS.VARIANTS[id].correctFix(lab2, lab2.faults[0]);
+        if (CL.findDisclosures(sweepText(lab2), id + '/fixed').length) { repaired.push(id); }
+    });
+
+    chk('all 24 variants were swept (' + ALL_IDS.length + ' x ' + IOS.length + ' devices x '
+        + SHOWS.length + ' commands)', ALL_IDS.length === 24);
+    chk('no command output names a fault, on any of the 24 with the fault live',
+        broken.length === 0, 'disclosed under: ' + broken.join(', '));
+    chk('and none after its canonical repair either',
+        repaired.length === 0, 'disclosed after fixing: ' + repaired.join(', '));
+    chk('the sweep read real output, so it had something to scan (' + chars.toLocaleString() + ' chars)',
+        chars > 100000, String(chars));
+
+    /* THE CONTROL. Plant the exact value the design review used -- a slot id in a field a command
+     * echoes -- and prove this sweep catches it. Without this, all three assertions above could be
+     * passing because the scan reads nothing. */
+    chk('a planted slot id in an echoed field IS caught', (() => {
+        const lab = forcedLab('S1A', 'tw-control');
+        lab.devices['MeridianSW-01'].snmp.community = 'S7B';
+        return CL.findDisclosures(sweepText(lab), 'control').length > 0;
+    })(), 'the control plant was not detected -- the sweep above proves nothing');
+}
+
 /* ─── 6. THE RESPONSE ENVELOPES A STUDENT ACTUALLY RECEIVES ───────────────────────────────────────
  *
  * WHY THIS SECTION EXISTS, written the day it was added. Sections 1-5 scan the STATE, the GUI
