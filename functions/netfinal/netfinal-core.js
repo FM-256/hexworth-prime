@@ -973,6 +973,40 @@
     var OUTSIDE = 'OUTSIDE';
     var PUBLIC_SITE = '93.184.216.34';
 
+    /* ═══ SAFE ACCESS BY A KEY SOMEONE ELSE CHOSE ════════════════════════════════════════════════
+     *
+     * Lives HERE, in the module every other one already requires, because the first version lived in
+     * netfinal-gui.js and that is exactly how the next instance happened: the dispatch-confusion
+     * CRITICAL was fixed in gui.js and core.js, the commit said "fixed at the root, not the edge",
+     * and `restoreDevice` in netfinal-faults.js -- same defect, same family, one file over -- was
+     * never touched. A single `netfinalRestore` with `device:'__proto__'` then added three
+     * enumerable properties to the SHARED `Object.prototype` for the life of the warm instance,
+     * because `deviceConfigs['__proto__']` is truthy and the assignments two lines later resolved
+     * `state.devices['__proto__']` the same way. `for (var k in {})` on a brand-new object yielded
+     * ['snmp','ntp','files'], in whatever process was also serving other students.
+     *
+     * One definition, required by everything, is the only version of this fix that does not have a
+     * next instance.
+     *
+     * `own` reads only an own property. `setOwn` refuses to WRITE a key that would reach the
+     * prototype at all -- an assignment with `__proto__` replaces an object's prototype rather than
+     * adding a key, which is a different failure from a read and needs its own guard. */
+    var UNSAFE_WRITE_KEYS = ['__proto__', 'prototype', 'constructor'];
+
+    function own(obj, key) {
+        if (obj === null || obj === undefined) { return undefined; }
+        if (typeof key !== 'string' && typeof key !== 'number') { return undefined; }
+        return Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
+    }
+
+    function setOwn(obj, key, value) {
+        if (obj === null || obj === undefined || typeof obj !== 'object') { return false; }
+        if (typeof key !== 'string' && typeof key !== 'number') { return false; }
+        if (UNSAFE_WRITE_KEYS.indexOf(String(key)) >= 0) { return false; }
+        obj[key] = value;
+        return true;
+    }
+
     function buildIndex(state) {
         /* PROTOTYPE-LESS ON PURPOSE. These two maps are looked up with user-supplied strings in about
          * twenty places -- `ssh <name>`, `ping <addr>`, `nodeOf`, every hop in `reach()` -- and a
@@ -1829,6 +1863,7 @@
     }
 
     var API = {
+        own: own, setOwn: setOwn, UNSAFE_WRITE_KEYS: UNSAFE_WRITE_KEYS,
         generate: generate, validate: validate, reach: reach, tables: tables,
         conflictFreeCombinations: conflictFreeCombinations, variantSpace: variantSpace,
         pickFaultTarget: pickFaultTarget,

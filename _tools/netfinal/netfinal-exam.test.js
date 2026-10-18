@@ -691,6 +691,101 @@ section('prototype keys, swept across every entry point and every position');
     })(), 'the scanner must fire on a planted fault list, and own() must exist');
 }
 
+/* ─── NOTHING A STUDENT SENDS MAY TOUCH A SHARED PROTOTYPE ─────────────────────────────────────── */
+section('prototype pollution, swept across every entry point including the shell');
+{
+    /* THE DEFECT THIS EXISTS FOR, and why it is a RUNTIME sweep rather than a code-pattern check.
+     *
+     * The dispatch-confusion CRITICAL was fixed in netfinal-gui.js and netfinal-core.js, and the
+     * commit said "fixed at the root, not the edge". `restoreDevice` lives in netfinal-faults.js --
+     * same defect, same family, one file over -- and was never touched. `device:'__proto__'` made
+     * `deviceConfigs['__proto__']` resolve to Object.prototype (truthy, so the guard passed) and the
+     * three unconditional assignments landed `.snmp`, `.ntp` and `.files` ON THE SHARED PROTOTYPE:
+     *
+     *   for (var k in {})   ->   ['snmp', 'ntp', 'files']
+     *
+     * on a brand-new object, for the life of that warm instance, across every student it went on to
+     * serve. Values were always undefined, so it was enumeration noise rather than injected data --
+     * but process-wide reach is worse than the session-scoped bugs beside it.
+     *
+     * A grep for `[clientKey] =` would have found it. It would also have found forty legitimate
+     * writes and been turned off. So this measures the PROPERTY instead: after driving every entry
+     * point with every prototype-reachable key, are the shared prototypes exactly as they were. That
+     * holds whatever file the next one is in, which is the whole point -- the last two instances of
+     * this were in files the previous fix did not visit. */
+    const PROTO_KEYS = ['__proto__', 'constructor', 'prototype', 'toString', 'valueOf',
+        'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable'];
+    const snapshot = () => JSON.stringify({
+        obj: Object.getOwnPropertyNames(Object.prototype).sort(),
+        arr: Object.getOwnPropertyNames(Array.prototype).sort(),
+        fn: Object.getOwnPropertyNames(Function.prototype).sort(),
+        str: Object.getOwnPropertyNames(String.prototype).sort(),
+        assign: Object.getOwnPropertyNames(Object.assign).sort()
+    });
+
+    const before = snapshot();
+    const r = rig();
+    const s0 = await EX.startExam(r.store, { studentId: 'pollute', examId: EXAMS.DEFAULT_EXAM_ID }, r.opts);
+    const sid = s0.sessionId;
+    let calls = 0;
+
+    for (const k of PROTO_KEYS) {
+        const attempts = [
+            () => EX.restoreDevice(r.store, { sessionId: sid, device: k }, r.opts),
+            () => EX.renderWindow(r.store, { sessionId: sid, window: k }, r.opts),
+            () => EX.saveAnswer(r.store, { sessionId: sid, questionId: k, value: 'x' }, r.opts),
+            () => EX.runAction(r.store, { sessionId: sid, window: k, action: k, params: { pwned: 1 } }, r.opts),
+            () => EX.runAction(r.store, { sessionId: sid, window: 'rack', action: 'replace-cable',
+                params: { device: k, port: k } }, r.opts),
+            () => EX.runAction(r.store, { sessionId: sid, window: 'wireless', action: 'ap-set-channel',
+                params: { ap: k, channel: 6 } }, r.opts),
+            () => EX.runAction(r.store, { sessionId: sid, window: 'noc', action: 'ack-alert',
+                params: { id: k } }, r.opts),
+            /* THE SHELL, which the earlier sweep never touched: a student-typed file path and a
+             * student-named ACL are both written with a key they chose. */
+            () => EX.runCommand(r.store, { sessionId: sid, line: 'sudo vi /etc/' + k }, r.opts),
+            () => EX.runCommand(r.store, { sessionId: sid, line: 'ip access-list extended ' + k }, r.opts),
+            () => EX.runCommand(r.store, { sessionId: sid, line: 'ssh admin@' + k }, r.opts)
+        ];
+        for (const attempt of attempts) {
+            calls++;
+            try { await attempt(); } catch (e) { /* a refusal is a fine outcome; pollution is not */ }
+        }
+    }
+
+    chk('the sweep drove every entry point with every prototype key (' + calls + ' calls)',
+        calls === PROTO_KEYS.length * 10, String(calls));
+    chk('NO shared prototype or builtin was modified', snapshot() === before,
+        'before/after differ -- something wrote through a client key');
+    chk('and a fresh object enumerates nothing', (() => {
+        const leaked = [];
+        for (const k in {}) { leaked.push(k); }
+        return leaked.length === 0;
+    })(), 'for..in on {} is polluted');
+
+    /* THE CONTROL. If every one of those calls had thrown before reaching any write, the assertions
+     * above would hold for the wrong reason -- so prove the engine is still working, and that a
+     * REAL restore still succeeds through the same code path the exploit used. */
+    const real = await EX.restoreDevice(r.store, { sessionId: sid, device: 'MeridianSW-01' }, r.opts);
+    chk('a real device restore still works, through the same function',
+        real.result && real.result.ok === true, JSON.stringify(real.result));
+    chk('and the session still responds to an ordinary command',
+        (await EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts)).out.length > 0);
+
+    /* setOwn is the shared primitive; assert it refuses rather than trusting its callers. */
+    const CORE2 = require(path.join(NF, 'netfinal-core.js'));
+    chk('setOwn refuses every unsafe key and allows an ordinary one', (() => {
+        const o = {};
+        const refused = CORE2.UNSAFE_WRITE_KEYS.every(k => CORE2.setOwn(o, k, { x: 1 }) === false);
+        return refused && Object.getPrototypeOf(o) === Object.prototype
+            && CORE2.setOwn(o, 'ordinary', 1) === true && o.ordinary === 1;
+    })(), JSON.stringify(CORE2.UNSAFE_WRITE_KEYS));
+    chk('and own/setOwn are defined in ONE place, required by the rest', (() => {
+        const GUI2 = require(path.join(NF, 'netfinal-gui.js'));
+        return typeof CORE2.own === 'function' && GUI2.own === CORE2.own;
+    })(), 'gui must use core’s definition, not a copy of it -- a copy is how the last one survived');
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('harness fault:', e && e.stack ? e.stack : e); process.exit(2); });

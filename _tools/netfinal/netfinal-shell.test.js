@@ -469,5 +469,100 @@ section('7. editing a config is not applying it');
         && FAULTS.fixedMap(z).S10B === true);
 }
 
+/* ─── A STUDENT-CHOSEN NAME IS STILL A KEY ──────────────────────────────────────────────────────── */
+section('an ACL named __proto__, and a file path that is one');
+{
+    /* Two writes in this file use a key the STUDENT typed: `ip access-list extended <name>` and
+     * `vi <path>`. The audit flagged the ACL one as the same shape as the dispatch bug with impact
+     * unproven, and it was right to: writing `state.acls[dev]['__proto__'] = {...}` replaces that
+     * container's prototype rather than adding a key, which the engine's global pollution sweep
+     * cannot see because nothing shared changes.
+     *
+     * It needed its own test for a duller reason too: reaching the ACL write requires ssh, enable
+     * and conf t, so the exam suite's single-line sweep never got near it. A sweep that cannot reach
+     * the code it is sweeping is not covering it, and this is the second time in this build a sweep
+     * has read clean for that reason. */
+    const st = CORE.generate('proto-acl', EXAM, { secret: 's' });
+    FAULTS.applyAll(st);
+    const dev = 'MeridianRTR-01';
+    const mgmtIp = st.devices[dev].mgmtIp;
+
+    const drive = (lines) => {
+        let ses = SH.newSession();
+        let out = '';
+        lines.forEach((l) => { const r = SH.exec(st, ses, l); ses = r.session; out += '\n' + r.out; });
+        return out;
+    };
+
+    const protoBefore = Object.getPrototypeOf(st.acls[dev]);
+    const namesBefore = Object.keys(st.acls[dev]).sort().join(',');
+
+    ['__proto__', 'constructor', 'prototype'].forEach((name) => {
+        drive(['ssh admin@' + mgmtIp, 'enable', 'conf t', 'ip access-list extended ' + name, 'end', 'exit']);
+    });
+
+    chk('naming an ACL __proto__ does not replace the ACL container’s prototype',
+        Object.getPrototypeOf(st.acls[dev]) === protoBefore,
+        'the prototype of state.acls[' + dev + '] was changed by a typed ACL name');
+    chk('and no unsafe name became an ACL',
+        ['__proto__', 'constructor', 'prototype'].every(n => !Object.prototype.hasOwnProperty.call(st.acls[dev], n)),
+        JSON.stringify(Object.keys(st.acls[dev])));
+    chk('the real ACLs are untouched',
+        Object.keys(st.acls[dev]).sort().join(',') === namesBefore,
+        namesBefore + ' -> ' + Object.keys(st.acls[dev]).sort().join(','));
+    /* THE CONTROL: a legitimate ACL name must still be creatable, or the guard has eaten the feature. */
+    drive(['ssh admin@' + mgmtIp, 'enable', 'conf t', 'ip access-list extended TEST-IN', 'end', 'exit']);
+    chk('a legitimate ACL name still creates one',
+        !!st.acls[dev]['TEST-IN'], JSON.stringify(Object.keys(st.acls[dev])));
+
+    /* THE SAME SHAPE ON THE LINUX SIDE -- `vi <path>` writes a file keyed by the typed path -- but
+     * with a difference I checked rather than assumed: a file's VALUE is a string, and
+     * `obj['__proto__'] = 'a string'` is a NO-OP in JavaScript. Only an object or null replaces a
+     * prototype. So that path was never exploitable, and an assertion about it could never fail --
+     * I wrote one, mutated the guard away, and the suite stayed green, which is how I found out.
+     *
+     * The observable case is `constructor`: assigning to it DOES create an own key that shadows the
+     * inherited one. Harmless in effect, but it is the half a test can actually settle, so it is the
+     * half asserted. The guard covers all three names regardless, because the next value written
+     * through that path might not be a string. */
+    const srv = 'MER-SRV01';
+    const srvIp = st.devices[srv].mgmtIp;
+    const filesProtoBefore = Object.getPrototypeOf(st.devices[srv].files || {});
+    /* BARE NAMES, not '/etc/' + name. A real path always contains a slash, so it can never equal a
+     * prototype key -- which is why my first version of this assertion could not fail: it wrote
+     * '/etc/constructor' and then checked for an own 'constructor' key. The form that reaches the
+     * lookup is `vi __proto__` with no directory, and that one THREW: renderFile's `files[path]`
+     * resolved to the prototype OBJECT rather than undefined, so the caller took it for file
+     * contents and called .split('\n') on it, throwing a TypeError out of the callable. A typed
+     * command must never be able to produce a 500. */
+    /* Wrapped, so the unguarded-read crash is reported by the assertion below instead of killing the
+       suite three lines earlier -- a crash is detection, but it reads as a broken test. */
+    let viThrew = null;
+    ['__proto__', 'constructor', 'prototype'].forEach((pth) => {
+        try {
+            drive(['ssh admin@' + srvIp, 'sudo vi ' + pth, ':wq', 'exit']);
+            drive(['ssh admin@' + srvIp, 'sudo vi /etc/' + pth, ':wq', 'exit']);
+        } catch (e) { viThrew = viThrew || (pth + ': ' + e.message); }
+    });
+    chk('no prototype-named path threw out of the shell', viThrew === null, String(viThrew));
+    chk('opening a file named for a prototype key does not throw', (() => {
+        try {
+            const out = drive(['ssh admin@' + srvIp, 'sudo vi __proto__', ':wq', 'exit']);
+            return typeof out === 'string';
+        } catch (e) { return false; }
+    })(), 'renderFile returned a non-string and the caller split it');
+    chk('an unsafe file path creates no own key on the files container',
+        ['__proto__', 'constructor', 'prototype'].every(
+            n => !Object.prototype.hasOwnProperty.call(st.devices[srv].files || {}, n)),
+        JSON.stringify(Object.keys(st.devices[srv].files || {})));
+    chk('a file path of __proto__ does not replace the files container’s prototype',
+        Object.getPrototypeOf(st.devices[srv].files || {}) === filesProtoBefore);
+    chk('and a real file is still writable',
+        (() => {
+            drive(['ssh admin@' + srvIp, 'sudo vi /etc/kea/kea-dhcp4.conf', ':wq', 'exit']);
+            return !!(st.devices[srv].files && st.devices[srv].files['/etc/kea/kea-dhcp4.conf']);
+        })(), JSON.stringify(Object.keys(st.devices[srv].files || {})));
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);

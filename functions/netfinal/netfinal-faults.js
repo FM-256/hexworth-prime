@@ -1349,15 +1349,30 @@
 
     /* Put one device back the way the student found it. Spec section 8: logged, and free. */
     function restoreDevice(state, device) {
-        var cfg = state.baseline && state.baseline.deviceConfigs && state.baseline.deviceConfigs[device];
+        /* `device` IS THE ONE CLIENT-SUPPLIED PARAMETER netfinalRestore passes through, and these
+         * were direct bracket lookups. `device:'__proto__'` made `deviceConfigs['__proto__']`
+         * resolve to `Object.prototype` -- truthy, so the guard below passed -- and the three
+         * unconditional assignments then resolved `state.devices['__proto__']` the same way, landing
+         * `.snmp`, `.ntp` and `.files` ON THE SHARED PROTOTYPE. One call, and `for (var k in {})` on
+         * a brand-new object anywhere in that warm instance yielded ['snmp','ntp','files'], for every
+         * student it went on to serve. The values were always undefined, so it was enumeration noise
+         * rather than injected data -- but the reach was process-wide, which is worse than the
+         * session-scoped bugs beside it.
+         *
+         * This file was not touched by the commit that fixed the same defect in the dispatch tables,
+         * which is why `own`/`setOwn` now live in netfinal-core.js where every module reaches them
+         * instead of in the one file that happened to need them first. */
+        var cfg = CORE.own(state.baseline && state.baseline.deviceConfigs, device);
         if (!cfg) { return { ok: false, reason: 'no exam-start config recorded for ' + device }; }
+        var dev = CORE.own(state.devices, device);
+        if (!dev) { return { ok: false, reason: 'no such device: ' + device }; }
         var put = function (o) { return o === undefined ? undefined : JSON.parse(JSON.stringify(o)); };
-        if (cfg.ports) { state.ports[device] = put(cfg.ports); }
-        if (cfg.routes) { state.routes[device] = put(cfg.routes); }
-        if (cfg.acls) { state.acls[device] = put(cfg.acls); }
-        state.devices[device].snmp = put(cfg.snmp);
-        state.devices[device].ntp = put(cfg.ntp);
-        state.devices[device].files = put(cfg.files);
+        if (cfg.ports) { CORE.setOwn(state.ports, device, put(cfg.ports)); }
+        if (cfg.routes) { CORE.setOwn(state.routes, device, put(cfg.routes)); }
+        if (cfg.acls) { CORE.setOwn(state.acls, device, put(cfg.acls)); }
+        dev.snmp = put(cfg.snmp);
+        dev.ntp = put(cfg.ntp);
+        dev.files = put(cfg.files);
         if (cfg.svis) { state.svis = put(cfg.svis); }
         if (cfg.dhcp) { state.dhcp = put(cfg.dhcp); }
         if (cfg.dns) { state.dns = put(cfg.dns); }

@@ -209,7 +209,7 @@
             /* 1-14 is the band; the controller accepts any of them, because choosing a non-
              * overlapping set is the lesson and a UI that refused 2 would teach it for the student. */
             if (!(ch >= 1 && ch <= 14)) { return { ok: false, reason: 'channel must be 1-14 on 2.4 GHz' }; }
-            state.wireless.apChannels[p.ap] = ch;
+            CORE.setOwn(state.wireless.apChannels, p.ap, ch);
             return { ok: true, message: p.ap + ' set to 2.4 GHz channel ' + ch };
         }
     };
@@ -278,7 +278,7 @@
             if (typeof p.id !== 'string' || p.id === '__proto__') {
                 return { ok: false, reason: 'not an alert id: ' + p.id };
             }
-            state.ackedAlerts[p.id] = true;
+            CORE.setOwn(state.ackedAlerts, p.id, true);
             return { ok: true, message: 'Alert ' + p.id + ' acknowledged' };
         }
     };
@@ -460,7 +460,8 @@
             state.answers = state.answers || {};
             /* Stored verbatim and ungraded. Grading happens server-side at submission, so an answer
              * that is wrong must not be revealed as wrong while the exam is running. */
-            state.answers[p.id] = { value: p.value, atEvent: Math.max(0, (state.events || []).length - 1) };
+            CORE.setOwn(state.answers, p.id,
+                { value: p.value, atEvent: Math.max(0, (state.events || []).length - 1) });
             return { ok: true, message: 'Answer recorded for ' + p.id };
         }
     };
@@ -492,11 +493,11 @@
      * The shell's command trie was always safe from this, and for the right reason: it computes
      * `Object.keys(node)` and only ever indexes with a key drawn from that list. That is the pattern;
      * this helper is how the rest of the engine gets it. */
-    function own(obj, key) {
-        if (obj === null || obj === undefined) { return undefined; }
-        if (typeof key !== 'string' && typeof key !== 'number') { return undefined; }
-        return Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined;
-    }
+    /* ONE DEFINITION, in netfinal-core.js, which every module already requires. This was a local
+     * copy here, and a local copy is how `restoreDevice` in netfinal-faults.js kept the same defect
+     * through the commit that claimed to fix it at the root. */
+    var own = CORE.own;
+    var setOwn = CORE.setOwn;
 
     /* Every question id the bank defines, as an own-property map. Derived, so it cannot drift from
      * the bank, and required lazily because netfinal-questions.js loads the shell, which loads this

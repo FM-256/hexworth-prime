@@ -683,8 +683,14 @@
                 .map(function (l) { return 'Oct 17 09:14:02 ' + device.toLowerCase() + ' ' + l.facility + ': ' + l.text; })
                 .join('\n');
         }
-        var own = (state.devices[device] || {}).files || {};
-        return own[path] !== undefined ? own[path] : null;
+        /* THE READ NEEDS THE SAME GUARD AS THE WRITE. This was `files[path]`, and a student typing
+         * `vi __proto__` resolved it to the prototype OBJECT -- not undefined, so the caller took it
+         * for file contents and called `.split('\n')` on it, throwing a TypeError out of the
+         * callable. A typed command should never be able to produce a 500. (The local was even
+         * NAMED `own`, which is what the guard is called; it was a plain lookup.) */
+        var files = (CORE.own(state.devices, device) || {}).files || {};
+        var contents = CORE.own(files, path);
+        return typeof contents === 'string' ? contents : null;
     }
 
     /* Parse an edited file back into state. Returns what it understood and what it did not, so a
@@ -725,7 +731,9 @@
                 if (subs[v].routers) { state.dhcp.pending[v].routers = subs[v].routers; }
             });
             state.devices[device].files = state.devices[device].files || {};
-            state.devices[device].files[path] = text;
+            /* `path` is typed by the student (`vi <path>`), so the write is guarded: an assignment
+             * with `__proto__` replaces the files object's prototype instead of adding a key. */
+            CORE.setOwn(state.devices[device].files, path, text);
             state.devices[device].keaDirty = true;
             return { applied: applied, ignored: ignored };
         }
@@ -741,12 +749,12 @@
             else { state.dns.zoneFile.serial = serial; applied.push('serial ' + serial); }
             if (recs.length) { state.dns.zoneFile.records = recs; applied.push(recs.length + ' A records'); }
             state.devices[device].files = state.devices[device].files || {};
-            state.devices[device].files[path] = text;
+            CORE.setOwn(state.devices[device].files, path, text);
             return { applied: applied, ignored: ignored };
         }
         state.devices[device] = state.devices[device] || {};
         state.devices[device].files = state.devices[device].files || {};
-        state.devices[device].files[path] = text;
+        CORE.setOwn(state.devices[device].files, path, text);
         return { applied: ['written'], ignored: [] };
     }
 
@@ -1080,7 +1088,10 @@
         if (!name) { return '% Incomplete command'; }
         state.acls[f.device] = state.acls[f.device] || {};
         if (!state.acls[f.device][name]) {
-            state.acls[f.device][name] = { name: name, applied: [], lines: [] };
+            /* The ACL NAME is typed by the student, so it cannot be written unguarded either --
+             * flagged in the audit as the same shape with unproven impact, fixed with the rest of
+             * the family rather than left to be rediscovered. */
+            CORE.setOwn(state.acls[f.device], name, { name: name, applied: [], lines: [] });
         }
         f.mode = 'config-acl';
         f.acl = name;
