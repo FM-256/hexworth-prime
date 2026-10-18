@@ -149,7 +149,12 @@
          * indistinguishable from the exam.
          *
          * Recorded LAST, after the rest of the baseline exists, because several invariants read it. */
-        state.baseline.violatedAtStart = checkInvariants(state).map(function (v) { return v.id; });
+        /* Keyed per violation, and SPENDABLE: recordProgress drops an amnesty once its violation
+         * is gone, so a student who repairs a fault and then re-breaks the same thing is charged
+         * for it. A permanent amnesty let a violation recur unnoticed after its cause was fixed. */
+        state.baseline.amnesty = {};
+        checkInvariants(state).forEach(function (v) { state.baseline.amnesty[v.key] = v.detail; });
+        state.baseline.violatedAtStart = Object.keys(state.baseline.amnesty);
         return state;
     }
 
@@ -157,92 +162,105 @@
      * Properties of a HEALTHY lab that must still hold after any repair. Each carries `why` so a
      * failure tells the student (and the grader's report) what the collateral damage was, rather
      * than just naming a rule. */
+    /* EVERY CHECK RETURNS A LIST OF DISCRETE VIOLATIONS, each with a stable `key` naming the
+     * offending entity. That shape is the fix for a defect Nancy proved and I reproduced: the
+     * amnesty below used to be keyed on the invariant ID and never expired, so one commonly-drawn
+     * fault permanently disabled a whole check for the rest of that student's exam.
+     *
+     * The grading failure it produced: S7B is pinned, so every student has it. Its documented WRONG
+     * fix -- renumber the web server to match the forward -- leaves www.meridian.local pointing at
+     * nothing, which dns-records-resolve exists to catch. On any lab that also drew S10A (about half
+     * of them), S10A had already tripped that same invariant id at exam start, so the id was dead
+     * and the wrong answer scored 6 of 6 instead of the 0-and-flag the spec prescribes.
+     *
+     * Keys make the amnesty per-VIOLATION instead of per-check: S10A excuses `dns:intranet` and
+     * nothing else, so S7B's `dns:www` is still caught. And recordProgress SPENDS an amnesty once
+     * its violation is resolved, so a student who repairs a fault and then re-breaks the same thing
+     * is charged for it. */
     var INVARIANTS = [
         {
             id: 'mgmt-path',
             why: 'Every managed device must stay reachable from ADMIN-WS01, or the student cannot finish the exam.',
             check: function (st) {
-                var bad = [];
+                var out = [];
                 TOPO.DEVICES.filter(function (d) { return d.id !== 'ADMIN-WS01'; }).forEach(function (d) {
                     var a = st.devices[d.id] && st.devices[d.id].mgmtIp;
-                    if (!a) { bad.push(d.id + ' has no management address'); return; }
-                    if (!reach(st, 'ADMIN-WS01', a, { proto: 'icmp' }).ok) bad.push(d.id + ' at ' + a);
+                    if (!a) { out.push({ key: 'dev:' + d.id, detail: d.id + ' has no management address' }); return; }
+                    if (!reach(st, 'ADMIN-WS01', a, { proto: 'icmp' }).ok) {
+                        out.push({ key: 'dev:' + d.id, detail: d.id + ' at ' + a + ' is unreachable' });
+                    }
                 });
-                return bad.length ? 'unreachable: ' + bad.join(', ') : null;
+                return out;
             }
         },
         {
             id: 'vlan99-intact',
             why: 'VLAN 99 is the management network. Spec constraint 2 forbids any fault or fix from touching it.',
             check: function (st) {
-                if (st.subnets[99].cidr !== '10.0.0.0/24') return 'the management subnet moved to ' + st.subnets[99].cidr;
+                var out = [];
+                if (st.subnets[99].cidr !== '10.0.0.0/24') {
+                    out.push({ key: 'subnet', detail: 'the management subnet moved to ' + st.subnets[99].cidr });
+                }
                 var svi = st.svis[99];
-                if (!svi || svi.shutdown) return 'Gi0/0.99 is down';
-                if (svi.ip !== st.subnets[99].gateway) return 'Gi0/0.99 is ' + svi.ip + ', not the gateway';
-                var missing = trunkEnds(st).filter(function (t) {
+                if (!svi || svi.shutdown) { out.push({ key: 'svi', detail: 'Gi0/0.99 is down' }); }
+                else if (svi.ip !== st.subnets[99].gateway) {
+                    out.push({ key: 'svi', detail: 'Gi0/0.99 is ' + svi.ip + ', not the gateway' });
+                }
+                trunkEnds(st).forEach(function (t) {
                     var p = port(st, t.sw, t.port);
-                    return !p || p.allowed.indexOf(99) < 0;
+                    if (!p || p.allowed.indexOf(99) < 0) {
+                        out.push({ key: 'trunk:' + t.sw + ' ' + t.port, detail: 'VLAN 99 dropped from the trunk on ' + t.sw });
+                    }
                 });
-                return missing.length ? 'VLAN 99 dropped from the trunk on ' + missing.map(function (m) { return m.sw; }).join(' and ') : null;
+                return out;
             }
         },
         {
             /* SPEC SECTION 8, VERBATIM: "No VLAN removed from any trunk that carried it at exam
-             * start." Baseline-relative, and strictly different from my first attempt, which only
-             * forbade VLAN 30 on the floor-2 trunk. That version would have missed a student who
-             * dropped VLAN 40 to "simplify" a trunk, and would have wrongly flagged a lab whose
-             * authored trunk legitimately carried 30 -- the SW-01 uplink to the router does. */
+             * start." Baseline-relative, and keyed per trunk AND per VLAN so dropping 40 from one
+             * trunk is a different violation from dropping 20 from another. */
             id: 'no-trunk-vlan-removed',
             why: 'Spec section 8: no VLAN may be removed from a trunk that carried it at exam start. Removing one is how a trunk "simplification" takes a floor offline.',
             check: function (st) {
-                if (!st.baseline) { return null; }
-                var bad = [];
-                Object.keys(st.baseline.trunks).forEach(function (key) {
-                    var parts = key.split(' ');
+                if (!st.baseline) { return []; }
+                var out = [];
+                Object.keys(st.baseline.trunks).forEach(function (k) {
+                    var parts = k.split(' ');
                     var p = port(st, parts[0], parts[1]);
-                    if (!p || p.mode !== 'trunk') { bad.push(key + ' is no longer a trunk'); return; }
-                    var gone = st.baseline.trunks[key].filter(function (v) { return p.allowed.indexOf(v) < 0; });
-                    if (gone.length) { bad.push(key + ' no longer carries VLAN ' + gone.join(',')); }
+                    if (!p || p.mode !== 'trunk') { out.push({ key: 'trunk:' + k, detail: k + ' is no longer a trunk' }); return; }
+                    st.baseline.trunks[k].forEach(function (v) {
+                        if (p.allowed.indexOf(v) < 0) {
+                            out.push({ key: 'trunk:' + k + ':vlan' + v, detail: k + ' no longer carries VLAN ' + v });
+                        }
+                    });
                 });
-                return bad.length ? bad.join('; ') : null;
+                return out;
             }
         },
         {
-            /* The OTHER direction, which the spec does not state but S3's wrong fix needs: adding
-             * every VLAN to a trunk passes "nothing was removed" and still extends the server VLAN
-             * across the building. Kept as a separate invariant so a failure says which mistake
-             * was made rather than one message covering two. */
             id: 'no-trunk-vlan-added',
             why: 'A trunk carrying a VLAN it never carried extends a broadcast domain nobody asked for. `switchport trunk allowed vlan all` is the common wrong fix for S3.',
             check: function (st) {
-                /* No baseline needed: this one compares against the AUTHORED topology, because a
-                 * VLAN the fault removed is legitimately re-added and must not read as an addition.
-                 * Guarding it on the baseline made it silently inert before exam start, which is
-                 * where the isolation test for it runs. */
-                var bad = [];
-                var trunkKeys = {};
+                var out = [];
                 Object.keys(st.ports).forEach(function (sw) {
                     Object.keys(st.ports[sw]).forEach(function (pn) {
-                        if (st.ports[sw][pn].mode === 'trunk') { trunkKeys[sw + ' ' + pn] = true; }
+                        var p = st.ports[sw][pn];
+                        if (p.mode !== 'trunk' || !p.allowed) { return; }
+                        /* Compared against the AUTHORED topology, not the faulted baseline, so a
+                         * VLAN the fault removed is legitimately re-added. */
+                        var authored = null;
+                        TOPO.LINKS.forEach(function (l) {
+                            if ((l.a[0] === sw && l.a[1] === pn) || (l.b[0] === sw && l.b[1] === pn)) { authored = l.allowed || null; }
+                        });
+                        if (!authored) { return; }
+                        p.allowed.forEach(function (v) {
+                            if (authored.indexOf(v) < 0) {
+                                out.push({ key: 'trunk:' + sw + ' ' + pn + ':vlan' + v, detail: sw + ' ' + pn + ' now also carries VLAN ' + v });
+                            }
+                        });
                     });
                 });
-                Object.keys(trunkKeys).forEach(function (key) {
-                    var parts = key.split(' ');
-                    var p = port(st, parts[0], parts[1]);
-                    if (!p || !p.allowed) { return; }
-                    /* A VLAN the fault REMOVED is legitimately re-added, so the comparison is
-                     * against the authored topology, not against the faulted baseline. */
-                    var authored = null;
-                    TOPO.LINKS.forEach(function (l) {
-                        if ((l.a[0] === parts[0] && l.a[1] === parts[1]) || (l.b[0] === parts[0] && l.b[1] === parts[1])) {
-                            authored = l.allowed || null;
-                        }
-                    });
-                    if (!authored) { return; }
-                    var extra = p.allowed.filter(function (v) { return authored.indexOf(v) < 0; });
-                    if (extra.length) { bad.push(key + ' now also carries VLAN ' + extra.join(',')); }
-                });
-                return bad.length ? bad.join('; ') : null;
+                return out;
             }
         },
         {
@@ -250,23 +268,20 @@
             id: 'no-acl-line-removed',
             why: 'Spec section 8: only S8\u2019s target line may be removed. Deleting a rule to unblock yourself removes a control that was there for a reason.',
             check: function (st) {
-                if (!st.baseline) { return null; }
+                if (!st.baseline) { return []; }
                 var s8 = st.faults.filter(function (f) { return f.slot === 'S8' && f.active; })[0];
-                var bad = [];
-                Object.keys(st.baseline.aclSeqs).forEach(function (key) {
-                    var parts = key.split(' ');
+                var out = [];
+                Object.keys(st.baseline.aclSeqs).forEach(function (k) {
+                    var parts = k.split(' ');
                     var acl = (st.acls[parts[0]] || {})[parts[1]];
-                    if (!acl) { bad.push(key + ' was deleted entirely'); return; }
+                    if (!acl) { out.push({ key: 'acl:' + k, detail: k + ' was deleted entirely' }); return; }
+                    if (s8 && aclIsS8Target(st, parts[1], s8)) { return; }   // the list S8 legitimately edits
                     var have = acl.lines.map(function (l) { return l.seq; });
-                    var gone = st.baseline.aclSeqs[key].filter(function (q) { return have.indexOf(q) < 0; });
-                    /* S8A is repaired BY RENUMBERING, and S8B by removing its one deny line, so
-                     * both legitimately change the sequence set of the list they target. Only
-                     * untouched lists are held to "nothing removed". */
-                    if (gone.length && !(s8 && aclIsS8Target(st, parts[1], s8))) {
-                        bad.push(key + ' lost line ' + gone.join(','));
-                    }
+                    st.baseline.aclSeqs[k].forEach(function (q) {
+                        if (have.indexOf(q) < 0) { out.push({ key: 'acl:' + k + ':seq' + q, detail: k + ' lost line ' + q }); }
+                    });
                 });
-                return bad.length ? bad.join('; ') : null;
+                return out;
             }
         },
         {
@@ -275,9 +290,9 @@
             why: 'Spec section 8: the default route must still point at the firewall. Repointing it is how "I made the branch reachable" takes the internet away.',
             check: function (st) {
                 var def = (st.routes['MeridianRTR-01'] || []).filter(function (r) { return r.prefix === 0; })[0];
-                if (!def) { return 'the default route is gone'; }
-                return def.nextHop === TOPO.FIXED_NETS.transit.fw
-                    ? null : 'the default route points at ' + def.nextHop + ', not ' + TOPO.FIXED_NETS.transit.fw;
+                if (!def) { return [{ key: 'default', detail: 'the default route is gone' }]; }
+                return def.nextHop === TOPO.FIXED_NETS.transit.fw ? []
+                    : [{ key: 'default', detail: 'the default route points at ' + def.nextHop + ', not ' + TOPO.FIXED_NETS.transit.fw }];
             }
         },
         {
@@ -286,35 +301,43 @@
             id: 'gateways-still-reachable',
             why: 'Spec section 8: an endpoint that could reach its gateway at exam start must still reach it. This is the catch-all for a fix that quietly strands somebody.',
             check: function (st) {
-                if (!st.baseline) { return null; }
-                var bad = [];
+                if (!st.baseline) { return []; }
+                var out = [];
                 st.endpoints.forEach(function (e) {
-                    if (!st.baseline.gateways[e.name]) { return; }      // it could not before, so it owes nothing
-                    if (!e.ip || /^169\.254\./.test(e.ip) || !e.gw) { bad.push(e.name + ' lost its address'); return; }
-                    if (!reach(st, e.name, e.gw, { proto: 'icmp' }).ok) { bad.push(e.name + ' can no longer reach ' + e.gw); }
+                    if (!st.baseline.gateways[e.name]) { return; }
+                    if (!e.ip || /^169\.254\./.test(e.ip) || !e.gw) { out.push({ key: 'ep:' + e.name, detail: e.name + ' lost its address' }); return; }
+                    if (!reach(st, e.name, e.gw, { proto: 'icmp' }).ok) {
+                        out.push({ key: 'ep:' + e.name, detail: e.name + ' can no longer reach ' + e.gw });
+                    }
                 });
-                return bad.length ? bad.join('; ') : null;
+                return out;
             }
         },
         {
             id: 'dhcp-pools-sane',
             why: 'A pool must sit inside its own subnet and must not hand out the gateway or a reserved address. Widening a pool to the whole subnet is the common wrong fix for S9A.',
             check: function (st) {
-                var bad = [];
+                var out = [];
                 Object.keys(st.dhcp.subnets).forEach(function (v) {
-                    var c = st.dhcp.subnets[v], s = sub(st, Number(v));
+                    var c = st.dhcp.subnets[v], sn = sub(st, Number(v));
                     var lo = ip.toInt(c.pool.start), hi = ip.toInt(c.pool.end);
-                    if (!ip.inNet(lo, s.parsed) || !ip.inNet(hi, s.parsed)) bad.push('VLAN ' + v + ' pool leaves its subnet');
-                    if (hi < lo) bad.push('VLAN ' + v + ' pool is inverted');
-                    var gw = ip.toInt(s.gateway);
-                    if (gw >= lo && gw <= hi) bad.push('VLAN ' + v + ' pool contains the gateway ' + s.gateway);
+                    if (!ip.inNet(lo, sn.parsed) || !ip.inNet(hi, sn.parsed)) {
+                        out.push({ key: 'pool:' + v + ':subnet', detail: 'VLAN ' + v + ' pool leaves its subnet' });
+                    }
+                    if (hi < lo) { out.push({ key: 'pool:' + v + ':inverted', detail: 'VLAN ' + v + ' pool is inverted' }); }
+                    var gw = ip.toInt(sn.gateway);
+                    if (gw >= lo && gw <= hi) {
+                        out.push({ key: 'pool:' + v + ':gateway', detail: 'VLAN ' + v + ' pool contains the gateway ' + sn.gateway });
+                    }
                     st.dhcp.reservations.forEach(function (r) {
-                        if (Number(v) !== r.vlan) return;
+                        if (Number(v) !== r.vlan) { return; }
                         var ri = ip.toInt(r.ip);
-                        if (ri >= lo && ri <= hi) bad.push('VLAN ' + v + ' pool contains the reservation ' + r.ip);
+                        if (ri >= lo && ri <= hi) {
+                            out.push({ key: 'pool:' + v + ':res:' + r.host, detail: 'VLAN ' + v + ' pool contains the reservation ' + r.ip });
+                        }
                     });
                 });
-                return bad.length ? bad.join('; ') : null;
+                return out;
             }
         },
         {
@@ -322,10 +345,10 @@
             why: 'Guests must never reach the internal server VLAN. Deleting the permit line, or the deny, is the common wrong fix for S8.',
             check: function (st) {
                 var g = ep(st, 'WIFI-GUEST01');
-                if (!g || !g.ip || /^169\.254\./.test(g.ip)) return null;   // stranded guest proves nothing
+                if (!g || !g.ip || /^169\.254\./.test(g.ip)) { return []; }
                 var fs = ep(st, 'MER-FS01');
                 return (fs && reach(st, 'WIFI-GUEST01', fs.ip, { proto: 'tcp', port: 445 }).ok)
-                    ? 'a guest reached the file server on TCP 445' : null;
+                    ? [{ key: 'guest-smb', detail: 'a guest reached the file server on TCP 445' }] : [];
             }
         },
         {
@@ -333,18 +356,15 @@
             why: 'A correct guest ACL blocks guest-to-internal and leaves browsing alone. Blanket-denying the guest VLAN is the other common wrong fix for S8A.',
             check: function (st) {
                 var g = ep(st, 'WIFI-GUEST01');
-                if (!g || !g.ip || /^169\.254\./.test(g.ip)) return null;
+                if (!g || !g.ip || /^169\.254\./.test(g.ip)) { return []; }
                 return reach(st, 'WIFI-GUEST01', INTERNET, { proto: 'tcp', port: 443 }).ok
-                    ? null : 'guests can no longer reach the internet';
+                    ? [] : [{ key: 'guest-internet', detail: 'guests can no longer reach the internet' }];
             }
         },
         {
             id: 'only-rogue-port-shut',
             why: 'The fix for S4 is one shutdown. Shutting a range, or the wrong port, takes working hosts offline.',
             check: function (st) {
-                /* Baseline-relative per spec section 8, rather than derived from PORT_PLAN: a port
-                 * shut at exam start is allowed to stay shut whatever the reason, and the rogue's
-                 * port is the single permitted addition. */
                 var allowed = {};
                 if (st.baseline) { Object.keys(st.baseline.shutPorts).forEach(function (k) { allowed[k] = true; }); }
                 else {
@@ -356,48 +376,49 @@
                     });
                 }
                 if (st.rogue) { allowed[st.rogue.switch + ' ' + st.rogue.port] = true; }
-                var extra = [];
+                var out = [];
                 Object.keys(st.ports).forEach(function (sw) {
                     Object.keys(st.ports[sw]).forEach(function (pn) {
-                        if (st.ports[sw][pn].shutdown && !allowed[sw + ' ' + pn]) { extra.push(sw + ' ' + pn); }
+                        if (st.ports[sw][pn].shutdown && !allowed[sw + ' ' + pn]) {
+                            out.push({ key: 'port:' + sw + ' ' + pn, detail: sw + ' ' + pn + ' was shut and should not be' });
+                        }
                     });
                 });
-                return extra.length ? 'ports shut that should not be: ' + extra.join(', ') : null;
+                return out;
             }
         },
         {
             id: 'wireless-channel-plan',
             why: 'The 2.4 GHz plan is 1/6/11 with no two adjacent APs sharing. Setting every AP to one channel satisfies "all in {1,6,11}" and is still wrong.',
             check: function (st) {
-                var ch = st.wireless.apChannels, names = Object.keys(ch);
-                var off = names.filter(function (a) { return [1, 6, 11].indexOf(ch[a]) < 0; });
-                if (off.length) return off.map(function (a) { return a + ' on channel ' + ch[a]; }).join(', ');
-                var seen = {}, dup = [];
+                var ch = st.wireless.apChannels, names = Object.keys(ch).sort(), out = [];
                 names.forEach(function (a) {
-                    if (seen[ch[a]]) dup.push(seen[ch[a]] + ' and ' + a + ' share channel ' + ch[a]);
-                    seen[ch[a]] = a;
+                    if ([1, 6, 11].indexOf(ch[a]) < 0) {
+                        out.push({ key: 'ap:' + a, detail: a + ' is on channel ' + ch[a] + ', outside {1,6,11}' });
+                    }
                 });
-                return dup.length ? dup.join('; ') : null;
+                for (var i = 0; i < names.length; i++) {
+                    for (var j = i + 1; j < names.length; j++) {
+                        if (ch[names[i]] === ch[names[j]]) {
+                            out.push({ key: 'chan:' + names[i] + '|' + names[j],
+                                detail: names[i] + ' and ' + names[j] + ' share channel ' + ch[names[i]] });
+                        }
+                    }
+                }
+                return out;
             }
         },
         {
             id: 'printer-reservation-intact',
             why: 'The printer is a DHCP client with a fixed address. Deleting its reservation makes it lease from the pool and moves the address everything prints to.',
             check: function (st) {
-                /* Keyed on the HOST, not "the first VLAN 10 reservation". There are now two in that
-                 * VLAN -- the printer's and ADMIN-WS01's -- so the positional lookup silently
-                 * started comparing the printer against the workstation's address. The invariant
-                 * still fired when the printer's reservation was deleted, but by the wrong branch
-                 * and with a message naming the wrong address, which is how a grader report
-                 * misleads the person reading it. Mutation found it: disabling the missing-
-                 * reservation branch changed no outcome, because the second branch covered for it. */
                 var r = st.dhcp.reservations.filter(function (x) { return x.host === 'PRN-SALES01'; })[0];
-                if (!r) return 'the Sales printer reservation is gone';
+                if (!r) { return [{ key: 'printer:missing', detail: 'the Sales printer reservation is gone' }]; }
                 var p = ep(st, 'PRN-SALES01');
                 if (p && p.ip && p.ip !== r.ip && !/^169\.254\./.test(p.ip)) {
-                    return 'the printer holds ' + p.ip + ' instead of its reservation ' + r.ip;
+                    return [{ key: 'printer:address', detail: 'the printer holds ' + p.ip + ' instead of its reservation ' + r.ip }];
                 }
-                return null;
+                return [];
             }
         },
         {
@@ -405,42 +426,49 @@
             why: 'Every name the zone serves must point at a host that answers. Renumbering a server to dodge a fault is the common wrong fix for S7B and S10A, and it leaves the name pointing at nothing.',
             check: function (st) {
                 var idx = CORE.buildIndex(st);
-                var bad = st.dns.loaded.records.filter(function (r) {
+                return st.dns.loaded.records.filter(function (r) {
                     return r.type === 'A' && !idx.byIp[r.target];
+                }).map(function (r) {
+                    /* Keyed on the RECORD. S10A breaking `intranet` must not excuse S7B breaking
+                     * `www` -- that exact conflation scored a documented wrong answer 6 of 6. */
+                    return { key: 'dns:' + r.name, detail: r.name + '.' + st.dns.origin + ' -> ' + r.target + ' (nothing answers)' };
                 });
-                return bad.length
-                    ? bad.map(function (r) { return r.name + '.' + st.dns.origin + ' -> ' + r.target + ' (nothing answers)'; }).join(', ')
-                    : null;
             }
         },
         {
             id: 'admin-ws-has-lease',
             why: 'Spec constraint 3: ADMIN-WS01 always holds a valid lease, including under S9A.',
             check: function (st) {
-                return leased(st, 'ADMIN-WS01') ? null : 'ADMIN-WS01 has no lease';
+                return leased(st, 'ADMIN-WS01') ? [] : [{ key: 'admin-lease', detail: 'ADMIN-WS01 has no lease' }];
             }
         }
     ];
 
-    /* COLLATERAL DAMAGE is what the spec actually grades: "A fix that passes its own check but
-     * BREAKS an invariant gets zero." Breaks, not "is found violating" -- so an invariant the
-     * faults already violated at exam start is not the student's doing and must not cost them.
-     * This is the function graders call; checkInvariants() is the raw reading beneath it. */
-    function collateralDamage(state) {
-        var already = (state.baseline && state.baseline.violatedAtStart) || [];
-        return checkInvariants(state).filter(function (v) { return already.indexOf(v.id) < 0; });
-    }
-
-    /* Every invariant that is currently violated. An empty array is a clean lab. */
+    /* Every violation currently present, one entry per offending entity. An empty array is clean. */
     function checkInvariants(state) {
         var out = [];
         INVARIANTS.forEach(function (inv) {
-            var detail;
-            try { detail = inv.check(state); }
-            catch (e) { detail = 'invariant threw: ' + e.message; }
-            if (detail) out.push({ id: inv.id, why: inv.why, detail: detail });
+            var hits;
+            try { hits = inv.check(state) || []; }
+            catch (e) { hits = [{ key: 'threw', detail: 'invariant threw: ' + e.message }]; }
+            hits.forEach(function (h) {
+                out.push({ id: inv.id, key: inv.id + '::' + h.key, why: inv.why, detail: h.detail });
+            });
         });
         return out;
+    }
+
+    /* COLLATERAL DAMAGE is what the spec actually grades: "A fix that passes its own check but
+     * BREAKS an invariant gets zero." Breaks, not "is found violating" -- so a violation the faults
+     * themselves created at exam start is not the student's doing and must not cost them.
+     *
+     * Filtered by the composite id::key, so the amnesty covers the SPECIFIC thing a fault broke and
+     * nothing else. Keying it on the invariant id alone, as this first did, meant one commonly-drawn
+     * fault switched a whole check off for the rest of the exam -- and scored a documented wrong
+     * answer 6 of 6. */
+    function collateralDamage(state) {
+        var amnesty = (state.baseline && state.baseline.amnesty) || {};
+        return checkInvariants(state).filter(function (v) { return !amnesty[v.key]; });
     }
 
     /* ═══ THE 24 VARIANTS ═════════════════════════════════════════════════════════════════════════
@@ -857,7 +885,15 @@
             st.nat.portForwards.forEach(function (f) { if (f.wanPort === 443) f.toIp = '172.16.50.11'; });
         },
         fixed: function (st) {
-            return reach(st, CORE.constants.OUTSIDE, st.params.wan.fwIp, { proto: 'tcp', port: 443 }).ok;
+            /* TWO OUTCOMES, because one was a single point of failure. Nancy showed the documented
+             * wrong fix -- renumber the web server to match the forward -- satisfies the outside
+             * check on its own, leaving the entire rejection to one invariant. The site also has to
+             * still answer by NAME for internal users, which the renumber breaks because the A
+             * record, the certificate and every other reference still say .10.
+             *
+             * Both are outcomes, so the two accepted ways of repairing the forward both pass. */
+            if (!reach(st, CORE.constants.OUTSIDE, st.params.wan.fwIp, { proto: 'tcp', port: 443 }).ok) { return false; }
+            return reach(st, 'ADMIN-WS01', 'www.' + st.dns.origin, { proto: 'tcp', port: 443 }).ok;
         },
         correctFix: function (st) {
             st.nat.portForwards.forEach(function (f) { if (f.wanPort === 443) f.toIp = '172.16.50.10'; });
@@ -1306,6 +1342,19 @@
          * one and watching nothing fail. Calling the one implementation also means a restore is
          * stamped the same way a fix is, rather than nearly the same way. */
         recordProgress(state, state.events.length - 1);
+        /* RE-GRANT THE EXAM-START AMNESTY for anything this restore put back. A restore returns the
+         * device to exam start by definition, so a fault's own violation reappearing is not the
+         * student's doing -- it is the fault, again. recordProgress spends an amnesty when its
+         * violation is resolved, which is right for a student who re-breaks something by hand and
+         * wrong for one who restores a device. Only keys that were violated AT EXAM START are
+         * re-granted, so a restore cannot launder damage the faults never caused. */
+        if (state.baseline && state.baseline.violatedAtStart) {
+            var live = {};
+            checkInvariants(state).forEach(function (v) { live[v.key] = v.detail; });
+            state.baseline.violatedAtStart.forEach(function (k) {
+                if (live[k]) { state.baseline.amnesty[k] = live[k]; }
+            });
+        }
         return { ok: true };
     }
 
@@ -1316,13 +1365,31 @@
     function recordProgress(state, eventIndex) {
         var fm = fixedMap(state);
         state.events = state.events || [];
+        /* SPEND THE AMNESTY. Once a violation the faults created is resolved, the excuse for it is
+         * used up: if the same thing breaks again it is the student's doing. Without this, repairing
+         * S10A and then breaking the same DNS record later went unnoticed forever. */
+        if (state.baseline && state.baseline.amnesty) {
+            var live = {};
+            checkInvariants(state).forEach(function (v) { live[v.key] = true; });
+            Object.keys(state.baseline.amnesty).forEach(function (k) {
+                if (!live[k]) { delete state.baseline.amnesty[k]; }
+            });
+        }
         /* THE INDEX OF THE EVENT THAT CAUSED IT, not the current length. Using the length made a
          * fix and a change request filed immediately after it land on the SAME number, so "was the
          * request filed before the change" had no answer -- and that comparison is the whole credit
          * rule in spec section 8. Every event has a unique index; both sides now use one. */
         var at = (eventIndex === undefined) ? Math.max(0, state.events.length - 1) : eventIndex;
         state.faults.forEach(function (f) {
-            if (fm[f.id] && f.fixedAtEvent === undefined) { f.fixedAtEvent = at; }
+            if (fm[f.id] && f.fixedAtEvent === undefined) {
+                f.fixedAtEvent = at;
+                /* CLEARED ON A LEGITIMATE RE-FIX. This flag used to be one-way, so a student who
+                 * explored, tripped an accidental undo, then correctly re-fixed the same slot ended
+                 * in a fully correct state still carrying `undone: true` -- and the obvious stage-6
+                 * reading of the spec's "the fix later undone: 0" would have zeroed them for it.
+                 * `undoneCount` keeps the history for the report without poisoning the verdict. */
+                if (f.undone) { f.undoneCount = (f.undoneCount || 0) + 1; f.undone = false; }
+            }
             if (!fm[f.id] && f.fixedAtEvent !== undefined) { f.fixedAtEvent = undefined; f.undone = true; }
         });
         return state;

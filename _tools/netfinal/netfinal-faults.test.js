@@ -366,5 +366,128 @@ section('7. invariants fire on a MINIMAL breach, not only on the wrong fixes tha
     }
 }
 
+/* ─── 8. the amnesty must not mask damage it was never meant to excuse ────────────────────────── */
+section('8. collateral-damage amnesty is per-violation, spendable, and restore-aware');
+{
+    /* NANCY FOUND A CRITICAL DEFECT HERE AND 781 ASSERTIONS HAD MISSED IT. The amnesty was keyed on
+     * the invariant ID and never expired, so any fault that tripped an id at exam start switched
+     * that whole check off for the rest of the exam. The grading failure: S7B is PINNED, so every
+     * student has it, and its documented wrong fix -- renumber the web server -- trips
+     * dns-records-resolve. On any lab that also drew S10A (about half), that id was already dead
+     * and the wrong answer scored 6 of 6 instead of the spec's 0-and-flag.
+     *
+     * The suite could not see it because the wrong-fix criterion accepts `invariant breach OR still
+     * unfixed`, and every masked case also failed `fixed()` for an unrelated reason -- so the
+     * invariant half of that OR was never exercised. These cases exercise it directly. */
+    const mk = (st, slot, v) => ({
+        slot, variant: v, id: slot + v, active: true, applied: false,
+        layer: TOPO.FAULT_SLOTS.filter(x => x.slot === slot)[0].variants[v].layer,
+        group: TOPO.FAULT_SLOTS.filter(x => x.slot === slot)[0].variants[v].group,
+        target: CORE.pickFaultTarget(st, CORE.makeRng('amn|' + slot + v), slot, v)
+    });
+
+    {   // The exact reproduction, as a permanent regression test.
+        const st = CORE.generate('amnesty-repro', EXAM);
+        st.faults = [mk(st, 'S10', 'A'), mk(st, 'S7', 'B')];
+        FAULTS.applyAll(st);
+        chk('two faults can trip the SAME invariant on different entities',
+            st.baseline.violatedAtStart.filter(k => /^dns-records-resolve::/.test(k)).length === 1,
+            JSON.stringify(st.baseline.violatedAtStart));
+        chk('and the amnesty names the entity, not just the check',
+            st.baseline.violatedAtStart.some(k => k === 'dns-records-resolve::dns:intranet'),
+            JSON.stringify(st.baseline.violatedAtStart));
+        FAULTS.VARIANTS.S10A.correctFix(st, st.faults[0]);
+        FAULTS.recordProgress(st, 0);
+        chk('repairing S10A spends its amnesty', Object.keys(st.baseline.amnesty).length === 0,
+            JSON.stringify(Object.keys(st.baseline.amnesty)));
+        FAULTS.VARIANTS.S7B.wrongFix(st, st.faults[1]);
+        FAULTS.recordProgress(st, 1);
+        const cd = FAULTS.collateralDamage(st);
+        chk('S7B\u2019s documented WRONG fix is now caught as collateral damage',
+            cd.some(v => v.key === 'dns-records-resolve::dns:www'), JSON.stringify(cd.map(v => v.key)));
+        /* And the fix() strengthening: it must fail on its own too, not rely on the invariant. */
+        chk('S7B\u2019s own fixed() also rejects the renumber, so it is not a single point of failure',
+            FAULTS.fixedMap(st).S7B === false);
+    }
+    {   // Amnesty for one entity must never excuse another, even with the fault still unfixed.
+        const st = CORE.generate('amnesty-scope', EXAM);
+        st.faults = [mk(st, 'S10', 'A')];
+        FAULTS.applyAll(st);
+        const sub30 = st.subnets[30].cidr.split('/')[0].replace(/\.0$/, '');
+        st.dns.loaded.records.filter(r => r.name === 'noc')[0].target = sub30 + '.77';
+        const cd = FAULTS.collateralDamage(st);
+        chk('breaking a DIFFERENT record is caught while the fault\u2019s own record is excused',
+            cd.some(v => v.key === 'dns-records-resolve::dns:noc')
+            && !cd.some(v => v.key === 'dns-records-resolve::dns:intranet'),
+            JSON.stringify(cd.map(v => v.key)));
+    }
+    {   // Re-breaking by hand after a repair is the student's doing.
+        const st = CORE.generate('amnesty-rebreak', EXAM);
+        st.faults = [mk(st, 'S11', 'B')];
+        FAULTS.applyAll(st);
+        chk('S11B trips the channel plan at exam start',
+            st.baseline.violatedAtStart.some(k => /^wireless-channel-plan::/.test(k)));
+        FAULTS.VARIANTS.S11B.correctFix(st, st.faults[0]);
+        FAULTS.recordProgress(st, 0);
+        chk('repairing it leaves no collateral damage', FAULTS.collateralDamage(st).length === 0);
+        st.wireless.apChannels['AP-3'] = st.wireless.apChannels['AP-1'];
+        FAULTS.recordProgress(st, 1);
+        chk('re-breaking the channel plan by hand IS charged to the student',
+            FAULTS.collateralDamage(st).some(v => /wireless-channel-plan/.test(v.id)),
+            JSON.stringify(FAULTS.collateralDamage(st).map(v => v.key)));
+    }
+    {   // A restore puts the fault back, which is not damage.
+        const st = CORE.generate('amnesty-restore', EXAM);
+        st.faults = [mk(st, 'S2', 'A')];
+        FAULTS.applyAll(st);
+        const f = st.faults[0];
+        FAULTS.VARIANTS.S2A.correctFix(st, f);
+        FAULTS.recordProgress(st, 0);
+        chk('the printer repair is clean', FAULTS.collateralDamage(st).length === 0 && FAULTS.fixedMap(st).S2A === true);
+        FAULTS.restoreDevice(st, f.target.switch);
+        chk('restoring the device re-breaks the fault but is NOT collateral damage',
+            FAULTS.fixedMap(st).S2A === false && FAULTS.collateralDamage(st).length === 0,
+            JSON.stringify(FAULTS.collateralDamage(st).map(v => v.key)));
+        /* But a restore must not excuse damage the faults never caused. */
+        st.ports['MeridianSW-02']['Fa0/9'].shutdown = true;
+        FAULTS.recordProgress(st, 1);
+        const before = FAULTS.collateralDamage(st).length;
+        FAULTS.restoreDevice(st, 'MeridianSW-01');
+        chk('and a restore does not launder damage on another device',
+            FAULTS.collateralDamage(st).length >= before && before > 0,
+            JSON.stringify(FAULTS.collateralDamage(st).map(v => v.key)));
+    }
+    {   // MEDIUM: `undone` was a one-way flag that would have zeroed a correct re-fix.
+        const st = CORE.generate('undone-clear', EXAM);
+        st.faults = [mk(st, 'S12', 'A')];
+        FAULTS.applyAll(st);
+        const f = st.faults[0];
+        FAULTS.VARIANTS.S12A.correctFix(st, f);
+        FAULTS.recordProgress(st, 0);
+        chk('a fix is stamped', typeof f.fixedAtEvent === 'number' && !f.undone);
+        st.devices['MeridianSW-02'].snmp.community = 'broken-again';
+        FAULTS.recordProgress(st, 1);
+        chk('undoing it clears the stamp and flags undone', f.fixedAtEvent === undefined && f.undone === true);
+        FAULTS.VARIANTS.S12A.correctFix(st, f);
+        FAULTS.recordProgress(st, 2);
+        /* The spec scores "the fix later undone" as zero. A grader keying off this sticky flag would
+         * have zeroed a student who ended in a fully correct, correctly-timed state. */
+        chk('a legitimate RE-fix clears undone and re-stamps',
+            f.fixedAtEvent === 2 && f.undone === false, JSON.stringify({ at: f.fixedAtEvent, undone: f.undone }));
+        chk('while the history is kept for the report, not the verdict', f.undoneCount === 1);
+    }
+    {   // Every violation carries a key, or the amnesty cannot be scoped at all.
+        const st = CORE.generate('keys-present', EXAM);
+        FAULTS.applyAll(st);
+        st.ports['MeridianSW-01']['Fa0/9'].shutdown = true;
+        st.routes['MeridianRTR-01'].filter(r => r.prefix === 0)[0].nextHop = '172.16.0.6';
+        const all = FAULTS.checkInvariants(st);
+        chk('every violation has an id-scoped key and a detail',
+            all.length > 0 && all.every(v => /^[a-z0-9-]+::/.test(v.key) && v.detail && v.why),
+            JSON.stringify(all.map(v => v.key)));
+        chk('keys are unique per violation', new Set(all.map(v => v.key)).size === all.length);
+    }
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);

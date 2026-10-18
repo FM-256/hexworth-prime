@@ -1245,16 +1245,25 @@
              * offers; the nano-style window belongs to stage 5's GUI. */
             var subm = line.match(/^:(%?)s([/|#])(.+?)\2(.*?)\2(g?)\s*$/);
             if (subm) {
-                var pat = subm[3], rep = subm[4], all = subm[5] === 'g';
+                var whole = subm[1] === '%', pat = subm[3], rep = subm[4], all = subm[5] === 'g';
                 var re;
                 try { re = new RegExp(pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), all ? 'g' : ''); }
                 catch (e) { return { out: 'E486: Pattern not found: ' + pat, session: session }; }
+                /* `%` MEANS THE WHOLE BUFFER AND ITS ABSENCE MEANS ONE LINE, which is what vi does.
+                 * The flag was captured and never read, so `:s/a/b/` silently behaved like `:%s/a/b/`
+                 * -- contradicting this file's own comment. With no cursor concept, the bare form
+                 * acts on the FIRST matching line, which is the closest honest equivalent. */
                 var hits = 0;
                 session.editor.buffer = session.editor.buffer.map(function (l) {
+                    if (!whole && hits > 0) { return l; }
                     if (!re.test(l)) { return l; }
                     hits++;
                     re.lastIndex = 0;
-                    return l.replace(re, rep);
+                    /* The replacement is ESCAPED TOO. Passed raw, a value containing `$` would hit
+                     * JS's replacement-pattern syntax ($&, $1) instead of being inserted literally,
+                     * which contradicts the "literal substitution" this claims to offer. No current
+                     * answer contains `$`, so this was latent rather than broken. */
+                    return l.replace(re, rep.replace(/\$/g, '$$$$'));
                 });
                 return { out: hits ? hits + ' substitution' + (hits === 1 ? '' : 's') + ' on ' + hits + ' line' + (hits === 1 ? '' : 's')
                                    : 'E486: Pattern not found: ' + pat, session: session };

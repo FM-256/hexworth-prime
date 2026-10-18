@@ -180,6 +180,15 @@
             if (!s) { return { ok: false, reason: 'no SSID named ' + p.ssid }; }
             var v = Number(p.vlan);
             if (!state.subnets[v]) { return { ok: false, reason: 'VLAN ' + p.vlan + ' does not exist' }; }
+            /* NOT THE MANAGEMENT VLAN. Spec constraint 2 protects VLAN 99 from every fault, and a
+             * controller that let a student bridge an SSID onto it would hand them a way to break
+             * the thing the whole exam depends on staying reachable. A real controller would allow
+             * it; this one is a teaching instrument and the protection is worth more than the
+             * fidelity. No exploit was proven -- VLAN 99 has no DHCP service -- so this is
+             * hardening, closed because it costs one condition. */
+            if (v === 99) {
+                return { ok: false, reason: 'VLAN 99 is the management network and cannot carry an SSID' };
+            }
             s.vlan = v;
             CORE.resolveLeases(state);
             return { ok: true, message: p.ssid + ' now maps to VLAN ' + v + '. Clients will re-associate.' };
