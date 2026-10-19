@@ -29,6 +29,8 @@ const GUI = require(path.join(NF, 'netfinal-gui.js'));
 const CORE = require(path.join(NF, 'netfinal-core.js'));
 const FAULTS = require(path.join(NF, 'netfinal-faults.js'));
 const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
+const CLIENT = require(path.join(NF, 'netfinal-client.js'));
+const QUESTIONS = require(path.join(NF, 'netfinal-questions.js'));
 
 const PAGE_PATH = path.join(REPO, '_app/houses/web/network-plus/exams/network-final.exam.html');
 const INDEX_PATH = path.join(REPO, 'functions/index.js');
@@ -419,6 +421,311 @@ section('6. spec section 9 lockdown, as the page delivers it');
         const self = require('fs').readFileSync(__filename, 'utf8');
         return !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(self);
     })(), 'this file carries a glyph the page is forbidden from having');
+}
+
+/* ─── 10. the brief and the answer review, EXECUTED ─────────────────────────────────────────────── */
+/* Everything above is static analysis, and for wiring that is the honest tool. It is the wrong tool
+ * here. "The brief shows the stale diagram" and "the review lists every question" are claims about
+ * OUTPUT, and a text search for `decoyDiagram` would pass on a page that interpolated it into a
+ * comment. So this section lifts the real functions out of the page and RUNS them, against the real
+ * generator's state and the real 50 questions, and asserts on the HTML that comes back.
+ *
+ * It is still not a browser. It cannot prove the brief is legible or that the tab is clickable. What
+ * it can prove is that the strings a student reads contain the values the server shipped, which is
+ * the part that was silently absent: the page received `decoyDiagram` from the first day and
+ * rendered it nowhere, and nothing failed, because nothing asked. */
+section('10. the brief and the review, run for real');
+{
+    /* Slice a function out of the page by brace matching. Fragile by nature, so it ASSERTS it found
+     * the function: a rename must break this loudly rather than quietly extract nothing and leave
+     * the section passing on an empty sandbox. */
+    const fnSource = (name) => {
+        const start = page.indexOf('function ' + name + '(');
+        if (start < 0) { return null; }
+        let depth = 0, seen = false;
+        for (let i = start; i < page.length; i++) {
+            if (page[i] === '{') { depth++; seen = true; }
+            else if (page[i] === '}') { depth--; if (seen && depth === 0) { return page.slice(start, i + 1); } }
+        }
+        return null;
+    };
+    const NEEDED = ['esc', 'hasContent', 'isDerived', 'typedQuestions', 'unansweredNumbers',
+                    'renderBrief', 'renderReview'];
+    const sources = NEEDED.map(fnSource);
+    const missing = NEEDED.filter((n, i) => !sources[i]);
+    chk('every function this section runs was found in the page',
+        missing.length === 0, 'not extractable: ' + missing.join(', '));
+
+    if (missing.length === 0) {
+        const build = new Function(
+            'var session, tickets, questions, answers;\n' + sources.join('\n') + '\n' +
+            'return { set: function (s, t, q, a) { session = s; tickets = t; questions = q; answers = a; },' +
+            '  renderBrief: renderBrief, renderReview: renderReview,' +
+            '  unansweredNumbers: unansweredNumbers, typedQuestions: typedQuestions };');
+        const pageFns = build();
+        /* The page escapes before it renders, so a prompt must be escaped the same way to be found
+         * in the output. Using the page's own function means a change to escaping cannot make the
+         * strip silently miss. */
+        const esc_ = new Function(fnSource('esc') + '; return esc;')();
+
+        const lab = CORE.generate('brief-lab', EXAMS.DEFAULT_EXAM_ID, { secret: 's' });
+        FAULTS.applyAll(lab);
+        const init = CLIENT.toInitialState(lab);
+        const qs = QUESTIONS.forStudent(lab);
+        pageFns.set({ initialState: init }, init.tickets || [], qs, {});
+
+        const brief = pageFns.renderBrief();
+
+        // ── the brief carries the SERVER's stale values, not values I typed into the page ──────
+        chk('the brief renders the documented DNS address the server shipped',
+            brief.indexOf(init.decoyDiagram.dnsServer) >= 0,
+            'decoyDiagram.dnsServer ' + init.decoyDiagram.dnsServer + ' is not in the brief');
+        chk('the brief renders the documented second-floor management address',
+            brief.indexOf(init.decoyDiagram.sw02Mgmt) >= 0,
+            'decoyDiagram.sw02Mgmt ' + init.decoyDiagram.sw02Mgmt + ' is not in the brief');
+        /* The decoy only works if the student is told the documentation is suspect. A stale diagram
+         * presented as authoritative is not a decoy, it is a wrong answer the exam handed out. */
+        chk('the brief says the documentation may be out of date',
+            /may be out of date/i.test(brief) && /the network is right/i.test(brief));
+        chk('the brief hard-codes neither decoy value',
+            page.indexOf("'" + init.decoyDiagram.dnsServer + "'") < 0
+            && page.indexOf("'" + init.decoyDiagram.sw02Mgmt + "'") < 0,
+            'a literal in the page would survive the generator changing');
+
+        /* Spec section 1: no answer may appear in the brief. The guest VLAN is Q3/Q4 territory, and
+         * the diagram's job is to omit it. */
+        chk('the brief states the guest VLAN is absent from the diagram rather than naming one',
+            init.decoyDiagram.guestVlanShown === false && /not in the diagram/.test(brief),
+            'guestVlanShown=' + init.decoyDiagram.guestVlanShown);
+        const leaks = CLIENT.findDisclosures(JSON.parse(JSON.stringify({ brief: brief })));
+        chk('the brief discloses no fault, slot or variant', leaks.length === 0, JSON.stringify(leaks));
+
+        // ── the ticket count is COUNTED ────────────────────────────────────────────────────────
+        chk('the brief states the real ticket count, not a number from the prose',
+            brief.indexOf(String((init.tickets || []).length) + ' open ticket') >= 0,
+            'tickets=' + (init.tickets || []).length);
+        chk('and no other count is asserted in the brief text',
+            !/\beleven\b/i.test(brief), 'the spec prose says eleven; the generator decides');
+
+        // ── the credentials match what the shell ACCEPTS ───────────────────────────────────────
+        /* A brief that invents a password costs a student minutes they do not have. The shell strips
+         * everything before the @ and never prompts, so "admin, no password" is the truth. */
+        chk('the brief tells the student no password is needed',
+            /nothing in this lab will prompt you/i.test(brief));
+        chk('the brief gives a connect form, by address and by name',
+            /ssh admin@/.test(brief) && /MeridianSW-01/.test(brief));
+
+        // ── the review lists EVERY question ────────────────────────────────────────────────────
+        const review = pageFns.renderReview();
+        chk('the review lists all ' + qs.length + ' questions', qs.length === 50
+            && qs.every(q => review.indexOf('<th>' + q.n + '</th>') >= 0),
+            'questions=' + qs.length);
+        chk('the review groups them under every phase the server uses',
+            QUESTIONS.PHASES.every(ph => review.indexOf('>' + ph + '</h2>') >= 0),
+            JSON.stringify(QUESTIONS.PHASES));
+        chk('with nothing answered, every typed question reads "not answered"',
+            (review.match(/not answered/g) || []).length === pageFns.typedQuestions().length,
+            'typed=' + pageFns.typedQuestions().length
+            + ' shown=' + (review.match(/not answered/g) || []).length);
+        /* The two kinds with no input field. Marking them unanswered would send a student hunting a
+         * control that does not exist, so they must read as graded-from-the-network. */
+        const derived = qs.filter(q => q.kind === 'state' || q.kind === 'sequence');
+        chk('the derived questions exist, so the branch below is reachable',
+            derived.length > 0, 'no state/sequence questions');
+        chk('derived questions are not reported as unanswered',
+            pageFns.unansweredNumbers().indexOf(derived[0].n) < 0
+            && /graded from the network/.test(review));
+        /* MEASURED ON THE PAGE'S OWN WORDS, not on the question text. The first version of this
+         * check scanned the whole table and failed on four questions that legitimately ask which
+         * value is CORRECT. That failure was the assertion aiming at the wrong surface: the claim
+         * is that the PAGE states no verdict, and a question's own wording is not the page's. So the
+         * prompts are removed first, and the count of what is removed is asserted, because a strip
+         * that silently removed everything would make this pass on an empty string. */
+        const chrome = qs.reduce((acc, q) => acc.split(esc_(q.prompt)).join(''), review);
+        chk('stripping the question prompts leaves the page chrome, not nothing',
+            chrome.length > 200 && chrome.length < review.length,
+            'chrome=' + chrome.length + ' review=' + review.length);
+        chk('the page chrome never states a verdict on an answer',
+            !/\b(correct|incorrect|right|wrong|score|points?)\b/i.test(
+                chrome.replace(/not whether it is correct/g, '')),
+            'an exam that leaks correctness mid-sitting is not an exam');
+
+        // ── and it reflects SAVED answers, which is the point ──────────────────────────────────
+        const typed = pageFns.typedQuestions();
+        const one = typed[0];
+        pageFns.set({ initialState: init }, init.tickets || [], qs, { [one.id]: 'my-typed-answer' });
+        const review2 = pageFns.renderReview();
+        chk('an answer the server stored appears in the review',
+            review2.indexOf('my-typed-answer') >= 0, 'q=' + one.id);
+        chk('and the recorded count moves with it',
+            review2.indexOf('1 of ' + typed.length + ' written answers recorded') >= 0,
+            'expected 1 of ' + typed.length + ', one answer having been saved');
+        chk('the count excludes the derived questions from its denominator',
+            typed.length < qs.length
+            && review2.indexOf('plus ' + (qs.length - typed.length) + ' graded from the network') >= 0,
+            'typed=' + typed.length + ' total=' + qs.length);
+        chk('that question is no longer listed as unanswered',
+            pageFns.unansweredNumbers().indexOf(one.n) < 0);
+
+        /* The two-field ACL question stores an object. Showing "[object Object]" to a student is the
+         * same class of bug as the production `[object Object]` completion keys. */
+        const acl = qs.find(q => q.kind === 'aclref');
+        if (acl) {
+            pageFns.set({ initialState: init }, init.tickets || [], qs,
+                { [acl.id]: { name: 'BLOCK-GUEST', seq: '20' } });
+            const review3 = pageFns.renderReview();
+            chk('a two-field answer renders both fields, not [object Object]',
+                review3.indexOf('BLOCK-GUEST 20') >= 0 && review3.indexOf('[object Object]') < 0,
+                'composite answers must be readable');
+        } else {
+            chk('an aclref question exists to exercise the composite path', false, 'none found');
+        }
+
+        // ── escaping, because these strings reach innerHTML ───────────────────────────────────
+        pageFns.set({ initialState: init }, init.tickets || [], qs, { [one.id]: '<img src=x onerror=1>' });
+        chk('a saved answer is escaped before it reaches innerHTML',
+            pageFns.renderReview().indexOf('<img src=x') < 0,
+            'the review writes to innerHTML, so an unescaped answer is stored XSS');
+        /* EVERY string the server supplies, not one of them. The first version of this check put
+         * markup in `dnsServer` only, and a mutation that dropped `esc()` from `sw02Mgmt` went
+         * uncaught: the assertion proved one field safe and read as if it proved the brief safe. So
+         * the payload is injected into every string field the projection actually carries, derived
+         * from the live object rather than a list I maintain by hand. */
+        const strFields = Object.keys(init.decoyDiagram)
+            .filter(k => typeof init.decoyDiagram[k] === 'string');
+        chk('the brief has more than one server-supplied string to escape',
+            strFields.length > 1, JSON.stringify(strFields));
+        const poisoned = {};
+        strFields.forEach((k, i) => { poisoned[k] = '<img src=x onerror=' + i + '>'; });
+        pageFns.set({ initialState: { decoyDiagram: poisoned } }, [], qs, {});
+        const poisonedBrief = pageFns.renderBrief();
+        const unescaped = strFields.filter(k => poisonedBrief.indexOf(poisoned[k]) >= 0);
+        chk('no server value reaches the brief unescaped',
+            unescaped.length === 0, 'rendered raw: ' + unescaped.join(', '));
+        /* The check above is vacuous for a field the brief never renders, so the rendered ones are
+         * counted. Not all of them ARE rendered, and that is deliberate: see the note below. */
+        const rendered = strFields.filter(k => poisonedBrief.indexOf(esc_(poisoned[k])) >= 0);
+        chk('at least two server strings do reach the brief, so that check has teeth',
+            rendered.length >= 2, 'rendered: ' + rendered.join(', ') + ' of ' + strFields.join(', '));
+
+        /* THE NOTE MUST NOT BE RENDERED. `decoyDiagram.note` reads "Intentionally stale. Never read
+         * by the generator; shown to the student only." It is an annotation for whoever reads the
+         * payload, and printing it to a student would announce that the diagram is a planted decoy,
+         * which is the giveaway for Q3 and Q4. Found by the teeth check above: it failed when I
+         * asserted every string field reaches the brief, and the right answer was not to render the
+         * third one but to prove it stays out. */
+        chk('the brief does not render the decoy annotation',
+            typeof init.decoyDiagram.note === 'string'
+            && brief.indexOf(init.decoyDiagram.note) < 0
+            && !/intentionally stale/i.test(brief),
+            'the note tells the student the diagram is a trap');
+
+        // ── the brief must survive a session that has not arrived ─────────────────────────────
+        /* showSurface can fire before `session` is set if a tab is clicked during boot. A throw there
+         * would leave the window body on "Loading" with no way back. */
+        pageFns.set(null, [], [], {});
+        let threw = null;
+        try { pageFns.renderBrief(); pageFns.renderReview(); } catch (e) { threw = e.message; }
+        chk('neither surface throws before the session exists', threw === null, String(threw));
+    }
+}
+
+/* ─── 11. both surfaces are reachable and cost nothing on the clock ─────────────────────────────── */
+section('11. the two new tabs are wired, and locally rendered');
+{
+    chk('the brief and the review are tabs the student can click',
+        /data-surface="brief"/.test(page) && /data-surface="review"/.test(page));
+    chk('the page opens ON the brief, not on a blank terminal prompt',
+        /showSurface\('brief'\)/.test(page),
+        'the markup starts with the terminal visible, so the surface var alone does nothing');
+    /* THE WHOLE POINT of rendering these locally: showSurface calls netfinalWindow for every other
+     * surface. Re-reading the brief must not cost a round trip, and must not be able to fail. */
+    chk('neither surface is a server window, so re-reading cannot fail on a blip',
+        /hasOwnProperty\.call\(LOCAL_SURFACES, name\)/.test(page)
+        && /LOCAL_SURFACES\[name\]\(\)/.test(page));
+    chk('the local branch returns BEFORE the netfinalWindow call',
+        page.indexOf('LOCAL_SURFACES[name]()') < page.indexOf("call('netfinalWindow'"),
+        'falling through would ask the server for a window it does not have');
+    /* `brief` and `review` are not engine windows. If they ever became engine windows, the local
+     * branch would shadow them, so this asserts they are not. */
+    chk('the engine declares no window by either name',
+        Object.keys(GUI.RENDERERS || {}).indexOf('brief') < 0
+        && Object.keys(GUI.RENDERERS || {}).indexOf('review') < 0,
+        'a local surface shadowing a real window would hide it');
+
+    // ── the submit warning reads the same rule the review does ───────────────────────────────
+    chk('the submit confirmation names the unanswered questions',
+        /unansweredNumbers\(\)/.test(page) && /No answer recorded yet for Q|no answer recorded for /i.test(page));
+    chk('and it derives them from the shared helper, not its own copy',
+        (page.match(/function unansweredNumbers/g) || []).length === 1
+        && (page.match(/unansweredNumbers\(\)/g) || []).length >= 2,
+        'two copies of this rule is how the count and the cards came to disagree before');
+    chk('cancelling the confirmation does not submit',
+        /if \(!window\.confirm\(msg\)\) \{ return; \}/.test(page));
+    chk('the timed auto-submit does NOT ask for confirmation',
+        /remaining === 0[\s\S]{0,400}?call\('netfinalSubmit'/.test(page),
+        'a confirm on expiry would let a student hold the exam open past the clock');
+}
+
+/* ─── 12. the header counter and the review agree ───────────────────────────────────────────────── */
+/* NANCY, finding 1, and she was right. The header counter divided by all fifty questions while
+ * `markAnswered` could only ever mark the 31 that have an input control, so it was pinned at 31/50
+ * for the whole sitting. On its own that was a long-standing wart nobody had measured. Adding the
+ * review tab turned it into a contradiction: one surface saying "every question that takes a written
+ * answer has one" while the header said 31/50, three inches apart, minutes before an irreversible
+ * submit. My 106 assertions did not catch it because they ran `renderReview` in isolation and never
+ * put the two numbers side by side, which is the whole class of defect the operator's own comment at
+ * `refreshAnswerCount` was written about. */
+section('12. the header counter cannot disagree with the review');
+{
+    const refresh = (() => {
+        const i = page.indexOf('function refreshAnswerCount(');
+        return i < 0 ? '' : page.slice(i, page.indexOf('}', page.indexOf('textContent', i)));
+    })();
+    chk('refreshAnswerCount was found', refresh.length > 0);
+    chk('the header divides by the typed questions, not by all fifty',
+        /typedQuestions\(\)\.length/.test(refresh) && !/\/ ' \+ questions\.length/.test(refresh),
+        'dividing by questions.length pins the header at 31/50: ' + refresh.replace(/\s+/g, ' '));
+    chk('and it says WHAT it counts, so 31/31 is not read as 31 of fifty',
+        /written answers/.test(refresh), refresh.replace(/\s+/g, ' '));
+    /* Both surfaces must read ONE definition. Two call sites of one helper, not two helpers. */
+    chk('the header and the review share the denominator helper',
+        (page.match(/function typedQuestions/g) || []).length === 1
+        && (page.match(/typedQuestions\(\)/g) || []).length >= 3,
+        'calls: ' + (page.match(/typedQuestions\(\)/g) || []).length);
+    chk('nothing still divides a displayed count by the full question list',
+        !/questions\.length \+ ' answered'/.test(page));
+
+    /* The numerator can only move for a question with a control, so the claim is that the two
+     * populations are THE SAME population. Measured, not asserted: every typed question must render
+     * a data-q control and every derived one must not. */
+    const lab2 = CORE.generate('counter-lab', EXAMS.DEFAULT_EXAM_ID, { secret: 's' });
+    FAULTS.applyAll(lab2);
+    const qs2 = QUESTIONS.forStudent(lab2);
+    const derived2 = qs2.filter(q => q.kind === 'state' || q.kind === 'sequence');
+    chk('the derived questions are the ONLY ones the page gives no control',
+        derived2.length === 19 && qs2.length === 50,
+        'derived=' + derived2.length + ' total=' + qs2.length);
+    chk('the page renders a control for every other kind',
+        qs2.filter(q => q.kind !== 'state' && q.kind !== 'sequence')
+           .every(q => ['text', 'multi', 'select', 'aclref'].indexOf(q.kind) >= 0),
+        'an unhandled kind would fall to the text input and still be countable');
+
+    /* NANCY, finding 3: is any stored answer an ARRAY? She could not confirm it and reasoned from
+     * `typeof`. It is not reachable: Q6 is kind `multi` with norm `vlanSet`, and the page has no
+     * `multi` branch, so it falls to the plain text input and stores a STRING. `aclref` is the only
+     * control that stores an object. Asserted so that adding a real multi-select control cannot
+     * quietly start rendering [object Object] into the review. */
+    const objectKinds = qs2.filter(q => q.kind === 'aclref').map(q => q.kind);
+    chk('aclref is the only kind that stores a composite answer',
+        objectKinds.length === 1
+        && !/q\.kind === 'multi'/.test(page)
+        && /q\.kind === 'aclref'/.test(page),
+        'a new composite control must be checked against the review renderer');
+    const multi = qs2.find(q => q.kind === 'multi');
+    chk('the multi question exists and the page gives it a plain text control',
+        !!multi && multi.norm === 'vlanSet',
+        'if this kind gains a control, re-check the review object branch');
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');

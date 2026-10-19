@@ -129,13 +129,15 @@
   <div>
     <div class="panel">
       <div class="tabs" id="surface" role="tablist">
-        <button role="tab" aria-selected="true" data-surface="terminal">Terminal</button>
+        <button role="tab" aria-selected="true" data-surface="brief">Brief</button>
+        <button role="tab" aria-selected="false" data-surface="terminal">Terminal</button>
         <button role="tab" aria-selected="false" data-surface="firewall">Firewall</button>
         <button role="tab" aria-selected="false" data-surface="wireless">Wireless</button>
         <button role="tab" aria-selected="false" data-surface="noc">NOC</button>
         <button role="tab" aria-selected="false" data-surface="rack">Rack</button>
         <button role="tab" aria-selected="false" data-surface="change-requests">Change requests</button>
         <button role="tab" aria-selected="false" data-surface="incident-log">Incident log</button>
+        <button role="tab" aria-selected="false" data-surface="review">Review answers</button>
       </div>
       <div id="term" aria-live="polite"></div>
       <form class="cmdrow" id="cmdform"><span id="prompt">&gt; </span><input id="cmd" autocomplete="off" spellcheck="false" aria-label="command"></form>
@@ -179,7 +181,7 @@
 (function () {
   'use strict';
   var EXAM_ID = 'net-final-2026';
-  var session = null, questions = [], tickets = [], remaining = 0, surface = 'terminal', tick = null;
+  var session = null, questions = [], tickets = [], remaining = 0, surface = 'brief', tick = null;
   /* The student's own saved answers, as the server last recorded them. Kept so a re-render puts them
      back into the controls -- see restoreAnswers. */
   var answers = {};
@@ -311,10 +313,19 @@
     else { card.classList.remove('answered'); }
   }
 
-  /* The count is read off the cards, so it cannot disagree with them. */
+  /* The count is read off the cards, so it cannot disagree with them.
+
+     THE DENOMINATOR IS THE TYPED QUESTIONS, NOT ALL FIFTY. `markAnswered` can only mark a card that
+     has a control, and the 19 `state`/`sequence` questions have none, so dividing by
+     `questions.length` pinned this header at 31/50 for the entire sitting no matter what the student
+     did. With the review tab added that became an on-screen contradiction: a student who had answered
+     everything would read "every question that takes a written answer has one recorded" on one tab
+     and "31 / 50 answered" in the header three inches away, in the last minutes of a one-attempt
+     exam, and the reasonable response to that is to go hunting for nineteen input fields that do not
+     exist. Same helper as the review, so the two cannot drift apart again. */
   function refreshAnswerCount() {
     el('qcount').textContent = el('questions').querySelectorAll('.q.answered').length
-      + ' / ' + questions.length + ' answered';
+      + ' / ' + typedQuestions().length + ' written answers';
   }
 
   function restoreAnswers() {
@@ -359,6 +370,132 @@
   }
 
   /* ── surfaces ──────────────────────────────────────────────────────────────────────────────── */
+  /* `state` and `sequence` questions are graded from the network and the event log, so they have no
+     typed answer to show or to miss. Calling those "not answered" would be a lie that sends a student
+     hunting for a field that does not exist.
+
+     ONE definition, read by both the review table and the submit warning. The page already carries a
+     comment about `hasContent` existing because two copies of a display rule drifted apart and told a
+     student two different things about the same saved answer; this is that lesson applied before it
+     happens again, not after. */
+  function isDerived(q) { return q.kind === 'state' || q.kind === 'sequence'; }
+  function typedQuestions() { return questions.filter(function (q) { return !isDerived(q); }); }
+  function unansweredNumbers() {
+    return typedQuestions().filter(function (q) { return !hasContent(answers[q.id]); })
+      .map(function (q) { return q.n; });
+  }
+
+  /* THE BRIEF. Its wording is the spec's own "verbatim draft" (section 2) and is not mine to
+     paraphrase: it tells the student what they are, what access they have, and what the exam expects
+     of them. Section 1 is explicit that no answer may appear in it, so nothing here names a fault.
+
+     THE DIAGRAM IS DELIBERATELY STALE, and that is the whole point of it. Per the spec's planted
+     decoys, the documentation shows DNS where the midterm put it, the second-floor switch at the
+     wrong management address, and no guest VLAN, so Q3 and Q4 can only be answered from live
+     evidence. The values are read from the server's own `decoyDiagram`, never typed here, so the
+     documentation the student learns to distrust is the same object the generator shipped.
+
+     THE TICKET COUNT IS COUNTED, NOT WRITTEN. The spec's prose says eleven; the generator makes one
+     per fault. A quantity in prose is stale the moment either side moves. */
+  function renderBrief() {
+    var d = (session && session.initialState && session.initialState.decoyDiagram) || {};
+    var n = tickets.length;
+    return '<h3 style="font-size:.95rem;margin-bottom:10px">Meridian Corp: on-call handover</h3>'
+      + '<p>You are the on-call network administrator for Meridian Corp. The previous administrator '
+      + 'left without a handover. The network documentation below is the most recent we have. '
+      + '<strong>It may be out of date.</strong></p>'
+      + '<p>You are logged in to ADMIN-WS01. From here you can open a command prompt, SSH or console '
+      + 'into the network devices and servers, and open the management pages for the firewall, the '
+      + 'wireless controller, and the monitoring server.</p>'
+      + '<p>Answer each question from what the network actually shows you. When a question asks you '
+      + 'to fix something, <strong>file a change request first, make the change, then verify it</strong>. '
+      + 'Log every incident you resolve.</p>'
+      + '<p>You may answer the questions in any order, and each is graded on its own. If you break a '
+      + 'device you can restore it from the Rack tab. That also removes any fix you made on that '
+      + 'device, so restoring is a reset, not an undo.</p>'
+      + '<h2 style="padding:16px 0 4px;border:0">The documentation we have</h2>'
+      + '<p class="where">Not updated since before the second floor was built. Where this and the '
+      + 'network disagree, the network is right.</p>'
+      + '<table><tbody>'
+      + '<tr><th>DNS server</th><td>' + esc(d.dnsServer || 'not recorded') + '</td></tr>'
+      + '<tr><th>Second-floor switch, management</th><td>' + esc(d.sw02Mgmt || 'not recorded') + '</td></tr>'
+      + '<tr><th>Guest VLAN</th><td>' + (d.guestVlanShown ? 'documented' : 'not in the diagram') + '</td></tr>'
+      + '</tbody></table>'
+      + '<h2 style="padding:16px 0 4px;border:0">The sticky note on your desk</h2>'
+      + '<table><tbody>'
+      + '<tr><th>Username</th><td><code>admin</code></td></tr>'
+      + '<tr><th>Password</th><td>none. Nothing in this lab will prompt you for one.</td></tr>'
+      + '<tr><th>Connecting</th><td><code>ssh admin@&lt;address&gt;</code>, or by name, e.g. '
+      + '<code>ssh admin@MeridianSW-01</code>. On a switch or router, <code>enable</code> then '
+      + '<code>conf t</code> to make changes.</td></tr>'
+      + '</tbody></table>'
+      + '<h2 style="padding:16px 0 4px;border:0">Your queue</h2>'
+      + '<p>' + n + ' open ' + (n === 1 ? 'ticket is' : 'tickets are') + ' listed beside the terminal. '
+      + 'The tabs above are the systems you have access to. The NOC dashboard shows alerts, and not '
+      + 'every alert is a real fault.</p>'
+      + '<p class="where">Re-open this tab whenever you need it. Nothing here costs you time on the '
+      + 'clock, and reading it does not touch the network.</p>';
+  }
+
+  /* REVIEW. The question panel already shows answered/unanswered per the spec's free-navigation
+     criterion; this is the other half the operator asked for, so a student can check their work
+     before submitting instead of scrolling fifty cards from memory.
+
+     It reads `answers`, which is what the SERVER returned, not the DOM. If a save failed silently
+     this shows the question as unanswered, which is the fact the student needs before they submit.
+     Nothing here says whether an answer is RIGHT: grading happens at submission, and an exam that
+     leaked correctness during the sitting would not be an exam. */
+  function renderReview() {
+    var order = [], byPhase = {};
+    questions.forEach(function (q) {
+      if (!byPhase[q.phase]) { byPhase[q.phase] = []; order.push(q.phase); }
+      byPhase[q.phase].push(q);
+    });
+
+    var typed = typedQuestions(), blank = unansweredNumbers();
+    var done = typed.length - blank.length;
+
+    var out = ['<h3 style="font-size:.95rem;margin-bottom:4px">Your answers</h3>',
+      '<p class="where">' + done + ' of ' + typed.length + ' written answers recorded'
+      + (typed.length === questions.length ? ''
+         : ', plus ' + (questions.length - typed.length) + ' graded from the network')
+      + '. This is what the server has stored, not whether it is correct.</p>'];
+    out.push(blank.length
+      ? '<div class="notice bad">No answer recorded yet for Q' + blank.join(', Q') + '</div>'
+      : '<div class="notice good">Every question that takes a written answer has one recorded.</div>');
+
+    order.forEach(function (phase) {
+      out.push('<h2 style="padding:14px 0 4px;border:0">' + esc(phase) + '</h2>'
+        + '<table><thead><tr><th>Q</th><th>Question</th><th>Your answer</th></tr></thead><tbody>'
+        + byPhase[phase].map(function (q) {
+            var v = answers[q.id], shown;
+            if (isDerived(q)) {
+              shown = '<span class="where">graded from the network and your activity</span>';
+            } else if (!hasContent(v)) {
+              shown = '<span class="bad">not answered</span>';
+            } else if (typeof v === 'object') {
+              shown = esc(Object.keys(v).map(function (k) { return v[k]; }).filter(function (x) {
+                return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
+              }).join(' '));
+            } else {
+              shown = esc(String(v));
+            }
+            return '<tr><th>' + q.n + '</th><td>' + esc(q.prompt) + '</td><td>' + shown + '</td></tr>';
+          }).join('')
+        + '</tbody></table>');
+    });
+    return out.join('');
+  }
+
+  /* Rendered from state the page already holds, so re-reading the brief or checking your answers
+     cannot fail on a network blip and costs nothing on the clock.
+
+     DELIBERATELY NO setRemaining HERE. Every other surface re-syncs the clock from the server's
+     `remainingMs` because it is already making a round trip; these two make none, so there is no
+     fresher value to apply and feeding the display its own stale number back would be worse than
+     leaving the interval tick alone. The server decides time is up either way. */
+  var LOCAL_SURFACES = { brief: renderBrief, review: renderReview };
+
   function showSurface(name) {
     surface = name;
     Array.prototype.forEach.call(el('surface').querySelectorAll('button'), function (b) {
@@ -369,6 +506,11 @@
     el('cmdform').hidden = !isTerm;
     el('winbody').hidden = isTerm;
     if (isTerm) { el('cmd').focus(); return; }
+    if (Object.prototype.hasOwnProperty.call(LOCAL_SURFACES, name)) {
+      el('winbody').innerHTML = LOCAL_SURFACES[name]();
+      telemetry('surface', name);
+      return;
+    }
     el('winbody').innerHTML = '<div class="notice">Loading&hellip;</div>';
     call('netfinalWindow', { examId: EXAM_ID, window: name }).then(function (r) {
       setRemaining(r.remainingMs);
@@ -609,7 +751,18 @@
   });
 
   el('submit').addEventListener('click', function () {
-    if (!window.confirm('Submit your exam? This cannot be undone and you have one attempt.')) { return; }
+    /* A student gets ONE attempt, so the last thing before it closes should say what is missing
+       rather than ask a yes/no question about an exam they cannot see all of. Blanks are named here
+       because fifty questions is more than anyone tracks in their head under a clock. */
+    var blank = unansweredNumbers();
+    var msg = blank.length
+      ? 'You have no answer recorded for ' + blank.length + ' question'
+        + (blank.length === 1 ? '' : 's') + ': Q' + blank.join(', Q')
+        + '.\n\nSubmit anyway? This cannot be undone and you have one attempt.'
+        + '\n\nCancel to go back. The "Review answers" tab lists all of them.'
+      : 'Every question that takes a written answer has one recorded.'
+        + '\n\nSubmit your exam? This cannot be undone and you have one attempt.';
+    if (!window.confirm(msg)) { return; }
     el('submit').disabled = true;
     call('netfinalSubmit', { examId: EXAM_ID }).then(function (r) {
       telemetry('submit', '');
@@ -664,7 +817,9 @@
       ? '[session resumed — same lab, same clock]'
       : '[Meridian Corp operations lab ready. You are on ADMIN-WS01.]');
     write('Type a command, or use the tabs above for the firewall, wireless controller, NOC and rack.');
-    el('cmd').focus();
+    /* OPEN ON THE BRIEF. The markup starts with the terminal visible, so the `surface` var alone
+       would not put it there: the student would land on a blank prompt with no idea what the lab is. The terminal's welcome lines are already written above and wait in #term for the switch. */
+    showSurface('brief');
     tick = setInterval(function () {
       remaining = Math.max(0, remaining - 1000);
       paintClock();

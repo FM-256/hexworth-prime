@@ -14,6 +14,26 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-284 — the Network+ final's question counter was pinned at 31/50 for the whole sitting, and could never reach 50  ·  [P2]  ·  fixed-not-deployed
+- **Found:** 2026-10-19 by Nancy, reviewing the brief/answer-review change. Pre-existing since the page was built; it became worth fixing because the new review tab states the same fact in different words, three inches away, in the last minutes of a one-attempt exam.
+- **Area:** `_app/houses/web/network-plus/exams/network-final.exam.html` `refreshAnswerCount`
+- **Symptom:** the header read `31 / 50 answered` no matter what the student did. A student who had answered every question they could answer saw 19 apparently missing, with no way to find them.
+- **Root cause:** the count was read off the `.q.answered` cards (correct) but divided by `questions.length`, all 50. `markAnswered` only marks a card carrying a `[data-q]` control, and the 19 `state`/`sequence` questions have none — they are graded from network state and the event log and render "Nothing to type." So the numerator's population was 31 and the denominator's was 50, permanently.
+- **Why no test caught it:** the page suite ran the renderers in isolation and never compared the header's number with the review tab's. The page's own comment at `refreshAnswerCount` says "the count is read off the cards, so it cannot disagree with them" — true of the numerator, and silent about the denominator.
+- **Fix:** divide by `typedQuestions().length`, the same helper the review tab uses (one definition, three call sites), and label it "written answers" rather than "answered", since `31 / 31 answered` beside fifty visible cards is its own small lie.
+- **Verification:** suite section 12 in `_tools/netfinal/netfinal-page.test.js` asserts the header does not divide by `questions.length`, names what it counts, shares the single helper, and that the 19/50 typed-derived split is measured from the generator rather than asserted. Both reverting mutations caught by exit code.
+- **Blast radius:** display only. No grading, no stored state, no server call touched. Grading was and is entirely server-side.
+
+### BUG-283 — "Merge students" has never worked, and BUG-272 gives it a second reason to fail  ·  [P2]  ·  open
+- **Found:** pre-existing, known since 2026-09-27 but tracked only as prose in `SITREP.md:258` with no tracker row — filed 2026-10-17 while fixing BUG-272, for the same reason Chris blocked the last round: a prose-only finding rots.
+- **Area:** `_app/components/InstructorDashboard.js:2535-2600` `mergeStudents`
+- **Symptom:** the instructor's "Merge students" action fails. No data is at risk — the write throws before the source delete, so nothing is lost or half-merged.
+- **Root cause (original):** the handler writes ANOTHER student's row (`classes/{classId}/progress/{targetUid}`) while authenticated as themselves, and the rule requires `request.auth.uid == studentUid`. Denied, always.
+- **Root cause (added by BUG-272):** it also writes the `completions` map, which no client may now create or change. So even if the uid half were fixed by granting handlers write access, the merge would still be denied.
+- **Why that is the right outcome rather than an obstacle:** a client-side merge of two students' completion maps is exactly the kind of write that should be server-side — it unions scores and timestamps across two rosters and no rule can validate the result. **The fix is a `mergeClassStudents` callable**, mirroring `submitClassProgress`: verify the caller is the class handler, union the maps server-side, and delete the source in the same transaction. Fixing the rule to let handlers write student rows directly would re-open BUG-272 for handlers.
+- **Fix:** NOT FIXED. Not bundled into BUG-272 — it is a separate callable with its own authorization model (handler, not student), and the feature is already broken, so nothing regresses by leaving it.
+- **Related:** BUG-272, `_tools/rules-test/legacy-progress-allowlist.test.js` (whose `mergedFrom` field in the allowlist exists for this merge path).
+
 ### BUG-282 — the admin console's "+ Code" button puts a one-click, unrevocable bearer link on the clipboard with only a disappearing toast as a warning  ·  [P2]  ·  open
 - **Found:** 2026-10-13 · by self while building the public enrollment on-ramp; held open through Nancy's and Chris's gates as a deliberate scope boundary, then filed on Chris's block because it lived only in prose
 - **Area:** `_app/admin/console.html` `copyJoinLink(withCode)` · `_app/tournament-join.html` (accepts `?c=`)
