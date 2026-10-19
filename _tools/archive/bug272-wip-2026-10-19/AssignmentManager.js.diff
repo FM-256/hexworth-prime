@@ -1,0 +1,66 @@
+diff --git a/_app/components/AssignmentManager.js b/_app/components/AssignmentManager.js
+index 05805b18b..aaedd0b37 100644
+--- a/_app/components/AssignmentManager.js
++++ b/_app/components/AssignmentManager.js
+@@ -271,22 +271,45 @@ const AssignmentManager = (function() {
+         const user = FirebaseAuth.getUser();
+         if (!user) throw new Error('Not authenticated');
+ 
+-        const { doc, setDoc, serverTimestamp } = window.firebaseFirestore;
+-
+-        const progressRef = doc(db, 'classes', classId, 'progress', user.uid);
+-        await setDoc(progressRef, {
+-            uid: user.uid,
+-            displayName: user.displayName || user.email || 'Unknown',
+-            completions: {
+-                [contentId]: {
+-                    completed: progressData.completed || false,
+-                    score: progressData.score || null,
+-                    completedAt: progressData.completedAt || new Date().toISOString(),
+-                    duration: progressData.duration || null
+-                }
+-            },
+-            updatedAt: serverTimestamp()
+-        }, { merge: true });
++        /* BUG-272: THIS NO LONGER WRITES FIRESTORE DIRECTLY.
++         *
++         * It used to setDoc `completions: { [contentId]: { completed, score, ... } }` straight onto
++         * classes/{classId}/progress/{uid}. `completions` is a free-form map and the SEC-9 field
++         * allowlist could only constrain TOP-LEVEL keys, so nothing inspected what went inside: a
++         * signed-in student could write `{completed:true, score:100}` at any real assignment id —
++         * harvestable, since classes/{classId}/assignments is readable by any signed-in user — and
++         * the instructor dashboard rendered it as genuine.
++         *
++         * Note what `[contentId]` did here as a computed key: handed a missing or non-string value
++         * it produced the literal keys "undefined" and "[object Object]", which are in production
++         * data right now. The server validates the id now, so that cannot recur.
++         *
++         * The rules no longer permit a client to create or change `completions` at all
++         * (affectedKeys()), so this path MUST go through the callable. It validates enrollment,
++         * checks contentId against the completion registry, and bounds the score. */
++        /* Uses FirebaseAuth.callFunction rather than reaching for the SDK here. This platform is on
++         * the MODULAR SDK (window.firebaseFirestore / window.firebaseApp / window.firebaseFunctions)
++         * and `window.firebase.functions()` is the COMPAT shape — my first version called that and
++         * it would have thrown at runtime on every page that loads this component. FirebaseAuth
++         * already owns an initialised `functions` instance and exports the helper, and this file
++         * already depends on FirebaseAuth for getUser(), so there is no new dependency. */
++        if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') {
++            throw new Error('Cloud Functions unavailable — progress not submitted.');
++        }
++        const res = await FirebaseAuth.callFunction('submitClassProgress', {
++            classId: classId,
++            contentId: contentId,
++            completed: progressData.completed === true,
++            score: (progressData.score === undefined || progressData.score === null)
++                ? null : progressData.score,
++            completedAt: progressData.completedAt || new Date().toISOString(),
++            duration: (typeof progressData.duration === 'number') ? progressData.duration : null
++        });
++        /* The callable's own shape, unwrapped. `httpsCallable` returns { data: ... }, and forgetting
++         * that unwrap is a logged P0 on this platform (reference_gradequiz_data_unwrap_bug: 103
++         * server-graded quizzes marked every answer wrong). Returned so callers can see the SERVER's
++         * clamped score rather than the one they sent. */
++        return (res && res.data) ? res.data : { ok: true };
+     }
+ 
+     /**
