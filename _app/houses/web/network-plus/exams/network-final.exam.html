@@ -309,7 +309,10 @@
   function markAnswered(qid) {
     var card = el('qq-' + qid);
     if (!card) { return; }
-    if (hasContent(answers[qid])) { card.classList.add('answered'); }
+    /* A HALF-FILLED COMPOSITE IS NOT ANSWERED. This read `hasContent`, so one of the two aclref
+       fields was enough to light the card and add it to the header count. */
+    var q = questions.filter(function (x) { return x.id === qid; })[0];
+    if (q ? answerState(q) === 'complete' : hasContent(answers[qid])) { card.classList.add('answered'); }
     else { card.classList.remove('answered'); }
   }
 
@@ -325,7 +328,8 @@
      exist. Same helper as the review, so the two cannot drift apart again. */
   function refreshAnswerCount() {
     el('qcount').textContent = el('questions').querySelectorAll('.q.answered').length
-      + ' / ' + typedQuestions().length + ' written answers';
+      + ' / ' + typedQuestions().length + ' written answers'
+      + (partialQuestions().length ? ' · 1 part-filled'.replace('1', partialQuestions().length) : '');
   }
 
   function restoreAnswers() {
@@ -380,14 +384,63 @@
      happens again, not after. */
   function isDerived(q) { return q.kind === 'state' || q.kind === 'sequence'; }
   function typedQuestions() { return questions.filter(function (q) { return !isDerived(q); }); }
-  function unansweredNumbers() {
-    return typedQuestions().filter(function (q) { return !hasContent(answers[q.id]); })
-      .map(function (q) { return q.n; });
+
+  /* THE FIELDS A COMPOSITE QUESTION ASKS FOR. One declaration; the suite asserts it matches the
+     `data-part` attributes the renderer actually emits, so a third field cannot be added to the
+     control without being added here. The server agrees: REQUIRED_FIELDS.aclRef is ['name','seq']
+     in netfinal-questions.js, exactly the two the aclref branch renders. */
+  var COMPOSITE_PARTS = { aclref: ['name', 'seq'] };
+  var PART_LABELS = { name: 'the ACL name', seq: 'the sequence number' };
+
+  /* WHICH HALVES OF A COMPOSITE ANSWER ARE STILL EMPTY.
+     `hasContent` uses `.some()`, which is right for one field and wrong for a pair. It was written to
+     drive a CSS highlight, and this change put it in charge of the submit warning and the review
+     table without my re-checking that its old meaning still fitted the bigger job. It did not: a
+     student who picks the ACL name from the dropdown and never types the sequence number has a half
+     answer that grades as a miss, and the change handler saves the pair on every keystroke to
+     either control, so the half answer was stored, highlighted, counted, listed in the review as
+     answered, and waved through the one-attempt submit with no warning. On the hardest question in
+     the exam. Chris blocked on it, and he was right: the feature built to surface a silently
+     incomplete answer was reporting the most likely kind of incomplete answer as done. */
+  function missingParts(q) {
+    var parts = COMPOSITE_PARTS[q.kind];
+    if (!parts) { return []; }
+    var v = answers[q.id];
+    if (!v || typeof v !== 'object') { return parts.slice(); }
+    return parts.filter(function (prt) {
+      var x = v[prt];
+      return x === null || x === undefined || typeof x === 'object' || String(x) === '';
+    });
   }
 
-  /* THE BRIEF. Its wording is the spec's own "verbatim draft" (section 2) and is not mine to
-     paraphrase: it tells the student what they are, what access they have, and what the exam expects
-     of them. Section 1 is explicit that no answer may appear in it, so nothing here names a fault.
+  /* One rule, three states, read by the card highlight, the header count, the review table and the
+     submit warning. Four surfaces that must never disagree about one question. */
+  function answerState(q) {
+    if (isDerived(q)) { return 'derived'; }
+    var miss = missingParts(q), parts = COMPOSITE_PARTS[q.kind];
+    if (parts && miss.length) { return miss.length === parts.length ? 'blank' : 'partial'; }
+    return hasContent(answers[q.id]) ? 'complete' : 'blank';
+  }
+
+  function unansweredNumbers() {
+    return typedQuestions().filter(function (q) { return answerState(q) === 'blank'; })
+      .map(function (q) { return q.n; });
+  }
+  function partialQuestions() {
+    return typedQuestions().filter(function (q) { return answerState(q) === 'partial'; });
+  }
+  function completeCount() {
+    return typedQuestions().filter(function (q) { return answerState(q) === 'complete'; }).length;
+  }
+
+  /* THE BRIEF, following the spec's section 2 draft closely but NOT verbatim, and the comment that
+     used to sit here claimed otherwise. Chris diffed it and was right: "attached network diagram"
+     became "network documentation below", the spec's vague "device menu" became the actual "Rack
+     tab", "graded independently" became "graded on its own". The adaptations are deliberate, because
+     naming the control a student can actually see beats repeating a phrase that points at nothing,
+     but a comment claiming fidelity it did not deliver would have a future reader defend wording
+     the spec never had. Section 1 is explicit that no answer may appear here, so nothing names a
+     fault.
 
      THE DIAGRAM IS DELIBERATELY STALE, and that is the whole point of it. Per the spec's planted
      decoys, the documentation shows DNS where the midterm put it, the second-floor switch at the
@@ -452,27 +505,47 @@
       byPhase[q.phase].push(q);
     });
 
-    var typed = typedQuestions(), blank = unansweredNumbers();
-    var done = typed.length - blank.length;
+    var typed = typedQuestions(), blank = unansweredNumbers(), partial = partialQuestions();
+    var done = completeCount();
 
     var out = ['<h3 style="font-size:.95rem;margin-bottom:4px">Your answers</h3>',
-      '<p class="where">' + done + ' of ' + typed.length + ' written answers recorded'
+      '<p class="where">' + done + ' of ' + typed.length + ' written answers complete'
       + (typed.length === questions.length ? ''
          : ', plus ' + (questions.length - typed.length) + ' graded from the network')
       + '. This is what the server has stored, not whether it is correct.</p>'];
-    out.push(blank.length
-      ? '<div class="notice bad">No answer recorded yet for Q' + blank.join(', Q') + '</div>'
-      : '<div class="notice good">Every question that takes a written answer has one recorded.</div>');
+    if (blank.length) {
+      out.push('<div class="notice bad">No answer recorded yet for Q' + blank.join(', Q') + '</div>');
+    }
+    /* NAMED, AND SAID WHICH HALF IS MISSING. A two-field question with one field filled is the
+       failure this tab exists to catch, and it is the one a student is least likely to notice:
+       the field they did fill is sitting there looking finished. */
+    partial.forEach(function (q) {
+      out.push('<div class="notice bad">Q' + q.n + ' is only part answered. Still missing '
+        + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ')
+        + '. Both halves are graded together.</div>');
+    });
+    if (!blank.length && !partial.length) {
+      out.push('<div class="notice good">Every question that takes a written answer has a complete '
+        + 'answer recorded.</div>');
+    }
 
     order.forEach(function (phase) {
       out.push('<h2 style="padding:14px 0 4px;border:0">' + esc(phase) + '</h2>'
         + '<table><thead><tr><th>Q</th><th>Question</th><th>Your answer</th></tr></thead><tbody>'
         + byPhase[phase].map(function (q) {
-            var v = answers[q.id], shown;
-            if (isDerived(q)) {
+            var v = answers[q.id], shown, st = answerState(q);
+            if (st === 'derived') {
               shown = '<span class="where">graded from the network and your activity</span>';
-            } else if (!hasContent(v)) {
+            } else if (st === 'blank') {
               shown = '<span class="bad">not answered</span>';
+            } else if (st === 'partial') {
+              shown = '<span class="bad">part answered: ' + esc(Object.keys(v || {}).map(function (k) {
+                  return v[k];
+                }).filter(function (x) {
+                  return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
+                }).join(' ')) + '</span> <span class="where">(missing '
+                + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ')
+                + ')</span>';
             } else if (typeof v === 'object') {
               shown = esc(Object.keys(v).map(function (k) { return v[k]; }).filter(function (x) {
                 return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
@@ -754,13 +827,21 @@
     /* A student gets ONE attempt, so the last thing before it closes should say what is missing
        rather than ask a yes/no question about an exam they cannot see all of. Blanks are named here
        because fifty questions is more than anyone tracks in their head under a clock. */
-    var blank = unansweredNumbers();
-    var msg = blank.length
-      ? 'You have no answer recorded for ' + blank.length + ' question'
-        + (blank.length === 1 ? '' : 's') + ': Q' + blank.join(', Q')
-        + '.\n\nSubmit anyway? This cannot be undone and you have one attempt.'
-        + '\n\nCancel to go back. The "Review answers" tab lists all of them.'
-      : 'Every question that takes a written answer has one recorded.'
+    var blank = unansweredNumbers(), partial = partialQuestions(), lines = [];
+    if (blank.length) {
+      lines.push('No answer recorded for ' + blank.length + ' question'
+        + (blank.length === 1 ? '' : 's') + ': Q' + blank.join(', Q') + '.');
+    }
+    /* A HALF ANSWER NEEDS ITS OWN WARNING. Folding it in with the blanks, or worse counting it as
+       answered, is how a student submits one filled field on a two-field question believing it done. */
+    partial.forEach(function (q) {
+      lines.push('Q' + q.n + ' is only part answered: still missing '
+        + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ') + '.');
+    });
+    var msg = lines.length
+      ? lines.join('\n') + '\n\nSubmit anyway? This cannot be undone and you have one attempt.'
+        + '\n\nCancel to go back. The "Review answers" tab lists every question.'
+      : 'Every question that takes a written answer has a complete answer recorded.'
         + '\n\nSubmit your exam? This cannot be undone and you have one attempt.';
     if (!window.confirm(msg)) { return; }
     el('submit').disabled = true;

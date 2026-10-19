@@ -14,6 +14,17 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-285 — a half-filled two-field answer counted as answered everywhere, including the one-attempt submit warning  ·  [P2]  ·  fixed-not-deployed, never reached students
+- **Found:** 2026-10-19 by Chris, gating commit `71a9d9500`. Caught before deploy, so no student ever saw it.
+- **Area:** `_app/houses/web/network-plus/exams/network-final.exam.html` `hasContent` / `unansweredNumbers` / `markAnswered`
+- **Symptom:** on Q24, the only two-field question (ACL name + sequence number), filling EITHER field marked the question answered: highlighted card, counted in the header, listed in the review with the one filled value as "the answer", and waved through the submit confirmation with no warning.
+- **Root cause:** `hasContent` uses `.some()`, which is correct for a single field and wrong for a mandatory pair. It was written to drive a CSS highlight. Commit `71a9d9500` put it in charge of the review table and the one-attempt submit warning without re-checking that its semantics still fitted the larger job. The compound change handler saves the pair on every change to either control, so picking the ACL from the dropdown and never typing the number stored a half answer that looked finished on every surface.
+- **Why it mattered:** the server requires both (`netfinal-questions.js:257`, `REQUIRED_FIELDS.aclRef = ['name','seq']`), so a half answer grades as a miss. The feature built specifically to surface a silently incomplete answer reported the most likely kind of incomplete answer as done, on the question the spec calls out as the hardest.
+- **Why no test caught it:** the composite-path test fed the two-field control two values. That proves the happy path and nothing about the halves.
+- **Fix:** one `COMPOSITE_PARTS` declaration, a three-state `answerState` (blank / partial / complete) read by the card highlight, the header count, the review table and the submit warning, and `missingParts` naming which half is absent. The review and the confirmation both name the question and the missing field.
+- **Verification:** suite section 13 drives all six permutations of the pair, asserts the declared parts equal the `data-part` controls the renderer emits AND equal the server's `REQUIRED_FIELDS.aclRef`, and isolates the all-clear with a fixture where everything else is complete. 7 of 7 mutations caught by exit code.
+- **Note on the measurement:** three of these assertions passed at first with the code mutated away, because they searched the whole page for a string that also occurs elsewhere (`answerState(q) === 'complete'` is also in `completeCount`; "part answered" is also in the review notice), and because the all-clear fixture left 30 other questions blank so the blank-check alone suppressed it. Scoped to the function body and the fixture isolated.
+
 ### BUG-284 — the Network+ final's question counter was pinned at 31/50 for the whole sitting, and could never reach 50  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-10-19 by Nancy, reviewing the brief/answer-review change. Pre-existing since the page was built; it became worth fixing because the new review tab states the same fact in different words, three inches away, in the last minutes of a one-attempt exam.
 - **Area:** `_app/houses/web/network-plus/exams/network-final.exam.html` `refreshAnswerCount`

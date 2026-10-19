@@ -37,6 +37,18 @@ const INDEX_PATH = path.join(REPO, 'functions/index.js');
 const page = fs.readFileSync(PAGE_PATH, 'utf8');
 const index = fs.readFileSync(INDEX_PATH, 'utf8');
 
+/* The page's own composite-field declarations, LIFTED from the page rather than retyped, so a
+ * sandbox can never be exercising a different pair of fields than the page uses. */
+const PAGE_CONSTS = (() => {
+    const grab = (name) => {
+        const m = require('fs').readFileSync(
+            require('path').join(__dirname, '../../_app/houses/web/network-plus/exams/network-final.exam.html'),
+            'utf8').match(new RegExp('var ' + name + ' = \\{[^}]*\\};'));
+        return m ? m[0] : '';
+    };
+    return grab('COMPOSITE_PARTS') + '\n' + grab('PART_LABELS') + '\n';
+})();
+
 let pass = 0, fail = 0;
 const chk = (name, cond, detail) => {
     if (cond) { pass++; console.log('  ok   ' + name); }
@@ -450,6 +462,7 @@ section('10. the brief and the review, run for real');
         return null;
     };
     const NEEDED = ['esc', 'hasContent', 'isDerived', 'typedQuestions', 'unansweredNumbers',
+                    'missingParts', 'answerState', 'partialQuestions', 'completeCount',
                     'renderBrief', 'renderReview'];
     const sources = NEEDED.map(fnSource);
     const missing = NEEDED.filter((n, i) => !sources[i]);
@@ -458,10 +471,12 @@ section('10. the brief and the review, run for real');
 
     if (missing.length === 0) {
         const build = new Function(
-            'var session, tickets, questions, answers;\n' + sources.join('\n') + '\n' +
+            'var session, tickets, questions, answers;\n' + PAGE_CONSTS + sources.join('\n') + '\n' +
             'return { set: function (s, t, q, a) { session = s; tickets = t; questions = q; answers = a; },' +
             '  renderBrief: renderBrief, renderReview: renderReview,' +
-            '  unansweredNumbers: unansweredNumbers, typedQuestions: typedQuestions };');
+            '  unansweredNumbers: unansweredNumbers, typedQuestions: typedQuestions,' +
+            '  missingParts: missingParts, answerState: answerState,' +
+            '  partialQuestions: partialQuestions, completeCount: completeCount };');
         const pageFns = build();
         /* The page escapes before it renders, so a prompt must be escaped the same way to be found
          * in the output. Using the page's own function means a change to escaping cannot make the
@@ -558,7 +573,7 @@ section('10. the brief and the review, run for real');
         chk('an answer the server stored appears in the review',
             review2.indexOf('my-typed-answer') >= 0, 'q=' + one.id);
         chk('and the recorded count moves with it',
-            review2.indexOf('1 of ' + typed.length + ' written answers recorded') >= 0,
+            review2.indexOf('1 of ' + typed.length + ' written answers complete') >= 0,
             'expected 1 of ' + typed.length + ', one answer having been saved');
         chk('the count excludes the derived questions from its denominator',
             typed.length < qs.length
@@ -726,6 +741,191 @@ section('12. the header counter cannot disagree with the review');
     chk('the multi question exists and the page gives it a plain text control',
         !!multi && multi.norm === 'vlanSet',
         'if this kind gains a control, re-check the review object branch');
+}
+
+/* ─── 13. a HALF-FILLED composite answer ────────────────────────────────────────────────────────── */
+/* CHRIS BLOCKED HERE, and the block was correct. `hasContent` uses `.some()`, so one of the two
+ * aclref fields made the whole answer "answered". That was harmless while the function only drove a
+ * CSS highlight. This change put it in charge of the review table and the ONE-ATTEMPT submit
+ * warning without my re-checking that its meaning still fitted the larger job, so the feature built
+ * to catch a silently incomplete answer reported the most likely incomplete answer as finished, on
+ * the hardest question in the exam.
+ *
+ * My section 10 test for the composite path fed the two-field control two values. That proves the
+ * happy path and nothing about the halves. Two fixtures, always: every permutation is driven here. */
+section('13. a half-filled two-field answer is not "answered"');
+{
+    const fnSource = (name) => {
+        const start = page.indexOf('function ' + name + '(');
+        if (start < 0) { return null; }
+        let depth = 0, seen = false;
+        for (let i = start; i < page.length; i++) {
+            if (page[i] === '{') { depth++; seen = true; }
+            else if (page[i] === '}') { depth--; if (seen && depth === 0) { return page.slice(start, i + 1); } }
+        }
+        return null;
+    };
+    const NEED = ['esc', 'hasContent', 'isDerived', 'typedQuestions', 'unansweredNumbers',
+                  'missingParts', 'answerState', 'partialQuestions', 'completeCount', 'renderReview'];
+    const srcs = NEED.map(fnSource);
+    chk('every helper this section runs was found', srcs.every(Boolean),
+        'missing: ' + NEED.filter((n, i) => !srcs[i]).join(', '));
+
+    const declared = (page.match(/var COMPOSITE_PARTS = \{([^}]*)\}/) || [])[1] || '';
+    const parts = (declared.match(/'[a-z]+'/g) || []).map(x => x.replace(/'/g, ''));
+    chk('COMPOSITE_PARTS declares the aclref fields, once',
+        /aclref:/.test(declared) && parts.length === 2
+        && (page.match(/var COMPOSITE_PARTS/g) || []).length === 1,
+        'declared: ' + declared.trim());
+    /* THE DECLARATION MUST MATCH THE RENDERER. A third field added to the control without being
+     * added here would be silently optional, which is this defect all over again. */
+    const rendered = (page.match(/data-part="([a-z]+)"/g) || [])
+        .map(x => x.replace(/data-part="|"/g, '')).filter((v, i, a) => a.indexOf(v) === i).sort();
+    chk('the declared parts are exactly the data-part controls the page renders',
+        JSON.stringify(rendered) === JSON.stringify(parts.slice().sort()),
+        'rendered ' + JSON.stringify(rendered) + ' vs declared ' + JSON.stringify(parts.slice().sort()));
+    /* And the SERVER requires both, so this is not a page-side opinion about what counts as done. */
+    chk('the server requires both fields too',
+        JSON.stringify((QUESTIONS.REQUIRED_FIELDS || {}).aclRef) === JSON.stringify(parts),
+        JSON.stringify((QUESTIONS.REQUIRED_FIELDS || {}).aclRef));
+
+    if (srcs.every(Boolean)) {
+        const fns = new Function(
+            'var session, tickets, questions, answers;\n' + PAGE_CONSTS + srcs.join('\n') + '\n' +
+            'return { set: function (s, t, q, a) { session = s; tickets = t; questions = q; answers = a; },' +
+            ' answerState: answerState, missingParts: missingParts, renderReview: renderReview,' +
+            ' unansweredNumbers: unansweredNumbers, partialQuestions: partialQuestions,' +
+            ' completeCount: completeCount, hasContent: hasContent };')();
+
+        const lab3 = CORE.generate('partial-lab', EXAMS.DEFAULT_EXAM_ID, { secret: 's' });
+        FAULTS.applyAll(lab3);
+        const qs3 = QUESTIONS.forStudent(lab3);
+        const acl = qs3.find(q => q.kind === 'aclref');
+        chk('there is an aclref question to drive', !!acl);
+
+        /* Stated as the thing a student actually does, every permutation of it. */
+        const cases = [
+            { v: undefined,                          want: 'blank',    why: 'nothing entered' },
+            { v: { name: '', seq: '' },              want: 'blank',    why: 'both halves empty' },
+            { v: { name: 'BLOCK-GUEST', seq: '' },   want: 'partial',  why: 'picked the ACL, never typed the number' },
+            { v: { name: '', seq: '20' },            want: 'partial',  why: 'typed the number, never picked the ACL' },
+            { v: { name: 'BLOCK-GUEST', seq: '20' }, want: 'complete', why: 'both halves' },
+            { v: 'BLOCK-GUEST',                      want: 'blank',    why: 'a non-object supplies no part' }
+        ];
+        cases.forEach((c) => {
+            fns.set({}, [], qs3, c.v === undefined ? {} : { [acl.id]: c.v });
+            chk('aclref with ' + c.why + ' is "' + c.want + '"',
+                fns.answerState(acl) === c.want,
+                'got ' + fns.answerState(acl) + ' for ' + JSON.stringify(c.v));
+        });
+
+        /* hasContent is not wrong, it answers a different question, and that is precisely why
+         * leaning on it here was the defect. Asserted so nobody folds answerState back into it. */
+        fns.set({}, [], qs3, { [acl.id]: { name: 'BLOCK-GUEST', seq: '' } });
+        chk('hasContent alone would still call the half answer answered',
+            fns.hasContent({ name: 'BLOCK-GUEST', seq: '' }) === true
+            && fns.answerState(acl) === 'partial',
+            'if these two ever agree, one of them has lost its meaning');
+
+        chk('a half answer is NOT counted as a complete written answer',
+            fns.completeCount() === 0, 'completeCount=' + fns.completeCount());
+        chk('a half answer is NOT in the blank list, because it is not blank',
+            fns.unansweredNumbers().indexOf(acl.n) < 0);
+        chk('a half answer IS in the part-answered list',
+            fns.partialQuestions().map(q => q.n).indexOf(acl.n) >= 0,
+            'partial: ' + JSON.stringify(fns.partialQuestions().map(q => q.n)));
+        chk('missingParts names the missing half only',
+            JSON.stringify(fns.missingParts(acl)) === JSON.stringify(['seq']),
+            JSON.stringify(fns.missingParts(acl)));
+
+        const rev = fns.renderReview();
+        chk('the review calls it part answered and says WHICH half is missing',
+            /part answered/i.test(rev) && /the sequence number/.test(rev),
+            'a student must be told which field, not merely that something is wrong');
+        chk('the all-clear does not fire with a half answer outstanding',
+            !/Every question that takes a written answer has a complete/.test(rev));
+        chk('and it shows the half they DID fill, so they recognise the question',
+            rev.indexOf('BLOCK-GUEST') >= 0);
+        /* The mirrored half, so this is not a one-fixture check either. */
+        fns.set({}, [], qs3, { [acl.id]: { name: '', seq: '20' } });
+        chk('the mirrored half answer names the OTHER missing field',
+            /the ACL name/.test(fns.renderReview())
+            && JSON.stringify(fns.missingParts(acl)) === JSON.stringify(['name']),
+            JSON.stringify(fns.missingParts(acl)));
+
+        /* The all-clear must stay REACHABLE, or a warning nobody can clear is just noise. */
+        const all = {};
+        qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').forEach((q) => {
+            all[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '20' } : 'x';
+        });
+        fns.set({}, [], qs3, all);
+        chk('with every field filled the review gives the all-clear',
+            /Every question that takes a written answer has a complete/.test(fns.renderReview())
+            && fns.partialQuestions().length === 0 && fns.unansweredNumbers().length === 0,
+            'partial=' + fns.partialQuestions().length + ' blank=' + fns.unansweredNumbers().length);
+        chk('and every typed question counts as complete',
+            fns.completeCount() === qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').length,
+            'completeCount=' + fns.completeCount());
+
+        /* THE ALL-CLEAR, ISOLATED. The earlier half-answer fixture left the other 30 questions blank,
+         * so `blank.length` alone suppressed the all-clear and a mutation deleting the partial
+         * condition entirely still passed. Only a lab where EVERYTHING else is finished can show
+         * whether a half answer on its own holds the all-clear back. */
+        const allButAcl = {};
+        qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').forEach((q) => {
+            allButAcl[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '' } : 'x';
+        });
+        fns.set({}, [], qs3, allButAcl);
+        chk('nothing else is outstanding in this fixture, so the all-clear is the only thing blocking',
+            fns.unansweredNumbers().length === 0 && fns.partialQuestions().length === 1,
+            'blank=' + fns.unansweredNumbers().length + ' partial=' + fns.partialQuestions().length);
+        const lastRev = fns.renderReview();
+        chk('ONE half answer alone holds back the all-clear',
+            !/Every question that takes a written answer has a complete/.test(lastRev),
+            'the all-clear fired with a half answer outstanding and everything else done');
+        chk('and that one question is still named with its missing field',
+            lastRev.indexOf('Q' + acl.n + ' is only part answered') >= 0
+            && /the sequence number/.test(lastRev),
+            'the student must be able to find it from the notice alone');
+        chk('the header count excludes it, so header and review agree',
+            fns.completeCount()
+              === qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').length - 1,
+            'completeCount=' + fns.completeCount());
+    }
+
+    /* SCOPED TO THE FUNCTION, not to the file. Both of these checks first searched the whole page
+     * and both passed with the code mutated away: `answerState(q) === 'complete'` also appears in
+     * `completeCount`, and "is only part answered" also appears in the review's own notice, so a
+     * file-wide match proved the string existed SOMEWHERE and nothing about the surface that needs
+     * it. Measure the claim, not a proxy for it. */
+    const bodyOf = (startNeedle) => {
+        const i = page.indexOf(startNeedle);
+        if (i < 0) { return ''; }
+        let depth = 0, seen = false;
+        for (let j = i; j < page.length; j++) {
+            if (page[j] === '{') { depth++; seen = true; }
+            else if (page[j] === '}') { depth--; if (seen && depth === 0) { return page.slice(i, j + 1); } }
+        }
+        return '';
+    };
+    const markBody = bodyOf('function markAnswered(');
+    const submitBody = bodyOf("el('submit').addEventListener('click'");
+    chk('both bodies were located, so the two checks below can fail',
+        markBody.length > 50 && submitBody.length > 200,
+        'mark=' + markBody.length + ' submit=' + submitBody.length);
+    chk('markAnswered itself lights the card on COMPLETE, not on hasContent',
+        /answerState\(q\) === 'complete'/.test(markBody),
+        'one filled field of two would light the card and enter the header count');
+    chk('the SUBMIT handler itself warns about part-answered questions',
+        /partialQuestions\(\)/.test(submitBody) && /part answered/.test(submitBody),
+        'the review mentioning it is not the submit confirmation mentioning it');
+    chk('and it names the missing field in that warning',
+        /missingParts\(q\)/.test(submitBody) && /PART_LABELS/.test(submitBody),
+        'a count without the field name sends a student back to guess which half');
+    chk('one rule drives every surface that reports on an answer',
+        (page.match(/function answerState/g) || []).length === 1
+        && (page.match(/answerState\(/g) || []).length >= 4,
+        'answerState call sites: ' + (page.match(/answerState\(/g) || []).length);
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
