@@ -14,6 +14,16 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-287 — the exam clock could run BACKWARDS, handing a student time back  ·  [P2]  ·  fixed-not-deployed, never reached students
+- **Found:** 2026-10-19 by Nancy, round 4. She ran the browser suite 22 times and saw the clock-monotonicity assertion fail 7 times; I reproduced it 4 times in 12. I had reported the suite stable from a SINGLE run of a suite I had just changed, which is how a 1-in-3 defect was described as green.
+- **Area:** `_app/houses/web/network-plus/exams/network-final.exam.html` `call` / `setRemaining`
+- **Symptom:** the displayed countdown ticked UP by a second or more. On a 120-minute one-attempt exam, a clock that can move backwards is a clock a student cannot plan against.
+- **Root cause:** `remaining` is a single global, and FIVE handlers each wrote it from their own response (`netfinalStart`, `netfinalCommand`, `netfinalWindow` twice, `netfinalAnswer`). The per-question ordering guard added for BUG-286 could not protect it: two saves for DIFFERENT questions are each the newest for their own question, so both pass that guard, and whichever response lands last set the clock even when it was issued first. A request issued earlier carries a LARGER `remainingMs`.
+- **Fix:** the clock is applied in exactly one place, inside `call`, under a GLOBAL request counter: a response sets the clock only if no newer request's response has already done so. The five per-handler writes are gone. A later time extension would still work, because request ORDER is enforced rather than a direction of travel.
+- **Verification:** render suite section 5e forces the cross-question reorder with a 1.5-second gap, larger than the clock's one-second granularity, so the jump is deterministic: it catches a reverted guard on 4 of 4 runs. Section 5b's same-question version catches it on only about 2 of 4, because it reorders by ~60ms and both values round to the same second; that is recorded in the file rather than left as a mystery. Page suite section 14 adds the structural guarantees, including that EXACTLY ONE place writes the clock from a response.
+- **Also fixed this round, Nancy finding 2:** a section-14 assertion claiming both transport spellings of the `aborted` code were matched could not fail, because the comment above the statement quotes both strings verbatim. She deleted each half of the real condition in turn and the check still reported ok. Now scoped to the `var lostRace =` statement. That is the second time a check of mine reappeared in the very section written to replace the last one.
+- **And a fourth wrong-surface match of mine:** an assertion that the request counter advances before the call compared against the first occurrence of `callFunction`, which is the availability check at the top of the wrapper, not the invocation. It failed on correct code.
+
 ### BUG-286 — two saves in flight for one question could let the EARLIER value win, and a lost revision race dropped the answer silently  ·  [P2]  ·  fixed-not-deployed, never reached students
 - **Found:** 2026-10-19 by Nancy, round 3 on commit `af3418e4d`. Caught before deploy.
 - **Area:** `_app/houses/web/network-plus/exams/network-final.exam.html` `saveAnswer`

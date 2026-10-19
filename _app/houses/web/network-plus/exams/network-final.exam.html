@@ -187,11 +187,34 @@
   var answers = {};
 
   function el(id) { return document.getElementById(id); }
+  /* THE CLOCK IS APPLIED IN ONE PLACE, FROM THE NEWEST REQUEST WHOSE RESPONSE HAS COME BACK.
+     `remaining` is a single global and FIVE handlers each used to write it from their own response.
+     The per-question ordering guard in saveAnswer could not protect it: two saves for DIFFERENT
+     questions are each the newest for their own question, so both pass that guard, and whichever
+     response lands last sets the clock even when it was issued first. A response issued earlier
+     carries a LARGER remainingMs, so the displayed clock ticked UP and handed the student time
+     back. Nancy reproduced it on roughly one run in three, after I reported the suite stable from a
+     single run of a suite I had just changed.
+
+     One rule here beats five copies of none, and every callable that reports remainingMs flows
+     through this wrapper. NOTE for anyone adding a time extension later: this accepts the newest
+     response's value whatever it is, so a server that legitimately grants more time still works;
+     it is request ORDER that is enforced, not a direction of travel. */
+  var reqSeq = 0, clockSeq = 0;
+
   function call(name, data) {
     if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') {
-      return Promise.reject(new Error('Cloud Functions unavailable — the exam cannot run offline.'));
+      return Promise.reject(new Error('Cloud Functions unavailable: the exam cannot run offline.'));
     }
-    return FirebaseAuth.callFunction(name, data || {}).then(function (r) { return (r && r.data) ? r.data : r; });
+    var seq = ++reqSeq;
+    return FirebaseAuth.callFunction(name, data || {}).then(function (r) {
+      var out = (r && r.data) ? r.data : r;
+      if (out && typeof out.remainingMs === 'number' && seq >= clockSeq) {
+        clockSeq = seq;
+        setRemaining(out.remainingMs);
+      }
+      return out;
+    });
   }
   function esc(s) {
     return String(s === null || s === undefined ? '' : s)
@@ -378,10 +401,10 @@
          Before this, the handler applied whatever its closure captured, so when the earlier save
          landed last its less-complete value won: a student who picked the ACL name and typed the
          sequence number quickly watched a finished pair revert to part-answered, with the complete
-         value already stored on the server. The clock is guarded for the same reason in reverse --
-         a stale reply carries a LARGER remainingMs and would hand the student time back. */
+         value already stored on the server. The CLOCK is guarded the same way but one level up, in
+         `call`, because it is a global that five handlers write and a per-question counter cannot
+         order it. */
       if (seq !== saveSeq[id]) { return; }
-      setRemaining(r.remainingMs);
       /* Record what the SERVER accepted, so a re-render restores the stored answer rather than
          whatever happens to be in the DOM at the time. */
       answers[id] = value;
@@ -629,7 +652,6 @@
     }
     el('winbody').innerHTML = '<div class="notice">Loading&hellip;</div>';
     call('netfinalWindow', { examId: EXAM_ID, window: name }).then(function (r) {
-      setRemaining(r.remainingMs);
       el('winbody').innerHTML = renderWindow(name, r.view);
       telemetry('window', name);
     }).catch(function (e) { el('winbody').innerHTML = '<div class="notice bad">' + esc(e.message) + '</div>'; });
@@ -720,7 +742,6 @@
   function refreshWindow() {
     if (surface === 'terminal') { return Promise.resolve(); }
     return call('netfinalWindow', { examId: EXAM_ID, window: surface }).then(function (r) {
-      setRemaining(r.remainingMs);
       el('winbody').innerHTML = renderWindow(surface, r.view);
     });
   }
@@ -781,7 +802,6 @@
     write(el('prompt').textContent + line);
     el('cmd').value = '';
     call('netfinalCommand', { examId: EXAM_ID, line: line }).then(function (r) {
-      setRemaining(r.remainingMs);
       write(r.out);
       if (r.prompt) { el('prompt').textContent = r.prompt; }
       telemetry('command', line);
@@ -923,7 +943,6 @@
     questions = r.questions || [];
     answers = r.answers || {};
     tickets = (r.initialState && r.initialState.tickets) || [];
-    setRemaining(r.remainingMs);
 
     /* The server tells the page what exam mode means; the page does not decide. If this ever
        disagrees with the flags, the server is right. */

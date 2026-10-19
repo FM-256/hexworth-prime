@@ -420,7 +420,8 @@ section('6. spec section 9 lockdown, as the page delivers it');
         'signed-out must not read as a server failure');
 
     chk('the clock is display-only and the server value is authoritative',
-        /remainingMs/.test(page) && /setRemaining\(r\.remainingMs\)/.test(page));
+        /remainingMs/.test(page) && /setRemaining\(out\.remainingMs\)/.test(page),
+        'the clock is applied centrally in call(), not per handler');
     chk('the exam id the page sends is one the server allows',
         (() => {
             const m = page.match(/EXAM_ID = '([^']+)'/);
@@ -968,9 +969,45 @@ section('14. the answer-save path is ordered and bounded');
     chk('the guard runs BEFORE the stored answer is updated',
         guard >= 0 && guard < saveBody.indexOf('answers[id] = value'),
         'applying then checking is not a guard');
-    chk('and BEFORE the clock is set from the response',
-        guard >= 0 && guard < saveBody.indexOf('setRemaining'),
-        'a stale remainingMs is LARGER, so applying it adds time back');
+    /* THE CLOCK MOVED UP A LEVEL, and the assertion has to move with it. `remaining` is a single
+     * global, so a per-question counter cannot order it: two saves for DIFFERENT questions are each
+     * the newest for their own question, both pass this guard, and whichever response lands last
+     * sets the clock even when it was issued first. An earlier request carries a LARGER remainingMs,
+     * so the displayed clock ticked UP. Nancy reproduced that on 7 of 22 runs; I reproduced it on
+     * 4 of 12. It is now applied once, in `call`, under a global request counter. */
+    const callBody = (() => {
+        const i = page.indexOf('function call(name, data)');
+        if (i < 0) { return ''; }
+        let d = 0, seen = false;
+        for (let j = i; j < page.length; j++) {
+            if (page[j] === '{') { d++; seen = true; }
+            else if (page[j] === '}') { d--; if (seen && d === 0) { return page.slice(i, j + 1); } }
+        }
+        return '';
+    })();
+    chk('the call wrapper was located', callBody.length > 150, 'len=' + callBody.length);
+    chk('EXACTLY ONE place writes the clock from a response',
+        (page.match(/setRemaining\((?:out|r)\.remainingMs\)/g) || []).length === 1
+        && /setRemaining\(out\.remainingMs\)/.test(callBody),
+        'found ' + (page.match(/setRemaining\((?:out|r)\.remainingMs\)/g) || []).length
+        + ' writers; five handlers each writing one global is how it got out of order');
+    chk('that writer is guarded by a GLOBAL request counter, not a per-question one',
+        /seq >= clockSeq/.test(callBody) && /var seq = \+\+reqSeq/.test(callBody),
+        callBody.replace(/\s+/g, ' ').slice(0, 200));
+    chk('the guard is checked BEFORE the clock is applied',
+        callBody.indexOf('seq >= clockSeq') < callBody.indexOf('setRemaining'),
+        'applying then checking is not a guard');
+    /* AGAINST THE INVOCATION, not the availability check. `callFunction` appears first in the
+     * `typeof FirebaseAuth.callFunction !== 'function'` guard at the top of the wrapper, so matching
+     * the bare name compared the counter's position against the wrong occurrence and failed on
+     * correct code. Fourth time in this feature that a check of mine aimed at too wide a surface. */
+    chk('and the counter is advanced per REQUEST, before the call is made',
+        callBody.indexOf('++reqSeq') > 0
+        && callBody.indexOf('++reqSeq') < callBody.indexOf('FirebaseAuth.callFunction(name'),
+        'advancing it when the response lands would record ARRIVAL order, which is the bug');
+    chk('no handler sets the clock from its own response any more',
+        !/\.then\(function \(r\) \{\s*setRemaining/.test(page),
+        'a second writer reopens the whole class');
     chk('the counter increments per save, not per question once',
         /saveSeq\[id\] = \(saveSeq\[id\] \|\| 0\) \+ 1/.test(saveBody),
         'a counter that does not advance cannot order anything');
@@ -979,9 +1016,16 @@ section('14. the answer-save path is ordered and bounded');
     chk('a lost revision race is retried rather than dropped',
         /lostRace/.test(saveBody) && /saveAnswer\(id, value, attempt \+ 1\)/.test(saveBody),
         'the server calls aborted the code the client should retry on, and the page did not');
-    chk('both transport spellings of the code are matched',
-        /aborted/.test(saveBody) && /session changed while this request/i.test(saveBody),
-        'the SDK reports functions/aborted; a direct bridge reports aborted');
+    /* SCOPED TO THE STATEMENT, because the comment above it quotes BOTH strings verbatim. Nancy
+     * deleted each half of the condition in turn against a scratch copy and this reported ok both
+     * times: it was matching the prose that explains the code, not the code. That is the third time
+     * in this feature a check of mine searched too wide a surface, and the second time it reappeared
+     * in the very section written to replace the last one. */
+    const lostRaceStmt = (saveBody.match(/var lostRace =[\s\S]*?;/) || [''])[0];
+    chk('the lostRace statement was located', lostRaceStmt.length > 40, JSON.stringify(lostRaceStmt));
+    chk('both transport spellings are matched IN THE STATEMENT, not in its comment',
+        /aborted/.test(lostRaceStmt) && /session changed while this request/i.test(lostRaceStmt),
+        'the SDK reports functions/aborted, a direct bridge reports aborted: ' + lostRaceStmt);
     /* THE EDGE THAT LOSES AN ANSWER: re-sending a superseded value writes the stale half back over
      * the complete pair ON THE SERVER. Worse than the bug the retry fixes. */
     chk('a SUPERSEDED save is never retried',

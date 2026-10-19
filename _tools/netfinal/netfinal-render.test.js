@@ -123,6 +123,7 @@ const requested = [];
    late, which is how two saves for one question are made to resolve out of order on purpose. Real
    networks do this, and no amount of reading the code proves what the page then shows. */
 let holdAnswer = 0;
+let holdAnswerMs = 900;        /* how long a held answer RESPONSE is kept back */
 const answerAttempts = {};     /* questionId -> how many netfinalAnswer requests arrived for it */
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -174,7 +175,7 @@ const srv = http.createServer(async (q, r) => {
                    arrival order and only the RESPONSE is late. Delaying the dispatch would reorder
                    the WRITES too, which is a different bug and not the one under test. */
                 const out = await dispatch(name, data);
-                if (name === 'netfinalAnswer' && holdAnswer > 0) { holdAnswer--; await delay(900); }
+                if (name === 'netfinalAnswer' && holdAnswer > 0) { holdAnswer--; await delay(holdAnswerMs); }
                 r.writeHead(200, { 'Content-Type': 'application/json' });
                 r.end(JSON.stringify(out === undefined ? null : out));
             } catch (e) {
@@ -575,6 +576,59 @@ async function main() {
                superseded save was not re-sent, is what this browser can honestly prove. */
             chk('conflicts really were forced in this run, so the retry path was exercised',
                 conflicts >= 2, 'conflicts=' + conflicts);
+        }
+
+        /* ─── 5e. THE CLOCK, ACROSS TWO DIFFERENT QUESTIONS, DETERMINISTICALLY ───────────────── */
+        /* THIS is the shape of the defect Nancy found, and 5b does not cover it. 5b reorders two
+           saves for the SAME question, where the per-question counter already discards the loser.
+           The clock is a single GLOBAL: two saves for DIFFERENT questions are each the newest for
+           their own question, so both pass that guard, and whichever response lands last used to set
+           the clock even when it was issued first. An earlier request carries a LARGER remainingMs,
+           so the displayed clock ticked UP and handed the student time back.
+
+           5b's version of this check is PROBABILISTIC: it reorders by ~60ms, and remainingMs has
+           one-second granularity, so the two values often round to the same second. Measured: it
+           catches a reverted guard on about half of runs. This section makes the gap 1.5 seconds,
+           which is larger than the granularity, so the jump either happens or it does not. */
+        section('5e. a late response cannot move the clock backwards across questions');
+        {
+            const qa = qs.filter((q) => q.kind === 'text')[2];
+            const qb = qs.filter((q) => q.kind === 'text')[3];
+            chk('two further text questions exist to race against each other', !!qa && !!qb);
+            if (qa && qb) {
+                await pg.click('[data-surface="terminal"]');
+                holdAnswer = 1; holdAnswerMs = 2600;   // A's RESPONSE is kept back
+                await pg.type('[data-q="' + qa.id + '"]', '10.1.1.1');
+                await pg.$eval('[data-q="' + qa.id + '"]', (el) => el.blur());   // A issued now
+                await delay(1500);                     // the clock really does advance here
+                await pg.type('[data-q="' + qb.id + '"]', '10.2.2.2');
+                await pg.$eval('[data-q="' + qb.id + '"]', (el) => el.blur());   // B issued 1.5s later
+                await delay(300);
+
+                /* Sample across the window in which A's stale response lands. */
+                const samples = [];
+                for (let i = 0; i < 16; i++) {
+                    samples.push(await pg.$eval('#clock', (el) => el.textContent));
+                    await delay(120);
+                }
+                const toS = (t) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? (+m[1]) * 60 + (+m[2]) : -1; };
+                const vals = samples.map(toS);
+                chk('the clock was readable throughout', vals.every((v) => v > 0), JSON.stringify(samples));
+                chk('the gap between the two requests exceeded the clock granularity',
+                    holdAnswerMs >= 2000, 'holdAnswerMs=' + holdAnswerMs);
+                chk('the clock never ran BACKWARDS when the older response landed',
+                    vals.every((v, i) => i === 0 || v <= vals[i - 1]),
+                    JSON.stringify(samples) + ' -- an earlier request carries a LARGER remainingMs');
+                chk('the hold was consumed, so the reorder really happened',
+                    holdAnswer === 0, 'holdAnswer=' + holdAnswer);
+                const stE = await store.get(sid);
+                chk('and both are stored',
+                    ((stE.state.answers || {})[qa.id] || {}).value === '10.1.1.1'
+                    && ((stE.state.answers || {})[qb.id] || {}).value === '10.2.2.2',
+                    JSON.stringify([((stE.state.answers || {})[qa.id] || {}).value,
+                                    ((stE.state.answers || {})[qb.id] || {}).value]));
+                holdAnswerMs = 900;
+            }
         }
 
         /* ─── 6. the review lists all fifty, and the submit warning is real ──────────────────── */
