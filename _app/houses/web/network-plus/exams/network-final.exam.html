@@ -618,7 +618,30 @@
   });
 
   /* ── start, or resume ──────────────────────────────────────────────────────────────────────── */
-  call('netfinalStart', { examId: EXAM_ID }).then(function (r) {
+  /* WAIT FOR AUTH BEFORE ASKING THE SERVER FOR ANYTHING.
+     This called netfinalStart synchronously as the script ran. FirebaseAuth had not resolved its
+     auth state yet, so `call()` found callFunction undefined, rejected locally, and the request
+     NEVER REACHED THE SERVER -- the function logs showed window and command calls (which fire on a
+     tab click and a typed line, long after auth settles) and no start at all. The student saw
+     "Cloud Functions unavailable - the exam cannot run offline", a true statement about the wrong
+     thing, and then "No such exam session" on everything they touched afterwards.
+
+     No other exam page in this repo hits this: they call a callable from a SUBMIT handler, by which
+     time auth has resolved for free. This is the only page that calls one on LOAD, so it is the
+     only one that had to wait on purpose. Copying their shape would have reproduced the bug; what
+     transfers is the requirement, not the code. */
+  (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function'
+    ? FirebaseAuth.waitForAuth()
+    : Promise.reject(new Error('Sign-in is unavailable, so the exam cannot start.'))
+  ).then(function (user) {
+    if (!user) {
+      /* Signed out is a DIFFERENT failure from a broken backend and must not read like one. */
+      el('gatemsg').innerHTML = '<span class="bad">Sign in to sit this exam, then reload this page.</span>';
+      return null;
+    }
+    return call('netfinalStart', { examId: EXAM_ID });
+  }).then(function (r) {
+    if (!r) { return; }
     session = r;
     questions = r.questions || [];
     answers = r.answers || {};

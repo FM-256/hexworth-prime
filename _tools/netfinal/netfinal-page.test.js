@@ -376,6 +376,31 @@ section('6. spec section 9 lockdown, as the page delivers it');
         const srcs = (page.match(/<script[^>]+src="([^"]+)"/g) || []).map(m => m.replace(/.*src="|"/g, ''));
         return srcs.length === 3 && srcs.every(x => /components\/(AccessGuard|FirebaseAuth|ObservatoryTelemetry)\.js$/.test(x));
     })(), JSON.stringify((page.match(/<script[^>]+src="([^"]+)"/g) || [])));
+    /* ★ THE EXAM DID NOT START IN PRODUCTION, and this is the assertion that would have caught it.
+     * `call('netfinalStart')` ran synchronously as the script executed, before FirebaseAuth had
+     * resolved its auth state -- so `call()` found callFunction undefined, rejected locally, and the
+     * request never reached the server. The function logs showed netfinalWindow and netfinalCommand
+     * calls (tab click, typed line -- both long after auth settles) and NO netfinalStart at all.
+     * The student saw "Cloud Functions unavailable", then "No such exam session" on everything.
+     *
+     * Every other exam page calls its callable from a submit handler, where auth has resolved for
+     * free. This is the only page that calls one on LOAD, which is why it is the only one that had
+     * to wait deliberately -- and why no existing page's shape would have shown me the requirement.
+     *
+     * None of the 1358 assertions caught this, because none of them load the page in a browser.
+     * That is the limit of static analysis, and this is the narrowest check that closes THIS hole:
+     * the start call must be downstream of a resolved auth state. */
+    chk('the exam start waits for auth to resolve before calling the server',
+        /FirebaseAuth\.waitForAuth\(\)/.test(page)
+        && /return call\('netfinalStart'/.test(page),
+        'netfinalStart must be inside the waitForAuth chain, not at top level');
+    chk('and the start call is NOT made unconditionally at script level',
+        !/^\s*call\('netfinalStart'/m.test(page),
+        'a bare top-level netfinalStart call is the bug');
+    chk('a signed-out visitor is told to sign in, not that the backend is broken',
+        /Sign in to sit this exam/.test(page),
+        'signed-out must not read as a server failure');
+
     chk('the clock is display-only and the server value is authoritative',
         /remainingMs/.test(page) && /setRemaining\(r\.remainingMs\)/.test(page));
     chk('the exam id the page sends is one the server allows',
