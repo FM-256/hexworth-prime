@@ -582,7 +582,10 @@ section('6. the response envelope, which is the surface the student is actually 
 
 /* role 'student'    -> the value reaches the browser; its envelope MUST be clean.
  * role 'instructor' -> deliberately carries identifying data; graded by a human, never shipped.
- * role 'internal'   -> a scalar or a test harness, with no object to disclose. */
+ * role 'internal'   -> a scalar or a test harness, with no object to disclose.
+ * role 'staff'      -> returned only to a caller the callable has already checked is staff, AND
+ *                      scanned below anyway: a restart reply that carried the lab would hand an
+ *                      instructor's browser the key to a sitting the student is about to retake. */
 const EXAM_SURFACE = {
     startExam: 'student', runCommand: 'student', renderWindow: 'student', runAction: 'student',
     restoreDevice: 'student', saveAnswer: 'student', submitExam: 'student',
@@ -593,7 +596,11 @@ const EXAM_SURFACE = {
      * is the whole reason the ledger is derived rather than listed. */
     savedAnswers: 'student',
     telemetry: 'instructor',
-    memoryStore: 'internal', remainingMs: 'internal', DEFAULT_MINUTES: 'internal'
+    memoryStore: 'internal', remainingMs: 'internal', DEFAULT_MINUTES: 'internal',
+    /* The staff restart. Its reply is what the archive was, never what was in it. */
+    resetSession: 'staff',
+    /* Predicates over a token and over two store documents: booleans, nothing to disclose. */
+    isStaff: 'internal', sameSitting: 'internal'
 };
 
 (async function () {
@@ -704,6 +711,16 @@ const EXAM_SURFACE = {
     chk('and the UNTRIMMED report does disclose, which is why it is trimmed',
         CL.findDisclosures(sub.report, 'rawReport').length > 0,
         'the raw grading report scanned clean -- check the detector, not the report');
+
+    /* The restart reply, scanned on the SUBMITTED session above, which is the one carrying a full
+     * report: if resetSession ever echoed the archived document, this is where the key would show. */
+    const reset = await EX.resetSession(store, { sessionId: sid, resetBy: 'leak-staff' }, opts);
+    chk('the resetSession envelope discloses nothing',
+        CL.findDisclosures(reset, 'resetSession').length === 0,
+        JSON.stringify(CL.findDisclosures(reset, 'resetSession').slice(0, 3)));
+    chk('and it is the restart of a GRADED sitting, so the check above had a report to leak',
+        reset.reset === true && reset.wasSubmitted === true && typeof reset.previousTotal === 'number',
+        JSON.stringify(reset));
 
     console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
     process.exit(fail ? 1 : 0);

@@ -111,6 +111,9 @@
   .footer { padding: 14px; display: flex; gap: 10px; align-items: center; }
   .footer button { background: var(--accent); color: #04232a; border: 0; border-radius: 7px; padding: 9px 16px; font-weight: 600; cursor: pointer; }
   .footer button.ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  /* `.footer` sets display:flex, which beats the [hidden] attribute's UA display:none, so the staff
+     Restart box painted for STUDENTS while its `hidden` was true. The render suite caught it. */
+  #restartbox[hidden] { display: none; }
   #report { padding: 14px; }
   #report .big { font-size: 2rem; font-weight: 700; }
 </style>
@@ -169,6 +172,11 @@
 <div class="panel" id="done" hidden style="margin:40px auto; max-width:620px">
   <h2>Submitted</h2>
   <div id="report"></div>
+  <!-- STAFF ONLY. Shown when netfinalStart reports canReset; the server re-checks on the call. -->
+  <div class="footer" id="restartbox" hidden style="margin-top:16px">
+    <button type="button" class="ghost" id="restart">Restart this sitting (staff)</button>
+    <div class="notice" id="restartmsg" hidden></div>
+  </div>
 </div>
 
 <script>
@@ -759,6 +767,17 @@
 
   function fatal(e) {
     var msg = (e && e.message) ? e.message : String(e);
+    /* The sitting is gone from under an open page: staff restarted it, from another browser. Every
+       call would answer "No such exam session." until the student reloaded, which reads as a broken
+       exam, so say what happened and what to do, and stop the clock asking for a submit. */
+    /* Matched by the server's own words: the SDK may spell the code `functions/not-found`, and the
+       message is what the engine actually throws for a missing sitting. */
+    if (/No such exam session/i.test(msg)) {
+      if (tick) { clearInterval(tick); tick = null; }
+      el('status').innerHTML = '<span class="bad">This sitting was restarted by your instructor. '
+        + 'Reload the page to continue with a fresh attempt.</span>';
+      return;
+    }
     el('status').innerHTML = '<span class="bad">' + esc(msg) + '</span>';
     if (/Time expired|submitted/i.test(msg)) { finish(null, msg); }
   }
@@ -767,6 +786,9 @@
     if (tick) { clearInterval(tick); tick = null; }
     el('layout').hidden = true;
     el('done').hidden = false;
+    /* Staff see a Restart control here. The flag comes from the server's start reply and is a
+       display hint only: netfinalReset refuses anyone who is not staff. */
+    el('restartbox').hidden = !(session && session.canReset === true);
     if (!report) {
       el('report').innerHTML = '<div class="notice">' + esc(msg || 'Your exam has been submitted.') + '</div>';
       return;
@@ -912,6 +934,25 @@
       telemetry('submit', '');
       finish(r.report, null);
     }).catch(function (e) { el('submit').disabled = false; fatal(e); });
+  });
+
+  /* ── staff restart ─────────────────────────────────────────────────────────────────────────── */
+  /* Archives this sitting on the server and reloads, so the next start builds the same lab fresh.
+     The old attempt is kept in the archive, never deleted. */
+  el('restart').addEventListener('click', function () {
+    if (!window.confirm('Restart this sitting?\n\nThe current attempt is archived, not deleted. '
+        + 'The lab comes back the same, with a fresh clock and no answers.')) { return; }
+    el('restart').disabled = true;
+    call('netfinalReset', { examId: EXAM_ID, reason: 'staff restart from the exam page' })
+      .then(function () {
+        telemetry('reset', '');
+        window.location.reload();
+      })
+      .catch(function (e) {
+        el('restart').disabled = false;
+        el('restartmsg').hidden = false;
+        el('restartmsg').innerHTML = '<span class="bad">' + esc(e && e.message ? e.message : String(e)) + '</span>';
+      });
   });
 
   /* ── start, or resume ──────────────────────────────────────────────────────────────────────── */

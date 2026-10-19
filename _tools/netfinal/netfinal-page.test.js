@@ -69,7 +69,8 @@ section('1. the page reaches every callable, and names none that does not exist'
         .map(x => x.replace("call('", '').replace("'", ''))
         .filter((v, i, a) => a.indexOf(v) === i).sort();
 
-    chk('the server exposes the seven exam callables', exported.length === 7, JSON.stringify(exported));
+    /* Eight since 2026-10-19: netfinalReset, the staff restart, reached from the Submitted panel. */
+    chk('the server exposes the eight exam callables', exported.length === 8, JSON.stringify(exported));
     const unreached = exported.filter(e => called.indexOf(e) < 0);
     /* THE ONE THAT WAS BROKEN. netfinalAction and netfinalRestore were exported, tested, and never
      * called by the page -- so every GUI action and the only recovery path were dead. */

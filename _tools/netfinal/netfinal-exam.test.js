@@ -941,6 +941,181 @@ section('a refusal names where, never what');
     })());
 }
 
+section('the compare-and-set names its own rules, so a mutation fails an assertion, not just a crash');
+{
+    /* Nancy: dropping the existence check was caught only because sameSitting then threw on a null
+     * document. A crash exits non-zero, but nothing said WHICH rule broke. Asked by name, and a throw
+     * is scored as a failure of that rule rather than a harness fault. */
+    const safe = (f) => { try { return f(); } catch (e) { return 'threw: ' + e.message; } };
+    chk('no stored document: refused', safe(() => EX.sameSitting(null, { startedAt: 1, rev: 1 }, 0)) === false);
+    chk('same sitting, same revision: allowed',
+        safe(() => EX.sameSitting({ startedAt: 5, rev: 2 }, { startedAt: 5, rev: 3 }, 2)) === true);
+    chk('same sitting, moved revision: refused',
+        safe(() => EX.sameSitting({ startedAt: 5, rev: 3 }, { startedAt: 5 }, 2)) === false);
+    chk('same revision, DIFFERENT sitting: refused',
+        safe(() => EX.sameSitting({ startedAt: 6, rev: 0 }, { startedAt: 5 }, 0)) === false);
+}
+
+/* ─── STAFF RESTART ───────────────────────────────────────────────────────────────────────────────
+ * The operator, 2026-10-19: "we need to be able to restart the exam". One attempt with no restart
+ * path meant a broken sitting, a proctoring incident or an instructor's own test run was permanent.
+ * Decisions: admins + instructors may restart; students may not; the SAME lab comes back. */
+section('a staff restart archives the sitting and the same lab comes back fresh');
+{
+    const r = rig();
+    const sid = 'stu-r::' + EXAM;
+    const first = await EX.startExam(r.store, { studentId: 'stu-r', examId: EXAM, minutes: 100 }, r.opts);
+    await EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts);
+    const qid = first.questions.find((q) => q.kind !== 'state' && q.kind !== 'sequence').id;
+    await EX.saveAnswer(r.store, { sessionId: sid, questionId: qid, value: 'something' }, r.opts);
+    r.advance(30 * 60000);
+    const sub = await EX.submitExam(r.store, { sessionId: sid }, r.opts);
+    const before = await r.store.get(sid);
+
+    r.advance(1000);
+    const res = await EX.resetSession(r.store, { sessionId: sid, resetBy: 'staff-1', reason: 'test' }, r.opts);
+    chk('the restart reports what it archived', res.reset === true && res.wasSubmitted === true
+        && res.previousTotal === sub.report.total, JSON.stringify(res));
+    chk('the live sitting is gone', (await r.store.get(sid)) === null);
+    const arch = r.store.archived()[res.archiveId];
+    chk('and the WHOLE attempt is in the archive: lab, answers, event log and report',
+        !!arch && JSON.stringify(arch.state) === JSON.stringify(before.state)
+        && JSON.stringify(arch.report) === JSON.stringify(before.report)
+        && arch.submittedAt === before.submittedAt,
+        arch ? Object.keys(arch).join(',') : 'no archive entry');
+    chk('stamped with who restarted it, when, why, and from where',
+        !!arch && arch.resetBy === 'staff-1' && arch.reason === 'test'
+        && arch.resetAt === r.at() && arch.originalId === sid);
+
+    const again = await EX.startExam(r.store, { studentId: 'stu-r', examId: EXAM, minutes: 100 }, r.opts);
+    chk('the next start is a FRESH sitting, not a resume of the archived one',
+        again.resumed === false && again.submitted === false);
+    chk('with the SAME lab: identical faults, so the instructor key still applies',
+        JSON.stringify(((await r.store.get(sid)).state.faults || []).map((f) => [f.id, f.target]))
+            === JSON.stringify((before.state.faults || []).map((f) => [f.id, f.target])));
+    chk('a full clock, not the 30 minutes the first attempt had used',
+        EX.remainingMs(await r.store.get(sid), r.opts) === 100 * 60000);
+    chk('no answers carried over', Object.keys(again.answers || {}).length === 0,
+        JSON.stringify(again.answers));
+    chk('and the student can work in it: a command runs rather than "has been submitted"',
+        (await caught(EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts))) === null);
+
+    const none = await caught(EX.resetSession(r.store, { sessionId: 'nobody::' + EXAM, resetBy: 's' }, r.opts));
+    chk('restarting a sitting that does not exist is not-found, and archives nothing',
+        none && none.code === 'not-found'
+        && Object.keys(r.store.archived()).length === 1);
+    const anon = await caught(EX.resetSession(r.store, { sessionId: sid }, r.opts));
+    chk('a restart with no resetBy is refused: the archive must say who did it',
+        anon && anon.code === 'invalid-argument');
+    chk('and the refused restart left the live sitting in place', (await r.store.get(sid)) !== null);
+}
+
+section('a request in flight across a restart cannot write the old sitting back');
+{
+    /* The two races sameSitting exists for, forced by calling putIfRev with what an in-flight
+     * request would hold: the session it read BEFORE the restart, at the revision it read. */
+    const r = rig();
+    const sid = 'stu-f::' + EXAM;
+    await EX.startExam(r.store, { studentId: 'stu-f', examId: EXAM, minutes: 100 }, r.opts);
+    const stale = await r.store.get(sid);
+    await EX.resetSession(r.store, { sessionId: sid, resetBy: 'staff' }, r.opts);
+    chk('race 1: a write against an ARCHIVED sitting is refused, not resurrected',
+        (await r.store.putIfRev(sid, Object.assign({}, stale, { rev: 1 }), stale.rev)) === false
+        && (await r.store.get(sid)) === null);
+
+    r.advance(5);
+    await EX.startExam(r.store, { studentId: 'stu-f', examId: EXAM, minutes: 100 }, r.opts);
+    const fresh = await r.store.get(sid);
+    chk('the stale request and the new sitting are BOTH at revision 0, so rev alone cannot tell them apart',
+        Number(stale.rev) === 0 && Number(fresh.rev) === 0);
+    const staleSubmit = Object.assign({}, stale, { rev: 1, submittedAt: r.at(), report: { total: 0 } });
+    chk('race 2: an old Submit cannot land on the NEW sitting at the same revision',
+        (await r.store.putIfRev(sid, staleSubmit, 0)) === false
+        && (await r.store.get(sid)).submittedAt === null);
+    chk('while a write from the new sitting itself still lands',
+        (await r.store.putIfRev(sid, Object.assign({}, fresh, { rev: 1 }), 0)) === true);
+    /* And through the real entry point: a command against the new sitting works end to end. */
+    chk('and an ordinary command on the new sitting is unaffected',
+        (await caught(EX.runCommand(r.store, { sessionId: sid, line: 'ipconfig' }, r.opts))) === null);
+}
+
+section('two starts at once: the first sitting is kept and the second resumes it');
+{
+    /* Mallory's Low-1. Both starts read "nothing stored" before either writes. A blind put let the
+     * second overwrite the first: a new clock, and anything already written to the first dropped. */
+    const r = rig();
+    const sid = 'stu-race::' + EXAM;
+    const raw = r.store;
+    let gate = null;
+    const held = new Promise((res) => { gate = res; });
+    let reads = 0, creates = 0, created = 0, puts = 0;
+    const racing = Object.assign({}, raw, {
+        /* Both callers' first get waits until both have issued it, so both see null. */
+        get: async (k) => { const v = await raw.get(k); if (++reads <= 2) { if (reads === 2) { gate(); } await held; } return v; },
+        create: async (k, v) => { creates++; const ok = await raw.create(k, v); if (ok) { created++; } return ok; },
+        put: async (k, v) => { puts++; return raw.put(k, v); },
+        putIfRev: raw.putIfRev
+    });
+    const a = EX.startExam(racing, { studentId: 'stu-race', examId: EXAM, minutes: 100 }, r.opts);
+    r.advance(800);
+    const b = EX.startExam(racing, { studentId: 'stu-race', examId: EXAM, minutes: 100 }, r.opts);
+    const [ra, rb] = await Promise.all([a, b]);
+    chk('exactly one of the two built the sitting; the other resumed it',
+        [ra.resumed, rb.resumed].sort().join() === 'false,true', JSON.stringify([ra.resumed, rb.resumed]));
+    /* Both racers read one shared test clock after the gate opens, so their startedAt values are
+     * equal and cannot say which came first; what CAN be counted is how the store was written. */
+    chk('both tried to create, exactly one succeeded, and nothing was blindly overwritten',
+        creates === 2 && created === 1 && puts === 0,
+        'creates ' + creates + ', succeeded ' + created + ', puts ' + puts);
+    chk('the loser resumed the sitting that is actually stored',
+        !!(await raw.get(sid)) && ra.sessionId === sid && rb.sessionId === sid);
+    chk('and both callers were handed the same clock',
+        Math.abs(ra.remainingMs - rb.remainingMs) <= 1000, ra.remainingMs + ' vs ' + rb.remainingMs);
+}
+
+section('who may restart: admins and instructors, never students');
+{
+    const A = ['boss@example.com'];
+    chk('the admin claim may', EX.isStaff({ admin: true }, A) === true);
+    chk('the instructor (handler) claim may', EX.isStaff({ handler: true }, A) === true);
+    chk('an allowlisted admin email may, case-insensitively', EX.isStaff({ email: 'Boss@Example.com' }, A) === true);
+    chk('a student may not', EX.isStaff({ email: 'kid@example.com' }, A) === false);
+    chk('a truthy-but-not-true claim may not', EX.isStaff({ admin: 'true', handler: 1 }, A) === false);
+    chk('no token may not', EX.isStaff(null, A) === false && EX.isStaff(undefined, A) === false);
+    chk('an empty email cannot match an allowlist entry', EX.isStaff({ email: '' }, ['']) === false);
+}
+
+section('the restart is wired the way the engine assumes');
+{
+    const fs = require('fs');
+    const idx = fs.readFileSync(path.join(NF, '..', 'index.js'), 'utf8');
+    const start = idx.indexOf('exports.netfinalReset');
+    const body = start >= 0 ? idx.slice(start, idx.indexOf('\n});', start)) : '';
+    chk('netfinalReset exists', start >= 0);
+    /* Scoped to the statements, not the comments above them, which quote the same names. */
+    const staffAt = body.indexOf('if (!NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS))');
+    const resetAt = body.indexOf('await NETFINAL.resetSession(');
+    chk('it checks staff BEFORE it touches any session', staffAt > 0 && resetAt > staffAt,
+        'staff check at ' + staffAt + ', reset at ' + resetAt);
+    chk('and records the CALLER as resetBy, never a client-supplied value',
+        /resetBy:\s*request\.auth\.uid/.test(body) && !/resetBy:\s*data\./.test(body));
+    chk('the Firestore putIfRev uses the shared sameSitting condition',
+        /if \(!NETFINAL\.sameSitting\(snap\.exists \? snap\.data\(\) : null, s, expectedRev\)\)/.test(idx));
+    const arch = idx.slice(idx.indexOf('async archiveAndRemove('), idx.indexOf('async archiveAndRemove(') + 900);
+    chk('archive and remove happen inside ONE transaction, archive first',
+        /db\.runTransaction/.test(arch) && arch.indexOf('tx.set(archiveRef') > 0
+        && arch.indexOf('tx.delete(ref)') > arch.indexOf('tx.set(archiveRef'));
+    chk('netfinalStart tells the page whether to offer it',
+        /return \{ \.\.\.res, canReset: c\.staff \};/.test(idx));
+
+    const page = fs.readFileSync(path.resolve(__dirname,
+        '../../_app/houses/web/network-plus/exams/network-final.exam.html'), 'utf8');
+    chk('the page hides the control unless the server said canReset === true',
+        /<div class="footer" id="restartbox" hidden/.test(page)
+        && /el\('restartbox'\)\.hidden = !\(session && session\.canReset === true\);/.test(page));
+    chk('and the control calls netfinalReset for THIS exam', /call\('netfinalReset', \{ examId: EXAM_ID/.test(page));
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('harness fault:', e && e.stack ? e.stack : e); process.exit(2); });

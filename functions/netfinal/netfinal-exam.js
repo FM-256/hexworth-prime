@@ -59,6 +59,22 @@
     /* ── starting ────────────────────────────────────────────────────────────────────────────────
      * ONE ATTEMPT. A second start returns the SAME session rather than a fresh lab, which is also
      * what makes a refresh resume: the browser cannot tell the difference and does not need to. */
+    /* RESUME. Same lab, same clock, same answers. Nothing is regenerated, so a student who refreshes
+     * to reroll their faults gets the faults they already had. */
+    function resumeReply(sessionId, existing, opts) {
+        return {
+            sessionId: sessionId,
+            resumed: true,
+            submitted: !!existing.submittedAt,
+            initialState: CLIENT.toInitialState(existing.state),
+            questions: QUESTIONS.forStudent(existing.state),
+            /* Without this a refresh showed every field blank -- see savedAnswers. */
+            answers: savedAnswers(existing.state),
+            remainingMs: remainingMs(existing, opts),
+            examMode: examModeFlags()
+        };
+    }
+
     async function startExam(store, args, opts) {
         opts = opts || {};
         var studentId = String(args.studentId || '');
@@ -67,21 +83,7 @@
 
         var sessionId = studentId + '::' + examId;
         var existing = await store.get(sessionId);
-        if (existing) {
-            /* RESUME. Same lab, same clock, same answers. Nothing is regenerated, so a student who
-             * refreshes to reroll their faults gets the faults they already had. */
-            return {
-                sessionId: sessionId,
-                resumed: true,
-                submitted: !!existing.submittedAt,
-                initialState: CLIENT.toInitialState(existing.state),
-                questions: QUESTIONS.forStudent(existing.state),
-                /* Without this a refresh showed every field blank -- see savedAnswers. */
-                answers: savedAnswers(existing.state),
-                remainingMs: remainingMs(existing, opts),
-                examMode: examModeFlags()
-            };
-        }
+        if (existing) { return resumeReply(sessionId, existing, opts); }
 
         var secret = opts.secret || (typeof process !== 'undefined' && process.env && process.env.NETFINAL_SEED_SECRET) || null;
         if (!secret && !opts.allowDevSeed) {
@@ -112,7 +114,17 @@
             /* Optimistic-concurrency revision. See withSession for what it defends against. */
             rev: 0
         };
-        await store.put(sessionId, session);
+        /* CREATE-IF-ABSENT, NOT put. Two starts that both read "nothing here" -- two tabs opened at
+         * once, which a staff restart makes routine -- each built a sitting, and a blind put let the
+         * second overwrite the first, dropping any answer or command already written to it and
+         * restarting its clock. Mallory proved it and Nancy flagged it independently. Whoever creates
+         * first owns the sitting; the loser resumes it, exactly as a refresh would. */
+        var created = await store.create(sessionId, session);
+        if (!created) {
+            var winner = await store.get(sessionId);
+            if (!winner) { throw err('aborted', 'The exam session changed while starting. Retry.'); }
+            return resumeReply(sessionId, winner, opts);
+        }
         return {
             sessionId: sessionId, resumed: false, submitted: false,
             initialState: CLIENT.toInitialState(state),
@@ -381,6 +393,52 @@
         return { submitted: true, submittedAt: session.submittedAt, report: report };
     }
 
+    /* ── restart ─────────────────────────────────────────────────────────────────────────────────
+     * STAFF ONLY, and the caller decides who staff is: this function trusts its `resetBy` and does
+     * no authorisation of its own, so the callable must check before it gets here.
+     *
+     * ARCHIVED, NEVER DELETED. The sitting -- lab, answers, event log, report -- is copied to the
+     * archive and only then removed from the live path, in one store operation, so a failure leaves
+     * either the original or both and never neither. The attempt a student is being given a second
+     * go at is evidence an instructor may need, and a reset that destroyed it would make "why did
+     * this student get a retake" unanswerable.
+     *
+     * THE SAME LAB COMES BACK. The seed is secret|studentId|examId and none of those change, so the
+     * next start regenerates the identical faults, addresses and key -- the operator's decision, and
+     * it means the instructor key for this student is still the right key after a reset. What is new
+     * is the clock, the answers and the event log. */
+    /* WHO MAY RESTART A SITTING: platform admins (the `admin` claim, or an email on the admin
+     * allowlist -- the same two tests as requireAdmin in functions/index.js) and instructors (the
+     * `handler` claim, the role gradeEDTSubmission already trusts to mark student work). Students
+     * may not, because a self-service restart would make a one-attempt exam a many-attempt one.
+     * Pure over the decoded token so the rule is testable without firebase-functions. */
+    function isStaff(token, adminEmails) {
+        if (!token || typeof token !== 'object') { return false; }
+        if (token.admin === true || token.handler === true) { return true; }
+        var email = typeof token.email === 'string' ? token.email.toLowerCase() : '';
+        return !!email && Array.isArray(adminEmails) && adminEmails.indexOf(email) >= 0;
+    }
+
+    async function resetSession(store, args, opts) {
+        var sessionId = String(args.sessionId || '');
+        if (!sessionId) { throw err('invalid-argument', 'sessionId is required.'); }
+        var resetBy = String(args.resetBy || '');
+        if (!resetBy) { throw err('invalid-argument', 'resetBy is required.'); }
+        var resetAt = nowMs(opts);
+        var archiveId = sessionId + '__' + resetAt;
+        var archived = await store.archiveAndRemove(sessionId, archiveId, {
+            resetAt: resetAt, resetBy: resetBy,
+            reason: String(args.reason || '').slice(0, 500)
+        });
+        if (!archived) { throw err('not-found', 'No exam session to restart.'); }
+        return {
+            reset: true, archiveId: archiveId,
+            wasSubmitted: !!archived.submittedAt,
+            previousTotal: archived.report ? archived.report.total : null,
+            previousOutOf: archived.report ? archived.report.outOf : null
+        };
+    }
+
     /* The student's own view after submitting: their score, never the key. */
     function studentReport(report) {
         if (!report) { return null; }
@@ -410,9 +468,29 @@
         });
     }
 
+    /* THE COMPARE-AND-SET CONDITION, shared by both stores so they cannot disagree about it.
+     *
+     * A write lands only on the SAME SITTING it read, at the revision it read. Before restarts
+     * existed, "the stored rev equals the one I read, or there is nothing stored" was enough. A
+     * restart breaks both halves:
+     *   - nothing stored: a command in flight when the sitting is archived would write the OLD
+     *     session straight back to the live path, undoing the restart with a stale lab state;
+     *   - rev 0 again: a restart followed by a fresh start puts a new sitting at rev 0, and an old
+     *     request that read rev 0 would match it and overwrite the new sitting -- an old Submit
+     *     would mark the retake submitted before the student touched it.
+     * So the stored document must EXIST and must be the same sitting, identified by `startedAt`,
+     * which is set once at creation and never rewritten. putIfRev is only ever reached after a read
+     * of an existing session, so requiring existence refuses nothing legitimate. */
+    function sameSitting(stored, incoming, expectedRev) {
+        return !!stored
+            && Number(stored.rev || 0) === Number(expectedRev)
+            && Number(stored.startedAt) === Number(incoming && incoming.startedAt);
+    }
+
     /* An in-memory store, used by the tests and by nothing else. */
     function memoryStore() {
         var m = {};
+        var archive = {};
         /* COPIES, NOT REFERENCES, because the Firestore store cannot hand back a reference: it
          * serializes to JSON on write and parses on read. Storing the live object here made the test
          * store behave in a way production never does -- and it was not a harmless difference. The
@@ -423,16 +501,32 @@
         return {
             get: async function (k) { return m[k] ? copy(m[k]) : null; },
             put: async function (k, v) { m[k] = copy(v); return true; },
+            /* Write only if nothing is stored. Returns false, never throws, when something is. */
+            create: async function (k, v) {
+                if (m[k]) { return false; }
+                m[k] = copy(v);
+                return true;
+            },
             /* The same contract the Firestore store implements with a transaction: write only if the
              * stored revision is still the one the caller read. Returns false on a mismatch rather
              * than throwing, so the caller owns the error type. */
             putIfRev: async function (k, v, expectedRev) {
                 var cur = m[k];
-                if (cur && Number(cur.rev || 0) !== Number(expectedRev)) { return false; }
+                if (!sameSitting(cur, v, expectedRev)) { return false; }
                 m[k] = copy(v);
                 return true;
             },
-            all: function () { return m; }
+            /* Archive, then remove, as one step. Returns the archived session, or null if there was
+             * nothing to archive. */
+            archiveAndRemove: async function (k, archiveId, meta) {
+                var cur = m[k];
+                if (!cur) { return null; }
+                archive[archiveId] = Object.assign(copy(cur), copy(meta), { originalId: k });
+                delete m[k];
+                return copy(cur);
+            },
+            all: function () { return m; },
+            archived: function () { return archive; }
         };
     }
 
@@ -440,6 +534,7 @@
         startExam: startExam, runCommand: runCommand, renderWindow: renderWindow,
         runAction: runAction, restoreDevice: restoreDevice, saveAnswer: saveAnswer,
         submitExam: submitExam, studentReport: studentReport, telemetry: telemetry,
+        resetSession: resetSession, sameSitting: sameSitting, isStaff: isStaff,
         examModeFlags: examModeFlags, memoryStore: memoryStore,
         savedAnswers: savedAnswers,
         remainingMs: remainingMs, DEFAULT_MINUTES: DEFAULT_MINUTES

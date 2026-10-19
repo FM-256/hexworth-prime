@@ -108,14 +108,20 @@ let conflicts = 0;
 const store = {
     get: (k) => rawStore.get(k),
     put: (k, v) => rawStore.put(k, v),
+    create: (k, v) => rawStore.create(k, v),
     putIfRev: async (k, v, rev) => {
         if (stallPut > 0) { stallPut--; await delay(700); }
         const ok = await rawStore.putIfRev(k, v, rev);
         if (!ok) { conflicts++; }
         return ok;
     },
-    all: () => rawStore.all()
+    all: () => rawStore.all(),
+    archiveAndRemove: (k, a, m) => rawStore.archiveAndRemove(k, a, m)
 };
+/* Whether the bridge's caller is staff. functions/index.js derives this from the ID token
+   (NETFINAL.isStaff); here it is a switch, because the claim is not what this suite tests -- the
+   exam suite tests the rule, and this one tests what the page PAINTS for each answer. */
+let STAFF = false;
 const OPTS = { secret: 'render-test-secret' };
 const requested = [];
 
@@ -123,6 +129,7 @@ const requested = [];
    late, which is how two saves for one question are made to resolve out of order on purpose. Real
    networks do this, and no amount of reading the code proves what the page then shows. */
 let holdAnswer = 0;
+let resetCalls = 0;            /* how many netfinalReset requests reached the bridge */
 let holdAnswerMs = 900;        /* how long a held answer RESPONSE is kept back */
 const answerAttempts = {};     /* questionId -> how many netfinalAnswer requests arrived for it */
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -134,7 +141,8 @@ function dispatch(name, data) {
         case 'netfinalStart':
             if (!examId) { throw Object.assign(new Error('Unknown examId.'), { code: 'invalid-argument' }); }
             return NETFINAL.startExam(store,
-                { studentId: UID, examId: examId, minutes: EXAMS.durationMinutes(examId) }, OPTS);
+                { studentId: UID, examId: examId, minutes: EXAMS.durationMinutes(examId) }, OPTS)
+                .then((res) => ({ ...res, canReset: STAFF }));
         case 'netfinalCommand':
             return NETFINAL.runCommand(store, { sessionId: sessionId, line: data.line }, OPTS);
         case 'netfinalWindow':
@@ -153,6 +161,15 @@ function dispatch(name, data) {
                 submitted: !res.alreadySubmitted, alreadySubmitted: !!res.alreadySubmitted,
                 submittedAt: res.submittedAt, report: NETFINAL.studentReport(res.report)
             }));
+        case 'netfinalReset':
+            if (!STAFF) {
+                throw Object.assign(new Error('Only an instructor or admin can restart an exam.'),
+                    { code: 'permission-denied' });
+            }
+            if (!examId) { throw Object.assign(new Error('Unknown examId.'), { code: 'invalid-argument' }); }
+            resetCalls++;
+            return NETFINAL.resetSession(store, { sessionId: sessionId, resetBy: UID,
+                reason: typeof data.reason === 'string' ? data.reason : '' }, OPTS);
         default:
             throw Object.assign(new Error('No such callable: ' + name), { code: 'not-found' });
     }
@@ -249,7 +266,12 @@ async function main() {
     pg.on('console', (m) => { if (m.type() === 'error') { errors.push('console: ' + m.text()); } });
 
     const dialogs = [];
-    pg.on('dialog', async (d) => { dialogs.push({ type: d.type(), message: d.message() }); await d.dismiss(); });
+    /* Dismissed by default. Section 7 flips acceptDialogs to say yes to the restart confirmation. */
+    let acceptDialogs = false;
+    pg.on('dialog', async (d) => {
+        dialogs.push({ type: d.type(), message: d.message() });
+        if (acceptDialogs) { await d.accept(); } else { await d.dismiss(); }
+    });
 
     try {
         await pg.goto(`http://127.0.0.1:${PORT}${PAGE_URL}`, { waitUntil: 'networkidle0' });
@@ -700,6 +722,82 @@ async function main() {
         chk('the submit button is still enabled after a dismissal',
             await pg.$eval('#submit', (el) => el.disabled) === false,
             'a disabled button after cancelling would trap the student');
+
+        /* ─── 7. the staff restart, as each kind of caller sees it ─────────────────────────────── */
+        section('7. a submitted sitting: students see no restart, staff can restart it');
+        const SID = UID + '::' + EXAMS.DEFAULT_EXAM_ID;
+        await NETFINAL.submitExam(store, { sessionId: SID }, OPTS);
+        const box = () => pg.$eval('#restartbox', (el) => {
+            const r = el.getBoundingClientRect();
+            return { hidden: el.hidden, w: r.width, h: r.height,
+                     display: getComputedStyle(el).display, text: el.innerText };
+        });
+
+        STAFF = false;
+        await pg.reload({ waitUntil: 'networkidle0' });
+        await pg.waitForFunction(() => !document.getElementById('done').hidden, { timeout: 5000 }).catch(() => {});
+        chk('a STUDENT reloading a submitted exam lands on the Submitted panel',
+            await pg.$eval('#done', (el) => !el.hidden && el.getBoundingClientRect().height > 0));
+        const sb = await box();
+        chk('and is shown NO restart control: hidden, and painting nothing',
+            sb.hidden === true && sb.w === 0 && sb.h === 0, JSON.stringify(sb));
+
+        STAFF = true;
+        await pg.reload({ waitUntil: 'networkidle0' });
+        await pg.waitForFunction(() => !document.getElementById('done').hidden, { timeout: 5000 }).catch(() => {});
+        const tb = await box();
+        chk('STAFF on the same submitted sitting see the restart control, painted',
+            tb.hidden === false && tb.w > 0 && tb.h > 0 && tb.display !== 'none', JSON.stringify(tb));
+        chk('labelled as a staff action', /Restart this sitting \(staff\)/.test(tb.text), tb.text);
+
+        dialogs.length = 0; resetCalls = 0;
+        await pg.click('#restart');
+        await pg.waitForFunction('true', { timeout: 500 }).catch(() => {});
+        chk('the restart asks first, and says the attempt is archived rather than deleted',
+            dialogs.length === 1 && /archived, not deleted/.test(dialogs[0].message), JSON.stringify(dialogs));
+        chk('DISMISSING it sent nothing and left the sitting submitted',
+            resetCalls === 0 && !!(await store.get(SID)) && !!(await store.get(SID)).submittedAt);
+
+        acceptDialogs = true; dialogs.length = 0;
+        await Promise.all([
+            pg.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(() => {}),
+            pg.click('#restart')
+        ]);
+        acceptDialogs = false;
+        await pg.waitForFunction(() => !document.getElementById('layout').hidden, { timeout: 5000 }).catch(() => {});
+        chk('ACCEPTING it reached the server exactly once', resetCalls === 1, 'reset calls: ' + resetCalls);
+        chk('the old sitting is in the archive, with its report',
+            Object.values(rawStore.archived()).some((a) => a.originalId === SID && !!a.submittedAt && !!a.report));
+        const fresh = await store.get(SID);
+        chk('and the page reloaded into a FRESH, open sitting of the same exam',
+            !!fresh && !fresh.submittedAt
+            && await pg.$eval('#layout', (el) => !el.hidden && el.getBoundingClientRect().height > 0)
+            && await pg.$eval('#done', (el) => el.hidden));
+        /* A FULL clock, read off the screen. Minutes run to three digits on a 120-minute exam, which
+           an `\d\d:\d\d` pattern of mine failed on while the page was right. */
+        const clockNow = await pg.$eval('#clock', (el) => el.textContent.trim());
+        const cm = /^(\d+):(\d\d)$/.exec(clockNow);
+        const fullMin = EXAMS.durationMinutes(EXAMS.DEFAULT_EXAM_ID);
+        chk('with a FULL clock again, not the old attempt\'s',
+            !!cm && Number(cm[1]) >= fullMin - 1 && Number(cm[1]) <= fullMin,
+            'clock shows ' + JSON.stringify(clockNow) + ', expected about ' + fullMin + ':00');
+
+        /* ─── 7b. restarted from ANOTHER browser while this page is open ──────────────────────── */
+        section('7b. a sitting restarted elsewhere tells the open page what happened');
+        await NETFINAL.resetSession(store, { sessionId: SID, resetBy: 'other-browser-staff' }, OPTS);
+        await pg.click('[data-surface="terminal"]');
+        await pg.type('#cmd', 'ipconfig');
+        await pg.keyboard.press('Enter');
+        await pg.waitForFunction(() => /restarted/i.test(document.getElementById('status').textContent || ''),
+            { timeout: 5000 }).catch(() => {});
+        const st7 = await pg.$eval('#status', (el) => el.textContent || '');
+        chk('the student is told the sitting was restarted and to reload',
+            /restarted by your instructor/i.test(st7) && /Reload the page/i.test(st7), JSON.stringify(st7));
+        chk('rather than the raw "No such exam session."', !/No such exam session/i.test(st7));
+        const c1 = await pg.$eval('#clock', (el) => el.textContent);
+        await delay(2200);
+        chk('and the clock stopped, so it cannot fire a submit at a sitting that is gone',
+            (await pg.$eval('#clock', (el) => el.textContent)) === c1, c1);
 
         chk('no uncaught page error across the whole sitting', errors.length === 0,
             errors.slice(0, 3).join(' | '));
