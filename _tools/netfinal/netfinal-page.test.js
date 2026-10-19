@@ -376,7 +376,7 @@ section('6. spec section 9 lockdown, as the page delivers it');
         const srcs = (page.match(/<script[^>]+src="([^"]+)"/g) || []).map(m => m.replace(/.*src="|"/g, ''));
         return srcs.length === 3 && srcs.every(x => /components\/(AccessGuard|FirebaseAuth|ObservatoryTelemetry)\.js$/.test(x));
     })(), JSON.stringify((page.match(/<script[^>]+src="([^"]+)"/g) || [])));
-    /* ★ THE EXAM DID NOT START IN PRODUCTION, and this is the assertion that would have caught it.
+    /* THE EXAM DID NOT START IN PRODUCTION, and this is the assertion that would have caught it.
      * `call('netfinalStart')` ran synchronously as the script executed, before FirebaseAuth had
      * resolved its auth state -- so `call()` found callFunction undefined, rejected locally, and the
      * request never reached the server. The function logs showed netfinalWindow and netfinalCommand
@@ -408,7 +408,17 @@ section('6. spec section 9 lockdown, as the page delivers it');
             const m = page.match(/EXAM_ID = '([^']+)'/);
             return !!m && EXAMS.resolveExamId(m[1]) === m[1];
         })(), (page.match(/EXAM_ID = '([^']+)'/) || [])[1] + ' vs ' + JSON.stringify(EXAMS.EXAM_IDS));
-    chk('no emoji', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(page));
+    /* THIS CHECK SCANS THE PAGE, NOT ITSELF, and I learned that the embarrassing way: it caught a
+     * star glyph I had just put in the page's own comments, I removed that one, and I wrote in the
+     * commit message that my emoji assertion had caught it. It had. But I had put a SECOND star in
+     * THIS FILE in the same commit, which this check cannot see, and my message implied the file was
+     * clean. So the test file is checked too -- a rule the suite enforces on the product but exempts
+     * itself from is a rule with a hole the shape of the enforcer. */
+    chk('no emoji in the page', !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(page));
+    chk('and none in this suite either', (() => {
+        const self = require('fs').readFileSync(__filename, 'utf8');
+        return !/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(self);
+    })(), 'this file carries a glyph the page is forbidden from having');
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
