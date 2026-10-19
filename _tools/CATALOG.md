@@ -4,7 +4,7 @@
 > For WHY the big systems exist, read `_tools/TOOL_INVENTORY.md`; this file
 > answers what exists and whether anything actually runs it.
 
-**Generated:** 2026-10-18 13:32 · **1374 scripts** · 48 wired into a gate · 344 called by other code · 206 only mentioned in docs · 776 referenced by nothing · 552 not in git
+**Generated:** 2026-10-18 19:05 · **1376 scripts** · 48 wired into a gate · 345 called by other code · 206 only mentioned in docs · 777 referenced by nothing · 551 not in git
 
 ## Read this before writing a new script
 
@@ -1107,16 +1107,18 @@ These run without anyone choosing to run them. Breaking one breaks a deploy.
 | `openstack-compute-probe.sh` | CALLED | 1 | 2026-08-19 | yes | Probes nova-compute liveness and placement capacity, emits node_exporter |
 | `service-probe.sh` | CALLED | 2 | 2026-08-20 | yes | probe real service behaviour and expose it to prometheus via node_exporter |
 
-### `_tools/netfinal` — 6 scripts, 4 referenced by nothing
+### `_tools/netfinal` — 8 scripts, 5 referenced by nothing
 
 | Script | Wiring | Called by | Modified | In git | What |
 |---|---|---|---|---|---|
 | `netfinal-core.test.js` | CALLED | 1 | 2026-10-17 | yes | Drives the seeded generator, the derived tables and reach() for the Network+ final exam core: determinism, the spec's four generator constraints over 1,000 seeds, the healthy-path baseline, and a mutation per reach() layer. |
+| `netfinal-exam.test.js` | CALLED | 1 | 2026-10-18 | yes | Drives the exam session: one attempt, refresh resume, the server timer and auto-submit, exam-mode lockdown, server-side grading, and that no entry point accepts client-supplied state. |
 | `netfinal-faults.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Drives all 24 fault variants: evidence present, fixed() false at exam start, true after the canonical repair, invariants clean after it, and an invariant violated by the common wrong fix. Plus determinism of apply(). |
-| `netfinal-grade.test.js` | ORPHAN | 0 | 2026-10-18 | no | Normalizers against the spec's own examples, the 50-question bank's phase and point totals recomputed from the definitions, a scripted PERFECT RUN on three seeds solving the lab through real surfaces, and every partial-credit rule. |
+| `netfinal-grade.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Normalizers against the spec's own examples, the 50-question bank's phase and point totals recomputed from the definitions, a scripted PERFECT RUN on three seeds solving the lab through real surfaces, and every partial-credit rule. |
 | `netfinal-gui.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Drives the seven GUI windows: the six faults that cannot be fixed from a terminal, the firewall's Test-from-WAN page, device restore, change requests and the incident log, and that every window shows its fault. |
-| `netfinal-leak.test.js` | CALLED | 1 | 2026-10-18 | yes | Scans EVERY client-facing surface of the exam engine for fault disclosure: the initialState projection, all seven GUI window renders, every action return, and the output of every command a student can type. Also checks the seed secret. |
-| `netfinal-shell.test.js` | ORPHAN | 0 | 2026-10-17 | yes | Drives the terminal: prefix matching, context stack, privileged modes, the editor and service-reload semantics, golden output before/after each fix, and a full repair of every shell-fixable fault TYPED AS COMMANDS. |
+| `netfinal-leak.test.js` | CALLED | 2 | 2026-10-18 | yes | Scans EVERY client-facing surface of the exam engine for fault disclosure: the initialState projection, all seven GUI window renders, every action return, and the output of every command a student can type. Also checks the seed secret. |
+| `netfinal-page.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Checks the Network+ final's exam page is actually wired to the engine: every callable reached, every declared action renderable, every CSS class it uses defined, and exam-mode lockdown intact. |
+| `netfinal-shell.test.js` | ORPHAN | 0 | 2026-10-18 | yes | Drives the terminal: prefix matching, context stack, privileged modes, the editor and service-reload semantics, golden output before/after each fix, and a full repair of every shell-fixable fault TYPED AS COMMANDS. |
 
 ### `_tools/nexus` — 5 scripts, 1 referenced by nothing
 
