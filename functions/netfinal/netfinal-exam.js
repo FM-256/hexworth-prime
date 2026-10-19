@@ -1,5 +1,6 @@
 /* ═══════════════════════════════════════════════════════════════════════════════════════════════
- * netfinal-exam.js — stage 7: the exam session. Server-authoritative, one attempt, server-timed.
+ * netfinal-exam.js — stage 7: the exam session. Server-authoritative and server-timed. One sitting
+ * at a time; since 2026-10-19 a submitted sitting may be restarted (resetSession), each archived.
  *
  * Spec section 9 (randomization and academic integrity) and section 10 extensions 9 and 10.
  *
@@ -57,7 +58,7 @@
     function expired(session, opts) { return remainingMs(session, opts) <= 0; }
 
     /* ── starting ────────────────────────────────────────────────────────────────────────────────
-     * ONE ATTEMPT. A second start returns the SAME session rather than a fresh lab, which is also
+     * ONE SITTING AT A TIME. A second start returns the SAME session rather than a fresh lab, which is also
      * what makes a refresh resume: the browser cannot tell the difference and does not need to. */
     /* RESUME. Same lab, same clock, same answers. Nothing is regenerated, so a student who refreshes
      * to reroll their faults gets the faults they already had. */
@@ -176,7 +177,10 @@
             timeBonus: false,
             serverTimer: true,
             serverGraded: true,
-            oneAttempt: true
+            /* FALSE since 2026-10-19. Spec section 9 asked for one attempt; the operator chose
+             * unlimited self-restart instead (netfinalReset), each attempt archived. Reported
+             * truthfully so nothing downstream advertises a rule the exam no longer has. */
+            oneAttempt: false
         };
     }
 
@@ -394,8 +398,8 @@
     }
 
     /* ── restart ─────────────────────────────────────────────────────────────────────────────────
-     * STAFF ONLY, and the caller decides who staff is: this function trusts its `resetBy` and does
-     * no authorisation of its own, so the callable must check before it gets here.
+     * NO AUTHORISATION HERE: this function trusts its `resetBy`, and the callable decides who may
+     * restart whose sitting (anyone their own, staff anyone's) before it gets here.
      *
      * ARCHIVED, NEVER DELETED. The sitting -- lab, answers, event log, report -- is copied to the
      * archive and only then removed from the live path, in one store operation, so a failure leaves
@@ -407,10 +411,10 @@
      * next start regenerates the identical faults, addresses and key -- the operator's decision, and
      * it means the instructor key for this student is still the right key after a reset. What is new
      * is the clock, the answers and the event log. */
-    /* WHO MAY RESTART A SITTING: platform admins (the `admin` claim, or an email on the admin
-     * allowlist -- the same two tests as requireAdmin in functions/index.js) and instructors (the
-     * `handler` claim, the role gradeEDTSubmission already trusts to mark student work). Students
-     * may not, because a self-service restart would make a one-attempt exam a many-attempt one.
+    /* WHO MAY RESTART SOMEBODY ELSE'S SITTING: platform admins (the `admin` claim, or an email on the
+     * admin allowlist -- the same two tests as requireAdmin in functions/index.js) and instructors
+     * (the `handler` claim, the role gradeEDTSubmission already trusts to mark student work). Anyone
+     * may restart their OWN sitting since 2026-10-19; this guards everybody else's.
      * Pure over the decoded token so the rule is testable without firebase-functions. */
     function isStaff(token, adminEmails) {
         if (!token || typeof token !== 'object') { return false; }
@@ -419,11 +423,33 @@
         return !!email && Array.isArray(adminEmails) && adminEmails.indexOf(email) >= 0;
     }
 
+    /* WHO MAY RESTART WHICH SITTING. Your own: any signed-in caller, unlimited (operator,
+     * 2026-10-19). Somebody else's: staff only, or any student could wipe another's work in
+     * progress. One function so the callable and the tests ask the same question. */
+    function mayReset(callerUid, targetUid, token, adminEmails) {
+        if (typeof callerUid !== 'string' || !callerUid) { return false; }
+        if (targetUid === callerUid) { return true; }
+        return isStaff(token, adminEmails);
+    }
+
     async function resetSession(store, args, opts) {
         var sessionId = String(args.sessionId || '');
         if (!sessionId) { throw err('invalid-argument', 'sessionId is required.'); }
         var resetBy = String(args.resetBy || '');
         if (!resetBy) { throw err('invalid-argument', 'resetBy is required.'); }
+        /* A STUDENT restarts only a SUBMITTED sitting (operator, 2026-10-19). Otherwise a restart is a
+         * fresh two-hour clock on a lab whose faults the student has already found, available at any
+         * moment from devtools. The callable sets requireSubmitted for non-staff; staff may restart a
+         * sitting in progress, which is how a broken session is rescued. Checked by a read before the
+         * archive: a sitting only moves from open to submitted, never back, so the read cannot be
+         * overtaken in the direction that matters. */
+        if (args.requireSubmitted) {
+            var cur = await store.get(sessionId);
+            if (!cur) { throw err('not-found', 'No exam session to restart.'); }
+            if (!cur.submittedAt) {
+                throw err('failed-precondition', 'Submit this attempt before restarting it.');
+            }
+        }
         var resetAt = nowMs(opts);
         var archiveId = sessionId + '__' + resetAt;
         var archived = await store.archiveAndRemove(sessionId, archiveId, {
@@ -439,19 +465,24 @@
         };
     }
 
-    /* The student's own view after submitting: their score, never the key. */
+    /* The student's own view after submitting: AGGREGATES ONLY -- the total, the phase totals and
+     * the practical/reasoning subtotals. Never the key, and since 2026-10-19 never per-question marks.
+     *
+     * Per-question marks used to go back here, justified as "what they scored, not what they should
+     * have written". That held for ONE look at one attempt. Unlimited self-restart onto the SAME lab
+     * turned it into an answer oracle: submit, read which question (and which PART -- partial credit
+     * isolates the wrong field) scored zero, restart, change only those, repeat. Mallory converged
+     * Q1 in four attempts. The operator chose aggregates-only. The page never rendered the
+     * per-question rows, so nothing a student SEES changed; what changed is what the Network tab
+     * shows. Totals still move between attempts, so this slows guessing rather than ending it --
+     * an honest residual, not a closed hole. The full report stays in the session for instructors. */
     function studentReport(report) {
         if (!report) { return null; }
         return {
             total: report.total, outOf: report.outOf,
             pendingInstructorMarks: report.pendingInstructorMarks,
             subtotals: report.subtotals, phases: report.phases,
-            flagged: report.flagged,
-            /* Per-question marks WITHOUT the correct answers: a student sees what they scored, not
-             * what they should have written, because the same lab is still being sat by others. */
-            questions: report.questions.map(function (r) {
-                return { n: r.n, phase: r.phase, earned: r.earned, of: r.of, pending: r.pending || 0 };
-            })
+            flagged: report.flagged
         };
     }
 
@@ -534,7 +565,7 @@
         startExam: startExam, runCommand: runCommand, renderWindow: renderWindow,
         runAction: runAction, restoreDevice: restoreDevice, saveAnswer: saveAnswer,
         submitExam: submitExam, studentReport: studentReport, telemetry: telemetry,
-        resetSession: resetSession, sameSitting: sameSitting, isStaff: isStaff,
+        resetSession: resetSession, sameSitting: sameSitting, isStaff: isStaff, mayReset: mayReset,
         examModeFlags: examModeFlags, memoryStore: memoryStore,
         savedAnswers: savedAnswers,
         remainingMs: remainingMs, DEFAULT_MINUTES: DEFAULT_MINUTES

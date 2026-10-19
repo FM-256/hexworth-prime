@@ -118,10 +118,10 @@ const store = {
     all: () => rawStore.all(),
     archiveAndRemove: (k, a, m) => rawStore.archiveAndRemove(k, a, m)
 };
-/* Whether the bridge's caller is staff. functions/index.js derives this from the ID token
-   (NETFINAL.isStaff); here it is a switch, because the claim is not what this suite tests -- the
-   exam suite tests the rule, and this one tests what the page PAINTS for each answer. */
-let STAFF = false;
+/* The canReset flag the bridge returns from netfinalStart. Production always sends true now (any
+   user may restart their own sitting); it is a switch here so the suite can also prove the page
+   OBEYS the flag, which is the one control left if restarts are ever narrowed again. */
+let CAN_RESET = true;
 const OPTS = { secret: 'render-test-secret' };
 const requested = [];
 
@@ -142,7 +142,7 @@ function dispatch(name, data) {
             if (!examId) { throw Object.assign(new Error('Unknown examId.'), { code: 'invalid-argument' }); }
             return NETFINAL.startExam(store,
                 { studentId: UID, examId: examId, minutes: EXAMS.durationMinutes(examId) }, OPTS)
-                .then((res) => ({ ...res, canReset: STAFF }));
+                .then((res) => ({ ...res, canReset: CAN_RESET }));
         case 'netfinalCommand':
             return NETFINAL.runCommand(store, { sessionId: sessionId, line: data.line }, OPTS);
         case 'netfinalWindow':
@@ -161,15 +161,14 @@ function dispatch(name, data) {
                 submitted: !res.alreadySubmitted, alreadySubmitted: !!res.alreadySubmitted,
                 submittedAt: res.submittedAt, report: NETFINAL.studentReport(res.report)
             }));
+        /* The bridge's caller only ever restarts its OWN sitting, which production allows for every
+           signed-in user (NETFINAL.mayReset). Restarting another uid is the exam suite's business. */
         case 'netfinalReset':
-            if (!STAFF) {
-                throw Object.assign(new Error('Only an instructor or admin can restart an exam.'),
-                    { code: 'permission-denied' });
-            }
             if (!examId) { throw Object.assign(new Error('Unknown examId.'), { code: 'invalid-argument' }); }
             resetCalls++;
+            /* As production does for a non-staff caller: only a submitted sitting may be restarted. */
             return NETFINAL.resetSession(store, { sessionId: sessionId, resetBy: UID,
-                reason: typeof data.reason === 'string' ? data.reason : '' }, OPTS);
+                reason: typeof data.reason === 'string' ? data.reason : '', requireSubmitted: true }, OPTS);
         default:
             throw Object.assign(new Error('No such callable: ' + name), { code: 'not-found' });
     }
@@ -715,7 +714,11 @@ async function main() {
         const msg = (dialogs[0] || {}).message || '';
         chk('the confirmation names the unanswered questions', /No answer recorded for \d+ question/.test(msg),
             msg.slice(0, 160));
-        chk('it says the attempt cannot be undone', /cannot be undone/.test(msg) && /one attempt/.test(msg));
+        /* Since 2026-10-19 a student may restart, so the warning must NOT claim one attempt; what it
+           must say is that submitting ends this attempt and a restart starts with no answers. */
+        chk('it says submitting ends this attempt and a restart begins with no answers',
+            /ends and grades this attempt/.test(msg) && /restart begins again with no answers/.test(msg)
+            && !/one attempt/i.test(msg), msg.slice(-200));
         chk('and DISMISSING it did not submit',
             !(await store.get(UID + '::' + EXAMS.DEFAULT_EXAM_ID)).submittedAt,
             'a dismissed confirmation must leave the exam open');
@@ -723,8 +726,8 @@ async function main() {
             await pg.$eval('#submit', (el) => el.disabled) === false,
             'a disabled button after cancelling would trap the student');
 
-        /* ─── 7. the staff restart, as each kind of caller sees it ─────────────────────────────── */
-        section('7. a submitted sitting: students see no restart, staff can restart it');
+        /* ─── 7. restarting a submitted sitting, as a student does it ──────────────────────────── */
+        section('7. a submitted sitting: the student can restart it, and the page obeys the flag');
         const SID = UID + '::' + EXAMS.DEFAULT_EXAM_ID;
         await NETFINAL.submitExam(store, { sessionId: SID }, OPTS);
         const box = () => pg.$eval('#restartbox', (el) => {
@@ -733,22 +736,25 @@ async function main() {
                      display: getComputedStyle(el).display, text: el.innerText };
         });
 
-        STAFF = false;
+        /* The flag OFF first, so the hidden path is proven to hide: the .footer flex rule once beat
+           the hidden attribute and painted this control while `hidden` was true. */
+        CAN_RESET = false;
         await pg.reload({ waitUntil: 'networkidle0' });
         await pg.waitForFunction(() => !document.getElementById('done').hidden, { timeout: 5000 }).catch(() => {});
-        chk('a STUDENT reloading a submitted exam lands on the Submitted panel',
+        chk('reloading a submitted exam lands on the Submitted panel',
             await pg.$eval('#done', (el) => !el.hidden && el.getBoundingClientRect().height > 0));
         const sb = await box();
-        chk('and is shown NO restart control: hidden, and painting nothing',
+        chk('with canReset false the control is hidden AND paints nothing',
             sb.hidden === true && sb.w === 0 && sb.h === 0, JSON.stringify(sb));
 
-        STAFF = true;
+        CAN_RESET = true;
         await pg.reload({ waitUntil: 'networkidle0' });
         await pg.waitForFunction(() => !document.getElementById('done').hidden, { timeout: 5000 }).catch(() => {});
         const tb = await box();
-        chk('STAFF on the same submitted sitting see the restart control, painted',
+        chk('a STUDENT on a submitted sitting sees the restart control, painted',
             tb.hidden === false && tb.w > 0 && tb.h > 0 && tb.display !== 'none', JSON.stringify(tb));
-        chk('labelled as a staff action', /Restart this sitting \(staff\)/.test(tb.text), tb.text);
+        chk('labelled plainly, not as a staff action', /^\s*Restart exam\s*$/.test(tb.text.split('\n')[0]),
+            JSON.stringify(tb.text));
 
         dialogs.length = 0; resetCalls = 0;
         await pg.click('#restart');
@@ -792,7 +798,8 @@ async function main() {
             { timeout: 5000 }).catch(() => {});
         const st7 = await pg.$eval('#status', (el) => el.textContent || '');
         chk('the student is told the sitting was restarted and to reload',
-            /restarted by your instructor/i.test(st7) && /Reload the page/i.test(st7), JSON.stringify(st7));
+            st7.trim() === 'This sitting was restarted. Reload the page to continue with a fresh attempt.',
+            JSON.stringify(st7));
         chk('rather than the raw "No such exam session."', !/No such exam session/i.test(st7));
         const c1 = await pg.$eval('#clock', (el) => el.textContent);
         await delay(2200);

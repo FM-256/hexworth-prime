@@ -123,7 +123,7 @@
 <div class="topbar">
   <div>
     <h1>Final Exam &mdash; Meridian Corp Operations Lab</h1>
-    <div class="sub">Troubleshoot the live network. 50 questions, 200 points. One attempt, server-timed.</div>
+    <div class="sub">Troubleshoot the live network. 50 questions, 200 points. Server-timed. After you submit you can restart and try again.</div>
   </div>
   <div class="clock" id="clock" aria-live="polite">--:--</div>
 </div>
@@ -172,9 +172,9 @@
 <div class="panel" id="done" hidden style="margin:40px auto; max-width:620px">
   <h2>Submitted</h2>
   <div id="report"></div>
-  <!-- STAFF ONLY. Shown when netfinalStart reports canReset; the server re-checks on the call. -->
+  <!-- Shown when netfinalStart reports canReset (every user, since 2026-10-19); the server decides. -->
   <div class="footer" id="restartbox" hidden style="margin-top:16px">
-    <button type="button" class="ghost" id="restart">Restart this sitting (staff)</button>
+    <button type="button" class="ghost" id="restart">Restart exam</button>
     <div class="notice" id="restartmsg" hidden></div>
   </div>
 </div>
@@ -767,14 +767,15 @@
 
   function fatal(e) {
     var msg = (e && e.message) ? e.message : String(e);
-    /* The sitting is gone from under an open page: staff restarted it, from another browser. Every
-       call would answer "No such exam session." until the student reloaded, which reads as a broken
-       exam, so say what happened and what to do, and stop the clock asking for a submit. */
+    /* The sitting is gone from under an open page: it was restarted from another tab or browser, by
+       the student or by staff. Every call would answer "No such exam session." until the student
+       reloaded, which reads as a broken exam, so say what happened and what to do, and stop the
+       clock asking for a submit. */
     /* Matched by the server's own words: the SDK may spell the code `functions/not-found`, and the
        message is what the engine actually throws for a missing sitting. */
     if (/No such exam session/i.test(msg)) {
       if (tick) { clearInterval(tick); tick = null; }
-      el('status').innerHTML = '<span class="bad">This sitting was restarted by your instructor. '
+      el('status').innerHTML = '<span class="bad">This sitting was restarted. '
         + 'Reload the page to continue with a fresh attempt.</span>';
       return;
     }
@@ -786,8 +787,8 @@
     if (tick) { clearInterval(tick); tick = null; }
     el('layout').hidden = true;
     el('done').hidden = false;
-    /* Staff see a Restart control here. The flag comes from the server's start reply and is a
-       display hint only: netfinalReset refuses anyone who is not staff. */
+    /* The Restart control. The flag comes from the server's start reply; netfinalReset makes the
+       actual decision. */
     el('restartbox').hidden = !(session && session.canReset === true);
     if (!report) {
       el('report').innerHTML = '<div class="notice">' + esc(msg || 'Your exam has been submitted.') + '</div>';
@@ -909,7 +910,7 @@
   });
 
   el('submit').addEventListener('click', function () {
-    /* A student gets ONE attempt, so the last thing before it closes should say what is missing
+    /* Submitting ends the attempt, so the last thing before it closes should say what is missing
        rather than ask a yes/no question about an exam they cannot see all of. Blanks are named here
        because fifty questions is more than anyone tracks in their head under a clock. */
     var blank = unansweredNumbers(), partial = partialQuestions(), lines = [];
@@ -924,10 +925,10 @@
         + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ') + '.');
     });
     var msg = lines.length
-      ? lines.join('\n') + '\n\nSubmit anyway? This cannot be undone and you have one attempt.'
+      ? lines.join('\n') + '\n\nSubmit anyway? This ends and grades this attempt. You can restart afterwards, but a restart begins again with no answers.'
         + '\n\nCancel to go back. The "Review answers" tab lists every question.'
       : 'Every question that takes a written answer has a complete answer recorded.'
-        + '\n\nSubmit your exam? This cannot be undone and you have one attempt.';
+        + '\n\nSubmit your exam? This ends and grades this attempt. You can restart afterwards, but a restart begins again with no answers.';
     if (!window.confirm(msg)) { return; }
     el('submit').disabled = true;
     call('netfinalSubmit', { examId: EXAM_ID }).then(function (r) {
@@ -936,14 +937,14 @@
     }).catch(function (e) { el('submit').disabled = false; fatal(e); });
   });
 
-  /* ── staff restart ─────────────────────────────────────────────────────────────────────────── */
+  /* ── restart ───────────────────────────────────────────────────────────────────────────────── */
   /* Archives this sitting on the server and reloads, so the next start builds the same lab fresh.
      The old attempt is kept in the archive, never deleted. */
   el('restart').addEventListener('click', function () {
     if (!window.confirm('Restart this sitting?\n\nThe current attempt is archived, not deleted. '
         + 'The lab comes back the same, with a fresh clock and no answers.')) { return; }
     el('restart').disabled = true;
-    call('netfinalReset', { examId: EXAM_ID, reason: 'staff restart from the exam page' })
+    call('netfinalReset', { examId: EXAM_ID, reason: 'restart from the exam page' })
       .then(function () {
         telemetry('reset', '');
         window.location.reload();

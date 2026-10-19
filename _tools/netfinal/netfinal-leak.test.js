@@ -582,10 +582,7 @@ section('6. the response envelope, which is the surface the student is actually 
 
 /* role 'student'    -> the value reaches the browser; its envelope MUST be clean.
  * role 'instructor' -> deliberately carries identifying data; graded by a human, never shipped.
- * role 'internal'   -> a scalar or a test harness, with no object to disclose.
- * role 'staff'      -> returned only to a caller the callable has already checked is staff, AND
- *                      scanned below anyway: a restart reply that carried the lab would hand an
- *                      instructor's browser the key to a sitting the student is about to retake. */
+ * role 'internal'   -> a scalar or a test harness, with no object to disclose. */
 const EXAM_SURFACE = {
     startExam: 'student', runCommand: 'student', renderWindow: 'student', runAction: 'student',
     restoreDevice: 'student', saveAnswer: 'student', submitExam: 'student',
@@ -597,10 +594,12 @@ const EXAM_SURFACE = {
     savedAnswers: 'student',
     telemetry: 'instructor',
     memoryStore: 'internal', remainingMs: 'internal', DEFAULT_MINUTES: 'internal',
-    /* The staff restart. Its reply is what the archive was, never what was in it. */
-    resetSession: 'staff',
+    /* The restart. Since 2026-10-19 any student may restart their own sitting, so this reply reaches
+     * students and is scanned below like every other student envelope. Because the SAME lab comes
+     * back, a reply carrying the archived lab would be the key to the attempt about to begin. */
+    resetSession: 'student',
     /* Predicates over a token and over two store documents: booleans, nothing to disclose. */
-    isStaff: 'internal', sameSitting: 'internal'
+    isStaff: 'internal', sameSitting: 'internal', mayReset: 'internal'
 };
 
 (async function () {
@@ -703,8 +702,10 @@ const EXAM_SURFACE = {
         JSON.stringify(CL.findDisclosures(trimmed, 'studentReport').slice(0, 3)));
     chk('the trimmed report still reports a score (so the check above is not scanning an empty object)',
         typeof trimmed.total === 'number' && typeof trimmed.outOf === 'number'
-        && Array.isArray(trimmed.questions) && trimmed.questions.length > 0,
+        && Object.keys(trimmed.phases || {}).length >= 3,
         JSON.stringify(Object.keys(trimmed)));
+    chk('and it carries no per-question rows, which restarts onto the same lab made an answer oracle',
+        !('questions' in trimmed), JSON.stringify(Object.keys(trimmed)));
     /* The CONTROL: the untrimmed report SHOULD disclose, which is why index.js must not ship it.
      * If this ever passes clean, either the report stopped carrying the key or the detector broke --
      * and both make every assertion above meaningless. */

@@ -55,7 +55,7 @@ const caught = async (p) => { try { await p; return null; } catch (e) { return e
 (async () => {
 
 /* ─── 1. one attempt, and a refresh resumes ───────────────────────────────────────────────────── */
-section('1. one attempt: a second start resumes rather than rerolling');
+section('1. a second start resumes rather than rerolling (a restart is a separate, archived act)');
 {
     const r = rig();
     const a = await EX.startExam(r.store, { studentId: 'stu-A', examId: EXAM, minutes: r.minutes }, r.opts);
@@ -131,7 +131,10 @@ section("4. exam mode: spec section 9's lockdown, as flags the page must obey");
     chk('course links are off', f.courseLinks === false);
     chk('hints and the time bonus are off', f.hints === false && f.timeBonus === false);
     chk('the timer and grading are server-side', f.serverTimer === true && f.serverGraded === true);
-    chk('one attempt', f.oneAttempt === true);
+    /* Spec section 9 said one attempt. The operator chose unlimited self-restart on 2026-10-19, so
+     * the flag must say false: a flag that still claimed one attempt would be a lie the page or a
+     * future reader could act on. */
+    chk('oneAttempt is reported FALSE, because a student may restart', f.oneAttempt === false);
     const r = rig();
     const s = await EX.startExam(r.store, { studentId: 'stu-M', examId: EXAM }, r.opts);
     chk('the flags are sent to the page', JSON.stringify(s.examMode) === JSON.stringify(f));
@@ -251,8 +254,13 @@ section('7. grading happens on the server, against the key built at exam start')
     chk('but NOT the correct answers', JSON.stringify(mine).indexOf('"answer"') < 0
         && CLIENT.findDisclosures(mine, 'studentReport').length === 0,
         JSON.stringify(CLIENT.findDisclosures(mine, 'studentReport')));
-    chk('and not the per-question notes that would reveal the key',
-        mine.questions.every(q => q.note === undefined && q.detail === undefined));
+    /* AGGREGATES ONLY since 2026-10-19: with unlimited restarts on the same lab, per-question (and
+     * per-part) marks were an answer oracle. No row per question may reach the student at all. */
+    chk('and NO per-question marks: a restart onto the same lab would turn them into an oracle',
+        !('questions' in mine) && !/"n":\d+/.test(JSON.stringify(mine)), Object.keys(mine).join(','));
+    chk('while the aggregates are real numbers, so the check above is not of an empty report',
+        typeof mine.total === 'number' && Object.keys(mine.phases).length >= 3
+        && typeof mine.subtotals.practical.earned === 'number');
 }
 
 /* ─── 8. telemetry ────────────────────────────────────────────────────────────────────────────── */
@@ -288,7 +296,7 @@ section('8. every command, change and answer is logged for telemetry');
  * This suite could not see it: every call here passed the one EXAM constant, so "a second start
  * returns the same session" was only ever tested for callers who cooperate. The rule now lives in
  * netfinal-exams.js, which is why it can be tested at all. */
-section('one attempt is enforced on the exam IDENTITY, not on the caller’s goodwill');
+section('exam identities are allowlisted, so a caller cannot mint a fresh lab by inventing an examId');
 {
     chk('the allowlist names exactly one exam today',
         EXAMS.EXAM_IDS.length === 1 && EXAMS.EXAM_IDS[0] === 'net-final-2026',
@@ -1010,6 +1018,31 @@ section('a staff restart archives the sitting and the same lab comes back fresh'
     chk('and the refused restart left the live sitting in place', (await r.store.get(sid)) !== null);
 }
 
+section('a STUDENT restarts only a submitted sitting; staff may rescue one in progress');
+{
+    const r = rig();
+    const sid = 'stu-q::' + EXAM;
+    await EX.startExam(r.store, { studentId: 'stu-q', examId: EXAM, minutes: 100 }, r.opts);
+    const early = await caught(EX.resetSession(r.store,
+        { sessionId: sid, resetBy: 'stu-q', requireSubmitted: true }, r.opts));
+    chk('a student restarting an OPEN sitting is refused, so a restart is never a free clock reset',
+        early && early.code === 'failed-precondition' && /Submit this attempt/.test(early.message),
+        early && early.code + ' ' + early.message);
+    chk('and the open sitting is untouched, with nothing archived',
+        !!(await r.store.get(sid)) && Object.keys(r.store.archived()).length === 0);
+    await EX.submitExam(r.store, { sessionId: sid }, r.opts);
+    const ok = await caught(EX.resetSession(r.store,
+        { sessionId: sid, resetBy: 'stu-q', requireSubmitted: true }, r.opts));
+    chk('once submitted, the same student may restart it', ok === null && (await r.store.get(sid)) === null);
+    const none = await caught(EX.resetSession(r.store,
+        { sessionId: 'ghost::' + EXAM, resetBy: 'ghost', requireSubmitted: true }, r.opts));
+    chk('a student with no sitting gets not-found, not a precondition message', none && none.code === 'not-found');
+
+    await EX.startExam(r.store, { studentId: 'stu-q', examId: EXAM, minutes: 100 }, r.opts);
+    const rescue = await caught(EX.resetSession(r.store, { sessionId: sid, resetBy: 'staff' }, r.opts));
+    chk('staff (no requireSubmitted) may still restart a sitting IN PROGRESS', rescue === null);
+}
+
 section('a request in flight across a restart cannot write the old sitting back');
 {
     /* The two races sameSitting exists for, forced by calling putIfRev with what an in-flight
@@ -1073,7 +1106,19 @@ section('two starts at once: the first sitting is kept and the second resumes it
         Math.abs(ra.remainingMs - rb.remainingMs) <= 1000, ra.remainingMs + ' vs ' + rb.remainingMs);
 }
 
-section('who may restart: admins and instructors, never students');
+section('who may restart: anyone their OWN sitting; only staff somebody else\'s');
+{
+    const A = ['boss@example.com'];
+    chk('a student may restart their own sitting', EX.mayReset('kid', 'kid', { email: 'kid@x.com' }, A) === true);
+    chk('a student may NOT restart another student\'s', EX.mayReset('kid', 'other', { email: 'kid@x.com' }, A) === false);
+    chk('a truthy-but-not-true claim does not make it staff', EX.mayReset('kid', 'other', { handler: 'true' }, A) === false);
+    chk('an instructor may restart another student\'s', EX.mayReset('teach', 'kid', { handler: true }, A) === true);
+    chk('an admin may restart another student\'s', EX.mayReset('boss', 'kid', { email: 'boss@example.com' }, A) === true);
+    chk('no caller uid, no restart', EX.mayReset('', '', { admin: true }, A) === false
+        && EX.mayReset(undefined, undefined, null, A) === false);
+}
+
+section('the staff test itself: admins and instructors');
 {
     const A = ['boss@example.com'];
     chk('the admin claim may', EX.isStaff({ admin: true }, A) === true);
@@ -1093,10 +1138,15 @@ section('the restart is wired the way the engine assumes');
     const body = start >= 0 ? idx.slice(start, idx.indexOf('\n});', start)) : '';
     chk('netfinalReset exists', start >= 0);
     /* Scoped to the statements, not the comments above them, which quote the same names. */
-    const staffAt = body.indexOf('if (!NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS))');
+    const staffAt = body.indexOf('if (!NETFINAL.mayReset(request.auth.uid, uid, request.auth.token, ADMIN_EMAILS))');
     const resetAt = body.indexOf('await NETFINAL.resetSession(');
-    chk('it checks staff BEFORE it touches any session', staffAt > 0 && resetAt > staffAt,
-        'staff check at ' + staffAt + ', reset at ' + resetAt);
+    chk('it asks mayReset, with the CALLER\'s uid and token, BEFORE it touches any session',
+        staffAt > 0 && resetAt > staffAt, 'mayReset check at ' + staffAt + ', reset at ' + resetAt);
+    chk('a non-staff caller is held to requireSubmitted, decided from the token, not the request',
+        /requireSubmitted:\s*!NETFINAL\.isStaff\(request\.auth\.token, ADMIN_EMAILS\)/.test(body)
+        && !/requireSubmitted:\s*data\./.test(body));
+    chk('and the refusal reaches the page as failed-precondition, not a generic internal error',
+        /const known = \[[^\]]*'failed-precondition'/.test(body));
     chk('and records the CALLER as resetBy, never a client-supplied value',
         /resetBy:\s*request\.auth\.uid/.test(body) && !/resetBy:\s*data\./.test(body));
     chk('the Firestore putIfRev uses the shared sameSitting condition',
@@ -1106,7 +1156,7 @@ section('the restart is wired the way the engine assumes');
         /db\.runTransaction/.test(arch) && arch.indexOf('tx.set(archiveRef') > 0
         && arch.indexOf('tx.delete(ref)') > arch.indexOf('tx.set(archiveRef'));
     chk('netfinalStart tells the page whether to offer it',
-        /return \{ \.\.\.res, canReset: c\.staff \};/.test(idx));
+        /return \{ \.\.\.res, canReset: true \};/.test(idx));
 
     const page = fs.readFileSync(path.resolve(__dirname,
         '../../_app/houses/web/network-plus/exams/network-final.exam.html'), 'utf8');
@@ -1114,6 +1164,13 @@ section('the restart is wired the way the engine assumes');
         /<div class="footer" id="restartbox" hidden/.test(page)
         && /el\('restartbox'\)\.hidden = !\(session && session\.canReset === true\);/.test(page));
     chk('and the control calls netfinalReset for THIS exam', /call\('netfinalReset', \{ examId: EXAM_ID/.test(page));
+    /* Nothing the student READS may still promise one attempt: the header and both submit warnings
+     * said so, and all three became false on 2026-10-19. Comments are stripped first, because they
+     * legitimately record the history and would make this check unable to fail -- or unable to pass. */
+    const visible = page.replace(/<!--[\s\S]*?-->/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+    chk('no student-visible text claims one attempt', !/one attempt/i.test(visible),
+        (visible.match(/.{0,60}one attempt.{0,30}/i) || [''])[0]);
+    chk('and the header says a student can restart', /After you submit you can restart and try again\./.test(visible));
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');

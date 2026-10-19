@@ -11259,7 +11259,6 @@ function netfinalCall(fn) {
             return await fn({
                 store: netfinalStore(),
                 sessionId, uid, examId, data,
-                staff: NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS),
                 opts: { secret: netfinalSeedSecret.value() || null }
             });
         } catch (e) {
@@ -11283,14 +11282,14 @@ const netfinalOpts = { ...cfOptions, secrets: [netfinalSeedSecret] };
  * devtools before the page's own call got an exam that never expired, permanently, because resume
  * keeps the duration fixed at creation. The server decides how long its own exam runs; see
  * netfinal-exams.js. */
-/* `canReset` tells the page whether to offer the staff Restart control. It is a DISPLAY hint and
- * nothing more: netfinalReset re-checks the caller itself, so a student who forces the button
- * visible gets permission-denied. */
+/* `canReset` tells the page whether to offer the Restart control. Every caller may restart their own
+ * sitting, so it is always true; it stays a field so the page has one switch if that ever narrows
+ * again. netfinalReset decides on its own regardless. */
 exports.netfinalStart = onCall(netfinalOpts, netfinalCall(async (c) => {
     const res = await NETFINAL.startExam(c.store,
         { studentId: c.uid, examId: c.examId, minutes: NETFINAL_EXAMS.durationMinutes(c.examId) },
         c.opts);
-    return { ...res, canReset: c.staff };
+    return { ...res, canReset: true };
 }));
 
 /* One command. The LINE crosses the wire; the lab does not. */
@@ -11311,18 +11310,19 @@ exports.netfinalAnswer = onCall(netfinalOpts, netfinalCall(async (c) =>
     NETFINAL.saveAnswer(c.store, { sessionId: c.sessionId,
         questionId: c.data.questionId, value: c.data.value }, c.opts)));
 
-/* RESTART A SITTING. Staff only (NETFINAL.isStaff: admin claim, admin allowlist, or the instructor
- * `handler` claim). Archives the whole sitting to netfinal_sessions_archive and removes it, so the
- * student's next netfinalStart generates the SAME lab fresh: same faults, new clock, no answers.
+/* RESTART A SITTING. Archives the whole sitting to netfinal_sessions_archive and removes it, so the
+ * next netfinalStart generates the SAME lab fresh: same faults, new clock, no answers.
+ *
+ * WHO. Any signed-in user may restart THEIR OWN sitting, unlimited -- the operator's decision on
+ * 2026-10-19 ("make sure any user can restart"), which replaced staff-only the same day and makes
+ * this exam no longer one-attempt. Restarting SOMEBODY ELSE'S sitting still requires staff
+ * (NETFINAL.isStaff: admin claim, admin allowlist, or the instructor `handler` claim), because
+ * otherwise any student could wipe any other student's work in progress.
  *
  * NOT wrapped in netfinalCall, deliberately: that wrapper derives the session from the CALLER, which
- * is exactly right for a student and exactly wrong here, where an instructor restarts somebody
- * else's sitting. `uid` defaults to the caller, which is how staff restart their own test sitting. */
+ * is wrong for an instructor restarting somebody else's sitting. `uid` defaults to the caller. */
 exports.netfinalReset = onCall(netfinalOpts, async (request) => {
     if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
-    if (!NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS)) {
-        throw new HttpsError('permission-denied', 'Only an instructor or admin can restart an exam.');
-    }
     const data = request.data || {};
     const examId = NETFINAL_EXAMS.resolveExamId(data.examId);
     if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
@@ -11333,24 +11333,30 @@ exports.netfinalReset = onCall(netfinalOpts, async (request) => {
     if (typeof uid !== 'string' || uid.length > 128 || /[\/]|::/.test(uid)) {
         throw new HttpsError('invalid-argument', 'Invalid uid.');
     }
+    if (!NETFINAL.mayReset(request.auth.uid, uid, request.auth.token, ADMIN_EMAILS)) {
+        throw new HttpsError('permission-denied', 'Only an instructor or admin can restart another student\'s exam.');
+    }
     const reason = typeof data.reason === 'string' ? data.reason : '';
     try {
         const res = await NETFINAL.resetSession(netfinalStore(), {
-            sessionId: uid + '::' + examId, resetBy: request.auth.uid, reason
+            sessionId: uid + '::' + examId, resetBy: request.auth.uid, reason,
+            /* Students restart only a SUBMITTED sitting; staff may rescue one in progress. */
+            requireSubmitted: !NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS)
         });
         console.log('[netfinalReset] ' + request.auth.uid + ' restarted ' + uid + '::' + examId
             + ' -> ' + res.archiveId + (res.wasSubmitted ? ' (was submitted)' : ' (was in progress)'));
         return { ...res, uid, examId };
     } catch (e) {
-        const known = ['invalid-argument', 'not-found', 'aborted'];
+        const known = ['invalid-argument', 'not-found', 'aborted', 'failed-precondition'];
         throw new HttpsError(known.indexOf(e.code) >= 0 ? e.code : 'internal',
             e.message || 'Exam service error.');
     }
 });
 
-/* Submit and grade. The STUDENT'S view comes back -- their marks, never the answers, because the
- * same lab is still being sat by others. The full report stays in the session document for the
- * instructor surface. */
+/* Submit and grade. The STUDENT'S view comes back -- totals and phase totals only, never the answers
+ * and never per-question marks, because a restart brings the same lab back and per-question marks
+ * across attempts are an answer oracle (see studentReport). The full report stays in the session
+ * document for the instructor surface. */
 exports.netfinalSubmit = onCall(netfinalOpts, netfinalCall(async (c) => {
     const res = await NETFINAL.submitExam(c.store, { sessionId: c.sessionId }, c.opts);
     return {
