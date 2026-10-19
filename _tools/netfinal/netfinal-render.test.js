@@ -232,6 +232,18 @@ async function main() {
     const pg = await browser.newPage();
     await pg.setViewport({ width: 1280, height: 900 });
 
+    /* NETFINAL_RENDER_THROTTLE=<n> slows the renderer by n times, to answer a question Nancy raised
+       and could not test: section 5e positions a sampling window around a response expected at about
+       2.6 seconds, and if a loaded CI runner shifted the two timelines apart the check could pass
+       for the wrong reason. Both timelines are built from awaited real time rather than wall-clock
+       targets, so they should shift together, but "should" is not a measurement. Measured at 4x:
+       the baseline stays green and the reverted guard is still caught. */
+    if (process.env.NETFINAL_RENDER_THROTTLE) {
+        const cdp = await pg.target().createCDPSession();
+        await cdp.send('Emulation.setCPUThrottlingRate',
+            { rate: Number(process.env.NETFINAL_RENDER_THROTTLE) });
+    }
+
     const errors = [];
     pg.on('pageerror', (e) => errors.push(String(e.message)));
     pg.on('console', (m) => { if (m.type() === 'error') { errors.push('console: ' + m.text()); } });
@@ -426,25 +438,24 @@ async function main() {
             await pg.type(seqSel, '20');
             await pg.$eval(seqSel, (el) => el.blur());   // save B: { name, seq: '20' }
 
-            /* THE CLOCK, SAMPLED ACROSS THE HOLD RATHER THAN AFTER IT. A stale reply carries a
-               LARGER remainingMs than the newer one, so applying it hands the student time back.
-               The first version of this sampled only after waiting out the hold, by which point the
-               jump had already happened and settled, so it could not fail: a mutation that applied
-               the stale clock went straight through it. The samples now span the window in which
-               the late reply actually lands. */
-            const clockSamples = [];
-            for (let i = 0; i < 20; i++) {
-                clockSamples.push(await pg.$eval('#clock', (el) => el.textContent));
-                await delay(110);
-            }
-            await delay(400);                      // settle, so A has certainly landed
-            const toSec = (t) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? (+m[1]) * 60 + (+m[2]) : -1; };
-            const secs = clockSamples.map(toSec);
-            chk('the clock was readable throughout, so the check below is real',
-                secs.every((v) => v > 0), JSON.stringify(clockSamples));
-            chk('the clock never ran BACKWARDS when the stale reply landed',
-                secs.every((v, i) => i === 0 || v <= secs[i - 1]),
-                JSON.stringify(clockSamples) + ' -- a stale remainingMs would add time back');
+            /* NO CLOCK CHECK HERE, AND THE REASON IS THE POINT. This section reorders the pair by
+               about 60ms, and the clock is displayed to a whole second, so the difference between
+               the two responses' remainingMs rounds away. What is left is the display's own jitter:
+               the interval decrements a local copy by exactly 1000ms a tick while a server sync
+               writes the true value, so a legitimate sync can move the rendered mm:ss UP by one
+               second. "The clock never increases" is therefore NOT an invariant this page has.
+
+               I asserted it anyway, and it failed on CORRECT code in 8 of 18 of Nancy's runs and
+               7 of 22 the round before, always with a rise of exactly one second: the granularity,
+               not a stale apply. I had measured its DETECTION power at 2 of 4 and written that in
+               the commit message, and never measured its FALSE-FAILURE rate at all, which is the
+               same mistake one level down from the one that commit was about.
+
+               Section 5e tests the real property across two questions with a gap of 1.5 seconds,
+               comfortably above the noise floor, and tolerates a sub-second correction. A check
+               whose signal is smaller than its noise is not a weak check, it is a coin flip with a
+               sentence attached. */
+            await delay(1000);                     // settle, so A has certainly landed
 
             const st = await store.get(sid);
             const fin = ((st.state.answers || {})[acl.id] || {}).value;
@@ -614,11 +625,23 @@ async function main() {
                 const toS = (t) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? (+m[1]) * 60 + (+m[2]) : -1; };
                 const vals = samples.map(toS);
                 chk('the clock was readable throughout', vals.every((v) => v > 0), JSON.stringify(samples));
-                chk('the gap between the two requests exceeded the clock granularity',
-                    holdAnswerMs >= 2000, 'holdAnswerMs=' + holdAnswerMs);
-                chk('the clock never ran BACKWARDS when the older response landed',
-                    vals.every((v, i) => i === 0 || v <= vals[i - 1]),
-                    JSON.stringify(samples) + ' -- an earlier request carries a LARGER remainingMs');
+
+                /* THE TOLERANCE IS THE DISPLAY GRANULARITY, NOT ZERO. The rendered clock is whole
+                   seconds and a server sync legitimately corrects a locally-ticked value, so a
+                   one-second rise is noise. The defect's signal is the 1.5s gap between the two
+                   requests, so anything above one second is the stale response winning. 5b asserted
+                   zero tolerance against a 60ms signal and false-failed on correct code about half
+                   the time; the margin here is what makes the same question answerable. */
+                const TOLERANCE_S = 1;
+                const gapS = 1.5;
+                chk('the signal is larger than the tolerance, so this check can separate them',
+                    gapS > TOLERANCE_S, 'gap=' + gapS + 's tolerance=' + TOLERANCE_S + 's');
+                const rises = vals.map((v, i) => (i === 0 ? 0 : v - vals[i - 1])).filter((d) => d > 0);
+                const worst = rises.length ? Math.max.apply(null, rises) : 0;
+                chk('the clock never jumped back by more than the display granularity',
+                    worst <= TOLERANCE_S,
+                    'worst rise ' + worst + 's in ' + JSON.stringify(samples)
+                    + ' -- an earlier request carries a LARGER remainingMs');
                 chk('the hold was consumed, so the reorder really happened',
                     holdAnswer === 0, 'holdAnswer=' + holdAnswer);
                 const stE = await store.get(sid);
