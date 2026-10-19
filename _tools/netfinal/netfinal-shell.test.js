@@ -289,68 +289,16 @@ section('6. each fault repaired through the parser a student uses, then fixed() 
      * that proves the answer key, not the exam. Here the repair is typed, so a fix that is correct
      * on paper but unreachable through the command set fails -- which is exactly how a student
      * would discover it, in an exam, with no recourse. */
-    const sub = (st, v) => st.subnets[v].cidr.split('/')[0].replace(/\.0$/, '');
-    const mgmt = (st, d) => st.devices[d].mgmtIp;
+    /* THE RECIPES LIVE IN A SHARED MODULE. They were here, which was right while this suite was
+     * their only consumer. The instructor walkthrough is a second consumer, and a second copy of a
+     * repair recipe drifts: this suite would keep passing against its own copy while the
+     * walkthrough handed a student commands that no longer fix anything. This exam has already
+     * produced that failure twice in its display logic. */
+    const { REPAIRS, GUI_FIXED, sub, mgmt } = require('./netfinal-repairs.js');
 
-    const REPAIRS = {
-        S1A: (st, f) => ['ssh admin@' + mgmt(st, f.target.switch), 'enable', 'conf t',
-                         'interface ' + f.target.port, 'duplex auto', 'end'],
-        S2A: (st, f) => ['ssh admin@' + mgmt(st, f.target.switch), 'enable', 'conf t',
-                         'interface ' + f.target.port, 'switchport access vlan 10', 'end'],
-        S2B: (st, f) => ['ssh admin@' + mgmt(st, f.target.switch), 'enable', 'conf t',
-                         'interface ' + f.target.port, 'switchport access vlan 10', 'end'],
-        /* BOTH ENDS of the trunk, because the fix is per-interface and one end is not enough. */
-        S3A: (st) => ['ssh admin@' + mgmt(st, 'MeridianSW-01'), 'enable', 'conf t', 'interface Gi0/1',
-                      'switchport trunk allowed vlan add 20', 'end', 'exit',
-                      'ssh admin@' + mgmt(st, 'MeridianSW-02'), 'enable', 'conf t', 'interface Gi0/1',
-                      'switchport trunk allowed vlan add 20', 'end'],
-        S3B: (st) => ['ssh admin@' + mgmt(st, 'MeridianSW-01'), 'enable', 'conf t', 'interface Gi0/1',
-                      'switchport trunk allowed vlan add 10', 'end', 'exit',
-                      'ssh admin@' + mgmt(st, 'MeridianSW-02'), 'enable', 'conf t', 'interface Gi0/1',
-                      'switchport trunk allowed vlan add 10', 'end'],
-        S4A: (st) => ['ssh admin@' + mgmt(st, st.rogue.switch), 'enable', 'conf t',
-                      'interface ' + st.rogue.port, 'shutdown', 'end'],
-        S4B: (st) => ['ssh admin@' + mgmt(st, st.rogue.switch), 'enable', 'conf t',
-                      'interface ' + st.rogue.port, 'shutdown', 'end'],
-        S5A: (st) => ['ssh admin@' + mgmt(st, 'MeridianRTR-01'), 'enable', 'conf t', 'interface Gi0/0.40',
-                      'ip address ' + st.subnets[40].gateway + ' 255.255.255.0', 'end'],
-        S5B: (st) => ['ssh admin@' + mgmt(st, 'MeridianRTR-01'), 'enable', 'conf t', 'interface Gi0/0.20',
-                      'ip address ' + st.subnets[20].gateway + ' 255.255.255.0', 'end'],
-        S6A: (st) => ['ssh admin@' + mgmt(st, 'MeridianRTR-01'), 'enable', 'conf t',
-                      'no ip route 10.200.0.0 255.255.255.0 172.16.0.6',
-                      'ip route 10.200.0.0 255.255.255.0 172.16.0.2', 'end'],
-        /* Reordering by renumbering, which is how it is done on real kit. */
-        S8A: (st) => ['ssh admin@' + mgmt(st, 'MeridianRTR-01'), 'enable', 'conf t',
-                      'ip access-list extended GUEST-IN', 'no 10', 'no 20',
-                      '10 deny ip ' + st.subnets[40].cidr + ' 10.' + st.params.b + '.0.0/16',
-                      '20 permit ip any any', 'end'],
-        S8B: (st) => ['ssh admin@' + mgmt(st, 'MeridianRTR-01'), 'enable', 'conf t',
-                      'ip access-list extended SERVERS-OUT', 'no 5', 'end'],
-        /* Linux: edit, validate, restart. The restart is REQUIRED -- a saved file the service has
-         * not re-read changes nothing, which is the spec's own rule about services and configs. */
-        S9A: (st) => ['ssh admin@' + mgmt(st, 'MER-SRV01'), 'sudo vi /etc/kea/kea-dhcp4.conf',
-                      ':%s/' + st.dhcp.subnets[10].pool.end + '/' + sub(st, 10) + '.199/', ':wq',
-                      'sudo kea-dhcp4 -t /etc/kea/kea-dhcp4.conf',
-                      'sudo systemctl restart kea-dhcp4-server'],
-        S9B: (st) => ['ssh admin@' + mgmt(st, 'MER-SRV01'), 'sudo vi /etc/kea/kea-dhcp4.conf',
-                      ':%s/' + sub(st, 10) + '.254/' + st.subnets[10].gateway + '/', ':wq',
-                      'sudo systemctl restart kea-dhcp4-server'],
-        S10A: (st) => ['ssh admin@' + mgmt(st, 'MER-SRV01'), 'sudo vi /etc/bind/db.meridian.local',
-                       ':%s/' + sub(st, 30) + '.21/' + sub(st, 30) + '.20/',
-                       ':%s/' + st.dns.zoneFile.serial + '/' + (st.dns.zoneFile.serial + 1) + '/', ':wq',
-                       'sudo named-checkzone meridian.local /etc/bind/db.meridian.local',
-                       'sudo rndc reload'],
-        S10B: (st) => ['ssh admin@' + mgmt(st, 'MER-SRV01'), 'sudo vi /etc/bind/db.meridian.local',
-                       ':%s/' + st.dns.zoneFile.serial + '/' + (st.dns.zoneFile.serial + 1) + '/', ':wq',
-                       'sudo rndc reload'],
-        S12A: (st) => ['ssh admin@' + mgmt(st, 'MeridianSW-02'), 'enable', 'conf t',
-                       'snmp-server community ' + st.monitoring.community, 'end'],
-        S12B: (st) => ['ssh admin@' + mgmt(st, 'MeridianSW-02'), 'enable', 'conf t',
-                       'ntp server ' + mgmt(st, 'MER-SRV01'), 'end']
-    };
-
-    /* The six whose fix surface is a web UI or the rack view, named so stage 5 inherits the list. */
-    const STAGE5 = ['S1B', 'S6B', 'S7A', 'S7B', 'S11A', 'S11B'];
+    /* The six whose fix surface is a web UI or the rack view, named so stage 5 inherits the list.
+     * From the module for the same reason as REPAIRS: one list, two consumers. */
+    const STAGE5 = GUI_FIXED;
     chk('exactly six variants are fixed outside the terminal (stage 5)',
         STAGE5.length === 6 && STAGE5.every(id => !REPAIRS[id]), STAGE5.join(','));
     chk('every other variant has a typed repair',

@@ -167,20 +167,11 @@ section('1. all seven windows render against a real lab');
         (st.events || []).some(e => /launch-missiles/.test(e.detail) && /rejected/.test(e.detail)));
 }
 
-/* The six GUI-only repairs, at module scope because two sections need them: section 2 drives
- * them through act(), and the schema section checks each one is renderable as a form. One
- * definition, so the two cannot disagree about what the repairs are. */
-const REPAIRS = {
-    S1B: (st, f) => [['rack', 'replace-cable', { device: f.target.switch, port: f.target.port }]],
-    S6B: (st) => [['firewall', 'ipsec-add-phase2',
-                   { local: st.subnets[20].cidr, remote: TOPO.FIXED_NETS.branch.cidr }]],
-    S7A: (st) => [['firewall', 'nat-add-outbound', { src: st.subnets[20].cidr }]],
-    S7B: (st) => [['firewall', 'portforward-set', { wanPort: 443, toIp: '172.16.50.10' }]],
-    S11A: (st) => [['wireless', 'ssid-set-vlan', { ssid: 'Meridian-Guest', vlan: 40 }]],
-    S11B: (st) => [['wireless', 'ap-set-channel', { ap: 'AP-1', channel: 1 }],
-                   ['wireless', 'ap-set-channel', { ap: 'AP-2', channel: 6 }],
-                   ['wireless', 'ap-set-channel', { ap: 'AP-3', channel: 11 }]]
-};
+/* The six GUI-only repairs. They were defined here, with a comment saying "one definition, so the
+ * two cannot disagree" -- meaning this file's two sections. The instructor walkthrough is a THIRD
+ * consumer, so the definition moved to the shared module and all three read it. The reasoning is
+ * unchanged, the scope is just wider than this file. */
+const { GUI_REPAIRS: REPAIRS } = require('./netfinal-repairs.js');
 
 
 /* ─── 2. the six faults a terminal cannot reach ───────────────────────────────────────────────── */
