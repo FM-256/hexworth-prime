@@ -357,8 +357,30 @@
     });
   }
 
-  function saveAnswer(id, value) {
+  /* PER-QUESTION ISSUE COUNTER. Two saves for the same question can be in flight at once: the
+     composite handler posts the WHOLE PAIR on every change to either control, so selecting the ACL
+     and then typing the sequence number inside one round trip issues two requests, and promises
+     resolve in whatever order the network hands back. Nancy found the consequence. */
+  var saveSeq = {};
+
+  /* THE RETRY BOUND, AS A NUMBER RATHER THAN A BOOLEAN. It was `!isRetry`, which is correct and
+     which I could not write a falsifiable test for: forcing one save to lose the revision race
+     TWICE needs four writes interleaved in an exact order, and my attempt at that fixture made the
+     stalled writer win instead. A bound stated as a constant can be asserted directly, and an
+     untestable guard in an exam's save path is how a kindness becomes a defect nobody sees. */
+  var MAX_SAVE_ATTEMPTS = 2;
+
+  function saveAnswer(id, value, attempt) {
+    attempt = attempt || 1;
+    var seq = (saveSeq[id] = (saveSeq[id] || 0) + 1);
     call('netfinalAnswer', { examId: EXAM_ID, questionId: id, value: value }).then(function (r) {
+      /* A RESPONSE THAT IS NO LONGER THE LATEST CHANGES NOTHING AT ALL, the clock included.
+         Before this, the handler applied whatever its closure captured, so when the earlier save
+         landed last its less-complete value won: a student who picked the ACL name and typed the
+         sequence number quickly watched a finished pair revert to part-answered, with the complete
+         value already stored on the server. The clock is guarded for the same reason in reverse --
+         a stale reply carries a LARGER remainingMs and would hand the student time back. */
+      if (seq !== saveSeq[id]) { return; }
       setRemaining(r.remainingMs);
       /* Record what the SERVER accepted, so a re-render restores the stored answer rather than
          whatever happens to be in the DOM at the time. */
@@ -370,7 +392,28 @@
       markAnswered(id);
       refreshAnswerCount();
       telemetry('answer', id);
-    }).catch(fatal);
+    }).catch(function (e) {
+      /* 'aborted' is a LOST REVISION RACE, not a broken exam. netfinal-exam.js throws it when a
+         concurrent write to the same session won the compare-and-set, and functions/index.js keeps
+         it out of the collapse-to-internal list precisely so it can reach the client AS a conflict:
+         "the one error here the caller can resolve by retrying". The caller did not retry. It
+         printed "The exam session changed while this request was running. Retry." into the status
+         line and dropped the answer, leaving the typed value sitting in the DOM unsaved, to vanish
+         on the next reload. A student cannot act on that instruction; the page can.
+
+         RETRIED ONCE, AND ONLY IF STILL THE NEWEST VALUE for this question. Re-sending a superseded
+         save would write the stale half back over the complete pair on the SERVER, which is the bug
+         above with extra steps and a worse ending. The code arrives as 'aborted' from a direct
+         bridge and 'functions/aborted' through the Firebase SDK, so both shapes are matched, and
+         the server's own sentence is matched too in case neither survives the transport. */
+      var lostRace = /aborted/.test(String((e && e.code) || ''))
+        || /session changed while this request/i.test(String((e && e.message) || ''));
+      if (lostRace && attempt < MAX_SAVE_ATTEMPTS && seq === saveSeq[id]) {
+        saveAnswer(id, value, attempt + 1);
+        return;
+      }
+      fatal(e);
+    });
   }
 
   /* ── surfaces ──────────────────────────────────────────────────────────────────────────────── */

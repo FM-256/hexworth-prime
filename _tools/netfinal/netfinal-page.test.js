@@ -32,7 +32,12 @@ const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
 const CLIENT = require(path.join(NF, 'netfinal-client.js'));
 const QUESTIONS = require(path.join(NF, 'netfinal-questions.js'));
 
-const PAGE_PATH = path.join(REPO, '_app/houses/web/network-plus/exams/network-final.exam.html');
+/* NETFINAL_PAGE_PATH lets a mutated COPY be analysed without touching the tracked file, so these
+ * static assertions can be mutation-verified at all. Without it, a mutation run against a scratch
+ * copy left this suite reading the real page and passing for the only reason that matters: it was
+ * never shown the mutation. I scored a round of mutations that way and the result was meaningless. */
+const PAGE_PATH = process.env.NETFINAL_PAGE_PATH
+    || path.join(REPO, '_app/houses/web/network-plus/exams/network-final.exam.html');
 const INDEX_PATH = path.join(REPO, 'functions/index.js');
 const page = fs.readFileSync(PAGE_PATH, 'utf8');
 const index = fs.readFileSync(INDEX_PATH, 'utf8');
@@ -41,9 +46,8 @@ const index = fs.readFileSync(INDEX_PATH, 'utf8');
  * sandbox can never be exercising a different pair of fields than the page uses. */
 const PAGE_CONSTS = (() => {
     const grab = (name) => {
-        const m = require('fs').readFileSync(
-            require('path').join(__dirname, '../../_app/houses/web/network-plus/exams/network-final.exam.html'),
-            'utf8').match(new RegExp('var ' + name + ' = \\{[^}]*\\};'));
+        const m = require('fs').readFileSync(PAGE_PATH, 'utf8')
+            .match(new RegExp('var ' + name + ' = \\{[^}]*\\};'));
         return m ? m[0] : '';
     };
     return grab('COMPOSITE_PARTS') + '\n' + grab('PART_LABELS') + '\n';
@@ -842,8 +846,15 @@ section('13. a half-filled two-field answer is not "answered"');
         chk('the review calls it part answered and says WHICH half is missing',
             /part answered/i.test(rev) && /the sequence number/.test(rev),
             'a student must be told which field, not merely that something is wrong');
-        chk('the all-clear does not fire with a half answer outstanding',
-            !/Every question that takes a written answer has a complete/.test(rev));
+        /* NANCY, finding 2: this assertion was VACUOUS and I left it standing beside the fix for it.
+         * In this fixture 30 other questions are blank, so `blank.length` alone suppresses the
+         * all-clear and deleting the partial condition entirely would not have moved it. She proved
+         * that by mutation in a worktree copy. The isolated version lives further down, where every
+         * other question is complete; what THIS fixture can honestly prove is that the two notices
+         * coexist, so a half answer is not hidden behind the blank list. */
+        chk('the blank notice and the part-answered notice are shown TOGETHER',
+            /No answer recorded yet for Q/.test(rev) && /is only part answered/.test(rev),
+            'a half answer must not be swallowed by the blank list');
         chk('and it shows the half they DID fill, so they recognise the question',
             rev.indexOf('BLOCK-GUEST') >= 0);
         /* The mirrored half, so this is not a one-fixture check either. */
@@ -926,6 +937,68 @@ section('13. a half-filled two-field answer is not "answered"');
         (page.match(/function answerState/g) || []).length === 1
         && (page.match(/answerState\(/g) || []).length >= 4,
         'answerState call sites: ' + (page.match(/answerState\(/g) || []).length);
+}
+
+/* ─── 14. the save path: stale responses and lost revision races ────────────────────────────────── */
+/* NANCY, round 3 finding 3. `saveAnswer` applied whatever its closure captured, so two saves in
+ * flight for one question -- which the composite handler guarantees, since it posts the whole pair
+ * on every change to either control -- could land out of order and let the EARLIER, less complete
+ * value win. The render suite proves the behaviour in a browser with the responses genuinely
+ * reordered; these are the structural facts a text search can settle, including the retry bound I
+ * could not build a reliable browser fixture for. */
+section('14. the answer-save path is ordered and bounded');
+{
+    const saveBody = (() => {
+        const i = page.indexOf('function saveAnswer(');
+        if (i < 0) { return ''; }
+        let d = 0, seen = false;
+        for (let j = i; j < page.length; j++) {
+            if (page[j] === '{') { d++; seen = true; }
+            else if (page[j] === '}') { d--; if (seen && d === 0) { return page.slice(i, j + 1); } }
+        }
+        return '';
+    })();
+    chk('saveAnswer was located', saveBody.length > 200, 'len=' + saveBody.length);
+
+    /* ORDERING. The guard must come BEFORE anything it protects, the clock included: a stale reply
+     * carries a larger remainingMs and would hand the student time back. */
+    const guard = saveBody.indexOf('seq !== saveSeq[id]');
+    chk('a per-question sequence guard exists', guard >= 0,
+        'without it the earlier save wins when it lands last');
+    chk('the guard runs BEFORE the stored answer is updated',
+        guard >= 0 && guard < saveBody.indexOf('answers[id] = value'),
+        'applying then checking is not a guard');
+    chk('and BEFORE the clock is set from the response',
+        guard >= 0 && guard < saveBody.indexOf('setRemaining'),
+        'a stale remainingMs is LARGER, so applying it adds time back');
+    chk('the counter increments per save, not per question once',
+        /saveSeq\[id\] = \(saveSeq\[id\] \|\| 0\) \+ 1/.test(saveBody),
+        'a counter that does not advance cannot order anything');
+
+    /* THE RETRY, and its two dangerous edges. */
+    chk('a lost revision race is retried rather than dropped',
+        /lostRace/.test(saveBody) && /saveAnswer\(id, value, attempt \+ 1\)/.test(saveBody),
+        'the server calls aborted the code the client should retry on, and the page did not');
+    chk('both transport spellings of the code are matched',
+        /aborted/.test(saveBody) && /session changed while this request/i.test(saveBody),
+        'the SDK reports functions/aborted; a direct bridge reports aborted');
+    /* THE EDGE THAT LOSES AN ANSWER: re-sending a superseded value writes the stale half back over
+     * the complete pair ON THE SERVER. Worse than the bug the retry fixes. */
+    chk('a SUPERSEDED save is never retried',
+        /attempt < MAX_SAVE_ATTEMPTS && seq === saveSeq\[id\]/.test(saveBody),
+        'retrying a replaced value overwrites the newer answer on the server');
+    /* THE BOUND, stated as a number so it can be asserted at all. */
+    const maxDecl = (page.match(/var MAX_SAVE_ATTEMPTS = (\d+);/) || [])[1];
+    chk('the retry bound is a declared constant', maxDecl !== undefined, 'not declared');
+    chk('and it is 2: one try, one retry', Number(maxDecl) === 2, 'MAX_SAVE_ATTEMPTS=' + maxDecl);
+    chk('the recursion is bounded BY that constant, not by a boolean',
+        /attempt < MAX_SAVE_ATTEMPTS/.test(saveBody) && !/!isRetry/.test(saveBody),
+        'a boolean bound is correct and not falsifiable; a constant is both');
+    chk('the attempt number defaults, so the first call needs no argument',
+        /attempt = attempt \|\| 1/.test(saveBody));
+    /* And a failure that is NOT a lost race must still reach the student. */
+    chk('any other error still surfaces',
+        /fatal\(e\)/.test(saveBody), 'swallowing a real failure would hide a broken save');
 }
 
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');

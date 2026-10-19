@@ -97,9 +97,34 @@ const STUBS = {
  * reconstructed from the page's calls, because a bridge that invents its own mapping tests only
  * itself. `studentId` and `sessionId` are DERIVED here exactly as netfinalCall derives them, and
  * `minutes` comes from the server's duration table, never from the request. */
-const store = NETFINAL.memoryStore();
+/* THE REAL STORE, with a stall that can be inserted BETWEEN a read and its write. `withSession`
+   reads the session, computes, then writes with putIfRev against the revision it read. Delaying the
+   write is therefore the only way to make a caller genuinely LOSE the revision race, which is what
+   the server answers with 'aborted' and what the page is now supposed to retry. Delaying the
+   response instead (holdAnswer, above) reorders replies without ever producing a conflict. */
+const rawStore = NETFINAL.memoryStore();
+let stallPut = 0;
+let conflicts = 0;
+const store = {
+    get: (k) => rawStore.get(k),
+    put: (k, v) => rawStore.put(k, v),
+    putIfRev: async (k, v, rev) => {
+        if (stallPut > 0) { stallPut--; await delay(700); }
+        const ok = await rawStore.putIfRev(k, v, rev);
+        if (!ok) { conflicts++; }
+        return ok;
+    },
+    all: () => rawStore.all()
+};
 const OPTS = { secret: 'render-test-secret' };
 const requested = [];
+
+/* A HOLD ON THE BRIDGE. Set `holdAnswer` to N and the next N netfinalAnswer RESPONSES are released
+   late, which is how two saves for one question are made to resolve out of order on purpose. Real
+   networks do this, and no amount of reading the code proves what the page then shows. */
+let holdAnswer = 0;
+const answerAttempts = {};     /* questionId -> how many netfinalAnswer requests arrived for it */
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function dispatch(name, data) {
     const examId = EXAMS.resolveExamId(data.examId);
@@ -119,6 +144,7 @@ function dispatch(name, data) {
         case 'netfinalRestore':
             return NETFINAL.restoreDevice(store, { sessionId: sessionId, device: data.device }, OPTS);
         case 'netfinalAnswer':
+            answerAttempts[data.questionId] = (answerAttempts[data.questionId] || 0) + 1;
             return NETFINAL.saveAnswer(store, { sessionId: sessionId,
                 questionId: data.questionId, value: data.value }, OPTS);
         case 'netfinalSubmit':
@@ -144,7 +170,11 @@ const srv = http.createServer(async (q, r) => {
             let data = {};
             try { data = body ? JSON.parse(body) : {}; } catch (e) { data = {}; }
             try {
+                /* The hold is applied AFTER dispatch, so the server still processes requests in
+                   arrival order and only the RESPONSE is late. Delaying the dispatch would reorder
+                   the WRITES too, which is a different bug and not the one under test. */
                 const out = await dispatch(name, data);
+                if (name === 'netfinalAnswer' && holdAnswer > 0) { holdAnswer--; await delay(900); }
                 r.writeHead(200, { 'Content-Type': 'application/json' });
                 r.end(JSON.stringify(out === undefined ? null : out));
             } catch (e) {
@@ -367,6 +397,185 @@ async function main() {
             { timeout: 8000 }).catch(() => {});
         chk('and the review stops calling it part answered',
             !/part answered/i.test(await pg.$eval('#winbody', (el) => el.innerText)));
+
+        /* ─── 5b. TWO SAVES, RESOLVING OUT OF ORDER ──────────────────────────────────────────── */
+        /* NANCY, round 3 finding 3. The composite handler posts the whole pair on every change to
+           either control, so selecting the ACL and typing the sequence number inside one round trip
+           puts two saves in flight. `saveAnswer` applied whatever its closure captured, so when the
+           EARLIER save landed last its half-filled value won: a finished pair reverted to
+           part-answered on screen with the complete value already stored on the server.
+
+           Proven rather than reasoned about. The bridge holds the first answer response for 900ms so
+           the two land in the wrong order, and the assertions are about what the student then sees. */
+        section('5b. a late response from a superseded save changes nothing');
+        {
+            const seqSel = '[data-q="' + acl.id + '"][data-part="seq"]';
+            await pg.click('[data-surface="terminal"]');
+            /* Start from a known state rather than from whatever section 5 left behind. */
+            await pg.select(nameSel, '');
+            await pg.$eval(seqSel, (el) => { el.value = ''; });
+            await pg.$eval(seqSel, (el) => el.dispatchEvent(new Event('change', { bubbles: true })));
+            await delay(500);
+            chk('the pair starts cleared, so the race below starts from blank',
+                await pg.$eval('#qq-' + acl.id, (el) => el.classList.contains('answered')) === false);
+
+            holdAnswer = 1;                        // the NAME-only save comes back LATE
+            await pg.select(nameSel, options[0]);  // save A: { name, seq: '' }
+            await delay(60);
+            await pg.type(seqSel, '20');
+            await pg.$eval(seqSel, (el) => el.blur());   // save B: { name, seq: '20' }
+
+            /* THE CLOCK, SAMPLED ACROSS THE HOLD RATHER THAN AFTER IT. A stale reply carries a
+               LARGER remainingMs than the newer one, so applying it hands the student time back.
+               The first version of this sampled only after waiting out the hold, by which point the
+               jump had already happened and settled, so it could not fail: a mutation that applied
+               the stale clock went straight through it. The samples now span the window in which
+               the late reply actually lands. */
+            const clockSamples = [];
+            for (let i = 0; i < 20; i++) {
+                clockSamples.push(await pg.$eval('#clock', (el) => el.textContent));
+                await delay(110);
+            }
+            await delay(400);                      // settle, so A has certainly landed
+            const toSec = (t) => { const m = /^(\d+):(\d+)$/.exec(t); return m ? (+m[1]) * 60 + (+m[2]) : -1; };
+            const secs = clockSamples.map(toSec);
+            chk('the clock was readable throughout, so the check below is real',
+                secs.every((v) => v > 0), JSON.stringify(clockSamples));
+            chk('the clock never ran BACKWARDS when the stale reply landed',
+                secs.every((v, i) => i === 0 || v <= secs[i - 1]),
+                JSON.stringify(clockSamples) + ' -- a stale remainingMs would add time back');
+
+            const st = await store.get(sid);
+            const fin = ((st.state.answers || {})[acl.id] || {}).value;
+            chk('the SERVER holds the complete pair',
+                fin && fin.name === options[0] && fin.seq === '20', JSON.stringify(fin));
+            chk('the card did NOT revert when the stale reply landed',
+                await pg.$eval('#qq-' + acl.id, (el) => el.classList.contains('answered')) === true,
+                'the superseded save overwrote the newer value');
+            const hdrRace = await pg.$eval('#qcount', (el) => el.textContent);
+            chk('the header does not call the finished pair part-filled',
+                !/part-filled/.test(hdrRace), hdrRace);
+            await pg.click('[data-surface="review"]');
+            await delay(300);
+            chk('and the review does not call it part answered',
+                !/part answered/i.test(await pg.$eval('#winbody', (el) => el.innerText)));
+            chk('the hold was consumed, so this section exercised the reorder',
+                holdAnswer === 0, 'holdAnswer=' + holdAnswer);
+            chk('no page error from the out-of-order responses', errors.length === 0,
+                errors.slice(0, 2).join(' | '));
+        }
+
+        /* ─── 5c. A SAVE THAT LOSES THE REVISION RACE IS RETRIED ─────────────────────────────── */
+        /* The branch I added for Nancy's finding, under test, because an untested new branch in an
+           exam's save path is worse than the bug it fixes.
+
+           netfinal-exam.js throws 'aborted' when a concurrent write to the same session wins the
+           compare-and-set, and its comment calls that "the code the client should retry on".
+           The page did not retry: it printed "The exam session changed while this request was
+           running. Retry." into the status line and dropped the answer, leaving the typed value in
+           the DOM unsaved to vanish on the next reload. A student cannot act on that instruction.
+
+           Forced here by stalling ONE putIfRev between its read and its write, so the stalled caller
+           really does lose the revision check. Nothing about the server is stubbed to make this
+           happen; it is the real guard firing. */
+        section('5c. a save that loses the revision race is retried, not dropped');
+        {
+            const t2 = qs.filter((q) => q.kind === 'text' && q.id !== textQ.id)[0];
+            chk('there is a second text question to collide with', !!t2);
+            await pg.click('[data-surface="terminal"]');
+            const before = conflicts;
+
+            stallPut = 1;                     // the FIRST write to arrive will be held open
+            await pg.type('[data-q="' + t2.id + '"]', '172.16.9.9');
+            await pg.$eval('[data-q="' + t2.id + '"]', (el) => el.blur());
+            await delay(80);
+            /* A second, different question, so neither save supersedes the other: both are the
+               latest value for their own question, which is what makes the retry eligible. */
+            await pg.type('[data-q="' + textQ.id + '"]', '!');
+            await pg.$eval('[data-q="' + textQ.id + '"]', (el) => el.blur());
+            await delay(2500);                // past the stall and the retry round trip
+
+            chk('a revision conflict really happened, so this section tested the guard',
+                conflicts > before, 'conflicts before=' + before + ' after=' + conflicts);
+            const st2 = await store.get(sid);
+            const a2 = ((st2.state.answers || {})[t2.id] || {}).value;
+            chk('the losing answer was RETRIED and is on the server',
+                a2 === '172.16.9.9', JSON.stringify(a2));
+            chk('and its card is marked answered, so the student sees it saved',
+                await pg.$eval('#qq-' + t2.id, (el) => el.classList.contains('answered')) === true);
+            const status = await pg.$eval('#status', (el) => el.textContent || '');
+            chk('no conflict message is left sitting in the status line',
+                !/session changed/i.test(status), JSON.stringify(status));
+            chk('the other answer survived the collision too',
+                ((st2.state.answers || {})[textQ.id] || {}).value === '10.20.30.40!',
+                JSON.stringify(((st2.state.answers || {})[textQ.id] || {}).value));
+            chk('the stall was consumed', stallPut === 0, 'stallPut=' + stallPut);
+        }
+
+        /* ─── 5d. THE TWO DANGEROUS EDGES OF THE RETRY ───────────────────────────────────────── */
+        /* Found by mutation, not by reasoning: three mutations of the code I had just written went
+           clean through sections 5b and 5c. These two are the ones that matter.
+
+           `retry-a-superseded-save` removes the `seq === saveSeq[id]` condition. The retry then
+           re-sends a value that has already been replaced, writing the stale HALF back over the
+           complete pair ON THE SERVER. That is worse than the bug the retry was added to fix: the
+           original lost a display state, this loses a student's answer.
+
+           `retry-forever` removes `!isRetry`, so a retry that also loses the race retries again.
+           Bounded at one retry on purpose; when the second attempt loses too, the student is told
+           rather than the page spinning. */
+        section('5d. a superseded save is never retried, and a retry never retries');
+        {
+            await pg.click('[data-surface="terminal"]');
+            const seqSel2 = '[data-q="' + acl.id + '"][data-part="seq"]';
+
+            /* The dangerous case: the FIRST half of the pair loses the revision race while the
+               complete pair wins. The loser must be discarded, never re-sent. */
+            await pg.select(nameSel, '');
+            await pg.$eval(seqSel2, (el) => { el.value = ''; });
+            await pg.$eval(seqSel2, (el) => el.dispatchEvent(new Event('change', { bubbles: true })));
+            await delay(500);
+            const attemptsBefore = answerAttempts[acl.id] || 0;
+            const conflictsBefore = conflicts;
+
+            stallPut = 1;                           // the name-only write will lose
+            await pg.select(nameSel, options[0]);
+            await delay(80);
+            await pg.type(seqSel2, '20');
+            await pg.$eval(seqSel2, (el) => el.blur());
+            await delay(2800);
+
+            chk('the name-only save really lost the revision race',
+                conflicts > conflictsBefore, 'conflicts ' + conflictsBefore + ' -> ' + conflicts);
+            const stD = await store.get(sid);
+            const finD = ((stD.state.answers || {})[acl.id] || {}).value;
+            chk('the SERVER still holds the COMPLETE pair, not the stale half',
+                finD && finD.name === options[0] && finD.seq === '20',
+                JSON.stringify(finD) + ' -- a retried superseded save overwrote the answer');
+            chk('and the card still reads answered',
+                await pg.$eval('#qq-' + acl.id, (el) => el.classList.contains('answered')) === true);
+            chk('the superseded save was NOT re-sent',
+                (answerAttempts[acl.id] || 0) === attemptsBefore + 2,
+                'attempts for this question went ' + attemptsBefore + ' -> '
+                + (answerAttempts[acl.id] || 0) + '; two saves were made, so two requests');
+
+            /* THE RETRY BOUND IS NOT CHECKED HERE, AND THE REASON IS WORTH KEEPING.
+               Two attempts at it failed. The first orchestrated a double loss with two stalls and
+               measured the wrong question: with two writes stalled, the first one stalls and then
+               WINS, so the conflict landed on the competitor. The second asserted a global
+               invariant, that no question was ever saved more than twice in the whole run -- which
+               CANNOT PASS, because Q24 legitimately receives ten saves here from ordinary selecting
+               and typing. A check that cannot pass is exactly as worthless as one that cannot fail,
+               and worse in one way: it reported success against two mutations it had no power to
+               detect, because it was already red.
+
+               The bound is a declared constant, MAX_SAVE_ATTEMPTS, and netfinal-page.test.js
+               section 14 asserts its value and that the recursion is guarded by it. That is a
+               falsifiable check against a mutated copy. The scoped delta assertion above, that the
+               superseded save was not re-sent, is what this browser can honestly prove. */
+            chk('conflicts really were forced in this run, so the retry path was exercised',
+                conflicts >= 2, 'conflicts=' + conflicts);
+        }
 
         /* ─── 6. the review lists all fifty, and the submit warning is real ──────────────────── */
         section('6. the review table and the submit confirmation');
