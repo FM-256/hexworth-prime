@@ -602,5 +602,30 @@ section('the action schema the page renders from');
     }));
 }
 
+/* ─── THE INSTRUCTOR KEY'S GUI-FIX LABELS AGREE WITH THE FAULT AND THE ACTION ───────────────────
+ * Four of six were wrong in a hand-written table, and the key printed "Wireless: the SSID is mapped
+ * to the wrong VLAN" beside a firewall portforward-set. A label is a claim about two things, the
+ * tab and the remedy, and both are checked against the engine. */
+section('every GUI fix label names the tab its action uses and the fault\'s own remedy');
+{
+    const R = require('./netfinal-repairs.js');
+    const st = CORE.generate('label-check', 'net-final-2026', { secret: 'label-check' });
+    FAULTS.applyAll(st);
+    const TAB = { rack: 'Rack', firewall: 'Firewall', wireless: 'Wireless', noc: 'NOC' };
+    const bad = [];
+    R.GUI_FIXED.forEach((id) => {
+        const label = String(R.GUI_SURFACE[id] || '');
+        const actions = R.GUI_REPAIRS[id] ? R.GUI_REPAIRS[id](st, { target: {} }) : [];
+        const wins = actions.map((a) => a[0]).filter((w, i, x) => x.indexOf(w) === i);
+        const fix = String((FAULTS.VARIANTS[id] || {}).expectedFix || '');
+        if (wins.length !== 1 || label.indexOf((TAB[wins[0]] || wins[0]) + ' tab:') !== 0) {
+            bad.push(id + ': label "' + label + '" vs action tab ' + JSON.stringify(wins));
+        }
+        if (!fix || label.indexOf(fix) < 0) { bad.push(id + ': label does not carry the fault\'s expectedFix'); }
+    });
+    chk('each of the ' + R.GUI_FIXED.length + ' GUI fixes: tab matches its action, text is the fault\'s remedy',
+        R.GUI_FIXED.length === 6 && bad.length === 0, bad.join(' | '));
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);

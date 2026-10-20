@@ -8,6 +8,7 @@
  * @catalog what    the score. --cheat proves the shortcuts a student might try do NOT score.
  * @catalog run     node _tools/netfinal/netfinal-walkthrough.js --qc 3
  * @catalog run     node _tools/netfinal/netfinal-walkthrough.js --student <uid>
+ * @catalog run     node _tools/netfinal/netfinal-walkthrough.js --example   (method, no real student)
  * @catalog status  TOOL
  *
  * THERE IS NO SINGLE ANSWER KEY FOR THIS EXAM, AND THAT IS THE FIRST THING TO UNDERSTAND.
@@ -50,7 +51,7 @@ const GRADE = require(path.join(NF, 'netfinal-grade.js'));
 const QUESTIONS = require(path.join(NF, 'netfinal-questions.js'));
 const EXAMS = require(path.join(NF, 'netfinal-exams.js'));
 const GUI = require(path.join(NF, 'netfinal-gui.js'));
-const { REPAIRS, GUI_REPAIRS, GUI_FIXED, GUI_SURFACE } = require('./netfinal-repairs.js');
+const { REPAIRS, GUI_REPAIRS, GUI_FIXED, GUI_SURFACE, VERIFY } = require('./netfinal-repairs.js');
 
 /* THE ENGINE REFUSES TO START WITHOUT A SEED SECRET, and it is right to: netfinal-exam.js throws
    "Refusing to serve an exam whose seed a student could reproduce", because an empty secret makes
@@ -119,30 +120,107 @@ function studentTyped(q, answer) {
     if (q.kind === 'aclref' && typeof answer === 'object') {
         return { name: answer.name, seq: String(answer.seq) };
     }
-    if (Array.isArray(answer)) { return answer.join(', '); }
-    if (typeof answer === 'object') {
-        const parts = q.parts || Object.keys(answer);
-        /* An address and its prefix are one slash-joined token; everything else a student types as
-           words separated by spaces, which is how the normalizers read them back. */
-        if (parts.length === 2 && parts[0] === 'ipv4' && parts[1] === 'prefix') {
-            return answer.ipv4 + '/' + answer.prefix;
-        }
-        return parts.map((k) => {
+    /* EVERY TWO-PART QUESTION IS ONE FIELD PER PART since BUG-290, and the page posts an object
+       keyed by part, so that is what a sitting sends. A part whose key is a SET (Q20's device: either
+       switch is right) is answered with ONE of them, because a dropdown picks one -- handing the
+       grader the key's own array is the shape no student can produce, and it is exactly how every
+       suite missed BUG-290. */
+    if (Array.isArray(q.parts) && q.parts.length && answer && typeof answer === 'object' && !Array.isArray(answer)) {
+        const out = {};
+        q.parts.forEach((k) => {
             const v = answer[k];
-            return Array.isArray(v) ? v.join(' ') : String(v);
-        }).join(' ');
+            out[k] = Array.isArray(v) ? String(v[0]) : String(v);
+        });
+        return out;
     }
+    if (Array.isArray(answer)) { return answer.join(', '); }
     return String(answer);
 }
 
 /* Does the string this tool would print actually grade as correct? The engine's own comparator
    answers that, so the key cannot quietly contain an answer the grader rejects. */
-function verifyTyped(q, keyAnswer) {
-    const typed = studentTyped(q, keyAnswer);
+/* Asked of the REAL GRADER, gradeTyped, against the key entry -- not of a comparator called with
+   this tool's guess at the normalizer. The first version called sameAnswer with the question's
+   norm, which is not how a two-part question is graded at all, so it was a second opinion with no
+   authority; the grader is the authority. */
+function verifyTyped(entry, keyAnswer) {
+    const typed = studentTyped(entry, keyAnswer);
     if (typed === null) { return { typed, ok: true, note: 'no typed answer for this kind' }; }
-    const ok = QUESTIONS.sameAnswer(q.norm || 'text', typed, keyAnswer,
-        { require: q.parts || [] });
-    return { typed, ok, note: ok ? 'grades correct' : 'DOES NOT GRADE CORRECT' };
+    const r = GRADE.gradeTyped(entry, typed);
+    const ok = r.earned === r.of;
+    return { typed, ok, note: ok ? 'grades correct' : 'DOES NOT GRADE CORRECT (' + r.note + ')' };
+}
+
+/* A typed answer as an instructor reads it: each part labelled, a chosen option by its text, so the
+   key never prints {"layer":"2","device":"sw01"} for someone to translate under time pressure. */
+function shownTyped(q, typed) {
+    if (!typed || typeof typed !== 'object') {
+        /* A single choice prints as the student saw it, with the id the grader stores. */
+        const hit = Array.isArray(q.options) && q.options.filter((o) => String(o.id) === String(typed))[0];
+        return hit ? hit.text + '  [' + hit.id + ']' : String(typed);
+    }
+    const parts = Array.isArray(q.parts) && q.parts.length ? q.parts : Object.keys(typed);
+    return parts.map((prt) => {
+        const opts = q.options && !Array.isArray(q.options) ? q.options[prt]
+            : (prt === 'select' && Array.isArray(q.options) ? q.options : null);
+        const hit = opts && opts.filter((o) => String(o.id) === String(typed[prt]))[0];
+        const label = (q.partLabels && q.partLabels[prt]) || prt;
+        return label + ': ' + (hit ? hit.text : typed[prt]);
+    }).join('  |  ');
+}
+
+/* Back to ADMIN-WS01, then onto `device` if it is not the workstation: the shell is a stack of ssh
+   hops, and a proof is only credited on the device the question names. */
+async function goTo(s, st, device) {
+    for (let i = 0; i < 8; i++) {
+        const sh = (await s.store.get(s.sid)).shell;
+        if (!sh || !sh.stack || sh.stack.length <= 1) { break; }
+        await s.cmd('exit');
+    }
+    if (device === 'ADMIN-WS01') { return; }
+    await s.cmd('ssh admin@' + st.devices[device].mgmtIp);
+    if (/^Meridian/.test(device)) { await s.cmd('enable'); }
+}
+
+/* The evidence a student names in "How you verified it": a command or action that ACTUALLY RAN for
+   this ticket, which is what Q44 corroborates against the event log. For a terminal fix, the most
+   specific configuration line typed; for a GUI fix, the action used. */
+function evidenceFor(st, f) {
+    if (REPAIRS[f.id]) {
+        /* Editor keystrokes (`:%s/...`, `:wq`) are typed INTO vi and are not logged as commands,
+           so they cannot be evidence; the service check that follows the edit is. */
+        const skip = /^(ssh |enable$|conf t$|end$|exit$|interface |:|sudo vi )/;
+        const line = REPAIRS[f.id](st, f).filter((l) => !skip.test(l))[0];
+        return line || REPAIRS[f.id](st, f).slice(-1)[0];
+    }
+    const g = GUI_REPAIRS[f.id] ? GUI_REPAIRS[f.id](st, f)[0] : null;
+    return g ? g[1] + ' on the ' + g[0] + ' tab' : '';
+}
+
+/* Run every verify task (Q39-Q42) after the fixes, on its device. Returns what was refused. */
+async function runVerify(s, key) {
+    const st = await s.state();
+    const rejected = [];
+    for (const id of Object.keys(key.questions)) {
+        const q = key.questions[id];
+        if (q.kind !== 'sequence' || !VERIFY[q.n]) { continue; }
+        const f = (st.faults || []).filter((x) => x.slot === q.slot)[0];
+        if (!f) { continue; }
+        const v = VERIFY[q.n](st, f.variant);
+        if (v.window) {
+            const res = await s.act(v.window, v.action, v.params);
+            if (res && res.ok === false) { rejected.push('Q' + q.n + ' ' + v.action + ' -> ' + res.reason); }
+            continue;
+        }
+        await goTo(s, st, v.device);
+        for (const line of v.lines) {
+            const r = await s.cmd(line);
+            if (/Invalid input|Incomplete command|not recognized|command not found/.test(r.out || '')) {
+                rejected.push('Q' + q.n + ' ' + line + ' -> ' + (r.out || '').split('\n')[0]);
+            }
+        }
+    }
+    return rejected;
 }
 
 /* A fault's repair, as the student performs it. Returns what was done, so the caller can report a
@@ -182,11 +260,14 @@ async function repair(s, st, f) {
 }
 
 /* ── --student: the instructor artifact ──────────────────────────────────────────────────────── */
-async function printKey(studentId) {
+async function printKey(studentId, example) {
     /* REFUSED WITHOUT THE REAL SECRET. A key generated from the placeholder would be internally
        consistent and wrong for this student, and an instructor would mark correct answers wrong
-       from it. Better to hand back nothing than a confidently incorrect key. */
-    if (!REAL_SECRET) {
+       from it. Better to hand back nothing than a confidently incorrect key.
+       --example is the one exception, and it says so on every header line: a complete key for a
+       placeholder lab, so the METHOD can be read and taught without the secret. It belongs to no
+       real student, which is why it takes no student id. */
+    if (!REAL_SECRET && !example) {
         console.error('');
         console.error('REFUSING to print a key: NETFINAL_SEED_SECRET is not set in this environment.');
         console.error('');
@@ -211,7 +292,10 @@ async function printKey(studentId) {
     console.log('NETWORK+ FINAL — INSTRUCTOR KEY');
     console.log('student:  ' + studentId);
     console.log('exam:     ' + EXAM);
-    console.log('seed:     REAL secret supplied: this matches the student\'s lab');
+    console.log(example
+        ? 'seed:     EXAMPLE ONLY: placeholder secret. This lab belongs to NO real student.\n'
+          + '          Use it to learn the method. Never mark a student from it.'
+        : 'seed:     REAL secret supplied: this matches the student\'s lab');
     console.log('total:    ' + qs.reduce((a, q) => a + q.points, 0) + ' points across '
         + qs.length + ' questions');
     console.log('');
@@ -225,14 +309,19 @@ async function printKey(studentId) {
         console.log(f.slot + ' variant ' + f.variant + '  (' + f.id + ')   ticket ' + f.ticketId
             + '   OSI layer ' + f.layer);
         console.log('  target: ' + JSON.stringify(f.target));
+        console.log('  1. BEFORE the fix, Change requests tab: ticket ' + f.ticketId + ', layer ' + f.layer
+            + ', root cause, planned change, rollback. Filed after the change = 3 of 6.');
         if (REPAIRS[f.id]) {
-            console.log('  fix, typed at the terminal:');
+            console.log('  2. fix, typed at the terminal:');
             REPAIRS[f.id](st, f).forEach((l) => console.log('      ' + l));
         } else {
-            console.log('  fix, NOT at the terminal: ' + (GUI_SURFACE[f.id] || '(surface unknown)'));
-            console.log('      Use the tab\'s own controls; the engine declares the action and its');
-            console.log('      parameters, so follow what the panel offers.');
+            console.log('  2. fix, NOT at the terminal: ' + String(GUI_SURFACE[f.id] || '(surface unknown)')
+                .replace(/\{b\}/g, String(st.params.b)));
+            (GUI_REPAIRS[f.id] ? GUI_REPAIRS[f.id](st, f) : []).forEach(([win, action, params]) =>
+                console.log('      ' + win + ' tab > ' + action + '  ' + JSON.stringify(params)));
         }
+        console.log('  3. AFTER the fix, Incident log tab: ticket ' + f.ticketId + ', layer ' + f.layer
+            + ', and in "How you verified it" name what you ran, e.g.: ' + evidenceFor(st, f));
     });
 
     console.log('');
@@ -248,8 +337,8 @@ async function printKey(studentId) {
             if (q.kind === 'state' || q.kind === 'sequence') {
                 ans = '(no typed answer: graded from the network and the event log)';
             } else if (k && k.answer !== undefined && k.answer !== null) {
-                const v = verifyTyped(q, k.answer);
-                ans = (typeof v.typed === 'object' ? JSON.stringify(v.typed) : v.typed)
+                const v = verifyTyped(k, k.answer);
+                ans = shownTyped(q, v.typed)
                     + (v.ok ? '' : '   <<< ' + v.note + ', DO NOT MARK FROM THIS LINE');
             } else {
                 ans = '(none)';
@@ -259,6 +348,29 @@ async function printKey(studentId) {
             if (q.where) { console.log('         where: ' + q.where); }
         });
     });
+
+    /* THE VERIFY TASKS, which are graded from the event log and so cannot be "answered": the proof
+       must run on the right device AFTER that fault's fix. Printed from the same recipes the
+       completability QC runs, so the key and the proof cannot describe different steps. */
+    console.log('');
+    console.log('── VERIFY (Q39-Q42): run these AFTER the fixes, on the named device ' + '─'.repeat(12));
+    qs.filter((q) => q.kind === 'sequence' && VERIFY[q.n]).forEach((q) => {
+        const f = (st.faults || []).filter((x) => x.slot === key.questions[q.id].slot)[0];
+        if (!f) { return; }
+        const v = VERIFY[q.n](st, f.variant);
+        console.log('    Q' + q.n + ' [' + q.points + 'pt] ' + q.prompt);
+        console.log('         ' + (v.window ? v.window + ' tab > ' + v.action + ' ' + JSON.stringify(v.params)
+            : 'on ' + v.device + ': ' + v.lines.join('  ->  ')));
+        console.log('         shows: ' + v.why);
+    });
+    const q45 = key.questions.q45 || {};
+    console.log('');
+    console.log('── INCIDENT LOG (Q43-Q45) ' + '─'.repeat(52));
+    console.log('    Q43 [10pt] the OSI layer for every ticket, as listed per fault above.');
+    console.log('    Q44 [6pt]  "How you verified it" must name something the student actually ran.');
+    console.log('    Q45 [9pt]  YOU mark it: root-cause narratives for tickets '
+        + (Array.isArray(q45.selection) ? q45.selection.join(', ') : '(see the report)')
+        + ', 3 points each per the rubric.');
     console.log('');
 }
 
@@ -297,10 +409,14 @@ async function sit(studentId, opts) {
             if ((r.rejected || []).length) { notes.rejected.push(f.id + ': ' + r.rejected.join('; ')); }
             if (r.via === 'none') { notes.undrivable.push(f.id + ' (no recipe)'); }
             if (!opts.skipPaperwork) {
+                /* "How you verified it" names a command or action that really ran, as the Q44
+                   prompt asks: the grader corroborates the claim against the event log, so a
+                   generic sentence scores nothing, and should not. */
                 const il = await s.act('incident-log', 'submit', {
                     ticket: f.ticketId, symptom: 'Reported on ' + f.ticketId, layer: String(f.layer),
                     rootCause: 'Fault at OSI layer ' + f.layer,
-                    fix: 'Applied the documented repair', verification: 'Re-tested after the change'
+                    fix: 'Applied the documented repair',
+                    verification: evidenceFor(await s.state(), f)
                 });
                 if (il && il.ok === false) {
                     notes.rejected.push('incident ' + f.ticketId + ': ' + (il.reason || 'refused'));
@@ -324,10 +440,17 @@ async function sit(studentId, opts) {
         }
     }
 
+    /* 4. The verify tasks, AFTER every fix: a proof run before its fix scores zero. */
+    if (!opts.skipFixes && !opts.skipVerify) {
+        notes.rejected.push(...(await runVerify(s, key)));
+    }
+
     const res = await s.submit();
     const rep = res.report || {};
     return {
         studentId, total: rep.total, outOf: rep.outOf,
+        labPrint: JSON.stringify([st0.params && st0.params.b,
+            (st0.faults || []).map((f) => f.id + ':' + JSON.stringify(f.target))]),
         pending: rep.pendingInstructorMarks, phases: rep.phases,
         questions: rep.questions || [], resumed: !!started.resumed, notes
     };
@@ -367,8 +490,16 @@ async function qc(n, detail) {
             const lost = (r.questions || []).filter((m) => (m.earned || 0) < (m.of || m.points || 0));
             console.log('      ' + lost.length + ' question(s) below full marks, losing '
                 + lost.reduce((a, m) => a + ((m.of || m.points || 0) - (m.earned || 0)), 0) + ' points:');
-            lost.forEach((m) => console.log('        Q' + String(m.n).padStart(2) + ' '
-                + (m.earned || 0) + '/' + (m.of || m.points) + '  ' + (m.note || '')));
+            lost.forEach((m) => {
+                console.log('        Q' + String(m.n).padStart(2) + ' '
+                    + (m.earned || 0) + '/' + (m.of || m.points) + '  ' + (m.note || ''));
+                /* A pro-rated question (Q43, Q44) carries one row per ticket: print the rows that
+                   failed, so "10 of 12" says WHICH two. */
+                if (Array.isArray(m.detail)) {
+                    m.detail.filter((d) => d && d.ok === false).slice(0, 6).forEach((d) =>
+                        console.log('            ' + JSON.stringify(d)));
+                }
+            });
         }
     }
 
@@ -399,10 +530,13 @@ async function qc(n, detail) {
         JSON.stringify(results.map((r) => r.notes.undrivable)));
     /* Different students, different labs: if every score were identical the harness would probably
        be grading one lab repeatedly. */
+    /* Different students, different labs -- asked of the LABS, not the scores. This compared phase
+       breakdowns, a proxy that held only while the harness lost points unevenly: once every sitting
+       earned everything, identical scores were the CORRECT outcome and the proxy reported one lab
+       graded n times. */
     chk('the sittings are of DIFFERENT labs, not the same one n times',
-        n < 2 || new Set(results.map((r) => JSON.stringify(r.phases))).size > 1
-              || new Set(results.map((r) => r.total)).size > 1,
-        'identical phase breakdowns across students suggests one lab graded n times');
+        n < 2 || new Set(results.map((r) => r.labPrint)).size > 1,
+        'every sitting had the same faults, variants and addressing');
     chk('all twelve faults were driven in every sitting',
         results.every((r) => r.notes.driven.length === 12),
         JSON.stringify(results.map((r) => r.notes.driven.length)));
@@ -498,7 +632,7 @@ async function verifyKey(n) {
             const k = key.questions[q.id];
             if (!k || k.answer === undefined || k.answer === null) { continue; }
             checked++;
-            const v = verifyTyped(q, k.answer);
+            const v = verifyTyped(k, k.answer);
             if (!v.ok) {
                 bad.push(sid + ' Q' + q.n + ' (' + q.kind + '/' + q.norm + ', parts='
                     + JSON.stringify(q.parts) + ') key=' + JSON.stringify(k.answer)
@@ -519,6 +653,7 @@ async function main() {
     const val = (f, d) => { const i = argv.indexOf(f); return i >= 0 && argv[i + 1] ? argv[i + 1] : d; };
 
     if (flag('--student')) { return await printKey(val('--student', 'demo-student')) || 0; }
+    if (flag('--example')) { return await printKey('example-lab-not-a-student', true) || 0; }
     if (flag('--cheat')) { await cheat(); }
     else if (flag('--verify-key')) { await verifyKey(Number(val('--verify-key', '4')) || 4); }
     else if (flag('--qc')) { await qc(Number(val('--qc', '3')) || 3, flag('--detail')); }

@@ -248,6 +248,48 @@
 
     NORM.select = function (v) { return NORM.text(v); };
 
+    /* A ROUTING ENTRY, as a student copies it from either place it appears: `show ip route`
+     * ("S 10.200.0.0/24 [1/0] via 172.16.0.6") or the running config ("ip route 10.200.0.0
+     * 255.255.255.0 172.16.0.6"). Canonical form is "net/len via nexthop". It EXTRACTS three
+     * addresses in order and nothing else, so it cannot turn a sentence into a route: the first
+     * IPv4 is the network, a slash or a valid mask straight after it is the length, and the next
+     * address that is not that mask is the next hop. Anything short of all three is null. Added for
+     * Q22A's route part, which was graded as exact text -- "10.200.0.0/24 via 172.16.0.6" in exactly
+     * that spelling or nothing. */
+    NORM.route = function (v) {
+        var s = String(v === undefined || v === null ? '' : v);
+        var re = /(\d{1,3}(?:\.\d{1,3}){3})(\s*\/\s*\d{1,2})?/g;
+        var toks = [], m;
+        while ((m = re.exec(s)) !== null) { toks.push({ addr: NORM.ipv4(m[1]), slash: m[2] || null }); }
+        if (toks.length < 2 || !toks[0].addr) { return null; }
+        var len = null, i = 1;
+        if (toks[0].slash) {
+            len = Number(toks[0].slash.replace(/[^0-9]/g, ''));
+        } else {
+            /* Only a REAL mask is a length. ip.maskToPrefix counts leading one-bits and never checks
+             * the rest, so it reads 10.1.1.1 as /0 and 255.0.255.0 as /8; a mask must round-trip. */
+            var p = ip.maskToPrefix(toks[1].addr);
+            if (typeof p === 'number' && isFinite(p) && ip.prefixToMask(p) === toks[1].addr) { len = p; i = 2; }
+        }
+        /* `len === null` said outright: `null >= 0` is TRUE in JavaScript, so a range check alone
+         * let an entry with no stated length through as "/null". */
+        if (len === null || !(len >= 0 && len <= 32) || !toks[i] || !toks[i].addr) { return null; }
+        return toks[0].addr + '/' + len + ' via ' + toks[i].addr;
+    };
+
+    /* A DNS RECORD NAME: "intranet", "intranet.meridian.local" and "intranet.meridian.local." are
+     * the same record, because the zone's origin is implied inside the zone. Compares the host
+     * label, after dropping a leading "A record"/"record" a student may write in front of it. */
+    NORM.dnsLabel = function (v) {
+        var s = NORM.text(v).replace(/^(an? )?(a )?record\s+/, '').replace(/^a\s+/, '');
+        /* The label must END at a dot or the end of the answer: `intranet_old` and `intranet/x` are
+         * not the intranet record. Mallory found the open form read them as `intranet`. A foreign
+         * suffix (`intranet.example.com`) is still read as the label, a known leniency: the zone's
+         * labels are unique, so it can never match a DIFFERENT record. */
+        var m = s.match(/^([a-z0-9-]+)(?:\.|$)/);
+        return m ? m[1] : null;
+    };
+
     /* FIELDS A QUESTION ACTUALLY DEMANDS, which may not be waved through as "omitted".
      *
      * The tolerance below was written for ONE case -- iface's switch name, which spec section 8 says
@@ -337,6 +379,7 @@
         /* Address AND prefix, so it is graded as two parts -- the spec's partial-credit table gives
          * half for a two-part question with one part right. */
         parts: ['ipv4', 'prefix'],
+        partLabels: { ipv4: 'IPv4 address', prefix: 'prefix length, e.g. /24' },
         answer: function (st) {
             var e = ep(st, 'ADMIN-WS01');
             return { ipv4: String(e.ip), prefix: ip.maskToPrefix(e.mask) };
@@ -393,6 +436,7 @@
         prompt: function () { return "What IP address and prefix length are configured on the router's VLAN 40 sub-interface?"; },
         where: 'MeridianRTR-01: show running-config interface Gi0/0.40',
         parts: ['ipv4', 'prefix'],
+        partLabels: { ipv4: 'IPv4 address', prefix: 'prefix length, e.g. /24' },
         /* Under S5A this is a /25, which is the whole point of asking. */
         answer: function (st) {
             return { ipv4: String(st.svis[40].ip), prefix: ip.maskToPrefix(st.svis[40].mask) };
@@ -494,6 +538,7 @@
                     { id: 'normal', text: 'Normal behaviour; the cache is stale' }];
         },
         parts: function (st) { return variantOf(st, 'S4') === 'B' ? ['ipv4', 'mac'] : null; },
+        partLabels: { ipv4: 'the IP address claimed twice', mac: 'the MAC that is NOT the file server\'s' },
         answer: function (st) {
             if (variantOf(st, 'S4') !== 'B') { return 'arp-spoof'; }
             return { ipv4: String(st.rogue.claimsIp), mac: String(st.rogue.mac) };
@@ -513,6 +558,7 @@
                     { id: 'stp', text: 'STP is blocking the port' }];
         },
         parts: ['iface', 'select'],
+        partLabels: { iface: 'switch and interface, e.g. MeridianSW-01 Fa0/3', select: 'cause' },
         answer: function (st) {
             var f = fault(st, 'S1');
             return { iface: f.target.switch + ' ' + f.target.port,
@@ -549,6 +595,7 @@
                               { id: 'rtr', text: 'MeridianRTR-01' }, { id: 'srv01', text: 'MER-SRV01' }] };
         },
         parts: ['layer', 'device'],
+        partLabels: { layer: 'OSI layer', device: 'device holding the evidence' },
         /* Either switch is a defensible answer: the allowed list is per-end and the spec's own
          * evidence column says "SW-01/SW-02 show interfaces trunk". Graded in the grader as a set. */
         answer: function () { return { layer: '2', device: ['sw01', 'sw02'] }; } });
@@ -567,6 +614,8 @@
                     { id: 'acl', text: 'An ACL' }, { id: 'nat', text: 'Outbound NAT' }];
         },
         parts: function (st) { return variantOf(st, 'S5') === 'B' ? ['actual', 'expected'] : null; },
+        partLabels: { actual: 'the IP it has now', expected: 'the IP it should have' },
+        partNorms: { actual: 'ipv4', expected: 'ipv4' },
         answer: function (st) {
             if (variantOf(st, 'S5') !== 'B') { return 'mask'; }
             return { actual: String(st.svis[20].ip), expected: String(st.subnets[20].gateway) };
@@ -581,6 +630,8 @@
                 : 'At which hop does `tracert 10.200.0.25` stop, and which routing entry causes it?';
         },
         parts: function (st) { return variantOf(st, 'S6') === 'B' ? null : ['hop', 'route']; },
+        partLabels: { hop: 'the hop address where it stops', route: 'the routing entry, e.g. 10.0.0.0/24 via 192.0.2.1' },
+        partNorms: { hop: 'ipv4', route: 'route' },
         answer: function (st) {
             if (variantOf(st, 'S6') === 'B') {
                 return st.ipsec.phase2.map(function (p) { return String(p.local); });
@@ -607,6 +658,8 @@
                     { id: 'srv-dns', text: 'The DNS zone on MER-SRV01' }];
         },
         parts: function (st) { return variantOf(st, 'S7') === 'B' ? ['forward', 'actual'] : null; },
+        partLabels: { forward: 'the IP the port forward targets', actual: 'the IP the web server actually uses' },
+        partNorms: { forward: 'ipv4', actual: 'ipv4' },
         answer: function (st) {
             if (variantOf(st, 'S7') !== 'B') { return 'fw-nat'; }
             var f = st.nat.portForwards.filter(function (x) { return x.wanPort === 443; })[0];
@@ -670,6 +723,8 @@
                 : 'How many addresses are in the Sales pool, and how many Sales DHCP clients exist?';
         },
         parts: function (st) { return variantOf(st, 'S9') === 'B' ? null : ['poolSize', 'clients']; },
+        partLabels: { poolSize: 'addresses in the pool (a number)', clients: 'Sales DHCP clients (a number)' },
+        partNorms: { poolSize: 'integer', clients: 'integer' },
         answer: function (st) {
             if (variantOf(st, 'S9') === 'B') { return String(st.dhcp.subnets[10].routers); }
             var c = st.dhcp.subnets[10];
@@ -699,6 +754,8 @@
                     { id: 'cache', text: 'The client is caching a negative answer' }];
         },
         parts: function (st) { return variantOf(st, 'S10') === 'B' ? null : ['record', 'expected']; },
+        partLabels: { record: 'the record name', expected: 'the address it should hold' },
+        partNorms: { record: 'dnsLabel', expected: 'ipv4' },
         answer: function (st) {
             if (variantOf(st, 'S10') === 'B') { return 'no-reload'; }
             var fs = ep(st, 'MER-FS01');
@@ -788,7 +845,11 @@
         rubric: 'One entry per ticket. Each layer is marked against the layer the fault actually sits at; a ticket that spans two layers accepts either. Marked proportionally across all twelve tickets.' });
 
     def({ n: 44, phase: 'verify', points: 6, tag: 'practical', kind: 'state',
-        prompt: function () { return 'Incident log: in the evidence field, name a command or page that exposes the fault — one you actually used.'; },
+        /* BUG-291: this said "in the evidence field", and the incident-log form HAS no evidence
+         * field -- its fields are Symptom, Root cause, Fix applied and How you verified it, and the
+         * grader reads Fix applied plus How you verified it. A student who took the prompt literally
+         * had nowhere to put the answer. The prompt now names the field the grader reads. */
+        prompt: function () { return 'Incident log: in "How you verified it", name a command or page that exposes or confirms the fault — one you actually used.'; },
         rubric: 'The named surface must appear in the event log for that incident. Pro-rated across 12 entries.' });
 
     def({ n: 45, phase: 'verify', points: 9, tag: 'reasoning', kind: 'state',
@@ -871,6 +932,11 @@
             where: q.where || null,
             options: val(q.options) || null,
             parts: val(q.parts) || null,
+            /* Per-part label (what the page shows above each field) and per-part normalizer (how the
+             * grader compares it), declared beside `parts` so the two cannot drift. Resolved to null
+             * when the variant has no parts, so a scalar variant carries no stale labels. */
+            partLabels: val(q.parts) ? (q.partLabels || null) : null,
+            partNorms: val(q.parts) ? (q.partNorms || null) : null,
             rubric: q.rubric || null,
             ticket: val(q.ticket) || null,
             proof: val(q.proof) || null,

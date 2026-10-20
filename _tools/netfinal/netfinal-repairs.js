@@ -106,14 +106,12 @@
     /* Where a student goes for each of those six, for the walkthrough's prose. The ACTION names and
        parameters are the engine's own, declared by GUI.actionSchema, so the walkthrough generator
        reads them from the engine rather than repeating them here: this is the surface, not the call. */
-    const GUI_SURFACE = {
-        S1B: 'Rack: the port shows errors, so replace the cable on the affected port',
-        S6B: 'Firewall: the rule blocking the subnet needs correcting',
-        S7A: 'Wireless: the SSID is mapped to the wrong VLAN',
-        S7B: 'Wireless: the SSID is mapped to the wrong VLAN',
-        S11A: 'Firewall: the rule order or action is wrong',
-        S11B: 'Firewall: the rule order or action is wrong'
-    };
+    /* GUI_SURFACE is DERIVED, below GUI_REPAIRS: it was a hand-written table, and four of its six
+       lines were wrong -- S7A/S7B were labelled with S11's wireless cause and S11A/S11B with a
+       firewall rule, so the instructor key printed "Wireless: the SSID is mapped to the wrong VLAN"
+       beside a firewall portforward-set on the same line. Karl and Nancy both caught it; no suite
+       did, because nothing compared the label to the fault. */
+    let GUI_SURFACE = null;
 
     /* THE SIX GUI-ONLY REPAIRS, as [window, action, params] triples for GUI.act. These lived in
        netfinal-gui.test.js, whose own comment said "one definition, so the two cannot disagree" --
@@ -133,5 +131,43 @@
                        ['wireless', 'ap-set-channel', { ap: 'AP-3', channel: 11 }]]
     };
 
-    module.exports = { REPAIRS, GUI_REPAIRS, GUI_FIXED, GUI_SURFACE, sub, mgmt };
+    /* THE VERIFY TASKS (Q39-Q42), as a student performs them AFTER the fix. Each is graded from the
+       event log: the proof must run on the named device after the fault's fix landed, so running it
+       early, on the wrong box, or out of order scores zero -- the spec's own rule. Keyed by question
+       number; each returns where it runs and what is typed or clicked. Shared by the completability
+       QC and the instructor key so the two cannot describe different proofs. `variant` is the slot's
+       variant letter in this student's lab. */
+    const VERIFY = {
+        39: () => ({ device: 'MeridianSW-01', lines: ['show interfaces trunk'],
+                     why: 'the restored VLAN is in the allowed list on the trunk' }),
+        40: (st, variant) => variant === 'B'
+            ? { window: 'firewall', action: 'diag-test-from-wan', params: { port: 443 },
+                why: 'Firewall tab > Test a port from the WAN side, port 443: reachable' }
+            : { device: 'MeridianRTR-01', lines: ['ping 8.8.8.8 source Gi0/0.20'],
+                why: 'a ping sourced from the Engineering sub-interface now succeeds' },
+        41: (st, variant) => variant === 'B'
+            ? { device: 'MeridianRTR-01', lines: ['show ip arp'],
+                why: 'one stable MAC for the file server' }
+            : { device: 'ADMIN-WS01', lines: ['arp -d *', 'ping ' + st.subnets[10].gateway, 'arp -a'],
+                why: 'clear the cache, ping the gateway, then read the cache: the router MAC, not the rogue' },
+        42: (st) => ({ device: 'ADMIN-WS01', lines: ['nslookup intranet.' + st.dns.origin],
+                     why: 'the corrected address comes back' })
+    };
+    /* Each GUI fix's description, built from the ENGINE: the tab is the window its repair action
+       actually uses, and the words are the fault's own `expectedFix`. Neither half is typed here,
+       so the label cannot disagree with the fault or with the action printed beside it. Built from
+       one probe lab because the repair actions read subnets; the window does not vary by lab. */
+    const CORE_ = require(require('path').resolve(__dirname, '../../functions/netfinal/netfinal-core.js'));
+    const FAULTS_ = require(require('path').resolve(__dirname, '../../functions/netfinal/netfinal-faults.js'));
+    const TAB = { rack: 'Rack', firewall: 'Firewall', wireless: 'Wireless', noc: 'NOC' };
+    const probe = CORE_.generate('gui-surface-probe', 'net-final-2026', { secret: 'probe-not-a-real-lab' });
+    GUI_SURFACE = {};
+    GUI_FIXED.forEach((id) => {
+        const v = FAULTS_.VARIANTS[id] || {};
+        const win = GUI_REPAIRS[id] ? GUI_REPAIRS[id](probe, { target: {} })[0][0] : null;
+        /* `{b}` (the student's second octet) is left in; the key substitutes the real one. */
+        GUI_SURFACE[id] = (TAB[win] || win || '?') + ' tab: ' + String(v.expectedFix || v.rootCause || '');
+    });
+
+    module.exports = { REPAIRS, GUI_REPAIRS, GUI_FIXED, GUI_SURFACE, VERIFY, sub, mgmt };
 })();

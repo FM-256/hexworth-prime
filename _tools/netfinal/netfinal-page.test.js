@@ -203,8 +203,11 @@ section('3b. every question kind has a control, and the two-field one posts both
         && /<select data-q="' \+ esc\(q\.id\) \+ '" data-part="name"/.test(page));
     chk('the sequence half is NOT a closed list, so the harder half is still answered by the student',
         !/data-part="seq"[\s\S]{0,80}<option/.test(page));
-    chk('both halves carry the same data-q, which is how the pair is collected',
-        (page.match(/data-q="' \+ esc\(q\.id\) \+ '" data-part=/g) || []).length === 2);
+    /* Q24's two halves, plus the per-part controls every other two-part question gets since
+     * BUG-290 (a select for a part with choices, a text field otherwise): four emitters, all keyed
+     * by the question's data-q, which is how a pair is collected. */
+    chk('every multi-field control carries its question\'s data-q, which is how the pair is collected',
+        (page.match(/data-q="' \+ esc\(q\.id\) \+ '" data-part=/g) || []).length === 4);
     /* A change to EITHER half must post BOTH, or picking the ACL would wipe a typed sequence. */
     chk('a change to either half posts the whole pair, not just the field touched',
         /querySelectorAll\('\[data-q="' \+ t\.dataset\.q \+ '"\]\[data-part\]'\)/.test(page)
@@ -468,6 +471,7 @@ section('10. the brief and the review, run for real');
         return null;
     };
     const NEEDED = ['esc', 'hasContent', 'isDerived', 'typedQuestions', 'unansweredNumbers',
+                    'partsOf', 'partLabel', 'partChoices', 'partShown', 'shownParts',
                     'missingParts', 'answerState', 'partialQuestions', 'completeCount',
                     'renderBrief', 'renderReview'];
     const sources = NEEDED.map(fnSource);
@@ -573,7 +577,8 @@ section('10. the brief and the review, run for real');
 
         // ── and it reflects SAVED answers, which is the point ──────────────────────────────────
         const typed = pageFns.typedQuestions();
-        const one = typed[0];
+        /* A SINGLE-field question: a bare string saved against a two-part one is part-answered. */
+        const one = typed.filter(q => !q.parts)[0];
         pageFns.set({ initialState: init }, init.tickets || [], qs, { [one.id]: 'my-typed-answer' });
         const review2 = pageFns.renderReview();
         chk('an answer the server stored appears in the review',
@@ -772,6 +777,7 @@ section('13. a half-filled two-field answer is not "answered"');
         return null;
     };
     const NEED = ['esc', 'hasContent', 'isDerived', 'typedQuestions', 'unansweredNumbers',
+                  'partsOf', 'partLabel', 'partChoices', 'partShown', 'shownParts',
                   'missingParts', 'answerState', 'partialQuestions', 'completeCount', 'renderReview'];
     const srcs = NEED.map(fnSource);
     chk('every helper this section runs was found', srcs.every(Boolean),
@@ -869,7 +875,12 @@ section('13. a half-filled two-field answer is not "answered"');
         /* The all-clear must stay REACHABLE, or a warning nobody can clear is just noise. */
         const all = {};
         qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').forEach((q) => {
-            all[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '20' } : 'x';
+            /* Every multi-field question filled field by field, as the page posts it: since BUG-290
+             * that is every two-part question, not just Q24. A bare 'x' there is part-answered. */
+            all[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '20' }
+                : Array.isArray(q.parts) && q.parts.length
+                    ? q.parts.reduce((o, prt) => { o[prt] = 'x'; return o; }, {})
+                    : 'x';
         });
         fns.set({}, [], qs3, all);
         chk('with every field filled the review gives the all-clear',
@@ -886,7 +897,10 @@ section('13. a half-filled two-field answer is not "answered"');
          * whether a half answer on its own holds the all-clear back. */
         const allButAcl = {};
         qs3.filter(q => q.kind !== 'state' && q.kind !== 'sequence').forEach((q) => {
-            allButAcl[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '' } : 'x';
+            allButAcl[q.id] = q.kind === 'aclref' ? { name: 'BLOCK-GUEST', seq: '' }
+                : Array.isArray(q.parts) && q.parts.length
+                    ? q.parts.reduce((o, prt) => { o[prt] = 'x'; return o; }, {})
+                    : 'x';
         });
         fns.set({}, [], qs3, allButAcl);
         chk('nothing else is outstanding in this fixture, so the all-clear is the only thing blocking',
@@ -933,7 +947,7 @@ section('13. a half-filled two-field answer is not "answered"');
         /partialQuestions\(\)/.test(submitBody) && /part answered/.test(submitBody),
         'the review mentioning it is not the submit confirmation mentioning it');
     chk('and it names the missing field in that warning',
-        /missingParts\(q\)/.test(submitBody) && /PART_LABELS/.test(submitBody),
+        /missingParts\(q\)/.test(submitBody) && /partLabel\(q, prt\)/.test(submitBody),
         'a count without the field name sends a student back to guess which half');
     chk('one rule drives every surface that reports on an answer',
         (page.match(/function answerState/g) || []).length === 1

@@ -1121,5 +1121,96 @@ section('8. the prerequisite step has to come before the proof');
     }
 }
 
+/* ─── BUG-290: EVERY TWO-PART QUESTION IS EARNABLE FIELD BY FIELD ─────────────────────────────────
+ * The page rendered one text box for eight two-part questions, and the grader scores each part on
+ * its own, so for six of them no string earned both halves -- about 9% of the exam unreachable with
+ * perfect knowledge. Every suite missed it because every suite handed the grader the KEY'S OWN
+ * structured object, a shape no student could produce. So this section types what a student types,
+ * one field per part, the way the page now posts it: strings, the device picked as ONE id (Q20's key
+ * is a set), the route copied from the running config, the DNS record by its bare name. */
+section('BUG-290: every two-part question scores full marks from per-field typed answers');
+{
+    const asTyped = (part, v) => {
+        if (Array.isArray(v)) { return String(v[0]); }                  // one option picked
+        if (part === 'prefix') { return '/' + v; }
+        if (part === 'route') {                                          // the config spelling
+            const m = /^(\S+)\/(\d+) via (\S+)$/.exec(String(v));
+            return m ? 'ip route ' + m[1] + ' ' + CORE.ip.prefixToMask(Number(m[2])) + ' ' + m[3] : String(v);
+        }
+        if (part === 'record') { return String(v).split('.')[0]; }      // the bare host label
+        return String(v);
+    };
+    let seen = 0, full = 0, half = 0, halves = 0;
+    const misses = [], shapes = {};
+    for (let i = 0; i < 12; i++) {
+        const st = CORE.generate('parts-' + i, EXAM, { secret: 's' });
+        FAULTS.applyAll(st);
+        const key = GR.buildAnswerKey(st);
+        Object.keys(key.questions).forEach((id) => {
+            const q = key.questions[id];
+            if (!Array.isArray(q.parts) || q.kind === 'aclref' || q.answer === undefined || q.answer === null) { return; }
+            seen++; shapes['Q' + q.n + ':' + q.parts.join('+')] = true;
+            const typed = {};
+            q.parts.forEach((prt) => { typed[prt] = asTyped(prt, q.answer[prt]); });
+            const r = GR.gradeTyped(q, typed);
+            if (r.earned === r.of) { full++; } else { misses.push('Q' + q.n + ' ' + JSON.stringify(typed) + ' -> ' + r.note); }
+            /* And it is graded, not waved through: one wrong field is exactly half. */
+            q.parts.forEach((prt) => {
+                const wrong = Object.assign({}, typed, { [prt]: 'zz-wrong-9.9.9.9' });
+                halves++;
+                if (GR.gradeTyped(q, wrong).earned === r.of / 2) { half++; }
+            });
+        });
+    }
+    chk('every two-part question, typed field by field, scores full marks (' + full + '/' + seen + ')',
+        seen > 0 && full === seen, misses.slice(0, 4).join(' | '));
+    chk('and every one of its fields is actually graded: one wrong field is exactly half (' + half + '/' + halves + ')',
+        halves > 0 && half === halves);
+    /* Twelve labs must reach the variant-dependent shapes too, or the claim covers half the bank. */
+    /* Q21's two-IP shape is S5B, and the generator does not produce S5B: measured over 300 labs on
+     * 2026-10-20, S2, S3 and S5 were always A and S7 and S11 always B. So it is checked below by its
+     * DECLARATION rather than claimed here from a sitting that cannot occur. */
+    const want = ['Q1:ipv4+prefix', 'Q9:ipv4+prefix', 'Q18:iface+select', 'Q20:layer+device',
+                  'Q16:ipv4+mac', 'Q22:hop+route', 'Q23:forward+actual',
+                  'Q25:poolSize+clients', 'Q26:record+expected'];
+    const absent = want.filter((w) => !shapes[w]);
+    chk('the sweep reached all nine two-part shapes a lab can contain, variants included', absent.length === 0,
+        'never generated: ' + absent.join(', '));
+
+    /* Q21B, from its own declaration: both halves are addresses, compared as addresses. */
+    const q21 = QQ.QUESTIONS.filter((q) => q.n === 21)[0];
+    chk('Q21B declares both of its parts as IPv4, so "10.1.20.01" is "10.1.20.1"',
+        !!q21 && q21.partNorms && q21.partNorms.actual === 'ipv4' && q21.partNorms.expected === 'ipv4');
+    const e21 = { kind: 'text', norm: 'text', points: 4, parts: ['actual', 'expected'],
+                  partNorms: q21 && q21.partNorms, answer: { actual: '10.7.20.65', expected: '10.7.20.1' } };
+    chk('and grades that way: leading zeros and spaces are the same address (spec section 8)',
+        GR.gradeTyped(e21, { actual: ' 10.7.20.065', expected: '10.07.20.1 ' }).earned === 4);
+    chk('while a wrong address is half', GR.gradeTyped(e21, { actual: '10.7.20.66', expected: '10.7.20.1' }).earned === 2);
+}
+
+section('the per-part normalizers accept the spellings a student copies, and nothing looser');
+{
+    const R = QQ.NORM.route, D = QQ.NORM.dnsLabel;
+    const canon = '10.200.0.0/24 via 172.16.0.6';
+    chk('route: the show ip route line', R('S    10.200.0.0/24 [1/0] via 172.16.0.6') === canon);
+    chk('route: the running-config line', R('ip route 10.200.0.0 255.255.255.0 172.16.0.6') === canon);
+    chk('route: the canonical form itself', R(canon) === canon);
+    chk('route: a different next hop is a different route', R('10.200.0.0/24 via 172.16.0.9') !== canon);
+    chk('route: a different length is a different route', R('10.200.0.0/16 via 172.16.0.6') !== canon);
+    chk('route: no next hop is not a route', R('10.200.0.0/24') === null);
+    /* The length is part of the entry, so it is never guessed: "10.200.0.0 via 172.16.0.6" names no
+     * prefix and could be a /16 or a /24. A normalizer that defaulted one would accept a wrong answer. */
+    chk('route: no length (neither /n nor a mask) is not a route', R('10.200.0.0 via 172.16.0.6') === null);
+    chk('route: a non-mask second address is not taken as a mask', R('ip route 10.200.0.0 10.1.1.1 172.16.0.6') === null);
+    chk('route: a sentence with no addresses is not a route', R('the static route to the branch') === null);
+    chk('dns: bare label, FQDN and trailing dot are the same record',
+        D('intranet') === 'intranet' && D('intranet.meridian.local') === 'intranet'
+        && D('intranet.meridian.local.') === 'intranet' && D('A record intranet') === 'intranet');
+    chk('dns: a different record is different', D('fileserver.meridian.local') !== D('intranet'));
+    chk('dns: a longer name that merely STARTS with the label is not the record',
+        D('intranet_old') === null && D('intranet/x') === null && D('intranet2') !== 'intranet');
+    chk('dns: nothing is not a record', D('') === null);
+}
+
 console.log('\n  ' + pass + '/' + (pass + fail) + ' assertions passed');
 process.exit(fail ? 1 : 0);

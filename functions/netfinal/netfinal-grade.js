@@ -92,7 +92,8 @@
             var entry = {
                 id: q.id, n: q.n, kind: resolved.kind, norm: resolved.norm,
                 points: q.points, tag: q.tag, phase: q.phase, slot: q.slot || null,
-                parts: resolved.parts, ticket: resolved.ticket, proof: resolved.proof,
+                parts: resolved.parts, partNorms: resolved.partNorms,
+                ticket: resolved.ticket, proof: resolved.proof,
                 selection: resolved.selection, rubric: resolved.rubric
             };
             /* A QUESTION ABOUT A SLOT THAT IS NOT IN THIS LAB HAS NO ANSWER, and must not throw.
@@ -228,11 +229,21 @@
             entry.parts.forEach(function (part) {
                 var want = entry.answer ? entry.answer[part] : undefined;
                 var mine = (given && typeof given === 'object') ? given[part] : undefined;
-                /* A single string answering a two-part question is accepted and matched against
-                 * both parts: students write "10.84.10.40/24", not a JSON object. */
+                /* A single string answering a two-part question is still accepted and matched
+                 * against both parts. It is the FALLBACK, not the graded path: since BUG-290 the page
+                 * renders one field per part and posts an object. The fallback scores both parts only
+                 * when one token satisfies both normalizers (10.84.10.40/24 does), which is why a
+                 * single text box cost every student about 9% of the exam. Kept for a session saved
+                 * before the change, a transcript, or a CSV re-import. */
                 if (mine === undefined && typeof given === 'string') { mine = given; }
-                var kind = ['ipv4', 'prefix', 'mac', 'iface', 'range', 'vlanSet', 'aclRef', 'integer', 'select']
-                    .indexOf(part) >= 0 ? part : (entry.norm || 'text');
+                /* The part's normalizer: declared on the question (partNorms) where the part NAME does
+                 * not say its type -- `actual`, `expected`, `hop` are addresses, `poolSize` a count --
+                 * else the part name when it IS a normalizer, else the question's own. Q21B's two
+                 * IPs were compared as exact lowercase text, and Q22A's route in one spelling only. */
+                var declared = entry.partNorms && entry.partNorms[part];
+                var kind = declared && QUESTIONS.NORM[declared] ? declared
+                    : ['ipv4', 'prefix', 'mac', 'iface', 'range', 'vlanSet', 'aclRef', 'integer', 'select']
+                        .indexOf(part) >= 0 ? part : (entry.norm || 'text');
                 var popts = (kind === 'iface' && entry.requireSw) ? { require: ['sw'] } : undefined;
                 var ok = Array.isArray(want)
                     ? want.some(function (w) { return sameAnswer(kind, mine, w, popts); })

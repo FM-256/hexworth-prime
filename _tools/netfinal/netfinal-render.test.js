@@ -338,7 +338,9 @@ async function main() {
         /* ─── 4. a typed answer, and a REAL reload ────────────────────────────────────────────── */
         section('4. an answer survives a real browser reload');
         const qs = QUESTIONS.forStudent(started.state);
-        const textQ = qs.find((q) => q.kind === 'text');
+        /* A SINGLE-field text question. Q1 was the first text question, and since BUG-290 it is two
+           fields (address and prefix), so "the first text question" stopped meaning one box. */
+        const textQ = qs.find((q) => q.kind === 'text' && !q.parts);
         await pg.click('[data-surface="terminal"]');
         await pg.type('[data-q="' + textQ.id + '"]', '10.20.30.40');
         await pg.$eval('[data-q="' + textQ.id + '"]', (el) => el.blur());
@@ -367,7 +369,89 @@ async function main() {
             await pg.$eval('#qq-' + textQ.id, (el) => el.classList.contains('answered')));
 
         /* ─── 5. THE HALF ANSWER, on screen, which is what Chris blocked on ───────────────────── */
+        /* ─── 4b. BUG-290: every two-part question offers one control per part ──────────────── */
+        section('4b. every two-part question renders, and saves, one field per part');
+        await pg.click('[data-surface="terminal"]');
+        const multi = qs.filter((q) => q.kind !== 'aclref' && Array.isArray(q.parts) && q.parts.length);
+        chk('the lab has two-part questions to check (so the sweep below could fail)', multi.length >= 6,
+            'two-part questions: ' + multi.length);
+        const shapeMiss = [];
+        for (const q of multi) {
+            const got = await pg.$$eval('[data-q="' + q.id + '"]', (els) => els.map((e) => ({
+                tag: e.tagName.toLowerCase(), part: e.dataset.part || null,
+                visible: e.getBoundingClientRect().width > 0 && e.getBoundingClientRect().height > 0,
+                options: e.tagName === 'SELECT' ? Array.from(e.options).map((o) => o.textContent) : null })));
+            const parts = got.map((g) => g.part);
+            if (JSON.stringify(parts) !== JSON.stringify(q.parts) || got.some((g) => !g.visible)) {
+                shapeMiss.push('Q' + q.n + ' wants ' + JSON.stringify(q.parts) + ' got ' + JSON.stringify(got.map((g) => g.tag + ':' + g.part + (g.visible ? '' : '(unpainted)'))));
+            }
+        }
+        chk('each one paints exactly one control per declared part, in order', shapeMiss.length === 0,
+            shapeMiss.slice(0, 3).join(' | '));
+
+        const q20 = qs.find((q) => q.n === 20);
+        const q20ctl = await pg.$$eval('[data-q="' + q20.id + '"]', (els) => els.map((e) => ({
+            tag: e.tagName.toLowerCase(), part: e.dataset.part,
+            options: Array.from(e.options || []).map((o) => o.textContent) })));
+        chk('Q20 offers its choices: two dropdowns, OSI layer and device, with their real options',
+            q20ctl.length === 2 && q20ctl.every((c) => c.tag === 'select')
+            && q20ctl[0].options.indexOf('Layer 2') >= 0 && q20ctl[1].options.indexOf('MeridianSW-01') >= 0,
+            JSON.stringify(q20ctl));
+        const q18 = qs.find((q) => q.n === 18);
+        const q18ctl = await pg.$$eval('[data-q="' + q18.id + '"]', (els) => els.map((e) => e.tagName.toLowerCase() + ':' + e.dataset.part));
+        chk('Q18 types the interface and picks the cause', JSON.stringify(q18ctl) === '["input:iface","select:select"]',
+            JSON.stringify(q18ctl));
+
+        /* Fill Q20 the way a student does, and read what the SERVER stored and what the review says. */
+        /* HALF OF Q20 FIRST, checked on all four surfaces. The half-answer state, the review and the
+           submit warning were proven only on Q24; a mutation that read the old aclref-only parts
+           list left every NEW two-part question reporting "complete" with half its fields empty,
+           and both page suites stayed green. Nancy proved it. */
+        await pg.select('[data-q="' + q20.id + '"][data-part="layer"]', '2');
+        await pg.waitForFunction(`/part-filled/.test(document.getElementById('qcount').textContent)`,
+            { timeout: 8000 }).catch(() => {});
+        chk('half of Q20: the card is NOT marked answered',
+            !(await pg.$eval('#qq-' + q20.id, (el) => el.classList.contains('answered'))));
+        chk('half of Q20: the header calls it part-filled',
+            /part-filled/.test(await pg.$eval('#qcount', (el) => el.textContent)),
+            await pg.$eval('#qcount', (el) => el.textContent));
+        await pg.click('[data-surface="review"]');
+        const revHalf = await pg.$eval('#winbody', (el) => el.innerText);
+        chk('half of Q20: the review says part answered and names the missing part',
+            /part answered/i.test(revHalf) && /device holding the evidence/.test(revHalf),
+            (revHalf.match(/.{0,60}part answered.{0,80}/i) || ['(no part-answered line)'])[0]);
+        dialogs.length = 0;
+        await pg.click('#submit');
+        await pg.waitForFunction('true', { timeout: 500 }).catch(() => {});
+        const warnHalf = (dialogs[0] || {}).message || '';
+        chk('half of Q20: the submit warning names Q' + q20.n + ' and its missing part, and dismissing submits nothing',
+            new RegExp('Q' + q20.n + ' is only part answered: still missing device holding the evidence').test(warnHalf)
+            && !(await store.get(UID + '::' + EXAMS.DEFAULT_EXAM_ID)).submittedAt,
+            warnHalf.slice(0, 300));
+        await pg.click('[data-surface="terminal"]');
+        await pg.select('[data-q="' + q20.id + '"][data-part="device"]', 'sw02');
+        await pg.waitForFunction(
+            `document.getElementById('qq-${q20.id}').classList.contains('answered')`, { timeout: 8000 }).catch(() => {});
+        const s20 = ((await store.get(UID + '::' + EXAMS.DEFAULT_EXAM_ID)).state.answers || {})[q20.id];
+        chk('the server stored Q20 as one object with both parts', !!s20 && s20.value
+            && s20.value.layer === '2' && s20.value.device === 'sw02', JSON.stringify(s20));
+        chk('and the card is marked answered once both are chosen',
+            await pg.$eval('#qq-' + q20.id, (el) => el.classList.contains('answered')));
+        /* Graded by the real grader against this student's real key: the full four points. */
+        const GRADE = require(path.join(NF, 'netfinal-grade.js'));
+        const sess = await store.get(UID + '::' + EXAMS.DEFAULT_EXAM_ID);
+        const g20 = GRADE.gradeTyped(sess.answerKey.questions[q20.id], s20.value);
+        chk('and that saved answer earns full marks from the real grader', g20.earned === g20.of, JSON.stringify(g20));
+        await pg.click('[data-surface="review"]');
+        const rev20 = await pg.$eval('#winbody', (el) => el.innerText);
+        chk('the review shows the CHOICES, labelled, not the ids',
+            /OSI layer: Layer 2/.test(rev20) && /MeridianSW-02/.test(rev20) && !/\bsw02\b/.test(rev20),
+            (rev20.match(/.{0,40}OSI layer.{0,60}/) || ['(no OSI layer line)'])[0]);
+
         section('5. a half-filled two-field answer, as a student sees it');
+        /* The complete answers saved so far, read off the header rather than assumed: section 4b
+           added one, and a hard-coded count goes stale the moment an earlier section changes. */
+        const before5 = Number(((await pg.$eval('#qcount', (el) => el.textContent)).match(/^(\d+) \//) || [])[1]);
         const acl = qs.find((q) => q.kind === 'aclref');
         const nameSel = '[data-q="' + acl.id + '"][data-part="name"]';
         const options = await pg.$eval(nameSel, (el) =>
@@ -402,7 +486,8 @@ async function main() {
             { timeout: 8000 }).catch(() => {});
         const hdr1 = await pg.$eval('#qcount', (el) => el.textContent);
         chk('the header reports it as part-filled, not as a written answer',
-            /part-filled/.test(hdr1) && /1 \/ \d+ written answers/.test(hdr1), hdr1);
+            /part-filled/.test(hdr1) && new RegExp('^' + before5 + ' / \\d+ written answers').test(hdr1),
+            hdr1 + ' (complete before this section: ' + before5 + ')');
 
         await pg.click('[data-surface="review"]');
         await pg.waitForFunction(`/part answered/i.test(document.getElementById('winbody').innerText)`,
@@ -513,7 +598,7 @@ async function main() {
            happen; it is the real guard firing. */
         section('5c. a save that loses the revision race is retried, not dropped');
         {
-            const t2 = qs.filter((q) => q.kind === 'text' && q.id !== textQ.id)[0];
+            const t2 = qs.filter((q) => q.kind === 'text' && !q.parts && q.id !== textQ.id)[0];
             chk('there is a second text question to collide with', !!t2);
             await pg.click('[data-surface="terminal"]');
             const before = conflicts;
@@ -624,8 +709,8 @@ async function main() {
            which is larger than the granularity, so the jump either happens or it does not. */
         section('5e. a late response cannot move the clock backwards across questions');
         {
-            const qa = qs.filter((q) => q.kind === 'text')[2];
-            const qb = qs.filter((q) => q.kind === 'text')[3];
+            const qa = qs.filter((q) => q.kind === 'text' && !q.parts)[2];
+            const qb = qs.filter((q) => q.kind === 'text' && !q.parts)[3];
             chk('two further text questions exist to race against each other', !!qa && !!qb);
             if (qa && qb) {
                 await pg.click('[data-surface="terminal"]');

@@ -288,7 +288,29 @@
           + '<input type="text" data-q="' + esc(q.id) + '" data-part="seq" inputmode="numeric"'
           + ' placeholder="sequence number" aria-label="sequence number">'
           + '</div>';
-      } else if (q.kind === 'select' && q.options && !Array.isArray(q.options.layer)) {
+      } else if (partsOf(q)) {
+        /* ONE FIELD PER PART (BUG-290). Every two-part question was one text box, and the grader
+           scores each part separately, so for six of them no string a student could type earned
+           both halves: about 9% of the exam was unreachable with perfect knowledge. Q20 was worse:
+           its choices are keyed by part, so it fell past the select branch below and rendered as a
+           blank text box with its options never shown. A part with choices gets a dropdown -- Q20's
+           two halves, Q18's cause -- and every other part a labelled field. Same data-q/data-part
+           shape as Q24, so the change handler, restore, the half-answer state, the review and the
+           submit warning all already handle it. */
+        body = '<div class="pair">' + partsOf(q).map(function (prt) {
+          var choices = partChoices(q, prt), label = partLabel(q, prt);
+          if (choices) {
+            return '<select data-q="' + esc(q.id) + '" data-part="' + esc(prt) + '" aria-label="' + esc(label) + '">'
+              + '<option value="">&mdash; ' + esc(label) + ' &mdash;</option>'
+              + choices.map(function (o) {
+                  return '<option value="' + esc(o.id) + '">' + esc(o.text) + '</option>';
+                }).join('')
+              + '</select>';
+          }
+          return '<input type="text" data-q="' + esc(q.id) + '" data-part="' + esc(prt) + '"'
+            + ' placeholder="' + esc(label) + '" aria-label="' + esc(label) + '">';
+        }).join('') + '</div>';
+      } else if (q.kind === 'select' && Array.isArray(q.options)) {
         body = '<select data-q="' + esc(q.id) + '"><option value="">— choose —</option>'
           + (q.options || []).map(function (o) { return '<option value="' + esc(o.id) + '">' + esc(o.text) + '</option>'; }).join('')
           + '</select>';
@@ -466,6 +488,45 @@
   var COMPOSITE_PARTS = { aclref: ['name', 'seq'] };
   var PART_LABELS = { name: 'the ACL name', seq: 'the sequence number' };
 
+  /* THE FIELDS ANY MULTI-FIELD QUESTION ASKS FOR: Q24's pair by kind, every other two-part question
+     by the `parts` the server declares. One function, read by the renderer, the half-answer state,
+     the review and the submit warning, so a part the server adds is rendered AND required. */
+  function partsOf(q) {
+    if (COMPOSITE_PARTS[q.kind]) { return COMPOSITE_PARTS[q.kind]; }
+    return Array.isArray(q.parts) && q.parts.length ? q.parts : null;
+  }
+  /* The server names each part (partLabels); a part it does not name falls back to its id. */
+  function partLabel(q, prt) {
+    return (q.partLabels && q.partLabels[prt]) || PART_LABELS[prt] || prt;
+  }
+  /* A part's choices: keyed by part (Q20), or the question's own list for its `select` part (Q18). */
+  function partChoices(q, prt) {
+    var o = q.options;
+    if (!o) { return null; }
+    if (!Array.isArray(o) && Array.isArray(o[prt])) { return o[prt]; }
+    if (Array.isArray(o) && prt === 'select') { return o; }
+    return null;
+  }
+  /* A saved multi-field answer as the review lists it: each filled part, labelled, in the order the
+     question asks for them -- "OSI layer: Layer 2 · device holding the evidence: MeridianSW-01"
+     rather than "2 sw01". Q24's two fields stay unlabelled because they read naturally as a pair. */
+  function shownParts(q, v) {
+    var parts = partsOf(q) || Object.keys(v || {});
+    return parts.filter(function (prt) {
+      var x = v && v[prt];
+      return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
+    }).map(function (prt) {
+      var val = partShown(q, prt, v[prt]);
+      return COMPOSITE_PARTS[q.kind] ? val : partLabel(q, prt) + ': ' + val;
+    }).join(COMPOSITE_PARTS[q.kind] ? ' ' : ' · ');
+  }
+  /* What the review shows for one saved part: the option's TEXT for a chosen part, not its id. */
+  function partShown(q, prt, val) {
+    var c = partChoices(q, prt);
+    var hit = c && c.filter(function (x) { return String(x.id) === String(val); })[0];
+    return hit ? hit.text : String(val);
+  }
+
   /* WHICH HALVES OF A COMPOSITE ANSWER ARE STILL EMPTY.
      `hasContent` uses `.some()`, which is right for one field and wrong for a pair. It was written to
      drive a CSS highlight, and this change put it in charge of the submit warning and the review
@@ -477,7 +538,7 @@
      the exam. Chris blocked on it, and he was right: the feature built to surface a silently
      incomplete answer was reporting the most likely kind of incomplete answer as done. */
   function missingParts(q) {
-    var parts = COMPOSITE_PARTS[q.kind];
+    var parts = partsOf(q);
     if (!parts) { return []; }
     var v = answers[q.id];
     if (!v || typeof v !== 'object') { return parts.slice(); }
@@ -491,7 +552,7 @@
      submit warning. Four surfaces that must never disagree about one question. */
   function answerState(q) {
     if (isDerived(q)) { return 'derived'; }
-    var miss = missingParts(q), parts = COMPOSITE_PARTS[q.kind];
+    var miss = missingParts(q), parts = partsOf(q);
     if (parts && miss.length) { return miss.length === parts.length ? 'blank' : 'partial'; }
     return hasContent(answers[q.id]) ? 'complete' : 'blank';
   }
@@ -595,7 +656,7 @@
        the field they did fill is sitting there looking finished. */
     partial.forEach(function (q) {
       out.push('<div class="notice bad">Q' + q.n + ' is only part answered. Still missing '
-        + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ')
+        + missingParts(q).map(function (prt) { return partLabel(q, prt); }).join(' and ')
         + '. Both halves are graded together.</div>');
     });
     if (!blank.length && !partial.length) {
@@ -613,17 +674,11 @@
             } else if (st === 'blank') {
               shown = '<span class="bad">not answered</span>';
             } else if (st === 'partial') {
-              shown = '<span class="bad">part answered: ' + esc(Object.keys(v || {}).map(function (k) {
-                  return v[k];
-                }).filter(function (x) {
-                  return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
-                }).join(' ')) + '</span> <span class="where">(missing '
-                + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ')
+              shown = '<span class="bad">part answered: ' + esc(shownParts(q, v)) + '</span> <span class="where">(missing '
+                + missingParts(q).map(function (prt) { return partLabel(q, prt); }).join(' and ')
                 + ')</span>';
             } else if (typeof v === 'object') {
-              shown = esc(Object.keys(v).map(function (k) { return v[k]; }).filter(function (x) {
-                return x !== null && x !== undefined && typeof x !== 'object' && String(x) !== '';
-              }).join(' '));
+              shown = esc(shownParts(q, v));
             } else {
               shown = esc(String(v));
             }
@@ -922,7 +977,7 @@
        answered, is how a student submits one filled field on a two-field question believing it done. */
     partial.forEach(function (q) {
       lines.push('Q' + q.n + ' is only part answered: still missing '
-        + missingParts(q).map(function (prt) { return PART_LABELS[prt] || prt; }).join(' and ') + '.');
+        + missingParts(q).map(function (prt) { return partLabel(q, prt); }).join(' and ') + '.');
     });
     var msg = lines.length
       ? lines.join('\n') + '\n\nSubmit anyway? This ends and grades this attempt. You can restart afterwards, but a restart begins again with no answers.'
