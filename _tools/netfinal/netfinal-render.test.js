@@ -828,6 +828,13 @@ async function main() {
         await pg.waitForFunction(() => !document.getElementById('done').hidden, { timeout: 5000 }).catch(() => {});
         chk('reloading a submitted exam lands on the Submitted panel',
             await pg.$eval('#done', (el) => !el.hidden && el.getBoundingClientRect().height > 0));
+        /* WITH THE GRADE. It used to say "already submitted" and nothing else, so a student who
+           reloaded never saw their score again. */
+        const graded = (await store.get(SID)).report;
+        const shownBig = await pg.$eval('#report', (el) => (el.querySelector('.big') || {}).textContent || '');
+        chk('and it shows the score again, the same total the grader recorded',
+            new RegExp('^' + graded.total + '\\b').test(shownBig.trim()) && /graded/.test(shownBig),
+            JSON.stringify(shownBig) + ' vs total ' + graded.total);
         const sb = await box();
         chk('with canReset false the control is hidden AND paints nothing',
             sb.hidden === true && sb.w === 0 && sb.h === 0, JSON.stringify(sb));

@@ -65,12 +65,24 @@ section('1. the page reaches every callable, and names none that does not exist'
 {
     const exported = (index.match(/^exports\.netfinal[A-Za-z]+/gm) || [])
         .map(x => x.replace('exports.', '')).sort();
-    const called = (page.match(/call\('netfinal[A-Za-z]+'/g) || [])
+    const callsIn = (src) => (src.match(/call\('netfinal[A-Za-z]+'/g) || [])
         .map(x => x.replace("call('", '').replace("'", ''))
         .filter((v, i, a) => a.indexOf(v) === i).sort();
+    /* Two pages since 2026-10-21: the exam a student sits, and the staff results page that lists
+     * every attempt, marks Q45 and restarts a student. A callable counts as reached if EITHER page
+     * calls it, and the two staff-only ones must never be called from the student's page. */
+    /* From the repo, not beside PAGE_PATH: a mutation run points PAGE_PATH at a scratch copy. */
+    const results = require('fs').readFileSync(path.resolve(__dirname,
+        '../../_app/houses/web/network-plus/exams/network-final-results.html'), 'utf8');
+    const called = callsIn(page).concat(callsIn(results)).filter((v, i, a) => a.indexOf(v) === i).sort();
+    const STAFF_ONLY = ['netfinalMarkNarratives', 'netfinalResults'];
 
-    /* Eight since 2026-10-19: netfinalReset, the staff restart, reached from the Submitted panel. */
-    chk('the server exposes the eight exam callables', exported.length === 8, JSON.stringify(exported));
+    /* Ten since 2026-10-21: eight the exam page reaches, plus the two staff results callables. */
+    chk('the server exposes the ten exam callables', exported.length === 10, JSON.stringify(exported));
+    chk('the student\'s exam page calls neither staff-only callable',
+        STAFF_ONLY.every(n => callsIn(page).indexOf(n) < 0), JSON.stringify(callsIn(page)));
+    chk('and the results page calls both', STAFF_ONLY.every(n => callsIn(results).indexOf(n) >= 0),
+        JSON.stringify(callsIn(results)));
     const unreached = exported.filter(e => called.indexOf(e) < 0);
     /* THE ONE THAT WAS BROKEN. netfinalAction and netfinalRestore were exported, tested, and never
      * called by the page -- so every GUI action and the only recovery path were dead. */

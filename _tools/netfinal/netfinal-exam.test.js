@@ -1018,6 +1018,55 @@ section('a staff restart archives the sitting and the same lab comes back fresh'
     chk('and the refused restart left the live sitting in place', (await r.store.get(sid)) !== null);
 }
 
+section('every grade is handed to the recorder: submit, the clock, and marking');
+{
+    /* onGraded is how functions/index.js writes the gradebook. It must fire on EVERY path that
+     * produces a grade, or one path grades silently -- and a failure in it must never undo a grade. */
+    const seen = [];
+    const r = rig();
+    const o = Object.assign({}, r.opts, { onGraded: async (s) => { seen.push([s.studentId, !!s.submittedAt, s.report.total]); } });
+    await EX.startExam(r.store, { studentId: 'g1', examId: EXAM, minutes: 100 }, o);
+    await EX.submitExam(r.store, { sessionId: 'g1::' + EXAM }, o);
+    chk('a submit hands the graded sitting over once', seen.length === 1 && seen[0][0] === 'g1' && seen[0][1] === true,
+        JSON.stringify(seen));
+    await EX.submitExam(r.store, { sessionId: 'g1::' + EXAM }, o);
+    chk('a repeat submit, which grades nothing, hands nothing over', seen.length === 1);
+    await EX.startExam(r.store, { studentId: 'g2', examId: EXAM, minutes: 100 }, o);
+    r.advance(101 * 60000);
+    const late = await caught(EX.runCommand(r.store, { sessionId: 'g2::' + EXAM, line: 'ipconfig' }, o));
+    chk('the clock\'s auto-submit hands it over too', late && late.code === 'deadline-exceeded'
+        && seen.length === 2 && seen[1][0] === 'g2', JSON.stringify(seen));
+    await EX.markNarratives(r.store, { sessionId: 'g1::' + EXAM, marks: [1, 1, 1], markedBy: 'teach' }, o);
+    chk('and so does marking Q45, with the new total', seen.length === 3 && seen[2][2] === seen[0][2] + 3,
+        JSON.stringify(seen));
+    const boom = Object.assign({}, r.opts, { onGraded: async () => { throw new Error('gradebook down'); } });
+    const was = console.error; console.error = () => {};
+    await EX.startExam(r.store, { studentId: 'g3', examId: EXAM, minutes: 100 }, boom);
+    const ok = await caught(EX.submitExam(r.store, { sessionId: 'g3::' + EXAM }, boom));
+    console.error = was;
+    chk('a recorder that fails does NOT fail the submit, and the grade stands',
+        ok === null && !!(await r.store.get('g3::' + EXAM)).submittedAt);
+}
+
+section('reopening a submitted sitting brings the grade back, aggregates only');
+{
+    const r = rig();
+    const sid = 'stu-g::' + EXAM;
+    const open = await EX.startExam(r.store, { studentId: 'stu-g', examId: EXAM, minutes: 100 }, r.opts);
+    const again = await EX.startExam(r.store, { studentId: 'stu-g', examId: EXAM, minutes: 100 }, r.opts);
+    chk('an OPEN sitting resumes with no report', open.report === undefined && again.report === null,
+        JSON.stringify([open.report, again.report]));
+    const sub = await EX.submitExam(r.store, { sessionId: sid }, r.opts);
+    const back = await EX.startExam(r.store, { studentId: 'stu-g', examId: EXAM, minutes: 100 }, r.opts);
+    chk('a SUBMITTED sitting resumes WITH its report: the same total the submit returned',
+        back.submitted === true && !!back.report && back.report.total === sub.report.total
+        && back.report.outOf === sub.report.outOf, JSON.stringify(back.report).slice(0, 120));
+    chk('through studentReport: aggregates only, no per-question rows, nothing disclosed',
+        !!back.report && !('questions' in back.report)
+        && JSON.stringify(back.report) === JSON.stringify(EX.studentReport(sub.report))
+        && CLIENT.findDisclosures(back.report, 'resumeReport').length === 0);
+}
+
 section('a STUDENT restarts only a submitted sitting; staff may rescue one in progress');
 {
     const r = rig();

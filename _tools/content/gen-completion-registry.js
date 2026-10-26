@@ -494,7 +494,7 @@ function collectEngineConfigs(ids) {
 }
 
 function collect() {
-    const sources = { learningPaths: 0, trackerKeys: 0, callSites: 0, engineConfigs: 0, inlineConfigs: 0, legacy: 0 };
+    const sources = { learningPaths: 0, trackerKeys: 0, callSites: 0, engineConfigs: 0, inlineConfigs: 0, serverExams: 0, legacy: 0 };
     const ids = new Set();
 
     // 1. LearningPaths declares module ids, bare. path-view.html strips the house prefix to match,
@@ -558,6 +558,14 @@ function collect() {
     // 5. Engines configured by an INLINE object literal in the page — see BUG-280.
     const inline = collectInlineConfigs(ids);
     sources.inlineConfigs = inline.added;
+
+    /* 6. SERVER-RECORDED EXAMS. The Network+ Meridian final writes its own gradebook completion from
+       the server (netfinalRecordGrade), keyed by the catalog id in netfinal-exams.js CATALOG_IDS. No
+       page calls ModuleProgress for it, so none of the sources above can see it, and without this
+       the strict registry check would reject a completion the platform itself wrote. Read from the
+       module, not copied here. */
+    const exams = require(path.join(REPO, 'functions/netfinal/netfinal-exams.js'));
+    for (const id of Object.values(exams.CATALOG_IDS || {})) { ids.add(id); sources.serverExams++; }
 
     const legacy = JSON.parse(fs.readFileSync(LEGACY, 'utf8'));
     for (const id of legacy.ids) { ids.add(id); sources.legacy++; }

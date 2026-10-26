@@ -72,7 +72,12 @@
             /* Without this a refresh showed every field blank -- see savedAnswers. */
             answers: savedAnswers(existing.state),
             remainingMs: remainingMs(existing, opts),
-            examMode: examModeFlags()
+            examMode: examModeFlags(),
+            /* A SUBMITTED sitting brings its grade back, through the same aggregates-only
+             * studentReport the submit reply uses. The page used to say "This exam has already been
+             * submitted." with no score, so a student who reloaded, or came back the next day, had
+             * no way to see what they got. */
+            report: existing.submittedAt ? studentReport(existing.report) : null
         };
     }
 
@@ -394,7 +399,75 @@
             }
             throw err('aborted', 'The exam session changed while submitting. Retry.');
         }
+        await notifyGraded(session, opts);
         return { submitted: true, submittedAt: session.submittedAt, report: report };
+    }
+
+    /* AFTER A GRADE LANDS, tell whoever records grades (functions/index.js writes the gradebook).
+     * Called only once the submission is durably stored, from the ONE place every submission goes
+     * through -- a student's Submit, the clock's auto-submit and an instructor's Q45 marking -- so no
+     * path can grade without recording. A recording failure is logged and never undoes the grade:
+     * the session is the record of truth, the gradebook a copy that can be rebuilt from it. */
+    async function notifyGraded(session, opts) {
+        if (!opts || typeof opts.onGraded !== 'function') { return; }
+        try { await opts.onGraded(session); }
+        catch (e) { if (typeof console !== 'undefined') { console.error('[netfinal] onGraded failed: ' + (e && e.message)); } }
+    }
+
+    /* ── instructor marking: Q45 ─────────────────────────────────────────────────────────────────
+     * Three narratives, 0-3 each, per the spec section 8 rubric. Staff only; the callable checks.
+     * Marking changes one row and every total above it, so the report is re-totalled by the
+     * grader's own `retotal` rather than patched here, and the gradebook copy follows through
+     * notifyGraded. Re-marking replaces the previous marks; it never adds to them. */
+    async function markNarratives(store, args, opts) {
+        opts = opts || {};
+        var sessionId = String(args.sessionId || '');
+        var markedBy = String(args.markedBy || '');
+        if (!sessionId || !markedBy) { throw err('invalid-argument', 'sessionId and markedBy are required.'); }
+        var marks = args.marks;
+        if (!Array.isArray(marks) || marks.length !== 3
+            || !marks.every(function (m) { return m === 0 || m === 1 || m === 2 || m === 3; })) {
+            throw err('invalid-argument', 'Q45 takes three marks, each 0, 1, 2 or 3.');
+        }
+        var session = await store.get(sessionId);
+        if (!session) { throw err('not-found', 'No exam session.'); }
+        if (!session.submittedAt || !session.report) {
+            throw err('failed-precondition', 'Only a submitted sitting can be marked.');
+        }
+        var expectedRev = Number(session.rev || 0);
+        var row = (session.report.questions || []).filter(function (r) { return r.n === 45; })[0];
+        if (!row) { throw err('failed-precondition', 'This report has no Q45 row.'); }
+        var got = marks[0] + marks[1] + marks[2];
+        row.earned = Math.min(got, row.of);
+        row.pending = 0;
+        row.marks = marks.slice();
+        row.markedBy = markedBy;
+        row.markedAt = nowMs(opts);
+        row.note = 'instructor-marked: ' + marks.join(' + ') + ' = ' + row.earned + ' of ' + row.of;
+        GRADE.retotal(session.report);
+        session.rev = expectedRev + 1;
+        var wrote = await store.putIfRev(sessionId, session, expectedRev);
+        if (!wrote) { throw err('aborted', 'The sitting changed while marking. Retry.'); }
+        await notifyGraded(session, opts);
+        return { marked: true, total: session.report.total, outOf: session.report.outOf,
+                 pendingInstructorMarks: session.report.pendingInstructorMarks };
+    }
+
+    /* WHAT AN INSTRUCTOR SEES OF ONE SITTING. The FULL report (every question, its marks and the
+     * grader's note) is for staff only -- it is the key to that student's lab, and the same lab
+     * comes back on a restart -- so the callable that returns this checks staff first. */
+    function instructorView(session, opts) {
+        if (!session) { return null; }
+        var rep = session.report || null;
+        var q45 = rep ? (rep.questions || []).filter(function (r) { return r.n === 45; })[0] : null;
+        return {
+            studentId: session.studentId, examId: session.examId,
+            startedAt: session.startedAt, submittedAt: session.submittedAt || null,
+            remainingMs: session.submittedAt ? 0 : remainingMs(session, opts),
+            report: rep,
+            narratives: q45 ? { items: q45.items || [], rubric: q45.rubric || null,
+                                marks: q45.marks || null, markedBy: q45.markedBy || null } : null
+        };
     }
 
     /* ── restart ─────────────────────────────────────────────────────────────────────────────────
@@ -565,6 +638,7 @@
         startExam: startExam, runCommand: runCommand, renderWindow: renderWindow,
         runAction: runAction, restoreDevice: restoreDevice, saveAnswer: saveAnswer,
         submitExam: submitExam, studentReport: studentReport, telemetry: telemetry,
+        markNarratives: markNarratives, instructorView: instructorView,
         resetSession: resetSession, sameSitting: sameSitting, isStaff: isStaff, mayReset: mayReset,
         examModeFlags: examModeFlags, memoryStore: memoryStore,
         savedAnswers: savedAnswers,

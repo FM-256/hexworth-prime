@@ -1188,6 +1188,24 @@ section('BUG-290: every two-part question scores full marks from per-field typed
     chk('while a wrong address is half', GR.gradeTyped(e21, { actual: '10.7.20.66', expected: '10.7.20.1' }).earned === 2);
 }
 
+section('retotal agrees with the grader, so marking cannot drift the totals');
+{
+    /* Marking Q45 re-totals a stored report with GR.retotal. If its sums ever differed from the
+     * ones grade() produced, the gradebook and the report would disagree about one student. */
+    const diffs = [];
+    for (let i = 0; i < 8; i++) {
+        const st = CORE.generate('retotal-' + i, EXAM, { secret: 's' });
+        FAULTS.applyAll(st);
+        const key = GR.buildAnswerKey(st);
+        const rep = GR.grade(st, key);
+        const fresh = GR.retotal(JSON.parse(JSON.stringify(rep)));
+        ['total', 'outOf', 'pendingInstructorMarks', 'flagged', 'subtotals', 'phases', 'perSlot'].forEach((k) => {
+            if (JSON.stringify(fresh[k]) !== JSON.stringify(rep[k])) { diffs.push(i + ':' + k); }
+        });
+    }
+    chk('across 8 labs, retotal reproduces every total grade() wrote', diffs.length === 0, diffs.join(', '));
+}
+
 section('the per-part normalizers accept the spellings a student copies, and nothing looser');
 {
     const R = QQ.NORM.route, D = QQ.NORM.dnsLabel;

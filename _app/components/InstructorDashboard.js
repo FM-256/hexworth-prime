@@ -1033,6 +1033,10 @@ const InstructorDashboard = (function() {
                             ${a.dueDate ? `<span>Due: ${formatDate(a.dueDate)}</span>` : ''}
                         </div>
                     </div>
+                    ${(() => {
+                        const exam = SERVER_EXAMS.find(x => x.id === a.contentId);
+                        return exam ? `<a class="id-badge" href="${exam.results}?class=${encodeURIComponent(selectedClassId || '')}" style="margin-right:8px;text-decoration:none">Results</a>` : '';
+                    })()}
                     <button class="id-assignment-delete" onclick="InstructorDashboard.removeAssignment('${a.id}')" title="Remove">&times;</button>
                 </div>
             `;
@@ -1051,6 +1055,17 @@ const InstructorDashboard = (function() {
             showToast('Failed to remove assignment');
         }
     }
+
+    /* EXAMS GRADED ON THE SERVER, assignable on their own (operator, 2026-10-21). Their grade is
+       written into this class's progress by the server at submit, keyed by `id`, so assigning one
+       is what makes it appear in the roster and the charts. `results` is the staff page that lists
+       every attempt and takes the instructor-marked points. */
+    const SERVER_EXAMS = [
+        { id: 'web-netplus-meridian-final', house: 'web',
+          title: 'Network+ Final: Meridian Corp Operations Lab',
+          meta: '200 points, server-graded, 9 instructor-marked',
+          results: '/houses/web/network-plus/exams/network-final-results.html' }
+    ];
 
     function openContentBrowser() {
         // Simplified content browser - shows available paths and modules
@@ -1078,6 +1093,18 @@ const InstructorDashboard = (function() {
                             </div>
                         `).join('') || '<p class="id-cb-empty">No content available</p>'}
                     </div>
+                    <div class="id-cb-section-title" style="margin-top:20px;">Exams</div>
+                    <div class="id-cb-grid">
+                        ${SERVER_EXAMS.map(x => `
+                            <div class="id-cb-card" onclick="InstructorDashboard.assignContent('item', '${x.id}', '${escapeAttr(x.title)}')">
+                                <span class="id-cb-icon"><img src="/assets/images/icons/icon-clipboard.webp" alt="" style="width:1.1em;height:1.1em;vertical-align:middle;display:inline-block;object-fit:contain"></span>
+                                <div class="id-cb-info">
+                                    <div class="id-cb-name">${escapeHtml(x.title)}</div>
+                                    <div class="id-cb-meta">${escapeHtml(x.meta)}</div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
                     <div class="id-cb-section-title" style="margin-top:20px;">CTF Boxes</div>
                     <div class="id-cb-grid">
                         <div class="id-cb-card" onclick="InstructorDashboard.closeModal('idContentBrowser'); InstructorDashboard.openArenaAssignModal();">
@@ -1101,6 +1128,10 @@ const InstructorDashboard = (function() {
     async function assignContent(type, contentId, title) {
         try {
             const params = { assignmentType: type, contentId, title };
+            /* A server-graded exam is an ITEM assignment with its house and type, so the badge and
+               the progress lookup (completions[contentId]) both see it. */
+            const exam = SERVER_EXAMS.find(x => x.id === contentId);
+            if (type === 'item' && exam) { params.house = exam.house; params.contentType = 'exam'; }
             // For learning paths, include the actual module count so progress % is accurate
             if (type === 'path' && typeof ContentRegistry !== 'undefined') {
                 const path = ContentRegistry.paths?.[contentId];

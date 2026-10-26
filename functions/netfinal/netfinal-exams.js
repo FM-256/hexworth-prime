@@ -42,6 +42,13 @@
      * live together. A different sitting length is a deliberate edit here plus a deploy. */
     var DURATION_MINUTES = { 'net-final-2026': 120 };
 
+    /* The id the GRADEBOOK knows this exam by: the ContentCatalog entry an instructor assigns
+     * (_app/components/ContentCatalog.js, `web-netplus-meridian-final`), which is also the key a
+     * class progress `completions` map is read by. The exam's own id is for its sessions; this one
+     * is for its grades. An exam with no catalog id is graded but recorded nowhere. */
+    var CATALOG_IDS = { 'net-final-2026': 'web-netplus-meridian-final' };
+    function catalogId(examId) { return CATALOG_IDS[String(examId)] || null; }
+
     /* Hard bounds, applied to whatever reaches the engine from any caller including a test. The
      * allowlist above stops the CALLABLE forwarding a forged value; this stops any other path
      * storing an absurd one, because a single guard at the edge is a guard that one new caller
@@ -73,7 +80,7 @@
     module.exports = {
         EXAM_IDS: EXAM_IDS, DEFAULT_EXAM_ID: DEFAULT_EXAM_ID, resolveExamId: resolveExamId,
         DURATION_MINUTES: DURATION_MINUTES, durationMinutes: durationMinutes,
-        clampMinutes: clampMinutes,
+        clampMinutes: clampMinutes, CATALOG_IDS: CATALOG_IDS, catalogId: catalogId,
         MIN_MINUTES: MIN_MINUTES, MAX_MINUTES: MAX_MINUTES, FALLBACK_MINUTES: FALLBACK_MINUTES
     };
 })();

@@ -599,7 +599,11 @@ const EXAM_SURFACE = {
      * back, a reply carrying the archived lab would be the key to the attempt about to begin. */
     resetSession: 'student',
     /* Predicates over a token and over two store documents: booleans, nothing to disclose. */
-    isStaff: 'internal', sameSitting: 'internal', mayReset: 'internal'
+    isStaff: 'internal', sameSitting: 'internal', mayReset: 'internal',
+    /* The staff results surface (2026-10-21). instructorView returns the FULL report, which is the
+     * key to that student's lab, so it is 'instructor' and may only be reached from a callable that
+     * checks staff first (asserted below). markNarratives replies with totals only. */
+    instructorView: 'instructor', markNarratives: 'staff'
 };
 
 (async function () {
@@ -635,9 +639,34 @@ const EXAM_SURFACE = {
             callables.length >= 7, JSON.stringify(callables));
         chk('every EXAM method a callable invokes is ledger-classified',
             invoked.every(m => m in EXAM_SURFACE), JSON.stringify(invoked.filter(m => !(m in EXAM_SURFACE))));
-        chk('NO callable returns an instructor-only value to a student',
-            invoked.every(m => EXAM_SURFACE[m] !== 'instructor'),
-            JSON.stringify(invoked.filter(m => EXAM_SURFACE[m] === 'instructor')));
+        /* PER CALLABLE, not across the file: an 'instructor' value may be returned only by a
+         * callable whose first act is netfinalRequireStaff(request). Before the results page there
+         * were none, and this asserted the whole file invoked no instructor method; that is now
+         * false by design, so the claim is narrowed to the one that matters. */
+        /* Each callable's body runs from its `exports.netfinalX =` to the next top-level export, so
+         * one-line arrow exports and block bodies are both captured. */
+        const bodies = {};
+        const starts = [];
+        const reExp = /^exports\.([A-Za-z0-9_]+) = /gm;
+        let mm;
+        while ((mm = reExp.exec(idx)) !== null) { starts.push({ name: mm[1], at: mm.index }); }
+        starts.forEach((st, k) => {
+            if (st.name.indexOf('netfinal') !== 0) { return; }
+            bodies[st.name] = idx.slice(st.at, k + 1 < starts.length ? starts[k + 1].at : idx.length);
+        });
+        const leaky = Object.keys(bodies).filter((name) => {
+            const b = bodies[name];
+            const usesInstructor = (b.match(/NETFINAL\.([A-Za-z]+)\(/g) || [])
+                .some((x) => EXAM_SURFACE[x.replace('NETFINAL.', '').replace('(', '')] === 'instructor');
+            const gate = b.indexOf('netfinalRequireStaff(request);');
+            const firstUse = b.search(/NETFINAL\.instructorView\(/);
+            return usesInstructor && !(gate > 0 && (firstUse < 0 || gate < firstUse));
+        });
+        chk('NO callable returns an instructor-only value without checking staff first',
+            Object.keys(bodies).length >= 10 && leaky.length === 0,
+            'ungated: ' + JSON.stringify(leaky) + ' of ' + Object.keys(bodies).length + ' callables parsed');
+        chk('and the staff gate itself refuses a non-staff caller before anything else',
+            /function netfinalRequireStaff\(request\) \{\s*if \(!request\.auth\)[\s\S]{0,120}if \(!NETFINAL\.isStaff\(request\.auth\.token, ADMIN_EMAILS\)\)/.test(idx));
         /* The submit callable is the one envelope that is NOT a pass-through: submitExam returns the
          * FULL grading report, and index.js must trim it through studentReport before it leaves. If
          * that wrapper is ever dropped, the raw report ships -- so assert the composition itself. */

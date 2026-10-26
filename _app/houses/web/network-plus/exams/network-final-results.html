@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Exam Results: Meridian Corp Operations Lab | Network+ N10-009</title>
+<!-- ═══════════════════════════════════════════════════════════════════════════════════════════════
+     STAFF RESULTS FOR THE MERIDIAN CORP FINAL. Every student's current sitting in full (each
+     question, its marks and the grader's note), every archived attempt, the three Q45 narratives
+     with a marking form, and a restart for any student.
+
+     THE SERVER DECIDES WHO SEES THIS. netfinalResults, netfinalMarkNarratives and netfinalReset all
+     check the caller is staff (admin, admin allowlist, or the instructor `handler` claim) before
+     returning anything. This page holds no data of its own: a student who opens it gets
+     permission-denied from the first call and an empty page. What it would show is the key to that
+     student's lab, which a restart brings back unchanged, so the check is on the server, never here.
+     ═══════════════════════════════════════════════════════════════════════════════════════════ -->
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+
+<style>
+  :root {
+    --bg: #090910; --bg2: #0f172a; --card: #1e293b; --ink: #e0e0e0; --muted: #94a3b8;
+    --accent: #06b6d4; --ok: #2ed573; --warn: #ffc107; --bad: #ff4757;
+    --border: rgba(255, 255, 255, 0.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  .topbar { display: flex; align-items: center; gap: 16px; padding: 12px 20px; background: var(--bg2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .topbar h1 { font-size: 1.05rem; font-weight: 600; }
+  .topbar .sub { color: var(--muted); font-size: 0.82rem; }
+  .topbar select { margin-left: auto; background: var(--card); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px; }
+  main { padding: 18px 20px 40px; }
+  .notice { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: var(--muted); }
+  .bad { color: var(--bad); } .ok { color: var(--ok); } .warn { color: var(--warn); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .roster { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .roster tr.student:hover { background: rgba(6, 182, 212, 0.06); }
+  button { background: var(--accent); color: #04232a; border: 0; border-radius: 6px; padding: 6px 12px; font-weight: 600; cursor: pointer; font-size: 0.8rem; }
+  button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--border); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  .detail { background: var(--bg2); }
+  .detail td { padding: 14px 16px; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  .box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .box h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+  .narr { border-top: 1px solid var(--border); padding: 10px 0; }
+  .narr:first-of-type { border-top: 0; }
+  .narr pre { white-space: pre-wrap; font-family: inherit; color: var(--ink); background: var(--bg); border-radius: 6px; padding: 8px; margin: 6px 0; }
+  .narr select { background: var(--bg); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; }
+  .rubric { color: var(--muted); font-size: 0.8rem; margin-bottom: 8px; }
+  .qnote { color: var(--muted); }
+  .status { font-size: 0.8rem; margin-left: 8px; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div>
+    <h1>Final Exam Results: Meridian Corp Operations Lab</h1>
+    <div class="sub">Network+ N10-009 · staff only · every attempt, every mark, Q45 marking</div>
+  </div>
+  <select id="classpick" aria-label="Class" hidden></select>
+</div>
+<main>
+  <div class="notice" id="msg">Loading&hellip;</div>
+  <div class="roster" id="roster" hidden></div>
+</main>
+
+<script>
+/* This page renders what the staff callables return and posts marks and restarts back. It holds no
+   grader and no key; a student who opens it is refused by the server before any data arrives. */
+(function () {
+  'use strict';
+  var EXAM_ID = 'net-final-2026';
+  var data = null, open = {};
+
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function call(name, payload) {
+    if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') {
+      return Promise.reject(new Error('Cloud Functions unavailable.'));
+    }
+    return FirebaseAuth.callFunction(name, payload || {}).then(function (r) { return (r && r.data) ? r.data : r; });
+  }
+  function say(html) { el('msg').hidden = false; el('msg').innerHTML = html; }
+  function when(ms) { return ms ? new Date(Number(ms)).toLocaleString() : ''; }
+
+  /* One student's headline status, read off their current sitting. */
+  function statusOf(s) {
+    var st = s.sitting;
+    if (!st) { return '<span class="qnote">not started</span>'; }
+    if (!st.submittedAt) {
+      return '<span class="warn">in progress</span> <span class="qnote">' + Math.ceil((st.remainingMs || 0) / 60000) + ' min left</span>';
+    }
+    return '<span class="ok">submitted</span> <span class="qnote">' + esc(when(st.submittedAt)) + '</span>';
+  }
+  /* Whether this class's dashboard copy holds the student's latest submitted attempt. Opening the
+     page rebuilds it from the session, so this says what the rebuild found. */
+  function gradebookOf(s) {
+    if (!s.gradebook) { return ''; }
+    return s.gradebook === 'recorded' ? '<span class="ok">recorded</span>'
+      : '<span class="warn">' + esc(s.gradebook) + '</span>';
+  }
+
+  function scoreOf(s) {
+    var r = s.sitting && s.sitting.submittedAt && s.sitting.report;
+    if (!r) { return ''; }
+    return '<strong>' + esc(r.total) + '</strong> / ' + esc(r.outOf)
+      + (r.pendingInstructorMarks ? ' <span class="warn">(' + esc(r.pendingInstructorMarks) + ' to mark)</span>' : '');
+  }
+
+  function renderRoster() {
+    var rows = data.students.map(function (s, i) {
+      var r = s.sitting && s.sitting.report;
+      var head = '<tr class="student">'
+        + '<td>' + esc(s.name) + '</td>'
+        + '<td>' + statusOf(s) + '</td>'
+        + '<td>' + scoreOf(s) + '</td>'
+        + '<td>' + (r && r.flagged ? '<span class="bad">collateral damage</span>' : '') + '</td>'
+        + '<td>' + (s.attempts.length ? esc(s.attempts.length) + ' earlier' : '') + '</td>'
+        + '<td>' + gradebookOf(s) + '</td>'
+        + '<td>'
+        + (s.sitting ? '<button class="ghost" data-act="detail" data-i="' + i + '">' + (open[s.uid] ? 'Hide' : 'Details') + '</button> ' : '')
+        + (s.sitting ? '<button class="ghost" data-act="restart" data-i="' + i + '">Restart</button>' : '')
+        + '</td></tr>';
+      return head + (open[s.uid] ? '<tr class="detail"><td colspan="7">' + renderDetail(s, i) + '</td></tr>' : '');
+    }).join('');
+    el('roster').innerHTML = (data.truncated
+        ? '<div class="notice bad" style="margin:10px">Showing the first ' + esc(data.students.length) + ' of '
+          + esc(data.memberCount) + ' members. The rest are not listed here.</div>' : '')
+      + '<table><thead><tr><th>Student</th><th>Status</th><th>Score</th><th>Flags</th>'
+      + '<th>Attempts</th><th>Gradebook</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>';
+    el('roster').hidden = false;
+  }
+
+  /* The full sitting: phase totals, every question with the grader's note, collateral damage, the
+     Q45 narratives with the marking form, and the archived attempts. */
+  function renderDetail(s, i) {
+    var st = s.sitting, r = st && st.report, out = [];
+    if (!r) { return '<div class="qnote">Not submitted yet. Nothing to mark.</div>'; }
+    out.push('<div class="cols"><div class="box"><h3>Phases</h3><table><tbody>'
+      + Object.keys(r.phases || {}).map(function (p) {
+          return '<tr><th>' + esc(p) + '</th><td>' + esc(r.phases[p].earned) + ' / ' + esc(r.phases[p].of) + '</td></tr>';
+        }).join('')
+      + '<tr><th>practical</th><td>' + esc(r.subtotals.practical.earned) + ' / ' + esc(r.subtotals.practical.of) + '</td></tr>'
+      + '<tr><th>reasoning</th><td>' + esc(r.subtotals.reasoning.earned) + ' / ' + esc(r.subtotals.reasoning.of) + '</td></tr>'
+      + '</tbody></table>'
+      + ((r.collateralDamage || []).length
+          ? '<h3 style="margin-top:12px">Collateral damage (zeroes every fix question)</h3><ul style="margin-left:18px">'
+            + r.collateralDamage.map(function (d) { return '<li><strong>' + esc(d.id) + '</strong>: ' + esc(d.detail || d.why || '') + '</li>'; }).join('')
+            + '</ul>' : '')
+      + '</div>' + renderNarratives(s, i) + '</div>');
+    out.push('<div class="box" style="margin-top:16px"><h3>Every question</h3><table><thead><tr><th>Q</th><th>Phase</th>'
+      + '<th>Marks</th><th>Grader note</th></tr></thead><tbody>'
+      + (r.questions || []).map(function (q) {
+          return '<tr><td>Q' + esc(q.n) + '</td><td>' + esc(q.phase) + '</td><td>' + esc(q.earned) + ' / ' + esc(q.of)
+            + (q.pending ? ' <span class="warn">(' + esc(q.pending) + ' pending)</span>' : '') + '</td>'
+            + '<td class="qnote">' + esc(q.note || '') + (q.rootCause ? ': "' + esc(q.rootCause) + '"' : '') + '</td></tr>';
+        }).join('')
+      + '</tbody></table></div>');
+    if (s.attempts.length) {
+      out.push('<div class="box" style="margin-top:16px"><h3>Earlier attempts (archived, never deleted)</h3><table><thead><tr>'
+        + '<th>Started</th><th>Submitted</th><th>Score</th><th>Restarted</th><th>By</th><th>Reason</th></tr></thead><tbody>'
+        + s.attempts.map(function (a) {
+            return '<tr><td>' + esc(when(a.startedAt)) + '</td><td>' + esc(when(a.submittedAt)) + '</td><td>'
+              + (a.total === null ? '' : esc(a.total) + ' / ' + esc(a.outOf)) + '</td><td>' + esc(when(a.resetAt)) + '</td><td>'
+              + esc(a.resetBy === s.uid ? 'the student' : 'staff') + '</td><td>' + esc(a.reason) + '</td></tr>';
+          }).join('')
+        + '</tbody></table></div>');
+    }
+    return out.join('');
+  }
+
+  function renderNarratives(s, i) {
+    var n = s.sitting.narratives;
+    if (!n) { return '<div class="box"><h3>Q45 narratives</h3><div class="qnote">No Q45 row in this report.</div></div>'; }
+    var marks = n.marks || [null, null, null];
+    return '<div class="box"><h3>Q45 narratives: 3 points each</h3>'
+      + '<div class="rubric">' + esc(n.rubric || '') + '</div>'
+      + (n.items || []).map(function (it, k) {
+          return '<div class="narr"><strong>' + esc(it.ticket) + '</strong>'
+            + (it.submitted ? '' : ' <span class="bad">(no incident-log entry)</span>')
+            + '<pre>' + esc(it.narrative || '(empty)') + '</pre>'
+            + '<label>Mark <select data-mark="' + k + '" data-i="' + i + '">'
+            /* Blank until chosen: a select that defaulted to 0 looked marked, and Save on an
+               untouched form recorded 0/0/0 for work nobody had read. */
+            + '<option value=""' + (marks[k] === null || marks[k] === undefined ? ' selected' : '') + '>Choose</option>'
+            + [0, 1, 2, 3].map(function (v) {
+                return '<option value="' + v + '"' + (marks[k] === v ? ' selected' : '') + '>' + v + '</option>';
+              }).join('')
+            + '</select></label></div>';
+        }).join('')
+      + '<button data-act="mark" data-i="' + i + '">' + (n.marks ? 'Update marks' : 'Save marks') + '</button>'
+      + '<span class="status" id="markmsg-' + i + '">' + (n.marks ? 'marked: ' + esc(n.marks.join(' + ')) : '') + '</span>'
+      + '</div>';
+  }
+
+  function load(classId) {
+    say('Loading results&hellip;');
+    return call('netfinalResults', { examId: EXAM_ID, classId: classId }).then(function (r) {
+      data = r;
+      if (!r.students.length) { say('This class has no members yet.'); el('roster').hidden = true; return; }
+      el('msg').hidden = true;
+      renderRoster();
+    }).catch(function (e) { say('<span class="bad">' + esc(e.message) + '</span>'); });
+  }
+
+  el('roster').addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-act]');
+    if (!b) { return; }
+    var s = data.students[Number(b.dataset.i)];
+    if (b.dataset.act === 'detail') { open[s.uid] = !open[s.uid]; renderRoster(); return; }
+    if (b.dataset.act === 'restart') {
+      var reason = window.prompt('Restart ' + s.name + '\'s sitting? Their current attempt is archived, not deleted, '
+        + 'and the same lab comes back with a fresh clock.\n\nReason (recorded with the restart):', '');
+      if (reason === null) { return; }
+      b.disabled = true;
+      call('netfinalReset', { examId: EXAM_ID, uid: s.uid, reason: reason || 'restarted from the results page' })
+        .then(function () { return load(data.class.id); })
+        .catch(function (e) { b.disabled = false; window.alert(e.message); });
+      return;
+    }
+    if (b.dataset.act === 'mark') {
+      var i = Number(b.dataset.i);
+      var sels = el('roster').querySelectorAll('select[data-i="' + i + '"][data-mark]');
+      if (Array.prototype.some.call(sels, function (sel) { return sel.value === ''; })) {
+        var mm = el('markmsg-' + i); if (mm) { mm.innerHTML = '<span class="bad">Choose a mark for all three narratives.</span>'; }
+        return;
+      }
+      var marks = Array.prototype.map.call(sels, function (sel) { return Number(sel.value); });
+      b.disabled = true;
+      call('netfinalMarkNarratives', { examId: EXAM_ID, uid: s.uid, marks: marks })
+        .then(function () { return load(data.class.id); })
+        .catch(function (e) {
+          b.disabled = false;
+          var m = el('markmsg-' + i); if (m) { m.innerHTML = '<span class="bad">' + esc(e.message) + '</span>'; }
+        });
+    }
+  });
+
+  el('classpick').addEventListener('change', function () {
+    var id = el('classpick').value;
+    if (id) { history.replaceState(null, '', '?class=' + encodeURIComponent(id)); load(id); }
+  });
+
+  (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function'
+    ? FirebaseAuth.waitForAuth() : Promise.reject(new Error('Sign-in is unavailable.'))
+  ).then(function (user) {
+    if (!user) { say('Sign in with a staff account to see results.'); return null; }
+    var want = new URLSearchParams(location.search).get('class');
+    return call('netfinalResults', { examId: EXAM_ID }).then(function (r) {
+      var pick = el('classpick');
+      pick.innerHTML = '<option value="">Choose a class</option>' + r.classes.map(function (c) {
+        return '<option value="' + esc(c.id) + '"' + (c.id === want ? ' selected' : '') + '>'
+          + esc(c.name) + ' (' + esc(c.memberCount) + ')</option>';
+      }).join('');
+      pick.hidden = false;
+      if (want) { return load(want); }
+      say(r.classes.length ? 'Choose a class above.'
+        : 'No class you can open has this exam assigned. Assign it from the instructor dashboard: Assign Content, then Exams.');
+    });
+  }).catch(function (e) { say('<span class="bad">' + esc(e.message) + '</span>'); });
+})();
+</script>
+</body>
+</html>

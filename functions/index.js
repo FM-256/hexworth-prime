@@ -11259,7 +11259,9 @@ function netfinalCall(fn) {
             return await fn({
                 store: netfinalStore(),
                 sessionId, uid, examId, data,
-                opts: { secret: netfinalSeedSecret.value() || null }
+                /* onGraded records every grade the moment it lands -- a Submit, the clock's
+                 * auto-submit inside any call, or a marking -- see netfinalRecordGrade. */
+                opts: { secret: netfinalSeedSecret.value() || null, onGraded: netfinalRecordGrade }
             });
         } catch (e) {
             /* 'aborted' is in this list because a concurrency conflict must reach the client AS a
@@ -11274,6 +11276,113 @@ function netfinalCall(fn) {
 }
 
 const netfinalOpts = { ...cfOptions, secrets: [netfinalSeedSecret] };
+
+/* ═══ THE GRADE, RECORDED WHERE PEOPLE LOOK FOR IT ═══════════════════════════════════════════════
+ * The exam graded on the server and then told nobody. This copies the LATEST submitted attempt
+ * (operator, 2026-10-21: latest attempt counts; every attempt stays in the archive) into
+ *   classes/{c}/progress/{uid}.completions[catalogId]
+ * for each class that (1) lists the student as a member, (2) is run by STAFF, and (3) has the exam
+ * assigned. The shape is the one the instructor dashboard reads (completed, score as a percent,
+ * completedAt, duration) plus the raw total and the instructor marks still pending.
+ *
+ * (2) IS THE TRUST CHECK, and it exists because membership is not one: any signed-in user may
+ * create a class and list anyone in memberUids (firestore.rules, classes create), and Mallory
+ * proved an attacker could have a victim's grade copied into a class the attacker reads. The class
+ * owner's real auth claims are checked, through the same NETFINAL.isStaff rule as everything else.
+ *
+ * THE DASHBOARD COPY IS NOT AUTHORITATIVE. Until BUG-272 ships, firestore.rules lets a student write
+ * their own progress row, including this key. The trusted record is the exam session the results
+ * page reads; this is a convenience copy, written from the server and rebuilt from the session by
+ * netfinalResults whenever staff open a class (late assignment, late joiners, a failed write).
+ *
+ * NEVER OLDER OVER NEWER: each write is a transaction that also reads the LIVE sitting, and writes
+ * only if no newer attempt has been submitted since this one. Mallory forced a delayed write from an
+ * older attempt landing over a newer score. The comparison is against the server's session, never
+ * against the progress row, because a student can write that row (BUG-272) and a planted
+ * future-dated entry would otherwise block every honest write. A submit that races the transaction
+ * changes the session it read, so the transaction retries and sees it. Each class is attempted on
+ * its own; one failure does not abandon the rest.
+ * Returns what happened per class, which is what the results page shows. */
+async function netfinalClassOwnerIsStaff(handlerUid, cache) {
+    if (!handlerUid || typeof handlerUid !== 'string') { return false; }
+    if (cache && Object.prototype.hasOwnProperty.call(cache, handlerUid)) { return cache[handlerUid]; }
+    let ok = false;
+    try {
+        const u = await getAuth().getUser(handlerUid);
+        const c = u.customClaims || {};
+        ok = NETFINAL.isStaff({ admin: c.admin === true, handler: c.handler === true, email: u.email || '' }, ADMIN_EMAILS);
+    } catch (e) {
+        /* A user that does not exist is not staff. Any OTHER failure (quota, network) is not an
+         * answer, so it is neither cached nor reported as "not staff": it says it could not check. */
+        if (e && e.code === 'auth/user-not-found') { ok = false; }
+        else { return null; }
+    }
+    if (cache) { cache[handlerUid] = ok; }
+    return ok;
+}
+
+async function netfinalRecordGrade(session, onlyClassId, cache) {
+    const out = { recorded: [], skipped: [], errors: [] };
+    const contentId = NETFINAL_EXAMS.catalogId(session && session.examId);
+    const rep = session && session.report;
+    if (!contentId || !rep || !session.submittedAt) { return out; }
+    const uid = String(session.studentId || '');
+    if (!uid || uid.indexOf('/') >= 0) { return out; }
+    const entry = {
+        completed: true,
+        score: rep.outOf ? Math.round((rep.total / rep.outOf) * 100) : 0,
+        completedAt: new Date(session.submittedAt).toISOString(),
+        duration: Math.max(0, Math.round(Number(rep.durationUsedMs || 0) / 1000)),
+        total: rep.total, outOf: rep.outOf,
+        pendingInstructorMarks: Number(rep.pendingInstructorMarks || 0),
+        flagged: !!rep.flagged,
+        source: 'netfinal'
+    };
+    cache = cache || {};
+    const classes = onlyClassId
+        ? [await db.doc(`classes/${onlyClassId}`).get()].filter((d) => d.exists)
+        : (await db.collection('classes').where('memberUids', 'array-contains', uid).limit(50).get()).docs;
+    for (const c of classes) {
+        try {
+            const d = c.data() || {};
+            if ((d.memberUids || []).indexOf(uid) < 0) { out.skipped.push({ classId: c.id, why: 'not a member' }); continue; }
+            const ownerOk = await netfinalClassOwnerIsStaff(d.handlerUid, cache);
+            if (ownerOk === null) { out.errors.push({ classId: c.id, error: 'could not check the class owner' }); continue; }
+            if (!ownerOk) { out.skipped.push({ classId: c.id, why: 'class owner is not staff' }); continue; }
+            const a = await c.ref.collection('assignments').where('contentId', '==', contentId).get();
+            if (!a.docs.some((x) => x.data().isActive !== false)) { out.skipped.push({ classId: c.id, why: 'not assigned' }); continue; }
+            const ref = c.ref.collection('progress').doc(uid);
+            const sid = uid + '::' + session.examId;
+            const liveRef = db.collection('netfinal_sessions').doc(sid);
+            const archQ = db.collection('netfinal_sessions_archive').where('originalId', '==', sid);
+            const wrote = await db.runTransaction(async (tx) => {
+                const live = await tx.get(liveRef);
+                const l = live.exists ? live.data() : null;
+                /* A different sitting that is itself SUBMITTED is newer than this one. An unsubmitted
+                 * restart is not: until it is submitted, this attempt is still the latest. */
+                if (l && Number(l.startedAt) !== Number(session.startedAt) && l.submittedAt) { return false; }
+                /* AND ANY ARCHIVED ATTEMPT submitted after this one. The live check alone was one
+                 * attempt deep: B submitted, then restarted into an unsubmitted C, left a delayed write
+                 * from A free to land over B (Mallory, R3). */
+                const arch = await tx.get(archQ);
+                const mine = Number(session.submittedAt);
+                if (arch.docs.some((d) => {
+                    const x = d.data();
+                    return Number(x.startedAt) !== Number(session.startedAt) && Number(x.submittedAt) > mine;
+                })) { return false; }
+                tx.set(ref, { uid, completions: { [contentId]: entry }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+                return true;
+            });
+            if (wrote) { out.recorded.push(c.id); } else { out.skipped.push({ classId: c.id, why: 'a newer attempt is recorded' }); }
+        } catch (e) {
+            out.errors.push({ classId: c.id, error: String(e && e.message || e) });
+        }
+    }
+    console.log('[netfinal] recorded ' + uid + ' ' + contentId + ' ' + entry.total + '/' + entry.outOf
+        + ' -> ' + JSON.stringify(out));
+    if (out.errors.length) { console.error('[netfinal] gradebook write failed: ' + JSON.stringify(out.errors)); }
+    return out;
+}
 
 /* Start or RESUME. One attempt: a second call returns the same lab and the same clock, which is
  * also what makes a browser refresh work. */
@@ -11350,6 +11459,114 @@ exports.netfinalReset = onCall(netfinalOpts, async (request) => {
         const known = ['invalid-argument', 'not-found', 'aborted', 'failed-precondition'];
         throw new HttpsError(known.indexOf(e.code) >= 0 ? e.code : 'internal',
             e.message || 'Exam service error.');
+    }
+});
+
+/* ═══ THE INSTRUCTOR SURFACE ═════════════════════════════════════════════════════════════════════
+ * Staff only (NETFINAL.isStaff: admin claim, admin allowlist, or the instructor `handler` claim).
+ * NOT the class owner as such: any signed-in user may create a class (firestore.rules, classes
+ * create), so "owns a class this student joined" is not a trust boundary, and what this returns
+ * is the full report -- the key to that student's lab, which a restart brings back unchanged. */
+function netfinalRequireStaff(request) {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
+    if (!NETFINAL.isStaff(request.auth.token, ADMIN_EMAILS)) {
+        throw new HttpsError('permission-denied', 'Only an instructor or admin can view exam results.');
+    }
+}
+const NETFINAL_CLASS_ID = /^[A-Za-z0-9_-]{1,128}$/;
+
+/* Without classId: the classes this caller RUNS that have the exam assigned (every such class, for a
+ * platform admin). With classId: every member's current sitting, in full, and the history of
+ * archived attempts -- for ANY class, not only the caller's own. That is the operator's decision of
+ * 2026-10-19 carried through: the `handler` claim is platform-wide staff (it may already restart any
+ * student), so the listing is a convenience scope and the detail view is not narrower than restart.
+ *
+ * OPENING A CLASS ALSO REBUILDS ITS GRADEBOOK: each submitted member is recorded into this class via
+ * netfinalRecordGrade, which is how an exam assigned AFTER students sat it, or a student who joined
+ * later, gets an entry (Nancy: the first real use of this is exactly that). Each student's row says
+ * what happened, so a missing gradebook entry is visible instead of silent. */
+exports.netfinalResults = onCall(netfinalOpts, async (request) => {
+    netfinalRequireStaff(request);
+    const data = request.data || {};
+    const examId = NETFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    const contentId = NETFINAL_EXAMS.catalogId(examId);
+    const admin = request.auth.token.admin === true
+        || ADMIN_EMAILS.includes(String(request.auth.token.email || '').toLowerCase());
+
+    if (!data.classId) {
+        const snap = admin
+            ? await db.collection('classes').limit(500).get()
+            : await db.collection('classes').where('handlerUid', '==', request.auth.uid).get();
+        /* In parallel: one assignments query per class, run one after another, would not fit an
+         * admin's 500 classes in the function timeout. */
+        const found = await Promise.all(snap.docs.map(async (c) => {
+            const a = await c.ref.collection('assignments').where('contentId', '==', contentId).get();
+            if (!a.docs.some((d) => d.data().isActive !== false)) { return null; }
+            const d = c.data();
+            return { id: c.id, name: d.name || c.id, memberCount: (d.memberUids || []).length };
+        }));
+        return { examId, contentId, classes: found.filter(Boolean), truncated: snap.size >= 500 };
+    }
+
+    if (typeof data.classId !== 'string' || !NETFINAL_CLASS_ID.test(data.classId)) {
+        throw new HttpsError('invalid-argument', 'Invalid classId.');
+    }
+    const cls = await db.doc(`classes/${data.classId}`).get();
+    if (!cls.exists) { throw new HttpsError('not-found', 'No such class.'); }
+    const allMembers = (cls.data().memberUids || []).filter((u) => typeof u === 'string' && u.indexOf('/') < 0);
+    const members = allMembers.slice(0, 300);
+    const store = netfinalStore();
+    const ownerCache = {};
+    const students = await Promise.all(members.map(async (uid) => {
+        const sid = uid + '::' + examId;
+        const [sess, arch, user] = await Promise.all([
+            store.get(sid),
+            db.collection('netfinal_sessions_archive').where('originalId', '==', sid).get(),
+            db.doc(`users/${uid}`).get()
+        ]);
+        const attempts = arch.docs.map((d) => {
+            const x = d.data();
+            const r = x.reportJson ? JSON.parse(x.reportJson) : null;
+            return { archiveId: d.id, startedAt: x.startedAt || null, submittedAt: x.submittedAt || null,
+                     resetAt: x.resetAt || null, resetBy: x.resetBy || null, reason: x.reason || '',
+                     total: r ? r.total : null, outOf: r ? r.outOf : null };
+        }).sort((p, q) => Number(p.resetAt || 0) - Number(q.resetAt || 0));
+        const u = user.exists ? user.data() : {};
+        /* Rebuild this class's gradebook entry from the session, the trusted record. */
+        let gradebook = null;
+        if (sess && sess.submittedAt) {
+            const rec = await netfinalRecordGrade(sess, cls.id, ownerCache);
+            gradebook = rec.recorded.length ? 'recorded'
+                : rec.errors.length ? 'write failed: ' + rec.errors[0].error
+                : (rec.skipped[0] && rec.skipped[0].why) || 'not recorded';
+        }
+        return { uid, name: u.displayName || u.callsign || u.email || uid,
+                 sitting: NETFINAL.instructorView(sess, {}), attempts, gradebook };
+    }));
+    return { examId, contentId, class: { id: cls.id, name: cls.data().name || cls.id }, students,
+             memberCount: allMembers.length, truncated: allMembers.length > members.length };
+});
+
+/* Mark Q45's three narratives for one student. Records the new total through onGraded. */
+exports.netfinalMarkNarratives = onCall(netfinalOpts, async (request) => {
+    netfinalRequireStaff(request);
+    const data = request.data || {};
+    const examId = NETFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    if (typeof data.uid !== 'string' || !data.uid || data.uid.length > 128 || /[\/]|::/.test(data.uid)) {
+        throw new HttpsError('invalid-argument', 'Invalid uid.');
+    }
+    try {
+        const res = await NETFINAL.markNarratives(netfinalStore(), {
+            sessionId: data.uid + '::' + examId, marks: data.marks, markedBy: request.auth.uid
+        }, { onGraded: netfinalRecordGrade });
+        console.log('[netfinalMarkNarratives] ' + request.auth.uid + ' marked ' + data.uid + ' Q45 -> '
+            + res.total + '/' + res.outOf);
+        return res;
+    } catch (e) {
+        const known = ['invalid-argument', 'not-found', 'aborted', 'failed-precondition'];
+        throw new HttpsError(known.indexOf(e.code) >= 0 ? e.code : 'internal', e.message || 'Exam service error.');
     }
 });
 

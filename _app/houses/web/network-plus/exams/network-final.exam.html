@@ -835,7 +835,15 @@
       return;
     }
     el('status').innerHTML = '<span class="bad">' + esc(msg) + '</span>';
-    if (/Time expired|submitted/i.test(msg)) { finish(null, msg); }
+    if (/Time expired|submitted/i.test(msg)) {
+      /* The server has already graded it; ask for the report so the student gets the same score
+         panel as a normal submit, not just the one-line message. A failed lookup keeps the message. */
+      finish(null, msg);
+      var refetch = call('netfinalStart', { examId: EXAM_ID });
+      refetch.then(function (r) {
+        if (r && r.submitted && r.report) { finish(r.report, msg); }
+      }).catch(function () {});
+    }
   }
 
   function finish(report, msg) {
@@ -1048,7 +1056,9 @@
        on a server response, and the criterion is that the page never requests it. */
     if (r.examMode && r.examMode.loadHexAI) { telemetry('exam-mode-conflict', 'loadHexAI was true'); }
 
-    if (r.submitted) { finish(null, 'This exam has already been submitted.'); return; }
+    /* A submitted sitting comes back WITH its grade, so a student who reloads or returns later sees
+       the same score panel they saw at submit, not a bare "already submitted". */
+    if (r.submitted) { finish(r.report || null, 'This exam has already been submitted.'); return; }
     el('gate').hidden = true;
     el('layout').hidden = false;
     renderTickets();

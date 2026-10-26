@@ -482,12 +482,30 @@
                                       slot: entry.slot, points: entry.points }, res));
         });
 
+        var t = totals(rows);
+        return {
+            studentId: state.meta.studentId, examId: state.meta.examId,
+            total: t.total, outOf: t.outOf,
+            pendingInstructorMarks: t.pendingInstructorMarks,
+            flagged: t.flagged,
+            collateralDamage: ctx.damage.map(function (d) { return { id: d.id, detail: d.detail, why: d.why }; }),
+            subtotals: t.subtotals,
+            phases: t.phases,
+            perSlot: t.perSlot,
+            questions: rows
+        };
+    }
+
+    /* EVERY TOTAL A REPORT CARRIES, computed from its per-question rows. One function, used by
+     * `grade` and by `retotal`, because an instructor marking Q45 after submission changes one row
+     * and every total above it; a second copy of these sums is how the gradebook and the report
+     * would come to disagree about the same student. */
+    function totals(rows) {
         var sum = function (f) {
             return Math.round(rows.filter(f).reduce(function (a, r) { return a + r.earned; }, 0) * 100) / 100;
         };
         var sumOf = function (f) { return rows.filter(f).reduce(function (a, r) { return a + r.of; }, 0); };
         var pending = Math.round(rows.reduce(function (a, r) { return a + (r.pending || 0); }, 0) * 100) / 100;
-
         var perSlot = {};
         rows.forEach(function (r) {
             if (!r.slot) { return; }
@@ -495,13 +513,10 @@
             perSlot[r.slot].earned = Math.round((perSlot[r.slot].earned + r.earned) * 100) / 100;
             perSlot[r.slot].of += r.of;
         });
-
         return {
-            studentId: state.meta.studentId, examId: state.meta.examId,
             total: sum(function () { return true; }), outOf: sumOf(function () { return true; }),
             pendingInstructorMarks: pending,
             flagged: rows.some(function (r) { return r.flagged; }),
-            collateralDamage: ctx.damage.map(function (d) { return { id: d.id, detail: d.detail, why: d.why }; }),
             subtotals: {
                 practical: { earned: sum(function (r) { return r.tag === 'practical'; }), of: sumOf(function (r) { return r.tag === 'practical'; }) },
                 reasoning: { earned: sum(function (r) { return r.tag === 'reasoning'; }), of: sumOf(function (r) { return r.tag === 'reasoning'; }) }
@@ -510,9 +525,15 @@
                 acc[p] = { earned: sum(function (r) { return r.phase === p; }), of: sumOf(function (r) { return r.phase === p; }) };
                 return acc;
             }, {}),
-            perSlot: perSlot,
-            questions: rows
+            perSlot: perSlot
         };
+    }
+
+    /* Recompute a stored report's totals in place after a row changed (instructor marking). */
+    function retotal(report) {
+        var t = totals(report.questions || []);
+        Object.keys(t).forEach(function (k) { report[k] = t[k]; });
+        return report;
     }
 
     /* ═══ CSV, for the LMS ════════════════════════════════════════════════════════════════════════ */
@@ -536,5 +557,6 @@
         layerMatches: layerMatches,
         gradeAclRef: gradeAclRef,
         ifaceAnswers: ifaceAnswers, buildAnswerKey: buildAnswerKey, grade: grade, toCsv: toCsv,
+        retotal: retotal,
                        gradeTyped: gradeTyped, gradeFix: gradeFix, gradeSequence: gradeSequence };
 })();
