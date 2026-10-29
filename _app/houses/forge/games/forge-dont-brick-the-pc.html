@@ -390,6 +390,11 @@
                 reimaged: false,
                 restarted: false,
                 documented: false,
+                contained: false,       // threat stopped; wrap-up phase open until DOCUMENT or DONE
+                wrapUpOpened: false,    // containment happened before the ticket was documented
+                finishRequested: false,
+                killedAfterIsolation: false, // a KILL COMMAND typed while the network was already down
+                creditAwarded: false,   // win XP / badges, awarded once at containment
                 commandsRun: [],
                 commandCount: 0,
                 eventsTriggered: [],
@@ -417,7 +422,9 @@
                 if (e.key === 'Enter') {
                     const raw = this.value.trim();
                     this.value = '';
-                    if (raw) handleInput(raw);
+                    /* The title says "Press ENTER to start", so an empty Enter must start it. It was
+                       ignored like any empty line, and a player could sit at the title waiting. */
+                    if (raw || state.phase === 'title') handleInput(raw);
                 }
             });
             updateAchievementCounter();
@@ -655,8 +662,12 @@
                 return styled('The IT gods require CompTIA methodology, not prayers.', 'dim');
             if (['cry', 'weep'].includes(lower))
                 return styled('There\'s no crying in IT support.', 'dim');
-            if (['quit', 'exit', 'q'].includes(lower))
+            if (['quit', 'exit', 'q'].includes(lower)) {
+                if (state.contained) {
+                    return styled('The threat is contained. Type DOCUMENT to close the ticket, or DONE to close it now.', 'info');
+                }
                 return styled('You can\'t quit. The malware certainly isn\'t.', 'warning');
+            }
             if (['call manager', 'call boss', 'escalate'].includes(lower))
                 return styled('Your manager is at happy hour. "Handle it, you\'ve got this!"\nClick.', 'dim');
             if (['blame user', 'blame the user', 'blame jen', "it's your fault", "its your fault", 'user error'].includes(lower)) {
@@ -667,6 +678,14 @@
                 return styled('You google "how to remove malware." 47 million results.\nThe first link is a malware-laden "free antivirus" download.\nMaybe trust your training instead.', 'dim');
             if (['turn off monitor', 'monitor off'].includes(lower))
                 return styled('You turn off the monitor. The malware doesn\'t care. It doesn\'t need a screen.', 'dim');
+            /* Close the incident without documenting. Only meaningful once the threat is contained. */
+            if (['done', 'finish', 'close ticket', 'close'].includes(lower)) {
+                if (!state.contained) {
+                    return styled('The threat is still active. Contain it first.', 'warning');
+                }
+                state.finishRequested = true;
+                return styled('Closing the incident.', 'dim');
+            }
             if (['document', 'take notes', 'ticket', 'write ticket', 'notes', 'log'].includes(lower)) {
                 state.documented = true;
                 state.methodology.documented = true;
@@ -858,7 +877,9 @@ Windows Defender has been forcibly disabled.`;
                 state.networkDisconnected = true;
                 state.methodology.planned = true;
 
-                if (state.timeElapsed <= 20) unlock('speed_run');
+                /* Only a disconnect while the malware is LIVE: after containment the clock is
+                   stopped, so a late disconnect would read as under 20 seconds forever. */
+                if (state.timeElapsed <= 20 && state.malwareActive) unlock('speed_run');
                 if (state.commandCount <= 2) unlock('first_responder');
                 // Also unlock first_responder if it's the first action command
                 if (!state.processKilled && !state.avScanRun && !state.safeModeBoot) {
@@ -878,6 +899,8 @@ Windows Defender has been forcibly disabled.`;
                 }
 
                 state.processKilled = true;
+                /* Isolate THEN kill: the order By The Book names. Safe Mode's silent kill never sets this. */
+                state.killedAfterIsolation = state.networkDisconnected;
                 state.methodology.implemented = true;
                 unlock('process_hunter');
 
@@ -1052,7 +1075,8 @@ ACTION COMMANDS:
   backup                        Backup user files
   restart                       Restart the computer
   format                        Wipe and reimage (nuclear)
-  document                      Write incident notes
+  document                      Write incident notes (closes the ticket once contained)
+  done                          Close the incident without documenting
 
 OTHER:
   look          Examine surroundings
@@ -1066,6 +1090,9 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
         }
 
         function showHint() {
+            if (state.contained) {
+                return styled('[HINT] Contained. Finish the job: run a scan, verify with sfc /scannow,\nand DOCUMENT to close the ticket. Type DONE to finish without them.', 'hint');
+            }
             if (!state.networkDisconnected && !state.processKilled) {
                 return styled('[HINT] CompTIA step 1: Identify the problem. Run taskmgr or netstat.\nThen CONTAIN — disconnect the network before doing anything else.\nContainment prevents lateral movement.', 'hint');
             }
@@ -1084,9 +1111,34 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
         /* ═══════════════════════════════════════
            WIN CONDITION
            ═══════════════════════════════════════ */
+        /* BY THE BOOK, as its description says: isolate, then kill (by a kill command, after the
+           network was down), then scan and document in either order. Safe Mode kills the process as
+           a side effect and does not count, or "safe mode, scan, disconnect, document" in the wrap-up
+           would earn it with nothing isolated first and nothing killed (Nancy found that route). */
+        function byTheBook() {
+            return state.killedAfterIsolation && state.networkDisconnected && state.avScanRun && state.documented;
+        }
+
+        /* Win credit (XP once, platform badges) is given AT CONTAINMENT, as it was before the wrap-up
+           existed, so a player who contains the threat and closes the tab still gets it. */
+        function awardWinCredit() {
+            if (state.creditAwarded) return;
+            state.creditAwarded = true;
+            if (typeof AchievementSystem !== 'undefined') AchievementSystem.unlockGameAchievement('brick', 'win');
+            if (!localStorage.getItem('game_brick_xp_awarded')) {
+                const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
+                localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
+                localStorage.setItem('game_brick_xp_awarded', 'true');
+                if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
+                    FirestoreManager.addXP(null, 75, 'Don\'t Brick the PC Victory'); // BUG-082: uid arg is ignored by addXP; the CF derives the user from auth
+                }
+            }
+            if (typeof AchievementManager !== 'undefined') AchievementManager.unlock('game_brick');
+        }
+
         function checkWinCondition() {
-            // "By The Book" — full CompTIA methodology
-            if (state.networkDisconnected && state.processKilled && state.avScanRun && state.documented) {
+            // "By The Book" — full CompTIA methodology, in its order
+            if (byTheBook()) {
                 unlock('by_the_book');
             }
 
@@ -1094,21 +1146,42 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
             const contained = (state.networkDisconnected && state.processKilled) ||
                               (state.safeModeBoot && state.avScanRun);
 
+            /* CONTAINMENT OPENS A WRAP-UP, IT DOES NOT END THE GAME. It used to end the game the
+               moment the network was down and the process dead, so the steps after the fix (scan,
+               verify, document) could never be typed, and By The Book, whose own description is
+               "Isolate, identify, kill, scan, document", was unreachable in that order. The clock
+               stops and the malware is inert; the player finishes the job and closes the ticket
+               with DOCUMENT, or with DONE. If everything is already done, it ends at once as before. */
             if (contained && state.malwareActive && state.ending === null) {
                 state.malwareActive = false;
-                state.ending = 'success';
+                state.contained = true;
                 clearInterval(state.timerInterval);
+                awardWinCredit();
+                if (!state.documented) {
+                    state.wrapUpOpened = true;
+                    printBlank();
+                    print('════════════════════════════════════════', 'success');
+                    print('THREAT CONTAINED. The clock has stopped.', 'success');
+                    print('════════════════════════════════════════', 'success');
+                    print('Finish the job: scan, verify, then DOCUMENT to close the ticket.', 'info');
+                    print('Type DONE to close it now instead.', 'dim');
+                    printBlank();
+                    return;
+                }
+            }
+            if (state.contained && state.ending === null && (state.documented || state.finishRequested)) {
+                state.ending = 'success';
 
                 const thisGameId = gameId;
                 setTimeout(function() {
                     if (gameId !== thisGameId || state.phase !== 'playing') return;
                     printBlank();
                     print('════════════════════════════════════════', 'success');
-                    print('THREAT CONTAINED', 'success');
+                    print(state.wrapUpOpened ? 'INCIDENT CLOSED' : 'THREAT CONTAINED', 'success');
                     print('════════════════════════════════════════', 'success');
                     printBlank();
 
-                    const elapsed = state.timeElapsed;
+                    const elapsed = state.timeElapsed;   // the clock stopped at containment
                     const m = Math.floor(elapsed / 60);
                     const s = elapsed % 60;
                     print(`Time: ${m}m ${s}s`, 'info');
@@ -1123,7 +1196,7 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
                     print('Actions: ' + actions.join(', '), 'dim');
                     printBlank();
 
-                    if (state.networkDisconnected && state.processKilled && state.avScanRun && state.documented) {
+                    if (byTheBook()) {
                         print('Textbook incident response. You followed the CompTIA', 'narrative');
                         print('troubleshooting methodology to the letter.', 'narrative');
                         print('Identify, theorize, test, plan, implement, verify, document.', 'narrative');
@@ -1157,10 +1230,7 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
 
             // Award platform achievements via AchievementSystem
             if (typeof AchievementSystem !== 'undefined') {
-                if (state.ending === 'success') {
-                    AchievementSystem.unlockGameAchievement('brick', 'win');
-                }
-                if (state.networkDisconnected && state.processKilled && state.avScanRun && state.documented) {
+                if (byTheBook()) {
                     AchievementSystem.unlockGameAchievement('brick', 'by_the_book');
                 }
                 const saved = loadAchievements();
@@ -1172,22 +1242,8 @@ CompTIA A+ Methodology: Identify → Theory → Test → Plan → Fix → Verify
                 }
             }
 
-            // Award XP and achievement (only on success)
-            if (state.ending === 'success') {
-                // Award XP (one-time)
-                if (!localStorage.getItem('game_brick_xp_awarded')) {
-                    const currentXP = parseInt(localStorage.getItem('hexworth_xp') || '0');
-                    localStorage.setItem('hexworth_xp', (currentXP + 75).toString());
-                    localStorage.setItem('game_brick_xp_awarded', 'true');
-                    if (typeof FirestoreManager !== 'undefined' && FirestoreManager.addXP) {
-                        FirestoreManager.addXP(null, 75, 'Don\'t Brick the PC Victory'); // BUG-082: uid arg is ignored by addXP; the CF derives the user from auth
-                    }
-                }
-                // Award achievement
-                if (typeof AchievementManager !== 'undefined') {
-                    AchievementManager.unlock('game_brick');
-                }
-            }
+            // Win credit (XP, win badge) on success; already given at containment, so this is a no-op then
+            if (state.ending === 'success') awardWinCredit();
 
             // Track game stats
             if (typeof GameTracker !== 'undefined') {
