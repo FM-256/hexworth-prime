@@ -10,15 +10,15 @@
    student runs the exact W2 command that maps to it. No
    flag_registry seed required (auto-award pattern -- BOX-001 exempt).
 
-   Flag table:
-     cmd1  FLAG{ala-hunt2_cmd01_firewall_status}    iptables -L -n -v
-     cmd2  FLAG{ala-hunt2_cmd02_default_deny}        iptables -P INPUT DROP
-     cmd3  FLAG{ala-hunt2_cmd03_allow_ssh}           iptables -A INPUT -p tcp --dport 22 ... -j ACCEPT  OR  ufw allow 22/tcp
-     cmd4  FLAG{ala-hunt2_cmd04_rogue_port}          ss -tlnp
-     cmd5  FLAG{ala-hunt2_cmd05_harden_ssh}          sshd_config PermitRootLogin -> reload sshd (sshd -t + systemctl reload)
-     cmd6  FLAG{ala-hunt2_cmd06_lock_account}        faillock --user rogue-ops  OR  passwd -l rogue-ops
-     cmd7  FLAG{ala-hunt2_cmd07_av_scan}             clamscan -r -i --move=/var/quarantine /tmp /home
-     cmd8  FLAG{ala-hunt2_cmd08_dpkg_verify}         dpkg -V openssh-server
+   Flag table (values live only in functions/box_flags.json, never in this file):
+     cmd1  iptables -L -n -v
+     cmd2  iptables -P INPUT DROP
+     cmd3  iptables -A INPUT -p tcp --dport 22 ... -j ACCEPT  OR  ufw allow 22/tcp
+     cmd4  ss -tlnp
+     cmd5  sshd_config PermitRootLogin -> reload sshd (sshd -t + systemctl reload)
+     cmd6  faillock --user rogue-ops  OR  passwd -l rogue-ops
+     cmd7  clamscan -r -i --move=/var/quarantine /tmp /home
+     cmd8  dpkg -V openssh-server
    ============================================================ */
 
 // window assignment (not const) so ALAHunt2Config is reachable from the
@@ -1158,14 +1158,14 @@ window.ALAHunt2Config = {
     flags: [
         // One flag per scavenger hunt worksheet row. Auto-captured when the
         // student runs the corresponding command in the terminal.
-        { id: 'cmd1', value: 'FLAG{ala-hunt2_cmd01_firewall_status}',   label: '01 -- Inspect firewall rules',      description: 'Ran iptables -L -n -v to audit current firewall state.',            points: 50, autoCheck: true },
-        { id: 'cmd2', value: 'FLAG{ala-hunt2_cmd02_default_deny}',      label: '02 -- Set default-deny policy',    description: 'Ran iptables -P INPUT DROP (or ufw default deny incoming).',       points: 50, autoCheck: true },
-        { id: 'cmd3', value: 'FLAG{ala-hunt2_cmd03_allow_ssh}',         label: '03 -- Allow only SSH inbound',     description: 'Added iptables rule for port 22 ACCEPT (or ufw allow 22/tcp).',   points: 50, autoCheck: true },
-        { id: 'cmd4', value: 'FLAG{ala-hunt2_cmd04_rogue_port}',        label: '04 -- Find the rogue open port',   description: 'Ran ss -tlnp to identify the unexpected listening port (8888).',   points: 50, autoCheck: true },
-        { id: 'cmd5', value: 'FLAG{ala-hunt2_cmd05_harden_ssh}',        label: '05 -- Harden SSH config + reload', description: 'Set PermitRootLogin no in sshd_config then reloaded sshd.',        points: 50, autoCheck: true },
-        { id: 'cmd6', value: 'FLAG{ala-hunt2_cmd06_lock_account}',      label: '06 -- Audit the exploited account',description: 'Ran faillock --user rogue-ops (or lastb / passwd -l rogue-ops).', points: 50, autoCheck: true },
-        { id: 'cmd7', value: 'FLAG{ala-hunt2_cmd07_av_scan}',           label: '07 -- Scan and quarantine malware',description: 'Ran clamscan -r -i --move=/var/quarantine /tmp /home.',             points: 50, autoCheck: true },
-        { id: 'cmd8', value: 'FLAG{ala-hunt2_cmd08_dpkg_verify}',       label: '08 -- Detect tampered package',    description: 'Ran dpkg -V openssh-server to verify package integrity.',          points: 50, autoCheck: true }
+        { id: 'cmd1', label: '01: Inspect firewall rules',      description: 'Ran iptables -L -n -v to audit current firewall state.',            points: 50, autoCheck: true },
+        { id: 'cmd2', label: '02: Set default-deny policy',    description: 'Ran iptables -P INPUT DROP (or ufw default deny incoming).',       points: 50, autoCheck: true },
+        { id: 'cmd3', label: '03: Allow only SSH inbound',     description: 'Added iptables rule for port 22 ACCEPT (or ufw allow 22/tcp).',   points: 50, autoCheck: true },
+        { id: 'cmd4', label: '04: Find the rogue open port',   description: 'Ran ss -tlnp to identify the unexpected listening port (8888).',   points: 50, autoCheck: true },
+        { id: 'cmd5', label: '05: Harden SSH config + reload', description: 'Set PermitRootLogin no in sshd_config then reloaded sshd.',        points: 50, autoCheck: true },
+        { id: 'cmd6', label: '06: Audit the exploited account',description: 'Ran faillock --user rogue-ops (or lastb / passwd -l rogue-ops).', points: 50, autoCheck: true },
+        { id: 'cmd7', label: '07: Scan and quarantine malware',description: 'Ran clamscan -r -i --move=/var/quarantine /tmp /home.',             points: 50, autoCheck: true },
+        { id: 'cmd8', label: '08: Detect tampered package',    description: 'Ran dpkg -V openssh-server to verify package integrity.',          points: 50, autoCheck: true }
     ],
 
     // ═══════════════════════════════════════════════════════

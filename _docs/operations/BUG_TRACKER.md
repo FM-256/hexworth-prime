@@ -14,6 +14,18 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-294 — auto-award boxes record nothing server-side, so a flag can be awarded from the console  ·  [P1]  ·  open
+- **Found:** 2026-10-31 by Nancy and Chris, reviewing the BOX-011 flag-leak fix (BUG-293). Not caused or changed by that fix.
+- **The defect:** `BoxEngine.awardFlag` (`_app/arena/engine/BoxEngine.js:1907`) credits the flag in the browser, then calls `validateAction` and swallows any error. `validateAction` (`functions/index.js`, `exports.validateAction`) throws `not-found: No action conditions for this flag` unless `flag_registry/{boxId}.actionConditions[flagId]` exists, and neither seeder writes `actionConditions` (`functions/seed-box-flags.js`, `functions/seed-one-box.js`); a repo grep finds the field only in `functions/index.js`. So for ala-hunt1/2/3 and pis-m2-vault-breach no `flag_captures` doc is written when a student earns a flag.
+- **Exploit:** `BoxEngine.awardFlag('flag4')` in DevTools completes the box client-side. PIS-M2 is a graded midterm practical.
+- **Unverified:** production was not read. Confirm by reading `flag_registry/pis-m2-vault-breach` for `actionConditions` and `users/<a student>/flag_captures` for these boxes.
+- **Fix (not started):** author `actionConditions` per flag from each config's state (the stateProof keys awardFlag already sends) and teach the seeders to write them, or move these boxes to a server-validated mechanism. Needs a design decision.
+
+### BUG-293 — 32 CTF flag values shipped in four box configs  ·  [P1]  ·  fixed, seed + deploy pending
+- **Found:** 2026-10-31, EduScan BOX-011 (`_tools/eduscan/box-flag-leak-audit.js`): ala-hunt1/2/3 (13/8/7) and pis-m2-vault-breach (4), live since May and June 2026. A value read from view-source could be typed into the flag modal and `validateFlag` would accept it; and `deliverFlag` pre-fetches every flag on load (`BoxEngine.js:99-106`), so deleting the literals alone would only have moved the leak to DevTools.
+- **Fix:** values removed from the four `config.js` (and the hunt2/3 header tables); all 32 rotated in `functions/box_flags.json` with `deliveryDisabled: true` on the four entries; walkthroughs and ALA PDFs in the shared Solutions folder rotated; `test-pis-m2-functional.js` now fails if a value returns to the config. The old values stop working only when `functions/seed-one-box.js` writes the registry, which must run BEFORE the hosting deploy.
+- **Residual:** `_app/houses/matrix/handouts/ala-hunt{1,2,3}-walkthrough.pdf` (excluded from hosting by `firebase.json:81`) still carry the old values; dead once seeded.
+
 ### BUG-292 — EduScan reports four classes of finding that are not defects  ·  [P3]  ·  open (scanner)
 - **Found:** 2026-10-31, triaging the Nexus full run for easy wins. I recommended fixing 31 "broken" hub cards; checking them in a real browser showed none of them reach a student.
 - **PATH-004 ignores runtime coming-soon gates.** 41 findings on 4 pages (`houses/forge/intro-computers/index.html` 23, `houses/shield/isc2-cc/index.html` 11, `projects/divergent-field-terminal.html` 6, `houses/code/incubator/index.html` 1). The targets really are missing, but every one is gated when the page loads: `is-coming-soon`, `aria-disabled`, click `preventDefault` and a "coming soon" notice. Verified on all 38 distinct dead targets, and by dispatching a click on each of the 11 ISC2 cards. The rule reads the raw `href` and cannot see the gate.

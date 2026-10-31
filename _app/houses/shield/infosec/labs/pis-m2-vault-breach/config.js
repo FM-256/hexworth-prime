@@ -566,7 +566,6 @@ const PISM2Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-m2-vault-breach_flag1_triage_complete}',
             label: 'Phase 1 -- Triage & Attribution Complete',
             description: 'Classified the malware family, the social-engineering technique, identified the vulnerability class, and mapped at least 3 ATT&CK techniques.',
             points: 250,
@@ -574,7 +573,6 @@ const PISM2Config = {
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-m2-vault-breach_flag2_investigation_complete}',
             label: 'Phase 2 -- Investigation & Hardening Complete',
             description: 'Identified the SQLi vector in /app/intake.py and audited ws-04 against CS-12.',
             points: 250,
@@ -582,7 +580,6 @@ const PISM2Config = {
         },
         {
             id: 'flag3',
-            value: 'FLAG{pis-m2-vault-breach_flag3_crypto_contained}',
             label: 'Phase 3 -- Cryptographic Containment Complete',
             description: 'AES-encrypted the breach evidence, RSA-decrypted the attacker C2, and SHA-256-verified the specimen catalog integrity.',
             points: 250,
@@ -590,7 +587,6 @@ const PISM2Config = {
         },
         {
             id: 'flag4',
-            value: 'FLAG{pis-m2-vault-breach_flag4_report_filed}',
             label: 'Phase 4 -- Synthesis Report Filed',
             description: 'Filed the complete incident response report joining all prior phases.',
             points: 250,

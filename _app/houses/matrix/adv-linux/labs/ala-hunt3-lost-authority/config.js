@@ -11,14 +11,14 @@
    student runs the exact W3 command that maps to it. No
    flag_registry seed required (auto-award pattern -- BOX-001 exempt).
 
-   Flag table:
-     cmd1  FLAG{ala-hunt3_cmd01_dns_diagnose}     dig A grid-api.sector7.matrix.net @127.0.0.1
-     cmd2  FLAG{ala-hunt3_cmd02_checkconf}         named-checkconf -z
-     cmd3  FLAG{ala-hunt3_cmd03_reload_verify}     rndc reload sector7.matrix.net (after zone fix)
-     cmd4  FLAG{ala-hunt3_cmd04_poisoned_record}   dig +short A grid-api.sector7.matrix.net @127.0.0.1 (named up, zone loaded, poisoned)
-     cmd5  FLAG{ala-hunt3_cmd05_rogue_cron}        cat /etc/cron.d/grid-resync  OR  ls /etc/cron.d
-     cmd6  FLAG{ala-hunt3_cmd06_malicious_script}  cat /usr/local/bin/zone-resync.sh
-     cmd7  FLAG{ala-hunt3_cmd07_restored}          dig +short A grid-api.sector7.matrix.net @127.0.0.1 (after full fix -> 10.0.1.50)
+   Flag table (values live only in functions/box_flags.json, never in this file):
+     cmd1  dig A grid-api.sector7.matrix.net @127.0.0.1
+     cmd2  named-checkconf -z
+     cmd3  rndc reload sector7.matrix.net (after zone fix)
+     cmd4  dig +short A grid-api.sector7.matrix.net @127.0.0.1 (named up, zone loaded, poisoned)
+     cmd5  cat /etc/cron.d/grid-resync  OR  ls /etc/cron.d
+     cmd6  cat /usr/local/bin/zone-resync.sh
+     cmd7  dig +short A grid-api.sector7.matrix.net @127.0.0.1 (after full fix -> 10.0.1.50)
 
    Incident timeline (single coherent clock -- 2026-05-09):
      02:10  Attacker (203.0.113.99) opens SSH session as root (stolen key) -- sshd PID 842
@@ -1079,7 +1079,6 @@ window.ALAHunt3Config = {
     flags: [
         {
             id: 'cmd1',
-            value: 'FLAG{ala-hunt3_cmd01_dns_diagnose}',
             label: '01 -- Diagnose DNS failure',
             description: 'Ran dig A grid-api.sector7.matrix.net @127.0.0.1 and received SERVFAIL (named not running).',
             points: 50,
@@ -1087,7 +1086,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd2',
-            value: 'FLAG{ala-hunt3_cmd02_checkconf}',
             label: '02 -- Find the zone syntax error',
             description: 'Ran named-checkconf -z and identified the missing trailing dot on the CNAME target (line 19).',
             points: 50,
@@ -1095,7 +1093,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd3',
-            value: 'FLAG{ala-hunt3_cmd03_reload_verify}',
             label: '03 -- Fix zone file and reload BIND',
             description: 'Fixed zone file syntax and ran rndc reload sector7.matrix.net (or systemctl restart named).',
             points: 50,
@@ -1103,7 +1100,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd4',
-            value: 'FLAG{ala-hunt3_cmd04_poisoned_record}',
             label: '04 -- Identify the poisoned A record',
             description: 'Ran dig +short A grid-api.sector7.matrix.net @127.0.0.1 and saw 203.0.113.99 (attacker IP).',
             points: 50,
@@ -1111,7 +1107,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd5',
-            value: 'FLAG{ala-hunt3_cmd05_rogue_cron}',
             label: '05 -- Find the rogue cron job',
             description: 'Listed /etc/cron.d (ls or cat) and identified grid-resync as the attacker-installed drop-in.',
             points: 50,
@@ -1119,7 +1114,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd6',
-            value: 'FLAG{ala-hunt3_cmd06_malicious_script}',
             label: '06 -- Read the malicious script',
             description: 'Ran cat /usr/local/bin/zone-resync.sh and read the attacker\'s zone-poisoning script.',
             points: 50,
@@ -1127,7 +1121,6 @@ window.ALAHunt3Config = {
         },
         {
             id: 'cmd7',
-            value: 'FLAG{ala-hunt3_cmd07_restored}',
             label: '07 -- Confirm resolution restored',
             description: 'Ran dig +short A grid-api.sector7.matrix.net @127.0.0.1 after full fix -- received 10.0.1.50.',
             points: 50,

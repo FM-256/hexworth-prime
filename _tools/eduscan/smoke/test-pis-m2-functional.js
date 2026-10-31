@@ -7,7 +7,9 @@
  * Walks all 11 command handlers in Node directly (no browser), with stubs
  * for `term` and `engine`. Verifies:
  *   - The full happy path completes (Phase 1 → 2 → 3 → 4)
- *   - All 4 flags fire with the declared values
+ *   - All 4 flags fire, each exactly once, by id
+ *   - config.js carries NO flag values (BOX-011): the values live only in
+ *     functions/box_flags.json / flag_registry, never in client code
  *   - Gating blocks Phase 2/3/4 when prior flags missing
  *   - T1486 gating-bypass fix holds (T1486 does NOT count toward sub-task)
  *   - Tightened path matching rejects substring-style invalid paths
@@ -34,10 +36,9 @@ const awardedFlags = [];
 const mockEngine = {
     config: cfg,
     awardFlag(id) {
-        // Look up the flag value from the config so we capture exactly what
-        // the lab declares — same data the student would see.
-        const flag = cfg.flags.find(f => f.id === id);
-        awardedFlags.push({ id, value: flag ? flag.value : null });
+        // Record the id only. Flags are auto-awarded and carry no value in the client
+        // (BOX-011, 2026-10-31): the engine never reads one, so neither does this mock.
+        awardedFlags.push({ id });
     }
 };
 
@@ -103,9 +104,9 @@ check('Phase 1.4 T1486 does NOT increment attackTechniques count',
 r = run('phase');
 check('Phase 1 complete — Flag 1 awarded',
     cfg._flag1Awarded === true && awardedFlags.some(f => f.id === 'flag1'));
-check('Flag 1 value matches declared',
-    awardedFlags.find(f => f.id === 'flag1')?.value === cfg.flags[0].value,
-    awardedFlags.find(f => f.id === 'flag1')?.value || '(no flag awarded)');
+check('Flag 1 awarded exactly once',
+    awardedFlags.filter(f => f.id === 'flag1').length === 1,
+    `awarded ${awardedFlags.filter(f => f.id === 'flag1').length} time(s)`);
 
 // --- Phase 2 ---
 
@@ -134,8 +135,8 @@ check('Phase 2.2 audit-device returns CS-12 9-criteria audit',
 r = run('phase');
 check('Phase 2 complete — Flag 2 awarded',
     cfg._flag2Awarded === true && awardedFlags.some(f => f.id === 'flag2'));
-check('Flag 2 value matches declared',
-    awardedFlags.find(f => f.id === 'flag2')?.value === cfg.flags[1].value);
+check('Flag 2 awarded exactly once',
+    awardedFlags.filter(f => f.id === 'flag2').length === 1);
 
 // --- Phase 3 ---
 r = run('openssl', 'enc -aes-256-cbc -in /vault/breach-evidence.dat -out /vault/breach-evidence.dat.enc -pass file:/vault/keys/vault-aes-key.bin');
@@ -166,10 +167,12 @@ check('Phase 4 file-report awards Flag 4',
 // --- Final tally ---
 check('All 4 flags awarded',
     cfg._flag1Awarded && cfg._flag2Awarded && cfg._flag3Awarded && cfg._flag4Awarded);
-check('All 4 awarded flag VALUES are unique',
-    new Set(awardedFlags.map(f => f.value)).size === 4);
-check('All 4 awarded flag VALUES match config.flags exactly',
-    cfg.flags.every(f => awardedFlags.some(a => a.id === f.id && a.value === f.value)));
+check('All 4 awarded flag IDs are unique and are the declared ids',
+    new Set(awardedFlags.map(f => f.id)).size === 4 &&
+    cfg.flags.every(f => awardedFlags.some(a => a.id === f.id)));
+check('config.js carries no flag values (BOX-011)',
+    cfg.flags.every(f => !('value' in f)),
+    cfg.flags.filter(f => 'value' in f).map(f => f.id).join(',') || '');
 
 // ============================================================
 // Gating negative tests — fresh config load to reset state
@@ -221,8 +224,7 @@ console.log(`\nCheckpoints: ${passed} PASS / ${failed} FAIL`);
 
 if (failed === 0) {
     console.log('\n✓ PASS — lab is fully completable end-to-end.');
-    console.log(`  Awarded flag values:`);
-    awardedFlags.forEach(f => console.log(`    ${f.id}: ${f.value}`));
+    console.log(`  Awarded flags: ${awardedFlags.map(f => f.id).join(', ')}`);
     process.exit(0);
 } else {
     console.log('\n✗ FAIL');

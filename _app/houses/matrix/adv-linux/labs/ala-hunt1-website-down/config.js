@@ -785,19 +785,19 @@ const ALAHunt1Config = {
     flags: [
         // One flag per scavenger hunt worksheet row. Auto-captured when the
         // student runs the corresponding command in the terminal.
-        { id: 'cmd1',  value: 'FLAG{ala-hunt1_cmd01_persistent_session}',     label: '01 — Persistent session',         description: 'Opened a tmux/screen session.',                                points: 50, autoCheck: true },
-        { id: 'cmd2',  value: 'FLAG{ala-hunt1_cmd02_service_status}',         label: '02 — Service status',             description: 'Ran systemctl status against a service.',                      points: 50, autoCheck: true },
-        { id: 'cmd3',  value: 'FLAG{ala-hunt1_cmd03_log_last_30}',            label: '03 — Last 30 service log lines',  description: 'Ran journalctl -u <svc> -n 30 --no-pager.',                    points: 50, autoCheck: true },
-        { id: 'cmd4',  value: 'FLAG{ala-hunt1_cmd04_log_live_follow}',        label: '04 — Live-tail service log',      description: 'Ran journalctl -fu <svc> (or -f -u).',                         points: 50, autoCheck: true },
-        { id: 'cmd5',  value: 'FLAG{ala-hunt1_cmd05_interface_up}',           label: '05 — Bring interface up',         description: 'Ran ip link set <iface> up.',                                  points: 50, autoCheck: true },
-        { id: 'cmd6',  value: 'FLAG{ala-hunt1_cmd06_interface_show}',         label: '06 — Show interfaces',            description: 'Ran ip link show (or ip a/addr).',                             points: 50, autoCheck: true },
-        { id: 'cmd7',  value: 'FLAG{ala-hunt1_cmd07_listening_sockets}',      label: '07 — Listening TCP sockets',      description: 'Ran ss -tlnp (or -tln, -tlp).',                                points: 50, autoCheck: true },
-        { id: 'cmd8',  value: 'FLAG{ala-hunt1_cmd08_processes_all}',          label: '08 — All processes',              description: 'Ran ps -ef (or ps aux).',                                      points: 50, autoCheck: true },
-        { id: 'cmd9',  value: 'FLAG{ala-hunt1_cmd09_filter_lines}',           label: '09 — Filter lines (grep)',        description: 'Used grep.',                                                   points: 50, autoCheck: true },
-        { id: 'cmd10', value: 'FLAG{ala-hunt1_cmd10_service_start}',          label: '10 — Start a service',            description: 'Ran systemctl start <svc>.',                                   points: 50, autoCheck: true },
-        { id: 'cmd11', value: 'FLAG{ala-hunt1_cmd11_service_restart}',        label: '11 — Restart a service',          description: 'Ran systemctl restart <svc>.',                                 points: 50, autoCheck: true },
-        { id: 'cmd12', value: 'FLAG{ala-hunt1_cmd12_daemon_reload}',          label: '12 — Reload systemd manifest',    description: 'Ran systemctl daemon-reload.',                                 points: 50, autoCheck: true },
-        { id: 'cmd13', value: 'FLAG{ala-hunt1_cmd13_verify_connectivity}',    label: '13 — Verify external connectivity', description: 'Successfully pinged an external host after fixing networking.', points: 50, autoCheck: true }
+        { id: 'cmd1',  label: '01: Persistent session',         description: 'Opened a tmux/screen session.',                                points: 50, autoCheck: true },
+        { id: 'cmd2',  label: '02: Service status',             description: 'Ran systemctl status against a service.',                      points: 50, autoCheck: true },
+        { id: 'cmd3',  label: '03: Last 30 service log lines',  description: 'Ran journalctl -u <svc> -n 30 --no-pager.',                    points: 50, autoCheck: true },
+        { id: 'cmd4',  label: '04: Live-tail service log',      description: 'Ran journalctl -fu <svc> (or -f -u).',                         points: 50, autoCheck: true },
+        { id: 'cmd5',  label: '05: Bring interface up',         description: 'Ran ip link set <iface> up.',                                  points: 50, autoCheck: true },
+        { id: 'cmd6',  label: '06: Show interfaces',            description: 'Ran ip link show (or ip a/addr).',                             points: 50, autoCheck: true },
+        { id: 'cmd7',  label: '07: Listening TCP sockets',      description: 'Ran ss -tlnp (or -tln, -tlp).',                                points: 50, autoCheck: true },
+        { id: 'cmd8',  label: '08: All processes',              description: 'Ran ps -ef (or ps aux).',                                      points: 50, autoCheck: true },
+        { id: 'cmd9',  label: '09: Filter lines (grep)',        description: 'Used grep.',                                                   points: 50, autoCheck: true },
+        { id: 'cmd10', label: '10: Start a service',            description: 'Ran systemctl start <svc>.',                                   points: 50, autoCheck: true },
+        { id: 'cmd11', label: '11: Restart a service',          description: 'Ran systemctl restart <svc>.',                                 points: 50, autoCheck: true },
+        { id: 'cmd12', label: '12: Reload systemd manifest',    description: 'Ran systemctl daemon-reload.',                                 points: 50, autoCheck: true },
+        { id: 'cmd13', label: '13: Verify external connectivity', description: 'Successfully pinged an external host after fixing networking.', points: 50, autoCheck: true }
     ],
 
     // ═══════════════════════════════════════════════════════
