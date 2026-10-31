@@ -14,6 +14,15 @@
 
 **Entry schema** (copy this):
 ```
+### BUG-292 — EduScan reports four classes of finding that are not defects  ·  [P3]  ·  open (scanner)
+- **Found:** 2026-10-31, triaging the Nexus full run for easy wins. I recommended fixing 31 "broken" hub cards; checking them in a real browser showed none of them reach a student.
+- **PATH-004 ignores runtime coming-soon gates.** 41 findings on 4 pages (`houses/forge/intro-computers/index.html` 23, `houses/shield/isc2-cc/index.html` 11, `projects/divergent-field-terminal.html` 6, `houses/code/incubator/index.html` 1). The targets really are missing, but every one is gated when the page loads: `is-coming-soon`, `aria-disabled`, click `preventDefault` and a "coming soon" notice. Verified on all 38 distinct dead targets, and by dispatching a click on each of the 11 ISC2 cards. The rule reads the raw `href` and cannot see the gate.
+- **SANDBOX-007 wants a literal `sandbox-mount` div.** 8 pages (7 OpenStack labs, `rig/index.html`) pass `renderButton` their own container (`cinder-launcher`, `chain-launcher`, ...), which exists in each page.
+- **HTML-012 "unclosed div"** on `houses/code/devops/sections/cicd/do-105-security-hardening.presentation.html:1020`: outside scripts and comments the page has 117 `<div` and 117 `</div>`.
+- **HEUR-022 "over-deep link"** on `houses/cloud/games/cloud-cold-horizon.html:503`: `../../../arena/boxes/le-01-cold-horizon/index.html` from `houses/cloud/games/` resolves to `_app/arena/...`, which exists. The rule miscounts the file's depth.
+- **Why it matters:** the run showed 3,459 HIGH and these inflate the counts a person triages from; I took the PATH-004 ones at face value and recommended a fix that was not needed.
+- **Fix (not started):** teach PATH-004 to honour a page's `HEX_COMING_SOON` list, accept any `renderButton` container that exists in SANDBOX-007, and fix the depth count in HEUR-022 and the div count in HTML-012. Each needs a failing fixture first.
+
 ### BUG-291 — Q44 told students to use an "evidence field" the incident log does not have  ·  [P2]  ·  fixed-not-deployed
 - **Found:** 2026-10-20, closing the completability QC's Q44 gap. The harness scored 0 of 12 evidence claims; reading why found the prompt.
 - **The defect:** Q44's prompt said "in the evidence field, name a command or page that exposes the fault". The incident-log form's fields are Symptom, OSI layer, Root cause, Fix applied and How you verified it: there is no evidence field. The grader (`gradeIncidentEvidence`) reads Fix applied plus How you verified it. A student following the prompt literally had nowhere to put the answer, and would plausibly have written it in Root cause or Symptom, which the grader never reads.
