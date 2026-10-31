@@ -732,6 +732,65 @@ async function publishSpellbook(spells) {
 }
 
 /**
+ * Publish the EduScan rule reference to Firestore at _quality_reports/rules.
+ * Consumed by _app/admin/console.html's Rule Catalog, which renders every rule from it instead of a
+ * hand-written table. Built by _tools/eduscan/gen-rule-reference.js from the validator source plus
+ * this run's counts (see that file for what counts as a rule).
+ *
+ * Guards, the same posture as publishSpellbook:
+ *   - Empty or missing reference: refuse (a failed generation must not blank the catalog).
+ *   - 0.8x previous rule count: refuse (rules are only ever added or retired a few at a time; a
+ *     drop past 20% means the generator read a partial tree, not that rules vanished).
+ *   - Size: refuse above 900 KB, under Firestore's 1 MiB document limit, rather than fail mid-write.
+ *
+ * @param {Object|null} ref — output of gen-rule-reference.js build()
+ * @returns {Promise<{ written: boolean, skipped: boolean, reason?: string, count: number }>}
+ */
+async function publishRuleReference(ref) {
+    if (!ref || !Array.isArray(ref.rules) || ref.rules.length === 0) {
+        return { written: false, skipped: true, reason: 'no rule reference generated — refusing to overwrite Firestore', count: 0 };
+    }
+    const bytes = Buffer.byteLength(JSON.stringify(ref));
+    if (bytes > 900 * 1024) {
+        return { written: false, skipped: true, reason: `rule reference is ${Math.round(bytes / 1024)} KB, over the 900 KB guard`, count: ref.rules.length };
+    }
+
+    process.env.GOOGLE_CLOUD_PROJECT = 'hexworth-prime';
+    const admin = require(path.join(FUNCTIONS_DIR, 'node_modules/firebase-admin'));
+    if (!admin.apps.length) admin.initializeApp({ projectId: 'hexworth-prime' });
+    const db = admin.firestore();
+    const { Timestamp } = admin.firestore;
+    const ref_ = db.doc('_quality_reports/rules');
+
+    const existing = await ref_.get();
+    if (existing.exists) {
+        const prior = (existing.data().rules || []).length;
+        if (prior > 0 && ref.rules.length < 0.8 * prior) {
+            return {
+                written: false,
+                skipped: true,
+                reason: `count contraction: ${ref.rules.length} new vs ${prior} prior (>20% drop) — refusing write`,
+                count: ref.rules.length,
+                priorCount: prior,
+            };
+        }
+    }
+
+    await ref_.set({
+        publishedAt: Timestamp.now(),
+        generatedAt: ref.generatedAt,
+        generator: ref.generator,
+        sourceFilesRead: ref.sourceFilesRead,
+        scan: ref.scan,
+        totals: ref.totals,
+        rules: ref.rules,
+        version: 1,
+    });
+
+    return { written: true, skipped: false, count: ref.rules.length };
+}
+
+/**
  * Publish a scan heartbeat to Firestore at _quality_reports/scanHeartbeat.
  * MVP-required (per Nancy review 2026-05-07): without it, silent cron failures
  * leave _quality_reports/latest as last-good-write with no age signal — false
@@ -778,4 +837,6 @@ module.exports = {
     // 2026-05-07 — spellbook live data + scan staleness heartbeat
     publishSpellbook,
     publishHeartbeat,
+    // 2026-10-31 — rule definitions generated from the validator source
+    publishRuleReference,
 };

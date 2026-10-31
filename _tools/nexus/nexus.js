@@ -7,6 +7,41 @@ const {
     C, SEVERITY_ORDER, padRight, severityColor, timeAgo
 } = hub;
 
+/* Regenerates the EduScan rule reference (_tools/reports/EDUSCAN_RULES.json and
+   EDUSCAN_RULE_REFERENCE.md) from the validator source and the scan that just ran. Returns the
+   reference for publishing, or null. Never throws: the rule reference is documentation, and a
+   failure in it must not fail a scan or the deploy gate that runs one. */
+function refreshRuleReference() {
+    try {
+        const gen = require('../eduscan/gen-rule-reference');
+        const ref = gen.build();
+        const fs = require('fs');
+        fs.writeFileSync(gen.OUT_JSON, JSON.stringify(ref, null, 2) + '\n');
+        fs.writeFileSync(gen.OUT_MD, gen.toMarkdown(ref));
+        console.log(`  ${C.green}Rule reference${C.reset} ${C.dim}→ ${ref.totals.rules} rules, ${ref.totals.fired} fired (_tools/reports/EDUSCAN_RULES.json)${C.reset}`);
+        return ref;
+    } catch (err) {
+        console.error(`  ${C.yellow}Rule reference not regenerated: ${err.message}${C.reset}`);
+        return null;
+    }
+}
+
+/* Publishes a reference from refreshRuleReference() to _quality_reports/rules, logging the outcome
+   the same way the spellbook publish does. Never throws. */
+async function publishRuleReferenceStep(ruleRef) {
+    try {
+        const { publishRuleReference } = require('./publish');
+        const rr = await publishRuleReference(ruleRef);
+        if (rr.written) {
+            console.log(`  ${C.green}Rule reference published${C.reset} ${C.dim}→ _quality_reports/rules (${rr.count} rules)${C.reset}`);
+        } else {
+            console.log(`  ${C.yellow}Rule reference skipped${C.reset} ${C.dim}— ${rr.reason}${C.reset}`);
+        }
+    } catch (err) {
+        console.error(`  ${C.red}Rule reference publish failed: ${err.message}${C.reset}`);
+    }
+}
+
 // --- Commands ---
 
 function cmdStatus() {
@@ -189,6 +224,10 @@ async function cmdScan(args, flags) {
         spokes.history.save();
     }
 
+    // Step 2c: Rule definitions, regenerated from the validator source against this scan
+    console.log('');
+    const ruleRef = refreshRuleReference();
+
     // Step 3: Publish to Firestore (always — keeps dashboard fresh)
     {
         const duration = Date.now() - scanStart;
@@ -231,6 +270,9 @@ async function cmdScan(args, flags) {
         } catch (err) {
             console.error(`  ${C.red}Spellbook publish failed: ${err.message}${C.reset}`);
         }
+
+        // 2026-10-31 — rule definitions for the admin console's Rule Catalog
+        await publishRuleReferenceStep(ruleRef);
 
         try {
             const sev = (summary && summary.severity) || {};
@@ -685,6 +727,10 @@ async function cmdFull(args, flags) {
         }
     }
 
+    // Rule definitions, regenerated from the validator source against this scan
+    console.log('');
+    const ruleRef = refreshRuleReference();
+
     // Step 2: Pull HED data (silent skip on failure)
     console.log('');
     console.log(`  ${C.bold}[2/6]${C.reset} ${C.cyan}Pulling HED data...${C.reset}`);
@@ -865,6 +911,9 @@ async function cmdFull(args, flags) {
         } catch (err) {
             console.error(`  ${C.red}Spellbook publish failed: ${err.message}${C.reset}`);
         }
+
+        // 2026-10-31 — rule definitions for the admin console's Rule Catalog
+        await publishRuleReferenceStep(ruleRef);
 
         try {
             const sev = (summary && summary.severity) || {};
