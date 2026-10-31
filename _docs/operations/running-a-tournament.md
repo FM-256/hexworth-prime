@@ -54,7 +54,7 @@ Two lifecycle facts that surprise people:
   pre-solve a real box during registration and sit on the answer until the bell — `ctfGetBoxCredential`
   is gated identically to `ctfSubmitFlag` on purpose (`functions/index.js:8282`).
 - **The join code is required at creation** — the console refuses to save a tournament with no
-  code or a code under 4 characters (`_app/admin/console.html:11228`). There is no "no code" tournament you
+  code or a code under 4 characters (`_app/admin/console.html:11011`). There is no "no code" tournament you
   can create today; every new tournament is gated by construction.
 
 ## 2. Staffing challenges — and the box-import trap
@@ -66,7 +66,7 @@ challenge editor).
 salt = `{joinCode}-{challengeId}`. The plaintext you type is never stored.
 
 **Importing from a box copies the box's registry flag TEXT verbatim into the challenge.**
-`_app/admin/console.html:11683-11730` reads `flag_registry/{boxId}.flags`, and for every flag on that box
+`_app/admin/console.html:11466-11513` reads `flag_registry/{boxId}.flags`, and for every flag on that box
 writes a challenge whose `flag` field is that flag's exact text — the same text `deliverFlag`
 (`functions/index.js:682`) hands out to any signed-in student for the solo Arena version of that
 box. The challenge secret is not a fresh secret; it is the box's public answer, differing only by
@@ -240,7 +240,7 @@ Three real invite paths exist. Two more do not exist at all.
 
 | Path | What it does | What it does NOT do |
 |---|---|---|
-| **Join QR** (Manage panel, `_app/admin/console.html:13774`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
+| **Join QR** (Manage panel, `_app/admin/console.html:13557`) | Encodes the lobby URL only: `/arena/tournament-lobby.html?id={tournamentId}`. Renders via the vendored `qrcodejs`; falls back to legible text if the library fails to load. | Never encodes the join code. Deliberate: a QR gets photographed and forwarded, and the code is a real gate (see Section 5), putting it in the QR hands the gate away in a nicer format. The instructor reads the code out. |
 | **Discord `/tournament` command** | Ephemeral reply (flags 64 — only the asker sees it). Lists tournaments at `lobby` or `active`, names the Competitor badge and its 25 points, and tells the student to ask their instructor for the code (`functions/index.js:9321-9375`). | **It never reads out a join code, under any condition** — an earlier draft did, for "legacy" tournaments, and that branch turned out to be the live case for both real tournaments today (BUG-270). |
 | **Direct lobby link** | Copy/paste the URL yourself. Works today, always has. | — |
 | Email | Does not exist. `functions/index.js:5675` states auto-email was never built for v1. | — |
@@ -293,9 +293,9 @@ This is taskboard 411.
 public the moment it is saved. Rotation and migration have to be the same operation — the
 remedy is the same two-phase pattern already shipped for flag secrets, and it is now **LIVE IN
 PRODUCTION**: the **Join Code Migration** card in the Manage panel
-(`_app/admin/console.html:4204`, handler `window.migrateJoinCode`), deployed 2026-09-19 with 42/0
+(`_app/admin/console.html:3864`, handler `window.migrateJoinCode`), deployed 2026-09-19 with 42/0
 against a rules-enforced emulator running the shipped function, mutation-verified three ways.
-Alongside it, a **Rotate Code** button (`_app/admin/console.html:4150`, handler
+Alongside it, a **Rotate Code** button (`_app/admin/console.html:3810`, handler
 `window.rotateJoinCode`). Before it existed there was NO way to change a live tournament's code,
 and editing the public field by hand would have done nothing except re-publish a stale value.
 The migration copies the code into
@@ -320,7 +320,7 @@ pause.
 | Model | Behavior |
 |---|---|
 | **Static** | Each challenge is worth its authored `points`, unchanged for the life of the event. |
-| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`_app/admin/console.html:11241`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
+| **Dynamic** | `currentPoints = max(minPoints or floor, floor(points * decayRate ^ solveCount))`. Console writes `dynamicConfig.decayRate = 0.85` at creation when Dynamic is selected (`_app/admin/console.html:11024`); decay always starts from each challenge's own authored `points`, not a tournament-wide value. |
 
 Historical note, in case you inherit an older tournament: a live event was once found configured
 as `dynamic` with no `dynamicConfig` at all, so it silently scored flat static points forever —
@@ -381,7 +381,7 @@ the live, admin-writable `teams` collection, once it exists.
 | **Competitor** (`tournament_competitor`) | Automatically, inside `ctfJoinTeam`, the moment a student joins a team. | `users/{uid}/server_awards` AND `users/{uid}.achievements` (union-merged). | **No.** Joining is a fact; it cannot un-happen. This is why it is safe to also keep it in the union-merged `achievements` array — a stale device re-syncing the id back in changes nothing false. |
 | **Champion / Runner-Up / Third** (`tournament_champion` etc.) | Manually, by an admin calling `ctfAwardTournamentBadges` — never automatic. This is Hexworth Credential Authority doctrine: competition never automatically grants an award of record. | `users/{uid}/server_awards` **only** — never `achievements`. | **Yes.** A corrected result must be able to take a trophy back; `achievements` is union-merged and a revocation there would silently self-reverse the next time a stale device synced. |
 
-Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11961`) calls
+Console -> Manage panel -> **Award Placement Badges** button (`_app/admin/console.html:11744`) calls
 `ctfAwardTournamentBadges`. It refuses to run until `results/final` exists — it will not derive
 placements from the live `teams` collection, because that collection is admin-writable and
 therefore not evidence of anything. Safe to click more than once: it is idempotent by content, and
