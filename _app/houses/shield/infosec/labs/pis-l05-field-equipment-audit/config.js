@@ -60,9 +60,9 @@ const PISL05Config = {
 
         toolkit: [
             { name: "inventory", purpose: "List the 8 devices in the pre-deployment bay with summary status", sample: "inventory" },
-            { name: "audit", purpose: "Run the full CS-12 audit against a specific device", sample: "audit DEV-03" },
-            { name: "fail", purpose: "Mark a device as non-compliant", sample: "fail DEV-03" },
-            { name: "remediate", purpose: "File the specific remediation action required for a failed device", sample: "remediate DEV-03 enable-fde" },
+            { name: "audit", purpose: "Run the full CS-12 audit against a specific device", sample: "audit DEV-00N" },
+            { name: "fail", purpose: "Mark a device as non-compliant", sample: "fail DEV-00N <reason>" },
+            { name: "remediate", purpose: "File the specific remediation action required for a failed device", sample: "remediate DEV-00N <action>" },
             { name: "submit", purpose: "Submit final audit decision once all 8 devices are reviewed", sample: "submit" },
             { name: "help", purpose: "Command reference", sample: "help" }
         ]
@@ -310,7 +310,7 @@ const PISL05Config = {
             const reason = (args[1] || '').toLowerCase();
 
             if (!id || !reason) {
-                return 'Usage: fail <device-id> <reason>\nReasons: no-encryption, no-mdm, unpatched, open-ports\nExample: fail DEV-003 no-encryption';
+                return 'Usage: fail <device-id> <reason>\nReasons: no-encryption, no-mdm, unpatched, open-ports\nExample: fail DEV-00N <reason>';
             }
 
             if (!engine.config._devices[id]) {
@@ -343,7 +343,7 @@ const PISL05Config = {
             const action = (args[1] || '').toLowerCase();
 
             if (!id || !action) {
-                return 'Usage: remediate <device-id> <action>\nActions: enable-bitlocker, enable-luks, enroll-mdm, apply-patches, close-ports\nExample: remediate DEV-003 enable-bitlocker';
+                return 'Usage: remediate <device-id> <action>\nActions: enable-bitlocker, enable-luks, enroll-mdm, apply-patches, close-ports\nExample: remediate DEV-00N <action>';
             }
 
             if (!engine.config._devices[id]) {
@@ -410,7 +410,6 @@ const PISL05Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l05-field-equipment-audit_flag1_all_3_non-compliant_}',
             label: 'All 3 Non-Compliant Devices Identified',
             description: 'Correctly flagged all 3 devices that fail CS-12 containment standards.',
             points: 250,
@@ -418,7 +417,6 @@ const PISL05Config = {
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l05-field-equipment-audit_flag2_remediations_documen}',
             label: 'Remediations Documented',
             description: 'Filed correct remediation actions for each of the 3 non-compliant devices.',
             points: 250,
