@@ -62,7 +62,7 @@ const PISL01Config = {
             { name: 'intake',   purpose: 'List the six specimens pending classification',                                            sample: 'intake' },
             { name: 'examine',  purpose: "Read a specimen's behavior report -- file artifacts, network artifacts, analyst notes",   sample: 'examine SPX-001' },
             { name: 'cat',      purpose: 'Read the taxonomy reference -- definitions and key indicators per family',                 sample: 'cat /etc/containment/taxonomy.db' },
-            { name: 'classify', purpose: 'File a containment classification -- flags unlock as pairs are completed',                 sample: 'classify SPX-001 RAT' },
+            { name: 'classify', purpose: 'File a containment classification -- flags unlock as pairs are completed',                 sample: 'classify SPX-00N <type>' },
             { name: 'report',   purpose: 'Show classification progress across all six specimens',                                    sample: 'report' },
             { name: 'help',     purpose: 'Command reference',                                                                        sample: 'help' }
         ]
@@ -280,7 +280,7 @@ const PISL01Config = {
             const type = (args[1] || '').toLowerCase();
 
             if (!id || !type) {
-                return 'Usage: classify <specimen-id> <type>\nTypes: virus, worm, trojan, ransomware, rootkit, RAT\nExample: classify SPX-001 RAT';
+                return 'Usage: classify <specimen-id> <type>\nTypes: virus, worm, trojan, ransomware, rootkit, RAT\nExample: classify SPX-00N <type>';
             }
 
             const validIds = ['SPX-001', 'SPX-002', 'SPX-003', 'SPX-004', 'SPX-005', 'SPX-006'];
@@ -378,25 +378,22 @@ const PISL01Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l01-specimen-classification_flag1_specimens_1-2_classi}',
             label: 'Specimens 1-2 Classified',
-            description: 'Correctly classified SPX-001 (RAT) and SPX-002 (virus).',
+            description: 'Correctly classified SPX-001 and SPX-002.',
             points: 250,
             autoCheck: true
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l01-specimen-classification_flag2_specimens_3-4_classi}',
             label: 'Specimens 3-4 Classified',
-            description: 'Correctly classified SPX-003 (worm) and SPX-004 (trojan).',
+            description: 'Correctly classified SPX-003 and SPX-004.',
             points: 250,
             autoCheck: true
         },
         {
             id: 'flag3',
-            value: 'FLAG{pis-l01-specimen-classification_flag3_specimens_5-6_classi}',
             label: 'Specimens 5-6 Classified',
-            description: 'Correctly classified SPX-005 (ransomware) and SPX-006 (rootkit).',
+            description: 'Correctly classified SPX-005 and SPX-006.',
             points: 250,
             autoCheck: true
         }
