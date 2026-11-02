@@ -60,9 +60,9 @@ const PISL02Config = {
         toolkit: [
             { name: "inbox", purpose: "List the ten messages awaiting analyst review", sample: "inbox" },
             { name: "read", purpose: "Open a single message and inspect its full content + headers", sample: "read MSG-04" },
-            { name: "flag", purpose: "Mark a message as a suspected social-engineering attempt and classify the technique", sample: "flag MSG-04 phishing" },
+            { name: "flag", purpose: "Mark a message as a suspected social-engineering attempt and classify the technique", sample: "flag MSG-NN <technique>" },
             { name: "unflag", purpose: "Reverse a flag if you misclassified", sample: "unflag MSG-04" },
-            { name: "submit", purpose: "File the flagged-message + technique-classification report once review is complete", sample: "submit MSG-04 phishing" },
+            { name: "submit", purpose: "File the flagged-message + technique-classification report once review is complete", sample: "submit" },
             { name: "help", purpose: "Command reference", sample: "help" }
         ]
     },
@@ -263,7 +263,7 @@ const PISL02Config = {
             const technique = (args[1] || '').toLowerCase();
 
             if (!id || !technique) {
-                return 'Usage: flag <message-id> <technique>\nTechniques: phishing, vishing, pretexting, baiting\nExample: flag MSG-02 phishing';
+                return 'Usage: flag <message-id> <technique>\nTechniques: phishing, vishing, pretexting, baiting\nExample: flag MSG-NN <technique>';
             }
 
             if (!engine.config._messages[id]) {
@@ -371,7 +371,6 @@ const PISL02Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l02-human-vector-drill_flag1_all_4_attempts_ident}',
             label: 'All 4 Attempts Identified',
             description: 'Correctly identified all 4 social engineering messages from the 10-message inbox.',
             points: 250,
@@ -379,7 +378,6 @@ const PISL02Config = {
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l02-human-vector-drill_flag2_all_techniques_class}',
             label: 'All Techniques Classified',
             description: 'Correctly classified the technique for each identified attempt: phishing, vishing, pretexting, baiting.',
             points: 250,
