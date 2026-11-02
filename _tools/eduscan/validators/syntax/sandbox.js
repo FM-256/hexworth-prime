@@ -101,7 +101,19 @@ class SandboxValidator {
         const dynMountMatch = content.match(/getElementById\(\s*["']([^"']+)["']\s*\)[\s\S]{0,400}?SandboxLauncher\.renderButton/);
         const hasDynamicMount = !!(dynMountMatch &&
             new RegExp(`id\\s*=\\s*["']${dynMountMatch[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}["']`).test(content));
-        const hasSandboxMount = /id\s*=\s*["']sandbox-mount["']/.test(content) || hasDynamicMount;
+        /* Two more valid forms (BUG-292, 2026-10-31; 8 false findings):
+             renderButton(document.getElementById('cinder-launcher'), ...)  the lookup INSIDE the call,
+               valid when that id is in the page (the seven OpenStack labs);
+             var mount = document.createElement('div'); ... renderButton(mount, ...)  a mount the
+               script builds itself, so there is nothing to find in static HTML (rig/index.html). */
+        const escId = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const inlineIds = [...content.matchAll(/SandboxLauncher\.renderButton\(\s*(?:document\.)?getElementById\(\s*["']([^"']+)["']/g)].map((m) => m[1]);
+        const hasInlineMount = inlineIds.length > 0 &&
+            inlineIds.every((id) => new RegExp(`id\\s*=\\s*["']${escId(id)}["']`).test(content));
+        const argVars = [...content.matchAll(/SandboxLauncher\.renderButton\(\s*([A-Za-z_$][\w$]*)\s*,/g)].map((m) => m[1]);
+        const hasCreatedMount = argVars.length > 0 &&
+            argVars.every((v) => new RegExp(`\\b${escId(v)}\\s*=\\s*document\\.createElement\\(`).test(content));
+        const hasSandboxMount = /id\s*=\s*["']sandbox-mount["']/.test(content) || hasDynamicMount || hasInlineMount || hasCreatedMount;
 
         // Check if a body-wiping renderer is loaded
         const hasBodyWipingRenderer = BODY_WIPING_RENDERERS.some(r => content.includes(r));

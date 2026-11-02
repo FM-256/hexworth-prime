@@ -1,9 +1,11 @@
 """
 Attach the 13 generated ALA walkthrough PDFs to their Confluence walkthrough pages
 (KBA space, children of the Solutions & Walkthroughs Registry). Page IDs from
-ala-walkthrough-pages.md. Idempotent-ish: first attach creates the file; re-runs create a
-new version of the same-named attachment (Confluence Cloud handles name collisions on the
-collection endpoint). Each upload is independent — one failure does not abort the batch.
+ala-walkthrough-pages.md. Idempotent: a PDF not yet on the page is created; one already there
+gets a NEW VERSION through /child/attachment/{id}/data. (The first version of this script said
+re-runs versioned through the collection endpoint. Measured 2026-10-31: Confluence Cloud answers
+a same-named POST there with 400, so a re-run silently left the old PDF in place.) Each upload is
+independent; one failure does not abort the batch. DRY=1 prints the endpoint it would use.
 """
 import os, json, sys
 import requests
@@ -37,6 +39,13 @@ PAGES = {
 def attach(pdf_name, page_id):
     path = os.path.join(ALA, pdf_name)
     url = f"{SITE}/wiki/rest/api/content/{page_id}/child/attachment"
+    # An attachment with this name already on the page gets a new version, not a second POST.
+    existing = requests.get(url, params={'filename': pdf_name}, auth=AUTH, timeout=30).json().get('results', [])
+    if existing:
+        url = f"{url}/{existing[0]['id']}/data"
+    if os.environ.get('DRY'):
+        print(f"DRY   {pdf_name} -> {'new version of ' + existing[0]['id'] if existing else 'create'}")
+        return None
     headers = {'X-Atlassian-Token': 'nocheck'}
     with open(path, 'rb') as fh:
         files = {'file': (pdf_name, fh, 'application/pdf')}
@@ -52,6 +61,8 @@ for name, pid in PAGES.items():
         continue
     try:
         r = attach(name, pid)
+        if r is None:
+            continue
         if r.status_code in (200, 201):
             ok += 1; print(f"OK    {name} -> page {pid}")
         else:

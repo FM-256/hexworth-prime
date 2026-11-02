@@ -9,7 +9,7 @@
  *   - Oversized inline <script> data objects
  *
  * Issue codes:
- * - BLOB-001: Inline <style> block exceeds threshold (MEDIUM)
+ * - BLOB-001: Inline <style> block exceeds threshold (LOW: self-contained page CSS is intentional)
  * - BLOB-002: Template literal HTML blob exceeds threshold (LOW)
  * - BLOB-003: Base64 data URI detected (LOW)
  * - BLOB-004: Oversized inline script block (LOW)

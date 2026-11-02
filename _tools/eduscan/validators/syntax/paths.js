@@ -729,6 +729,22 @@ class PathValidator {
     }
 
     /**
+     * The hrefs a page gates as "coming soon": string entries of an inline array assigned to
+     * COMING_SOON or HEX_COMING_SOON, which the page's gate script dims and makes non-navigating.
+     * Counted only when the page also cancels the click (preventDefault); a list with no gate
+     * proves nothing. BUG-292, 2026-10-31: 41 PATH-004 findings on four pages were all gated
+     * targets, verified by clicking each in a browser.
+     */
+    comingSoonHrefs(content) {
+        const out = new Set();
+        if (!/\.preventDefault\(\)/.test(content)) return out;
+        for (const m of content.matchAll(/\b(?:HEX_)?COMING_SOON\s*=\s*\[([\s\S]*?)\]/g)) {
+            for (const s of m[1].matchAll(/["']([^"']+)["']/g)) out.add(s[1]);
+        }
+        return out;
+    }
+
+    /**
      * Check anchor href paths (internal navigation)
      * Severity: LOW (navigation issues, not critical)
      * Only in strict mode
@@ -736,6 +752,7 @@ class PathValidator {
     checkAnchorPaths(file, fileDir) {
         const issues = [];
         const content = file.content;
+        const comingSoon = this.comingSoonHrefs(content);
 
         // Pattern 1: Standard <a href="..."> tags
         // Pattern 2: JS object href/gateHref properties (e.g., vault LEVELS config)
@@ -762,6 +779,10 @@ class PathValidator {
 
                 const resolved = this.resolvePath(href, fileDir);
                 const exists = this.checkExists(resolved);
+
+                // A target the page itself gates as "coming soon" is not a dead end: the click is
+                // blocked and the student sees a notice instead of a 404.
+                if (!exists && comingSoon.has(href)) continue;
 
                 if (!exists) {
                     const analysis = this.analyzePathIssue(href, resolved, fileDir, file.path, '.html');

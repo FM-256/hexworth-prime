@@ -23,12 +23,17 @@ class HTMLValidator {
     templatePatterns = [
         /\{\{[\s\S]*?\}\}/g,      // Mustache/Handlebars/Vue
         /<%[\s\S]*?%>/g,          // EJS/ERB/ASP
-        /\$\{[\s\S]*?\}/g,        // ES6 template literals
+        /\$\{[^}<]*\}/g,          // ES6 template literals
         /<\?[\s\S]*?\?>/g,        // PHP
-        /@\{[\s\S]*?\}/g,         // Razor
+        /@\{[^}<]*\}/g,           // Razor
         /\{%[\s\S]*?%\}/g,        // Jinja/Twig
-        /#\{[\s\S]*?\}/g          // Ruby interpolation
+        /#\{[^}<]*\}/g            // Ruby interpolation
     ];
+    /* The single-brace patterns may not cross a "<". As [\s\S]*? they ran from a lone "${" to the
+       next "}" anywhere in the page: do-105 teaches GitHub Actions and shows "${{" in prose, so the
+       pattern blanked 11,670 characters including a </div>, and HTML-012 reported a div that is
+       closed. A real placeholder holds an expression, not markup, and <script> bodies are stripped
+       separately, so nothing a template needs is lost. BUG-292, 2026-10-31. */
 
     // Critical tags that MUST be closed (functionality-breaking if unclosed)
     criticalTags = ['script', 'style'];

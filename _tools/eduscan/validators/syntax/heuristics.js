@@ -2671,6 +2671,16 @@ class HeuristicsValidator {
             // If the link climbs more levels than the file is deep inside the house,
             // it escapes the house directory — almost certainly wrong
             if (dotdotCount > fileDepth + 1) {
+                /* ...unless it escapes ON PURPOSE to a specific page that exists. The rule is
+                   for a Course Home link that overshoots and lands on the platform root (or
+                   nowhere); a cross-area link such as cloud-cold-horizon's "continue in the
+                   arena" button (../../../arena/boxes/le-01-cold-horizon/index.html) is
+                   neither. Resolved the same way HEUR-023 does; a missing target is still
+                   flagged here, and also by HEUR-023. BUG-292, 2026-10-31. */
+                const resolved = path.resolve(path.dirname(path.resolve(this.rootPath, file.path)), href);
+                const rel = path.relative(path.resolve(this.rootPath), resolved).split(path.sep).join('/');
+                const landsOnARoot = rel === 'index.html' || rel === 'houses/index.html' || rel.startsWith('..');
+                if (!landsOnARoot && fs.existsSync(resolved)) continue;
                 const line = this.getLineNumber(content, match.index);
                 issues.push({
                     code: 'HEUR-022',

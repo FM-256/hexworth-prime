@@ -58,9 +58,12 @@ const SEVERITIES = ['critical', 'high', 'medium', 'low', 'warning', 'suspect', '
    output. Tests are skipped by name. Everything else under _tools/eduscan is read. */
 const SKIP_DIRS = /^(node_modules|reports|fixtures|fixers|fixes|__pycache__|tests?|config|hooks)$/;
 
-/* Every .js file under `dir` that could hold a validator, skipping SKIP_DIRS and *.test.js. */
+/* Every .js file under `dir` that could hold a validator, skipping SKIP_DIRS, *.test.js and hidden
+   files (a dotfile is a scratch copy or editor artefact, never a validator, and reading one would list
+   every rule in it a second time). */
 function walk(dir, out) {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.name.startsWith('.')) continue;
         const p = path.join(dir, e.name);
         if (e.isDirectory()) { if (!SKIP_DIRS.test(e.name)) walk(p, out); }
         else if (/\.js$/.test(e.name) && !/\.test\.js$/.test(e.name)) out.push(p);
@@ -203,6 +206,14 @@ function splitSeverityNote(text) {
         .replace(new RegExp('\\s*\\(' + word + '\\)', 'gi'), (m, w) => { stated.push(w.toLowerCase()); return ''; })
         .replace(new RegExp('\\s*Severity:\\s*' + word + '\\b\\.?', 'gi'), (m, w) => { stated.push(w.toLowerCase()); return ''; });
     return { text: t.trim(), stated: [...new Set(stated)] };
+}
+
+/* The note shown when a rule's own comment states a severity its code never sets, or null. Both
+   arguments are lists of severity words; the code's list is what the finding can actually carry. */
+function severityNote(codeSev, stated) {
+    if (!codeSev.length || !stated.length || stated.every((x) => codeSev.includes(x))) return null;
+    const bySev = (a, b) => SEVERITIES.indexOf(a) - SEVERITIES.indexOf(b);
+    return `The source comment says ${stated.join('/')}; the code sets ${codeSev.slice().sort(bySev).join('/')}.`;
 }
 
 /* The rule a sub-code belongs to: BOX-011-FLAG-LEAK-CTF -> BOX-011, META-003-NOT-WIRED -> META-003.
@@ -481,14 +492,14 @@ function build(opts) {
         const severity = (literalSev.length ? literalSev : docSev.length ? docSev : split.stated).slice().sort(bySev);
         const severitySource = literalSev.length ? (sites.find((s) => s.severityVia) ? 'code (' + sites.find((s) => s.severityVia).severityVia + ')' : 'code')
             : docSev.length ? 'safety-net-architecture.md' : split.stated.length ? 'source comment' : null;
-        const disagree = literalSev.length && split.stated.length && split.stated.some((x) => !literalSev.includes(x));
         return {
             code: r.code,
             family: r.code.split('-')[0],
             severity,
             severitySource,
             severityComputed: computed && literalSev.length === 0,
-            note: disagree ? `The source comment says ${split.stated.join('/')}; the code sets ${literalSev.slice().sort(bySev).join('/')}.` : null,
+            note: severityNote(literalSev, split.stated),
+            statedSeverity: split.stated,
             category: (sites.find((s) => s.category) || {}).category || null,
             description,
             descriptionSource,
@@ -644,4 +655,4 @@ if (require.main === module) {
 
 module.exports = { build, toMarkdown, OUT_JSON, OUT_MD,
     // exported for gen-rule-reference.test.js
-    docDescriptions, textOf, parentOf, parse, CODE_RE, splitSeverityNote, FRESH_MS };
+    docDescriptions, textOf, parentOf, parse, CODE_RE, splitSeverityNote, severityNote, FRESH_MS };

@@ -8,7 +8,7 @@
  * Issue codes:
  * - NAME-001: File doesn't follow naming convention (HIGH)
  * - NAME-002: File has wrong type suffix (MEDIUM)
- * - NAME-003: File missing house prefix (MEDIUM)
+ * - NAME-003: File missing house prefix (LOW: a naming convention, does not affect function)
  * - NAME-004: File uses wrong case (camelCase/PascalCase instead of kebab-case) (LOW)
  *
  * Created: 2026-02-07

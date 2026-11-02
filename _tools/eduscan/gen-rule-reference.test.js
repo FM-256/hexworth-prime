@@ -66,6 +66,8 @@ chk('a code is never its own parent', gen.parentOf('BOX-011', has(['BOX-011'])) 
 console.log('\n4. severity written into a description');
 const sn = gen.splitSeverityNote('Inline <style> block exceeds threshold (MEDIUM)');
 chk('a "(MEDIUM)" label is taken out of the sentence', sn.text === 'Inline <style> block exceeds threshold' && sn.stated[0] === 'medium', sn);
+chk('a comment that contradicts the code gets a note', /comment says medium; the code sets low/.test(gen.severityNote(['low'], ['medium']) || ''), gen.severityNote(['low'], ['medium']));
+chk('a comment that agrees with the code gets none', gen.severityNote(['high', 'low'], ['high']) === null);
 chk('so is a leading "(high)" and "Severity: HIGH."', gen.splitSeverityNote('(high) Thing. Severity: HIGH.').text === 'Thing.', gen.splitSeverityNote('(high) Thing. Severity: HIGH.'));
 
 console.log('\n5. run status, from a fixture run');
@@ -104,7 +106,12 @@ chk('and is marked computed, not given a guessed severity', R('HTML-012').severi
 chk('a dotted sub-code is listed', !!R('XREF-003.A').code);
 chk('a literal severity is read', JSON.stringify(R('HEUR-035').severity) === '["high"]', R('HEUR-035').severity);
 chk('a severity held in a variable is read, not "computed"', JSON.stringify(R('XP-001').severity) === '["high","low"]' && !R('XP-001').severityComputed, R('XP-001'));
-chk('a comment that disagrees with the code is noted', /comment says medium; the code sets low/.test(R('BLOB-001').note || ''), R('BLOB-001').note);
+/* Whether the comment and the code agree is a property of every rule, not of one rule that drifted:
+   pinning this to BLOB-001 broke the day BLOB-001's comment was corrected. */
+const drift = ref.rules.filter((r) => r.statedSeverity.length && r.severitySource && r.severitySource.startsWith('code')
+    && r.statedSeverity.some((x) => !r.severity.includes(x)));
+chk('every comment that states a severity the code does not set carries a note', drift.every((r) => !!r.note), drift.filter((r) => !r.note).map((r) => r.code));
+chk('and no rule carries a note without that disagreement', ref.rules.filter((r) => r.note).every((r) => drift.includes(r)), ref.rules.filter((r) => r.note && !drift.includes(r)).map((r) => r.code));
 chk('a code named only in a validator title is a rule (GUARD-001)', (R('GUARD-001').sources || []).length === 1, R('GUARD-001').sources);
 
 const md = gen.toMarkdown(ref);

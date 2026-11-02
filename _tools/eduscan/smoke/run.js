@@ -494,7 +494,7 @@ async function main() {
         //   - BOX-008: flag value shell-safety (informational — PIS-FINAL flag1 documented)
         //   - BOX-009: decoy provenance surfaced (informational — heuristic)
         //   - BOX-010: hint Help Level honesty (informational — heuristic, 252 boxes opt out)
-        //   - BOX-011: client-side flag literal leak (informational — narrative boxes expected)
+        //   - BOX-011: client-side flag literal leak (blocking on CTF-pattern leaks only; narrative leaks never fail it)
         //   - BOX-013: registryId == directory basename (blocking — typo catcher)
         //   - BOX-014: discoverability orphan (informational — 90 known orphan dispatch boxes)
         //   - BOX-016: index.html bootstrap scripts (blocking — engine/config/auth essentials)
@@ -520,7 +520,11 @@ async function main() {
             { code: 'BOX-008',  script: 'box-flag-shell-safety.js',        blocking: false, desc: 'flag shell-safety' },
             { code: 'BOX-009',  script: 'box-decoy-provenance-lint.js',    blocking: false, desc: 'decoy provenance surfaced' },
             { code: 'BOX-010',  script: 'box-hint-help-level-lint.js',     blocking: false, desc: 'hint Help Level honesty' },
-            { code: 'BOX-011',  script: 'box-flag-leak-audit.js',          blocking: false, desc: 'client-side flag literal leak' },
+            /* BOX-011 BLOCKING since 2026-10-31 (BUG-293). Informational, it let 32 CTF flag values sit in
+               four live configs, one of them a graded midterm, from May to October. The audit exits
+               non-zero ONLY for CTF-pattern leaks; narrative evidence values (INFO) never fail it, so
+               this blocks the secret, not the story. */
+            { code: 'BOX-011',  script: 'box-flag-leak-audit.js',          blocking: true,  desc: 'client-side flag literal leak' },
             { code: 'BOX-013',  script: 'box-registry-id-dirname.js',      blocking: true,  desc: 'registryId == dirname' },
             { code: 'BOX-014',  script: 'box-content-catalog-orphan.js',   blocking: false, desc: 'discoverability orphan' },
             { code: 'BOX-016',  script: 'box-html-bootstrap-audit.js',     blocking: true,  desc: 'index.html bootstrap scripts' },
