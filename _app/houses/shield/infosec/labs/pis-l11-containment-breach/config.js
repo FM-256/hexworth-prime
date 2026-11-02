@@ -3,7 +3,7 @@
    Principles of Information Security -- CTF Lab
    Incident response: detect, contain, eradicate, recover,
    forensic imaging, chain of custody, root cause analysis
-   SY0-701: 4.3, 4.4
+   SY0-701: 4.8
    ============================================================ */
 
 const PISL11Config = {
@@ -436,9 +436,9 @@ const PISL11Config = {
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '4.3', description: 'Explain the processes associated with third-party risk assessment and management', skill: 'Incident response containment: network isolation, scope assessment, and stopping active threat propagation' },
-            { flagId: 'flag2', objective: '4.4', description: 'Summarize elements of effective security governance', skill: 'Digital forensics: forensic imaging procedures, chain of custody documentation, and evidence integrity verification' },
-            { flagId: 'flag3', objective: '4.3', description: 'Explain the processes associated with third-party risk assessment and management', skill: 'Full IR lifecycle: eradication, recovery, and root cause analysis with corrective controls recommendation' }
+            { flagId: 'flag1', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'Incident response containment: network isolation, scope assessment, and stopping active threat propagation' },
+            { flagId: 'flag2', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'Digital forensics: forensic imaging procedures, chain of custody documentation, and evidence integrity verification' },
+            { flagId: 'flag3', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'Full IR lifecycle: eradication, recovery, and root cause analysis with corrective controls recommendation' }
         ]
     },
 
@@ -463,3 +463,70 @@ const PISL11Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL11Config !== 'undefined') PISL11Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL11Config, ['_state'], function (cfg, found) {
+    // Flag 1 needs all 18 systems isolated; Flag 2 needs all 18 imaged with custody filed.
+    var s = cfg._state;
+    if (found.indexOf('flag1') >= 0) {
+        s.statusRun = true;
+        cfg._affectedSystems.forEach(function (id) { s.isolatedSystems[id] = true; });
+    }
+    if (found.indexOf('flag2') >= 0) {
+        cfg._affectedSystems.forEach(function (id) { s.imagedSystems[id] = true; s.custodyFiled[id] = true; });
+    }
+});

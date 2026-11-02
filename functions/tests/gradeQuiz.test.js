@@ -35,7 +35,9 @@ const {
     applyReveal,
     resolveServedCount,
     validSubmittedIndices,
-    REJECT_TOO_MANY_ANSWERS
+    REJECT_TOO_MANY_ANSWERS,
+    REJECT_PARTIAL_NOT_ONE,
+    REJECT_FULL_SUBMIT_ONLY
 } = require('../quiz-grading');
 
 // Adapter preserving this suite's original positional call shape, so the 64 cases
@@ -370,10 +372,74 @@ function detectPartial(requestData) {
 })();
 
 (function testPartialFullSubmissionWithFlag() {
-    // A client sending partial:true on a full submission only skips its own
-    // attempt log + scopes its own reveal — grading itself is unaffected.
+    // Grading of a NON-partial submission is unaffected by the partial rules below.
     const r = gradeQuiz({ '0': 2, '1': 1 }, [2, 1]);
     assertEq(r.score, 2, 'Partial: grading logic independent of partial flag');
+})();
+
+// ── Partial calls check ONE answer; fullSubmitOnly keys refuse them ──
+// The exploit (QC 2026-11-02): a partial call is never written to quiz_attempts and used to
+// grade every answer it carried, so four calls answering every question 0, 1, 2, 3 read back
+// a whole exam key with no trace. This replays it against the real grading core.
+
+const EXAM_KEY = [2, 1, 1, 3, 0, 2, 1, 0, 1, 2];
+
+function partialProbe(choice, opts) {
+    const answers = {};
+    EXAM_KEY.forEach((_, i) => { answers[String(i)] = choice; });
+    return gradeSubmission(Object.assign({ answerKey: EXAM_KEY, types: [], answers, isPartial: true }, opts || {}));
+}
+
+(function testPartialMultiAnswerRejected() {
+    for (let c = 0; c < 4; c++) {
+        const r = partialProbe(c);
+        assertEq(r.rejected && r.rejected.code, REJECT_PARTIAL_NOT_ONE,
+            'Partial probe answering every question with ' + c + ' -> rejected');
+        assertEq(r.results.length, 0, 'Partial probe ' + c + ' -> no per-question results returned');
+    }
+})();
+
+(function testPartialKeyNotRecoverable() {
+    // Run the attacker's loop; nothing it gets back may tell it any answer.
+    const recovered = EXAM_KEY.map(() => null);
+    for (let c = 0; c < 4; c++) {
+        const r = partialProbe(c);
+        (r.results || []).forEach((res, i) => { if (res && res.correct) recovered[i] = c; });
+    }
+    assertEq(recovered.filter(x => x !== null).length, 0, 'Partial probe: 0 answers recovered by the 4-call harvest');
+})();
+
+(function testPartialTwoAnswersRejected() {
+    const r = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers: { '0': 2, '1': 1 }, isPartial: true });
+    assertEq(r.rejected && r.rejected.code, REJECT_PARTIAL_NOT_ONE, 'Partial with two answers -> rejected');
+})();
+
+(function testPartialZeroValidAnswersRejected() {
+    const r = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers: { 'x': 1, '99': 0 }, isPartial: true });
+    assertEq(r.rejected && r.rejected.code, REJECT_PARTIAL_NOT_ONE, 'Partial with no valid index -> rejected');
+})();
+
+(function testPartialSingleAnswerStillGrades() {
+    // The shape every QC-57 page and InstantQuizGrader sends: { [qIndex]: choice }.
+    const right = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers: { '3': 3 }, isPartial: true });
+    assertEq(right.rejected, null, 'Partial single answer -> not rejected');
+    assertEq(right.results[3].correct, true, 'Partial single answer -> graded correct');
+    const wrong = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers: { '3': 0 }, isPartial: true });
+    assertEq(wrong.results[3].correct, false, 'Partial single wrong answer -> graded wrong');
+})();
+
+(function testFullSubmitOnlyRefusesPartial() {
+    const r = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers: { '0': 2 }, isPartial: true, fullSubmitOnly: true });
+    assertEq(r.rejected && r.rejected.code, REJECT_FULL_SUBMIT_ONLY, 'fullSubmitOnly: single-answer partial -> rejected');
+    assertEq(r.results.length, 0, 'fullSubmitOnly: rejected partial returns no results');
+})();
+
+(function testFullSubmitOnlyStillGradesFullSubmission() {
+    const answers = {};
+    EXAM_KEY.forEach((a, i) => { answers[String(i)] = a; });
+    const r = gradeSubmission({ answerKey: EXAM_KEY, types: [], answers, isPartial: false, fullSubmitOnly: true });
+    assertEq(r.rejected, null, 'fullSubmitOnly: full submission -> not rejected');
+    assertEq(r.percentage, 100, 'fullSubmitOnly: full correct submission -> 100%');
 })();
 
 // ── TERMINAL Grading ────────────────────────────────────────────

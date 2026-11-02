@@ -51,6 +51,7 @@ const ObservatoryConsent = (function () {
         { id: 'cts2106c', label: 'CTS2106C — Multiuser Operating Systems (Linux)' },
         { id: 'cis2350c', label: 'CIS2350C — Principles of Information Security' },
         { id: 'cop1034c', label: 'COP1034C — Python for IT' },
+        { id: 'cts1328c', label: 'CTS1328C — Managing and Maintaining Server Operating Systems' },
         { id: 'other',    label: 'Other / Not listed' }
     ];
 

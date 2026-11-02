@@ -2521,13 +2521,15 @@ exports.gradeQuiz = onCall(cfOptions, async (request) => {
         types: keyData.types || [],   // optional per-question type array: 'mc','ms','order','terminal'
         answers,
         poolSize: keyData.poolSize,   // absent on every key doc today => full-bank behaviour
-        isPartial
+        isPartial,
+        fullSubmitOnly: keyData.fullSubmitOnly === true
     });
 
     if (graded.rejected) {
-        // Today only 'too-many-answers': more distinct in-range indices submitted than
-        // the attempt served, i.e. a client grading itself against a denominator it
-        // undercut. Impossible on a non-pooled quiz.
+        // 'too-many-answers': more distinct in-range indices submitted than the attempt
+        // served, i.e. a client grading itself against a denominator it undercut.
+        // 'partial-not-one-answer' / 'full-submit-only': a partial call is unlogged, so it
+        // may check one answer at a time and never on a key that forbids it (quiz-grading.js).
         throw new HttpsError('invalid-argument', graded.rejected.message);
     }
 

@@ -92,6 +92,12 @@ check('revealToAll is written FALSE when absent, not omitted', () => {
         'a stray revealToAll:true on the live doc would leak answers forever');
 });
 
+check('fullSubmitOnly is written TRUE when declared and FALSE when absent', () => {
+    assert.strictEqual(buildPayload({ answers: [0], fullSubmitOnly: true }).fullSubmitOnly, true);
+    assert.strictEqual(buildPayload(MINIMAL).fullSubmitOnly, false,
+        'a key that drops the flag must reopen partial checks, not keep a stale true');
+});
+
 check('a poolSize of 0 or a negative is treated as absent', () => {
     assert.ok(isDelete(buildPayload({ answers: [0], poolSize: 0 }).poolSize));
     assert.ok(isDelete(buildPayload({ answers: [0], poolSize: -5 }).poolSize));

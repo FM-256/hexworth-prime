@@ -3,7 +3,7 @@
    Principles of Information Security -- CTF Lab
    Cryptographic operations: AES encryption, RSA decryption,
    file integrity verification via hashing
-   SY0-701: 1.4, 5.1
+   SY0-701: 1.4
    ============================================================ */
 
 const PISL06Config = {
@@ -60,7 +60,7 @@ const PISL06Config = {
         ],
 
         toolkit: [
-            { name: "openssl", purpose: "Symmetric and asymmetric crypto operations: enc, dgst, rsa decrypt, etc.", sample: "openssl enc -aes-256-cbc -in specimen-7719.dat -out specimen-7719.enc" },
+            { name: "openssl", purpose: "Symmetric and asymmetric crypto operations: enc, dgst, rsa decrypt, etc.", sample: "openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in specimen-7719.dat -out specimen-7719.dat.enc -pass file:vault-aes-key.bin" },
             { name: "gpg", purpose: "GnuPG operations: encrypt, decrypt, verify with the vault keyring", sample: "gpg --decrypt intercepted-comms.enc" },
             { name: "verify-integrity", purpose: "Run SHA-256 hash check against the reference manifest to find tampered files", sample: "verify-integrity manifest.sha256" },
             { name: "help", purpose: "Command reference", sample: "help" }
@@ -118,7 +118,7 @@ const PISL06Config = {
                             children: {
                                 'notes.txt': {
                                     type: 'file',
-                                    content: 'VAULT OPERATIONS NOTES\n======================\nOperation 1: ENCRYPT\n  File: /vault/specimen-7719.dat\n  Required algorithm: AES-256-CBC\n  Key: vault-aes-key.bin (in /vault/keys/)\n  Command pattern:\n    openssl enc -aes-256-cbc -in <input> -out <output> -pass file:<keyfile>\n  Output: /vault/specimen-7719.dat.enc\n\nOperation 2: DECRYPT\n  File: /vault/intercepted-comms.enc\n  Key: vault-rsa-private.pem (in /vault/keys/)\n  Command pattern:\n    openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>\n  Output: /vault/intercepted-comms.dec\n\nOperation 3: INTEGRITY CHECK\n  Reference hashes: /vault/manifest-hashes.txt\n  Files to check: /vault/manifest/\n  Command: sha256sum <file>  or  sha256sum -c <hashfile>\n  One file in the manifest has been tampered with.\n  Identify it using: verify-integrity\n\nAdditional commands:\n  openssl      Simulate openssl cryptographic operations\n  gpg          Simulate GPG operations\n  sha256sum    Compute/verify SHA-256 hashes\n  md5sum       Compute/verify MD5 hashes (legacy)\n  verify-integrity  Run automated manifest integrity check\n'
+                                    content: 'VAULT OPERATIONS NOTES\n======================\nOperation 1: ENCRYPT\n  File: /vault/specimen-7719.dat\n  Required algorithm: AES-256-CBC\n  Passphrase file: vault-aes-key.bin (in /vault/keys/)\n  Command pattern:\n    openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in <input> -out <output> -pass file:<keyfile>\n  Output: /vault/specimen-7719.dat.enc\n\nOperation 2: DECRYPT\n  File: /vault/intercepted-comms.enc\n  Key: vault-rsa-private.pem (in /vault/keys/)\n  Command pattern:\n    openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>\n  Output: /vault/intercepted-comms.dec\n\nOperation 3: INTEGRITY CHECK\n  Reference hashes: /vault/manifest-hashes.txt\n  Files to check: /vault/manifest/\n  Command: sha256sum <file>  or  sha256sum -c <hashfile>\n  One file in the manifest has been tampered with.\n  Identify it using: verify-integrity\n\nAdditional commands:\n  openssl      Simulate openssl cryptographic operations\n  gpg          Simulate GPG operations\n  sha256sum    Compute/verify SHA-256 hashes\n  md5sum       Compute/verify MD5 hashes (legacy)\n  verify-integrity  Run automated manifest integrity check\n'
                                 },
                                 '.bash_history': {
                                     type: 'file',
@@ -174,11 +174,11 @@ const PISL06Config = {
                             children: {
                                 'README.txt': {
                                     type: 'file',
-                                    content: 'VAULT KEY STORE -- READ ONLY\n==============================\nvault-aes-key.bin\n  Type: AES-256 symmetric key (raw binary, 32 bytes)\n  Use for: AES-256-CBC encryption/decryption of specimen files\n  Usage: -pass file:/vault/keys/vault-aes-key.bin\n\nvault-rsa-private.pem\n  Type: RSA-2048 private key (PEM format)\n  Use for: Decrypting RSA-encrypted communications\n  Corresponding public key is published on the containment certificate authority\n  Usage: -inkey /vault/keys/vault-rsa-private.pem\n\nKey custody: Director-signed (KC-2026-001)\nRotation schedule: 90 days\nNext rotation: 2026-07-09\n'
+                                    content: 'VAULT KEY STORE (READ ONLY)\n==============================\nvault-aes-key.bin\n  Type: passphrase file (one line: 64 hex characters of random data)\n  Use for: AES-256-CBC encryption/decryption of specimen files\n  Usage: -pass file:/vault/keys/vault-aes-key.bin -pbkdf2 -iter 100000\n  How enc uses it: -pass file: reads the FIRST LINE of the file as a passphrase.\n    openssl enc derives the 256-bit key and the IV from that passphrase plus a\n    random 8-byte salt. -pbkdf2 -iter makes that derivation slow to brute-force.\n    (A raw key would be given directly instead: -K <64 hex> -iv <32 hex>.)\n\nvault-rsa-private.pem\n  Type: RSA-2048 private key (PEM format)\n  Use for: Decrypting RSA-encrypted communications\n  Corresponding public key is published on the containment certificate authority\n  Usage: -inkey /vault/keys/vault-rsa-private.pem\n\nKey custody: Director-signed (KC-2026-001)\nRotation schedule: 90 days\nNext rotation: 2026-07-09\n'
                                 },
                                 'vault-aes-key.bin': {
                                     type: 'file',
-                                    content: '[BINARY: AES-256 Key -- 32 bytes]\na7f3d9e2b8c1f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0\n'
+                                    content: 'a7f3d9e2b8c1f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0\n'
                                 },
                                 'vault-rsa-private.pem': {
                                     type: 'file',
@@ -216,7 +216,7 @@ const PISL06Config = {
         // openssl -- simulate openssl cryptographic operations
         'openssl': function(args, term, engine) {
             if (args.length === 0) {
-                return 'OpenSSL 3.2.1 (simulated)\nUsage:\n  openssl enc -aes-256-cbc -in <input> -out <output> -pass file:<keyfile>\n  openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>\n  openssl genrsa -out <keyfile> 2048\n  openssl rsa -in <keyfile> -pubout -out <pubkey>';
+                return 'OpenSSL 3.2.1 (simulated)\nUsage:\n  openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in <input> -out <output> -pass file:<keyfile>\n  openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>\n  openssl genrsa -out <keyfile> 2048\n  openssl rsa -in <keyfile> -pubout -out <pubkey>';
             }
 
             const sub = args[0];
@@ -231,9 +231,14 @@ const PISL06Config = {
                 const inFile = inFlag >= 0 ? args[inFlag + 1] : null;
                 const outFile = outFlag >= 0 ? args[outFlag + 1] : null;
                 const passArg = passFlag >= 0 ? args[passFlag + 1] : null;
+                // OpenSSL enc: -iter implies PBKDF2; -pbkdf2 alone uses 10000 iterations.
+                // Without either, OpenSSL 3 falls back to EVP_BytesToKey and prints a warning.
+                const iterIdx = args.indexOf('-iter');
+                const iterCount = iterIdx >= 0 && /^[0-9]+$/.test(args[iterIdx + 1] || '') ? args[iterIdx + 1] : '10000';
+                const usePbkdf2 = args.includes('-pbkdf2') || iterIdx >= 0;
 
                 if (!algFlag) {
-                    return 'Error: Must specify an algorithm.\nRequired for vault operations: -aes-256-cbc\nExample: openssl enc -aes-256-cbc -in /vault/specimen-7719.dat -out /vault/specimen-7719.dat.enc -pass file:/vault/keys/vault-aes-key.bin';
+                    return 'Error: Must specify an algorithm.\nRequired for vault operations: -aes-256-cbc\nExample: openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in /vault/specimen-7719.dat -out /vault/specimen-7719.dat.enc -pass file:/vault/keys/vault-aes-key.bin';
                 }
 
                 if (!inFile || !inFile.includes('specimen-7719')) {
@@ -254,10 +259,10 @@ const PISL06Config = {
                 // Add encrypted file to filesystem
                 term.fs['/'].children.vault.children['specimen-7719.dat.enc'] = {
                     type: 'file',
-                    content: '[AES-256-CBC ENCRYPTED -- vault-aes-key.bin]\n[Binary ciphertext representation]\n5f3c9a2e1b8d7f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1\n0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9\n[256 bytes -- AES-256-CBC with PBKDF2 key derivation]\n'
+                    content: '[openssl enc output: "Salted__" magic, 8-byte salt, then AES-256-CBC ciphertext]\nSalted__ 3f9a1c7e5b2d8a64\n5f3c9a2e1b8d7f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1\n0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9\n'
                 };
 
-                let output = 'openssl enc -aes-256-cbc\n\nEncrypting: /vault/specimen-7719.dat\nAlgorithm:  AES-256-CBC\nKey:        vault-aes-key.bin (256-bit symmetric)\nOutput:     /vault/specimen-7719.dat.enc\n\nKey derivation: PBKDF2-SHA256, 10000 iterations\nIV: randomly generated and prepended to ciphertext\n\nDone. Encrypted file written: /vault/specimen-7719.dat.enc\n\nSECURITY NOTE: AES-256-CBC is symmetric encryption.\n  Same key encrypts and decrypts. Key must be securely\n  transmitted to BSL-4 via separate channel.\n';
+                let output = (usePbkdf2 ? '' : '*** WARNING : deprecated key derivation used.\nUsing -iter or -pbkdf2 would be better.\n\n') + 'openssl enc -aes-256-cbc\n\nEncrypting: /vault/specimen-7719.dat\nAlgorithm:  AES-256-CBC\nPassphrase: first line of vault-aes-key.bin (-pass file:)\nOutput:     /vault/specimen-7719.dat.enc\n\n' + (usePbkdf2 ? 'Key derivation: PBKDF2 with HMAC-SHA256, ' + iterCount + ' iterations, random 8-byte salt\n' : 'Key derivation: legacy EVP_BytesToKey (SHA-256, 1 iteration), random 8-byte salt\n  Fast to brute-force. Re-run with -pbkdf2 -iter 100000.\n') + 'Key and IV: both derived from the passphrase and the salt (the IV is not stored)\nFile header: "Salted__" followed by the 8-byte salt, then the ciphertext\n\nDone. Encrypted file written: /vault/specimen-7719.dat.enc\n\nSECURITY NOTE: AES-256-CBC is symmetric encryption.\n  The same passphrase and options decrypt it:\n  openssl enc -d -aes-256-cbc -pbkdf2 -iter <same count> -pass file:<same file>\n  The key file must reach BSL-4 through a separate secure channel.\n';
 
                 if (!engine.config._flag1Awarded) {
                     engine.config._flag1Awarded = true;
@@ -472,7 +477,7 @@ const PISL06Config = {
     hints: [
         {
             id: 'hint1',
-            text: 'For AES encryption: read ~/notes.txt for the exact command pattern. You need four flags: the algorithm (-aes-256-cbc), the input file (-in), the output file (-out), and the key (-pass file:...). The key file is in /vault/keys/.',
+            text: 'For AES encryption: read ~/notes.txt for the exact command pattern. You need the algorithm (-aes-256-cbc), the input file (-in), the output file (-out), and the passphrase file (-pass file:...). Add -pbkdf2 -iter 100000 so the key is derived with PBKDF2 instead of the legacy one-pass method. The key file is in /vault/keys/.',
             cost: 50,
             penalty: -50
         },
@@ -498,7 +503,7 @@ const PISL06Config = {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
             { flagId: 'flag1', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Applying AES-256-CBC symmetric encryption for data-at-rest protection' },
-            { flagId: 'flag2', objective: '5.1', description: 'Summarize elements of effective security governance', skill: 'Applying RSA asymmetric encryption for secure communications -- public key encrypts, private key decrypts' },
+            { flagId: 'flag2', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Applying RSA asymmetric encryption for secure communications: public key encrypts, private key decrypts' },
             { flagId: 'flag3', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Using cryptographic hash functions (SHA-256) for file integrity verification and tampering detection' }
         ]
     },
@@ -521,3 +526,65 @@ const PISL06Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL06Config !== 'undefined') PISL06Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL06Config, ['_state'], function (cfg, found) {
+    var s = cfg._state;
+    if (found.indexOf('flag1') >= 0) s.specimenEncrypted = true;
+    if (found.indexOf('flag2') >= 0) s.commsDecrypted = true;
+    if (found.indexOf('flag3') >= 0) { s.integrityVerified = true; s.tamperedFileIdentified = 'specimen-7718-profile.txt'; }
+});

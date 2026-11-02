@@ -3,7 +3,7 @@
    Principles of Information Security -- CTF Lab
    PKI from scratch: root CA, certificate issuance, CRL/OCSP,
    certificate revocation and verification
-   SY0-701: 5.1, 5.2
+   SY0-701: 1.4
    ============================================================ */
 
 const PISL08Config = {
@@ -144,7 +144,7 @@ const PISL08Config = {
                                     children: {
                                         'README.txt': {
                                             type: 'file',
-                                            content: 'HEXWORTH CONTAINMENT PKI DIRECTORY\n\nThis directory will contain the root CA files after ca-init is run.\n\nExpected structure after initialization:\n  root-ca.crt      Self-signed root certificate (public)\n  root-ca.key      Root CA private key (PROTECT THIS)\n  serial           Current serial number counter\n  index.txt        Certificate database\n  crl.pem          Certificate Revocation List (after crl-generate)\n\nSecurity note: The root CA private key should never leave the HSM.\nThis simulated environment stores it here for lab purposes only.\n'
+                                            content: 'HEXWORTH CONTAINMENT PKI DIRECTORY\n\nThis directory will contain the root CA files after ca-init is run.\n\nExpected structure after initialization:\n  root-ca.crt      Self-signed root certificate (public)\n  root-ca.key      Root CA private key (PROTECT THIS)\n  serial           Current serial number counter\n  index.txt        Certificate database\n  crl.pem          Certificate Revocation List (after crl-generate)\n\nSecurity note: The root CA private key should never leave the HSM.\nThis simulated environment stores it here for lab purposes only.\n\nLab simplification: this is a single-tier PKI (the root signs server\ncertificates directly). Production PKIs keep the root offline and issue\nserver certificates from an intermediate (issuing) CA.\n'
                                         }
                                     }
                                 }
@@ -223,7 +223,7 @@ const PISL08Config = {
             caDir['serial'] = { type: 'file', content: '0064\n' };
             caDir['index.txt'] = { type: 'file', content: '' };
 
-            return `ROOT CA INITIALIZED\n${'='.repeat(50)}\n\nSubject:     CN=${cn}\n             C=${country}, O=${org}\nKey size:    RSA-4096\nSignature:   SHA-256 with RSA\nValidity:    10 years (2026-04-09 to 2036-04-09)\nSerial:      0\nType:        Self-signed (root CA)\n\nFiles created:\n  /etc/pki/ca/root-ca.crt    (distribute this to all clients)\n  /etc/pki/ca/root-ca.key    (HSM-protected -- never extract)\n  /etc/pki/ca/serial         (serial counter initialized at 100)\n  /etc/pki/ca/index.txt      (certificate database)\n\nRoot CA is now online.\nNext: issue certificates with cert-issue\nSee ~/notes.txt for server list.`;
+            return `ROOT CA INITIALIZED\n${'='.repeat(50)}\n\nSubject:     CN=${cn}\n             C=${country}, O=${org}\nKey size:    RSA-4096\nSignature:   SHA-256 with RSA\nValidity:    10 years (2026-04-09 to 2036-04-09)\nSerial:      0\nType:        Self-signed (root CA)\n\nFiles created:\n  /etc/pki/ca/root-ca.crt    (distribute this to all clients)\n  /etc/pki/ca/root-ca.key    (HSM-protected, never extract)\n  /etc/pki/ca/serial         (serial counter initialized at 100)\n  /etc/pki/ca/index.txt      (certificate database)\n\nRoot CA is ready to sign.\nLAB SIMPLIFICATION: this is a single-tier PKI, so the root signs the server\ncertificates directly. In production the root stays OFFLINE and signs only an\nintermediate (issuing) CA; the intermediate issues server certificates and\nCRLs, so a compromised issuing CA can be revoked without replacing the root\nthat every client trusts.\nNext: issue certificates with cert-issue\nSee ~/notes.txt for server list.`;
         },
 
         // cert-issue -- issue a certificate to a server
@@ -328,7 +328,7 @@ const PISL08Config = {
                 content: `-----BEGIN X509 CRL-----\nHexworth Containment Root CA -- Certificate Revocation List\nIssuer: CN=${engine.config._state.caSubject.cn}\nThis Update: 2026-04-09T04:00:00Z\nNext Update: 2026-04-16T04:00:00Z\nRevoked Certificates: none (freshly generated)\n-----END X509 CRL-----\n`
             };
 
-            let output = `CERTIFICATE VALIDATION CONFIGURED\n${'='.repeat(50)}\n\nCRL (Certificate Revocation List):\n  File:       /etc/pki/ca/crl.pem\n  Issuer:     ${engine.config._state.caSubject.cn}\n  This update: 2026-04-09T04:00:00Z\n  Next update: 2026-04-16T04:00:00Z\n  Entries:    0 (no revocations yet)\n  Published:  http://crl.hexworth.internal/root-ca.crl\n\nOCSP Responder:\n  Status:     ONLINE\n  URL:        http://ocsp.hexworth.internal:2560\n  Algorithm:  SHA-1 (OCSP standard)\n  Signing:    Root CA key (HSM)\n\nAll 4 server certificates are now VALID per CRL and OCSP.\n\n*** SECURITY ALERT ***\nIntelligence indicates relay-01.hexworth.internal (serial ${engine.config._state.revokedSerial}) may be compromised.\nKey material on that server may have been accessed by unauthorized personnel.\nConsider revoking: cert-revoke --serial ${engine.config._state.revokedSerial} --reason keyCompromise\n`;
+            let output = `CERTIFICATE VALIDATION CONFIGURED\n${'='.repeat(50)}\n\nCRL (Certificate Revocation List):\n  File:       /etc/pki/ca/crl.pem\n  Issuer:     ${engine.config._state.caSubject.cn}\n  This update: 2026-04-09T04:00:00Z\n  Next update: 2026-04-16T04:00:00Z\n  Entries:    0 (no revocations yet)\n  Published:  http://crl.hexworth.internal/root-ca.crl\n\nOCSP Responder:\n  Status:     ONLINE\n  URL:        http://ocsp.hexworth.internal:2560\n  Signature:  SHA-256 with RSA\n  Signing:    delegated OCSP signing certificate (EKU id-kp-OCSPSigning, issued by the CA)\n\nAll 4 server certificates are now VALID per CRL and OCSP.\n\n*** SECURITY ALERT ***\nIntelligence indicates relay-01.hexworth.internal (serial ${engine.config._state.revokedSerial}) may be compromised.\nKey material on that server may have been accessed by unauthorized personnel.\nConsider revoking: cert-revoke --serial ${engine.config._state.revokedSerial} --reason keyCompromise\n`;
 
             if (!engine.config._flag2Awarded) {
                 engine.config._flag2Awarded = true;
@@ -580,9 +580,9 @@ const PISL08Config = {
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '5.1', description: 'Summarize elements of effective security governance', skill: 'Building a PKI hierarchy: root CA creation, CSR processing, certificate issuance chain of trust' },
-            { flagId: 'flag2', objective: '5.2', description: 'Explain elements of the risk management process', skill: 'Configuring CRL distribution points and OCSP responder for real-time certificate validity checking' },
-            { flagId: 'flag3', objective: '5.1', description: 'Summarize elements of effective security governance', skill: 'Certificate lifecycle management: revocation procedures, CRL publication, and OCSP status verification' }
+            { flagId: 'flag1', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Building a PKI hierarchy: root CA creation, CSR processing, certificate issuance chain of trust' },
+            { flagId: 'flag2', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Configuring CRL distribution points and OCSP responder for real-time certificate validity checking' },
+            { flagId: 'flag3', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'Certificate lifecycle management: revocation procedures, CRL publication, and OCSP status verification' }
         ]
     },
 
@@ -607,3 +607,60 @@ const PISL08Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL08Config !== 'undefined') PISL08Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL08Config, ['_state'], null);

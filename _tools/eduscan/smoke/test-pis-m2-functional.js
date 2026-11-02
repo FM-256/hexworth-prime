@@ -22,7 +22,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const configPath = path.resolve(__dirname, '../../../_app/houses/shield/infosec/labs/pis-m2-vault-breach/config.js');
+// PIS_M2_CONFIG overrides the path so the reload cases can be run against an older copy
+// (e.g. `git show HEAD:<path> > /tmp/x.js; PIS_M2_CONFIG=/tmp/x.js node <this>`) to prove they fail there.
+const configPath = process.env.PIS_M2_CONFIG
+    ? path.resolve(process.env.PIS_M2_CONFIG)
+    : path.resolve(__dirname, '../../../_app/houses/shield/infosec/labs/pis-m2-vault-breach/config.js');
 
 // Load the config by stubbing the global var
 const raw = fs.readFileSync(configPath, 'utf8');
@@ -211,6 +215,140 @@ freshCfg._flag2Awarded = true;
 blocked = freshRun('file-report');
 check('GATING: file-report blocks at Flag 3 stage when only Flags 1+2 done',
     /Flag 3 .Cryptographic Containment. not yet earned/.test(blocked));
+
+// ============================================================
+// Reload cases (2026-11-02). QC: earn Flag 1, reload, and `audit-app-code` answered
+// "Phase 2 blocked" while Flag 1 showed earned. BoxEngine persists engine.state, not the
+// config object, so these cases drive an engine that behaves like BoxEngine's own
+// load() / save() / awardFlag() (BoxEngine.js load ~:478, save ~:490, awardFlag ~:1907):
+// state is JSON in a fake localStorage, and a "reload" is a FRESH evaluation of config.js
+// plus a fresh engine that loads that JSON back.
+// ============================================================
+
+function loadFreshConfig() {
+    delete require.cache['/tmp/pism2-stub.js'];
+    return require('/tmp/pism2-stub.js');
+}
+
+function bootEngine(storage) {
+    const c = loadFreshConfig();
+    const defaults = () => ({ score: 1000, flagsFound: [], hintsUsed: [], events: [], booted: true });
+    const eng = {
+        config: c,
+        state: storage.data ? { ...defaults(), ...JSON.parse(storage.data) } : defaults(),
+        awarded: [],
+        save() { storage.data = JSON.stringify(this.state); },
+        awardFlag(id) {
+            if (this.state.flagsFound.includes(id)) return;
+            this.state.flagsFound.push(id);
+            this.awarded.push(id);
+            this.save();
+        }
+    };
+    const t = { fs: c.filesystem };
+    const exec = (cmd, argsStr = '') => c.commands[cmd](argsStr.trim() === '' ? [] : argsStr.split(/\s+/), t, eng);
+    return { c, eng, exec };
+}
+
+function earnPhase1(exec) {
+    exec('malware-classify', 'SPX-7720');
+    exec('social-eng-classify', '/home/analyst/phishing-email.eml');
+    exec('cve-search', 'sql injection');
+    exec('mitre-lookup', 'T1566');
+    exec('mitre-lookup', 'T1190');
+    exec('mitre-lookup', 'T1078');
+    return exec('phase');
+}
+
+// R1: earn Flag 1, reload, Phase 2 must open.
+{
+    const storage = { data: null };
+    let b = bootEngine(storage);
+    earnPhase1(b.exec);
+    check('RELOAD setup: Flag 1 earned before the reload',
+        b.eng.state.flagsFound.includes('flag1'));
+    b = bootEngine(storage);                       // reload
+    const out = b.exec('audit-app-code', '/app/intake.py');
+    check('RELOAD: Phase 2 command is NOT blocked after Flag 1 + reload',
+        !/Phase 2 blocked/.test(out) && /CWE-89/.test(out),
+        out.split('\n')[0]);
+    const ph = b.exec('phase');
+    check('RELOAD: Phase 1 sub-tasks still show done after reload (progress persisted)',
+        /Phase 1 .. Triage & Attribution: COMPLETE/.test(ph) && /ATT&CK techniques mapped: 3 \/ 3/.test(ph),
+        (ph.match(/Phase 1[^\n]*/) || [''])[0]);
+    check('RELOAD: Flag 1 is not awarded a second time after reload',
+        b.eng.awarded.filter(id => id === 'flag1').length === 0);
+
+    // Keep reloading at every phase boundary; the lab must still finish.
+    b.exec('audit-device', 'ws-04');
+    b = bootEngine(storage);                       // reload mid-Phase 2 (both sub-tasks done, no phase run yet)
+    b.exec('phase');
+    check('RELOAD: Phase 2 sub-progress survives a reload and Flag 2 fires',
+        b.eng.state.flagsFound.includes('flag2'));
+    b = bootEngine(storage);
+    const enc = b.exec('openssl', 'enc -aes-256-cbc -pbkdf2 -in /vault/breach-evidence.dat -out /vault/breach-evidence.dat.enc -pass file:/vault/keys/vault-aes-key.bin');
+    check('RELOAD: Phase 3 command is NOT blocked after Flag 2 + reload',
+        !/Phase 3 blocked/.test(enc), enc.split('\n')[0]);
+    b.exec('openssl', 'rsautl -decrypt -inkey /vault/keys/vault-rsa-private.pem -in /vault/intercepted-c2.enc -out /vault/intercepted-c2.dec');
+    b.exec('sha256sum', '-c /vault/manifest-hashes.txt');
+    b.exec('phase');
+    b = bootEngine(storage);
+    const rep = b.exec('file-report');
+    check('RELOAD: file-report runs after Flags 1-3 + reload and awards Flag 4',
+        /INCIDENT RESPONSE REPORT/.test(rep) && b.eng.state.flagsFound.includes('flag4'),
+        rep.split('\n')[0]);
+    check('RELOAD: all 4 flags held once each after a run with four reloads',
+        ['flag1', 'flag2', 'flag3', 'flag4'].every(f => b.eng.state.flagsFound.filter(x => x === f).length === 1));
+}
+
+// R2: partial Phase 1 progress survives a reload (one sub-task, reload, finish the rest).
+{
+    const storage = { data: null };
+    let b = bootEngine(storage);
+    b.exec('malware-classify', 'SPX-7720');
+    b = bootEngine(storage);
+    b.exec('social-eng-classify', '/home/analyst/phishing-email.eml');
+    b.exec('cve-search', 'sql injection');
+    b.exec('mitre-lookup', 'T1566');
+    b.exec('mitre-lookup', 'T1190');
+    b.exec('mitre-lookup', 'T1078');
+    b.exec('phase');
+    check('RELOAD: a Phase 1 sub-task done before a reload still counts (Flag 1 fires)',
+        b.eng.state.flagsFound.includes('flag1'));
+}
+
+// R3: a save written before the reload fix (flags earned, no _pisProgress) opens Phase 2.
+{
+    const storage = { data: JSON.stringify({ flagsFound: ['flag1'], score: 1250, booted: true }) };
+    const b = bootEngine(storage);
+    const out = b.exec('audit-app-code', '/app/intake.py');
+    check('RELOAD (pre-fix save): Flag 1 earned with no saved progress, Phase 2 is open',
+        !/Phase 2 blocked/.test(out), out.split('\n')[0]);
+}
+
+// N1-N3: the gate itself must still hold.
+{
+    const fresh = bootEngine({ data: null });
+    const out = fresh.exec('audit-app-code', '/app/intake.py');
+    check('NEGATIVE: fresh state, Phase 2 still blocked',
+        /Phase 2 blocked/.test(out) && !fresh.c._state.phase2.sqliVectorFound);
+
+    const storage = { data: null };
+    let b = bootEngine(storage);
+    b.exec('malware-classify', 'SPX-7720');
+    b.exec('social-eng-classify', '/home/analyst/phishing-email.eml');
+    b = bootEngine(storage);                       // reload with Phase 1 only partly done
+    const out2 = b.exec('audit-app-code', '/app/intake.py');
+    check('NEGATIVE: Phase 1 partly done + reload, Phase 2 still blocked',
+        /Phase 2 blocked/.test(out2));
+    const out3 = b.exec('openssl', 'enc -aes-256-cbc');
+    check('NEGATIVE: Phase 1 partly done + reload, Phase 3 still blocked',
+        /Phase 3 blocked/.test(out3));
+    const storage4 = { data: JSON.stringify({ flagsFound: ['flag1'], booted: true }) };
+    const b4 = bootEngine(storage4);
+    check('NEGATIVE: Flag 1 only (pre-fix save), file-report still blocked at Flag 2',
+        /Flag 2 .Investigation. not yet earned/.test(b4.exec('file-report')));
+}
 
 // ============================================================
 // Report

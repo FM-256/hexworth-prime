@@ -3,7 +3,7 @@
    Principles of Information Security -- CTF Lab
    SIEM triage: 200+ alerts, identify 3 real incidents,
    correlate evidence, file accurate incident reports
-   SY0-701: 4.1, 4.2, 4.5
+   SY0-701: 4.4, 4.8
    ============================================================ */
 
 const PISL09Config = {
@@ -174,7 +174,7 @@ const PISL09Config = {
 ${'='.repeat(55)}
 Time:      2026-04-08T23:14:37Z to 23:47:22Z
 Source:    specimen-db-01.hexworth.internal (10.0.1.15)
-Dest:      91.108.4.123 (AS48166 -- German VPS, Franfurt)
+Dest:      91.108.4.123 (AS48166, German VPS, Frankfurt)
 Protocol:  HTTPS (port 443)
 Duration:  32 minutes, 45 seconds
 Data Out:  4.7 GB (outbound)
@@ -631,8 +631,8 @@ ${'─'.repeat(60)}
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '4.1', description: 'Apply common security techniques to computing resources', skill: 'SIEM alert triage: distinguishing real incidents from false positives using contextual threat indicators' },
-            { flagId: 'flag2', objective: '4.2', description: 'Explain the security implications of proper hardware, software, and data asset management', skill: 'Incident classification, severity assessment, and formal incident reporting per SOC procedures' }
+            { flagId: 'flag1', objective: '4.4', description: 'Explain security alerting and monitoring concepts and tools', skill: 'SIEM alert triage: distinguishing real incidents from false positives using contextual threat indicators' },
+            { flagId: 'flag2', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'Incident classification, severity assessment, and formal incident reporting per SOC procedures' }
         ]
     },
 
@@ -652,3 +652,60 @@ ${'─'.repeat(60)}
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL09Config !== 'undefined') PISL09Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL09Config, ['_state'], null);

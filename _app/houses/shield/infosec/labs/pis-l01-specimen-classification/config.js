@@ -2,7 +2,7 @@
    PIS-L01: Specimen Classification
    Principles of Information Security -- CTF Lab
    Malware taxonomy: identify and classify 6 unknown specimens
-   SY0-701: 2.3, 2.4
+   SY0-701: 2.4
    ============================================================ */
 
 const PISL01Config = {
@@ -124,7 +124,7 @@ const PISL01Config = {
                             children: {
                                 'notes.txt': {
                                     type: 'file',
-                                    content: 'SPECIMEN INTAKE NOTES\n=====================\nAll 6 arrived in the overnight batch from Field Station 7.\nBehavior logs were captured by automated telemetry.\n\nMalware taxonomy (from /etc/containment/taxonomy.db):\n  virus      -- Attaches to host files, spreads on execution\n  worm       -- Self-replicates across networks without host file\n  trojan     -- Disguised as legitimate software, opens backdoor\n  ransomware -- Encrypts files, demands payment for decryption key\n  rootkit    -- Hides presence, grants persistent elevated access\n  RAT        -- Remote access trojan, command-and-control channel\n\nCommands:\n  intake               -- list all specimens in queue\n  examine <id>         -- read behavior report for a specimen\n  classify <id> <type> -- file containment classification\n  report               -- show classification status\n'
+                                    content: 'SPECIMEN INTAKE NOTES\n=====================\nAll 6 arrived in the overnight batch from Field Station 7.\nBehavior logs were captured by automated telemetry.\n\nMalware taxonomy (from /etc/containment/taxonomy.db):\n  virus       Attaches to host files, spreads on execution\n  worm        Self-replicates across networks without host file\n  trojan      Disguised as legitimate software, hidden malicious payload\n  ransomware  Encrypts files, demands payment for decryption key\n  rootkit     Hides presence, grants persistent elevated access\n  RAT         Remote access trojan, interactive command-and-control channel\n\nCommands:\n  intake                 list all specimens in queue\n  examine <id>           read behavior report for a specimen\n  classify <id> <type>   file containment classification\n  report                 show classification status\n'
                                 },
                                 '.bash_history': {
                                     type: 'file',
@@ -423,7 +423,7 @@ const PISL01Config = {
     hints: [
         {
             id: 'hint1',
-            text: 'Focus on the propagation method. A worm spreads autonomously over the network. A virus requires a host file to execute. They never need a user to do anything on the remote machine -- vs. a trojan, which needs the user to run it.',
+            text: 'Focus on the propagation method. A worm copies itself across the network on its own and needs no user action on the machines it infects. A virus inserts itself into host files and spreads only when someone runs an infected file. A trojan also needs the user to run it, but it does not replicate: it hides a malicious payload inside software that looks legitimate.',
             cost: 50,
             penalty: -50
         },
@@ -448,10 +448,73 @@ const PISL01Config = {
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'RAT identification via C2 beacon and interactive shell indicators; virus identification via host-file infection pattern' },
-            { flagId: 'flag2', objective: '2.3', description: 'Compare and contrast vulnerability types', skill: 'Worm identification via autonomous network propagation; trojan identification via disguised legitimate software' },
-            { flagId: 'flag3', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'Ransomware identification via file encryption and ransom note; rootkit identification via kernel-level hiding and syscall hooking' }
+            { flagId: 'flag1', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'RAT identification via C2 beacon and interactive shell indicators; virus identification via host-file infection pattern' },
+            { flagId: 'flag2', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Worm identification via autonomous network propagation; trojan identification via disguised legitimate software' },
+            { flagId: 'flag3', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Ransomware identification via file encryption and ransom note; rootkit identification via kernel-level hiding and syscall hooking' }
         ]
     }
 
 };
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL01Config, ['_classifications'], function (cfg, found) {
+    // Each flag is earned only by filing both specimens of its pair correctly.
+    var pairs = { flag1: ['SPX-001', 'SPX-002'], flag2: ['SPX-003', 'SPX-004'], flag3: ['SPX-005', 'SPX-006'] };
+    found.forEach(function (f) {
+        (pairs[f] || []).forEach(function (id) { cfg._classifications[id] = cfg._answers[id]; });
+    });
+});

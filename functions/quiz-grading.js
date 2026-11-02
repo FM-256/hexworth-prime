@@ -41,6 +41,8 @@
 
 /** Error codes returned (never thrown) in the `rejected` field. */
 const REJECT_TOO_MANY_ANSWERS = 'too-many-answers';
+const REJECT_PARTIAL_NOT_ONE = 'partial-not-one-answer';
+const REJECT_FULL_SUBMIT_ONLY = 'full-submit-only';
 
 /**
  * Compare one submitted answer against its key entry.
@@ -141,6 +143,8 @@ function resolveServedCount(poolSize, bankSize) {
  * @param {Object}   args.answers    client submission, keyed by original question index
  * @param {number}   [args.poolSize] served-question count from the key doc (null = no pooling)
  * @param {boolean}  [args.isPartial] QC-57 per-question instant-feedback call
+ * @param {boolean}  [args.fullSubmitOnly] key doc forbids partial calls (a graded exam whose
+ *                                   page submits once)
  *
  * @returns {Object} {
  *   score, total, percentage, results,
@@ -156,13 +160,32 @@ function resolveServedCount(poolSize, bankSize) {
  * `correct: false` and the client skips them via its origToDisplay guard
  * (QuizEngine.js:508).
  */
-function gradeSubmission({ answerKey, types, answers, poolSize, isPartial }) {
+function gradeSubmission({ answerKey, types, answers, poolSize, isPartial, fullSubmitOnly }) {
     const bankSize = answerKey.length;
     const servedCount = resolveServedCount(poolSize, bankSize);
     const pooled = servedCount < bankSize;
     const typeArr = types || [];
 
     const submitted = validSubmittedIndices(answers, bankSize);
+    const rejection = (code, message) => ({
+        score: 0, total: servedCount, percentage: 0, results: [],
+        bankSize, servedCount, submittedCount: submitted.length, pooled,
+        rejected: { code, message }
+    });
+
+    // PARTIAL CALLS CHECK ONE ANSWER. A partial call is never logged to quiz_attempts, and it
+    // used to grade however many answers it carried, so four calls (every question answered
+    // 0, then 1, 2, 3) read back an entire exam key with no trace. Every page that uses
+    // partial mode builds a one-answer object per click (QC-57 pages, InstantQuizGrader), so
+    // requiring exactly one costs them nothing.
+    if (isPartial && fullSubmitOnly) {
+        return rejection(REJECT_FULL_SUBMIT_ONLY,
+            'This assessment is graded on a full submission only.');
+    }
+    if (isPartial && submitted.length !== 1) {
+        return rejection(REJECT_PARTIAL_NOT_ONE,
+            `A per-question check takes exactly one answer; got ${submitted.length}.`);
+    }
 
     // ANTI-FORGERY CAP. Without it a pooled quiz is scored against a denominator the
     // client can undercut: answer all 20 of a 20-question bank while the key doc says
@@ -170,14 +193,8 @@ function gradeSubmission({ answerKey, types, answers, poolSize, isPartial }) {
     // quiz, because out-of-range keys are already filtered and a bank has bankSize
     // distinct indices — so this adds no new failure mode to the 415 existing quizzes.
     if (submitted.length > servedCount) {
-        return {
-            score: 0, total: servedCount, percentage: 0, results: [],
-            bankSize, servedCount, submittedCount: submitted.length, pooled,
-            rejected: {
-                code: REJECT_TOO_MANY_ANSWERS,
-                message: `Submitted ${submitted.length} answers for a ${servedCount}-question attempt.`
-            }
-        };
+        return rejection(REJECT_TOO_MANY_ANSWERS,
+            `Submitted ${submitted.length} answers for a ${servedCount}-question attempt.`);
     }
 
     let score = 0;
@@ -265,5 +282,7 @@ module.exports = {
     unwrapExpected,
     validSubmittedIndices,
     resolveServedCount,
-    REJECT_TOO_MANY_ANSWERS
+    REJECT_TOO_MANY_ANSWERS,
+    REJECT_PARTIAL_NOT_ONE,
+    REJECT_FULL_SUBMIT_ONLY
 };

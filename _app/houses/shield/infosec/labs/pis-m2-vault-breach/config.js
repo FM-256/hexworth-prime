@@ -3,7 +3,7 @@
    Principles of Information Security -- 4-phase CTF Midterm
    Combines W1 (malware, social-eng, OSINT) + W2 (SQLi, device
    hardening, cryptography) into one compound incident-response
-   scenario. Covers SY0-701: 1.4, 2.4, 2.5, 3.2, 4.3, 4.7.
+   scenario. Covers SY0-701: 1.4, 2.3, 2.4, 3.2, 4.3, 4.8.
    ============================================================ */
 
 const PISM2Config = {
@@ -70,7 +70,7 @@ const PISM2Config = {
             { name: 'mitre-lookup', purpose: 'Phase 1 -- look up ATT&CK technique (v19)', sample: 'mitre-lookup T1566' },
             { name: 'audit-app-code', purpose: 'Phase 2 -- inspect application code for injection vulnerabilities', sample: 'audit-app-code /app/intake.py' },
             { name: 'audit-device', purpose: 'Phase 2 -- audit a workstation against CS-12 standard', sample: 'audit-device ws-04' },
-            { name: 'openssl', purpose: 'Phase 3 -- AES-256 encrypt + RSA decrypt operations', sample: 'openssl enc -aes-256-cbc -in <input> -out <output> -pass file:<key>' },
+            { name: 'openssl', purpose: 'Phase 3: AES-256 encrypt + RSA decrypt operations', sample: 'openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in <input> -out <output> -pass file:<key>' },
             { name: 'sha256sum', purpose: 'Phase 3 -- compute/verify SHA-256 hashes for integrity', sample: 'sha256sum -c /vault/manifest-hashes.txt' },
             { name: 'file-report', purpose: 'Phase 4 -- file the final incident report (gated on Phases 1-3)', sample: 'file-report' },
             { name: 'phase', purpose: 'Show current phase status and what is still missing', sample: 'phase' },
@@ -214,11 +214,11 @@ const PISM2Config = {
                             children: {
                                 'README.txt': {
                                     type: 'file',
-                                    content: 'VAULT KEY STORE -- READ ONLY\n==============================\nvault-aes-key.bin\n  Type: AES-256 symmetric key (32 bytes, raw binary)\n  Use for: AES-256-CBC encryption of breach-evidence.dat for upstream transmission\n  Usage: -pass file:/vault/keys/vault-aes-key.bin\n\nvault-rsa-private.pem\n  Type: RSA-2048 private key (PEM format)\n  Use for: Decrypting intercepted-c2.enc (encrypted with our public key by SIGMA)\n  Usage: -inkey /vault/keys/vault-rsa-private.pem\n\nKey custody: Director-signed (KC-2026-014)\nThis is the same key store referenced in L06; same keys are in scope for\nthis midterm. The attacker did not successfully exfil the keys (insufficient\ntime before isolation).\n\nRotation: scheduled for 2026-05-19T18:00Z (post-incident).\n'
+                                    content: 'VAULT KEY STORE (READ ONLY)\n==============================\nvault-aes-key.bin\n  Type: passphrase file (one line: 64 hex characters of random data)\n  Use for: AES-256-CBC encryption of breach-evidence.dat for upstream transmission\n  Usage: -pass file:/vault/keys/vault-aes-key.bin -pbkdf2 -iter 100000\n  How enc uses it: -pass file: reads the FIRST LINE of the file as a passphrase.\n    openssl enc derives the 256-bit key and the IV from that passphrase plus a\n    random 8-byte salt. -pbkdf2 -iter makes that derivation slow to brute-force.\n\nvault-rsa-private.pem\n  Type: RSA-2048 private key (PEM format)\n  Use for: Decrypting intercepted-c2.enc (encrypted with our public key by SIGMA)\n  Usage: -inkey /vault/keys/vault-rsa-private.pem\n\nKey custody: Director-signed (KC-2026-014)\nThis is the same key store referenced in L06; same keys are in scope for\nthis midterm. The attacker did not successfully exfil the keys (insufficient\ntime before isolation).\n\nRotation: scheduled for 2026-05-19T18:00Z (post-incident).\n'
                                 },
                                 'vault-aes-key.bin': {
                                     type: 'file',
-                                    content: '[BINARY: AES-256 Key -- 32 bytes]\na7f3d9e2b8c1f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0\n'
+                                    content: 'a7f3d9e2b8c1f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1f0\n'
                                 },
                                 'vault-rsa-private.pem': {
                                     type: 'file',
@@ -401,7 +401,7 @@ const PISM2Config = {
                 return 'Phase 3 blocked: complete Phase 2 (investigation & hardening) first.\nRun: phase  -- to see what is still missing.';
             }
             if (args.length === 0) {
-                return 'OpenSSL 3.2.1 (simulated -- midterm)\nUsage:\n  openssl enc -aes-256-cbc -in <input> -out <output> -pass file:<keyfile>\n  openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>';
+                return 'OpenSSL 3.2.1 (simulated, midterm)\nUsage:\n  openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in <input> -out <output> -pass file:<keyfile>\n  openssl rsautl -decrypt -inkey <keyfile> -in <input> -out <output>';
             }
             const sub = args[0];
 
@@ -414,8 +414,13 @@ const PISM2Config = {
                 const inFile = inFlag >= 0 ? args[inFlag + 1] : null;
                 const outFile = outFlag >= 0 ? args[outFlag + 1] : null;
                 const passArg = passFlag >= 0 ? args[passFlag + 1] : null;
+                // OpenSSL enc: -iter implies PBKDF2; -pbkdf2 alone uses 10000 iterations.
+                // Without either, OpenSSL 3 falls back to EVP_BytesToKey and prints a warning.
+                const iterIdx = args.indexOf('-iter');
+                const iterCount = iterIdx >= 0 && /^[0-9]+$/.test(args[iterIdx + 1] || '') ? args[iterIdx + 1] : '10000';
+                const usePbkdf2 = args.includes('-pbkdf2') || iterIdx >= 0;
 
-                if (!algFlag) return 'Error: Must specify algorithm. Required: -aes-256-cbc\nExample: openssl enc -aes-256-cbc -in /vault/breach-evidence.dat -out /vault/breach-evidence.dat.enc -pass file:/vault/keys/vault-aes-key.bin';
+                if (!algFlag) return 'Error: Must specify algorithm. Required: -aes-256-cbc\nExample: openssl enc -aes-256-cbc -pbkdf2 -iter 100000 -in /vault/breach-evidence.dat -out /vault/breach-evidence.dat.enc -pass file:/vault/keys/vault-aes-key.bin';
                 if (!inFile || !inFile.includes('breach-evidence')) return 'Error: Input file must be /vault/breach-evidence.dat for this operation.';
                 if (!outFile) return 'Error: Output file not specified. Use: -out /vault/breach-evidence.dat.enc';
                 if (!passArg || !passArg.includes('vault-aes-key')) return 'Error: Wrong key. Use: -pass file:/vault/keys/vault-aes-key.bin';
@@ -423,9 +428,9 @@ const PISM2Config = {
                 engine.config._state.phase3.evidenceEncrypted = true;
                 term.fs['/'].children.vault.children['breach-evidence.dat.enc'] = {
                     type: 'file',
-                    content: '[AES-256-CBC ENCRYPTED -- vault-aes-key.bin]\n[Binary ciphertext representation]\n5f3c9a2e1b8d7f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1\n[256+ bytes -- AES-256-CBC with PBKDF2 key derivation]\n'
+                    content: '[openssl enc output: "Salted__" magic, 8-byte salt, then AES-256-CBC ciphertext]\nSalted__ 3f9a1c7e5b2d8a64\n5f3c9a2e1b8d7f6a5e4d3c2b1a9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3b2a1\n'
                 };
-                return 'openssl enc -aes-256-cbc\n\nEncrypting: /vault/breach-evidence.dat\nAlgorithm:  AES-256-CBC\nKey:        vault-aes-key.bin (256-bit symmetric)\nOutput:     /vault/breach-evidence.dat.enc\n\nKey derivation: PBKDF2-SHA256, 10000 iterations\nIV: randomly generated and prepended to ciphertext\n\nDone. Encrypted evidence file written and ready for upstream transmission to CDC SOC.\nSECURITY NOTE: Key transmission goes via separate channel (courier with vault-aes-key.bin).\nSymmetric crypto: same key encrypts and decrypts; key confidentiality is the entire security model.\n\n[Phase 3 progress: breach evidence encrypted]';
+                return (usePbkdf2 ? '' : '*** WARNING : deprecated key derivation used.\nUsing -iter or -pbkdf2 would be better.\n\n') + 'openssl enc -aes-256-cbc\n\nEncrypting: /vault/breach-evidence.dat\nAlgorithm:  AES-256-CBC\nPassphrase: first line of vault-aes-key.bin (-pass file:)\nOutput:     /vault/breach-evidence.dat.enc\n\n' + (usePbkdf2 ? 'Key derivation: PBKDF2 with HMAC-SHA256, ' + iterCount + ' iterations, random 8-byte salt\n' : 'Key derivation: legacy EVP_BytesToKey (SHA-256, 1 iteration), random 8-byte salt\n  Fast to brute-force. Re-run with -pbkdf2 -iter 100000.\n') + 'Key and IV: both derived from the passphrase and the salt (the IV is not stored)\nFile header: "Salted__" followed by the 8-byte salt, then the ciphertext\n\nDone. Encrypted evidence file written and ready for upstream transmission to CDC SOC.\nSECURITY NOTE: Key transmission goes via separate channel (courier with vault-aes-key.bin).\nSymmetric crypto: the same passphrase and options decrypt it; key confidentiality is the entire security model.\n\n[Phase 3 progress: breach evidence encrypted]';
             }
 
             // RSA decrypt intercepted-c2.enc
@@ -502,7 +507,7 @@ const PISM2Config = {
                 s.phase1.cveIdentified ? '  [OK] CVE/CWE identified (' + s.phase1.cveIdentified + ')' : '  [  ] CVE/CWE NOT identified (run: cve-search sql injection)',
                 '  ' + (s.phase1.attackTechniques.length >= 3 ? '[OK]' : '[  ]') + ' ATT&CK techniques mapped: ' + s.phase1.attackTechniques.length + ' / 3 required (' + (s.phase1.attackTechniques.join(', ') || 'none') + ')'
             ];
-            const p1complete = s.phase1.malwareClassified && s.phase1.socialEngClassified && s.phase1.cveIdentified && s.phase1.attackTechniques.length >= 3;
+            const p1complete = engine.config._flag1Awarded || (s.phase1.malwareClassified && s.phase1.socialEngClassified && s.phase1.cveIdentified && s.phase1.attackTechniques.length >= 3);
             lines.push('Phase 1 -- Triage & Attribution: ' + (p1complete ? 'COMPLETE' : 'INCOMPLETE'));
             lines.push(...p1items);
 
@@ -519,7 +524,7 @@ const PISM2Config = {
                 s.phase2.sqliVectorFound ? '  [OK] SQLi vector identified (audit-app-code /app/intake.py)' : '  [  ] SQLi vector NOT identified (run: audit-app-code /app/intake.py)',
                 s.phase2.deviceAudited ? '  [OK] Device audited (ws-04)' : '  [  ] Device NOT audited (run: audit-device ws-04)'
             ];
-            const p2complete = engine.config._flag1Awarded && s.phase2.sqliVectorFound && s.phase2.deviceAudited;
+            const p2complete = engine.config._flag2Awarded || (engine.config._flag1Awarded && s.phase2.sqliVectorFound && s.phase2.deviceAudited);
             lines.push('Phase 2 -- Investigation & Hardening: ' + (p2complete ? 'COMPLETE' : (engine.config._flag1Awarded ? 'INCOMPLETE' : 'LOCKED (complete Phase 1 first)')));
             lines.push(...p2items);
 
@@ -536,7 +541,7 @@ const PISM2Config = {
                 s.phase3.c2Decrypted ? '  [OK] Attacker C2 RSA-decrypted' : '  [  ] Attacker C2 NOT decrypted (run: openssl rsautl -decrypt ...)',
                 s.phase3.integrityVerified ? '  [OK] Catalog integrity verified (sha256sum -c)' : '  [  ] Catalog integrity NOT verified (run: sha256sum -c /vault/manifest-hashes.txt)'
             ];
-            const p3complete = engine.config._flag2Awarded && s.phase3.evidenceEncrypted && s.phase3.c2Decrypted && s.phase3.integrityVerified;
+            const p3complete = engine.config._flag3Awarded || (engine.config._flag2Awarded && s.phase3.evidenceEncrypted && s.phase3.c2Decrypted && s.phase3.integrityVerified);
             lines.push('Phase 3 -- Cryptographic Containment: ' + (p3complete ? 'COMPLETE' : (engine.config._flag2Awarded ? 'INCOMPLETE' : 'LOCKED (complete Phase 2 first)')));
             lines.push(...p3items);
 
@@ -659,11 +664,11 @@ const PISM2Config = {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
             { flagId: 'flag1', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Malware family identification + social-engineering technique classification + CVE-to-ATT&CK mapping' },
-            { flagId: 'flag1', objective: '4.3', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Scenario-driven triage and attribution from telemetry' },
-            { flagId: 'flag2', objective: '2.5', description: 'Explain the purpose of mitigation techniques used to secure the enterprise', skill: 'Identify SQL injection (CWE-89) and design the parameterized-query fix' },
+            { flagId: 'flag1', objective: '4.3', description: 'Explain various activities associated with vulnerability management', skill: 'Identify the exploited weakness from the CVE/CWE catalog (CWE-89) during triage' },
+            { flagId: 'flag2', objective: '2.3', description: 'Explain various types of vulnerabilities', skill: 'Identify SQL injection (CWE-89) and design the parameterized-query fix' },
             { flagId: 'flag2', objective: '3.2', description: 'Given a scenario, apply security principles to secure enterprise infrastructure', skill: 'Audit endpoint against CS-12 secure-baseline standard; identify hardening failures and draft remediation' },
             { flagId: 'flag3', objective: '1.4', description: 'Explain the importance of using appropriate cryptographic solutions', skill: 'AES-256-CBC symmetric + RSA-2048 asymmetric + SHA-256 integrity under real incident-response pressure' },
-            { flagId: 'flag4', objective: '4.7', description: 'Explain the importance of incident response activities', skill: 'Synthesize cross-domain findings into a complete IR report joining attack chain, technical findings, and cryptographic outcomes' }
+            { flagId: 'flag4', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'Synthesize cross-domain findings into a complete IR report joining attack chain, technical findings, and cryptographic outcomes' }
         ]
     },
 
@@ -687,3 +692,67 @@ const PISM2Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISM2Config !== 'undefined') PISM2Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISM2Config, ['_state'], function (cfg, found) {
+    // An earned flag proves its phase's sub-tasks were done (ATT&CK ids are not recoverable).
+    var s = cfg._state;
+    if (found.indexOf('flag1') >= 0) { s.phase1.malwareClassified = true; s.phase1.socialEngClassified = true; s.phase1.cveIdentified = 'CWE-89'; }
+    if (found.indexOf('flag2') >= 0) { s.phase2.sqliVectorFound = true; s.phase2.deviceAudited = true; }
+    if (found.indexOf('flag3') >= 0) { s.phase3.evidenceEncrypted = true; s.phase3.c2Decrypted = true; s.phase3.integrityVerified = true; }
+    if (found.indexOf('flag4') >= 0) { s.phase4.reportFiled = true; }
+});

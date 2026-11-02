@@ -15,7 +15,7 @@ const PISFinalConfig = {
 
     title: 'Patient Zero',
     subtitle: 'Final Practical -- Cascading Compromise -- Full Incident Response',
-    description: 'Three days ago Crimson Dawn Logistics suffered a $4.2M wire fraud. A spear-phishing invoice lure dropped Cobalt Strike Beacon via CVE-2022-30190 (Follina), established C2 for 72 hours, and vanished before the network was isolated. You are the lead incident responder brought in on day 3. Seven phases. Seven flags. The synthesis flag is gated on all six prior flags -- wrong or missing any one of them changes the hash. Eclipse difficulty: 2x hint penalty, -40 wrong-flag, score floor at 0.',
+    description: 'Three days ago Crimson Dawn Logistics suffered a $4.2M wire fraud. A spear-phishing invoice lure dropped a malware implant through an unpatched vulnerability, established C2 for 72 hours, and vanished before the network was isolated. You are the lead incident responder brought in on day 3. Seven phases. Seven flags. The synthesis flag is gated on all six prior flags: a wrong or missing one changes the hash. Eclipse difficulty: 2x hint penalty, -40 wrong-flag, score floor at 0.',
     difficulty: 'Eclipse',
     estimatedTime: 90,
     accent: '#dc2626',
@@ -70,12 +70,12 @@ const PISFinalConfig = {
             'Compute SHA256 synthesis flag from all six prior flag values (W4 IR writeup)'
         ],
         toolkit: [
-            { name: 'dig',        purpose: 'DNS lookup for domains and IPs',                     sample: 'dig emberwolf-c2.duckdns.org' },
-            { name: 'whois',      purpose: 'Domain or IP registration lookup',                   sample: 'whois crimson-dawn-finance.net' },
-            { name: 'host',       purpose: 'Alias for dig',                                      sample: 'host nakamura-suppliers-corp.com' },
-            { name: 'openssl',    purpose: 'TLS cert inspection + cert parsing',                  sample: 'openssl s_client -connect crimson-dawn-finance.net:443 -showcerts' },
-            { name: 'sha256sum',  purpose: 'Hash a file in the downloads/ dir',                  sample: 'sha256sum /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx' },
-            { name: 'file',       purpose: 'Identify file type and embedded indicators',         sample: 'file /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx' },
+            { name: 'dig',        purpose: 'DNS lookup for domains and IPs',                     sample: 'dig <domain>' },
+            { name: 'whois',      purpose: 'Domain or IP registration lookup',                   sample: 'whois <domain-or-ip>' },
+            { name: 'host',       purpose: 'Alias for dig',                                      sample: 'host <domain>' },
+            { name: 'openssl',    purpose: 'TLS cert inspection + cert parsing',                  sample: 'openssl s_client -connect <host>:443 -showcerts' },
+            { name: 'sha256sum',  purpose: 'Hash a file in the downloads/ dir',                  sample: 'sha256sum /home/ir-lead/downloads/<file>' },
+            { name: 'file',       purpose: 'Identify file type and embedded indicators',         sample: 'file /home/ir-lead/downloads/<file>' },
             { name: 'phase',      purpose: 'Show current phase status and what is still missing', sample: 'phase' },
             { name: 'help',       purpose: 'Full command reference',                              sample: 'help' }
         ]
@@ -139,7 +139,7 @@ const PISFinalConfig = {
                             children: {
                                 'incident-brief.md': {
                                     type: 'file',
-                                    content: 'INCIDENT BRIEF -- CRIMSON DAWN WIRE FRAUD (2026-05-18)\n======================================================\nReceived: 2026-05-21 09:00 from IT security manager\nClassification: INTERNAL // INCIDENT-RESPONSE\nSeverity: CRITICAL ($4.2M wire fraud)\n\nRECONSTRUCTED TIMELINE:\n\n2026-05-18 09:12 -- DNS log shows queries to an unrecognized domain\n                    from at least one AP workstation.\n\n2026-05-18 09:14 -- $4.2M wire transfer authorized via a duplicate-invoice\n                    fraud. Wire sent to offshore account ending in -7741.\n\n2026-05-18 09:14 -- Same timestamp: SIEM auth log records a login from\n                    an external IP address.\n\n2026-05-21 06:30 -- Bank flags the transfer; IT notified.\n\n2026-05-21 07:00 -- Network isolated. All AP workstations quarantined.\n\n2026-05-21 09:00 -- You arrive on-site. Mail for the shared AP inbox\n                    accounts@crimson-dawn.net has been forensically recovered\n                    and is available via the Outlook app on your desktop. Double-click the Outlook icon to open it.\n\nSCOPE:\n\nThree employees in Accounts Payable + Vendor Management had access to\nthe wire-approval workflow:\n\n  e.morales   AP clerk (WS-EMORALES-01, 10.0.4.18)\n  r.chen      AP supervisor (WS-RCHEN-01, 10.0.4.6)\n  s.patel     Vendor Management (currently on a London business trip)\n              NOTE: s.patel has an approved travel record -- HR ticket\n              #TR-2026-0418, calendar offsite 2026-05-15 to 2026-05-22.\n              Four prior London sessions on record. Her foreign-IP logins\n              are expected -- see SIEM auth log for inline provenance.\n\nThirteen messages in the AP shared inbox spanning the 60 hours before the wire and a few hours after. One of them is the active phish that enabled the wire fraud; the rest are a mix of legitimate internal mail, recurring vendor notifications, and unrelated phishing attempts (some legitimate-looking but with header-level tells -- SPF/DKIM/DMARC failures, mismatched Reply-To, fake sender domains).\nOpen mail by double-clicking the Outlook icon on your desktop.\n(Outlook is a standalone app, NOT in Firefox. The two can be open side by side.)\n\nAvailable IR tools (Firefox new-tab tiles):\n  CVE Search:        https://cve.crimson-intel.net/search\n  WHOIS Lookup:      https://whois.crimson-intel.net\n  Hash Analyzer:     https://vt-mirror.crimson-intel.net\n  Threat Intel:      https://intel.crimson-intel.net\n  IP Geolocation:    https://ipgeo.crimson-intel.net\n  SIEM-lite:         https://siem.crimson-dawn.net\n  Patch Mgmt:        https://patch.crimson-dawn.net\n  Rapid7 InsightVM:  https://insightvm.crimson-dawn.net\n  Mail Admin:        https://mailadmin.crimson-dawn.net\n\nRun: phase  -- to see current phase status at any time.\n'
+                                    content: 'INCIDENT BRIEF: CRIMSON DAWN WIRE FRAUD (2026-05-18)\n====================================================\nReceived: 2026-05-21 09:00 from IT security manager\nClassification: INTERNAL // INCIDENT-RESPONSE\nSeverity: CRITICAL ($4.2M wire fraud)\n\nRECONSTRUCTED TIMELINE:\n\n2026-05-18 09:12    DNS log shows queries to an unrecognized domain\n                    from at least one AP workstation.\n\n2026-05-18 09:14    $4.2M wire transfer authorized via a duplicate-invoice\n                    fraud. Wire sent to offshore account ending in -7741.\n\n2026-05-18 09:14    Same timestamp: SIEM auth log records a login from\n                    an external IP address.\n\n2026-05-21 06:30    Bank flags the transfer; IT notified.\n\n2026-05-21 07:00    Network isolated. All AP workstations quarantined.\n\n2026-05-21 09:00    You arrive on-site. Mail for the shared AP inbox\n                    accounts@crimson-dawn.net has been forensically recovered\n                    and is available via the Outlook app on your desktop. Double-click the Outlook icon to open it.\n\nSCOPE:\n\nThree employees in Accounts Payable + Vendor Management had access to\nthe wire-approval workflow:\n\n  d.okafor   AP clerk (WS-DOKAFOR-01, 10.0.4.18)\n  r.chen      AP supervisor (WS-RCHEN-01, 10.0.4.6)\n  s.patel     Vendor Management (currently on a London business trip)\n              NOTE: s.patel has an approved travel record: HR ticket\n              #TR-2026-0418, calendar offsite 2026-05-15 to 2026-05-22.\n              Four prior London sessions on record. Her foreign-IP logins\n              are expected; see SIEM auth log for inline provenance.\n\nThirteen messages in the AP shared inbox spanning the 60 hours before the wire and a few hours after. One of them is the active phish that enabled the wire fraud; the rest are a mix of legitimate internal mail, recurring vendor notifications, and unrelated phishing attempts (some legitimate-looking but with header-level tells: SPF/DKIM/DMARC failures, mismatched Reply-To, fake sender domains).\nOpen mail by double-clicking the Outlook icon on your desktop.\n(Outlook is a standalone app, NOT in Firefox. The two can be open side by side.)\n\nAvailable IR tools (Firefox new-tab tiles):\n  CVE Search:        https://cve.crimson-intel.net/search\n  WHOIS Lookup:      https://whois.crimson-intel.net\n  Hash Analyzer:     https://vt-mirror.crimson-intel.net\n  Threat Intel:      https://intel.crimson-intel.net\n  IP Geolocation:    https://ipgeo.crimson-intel.net\n  SIEM-lite:         https://siem.crimson-dawn.net\n  Patch Mgmt:        https://patch.crimson-dawn.net\n  Rapid7 InsightVM:  https://insightvm.crimson-dawn.net\n  Mail Admin:        https://mailadmin.crimson-dawn.net\n\nRun "phase" to see current phase status at any time.\n'
                                 },
                                 'notes.txt': {
                                     type: 'file',
@@ -162,11 +162,11 @@ const PISFinalConfig = {
                     children: {
                         'README.txt': {
                             type: 'file',
-                            content: 'EVIDENCE DIRECTORY -- CRIMSON DAWN WIRE FRAUD\n=============================================\nContents:\n  pcap-day1.txt    Day-1 firewall log excerpt (2026-05-18, 06:00-12:00)\n                   Useful for Phase 5: correlating DNS queries to outbound\n                   TCP connections on e.morales\' workstation (10.0.4.18).\n\nAll SIEM data is also available in the browser:\n  https://siem.crimson-dawn.net\n'
+                            content: 'EVIDENCE DIRECTORY: CRIMSON DAWN WIRE FRAUD\n===========================================\nContents:\n  pcap-day1.txt    Day-1 firewall log excerpt (2026-05-18, 06:00-12:00)\n                   Useful for Phase 5: correlating DNS queries to outbound\n                   TCP connections from the AP subnet (10.0.4.0/24).\n\nAll SIEM data is also available in the browser:\n  https://siem.crimson-dawn.net\n'
                         },
                         'pcap-day1.txt': {
                             type: 'file',
-                            content: 'FIREWALL LOG EXCERPT -- 2026-05-18 06:00-12:00 UTC\n===================================================\nFormat: TIMESTAMP  SRC_IP:PORT  DST_IP:PORT  PROTO  BYTES_OUT  ACTION\n\n08:14:22  10.0.4.6:52140   8.8.8.8:53       UDP    72    ALLOW\n08:31:05  10.0.4.22:49310  52.86.14.93:443  TCP    1840  ALLOW\n08:55:44  10.0.4.18:51200  8.8.8.8:53       UDP    72    ALLOW\n09:01:13  10.0.4.6:52188   10.0.0.1:80      TCP    320   ALLOW\n09:12:00  10.0.4.18:51244  8.8.8.8:53       UDP    84    ALLOW   [DNS: crimson-dawn-finance.net -> 104.21.45.122]\n09:12:33  10.0.4.18:51248  8.8.8.8:53       UDP    86    ALLOW   [DNS: emberwolf-c2.duckdns.org -> 185.220.101.45]\n09:13:01  10.0.4.18:51302  185.220.101.45:443  TCP  4096  ALLOW  [C2 HEARTBEAT]\n09:13:16  10.0.4.18:51303  185.220.101.45:443  TCP  512   ALLOW  [C2 BEACON]\n09:15:44  10.0.4.6:52210   10.0.1.5:8080    TCP    1024  ALLOW\n09:22:18  10.0.4.10:49800  52.94.228.167:443 TCP   2048  ALLOW\n09:40:05  10.0.4.18:51400  185.220.101.45:443  TCP  8192  ALLOW  [C2 EXFIL attempt]\n09:55:30  10.0.4.6:52250   8.8.4.4:53       UDP    72    ALLOW\n10:11:00  10.0.4.18:51500  185.220.101.45:443  TCP  512   ALLOW  [C2 HEARTBEAT]\n11:34:05  10.0.4.6:52300   8.8.8.8:53       UDP    84    ALLOW   [DNS: crimson-dawn-finance.net -> 104.21.45.122]\n11:40:22  10.0.4.6:52310   10.0.0.1:80      TCP    320   ALLOW\n\nNote: The DNS annotation lines [DNS: ...] are SIEM correlation overlays\nadded by the IR team after the fact -- not native to the raw pcap.\nSee https://siem.crimson-dawn.net for the full 14-day DNS + auth + firewall\nlog dataset with filter controls.\n'
+                            content: 'FIREWALL LOG EXCERPT: 2026-05-18 06:00-12:00 UTC\n=================================================\nFormat: TIMESTAMP  SRC_IP:PORT  DST_IP:PORT  PROTO  BYTES_OUT  ACTION\n\n08:14:22  10.0.4.6:52140   8.8.8.8:53       UDP    72    ALLOW\n08:31:05  10.0.4.22:49310  52.86.14.93:443  TCP    1840  ALLOW\n08:55:44  10.0.4.18:51200  8.8.8.8:53       UDP    72    ALLOW\n09:01:13  10.0.4.6:52188   10.0.0.1:80      TCP    320   ALLOW\n09:12:00  10.0.4.18:51244  8.8.8.8:53       UDP    84    ALLOW   [DNS: crimson-dawn-finance.net -> 104.21.45.122]\n09:12:33  10.0.4.18:51248  8.8.8.8:53       UDP    86    ALLOW   [DNS: emberwolf-c2.ddns.net -> 185.220.101.45]\n09:13:01  10.0.4.18:51302  185.220.101.45:443  TCP  4096  ALLOW  [C2 HEARTBEAT]\n09:13:16  10.0.4.18:51303  185.220.101.45:443  TCP  512   ALLOW  [C2 BEACON]\n09:15:44  10.0.4.6:52210   10.0.1.5:8080    TCP    1024  ALLOW\n09:22:18  10.0.4.10:49800  52.94.228.167:443 TCP   2048  ALLOW\n09:40:05  10.0.4.18:51400  185.220.101.45:443  TCP  8192  ALLOW  [C2 EXFIL attempt]\n09:55:30  10.0.4.6:52250   8.8.4.4:53       UDP    72    ALLOW\n10:11:00  10.0.4.18:51500  185.220.101.45:443  TCP  512   ALLOW  [C2 HEARTBEAT]\n11:34:05  10.0.4.6:52300   8.8.8.8:53       UDP    84    ALLOW   [DNS: crimson-dawn-finance.net -> 104.21.45.122]\n11:40:22  10.0.4.6:52310   10.0.0.1:80      TCP    320   ALLOW\n\nNote: The DNS annotation lines [DNS: ...] are SIEM correlation overlays\nadded by the IR team after the fact, not native to the raw pcap.\nSee https://siem.crimson-dawn.net for the full 14-day DNS + auth + firewall\nlog dataset with filter controls.\n'
                         }
                     }
                 }
@@ -209,10 +209,7 @@ const PISFinalConfig = {
         file_types: {
             'Nakamura-Q1-2026-CORRECTED.docx': 'Microsoft OOXML (contains: external template reference)',
             'budget-Q1-final.xlsx':             'Microsoft Excel spreadsheet, no anomalies.'
-        },
-        // Canonical synthesis flag value (computed at config build time 2026-05-21)
-        // Algorithm: echo -n "<F1F2A4E8.20260518123045@crimson-dawn-finance.net>|COBALT_STRIKE:CVE-2022-30190|emberwolf-c2.duckdns.org|EMBERWOLF:RU|e.morales|REMED-OK-S7K9P2" | sha256sum | awk '{print toupper(substr($1,1,16))}'
-        synthesis_flag: 'A82A44DCA64FA463'
+        }
     },
 
     // =========================================================
@@ -263,14 +260,12 @@ const PISFinalConfig = {
                     messageId: 'HD.20260517142211@crimson-dawn.net',
                     replyTo: 'it-helpdesk@crimson-dawn.net',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '10.0.1.5', originIpNote: '&larr; internal corporate range',
+                    originIp: '10.0.1.5',
                     external: false,
                     body: '<p>All Accounts Payable staff,</p>' +
                           '<p>Security policy requires all staff rotate their AD passwords today before 17:00. A failure to rotate will result in your account being locked at EOD.</p>' +
                           '<p>Use the internal self-service portal: <a href="https://passwd.crimson-dawn.net/reset">https://passwd.crimson-dawn.net/reset</a></p>' +
-                          '<p>&mdash; IT Helpdesk</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>SPF pass, DKIM pass, DMARC pass.</b> Sender domain matches <code>crimson-dawn.net</code>. Message-ID host matches sender domain. Originating IP is internal (<code>10.0.1.5</code>). This message is <b>legitimate internal mail</b> &mdash; a decoy candidate. (The reset portal it links to is also genuinely internal &mdash; clicking through demonstrates a real corporate IDM workflow.)' }
+                          '<p>&mdash; IT Helpdesk</p>'
                 }); }
             },
 
@@ -288,10 +283,8 @@ const PISFinalConfig = {
                     originIp: '204.111.12.88',
                     external: true,
                     body: '<p><b>Action Required:</b> Your payroll direct deposit information needs to be re-verified due to a recent bank routing update.</p>' +
-                          '<p>Log in to verify your account details: <a class="mc-phish-link" href="https://adp-secure-portal.com/verify">https://adp-secure-portal.com/verify</a></p>' +
-                          '<p>&mdash; ADP Payroll Services</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>All authentication passes:</b> SPF pass, DKIM pass, DMARC pass. The subject is alarming but the headers check out and Reply-To matches From. <b>Not the active phish</b> in this incident. (Note: <code>adp-secure-portal.com</code> is NOT a real ADP domain &mdash; real ADP uses <code>adp.com</code>. SPF can pass on attacker-controlled domains because the attacker writes the SPF record. Auth-pass is a necessary but not sufficient signal &mdash; cross-check sender legitimacy.)' }
+                          '<p>Log in to verify your account details: <a class="mc-ext-link" href="https://adp-secure-portal.com/verify">https://adp-secure-portal.com/verify</a></p>' +
+                          '<p>&mdash; ADP Payroll Services</p>'
                 }); }
             },
 
@@ -309,10 +302,8 @@ const PISFinalConfig = {
                     originIp: '161.199.0.14',
                     external: true,
                     body: '<p>Your shipment <b>#4470029</b> has experienced a delivery exception. A customs hold has been placed on your package.</p>' +
-                          '<p>Review exception details: <a class="mc-phish-link" href="https://fedex-shipping-update.com/exception/4470029">https://fedex-shipping-update.com/exception/4470029</a></p>' +
-                          '<p>&mdash; FedEx Notification Services</p>',
-                    analysis: { kind: 'ok', html:
-                        'SPF pass, DKIM pass, DMARC pass. Looks suspicious on the surface but all authentication passes and Reply-To matches From. <b>Not the active phish</b> &mdash; decoy. The intuition trap is intentional (W2 skill: surface red flags &ne; active phish). The lookalike domain <code>fedex-shipping-update.com</code> is NOT a real FedEx domain however &mdash; a determined attacker would not need it to be.' }
+                          '<p>Review exception details: <a class="mc-ext-link" href="https://fedex-shipping-update.com/exception/4470029">https://fedex-shipping-update.com/exception/4470029</a></p>' +
+                          '<p>&mdash; FedEx Notification Services</p>'
                 }); }
             },
 
@@ -324,28 +315,16 @@ const PISFinalConfig = {
                     fromName: 'Nakamura Supplies Accounts', fromEmail: 'accounts@nakamura-supplies.com',
                     to: 'accounts@crimson-dawn.net', date: 'Mon, 18 May 2026 08:54:31 +0000',
                     dateLine: 'Tue 5/18/2026 8:54 AM',
-                    messageId: 'F1F2A4E8.20260518123045@crimson-dawn-finance.net',
+                    messageId: '9C3E7B05.20260518085431@crimson-dawn-finance.net',
                     replyTo: 'payments@nakamura-suppliers-corp.com',
                     auth: { spf: 'neutral', dkim: 'fail', dmarc: 'fail' },
-                    originIp: '185.220.101.45', originIpClass: 'mc-fail',
-                    originIpNote: '&larr; foreign ASN (NForce, NL) &mdash; not Nakamura Supplies published infra',
+                    originIp: '185.220.101.45',
                     external: true,
                     body: '<p>Dear Accounts Payable Team,</p>' +
                           '<p>Please find attached the <b>corrected invoice</b> for Q1 2026. There was an error in our previous submission regarding the unit pricing on items 14 and 22. The corrected total is reflected in the attached document.</p>' +
                           '<p>If you have any questions, please reply to this message or contact our payments team directly.</p>' +
                           '<div class="mc-attach"><div class="mc-attach-glyph">DOC</div><div><div class="mc-attach-name"><a href="https://mail.crimson-dawn.net/downloads/Nakamura-Q1-2026-CORRECTED.docx">Nakamura-Q1-2026-CORRECTED.docx</a></div><div class="mc-attach-meta">Word document &middot; 47.2 KB &middot; <a href="https://mail.crimson-dawn.net/downloads/Nakamura-Q1-2026-CORRECTED.docx" style="color:#0078d4;">Download</a></div></div></div>' +
-                          '<p>&mdash; Nakamura Supplies Accounts Department</p>',
-                    analysis: { kind: 'warn', html:
-                        '<b>Multiple red flags in headers &mdash; this is the active phish.</b>' +
-                        '<ol>' +
-                        '<li><b>Message-ID host</b> is <code>crimson-dawn-finance.net</code> &mdash; does NOT match the From domain <code>nakamura-supplies.com</code>. Mail clients generate the Message-ID on the sending host; this one was generated by attacker-controlled infrastructure.</li>' +
-                        '<li><b>Reply-To</b> is <code>payments@nakamura-suppliers-corp.com</code> &mdash; note <b>"suppliers"</b> (extra "s") and <b>"-corp"</b> suffix &mdash; a different lookalike domain than the From. Replies would go to the attacker, not the real vendor.</li>' +
-                        '<li><b>SPF neutral</b> &mdash; sender IP not authorized by <code>nakamura-supplies.com</code>\'s SPF record.</li>' +
-                        '<li><b>DKIM fail</b> &mdash; signature invalid (body tampered or sender impersonated).</li>' +
-                        '<li><b>DMARC fail</b> &mdash; neither SPF nor DKIM alignment achieved.</li>' +
-                        '<li><b>X-Originating-IP <code>185.220.101.45</code></b> &mdash; not associated with Nakamura Supplies infrastructure (whois shows NForce Entertainment, NL &mdash; a known bulletproof VPS provider).</li>' +
-                        '</ol>' +
-                        'This is the <b>Phase 1 phishing email</b> the rest of the incident traces back to. The Message-ID host string (<code>F1F2A4E8.20260518123045@crimson-dawn-finance.net</code>) is the seed for the Flag 1 hash.' }
+                          '<p>&mdash; Nakamura Supplies Accounts Department</p>'
                 }); },
                 formHandler: function(data, engine) {
                     // Download handler is wired via link interception in Browser.js
@@ -429,14 +408,12 @@ const PISFinalConfig = {
                     messageId: 'MH.20260518093014@crimson-dawn.net',
                     replyTo: 'm.harlowe@crimson-dawn.net',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '10.0.1.8', originIpNote: '&larr; internal corporate range',
+                    originIp: '10.0.1.8',
                     external: false,
                     body: '<p>Team,</p>' +
                           '<p>Attaching the final Q1 budget numbers after the corrections from last week\'s review. Please confirm once received.</p>' +
                           '<div class="mc-attach"><div class="mc-attach-glyph">XLS</div><div><div class="mc-attach-name"><a href="https://mail.crimson-dawn.net/downloads/budget-Q1-final.xlsx">budget-Q1-final.xlsx</a></div><div class="mc-attach-meta">Excel spreadsheet &middot; 31.4 KB &middot; <a href="https://mail.crimson-dawn.net/downloads/budget-Q1-final.xlsx" style="color:#0078d4;">Download</a></div></div></div>' +
-                          '<p>&mdash; Marcus Harlowe, Finance</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>SPF pass, DKIM pass, DMARC pass.</b> Internal sender (real Finance manager), internal originating IP. Reply-To matches From. <b>Legitimate correspondence.</b> The attached budget file is benign &mdash; hashing it returns a clean result in the hash analyzer. (This is the "innocent file" Phase 2 decoy &mdash; demonstrates that not every attachment in an inbox during an incident is the payload.)' }
+                          '<p>&mdash; Marcus Harlowe, Finance</p>'
                 }); }
             },
 
@@ -493,9 +470,6 @@ const PISFinalConfig = {
                             <tr><td>Downloaded</td><td>${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
                           </table>
                         </div>
-                        <div class="dl-note">
-                          <b>Phase 2 decoy.</b> Hashing this file in the terminal (<code>sha256sum</code>) returns a clean result &mdash; no anomalies. Internal Finance attachment from a real sender, on the workstation\'s expected vendor list. Not the payload.
-                        </div>
                       </div>
                     </div>`;
                 }
@@ -512,12 +486,10 @@ const PISFinalConfig = {
                     messageId: 'CAL.20260518101500@calendly.com',
                     replyTo: 'support@calendly.com',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '104.16.88.25', originIpNote: '&larr; Cloudflare edge (Calendly fronts via CF)',
+                    originIp: '104.16.88.25',
                     external: true,
                     body: '<p>Your meeting <b>"Q2 Vendor Review"</b> has been confirmed for <b>2026-05-19 at 14:00 UTC</b> with J. Rivera from Accounts.</p>' +
-                          '<p>&mdash; Calendly Notification Services</p>',
-                    analysis: { kind: 'ok', html:
-                        'Legitimate notification from Calendly. All auth passes. Sender domain matches a real Calendly domain. Not relevant to this incident &mdash; routine vendor-review scheduling.' }
+                          '<p>&mdash; Calendly Notification Services</p>'
                 }); }
             },
 
@@ -532,21 +504,19 @@ const PISFinalConfig = {
                     messageId: 'CMP.20260518110000@crimson-dawn.net',
                     replyTo: 'compliance@crimson-dawn.net',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '10.0.2.3', originIpNote: '&larr; internal mail relay (Compliance subnet)',
+                    originIp: '10.0.2.3',
                     external: false,
                     body: '<p>Please complete the <b>Q2 2026 compliance attestation</b> by end of week:</p>' +
                           '<p>Link: <a href="https://compliance.crimson-dawn.net/attest/Q2-2026">https://compliance.crimson-dawn.net/attest/Q2-2026</a></p>' +
                           '<p>This is a quarterly requirement per <b>SOX &sect; 302</b> and policy <b>CDC-POL-12</b>.</p>' +
-                          '<p>&mdash; Compliance Office</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>Legitimate internal mail.</b> All auth passes. Sender domain matches <code>crimson-dawn.net</code>. Originating IP is internal (Compliance relay). Not relevant to this incident &mdash; routine quarterly attestation. (The /attest portal it links to is genuinely internal &mdash; clicking through demonstrates a real GRC workflow.)' }
+                          '<p>&mdash; Compliance Office</p>'
                 }); }
             },
 
             // ─────────────────────────────────────────────────
             // A1b. NOISE-LAYER MESSAGES (decoy expansion)
             //   Six additional messages added 2026-06-03 to bury the
-            //   active phish (msg/4) in a larger inbox. Mix of legit
+            //   active phish in a larger inbox. Mix of legit
             //   decoys and phishing decoys with obvious header tells
             //   (SPF/DKIM/DMARC failures, mismatched Reply-To, fake
             //   sender domains). Numbered 8-13 to preserve existing
@@ -570,9 +540,7 @@ const PISFinalConfig = {
                     body: '<p>Hello,</p>' +
                           '<p>Your monthly office supplies invoice is attached. <b>Total due: $1,247.62</b>. Payment terms net-30. PO reference: <code>AP-CD-2026-04</code>.</p>' +
                           '<p>If you have questions, reply to this email or call your account manager Karen Liu at (212) 555-0184.</p>' +
-                          '<p>&mdash; Office Depot Business Accounts Receivable</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>Legitimate vendor invoice.</b> Sender domain matches <code>officedepot.com</code>. All authentication passes. Originating IP is consistent with Office Depot\'s network. Routine monthly AR notification; not relevant to this incident.' }
+                          '<p>&mdash; Office Depot Business Accounts Receivable</p>'
                 }); }
             },
 
@@ -587,15 +555,12 @@ const PISFinalConfig = {
                     messageId: 'MS365.20260517095533@microsoft-365-account.com',
                     replyTo: 'security@microsoft-365-account.com',
                     auth: { spf: 'fail', dkim: 'neutral', dmarc: 'fail' },
-                    originIp: '185.157.122.49', originIpClass: 'mc-fail',
-                    originIpNote: '&larr; Bulgaria hosting provider &mdash; not a Microsoft data center',
+                    originIp: '185.157.122.49',
                     external: true,
                     body: '<p><b>Microsoft Security Alert</b></p>' +
                           '<p>We detected a sign-in to your Microsoft 365 account from an unrecognized device in <b>Stockholm, Sweden</b>. If this was you, no action is needed. If not, secure your account immediately.</p>' +
-                          '<p>Review the sign-in: <a class="mc-phish-link" href="https://microsoft-365-account.com/verify-signin?id=AC8842">https://microsoft-365-account.com/verify-signin?id=AC8842</a></p>' +
-                          '<p>&mdash; Microsoft Account Team</p>',
-                    analysis: { kind: 'warn', html:
-                        '<b>PHISHING DECOY.</b> The sender domain <code>microsoft-365-account.com</code> is NOT a real Microsoft domain (Microsoft uses <code>account.microsoft.com</code> and <code>account.live.com</code>). <b>SPF FAILS and DMARC FAILS</b> &mdash; both highlighted in the headers. Originating IP <code>185.157.122.49</code> resolves to a hosting provider in Bulgaria, not a Microsoft data center.<br><br>Classic credential-harvest pattern &mdash; would route to a Microsoft-impersonation login page. <b>Decoy for THIS incident, but a real threat in its own right</b> &mdash; a student who clicks that URL gets a GAME OVER lesson page in the lab.' }
+                          '<p>Review the sign-in: <a class="mc-ext-link" href="https://microsoft-365-account.com/verify-signin?id=AC8842">https://microsoft-365-account.com/verify-signin?id=AC8842</a></p>' +
+                          '<p>&mdash; Microsoft Account Team</p>'
                 }); }
             },
 
@@ -610,14 +575,12 @@ const PISFinalConfig = {
                     messageId: 'ZM.20260517112000.recurring-441@zoom.us',
                     replyTo: 'no-reply@zoom.us',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '170.114.45.18', originIpNote: '&larr; Zoom ARIN-allocated range',
+                    originIp: '170.114.45.18',
                     external: true,
-                    body: '<p>Hi Elena,</p>' +
+                    body: '<p>Hi Dana,</p>' +
                           '<p>Reminder: your recurring meeting <b>"Accounts Payable Weekly Sync"</b> with R. Chen, M. Harlowe, and S. Patel is scheduled for <b>Thursday May 22 at 14:00 UTC</b>.</p>' +
                           '<p>Join URL: <a href="https://crimson-dawn.zoom.us/j/85544192033">https://crimson-dawn.zoom.us/j/85544192033</a></p>' +
-                          '<p>&mdash; Zoom Meetings</p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>Legitimate Zoom notification.</b> SPF/DKIM/DMARC all pass. Originating IP is in Zoom\'s ARIN-allocated range. Sender domain matches <code>zoom.us</code>. Recurring meeting reminder unrelated to the incident; routine AP team comms.' }
+                          '<p>&mdash; Zoom Meetings</p>'
                 }); }
             },
 
@@ -632,15 +595,12 @@ const PISFinalConfig = {
                     messageId: 'CH.20260518131509@chase-bizbanking.com',
                     replyTo: 'wires-alerts@chase-bizbanking.com',
                     auth: { spf: 'fail', dkim: 'fail', dmarc: 'fail' },
-                    originIp: '45.83.91.122', originIpClass: 'mc-fail',
-                    originIpNote: '&larr; not Chase / JPMorgan infrastructure',
+                    originIp: '45.83.91.122',
                     external: true,
                     body: '<p><b>Chase Business Banking Wire Alert</b></p>' +
                           '<p>An outgoing wire of <b>$4,200,000.00</b> to account ending <b>-7741</b> requires your review. If not authorized, click below to dispute within <b>60 minutes</b>.</p>' +
-                          '<p>Review wire: <a class="mc-phish-link" href="https://chase-bizbanking.com/wires/review/PNFAH-7741">https://chase-bizbanking.com/wires/review/PNFAH-7741</a></p>' +
-                          '<p>&mdash; Chase Business Banking</p>',
-                    analysis: { kind: 'warn', html:
-                        '<b>PHISHING DECOY &mdash; a particularly cynical one.</b> A follow-up scam timed AFTER the actual wire fraud, attempting to harvest credentials from someone now panicked about the loss.<br><br>The sender domain <code>chase-bizbanking.com</code> is NOT Chase (Chase uses <code>chase.com</code> and <code>jpmorganchase.com</code>). <b>All three auth checks FAIL</b>. The amount $4.2M and account suffix -7741 match the real fraud &mdash; the attacker (or a different scammer monitoring the breach) is using public knowledge of the fraud to set up a secondary social-engineering attack.<br><br><b>NOT the source of the original wire fraud</b>; that traces to msg/4. This message arrived AFTER the wire on 2026-05-18 at 13:15 UTC, ~4 hours post-loss.' }
+                          '<p>Review wire: <a class="mc-ext-link" href="https://chase-bizbanking.com/wires/review/PNFAH-7741">https://chase-bizbanking.com/wires/review/PNFAH-7741</a></p>' +
+                          '<p>&mdash; Chase Business Banking</p>'
                 }); }
             },
 
@@ -655,13 +615,11 @@ const PISFinalConfig = {
                     messageId: 'SL.20260518094522.AP4421@slack.com',
                     replyTo: 'no-reply@slack.com',
                     auth: { spf: 'pass', dkim: 'pass', dmarc: 'pass' },
-                    originIp: '18.142.5.99', originIpNote: '&larr; AWS Singapore (Slack region)',
+                    originIp: '18.142.5.99',
                     external: true,
                     body: '<p><b>r.chen</b> mentioned you in <b>#ap-team</b> on Crimson Dawn Slack:</p>' +
-                          '<blockquote>@e.morales &mdash; please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks. &mdash; r.chen</blockquote>' +
-                          '<p>Open in Slack: <a href="https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722">https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</a></p>',
-                    analysis: { kind: 'ok', html:
-                        '<b>Legitimate Slack notification.</b> SPF/DKIM/DMARC all pass. Originating IP is in Slack\'s AWS-allocated range.<br><br><b>Note the topical timing:</b> r.chen references the Nakamura wire routing &mdash; this is the AP supervisor following up on what she believed was a legitimate vendor update earlier in the morning. <b>Connect this back to msg/4</b> during Phase 1 review: the supervisor is <i>unknowingly endorsing</i> the fraudulent routing. The Slack message itself is legitimate; the underlying business state it describes is compromised.' }
+                          '<blockquote>@d.okafor please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks, r.chen</blockquote>' +
+                          '<p>Open in Slack: <a href="https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722">https://crimson-dawn.slack.com/archives/C04AP4421/p1726658722</a></p>'
                 }); }
             },
 
@@ -676,15 +634,12 @@ const PISFinalConfig = {
                     messageId: 'ADB.20260518115541@adobe-renewal-services.com',
                     replyTo: 'support@billing-services-portal.com',
                     auth: { spf: 'fail', dkim: 'pass', dmarc: 'fail' },
-                    originIp: '162.241.92.10', originIpClass: 'mc-fail',
-                    originIpNote: '&larr; generic hosting in Utah &mdash; not Adobe infrastructure',
+                    originIp: '162.241.92.10',
                     external: true,
                     body: '<p><b>Adobe Billing Notice</b></p>' +
                           '<p>Your Adobe Creative Cloud subscription has been auto-renewed for <b>$599.88 USD</b>. Charge will appear on your card ending in <b>8842</b> within 24 hours.</p>' +
-                          '<p>To dispute this charge or cancel renewal, you must act within 24 hours: <a class="mc-phish-link" href="https://adobe-renewal-services.com/billing/dispute?ref=8842">https://adobe-renewal-services.com/billing/dispute?ref=8842</a></p>' +
-                          '<p>&mdash; Adobe Billing Services</p>',
-                    analysis: { kind: 'warn', html:
-                        '<b>PHISHING DECOY.</b> Sender domain <code>adobe-renewal-services.com</code> is NOT a real Adobe domain (Adobe uses <code>adobe.com</code> for billing). <b>SPF and DMARC both FAIL</b>; only DKIM passes (the attacker controls the keys for their own fake domain).<br><br><b>Reply-To differs from From</b> (<code>support@billing-services-portal.com</code>) &mdash; a classic phishing tell. Originating IP <code>162.241.92.10</code> resolves to generic hosting in Utah, not Adobe infrastructure.<br><br>Urgency tactic ("act within 24 hours") and unfamiliar card suffix ("ending in 8842" &mdash; AP doesn\'t have an Adobe charge on file) are additional red flags. Decoy for this incident.' }
+                          '<p>To dispute this charge or cancel renewal, you must act within 24 hours: <a class="mc-ext-link" href="https://adobe-renewal-services.com/billing/dispute?ref=8842">https://adobe-renewal-services.com/billing/dispute?ref=8842</a></p>' +
+                          '<p>&mdash; Adobe Billing Services</p>'
                 }); }
             },
 
@@ -989,7 +944,7 @@ const PISFinalConfig = {
                           return;
                         }
                         var ts = new Date().toISOString().replace('T',' ').slice(0,19);
-                        result.innerHTML = '<div class=\'pw-result-card ok\'><span class=\'pw-result-mark\'>\\u2713</span><div><div class=\'pw-result-title\'>Password rotated successfully.</div><div class=\'pw-result-sub\'>Account: ' + (username || 'e.morales') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\'pw-result-sub\' style=\'margin-top:6px;\'>You may close this tab or return to your inbox.</div></div></div>';
+                        result.innerHTML = '<div class=\'pw-result-card ok\'><span class=\'pw-result-mark\'>\\u2713</span><div><div class=\'pw-result-title\'>Password rotated successfully.</div><div class=\'pw-result-sub\'>Account: ' + (username || 'accounts') + ' &middot; Rotated at ' + ts + ' UTC &middot; Active Directory replication complete.</div><div class=\'pw-result-sub\' style=\'margin-top:6px;\'>You may close this tab or return to your inbox.</div></div></div>';
                         btn.disabled = true; btn.textContent = 'Password Rotated';
                         ['#pw-username','#pw-current','#pw-new','#pw-confirm'].forEach(function(s){ var i = box.querySelector(s); if (i) i.setAttribute('readonly','readonly'); });
                         var agePill = box.querySelector('#pw-age-pill');
@@ -998,7 +953,7 @@ const PISFinalConfig = {
                         if (recentList) {
                           var row = document.createElement('div');
                           row.className = 'pw-recent success';
-                          row.innerHTML = '<div class=\'pw-recent-ts\'>' + ts + ' UTC</div><div class=\'pw-recent-meta\'>passwd.crimson-dawn.net &middot; Password rotation &middot; ' + (username || 'e.morales') + '</div>';
+                          row.innerHTML = '<div class=\'pw-recent-ts\'>' + ts + ' UTC</div><div class=\'pw-recent-meta\'>passwd.crimson-dawn.net &middot; Password rotation &middot; ' + (username || 'accounts') + '</div>';
                           recentList.insertBefore(row, recentList.firstChild);
                         }
                       })(this)">Rotate Password &amp; Sign In</button>
@@ -1007,12 +962,12 @@ const PISFinalConfig = {
                     <div class="pw-context-col">
                       <div class="pw-context-section">
                         <div class="pw-ctx-h">Signed-in account</div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Username</span><span class="pw-ctx-v">e.morales</span></div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Display name</span><span class="pw-ctx-v">Elena Morales</span></div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Title</span><span class="pw-ctx-v">AP Clerk</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Username</span><span class="pw-ctx-v">accounts</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Display name</span><span class="pw-ctx-v">Accounts Payable (shared mailbox)</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Title</span><span class="pw-ctx-v">Shared mailbox</span></div>
                         <div class="pw-ctx-kv"><span class="pw-ctx-k">Department</span><span class="pw-ctx-v">Accounts Payable</span></div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Workstation</span><span class="pw-ctx-v">WS-EMORALES-01</span></div>
-                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Internal IP</span><span class="pw-ctx-v" style="font-family:ui-monospace,monospace;">10.0.4.18</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Workstation</span><span class="pw-ctx-v">AP workstations</span></div>
+                        <div class="pw-ctx-kv"><span class="pw-ctx-k">Internal IP</span><span class="pw-ctx-v" style="font-family:ui-monospace,monospace;">10.0.4.0/24</span></div>
                       </div>
 
                       <div class="pw-context-section">
@@ -1037,15 +992,11 @@ const PISFinalConfig = {
                         <div id="pw-recent-list">
                           <div class="pw-recent">
                             <div class="pw-recent-ts">2026-05-18 09:01 UTC</div>
-                            <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Logon</div>
-                          </div>
-                          <div class="pw-recent flag">
-                            <div class="pw-recent-ts">2026-05-18 09:14 UTC</div>
-                            <div class="pw-recent-meta">185.220.101.45 &middot; HTTPS to passwd.crimson-dawn.net</div>
+                            <div class="pw-recent-meta">AP workstation &middot; 10.0.4.0/24 &middot; Workstation Logon</div>
                           </div>
                           <div class="pw-recent">
                             <div class="pw-recent-ts">2026-05-17 16:44 UTC</div>
-                            <div class="pw-recent-meta">WS-EMORALES-01 &middot; 10.0.4.18 &middot; Workstation Unlock</div>
+                            <div class="pw-recent-meta">AP workstation &middot; 10.0.4.0/24 &middot; Workstation Unlock</div>
                           </div>
                         </div>
                       </div>
@@ -1058,9 +1009,6 @@ const PISFinalConfig = {
                     <span>Issues? Email <code>it-helpdesk@crimson-dawn.net</code> or call ext. <code>x4400</code>.</span>
                   </div>
 
-                  <div class="pw-ir-note">
-                    <b>IR Note (lab-only, not visible in real portal):</b> This portal is reachable on the internal network. The msg/1 email that links here passed SPF/DKIM/DMARC and originated from internal IP 10.0.1.5 &mdash; both the portal AND the email check out as legitimate internal traffic, so msg/1 is marked DECOY in the incident analysis. The flagged recent sign-in at <code>185.220.101.45</code> on 2026-05-18 09:14 UTC is the external-IP authentication event the SIEM auth log records at the same timestamp as the wire transfer (E-brief Day-1 timeline) &mdash; that is Patient Zero's session being used from the attacker's C2 host. Showing it here is the investigative crumb that ties msg/1's destination to the broader incident.
-                  </div>
                 </div>`
             },
 
@@ -1140,9 +1088,6 @@ const PISFinalConfig = {
                             <input type="text" class="at-sign-input" placeholder="firstname.lastname">
                             <button class="at-submit" data-action="attest-noop">Submit Attestation</button>
                         </div>
-                        <div class="at-footer-note">
-                            <b>Operator IR note (training overlay):</b> This is the <b>legitimate</b> internal compliance attestation portal. The msg/7 email is from <code style="background:#fff; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono', monospace; font-size:0.74rem;">compliance@crimson-dawn.net</code> (originating IP <code style="background:#fff; padding:1px 5px; border-radius:3px; font-family:'JetBrains Mono', monospace; font-size:0.74rem;">10.0.2.3</code> &mdash; internal mail relay), SPF / DKIM / DMARC all pass. This page exists to test whether the analyst correctly distinguishes benign internal mail from the active wire-fraud thread. Submitting this form has <b>no effect on the incident</b>.
-                        </div>
                     </div>
                     <div class="at-trust-bar">
                         <div class="at-trust-bar-item"><span class="at-tb-dot"></span>Encrypted (TLS 1.3)</div>
@@ -1179,10 +1124,10 @@ const PISFinalConfig = {
                         </div>
                         <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
                             <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
-                            The msg/2 Analysis block told you it was a phishing decoy. The correct move was to <b>copy the URL into a sandbox</b> (URLscan, hybrid-analysis, your SOC's detonation chamber), <b>NOT click it from the inbox</b>. Decoy or active phish &mdash; phishing URLs are credential-harvest sites either way.
+                            msg/2 was a phishing decoy. The correct move was to <b>copy the URL into a sandbox</b> (URLscan, hybrid-analysis, your SOC's detonation chamber), <b>NOT click it from the inbox</b>. Decoy or active phish &mdash; phishing URLs are credential-harvest sites either way.
                         </div>
                         <button data-action="restart-lab" onclick="(function(){try{Object.keys(localStorage).filter(function(k){return k.indexOf(&quot;hexworth_lab_pis_final&quot;)===0;}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}window.location.reload();})();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
-                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Check the headers before clicking any link.</div>
                     </div>
                 </div>`
             },
@@ -1207,10 +1152,10 @@ const PISFinalConfig = {
                         </div>
                         <div style="text-align:left; background:#001428; border:1px solid #00528c; border-radius:4px; padding:14px 18px; font-size:0.83rem; line-height:1.7; color:#bbdfff; margin-bottom:22px;">
                             <div style="color:#7ec0ff; font-weight:700; margin-bottom:6px; letter-spacing:0.04em;">// IR LESSON</div>
-                            The msg/3 Analysis block told you it was a phishing decoy (the sender domain <code>fedex-shipping-update.com</code> is not FedEx; FedEx never collects customs duty via shipping-notification URLs). The correct move was to <b>verify the tracking number on fedex.com directly</b>, not click the link in the email. Decoy or active phish &mdash; phishing URLs harm you either way.
+                            msg/3 was a phishing decoy (the sender domain <code>fedex-shipping-update.com</code> is not FedEx; FedEx never collects customs duty via shipping-notification URLs). The correct move was to <b>verify the tracking number on fedex.com directly</b>, not click the link in the email. Decoy or active phish &mdash; phishing URLs harm you either way.
                         </div>
                         <button data-action="restart-lab" onclick="(function(){try{Object.keys(localStorage).filter(function(k){return k.indexOf(&quot;hexworth_lab_pis_final&quot;)===0;}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}window.location.reload();})();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
-                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Check the headers before clicking any link.</div>
                     </div>
                 </div>`
             },
@@ -1245,7 +1190,7 @@ const PISFinalConfig = {
                             Real Microsoft sign-in alerts come from <code>account.microsoft.com</code> or <code>account.live.com</code>, NOT <code>microsoft-365-account.com</code>. The msg/9 headers showed SPF FAIL + DMARC FAIL with origin IP <code>185.157.122.49</code> (Bulgaria hosting). All three of those tells were in the inbox view before you ever clicked. Read the auth-results line on every email; copy URLs into a sandbox; never click suspicious links from the inbox.
                         </div>
                         <button data-action="restart-lab" onclick="(function(){try{Object.keys(localStorage).filter(function(k){return k.indexOf(&quot;hexworth_lab_pis_final&quot;)===0;}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}window.location.reload();})();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
-                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Check the headers before clicking any link.</div>
                     </div>
                 </div>`
             },
@@ -1273,7 +1218,7 @@ const PISFinalConfig = {
                             Real Chase notifications come from <code>chase.com</code> or <code>jpmorganchase.com</code>, NOT <code>chase-bizbanking.com</code>. The msg/11 headers showed SPF FAIL + DKIM FAIL + DMARC FAIL -- all three. The amount ($4.2M) and account suffix (-7741) matching the actual fraud should have made you MORE suspicious, not less -- only the original attacker and someone monitoring the breach would know those exact details. Confirm wire-fraud follow-up by calling your Chase relationship manager on a number from a prior statement, never a number or URL from the alert email.
                         </div>
                         <button data-action="restart-lab" onclick="(function(){try{Object.keys(localStorage).filter(function(k){return k.indexOf(&quot;hexworth_lab_pis_final&quot;)===0;}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}window.location.reload();})();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
-                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Check the headers before clicking any link.</div>
                     </div>
                 </div>`
             },
@@ -1300,7 +1245,7 @@ const PISFinalConfig = {
                             Real Adobe billing comes from <code>adobe.com</code> ("payments@mail.adobe.com"), NOT <code>adobe-renewal-services.com</code>. The msg/13 headers showed SPF FAIL + DMARC FAIL with Reply-To pointing to a DIFFERENT domain than the From line (<code>support@billing-services-portal.com</code>). The card-suffix "8842" the email referenced wasn't in your AP records. Three independent tells before the click. Real subscription disputes go through the vendor's verified billing portal accessed by manually typing the vendor's main domain, never through links in the renewal alert.
                         </div>
                         <button data-action="restart-lab" onclick="(function(){try{Object.keys(localStorage).filter(function(k){return k.indexOf(&quot;hexworth_lab_pis_final&quot;)===0;}).forEach(function(k){localStorage.removeItem(k);});}catch(e){}window.location.reload();})();" style="padding:14px 36px; background:#ff003c; color:#fff; border:none; border-radius:4px; font-weight:900; font-size:1rem; letter-spacing:0.08em; cursor:pointer; font-family:inherit; box-shadow:0 0 16px rgba(255,0,60,0.5);">RESTART INVESTIGATION &rarr;</button>
-                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Read the analysis blocks before clicking.</div>
+                        <div style="margin-top:14px; font-size:0.7rem; color:#888;">Your lab session is reset to phase 1. Check the headers before clicking any link.</div>
                     </div>
                 </div>`
             },
@@ -1333,16 +1278,13 @@ const PISFinalConfig = {
                         <div style="margin-top:24px;">
                             <a href="https://mail.crimson-dawn.net/inbox" style="color:#2d8cff; text-decoration:none; font-size:0.84rem; font-weight:600;">&larr; Return to inbox</a>
                         </div>
-                        <div style="margin-top:18px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.72rem; color:#713f12; text-align:left;">
-                            <b>IR Note (lab-only):</b> Legitimate Zoom meeting URL from msg/10. SPF/DKIM/DMARC passed, origin IP in Zoom\'s ARIN range. Clicking this link is harmless &mdash; it joins a real internal AP weekly sync meeting. msg/10 is decoy.
-                        </div>
                     </div>
                 </div>`
             },
 
             // LEGIT placeholder (msg/12 Slack archive URL) — clicking the URL
             // in msg/12 body lands here. Renders a Slack-style channel archive
-            // showing the r.chen message that mentions e.morales about the
+            // showing the r.chen message that mentions d.okafor about the
             // (now-known-fraudulent) Nakamura wire routing change.
             '/archives/C04AP4421/p1726658722': {
                 title: '#ap-team -- Crimson Dawn Slack',
@@ -1378,15 +1320,12 @@ const PISFinalConfig = {
                                 <div style="flex:1;">
                                     <div><span style="font-weight:700; color:#1d1c1d;">r.chen</span> <span style="font-size:0.7rem; color:#747487; margin-left:6px;">9:42 AM</span></div>
                                     <div style="margin-top:2px; color:#1d1c1d; font-size:0.86rem; line-height:1.5;">
-                                        <span style="color:#1264a3; font-weight:600;">@e.morales</span> &mdash; please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks.
+                                        <span style="color:#1264a3; font-weight:600;">@d.okafor</span> please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry has the corrected wire routing from this morning. Thanks.
                                     </div>
                                 </div>
                             </div>
                             <div style="margin-top:14px; padding:8px 12px; background:#f8f8f8; border-radius:6px; font-size:0.72rem; color:#747487; text-align:center;">
-                                Showing 1 message &middot; mentioned: @e.morales &middot; <a href="https://mail.crimson-dawn.net/inbox" style="color:#1264a3; text-decoration:none; font-weight:600;">&larr; Return to inbox</a>
-                            </div>
-                            <div style="margin-top:14px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.74rem; color:#713f12;">
-                                <b>IR Note (lab-only):</b> Legitimate Slack archive from msg/12. The message itself is real internal AP comms. <b>Pedagogical hook:</b> r.chen is unknowingly endorsing the fraudulent "corrected wire routing" that came from msg/4 (the active phish). Connect this thread back to Phase 1 review &mdash; the AP supervisor was socially-engineered into validating the attacker\'s change.
+                                Showing 1 message &middot; mentioned: @d.okafor &middot; <a href="https://mail.crimson-dawn.net/inbox" style="color:#1264a3; text-decoration:none; font-weight:600;">&larr; Return to inbox</a>
                             </div>
                         </div>
                     </div>
@@ -1404,17 +1343,10 @@ const PISFinalConfig = {
                     PISFinalConfig._nvdHeader('Vulnerability Database Search') +
                     '<div class="nvd-search-card">' +
                         '<div class="nvd-section-h">Search</div>' +
-                        '<div class="nvd-search-sub">Search the NVD-synced vulnerability database by CVE ID, vendor, product, or keyword (e.g. "Follina", "MSDT", "Word"). Results include CVSS score, affected products, and links to the official Microsoft and CISA advisories.</div>' +
+                        '<div class="nvd-search-sub">Search the NVD-synced vulnerability database by CVE ID, vendor, product, or keyword. Results include CVSS score, affected products, and links to the official Microsoft and CISA advisories.</div>' +
                         '<div class="nvd-search-row">' +
-                            '<input type="text" class="nvd-q" data-field="cve_query" placeholder="CVE-2022-30190, Follina, MSDT, Windows...">' +
+                            '<input type="text" class="nvd-q" data-field="cve_query" placeholder="CVE ID or keyword">' +
                             '<button class="nvd-search-btn" data-action="search">Search</button>' +
-                        '</div>' +
-                        '<div class="nvd-chips">' +
-                            '<span class="nvd-chip-label">Recent lookups:</span>' +
-                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;CVE-2022-30190&quot;;i.focus();}">CVE-2022-30190</span>' +
-                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;Follina&quot;;i.focus();}">Follina</span>' +
-                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;MSDT&quot;;i.focus();}">MSDT</span>' +
-                            '<span class="nvd-chip" onclick="var i=document.querySelector(&quot;.nvd-shell .nvd-q&quot;); if(i){i.value=&quot;CVE-2024-21412&quot;;i.focus();}">CVE-2024-21412</span>' +
                         '</div>' +
                     '</div>' +
                     '<div class="nvd-results" data-results>' +
@@ -1497,7 +1429,7 @@ const PISFinalConfig = {
                         { k: 'Patch', v: '<code>KB5034441</code>' }
                     ],
                     incidentNote: { cls: 'nvd-note-warn',
-                        html: '<b>Real but NOT the exploited CVE in this incident.</b> This patch is outstanding on WS-EMORALES-01 (and should be applied during normal patch cycles), but applying it during active IR <b>does not resolve</b> the current compromise. Patch Management is showing this as one of three pending updates &mdash; the IR runbook requires identifying the exploited CVE from Phase 2 first.' },
+                        html: '<b>Outstanding patch.</b> Patch Management lists this as one of three pending updates on the AP workstation. The IR runbook requires identifying the exploited CVE from your Phase 2 evidence before deploying anything during active IR.' },
                     source: 'Source: NVD mirror &mdash; nvd.nist.gov/vuln/detail/CVE-2024-21412'
                 }); }
             },
@@ -1518,7 +1450,7 @@ const PISFinalConfig = {
                         { k: 'Patch', v: '<code>KB5036892</code>' }
                     ],
                     incidentNote: { cls: '',
-                        html: '<b>Elevation of Privilege &mdash; not the initial access vector.</b> EoP vulnerabilities require an existing foothold, so they cannot be the entry point in a phishing-driven IR scenario. This CVE is outstanding on WS-EMORALES-01 from normal patch cycles, but was NOT the exploited vulnerability in this incident. Do not apply during active IR.' },
+                        html: '<b>Elevation of Privilege.</b> EoP vulnerabilities require an existing foothold on the host. This patch is pending on the AP workstation from normal patch cycles; decide from your Phase 2 evidence whether it is relevant during active IR.' },
                     source: 'Source: NVD mirror &mdash; nvd.nist.gov/vuln/detail/CVE-2024-26169'
                 }); }
             },
@@ -1615,20 +1547,12 @@ const PISFinalConfig = {
                   <div class="wh-search-card">
                     <div class="wh-prompt">Enter a <b>domain name</b> or <b>IP address</b> to retrieve registration history, name servers, registrar, DNSSEC status, and ASN enrichment.</div>
                     <div class="wh-search-row">
-                      <input type="text" class="wh-q" data-field="whois_query" placeholder="crimson-dawn-finance.net, 185.220.101.45, ...">
+                      <input type="text" class="wh-q" data-field="whois_query" placeholder="domain name or IPv4 address">
                       <button class="wh-lookup" data-action="lookup">Lookup</button>
-                    </div>
-                    <div class="wh-chips">
-                      <span class="wh-chip-label">Quick lookups:</span>
-                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='crimson-dawn-finance.net';i.focus();}">crimson-dawn-finance.net</span>
-                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
-                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='nakamura-suppliers-corp.com';i.focus();}">nakamura-suppliers-corp.com</span>
-                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='nakamura-supplies.com';i.focus();}">nakamura-supplies.com</span>
-                      <span class="wh-chip" onclick="var i=document.querySelector('.wh-shell .wh-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
                     </div>
                   </div>
                   <div class="wh-results" data-results>
-                    <div class="wh-empty">Enter a domain or IP and click <b>Lookup</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Use the quick-lookup chips above to pivot to a known IOC.</span></div>
+                    <div class="wh-empty">Enter a domain or IP and click <b>Lookup</b>.</div>
                   </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleWhois(data.whois_query || '', engine)
@@ -1823,14 +1747,14 @@ const PISFinalConfig = {
                       <div class="vt-tab" style="opacity:0.5; cursor:not-allowed;">URL</div>
                     </div>
                     <div class="vt-prompt">Paste a <b>SHA-256 file hash</b> (64 hex characters) to check the 68-engine consensus feed for known malware signatures, family attribution, and IOC correlation.</div>
-                    <textarea class="vt-hash" data-field="hash_input" rows="3" placeholder="e.g. b3a4f8c2d7e91a6e5f8c2b1d9a4f7e3c8b6d2a1f9e7c4b8a6d3f2e1c9b8a7f4d"></textarea>
+                    <textarea class="vt-hash" data-field="hash_input" rows="3" placeholder="64-character SHA-256 hex digest"></textarea>
                     <div class="vt-actions">
                       <button class="vt-analyze" data-action="analyze">Analyze Hash</button>
                       <span class="vt-sample-hashes">Need a hash? <code onclick="var t=this.parentNode.parentNode.parentNode.querySelector('.vt-hash'); if(t){t.value='sha256sum the file in /home/ir-lead/downloads/ first'; t.focus();}">sha256sum first</code></span>
                     </div>
                   </div>
                   <div class="vt-results-frame" data-results>
-                    <div class="vt-results-empty">Paste a SHA-256 hash above and click <b>Analyze Hash</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Phase 2 reminder: hash the attachment you downloaded from webmail first via <code style="background:#f1f5f9; padding:1px 5px; border-radius:3px;">sha256sum</code>.</span></div>
+                    <div class="vt-results-empty">Paste a SHA-256 hash above and click <b>Analyze Hash</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Hash a file you downloaded from webmail first via <code style="background:#f1f5f9; padding:1px 5px; border-radius:3px;">sha256sum</code>.</span></div>
                   </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleHashLookup(data.hash_input || '', engine)
@@ -1937,15 +1861,8 @@ const PISFinalConfig = {
                       Search by <b>IOC</b> (domain, IP, hash, file path), <b>CVE</b>, <b>malware family</b>, or <b>APT codename</b>. Results show all actors with at least <b>2/4 TTP overlap</b> with the query. Use the <b>Disambiguator</b> note on each card to narrow from candidates to a single actor.
                     </div>
                     <div class="ti-search-row">
-                      <input type="text" class="ti-q" data-field="intel_query" placeholder="e.g. emberwolf-c2.duckdns.org, CVE-2022-30190, Cobalt Strike, 185.220.101.45">
+                      <input type="text" class="ti-q" data-field="intel_query" placeholder="domain, IP, CVE ID, or malware family">
                       <button class="ti-go" data-action="search">Search</button>
-                    </div>
-                    <div class="ti-chips">
-                      <span class="ti-chip-label">Quick search:</span>
-                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
-                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='CVE-2022-30190';i.focus();}">CVE-2022-30190</span>
-                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='Cobalt Strike';i.focus();}">Cobalt Strike</span>
-                      <span class="ti-chip" onclick="var i=document.querySelector('.ti-shell .ti-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
                     </div>
                   </div>
                   <div class="ti-results" data-results>
@@ -2045,19 +1962,12 @@ const PISFinalConfig = {
                   <div class="ig-search-card">
                     <div style="font-size:0.82rem; color:#334155; margin-bottom:10px;">Enter an <b>IPv4 address</b> for geo + ASN + threat-intel actor-origin enrichment. Combines passive-DNS, behavioral analysis, and HexIntel feed.</div>
                     <div class="ig-search-row">
-                      <input type="text" class="ig-q" data-field="ip_query" placeholder="185.220.101.45">
+                      <input type="text" class="ig-q" data-field="ip_query" placeholder="IPv4 address">
                       <button class="ig-lookup" data-action="lookup">Lookup</button>
-                    </div>
-                    <div class="ig-chips">
-                      <span class="ig-chip-label">Quick lookups:</span>
-                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
-                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='104.21.45.122';i.focus();}">104.21.45.122</span>
-                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='51.140.83.42';i.focus();}">51.140.83.42</span>
-                      <span class="ig-chip" onclick="var i=document.querySelector('.ig-shell .ig-q'); if(i){i.value='8.8.8.8';i.focus();}">8.8.8.8</span>
                     </div>
                   </div>
                   <div class="ig-results" data-results>
-                    <div class="ig-empty">Enter an IP address and click <b>Lookup</b>.<br><span style="opacity:0.7; font-size:0.74rem;">Phase 4 reminder: the WHOIS ASN country is the <i>provider's incorporation</i>, not the operator's origin. This tool surfaces the HexIntel actor-origin enrichment.</span></div>
+                    <div class="ig-empty">Enter an IP address and click <b>Lookup</b>.<br><span style="opacity:0.7; font-size:0.74rem;">This tool shows the ASN, the registration country and the HexIntel enrichment for the address.</span></div>
                   </div>
                 </div>`,
                 formHandler: (data, engine) => PISFinalConfig._handleIpGeo(data.ip_query || '', engine)
@@ -2240,19 +2150,11 @@ const PISFinalConfig = {
                       <input type="text" class="siem-q" data-field="log_filter" placeholder="Filter by user, domain, IP &mdash; leave blank for all events">
                       <button class="siem-search" data-action="query">Search</button>
                     </div>
-                    <div class="siem-chips">
-                      <span class="siem-chip-label">Quick filters:</span>
-                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='e.morales';i.focus();}">e.morales</span>
-                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='r.chen';i.focus();}">r.chen</span>
-                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='crimson-dawn-finance.net';i.focus();}">crimson-dawn-finance.net</span>
-                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='emberwolf-c2.duckdns.org';i.focus();}">emberwolf-c2.duckdns.org</span>
-                      <span class="siem-chip" onclick="var i=document.querySelector('.siem-shell .siem-q'); if(i){i.value='185.220.101.45';i.focus();}">185.220.101.45</span>
-                    </div>
                   </div>
                   <div class="siem-results-frame" data-results>
                     <div class="siem-empty">
                       Select a log type tab and enter a filter (or leave blank), then <b>Search</b>.<br>
-                      <span style="opacity:0.65;">Tip: anomaly events are pre-flagged. Use quick-filter chips above to pivot.</span>
+                      <span style="opacity:0.65;">Tip: anomaly events are pre-flagged. Filter by a user, domain or IP from your evidence to pivot.</span>
                     </div>
                   </div>
                 </div>`,
@@ -2348,7 +2250,7 @@ const PISFinalConfig = {
         }
 
         if (results.length === 0 && q.length >= 3) {
-            return `<div style="color:#888; font-size:0.8rem; padding:16px;">No results found for "${this._escHtml(query)}". Try a CVE ID (e.g. CVE-2022-30190) or keyword (e.g. Follina, MSDT, RCE).</div>`;
+            return `<div style="color:#888; font-size:0.8rem; padding:16px;">No results found for "${this._escHtml(query)}". Try a CVE ID (CVE-YYYY-NNNNN) or a keyword from your evidence.</div>`;
         }
         if (results.length === 0) {
             return '<div style="color:#888; font-size:0.8rem; padding:16px;">Enter at least 3 characters to search.</div>';
@@ -2500,19 +2402,19 @@ const PISFinalConfig = {
                 ],
                 analyst: 'Long-established domain (registered 2009, 17 years old), DNSSEC signed, real corporate registrant in JP. This is the <b>legitimate</b> Nakamura Supplies vendor &mdash; not suspicious. The phishing campaign uses the lookalike nakamura-suppliers-corp.com instead.'
             },
-            'emberwolf-c2.duckdns.org': {
-                title: 'emberwolf-c2.duckdns.org',
+            'emberwolf-c2.ddns.net': {
+                title: 'emberwolf-c2.ddns.net',
                 verdict: 'suspicious', verdictText: 'C2 infrastructure',
                 age: { cls: 'crit', text: 'Dynamic DNS' },
-                raw: 'Domain Name: emberwolf-c2.duckdns.org\nService: DuckDNS (free dynamic DNS at duckdns.org)\nSubdomain operator: [RED][USER-CONTROLLED - anonymous registration]\nCreated: [DuckDNS does not expose creation timestamps]\nResolves to: [RED]185.220.101.45\nTTL: 60 seconds (typical for dynamic DNS C2 - enables rapid IP rotation)\nMITRE T1568.002: Dynamic Resolution: Dynamic DNS',
+                raw: 'Domain Name: emberwolf-c2.ddns.net\nService: No-IP (free dynamic DNS hostname under ddns.net)\nSubdomain operator: [RED][USER-CONTROLLED - anonymous registration]\nCreated: [No-IP does not expose hostname creation timestamps]\nResolves to: [RED]185.220.101.45\nTTL: 60 seconds (typical for dynamic DNS C2 - enables rapid IP rotation)\nMITRE T1568.002: Dynamic Resolution: Dynamic DNS',
                 metaCards: [
                     { h: 'Service', rows: [
-                        { k: 'DNS service', v: 'DuckDNS' },
+                        { k: 'DNS service', v: 'No-IP' },
                         { k: 'Operator', v: 'Anonymous', cls: 'suspicious' },
                         { k: 'TTL', v: '60s', cls: 'suspicious' }
                     ]},
                     { h: 'MITRE ATT&CK', rows: [
-                        { k: 'Technique', v: 'T1568.002', cls: 'suspicious' },
+                        { k: 'Technique', v: 'T1568', cls: 'suspicious' },
                         { k: 'Pattern', v: 'Dynamic DNS' }
                     ]}
                 ],
@@ -2520,7 +2422,7 @@ const PISFinalConfig = {
                     { label: 'IPGeo', value: '185.220.101.45 (resolves to)', url: 'https://ipgeo.crimson-intel.net' },
                     { label: 'WHOIS', value: '185.220.101.45 (ASN lookup)', url: 'https://whois.crimson-intel.net' }
                 ],
-                analyst: 'DuckDNS is a legitimate dynamic-DNS service commonly abused by threat actors (MITRE <b>T1568.002</b>). The subdomain name "emberwolf-c2" is an actor signature &mdash; explicitly self-labels as the C2 channel for the EMBERWOLF campaign. The 60-second TTL enables rapid IP rotation if any individual host is detected and burned.'
+                analyst: 'No-IP is a legitimate dynamic-DNS service commonly abused by threat actors (MITRE <b>T1568</b>, Dynamic Resolution). The subdomain name "emberwolf-c2" is an actor signature: it explicitly self-labels as the C2 channel for the EMBERWOLF campaign. The 60-second TTL enables rapid IP rotation if any individual host is detected and burned.'
             },
             '185.220.101.45': {
                 title: '185.220.101.45',
@@ -2601,7 +2503,7 @@ const PISFinalConfig = {
 
         return `<div class="wh-no-result">
             No WHOIS record found for <code>${this._escHtml(query)}</code>.<br>
-            <span style="opacity:0.7; font-size:0.74rem;">The domain or IP may not exist, or may not be in the local mirror. Try one of the quick-lookup chips above.</span>
+            <span style="opacity:0.7; font-size:0.74rem;">The domain or IP may not exist, or may not be in the local mirror. Check the spelling against your evidence.</span>
         </div>`;
     },
 
@@ -2666,7 +2568,7 @@ const PISFinalConfig = {
                     <div style="font-size:0.7rem; font-weight:700; letter-spacing:0.08em; color:#64748b; text-transform:uppercase; margin-bottom:8px;">Network IOCs observed in sandbox</div>
                     <div class="vt-ioc-list">
                         <div class="vt-ioc"><div class="vt-ioc-k">C2 callback</div><div class="vt-ioc-v"><a href="https://ipgeo.crimson-intel.net">185.220.101.45</a> (TCP/443)</div><div class="vt-ioc-desc">Beacon heartbeat to NForce Entertainment B.V. (AS43350, bulletproof hosting NL). 60-second jitter. Click IP to pivot to IP geolocation.</div></div>
-                        <div class="vt-ioc"><div class="vt-ioc-k">DNS resolution</div><div class="vt-ioc-v"><a href="https://whois.crimson-intel.net">emberwolf-c2.duckdns.org</a> &rarr; <a href="https://ipgeo.crimson-intel.net">185.220.101.45</a></div><div class="vt-ioc-desc">DuckDNS dynamic DNS (MITRE T1568). Operator-controlled subdomain. Click domain to pivot to WHOIS, IP to pivot to IP geolocation.</div></div>
+                        <div class="vt-ioc"><div class="vt-ioc-k">DNS resolution</div><div class="vt-ioc-v"><a href="https://whois.crimson-intel.net">emberwolf-c2.ddns.net</a> &rarr; <a href="https://ipgeo.crimson-intel.net">185.220.101.45</a></div><div class="vt-ioc-desc">No-IP dynamic DNS (MITRE T1568). Operator-controlled subdomain. Click domain to pivot to WHOIS, IP to pivot to IP geolocation.</div></div>
                         <div class="vt-ioc"><div class="vt-ioc-k">Lookalike domain</div><div class="vt-ioc-v"><a href="https://whois.crimson-intel.net">crimson-dawn-finance.net</a> &rarr; <a href="https://ipgeo.crimson-intel.net">104.21.45.122</a></div><div class="vt-ioc-desc">Registered 2026-05-15 (3 days before attack). NameCheap + WhoisGuard privacy. Click domain to pivot to WHOIS.</div></div>
                     </div>
                 </div>
@@ -2698,9 +2600,6 @@ const PISFinalConfig = {
                     <tr><td class="vt-k">File type</td><td class="vt-v">Microsoft Excel Open XML spreadsheet (.xlsx)</td></tr>
                     <tr><td class="vt-k">IOCs observed</td><td class="vt-v" style="color:#15803d;">None</td></tr>
                 </table>
-                <div style="margin-top:14px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.78rem; color:#713f12;">
-                    <b>IR Note:</b> This file is benign. If you submitted a Phase-2 flag derived from this hash, you hashed the <i>wrong attachment</i>. Re-read Phase 1: msg/4 has TWO attachments and only one of them is the malicious payload.
-                </div>
             </div>`;
         }
 
@@ -2726,7 +2625,7 @@ const PISFinalConfig = {
                 </ul>
             </div>
             <div style="margin-top:12px; padding:10px 14px; background:#fef9c3; border:1px solid #fde68a; border-radius:4px; font-size:0.74rem; color:#713f12;">
-                <b>Phase 2 step 2.1 reminder:</b> Download the attachment from msg/4 first (the corrected invoice), save to <code>/home/ir-lead/downloads/</code>, then hash with <code>sha256sum</code>.
+                <b>Phase 2 step 2.1 reminder:</b> Download the attachment from the phishing email you identified in Phase 1, save to <code>/home/ir-lead/downloads/</code>, then hash with <code>sha256sum</code>.
             </div>
         </div>`;
     },
@@ -2736,14 +2635,14 @@ const PISFinalConfig = {
         const q = query.toLowerCase().trim();
 
         // The intel search returns actors with >= 2/4 TTP overlap
-        const isEmberwolfQuery = q.includes('emberwolf') || q.includes('cobalt strike') || q.includes('cobalt_strike') || q.includes('cve-2022-30190') || q.includes('follina') || q.includes('duckdns') || q.includes('185.220.101.45');
+        const isEmberwolfQuery = q.includes('emberwolf') || q.includes('cobalt strike') || q.includes('cobalt_strike') || q.includes('cve-2022-30190') || q.includes('follina') || q.includes('ddns') || q.includes('185.220.101.45');
 
         if (!isEmberwolfQuery && q.length < 3) {
             return '<div class="ti-no-match"><div class="ti-no-match-msg">Enter at least 3 characters or a known IOC to search the mirror.</div></div>';
         }
 
         if (!isEmberwolfQuery) {
-            return '<div class="ti-no-match"><div class="ti-no-match-msg">No actor profiles matched <code>' + this._escHtml(query) + '</code>.<br><br>Try searching by IOC from previous phases &mdash; the C2 domain, malware family, CVE, or X-Originating-IP. <span style="opacity:0.7; font-size:0.78rem;">Suggestion: try <code>emberwolf-c2.duckdns.org</code>, <code>CVE-2022-30190</code>, or <code>Cobalt Strike</code>.</span></div></div>';
+            return '<div class="ti-no-match"><div class="ti-no-match-msg">No actor profiles matched <code>' + this._escHtml(query) + '</code>.<br><br>Try searching by IOC from previous phases: the C2 domain, malware family, CVE, or X-Originating-IP.</div></div>';
         }
 
         var actors = [
@@ -2758,7 +2657,7 @@ const PISFinalConfig = {
                     { k: 'Initial Access', v: 'Spear-phishing with invoice lures', mitre: 'T1566.001', match: true },
                     { k: 'Exploit', v: 'CVE-2022-30190 (Follina) via Word external template', mitre: 'T1203', match: true },
                     { k: 'Post-Exploit', v: 'Cobalt Strike Beacon (stage-1 loader)', mitre: 'S0154', match: true },
-                    { k: 'Infrastructure', v: 'Dynamic-DNS C2 (DuckDNS, No-IP)', mitre: 'T1568.002', match: true },
+                    { k: 'Infrastructure', v: 'Dynamic-DNS C2 (DuckDNS, No-IP)', mitre: 'T1568', match: true },
                     { k: 'Naming Convention', v: '"emberwolf-c2.*" / "crimson-*-finance.*"', mitre: '', match: true },
                     { k: 'Sector Targeting', v: 'Financial services exclusively (AP, vendor systems)', mitre: '', match: true }
                 ],
@@ -3031,13 +2930,13 @@ const PISFinalConfig = {
             },
             '10.0.4.18': {
                 ip: '10.0.4.18', banner: 'private', verdictText: 'Private RFC1918',
-                sub: 'e.morales workstation (WS-EMORALES-01) &mdash; internal AP network',
+                sub: 'd.okafor workstation (WS-DOKAFOR-01), internal AP network',
                 geo: [{ k: 'Range', v: 'RFC 1918' }, { k: 'Scope', v: 'Private' }],
                 asn: [{ k: 'Network', v: '10.0.0.0/8' }, { k: 'Owner', v: 'Internal' }],
                 attribution: {
                     cls: 'private', label: 'Internal asset',
-                    verdict: 'Patient Zero workstation',
-                    detail: 'No external geolocation available for RFC1918 private ranges. Internal asset records identify this as e.morales\'s assigned workstation (WS-EMORALES-01) on the Accounts Payable subnet 10.0.4.0/24.'
+                    verdict: 'AP workstation',
+                    detail: 'No external geolocation available for RFC1918 private ranges. Internal asset records identify this as d.okafor\'s assigned workstation (WS-DOKAFOR-01) on the Accounts Payable subnet 10.0.4.0/24.'
                 }
             }
         };
@@ -3049,7 +2948,7 @@ const PISFinalConfig = {
         if (octets.length === 4 && octets.every(o => !isNaN(parseInt(o)) && parseInt(o) >= 0 && parseInt(o) <= 255)) {
             return `<div class="ig-no-result">
                 No geolocation record found for <code>${this._escHtml(q)}</code>.<br>
-                <span style="opacity:0.7; font-size:0.74rem;">Key IPs in this investigation: <code>185.220.101.45</code> (attacker C2), <code>104.21.45.122</code> (CDN front), <code>51.140.83.42</code> (London VPN), <code>10.0.4.18</code> (Patient Zero workstation)</span>
+                <span style="opacity:0.7; font-size:0.74rem;">Check the address against your evidence (mail headers, SIEM, firewall log).</span>
             </div>`;
         }
 
@@ -3076,25 +2975,25 @@ const PISFinalConfig = {
             { ts: '2026-05-14 09:34:44', user: 'k.yamamoto', domain: 'sharepoint.crimson-dawn.net',  ip: '10.0.1.20',       flag: '' },
             { ts: '2026-05-15 07:55:10', user: 's.patel',    domain: 'mail.google.com',             ip: '142.250.80.5',    flag: '' },
             { ts: '2026-05-15 08:02:33', user: 's.patel',    domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
-            { ts: '2026-05-15 14:20:01', user: 'e.morales',  domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
+            { ts: '2026-05-15 14:20:01', user: 'd.okafor',  domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
             { ts: '2026-05-15 15:44:18', user: 'r.chen',     domain: 'nakamura-supplies.com',       ip: '52.44.22.11',     flag: '' },
             { ts: '2026-05-16 09:10:55', user: 'j.rivera',   domain: 'teams.microsoft.com',         ip: '52.113.194.132',  flag: '' },
-            { ts: '2026-05-16 10:30:14', user: 'e.morales',  domain: 'nakamura-supplies.com',       ip: '52.44.22.11',     flag: '' },
+            { ts: '2026-05-16 10:30:14', user: 'd.okafor',  domain: 'nakamura-supplies.com',       ip: '52.44.22.11',     flag: '' },
             { ts: '2026-05-16 11:52:30', user: 'k.yamamoto', domain: 'mail.google.com',             ip: '142.250.80.5',    flag: '' },
             { ts: '2026-05-17 08:18:45', user: 'r.chen',     domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
             { ts: '2026-05-17 09:44:02', user: 'a.torres',   domain: 'zoom.us',                     ip: '170.114.0.1',     flag: '' },
             { ts: '2026-05-17 14:01:19', user: 's.patel',    domain: 'calendly.com',                ip: '104.19.149.12',   flag: '' },
-            { ts: '2026-05-17 16:30:55', user: 'e.morales',  domain: 'mail.google.com',             ip: '142.250.80.5',    flag: '' },
+            { ts: '2026-05-17 16:30:55', user: 'd.okafor',  domain: 'mail.google.com',             ip: '142.250.80.5',    flag: '' },
             { ts: '2026-05-18 07:14:22', user: 'a.torres',   domain: 'teams.microsoft.com',         ip: '52.113.194.132',  flag: '' },
             { ts: '2026-05-18 07:55:08', user: 'r.chen',     domain: 'sharepoint.crimson-dawn.net', ip: '10.0.1.20',       flag: '' },
             { ts: '2026-05-18 08:31:00', user: 'j.rivera',   domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
             { ts: '2026-05-18 09:02:14', user: 'k.yamamoto', domain: 'nakamura-supplies.com',       ip: '52.44.22.11',     flag: '' },
-            { ts: '2026-05-18 09:12:14', user: 'e.morales',  domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY -- lookalike domain' },
-            { ts: '2026-05-18 09:12:42', user: 'e.morales',  domain: 'emberwolf-c2.duckdns.org',    ip: '185.220.101.45',  flag: 'C2 CALLBACK -- malware beacon' },
-            { ts: '2026-05-18 11:34:08', user: 'r.chen',     domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY -- lookalike domain' },
+            { ts: '2026-05-18 09:12:14', user: 'd.okafor',  domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY: lookalike domain' },
+            { ts: '2026-05-18 09:12:42', user: 'd.okafor',  domain: 'emberwolf-c2.ddns.net',    ip: '185.220.101.45',  flag: 'C2 CALLBACK: malware beacon' },
+            { ts: '2026-05-18 11:34:08', user: 'r.chen',     domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY: lookalike domain' },
             { ts: '2026-05-18 13:00:10', user: 'a.torres',   domain: 'mail.google.com',             ip: '142.250.80.5',    flag: '' },
             { ts: '2026-05-18 13:44:22', user: 'j.rivera',   domain: 'zoom.us',                     ip: '170.114.0.1',     flag: '' },
-            { ts: '2026-05-18 14:22:51', user: 's.patel',    domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY -- lookalike domain' },
+            { ts: '2026-05-18 14:22:51', user: 's.patel',    domain: 'crimson-dawn-finance.net',    ip: '104.21.45.122',   flag: 'ANOMALY: lookalike domain' },
             { ts: '2026-05-18 15:10:05', user: 'k.yamamoto', domain: 'outlook.office365.com',       ip: '52.96.111.12',    flag: '' },
             { ts: '2026-05-19 08:00:11', user: 'r.chen',     domain: 'sharepoint.crimson-dawn.net', ip: '10.0.1.20',       flag: '' },
             { ts: '2026-05-20 09:30:44', user: 'a.torres',   domain: 'teams.microsoft.com',         ip: '52.113.194.132',  flag: '' }
@@ -3105,7 +3004,7 @@ const PISFinalConfig = {
         ) : allEntries;
 
         if (entries.length === 0) {
-            return `<div class="siem-no-match">No DNS entries matched filter: <b>"${this._escHtml(filter)}"</b><br><span style="opacity:0.7; font-size:0.74rem;">Try a quick-filter chip above or clear the filter.</span></div>`;
+            return `<div class="siem-no-match">No DNS entries matched filter: <b>"${this._escHtml(filter)}"</b><br><span style="opacity:0.7; font-size:0.74rem;">Check the filter against your evidence, or clear it.</span></div>`;
         }
 
         const anomalyCount = entries.filter(e => e.flag).length;
@@ -3141,29 +3040,29 @@ const PISFinalConfig = {
 
     _siemAuthLog: function(filter) {
         const allEntries = [
-            { ts: '2026-05-14 07:30:12', user: 'e.morales', src: '10.0.4.18',      ws: 'WS-EMORALES-01', status: 'SUCCESS',  note: '' },
+            { ts: '2026-05-14 07:30:12', user: 'd.okafor', src: '10.0.4.18',      ws: 'WS-DOKAFOR-01', status: 'SUCCESS',  note: '' },
             { ts: '2026-05-14 08:15:40', user: 'r.chen',    src: '10.0.4.6',       ws: 'WS-RCHEN-01',    status: 'SUCCESS',  note: '' },
             { ts: '2026-05-15 06:30:08', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: Calendar offsite 2026-05-15 to 2026-05-22 | HR ticket #TR-2026-0418 | Prior London sessions: 4 (consistent pattern)' },
             { ts: '2026-05-15 07:44:22', user: 'k.yamamoto',src: '10.0.4.22',      ws: 'WS-KY-01',       status: 'SUCCESS',  note: '' },
             { ts: '2026-05-15 08:01:55', user: 'a.torres',  src: '10.0.4.30',      ws: 'WS-AT-01',       status: 'SUCCESS',  note: '' },
-            { ts: '2026-05-16 07:28:33', user: 'e.morales', src: '10.0.4.18',      ws: 'WS-EMORALES-01', status: 'SUCCESS',  note: '' },
+            { ts: '2026-05-16 07:28:33', user: 'd.okafor', src: '10.0.4.18',      ws: 'WS-DOKAFOR-01', status: 'SUCCESS',  note: '' },
             { ts: '2026-05-16 07:55:14', user: 'r.chen',    src: '10.0.4.6',       ws: 'WS-RCHEN-01',    status: 'SUCCESS',  note: '' },
-            { ts: '2026-05-16 06:28:05', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: same London VPN session -- see 2026-05-15 entry for full provenance' },
-            { ts: '2026-05-17 07:30:00', user: 'e.morales', src: '10.0.4.18',      ws: 'WS-EMORALES-01', status: 'SUCCESS',  note: '' },
+            { ts: '2026-05-16 06:28:05', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: same London VPN session; see 2026-05-15 entry for full provenance' },
+            { ts: '2026-05-17 07:30:00', user: 'd.okafor', src: '10.0.4.18',      ws: 'WS-DOKAFOR-01', status: 'SUCCESS',  note: '' },
             { ts: '2026-05-17 08:00:10', user: 'r.chen',    src: '10.0.4.6',       ws: 'WS-RCHEN-01',    status: 'SUCCESS',  note: '' },
             { ts: '2026-05-17 09:22:44', user: 'j.rivera',  src: '10.0.4.14',      ws: 'WS-JR-01',       status: 'SUCCESS',  note: '' },
             { ts: '2026-05-17 11:05:18', user: 'a.torres',  src: '10.0.4.30',      ws: 'WS-AT-01',       status: 'SUCCESS',  note: '' },
-            { ts: '2026-05-18 07:02:44', user: 'e.morales', src: '10.0.4.18',      ws: 'WS-EMORALES-01', status: 'SUCCESS',  note: '' },
+            { ts: '2026-05-18 07:02:44', user: 'd.okafor', src: '10.0.4.18',      ws: 'WS-DOKAFOR-01', status: 'SUCCESS',  note: '' },
             { ts: '2026-05-18 07:45:00', user: 'r.chen',    src: '10.0.4.6',       ws: 'WS-RCHEN-01',    status: 'SUCCESS',  note: '' },
             { ts: '2026-05-18 06:30:11', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: Calendar offsite 2026-05-15 to 2026-05-22 | HR ticket #TR-2026-0418 | Prior London sessions: 4 (consistent pattern)' },
-            { ts: '2026-05-18 09:14:03', user: 'e.morales', src: '10.0.4.18',      ws: 'WS-EMORALES-01', status: 'SUCCESS',  note: '' },
-            { ts: '2026-05-18 11:08:22', user: 'e.morales', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Foreign IP (AS43350 NForce NL) -- no calendar entry, no travel-approval ticket, no prior session from this IP or ASN' },
-            { ts: '2026-05-18 13:42:11', user: 'e.morales', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Same foreign IP -- attacker maintaining credential access post-compromise' },
-            { ts: '2026-05-18 15:00:44', user: 'e.morales', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Third consecutive session from foreign IP' },
-            { ts: '2026-05-19 06:35:22', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: London VPN -- continued from offsite travel (HR ticket #TR-2026-0418)' },
+            { ts: '2026-05-18 09:14:03', user: 'd.okafor', src: '10.0.4.18',      ws: 'WS-DOKAFOR-01', status: 'SUCCESS',  note: '' },
+            { ts: '2026-05-18 11:08:22', user: 'd.okafor', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Foreign IP (AS43350 NForce NL); no calendar entry, no travel-approval ticket, no prior session from this IP or ASN' },
+            { ts: '2026-05-18 13:42:11', user: 'd.okafor', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Same foreign IP; attacker maintaining credential access post-compromise' },
+            { ts: '2026-05-18 15:00:44', user: 'd.okafor', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Third consecutive session from foreign IP' },
+            { ts: '2026-05-19 06:35:22', user: 's.patel',   src: '51.140.83.42',   ws: 'VPN',            status: 'SUCCESS',  note: 'EXPLAINED ANOMALY: London VPN; continued from offsite travel (HR ticket #TR-2026-0418)' },
             { ts: '2026-05-19 07:11:00', user: 'r.chen',    src: '10.0.4.6',       ws: 'WS-RCHEN-01',    status: 'SUCCESS',  note: '' },
             { ts: '2026-05-19 07:30:00', user: 'k.yamamoto',src: '10.0.4.22',      ws: 'WS-KY-01',       status: 'SUCCESS',  note: '' },
-            { ts: '2026-05-19 08:00:12', user: 'e.morales', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Day 2 -- attacker still active after initial compromise' },
+            { ts: '2026-05-19 08:00:12', user: 'd.okafor', src: '185.220.101.45', ws: 'REMOTE',         status: 'SUCCESS',  note: 'UNEXPLAINED ANOMALY: Day 2; attacker still active after initial compromise' },
             { ts: '2026-05-20 07:05:18', user: 'j.rivera',  src: '10.0.4.14',      ws: 'WS-JR-01',       status: 'SUCCESS',  note: '' },
             { ts: '2026-05-20 07:30:00', user: 'a.torres',  src: '10.0.4.30',      ws: 'WS-AT-01',       status: 'SUCCESS',  note: '' }
         ];
@@ -3227,7 +3126,7 @@ const PISFinalConfig = {
             { ts: '2026-05-18 08:55:44', src: '10.0.4.18:51200',  dst: '8.8.8.8:53',          proto: 'UDP', bytes: '72',   action: 'ALLOW', note: '' },
             { ts: '2026-05-18 09:01:13', src: '10.0.4.6:52188',   dst: '10.0.0.1:80',          proto: 'TCP', bytes: '320',  action: 'ALLOW', note: '' },
             { ts: '2026-05-18 09:12:00', src: '10.0.4.18:51244',  dst: '8.8.8.8:53',          proto: 'UDP', bytes: '84',   action: 'ALLOW', note: 'DNS query: crimson-dawn-finance.net' },
-            { ts: '2026-05-18 09:12:33', src: '10.0.4.18:51248',  dst: '8.8.8.8:53',          proto: 'UDP', bytes: '86',   action: 'ALLOW', note: 'DNS query: emberwolf-c2.duckdns.org' },
+            { ts: '2026-05-18 09:12:33', src: '10.0.4.18:51248',  dst: '8.8.8.8:53',          proto: 'UDP', bytes: '86',   action: 'ALLOW', note: 'DNS query: emberwolf-c2.ddns.net' },
             { ts: '2026-05-18 09:13:01', src: '10.0.4.18:51302',  dst: '185.220.101.45:443',  proto: 'TCP', bytes: '4096', action: 'ALLOW', note: 'C2 HEARTBEAT -- Beacon connecting to attacker C2' },
             { ts: '2026-05-18 09:13:16', src: '10.0.4.18:51303',  dst: '185.220.101.45:443',  proto: 'TCP', bytes: '512',  action: 'ALLOW', note: 'C2 BEACON' },
             { ts: '2026-05-18 09:15:44', src: '10.0.4.6:52210',   dst: '10.0.1.5:8080',       proto: 'TCP', bytes: '1024', action: 'ALLOW', note: '' },
@@ -3316,7 +3215,7 @@ const PISFinalConfig = {
             return `<div class="pm-current pm-current-empty">
                 <div class="pm-current-icon">○</div>
                 <div class="pm-current-body">
-                    <div class="pm-current-h">No patches currently deployed on WS-EMORALES-01</div>
+                    <div class="pm-current-h">No patches currently deployed on WS-DOKAFOR-01</div>
                     <div class="pm-current-sub">Click <b>Deploy Update</b> on the correct CVE below. The exploited vulnerability was identified in Phase 2 hash analysis.</div>
                 </div>
             </div>`;
@@ -3338,7 +3237,7 @@ const PISFinalConfig = {
         return `<div class="pm-current ${cls}">
             <div class="pm-current-icon">${hasWrong ? '⚠' : '✓'}</div>
             <div class="pm-current-body">
-                <div class="pm-current-h">Currently applied on WS-EMORALES-01:</div>
+                <div class="pm-current-h">Currently applied on WS-DOKAFOR-01:</div>
                 <div class="pm-current-chips">${appliedChips}</div>
                 ${hasWrong ? '<div class="pm-current-sub">Wrong-target patches don\'t resolve this incident. Use the Undo button on the Recently Deployed row.</div>' : '<div class="pm-current-sub">Validate with a Rapid7 InsightVM scan to complete Phase 6.</div>'}
             </div>
@@ -3360,6 +3259,7 @@ const PISFinalConfig = {
             db.rapid7_scan_state.result === 'clean' &&
             db.mail_filter_state.active;
         if (!phaseComplete) return '';
+        const scanId = PISFinalConfig._escHtml(db.rapid7_scan_state.scan_id || '');
         // Self-contained reveal block (own styles inlined so it can be
         // injected into any tool's form-result area without depending on
         // the patch-shell CSS being in scope).
@@ -3389,25 +3289,24 @@ const PISFinalConfig = {
             <div class="p6-reveal-sub">All three sub-actions verified across the IR toolchain:</div>
             <div class="p6-reveal-checks">
                 &#10003; CVE-2022-30190 patched (KB5014699 deployed via Patch Management)<br>
-                &#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: S7K9P2)<br>
+                &#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: ${scanId})<br>
                 &#10003; Proofpoint mail filter rule active
             </div>
             <div class="p6-reveal-flag">
                 <div class="p6-reveal-flag-h">Phase 6 &mdash; Composite Flag</div>
-                <div class="p6-reveal-flag-v">REMED-OK-S7K9P2</div>
+                <div class="p6-reveal-flag-v">REMED-OK-${scanId}</div>
                 <div class="p6-reveal-flag-sub">Submit this as Flag 6</div>
                 <div class="p6-reveal-comp">
                     <b>How it's built:</b> <code>REMED-OK-&lt;scan-ID&gt;</code> &mdash; two parts concatenated:
                     <table>
                         <tr><td><code>REMED-OK-</code></td><td>fixed prefix &mdash; marks that all three Phase 6 actions verified (patch + scan + filter)</td></tr>
-                        <tr><td><code>S7K9P2</code></td><td>Rapid7 InsightVM scan ID &mdash; returned in the CLEAN scan result; proves the patch actually validated</td></tr>
+                        <tr><td><code>${scanId}</code></td><td>Rapid7 InsightVM scan ID: returned in the CLEAN scan result; proves the patch actually validated</td></tr>
                     </table>
                 </div>
             </div>
             <div class="p6-reveal-flag f7">
                 <div class="p6-reveal-flag-h">Phase 7 &mdash; Synthesis Flag</div>
-                <div class="p6-reveal-flag-v">A82A44DCA64FA463</div>
-                <div class="p6-reveal-flag-sub">Submit this as Flag 7 to complete the lab</div>
+                <div class="p6-reveal-flag-sub">Not shown here: compute it. Submit Flag 6 first, then run <code>phase</code> in the terminal for the synthesis command.</div>
             </div>
         </div>`;
     },
@@ -3500,37 +3399,35 @@ const PISFinalConfig = {
             ? 100
             : Math.round(((applied.length - (wrongPatchesStillApplied ? applied.filter(c => c !== 'CVE-2022-30190').length : 0)) / cves.length) * 100);
 
+        const scanId = PISFinalConfig._escHtml(db.rapid7_scan_state.scan_id || '');
         const compositeBlock = phaseComplete ? `
             <div class="pm-composite">
                 <div class="pm-comp-h">Containment + Remediation: COMPLETE</div>
                 <div class="pm-comp-sub">All three Phase 6 actions completed correctly:</div>
                 <div class="pm-comp-checks">
                     <div class="pm-comp-check">&#10003; CVE-2022-30190 patched (KB5014699 deployed)</div>
-                    <div class="pm-comp-check">&#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: S7K9P2)</div>
+                    <div class="pm-comp-check">&#10003; Rapid7 InsightVM scan: CLEAN (Scan ID: ${scanId})</div>
                     <div class="pm-comp-check">&#10003; Mail filter rule active (Proofpoint policy enforced)</div>
                 </div>
                 <div class="pm-comp-flag">
                     <div class="pm-comp-flag-h">Phase 6 &mdash; Composite Flag</div>
-                    <div class="pm-comp-flag-v">REMED-OK-S7K9P2</div>
+                    <div class="pm-comp-flag-v">REMED-OK-${scanId}</div>
                     <div class="pm-comp-flag-sub">Submit this as Flag 6</div>
                     <div class="pm-comp-flag-note">
                         <b>Composition:</b> <code>REMED-OK-&lt;scan-ID&gt;</code> &mdash; concatenated from two parts:
                         <table class="pm-comp-parts">
                             <tr><td><code>REMED-OK-</code></td><td>fixed prefix &mdash; marks that all three Phase 6 actions verified (patch + scan + filter)</td></tr>
-                            <tr><td><code>S7K9P2</code></td><td>Rapid7 InsightVM scan ID &mdash; returned in the CLEAN scan result; proves the patch worked. <span style="color:#6b7280;">See <a href="https://insightvm.crimson-dawn.net">insightvm.crimson-dawn.net</a>, &quot;Scan ID&quot; field on the CLEAN result card.</span></td></tr>
+                            <tr><td><code>${scanId}</code></td><td>Rapid7 InsightVM scan ID: returned in the CLEAN scan result; proves the patch worked. <span style="color:#6b7280;">See <a href="https://insightvm.crimson-dawn.net">insightvm.crimson-dawn.net</a>, &quot;Scan ID&quot; field on the CLEAN result card.</span></td></tr>
                         </table>
                         Without the scan ID, the prefix alone is incomplete &mdash; the lab requires evidence that the patch actually validated, not just that something was applied.
                     </div>
                 </div>
                 <div class="pm-comp-flag pm-comp-flag-7">
                     <div class="pm-comp-flag-h">Phase 7 &mdash; Synthesis Flag</div>
-                    <div class="pm-comp-flag-v">A82A44DCA64FA463</div>
-                    <div class="pm-comp-flag-sub">Submit this as Flag 7 to complete the lab</div>
+                    <div class="pm-comp-flag-sub">Not shown here: compute it. Submit Flag 6 first, then run <code>phase</code> in the terminal for the synthesis command.</div>
                     <div class="pm-comp-flag-note">
-                        Computed as <code>SHA256(flag1|flag2|flag3|flag4|flag5|flag6).hex().toUpperCase().substring(0,16)</code>.
-                        Because Flag 6 (REMED-OK-S7K9P2) is itself gated on the prior 5 flags being correct, reaching this
-                        point means the synthesis input is verified &mdash; the value above is deterministic. (See walkthrough
-                        Step 7.1 for the full formula and how to verify it in a real shell.)
+                        Flag 7 is <code>SHA256(flag1|flag2|flag3|flag4|flag5|flag6)</code>, first 16 hex characters, uppercase,
+                        where each flagN is the exact value you submitted. A wrong or missing value changes the hash.
                     </div>
                 </div>
             </div>` : '';
@@ -3593,7 +3490,22 @@ const PISFinalConfig = {
             ${compositeBlock}`;
     },
 
+    // Patch deployment and the Rapid7 scan both target the confirmed Patient Zero workstation, so
+    // they stay closed until Flag 5 is accepted; opening them earlier would name that workstation.
+    _remediationLocked: function(engine) {
+        var found = (engine && engine.state && engine.state.flagsFound) || [];
+        return found.indexOf('flag5') === -1;
+    },
+
+    _remediationLockedHtml: function(tool) {
+        return '<div style="max-width:640px; margin:60px auto; padding:22px 26px; border:1px solid #e5e7eb; border-radius:8px; font-family:\'Segoe UI\', system-ui, sans-serif; color:#374151; background:#f9fafb;">' +
+            '<div style="font-weight:700; font-size:1rem; margin-bottom:8px;">' + tool + ': no target selected</div>' +
+            '<div style="font-size:0.88rem; line-height:1.6;">Remediation is scoped to the confirmed Patient Zero workstation. Identify it and submit Flag 5, then reload this page.</div>' +
+            '</div>';
+    },
+
     _renderPatchDashboard: function(engine) {
+        if (PISFinalConfig._remediationLocked(engine)) return PISFinalConfig._remediationLockedHtml('Patch Management');
         return `
             <style>
               .pm-shell { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 1080px; margin: 18px auto; color: #1f2937; }
@@ -3718,9 +3630,9 @@ const PISFinalConfig = {
                         <div class="pm-brand-app">Endpoint Compliance &mdash; Software Updates</div>
                     </div>
                     <div class="pm-host-info">
-                        <div><b>WS-EMORALES-01</b></div>
+                        <div><b>WS-DOKAFOR-01</b></div>
                         <div>10.0.4.18 &middot; Windows 10 22H2 (19045.4291)</div>
-                        <div>User: <b>e.morales</b> &middot; Domain: CRIMSON-DAWN</div>
+                        <div>User: <b>d.okafor</b> &middot; Domain: CRIMSON-DAWN</div>
                     </div>
                 </div>
                 <div data-results>${this._renderPatchDashboardBody()}</div>
@@ -3728,6 +3640,7 @@ const PISFinalConfig = {
     },
 
     _handlePatchAction: function(data, engine) {
+        if (PISFinalConfig._remediationLocked(engine)) return PISFinalConfig._remediationLockedHtml('Patch Management');
         const db = PISFinalConfig._db;
         const cve = data.cve;
         const action = data.action;
@@ -3775,14 +3688,14 @@ const PISFinalConfig = {
                             <tr><td>CVE</td><td><code class="pm-deploy-cve">${cve}</code></td></tr>
                             <tr><td>Title</td><td>${info.title}</td></tr>
                             <tr><td>KB number</td><td><code class="pm-deploy-kb">${info.kb}</code></td></tr>
-                            <tr><td>Target host</td><td><code>WS-EMORALES-01</code> (10.0.4.18)</td></tr>
+                            <tr><td>Target host</td><td><code>WS-DOKAFOR-01</code> (10.0.4.18)</td></tr>
                             <tr><td>Status</td><td><span class="pm-deploy-pill ok">DEPLOYED &middot; PENDING REBOOT NOT REQUIRED</span></td></tr>
                             <tr><td>Applied</td><td>${now} UTC</td></tr>
                         </table>
                         <div class="pm-deploy-next">
                             <b>Next step:</b> Validate the patch with a Rapid7 InsightVM scan at
                             <a href="https://insightvm.crimson-dawn.net">insightvm.crimson-dawn.net</a>.
-                            The scan should now return CLEAN with scan ID S7K9P2.
+                            The scan should now return CLEAN; note the scan ID on the result card.
                         </div>
                     </div>
                 </div>`);
@@ -3798,7 +3711,7 @@ const PISFinalConfig = {
                         <tr><td>CVE deployed</td><td><code class="pm-deploy-cve warn">${cve}</code></td></tr>
                         <tr><td>Title</td><td>${info.title}</td></tr>
                         <tr><td>KB number</td><td><code class="pm-deploy-kb">${info.kb}</code></td></tr>
-                        <tr><td>Target host</td><td><code>WS-EMORALES-01</code> (10.0.4.18)</td></tr>
+                        <tr><td>Target host</td><td><code>WS-DOKAFOR-01</code> (10.0.4.18)</td></tr>
                         <tr><td>Status</td><td><span class="pm-deploy-pill warn">DEPLOYED &middot; INCIDENT-IRRELEVANT</span></td></tr>
                         <tr><td>Applied</td><td>${now} UTC</td></tr>
                     </table>
@@ -3834,7 +3747,7 @@ const PISFinalConfig = {
                         <table class="pm-deploy-table">
                             <tr><td>CVE reverted</td><td><code>${cve}</code></td></tr>
                             <tr><td>KB removed</td><td><code>${info.kb}</code></td></tr>
-                            <tr><td>Target host</td><td><code>WS-EMORALES-01</code></td></tr>
+                            <tr><td>Target host</td><td><code>WS-DOKAFOR-01</code></td></tr>
                             <tr><td>Status</td><td><span class="pm-deploy-pill undo">REVERTED &middot; CVE back on Outstanding list</span></td></tr>
                         </table>
                         <div class="pm-deploy-next">
@@ -3901,6 +3814,7 @@ const PISFinalConfig = {
     },
 
     _renderInsightVM: function(engine) {
+        if (PISFinalConfig._remediationLocked(engine)) return PISFinalConfig._remediationLockedHtml('Rapid7 InsightVM');
         const db = PISFinalConfig._db;
         const scanResult = db.rapid7_scan_state.result;
         const scanId = db.rapid7_scan_state.scan_id || '';
@@ -3917,12 +3831,12 @@ const PISFinalConfig = {
                     </div>
                     <div class="r7-result-scanid">
                         <div class="r7-result-scanid-k">Scan ID</div>
-                        <div class="r7-result-scanid-v">S7K9P2</div>
+                        <div class="r7-result-scanid-v">T3W6HN</div>
                     </div>
                 </div>
                 <div class="r7-result-body">
                     <table class="r7-result-table">
-                        <tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-EMORALES-01 (10.0.4.18)</td></tr>
+                        <tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-DOKAFOR-01 (10.0.4.18)</td></tr>
                         <tr><td class="r7-rt-k">Template</td><td class="r7-rt-v">Full audit, enhanced authenticated</td></tr>
                         <tr><td class="r7-rt-k">Scan engine</td><td class="r7-rt-v">SE-Crimson-01 (East-1)</td></tr>
                         <tr><td class="r7-rt-k">Started</td><td class="r7-rt-v">${new Date(Date.now() - 4*60*1000).toISOString().slice(0, 16).replace('T', ' ')} UTC</td></tr>
@@ -3938,7 +3852,7 @@ const PISFinalConfig = {
                             <span class="r7-remed-badge">Remediated</span>
                         </div>
                     </div>
-                    <div class="r7-result-next">Workstation WS-EMORALES-01 cleared. Proceed to the <a href="https://mailadmin.crimson-dawn.net">mail filter rule</a> step to close the attack vector.</div>
+                    <div class="r7-result-next">Workstation WS-DOKAFOR-01 cleared. Proceed to the <a href="https://mailadmin.crimson-dawn.net">mail filter rule</a> step to close the attack vector.</div>
                 </div>
             </div>`;
         } else if (scanResult === 'vulnerable') {
@@ -4077,7 +3991,7 @@ const PISFinalConfig = {
                         <div class="r7-asset-head">
                             <div class="r7-asset-icon">&#x2630;</div>
                             <div>
-                                <div class="r7-asset-name">WS-EMORALES-01</div>
+                                <div class="r7-asset-name">WS-DOKAFOR-01</div>
                                 <div class="r7-asset-meta">Asset Group: Accounts Payable &middot; Last assessed 2026-05-19</div>
                             </div>
                             <div class="r7-asset-agent">
@@ -4119,6 +4033,7 @@ const PISFinalConfig = {
     },
 
     _handleInsightVMScan: function(data, engine) {
+        if (PISFinalConfig._remediationLocked(engine)) return PISFinalConfig._remediationLockedHtml('Rapid7 InsightVM');
         const db = PISFinalConfig._db;
         const applied = db.patch_state.applied;
         const correctOnly = applied.includes('CVE-2022-30190') &&
@@ -4135,7 +4050,7 @@ const PISFinalConfig = {
                 ? '<div class="r7-risk-circle r7-risk-zero">0</div>'
                 : '<div class="r7-risk-circle r7-risk-crit">!</div>';
             var scanIdBlock = kind === 'clean'
-                ? '<div class="r7-result-scanid"><div class="r7-result-scanid-k">Scan ID</div><div class="r7-result-scanid-v">S7K9P2</div></div>'
+                ? '<div class="r7-result-scanid"><div class="r7-result-scanid-k">Scan ID</div><div class="r7-result-scanid-v">T3W6HN</div></div>'
                 : '';
             return '<div class="r7-result ' + cls + '" style="margin-top:14px;">' +
                 '<div class="r7-result-head">' + circle +
@@ -4155,12 +4070,12 @@ const PISFinalConfig = {
         if (correctOnly) {
             db.rapid7_scan_state.ran = true;
             db.rapid7_scan_state.result = 'clean';
-            db.rapid7_scan_state.scan_id = 'S7K9P2';
+            db.rapid7_scan_state.scan_id = 'T3W6HN';
             return emit('clean',
                 'No risk &mdash; Asset compliant',
                 'SCAN RESULT: CLEAN &middot; All previously detected vulnerabilities remediated',
                 '<table class="r7-result-table">' +
-                    '<tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-EMORALES-01 (10.0.4.18)</td></tr>' +
+                    '<tr><td class="r7-rt-k">Scan target</td><td class="r7-rt-v">WS-DOKAFOR-01 (10.0.4.18)</td></tr>' +
                     '<tr><td class="r7-rt-k">Template</td><td class="r7-rt-v">Full audit, enhanced authenticated</td></tr>' +
                     '<tr><td class="r7-rt-k">Scan engine</td><td class="r7-rt-v">SE-Crimson-01 (East-1)</td></tr>' +
                     '<tr><td class="r7-rt-k">Completed</td><td class="r7-rt-v">' + new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC</td></tr>' +
@@ -4175,7 +4090,7 @@ const PISFinalConfig = {
                         '<span class="r7-remed-badge">Remediated</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="r7-result-next">Workstation <b>WS-EMORALES-01</b> cleared. Proceed to mail filter step at <a href="https://mailadmin.crimson-dawn.net">mailadmin.crimson-dawn.net</a>.</div>'
+                '<div class="r7-result-next">Workstation <b>WS-DOKAFOR-01</b> cleared. Proceed to mail filter step at <a href="https://mailadmin.crimson-dawn.net">mailadmin.crimson-dawn.net</a>.</div>'
             ) + PISFinalConfig._phase6CompleteReveal();
         }
 
@@ -4360,14 +4275,6 @@ const PISFinalConfig = {
                     <div class="ma-form-card">
                         <div class="ma-form-h">${active ? 'Update Filter Rule' : 'Add Filter Rule'}</div>
                         <div class="ma-form-sub">Create an inbound mail filter to block the attacker pattern identified in <b>Phase 1 headers</b>. Quarantine action sends matches to the SOC for review while preserving evidence.</div>
-                        <div class="ma-ioc-card">
-                            <div class="ma-ioc-h">IOCs from Phase 1 (use these to scope the rule)</div>
-                            <div class="ma-ioc-row">
-                                Reply-To domain: <code>nakamura-suppliers-corp.com</code> (attacker lookalike)<br>
-                                Sender domain: <code>crimson-dawn-finance.net</code> (attacker front)<br>
-                                Source TLD: <code>.net</code> &nbsp;<span style="color:#9ca3af;">(too broad &mdash; would block 38% of legit vendor mail)</span>
-                            </div>
-                        </div>
                         <div class="ma-form-row">
                             <label class="ma-form-label">Filter type <span class="ma-form-hint">&mdash; what header field to match against</span></label>
                             <select data-field="filter_type" class="ma-input">
@@ -4381,7 +4288,7 @@ const PISFinalConfig = {
                         </div>
                         <div class="ma-form-row">
                             <label class="ma-form-label">Pattern value <span class="ma-form-hint">&mdash; exact string or wildcard</span></label>
-                            <input type="text" data-field="filter_value" class="ma-input" placeholder="e.g. nakamura-suppliers-corp.com">
+                            <input type="text" data-field="filter_value" class="ma-input" placeholder="e.g. a domain or Message-ID host">
                         </div>
                         <div class="ma-warn">
                             <b>Overly broad filters can block legitimate mail.</b> Recommended scope: the <i>narrowest pattern</i> that catches the attacker without collateral damage. The Proofpoint policy engine rejects rules that would quarantine more than 5% of historic legitimate traffic.
@@ -4426,7 +4333,7 @@ const PISFinalConfig = {
         if (type === 'sender_domain' && val === 'nakamura-supplies.com') {
             return '<div class="ma-result ma-result-rej">' +
                 '<div class="ma-result-h">Filter REJECTED &mdash; would block legitimate vendor</div>' +
-                '<div class="ma-result-sub"><code>nakamura-supplies.com</code> is the <b>legitimate vendor\'s real domain</b>. Filtering this would block all future legitimate invoices from this vendor.<br><br>The attacker used <code>nakamura-suppliers-corp.com</code> (subtle lookalike &mdash; note the trailing "s" + "-corp") in the <b>Reply-To header</b>, NOT in the From. Re-read the Phase 1 headers carefully.</div>' +
+                '<div class="ma-result-sub"><code>nakamura-supplies.com</code> is the <b>legitimate vendor\'s real domain</b>. Filtering this would block all future legitimate invoices from this vendor.<br><br>Re-read the Phase 1 headers carefully and scope the rule to an attacker-controlled field.</div>' +
             '</div>';
         }
 
@@ -4448,7 +4355,7 @@ const PISFinalConfig = {
         // Generic accepted-but-wrong-scope scopes
         return '<div class="ma-result ma-result-warn">' +
             '<div class="ma-result-h">Filter not accepted for this incident</div>' +
-            '<div class="ma-result-sub">Scope <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> does not precisely target the attack vector.<br><br>Re-read the Phase 1 headers: the attacker-controlled indicators are the <b>Reply-To domain</b> (<code>nakamura-suppliers-corp.com</code>), the <b>Message-ID host</b>, and the <b>Sender domain</b> (<code>crimson-dawn-finance.net</code>).</div>' +
+            '<div class="ma-result-sub">Scope <code>' + this._escHtml(type) + ' = ' + this._escHtml(data.filter_value) + '</code> does not precisely target the attack vector.<br><br>Re-read the Phase 1 headers and scope the rule to an attacker-controlled field.</div>' +
         '</div>';
     },
 
@@ -4539,7 +4446,6 @@ const PISFinalConfig = {
               .mc-shell .mc-body { font-size: 0.92rem; line-height: 1.75; color: #1f2937; padding: 8px 4px 18px; }
               .mc-shell .mc-body p { margin: 0 0 12px; }
               .mc-shell .mc-body a { color: #0078d4; text-decoration: underline; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.86rem; }
-              .mc-shell .mc-body a.mc-phish-link { color: #b91c1c; }
               .mc-shell .mc-body blockquote { border-left: 3px solid #d1d5db; padding: 4px 14px; margin: 10px 0; color: #4b5563; font-style: italic; }
               .mc-shell .mc-attach { padding: 12px 14px; background: #faf9f8; border: 1px solid #e5e7eb; border-radius: 4px; margin: 14px 0; display: flex; gap: 12px; align-items: center; }
               .mc-shell .mc-attach-glyph { width: 36px; height: 44px; background: #fff; border: 1px solid #d1d5db; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.74rem; font-weight: 700; color: #0078d4; flex-shrink: 0; }
@@ -4547,14 +4453,6 @@ const PISFinalConfig = {
               .mc-shell .mc-attach-meta { font-size: 0.72rem; color: #6b7280; margin-top: 2px; }
               .mc-shell .mc-attach a { color: inherit; text-decoration: none; }
               .mc-shell .mc-attach a:hover .mc-attach-name { text-decoration: underline; }
-              /* Analysis (training overlay) */
-              .mc-shell .mc-analysis { margin-top: 18px; padding: 14px 16px; border-radius: 4px; font-size: 0.82rem; line-height: 1.7; border-left: 4px solid; }
-              .mc-shell .mc-analysis-ok { background: #f0fdf4; border-color: #16a34a; color: #166534; }
-              .mc-shell .mc-analysis-warn { background: #fef2f2; border-color: #dc2626; color: #991b1b; }
-              .mc-shell .mc-analysis-h { font-weight: 800; margin-bottom: 6px; font-size: 0.86rem; }
-              .mc-shell .mc-analysis code { background: rgba(255,255,255,0.7); border: 1px solid currentColor; opacity: 0.92; padding: 1px 6px; border-radius: 3px; font-family: 'Cascadia Code', ui-monospace, monospace; font-size: 0.72rem; }
-              .mc-shell .mc-analysis ol, .mc-shell .mc-analysis ul { margin: 6px 0 0 18px; padding: 0; }
-              .mc-shell .mc-analysis li { padding: 2px 0; }
             </style>`;
     },
 
@@ -4569,7 +4467,7 @@ const PISFinalConfig = {
                 '<div class="mc-bar">' +
                     '<div class="mc-bar-app"><span class="mc-bar-app-glyph">O</span>Crimson Dawn &middot; Outlook on the web</div>' +
                     '<div class="mc-bar-search"></div>' +
-                    '<div class="mc-bar-user"><span>Elena Morales</span><span class="mc-bar-avatar">EM</span></div>' +
+                    '<div class="mc-bar-user"><span>Accounts Payable (shared)</span><span class="mc-bar-avatar">AP</span></div>' +
                 '</div>' +
                 '<div class="mc-grid">' +
                     '<div class="mc-sidebar">' +
@@ -5056,7 +4954,7 @@ const PISFinalConfig = {
               dateLine: 'Tue 5/18 9:30 AM', route: '/msg/5', tag: '', internal: true, hasAttach: true },
             { n: 9,  fromName: 'Slack Notifications', fromEmail: 'notification@slack.com',
               subject: 'r.chen mentioned you in #ap-team',
-              preview: '@e.morales — please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry...',
+              preview: '@d.okafor please verify the May vendor master is up to date by EOM. Want to make sure the Nakamura entry...',
               dateLine: 'Tue 5/18 9:45 AM', route: '/msg/12', tag: '' },
             { n: 10, fromName: 'Calendly Notifications', fromEmail: 'support@calendly.com',
               subject: 'Meeting confirmation: 2026-05-19 14:00',
@@ -5108,7 +5006,7 @@ const PISFinalConfig = {
                 '<div class="mc-list-meta">Showing <b>13</b> of 13 &middot; Forensically recovered (2026-05-16 → 2026-05-18, 48h window)</div>' +
             '</div>' +
             '<table class="mc-list"><tbody>' + listRows + '</tbody></table>' +
-            '<div class="mc-list-footer">13 messages &middot; click any message to view full headers and body. <b>Training overlay enabled</b> &mdash; each message shows an Analysis panel with the verdict + reasoning.</div>';
+            '<div class="mc-list-footer">13 messages &middot; click any message to view full headers and body.</div>';
 
         return this._mailChrome({ unreadCount: 13, activeFolder: 'inbox', content: content });
     },
@@ -5116,7 +5014,9 @@ const PISFinalConfig = {
     // Build a single message's OWA-style read-pane HTML.
     // msg: { subject, fromName, fromEmail, to, toName, date, dateLine,
     //        messageId, replyTo, auth: {spf, dkim, dmarc},
-    //        originIp, originIpNote, external, body, analysis: {kind, html} }
+    //        originIp, external, body }
+    // This is the graded final: the pane shows raw headers only. No verdict panel and no
+    // annotation of which header is suspicious; reading them is what Phase 1 assesses.
     _renderMessage: function(msg) {
         var initials = this._avatarInitials(msg.fromName || msg.fromEmail);
         var color = this._avatarColor(msg.fromEmail);
@@ -5132,30 +5032,6 @@ const PISFinalConfig = {
             return 'mc-warn';
         };
         var auth = msg.auth || { spf: 'pass', dkim: 'pass', dmarc: 'pass' };
-
-        // Reply-To mismatch detector
-        var fromDomain = (msg.fromEmail || '').split('@')[1] || '';
-        var replyDomain = (msg.replyTo || '').split('@')[1] || '';
-        var replyMismatch = msg.replyTo && fromDomain && replyDomain && fromDomain !== replyDomain;
-        var replyClass = replyMismatch ? 'mc-fail' : '';
-        var replyNote = replyMismatch ? '<span class="mc-note">&larr; mismatches From domain</span>' : '';
-
-        // Message-ID host
-        var msgIdHost = '';
-        var msgIdMatch = String(msg.messageId || '').match(/@([^>]+)/);
-        if (msgIdMatch) msgIdHost = msgIdMatch[1];
-        var msgIdMismatch = msgIdHost && fromDomain && msgIdHost !== fromDomain;
-        var msgIdClass = msgIdMismatch ? 'mc-fail' : '';
-        var msgIdNote = msgIdMismatch ? '<span class="mc-note">&larr; host does NOT match From domain</span>' : '';
-
-        // Origin IP note
-        var ipClass = msg.originIpClass || '';
-        var ipNote = msg.originIpNote ? '<span class="mc-note">' + msg.originIpNote + '</span>' : '';
-
-        var analysisCls = (msg.analysis && msg.analysis.kind === 'ok') ? 'mc-analysis-ok' : 'mc-analysis-warn';
-        var analysisH = (msg.analysis && msg.analysis.kind === 'ok')
-            ? 'Training overlay &mdash; Analysis (LEGITIMATE)'
-            : 'Training overlay &mdash; Analysis (SUSPICIOUS)';
 
         var content =
             '<div class="mc-read-back"><a href="https://mail.crimson-dawn.net/inbox">&larr; Inbox</a><span style="color:#9ca3af;">|</span><span style="color:#6b7280;">' + this._escHtml(msg.subject || '') + '</span></div>' +
@@ -5184,20 +5060,16 @@ const PISFinalConfig = {
                     '<div class="mc-hdr-row"><b>From:</b> ' + this._escHtml(msg.fromEmail || '') + '</div>' +
                     '<div class="mc-hdr-row"><b>To:</b> ' + this._escHtml(msg.to || 'accounts@crimson-dawn.net') + '</div>' +
                     '<div class="mc-hdr-row"><b>Date:</b> ' + this._escHtml(msg.date || '') + '</div>' +
-                    '<div class="mc-hdr-row"><b>Message-ID:</b> &lt;<span class="' + msgIdClass + '">' + this._escHtml(msg.messageId || '') + '</span>&gt; ' + msgIdNote + '</div>' +
-                    '<div class="mc-hdr-row"><b>Reply-To:</b> <span class="' + replyClass + '">' + this._escHtml(msg.replyTo || msg.fromEmail || '') + '</span> ' + replyNote + '</div>' +
+                    '<div class="mc-hdr-row"><b>Message-ID:</b> &lt;' + this._escHtml(msg.messageId || '') + '&gt;</div>' +
+                    '<div class="mc-hdr-row"><b>Reply-To:</b> ' + this._escHtml(msg.replyTo || msg.fromEmail || '') + '</div>' +
                     '<div class="mc-hdr-row"><b>Authentication-Results:</b> ' +
                         '<span class="' + authClass(auth.spf) + '">spf=' + auth.spf + '</span> ' +
                         '<span class="' + authClass(auth.dkim) + '">dkim=' + auth.dkim + '</span> ' +
                         '<span class="' + authClass(auth.dmarc) + '">dmarc=' + auth.dmarc + '</span>' +
                     '</div>' +
-                    '<div class="mc-hdr-row"><b>X-Originating-IP:</b> <span class="' + ipClass + '">' + this._escHtml(msg.originIp || '') + '</span> ' + ipNote + '</div>' +
+                    '<div class="mc-hdr-row"><b>X-Originating-IP:</b> ' + this._escHtml(msg.originIp || '') + '</div>' +
                 '</div>' +
                 '<div class="mc-body">' + (msg.body || '') + '</div>' +
-                '<div class="mc-analysis ' + analysisCls + '">' +
-                    '<div class="mc-analysis-h">' + analysisH + '</div>' +
-                    (msg.analysis ? msg.analysis.html : '') +
-                '</div>' +
             '</div>';
 
         return this._mailChrome({ unreadCount: 5, activeFolder: 'inbox', content: content });
@@ -5290,57 +5162,50 @@ const PISFinalConfig = {
     flags: [
         {
             id: 'flag1',
-            value: '<F1F2A4E8.20260518123045@crimson-dawn-finance.net>',
             label: 'Phase 1 -- Inbox Triage: Real Phishing Email Identified',
-            description: 'The Message-ID of the real phishing email (Message 4). Message-ID host is crimson-dawn-finance.net, not the claimed sender nakamura-supplies.com. Angle brackets are part of the canonical Message-ID per RFC 5322 §3.6.4.',
+            description: 'The Message-ID header of the real phishing email, angle brackets included (RFC 5322 section 3.6.4).',
             points: 200,
             autoCheck: false
         },
         {
             id: 'flag2',
-            value: 'COBALT_STRIKE:CVE-2022-30190',
             label: 'Phase 2 -- Payload ID: Malware Family + CVE',
-            description: 'The malware family (Cobalt Strike Beacon, normalized to COBALT_STRIKE) combined with the exploited CVE (CVE-2022-30190, Follina). Colon-separated.',
+            description: 'Malware family and exploited CVE from the hash analysis, colon-separated, in the format the hash analyzer result specifies.',
             points: 200,
             autoCheck: false
         },
         {
             id: 'flag3',
-            value: 'emberwolf-c2.duckdns.org',
             label: 'Phase 3 -- DNS + PKI Forensics: Attacker C2 Domain',
-            description: 'The canonical attacker C2 domain extracted from the TLS certificate Subject Alternative Name list on the lookalike domain. DuckDNS dynamic DNS used for C2.',
+            description: 'The attacker C2 domain, taken from the Subject Alternative Name list of the TLS certificate on the lookalike domain.',
             points: 250,
             autoCheck: false
         },
         {
             id: 'flag4',
-            value: 'EMBERWOLF:RU',
             label: 'Phase 4 -- Attribution: APT Name + Country ISO Code',
-            description: 'EMBERWOLF APT (4/4 TTP match) with RU (Russia) actor origin. NL is VPS provider jurisdiction, not actor origin. Geo enrichment from HexIntel behavioral + infrastructure analysis.',
+            description: 'Threat actor name and the actor-origin country as a two-letter ISO 3166-1 code, colon-separated.',
             points: 200,
             autoCheck: false
         },
         {
             id: 'flag5',
-            value: 'e.morales',
             label: 'Phase 5 -- SIEM Correlation: Patient Zero Username',
-            description: 'e.morales is Patient Zero. Only user with both lookalike AND C2 DNS queries (C2 query = malware beacon). Their foreign-IP auth logins are unexplained (no calendar, no HR ticket, no prior sessions from that ASN).',
+            description: 'Username of Patient Zero, as it appears in the SIEM logs.',
             points: 200,
             autoCheck: false
         },
         {
             id: 'flag6',
-            value: 'REMED-OK-S7K9P2',
             label: 'Phase 6 -- Contain + Remediate: Composite Remediation Flag',
-            description: 'Composite flag revealed when all 3 Phase 6 actions are correct: CVE-2022-30190 patched, Rapid7 scan clean (scan ID S7K9P2), valid mail filter rule active.',
+            description: 'Composite remediation flag, shown once all three Phase 6 actions are verified (patch, clean scan, mail filter).',
             points: 250,
             autoCheck: false
         },
         {
             id: 'flag7',
-            value: 'A82A44DCA64FA463',
             label: 'Phase 7 -- Synthesis: SHA256-derived Final Flag',
-            description: 'SHA256(flag1|flag2|flag3|flag4|flag5|flag6) -- first 16 chars uppercase. Gated on all prior flags being correct; any wrong value in the concatenation changes the hash.',
+            description: 'SHA256 over the six prior flag values joined by | in order, first 16 hex characters, uppercase.',
             points: 250,
             autoCheck: false
         }
@@ -5435,12 +5300,12 @@ const PISFinalConfig = {
 
         'dig': function(args, term, engine) {
             const target = (args[0] || '').toLowerCase().trim();
-            if (!target) return 'Usage: dig <domain>\nExample: dig crimson-dawn-finance.net\n\nKnown domains in this investigation:\n  crimson-dawn-finance.net       (lookalike -- attacker)\n  nakamura-suppliers-corp.com    (attacker Reply-To domain)\n  nakamura-supplies.com          (LEGIT vendor)\n  emberwolf-c2.duckdns.org       (attacker C2)\n  crimson-dawn.net               (legit corp)';
+            if (!target) return 'Usage: dig <domain>\nExample: dig <domain-from-your-evidence>';
 
             const records = {
                 'crimson-dawn-finance.net':     { ip: '104.21.45.122', ttl: 300,  note: '; Cloudflare edge' },
                 'nakamura-suppliers-corp.com':  { ip: '185.220.101.45', ttl: 60,  note: '; NForce NL -- same IP as C2 (operational sloppiness: attacker reused C2 server for both lookalike infra)' },
-                'emberwolf-c2.duckdns.org':     { ip: '185.220.101.45', ttl: 60,  note: '; NForce NL bulletproof hosting' },
+                'emberwolf-c2.ddns.net':     { ip: '185.220.101.45', ttl: 60,  note: '; NForce NL bulletproof hosting' },
                 'nakamura-supplies.com':        { ip: '52.44.22.11',    ttl: 3600, note: '; AWS us-east-1 (legit corporate hosting)' },
                 'crimson-dawn.net':             { ip: '34.102.136.180', ttl: 300,  note: '; Google Cloud (legit corp)' },
                 'mail.crimson-dawn.net':        { ip: '10.0.1.5',       ttl: 300,  note: '; internal mail server' }
@@ -5488,7 +5353,7 @@ const PISFinalConfig = {
                 // Nancy round 3 PAUSE fix: tighten host matching to exact-domain only.
                 // Previous loose prefix match (host.includes(h.split('.')[0])) caused
                 // crimson-dawn.net (legit corp) to trigger the attacker cert output.
-                const attackerHosts = ['crimson-dawn-finance.net', 'nakamura-suppliers-corp.com', 'emberwolf-c2.duckdns.org', 'cd-paymentportal.net', 'vendor-update-2026.com'];
+                const attackerHosts = ['crimson-dawn-finance.net', 'nakamura-suppliers-corp.com', 'emberwolf-c2.ddns.net', 'cd-paymentportal.net', 'vendor-update-2026.com'];
                 const legitHosts = ['crimson-dawn.net', 'nakamura-supplies.com', 'mail.crimson-dawn.net'];
 
                 if (attackerHosts.includes(host)) {
@@ -5504,7 +5369,7 @@ const PISFinalConfig = {
                     return `CONNECTED(00000003)\ndepth=2 C = US, O = DigiCert Inc, CN = DigiCert Global Root CA\ndepth=1 C = US, O = DigiCert Inc, CN = DigiCert SHA2 Secure Server CA\ndepth=0 CN = ${host}\n---\nCertificate chain\n 0 s:CN = ${host}\n   i:C = US, O = DigiCert Inc, CN = DigiCert SHA2 Secure Server CA\n---\n[Certificate is for the legitimate corporate domain. Not the attacker infrastructure.]\nSSL handshake has read 3850 bytes and written 712 bytes\nVerification: OK\n---\nNote: This is a legitimate cert. The attacker infrastructure is at crimson-dawn-finance.net (the lookalike).`;
                 }
 
-                return `openssl s_client: connection to ${target} -- host not in scenario scope or not reachable.\nTry: openssl s_client -connect crimson-dawn-finance.net:443 -showcerts`;
+                return `openssl s_client: connection to ${target} -- host not in scenario scope or not reachable.\nUsage: openssl s_client -connect <host>:443 -showcerts`;
             }
 
             if (sub === 'x509') {
@@ -5518,7 +5383,7 @@ const PISFinalConfig = {
                         return `unable to load certificate\n0123:error:0906D06C:PEM routines:PEM_read_bio:no start line:pem_lib.c:701:Expecting: TRUSTED CERTIFICATE\n\nNo certificate data primed. First run:\n  openssl s_client -connect <host>:443 -showcerts\nthen re-run:\n  openssl x509 -noout -text\n(Two separate commands -- simulator does not support shell pipes.)`;
                     }
                     // Only attacker hosts' certs reveal the multi-SAN list.
-                    return `Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number: 03:c4:a2:8a:19:f5:c4:4c:7f:92:a3:bb:11:22:33:44\n    Signature Algorithm: sha256WithRSAEncryption\n        Issuer: C=US, O=Let's Encrypt, CN=R3\n        Validity\n            Not Before: May 15 00:00:00 2026 GMT\n            Not After : Aug 13 23:59:59 2026 GMT\n        Subject: CN=crimson-dawn-finance.net\n        X509v3 extensions:\n            X509v3 Subject Alternative Name:\n                DNS:crimson-dawn-finance.net, DNS:nakamura-suppliers-corp.com, DNS:emberwolf-c2.duckdns.org, DNS:cd-paymentportal.net, DNS:vendor-update-2026.com\n\n*** SAN LIST EXTRACTED ***\nFive domains -- the attacker's full infrastructure:\n  1. crimson-dawn-finance.net       (the lookalike -- receives replies)\n  2. nakamura-suppliers-corp.com    (second attacker domain -- Reply-To)\n  3. emberwolf-c2.duckdns.org       (C2 callback -- DuckDNS dynamic DNS)\n  4. cd-paymentportal.net           (payment redirect domain)\n  5. vendor-update-2026.com         (additional phishing domain)\n\nThe C2 naming convention "emberwolf-c2.*" is the actor signature.\nDig the C2 domain to confirm it resolves to the same X-Originating-IP as Phase 1.`;
+                    return `Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number: 03:c4:a2:8a:19:f5:c4:4c:7f:92:a3:bb:11:22:33:44\n    Signature Algorithm: sha256WithRSAEncryption\n        Issuer: C=US, O=Let's Encrypt, CN=R3\n        Validity\n            Not Before: May 15 00:00:00 2026 GMT\n            Not After : Aug 13 23:59:59 2026 GMT\n        Subject: CN=crimson-dawn-finance.net\n        X509v3 extensions:\n            X509v3 Subject Alternative Name:\n                DNS:crimson-dawn-finance.net, DNS:nakamura-suppliers-corp.com, DNS:emberwolf-c2.ddns.net, DNS:cd-paymentportal.net, DNS:vendor-update-2026.com\n\n*** SAN LIST EXTRACTED ***\nFive domains, the attacker's full infrastructure:\n  1. crimson-dawn-finance.net       (the lookalike, receives replies)\n  2. nakamura-suppliers-corp.com    (second attacker domain, Reply-To)\n  3. emberwolf-c2.ddns.net       (C2 callback, No-IP dynamic DNS)\n  4. cd-paymentportal.net           (payment redirect domain)\n  5. vendor-update-2026.com         (additional phishing domain)\n\nThe C2 naming convention "emberwolf-c2.*" is the actor signature.\nDig the C2 domain to confirm it resolves to the same X-Originating-IP as Phase 1.`;
                 }
                 return 'Usage: openssl x509 -noout -text\n(pipe input from: openssl s_client -connect <host>:443 -showcerts)';
             }
@@ -5546,7 +5411,7 @@ const PISFinalConfig = {
                 return stdinHash + '  -';
             }
 
-            if (args.length === 0) return 'Usage: sha256sum <file>\nExample: sha256sum /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx\n\nFiles in /home/ir-lead/downloads/ will be hashed.\nDownload attachments from webmail first.\n\nAlso supported: stdin via pipe — `echo "string" | sha256sum`';
+            if (args.length === 0) return 'Usage: sha256sum <file>\nExample: sha256sum /home/ir-lead/downloads/<file>\n\nFiles in /home/ir-lead/downloads/ will be hashed.\nDownload attachments from webmail first.\n\nAlso supported: stdin via pipe — `echo "string" | sha256sum`';
 
             const filePath = args[0];
             const filename = filePath.split('/').pop();
@@ -5557,7 +5422,7 @@ const PISFinalConfig = {
             if (fs) {
                 const downloads = fs['/'].children.home.children['ir-lead'].children.downloads.children;
                 if (!downloads[filename]) {
-                    return `sha256sum: ${filePath}: No such file or directory\nDownload the file from webmail first:\n  Open Firefox -> https://mail.crimson-dawn.net/msg/4 -> click the attachment`;
+                    return `sha256sum: ${filePath}: No such file or directory\nDownload the file from webmail first:\n  Open the message in Outlook -> click the attachment -> Download`;
                 }
             }
 
@@ -5573,13 +5438,13 @@ const PISFinalConfig = {
                 }
             }
 
-            return `sha256sum: ${filePath}: file recognized but hash not in local database.\nExpected files: Nakamura-Q1-2026-CORRECTED.docx, budget-Q1-final.xlsx`;
+            return `sha256sum: ${filePath}: file recognized but hash not in local database.\nHash an attachment you downloaded from webmail.`;
         },
 
         // ─── file <file> ────────────────────────────────────────
 
         'file': function(args, term, engine) {
-            if (args.length === 0) return 'Usage: file <path>\nExample: file /home/ir-lead/downloads/Nakamura-Q1-2026-CORRECTED.docx';
+            if (args.length === 0) return 'Usage: file <path>\nExample: file /home/ir-lead/downloads/<file>';
 
             const filePath = args[0];
             const filename = filePath.split('/').pop();
@@ -5625,9 +5490,9 @@ const PISFinalConfig = {
 
             lines.push('');
             lines.push('Phase 2 -- Payload ID: ' + (f2 ? 'COMPLETE' : (f1 ? 'INCOMPLETE' : 'LOCKED (submit Flag 1 first)')));
-            lines.push('  ' + (f2 ? '[OK]' : '[ ]') + ' Download Nakamura-Q1-2026-CORRECTED.docx from webmail');
+            lines.push('  ' + (f2 ? '[OK]' : '[ ]') + ' Download the phishing email\'s attachment from webmail');
             lines.push('  ' + (f2 ? '[OK]' : '[ ]') + ' sha256sum the file, look up hash at vt-mirror.crimson-intel.net');
-            lines.push('  ' + (f2 ? '[OK]' : '[ ]') + ' Submit malware-family:CVE in format COBALT_STRIKE:CVE-2022-30190');
+            lines.push('  ' + (f2 ? '[OK]' : '[ ]') + ' Submit FAMILY:CVE-ID (format rules are on the hash analyzer result)');
 
             lines.push('');
             lines.push('Phase 3 -- DNS + PKI Forensics: ' + (f3 ? 'COMPLETE' : (f2 ? 'INCOMPLETE' : 'LOCKED (submit Flag 2 first)')));
@@ -5638,8 +5503,8 @@ const PISFinalConfig = {
             lines.push('');
             lines.push('Phase 4 -- Attribution + Geo: ' + (f4 ? 'COMPLETE' : (f3 ? 'INCOMPLETE' : 'LOCKED (submit Flag 3 first)')));
             lines.push('  ' + (f4 ? '[OK]' : '[ ]') + ' Search intel.crimson-intel.net with C2 domain or malware family');
-            lines.push('  ' + (f4 ? '[OK]' : '[ ]') + ' Look up 185.220.101.45 at ipgeo.crimson-intel.net');
-            lines.push('  ' + (f4 ? '[OK]' : '[ ]') + ' Submit APT-NAME:COUNTRY (e.g. EMBERWOLF:RU)');
+            lines.push('  ' + (f4 ? '[OK]' : '[ ]') + ' Look up the attacker IP at ipgeo.crimson-intel.net');
+            lines.push('  ' + (f4 ? '[OK]' : '[ ]') + ' Submit APT-NAME:CC (CC = two-letter ISO 3166-1 code of the actor origin)');
 
             lines.push('');
             lines.push('Phase 5 -- SIEM Correlation: ' + (f5 ? 'COMPLETE' : (f4 ? 'INCOMPLETE' : 'LOCKED (submit Flag 4 first)')));
@@ -5656,8 +5521,8 @@ const PISFinalConfig = {
                 return parts.length > 0 ? 'INCOMPLETE (still needed: ' + parts.join(', ') + ')' : 'READY -- check patch.crimson-dawn.net';
             })() : 'LOCKED (submit Flag 5 first)');
             lines.push('Phase 6 -- Contain + Remediate: ' + p6status);
-            lines.push('  ' + (db.patch_state.applied.includes('CVE-2022-30190') ? '[OK]' : '[ ]') + ' patch.crimson-dawn.net -- apply CVE-2022-30190 (Follina)');
-            lines.push('  ' + (db.rapid7_scan_state.result === 'clean' ? '[OK]' : '[ ]') + ' insightvm.crimson-dawn.net -- run scan, confirm CLEAN + scan ID S7K9P2');
+            lines.push('  ' + (db.patch_state.applied.includes('CVE-2022-30190') ? '[OK]' : '[ ]') + ' patch.crimson-dawn.net: deploy the patch for the CVE you identified in Phase 2');
+            lines.push('  ' + (db.rapid7_scan_state.result === 'clean' ? '[OK]' : '[ ]') + ' insightvm.crimson-dawn.net: run a scan, confirm CLEAN and note the scan ID');
             lines.push('  ' + (db.mail_filter_state.active ? '[OK]' : '[ ]') + ' mailadmin.crimson-dawn.net -- add narrowly-scoped mail filter');
             if (!f6) lines.push('  Composite flag revealed on patch.crimson-dawn.net when all 3 complete.');
 

@@ -2,7 +2,7 @@
    PIS-L04: Injection Vector
    Principles of Information Security -- CTF Lab
    SQL injection analysis, exfiltration tracing, remediation
-   SY0-701: 2.3, 2.4
+   SY0-701: 2.4, 4.1, 4.9
    ============================================================ */
 
 const PISL04Config = {
@@ -157,11 +157,11 @@ const PISL04Config = {
                             children: {
                                 'app.py': {
                                     type: 'file',
-                                    content: '#!/usr/bin/env python3\n# Hexworth Containment Web Interface\n# WARNING: VULNERABLE -- search_specimens() concatenates user input\n\nimport sqlite3\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\nDB_PATH = \'/var/lib/containment/containment.db\'\n\n@app.route(\'/search\')\ndef search_specimens():\n    query = request.args.get(\'q\', \'\')\n    conn = sqlite3.connect(DB_PATH)\n    cursor = conn.cursor()\n    sql = "SELECT specimen_id, status FROM specimens WHERE specimen_id = \'" + query + "\'"\n    cursor.execute(sql)\n    results = cursor.fetchall()\n    conn.close()\n    return jsonify(results)\n\nif __name__ == \'__main__\':\n    app.run(host=\'0.0.0.0\', port=5000)\n'
+                                    content: '#!/usr/bin/env python3\n# Hexworth Containment Web Interface\n# WARNING: VULNERABLE, search_specimens() concatenates user input\n\nimport sqlite3\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\nDB_PATH = \'/var/lib/containment/containment.db\'\n\n@app.route(\'/search\')\ndef search_specimens():\n    query = request.args.get(\'q\', \'\')\n    conn = sqlite3.connect(DB_PATH)\n    cursor = conn.cursor()\n    sql = "SELECT specimen_id, name, status FROM specimens WHERE specimen_id = \'" + query + "\'"\n    cursor.execute(sql)\n    results = cursor.fetchall()\n    conn.close()\n    return jsonify(results)\n\nif __name__ == \'__main__\':\n    app.run(host=\'0.0.0.0\', port=5000)\n'
                                 },
                                 'app_patched.py': {
                                     type: 'file',
-                                    content: '#!/usr/bin/env python3\n# Hexworth Containment Web Interface -- PATCHED\n# Fix: parameterized query, user input never embedded in SQL string\n\nimport sqlite3\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\nDB_PATH = \'/var/lib/containment/containment.db\'\n\n@app.route(\'/search\')\ndef search_specimens():\n    query = request.args.get(\'q\', \'\')\n    conn = sqlite3.connect(DB_PATH)\n    cursor = conn.cursor()\n    sql = "SELECT specimen_id, status FROM specimens WHERE specimen_id = ?"\n    cursor.execute(sql, (query,))\n    results = cursor.fetchall()\n    conn.close()\n    return jsonify(results)\n\nif __name__ == \'__main__\':\n    app.run(host=\'0.0.0.0\', port=5000)\n'
+                                    content: '#!/usr/bin/env python3\n# Hexworth Containment Web Interface (PATCHED)\n# Fix: parameterized query, user input never embedded in SQL string\n\nimport sqlite3\nfrom flask import Flask, request, jsonify\n\napp = Flask(__name__)\nDB_PATH = \'/var/lib/containment/containment.db\'\n\n@app.route(\'/search\')\ndef search_specimens():\n    query = request.args.get(\'q\', \'\')\n    conn = sqlite3.connect(DB_PATH)\n    cursor = conn.cursor()\n    sql = "SELECT specimen_id, name, status FROM specimens WHERE specimen_id = ?"\n    cursor.execute(sql, (query,))\n    results = cursor.fetchall()\n    conn.close()\n    return jsonify(results)\n\nif __name__ == \'__main__\':\n    app.run(host=\'0.0.0.0\', port=5000)\n'
                                 }
                             }
                         }
@@ -194,7 +194,7 @@ const PISL04Config = {
         // logs -- display the access log
         'logs': function(args, term, engine) {
             const logContent = term.fs['/'].children.var.children.log.children['containment-web'].children['access.log'].content;
-            return 'CONTAINMENT-WEB ACCESS LOG -- 2026-04-09\n' + '='.repeat(60) + '\n' + logContent + '\nEntries: 9 total | Sessions: a1b2c3, x9y8z7, p4q5r6\nUse: analyze <log-number> for decoded entry analysis\nUse: trace <session-id> to follow a session\n\nLog entries numbered LOG-001 through LOG-009 (left to right order)';
+            return 'CONTAINMENT-WEB ACCESS LOG: 2026-04-09\n' + '='.repeat(60) + '\n' + logContent + '\nEntries: 9 total | Sessions: a1b2c3, x9y8z7, p4q5r6\nUse: analyze <log-number> for decoded entry analysis\nUse: trace <session-id> to follow a session\n\nLog entries numbered LOG-001 through LOG-009 (top to bottom order)';
         },
 
         // analyze <log-entry> -- parse and explain a specific log entry
@@ -330,7 +330,7 @@ const PISL04Config = {
                 return 'Nothing to verify. No patch has been applied yet.\nRun: patch parameterized-queries';
             }
 
-            return 'PATCH VERIFICATION\n' + '='.repeat(40) + '\nTesting injection payloads against patched endpoint...\n\nTest 1: q=\'\n  Result: 200 OK -- literal search for specimen named "\'\"\n  SQL generated: SELECT ... WHERE specimen_id = \'?\'\n  Injection attempt: NEUTRALIZED\n\nTest 2: q=\' OR \'1\'=\'1\n  Result: 200 OK -- 0 results (no specimen with that literal ID)\n  Injection attempt: NEUTRALIZED\n\nTest 3: q=\' UNION SELECT username,password_hash FROM access_table--\n  Result: 200 OK -- 0 results\n  Injection attempt: NEUTRALIZED\n\nAll three attack payloads returned no data and caused no errors.\nParameterized queries prevent SQL injection at the structural level.\n\nContainment database: SECURED\nIncident status: RESOLVED';
+            return 'PATCH VERIFICATION\n' + '='.repeat(40) + '\nTesting injection payloads against patched endpoint...\n\nTest 1: q=\'\n  Result: 200 OK, literal search for a specimen whose ID is the single quote character\n  SQL sent:   SELECT ... WHERE specimen_id = ?\n  Bound value: \' (passed to the driver separately, never parsed as SQL)\n  Injection attempt: NEUTRALIZED\n\nTest 2: q=\' OR \'1\'=\'1\n  Result: 200 OK, 0 results (no specimen with that literal ID)\n  Injection attempt: NEUTRALIZED\n\nTest 3: q=\' UNION SELECT username,password_hash,clearance_code FROM access_table--\n  Result: 200 OK, 0 results\n  Injection attempt: NEUTRALIZED\n\nAll three attack payloads returned no data and caused no errors.\nParameterized queries prevent SQL injection at the structural level.\n\nContainment database: SECURED\nIncident status: RESOLVED';
         },
 
         // help -- command reference
@@ -416,9 +416,9 @@ const PISL04Config = {
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'Identifying SQL injection from HTTP access logs: single-quote probe, OR 1=1 pattern, UNION SELECT exfiltration' },
-            { flagId: 'flag2', objective: '2.3', description: 'Explain different types of vulnerabilities', skill: 'Tracing data exfiltration through session analysis and response size anomalies' },
-            { flagId: 'flag3', objective: '2.4', description: 'Analyze indicators of malicious activity', skill: 'Applying correct SQL injection remediation: parameterized queries vs. inadequate alternatives' }
+            { flagId: 'flag1', objective: '2.4', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Identifying SQL injection from HTTP access logs: single-quote probe, OR 1=1 pattern, UNION SELECT exfiltration' },
+            { flagId: 'flag2', objective: '4.9', description: 'Given a scenario, use data sources to support an investigation', skill: 'Tracing data exfiltration through session analysis and response size anomalies' },
+            { flagId: 'flag3', objective: '4.1', description: 'Given a scenario, apply common security techniques to computing resources', skill: 'Applying correct SQL injection remediation: parameterized queries vs. inadequate alternatives' }
         ]
     },
 
@@ -439,3 +439,65 @@ const PISL04Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL04Config !== 'undefined') PISL04Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL04Config, ['_state'], function (cfg, found) {
+    var s = cfg._state;
+    if (found.indexOf('flag1') >= 0) s.attackTypeIdentified = true;
+    if (found.indexOf('flag2') >= 0) s.sessionTraced = true;
+    if (found.indexOf('flag3') >= 0) s.patched = true;
+});

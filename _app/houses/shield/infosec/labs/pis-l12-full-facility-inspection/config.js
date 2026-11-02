@@ -492,9 +492,9 @@ const PISL12Config = {
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '3.2', description: 'Apply infrastructure security best practices', skill: 'Network architecture audit: VLAN segmentation review, firewall rule analysis, change management controls' },
-            { flagId: 'flag2', objective: '5.4', description: 'Summarize elements of effective security governance', skill: 'Access control and cryptographic audit: MFA coverage gaps, expired certificates, privilege review' },
-            { flagId: 'flag3', objective: '4.3', description: 'Explain the processes associated with third-party risk assessment and management', skill: 'IR readiness assessment: backup verification, forensic capabilities, detection metrics, policy currency' },
+            { flagId: 'flag1', objective: '3.2', description: 'Given a scenario, apply security principles to secure enterprise infrastructure', skill: 'Network architecture audit: VLAN segmentation review, firewall rule analysis, change management controls' },
+            { flagId: 'flag2', objective: '4.6', description: 'Given a scenario, implement and maintain identity and access management', skill: 'Access control and cryptographic audit: MFA coverage gaps, expired certificates, privilege review' },
+            { flagId: 'flag3', objective: '4.8', description: 'Explain appropriate incident response activities', skill: 'IR readiness assessment: backup verification, forensic capabilities, detection metrics, policy currency' },
             { flagId: 'flag4', objective: '5.2', description: 'Explain elements of the risk management process', skill: 'Audit decision-making: evidence-based certification decisions, risk acceptance, and compliance reporting' }
         ]
     },
@@ -518,3 +518,60 @@ const PISL12Config = {
 
 // Auto-reset state on script load (BOX-006 backfill 2026-05-23)
 if (typeof PISL12Config !== 'undefined') PISL12Config.resetState();
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL12Config, ['_state'], null);

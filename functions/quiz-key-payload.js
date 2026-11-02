@@ -60,7 +60,7 @@ const admin = require('firebase-admin');
 
 /** Fields the registry owns and both writers therefore control. */
 const REGISTRY_OWNED = ['answers', 'passingScore', 'questionCount', 'note',
-    'explanations', 'revealToAll', 'reviewAfterFails', 'poolSize'];
+    'explanations', 'revealToAll', 'reviewAfterFails', 'poolSize', 'fullSubmitOnly'];
 
 /**
  * Build the Firestore payload for one registry entry.
@@ -90,6 +90,11 @@ function buildPayload(entry, { serverTimestamp = true } = {}) {
         // Unconditional: tells gradeQuiz to reveal the correct answer to every student, not
         // just passers. A stray `true` left on a live doc would otherwise leak answers.
         revealToAll: entry.revealToAll === true,
+
+        // Unconditional: gradeQuiz refuses per-question (partial) checks on this key. Set on a
+        // graded exam whose page submits once, so the unlogged partial path cannot be used to
+        // probe its key. Written false when absent so the registry stays authoritative.
+        fullSubmitOnly: entry.fullSubmitOnly === true,
 
         // Opt-in reveal after N failed attempts. Conditional -- same exception.
         ...(Number.isInteger(entry.reviewAfterFails)

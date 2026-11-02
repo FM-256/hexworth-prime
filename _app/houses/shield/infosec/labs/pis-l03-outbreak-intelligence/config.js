@@ -2,7 +2,7 @@
    PIS-L03: Outbreak Intelligence
    Principles of Information Security -- CTF Lab
    OSINT threat profiling: CVE, MITRE ATT&CK, containment
-   SY0-701: 2.2, 2.5
+   SY0-701: 2.5, 4.3
    ============================================================ */
 
 const PISL03Config = {
@@ -308,7 +308,7 @@ REFERENCES
 
         // profile -- display accumulated threat profile.
         // Awards flag1 the first time profile reaches COMPLETE state — this is
-        // the synthesis checkpoint the lab teaches (per SY0-701 2.2).
+        // the synthesis checkpoint the lab teaches (per SY0-701 4.3).
         'profile': function(args, term, engine) {
             const p = engine.config._profileData;
             const lines = [
@@ -463,9 +463,78 @@ REFERENCES
     certObjectives: {
         certPath: 'CompTIA Security+ SY0-701',
         mappings: [
-            { flagId: 'flag1', objective: '4.3', description: 'Given a scenario, analyze indicators of malicious activity', skill: 'Scenario-driven OSINT correlation: query CVE database, look up MITRE ATT&CK techniques, pull threat intelligence feed, and synthesize into a coherent threat profile' },
+            { flagId: 'flag1', objective: '4.3', description: 'Explain various activities associated with vulnerability management', skill: 'Scenario-driven OSINT correlation: query CVE database, look up MITRE ATT&CK techniques, pull threat intelligence feed, and synthesize into a coherent threat profile' },
             { flagId: 'flag2', objective: '2.5', description: 'Explain the purpose of mitigation techniques used to secure the enterprise', skill: 'Translating ATT&CK technique mappings into actionable containment and inoculation recommendations' }
         ]
     }
 
 };
+
+
+/* Reload safety (2026-11-02). BoxEngine saves and restores engine.state (localStorage), never
+   this config object. Progress kept only on the config was lost on a reload while the earned
+   flags survived, so a finished step could lock the next one. Every command now runs between
+   bind() and store():
+     bind():  on the first command after a page load, adopt the progress saved in
+              engine.state._pisProgress, then set each _flagNAwarded that
+              engine.state.flagsFound (persisted by BoxEngine) already holds. A save made
+              before this block existed has no _pisProgress; legacy() then rebuilds only
+              the progress that an earned flag proves.
+     store(): copy the progress keys into engine.state._pisProgress and save (solo mode).
+   No gate changed: with no earned flag and no saved progress, a locked step stays locked. */
+(function (cfg, keys, legacy) {
+    function bind(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        if (cfg._pisBoundState !== st) {
+            var first = !cfg._pisBoundState;
+            cfg._pisBoundState = st;
+            var saved = st._pisProgress;
+            if (first && saved && typeof saved === 'object') {
+                keys.forEach(function (k) {
+                    var v = saved[k];
+                    if (v && typeof v === 'object') {
+                        cfg[k] = Array.isArray(v) ? v.slice() : Object.assign({}, cfg[k], v);
+                    }
+                });
+            } else if (first && legacy) {
+                legacy(cfg, st.flagsFound || []);
+            }
+        }
+        (st.flagsFound || []).forEach(function (id) {
+            if (('_' + id + 'Awarded') in cfg) cfg['_' + id + 'Awarded'] = true;
+        });
+    }
+    function store(engine) {
+        var st = engine && engine.state;
+        if (!st) return;
+        var p = {};
+        keys.forEach(function (k) { p[k] = cfg[k]; });
+        st._pisProgress = p;
+        if (!engine._coOpMode && typeof engine.save === 'function') engine.save();
+    }
+    Object.keys(cfg.commands).forEach(function (cmd) {
+        var run = cfg.commands[cmd];
+        cfg.commands[cmd] = function (args, term, engine) {
+            bind(engine);
+            var out = run.apply(this, arguments);
+            if (out && typeof out.then === 'function') {
+                return out.then(function (r) { store(engine); return r; });
+            }
+            store(engine);
+            return out;
+        };
+    });
+})(PISL03Config, ['_profileData'], function (cfg, found) {
+    // Flag 1 proves the CVE query and threat feed were done (technique ids are not recoverable).
+    var p = cfg._profileData;
+    if (found.indexOf('flag1') >= 0) {
+        p.cveId = 'CVE-2024-3094';
+        p.cvssScore = '10.0';
+        p.attackVector = 'Network';
+        p.affectedSystems = 'XZ Utils 5.6.0-5.6.1 (liblzma), systemd-integrated Linux systems';
+        p.threatFeedPulled = true;
+        p.profileFinalized = true;
+    }
+    if (found.indexOf('flag2') >= 0) p.recommendationFiled = true;
+});
