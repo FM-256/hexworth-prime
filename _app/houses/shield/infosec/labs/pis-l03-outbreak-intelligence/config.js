@@ -398,7 +398,6 @@ REFERENCES
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l03-outbreak-intelligence_flag1_threat_profile_compl}',
             label: 'Threat Profile Complete',
             description: 'Queried CVE-2024-3094, mapped at least 2 ATT&CK techniques, pulled threat feed.',
             points: 250,
@@ -406,7 +405,6 @@ REFERENCES
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l03-outbreak-intelligence_flag2_containment_recommen}',
             label: 'Containment Recommendation Filed',
             description: 'Filed a complete containment recommendation based on ATT&CK technique mitigations.',
             points: 250,
