@@ -161,7 +161,7 @@ const PISL06Config = {
                                 'specimen-7718-profile.txt': {
                                     type: 'file',
                                     // This file has been tampered -- hash will not match reference
-                                    content: '[TAMPERED]\nSpecimen ID: SPX-7718\nClass: Rootkit\n\n-- UNAUTHORIZED MODIFICATION --\nTransfer destination changed from BSL-4 to BSL-1 [TAMPERED]\nAuthorization codes modified [TAMPERED]\nClearance level downgraded to BSL-1 [TAMPERED]\n\nOriginal entry:\nSpecimen ID: SPX-7718 | Class: Advanced Rootkit | BSL-4 | Auth: TA-2026-0409-7718\n\nSHA-256-ACTUAL: f1d2e3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2\n'
+                                    content: 'Specimen ID: SPX-7718\nClass: Rootkit\nContainment level: BSL-1\nTransfer destination: BSL-1\nAuthorization: TA-2026-0409-7718\nSHA-256: f1d2e3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2\n'
                                 },
                                 'incident-report-0408.pdf': {
                                     type: 'file',
@@ -432,7 +432,6 @@ const PISL06Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l06-vault-seal-operations_flag1_specimen_encrypted_w}',
             label: 'Specimen Encrypted with AES-256',
             description: 'Successfully encrypted specimen-7719.dat using AES-256-CBC and the vault key.',
             points: 250,
@@ -440,7 +439,6 @@ const PISL06Config = {
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l06-vault-seal-operations_flag2_intercepted_comms_de}',
             label: 'Intercepted Comms Decrypted',
             description: 'Successfully decrypted intercepted-comms.enc using the RSA private key.',
             points: 250,
@@ -448,7 +446,6 @@ const PISL06Config = {
         },
         {
             id: 'flag3',
-            value: 'FLAG{pis-l06-vault-seal-operations_flag3_tampered_file_identi}',
             label: 'Tampered File Identified',
             description: 'Identified the tampered manifest file using SHA-256 hash comparison.',
             points: 250,
