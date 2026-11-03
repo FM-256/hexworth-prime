@@ -62,9 +62,14 @@ const CHECKS = [
         config: 'PISL02Config',
         url: '/houses/shield/infosec/labs/pis-l02-human-vector-drill/index.html',
         assertions: [
+            // The 2026-05 bug was a sample with no technique argument. Since 2026-11-02 the
+            // sample must show a placeholder there, never a real technique (that is an answer).
             { type: 'toolkit-sample-includes', toolkitName: 'flag',
-              needle: 'phishing',
-              label: 'L02 toolkit flag sample includes technique arg' }
+              needle: '<technique>',
+              label: 'L02 toolkit flag sample includes technique arg' },
+            { type: 'toolkit-sample-excludes', toolkitName: 'flag',
+              needles: ['phishing', 'vishing', 'pretexting', 'baiting'],
+              label: 'L02 toolkit flag sample names no real technique' }
         ]
     },
     {
@@ -318,6 +323,17 @@ async function runOne(browser, check) {
                 }, check.config, a.toolkitName);
                 pass = typeof sample === 'string' && sample.includes(a.needle);
                 detail = pass ? `sample="${sample}"` : `BAD SAMPLE: "${sample}" missing "${a.needle}"`;
+            }
+            else if (a.type === 'toolkit-sample-excludes') {
+                const sample = await page.evaluate((cfgName, toolkitName) => {
+                    const cfg = eval(cfgName);
+                    const tk = (cfg.lore && cfg.lore.toolkit) || [];
+                    const entry = tk.find(t => t.name === toolkitName);
+                    return entry ? entry.sample : null;
+                }, check.config, a.toolkitName);
+                const hit = typeof sample === 'string' ? a.needles.filter(n => sample.toLowerCase().includes(n)) : null;
+                pass = Array.isArray(hit) && hit.length === 0;
+                detail = pass ? `sample="${sample}"` : `BAD SAMPLE: "${sample}" names ${hit ? hit.join(', ') : 'nothing (no sample)'}`;
             }
             else if (a.type === 'absent-cmd') {
                 const output = await page.evaluate((cfgName, cmd, args) => {
