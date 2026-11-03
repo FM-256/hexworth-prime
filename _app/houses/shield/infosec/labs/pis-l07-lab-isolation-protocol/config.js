@@ -62,8 +62,8 @@ const PISL07Config = {
         toolkit: [
             { name: "network-map", purpose: "Show current network topology, VLAN assignments, lab status", sample: "network-map" },
             { name: "vlan", purpose: "Create or modify VLAN definitions", sample: "vlan create 30 lab-3-quarantine" },
-            { name: "acl", purpose: "Add ACL rules to control traffic between VLANs", sample: "acl add deny vlan-30 to vlan-10" },
-            { name: "firewall-rule", purpose: "Add edge firewall rules that enforce inter-segment policy", sample: "firewall-rule deny src=vlan-30 dst=vlan-10" },
+            { name: "acl", purpose: "Add ACL rules to control traffic between VLANs", sample: "acl add <NAME> <permit|deny> <src-subnet> <dst-subnet|any>" },
+            { name: "firewall-rule", purpose: "Add edge firewall rules that enforce inter-segment policy", sample: "firewall-rule <allow|deny|drop> <src-subnet> <dst-subnet|any>" },
             { name: "show", purpose: "Inspect current VLAN, ACL, or firewall state", sample: "show acls" },
             { name: "verify-isolation", purpose: "Confirm compromised segments cannot reach clean ones", sample: "verify-isolation" },
             { name: "verify-operations", purpose: "Confirm clean segments retain inter-lab + admin connectivity", sample: "verify-operations" },
@@ -165,6 +165,17 @@ const PISL07Config = {
     // Required VLANs that must be created (IDs)
     _requiredVlans: [10, 20, 30, 40, 50, 60, 100],
 
+    // Flag 1 needs the VLANs plus at least one ACL or firewall rule that names a real lab or admin
+    // segment, so a placeholder rule copied from the usage text (documentation ranges) does not
+    // count as segmentation. The match is deliberately as loose as verify-isolation's substring
+    // check, so any rule that can satisfy verify-isolation also satisfies flag 1 and no student
+    // ends up with flags 2 and 3 but not flag 1.
+    _hasLabRule: function(state) {
+        var lab = /10\.0\.(?:[1-6]|100)|vlan-?(?:10|20|30|40|50|60|100)|lab-?[1-6]|admin/i;
+        var rules = (state.acls || []).concat(state.firewallRules || []);
+        return rules.some(function(r) { return lab.test(String(r.src || '')) || lab.test(String(r.dst || '')); });
+    },
+
     _flag1Awarded: false,
     _flag2Awarded: false,
     _flag3Awarded: false,
@@ -223,7 +234,7 @@ const PISL07Config = {
             let output = `VLAN ${id} created successfully.\n  Name:   ${name}\n  Subnet: ${subnet}\n  Status: Active on CORE-SW-01\n\nVLANs configured: ${count}/7`;
 
             // Award flag1 when all 7 VLANs are created AND at least one ACL exists
-            if (count >= 7 && engine.config._state.acls.length > 0 && !engine.config._flag1Awarded) {
+            if (count >= 7 && engine.config._hasLabRule(engine.config._state) && !engine.config._flag1Awarded) {
                 engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[SEGMENTATION MILESTONE] All VLANs created with ACL rules. Network segmented. Flag unlocked.';
@@ -238,7 +249,7 @@ const PISL07Config = {
         'acl': function(args, term, engine) {
             const sub = args[0];
             if (sub !== 'add') {
-                return 'Usage: acl add <name> <action> <src> <dst>\nActions: permit, deny\nExample: acl add QUARANTINE-LAB3 deny 10.0.3.0/24 10.0.1.0/24';
+                return 'Usage: acl add <name> <action> <src> <dst>\nActions: permit, deny\nExample: acl add EXAMPLE-RULE deny 192.0.2.0/24 198.51.100.0/24';
             }
 
             const name   = args[1];
@@ -247,7 +258,7 @@ const PISL07Config = {
             const dst    = args[4];
 
             if (!name || !action || !src || !dst) {
-                return 'Usage: acl add <name> <action> <src> <dst>\nExample: acl add BLOCK-LAB3-TO-CLEAN deny 10.0.3.0/24 any';
+                return 'Usage: acl add <name> <action> <src> <dst>\nExample: acl add EXAMPLE-RULE deny 192.0.2.0/24 any';
             }
 
             if (action !== 'permit' && action !== 'deny') {
@@ -259,7 +270,7 @@ const PISL07Config = {
             let output = `ACL entry added:\n  Name:   ${name}\n  Action: ${action.toUpperCase()}\n  Source: ${src}\n  Dest:   ${dst}\n  Applied to: CORE-SW-01 and FW-PERIMETER-01\n\nTotal ACL entries: ${engine.config._state.acls.length}`;
 
             // Check flag1: all VLANs created + at least some ACLs present
-            if (Object.keys(engine.config._state.vlans).length >= 7 && engine.config._state.acls.length >= 1 && !engine.config._flag1Awarded) {
+            if (Object.keys(engine.config._state.vlans).length >= 7 && engine.config._hasLabRule(engine.config._state) && !engine.config._flag1Awarded) {
                 engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[SEGMENTATION MILESTONE] Network segmented with VLANs and ACL rules. Flag unlocked.';
@@ -275,7 +286,7 @@ const PISL07Config = {
             const dst    = args[2];
 
             if (!action || !src || !dst) {
-                return 'Usage: firewall-rule <action> <src> <dst>\nActions: allow, deny, drop\nExample: firewall-rule deny 10.0.3.0/24 10.0.1.0/24\nExample: firewall-rule allow 10.0.100.0/24 any';
+                return 'Usage: firewall-rule <action> <src> <dst>\nActions: allow, deny, drop\nExample: firewall-rule deny 192.0.2.0/24 198.51.100.0/24\nExample: firewall-rule allow 203.0.113.0/24 any';
             }
 
             if (!['allow', 'deny', 'drop'].includes(action)) {
@@ -287,7 +298,7 @@ const PISL07Config = {
             let output = `Firewall rule added:\n  Action: ${action.toUpperCase()}\n  Source: ${src}\n  Dest:   ${dst}\n  Status: Pushed to FW-PERIMETER-01\n\nTotal firewall rules: ${engine.config._state.firewallRules.length}`;
 
             // Check flag1 trigger here too
-            if (Object.keys(engine.config._state.vlans).length >= 7 && engine.config._state.acls.length >= 1 && !engine.config._flag1Awarded) {
+            if (Object.keys(engine.config._state.vlans).length >= 7 && engine.config._hasLabRule(engine.config._state) && !engine.config._flag1Awarded) {
                 engine.config._flag1Awarded = true;
                 engine.awardFlag('flag1');
                 output += '\n\n[SEGMENTATION MILESTONE] Network segmented with VLANs and ACL rules. Flag unlocked.';
@@ -344,7 +355,7 @@ const PISL07Config = {
             // Requires at least 7 VLANs and deny rules for lab3/lab4 subnets
             const vlanReady = Object.keys(engine.config._state.vlans).length >= 7;
             const hasQuarantineRules = engine.config._state.acls.some(r =>
-                r.action === 'deny' && (r.src.includes('10.0.3') || r.src.includes('10.0.4') || r.src.includes('vlan30') || r.src.includes('vlan40') || r.src.toLowerCase().includes('lab3') || r.src.toLowerCase().includes('lab4'))
+                r.action === 'deny' && /10\.0\.[34]|vlan-?[34]0|lab-?[34]/i.test(r.src)
             ) || engine.config._state.firewallRules.some(r =>
                 (r.action === 'deny' || r.action === 'drop') && (r.src.includes('10.0.3') || r.src.includes('10.0.4'))
             );
@@ -354,7 +365,7 @@ const PISL07Config = {
             }
 
             if (!hasQuarantineRules) {
-                return 'ISOLATION VERIFICATION -- FAILED\n' + '='.repeat(40) + '\nPre-check failed: No deny ACL rules found for Lab 3 or Lab 4 subnets.\n\nYou must add ACL entries blocking 10.0.3.0/24 and 10.0.4.0/24 from reaching clean labs.\nExample: acl add BLOCK-LAB3 deny 10.0.3.0/24 10.0.1.0/24\nSee ~/notes.txt for full ACL requirements.';
+                return 'ISOLATION VERIFICATION -- FAILED\n' + '='.repeat(40) + '\nPre-check failed: No deny ACL rules found for Lab 3 or Lab 4 subnets.\n\nYou must add ACL entries blocking 10.0.3.0/24 and 10.0.4.0/24 from reaching clean labs.\nSee ~/notes.txt for full ACL requirements.';
             }
 
             // Passed -- simulate verification traffic
@@ -383,7 +394,7 @@ const PISL07Config = {
                 engine.config._state.acls.some(r => r.action === 'deny' && (r.src.includes('10.0.3') || r.src.includes('10.0.4')));
 
             if (!hasPermitRules) {
-                return 'OPERATIONS VERIFICATION -- INCOMPLETE\nNo permit rules or deny-only rules found.\nEnsure clean lab communication is either explicitly permitted\nor that your ACLs only deny the quarantined subnets.\n\nExample (implicit allow): only block 10.0.3.0/24 and 10.0.4.0/24\nExample (explicit): acl add PERMIT-CLEAN-LABS permit 10.0.1.0/24 10.0.2.0/24';
+                return 'OPERATIONS VERIFICATION -- INCOMPLETE\nNo permit rules or deny-only rules found.\nEnsure clean lab communication is either explicitly permitted\nor that your ACLs only deny the quarantined subnets.\n\nEither permit clean-lab traffic explicitly (acl add <NAME> permit <src-subnet> <dst-subnet>)\nor keep your deny rules limited to the quarantined subnets.';
             }
 
             engine.config._state.operationsVerified = true;
@@ -412,7 +423,6 @@ const PISL07Config = {
     flags: [
         {
             id: 'flag1',
-            value: 'FLAG{pis-l07-lab-isolation-protocol_flag1_network_segmented}',
             label: 'Network Segmented',
             description: 'Created all 7 VLANs and added ACL rules to enforce isolation.',
             points: 250,
@@ -420,7 +430,6 @@ const PISL07Config = {
         },
         {
             id: 'flag2',
-            value: 'FLAG{pis-l07-lab-isolation-protocol_flag2_isolation_verified}',
             label: 'Isolation Verified',
             description: 'Confirmed compromised labs (3 and 4) cannot reach clean lab segments.',
             points: 250,
@@ -428,7 +437,6 @@ const PISL07Config = {
         },
         {
             id: 'flag3',
-            value: 'FLAG{pis-l07-lab-isolation-protocol_flag3_operations_maintaine}',
             label: 'Operations Maintained',
             description: 'Confirmed clean labs retain full inter-lab communication.',
             points: 250,
