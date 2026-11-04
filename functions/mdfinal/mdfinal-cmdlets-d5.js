@@ -139,14 +139,40 @@
         P['get-process'] = function (state, a) {
             PC.ledger(state, 'get-process', '');
             var n = arg(a, ['name'], 0);
-            var rows = SYS.sys(state).processes.filter(function (p) { return n === undefined || M.like(p.name, String(n).replace(/\.exe$/i, ''), M.budget()).match; })
-                .map(function (p, i) { return { ProcessName: p.name, Id: 1000 + i * 4, CPU: p.cpu, WorkingSet: p.wsMB * 1048576, WS_MB: p.wsMB }; });
+            /* the Id is the process's place in the whole list, so it is stable under a name filter
+             * and Stop-Process -Id finds the same process (Mallory R4 F4) */
+            var rows = SYS.sys(state).processes.map(function (p, i) { return { p: p, id: 1000 + i * 4 }; })
+                .filter(function (x) { return n === undefined || M.like(x.p.name, String(n).replace(/\.exe$/i, ''), M.budget()).match; })
+                .map(function (x) { return { ProcessName: x.p.name, Id: x.id, CPU: x.p.cpu, WorkingSet: x.p.wsMB * 1048576, WS_MB: x.p.wsMB }; });
             if (n !== undefined && !rows.length) { return 'Get-Process : Cannot find a process with the name "' + String(n).slice(0, 40) + '".'; }
             return objs(rows, ['ProcessName', 'Id', 'CPU', 'WorkingSet', 'WS_MB'], ['ProcessName', 'Id', 'CPU', 'WS_MB']);
         };
-        Mu['stop-process'] = function (state, a) { var r = SYS.endProcess(state, arg(a, ['name'], 0)); return r.ok ? '' : 'Stop-Process : ' + r.msg; };
+        /* The process at an Id as Get-Process numbers them (Mallory R4 F4), or null. */
+        function procNameById(state, id) {
+            var n = Number(id);
+            if (!(n >= 1000) || (n - 1000) % 4 !== 0) { return null; }
+            var p = SYS.sys(state).processes[(n - 1000) / 4];
+            return p ? p.name : null;
+        }
+        Mu['stop-process'] = function (state, a) {
+            var id = arg(a, ['id']), pos = arg(a, ['name'], 0);
+            if (id === undefined && pos !== undefined && /^[0-9]+$/.test(String(pos))) { id = pos; pos = undefined; }
+            if (id !== undefined) {
+                var byId = procNameById(state, id);
+                if (!byId) { return 'Stop-Process : Cannot find a process with the process identifier ' + String(id).slice(0, 12) + '.'; }
+                pos = byId;
+            }
+            var r = SYS.endProcess(state, pos); return r.ok ? '' : 'Stop-Process : ' + r.msg;
+        };
         L['taskkill'] = function (state, t) {
-            var i = t.map(function (x) { return x.toLowerCase(); }).indexOf('/im');
+            var low = t.map(function (x) { return x.toLowerCase(); });
+            var pid = low.indexOf('/pid');
+            if (pid >= 0 && t[pid + 1]) {
+                var nm = procNameById(state, t[pid + 1]);
+                if (!nm) { return 'ERROR: The process "' + t[pid + 1].slice(0, 12) + '" not found.'; }
+                var rr = SYS.endProcess(state, nm); return rr.ok ? 'SUCCESS: The process with PID ' + t[pid + 1].slice(0, 12) + ' has been terminated.' : 'ERROR: ' + rr.msg;
+            }
+            var i = low.indexOf('/im');
             if (i < 0 || !t[i + 1]) { return 'ERROR: Invalid syntax. Type "TASKKILL /?" for usage.'; }
             var r = SYS.endProcess(state, t[i + 1]); return r.ok ? r.msg : 'ERROR: The process "' + t[i + 1].slice(0, 40) + '" not found.';
         };
@@ -229,6 +255,10 @@
 
         /* ═══ Event log ═══ */
         function events(state, log, n) {
+            /* only a real log counts as an Event Viewer diagnosis (Mallory R4 F1) */
+            if (['system', 'application', 'security', 'setup'].indexOf(String(log || '').toLowerCase()) < 0) {
+                return 'Get-WinEvent : There is not an event log on the localhost computer that matches "' + String(log || '').slice(0, 40) + '".';
+            }
             PC.ledger(state, 'eventvwr', '');
             var rows = SYS.sys(state).eventlog.filter(function (e) { return e.log.toLowerCase() === String(log || '').toLowerCase(); }).slice(-n).reverse();
             return objs(rows.map(function (e) { return { TimeCreated: '11/19/2026', Id: e.id, LevelDisplayName: e.level, ProviderName: e.source, Message: e.msg }; }),

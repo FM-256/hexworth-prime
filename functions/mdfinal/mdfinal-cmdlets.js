@@ -65,7 +65,12 @@
                 /* '_' is the positional list's own slot; a parameter can never take it (Mallory N1). */
                 if (name === '_' || name.indexOf('_:') === 0) { continue; }
                 var colon = name.indexOf(':');
-                if (colon > 0) { a[name.slice(0, colon)] = t.slice(colon + 2); continue; }
+                if (colon > 0) {
+                    var key = name.slice(0, colon), val = t.slice(colon + 2);
+                    /* -Switch:$false means the switch is off, so it is absent (Mallory R4 F3) */
+                    if (SWITCHES.indexOf(key) >= 0 && bool(val) === false) { continue; }
+                    a[key] = val; continue;
+                }
                 var next = tokens[i + 1];
                 if (SWITCHES.indexOf(name) >= 0) { a[name] = true; continue; }
                 if (next !== undefined && !(next.length > 1 && next[0] === '-' && isNaN(Number(next)))) { a[name] = next; i++; }
@@ -712,11 +717,15 @@
                 if (budget.spent) { return { out: LIMIT_MSG }; }
             }
             if (typeof pv === 'string') { return { out: pv }; }
-            return { out: CONSUMERS[lastCmd](state, pv.kind === 'objects' ? pv.rows : [], args(stages[stages.length - 1])) };
+            var ca = args(stages[stages.length - 1]);
+            if (has(ca, 'whatif')) { return { out: (pv.kind === 'objects' ? pv.rows : []).map(function (row) { return whatIf(stages[stages.length - 1][0], { _: [row.Name || row.PackageFullName || row.DisplayName || ''] }); }).join('\n') }; }
+            return { out: CONSUMERS[lastCmd](state, pv.kind === 'objects' ? pv.rows : [], ca) };
         }
         var legacy = Object.prototype.hasOwnProperty.call(LEGACY, cmd) ? LEGACY[cmd] : extra && Object.prototype.hasOwnProperty.call(extra, cmd) ? extra[cmd] : null;
         if (legacy || Object.prototype.hasOwnProperty.call(MUTATORS, cmd)) {
             if (stages.length > 1) { return { out: DENY_MSG }; }
+            /* -WhatIf previews and changes nothing (Mallory R4 F2: a preview removed a keep-list app) */
+            if (!legacy && has(args(first), 'whatif')) { return { out: whatIf(first[0], args(first)) }; }
             var r = legacy ? legacy(state, first, ctx || {}) : MUTATORS[cmd](state, args(first), ctx || {});
             return typeof r === 'string' ? { out: r } : r;
         }
@@ -732,6 +741,12 @@
             if (budget.spent) { return { out: LIMIT_MSG }; }
         }
         return { out: render(v) };
+    }
+
+    /* What PowerShell prints for -WhatIf: the operation and its target, and nothing happens. */
+    function whatIf(cmd, a) {
+        var target = a.name || a.packagename || a.package || a.path || a.identity || (a._ && a._[0]) || '';
+        return 'What if: Performing the operation "' + String(cmd).slice(0, 40) + '" on target "' + String(target).slice(0, 120) + '".';
     }
 
     /* Every drive letter on any disk (for the New-Partition | Format-Volume pipeline). */

@@ -1128,3 +1128,14 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - `6.2-ah-auto` stays equivalent only while there is no "automatically adjust active hours" control. A page that adds one needs a fixture.
    - `fa-v3-procend-ok` stays equivalent only while the task and the Run value are V3's only persistence points.
 9. **Accepted as is:** lowercase `server=`/`port=` MSI properties score (more lenient than Windows); V2 has no partial rung (one artefact); a diagnosis-only P8 earns I1/I2 without a repair (by design, diagnosis is graded).
+
+### 13.18 D7 R4 outcomes (2026-11-04): Mallory PASS, Low findings fixed
+
+1. **`-WhatIf`** previews and changes nothing, for a mutator and for a pipeline consumer; before, a preview could remove a keep-list app. **`-Switch:$false`** turns a switch off.
+2. **Process Ids are stable:** each Id is the process's place in the whole list, so it is the same under a name filter. `Stop-Process -Id N`, `Stop-Process N` and `taskkill /PID N` end the process that Id names.
+3. **Event Viewer diagnosis:** only a query of a real log (System, Application, Security, Setup) counts toward the I1/I2 diagnostic gate.
+4. **OPEN, operator decision (Mallory R4 F1):** row 8.2's I1 and I2 can still be earned by a guess plus one trivial diagnostic, at most 4 points. The variant is guessable from the ticket, and most I2 values are the same for every student of a variant (a classmate can pass them on).
+   - **Option a:** accept it; diagnosis is graded as recall plus one look.
+   - **Option b:** credit I2 only when the student's ledger shows the route that displays the value they answered (for example, Event Viewer for an event ID, `pnputil` for the inf name).
+   - **Option c:** add a per-sitting value as the only accepted form.
+   Behaviour until decided: (a).

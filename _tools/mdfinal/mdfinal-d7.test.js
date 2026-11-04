@@ -149,4 +149,30 @@ const CLIENT = kit.req('mdfinal-client.js');
     t.check(/ConvertTo-SecureString is not available/.test(rules) && /New-LocalUser prompts/.test(rules) && /net user <name> <password>/.test(rules), 'the rules name the supported password routes');
 }
 
+/* ── Mallory R4 fixes ─────────────────────────────────────────────────────────────────────── */
+{
+    const r = W.perfect('d7-mal4', [0, 2], { skipRepair: true, skipP8: true });
+    const s = r.state, key = r.key;
+    const calc = () => s.apps.appx.find((a) => a.name === 'Microsoft.WindowsCalculator').user;
+    t.check(/^What if: /.test(SH.exec(s, 'ps', 'Remove-AppxPackage -WhatIf Microsoft.WindowsCalculator', { key }).out) && calc(), 'F2: -WhatIf previews a removal and removes nothing');
+    t.check(/^What if: /.test(SH.exec(s, 'ps', 'Get-AppxPackage *Calculator* | Remove-AppxPackage -WhatIf', { key }).out) && calc(), 'F2: -WhatIf on a pipeline consumer removes nothing');
+    t.check(!G.grade(s, key, s).penalties.some((x) => x.id === 'P6-keep-list' && x.applied), 'F2: no keep-list penalty from a preview');
+    const n0 = s.ledger.length;
+    SH.exec(s, 'ps', 'Rename-Computer -NewName ZZTEST1 -Restart:$false', { key });
+    t.check(!s.ledger.slice(n0).some((l) => l.k === 'restart'), 'F3: -Restart:$false does not restart');
+    const ids = SH.exec(s, 'ps', 'Get-Process', { key }).out.split('\n').slice(2).map((l) => l.trim().split(/\s+/));
+    const one = SH.exec(s, 'ps', 'Get-Process msynchlp', { key }).out.split('\n')[2].trim().split(/\s+/);
+    t.check(ids.some((x) => x[0] === 'msynchlp' && x[1] === one[1]), 'F4: a process keeps its Id under a name filter');
+    SH.exec(s, 'ps', 'Stop-Process -Id ' + one[1], { key });
+    t.check(!s.sys.processes.some((p) => p.name === 'msynchlp'), 'F4: Stop-Process -Id ends the process the Id names');
+    const r2 = W.perfect('d7-mal4b', [0, 2], { skipRepair: true, skipP8: true });
+    const id2 = SH.exec(r2.state, 'ps', 'Get-Process msynchlp', { key: r2.key }).out.split('\n')[2].trim().split(/\s+/)[1];
+    t.check(/SUCCESS/.test(SH.exec(r2.state, 'ps', 'taskkill /PID ' + id2 + ' /F', { key: r2.key }).out) && !r2.state.sys.processes.some((p) => p.name === 'msynchlp'), 'F4: taskkill /PID ends it too');
+    const n1 = s.ledger.length;
+    SH.exec(s, 'ps', 'Get-WinEvent -LogName NoSuchLog', { key });
+    t.check(!s.ledger.slice(n1).some((l) => l.k === 'eventvwr'), 'F1: a query of a log that does not exist is not an Event Viewer diagnosis');
+    SH.exec(s, 'ps', 'Get-WinEvent -LogName System', { key });
+    t.check(s.ledger.slice(n1).some((l) => l.k === 'eventvwr'), 'F1: (could fail) a real log still is');
+}
+
 t.done();
