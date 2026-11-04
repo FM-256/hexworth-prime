@@ -212,7 +212,7 @@
         var plan = OS.activePlan(s);
         var tz = OS.TIME_ZONES.filter(function (z) { return z.id === s.os.timeZone; })[0];
         var u = s.os.updates;
-        var ap = s.apps;
+        var ap = s.os && s.os.oobe && s.os.oobe.done ? APPS.apps(s) : null;
         var rdp = NET.rdp(s);
         return {
             system: { deviceName: hostname(s), edition: s.os.edition, version: s.os.version,
@@ -230,7 +230,7 @@
 
     /* Settings > Apps > Installed apps, and the Apps window: Store apps, MSI products, programs. */
     function installedApps(s) {
-        var ap = s.apps;
+        var ap = s.os && s.os.oobe && s.os.oobe.done ? APPS.apps(s) : null;
         if (!ap) { return []; }
         var rows = ap.appx.filter(function (a) { return a.user; }).map(function (a) { return { name: a.display, package: a.name, version: a.version, kind: 'Store' }; });
         ap.msi.forEach(function (m) { rows.push({ name: m.product, version: m.version, kind: 'MSI' }); });
@@ -423,7 +423,7 @@
 
     /* Apps: installed apps and the MSI products with their configured server and port. */
     R.apps = function (s) {
-        var ap = s.apps;
+        var ap = s.os && s.os.oobe && s.os.oobe.done ? APPS.apps(s) : null;
         return {
             installed: installedApps(s),
             msi: ap ? ap.msi.map(function (m) { return { product: m.product, version: m.version, server: m.server ? S(m.server) : null, port: m.port ? S(m.port) : null }; }) : []
@@ -432,7 +432,7 @@
 
     /* The Startup tab only: the process list is the taskmgr/view action (a diagnostic event). */
     R.taskmgr = function (s) {
-        var ap = s.apps;
+        var ap = s.os && s.os.oobe && s.os.oobe.done ? APPS.apps(s) : null;
         return { startup: ap ? ap.startup.map(function (x) { return { name: x.name, impact: x.impact, enabled: !!x.enabled }; }) : [] };
     };
 

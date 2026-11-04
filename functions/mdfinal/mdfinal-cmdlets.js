@@ -91,7 +91,8 @@
     function table(rows, props) {
         if (!rows.length) { return ''; }
         var w = props.map(function (p) {
-            return Math.min(40, Math.max(p.length, rows.reduce(function (m, r) { return Math.max(m, cell(r[p]).length); }, 0)));
+            /* columns cap at 40 characters, except a file hash, which PowerShell prints whole (64) */
+            return Math.min(p === 'Hash' ? 64 : 40, Math.max(p.length, rows.reduce(function (m, r) { return Math.max(m, cell(r[p]).length); }, 0)));
         });
         var pad = function (s, n) { s = String(s); if (s.length > n) { return s.slice(0, n - 3) + '...'; } while (s.length < n) { s += ' '; } return s; };
         var lines = [props.map(function (p, i) { return pad(p, w[i]); }).join(' '), props.map(function (p, i) { return pad('-'.repeat(p.length), w[i]); }).join(' ')];

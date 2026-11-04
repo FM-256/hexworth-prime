@@ -401,6 +401,13 @@ async function rejects(p, code, label) {
         t.check(/LedgerSync_2\.4_x64\.msi/.test(dir.out) && /LedgerSync_2\.4_x86\.msi/.test(dir.out), 'dir C:\\LabFiles lists both packages');
         const ex = await EXAM.renderWindow(f.st, { sessionId: f.sid, window: 'explorer', params: { path: 'C:\\LabFiles' } }, f.o);
         t.check(ex.view.files && ex.view.files.some((x) => x.name === 'LedgerSync_2.4_x64.msi'), 'Explorer at C:\\LabFiles lists the x64 package');
+        /* the brief prints the archive SHA-256 values; the student can check them (non-author run) */
+        const man = EXAM.fromDocument(await f.st.get(f.sid)).state.wo.disks.archiveManifest;
+        const fh = await EXAM.runCommand(f.st, { sessionId: f.sid, console: 'ps', line: 'Get-FileHash E:\\' + man[0].name + ' | Format-List' }, f.o);
+        t.check(fh.out.indexOf(man[0].sha256.toUpperCase()) >= 0, 'Get-FileHash shows the archive file\'s SHA-256 from the brief');
+        /* the startup list is there before anything else touched the apps area (non-author run) */
+        const sv = await EXAM.renderWindow(f.st, { sessionId: f.sid, window: 'settings' }, f.o);
+        t.check(sv.view.startup.length >= 5 && sv.view.apps.length > 0, 'Settings lists the startup and installed apps right after setup');
         const ed = EXAM.fromDocument(await f.st.get(f.sid)).state.os.edition;
         const kt = f.start.initialState.keyTable;
         t.check(kt.some((k) => k.edition === 'Windows 11 ' + ed && k.key === kit.req('mdfinal-pc.js').GVLK[ed]), 'the key table carries the GVLK for the installed edition (' + ed + ')');

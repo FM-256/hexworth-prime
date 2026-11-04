@@ -26,6 +26,7 @@
     var STO = require('./mdfinal-storage.js');
     var BL = require('./mdfinal-bitlocker.js');
     var APPS = require('./mdfinal-apps.js');
+    var crypto = require('crypto');
     var NF = require('../netfinal/netfinal-core.js');
 
     var ADAPTER = 'Ethernet';
@@ -560,6 +561,38 @@
             var f = n && state.host.usb.F.files.filter(function (x) { return x.name.toLowerCase() === n.toLowerCase(); })[0];
             if (!f) { return "Get-Content : Cannot find path '" + String(arg(a, ['path'], 0) || '').slice(0, 120) + "' because it does not exist."; }
             return f.text;
+        };
+        /* Get-FileHash (SHA256): archive files on the archive volume, TECH-USB files, the LabFiles
+         * packages. The brief prints the archive's SHA-256 values for the student to check (the
+         * non-author run found no way to). Other algorithms are refused as unavailable here. */
+        P['get-filehash'] = function (state, a) {
+            var raw = String(arg(a, ['path', 'literalpath'], 0) || '').trim();
+            var alg = String(arg(a, ['algorithm']) || 'SHA256').toUpperCase();
+            if (alg !== 'SHA256') { return 'Get-FileHash : Only the SHA256 algorithm is available in this lab.'; }
+            var missing = "Get-FileHash : Cannot find path '" + raw.slice(0, 120) + "' because it does not exist.";
+            var m = /^([A-Za-z]):\\(.+)$/.exec(raw);
+            if (!m || m[2].length > 128) { return missing; }
+            var letter = m[1].toUpperCase(), rest = m[2], low = rest.toLowerCase(), hash = null, shown = letter + ':\\' + rest;
+            if (letter === 'F' && rest.indexOf('\\') < 0) {
+                var u = state.host.usb.F.files.filter(function (x) { return x.name.toLowerCase() === low; })[0];
+                if (u) { hash = crypto.createHash('sha256').update(u.text).digest('hex'); shown = 'F:\\' + u.name; }
+            } else if (letter === 'C' && low.indexOf('labfiles\\') === 0 && state.os && state.os.installed) {
+                var n = low.slice('labfiles\\'.length);
+                var lf = APPS.labFiles().filter(function (x) { return x.name.toLowerCase() === n; })[0];
+                if (lf) { hash = crypto.createHash('sha256').update('mdfinal-labfile|' + lf.name).digest('hex'); shown = 'C:\\LabFiles\\' + lf.name; }
+            } else {
+                (state.disks || []).forEach(function (d) {
+                    if (d.inPool) { return; }
+                    d.partitions.forEach(function (p) {
+                        if (p.letter === letter && p.files && rest.indexOf('\\') < 0) {
+                            var f = p.files.filter(function (x) { return x.name.toLowerCase() === low; })[0];
+                            if (f) { hash = f.sha256; shown = letter + ':\\' + f.name; }
+                        }
+                    });
+                });
+            }
+            if (!hash) { return missing; }
+            return objs([{ Algorithm: 'SHA256', Hash: hash.toUpperCase(), Path: shown }], ['Algorithm', 'Hash', 'Path'], ['Algorithm', 'Hash', 'Path']);
         };
         P['get-childitem'] = function (state, a) {
             var path = String(arg(a, ['path'], 0) || '').trim();
