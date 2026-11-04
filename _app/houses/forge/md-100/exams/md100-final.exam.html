@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Final Exam: Meridian Workstation Build | MD-100 CTS1156C</title>
+
+<!-- EXAM MODE (spec 1.6). Deliberately absent from this page, and each is a requirement:
+       1. The tutor button script is not loaded, under any server flag. Its filename is not written
+          anywhere in this file, because the acceptance check searches the page for it.
+       2. No course links: no hub, module, presentation, tool or lab navigation.
+       3. No lab logic. Every click and every command is posted to an mdfinal* callable and this page
+          renders the reply. The browser never holds the answer key, the fault, the snapshot or the
+          seed, because they are never sent. firestore.rules denies every client read of the session.
+     Every server string is rendered as text (textContent), and student-text nodes { $s } are
+     unwrapped to text, never parsed as HTML. -->
+<script src="../../../../components/AccessGuard.js"></script>
+<script>AccessGuard.require('sorted');</script>
+<script src="../../../../components/FirebaseAuth.js"></script>
+<script src="/components/ObservatoryTelemetry.js"></script>
+
+<style>
+  :root {
+    --bg: #0b0d12; --bg2: #111827; --card: #1b2333; --card2: #222c3f; --ink: #e5e7eb; --muted: #94a3b8;
+    --accent: #3b82f6; --ok: #22c55e; --warn: #f59e0b; --bad: #ef4444; --border: rgba(255, 255, 255, 0.1);
+    --mono: 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  button { font: inherit; }
+  .topbar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; flex-wrap: wrap; }
+  .topbar h1 { font-size: 1rem; font-weight: 600; }
+  .topbar .sub { color: var(--muted); font-size: 0.8rem; }
+  .screen-chip { font-size: 0.75rem; padding: 3px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); }
+  .spacer { flex: 1; }
+  .clock { font-variant-numeric: tabular-nums; font-size: 1.1rem; font-weight: 600; padding: 4px 12px; border: 1px solid var(--border); border-radius: 6px; }
+  .clock.low { color: var(--bad); border-color: var(--bad); }
+  .btn { background: var(--card2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 0.85rem; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.danger { border-color: var(--bad); color: #fecaca; }
+  .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+  .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 12px; padding: 12px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .panel h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .tabs button { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 0.78rem; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-color: var(--accent); background: rgba(59, 130, 246, 0.12); }
+  .scroll { max-height: calc(100vh - 170px); overflow: auto; padding: 10px 12px; }
+  .brief p, .brief li { font-size: 0.85rem; line-height: 1.45; margin-bottom: 6px; }
+  .brief h3 { font-size: 0.8rem; color: var(--accent); margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .brief ol, .brief ul { padding-left: 18px; }
+  .keytable { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .keytable td { padding: 3px 4px; border-bottom: 1px solid var(--border); }
+  .keytable td.k { font-family: var(--mono); }
+  .main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .launcher { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 12px; }
+  .launcher button { background: var(--card2); color: var(--ink); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; font-size: 0.8rem; cursor: pointer; }
+  .launcher button[aria-pressed="true"] { border-color: var(--accent); background: rgba(59, 130, 246, 0.15); }
+  .window-body { padding: 12px; display: grid; gap: 12px; }
+  .addr { display: flex; gap: 6px; }
+  .addr input { flex: 1; }
+  .view { font-size: 0.82rem; }
+  .view .row { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--border); }
+  .view .label { color: var(--muted); overflow-wrap: anywhere; }
+  .view .value { overflow-wrap: anywhere; }
+  .view table { width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 4px 0; }
+  .view th { text-align: left; color: var(--muted); font-weight: 600; padding: 3px 6px; border-bottom: 1px solid var(--border); }
+  .view td { padding: 3px 6px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
+  .view .nested { padding-left: 12px; border-left: 2px solid var(--border); }
+  .actions { display: grid; gap: 8px; }
+  details.action { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; }
+  details.action summary { cursor: pointer; padding: 7px 10px; font-size: 0.82rem; }
+  details.action form { padding: 8px 10px 10px; display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); align-items: end; }
+  label.field { display: grid; gap: 3px; font-size: 0.75rem; color: var(--muted); }
+  input, select, textarea { background: #0f1522; color: var(--ink); border: 1px solid var(--border); border-radius: 5px; padding: 5px 7px; font: inherit; font-size: 0.82rem; }
+  textarea { font-family: var(--mono); min-height: 90px; }
+  .output { font-family: var(--mono); font-size: 0.8rem; white-space: pre-wrap; background: #0a0e17; border-top: 1px solid var(--border); padding: 10px 12px; max-height: 260px; overflow: auto; }
+  .output .err { color: #fca5a5; }
+  .term { font-family: var(--mono); font-size: 0.8rem; background: #05070b; height: 300px; overflow: auto; padding: 8px 10px; white-space: pre-wrap; }
+  .term .in { color: #93c5fd; }
+  .termbar { display: flex; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
+  .termbar input { flex: 1; font-family: var(--mono); }
+  .gate { max-width: 720px; margin: 60px auto; padding: 0 16px; text-align: center; }
+  .gate .msg { color: var(--muted); }
+  .bad { color: var(--bad); }
+  .notice { font-size: 0.8rem; color: var(--warn); padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  .report { padding: 16px; display: grid; gap: 10px; }
+  .report .total { font-size: 1.6rem; font-weight: 700; }
+  .modalwrap { position: absolute; left: 0; right: 0; background: rgba(0, 0, 0, 0.6); display: flex; align-items: flex-start; justify-content: center; padding-top: 12vh; z-index: 20; }
+  .modal { background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 560px; width: calc(100% - 32px); padding: 18px; display: grid; gap: 12px; }
+  .modal p { font-size: 0.9rem; line-height: 1.45; }
+  .modal .row { display: flex; gap: 8px; justify-content: flex-end; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Meridian Workstation Build</h1>
+  <span class="sub">MD-100 / CTS1156C final</span>
+  <span class="screen-chip" id="screenChip">Loading</span>
+  <span class="spacer"></span>
+  <button class="btn" id="btnReset" hidden>Restart build</button>
+  <button class="btn danger" id="btnHandover" hidden>Hand over PC</button>
+  <button class="btn primary" id="btnSubmit" hidden>Submit exam</button>
+  <span class="clock" id="clock">--:--</span>
+</div>
+
+<div class="gate" id="gate"><p class="msg" id="gatemsg">Checking your sign-in and starting the exam...</p></div>
+
+<div class="layout" id="layout" hidden>
+  <aside class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-side="brief" aria-selected="true">Brief</button>
+      <button role="tab" data-side="ticket" aria-selected="false">Ticket</button>
+      <button role="tab" data-side="record" aria-selected="false">Record</button>
+    </div>
+    <div class="scroll brief" id="sideBrief"></div>
+    <div class="scroll" id="sideTicket" hidden></div>
+    <div class="scroll" id="sideRecord" hidden></div>
+  </aside>
+
+  <section class="main">
+    <div class="panel">
+      <h2>Windows</h2>
+      <div class="launcher" id="launcher"></div>
+    </div>
+    <div class="panel" id="windowPanel" hidden>
+      <h2 id="windowTitle">Window</h2>
+      <div class="window-body">
+        <div class="addr" id="addrBar" hidden>
+          <input id="addrInput" maxlength="260" aria-label="Address">
+          <button class="btn" id="addrGo">Go</button>
+        </div>
+        <div class="view" id="view"></div>
+        <div class="actions" id="actions"></div>
+      </div>
+      <div class="output" id="output" hidden></div>
+    </div>
+    <div class="panel">
+      <h2>Console</h2>
+      <div class="term" id="term" aria-live="polite"></div>
+      <div class="termbar">
+        <select id="consoleSel" aria-label="Console"></select>
+        <input id="termInput" autocomplete="off" spellcheck="false" maxlength="500" aria-label="Command">
+        <button class="btn" id="termRun">Run</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="panel report" id="reportPanel" hidden></div>
+<div class="modalwrap" id="modal" hidden><div class="modal"><p id="modalText"></p><div class="row"><button class="btn" id="modalNo">Cancel</button><button class="btn primary" id="modalYes">Continue</button></div></div></div>
+
+<script>
+/* This script posts and renders. It holds NO lab logic, NO answer key and NO grader; every one of
+   those lives in functions/mdfinal/ and is reached through a callable. */
+(function () {
+  'use strict';
+  var EXAM_ID = /[?&]exam=rehearsal\b/.test(location.search) ? 'md100-final-rehearsal' : 'md100-final-2026';
+  var state = { start: null, init: null, windows: [], consoles: [], open: null, remaining: 0, submitted: false };
+  var reqSeq = 0, clockSeq = 0, tick = null;
+
+  var NAMES = {
+    'hyperv': 'Hyper-V Manager', 'vm-settings': 'VM Settings', 'setup': 'Windows Setup', 'setup-cmd': 'Setup prompt', 'oobe': 'Out-of-box setup',
+    'oobe-cmd': 'OOBE prompt', 'desktop': 'Desktop', 'activation': 'Activation', 'settings': 'Settings', 'power': 'Power Options',
+    'lusrmgr': 'Local Users and Groups', 'uac': 'User Account Control', 'sysprops': 'System Properties', 'regedit': 'Registry Editor',
+    'ncpa': 'Network Connections', 'wf': 'Windows Defender Firewall', 'explorer': 'File Explorer', 'features': 'Windows Features',
+    'diskmgmt': 'Disk Management', 'storagespaces': 'Storage Spaces', 'bitlocker': 'BitLocker', 'defender': 'Windows Security',
+    'gpedit': 'Local Group Policy Editor', 'apps': 'Apps', 'taskmgr': 'Task Manager', 'services': 'Services', 'taskschd': 'Task Scheduler',
+    'eventvwr': 'Event Viewer', 'notepad': 'Notepad', 'winre': 'Recovery Environment', 'asbuilt': 'As-built record'
+  };
+  var CONSOLE_NAMES = { 'hyperv-ps': 'Host PowerShell', 'setup-cmd': 'Setup (Shift+F10)', 'oobe-cmd': 'OOBE (Shift+F10)', 'ps': 'Windows PowerShell', 'winre-cmd': 'WinRE Command Prompt' };
+  var ADDRESS = { regedit: 'key', explorer: 'path' };
+
+  function el(id) { return document.getElementById(id); }
+  function node(tag, cls, text) { var n = document.createElement(tag); if (cls) { n.className = cls; } if (text !== undefined && text !== null) { n.textContent = String(text); } return n; }
+  /* A student-text node is { $s: "..." }: always shown as plain text. */
+  function isS(v) { return v !== null && typeof v === 'object' && !Array.isArray(v) && Object.prototype.hasOwnProperty.call(v, '$s'); }
+  function txt(v) { if (v === null || v === undefined) { return ''; } if (isS(v)) { return String(v.$s); } if (typeof v === 'boolean') { return v ? 'Yes' : 'No'; } return String(v); }
+
+  function telemetry(kind, detail) {
+    try { if (window.ObservatoryTelemetry && ObservatoryTelemetry.log) { ObservatoryTelemetry.log({ area: 'mdfinal', kind: kind, detail: detail, examId: EXAM_ID }); } }
+    catch (e) { /* telemetry must never break an exam in progress */ }
+  }
+
+  /* One callable. The clock is taken only from the newest request's reply (netfinal lesson: an
+     older reply carries more time). A lost revision race ('aborted') is retried once. */
+  function call(name, data, attempt) {
+    if (typeof FirebaseAuth === 'undefined' || typeof FirebaseAuth.callFunction !== 'function') {
+      return Promise.reject(new Error('Cloud Functions are unavailable, so the exam cannot run.'));
+    }
+    var seq = ++reqSeq;
+    var payload = Object.assign({ examId: EXAM_ID }, data || {});
+    return FirebaseAuth.callFunction(name, payload).then(function (r) {
+      var out = (r && r.data) ? r.data : r;
+      if (out && typeof out.remainingMs === 'number' && seq >= clockSeq) { clockSeq = seq; setRemaining(out.remainingMs); }
+      return out;
+    }).catch(function (e) {
+      var code = String((e && e.code) || '');
+      if (/aborted/.test(code) && !attempt) { return call(name, data, 1); }
+      if (/deadline-exceeded/.test(code)) { timeUp(); }
+      throw e;
+    });
+  }
+
+  /* ── clock (display only; the server decides time) ── */
+  function setRemaining(ms) { state.remaining = Math.max(0, Number(ms) || 0); paintClock(); }
+  function paintClock() {
+    var s = Math.ceil(state.remaining / 1000), m = Math.floor(s / 60);
+    el('clock').textContent = (m < 10 ? '0' : '') + m + ':' + ((s % 60) < 10 ? '0' : '') + (s % 60);
+    el('clock').classList.toggle('low', s <= 600);
+  }
+  function startTick() {
+    if (tick) { clearInterval(tick); }
+    tick = setInterval(function () {
+      state.remaining = Math.max(0, state.remaining - 1000);
+      paintClock();
+      if (state.remaining === 0) { clearInterval(tick); tick = null; submit(true); }
+    }, 1000);
+  }
+  function timeUp() { if (tick) { clearInterval(tick); tick = null; } reload('Time is up: the exam was submitted automatically.'); }
+
+  /* ── confirmation modal (two-step where the spec asks) ── */
+  function confirmStep(text) {
+    return new Promise(function (resolve) {
+      el('modalText').textContent = text;
+      el('modal').hidden = false;
+      /* absolute, over the visible viewport: viewport-pinned positioning breaks under a body filter (CLAUDE.md rule 5) */
+      el('modal').style.top = window.scrollY + 'px';
+      el('modal').style.height = window.innerHeight + 'px';
+      var done = function (v) { el('modal').hidden = true; el('modalYes').onclick = null; el('modalNo').onclick = null; resolve(v); };
+      el('modalYes').onclick = function () { done(true); };
+      el('modalNo').onclick = function () { done(false); };
+    });
+  }
+
+  /* ── brief, ticket, record ── */
+  function renderBrief() {
+    var b = el('sideBrief'), i = state.init;
+    b.textContent = '';
+    b.appendChild(node('h3', null, 'Work order ' + txt(i.wo.ticket)));
+    (i.wo.requirements || []).forEach(function (r) { b.appendChild(node('p', null, r)); });
+    b.appendChild(node('p', null, i.wo.editionRule));
+    b.appendChild(node('h3', null, 'Rules'));
+    var ul = node('ul'); (i.rules || []).forEach(function (r) { ul.appendChild(node('li', null, r)); }); b.appendChild(ul);
+    var phase = null, ol = null;
+    (i.tasks || []).forEach(function (t) {
+      if (t.phase !== phase) { phase = t.phase; b.appendChild(node('h3', null, 'Phase ' + phase.slice(1))); ol = node('ol'); b.appendChild(ol); }
+      ol.appendChild(node('li', null, t.text));
+    });
+    b.appendChild(node('h3', null, 'KMS client setup keys'));
+    var tb = node('table', 'keytable');
+    (i.keyTable || []).forEach(function (k) { var tr = node('tr'); tr.appendChild(node('td', null, k.edition)); tr.appendChild(node('td', 'k', k.key)); tb.appendChild(tr); });
+    b.appendChild(tb);
+  }
+  function renderTicket() {
+    var t = el('sideTicket'), k = state.init && state.init.ticket;
+    t.textContent = '';
+    if (!k) { t.appendChild(node('p', 'msg', 'The user ticket arrives after you hand the PC over.')); return; }
+    t.appendChild(node('h3', null, 'Ticket ' + k.ticketId));
+    t.appendChild(node('p', null, k.text));
+  }
+  /* The as-built record: fields come from the asbuilt view; saving says nothing about correctness. */
+  function renderRecord() {
+    var r = el('sideRecord');
+    r.textContent = '';
+    if (state.windows.indexOf('asbuilt') < 0) { r.appendChild(node('p', 'msg', 'The record opens once Windows is set up.')); return; }
+    call('mdfinalWindow', { window: 'asbuilt' }).then(function (w) {
+      r.textContent = '';
+      (w.view.fields || []).forEach(function (f) {
+        var lab = node('label', 'field', f.label), input;
+        if (f.type === 'select') {
+          input = node('select'); input.appendChild(node('option', null, ''));
+          f.options.forEach(function (o) { var op = node('option', null, o); op.value = o; input.appendChild(op); });
+          input.value = txt(f.value);
+        } else { input = node('input'); input.maxLength = f.max || 64; input.value = txt(f.value); }
+        var save = node('button', 'btn', 'Save');
+        var status = node('span', 'msg', '');
+        save.onclick = function () {
+          status.textContent = 'Saving...';
+          call('mdfinalAnswer', { fieldId: f.id, value: input.value }).then(function () { status.textContent = 'Saved.'; telemetry('answer', f.id); })
+            .catch(function (e) { status.textContent = e.message; });
+        };
+        lab.appendChild(input); r.appendChild(lab); r.appendChild(save); r.appendChild(status);
+      });
+    }).catch(function (e) { r.appendChild(node('p', 'bad', e.message)); });
+  }
+  function showSide(name) {
+    ['brief', 'ticket', 'record'].forEach(function (s) {
+      el('side' + s.charAt(0).toUpperCase() + s.slice(1)).hidden = s !== name;
+      document.querySelector('[data-side="' + s + '"]').setAttribute('aria-selected', String(s === name));
+    });
+    if (name === 'record') { renderRecord(); }
+  }
+
+  /* ── window launcher and generic view rendering ── */
+  function renderLauncher() {
+    var l = el('launcher');
+    l.textContent = '';
+    state.windows.forEach(function (w) {
+      if (w === 'asbuilt') { return; }
+      var b = node('button', null, NAMES[w] || w);
+      b.setAttribute('aria-pressed', String(state.open === w));
+      b.onclick = function () { openWindow(w); };
+      l.appendChild(b);
+    });
+    if (state.open && state.windows.indexOf(state.open) < 0) { el('windowPanel').hidden = true; state.open = null; }
+  }
+  /* A value of any shape, as text, rows or a table. */
+  function renderValue(v) {
+    if (v === null || v === undefined || typeof v !== 'object' || isS(v)) { return node('span', null, txt(v)); }
+    if (Array.isArray(v)) {
+      if (!v.length) { return node('span', 'msg', '(none)'); }
+      if (v.every(function (x) { return x !== null && typeof x === 'object' && !Array.isArray(x) && !isS(x); })) {
+        var cols = []; v.forEach(function (x) { Object.keys(x).forEach(function (k) { if (cols.indexOf(k) < 0) { cols.push(k); } }); });
+        var table = node('table'), head = node('tr');
+        cols.forEach(function (c) { head.appendChild(node('th', null, c)); }); table.appendChild(head);
+        v.forEach(function (x) { var tr = node('tr'); cols.forEach(function (c) { var td = node('td'); td.appendChild(renderValue(x[c])); tr.appendChild(td); }); table.appendChild(tr); });
+        return table;
+      }
+      return node('span', null, v.map(txt).join(', '));
+    }
+    var box = node('div', 'nested');
+    Object.keys(v).forEach(function (k) {
+      var row = node('div', 'row'); row.appendChild(node('div', 'label', k));
+      var val = node('div', 'value'); val.appendChild(renderValue(v[k])); row.appendChild(val); box.appendChild(row);
+    });
+    return box;
+  }
+  function openWindow(w) {
+    state.open = w;
+    el('windowPanel').hidden = false;
+    el('windowTitle').textContent = NAMES[w] || w;
+    el('addrBar').hidden = !ADDRESS[w];
+    if (ADDRESS[w]) { el('addrInput').value = ''; }
+    showOutput('', false);
+    /* never show the previous window's content under this window's title */
+    el('view').textContent = '';
+    renderLauncher();
+    refreshWindow();
+    renderActions(w);
+    telemetry('window', w);
+  }
+  function refreshWindow() {
+    var w = state.open;
+    if (!w) { return Promise.resolve(); }
+    var p = {};
+    if (ADDRESS[w] && el('addrInput').value.trim()) { p[ADDRESS[w]] = el('addrInput').value.trim(); }
+    return call('mdfinalWindow', { window: w, params: p }).then(function (r) {
+      var v = el('view'); v.textContent = ''; v.appendChild(renderValue(r.view));
+      setScreen(r.screen);
+    }).catch(function (e) { var v = el('view'); v.textContent = ''; v.appendChild(node('p', 'bad', e.message)); });
+  }
+
+  /* ── action forms, built from the server's action table ── */
+  function fieldFor(name, spec, required) {
+    var lab = node('label', 'field', name + (required ? ' *' : '')), input;
+    if (spec.type === 'enum') {
+      input = node('select'); if (!required) { input.appendChild(node('option', null, '')); }
+      spec.values.forEach(function (x) { var o = node('option', null, x); o.value = x; input.appendChild(o); });
+    } else if (spec.type === 'bool') {
+      input = node('select');
+      [['', ''], ['true', 'Yes'], ['false', 'No']].forEach(function (x) { if (required && !x[0]) { return; } var o = node('option', null, x[1]); o.value = x[0]; input.appendChild(o); });
+    } else if (spec.type === 'int') {
+      input = node('input'); input.type = 'number'; if (spec.min !== undefined) { input.min = spec.min; } if (spec.max !== undefined) { input.max = spec.max; }
+    } else if (spec.type === 'string' && spec.max > 500) {
+      input = node('textarea'); input.maxLength = spec.max;
+    } else {
+      input = node('input'); if (spec.max) { input.maxLength = spec.max; }
+      if (name === 'password') { input.type = 'password'; }
+    }
+    input.dataset.param = name; input.dataset.type = spec.type;
+    lab.appendChild(input);
+    return lab;
+  }
+  function readParams(form) {
+    var out = {};
+    Array.prototype.forEach.call(form.querySelectorAll('[data-param]'), function (i) {
+      var v = i.value, t = i.dataset.type, k = i.dataset.param;
+      if (v === '') { return; }
+      if (t === 'bool') { out[k] = v === 'true'; }
+      else if (t === 'int') { out[k] = Number(v); }
+      else if (t === 'int-list') { out[k] = v.split(',').map(function (x) { return Number(x.trim()); }); }
+      else if (t === 'int-or-word') { out[k] = /^[0-9]+$/.test(v) ? Number(v) : v; }
+      else { out[k] = v; }
+    });
+    return out;
+  }
+  function renderActions(w) {
+    var box = el('actions');
+    box.textContent = '';
+    (state.init.actions || []).filter(function (a) { return a.id.split('/')[0] === w; }).forEach(function (a) {
+      var d = node('details', 'action'), s = node('summary', null, a.id.split('/')[1]);
+      d.appendChild(s);
+      var f = node('form');
+      Object.keys(a.params).forEach(function (k) { f.appendChild(fieldFor(k, a.params[k], a.required.indexOf(k) >= 0)); });
+      var go = node('button', 'btn primary', 'Apply'); go.type = 'submit';
+      f.appendChild(go);
+      f.onsubmit = function (ev) {
+        ev.preventDefault();
+        var params = readParams(f);
+        go.disabled = true;
+        call('mdfinalAction', { window: w, action: a.id.split('/')[1], params: params }).then(function (r) {
+          showOutput(r.result.msg, !r.result.ok);
+          afterChange(r);
+          telemetry('action', a.id);
+        }).catch(function (e) { showOutput(e.message, true); }).then(function () { go.disabled = false; });
+      };
+      d.appendChild(f);
+      box.appendChild(d);
+    });
+  }
+  function showOutput(text, isErr) {
+    var o = el('output'); o.hidden = !text; o.textContent = '';
+    if (text) { o.appendChild(node('div', isErr ? 'err' : null, text)); }
+  }
+  /* After any change: the screen, open windows and consoles may all have moved. */
+  function afterChange(r) {
+    if (r && Array.isArray(r.windows)) { state.windows = r.windows; }
+    if (r && Array.isArray(r.consoles)) { setConsoles(r.consoles); }
+    if (r && r.result && r.result.screen) { setScreen(r.result.screen); } else if (r && r.screen) { setScreen(r.screen); }
+    renderLauncher();
+    refreshWindow();
+  }
+  function setScreen(s) { if (s) { el('screenChip').textContent = 'Screen: ' + s; } }
+
+  /* ── console ── */
+  function setConsoles(list) {
+    state.consoles = list;
+    var sel = el('consoleSel'), cur = sel.value;
+    sel.textContent = '';
+    list.forEach(function (c) { var o = node('option', null, CONSOLE_NAMES[c] || c); o.value = c; sel.appendChild(o); });
+    if (list.indexOf(cur) >= 0) { sel.value = cur; }
+  }
+  function termWrite(text, cls) {
+    if (text === undefined || text === null || text === '') { return; }
+    el('term').appendChild(node('div', cls || null, text));
+    el('term').scrollTop = el('term').scrollHeight;
+  }
+  function runLine() {
+    var input = el('termInput'), line = input.value, cons = el('consoleSel').value;
+    if (!cons) { termWrite('No console is available on this screen.', 'bad'); return; }
+    var secret = input.type === 'password';
+    termWrite('> ' + (secret ? '********' : line), 'in');
+    input.value = '';
+    call('mdfinalCommand', { console: cons, line: line }).then(function (r) {
+      termWrite(r.out);
+      /* the console asks for a secret with a line ending "Password:"; the next line is masked */
+      input.type = /password[^\n]*:\s*$/i.test(String(r.out || '')) ? 'password' : 'text';
+      afterChange(r);
+      telemetry('command', cons);
+    }).catch(function (e) { termWrite(e.message, 'bad'); });
+  }
+
+  /* ── handover, restart, submit ── */
+  function handover() {
+    confirmStep('Hand the PC over? Phases 1-6 are recorded as they stand now. A fault ticket will be applied to this PC. If Windows is not installed, Phase 7 and the incident record cannot be earned.')
+      .then(function (ok) { return ok ? confirmStep('This cannot be undone. Hand over now?') : false; })
+      .then(function (ok) {
+        if (!ok) { return; }
+        return call('mdfinalHandover', { confirm: true }).then(function (r) {
+          state.init = r.initialState || state.init;
+          if (r.initialState) { state.windows = r.initialState.windows; setConsoles(r.initialState.consoles); }
+          el('btnHandover').hidden = true; el('btnReset').hidden = true;
+          renderTicket(); showSide('ticket'); afterChange(r);
+          telemetry('handover', '');
+        });
+      }).catch(function (e) { showOutput(e.message, true); });
+  }
+  function restartBuild() {
+    var left = state.start ? state.start.selfResetsLeft : 0;
+    confirmStep('Restart your build from the beginning? Your clock keeps running, it is not a second attempt, and any penalty already incurred still counts. Restarts left: ' + left + '.')
+      .then(function (ok) {
+        if (!ok) { return; }
+        return call('mdfinalReset', {}).then(function () { telemetry('self-reset', ''); reload(null); });
+      }).catch(function (e) { showOutput(e.message, true); });
+  }
+  function submit(auto) {
+    var go = auto ? Promise.resolve(true) : confirmStep('Submit the exam? You submit once, and nothing can be changed afterwards.');
+    go.then(function (ok) {
+      if (!ok) { return; }
+      return call('mdfinalSubmit', {}).then(function (r) { showReport(r.report, null); });
+    }).catch(function (e) { showOutput(e.message, true); });
+  }
+  /* Aggregates only: total, phases, objectives (spec R5/R7). No per-check marks. */
+  function showReport(rep, note) {
+    state.submitted = true;
+    if (tick) { clearInterval(tick); tick = null; }
+    el('layout').hidden = true; el('gate').hidden = true;
+    ['btnReset', 'btnHandover', 'btnSubmit'].forEach(function (b) { el(b).hidden = true; });
+    var p = el('reportPanel'); p.hidden = false; p.textContent = '';
+    if (note) { p.appendChild(node('p', 'msg', note)); }
+    if (!rep) { p.appendChild(node('p', null, 'Your exam has been submitted.')); return; }
+    p.appendChild(node('div', 'total', 'Total: ' + rep.total + ' / ' + rep.outOf));
+    var t = node('table', 'keytable');
+    Object.keys(rep.phases || {}).forEach(function (k) { var tr = node('tr'); tr.appendChild(node('td', null, 'Phase ' + k.slice(1))); tr.appendChild(node('td', null, rep.phases[k].score + ' / ' + rep.phases[k].max)); t.appendChild(tr); });
+    p.appendChild(t);
+  }
+
+  /* ── start / resume ── */
+  function reload(note) {
+    return call('mdfinalStart', {}).then(function (r) { boot(r, note); }).catch(function (e) { el('gate').hidden = false; el('gatemsg').textContent = e.message; });
+  }
+  function boot(r, note) {
+    state.start = r;
+    if (r.examMode && r.examMode.loadHexAI) { telemetry('exam-mode-conflict', 'loadHexAI was true'); }
+    if (r.submitted) { showReport(r.report, note || 'This exam has been submitted.'); return; }
+    state.init = r.initialState;
+    state.windows = r.initialState.windows;
+    setConsoles(r.initialState.consoles);
+    setScreen(r.screen);
+    el('gate').hidden = true; el('layout').hidden = false;
+    el('btnSubmit').hidden = false;
+    el('btnHandover').hidden = !!r.handedOver;
+    el('btnReset').hidden = !!r.handedOver || !(r.selfResetsLeft > 0);
+    renderBrief(); renderTicket(); renderLauncher();
+    termWrite(r.resumed ? '[session resumed: same lab, same clock]' : '[Lab ready. Start in Hyper-V Manager on the host.]');
+    if (note) { termWrite(note); }
+    startTick();
+  }
+
+  document.querySelectorAll('[data-side]').forEach(function (b) { b.onclick = function () { showSide(b.dataset.side); }; });
+  el('btnHandover').onclick = handover;
+  el('btnReset').onclick = restartBuild;
+  el('btnSubmit').onclick = function () { submit(false); };
+  el('termRun').onclick = runLine;
+  el('termInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); runLine(); } });
+  el('addrGo').onclick = refreshWindow;
+  el('addrInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); refreshWindow(); } });
+
+  /* Auth first: a callable fired before sign-in settles never reaches the server (netfinal lesson). */
+  (typeof FirebaseAuth !== 'undefined' && typeof FirebaseAuth.waitForAuth === 'function'
+    ? FirebaseAuth.waitForAuth()
+    : Promise.reject(new Error('Sign-in is unavailable, so the exam cannot start.'))
+  ).then(function (user) {
+    if (!user) { el('gatemsg').textContent = 'Sign in to sit this exam, then reload this page.'; el('gatemsg').className = 'bad'; return null; }
+    return reload(null);
+  }).catch(function (e) { el('gatemsg').textContent = e.message; el('gatemsg').className = 'bad'; });
+})();
+</script>
+</body>
+</html>
