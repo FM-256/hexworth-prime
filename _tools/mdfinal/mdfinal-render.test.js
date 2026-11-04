@@ -137,12 +137,12 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
         const windows = await page.$$eval('#launcher button', (b) => b.map((x) => x.textContent));
         t.check(windows.indexOf('Hyper-V Manager') >= 0, 'the launcher offers Hyper-V Manager: ' + windows.join(', '));
         await page.evaluate(() => [...document.querySelectorAll('#launcher button')].find((b) => b.textContent === 'Hyper-V Manager').click());
-        await page.waitForFunction(() => /isoLibrary/.test(document.getElementById('view').textContent), { timeout: 5000 });
+        await page.waitForFunction(() => /Iso library/.test(document.getElementById('view').textContent), { timeout: 5000 });
         t.check(true, 'Hyper-V Manager renders its view');
         /* create a VM named with an HTML payload: it must arrive and stay inert text */
         const evil = '<img src=x onerror="window.__pwned=1">';
         await page.evaluate((evilName) => {
-            const d = [...document.querySelectorAll('details.action')].find((x) => x.querySelector('summary').textContent === 'new-vm');
+            const d = document.querySelector('details.action[data-action="hyperv/new-vm"]');
             d.open = true;
             const set = (k, v) => { const i = d.querySelector('[data-param="' + k + '"]'); i.value = String(v); };
             set('name', evilName); set('generation', 2); set('memoryMB', 4096); set('dynamicMemory', 'false'); set('vhdxGB', 127);
@@ -212,7 +212,8 @@ const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
         t.check(!/1\.1|1\.2|parts|Correct/.test(rep), 'and no per-check marks');
         t.check(pageErrors.length === 0, 'no page errors: ' + pageErrors.slice(0, 3).join(' | '));
     } catch (e) {
-        t.check(false, 'render run threw: ' + (e && e.message));
+        const out = await page.$eval('#output', (x) => x.textContent).catch(() => '?');
+        t.check(false, 'render run threw: ' + (e && e.message) + ' | page errors: ' + pageErrors.join(' | ') + ' | output: ' + out.slice(0, 200));
     } finally {
         await browser.close();
         srv.close();

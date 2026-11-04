@@ -178,6 +178,13 @@
   function node(tag, cls, text) { var n = document.createElement(tag); if (cls) { n.className = cls; } if (text !== undefined && text !== null) { n.textContent = String(text); } return n; }
   /* A student-text node is { $s: "..." }: always shown as plain text. */
   function isS(v) { return v !== null && typeof v === 'object' && !Array.isArray(v) && Object.prototype.hasOwnProperty.call(v, '$s'); }
+  /* A field name as words: "mustChange" -> "Must change", "vhdxGB" -> "Vhdx GB". */
+  function words(k) {
+    var s = String(k).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+    s = s.charAt(0).toUpperCase() + s.slice(1).replace(/ ([A-Z])([a-z])/g, function (m, a, b) { return ' ' + a.toLowerCase() + b; });
+    return s.split(' ').map(function (w) { var u = w.toUpperCase(); return ACRONYMS.indexOf(u) >= 0 ? u : w; }).join(' ');
+  }
+  var ACRONYMS = ['IP', 'DNS', 'AC', 'DC', 'VM', 'CPU', 'MB', 'GB', 'KB', 'ID', 'RDP', 'NLA', 'TPM', 'VTPM', 'UAC', 'OS', 'MSI', 'SMB1', 'WU', 'FVE', 'RX', 'OOBE', 'LOB', 'VHDX', 'DHCP', 'GUID'];
   function txt(v) { if (v === null || v === undefined) { return ''; } if (isS(v)) { return String(v.$s); } if (typeof v === 'boolean') { return v ? 'Yes' : 'No'; } return String(v); }
 
   function telemetry(kind, detail) {
@@ -316,7 +323,7 @@
       if (v.every(function (x) { return x !== null && typeof x === 'object' && !Array.isArray(x) && !isS(x); })) {
         var cols = []; v.forEach(function (x) { Object.keys(x).forEach(function (k) { if (cols.indexOf(k) < 0) { cols.push(k); } }); });
         var table = node('table'), head = node('tr');
-        cols.forEach(function (c) { head.appendChild(node('th', null, c)); }); table.appendChild(head);
+        cols.forEach(function (c) { head.appendChild(node('th', null, words(c))); }); table.appendChild(head);
         v.forEach(function (x) { var tr = node('tr'); cols.forEach(function (c) { var td = node('td'); td.appendChild(renderValue(x[c])); tr.appendChild(td); }); table.appendChild(tr); });
         return table;
       }
@@ -324,7 +331,7 @@
     }
     var box = node('div', 'nested');
     Object.keys(v).forEach(function (k) {
-      var row = node('div', 'row'); row.appendChild(node('div', 'label', k));
+      var row = node('div', 'row'); row.appendChild(node('div', 'label', words(k)));
       var val = node('div', 'value'); val.appendChild(renderValue(v[k])); row.appendChild(val); box.appendChild(row);
     });
     return box;
@@ -356,7 +363,7 @@
 
   /* ── action forms, built from the server's action table ── */
   function fieldFor(name, spec, required) {
-    var lab = node('label', 'field', name + (required ? ' *' : '')), input;
+    var lab = node('label', 'field', words(name) + (required ? ' *' : '')), input;
     if (spec.type === 'enum') {
       input = node('select'); if (!required) { input.appendChild(node('option', null, '')); }
       spec.values.forEach(function (x) { var o = node('option', null, x); o.value = x; input.appendChild(o); });
@@ -392,7 +399,8 @@
     var box = el('actions');
     box.textContent = '';
     (state.init.actions || []).filter(function (a) { return a.id.split('/')[0] === w; }).forEach(function (a) {
-      var d = node('details', 'action'), s = node('summary', null, a.id.split('/')[1]);
+      var d = node('details', 'action'), s = node('summary', null, words(a.id.split('/')[1].replace(/-/g, ' ')));
+      d.dataset.action = a.id;
       d.appendChild(s);
       var f = node('form');
       Object.keys(a.params).forEach(function (k) { f.appendChild(fieldFor(k, a.params[k], a.required.indexOf(k) >= 0)); });
