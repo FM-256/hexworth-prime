@@ -18,9 +18,10 @@
     /* Rounds a displayed value to 0.01. */
     function r2(x) { return Math.round(x * 100) / 100; }
 
-    /* Grades the given state (the handover snapshot for P1-P6) against the frozen key. */
-    function grade(state, key) {
-        var view = { s: state, k: key };
+    /* Grades a sitting against the frozen key. `state` is the handover snapshot (or the final state
+     * when never handed over); `final` is the final state, read by the P7 and P8 rows. */
+    function grade(state, key, final) {
+        var view = { s: state, k: key, f: final || state };
         var rows = CH.CHECKS.map(function (row) {
             if (typeof row.check !== 'function') {
                 return { id: row.id, phase: row.phase, objective: row.objective, max: row.points, implemented: false, score: null, parts: null };
@@ -53,8 +54,41 @@
             ph.score = ph.implemented ? Math.max(0, ph.raw - ph.penalty) : null;
             if (ph.implemented) { total += ph.score; implementedMax += ph.max; }
         });
-        return { rows: rows, penalties: penalties, phases: phases, total: total, display: r2(total), implementedMax: implementedMax };
+        /* declared reasons for a P7 row of 0 (spec 3.3) */
+        var f = view.f, reason = null;
+        if (!f.handedOver) { reason = 'no-handover'; } else if (!f.fault) { reason = 'no-os'; }
+        else if (f.sys && f.sys.reset) { reason = 'reset'; } else if (f.fault.reinstalled) { reason = 'reinstalled'; }
+        return { rows: rows, penalties: penalties, phases: phases, total: total, display: r2(total), implementedMax: implementedMax, p7Reason: reason };
     }
 
-    module.exports = { buildAnswerKey: CORE.buildAnswerKey, grade: grade, r2: r2 };
+    /* Points earned and available per syllabus objective (primary tags, 3.6). */
+    function objectiveTotals(g) {
+        var out = {};
+        g.rows.forEach(function (r) {
+            var o = out[r.objective] || (out[r.objective] = { earned: 0, max: 0 });
+            o.max += r.max; if (r.implemented) { o.earned += r.score; }
+        });
+        Object.keys(out).forEach(function (k) { out[k].earned = r2(out[k].earned); });
+        return out;
+    }
+
+    /* What a student is shown after submit: totals per phase and objective, never per check (spec R5/R7). */
+    function studentReport(g) {
+        var phases = {};
+        Object.keys(g.phases).forEach(function (k) { phases[k] = { score: r2(g.phases[k].score || 0), max: g.phases[k].max }; });
+        return { total: g.display, outOf: 100, phases: phases, objectives: objectiveTotals(g) };
+    }
+
+    /* One CSV line per sitting for the instructor: id, total, every row's score, applied penalties. */
+    function toCsv(rows) {
+        var head = ['studentId', 'total'].concat(CH.CHECKS.map(function (c) { return 'row' + c.id; })).concat(['penalties', 'flags']);
+        var esc = function (v) { var t = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t; };
+        return [head.join(',')].concat(rows.map(function (x) {
+            var g = x.grade;
+            return [x.studentId, g.display].concat(g.rows.map(function (r) { return r.implemented ? r2(r.score) : ''; }))
+                .concat([g.penalties.filter(function (p) { return p.applied; }).map(function (p) { return p.id; }).join(' '), (x.flags || []).join(' ')]).map(esc).join(',');
+        })).join('\n');
+    }
+
+    module.exports = { buildAnswerKey: CORE.buildAnswerKey, grade: grade, r2: r2, objectiveTotals: objectiveTotals, studentReport: studentReport, toCsv: toCsv };
 })();

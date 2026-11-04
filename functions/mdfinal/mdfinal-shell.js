@@ -22,6 +22,7 @@
     var REG = require('./mdfinal-registry.js');
     var CMD = require('./mdfinal-cmdlets.js');
     var MATCH = require('./mdfinal-match.js');
+    var WINRE = require('./mdfinal-winre.js');
 
     var C = LIM.LIMITS.command;
     var LIMIT_MSG = "Command exceeded the console's limits.";
@@ -78,10 +79,14 @@
 
     /* Constructs the exam never models, refused before any command runs (13.4). Pipes are allowed
      * only in the desktop console; variables only as $true, $false and $null. */
-    /* {GUID} literals (manage-bde -id {...}) are data, not script blocks: blank them first. */
+    /* {GUID} literals (manage-bde -id {...}) and BCD identifiers are data, not script blocks: blank them first. */
+    var BCD_IDS = ['{default}', '{current}', '{bootmgr}', '{fwbootmgr}', '{memdiag}'];
     function blankGuids(sk) {
         var out = '', i = 0;
         while (i < sk.length) {
+            /* well-known BCD identifiers (bcdedit /set {default} ...) are data too */
+            var bcd = BCD_IDS.filter(function (id) { return sk.slice(i, i + id.length).toLowerCase() === id; })[0];
+            if (bcd) { out += 'G'; i += bcd.length; continue; }
             if (sk[i] === '{' && i + 37 < sk.length + 1 && sk[i + 37] === '}') {
                 var inner = sk.slice(i + 1, i + 37), okG = inner.length === 36;
                 for (var j = 0; j < 36 && okG; j++) {
@@ -492,7 +497,9 @@
         if (requested === 'hyperv-ps') { return 'hyperv-ps'; }
         if (requested === 'setup-cmd' && screen === 'setup') { return sh.context === 'diskpart' ? 'diskpart' : 'setup-cmd'; }
         if (requested === 'oobe-cmd' && screen === 'oobe') { return 'oobe-cmd'; }
-        if (requested === 'ps' && screen === 'desktop') { return 'ps'; }
+        /* While Explorer crash-loops (V2), the desktop console exists only once Task Manager ran it. */
+        if (requested === 'ps' && screen === 'desktop' && !(state.sys && state.sys.explorer === 'crashing' && !state.sys.unlocked.ps)) { return 'ps'; }
+        if (requested === 'winre-cmd' && screen === 'winre') { return 'winre-cmd'; }
         return null;
     }
 
@@ -535,6 +542,9 @@
             out = diskpart(state, tokens);
         } else if (ctx === 'setup-cmd') {
             out = Object.prototype.hasOwnProperty.call(SETUP_CMD, cmd) ? SETUP_CMD[cmd](state, tokens) : notRecognisedCmd(tokens[0]);
+        } else if (ctx === 'winre-cmd') {
+            var wr = WINRE.cmd(state, tokens);
+            out = wr.out;
         } else if (ctx === 'oobe-cmd') {
             out = Object.prototype.hasOwnProperty.call(OOBE_CMD, cmd) ? OOBE_CMD[cmd](state, tokens) : notRecognisedCmd(tokens[0]);
         } else {
@@ -583,7 +593,7 @@
         }
         if (kind === 'refused') { PC.event(state, 'refused', line.slice(0, 80)); }
         out = truncate(out);
-        var prompt = ctx === 'hyperv-ps' ? 'PS C:\\Users\\LabAdmin> ' : ctx === 'diskpart' ? 'DISKPART> ' :
+        var prompt = ctx === 'hyperv-ps' ? 'PS C:\\Users\\LabAdmin> ' : ctx === 'diskpart' ? 'DISKPART> ' : ctx === 'winre-cmd' ? 'X:\\Windows\\System32> ' :
             ctx === 'ps' ? 'PS C:\\Windows\\system32> ' : 'X:\\Sources>';
         return { out: out, context: ctx, prompt: prompt };
     }

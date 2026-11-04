@@ -335,6 +335,68 @@
         return ok('The virtual machine is off.', 'hyperv');
     }
 
+    /* Boot-time behaviour of the P7 faults and of safe mode (spec 4.1, 4.4). */
+    function bootEffects(state) {
+        var s = state.sys;
+        if (!s) { return null; }
+        var safe = s.nextBootSafe === true || !!s.safeboot;
+        s.nextBootSafe = false;
+        s.safeMode = safe;
+        s.unlocked = {};
+        var f = state.fault;
+        /* V1: a boot-start filter on the disk class whose service still loads stops a normal boot (0x7B). */
+        var filter = s.upperFilters.disk.filter(function (x) { return x !== 'partmgr'; })[0];
+        if (filter && !safe) {
+            var svc = s.services[filter];
+            var pkg = s.drivers.some(function (d) { return d.filter === filter; });
+            if (svc && svc.start !== 'Disabled' && pkg) {
+                s.failedBoots = (s.failedBoots || 0) + 1;
+                eventOnce(s, 'System', 41, 'Kernel-Power', 'Critical', 'The system has rebooted without cleanly shutting down first.');
+                eventOnce(s, 'System', 1001, 'BugCheck', 'Error', 'The computer has rebooted from a bugcheck. The bugcheck was: 0x0000007b (0xffff8b0c1e2a4c40, 0xffffffffc0000034, 0x0000000000000000, 0x0000000000000000).');
+                return 'winre';
+            }
+        }
+        s.failedBoots = 0;
+        /* V2: the faulty hotfix hooks Explorer; it crash-loops while the hotfix is installed (safe mode too). */
+        var hot = state.os.updates.history.filter(function (x) { return x.fault && x.hotfix; })[0];
+        s.explorer = hot ? 'crashing' : 'ok';
+        if (hot) {
+            eventOnce(s, 'Application', 1000, 'Application Error', 'Error', 'Faulting application name: explorer.exe, version: 10.0.26100.1742. Faulting module name: mer_shellhook.dll (' + hot.kb + ').');
+            eventOnce(s, 'Application', 1001, 'Windows Error Reporting', 'Information', 'Fault bucket, type 0. Event Name: APPCRASH. P1: explorer.exe');
+        }
+        /* V3: either persistence point restarts the sync helper (not in safe mode). */
+        if (f && f.variant === 'V3') {
+            var installed = s.programs.some(function (p) { return p.name === 'Meridian Sync Helper'; });
+            var task = s.tasks.filter(function (t) { return t.fault && t.enabled; })[0];
+            var run = state.apps && state.apps.startup.filter(function (x) { return x.name === 'MerSync' && x.runValue && x.enabled; })[0];
+            s.processes = s.processes.filter(function (p) { return !p.fault; });
+            if (installed && !safe && (task || run)) { s.processes.push({ name: 'msynchlp', cpu: 95, wsMB: 1210, fault: true }); }
+        }
+        /* V4: the VPN helper, when it starts, rewrites the adapter DNS and the hosts line. */
+        var vpn = s.services.MerVpnHelper;
+        if (f && f.variant === 'V4' && vpn && vpn.start === 'Automatic' && !safe) {
+            vpn.status = 'Running';
+            state.network.adapters.Ethernet.dns = f.vendorDns.slice();
+            state.network.adapters.Ethernet.dnsAuto = false;
+            if (s.hosts.indexOf(f.hostsLine) < 0) { s.hosts.push(f.hostsLine); }
+            eventOnce(s, 'System', 1014, 'DNS Client Events', 'Warning', 'Name resolution for the name ' + state.wo.lob.fqdn + ' timed out after none of the configured DNS servers responded.');
+            if (state.identity.membership.type === 'domain') {
+                eventOnce(s, 'System', 5719, 'NETLOGON', 'Error', 'This computer was not able to set up a secure session with a domain controller in domain MERIDIAN.');
+                eventOnce(s, 'System', 1129, 'GroupPolicy', 'Error', 'The processing of Group Policy failed because of lack of network connectivity to a domain controller.');
+            }
+        }
+        return null;
+    }
+
+    /* One event of each id per boot cycle (the log does not grow on every restart beyond a few). */
+    function eventOnce(s, log, id, source, level, msg) {
+        var recent = s.eventlog.slice(-12).some(function (e) { return e.log === log && e.id === id; });
+        if (!recent) {
+            s.eventlog.push({ log: log, id: id, source: source, level: level, msg: msg.slice(0, 300) });
+            if (s.eventlog.length > 200) { s.eventlog.splice(0, s.eventlog.length - 200); }
+        }
+    }
+
     /* What the VM shows after power-on or a restart. A restart ends every console session: no
      * console context, diskpart selection or pending prompt survives it (Mallory D3 F4). */
     function boot(state) {
@@ -353,7 +415,16 @@
         if (bootable) {
             if (sbBlocks) { state.screen = 'firmware-error'; return ok(MSG.sbDenied, state.screen); }
             applyPending(state);
+            var blocked = state.os.oobe.done ? bootEffects(state) : null;
+            if (blocked === 'winre') {
+                state.screen = 'winre';
+                if (state.sys) { state.sys.winre = { unlocked: false, skipped: false, offlineHive: false }; }
+                ledger(state, 'winre-view', '');
+                return ok('Your PC ran into a problem and needs to restart. Stop code: INACCESSIBLE_BOOT_DEVICE. Automatic Repair: Your PC did not start correctly.', 'winre');
+            }
             state.screen = state.os.oobe.done ? 'desktop' : 'oobe';
+            if (state.screen === 'desktop' && !(state.sys && state.sys.safeMode)) { ledger(state, 'boot-normal', ''); }
+            if (state.screen === 'desktop' && state.sys && state.sys.safeMode) { ledger(state, 'boot-safe', ''); }
             return ok('', state.screen);
         }
         state.screen = 'no-os';
@@ -551,6 +622,9 @@
         var iso = ISO_LIBRARY[state.setup.iso];
         var ed = state.setup.edition;
         var key = state.setup.key;
+        /* A reinstall after handover is a fresh Windows: the old system state goes, and 7.1 scores 0 (spec 4). */
+        if (state.fault) { state.fault.reinstalled = true; ledger(state, 'reinstall', ''); }
+        state.sys = null; state.apps = null; state.bitlocker = null;
         state.os = {
             installed: true, os: iso.os, version: iso.version, build: iso.build, revision: iso.revision,
             edition: ed, installDisk: disk.n, systemPartition: part.id, pending: {},
@@ -850,6 +924,13 @@
         if (bl && bl.status === 'pending') {
             bl.status = bl.protectors.some(function (x) { return x.type === 'Tpm'; }) ? 'on' : 'off';
             bl.pendingRestart = false;
+        }
+        /* A pending paging-file change applies at the restart (mdfinal-apps.js). */
+        var pf = state.apps && state.apps.pagefile;
+        if (pf && pf.pending) {
+            if (pf.pending.automatic) { pf.automatic = true; pf.drive = null; pf.initialMB = null; pf.maxMB = null; }
+            else { pf.automatic = false; pf.drive = pf.pending.drive; pf.initialMB = pf.pending.initialMB; pf.maxMB = pf.pending.maxMB; }
+            pf.pending = null;
         }
         var u = state.os.updates;
         if (u && u.pendingRestart.length) {

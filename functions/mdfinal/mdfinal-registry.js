@@ -24,6 +24,8 @@
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
     var OS = require('./mdfinal-os.js');
+    var APPS = require('./mdfinal-apps.js');
+    var SYS = require('./mdfinal-sys.js');
 
     var freeze = LIM.deepFreeze;
     var OBJ = LIM.LIMITS.objects;
@@ -35,10 +37,43 @@
     var K_FVE = 'HKLM\\SOFTWARE\\POLICIES\\MICROSOFT\\FVE';
     var K_TS = 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\TERMINAL SERVER';
     var K_RDP = 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\TERMINAL SERVER\\WINSTATIONS\\RDP-TCP';
+    /* D5 routes (13.12): paging file, Run keys, service Start values, disk-class UpperFilters. */
+    var K_MM = 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\SESSION MANAGER\\MEMORY MANAGEMENT';
+    var K_RUN_LM = 'HKLM\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUN';
+    var K_RUN_CU = 'HKCU\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUN';
+    var K_SVC = 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\SERVICES\\';
+    var K_DISKCLASS = 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\CLASS\\{4D36E967-E325-11CE-BFC1-08002BE10318}';
+    var START_NAMES = ['Boot', 'System', 'Automatic', 'Manual', 'Disabled'];
+
+    /* The D5 routes, tried before the DWORD whitelist. Returns a result, or null when not one of them. */
+    function d5Write(state, key, name, type, data) {
+        var n = String(name).toLowerCase();
+        if (key === K_MM && n === 'pagingfiles' && type === 'REG_MULTI_SZ') {
+            var r = APPS.pagingFilesValue(state, data);
+            return r ? { ok: r.ok, msg: r.ok ? 'The operation completed successfully.' : r.msg } : null;
+        }
+        if (key.indexOf(K_SVC) === 0 && n === 'start' && type === 'REG_DWORD') {
+            var svc = key.slice(K_SVC.length), d = dword(data);
+            if (svc.indexOf('\\') >= 0 || !(d >= 0 && d <= 4)) { return null; }
+            var hit = SYS.serviceBy(state, svc);
+            if (!hit) { return null; }
+            var s = SYS.setStartType(state, hit.key, START_NAMES[d]);
+            return s.ok ? { ok: true, msg: 'The operation completed successfully.' } : null;
+        }
+        if (key === K_DISKCLASS && n === 'upperfilters' && type === 'REG_MULTI_SZ') {
+            var list = String(data || '').split('\\0').map(function (x) { return x.trim().toLowerCase(); }).filter(function (x) { return x.length; });
+            if (!list.length || list.length > 8) { return null; }
+            SYS.sys(state).upperFilters.disk = list;
+            PC.ledger(state, 'offline-reg', 'filters');
+            return { ok: true, msg: 'The operation completed successfully.' };
+        }
+        return null;
+    }
 
     /* Keys that exist on a fresh install (others must be created). Parents of these exist too. */
     /* Leaf keys present on a fresh install; every ancestor of one exists too (keyExists). */
-    var DEFAULT_KEYS = freeze([K_UAC, K_UX, K_TS, K_RDP, 'HKLM\\SOFTWARE\\POLICIES\\MICROSOFT\\WINDOWS',
+    var DEFAULT_KEYS = freeze([K_UAC, K_UX, K_TS, K_RDP, 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\CLASS\\{4D36E967-E325-11CE-BFC1-08002BE10318}',
+ 'HKLM\\SOFTWARE\\POLICIES\\MICROSOFT\\WINDOWS',
         'HKLM\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUN', 'HKLM\\SYSTEM\\CURRENTCONTROLSET\\SERVICES',
         'HKLM\\SYSTEM\\CURRENTCONTROLSET\\CONTROL\\SESSION MANAGER\\MEMORY MANAGEMENT',
         'HKCU\\SOFTWARE\\MICROSOFT\\WINDOWS\\CURRENTVERSION\\RUN', 'HKLM\\SYSTEM\\SETUP']);
@@ -110,6 +145,8 @@
     }
     /* True when the key exists by default or because the student (or one of its subkeys) created it. */
     function keyExists(state, key) {
+        /* every service the PC has owns its key under ...\Services */
+        if (key.indexOf(K_SVC) === 0 && state.sys && key.slice(K_SVC.length).indexOf('\\') < 0 && SYS.serviceBy(state, key.slice(K_SVC.length))) { return true; }
         if (DEFAULT_KEYS.some(function (k) { return k === key || k.indexOf(key + '\\') === 0; })) { return true; }
         var made = regState(state).keys;
         return made.some(function (k) { return k === key || k.indexOf(key + '\\') === 0; });
@@ -189,6 +226,7 @@
             if (!createKeys) { return { ok: false, msg: "Cannot find path '" + String(keyRaw).slice(0, 120) + "' because it does not exist." }; }
             if (!createKey(state, key)) { return { ok: false, msg: LIM.STORAGE_MESSAGE }; }
         }
+        if (ctx === 'desktop') { var d5 = d5Write(state, key, name, type, data); if (d5) { return d5; } }
         var vname = canonValue(key, name);
         if (vname && type === 'REG_DWORD') {
             var n = dword(data);
@@ -216,6 +254,9 @@
             delete pol.wu[vname]; PC.ledger(state, 'policy-wu-del', vname); return { ok: true, msg: 'The operation completed successfully.' };
         }
         if (vname && key === K_FVE && pol.fve) { delete pol.fve.EncryptionMethodWithXtsOs; PC.ledger(state, 'policy-fve-del', ''); return { ok: true, msg: 'The operation completed successfully.' }; }
+        /* the startup entries live in HKLM Run; HKCU Run holds none of them (Nancy D5 R3 #10) */
+        if (key === K_RUN_LM) { var rr = APPS.deleteRunValue(state, name); if (rr) { return rr; } }
+        if (key === K_DISKCLASS && String(name).toLowerCase() === 'upperfilters') { SYS.sys(state).upperFilters.disk = []; PC.ledger(state, 'offline-reg', 'filters-deleted'); return { ok: true, msg: 'The operation completed successfully.' }; }
         var id = key + '|' + String(name || '').toLowerCase();
         if (Object.prototype.hasOwnProperty.call(state.regScratch, id)) { delete state.regScratch[id]; return { ok: true, msg: 'The operation completed successfully.' }; }
         return { ok: false, msg: 'ERROR: The system was unable to find the specified registry key or value.' };
@@ -234,6 +275,16 @@
         if (key === K_FVE && pol.fve && pol.fve.EncryptionMethodWithXtsOs !== undefined) { dw('EncryptionMethodWithXtsOs', pol.fve.EncryptionMethodWithXtsOs); }
         if (key === K_TS) { dw('fDenyTSConnections', pol.rdp ? pol.rdp.fDenyTSConnections : 1); }
         if (key === K_RDP) { dw('UserAuthentication', pol.rdp ? pol.rdp.UserAuthentication : 1); }
+        if ((key === K_RUN_LM || key === K_RUN_CU) && state.apps) {
+            APPS.apps(state).startup.filter(function (x) { return x.runValue && key === K_RUN_LM; })
+                .forEach(function (x) { out.push({ name: x.name, type: 'REG_SZ', data: '"C:\\Program Files\\' + x.name + '\\' + x.name + '.exe" /background' }); });
+        }
+        if (key === K_MM && state.apps) {
+            var pf = APPS.apps(state).pagefile, cur = pf.pending || pf;
+            out.push({ name: 'PagingFiles', type: 'REG_MULTI_SZ', data: cur.automatic ? '?:\\pagefile.sys' : 'C:\\pagefile.sys ' + cur.initialMB + ' ' + cur.maxMB });
+        }
+        if (key.indexOf(K_SVC) === 0 && state.sys) { var sv = SYS.serviceBy(state, key.slice(K_SVC.length)); if (sv) { dw('Start', START_NAMES.indexOf(sv.svc.start)); } }
+        if (key === K_DISKCLASS && state.sys) { out.push({ name: 'UpperFilters', type: 'REG_MULTI_SZ', data: SYS.sys(state).upperFilters.disk.join('\\0') }); }
         /* Inert values show too, but never shadow a modelled value of the same name. */
         Object.keys(state.regScratch).forEach(function (id) {
             var v = state.regScratch[id];
@@ -251,6 +302,7 @@
     }
 
     module.exports = {
+        K_MM: K_MM, K_RUN_LM: K_RUN_LM, K_RUN_CU: K_RUN_CU, K_SVC: K_SVC, K_DISKCLASS: K_DISKCLASS,
         K_LABCONFIG: K_LABCONFIG, K_UAC: K_UAC, K_WU: K_WU, K_UX: K_UX, K_FVE: K_FVE, K_TS: K_TS, K_RDP: K_RDP,
         WHITELIST: WHITELIST, DEFAULT_KEYS: DEFAULT_KEYS, FVE_METHODS: FVE_METHODS,
         canonKey: canonKey, canonValue: canonValue, dword: dword, keyExists: keyExists, createKey: createKey,

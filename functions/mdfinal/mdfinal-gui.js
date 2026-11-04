@@ -22,6 +22,10 @@
     var NET = require('./mdfinal-net.js');
     var STO = require('./mdfinal-storage.js');
     var BL = require('./mdfinal-bitlocker.js');
+    var APPS = require('./mdfinal-apps.js');
+    var SYS = require('./mdfinal-sys.js');
+    var WINRE = require('./mdfinal-winre.js');
+    var ANS = require('./mdfinal-answers.js');
 
     var L = LIM.LIMITS.params;
     var KEY_RE = /^[A-Za-z][A-Za-z0-9]{0,31}$/;  /* literal of LIMITS.params.keyPattern (tested equal) */
@@ -62,7 +66,15 @@
         'storagespaces': { screens: ['desktop'] },
         'bitlocker':   { screens: ['desktop'] },
         'defender':    { screens: ['desktop'] },
-        'gpedit':      { screens: ['desktop'] }
+        'gpedit':      { screens: ['desktop'] },
+        'apps':        { screens: ['desktop'] },
+        'taskmgr':     { screens: ['desktop'] },
+        'services':    { screens: ['desktop'] },
+        'taskschd':    { screens: ['desktop'] },
+        'eventvwr':    { screens: ['desktop'] },
+        'notepad':     { screens: ['desktop'] },
+        'winre':       { screens: ['winre'] },
+        'asbuilt':     { screens: ['desktop', 'winre'] }
     });
 
     var ACTION_SCHEMA = LIM.deepFreeze({
@@ -160,8 +172,53 @@
         'defender/realtime': { params: { on: T.bool }, required: ['on'] },
         'defender/tamper': { params: { on: T.bool }, required: ['on'] },
         'defender/exclusion-add': { params: { path: T.str(260) }, required: ['path'] },
-        'defender/exclusion-remove': { params: { path: T.str(260) }, required: ['path'] }
+        'defender/exclusion-remove': { params: { path: T.str(260) }, required: ['path'] },
+        'apps/install-msi': { params: { path: T.str(260), server: T.str(255), port: T.str(8) }, required: ['path'] },
+        'apps/uninstall': { params: { name: T.str(80) }, required: ['name'] },
+        'settings/update-history': { params: {}, required: [] },
+        'settings/update-uninstall': { params: { kb: T.str(16) }, required: ['kb'] },
+        'settings/active-hours': { params: { start: T.int(0, 23), end: T.int(0, 23) }, required: ['start', 'end'] },
+        'settings/startup': { params: { name: T.str(64), enabled: T.bool }, required: ['name', 'enabled'] },
+        'gpedit/wu-feature': { params: { enabled: T.bool, days: T.int(0, 365) }, required: ['enabled'] },
+        'gpedit/wu-quality': { params: { enabled: T.bool, days: T.int(0, 30) }, required: ['enabled'] },
+        'sysprops/virtual-memory': { params: { automatic: T.bool, initialMB: T.int(16, 65536), maxMB: T.int(16, 65536) }, required: ['automatic'] },
+        'sysprops/protection': { params: { on: T.bool }, required: ['on'] },
+        'sysprops/restore-point': { params: { name: T.str(64) }, required: ['name'] },
+        'sysprops/system-restore': { params: { point: T.int(1, 1000) }, required: ['point'] },
+        'taskmgr/view': { params: {}, required: [] },
+        'taskmgr/end': { params: { name: T.str(64) }, required: ['name'] },
+        'taskmgr/startup': { params: { name: T.str(64), enabled: T.bool }, required: ['name', 'enabled'] },
+        'taskmgr/run': { params: { target: T.oneOf(['ms-settings:windowsupdate-history', 'ms-settings:appsfeatures', 'powershell', 'cmd', 'explorer', 'control', 'services.msc', 'eventvwr.msc', 'taskschd.msc', 'notepad']) }, required: ['target'] },
+        'services/set': { params: { name: T.str(64), startType: T.oneOf(['Automatic', 'Manual', 'Disabled']) }, required: ['name', 'startType'] },
+        'services/stop': { params: { name: T.str(64) }, required: ['name'] },
+        'services/start': { params: { name: T.str(64) }, required: ['name'] },
+        'taskschd/disable': { params: { path: T.str(128) }, required: ['path'] },
+        'taskschd/enable': { params: { path: T.str(128) }, required: ['path'] },
+        'taskschd/delete': { params: { path: T.str(128) }, required: ['path'] },
+        'eventvwr/query': { params: { log: T.oneOf(['System', 'Application', 'Security', 'Setup']), id: T.int(0, 65535) }, required: ['log'] },
+        'notepad/hosts-open': { params: {}, required: [] },
+        'notepad/hosts-save': { params: { text: T.str(4000) }, required: ['text'] },
+        'winre/continue': { params: {}, required: [] },
+        'winre/startup-repair': { params: {}, required: [] },
+        'winre/startup-settings': { params: { option: T.int(1, 9) }, required: ['option'] },
+        'winre/unlock': { params: { key: T.str(60) }, required: ['key'] },
+        'winre/skip': { params: {}, required: [] },
+        'winre/uninstall-updates': { params: {}, required: [] },
+        'winre/system-restore': { params: { point: T.int(1, 1000) }, required: ['point'] },
+        'winre/reset': { params: { mode: T.oneOf(['keep', 'remove']) }, required: ['mode'] },
+        'asbuilt/save': { params: { field: T.oneOf(['B1', 'B2', 'I1', 'I2', 'I3']), value: T.str(64) }, required: ['field', 'value'] },
+        'desktop/advanced-restart': { params: {}, required: [] }
     });
+
+    /* Settings > Apps > Uninstall: a program (Meridian ...), the LedgerSync MSI, or a Store app. */
+    function uninstallByName(s, name) {
+        var r = SYS.uninstallProgram(s, name);
+        if (r) { return r; }
+        if (String(name).toLowerCase() === 'ledgersync') { return APPS.uninstallMsi(s, 'LedgerSync'); }
+        var a = APPS.appBy(s, name) || APPS.apps(s).appx.filter(function (x) { return x.display.toLowerCase() === String(name).toLowerCase(); })[0];
+        if (a) { return APPS.removeForUser(s, a.name); }
+        return { ok: false, msg: 'The app was not found.' };
+    }
 
     /* lusrmgr.msc is not available on Home editions (the real snap-in refusal). */
     var LUSRMGR_HOME = 'This snapin may not be used with this edition of Windows. To manage user accounts for this computer, use the User Accounts tool in the Control Panel.';
@@ -267,6 +324,67 @@
         'defender/tamper': function (s, p) { return NET.setTamper(s, p.on); },
         'defender/exclusion-add': function (s, p) { return NET.addExclusion(s, p.path); },
         'defender/exclusion-remove': function (s, p) { return NET.removeExclusion(s, p.path); },
+        'apps/install-msi': function (s, p, ctx) {
+            var props = {}; if (p.server !== undefined) { props.SERVER = p.server; } if (p.port !== undefined) { props.PORT = p.port; }
+            var r = APPS.installMsi(s, p.path, props);
+            if (r.ok) { SYS.autoPoint(s, 'Installed LedgerSync', ctx.now); }   /* 4.3: Windows Installer's automatic point */
+            return r;
+        },
+        'apps/uninstall': function (s, p) { return uninstallByName(s, p.name); },
+        'settings/update-history': function (s) { PC.ledger(s, 'update-history', ''); return { ok: true, msg: s.os.updates.history.map(function (x) { return x.title + ' - ' + x.status; }).join('\n') }; },
+        'settings/update-uninstall': function (s, p) {
+            var kb = String(p.kb).toUpperCase(); if (kb.slice(0, 2) !== 'KB') { kb = 'KB' + kb; }
+            var h = s.os.updates.history, i = h.map(function (x) { return x.kb; }).indexOf(kb);
+            if (i < 0) { return { ok: false, msg: 'That update is not installed.' }; }
+            var x = h.splice(i, 1)[0]; PC.ledger(s, 'hotfix-uninstall', x.fault ? 'fault' : 'other');
+            return { ok: true, msg: 'Restart required to finish uninstalling.' };
+        },
+        'settings/active-hours': function (s, p) { return APPS.setActiveHours(s, p.start, p.end); },
+        'settings/startup': function (s, p) { return APPS.setStartup(s, p.name, p.enabled); },
+        'gpedit/wu-feature': function (s, p) { return APPS.gpeditDeferral(s, 'feature', p.enabled, p.days); },
+        'gpedit/wu-quality': function (s, p) { return APPS.gpeditDeferral(s, 'quality', p.enabled, p.days); },
+        'sysprops/virtual-memory': function (s, p) { return APPS.setPagefile(s, p); },
+        'sysprops/protection': function (s, p) { return SYS.setProtection(s, p.on); },
+        'sysprops/restore-point': function (s, p, ctx) { return SYS.createPoint(s, p.name, false, ctx.now); },
+        'sysprops/system-restore': function (s, p) { var r = SYS.restoreTo(s, p.point); if (r.ok) { PC.restart(s); } return r; },
+        'taskmgr/view': function (s) {
+            PC.ledger(s, 'taskmgr-view', '');
+            return { ok: true, msg: SYS.sys(s).processes.slice().sort(function (a, b) { return b.cpu - a.cpu; }).map(function (x) { return x.name + '.exe  ' + x.cpu + '%  ' + x.wsMB + ' MB'; }).join('\n') };
+        },
+        'taskmgr/end': function (s, p) { return SYS.endProcess(s, p.name); },
+        'taskmgr/startup': function (s, p) { return APPS.setStartup(s, p.name, p.enabled); },
+        'taskmgr/run': function (s, p) {
+            var map = { 'ms-settings:windowsupdate-history': 'settings', 'ms-settings:appsfeatures': 'apps', powershell: 'ps', cmd: 'ps', control: 'sysprops',
+                        'services.msc': 'services', 'eventvwr.msc': 'eventvwr', 'taskschd.msc': 'taskschd', notepad: 'notepad' };
+            var sy = SYS.sys(s);
+            if (p.target === 'explorer') { PC.ledger(s, 'explorer-restart', ''); return { ok: true, msg: sy.explorer === 'crashing' ? 'Explorer started, then stopped working.' : '' }; }
+            sy.unlocked[map[p.target]] = true;
+            if (p.target === 'ms-settings:windowsupdate-history') { PC.ledger(s, 'update-history', ''); }
+            return { ok: true, msg: '' };
+        },
+        'services/set': function (s, p) { return SYS.setStartType(s, p.name, p.startType); },
+        'services/stop': function (s, p) { return SYS.setRunning(s, p.name, false); },
+        'services/start': function (s, p) { return SYS.setRunning(s, p.name, true); },
+        'taskschd/disable': function (s, p) { return SYS.setTask(s, p.path, false); },
+        'taskschd/enable': function (s, p) { return SYS.setTask(s, p.path, true); },
+        'taskschd/delete': function (s, p) { return SYS.deleteTask(s, p.path); },
+        'eventvwr/query': function (s, p) {
+            PC.ledger(s, 'eventvwr', '');
+            var rows = SYS.sys(s).eventlog.filter(function (e) { return e.log === p.log && (p.id === undefined || e.id === p.id); });
+            return { ok: true, msg: rows.slice(-50).reverse().map(function (e) { return e.level + '  ' + e.source + '  ' + e.id + '  ' + e.msg; }).join('\n') || 'No events.' };
+        },
+        'notepad/hosts-open': function (s) { PC.ledger(s, 'hosts-view', ''); return { ok: true, msg: SYS.hostsText(s) }; },
+        'notepad/hosts-save': function (s, p) { return SYS.writeHosts(s, p.text); },
+        'winre/continue': function (s) { return WINRE.cont(s); },
+        'winre/startup-repair': function (s) { return WINRE.startupRepair(s); },
+        'winre/startup-settings': function (s, p) { return WINRE.startupSettings(s, p.option); },
+        'winre/unlock': function (s, p) { return WINRE.unlock(s, p.key); },
+        'winre/skip': function (s) { return WINRE.skip(s); },
+        'winre/uninstall-updates': function (s) { return WINRE.uninstallLatest(s); },
+        'winre/system-restore': function (s, p) { return WINRE.restore(s, p.point); },
+        'winre/reset': function (s, p) { return WINRE.resetPc(s, p.mode); },
+        'asbuilt/save': function (s, p) { var r = ANS.save(s, p.field, p.value); return { ok: r.ok, msg: r.ok ? '' : r.msg }; },
+        'desktop/advanced-restart': function (s) { if (!PC.onDesktop(s)) { return { ok: false, msg: 'Windows is not running.' }; } return WINRE.enter(s); },
         'regedit/new-key': function (s, p) {
             var k = REG.canonKey(p.key);
             if (!k) { return { ok: false, msg: 'Cannot create key: the key name is not valid.' }; }
@@ -286,9 +404,16 @@
     function currentScreen(state) { return state.screen || 'hyperv'; }
 
     /* Does the current screen offer this window? (2.3: OS windows only after the desktop exists.) */
+    /* Windows that live on the desktop shell. While Explorer crash-loops (V2), only Task Manager
+     * (Ctrl+Shift+Esc) and what it launched through "Run new task" are reachable. */
+    var SHELL_WINDOWS = ['activation', 'settings', 'power', 'lusrmgr', 'uac', 'sysprops', 'regedit', 'ncpa', 'wf', 'explorer', 'features',
+                         'diskmgmt', 'storagespaces', 'bitlocker', 'defender', 'gpedit', 'apps', 'services', 'taskschd', 'eventvwr', 'notepad', 'desktop'];
+
     function screenAllows(state, windowName) {
         var w = Object.prototype.hasOwnProperty.call(WINDOWS, windowName) ? WINDOWS[windowName] : null;
         if (!w) { return false; }
+        if (state.sys && state.sys.explorer === 'crashing' && currentScreen(state) === 'desktop' && SHELL_WINDOWS.indexOf(windowName) >= 0 &&
+            !state.sys.unlocked[windowName] && windowName !== 'desktop') { return false; }
         return w.screens === '*' || w.screens.indexOf(currentScreen(state)) >= 0;
     }
 

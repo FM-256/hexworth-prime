@@ -401,4 +401,107 @@ function p45Shell(s, key) {
     return s;
 }
 
-module.exports = { p45Shell, p45Gui, p23Gui, p23Shell, ipv4, JOIN_USER, JOIN_PW, defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };
+/* Canonical P6 through the GUI (deprovisioning has no GUI: one console line, as in Windows). */
+function p6Gui(s, key, o) {
+    o = o || {};
+    const wo = s.wo, ctx = { key };
+    const B = (win, action, params) => { const r = GUI.act(s, win, action, JSON.parse(JSON.stringify(params || {})), ctx); if (!r.ok && !o.lenient) throw new Error('walk step failed: ' + win + '/' + action + ': ' + r.msg); return r; };
+    const APPS = kit.req('mdfinal-apps.js');
+    if (!o.skipMsi) B('apps', 'install-msi', { path: o.msiPath || 'C:\\LabFiles\\LedgerSync_2.4_x64.msi', server: o.server === undefined ? wo.lob.fqdn : o.server, port: o.port === undefined ? String(wo.lob.port) : o.port });
+    APPS.apps(s);
+    if (!o.skipAppUser) B('apps', 'uninstall', { name: wo.consumerApp });
+    if (!o.skipDeprov) X(s, 'ps', 'Remove-AppxProvisionedPackage -Online -PackageName ' + APPS.fullName(APPS.appBy(s, wo.consumerApp)));
+    B('gpedit', 'wu-feature', { enabled: true, days: o.featureDays || wo.updates.featureDeferralDays });
+    B('gpedit', 'wu-quality', { enabled: true, days: o.qualityDays || wo.updates.qualityDeferralDays });
+    if (!o.skipActiveHours) B('settings', 'active-hours', { start: wo.updates.activeHours.start, end: wo.updates.activeHours.end });
+    (o.startupOff || wo.performance.highImpact).forEach((n) => B('taskmgr', 'startup', { name: n, enabled: false }));
+    if (!o.skipPagefile) B('sysprops', 'virtual-memory', { automatic: false, initialMB: wo.performance.pagefileMB, maxMB: o.pagefileMax || wo.performance.pagefileMB });
+    if (!o.noRestart) A(s, 'desktop', 'restart', {});
+    return s;
+}
+
+/* Canonical P6 through the desktop console. */
+function p6Shell(s, key) {
+    const wo = s.wo, ctx = { key };
+    const C = (line, expect) => { const r = SH.exec(s, 'ps', line, ctx); if (expect !== undefined ? String(r.out).indexOf(expect) < 0 : (r.out && /error|not recognized|cannot|refused|does not|invalid/i.test(r.out))) throw new Error('walk command failed: ' + line + ' -> ' + r.out); return r; };
+    C('msiexec /i C:\\LabFiles\\LedgerSync_2.4_x64.msi /qn SERVER=' + wo.lob.fqdn + ' PORT=' + wo.lob.port);
+    C('Get-AppxPackage *' + wo.consumerApp.split('.').slice(-1)[0] + '* | Remove-AppxPackage');
+    C('Get-AppxProvisionedPackage -Online | Where-Object DisplayName -eq ' + wo.consumerApp + ' | Remove-AppxProvisionedPackage -Online');
+    C('New-Item -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate" -Force');
+    for (const [n, v] of [['DeferFeatureUpdates', 1], ['DeferFeatureUpdatesPeriodInDays', wo.updates.featureDeferralDays], ['DeferQualityUpdates', 1], ['DeferQualityUpdatesPeriodInDays', wo.updates.qualityDeferralDays]]) {
+        C('New-ItemProperty -Path "HKLM:\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate" -Name ' + n + ' -Value ' + v + ' -PropertyType DWord');
+    }
+    C('reg add "HKLM\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings" /v ActiveHoursStart /t REG_DWORD /d ' + wo.updates.activeHours.start + ' /f', 'completed');
+    C('reg add "HKLM\\SOFTWARE\\Microsoft\\WindowsUpdate\\UX\\Settings" /v ActiveHoursEnd /t REG_DWORD /d ' + wo.updates.activeHours.end + ' /f', 'completed');
+    wo.performance.highImpact.forEach((n) => C('reg delete "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run" /v ' + n + ' /f', 'completed'));
+    C('reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Memory Management" /v PagingFiles /t REG_MULTI_SZ /d "C:\\pagefile.sys ' + wo.performance.pagefileMB + ' ' + wo.performance.pagefileMB + '" /f', 'completed');
+    C('Restart-Computer');
+    return s;
+}
+
+/* Handover, then the canonical P7 repair for the variant (GUI where Windows offers it), then P8. */
+function handoverAndRepair(s, key, o) {
+    o = o || {};
+    const HO = kit.req('mdfinal-handover.js');
+    const ctx = { key };
+    const B = (win, action, params) => { const r = GUI.act(s, win, action, JSON.parse(JSON.stringify(params || {})), ctx); if (!r.ok && !o.lenient) throw new Error('walk step failed: ' + win + '/' + action + ': ' + r.msg); return r; };
+    const C = (line) => SH.exec(s, 'ps', line, ctx);
+    const h = HO.handover(s, key);
+    if (!h.ok) throw new Error('handover failed: ' + h.msg);
+    const v = key.variant, wo = s.wo;
+    const answers = { I1: null, I2: null, I3: null };
+    if (!o.skipRepair) {
+        if (v === 'V1') {
+            B('winre', 'startup-settings', { option: 4 });
+            const inf = C('pnputil /enum-drivers').out.split('Published Name:').slice(1).map((x) => x.trim().split('\n')[0].trim())[0];
+            C('pnputil /delete-driver ' + inf + ' /uninstall /force');
+            B('desktop', 'restart', {});
+            Object.assign(answers, { I1: 'driver', I2: '0x7B', I3: 'restart and confirm normal boot' });
+        } else if (v === 'V2') {
+            B('taskmgr', 'view', {});
+            B('taskmgr', 'run', { target: 'ms-settings:windowsupdate-history' });
+            const kb = s.os.updates.history.filter((x) => x.hotfix)[0].kb;
+            B('settings', 'update-uninstall', { kb });
+            B('desktop', 'restart', {});
+            Object.assign(answers, { I1: 'update', I2: kb, I3: 'restart and confirm Explorer stable' });
+        } else if (v === 'V3') {
+            B('taskmgr', 'view', {});
+            B('taskmgr', 'end', { name: 'msynchlp' });
+            B('taskschd', 'disable', { path: '\\Meridian\\SyncHelperWatchdog' });
+            B('taskmgr', 'startup', { name: 'MerSync', enabled: false });
+            B('desktop', 'restart', {});
+            B('taskmgr', 'view', {});
+            Object.assign(answers, { I1: 'runaway process', I2: 'msynchlp.exe', I3: 'Task Manager or Get-Process after restart' });
+        } else {
+            C('ipconfig /all');
+            B('services', 'set', { name: 'MerVpnHelper', startType: 'Disabled' });
+            B('ncpa', 'ipv4', { dns1: wo.network.dns[0], dns2: wo.network.dns[1] });
+            B('notepad', 'hosts-open', {});
+            B('notepad', 'hosts-save', { text: '# hosts\n' });
+            B('desktop', 'restart', {});
+            C('Test-NetConnection ' + wo.lob.fqdn + ' -Port ' + wo.lob.port);
+            Object.assign(answers, { I1: 'name resolution', I2: '1014', I3: 'name-resolution or port test' });
+        }
+    }
+    /* P8 */
+    const ANS = kit.req('mdfinal-answers.js');
+    const bl = h.snapshot.bitlocker && h.snapshot.bitlocker.C;
+    if (!o.skipP8 && bl) {
+        const rp = bl.protectors.find((p) => p.type === 'RecoveryPassword');
+        if (rp) ANS.save(s, 'B1', rp.id.slice(0, 8));
+        ANS.save(s, 'B2', 'XTS-AES 256');
+    }
+    if (!o.skipP8) Object.keys(answers).forEach((k) => { if (answers[k]) ANS.save(s, k, (o.answers && o.answers[k]) || answers[k]); });
+    return h.snapshot;
+}
+
+/* A complete perfect sitting: P1-P6 (GUI), handover, P7 repair, P8. Returns { state, key, snapshot }. */
+function perfect(uid, forced, o) {
+    o = o || {};
+    const { state, key } = sitting(uid, forced);
+    p1Gui(state, key); p23Gui(state, key); p45Gui(state, key); p6Gui(state, key);
+    const snapshot = handoverAndRepair(state, key, o);
+    return { state, key, snapshot };
+}
+
+module.exports = { p6Gui, p6Shell, handoverAndRepair, perfect, p45Shell, p45Gui, p23Gui, p23Shell, ipv4, JOIN_USER, JOIN_PW, defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };

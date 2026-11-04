@@ -690,6 +690,20 @@
             var a2 = args(stages[1]); a2.driveletter = made;
             return { out: MUTATORS['format-volume'](state, a2, ctx || {}) };
         }
+        /* A consumer at the end: run the producer and filters, then hand their rows to it. */
+        var lastCmd = stages[stages.length - 1][0].toLowerCase();
+        if (stages.length > 1 && CONSUMERS[lastCmd] && Object.prototype.hasOwnProperty.call(PRODUCERS, cmd)) {
+            var pv = PRODUCERS[cmd](state, args(first), ctx || {});
+            for (var ci = 1; ci < stages.length - 1; ci++) {
+                if (typeof pv === 'string') { return { out: pv }; }
+                var cst = stages[ci][0].toLowerCase();
+                if (cst !== 'where-object' && cst !== 'where' && cst !== 'select-object' && cst !== 'select' && cst !== 'sort-object') { return { out: DENY_MSG }; }
+                pv = STAGES[cst](pv, args(stages[ci]), budget);
+                if (budget.spent) { return { out: LIMIT_MSG }; }
+            }
+            if (typeof pv === 'string') { return { out: pv }; }
+            return { out: CONSUMERS[lastCmd](state, pv.kind === 'objects' ? pv.rows : [], args(stages[stages.length - 1])) };
+        }
         var legacy = Object.prototype.hasOwnProperty.call(LEGACY, cmd) ? LEGACY[cmd] : extra && Object.prototype.hasOwnProperty.call(extra, cmd) ? extra[cmd] : null;
         if (legacy || Object.prototype.hasOwnProperty.call(MUTATORS, cmd)) {
             if (stages.length > 1) { return { out: DENY_MSG }; }
@@ -735,9 +749,15 @@
         return { out: '' };
     }
 
-    /* P4/P5 commands register into the same tables, with the same helpers (no require cycle). */
-    require('./mdfinal-cmdlets-d4.js').install({ PRODUCERS: PRODUCERS, MUTATORS: MUTATORS, LEGACY: LEGACY, objs: objs, has: has,
-        missingArg: missingArg, bool: bool, LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG });
+    /* Pipeline consumers: the only commands allowed at the END of a pipeline that changes state
+     * (Get-AppxPackage *x* | Remove-AppxPackage). Registered by mdfinal-cmdlets-d5.js. */
+    var CONSUMERS = Object.create(null);
+
+    /* P4-P7 commands register into the same tables, with the same helpers (no require cycle). */
+    var INSTALL_API = { PRODUCERS: PRODUCERS, MUTATORS: MUTATORS, LEGACY: LEGACY, CONSUMERS: CONSUMERS, objs: objs, has: has,
+        missingArg: missingArg, bool: bool, LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG };
+    require('./mdfinal-cmdlets-d4.js').install(INSTALL_API);
+    require('./mdfinal-cmdlets-d5.js').install(INSTALL_API);
 
     module.exports = { run: run, resume: resume, args: args, render: render, table: table, PRODUCERS: PRODUCERS, MUTATORS: MUTATORS,
                        LEGACY: LEGACY, STAGES: STAGES, DUMPERS: DUMPERS, DENY_MSG: DENY_MSG, LIMIT_MSG: LIMIT_MSG };

@@ -965,3 +965,71 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - the admin shares (C$, ADMIN$, IPC$) are not listed.
 10. **Knock-ons are derived, not just named:** a test breaks each upstream dependency (no D:, whole-disk layout, no vTPM, WO group missing, WO user missing) on two profiles and asserts that every row that moves declares the broken row.
 11. **D6 assertions (required):** the callable always passes `ctx.key`, and refuses a stored session whose key predates generator 1.1.0 (no `bitlocker` section).
+
+### 13.12 D5 decisions (2026-11-04)
+
+1. **Modules:**
+   - `mdfinal-apps.js` (P6);
+   - `mdfinal-sys.js` (services, driver store and disk-class filters, scheduled tasks, processes, programs, hosts, event log, System Protection and restore points, boot flags);
+   - `mdfinal-faults.js` (apply, ladders, no-regression, P8 truth);
+   - `mdfinal-winre.js`; `mdfinal-answers.js`; `mdfinal-handover.js`;
+   - `mdfinal-cmdlets-d5.js` (P6/P7 console).
+
+   Boot-time fault behaviour is a pure rule set in `mdfinal-pc.js` `bootEffects()`, so every restart goes through it.
+2. **P6:**
+   - the LedgerSync MSIs sit at `C:\LabFiles\LedgerSync_2.4_x64.msi` and `..._x86.msi`;
+   - `SERVER=` accepts the FQDN or the short host (both resolve in Meridian DNS);
+   - Windows Update deferrals have ONE model (`os.policies.wu`), written by gpedit (`gpedit/wu-feature`, `gpedit/wu-quality`) or the registry;
+   - startup apps are the WO's four candidates (two High impact, two Low) plus SecurityHealth on the keep-list, and deleting a Run value counts as disabled;
+   - the paging file is set through Virtual memory or the `PagingFiles` registry value and is effective after a restart.
+3. **Store apps in pipelines:** `Remove-AppxPackage` and `Remove-AppxProvisionedPackage` are the only commands allowed at the END of a pipeline. Only Where-Object, Select-Object and Sort-Object may sit between them and their producer.
+4. **Faults (spec 4.1):**
+   - **V1:** WinRE after a 0x7B with Kernel-Power 41 and BugCheck 1001.
+   - **V2:** Explorer crash-loops, so only Task Manager and what it launches through "Run new task" are reachable.
+   - **V3:** `msynchlp` at 95% CPU, restarted at every boot by either persistence point.
+   - **V4:** the helper re-writes DNS to TEST-NET-3 resolvers and adds the decoy hosts line at every start, with 1014, plus 5719/1129 on domain PCs.
+
+   The fault record (`state.fault`) is created at handover and never projected.
+5. **Ladders:**
+   - full credit is judged on a clone after a simulated normal boot;
+   - V4's 4-rung ("DNS and hosts fixed, helper still Automatic") is judged on the final state before that boot, since the boot re-breaks it;
+   - V1's 7-rung: filter removed or service disabled, package left.
+6. **No-regression:** 13 domain projections, compared snapshot vs final. Amnesty: the V2 fault KB; the V4 adapter DNS; fault startup items. Fault programs, tasks, drivers and the hosts file are outside the domains. It pays only when Resolved ≥ 4.
+7. **P8:**
+   - I1/I2 need a qualifying diagnostic ledger event after handover: V1 the WinRE screen, Event Viewer or `pnputil /enum-drivers`; V2 Task Manager, Update history, Event Viewer or `Get-HotFix`; V3 Task Manager or `Get-Process`; V4 `ipconfig`, a name test, or viewing hosts.
+   - I3 needs a matching verification event after the last fix action.
+   - B1 is checked against the snapshot's recovery-password protectors.
+8. **Real behaviour kept:**
+   - Startup Repair fails on V1; `bootrec /rebuildbcd` has no effect; `/fixboot` is "Access is denied";
+   - `bcdedit /set {default} safeboot` leaves the PC in Safe Mode (resolved 0);
+   - WinRE's Command Prompt, Uninstall Updates and System Restore need the recovery key while C: is protected, and Startup Settings does not;
+   - System Restore reverts 4.3's list and never the hosts file, so it cannot fix V4;
+   - `Checkpoint-Computer` is throttled to one per 1440 minutes, while the dialog's Create is not;
+   - Reset this PC repairs the PC and scores 7.1 at 0.
+9. **Console identifiers:** BCD identifiers (`{default}`, `{current}`, `{bootmgr}`) pass the deny rule as data, like `{GUID}` literals.
+10. **Tooling:** `_tools/mdfinal/mdfinal-walkthrough.js` gives `--qc N` (12 classes plus N seeds, each 100.00; the 2026-11-04 run of 312 sittings had 0 failures), `--print-steps` (a perfect P1-P6 build is 67 ledger steps; P7 repairs take 6-9) and `--print-weights`.
+
+### 13.13 D5 R3 outcomes (2026-11-04): Nancy BLOCK, fixed
+
+1. **No-regression compares effective state:** both sides are normalised first (lazily created areas at their defaults; every pending restart change applied), so an untouched area, a console-only build or a pending flag flipped by a restart is never a regression. The handover also creates the fault-touched areas before the snapshot.
+2. **Resolved is judged on a powered-on, booted clone**, whatever power state the student left the VM in.
+3. **A reinstall after handover** marks `fault.reinstalled`, starts a fresh system state, and scores 7.1 at 0 (`p7Reason: 'reinstalled'`). The grade carries `p7Reason` (`no-handover`, `no-os`, `reset`, `reinstalled`).
+4. **Handover with Windows installed applies the fault whatever the power state.** A running VM restarts into the symptom; a stopped one shows it at the next start. With OOBE unfinished, no fault is applied (`no-desktop`). The 2.4 confirmation and the brief say: "If Windows is not installed and set up, Phase 7 and the incident record cannot be earned."
+5. **Realism:**
+   - `pnputil /delete-driver ... /uninstall` (without `/force`) removes an in-use driver;
+   - `msiexec /package` and `/uninstall`, and `DISM /Online /Remove-ProvisionedAppxPackage`, are supported;
+   - `Clear-Content`/`Remove-Item` work on the hosts file;
+   - startup Run entries live in HKLM only;
+   - V4's DNS check is order-insensitive (same servers, either order);
+   - an MSI install with protection on creates Windows Installer's automatic point under the throttle;
+   - `Checkpoint-Computer` fails closed without the server clock (`ctx.now`, which the D6 callable must supply).
+6. **P8:**
+   - I3 requires Resolved ≥ 4 and a verification after the last fix action; V4's name test must name the LedgerSync server;
+   - V4's diagnostic set includes Event Viewer (its evidence ids live there);
+   - 5719 counts only when the PC really is a domain member;
+   - I2 accepts `123`, `7B`, `stop 0x7b`, `0x0000007B`, `INACCESSIBLE_BOOT_DEVICE`, and `KB` with a space.
+7. **Decisions recorded:**
+   - the as-built form is reachable on the WinRE screen as well as the desktop (V1 students need it before Windows boots);
+   - I fields are not keyed by ticket id (one ticket per sitting);
+   - D6's client projection is a whitelist and never includes `state.fault`, `fault`/`hotfix` markers, ledger refs, `state.shell.pending` or `history`.
+8. **Proofs:** `_tools/mdfinal/mdfinal-faults.test.js` runs every canonical and listed alternative route for V1-V4 on all three profiles from the full perfect state (15/15, total 100, or the exact partial rung), System Restore to a post-P6 point for V1-V3, the P1-only snapshot for all four, a console-only perfect build, power-off, reinstall, pending-at-handover, VM-off handover, the wrong fixes with their named regression domains, and the I3/V4/evidence rules. Each fix's old behaviour was re-introduced and is caught, except the harmless clone order, which normalisation already covers.

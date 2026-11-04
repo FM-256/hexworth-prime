@@ -26,6 +26,8 @@
     var NET = require('./mdfinal-net.js');
     var FS = require('./mdfinal-fs.js');
     var NF = require('../netfinal/netfinal-core.js');
+    var FAULTS = require('./mdfinal-faults.js');
+    var BLM = require('./mdfinal-bitlocker.js').METHODS;
 
     /* Built-in local groups (a WO group can never be one of these). */
     var OS_BUILTIN_GROUPS = ['Administrators', 'Users', 'Guests', 'Remote Desktop Users'];
@@ -207,6 +209,92 @@
         return [pts(s.defender.sigUpdated === true, 1), pts(ex.length === 1 && !!want && ex[0].toLowerCase() === want.toLowerCase(), 1)];
     }
 
+    /* ═══ D5 rows (6.1-8.2) ═══ */
+
+    /* 6.1 Applications: [x64 MSI, SERVER= WO host, PORT= WO port, consumer app removed for the user, deprovisioned] */
+    function check61(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s) || !s.apps) { return [0, 0, 0, 0, 0]; }
+        var m = s.apps.msi.filter(function (x) { return x.product === 'LedgerSync'; })[0];
+        var server = m && m.server !== null ? String(m.server).toLowerCase() : null;
+        var hostOk = !!server && (server === wo.lob.fqdn.toLowerCase() || server === wo.lob.host.toLowerCase());
+        var app = s.apps.appx.filter(function (a) { return a.name === wo.consumerApp; })[0];
+        return [pts(!!m && m.arch === 'x64', 1), pts(hostOk, 1), pts(!!m && m.port === String(wo.lob.port), 1),
+            pts(!!app && app.user === false, 1), pts(!!app && app.provisioned === false, 1)];
+    }
+
+    /* 6.2 Update policy: [feature deferral = WO with DeferFeatureUpdates=1, quality likewise, active hours manual = WO] */
+    function check62(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s)) { return [0, 0, 0]; }
+        var w = (s.os.policies && s.os.policies.wu) || {};
+        var ah = s.os.updates.activeHours;
+        return [pts(w.DeferFeatureUpdates === 1 && w.DeferFeatureUpdatesPeriodInDays === wo.updates.featureDeferralDays, 1),
+            pts(w.DeferQualityUpdates === 1 && w.DeferQualityUpdatesPeriodInDays === wo.updates.qualityDeferralDays, 1),
+            pts(ah.manual === true && ah.start === wo.updates.activeHours.start && ah.end === wo.updates.activeHours.end, 1)];
+    }
+
+    /* 6.3 Performance: [high-impact app 1 disabled, high-impact app 2 disabled, pagefile C: custom initial=max=WO, effective] */
+    function check63(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s) || !s.apps) { return [0, 0, 0]; }
+        var off = function (n) { var e = s.apps.startup.filter(function (x) { return x.name === n; })[0]; return !!e && e.enabled === false; };
+        var pf = s.apps.pagefile;
+        var pfOk = pf.automatic === false && pf.drive === 'C' && pf.initialMB === wo.performance.pagefileMB && pf.maxMB === wo.performance.pagefileMB;
+        return [pts(off(wo.performance.highImpact[0]), 1), pts(off(wo.performance.highImpact[1]), 1), pts(pfOk, 1)];
+    }
+
+    /* Ledger index of the first entry at or after `from` whose kind is in `kinds`, or -1. */
+    function firstAfter(ledger, from, kinds, ref) {
+        for (var i = from; i < ledger.length; i++) { if (kinds.indexOf(ledger[i].k) >= 0 && (ref === undefined || ledger[i].ref === ref)) { return i; } }
+        return -1;
+    }
+    /* Ledger index of the last entry after `from` whose kind is in `kinds`, or -1. */
+    function lastAfter(ledger, from, kinds) {
+        for (var i = ledger.length - 1; i >= from; i--) { if (kinds.indexOf(ledger[i].k) >= 0) { return i; } }
+        return -1;
+    }
+
+    /* 7.1 Fault repair: [resolved 0/4/7/10, no-regression 5 (only when resolved >= 4)]; 0 without an OS handover. */
+    function check71(v) {
+        var f = v.f;
+        if (!f || !f.fault || (f.sys && f.sys.reset)) { return [0, 0]; }
+        var r = FAULTS.resolved(f, v.k);
+        var nr = r >= 4 ? FAULTS.noRegression(v.s, f, f.fault.variant).points : 0;
+        return [r, nr];
+    }
+
+    /* 8.1 Build record: [B1 first 8 hex of an RP protector id in the snapshot, B2 encryption method]. */
+    function check81(v) {
+        var s = v.s, ans = (v.f || s).answers || {};
+        var b = s.bitlocker && s.bitlocker.C;
+        if (!b) { return [0, 0]; }
+        var b1 = String(ans.B1 && ans.B1.value || '').toUpperCase().split('{').join('').split('}').join('').split('-').join('').trim();
+        var ids = b.protectors.filter(function (p) { return p.type === 'RecoveryPassword'; }).map(function (p) { return p.id.slice(0, 8).toUpperCase(); });
+        var b1ok = b1.length === 8 && /^[0-9A-F]{8}$/.test(b1) && ids.indexOf(b1) >= 0;
+        var started = b.status === 'on' || b.status === 'pending' || b.status === 'suspended';
+        var b2ok = started && b.method !== null && ans.B2 && ans.B2.value === BLM[b.method];
+        return [pts(b1ok, 1), pts(!!b2ok, 1)];
+    }
+
+    /* 8.2 Incident record: [I1 category (2), I2 evidence (2), I3 verified-by (1)]; gated on a handover with an OS. */
+    function check82(v) {
+        var f = v.f;
+        if (!f || !f.fault) { return [0, 0, 0]; }
+        var c = FAULTS.CATALOGUE[f.fault.variant], ans = f.answers || {}, L = f.ledger, from = f.fault.appliedAtLedger;
+        var diag = firstAfter(L, from, c.diag) >= 0;
+        var i1 = diag && ans.I1 && ans.I1.value === c.category;
+        var ev = ans.I2 ? FAULTS.normEvidence(ans.I2.value) : '';
+        var i2 = diag && ev.length > 0 && FAULTS.evidenceSet(f, v.k).indexOf(ev) >= 0;
+        /* I3: the fault must really be fixed (Resolved >= 4), and the verification must come after the
+         * last fix action; V4's name test must name the LedgerSync server (Nancy D5 R3 #6). */
+        var fixAt = lastAfter(L, from, c.fix);
+        var opt = ans.I3 && ans.I3.value;
+        var kinds = opt && Object.prototype.hasOwnProperty.call(c.verify, opt) ? c.verify[opt] : null;
+        var ref = opt === 'name-resolution or port test' ? c.verifyRef : undefined;
+        var i3 = fixAt >= 0 && !!kinds && FAULTS.resolved(f, v.k) >= 4 && firstAfter(L, fixAt + 1, kinds, ref) >= 0;
+        return [pts(!!i1, 2), pts(i2, 2), pts(i3, 1)];
+    }
     var CHECKS = [
         /* ── P1 Build and install (16) ── */
         { id: '1.1', phase: 'P1', objective: 1, points: 4, basis: 'snap', title: 'VM hardware',
@@ -378,24 +466,24 @@
         { id: '6.1', phase: 'P6', objective: 4, points: 5, basis: 'snap', title: 'Applications',
           parts: [{ id: 'msi-x64', points: 1 }, { id: 'server', points: 1 }, { id: 'port', points: 1 },
                   { id: 'appx-user', points: 1 }, { id: 'appx-provisioned', points: 1 }],
-          negative: 'x86 MSI: part 1 = 0; property omitted; removed only for the user: 4/5', knockOn: [], check: null },
+          negative: 'x86 MSI: part 1 = 0; property omitted; removed only for the user: 4/5', knockOn: [], check: check61 },
         { id: '6.2', phase: 'P6', objective: 8, points: 3, basis: 'snap', title: 'Update policy',
           parts: [{ id: 'feature', points: 1 }, { id: 'quality', points: 1 }, { id: 'active-hours', points: 1 }],
-          negative: 'days with no enabling DWORD: part 0; quality 30', knockOn: [], check: null },
+          negative: 'days with no enabling DWORD: part 0; quality 30', knockOn: [], check: check62 },
         { id: '6.3', phase: 'P6', objective: 5, points: 3, basis: 'snap', title: 'Performance tuning',
           parts: [{ id: 'startup-1', points: 1 }, { id: 'startup-2', points: 1 }, { id: 'pagefile', points: 1 }],
-          negative: 'SecurityHealth disabled instead; pagefile set without restart: part 0', knockOn: [], check: null },
+          negative: 'SecurityHealth disabled instead; pagefile set without restart: part 0', knockOn: [], check: check63 },
 
         /* ── P7 (15) and P8 (7) ── */
         { id: '7.1', phase: 'P7', objective: 8, points: 15, basis: 'final', title: 'Fault repair',
           parts: [{ id: 'resolved', points: 10 }, { id: 'no-regression', points: 5 }],
-          negative: 'per variant (section 4)', knockOn: [], check: null },
+          negative: 'per variant (section 4)', knockOn: [], check: check71 },
         { id: '8.1', phase: 'P8', objective: 7, points: 2, basis: 'ans', title: 'Build record',
           parts: [{ id: 'b1', points: 1 }, { id: 'b2', points: 1 }],
-          negative: 'B1 from a removed protector; blank', knockOn: ['5.2'], check: null },
+          negative: 'B1 from a removed protector; blank', knockOn: ['5.2'], check: check81 },
         { id: '8.2', phase: 'P8', objective: 8, points: 5, basis: 'ans', title: 'Incident record',
           parts: [{ id: 'i1', points: 2 }, { id: 'i2', points: 2 }, { id: 'i3', points: 1 }],
-          negative: 'I3 restart with no restart after the fix', knockOn: ['7.1'], check: null }
+          negative: 'I3 restart with no restart after the fix', knockOn: ['7.1'], check: check82 }
     ];
 
     /* Regression penalties (3.4): default state the student broke, deducted within the phase. */
@@ -437,7 +525,14 @@
               return sh.some(function (x) { return x.name.toLowerCase() !== wo && x.perms.some(function (p) { return p.principal.toLowerCase() === 'everyone' && p.right === 'Full' && p.type === 'Allow'; }); });
           } },
         { id: 'P5-realtime-off', phase: 'P5', points: 1, title: 'Defender real-time protection off',
-          applies: function (v) { return desktopDone(v.s) && !!v.s.defender && v.s.defender.realtime === false; } }
+          applies: function (v) { return desktopDone(v.s) && !!v.s.defender && v.s.defender.realtime === false; } },
+        { id: 'P6-keep-list', phase: 'P6', points: 1, title: 'A keep-list app or startup item removed or disabled',
+          applies: function (v) {
+              var a = desktopDone(v.s) && v.s.apps;
+              if (!a) { return false; }
+              return a.appx.some(function (x) { return x.keep && (!x.user || !x.provisioned); }) ||
+                  a.startup.some(function (x) { return x.keep && x.enabled === false; });
+          } }
     ];
 
     LIM.deepFreeze(CHECKS);
