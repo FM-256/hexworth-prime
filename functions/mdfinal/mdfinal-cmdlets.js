@@ -46,6 +46,14 @@
         return out;
     }
 
+    /* PowerShell switch parameters: they never take the next token as a value (Nancy R4 #3:
+     * `Get-AppxPackage -AllUsers *Foo*` consumed the filter and removed every app). `-Name:$false`
+     * still sets one explicitly. */
+    var SWITCHES = ['allusers', 'recurse', 'force', 'descending', 'online', 'confirm', 'whatif', 'passthru', 'norestart', 'restart',
+                    'verbose', 'skiphardwaretest', 'usedspaceonly', 'file', 'directory', 'hidden', 'asjob', 'unique', 'caseSensitive'.toLowerCase(),
+                    'simplematch', 'quiet', 'detailed', 'recoverypasswordprotector', 'tpmprotector',
+                    'nopassword', 'usemaximumsize', 'assigndriveletter', 'accountneverexpires', 'wait'];
+
     function args(raw) {
         var tokens = joinCommas(raw);
         var a = Object.create(null);
@@ -59,6 +67,7 @@
                 var colon = name.indexOf(':');
                 if (colon > 0) { a[name.slice(0, colon)] = t.slice(colon + 2); continue; }
                 var next = tokens[i + 1];
+                if (SWITCHES.indexOf(name) >= 0) { a[name] = true; continue; }
                 if (next !== undefined && !(next.length > 1 && next[0] === '-' && isNaN(Number(next)))) { a[name] = next; i++; }
                 else { a[name] = true; }
             } else { a._.push(t); }

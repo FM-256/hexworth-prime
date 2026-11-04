@@ -1102,3 +1102,29 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - (b) the server records into, and shows results for, only classes the student joined themselves (needs a join-provenance signal, to be researched);
    - (c) accept, as netfinal does (`handler` is platform staff).
    Until decided, the behaviour is (c).
+
+### 13.17 D7 R4 outcomes (2026-11-04): Nancy APPROVE-WITH-CHANGES, fixed
+
+1. **1.3 C: size** accepts either reading of "GB": within 1 GB of WO × 1024 MB, or of WO × 1000 MB (the decimal reading of Setup's MB field). Previously a student who typed 80000 lost 2 points.
+2. **I2 evidence sets** now cover every identifier spec 4.1's evidence column lists, plus the root-cause artefacts the diagnostic routes show. File extensions are optional, and "Stop code: X" normalises like X.
+
+   | Variant | Accepted |
+   |---|---|
+   | V1 | stop code forms, 1001, 41, `mbafilt`, the `oem<N>.inf` name |
+   | V2 | KB-B, 1000, 1001, `mer_shellhook` |
+   | V3 | `msynchlp`, the `MerSync` Run value, `SyncHelperWatchdog` |
+   | V4 | 1014, `MerVpnHelper`, the hosts decoy IP, the vendor DNS servers; 5719 and 1129 on domain PCs |
+
+   The victim the ticket names (`explorer.exe`) is not evidence. I2's field limit is 64 characters (R3's typed cap), so a verbatim copy of the stop line fits.
+3. **Console switches.** Switch parameters (`-AllUsers`, `-Recurse`, `-Force`, `-Descending`, `-Online`, `-Confirm` and others) never take the next token as a value. `Get-AppxPackage -AllUsers *Foo* | Remove-AppxPackage` used to remove every app, keep-list included.
+4. **`ping`** skips options and their values (`-n 2`). These aliases now work: `tnc`, `gps`, `ps`, `gsv`, `kill`, `spps`, `ping.exe`, `cls`, `echo`.
+5. **Automatic DNS on a static address** is refused with a message; it used to report success and change nothing. Row 4.2 now declares its 3.3 knock-on (the category part depends on an effective join).
+6. **The brief** says to restart before handover (pending changes count only after the restart). It also names the supported password routes (`net user`, the `New-LocalUser`/`Set-LocalUser` prompt) and that `ConvertTo-SecureString` is not available.
+7. **Raised to the operator, not code:**
+   - The admin-reset seed policy now blocks spec 8 D12/D15's "reset the rehearsal sitting". Until it is decided, each rehearsal run needs a fresh uid.
+   - `GENERATOR_VERSION` must stay frozen from D11, or live sittings are refused.
+   - V1 and V4 must be timed at D10/D12. The 3.5× gate has no margin for rework, and the cut list recovers only about 2 minutes of expert time.
+8. **Conditional equivalents recorded:**
+   - `6.2-ah-auto` stays equivalent only while there is no "automatically adjust active hours" control. A page that adds one needs a fixture.
+   - `fa-v3-procend-ok` stays equivalent only while the task and the Run value are V3's only persistence points.
+9. **Accepted as is:** lowercase `server=`/`port=` MSI properties score (more lenient than Windows); V2 has no partial rung (one artefact); a diagnosis-only P8 earns I1/I2 without a repair (by design, diagnosis is graded).

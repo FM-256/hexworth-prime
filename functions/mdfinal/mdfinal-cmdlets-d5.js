@@ -252,8 +252,19 @@
             var n = String(target || '').toLowerCase();
             PC.ledger(state, 'name-test', n === state.wo.lob.fqdn.toLowerCase() || n === state.wo.lob.host.toLowerCase() ? 'lob' : '');
         }
+        /* ping's target is the first token that is neither an option nor an option's value (Nancy R4
+         * #4: `ping -n 2 HOST` took "2" as the host) */
+        var PING_VALUE_OPTS = ['n', 'l', 'w', 'i', 'S', 'k', 'j', 'r', 's'].map(function (x) { return x.toLowerCase(); });
+        function pingTarget(t) {
+            for (var i = 1; i < t.length; i++) {
+                var x = t[i];
+                if (x[0] === '-' || x[0] === '/') { if (PING_VALUE_OPTS.indexOf(x.slice(1).toLowerCase()) >= 0) { i++; } continue; }
+                return x;
+            }
+            return undefined;
+        }
         L['ping'] = function (state, t) {
-            var n = t.filter(function (x) { return x[0] !== '-' && x[0] !== '/'; })[1];
+            var n = pingTarget(t);
             nameTest(state, n);
             if (!n) { return 'Usage: ping [-n count] target_name'; }
             var r = SYS.resolve(state, n);
@@ -261,6 +272,9 @@
             var good = r.ip === SYS.lobIp(state);
             return 'Pinging ' + n.slice(0, 64) + ' [' + r.ip + '] with 32 bytes of data:\n' + (good ? 'Reply from ' + r.ip + ': bytes=32 time<1ms TTL=127' : 'Request timed out.\nRequest timed out.');
         };
+        L['ping.exe'] = function (state, t) { return L['ping'](state, t); };
+        L['cls'] = function () { return ''; };
+        L['echo'] = function (state, t) { return t.slice(1).join(' ').slice(0, 500); };
         L['nslookup'] = function (state, t) {
             nameTest(state, t[1]);
             var dns = state.network.adapters.Ethernet.dns;
@@ -286,6 +300,8 @@
             o.forceList = true;
             return r.ip ? o : 'WARNING: Name resolution of ' + String(n || '').slice(0, 64) + ' failed';
         };
+        /* common aliases (Nancy R4 #9) */
+        P['tnc'] = P['test-netconnection']; P['gps'] = P['get-process']; P['ps'] = P['get-process']; P['gsv'] = P['get-service']; Mu['kill'] = Mu['stop-process']; Mu['spps'] = Mu['stop-process'];
         var ipcfg = L['ipconfig'];
         L['ipconfig'] = function (state, t, ctx) {
             PC.ledger(state, 'ipconfig', '');

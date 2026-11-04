@@ -35,7 +35,7 @@
         return [
             'You have ' + minutes + ' minutes on the server clock. Refreshing the page resumes the same lab and the same clock.',
             'Build the workstation in this work order, then hand it over. Hand over by minute ' + handoverBy + ' (at least 40 minutes left): after handover a user ticket arrives on this PC, and you diagnose, fix, verify and record it.',
-            'Handover is one way. Phases 1-6 are recorded as they stand at handover. If Windows is not installed and set up when you hand over, Phase 7 and the incident record cannot be earned.',
+            'Handover is one way. Phases 1-6 are recorded as they stand at handover: a change that waits for a restart (a rename, a domain join, an update, BitLocker, the page file) counts only once the PC has restarted, so restart before you hand over. If Windows is not installed and set up when you hand over, Phase 7 and the incident record cannot be earned.',
             'You may restart your build up to ' + (cap === 1 ? 'once' : cap === 2 ? 'twice' : cap + ' times') + ' before handover. Restarting gives no extra time and your clock keeps running; it is not a second attempt, and any penalty you already incurred (for example, damaging the archive disk) still counts. You submit once.',
             'There is no Dr. Hex, no course content and no hint system during the exam. Nothing on screen tells you whether a step is right.',
             'The lab host is Hyper-V. The fabric attaches the MER-ARCHIVE, MER-POOL1, MER-POOL2 and TECH-USB disks to the VM you create. TECH-USB appears as F: inside Windows and in the host\'s Lab Files panel. After setup, C:\\LabFiles on the PC holds the installation packages.',
@@ -44,6 +44,7 @@
             'Setup and the OOBE consoles (Shift+F10) take one command per line; pipelines are available in the Windows console after setup. oobe\\bypassnro is the offline OOBE route. To reinstall, start the VM with the ISO attached and press any key.',
             'This image ships to laptops, but a VM has no battery and no sleep state: set the battery and sleep values with powercfg.',
             'Registry edits outside the areas this work order covers are recorded but have no effect.',
+            'The consoles support the common cmdlets and tools, not every one. To set a password from a console: New-LocalUser prompts for it; for an existing account use net user <name> <password>. ConvertTo-SecureString is not available. If a command is not recognised, the matching window does the same job.',
             'Save the BitLocker recovery key to TECH-USB. You may need it.',
             'Passwords: technician account ' + PASSWORDS.technician + '; end-user accounts ' + PASSWORDS.user + '; domain join account (domain PCs only) ' + PASSWORDS.join + '.'
         ];

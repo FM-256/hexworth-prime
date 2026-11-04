@@ -21,7 +21,7 @@
         B1: { type: 'text', max: A.typedChars, label: 'Recovery-password protector ID (first 8 hex characters)' },
         B2: { type: 'select', options: METHOD_OPTIONS, label: 'C: encryption method' },
         I1: { type: 'select', options: FAULTS.CATEGORIES, label: 'Root-cause category' },
-        I2: { type: 'text', max: 32, label: 'Evidence identifier (as shown in the evidence: a KB number, stop code, event ID, process or file name)' },
+        I2: { type: 'text', max: 64, label: 'Evidence identifier (as shown in the evidence: a KB number, stop code, event ID, process or file name)' },
         I3: { type: 'select', options: FAULTS.VERIFY_OPTIONS, label: 'Verified by' }
     });
 

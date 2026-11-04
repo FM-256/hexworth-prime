@@ -333,7 +333,11 @@
               var sys = PC.partById(t, os.systemPartition);
               var explicit = !!(sys && sys.explicit === true);
               var c = PC.cSizeGb(s);
-              return [pts(onTarget && explicit, 1), pts(onTarget && c !== null && Math.abs(c - v.k.wo.disks.cGB) <= 1, 2)];
+              /* "80 GB" read either way: 80 x 1024 MB or 80 x 1000 MB typed into Setup's MB field both
+               * count, each within 1 GB (Nancy R4 #1: a decimal reading cost 2 points otherwise) */
+              var want = v.k.wo.disks.cGB, decimal = want * 1000 / 1024;
+              var sizeOk = c !== null && (Math.abs(c - want) <= 1 || Math.abs(c - decimal) <= 1);
+              return [pts(onTarget && explicit, 1), pts(onTarget && sizeOk, 2)];
           } },
         { id: '1.4', phase: 'P1', objective: 1, points: 5, basis: 'snap', title: 'OOBE and activation',
           parts: [{ id: 'account', points: 1 }, { id: 'privacy', points: 2 }, { id: 'key', points: 1 }, { id: 'licensed', points: 1 }],
@@ -436,7 +440,7 @@
           negative: '255.255.255.0 on a /23 WO: prefix 0; DNS reversed: both DNS parts 0', knockOn: [], check: check41 },
         { id: '4.2', phase: 'P4', objective: 7, points: 4, basis: 'snap', title: 'Firewall and profile',
           parts: [{ id: 'rule', points: 1 }, { id: 'profiles', points: 1 }, { id: 'remote', points: 1 }, { id: 'category', points: 1 }],
-          negative: 'rule on Any profile; remote Any; category left Public', knockOn: ['4.1'], check: check42 },
+          negative: 'rule on Any profile; remote Any; category left Public', knockOn: ['4.1', '3.3'], check: check42 },
         { id: '4.3', phase: 'P4', objective: 9, points: 2, basis: 'snap', title: 'Remote Desktop',
           parts: [{ id: 'enabled', points: 1 }, { id: 'rdu', points: 1 }],
           negative: 'enabled, user not added', knockOn: ['1.2', '3.1'], check: check43 },

@@ -84,4 +84,69 @@ function upToP3(uid, forced) {
     t.check(Object.prototype.Name === undefined && ({}).x === undefined, 'Object.prototype unchanged');
 }
 
+/* ── Nancy R4 fixes ───────────────────────────────────────────────────────────────────────── */
+const FA = kit.req('mdfinal-faults.js');
+const CLIENT = kit.req('mdfinal-client.js');
+
+/* R4 #2: the I2 evidence sets name every artefact spec 4.1 lists and the diagnostic routes show */
+{
+    const want = {
+        V1: (k) => ['0x7B', 'INACCESSIBLE_BOOT_DEVICE', 'Stop code: INACCESSIBLE_BOOT_DEVICE', '1001', '41', 'mbafilt', 'mbafilt.sys', k.fault.driverInf],
+        V2: (k) => [k.fault.kb, k.fault.kb.slice(2), '1000', '1001', 'mer_shellhook.dll'],
+        V3: () => ['msynchlp', 'msynchlp.exe', 'MerSync', 'SyncHelperWatchdog'],
+        V4: (k) => ['1014', 'MerVpnHelper', k.fault.decoyIp, FA.VENDOR_DNS[0], '5719', '1129']
+    };
+    const not = { V1: ['explorer.exe', '7C'], V2: ['explorer.exe', 'explorer'], V3: ['svchost'], V4: ['8.8.8.8'] };
+    for (let v = 0; v < 4; v++) {
+        const r = W.perfect('d7-ev-' + v, [0, v], { skipRepair: true, skipP8: true });
+        const set = FA.evidenceSet(r.state, r.key);
+        const V = r.key.variant;
+        const missing = want[V](r.key).filter((x) => set.indexOf(FA.normEvidence(x)) < 0);
+        t.check(missing.length === 0, 'I2 ' + V + ': every listed artefact is accepted (missing ' + missing.join(',') + ')');
+        t.check(not[V].every((x) => set.indexOf(FA.normEvidence(x)) < 0), 'I2 ' + V + ': the victim or an unrelated value is not evidence');
+        t.check(want[V](r.key).every((x) => String(x).length <= kit.req('mdfinal-answers.js').FIELDS.I2.max), 'I2 ' + V + ': every accepted form fits the field');
+    }
+    const w = W.perfect('d7-ev-wg', [2, 3], { skipRepair: true, skipP8: true });
+    const ws = FA.evidenceSet(w.state, w.key);
+    t.check(ws.indexOf('5719') < 0 && ws.indexOf('1129') < 0, 'I2 V4 on a workgroup PC: no domain events (they are never logged there)');
+}
+
+/* R4 #3: switch parameters never swallow the next token */
+{
+    const r = W.perfect('d7-sw', [0, 2], { skipRepair: true, skipP8: true });
+    const s = r.state, key = r.key;
+    const before = s.apps.appx.filter((a) => a.user).map((a) => a.name);
+    SH.exec(s, 'ps', 'Get-AppxPackage -AllUsers *Solitaire* | Remove-AppxPackage', { key });
+    const after = s.apps.appx.filter((a) => a.user).map((a) => a.name);
+    t.check(['Microsoft.WindowsCalculator', 'Microsoft.WindowsStore', 'Microsoft.WindowsNotepad'].every((n) => after.indexOf(n) >= 0) && after.length >= before.length - 1,
+        'Get-AppxPackage -AllUsers *X* | Remove-AppxPackage removes only the match, never the keep-list');
+    const sorted = SH.exec(s, 'ps', 'Get-Process | Sort-Object -Descending CPU', { key }).out.split('\n')[2] || '';
+    t.check(/msynchlp/.test(sorted), 'Sort-Object -Descending CPU puts the runaway process first (V3)');
+    const sp = SH.exec(s, 'ps', 'Stop-Process -Force msynchlp', { key }).out;
+    t.check(!/undefined/.test(sp) && !s.sys.processes.some((x) => x.name === 'msynchlp'), 'Stop-Process -Force <name> ends the named process');
+    t.check(/LedgerSync_2\.4_x64\.msi/.test(SH.exec(s, 'ps', 'Get-ChildItem -Recurse C:\\LabFiles', { key }).out), 'Get-ChildItem -Recurse <path> lists the path');
+}
+
+/* R4 #4 and #9: ping -n, aliases, automatic DNS on a static address */
+{
+    const r = W.perfect('d7-ping', [0, 3], { skipP8: true });
+    const s = r.state, key = r.key, lob = s.wo.lob.fqdn;
+    const o = SH.exec(s, 'ps', 'ping -n 2 ' + lob, { key }).out;
+    t.check(o.indexOf('Pinging ' + lob) === 0 && /Reply from/.test(o), 'ping -n 2 <host> pings the host (repaired V4: it replies)');
+    t.check(s.ledger.slice(-1)[0].k === 'name-test' && s.ledger.slice(-1)[0].ref === 'lob', 'ping -n 2 <lob> is an I3 name test on the LedgerSync server');
+    for (const [l, re] of [['tnc ' + lob + ' -Port ' + s.wo.lob.port, /TcpTestSucceeded/], ['gps', /ProcessName/], ['gsv Dnscache', /Dnscache/], ['ping.exe ' + lob, /Pinging/], ['echo ok', /^ok$/]]) {
+        t.check(re.test(SH.exec(s, 'ps', l, { key }).out), 'alias works: ' + l.split(' ')[0]);
+    }
+    const ip = GUI.act(s, 'ncpa', 'ipv4', { dnsAuto: true }, { key });
+    t.check(!ip.ok && /only when the IP address is obtained automatically/.test(ip.msg), 'automatic DNS on a static address is refused, not a false success');
+}
+
+/* R4 #7 and #9: the brief says to restart before handover, and names the password routes */
+{
+    const { state } = W.sitting('d7-brief', [0, 0]);
+    const rules = CLIENT.toInitialState(state).rules.join(' ');
+    t.check(/restart before you hand over/.test(rules), 'the rules tell students to restart before handover');
+    t.check(/ConvertTo-SecureString is not available/.test(rules) && /New-LocalUser prompts/.test(rules) && /net user <name> <password>/.test(rules), 'the rules name the supported password routes');
+}
+
 t.done();

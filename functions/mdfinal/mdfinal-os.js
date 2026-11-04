@@ -508,6 +508,9 @@
             next.gateway = p.gateway ? NF.ip.toStr(ipInt(p.gateway)) : null;
             next.dnsAuto = false;
         }
+        /* automatic DNS needs an automatic address (the radio is greyed out on a static IP); it
+         * used to report success and change nothing (Nancy R4 #9) */
+        if (p.dnsAuto === true && !next.dhcp) { return fail('DNS server addresses can be obtained automatically only when the IP address is obtained automatically. Enter the DNS servers.'); }
         if (p.dnsAuto === true && next.dhcp) { next.dnsAuto = true; next.dns = ['172.25.48.1']; }
         else if (p.dns1 !== undefined || p.dns2 !== undefined) {
             var d = [p.dns1, p.dns2].filter(function (x) { return x !== undefined && x !== null && String(x).trim() !== ''; });

@@ -203,25 +203,31 @@
     function normEvidence(raw) {
         var s = String(raw || '').trim().toLowerCase().split(' ').join('');
         if (!s) { return ''; }
-        if (s.slice(0, 4) === 'stop') { s = s.slice(4); if (s[0] === ':') { s = s.slice(1); } }
+        if (s.slice(0, 4) === 'stop') { s = s.slice(4); if (s.slice(0, 4) === 'code') { s = s.slice(4); } if (s[0] === ':') { s = s.slice(1); } }
         if (s === 'inaccessible_boot_device' || s === 'inaccessiblebootdevice') { return 'stop:7b'; }
         if (s.slice(0, 2) === '0x') { var h = s.slice(2).replace(/^0+/, ''); return h === '7b' ? 'stop:7b' : 'hex:' + h; }
         /* the stop code as decimal (123) or bare hex (7B) */
         if (s === '123' || s === '7b' || s === '0000007b') { return 'stop:7b'; }
         if (s.slice(0, 2) === 'kb') { s = s.slice(2); }
-        if (s.slice(-4) === '.exe') { s = s.slice(0, -4); }
+        /* a file name counts with or without its extension (msynchlp.exe, mbafilt.sys, oem7.inf) */
+        var ext = s.slice(-4);
+        if (ext === '.exe' || ext === '.sys' || ext === '.dll' || ext === '.inf') { s = s.slice(0, -4); }
         return s;
     }
 
-    /* The evidence set for the variant (normalised). */
+    /* The evidence set for the variant (normalised): every identifier spec 4.1's evidence column
+     * names, plus the root-cause artefacts the I1/I2 diagnostic routes show (Nancy R4 #2). The
+     * victim the ticket already names (explorer.exe) is not evidence. */
     function evidenceSet(state, key) {
         var v = key.variant, kbn = key.fault.kb.slice(2);
-        if (v === 'V1') { return ['stop:7b', '1001']; }
-        if (v === 'V2') { return [kbn, '1000']; }
-        if (v === 'V3') { return ['msynchlp']; }
-        /* 5719 exists only when the PC really is a domain member (the event is logged then) */
+        if (v === 'V1') { return ['stop:7b', '1001', '41', 'mbafilt', normEvidence(key.fault.driverInf)]; }
+        if (v === 'V2') { return [kbn, '1000', '1001', 'mer_shellhook']; }
+        if (v === 'V3') { return ['msynchlp', 'mersync', 'synchelperwatchdog']; }
+        var out = ['1014', 'mervpnhelper', normEvidence(key.fault.decoyIp)].concat(VENDOR_DNS.map(normEvidence));
+        /* 5719 and 1129 exist only when the PC really is a domain member (the events are logged then) */
         var m = state.identity && state.identity.membership;
-        return m && m.type === 'domain' && !m.pending ? ['1014', '5719'] : ['1014'];
+        if (m && m.type === 'domain' && !m.pending) { out.push('5719', '1129'); }
+        return out;
     }
 
     module.exports = {

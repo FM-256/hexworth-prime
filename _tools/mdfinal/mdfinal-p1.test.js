@@ -348,10 +348,19 @@ for (const [label, prof, o0, row, parts, pens] of NEG) {
         finishOobe(state, key);
         t.check(JSON.stringify(g13(state, key)) === '[0,2]', 'Next on an unallocated hole of the WO size: 1.3 = [0,2] (' + JSON.stringify(g13(state, key)) + ')');
     }
-    for (const [label, deltaGB, want] of [['WO + 2 GB', 2, '[1,0]'], ['WO - 1 GB', -1, '[1,2]'], ['WO + 1 GB', 1, '[1,2]'], ['WO - 2 GB', -2, '[1,0]']]) {
+    /* accepted band (Nancy R4 #1): within 1 GB of WO x 1024 MB or of WO x 1000 MB (the decimal
+     * reading, WO x 1000/1024 GB); 'below decimal' sits 1.5 GB under the decimal reading */
+    for (const [label, deltaGB, want] of [['WO + 2 GB', 2, '[1,0]'], ['WO - 1 GB', -1, '[1,2]'], ['WO + 1 GB', 1, '[1,2]'], ['below decimal', null, '[1,0]']]) {
         const { state, key } = W.sitting('f2-size' + deltaGB, [0, 0]);
-        W.p1Gui(state, key, { cGB: state.wo.disks.cGB + deltaGB });
+        const c = state.wo.disks.cGB;
+        W.p1Gui(state, key, { cGB: deltaGB === null ? c * 1000 / 1024 - 1.5 : c + deltaGB });
         t.check(JSON.stringify(g13(state, key)) === want, 'C: at ' + label + ': 1.3 = ' + want + ' (' + JSON.stringify(g13(state, key)) + ')');
+    }
+    /* the decimal reading: "80 GB" typed as 80000 MB into Setup's MB field */
+    {
+        const { state, key } = W.sitting('f2-size-dec', [0, 0]);
+        W.p1Gui(state, key, { cGB: state.wo.disks.cGB * 1000 / 1024 });
+        t.check(JSON.stringify(g13(state, key)) === '[1,2]', 'C: typed as WO x 1000 MB scores the size part (' + JSON.stringify(g13(state, key)) + ')');
     }
 
     /* F1: every ledger ref is server text, even after a hostile walk */
