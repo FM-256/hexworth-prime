@@ -24,8 +24,36 @@
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
 
+    /* Built-in local groups (a WO group can never be one of these). */
+    var OS_BUILTIN_GROUPS = ['Administrators', 'Users', 'Guests', 'Remote Desktop Users'];
+
     /* Score helper: full points when cond holds, else 0. */
     function pts(cond, n) { return cond ? n : 0; }
+
+    /* Case-insensitive key lookup in an account/group map (Windows names are case-insensitive). */
+    function findKey(map, name) {
+        var n = String(name || '').toLowerCase();
+        var ks = Object.keys(map || {});
+        for (var i = 0; i < ks.length; i++) { if (ks[i].toLowerCase() === n) { return ks[i]; } }
+        return null;
+    }
+
+    /* True when a group's member list contains this local account (case-insensitive). */
+    function isMember(s, group, name) {
+        var g = findKey(s.identity.groups, group);
+        if (!g) { return false; }
+        var n = String(name).toLowerCase();
+        return s.identity.groups[g].members.some(function (m) { return m.toLowerCase() === n; });
+    }
+
+    /* The active power plan, or null. */
+    function activePlan(s) {
+        var p = s.os.power;
+        return p.plans.filter(function (x) { return x.guid === p.active; })[0] || null;
+    }
+
+    /* Everything P2+ needs exists only once Windows reached the desktop. */
+    function desktopDone(s) { return !!(s.os && s.os.oobe && s.os.oobe.done); }
 
     /* The disk the student's own OS VHDX became, or null before a VM exists. */
     function targetDisk(s) { return PC.diskByRole(s, 'os'); }
@@ -94,24 +122,75 @@
         /* ── P2 Post-install (9) ── */
         { id: '2.1', phase: 'P2', objective: 1, points: 4, basis: 'snap', title: 'Post-install',
           parts: [{ id: 'hostname', points: 2 }, { id: 'timezone', points: 1 }, { id: 'cu', points: 1 }],
-          negative: 'rename without restart: 1/2; time zone left Pacific; CU pending restart', knockOn: [], check: null },
+          negative: 'rename without restart: 1/2; time zone left Pacific; CU pending restart', knockOn: [],
+          check: function (v) {
+              var s = v.s, wo = v.k.wo;
+              if (!desktopDone(s)) { return [0, 0, 0]; }
+              var h = s.os.hostname, want = wo.hostname.toUpperCase();
+              var host = h.effective === want ? 2 : h.pending === want ? 1 : 0;
+              var cu = s.os.updates.history.some(function (x) { return x.kb === wo.updates.cumulativeKb && x.status === 'Installed'; });
+              return [host, pts(s.os.timeZone === wo.timeZone, 1), pts(cu, 1)];
+          } },
         { id: '2.2', phase: 'P2', objective: 5, points: 3, basis: 'snap', title: 'Power (AC)',
           parts: [{ id: 'plan', points: 1 }, { id: 'ac-display', points: 1 }, { id: 'ac-sleep', points: 1 }],
-          negative: 'Balanced edited in place: plan 0', knockOn: [], check: null },
+          negative: 'Balanced edited in place: plan 0', knockOn: [],
+          check: function (v) {
+              var s = v.s, wo = v.k.wo;
+              if (!desktopDone(s)) { return [0, 0, 0]; }
+              var a = activePlan(s);
+              if (!a) { return [0, 0, 0]; }
+              var named = !a.builtin && a.name.trim().toLowerCase() === wo.power.planName.toLowerCase();
+              return [pts(named, 1), pts(a.ac.display === wo.power.acDisplayMin, 1), pts(a.ac.sleep === wo.power.acSleepMin, 1)];
+          } },
         { id: '2.3', phase: 'P2', objective: 9, points: 2, basis: 'snap', title: 'Battery (DC)',
           parts: [{ id: 'dc-display', points: 1 }, { id: 'dc-sleep', points: 1 }],
-          negative: 'DC values on an inactive plan: 0/2', knockOn: [], check: null },
+          negative: 'DC values on an inactive plan: 0/2', knockOn: [],
+          check: function (v) {
+              var s = v.s, wo = v.k.wo;
+              if (!desktopDone(s)) { return [0, 0]; }
+              var a = activePlan(s);
+              if (!a) { return [0, 0]; }
+              return [pts(a.dc.display === wo.power.dcDisplayMin, 1), pts(a.dc.sleep === wo.power.dcSleepMin, 1)];
+          } },
 
         /* ── P3 Identity (10) ── */
         { id: '3.1', phase: 'P3', objective: 6, points: 5, basis: 'snap', title: 'Local user and group',
           parts: [{ id: 'user', points: 1 }, { id: 'standard', points: 1 }, { id: 'password-flags', points: 1 },
                   { id: 'group', points: 1 }, { id: 'members', points: 1 }],
-          negative: 'user in Administrators: standard 0; extra member', knockOn: [], check: null },
+          negative: 'user in Administrators: standard 0; extra member', knockOn: [],
+          check: function (v) {
+              var s = v.s, wo = v.k.wo;
+              if (!desktopDone(s)) { return [0, 0, 0, 0, 0]; }
+              var uk = findKey(s.identity.users, wo.user.name);
+              var user = uk && !s.identity.users[uk].builtin ? s.identity.users[uk] : null;
+              var gk = findKey(s.identity.groups, wo.group);
+              var want = [wo.user.name.toLowerCase(), wo.secondMember.name.toLowerCase()].sort();
+              var have = gk ? s.identity.groups[gk].members.map(function (m) { return m.toLowerCase(); }).sort() : null;
+              return [pts(!!user, 1),
+                  pts(!!user && isMember(s, 'Users', uk) && !isMember(s, 'Administrators', uk), 1),
+                  pts(!!user && user.neverExpires === true && user.mustChange === false, 1),
+                  pts(!!gk && OS_BUILTIN_GROUPS.indexOf(gk) < 0, 1),
+                  pts(!!have && OS_BUILTIN_GROUPS.indexOf(gk) < 0 && JSON.stringify(have) === JSON.stringify(want), 1)];
+          } },
         { id: '3.2', phase: 'P3', objective: 7, points: 1, basis: 'snap', title: 'UAC',
-          parts: [{ id: 'always-notify', points: 1 }], negative: 'Never notify', knockOn: [], check: null },
+          parts: [{ id: 'always-notify', points: 1 }], negative: 'Never notify', knockOn: [],
+          check: function (v) {
+              var s = v.s;
+              if (!desktopDone(s)) { return [0]; }
+              var u = s.identity.uac;
+              return [pts(u.ConsentPromptBehaviorAdmin === 2 && u.PromptOnSecureDesktop === 1 && u.EnableLUA === 1, 1)];
+          } },
         { id: '3.3', phase: 'P3', objective: 6, points: 4, basis: 'snap', title: 'Domain or workgroup',
           parts: [{ id: 'membership', points: 4 }],
-          negative: 'workgroup MERIDIAN on a domain WO; join before DNS fails', knockOn: ['4.1', '1.2'], check: null },
+          negative: 'workgroup MERIDIAN on a domain WO; join before DNS fails', knockOn: ['4.1', '1.2'],
+          check: function (v) {
+              var s = v.s, wo = v.k.wo;
+              if (!desktopDone(s)) { return [0]; }
+              var m = s.identity.membership;
+              var want = wo.join.type === 'domain' ? { type: 'domain', name: 'meridian.local' } : { type: 'workgroup', name: wo.join.workgroup.toUpperCase() };
+              var same = function (x) { return !!x && x.type === want.type && String(x.name).toLowerCase() === want.name.toLowerCase(); };
+              return [same(m) && !m.pending ? 4 : same(m.pending) ? 1 : 0];
+          } },
 
         /* ── P4 Network and sharing (15) ── */
         { id: '4.1', phase: 'P4', objective: 3, points: 5, basis: 'snap', title: 'IPv4 and DNS',
@@ -175,7 +254,26 @@
         { id: 'P1-archive', phase: 'P1', points: 2, title: 'Archive volume deleted, formatted or changed',
           applies: function (v) { return !PC.archiveIntact(v.s, v.k.wo.disks.archiveManifest); } },
         { id: 'P1-secureboot', phase: 'P1', points: 1, title: 'Secure Boot disabled on a Generation 2 VM',
-          applies: function (v) { return !!(v.s.vm && v.s.vm.generation === 2 && v.s.vm.secureBoot && v.s.vm.secureBoot.on === false); } }
+          applies: function (v) { return !!(v.s.vm && v.s.vm.generation === 2 && v.s.vm.secureBoot && v.s.vm.secureBoot.on === false); } },
+        { id: 'P3-administrator', phase: 'P3', points: 1, title: 'Built-in Administrator enabled',
+          applies: function (v) { return desktopDone(v.s) && v.s.identity.users.Administrator.enabled === true; } },
+        { id: 'P3-guest', phase: 'P3', points: 1, title: 'Guest enabled',
+          applies: function (v) { return desktopDone(v.s) && v.s.identity.users.Guest.enabled === true; } },
+        /* Local user accounts only: the WO user is graded by 3.1, the OOBE account is expected, and
+         * the domain-join default groups (MERIDIAN\Domain Admins) are not accounts (13.5 item 2). */
+        { id: 'P3-extra-admin', phase: 'P3', points: 1, title: 'An additional local administrator',
+          applies: function (v) {
+              var s = v.s;
+              if (!desktopDone(s)) { return false; }
+              var wouser = String(v.k.wo.user.name).toLowerCase();
+              return s.identity.groups.Administrators.members.some(function (m) {
+                  if (m.indexOf('\\') >= 0) { return false; }
+                  var k = findKey(s.identity.users, m);
+                  if (!k) { return false; }
+                  var u = s.identity.users[k];
+                  return !u.builtin && !u.oobe && k.toLowerCase() !== wouser;
+              });
+          } }
     ];
 
     LIM.deepFreeze(CHECKS);

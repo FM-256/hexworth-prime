@@ -94,10 +94,11 @@ function oobe(s, key, o) {
     o = o || {};
     A(s, 'oobe', 'region', {});
     A(s, 'oobe', 'keyboard', {});
-    A(s, 'oobe', 'name', { hostname: s.wo.hostname });
+    const nameStep = o.oobeSkipName ? { skip: true } : { hostname: s.wo.hostname };
+    A(s, 'oobe', 'name', nameStep);
     if (s.os.oobe.screen === 'msa') {
         X(s, 'oobe-cmd', 'oobe\\bypassnro');
-        A(s, 'oobe', 'region', {}); A(s, 'oobe', 'keyboard', {}); A(s, 'oobe', 'name', { hostname: s.wo.hostname });
+        A(s, 'oobe', 'region', {}); A(s, 'oobe', 'keyboard', {}); A(s, 'oobe', 'name', nameStep);
         A(s, 'oobe', 'limited-setup', {});
     } else {
         A(s, 'oobe', 'setup-type', { type: 'work' });
@@ -208,4 +209,93 @@ function defaultInstalledBusiness(s) {
     return s;
 }
 
-module.exports = { defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };
+const JOIN_USER = 'MERIDIAN\\svc-wsjoin';
+const JOIN_PW = 'Meridian-Join-2026';
+
+/* Network settings P3's join depends on (row 4.1 itself is graded from D4). */
+function ipv4(s, o) {
+    const n = s.wo.network;
+    A(s, 'ncpa', 'ipv4', { dhcp: false, ip: n.ip, mask: n.mask, gateway: n.gateway, dns1: n.dns[0], dns2: n.dns[1] });
+}
+
+/* Canonical P2 + P3 through the GUI (plus powercfg for the values a VM's GUI does not offer). */
+function p23Gui(s, key, o) {
+    o = o || {};
+    const wo = s.wo;
+    if (!o.skipIpv4) ipv4(s, o);
+    if (o.renameAfterOobe) { A(s, 'settings', 'rename', { name: wo.hostname }); }
+    if (!o.skipTz) A(s, 'settings', 'time-zone', { id: wo.timeZone });
+    if (!o.skipCu) { A(s, 'settings', 'update-check', {}); A(s, 'settings', 'update-install', {}); }
+    if (o.editBalanced) {
+        A(s, 'power', 'edit-plan', { plan: 'Balanced', acDisplay: wo.power.acDisplayMin });
+    } else {
+        A(s, 'power', 'create-plan', { name: wo.power.planName, basedOn: 'Balanced', acDisplay: o.acDisplay || wo.power.acDisplayMin });
+    }
+    if (!o.skipAcSleep) X(s, 'ps', 'powercfg /change standby-timeout-ac ' + wo.power.acSleepMin);
+    if (o.dcOnBalanced) {
+        X(s, 'ps', 'powercfg /setactive SCHEME_BALANCED');
+        X(s, 'ps', 'powercfg /change monitor-timeout-dc ' + wo.power.dcDisplayMin);
+        X(s, 'ps', 'powercfg /change standby-timeout-dc ' + wo.power.dcSleepMin);
+        A(s, 'power', 'set-active', { plan: wo.power.planName });
+    } else {
+        X(s, 'ps', 'powercfg /change monitor-timeout-dc ' + wo.power.dcDisplayMin);
+        X(s, 'ps', 'powercfg /change standby-timeout-dc ' + wo.power.dcSleepMin);
+    }
+    if (!o.skipUser) A(s, 'lusrmgr', 'user-new', { name: wo.user.name, fullName: wo.user.fullName, password: 'User-Pass-1', mustChange: o.mustChange === true, neverExpires: o.mustChange !== true });
+    A(s, 'lusrmgr', 'user-new', { name: wo.secondMember.name, fullName: wo.secondMember.fullName, password: 'User-Pass-2', mustChange: false, neverExpires: true });
+    if (!o.skipGroup) {
+        A(s, 'lusrmgr', 'group-new', { name: wo.group });
+        if (!o.skipUser) A(s, 'lusrmgr', 'group-add', { group: wo.group, member: wo.user.name });
+        A(s, 'lusrmgr', 'group-add', { group: wo.group, member: wo.secondMember.name });
+        if (o.extraMember) A(s, 'lusrmgr', 'group-add', { group: wo.group, member: s.identity.users[wo.technician] ? wo.technician : wo.secondMember.name });
+    }
+    if (o.userAdmin) A(s, 'lusrmgr', 'group-add', { group: 'Administrators', member: wo.user.name });
+    if (o.secondAdmin) A(s, 'lusrmgr', 'group-add', { group: 'Administrators', member: wo.secondMember.name });
+    if (o.enableAdministrator) A(s, 'lusrmgr', 'user-set', { name: 'Administrator', enabled: true });
+    if (o.enableGuest) A(s, 'lusrmgr', 'user-set', { name: 'Guest', enabled: true });
+    A(s, 'uac', 'set', { level: o.uacLevel || 4 });
+    if (o.joinBeforeDns) {
+        const r = GUI.act(s, 'sysprops', 'join', { type: 'domain', name: 'meridian.local', user: JOIN_USER, password: JOIN_PW });
+        if (r.ok) throw new Error('walk: join before DNS unexpectedly succeeded');
+    } else if (o.wrongWorkgroup) {
+        A(s, 'sysprops', 'join', { type: 'workgroup', name: 'MERIDIAN' });
+    } else if (wo.join.type === 'domain') {
+        A(s, 'sysprops', 'join', { type: 'domain', name: 'meridian.local', user: JOIN_USER, password: JOIN_PW });
+    } else {
+        A(s, 'sysprops', 'join', { type: 'workgroup', name: wo.join.workgroup });
+    }
+    if (!o.noRestart) A(s, 'desktop', 'restart', {});
+    return s;
+}
+
+/* Canonical P2 + P3 through the desktop console. */
+function p23Shell(s, key) {
+    const wo = s.wo;
+    ipv4(s, {});
+    X(s, 'ps', 'Set-TimeZone -Id "' + wo.timeZone + '"');
+    A(s, 'settings', 'update-check', {}); A(s, 'settings', 'update-install', {});
+    const dup = X(s, 'ps', 'powercfg /duplicatescheme SCHEME_BALANCED', 'Power Scheme GUID').out;
+    const guid = dup.split('GUID: ')[1].split(' ')[0];
+    X(s, 'ps', 'powercfg /changename ' + guid + ' "' + wo.power.planName + '"');
+    X(s, 'ps', 'powercfg /setactive ' + guid);
+    X(s, 'ps', 'powercfg /change monitor-timeout-ac ' + wo.power.acDisplayMin);
+    X(s, 'ps', 'powercfg /change standby-timeout-ac ' + wo.power.acSleepMin);
+    X(s, 'ps', 'powercfg /change monitor-timeout-dc ' + wo.power.dcDisplayMin);
+    X(s, 'ps', 'powercfg /change standby-timeout-dc ' + wo.power.dcSleepMin);
+    X(s, 'ps', 'New-LocalUser -Name ' + wo.user.name + ' -FullName "' + wo.user.fullName + '" -PasswordNeverExpires', 'Password');
+    X(s, 'ps', 'User-Pass-1');
+    X(s, 'ps', 'net user ' + wo.secondMember.name + ' User-Pass-2 /add', 'completed successfully');
+    X(s, 'ps', 'Set-LocalUser -Name ' + wo.secondMember.name + ' -PasswordNeverExpires $true');
+    X(s, 'ps', 'New-LocalGroup -Name ' + wo.group);
+    X(s, 'ps', 'Add-LocalGroupMember -Group ' + wo.group + ' -Member ' + wo.user.name + ',' + wo.secondMember.name);
+    X(s, 'ps', 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 2 /f', 'completed successfully');
+    if (wo.join.type === 'domain') {
+        X(s, 'ps', 'Add-Computer -DomainName meridian.local -Credential ' + JOIN_USER + ' -Restart', 'Password for user');
+        X(s, 'ps', JOIN_PW);
+    } else {
+        X(s, 'ps', 'Add-Computer -WorkgroupName ' + wo.join.workgroup + ' -Restart');
+    }
+    return s;
+}
+
+module.exports = { p23Gui, p23Shell, ipv4, JOIN_USER, JOIN_PW, defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };

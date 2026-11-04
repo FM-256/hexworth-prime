@@ -17,6 +17,8 @@
 
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
+    var OS = require('./mdfinal-os.js');
+    var REG = require('./mdfinal-registry.js');
 
     var L = LIM.LIMITS.params;
     var KEY_RE = /^[A-Za-z][A-Za-z0-9]{0,31}$/;  /* literal of LIMITS.params.keyPattern (tested equal) */
@@ -41,7 +43,14 @@
         'oobe':        { screens: ['oobe'] },
         'oobe-cmd':    { screens: ['oobe'] },
         'activation':  { screens: ['desktop'] },
-        'desktop':     { screens: ['desktop'] }
+        'desktop':     { screens: ['desktop'] },
+        'settings':    { screens: ['desktop'] },
+        'power':       { screens: ['desktop'] },
+        'lusrmgr':     { screens: ['desktop'] },
+        'uac':         { screens: ['desktop'] },
+        'sysprops':    { screens: ['desktop'] },
+        'regedit':     { screens: ['desktop'] },
+        'ncpa':        { screens: ['desktop'] }
     });
 
     var ACTION_SCHEMA = LIM.deepFreeze({
@@ -78,8 +87,40 @@
                                     inking: T.bool, tailored: T.bool, advertisingId: T.bool }, required: [] },
         'activation/change-key': { params: { key: T.str(29) }, required: ['key'] },
         'activation/activate': { params: {}, required: [] },
-        'desktop/restart': { params: {}, required: [] }
+        'desktop/restart': { params: {}, required: [] },
+        'settings/rename': { params: { name: T.str(15) }, required: ['name'] },
+        'settings/time-zone': { params: { id: T.str(64) }, required: ['id'] },
+        'settings/update-check': { params: {}, required: [] },
+        'settings/update-install': { params: {}, required: [] },
+        'settings/screen-timeout': { params: { minutes: T.int(0, 999) }, required: ['minutes'] },
+        'power/create-plan': { params: { name: T.str(64), basedOn: T.str(64), acDisplay: T.int(0, 999) }, required: ['name'] },
+        'power/set-active': { params: { plan: T.str(64) }, required: ['plan'] },
+        'power/edit-plan': { params: { plan: T.str(64), acDisplay: T.int(0, 999) }, required: ['plan', 'acDisplay'] },
+        'lusrmgr/user-new': { params: { name: T.str(20), fullName: T.str(64), password: T.str(127), mustChange: T.bool,
+                                        cannotChange: T.bool, neverExpires: T.bool, disabled: T.bool }, required: ['name'] },
+        'lusrmgr/user-set': { params: { name: T.str(20), fullName: T.str(64), mustChange: T.bool, cannotChange: T.bool,
+                                        neverExpires: T.bool, enabled: T.bool }, required: ['name'] },
+        'lusrmgr/user-delete': { params: { name: T.str(20) }, required: ['name'] },
+        'lusrmgr/group-new': { params: { name: T.str(20), description: T.str(64) }, required: ['name'] },
+        'lusrmgr/group-add': { params: { group: T.str(64), member: T.str(64) }, required: ['group', 'member'] },
+        'lusrmgr/group-remove': { params: { group: T.str(64), member: T.str(64) }, required: ['group', 'member'] },
+        'uac/set': { params: { level: T.int(1, 4) }, required: ['level'] },
+        'sysprops/join': { params: { type: T.oneOf(['domain', 'workgroup']), name: T.str(64), user: T.str(64), password: T.str(127) }, required: ['type', 'name'] },
+        'regedit/set': { params: { key: T.str(260), name: T.str(64), type: T.oneOf(['REG_SZ', 'REG_DWORD', 'REG_QWORD', 'REG_EXPAND_SZ', 'REG_MULTI_SZ', 'REG_BINARY']),
+                                   data: T.str(500) }, required: ['key', 'name', 'type', 'data'] },
+        'regedit/delete': { params: { key: T.str(260), name: T.str(64) }, required: ['key', 'name'] },
+        'regedit/new-key': { params: { key: T.str(260) }, required: ['key'] },
+        'ncpa/ipv4': { params: { dhcp: T.bool, ip: T.str(15), mask: T.str(15), gateway: T.str(15), dnsAuto: T.bool, dns1: T.str(15), dns2: T.str(15) }, required: [] }
     });
+
+    /* lusrmgr.msc is not available on Home editions (the real snap-in refusal). */
+    var LUSRMGR_HOME = 'This snapin may not be used with this edition of Windows. To manage user accounts for this computer, use the User Accounts tool in the Control Panel.';
+    function lusr(fn) {
+        return function (s, p) {
+            if (s.os && (s.os.edition === 'Home' || s.os.edition === 'Home N')) { return { ok: false, msg: LUSRMGR_HOME }; }
+            return fn(s, p);
+        };
+    }
 
     /* Handlers, one per schema row (schemaGaps() proves the two tables match). */
     var HANDLERS = {
@@ -113,7 +154,33 @@
             return r.ok ? PC.slmgrAto(s) : r;
         },
         'activation/activate': function (s) { return PC.slmgrAto(s); },
-        'desktop/restart': function (s) { return PC.restart(s); }
+        'desktop/restart': function (s) { return PC.restart(s); },
+        'settings/rename': function (s, p) { return OS.rename(s, p.name); },
+        'settings/time-zone': function (s, p) { return OS.setTimeZone(s, p.id); },
+        'settings/update-check': function (s) { return OS.checkUpdates(s); },
+        'settings/update-install': function (s) { return OS.installUpdates(s); },
+        'settings/screen-timeout': function (s, p) { return OS.screenTimeout(s, p.minutes); },
+        'power/create-plan': function (s, p) { return OS.createPlan(s, p); },
+        'power/set-active': function (s, p) { return OS.setActive(s, p.plan); },
+        'power/edit-plan': function (s, p) { return OS.editPlan(s, p); },
+        'lusrmgr/user-new': lusr(function (s, p) { var q = JSON.parse(JSON.stringify(p)); q.source = 'lusrmgr'; return OS.newUser(s, q); }),
+        'lusrmgr/user-set': lusr(function (s, p) { return OS.setUser(s, p); }),
+        'lusrmgr/user-delete': lusr(function (s, p) { return OS.deleteUser(s, p.name); }),
+        'lusrmgr/group-new': lusr(function (s, p) { return OS.newGroup(s, p); }),
+        'lusrmgr/group-add': lusr(function (s, p) { return OS.addMember(s, p); }),
+        'lusrmgr/group-remove': lusr(function (s, p) { return OS.removeMember(s, p); }),
+        'uac/set': function (s, p) { return OS.setUacLevel(s, p.level); },
+        'sysprops/join': function (s, p) { return OS.join(s, p); },
+        'regedit/set': function (s, p) { return REG.write(s, 'desktop', p.key, p.name, p.type, p.data, false); },
+        'regedit/delete': function (s, p) { return REG.del(s, p.key, p.name); },
+        'ncpa/ipv4': function (s, p) { return OS.setIpv4(s, p); },
+        'regedit/new-key': function (s, p) {
+            var k = REG.canonKey(p.key);
+            if (!k) { return { ok: false, msg: 'Cannot create key: the key name is not valid.' }; }
+            var parent = k.slice(0, k.lastIndexOf('\\'));
+            if (!REG.keyExists(s, parent)) { return { ok: false, msg: 'Cannot create key: the parent key does not exist.' }; }
+            return REG.createKey(s, k) ? { ok: true, msg: '' } : { ok: false, msg: LIM.STORAGE_MESSAGE };
+        }
     };
 
     /* Schema rows with no handler, or handlers with no schema row. Must be empty (tested). */

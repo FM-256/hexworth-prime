@@ -19,6 +19,9 @@
 
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
+    var REG = require('./mdfinal-registry.js');
+    var CMD = require('./mdfinal-cmdlets.js');
+    var MATCH = require('./mdfinal-match.js');
 
     var C = LIM.LIMITS.command;
     var LIMIT_MSG = "Command exceeded the console's limits.";
@@ -27,43 +30,83 @@
 
     /* ═══ TOKENISER AND CAPS ═══════════════════════════════════════════════════════════════════ */
 
-    /* Splits on whitespace; a double-quoted run is one token with the quotes removed. Returns null
-     * for an unbalanced quote. Linear, no regex. */
+    /* Splits on whitespace; a "double" or 'single' quoted run is one token with the quotes removed.
+     * Returns null for an unbalanced quote. Linear, no regex. */
     function tokenise(line) {
-        var out = [], cur = '', inQ = false, had = false;
+        var out = [], cur = '', q = null, had = false;
         for (var i = 0; i < line.length; i++) {
             var ch = line[i];
-            if (ch === '"') { inQ = !inQ; had = true; continue; }
-            if (!inQ && (ch === ' ' || ch === '\t')) {
+            if (q === null && (ch === '"' || ch === "'")) { q = ch; had = true; continue; }
+            if (q !== null && ch === q) { q = null; continue; }
+            if (q === null && (ch === ' ' || ch === '\t')) {
                 if (cur.length || had) { out.push(cur); cur = ''; had = false; }
                 continue;
             }
             cur += ch;
         }
-        if (inQ) { return null; }
+        if (q !== null) { return null; }
         if (cur.length || had) { out.push(cur); }
         return out;
     }
 
-    /* Constructs the exam never models, refused before any command runs (13.4). */
-    function denied(line) {
-        if (line.indexOf('{') >= 0 || line.indexOf('}') >= 0) { return SCRIPTBLOCK_MSG; }
-        var lower = line.toLowerCase();
-        var bad = ['$(', '@(', '::', '`', ';', '&', '|', '>', '<', 'iex ', 'invoke-expression', 'invoke-command',
-                   'add-type', 'start-job', 'powershell ', 'powershell.exe', 'pwsh', 'cmd /c', 'cmd.exe /c'];
+    /* The line with every quoted run blanked, so the deny rules judge syntax, not quoted text
+     * (a path like "C:\Program Files (x86)" is data). */
+    function skeleton(line) {
+        var out = '', q = null;
+        for (var i = 0; i < line.length; i++) {
+            var ch = line[i];
+            if (q === null && (ch === '"' || ch === "'")) { q = ch; out += ch; continue; }
+            if (q !== null) { if (ch === q) { q = null; out += ch; } else { out += 'q'; } continue; }
+            out += ch;
+        }
+        return out;
+    }
+
+    /* Splits on | outside quotes. */
+    function splitPipeline(line) {
+        var parts = [], cur = '', q = null;
+        for (var i = 0; i < line.length; i++) {
+            var ch = line[i];
+            if (q === null && (ch === '"' || ch === "'")) { q = ch; }
+            else if (q !== null && ch === q) { q = null; }
+            if (q === null && ch === '|') { parts.push(cur); cur = ''; continue; }
+            cur += ch;
+        }
+        parts.push(cur);
+        return parts.map(function (x) { return x.trim(); });
+    }
+
+    /* Constructs the exam never models, refused before any command runs (13.4). Pipes are allowed
+     * only in the desktop console; variables only as $true, $false and $null. */
+    function denied(line, ctx) {
+        var sk = skeleton(line);
+        if (sk.indexOf('{') >= 0 || sk.indexOf('}') >= 0) { return SCRIPTBLOCK_MSG; }
+        var lower = sk.toLowerCase();
+        var bad = ['$(', '@(', '::', '`', ';', '&', '>', '<', '||', '(', ')', 'iex ', 'invoke-expression', 'invoke-command',
+                   'invoke-item', 'add-type', 'start-job', 'start-process', 'powershell ', 'powershell.exe', 'pwsh', 'cmd /c', 'cmd.exe /c'];
         for (var i = 0; i < bad.length; i++) { if (lower.indexOf(bad[i]) >= 0) { return DENY_MSG; } }
-        if (line.length && line[0] === '.' && line.length > 1 && line[1] === ' ') { return DENY_MSG; }
+        if (ctx !== 'ps' && lower.indexOf('|') >= 0) { return DENY_MSG; }
+        for (var j = 0; j < lower.length; j++) {
+            if (lower[j] === '$') {
+                var rest = lower.slice(j);
+                if (rest.indexOf('$true') !== 0 && rest.indexOf('$false') !== 0 && rest.indexOf('$null') !== 0) { return DENY_MSG; }
+            }
+        }
+        if (sk.length && sk[0] === '.' && sk.length > 1 && sk[1] === ' ') { return DENY_MSG; }
         if (lower.indexOf('[') >= 0 && lower.indexOf(']') > lower.indexOf('[')) { return DENY_MSG; }
         return null;
     }
 
     /* Named parameters of a PowerShell-style line: -Name value, -Switch (true). Lowercased names. */
     function psArgs(tokens) {
-        var a = { _: [] };
+        var a = Object.create(null);
+        a._ = [];
         for (var i = 1; i < tokens.length; i++) {
             var t = tokens[i];
             if (t.length > 1 && t[0] === '-') {
                 var name = t.slice(1).toLowerCase();
+                /* '_' is the positional list's own slot; a parameter can never take it (Mallory N1). */
+                if (name === '_' || name.indexOf('_:') === 0) { continue; }
                 var colon = name.indexOf(':');
                 if (colon > 0) { a[name.slice(0, colon)] = t.slice(colon + 2); continue; }
                 var next = tokens[i + 1];
@@ -207,54 +250,21 @@
 
     /* ═══ SETUP Shift+F10: cmd, reg, diskpart ══════════════════════════════════════════════════ */
 
-    /* Canonical registry key (R9): hive aliases, case, doubled and trailing backslashes. */
-    function canonKey(raw) {
-        var k = String(raw || '');
-        var parts = k.split('\\').filter(function (x) { return x.length; });
-        if (!parts.length) { return ''; }
-        var hive = parts[0].toUpperCase();
-        if (hive === 'HKLM:' || hive === 'HKEY_LOCAL_MACHINE' || hive === 'REGISTRY::HKEY_LOCAL_MACHINE') { hive = 'HKLM'; }
-        if (hive === 'HKCU:' || hive === 'HKEY_CURRENT_USER' || hive === 'REGISTRY::HKEY_CURRENT_USER') { hive = 'HKCU'; }
-        return [hive].concat(parts.slice(1).map(function (x) { return x.toUpperCase(); })).join('\\');
-    }
-
-    /* `/d` data: decimal or 0x hex DWORD. */
-    function dword(v) {
-        var s = String(v === undefined ? '' : v).trim().toLowerCase();
-        if (s.length > 2 && s.slice(0, 2) === '0x') {
-            var h = s.slice(2);
-            for (var i = 0; i < h.length; i++) { if ('0123456789abcdef'.indexOf(h[i]) < 0) { return NaN; } }
-            return parseInt(h, 16);
-        }
-        for (var j = 0; j < s.length; j++) { if (s.charCodeAt(j) < 48 || s.charCodeAt(j) > 57) { return NaN; } }
-        return s.length ? Number(s) : NaN;
-    }
-
-    /* reg add <key> /v <name> /t <type> /d <data> [/f], LabConfig only during Setup. */
+    /* reg add <key> /v <name> /t <type> /d <data> [/f] in Setup: LabConfig only (mdfinal-registry.js). */
     function regAdd(state, tokens) {
-        var key = canonKey(tokens[2]);
-        var flags = {};
+        var flags = Object.create(null);
         for (var i = 3; i < tokens.length; i++) {
             var t = tokens[i].toLowerCase();
             if (t === '/f') { flags.f = true; continue; }
             if (t === '/v' || t === '/t' || t === '/d') { flags[t[1]] = tokens[i + 1]; i++; }
         }
-        if (key !== 'HKLM\\SYSTEM\\SETUP\\LABCONFIG') {
-            return 'ERROR: The system was unable to find the specified registry key or value.';
-        }
-        if (flags.v === undefined) { return 'ERROR: Invalid syntax.\nType "REG ADD /?" for usage.'; }
-        if (String(flags.t || 'REG_SZ').toUpperCase() !== 'REG_DWORD') { return 'ERROR: Invalid syntax. LabConfig values are REG_DWORD.'; }
-        var d = dword(flags.d);
-        if (isNaN(d) || d > 4294967295) { return 'ERROR: Invalid syntax.\nType "REG ADD /?" for usage.'; }
-        var name = null;
-        PC.LABCONFIG_VALUES.forEach(function (n) { if (n.toLowerCase() === String(flags.v).toLowerCase()) { name = n; } });
-        if (!name) { return 'ERROR: The system was unable to find the specified registry key or value.'; }
-        var r = PC.setLabConfig(state, name, d);
-        return r.msg;
+        if (tokens[2] === undefined || flags.v === undefined) { return 'ERROR: Invalid syntax.\nType "REG ADD /?" for usage.'; }
+        return REG.write(state, 'setup', tokens[2], flags.v, flags.t || 'REG_SZ', flags.d, true).msg;
     }
 
+    /* The per-sitting console state: current context, diskpart selection, history, a pending prompt. */
     function shellState(state) {
-        if (!state.shell) { state.shell = { context: null, dp: { disk: null, part: null }, history: [] }; }
+        if (!state.shell) { state.shell = { context: null, dp: { disk: null, part: null }, history: [], pending: null }; }
         return state.shell;
     }
 
@@ -390,7 +400,9 @@
             return regAdd(state, t);
         },
         'diskpart': function (state) {
-            shellState(state).context = 'diskpart';
+            /* Every diskpart session starts with nothing selected (Mallory D3 F4). */
+            var sh = shellState(state);
+            sh.context = 'diskpart'; sh.dp = { disk: null, part: null };
             return 'Microsoft DiskPart version 10.0.26100.1\n\nCopyright (C) Microsoft Corporation.\nOn computer: MININT-' + state.meta.studentId.length + 'LAB';
         },
         'exit': function (state) { shellState(state).context = null; return ''; },
@@ -445,6 +457,9 @@
      * server decides what that console can be on the current screen). */
     function resolveContext(state, requested) {
         var sh = shellState(state), screen = state.screen || 'hyperv';
+        /* Asking for any console other than the desktop one cancels a pending desktop prompt, even
+         * when that console is unavailable (Mallory N3). */
+        if (sh.pending && requested !== 'ps') { sh.pending = null; }
         if (requested === 'hyperv-ps') { return 'hyperv-ps'; }
         if (requested === 'setup-cmd' && screen === 'setup') { return sh.context === 'diskpart' ? 'diskpart' : 'setup-cmd'; }
         if (requested === 'oobe-cmd' && screen === 'oobe') { return 'oobe-cmd'; }
@@ -458,10 +473,26 @@
         var ctx = resolveContext(state, requested);
         if (!ctx) { return { out: 'That console is not available.', context: null, prompt: '' }; }
         var raw = typeof line === 'string' ? line : '';
+        var sh = shellState(state);
+        /* A prompt belongs to the desktop console line that raised it; any other console cancels it. */
+        if (sh.pending && ctx !== 'ps') { sh.pending = null; }
+        /* A console line is one line: control characters (newline, CR, NUL, ...) end it on a real
+         * console, so a line carrying one is refused (Mallory N2). */
+        for (var ci = 0; ci < raw.length; ci++) {
+            var cc = raw.charCodeAt(ci);
+            if ((cc < 32 && cc !== 9) || cc === 127) { return result(state, ctx, DENY_MSG, '', 'refused'); }
+        }
+        if (sh.pending && ctx === 'ps') {
+            /* The answer to a prompt (a password): never tokenised, never kept in history. */
+            var pending = sh.pending; sh.pending = null;
+            if (raw.length > 127) { return result(state, ctx, LIMIT_MSG, '', 'refused'); }
+            if (state.ledger.length >= LIM.LIMITS.ledger.maxEntries) { return result(state, ctx, LIM.STORAGE_MESSAGE, '', 'refused'); }
+            return result(state, ctx, CMD.resume(state, pending, raw).out, '********', null);
+        }
         if (raw.length > C.maxChars) { return result(state, ctx, LIMIT_MSG, raw.slice(0, 80), 'refused'); }
         var trimmed = raw.trim();
         if (!trimmed) { return result(state, ctx, '', '', null); }
-        var why = denied(trimmed);
+        var why = denied(trimmed, ctx);
         if (why) { return result(state, ctx, why, trimmed, 'refused'); }
         var tokens = tokenise(trimmed);
         if (tokens === null) { return result(state, ctx, 'The string is missing the terminator: ".', trimmed, 'refused'); }
@@ -478,26 +509,56 @@
         } else if (ctx === 'oobe-cmd') {
             out = Object.prototype.hasOwnProperty.call(OOBE_CMD, cmd) ? OOBE_CMD[cmd](state, tokens) : notRecognisedCmd(tokens[0]);
         } else {
-            out = Object.prototype.hasOwnProperty.call(DESKTOP, cmd) ? DESKTOP[cmd](state, tokens) : notRecognisedPs(tokens[0]);
+            var segs = splitPipeline(trimmed);
+            if (segs.length > C.maxPipelineStages) { return result(state, ctx, LIMIT_MSG, trimmed, 'refused'); }
+            var stages = segs.map(tokenise);
+            if (stages.some(function (st) { return !st || !st.length; })) { return result(state, ctx, 'An empty pipe element is not allowed.', trimmed, 'refused'); }
+            var r = CMD.run(state, stages, MATCH.budget(), DESKTOP);
+            if (r.pending) { sh.pending = r.pending; }
+            out = r.out;
+            if (out === CMD.LIMIT_MSG || out === CMD.DENY_MSG) { return result(state, ctx, out, trimmed, 'refused'); }
         }
         return result(state, resolveContext(state, requested) || ctx, out, trimmed, null);
+    }
+
+    /* `net user <name> <password> /add` and `net user <name> <password>`: the password token, masked. */
+    function maskSecrets(line) {
+        var t = tokenise(line);
+        if (!t || !t.length) { return line; }
+        var secrets = [];
+        var cmd = t[0].toLowerCase().replace('.exe', '');
+        /* net user <name> [password] [flags...]: every non-flag token after the name (Mallory N4) */
+        if (cmd === 'net' && t[1] && t[1].toLowerCase() === 'user') {
+            for (var i = 3; i < t.length; i++) { if (t[i][0] !== '/' && t[i] !== '*') { secrets.push(t[i]); } }
+        }
+        /* -Password <value> on any command */
+        for (var j = 1; j < t.length - 1; j++) { if (t[j].toLowerCase() === '-password') { secrets.push(t[j + 1]); } }
+        var out = line;
+        secrets.filter(function (x) { return x.length; }).forEach(function (x) { out = out.split(x).join('********'); });
+        return out;
+    }
+
+    /* At most maxOutputLines lines of output, then a marker (R4). */
+    function truncate(out) {
+        var lines = String(out).split('\n');
+        if (lines.length > C.maxOutputLines) { return lines.slice(0, C.maxOutputLines).join('\n') + '\n... (output truncated)'; }
+        return String(out);
     }
 
     /* Records the line in the capped history and builds the reply. */
     function result(state, ctx, out, line, kind) {
         var sh = shellState(state);
         if (line) {
-            sh.history.push(line.slice(0, 200));
+            sh.history.push(maskSecrets(line).slice(0, 200));
             if (sh.history.length > C.historyKept) { sh.history.splice(0, sh.history.length - C.historyKept); }
         }
         if (kind === 'refused') { PC.event(state, 'refused', line.slice(0, 80)); }
-        var lines = String(out).split('\n');
-        if (lines.length > C.maxOutputLines) { out = lines.slice(0, C.maxOutputLines).join('\n') + '\n... (output truncated)'; }
+        out = truncate(out);
         var prompt = ctx === 'hyperv-ps' ? 'PS C:\\Users\\LabAdmin> ' : ctx === 'diskpart' ? 'DISKPART> ' :
             ctx === 'ps' ? 'PS C:\\Windows\\system32> ' : 'X:\\Sources>';
         return { out: out, context: ctx, prompt: prompt };
     }
 
-    module.exports = { exec: exec, tokenise: tokenise, denied: denied, canonKey: canonKey, sizeMb: sizeMb,
+    module.exports = { exec: exec, truncate: truncate, maskSecrets: maskSecrets, tokenise: tokenise, denied: denied, skeleton: skeleton, splitPipeline: splitPipeline, sizeMb: sizeMb,
                        LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG, SCRIPTBLOCK_MSG: SCRIPTBLOCK_MSG };
 })();

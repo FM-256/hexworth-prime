@@ -96,6 +96,18 @@
     /* Setup's automatic layout on a blank disk (MB). */
     var EFI_MB = 100, MSR_MB = 16, RECOVERY_MB = 750, SYSTEM_RESERVED_MB = 50;
 
+    /* Built-in power plans with Windows' default timeouts in minutes (0 = never). A Hyper-V guest
+     * has no battery and no sleep state; the DC values and the sleep values still exist in each
+     * plan and are what powercfg reads and writes. */
+    var POWER_PLANS = freeze([
+        { guid: '381b4222-f694-41f0-9685-ff5bb260df2e', name: 'Balanced', builtin: true,
+          ac: { display: 10, sleep: 30 }, dc: { display: 5, sleep: 15 } },
+        { guid: '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c', name: 'High performance', builtin: true,
+          ac: { display: 15, sleep: 0 }, dc: { display: 10, sleep: 0 } },
+        { guid: 'a1841308-3542-4fea-9a33-1dbe19d7f2ab', name: 'Power saver', builtin: true,
+          ac: { display: 5, sleep: 15 }, dc: { display: 3, sleep: 10 } }
+    ]);
+
     var LAB_DHCP = freeze({ gateway: '172.25.48.1', dns: ['172.25.48.1'], prefix: 20 });
 
     var MSG = freeze({
@@ -316,15 +328,18 @@
         var vm = state.vm;
         if (!vm || vm.power === 'off') { return fail(MSG.state); }
         vm.power = 'off';
+        if (state.shell) { state.shell.context = null; state.shell.dp = { disk: null, part: null }; state.shell.pending = null; }
         if (state.setup && !state.os) { state.setup = null; }
         state.screen = 'hyperv';
         ledger(state, 'vm-stop', '');
         return ok('The virtual machine is off.', 'hyperv');
     }
 
-    /* What the VM shows after power-on or a restart. */
+    /* What the VM shows after power-on or a restart. A restart ends every console session: no
+     * console context, diskpart selection or pending prompt survives it (Mallory D3 F4). */
     function boot(state) {
         var vm = state.vm;
+        if (state.shell) { state.shell.context = null; state.shell.dp = { disk: null, part: null }; state.shell.pending = null; }
         var sbBlocks = vm.generation === 2 && vm.secureBoot.on && vm.secureBoot.template !== 'MicrosoftWindows';
         var osDisk = state.os ? diskByNumber(state, state.os.installDisk) : null;
         var bootable = !!(osDisk && hasBootPartition(osDisk));
@@ -353,6 +368,7 @@
         if (!vm || vm.power !== 'on' || !vm.dvd) { return fail('Insert installation media and start the virtual machine first.'); }
         var sbBlocks = vm.generation === 2 && vm.secureBoot.on && vm.secureBoot.template !== 'MicrosoftWindows';
         if (sbBlocks) { state.screen = 'firmware-error'; return ok(MSG.sbDenied, state.screen); }
+        if (state.shell) { state.shell.context = null; state.shell.dp = { disk: null, part: null }; state.shell.pending = null; }
         state.setup = { screen: 'lang', iso: vm.dvd, labConfig: {} };
         state.screen = 'setup';
         ledger(state, 'boot-dvd', '');
@@ -542,7 +558,12 @@
             timeZone: SIM_DEFAULTS.timeZone,
             activation: { key: key ? key.key : null, channel: key ? key.channel : 'Retail', kmsHost: null,
                           status: 'Notification' },
-            oobe: { done: false, screen: 'region', bypassNro: false, privacy: null, accountPath: null }
+            oobe: { done: false, screen: 'region', bypassNro: false, privacy: null, accountPath: null },
+            /* P2-P6 settings at their Windows defaults (mdfinal-os.js operates on these). */
+            updates: { checked: false, history: [], pendingRestart: [],
+                       activeHours: { manual: false, start: SIM_DEFAULTS.updates.activeHours.start, end: SIM_DEFAULTS.updates.activeHours.end } },
+            power: { active: POWER_PLANS[0].guid, plans: POWER_PLANS.map(function (pl) { return JSON.parse(JSON.stringify(pl)); }), created: 0 },
+            policies: {}
         };
         state.identity = {
             users: {
@@ -554,7 +575,7 @@
             groups: { 'Administrators': { members: ['Administrator'] }, 'Users': { members: [] },
                       'Guests': { members: ['Guest'] }, 'Remote Desktop Users': { members: [] } },
             membership: { type: 'workgroup', name: SIM_DEFAULTS.workgroup, pending: null },
-            uac: { ConsentPromptBehaviorAdmin: 5, PromptOnSecureDesktop: 1, EnableLUA: 1 }
+            uac: { ConsentPromptBehaviorAdmin: 5, PromptOnSecureDesktop: 1, EnableLUA: 1, pendingEnableLUA: null }
         };
         state.network = {
             adapters: { Ethernet: { dhcp: true, ip: dhcpAddress(state), prefix: LAB_DHCP.prefix,
@@ -820,6 +841,15 @@
             var m = state.identity.membership;
             m.type = m.pending.type; m.name = m.pending.name; m.pending = null;
         }
+        if (state.identity && state.identity.uac.pendingEnableLUA !== null && state.identity.uac.pendingEnableLUA !== undefined) {
+            state.identity.uac.EnableLUA = state.identity.uac.pendingEnableLUA;
+            state.identity.uac.pendingEnableLUA = null;
+        }
+        var u = state.os.updates;
+        if (u && u.pendingRestart.length) {
+            u.pendingRestart.forEach(function (x) { x.status = 'Installed'; u.history.push(x); state.os.revision = x.revision; });
+            u.pendingRestart = [];
+        }
         state.os.pending = {};
     }
 
@@ -855,7 +885,7 @@
     module.exports = {
         SIM_DEFAULTS: SIM_DEFAULTS, ISO_LIBRARY: ISO_LIBRARY, GVLK: GVLK, BUSINESS_EDITIONS: BUSINESS_EDITIONS,
         SECURE_BOOT_TEMPLATES: SECURE_BOOT_TEMPLATES, LABCONFIG_VALUES: LABCONFIG_VALUES, PRIVACY_KEYS: PRIVACY_KEYS,
-        MSG: MSG, EFI_MB: EFI_MB, MSR_MB: MSR_MB, RECOVERY_MB: RECOVERY_MB,
+        MSG: MSG, POWER_PLANS: POWER_PLANS, EFI_MB: EFI_MB, MSR_MB: MSR_MB, RECOVERY_MB: RECOVERY_MB,
         newVm: newVm, deleteVm: deleteVm, setKeyProtector: setKeyProtector, bootFromDvd: bootFromDvd,
         PARTITION_CAP: PARTITION_CAP, MSG_PART_CAP: MSG_PART_CAP, roomFor: roomFor, setVm: setVm, startVm: startVm, stopVm: stopVm, boot: boot,
         setupLang: setupLang, setupOption: setupOption, setupKey: setupKey, setupEdition: setupEdition,

@@ -298,6 +298,9 @@ for (const [label, prof, o0, row, parts, pens] of NEG) {
         SH.exec(state, 'setup-cmd', 'reg add HKLM\\SOFTWARE\\Policies\\LabConfig /v BypassTPMCheck /t REG_DWORD /d 1 /f');
         SH.exec(state, 'setup-cmd', 'reg add HKLM\\SYSTEM\\Setup /v BypassTPMCheck /t REG_DWORD /d 1 /f');
         t.check(!state.setup.labConfig.BypassTPMCheck, 'a LabConfig value name under any other key sets nothing');
+        let r2, threw = null;
+        try { r2 = SH.exec(state, 'setup-cmd', 'reg add "HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 2 /f'); } catch (e) { threw = e.message; }
+        t.check(!threw && r2.out.indexOf('unable to find') >= 0 && !state.os && !state.identity, 'in Setup, a whitelisted non-LabConfig value is refused and touches nothing');
     }
 }
 
