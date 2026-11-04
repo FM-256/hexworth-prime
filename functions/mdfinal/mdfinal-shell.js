@@ -490,17 +490,27 @@
     /* Which console the student is typing into now (the page passes the console it shows; the
      * server decides what that console can be on the current screen). */
     function resolveContext(state, requested) {
-        var sh = shellState(state), screen = state.screen || 'hyperv';
+        var sh = shellState(state);
         /* Asking for any console other than the desktop one cancels a pending desktop prompt, even
          * when that console is unavailable (Mallory N3). */
         if (sh.pending && requested !== 'ps') { sh.pending = null; }
-        if (requested === 'hyperv-ps') { return 'hyperv-ps'; }
-        if (requested === 'setup-cmd' && screen === 'setup') { return sh.context === 'diskpart' ? 'diskpart' : 'setup-cmd'; }
-        if (requested === 'oobe-cmd' && screen === 'oobe') { return 'oobe-cmd'; }
+        if (!consoleAvailable(state, requested)) { return null; }
+        if (requested === 'setup-cmd') { return sh.context === 'diskpart' ? 'diskpart' : 'setup-cmd'; }
+        return requested;
+    }
+
+    /* Does the current screen offer this console? Pure, so the initial-state projection lists
+     * exactly the consoles exec would accept. */
+    var CONSOLES = ['hyperv-ps', 'setup-cmd', 'oobe-cmd', 'ps', 'winre-cmd'];
+    function consoleAvailable(state, requested) {
+        var screen = state.screen || 'hyperv';
+        if (requested === 'hyperv-ps') { return true; }
+        if (requested === 'setup-cmd') { return screen === 'setup'; }
+        if (requested === 'oobe-cmd') { return screen === 'oobe'; }
         /* While Explorer crash-loops (V2), the desktop console exists only once Task Manager ran it. */
-        if (requested === 'ps' && screen === 'desktop' && !(state.sys && state.sys.explorer === 'crashing' && !state.sys.unlocked.ps)) { return 'ps'; }
-        if (requested === 'winre-cmd' && screen === 'winre') { return 'winre-cmd'; }
-        return null;
+        if (requested === 'ps') { return screen === 'desktop' && !(state.sys && state.sys.explorer === 'crashing' && !state.sys.unlocked.ps); }
+        if (requested === 'winre-cmd') { return screen === 'winre'; }
+        return false;
     }
 
     /* Runs one line. Returns { out, context, prompt }. Every refusal leaves the state unchanged
@@ -598,6 +608,6 @@
         return { out: out, context: ctx, prompt: prompt };
     }
 
-    module.exports = { exec: exec, truncate: truncate, maskSecrets: maskSecrets, tokenise: tokenise, denied: denied, skeleton: skeleton, splitPipeline: splitPipeline, sizeMb: sizeMb,
+    module.exports = { exec: exec, consoleAvailable: consoleAvailable, CONSOLES: CONSOLES, truncate: truncate, maskSecrets: maskSecrets, tokenise: tokenise, denied: denied, skeleton: skeleton, splitPipeline: splitPipeline, sizeMb: sizeMb,
                        LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG, SCRIPTBLOCK_MSG: SCRIPTBLOCK_MSG };
 })();

@@ -11584,3 +11584,369 @@ exports.netfinalSubmit = onCall(netfinalOpts, netfinalCall(async (c) => {
     };
 }));
 
+
+/* ═══ MDFINAL BEGIN ═══════════════════════════════════════════════════════════════════════════════
+ * MD-100 / CTS1156C FINAL EXAM ("Meridian Workstation Build") — the callables.
+ *
+ * Spec: _docs/operations/md100-final-exam-spec-v2-2026-11-03.md, 1.2, R2, R6, R7, 13.1, 13.5.
+ * Engine and service: functions/mdfinal/ (design notes in each module's header).
+ *
+ * LAZY: the service is required inside each handler (mdfinalService), so a load-time fault in an
+ * MD module cannot break cold starts of any other function in this file. mdfinal-exams.js is the
+ * one module read at load: pure constants and the allowlist, the same role netfinal-exams.js has.
+ *
+ * Every student callable takes NO session id and NO state: the session is uid + '::' + examId,
+ * derived from the authenticated caller; the exam id is an allowlist lookup. The secret is the
+ * bound NETFINAL_SEED_SECRET (operator decision 12.2), HMAC domain-separated inside the engine,
+ * which refuses a weak or missing secret (failed-precondition) rather than serving a predictable lab.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
+const MDFINAL_EXAMS = require('./mdfinal/mdfinal-exams.js');
+let mdfinalModule = null;
+/* The session service, loaded on first use. */
+function mdfinalService() {
+    if (!mdfinalModule) { mdfinalModule = require('./mdfinal/mdfinal-exam.js'); }
+    return mdfinalModule;
+}
+const mdfinalOpts = { ...cfOptions, secrets: [netfinalSeedSecret] };
+const MDFINAL_KNOWN_CODES = ['invalid-argument', 'not-found', 'failed-precondition', 'deadline-exceeded',
+    'permission-denied', 'aborted', 'internal', 'unauthenticated'];
+
+/* The Firestore store the service reads through: the same contract as memoryStore() in
+ * mdfinal-exam.js. Documents arrive already serialised (toDocument), so this store never
+ * reinterprets a field; the compare-and-set condition is the service's own sameSitting. */
+function mdfinalStore() {
+    const col = db.collection('mdfinal_sessions');
+    const archive = db.collection('mdfinal_sessions_archive');
+    const MD = mdfinalService();
+    return {
+        async get(id) { const s = await col.doc(id).get(); return s.exists ? s.data() : null; },
+        /* create-if-absent: ALREADY_EXISTS (gRPC 6) is the "someone else started it" answer */
+        async create(id, doc) {
+            try { await col.doc(id).create({ ...doc, updatedAt: Date.now() }); return true; }
+            catch (e) { if (e && (e.code === 6 || /ALREADY_EXISTS/i.test(String(e.message || '')))) { return false; } throw e; }
+        },
+        async putIfRev(id, doc, expectedRev) {
+            const ref = col.doc(id);
+            return db.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!MD.sameSitting(snap.exists ? snap.data() : null, doc, expectedRev)) { return false; }
+                tx.set(ref, { ...doc, updatedAt: Date.now() }, { merge: false });
+                return true;
+            });
+        },
+        /* archive the current attempt and write its replacement in ONE transaction (13.2 item 4) */
+        async replaceIfRev(id, curDoc, expectedRev, archiveId, archiveDoc, nextDoc) {
+            const ref = col.doc(id);
+            return db.runTransaction(async (tx) => {
+                const snap = await tx.get(ref);
+                if (!MD.sameSitting(snap.exists ? snap.data() : null, curDoc, expectedRev)) { return false; }
+                tx.set(archive.doc(archiveId), { ...archiveDoc, archivedAt: Date.now() });
+                tx.set(ref, { ...nextDoc, updatedAt: Date.now() }, { merge: false });
+                return true;
+            });
+        },
+        /* read fresh on every create (13.2 item 4): no module-level cache */
+        async getControl(examId) {
+            const s = await db.collection('mdfinal_control').doc(examId).get();
+            const d = s.exists ? s.data() : {};
+            return { armed: d.armed === true, allowUids: Array.isArray(d.allowUids) ? d.allowUids : [] };
+        }
+    };
+}
+
+/* Platform admin: the decoded admin claim or the admin allowlist (the same test as requireAdmin). */
+function mdfinalIsAdmin(request) {
+    return !!request.auth && mdfinalService().isAdmin(request.auth.token, ADMIN_EMAILS);
+}
+
+/* The MD admin gate: requireAdmin's rule, but the allowlist route needs a verified email
+ * (Mallory D6 F4). */
+function mdfinalRequireAdmin(request) {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'Must be signed in.'); }
+    if (!mdfinalIsAdmin(request)) { throw new HttpsError('permission-denied', 'Admin privileges required.'); }
+}
+
+/* Maps a service error onto HttpsError; unknown codes become 'internal' with a generic message. */
+function mdfinalError(e) {
+    if (e instanceof HttpsError) { return e; }
+    const known = MDFINAL_KNOWN_CODES.indexOf(e && e.code) >= 0;
+    if (!known) { console.error('[mdfinal] ' + (e && e.stack || e)); }
+    return new HttpsError(known ? e.code : 'internal', known ? (e.message || 'Exam service error.') : 'Exam service error.');
+}
+
+/* The student callables' wrapper: signed in, exam id from the allowlist, session derived from the
+ * caller. */
+function mdfinalCall(fn) {
+    return async (request) => {
+        if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
+        const data = request.data || {};
+        const examId = MDFINAL_EXAMS.resolveExamId(data.examId);
+        if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+        const MD = mdfinalService();
+        const uid = request.auth.uid;
+        if (!MD.validUid(uid)) { throw new HttpsError('invalid-argument', 'Invalid account.'); }
+        try {
+            return await fn({
+                MD, store: mdfinalStore(), uid, examId, data, request,
+                sessionId: MD.sessionIdFor(uid, examId),
+                opts: { secret: netfinalSeedSecret.value() || null, onGraded: mdfinalRecordGrade }
+            });
+        } catch (e) { throw mdfinalError(e); }
+    };
+}
+
+/* ═══ THE GRADE, RECORDED WHERE THE GRADEBOOK READS IT ════════════════════════════════════════════
+ * netfinalRecordGrade's rules, with MD's entry shape (R7: sat/passed, credit only on a pass): into
+ *   classes/{c}/progress/{uid}.completions['forge-md100-final']
+ * for each class that lists the student, is run by staff (netfinalClassOwnerIsStaff: membership is
+ * not a trust boundary) and has the final assigned. The rehearsal has no catalog id and is recorded
+ * nowhere. Never older over newer: a different attempt submitted later, live or archived, wins.
+ * The copy is not authoritative while BUG-272 is open; mdfinalResults rebuilds it from the session. */
+async function mdfinalRecordGrade(session, onlyClassId, cache) {
+    const out = { recorded: [], skipped: [], errors: [] };
+    const MD = mdfinalService();
+    const contentId = MDFINAL_EXAMS.catalogId(session && session.examId);
+    const entry = MD.gradebookEntry(session);
+    if (!contentId || !entry) { return out; }
+    const uid = String(session.studentId || '');
+    if (!MD.validUid(uid)) { return out; }
+    cache = cache || {};
+    const classes = onlyClassId
+        ? [await db.doc(`classes/${onlyClassId}`).get()].filter((d) => d.exists)
+        : (await db.collection('classes').where('memberUids', 'array-contains', uid).limit(50).get()).docs;
+    const sid = MD.sessionIdFor(uid, session.examId);
+    for (const c of classes) {
+        try {
+            const d = c.data() || {};
+            if ((d.memberUids || []).indexOf(uid) < 0) { out.skipped.push({ classId: c.id, why: 'not a member' }); continue; }
+            const ownerOk = await netfinalClassOwnerIsStaff(d.handlerUid, cache);
+            if (ownerOk === null) { out.errors.push({ classId: c.id, error: 'could not check the class owner' }); continue; }
+            if (!ownerOk) { out.skipped.push({ classId: c.id, why: 'class owner is not staff' }); continue; }
+            const a = await c.ref.collection('assignments').where('contentId', '==', contentId).get();
+            if (!a.docs.some((x) => x.data().isActive !== false)) { out.skipped.push({ classId: c.id, why: 'not assigned' }); continue; }
+            const ref = c.ref.collection('progress').doc(uid);
+            const liveRef = db.collection('mdfinal_sessions').doc(sid);
+            const archQ = db.collection('mdfinal_sessions_archive').where('originalId', '==', sid);
+            const mine = Number(session.submittedAt);
+            const wrote = await db.runTransaction(async (tx) => {
+                const live = await tx.get(liveRef);
+                const l = live.exists ? live.data() : null;
+                if (l && Number(l.attempt || 0) !== Number(session.attempt || 0) && Number(l.submittedAt) > mine) { return false; }
+                const arch = await tx.get(archQ);
+                if (arch.docs.some((x) => { const v = x.data(); return Number(v.attempt || 0) !== Number(session.attempt || 0) && Number(v.submittedAt) > mine; })) { return false; }
+                tx.set(ref, { uid, completions: { [contentId]: entry }, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+                return true;
+            });
+            if (wrote) { out.recorded.push(c.id); } else { out.skipped.push({ classId: c.id, why: 'a newer attempt is recorded' }); }
+        } catch (e) { out.errors.push({ classId: c.id, error: String(e && e.message || e) }); }
+    }
+    console.log('[mdfinal] recorded ' + uid + ' ' + contentId + ' ' + entry.total + '/100 -> ' + JSON.stringify(out));
+    if (out.errors.length) { console.error('[mdfinal] gradebook write failed: ' + JSON.stringify(out.errors)); }
+    return out;
+}
+
+/* Start or resume. A new sitting needs the release window or the allowlist (R2); the admin flag
+ * only matters for the rehearsal id. Duration is server knowledge, never taken from the request. */
+/* Anonymous accounts are NOT refused: students join classes by name through an anonymous sign-in
+ * (dashboard.html class join), so a refusal here would lock real students out of the final.
+ * The cost, mass-started junk sittings crowding the admin all-sittings view, is accepted and
+ * recorded (13.16 item 3); staff work from the class view, which membership bounds. */
+exports.mdfinalStart = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.startExam(c.store, { studentId: c.uid, examId: c.examId, isAdmin: mdfinalIsAdmin(c.request) }, c.opts)));
+
+/* One console line in one of the consoles the screen offers. */
+exports.mdfinalCommand = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.runCommand(c.store, { sessionId: c.sessionId, console: c.data.console, line: c.data.line }, c.opts)));
+
+/* One window, read only, scanned. */
+exports.mdfinalWindow = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.renderWindow(c.store, { sessionId: c.sessionId, window: c.data.window, params: c.data.params }, c.opts)));
+
+/* One GUI action (R3 caps in the engine), scanned. */
+exports.mdfinalAction = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.runAction(c.store, { sessionId: c.sessionId, window: c.data.window, action: c.data.action, params: c.data.params }, c.opts)));
+
+/* One P8 field: saved, never graded in the reply. */
+exports.mdfinalAnswer = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.saveAnswer(c.store, { sessionId: c.sessionId, fieldId: c.data.fieldId, value: c.data.value }, c.opts)));
+
+/* Handover (2.4): any time before submit, one way, idempotent, needs confirm:true. */
+exports.mdfinalHandover = onCall(mdfinalOpts, mdfinalCall(async (c) =>
+    c.MD.handover(c.store, { sessionId: c.sessionId, confirm: c.data.confirm === true }, c.opts)));
+
+/* Submit and grade. The student gets aggregates only (R5/R7). */
+exports.mdfinalSubmit = onCall(mdfinalOpts, mdfinalCall(async (c) => {
+    const res = await c.MD.submitExam(c.store, { sessionId: c.sessionId }, c.opts);
+    const GR = require('./mdfinal/mdfinal-grade.js');
+    return { submitted: !res.alreadySubmitted, alreadySubmitted: !!res.alreadySubmitted, submittedAt: res.submittedAt,
+             report: GR.studentReport(res.report) };
+}));
+
+/* Validates a target uid from a staff request. */
+function mdfinalTargetUid(raw, fallback) {
+    const uid = raw === undefined || raw === null || raw === '' ? fallback : raw;
+    if (!mdfinalService().validUid(uid)) { throw new HttpsError('invalid-argument', 'Invalid uid.'); }
+    return uid;
+}
+
+/* RESTART (13.5 item 6). A student may restart their OWN build before handover, at most twice, same
+ * lab, same clock. An admin may restart a sitting before handover with a platform fault code and an
+ * evidence reference (a second admin restart needs the operator). Every attempt is archived. The
+ * decision is the service's mayReset, evaluated on the sitting as read (R6); handlers never reset.
+ * Not wrapped in mdfinalCall: an admin addresses somebody else's sitting. */
+exports.mdfinalReset = onCall(mdfinalOpts, async (request) => {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
+    const data = request.data || {};
+    const examId = MDFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    const MD = mdfinalService();
+    const target = mdfinalTargetUid(data.uid, request.auth.uid);
+    try {
+        const res = await MD.resetSession(mdfinalStore(), {
+            sessionId: MD.sessionIdFor(target, examId), callerUid: request.auth.uid, targetUid: target,
+            token: request.auth.token, adminEmails: ADMIN_EMAILS,
+            reason: typeof data.reason === 'string' ? data.reason : '', evidence: typeof data.evidence === 'string' ? data.evidence : '',
+            freshClock: data.freshClock === true, faultAt: data.faultAt
+        }, { secret: netfinalSeedSecret.value() || null, onGraded: mdfinalRecordGrade });
+        console.log('[mdfinalReset] ' + request.auth.uid + ' restarted ' + target + '::' + examId + ' (' + res.kind + ', attempt ' + res.attempt + ')');
+        return { ...res, uid: target, examId };
+    } catch (e) { throw mdfinalError(e); }
+});
+
+/* PROVISION (2.5): admin only (13.1), before handover only. */
+exports.mdfinalProvision = onCall(mdfinalOpts, async (request) => {
+    mdfinalRequireAdmin(request);
+    const data = request.data || {};
+    const examId = MDFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    const MD = mdfinalService();
+    const target = mdfinalTargetUid(data.uid, null);
+    try {
+        const res = await MD.provision(mdfinalStore(), { sessionId: MD.sessionIdFor(target, examId), staffUid: request.auth.uid },
+            { secret: netfinalSeedSecret.value() || null, onGraded: mdfinalRecordGrade });
+        console.log('[mdfinalProvision] ' + request.auth.uid + ' provisioned ' + target + '::' + examId
+            + ' reason=' + String(data.reason || '').slice(0, 200));
+        return { ...res, uid: target, examId };
+    } catch (e) { throw mdfinalError(e); }
+});
+
+/* CONTROL (R2): admin only. Arms the release window and edits the start allowlist (at most 20). */
+exports.mdfinalControl = onCall(mdfinalOpts, async (request) => {
+    mdfinalRequireAdmin(request);
+    const data = request.data || {};
+    const examId = MDFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    const MD = mdfinalService();
+    const ref = db.collection('mdfinal_control').doc(examId);
+    return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        const cur = snap.exists ? snap.data() : { armed: false, allowUids: [] };
+        let allow = Array.isArray(cur.allowUids) ? cur.allowUids.slice() : [];
+        const edit = data.allowUids || {};
+        const list = (v) => (Array.isArray(v) ? v : []);
+        if (list(edit.add).some((u) => !MD.validUid(u)) || list(edit.remove).some((u) => !MD.validUid(u))) {
+            throw new HttpsError('invalid-argument', 'Invalid uid in allowUids.');
+        }
+        list(edit.add).forEach((u) => { if (allow.indexOf(u) < 0) { allow.push(u); } });
+        allow = allow.filter((u) => list(edit.remove).indexOf(u) < 0);
+        if (allow.length > 20) { throw new HttpsError('invalid-argument', 'At most 20 uids may be allowlisted.'); }
+        const next = { armed: cur.armed === true, allowUids: allow, updatedBy: request.auth.uid, updatedAt: Date.now(),
+                       armedBy: cur.armedBy || null, armedAt: cur.armedAt || null };
+        if (typeof data.armed === 'boolean') {
+            next.armed = data.armed;
+            if (data.armed !== (cur.armed === true)) { next.armedBy = request.auth.uid; next.armedAt = Date.now(); }
+        }
+        tx.set(ref, next, { merge: false });
+        console.log('[mdfinalControl] ' + request.auth.uid + ' ' + examId + ' armed=' + next.armed + ' allow=' + allow.length);
+        return { examId, armed: next.armed, allowUids: allow };
+    });
+});
+
+/* RESULTS (R7, 13.1, 13.5 item 9). Admin: any class, or every sitting of the exam without a class;
+ * sweep only on an explicit sweep:true. A class handler: only a class they own, that has the final
+ * assigned, with the handler claim on their token and passing the class-owner staff check; never
+ * sweep, never reset. Each row carries the full report (staff only), the gradebook entry rebuilt
+ * from the session, and the mismatch flags (a) progress without a session, (b) progress differing
+ * from the session-derived entry, (c) a source other than 'mdfinal'. */
+const MDFINAL_CLASS_ID = /^[A-Za-z0-9_-]{1,128}$/;
+exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
+    if (!request.auth) { throw new HttpsError('unauthenticated', 'Sign in required.'); }
+    const data = request.data || {};
+    const examId = MDFINAL_EXAMS.resolveExamId(data.examId);
+    if (!examId) { throw new HttpsError('invalid-argument', 'Unknown examId.'); }
+    const MD = mdfinalService();
+    const admin = mdfinalIsAdmin(request);
+    const contentId = MDFINAL_EXAMS.catalogId(examId);
+    if (data.sweep === true && !admin) { throw new HttpsError('permission-denied', 'Only an admin can sweep.'); }
+    const store = mdfinalStore();
+    const opts = { secret: netfinalSeedSecret.value() || null, onGraded: mdfinalRecordGrade };
+
+    /* Rows for a list of uids: the sitting, attempts, the rebuilt gradebook entry and mismatch flags. */
+    const rowsFor = async (uids, cls) => {
+        if (data.sweep === true) { await MD.sweepExpired(store, uids.map((u) => MD.sessionIdFor(u, examId)), opts); }
+        const ownerCache = {};
+        return Promise.all(uids.map(async (uid) => {
+            const sid = MD.sessionIdFor(uid, examId);
+            const [doc, arch, user, prog] = await Promise.all([
+                store.get(sid),
+                db.collection('mdfinal_sessions_archive').where('originalId', '==', sid).get(),
+                db.doc(`users/${uid}`).get(),
+                cls && contentId ? cls.ref.collection('progress').doc(uid).get() : Promise.resolve(null)
+            ]);
+            const sess = MD.fromDocument(doc);
+            if (sess && sess.submittedAt && cls) { await mdfinalRecordGrade(sess, cls.id, ownerCache); }
+            const entry = MD.gradebookEntry(sess);
+            const p = prog && prog.exists ? ((prog.data() || {}).completions || {})[contentId] : null;
+            const flags = [];
+            if (p && !sess && arch.docs.length === 0) { flags.push('progress row present, no session'); }
+            if (p && entry && ['score', 'total', 'passed', 'completed', 'sat'].some((k) => JSON.stringify(p[k]) !== JSON.stringify(entry[k]))) { flags.push('progress differs from the session'); }
+            if (p && p.source !== 'mdfinal') { flags.push('progress source is not mdfinal'); }
+            /* (d) a row that claims a sitting the session does not show as submitted (Mallory D6 F2) */
+            if (p && (p.sat || p.passed || p.completed) && !(sess && sess.submittedAt)) { flags.push('progress claims a sitting that is not submitted'); }
+            /* the rebuild below overwrites a forged row, so the evidence is logged first */
+            if (flags.length) { console.warn('[mdfinal] mismatch ' + uid + ' class ' + (cls ? cls.id : '-') + ': ' + flags.join('; ') + ' row=' + JSON.stringify(p).slice(0, 500)); }
+            const u = user.exists ? user.data() : {};
+            return { uid, name: u.displayName || u.callsign || u.email || uid, email: u.email || null,
+                     sitting: MD.instructorView(sess, {}), attempts: arch.docs.length, flags };
+        }));
+    };
+
+    if (!data.classId) {
+        if (admin) {
+            /* every sitting of this exam id (13.4) */
+            const snap = await db.collection('mdfinal_sessions').where('examId', '==', examId).limit(500).get();
+            const uids = snap.docs.map((d) => d.data().studentId).filter((u) => MD.validUid(u));
+            const students = await rowsFor(uids, null);
+            /* re-read after any sweep, so the CSV carries the auto-submitted grades */
+            const sessions = await Promise.all(uids.map(async (u) => MD.fromDocument(await store.get(MD.sessionIdFor(u, examId)))));
+            return { examId, contentId, students, csv: MD.resultsCsv(sessions.filter(Boolean)), truncated: snap.size >= 500 };
+        }
+        if (request.auth.token.handler !== true) { throw new HttpsError('permission-denied', 'Only an instructor or admin can view exam results.'); }
+        const own = await db.collection('classes').where('handlerUid', '==', request.auth.uid).get();
+        const found = await Promise.all(own.docs.map(async (c) => {
+            const a = contentId ? await c.ref.collection('assignments').where('contentId', '==', contentId).get() : { docs: [] };
+            if (!a.docs.some((d) => d.data().isActive !== false)) { return null; }
+            return { id: c.id, name: c.data().name || c.id, memberCount: (c.data().memberUids || []).length };
+        }));
+        return { examId, contentId, classes: found.filter(Boolean) };
+    }
+
+    if (typeof data.classId !== 'string' || !MDFINAL_CLASS_ID.test(data.classId)) { throw new HttpsError('invalid-argument', 'Invalid classId.'); }
+    const cls = await db.doc(`classes/${data.classId}`).get();
+    if (!cls.exists) { throw new HttpsError('not-found', 'No such class.'); }
+    if (!admin) {
+        const d = cls.data() || {};
+        const ownerOk = request.auth.token.handler === true && d.handlerUid === request.auth.uid
+            && (await netfinalClassOwnerIsStaff(d.handlerUid, {})) === true;
+        const a = contentId ? await cls.ref.collection('assignments').where('contentId', '==', contentId).get() : { docs: [] };
+        if (!ownerOk || !a.docs.some((x) => x.data().isActive !== false)) {
+            throw new HttpsError('permission-denied', 'Only the instructor of a class that assigned this exam, or an admin, can view its results.');
+        }
+    }
+    const members = (cls.data().memberUids || []).filter((u) => MD.validUid(u)).slice(0, 300);
+    const students = await rowsFor(members, cls);
+    const sessions = await Promise.all(members.map(async (u) => MD.fromDocument(await store.get(MD.sessionIdFor(u, examId)))));
+    return { examId, contentId, class: { id: cls.id, name: cls.data().name || cls.id }, students,
+             csv: MD.resultsCsv(sessions.filter(Boolean)), memberCount: (cls.data().memberUids || []).length };
+});
+/* ═══ MDFINAL END ═════════════════════════════════════════════════════════════════════════════════ */

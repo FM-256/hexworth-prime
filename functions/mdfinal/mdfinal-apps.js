@@ -32,6 +32,13 @@
         'C:\\LABFILES\\LEDGERSYNC_2.4_X86.MSI': { file: 'C:\\LabFiles\\LedgerSync_2.4_x86.msi', product: 'LedgerSync', version: '2.4.0', arch: 'x86' }
     });
 
+    /* C:\LabFiles as the fabric stages it on the installed image (Explorer, dir): the two packages. */
+    var LAB_FILES = freeze([
+        { name: 'LedgerSync_2.4_x64.msi', bytes: 41222144 },
+        { name: 'LedgerSync_2.4_x86.msi', bytes: 37748736 }
+    ]);
+    function labFiles() { return LAB_FILES.map(function (f) { return { name: f.name, bytes: f.bytes }; }); }
+
     var PUBLISHER = '8wekyb3d8bbwe';
     /* Store apps on a fresh 24H2 image; three are on the keep-list (removing one is the P6 penalty). */
     var BASE_APPX = freeze([
@@ -228,6 +235,7 @@
     }
 
     module.exports = {
+        LAB_FILES: LAB_FILES, labFiles: labFiles,
         MSIS: MSIS, BASE_APPX: BASE_APPX, KEEP_STARTUP: KEEP_STARTUP,
         apps: apps, msiProps: msiProps, installMsi: installMsi, uninstallMsi: uninstallMsi,
         appxRows: appxRows, provisionedRows: provisionedRows, fullName: fullName, appBy: appBy,

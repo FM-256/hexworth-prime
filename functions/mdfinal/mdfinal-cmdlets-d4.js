@@ -25,6 +25,7 @@
     var FS = require('./mdfinal-fs.js');
     var STO = require('./mdfinal-storage.js');
     var BL = require('./mdfinal-bitlocker.js');
+    var APPS = require('./mdfinal-apps.js');
     var NF = require('../netfinal/netfinal-core.js');
 
     var ADAPTER = 'Ethernet';
@@ -543,7 +544,7 @@
             if (type === 'file') {
                 var n = usbName(path);
                 if (!n) { return 'New-Item : Files can be created on TECH-USB (F:\\) only in this lab.'; }
-                var w = BL.writeUsb(state, n, String(arg(a, ['value']) || ''));
+                var w = BL.writeUsb(state, n, String(arg(a, ['value']) || ''), true);
                 return w.ok ? '' : 'New-Item : ' + w.msg;
             }
             return registryNewItem(state, a);
@@ -551,7 +552,7 @@
         Mu['set-content'] = function (state, a) {
             var n = usbName(arg(a, ['path'], 0));
             if (!n) { return 'Set-Content : Files can be written on TECH-USB (F:\\) only in this lab.'; }
-            var w = BL.writeUsb(state, n, String(arg(a, ['value'], 1) || ''));
+            var w = BL.writeUsb(state, n, String(arg(a, ['value'], 1) || ''), true);
             return w.ok ? '' : 'Set-Content : ' + w.msg;
         };
         P['get-content'] = function (state, a) {
@@ -566,6 +567,10 @@
                 return objs(state.host.usb.F.files.map(function (f) { return { Mode: '-a----', Length: Buffer.byteLength(f.text), Name: f.name }; }), ['Mode', 'Length', 'Name'], ['Mode', 'Length', 'Name']);
             }
             var c = FS.canon(path);
+            /* the fabric's C:\LabFiles on the installed image (the LedgerSync packages, row 6.1) */
+            if (c && c.toUpperCase().replace(/\\$/, '') === 'C:\\LABFILES' && state.os && state.os.installed) {
+                return objs(APPS.labFiles().map(function (f) { return { Mode: '-a----', Length: f.bytes, Name: f.name }; }), ['Mode', 'Length', 'Name'], ['Mode', 'Length', 'Name']);
+            }
             var vol = c && state.fs && state.fs.volumes[c[0]];
             if (!vol || !FS.folder(state, c)) { return "Get-ChildItem : Cannot find path '" + path.slice(0, 120) + "' because it does not exist."; }
             var pre = c.toUpperCase().replace(/\\$/, '') + '\\';

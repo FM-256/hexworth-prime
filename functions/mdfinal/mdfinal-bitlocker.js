@@ -87,12 +87,14 @@
     }
 
     /* Writes a file onto TECH-USB (F:), the only place outside the VM a key can be kept. */
-    function writeUsb(state, name, text) {
+    function writeUsb(state, name, text, byStudent) {
         var files = state.host.usb.F.files;
         if (Buffer.byteLength(text) > OBJ.fileBytes) { return fail('There is not enough space on the disk.'); }
         var existing = files.filter(function (f) { return f.name.toLowerCase() === name.toLowerCase(); })[0];
         if (!existing && files.length >= OBJ.files) { return fail(LIM.STORAGE_MESSAGE); }
-        if (existing) { existing.text = text; } else { files.push({ name: name, text: text }); }
+        /* origin is recorded at the write site (R5): the views tag a student's file as student text */
+        if (existing) { existing.text = text; if (byStudent) { existing.student = true; } }
+        else { files.push(byStudent ? { name: name, text: text, student: true } : { name: name, text: text }); }
         PC.ledger(state, 'usb-write', '');
         return ok('');
     }

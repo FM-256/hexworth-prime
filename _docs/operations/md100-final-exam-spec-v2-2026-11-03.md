@@ -1033,3 +1033,72 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - I fields are not keyed by ticket id (one ticket per sitting);
    - D6's client projection is a whitelist and never includes `state.fault`, `fault`/`hotfix` markers, ledger refs, `state.shell.pending` or `history`.
 8. **Proofs:** `_tools/mdfinal/mdfinal-faults.test.js` runs every canonical and listed alternative route for V1-V4 on all three profiles from the full perfect state (15/15, total 100, or the exact partial rung), System Restore to a post-P6 point for V1-V3, the P1-only snapshot for all four, a console-only perfect build, power-off, reinstall, pending-at-handover, VM-off handover, the wrong fixes with their named regression domains, and the I3/V4/evidence rules. Each fix's old behaviour was re-introduced and is caught, except the harmless clone order, which normalisation already covers.
+
+### 13.14 D6 decisions (2026-11-04)
+
+1. **Modules.** The window renderers are `mdfinal-views.js` (not `mdfinal-gui.js`, which holds the action table); `mdfinal-client.js` holds `toInitialState` and the scanner; `mdfinal-provision.js` builds the 2.5 baseline; `mdfinal-exam.js` is the service. The engine is required lazily inside the service, and the service lazily inside the `index.js` block, so a load-time fault in an MD module cannot break any other function.
+2. **Views are a field-by-field whitelist on a JSON clone** (read only by construction). They never carry `fault`/`hotfix` markers, `keep` flags, `restorePoints[].data`, the ledger or `state.fault`.
+   - **Diagnostic content is not in any view.** Task Manager processes, Event Viewer events, Update history and the hosts file reach the student only through `taskmgr/view`, `eventvwr/query`, `settings/update-history` and `notepad/hosts-open`, which write the I1/I2 diagnostic ledger events. services.msc lists services, not boot or system drivers.
+   - **V1's stop screen is repeated on the recovery view** after a failed boot, because the boot that failed may have run inside handover, whose reply carries no boot message.
+3. **Student text is tagged `{ $s }` by provenance:** non-builtin users, groups, plans and principals, student folders, labels, shares, firewall rules, exclusions, MSI server and port, regedit scratch values, the regedit and Explorer address-bar paths, restore-point names, typed P8 values, and a VM or host name the student chose.
+   - TECH-USB files carry `student: true` from the write site (`Set-Content`, `New-Item`); the BitLocker key backup does not.
+   - Tagging a server value only exempts it from the value patterns, and the strict leak pass (`$s` unwrapped) shows no server value in a tagged slot matches one.
+4. **Scanner.** The keys are exact names. They are the R5 list, plus every key on the `state.fault` record (test-derived), `hotfix`, `keep`, `ledger`, `ledgerAt`, `regScratch` and `highImpact`.
+   - **Reviewed exemptions:** `ticketId`, which the ticket shows, and `kb`, which is also an action parameter name; the fault KB's value is canaried before handover and is legitimate evidence after it.
+   - **Patterns:** fault ids, profile ids, the HMAC domain and a serialised `"fault"/"hotfix"/"keep":` marker.
+   - **What a refusal says:** it logs paths and reasons server-side and tells the student only "This window could not be shown."
+5. **Action results are rebuilt from `{ok, msg, screen}`, and their structure is scanned.** `msg` is console-like text that echoes the student's input, including names stored by earlier actions, so, like command output, it is exempt from the value patterns. The ids those patterns match never exist in state (tested), and the leak suite fuzzes it. A strip-the-request's-strings exemption was tried and dropped: it cannot cover echoes of earlier input.
+6. **WO projection.** `performance.highImpact` and `performance.startupCandidates` are withheld: finding the High-impact startup apps is the skill row 6.3 grades, and the brief says "disable the High-impact startup apps" without naming them. Every other WO key is student prose. The leak suite pins the projected key set, so a new WO key fails until reviewed.
+7. **Initial state** contains the screen and any boot message, the WO, the windows and consoles the screen offers, `handedOver`, the ticket, the P8 field ids and the static action table. It does not contain shell history or `shell.pending` (13.13 item 7).
+8. **Session document.** The fields are those of 1.3, plus `attempt`, `expiresAt`, `provisionedBy`, `lineageJson` and `generatorVersion`. The shell lives inside the state, so there is no `shellJson`.
+   - **Compare-and-set** matches `rev`, `startedAt` and `attempt`, because a self-reset keeps `startedAt` verbatim.
+   - **Size limit:** normal writes must stay under 700,000 − 65,536 bytes; submit, auto-submit and sweep are exempt.
+   - **Refused writes:** a write refused for the ledger or size cap writes nothing.
+   - **Old keys:** a sitting whose key version is not the current `GENERATOR_VERSION` is refused ("ask staff to restart it").
+9. **Resets.**
+   - Self and admin resets archive the attempt and write its replacement in one transaction: the same lab, `attempt + 1`, with the lineage carried.
+   - Penalties the earlier attempt incurred are carried and applied at grading (13.5 item 6.4); P8 attempt counters do not exist, so nothing else carries.
+   - The operator role a second admin reset needs is the admin email allowlist (no `operator` claim exists on the platform; the allowlist is narrower than the `admin` claim).
+   - `freshClock` sets `expiresAt` = now + (old `expiresAt` − `faultAt`), never past `closesAt` + 30 minutes; for the rehearsal the cap is now + duration.
+   - The gate is `mayReset` through the module's exported binding, so the R6 mutation test sees a swap.
+10. **Provision** (admin only) builds the baseline through the engine's own actions on a pristine copy of the sitting's lab:
+    - Gen2, vTPM, the WO memory, vCPU and disk size;
+    - Pro; C: at the WO size; the seeded technician; default privacy and hostname; unactivated;
+    - a `provisioned` ledger event.
+    The first `p1Snapshot` is kept across a second provision, and `gradeSitting` takes the P1 rows and P1 penalties from it.
+11. **Callables.** `mdfinalCommand` takes `console` (`hyperv-ps`, `setup-cmd`, `oobe-cmd`, `ps`, `winre-cmd`), and `mdfinalWindow` takes optional `params` (`regedit: {key}`, `explorer: {path}`). Results without a class:
+    - **admin:** every sitting of the exam id;
+    - **handler:** their own classes that assigned the final.
+    Results never sweep without `sweep:true` from an admin.
+12. **Open, unchanged:** the seed on an admin reset after handover or submit (the code refuses both); Q6 (24H2 pin).
+
+### 13.15 D6 review outcomes (2026-11-04): Nancy BLOCK, fixed
+
+1. **VM Settings on a Generation 1 VM** rendered a null Secure Boot and crashed. It now shows `secureBoot: null`. Every renderer runs inside a guard: a fault refuses that window generically and is logged.
+2. **The packages are discoverable.** `C:\LabFiles` exists on the installed image: `dir` and Explorer list `LedgerSync_2.4_x64.msi` and `LedgerSync_2.4_x86.msi`, and the 6.1 task names both. The rules say C:\LabFiles holds the installation packages.
+3. **The key table (spec 2.2) is in the brief.** `keyTable` in the initial state lists the public KMS client setup key for every edition the ISO library offers, so it reveals nothing about which edition the work order needs.
+4. **`freshClock` gives time back and never takes it.** The new expiry is the later of the old expiry and now + (old expiry − `faultAt`), capped at the latest any sitting could end plus the grace (`closesAt` + duration + 30 minutes; the rehearsal: now + duration). This replaces 13.5 item 6.7's "closesAt + one grace period": every sitting ends after `closesAt`, so that cap shortened every restored clock.
+5. **A reset after a provision** also carries the P1 penalties graded from `p1Snapshot`.
+6. **Student-text tagging of principals** uses a closed set: the built-in groups, SYSTEM, Authenticated Users, Everyone, CREATOR OWNER, and exactly `MERIDIAN\Domain Admins`, `MERIDIAN\Domain Users` and `MERIDIAN\svc-wsjoin`. Any other `MERIDIAN\<name>` is student text.
+7. **V1's recovery view** shows the stop screen line and, separately, `stopCode: 'INACCESSIBLE_BOOT_DEVICE'`. That token fits I2 (32 characters) and is an accepted answer (tested).
+8. **The brief's rules are computed from the exam constants** (duration, handover-by = duration − 40, the self-reset cap), and they state that penalties already incurred still count after a restart. A coverage test maps every CHECKS part and every penalty to the task or rule text that states it, on 12 classes. A new row without a brief line fails.
+9. **Also fixed:**
+   - **Handover and the ledger cap:** handover is exempt from the ledger cap, and the ledger guard refuses only a call that adds entries past the cap, so a read-only command still works on a ledger already past it.
+   - **Command replies** carry `windows`.
+   - **Labels:** the UAC and Startup Settings views label their choices.
+   - **Initial state:** it passes the disclosure scanner like every other payload.
+
+### 13.16 D6 R3 outcomes (2026-11-04): Mallory PASS with findings
+
+1. **F4, admin by allowlist:** the allowlist route needs a verified email. `isAdmin` and `isOperator` require `email_verified === true`. `mdfinalProvision` and `mdfinalControl` use `mdfinalRequireAdmin`, not the platform's `requireAdmin`. The platform `requireAdmin` has the same gap. It is outside this exam's scope and is raised to the operator (confirm both allowlisted addresses exist as verified Auth users).
+2. **F5, a stranger's reset:** the caller must be the owner or an admin BEFORE the sitting is read or an expired sitting is auto-submitted. A stranger gets `permission-denied` whether or not a sitting exists, and nothing changes.
+3. **F3, anonymous starts: NOT blocked, residual accepted pending the operator.**
+   - A first fix refused anonymous accounts. Mallory's A/B showed it also refused allowlisted and resuming students, and `dashboard.html` joins students to classes through an anonymous sign-in, so it could lock real students out of the final. It was removed.
+   - Throwaway email/password accounts would get around it anyway.
+   - **Residual:** inside the armed window, mass-started sittings can crowd the admin all-sittings view (capped at 500, `truncated`) and its sweep. The class view and the class sweep are bounded by membership and unaffected; the runbook uses them.
+4. **F2, forged gradebook rows:** a new mismatch flag (d) marks "progress claims a sitting that is not submitted" (a row with sat, passed or completed and no submitted session). Every flagged row is logged server-side, with the row as found, before the rebuild overwrites it.
+5. **F1, handler read and copy into an attacker class (OPEN, operator decision):** class membership is attacker-written, so any holder of the `handler` claim can list a student in a class they own, assign the final, and read that student's full report. The server also writes the grade into that class. Options:
+   - (a) a handler's results view carries aggregates and totals only, and per-check reports are for admins;
+   - (b) the server records into, and shows results for, only classes the student joined themselves (needs a join-provenance signal, to be researched);
+   - (c) accept, as netfinal does (`handler` is platform staff).
+   Until decided, the behaviour is (c).

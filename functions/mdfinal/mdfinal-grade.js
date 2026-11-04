@@ -7,7 +7,7 @@
  * cannot disagree; graders read it from here. grade() runs every CHECKS row whose check() exists
  * and reports the rest as not implemented, never as 0. Part values stay unrounded; only displayed
  * values are rounded to 0.01 (3.1). Penalties deduct within their phase, floor 0.
- * studentReport, toCsv and objectiveTotals arrive with D5.
+ * gradeSitting() grades a stored sitting, including a provisioned one (2.5).
  * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
 (function () {
     'use strict';
@@ -41,6 +41,12 @@
         var penalties = CH.PENALTIES.map(function (p) {
             return { id: p.id, phase: p.phase, points: p.points, applied: p.applies(view) === true };
         });
+        return tally(rows, penalties, view.f);
+    }
+
+    /* Phase scores, total and the declared P7 reason from graded rows and penalties. Shared by grade()
+     * and gradeSitting(), so a merged report is totalled by the same code as a plain one. */
+    function tally(rows, penalties, f) {
         var phases = {};
         rows.forEach(function (r) {
             var ph = phases[r.phase] || (phases[r.phase] = { raw: 0, max: 0, penalty: 0, implemented: true });
@@ -55,10 +61,38 @@
             if (ph.implemented) { total += ph.score; implementedMax += ph.max; }
         });
         /* declared reasons for a P7 row of 0 (spec 3.3) */
-        var f = view.f, reason = null;
+        var reason = null;
         if (!f.handedOver) { reason = 'no-handover'; } else if (!f.fault) { reason = 'no-os'; }
         else if (f.sys && f.sys.reset) { reason = 'reset'; } else if (f.fault.reinstalled) { reason = 'reinstalled'; }
         return { rows: rows, penalties: penalties, phases: phases, total: total, display: r2(total), implementedMax: implementedMax, p7Reason: reason };
+    }
+
+    /* Grades one sitting from its stored parts: `final`, the handover `snapshot` (null when never
+     * handed over) and the provision `p1Snapshot` (null unless staff provisioned the PC, spec 2.5).
+     * A provisioned sitting takes its P1 rows and P1 penalties from the PC as it stood before the
+     * rescue; every other row is graded as usual. `carriedPenalties` lists penalty ids an earlier,
+     * self-reset attempt incurred. */
+    function gradeSitting(parts, key) {
+        var final = parts.final;
+        var g = grade(parts.snapshot || final, key, final);
+        var carried = Array.isArray(parts.carriedPenalties) ? parts.carriedPenalties : [];
+        if (!parts.p1Snapshot && !carried.length) { return g; }
+        var g1 = parts.p1Snapshot ? grade(parts.p1Snapshot, key, final) : g;
+        var rows = g.rows.map(function (r, i) { return r.phase === 'P1' ? g1.rows[i] : r; });
+        /* A penalty an earlier attempt of this sitting incurred still applies after a self-reset
+         * (13.5 item 6.4), so a reset cannot erase a destructive act. */
+        var pens = g.penalties.map(function (p, i) {
+            var q = p.phase === 'P1' ? g1.penalties[i] : p;
+            return carried.indexOf(q.id) >= 0 && !q.applied ? { id: q.id, phase: q.phase, points: q.points, applied: true, carried: true } : q;
+        });
+        var out = tally(rows, pens, final);
+        if (parts.p1Snapshot) { out.provisioned = true; }
+        return out;
+    }
+
+    /* Ids of the penalties a state incurs as it stands (what a reset carries forward), optionally one phase's. */
+    function appliedPenalties(state, key, phase) {
+        return grade(state, key, state).penalties.filter(function (p) { return p.applied && (!phase || p.phase === phase); }).map(function (p) { return p.id; });
     }
 
     /* Points earned and available per syllabus objective (primary tags, 3.6). */
@@ -90,5 +124,5 @@
         })).join('\n');
     }
 
-    module.exports = { buildAnswerKey: CORE.buildAnswerKey, grade: grade, r2: r2, objectiveTotals: objectiveTotals, studentReport: studentReport, toCsv: toCsv };
+    module.exports = { buildAnswerKey: CORE.buildAnswerKey, grade: grade, gradeSitting: gradeSitting, appliedPenalties: appliedPenalties, r2: r2, objectiveTotals: objectiveTotals, studentReport: studentReport, toCsv: toCsv };
 })();
