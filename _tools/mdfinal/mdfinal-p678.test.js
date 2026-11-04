@@ -323,4 +323,22 @@ const p7 = (r) => rowOf(gradeOf(r), '7.1').parts;
 /* ── 7. all 24 rows implemented, totals intact ── */
 t.check(CH.CHECKS.every((r) => typeof r.check === 'function') && CH.CHECKS.reduce((a, r) => a + r.points, 0) === 100, 'all 24 rows implemented; total 100');
 
+/* ── D7 bar (13.2 item 1): install with defaults, hand over, do nothing = exactly the three
+ * action-parameter parts on every class, no penalty, P7 and P8 zero ── */
+{
+    const HO = kit.req('mdfinal-handover.js');
+    for (let p = 0; p < 3; p++) {
+        for (let v = 0; v < 4; v++) {
+            const { state: s, key } = W.sitting('dflt-total-' + p + v, [p, v]);
+            W.defaultInstalledState(s);
+            const h = HO.handover(s, key);
+            const g = G.grade(h.snapshot, key, s);
+            const scored = [];
+            g.rows.forEach((r) => r.parts.forEach((x, i) => { if (x > 0) { scored.push(r.id + ':' + i); } }));
+            t.check(g.total === 3 && JSON.stringify(scored) === JSON.stringify(['1.1:0', '1.1:1', '1.2:0']) && !g.penalties.some((x) => x.applied),
+                'defaults, handover, nothing else (class ' + p + v + '): total 3 from the declared parts only (' + scored.join(',') + ')');
+        }
+    }
+}
+
 t.done();
