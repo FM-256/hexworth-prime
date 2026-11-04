@@ -25,7 +25,7 @@
     var PC = require('./mdfinal-pc.js');
     var EXAMS = require('./mdfinal-exams.js');
 
-    var GENERATOR_VERSION = '1.0.0';
+    var GENERATOR_VERSION = '1.1.0';   /* 1.1.0 (D4): key.bitlocker added; state unchanged */
     var freeze = LIM.deepFreeze;
 
     /* ═══ CATALOGUES (frozen constants) ═══════════════════════════════════════════════════════ */
@@ -164,6 +164,28 @@
             /* RFC 5737 TEST-NET-2: never a real host. */
             decoyIp: '198.51.100.' + (10 + DERIVE.hidden(K, uid, examId, 'fault-decoy-ip', 241))
         };
+    }
+
+    /* BitLocker material for one sitting (spec 2.2, R1 labels bl-guid#n / bl-rp#n): the nth
+     * protector a student creates takes the nth GUID and, for a recovery-password protector, the
+     * nth password. Each password is 8 blocks of 6 digits, every block a multiple of 11 below
+     * 720896, as real BitLocker recovery passwords are. Never placed in state until created. */
+    var BL_SLOTS = 8;
+    function bitlockerMaterial(K, uid, examId) {
+        var ids = [], passwords = [];
+        for (var n = 0; n < BL_SLOTS; n++) {
+            var h = DERIVE.hiddenHex(K, uid, examId, 'bl-guid#' + n, 32).toUpperCase();
+            /* RFC 4122 v4 layout: version nibble 4, variant 8-B */
+            var vr = '89AB'[parseInt(h[16], 16) % 4];
+            ids.push(h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-' + vr + h.slice(17, 20) + '-' + h.slice(20, 32));
+            var blocks = [];
+            for (var b = 0; b < 8; b++) {
+                var v = 11 * DERIVE.hidden(K, uid, examId, 'bl-rp#' + n + '#' + b, 65536);
+                blocks.push(('000000' + v).slice(-6));
+            }
+            passwords.push(blocks.join('-'));
+        }
+        return { ids: ids, passwords: passwords };
     }
 
     /* The IP plan for one sitting: 10.x.y.0/prefix with the PC, gateway, DNS and KMS inside it. */
@@ -310,6 +332,7 @@
             technician: wo.technician,
             variant: VARIANTS[h.variantIndex],
             fault: { kb: 'KB' + h.faultKb, driverInf: 'oem' + h.driverOem + '.inf', decoyIp: h.decoyIp },
+            bitlocker: bitlockerMaterial(K, uid, examId),
             wo: wo
         };
         return { state: state, key: key };

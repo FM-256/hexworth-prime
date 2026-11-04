@@ -35,7 +35,19 @@
 
     /* Named parameters (-Name value / -Name:value / -Switch), names lowercased, into a map with no
      * prototype, so no student-chosen name can reach Object.prototype. */
-    function args(tokens) {
+    /* "a, b" and "a ,b" are one list argument in PowerShell: re-join tokens around commas (Nancy D4 A3). */
+    function joinCommas(tokens) {
+        var out = [];
+        for (var i = 0; i < tokens.length; i++) {
+            var t = tokens[i];
+            if (out.length && (out[out.length - 1].slice(-1) === ',' || (t[0] === ',' && t.length))) { out[out.length - 1] += t; }
+            else { out.push(t); }
+        }
+        return out;
+    }
+
+    function args(raw) {
+        var tokens = joinCommas(raw);
         var a = Object.create(null);
         a._ = [];
         for (var i = 1; i < tokens.length; i++) {
@@ -658,20 +670,34 @@
     /* ═══ RUN ══════════════════════════════════════════════════════════════════════════════════ */
 
     /* stages: token arrays. extra: legacy table from the shell (slmgr, winver, ...). */
-    function run(state, stages, budget, extra) {
+    function run(state, stages, budget, extra, ctx) {
         var first = stages[0];
         var cmd = first[0].toLowerCase();
         for (var s = 0; s < stages.length; s++) {
             if (DUMPERS.indexOf(stages[s][0].toLowerCase()) >= 0) { return { out: DENY_MSG }; }
         }
+        /* The one modelled mutator pipeline: New-Partition ... | Format-Volume ... (the new partition's
+         * letter flows into Format-Volume; Nancy D4 B5). */
+        if (stages.length === 2 && cmd === 'new-partition' && stages[1][0].toLowerCase() === 'format-volume') {
+            var a1 = args(first);
+            if (!Object.prototype.hasOwnProperty.call(a1, 'driveletter') && !Object.prototype.hasOwnProperty.call(a1, 'assigndriveletter')) {
+                return { out: 'Format-Volume : The partition has no drive letter; use -DriveLetter or -AssignDriveLetter on New-Partition.' };
+            }
+            var before = PC_LETTERS(state);
+            var o1 = MUTATORS['new-partition'](state, a1, ctx || {});
+            if (o1) { return { out: o1 }; }
+            var made = PC_LETTERS(state).filter(function (l) { return before.indexOf(l) < 0; })[0];
+            var a2 = args(stages[1]); a2.driveletter = made;
+            return { out: MUTATORS['format-volume'](state, a2, ctx || {}) };
+        }
         var legacy = Object.prototype.hasOwnProperty.call(LEGACY, cmd) ? LEGACY[cmd] : extra && Object.prototype.hasOwnProperty.call(extra, cmd) ? extra[cmd] : null;
         if (legacy || Object.prototype.hasOwnProperty.call(MUTATORS, cmd)) {
             if (stages.length > 1) { return { out: DENY_MSG }; }
-            var r = legacy ? legacy(state, first) : MUTATORS[cmd](state, args(first));
+            var r = legacy ? legacy(state, first, ctx || {}) : MUTATORS[cmd](state, args(first), ctx || {});
             return typeof r === 'string' ? { out: r } : r;
         }
         if (!Object.prototype.hasOwnProperty.call(PRODUCERS, cmd)) { return { out: notRecognised(first[0]) }; }
-        var v = PRODUCERS[cmd](state, args(first));
+        var v = PRODUCERS[cmd](state, args(first), ctx || {});
         for (var i = 1; i < stages.length; i++) {
             if (typeof v === 'string') { return { out: v }; }
             var st = stages[i][0].toLowerCase();
@@ -682,6 +708,13 @@
             if (budget.spent) { return { out: LIMIT_MSG }; }
         }
         return { out: render(v) };
+    }
+
+    /* Every drive letter on any disk (for the New-Partition | Format-Volume pipeline). */
+    function PC_LETTERS(state) {
+        var out = [];
+        (state.disks || []).forEach(function (d) { d.partitions.forEach(function (p) { if (p.letter) { out.push(p.letter); } }); });
+        return out;
     }
 
     /* The line after a prompt: the secret. Never logged; only reaches the operation. */
@@ -701,6 +734,10 @@
         }
         return { out: '' };
     }
+
+    /* P4/P5 commands register into the same tables, with the same helpers (no require cycle). */
+    require('./mdfinal-cmdlets-d4.js').install({ PRODUCERS: PRODUCERS, MUTATORS: MUTATORS, LEGACY: LEGACY, objs: objs, has: has,
+        missingArg: missingArg, bool: bool, LIMIT_MSG: LIMIT_MSG, DENY_MSG: DENY_MSG });
 
     module.exports = { run: run, resume: resume, args: args, render: render, table: table, PRODUCERS: PRODUCERS, MUTATORS: MUTATORS,
                        LEGACY: LEGACY, STAGES: STAGES, DUMPERS: DUMPERS, DENY_MSG: DENY_MSG, LIMIT_MSG: LIMIT_MSG };

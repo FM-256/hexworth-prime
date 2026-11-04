@@ -845,6 +845,12 @@
             state.identity.uac.EnableLUA = state.identity.uac.pendingEnableLUA;
             state.identity.uac.pendingEnableLUA = null;
         }
+        /* A pending BitLocker hardware test completes at the restart (mdfinal-bitlocker.js). */
+        var bl = state.bitlocker && state.bitlocker.C;
+        if (bl && bl.status === 'pending') {
+            bl.status = bl.protectors.some(function (x) { return x.type === 'Tpm'; }) ? 'on' : 'off';
+            bl.pendingRestart = false;
+        }
         var u = state.os.updates;
         if (u && u.pendingRestart.length) {
             u.pendingRestart.forEach(function (x) { x.status = 'Installed'; u.history.push(x); state.os.revision = x.revision; });

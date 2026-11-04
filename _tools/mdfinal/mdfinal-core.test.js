@@ -264,6 +264,23 @@ const SPEC_GVLK = { Pro: 'W269N-WFGWX-YVC9B-4J6C9-T83GX', Enterprise: 'NPPR9-FWD
             if (ex === EX) { const c = k.profile + k.variant; cnt[c] = (cnt[c] || 0) + 1; kbs.add(k.fault.kb); oems.add(k.fault.driverInf); decoys.add(k.fault.decoyIp); }
         }
     }
+    /* BitLocker material: GUIDs from hiddenHex(bl-guid#n), passwords 8 blocks of 11 x hidden(bl-rp#n#b, 65536) */
+    {
+        const Hx = (uid, ex, label) => { let o = ''; for (let i = 0; o.length < 32; i++) o += SPEC.H(Ks, uid, ex, label, i).toString('hex'); return o.slice(0, 32).toUpperCase(); };
+        for (const uid of kit.uids(200)) {
+            const k = GRADE.buildAnswerKey(uid, EX, opts);
+            for (let n = 0; n < 8; n++) {
+                const h = Hx(uid, EX, 'bl-guid#' + n);
+                const vr = '89AB'[parseInt(h[16], 16) % 4];
+                const wantId = h.slice(0, 8) + '-' + h.slice(8, 12) + '-4' + h.slice(13, 16) + '-' + vr + h.slice(17, 20) + '-' + h.slice(20, 32);
+                const wantPw = Array.from({ length: 8 }, (_, b) => ('000000' + 11 * SPEC.hidden(Ks, uid, EX, 'bl-rp#' + n + '#' + b, 65536)).slice(-6)).join('-');
+                if (k.bitlocker.ids[n] !== wantId || k.bitlocker.passwords[n] !== wantPw) bad.push(uid + ' bitlocker slot ' + n);
+            }
+            if (k.bitlocker.passwords.some((p) => !/^(\d{6}-){7}\d{6}$/.test(p) || p.split('-').some((x) => Number(x) % 11 !== 0 || Number(x) >= 720896))) bad.push(uid + ' recovery password format');
+            if (k.bitlocker.ids.length !== 8 || new Set(k.bitlocker.ids).size !== 8 || new Set(k.bitlocker.passwords).size !== 8) bad.push(uid + ' bitlocker slots not 8 distinct');
+            if (!k.bitlocker.ids.every((g) => /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/.test(g))) bad.push(uid + ' GUID not v4 layout');
+        }
+    }
     t.check(bad.length === 0, 'every hidden pick equals the spec formula (6,300 sittings)' + (bad.length ? ': ' + bad.slice(0, 2).join(' | ') : ''));
     /* 12-cell joint profile x variant (99.9% critical, df=11: 31.26) */
     const e = N7 / 12; let chi = 0; for (const p of ['mdp-a', 'mdp-b', 'mdp-c']) for (const v of ['V1', 'V2', 'V3', 'V4']) { const o = cnt[p + v] || 0; chi += (o - e) * (o - e) / e; }
@@ -286,8 +303,8 @@ const SPEC_GVLK = { Pro: 'W269N-WFGWX-YVC9B-4J6C9-T83GX', Enterprise: 'NPPR9-FWD
 /* ── 8. golden: the generator's output is pinned (Nancy D1). A change here re-draws every student's
  * lab; it needs GENERATOR_VERSION bumped AND these hashes updated in the same commit. ── */
 {
-    const GOLDEN_VERSION = '1.0.0';
-    const GOLDEN = '8db38b8e851d6326c5093ce5dbda124d6b9afac9366b211e9f567c57c75f7fe3';
+    const GOLDEN_VERSION = '1.1.0';
+    const GOLDEN = '8cf633d87aa19dae39e0e2ef7da380a79667367dc287c32c92f82eb536dd70c2';
     const h = crypto.createHash('sha256');
     for (const ex of ['md100-final-2026', 'md100-final-rehearsal']) {
         for (const uid of ['golden-a', 'golden-b', 'golden-c', 'golden-d', 'golden-e']) {
@@ -421,7 +438,8 @@ const SPEC_GVLK = { Pro: 'W269N-WFGWX-YVC9B-4J6C9-T83GX', Enterprise: 'NPPR9-FWD
     for (const uid of kit.uids(1000)) {
         const s = CORE.generate(uid, EX, opts), js = JSON.stringify(s), k = GRADE.buildAnswerKey(uid, EX, opts);
         const label = CORE.PROFILES.find((p) => p.id === k.profile).label;
-        const needles = [k.profile, label, '"' + k.variant + '"', k.fault.kb, k.fault.kb.slice(2), k.fault.driverInf, k.fault.driverInf.replace('.inf', ''), k.fault.decoyIp];
+        const needles = [k.profile, label, '"' + k.variant + '"', k.fault.kb, k.fault.kb.slice(2), k.fault.driverInf, k.fault.driverInf.replace('.inf', ''), k.fault.decoyIp]
+            .concat(k.bitlocker.ids, k.bitlocker.passwords, k.bitlocker.ids.map((x) => x.slice(0, 8)));
         for (const nd of needles) if (js.includes(nd)) leaks.push(uid + ' ' + nd);
     }
     t.check(leaks.length === 0, 'no hidden value of the key appears in its state (1,000 sittings)' + (leaks.length ? ': ' + leaks.slice(0, 3).join(', ') : ''));

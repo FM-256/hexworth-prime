@@ -214,8 +214,11 @@ const JOIN_PW = 'Meridian-Join-2026';
 
 /* Network settings P3's join depends on (row 4.1 itself is graded from D4). */
 function ipv4(s, o) {
+    o = o || {};
     const n = s.wo.network;
-    A(s, 'ncpa', 'ipv4', { dhcp: false, ip: n.ip, mask: n.mask, gateway: n.gateway, dns1: n.dns[0], dns2: n.dns[1] });
+    if (o.ipDhcp) { A(s, 'ncpa', 'ipv4', { dhcp: true, dns1: n.dns[0], dns2: n.dns[1] }); return; }
+    A(s, 'ncpa', 'ipv4', { dhcp: false, ip: n.ip, mask: o.ipMask || n.mask, gateway: o.ipGateway || n.gateway,
+        dns1: o.dnsReversed ? n.dns[1] : n.dns[0], dns2: o.dnsReversed ? n.dns[0] : n.dns[1] });
 }
 
 /* Canonical P2 + P3 through the GUI (plus powercfg for the values a VM's GUI does not offer). */
@@ -298,4 +301,104 @@ function p23Shell(s, key) {
     return s;
 }
 
-module.exports = { p23Gui, p23Shell, ipv4, JOIN_USER, JOIN_PW, defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };
+/* Canonical P4 + P5 through the GUI (after P1-P3). One option changes one thing. */
+function p45Gui(s, key, o) {
+    o = o || {};
+    const wo = s.wo, ctx = { key };
+    /* params go through JSON like a real request, so undefined options drop out */
+    /* lenient: a refused step is the knock-on being measured, so it is recorded, not thrown */
+    const B = (win, action, params) => { const r = GUI.act(s, win, action, JSON.parse(JSON.stringify(params || {})), ctx); if (!r.ok && !o.lenient) throw new Error('walk step failed: ' + win + '/' + action + ': ' + r.msg + (r.refused ? ' [' + r.refused + ']' : '')); return r; };
+    const os = osDisk(s);
+    /* P5 storage first: D: in the free space Setup left, then the pool and the space */
+    if (!o.skipD) B('diskmgmt', 'new-volume', { disk: o.dOnArchive ? s.disks.find((d) => d.role === 'pool').n : os.n, letter: 'D', fs: 'NTFS', label: o.dLabel || wo.disks.dLabel, sizeMB: o.dSizeMB });
+    const pools = s.disks.filter((d) => d.role === 'pool').map((d) => d.n);
+    if (!o.skipPool) {
+        B('storagespaces', 'pool-new', { name: 'MerPool', disks: o.poolOneDisk ? [pools[0]] : pools });
+        B('storagespaces', 'space-new', { name: 'MerSpace', resiliency: o.resiliency || key.resiliency, letter: wo.disks.spacesLetter, fs: 'NTFS', label: wo.disks.spacesLabel });
+    }
+    /* folders, share, confidential folder */
+    const sharePath = wo.share.path, conf = wo.confidentialPath;
+    if (!o.skipD) {
+        B('explorer', 'new-folder', { path: 'D:\\Shares' });
+        B('explorer', 'new-folder', { path: sharePath });
+        B('explorer', 'new-folder', { path: conf });
+        if (!o.skipShare) {
+            B('explorer', 'share', { path: sharePath, name: wo.share.name });
+            if (!o.keepEveryone) B('explorer', 'share-perm-remove', { name: wo.share.name, principal: 'Everyone' });
+            B('explorer', 'share-perm', { name: wo.share.name, principal: wo.group, right: o.shareRight || 'Change' });
+        }
+        if (!o.skipConf) {
+            B('explorer', 'security-inheritance', { path: conf, mode: o.inheritMode || 'convert' });
+            if (!o.keepUsers) B('explorer', 'security-remove', { path: conf, principal: 'Users' });
+            if ((o.inheritMode || 'convert') === 'convert') B('explorer', 'security-remove', { path: conf, principal: 'Authenticated Users' });
+            B('explorer', 'security-grant', { path: conf, principal: wo.group, rights: o.confRights || 'ReadAndExecute' });
+        }
+    }
+    /* P4 network */
+    if (o.category) { B('settings', 'net-profile', { category: o.category }); }
+    else if (wo.join.type !== 'domain' && !o.skipCategory) B('settings', 'net-profile', { category: 'Private' });
+    if (!o.skipRule) {
+        B('wf', 'rule-new', { name: 'LedgerSync', direction: 'Inbound', action: 'Allow', protocol: 'TCP', localPort: String(wo.lob.port),
+            profile: o.ruleProfile || (wo.join.type === 'domain' ? 'Domain,Private' : 'Private'), remoteAddress: o.ruleRemote || wo.network.lobRemoteSubnet });
+    }
+    B('sysprops', 'remote', { enabled: o.rdpOff ? false : true, nla: o.nlaOff ? false : true });
+    if (!o.skipRdu) B('sysprops', 'remote-users-add', { user: wo.user.name });
+    /* BitLocker: the method by policy first, then the wizard with the key saved to TECH-USB */
+    if (!o.noPolicy) {
+        X(s, 'ps', 'reg add "HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE" /v EncryptionMethodWithXtsOs /t REG_DWORD /d 7 /f', 'completed successfully');
+    }
+    if (!o.skipBitLocker) {
+        B('bitlocker', 'turn-on', { saveTo: o.noUsb ? undefined : 'F:\\', backup: o.noUsb ? 'print' : 'file', runSystemCheck: true });
+        if (!o.noRestart) A(s, 'desktop', 'restart', {});
+        if (o.suspend) B('bitlocker', 'suspend', {});
+    }
+    /* Defender */
+    if (!o.skipSig) B('defender', 'update', {});
+    B('defender', 'exclusion-add', { path: o.exclusion || wo.defenderExclusion });
+    if (o.realtimeOff) B('defender', 'realtime', { on: false });
+    return s;
+}
+
+/* Canonical P4 + P5 through the desktop console only. */
+function p45Shell(s, key) {
+    const wo = s.wo, ctx = { key };
+    const C = (line, expect) => {
+        const r = SH.exec(s, 'ps', line, ctx);
+        if (expect !== undefined && String(r.out).indexOf(expect) < 0) throw new Error('walk command failed: ' + line + ' -> ' + r.out);
+        /* any "<Cmdlet> : message" reply, or an error word, is a failed step */
+        const head = line.split(' ')[0];
+        if (expect === undefined && r.out && (r.out.indexOf(head + ' : ') === 0 || /error|not recognized|cannot|refused|does not|invalid/i.test(r.out))) throw new Error('walk command failed: ' + line + ' -> ' + r.out);
+        return r;
+    };
+    const os = osDisk(s);
+    C('New-Partition -DiskNumber ' + os.n + ' -UseMaximumSize -DriveLetter D');
+    C('Format-Volume -DriveLetter D -FileSystem NTFS -NewFileSystemLabel "' + wo.disks.dLabel + '"');
+    const pools = s.disks.filter((d) => d.role === 'pool').map((d) => 'PhysicalDisk' + d.n);
+    C('New-StoragePool -FriendlyName MerPool -StorageSubSystemFriendlyName "Windows Storage*" -PhysicalDisks ' + pools.join(','));
+    C('New-VirtualDisk -StoragePoolFriendlyName MerPool -FriendlyName MerSpace -ResiliencySettingName ' + (key.resiliency === 'Simple' ? 'Simple' : 'Mirror') + ' -UseMaximumSize');
+    const sn = s.pool.space.disk;
+    C('Initialize-Disk -Number ' + sn + ' -PartitionStyle GPT');
+    C('New-Partition -DiskNumber ' + sn + ' -UseMaximumSize -DriveLetter ' + wo.disks.spacesLetter);
+    C('Format-Volume -DriveLetter ' + wo.disks.spacesLetter + ' -FileSystem NTFS -NewFileSystemLabel "' + wo.disks.spacesLabel + '"');
+    C('New-Item -ItemType Directory -Path "' + wo.share.path + '" -Force');
+    C('mkdir ' + wo.confidentialPath);
+    C('New-SmbShare -Name ' + wo.share.name + ' -Path "' + wo.share.path + '" -ChangeAccess ' + wo.group);
+    C('icacls ' + wo.confidentialPath + ' /inheritance:d', 'Successfully processed 1');
+    C('icacls ' + wo.confidentialPath + ' /remove Users', 'Successfully processed 1');
+    C('icacls ' + wo.confidentialPath + ' /remove "Authenticated Users"', 'Successfully processed 1');
+    C('icacls ' + wo.confidentialPath + ' /grant "' + wo.group + ':(OI)(CI)RX"', 'Successfully processed 1');
+    if (wo.join.type !== 'domain') C('Set-NetConnectionProfile -InterfaceAlias Ethernet -NetworkCategory Private');
+    C('New-NetFirewallRule -DisplayName LedgerSync -Direction Inbound -Protocol TCP -LocalPort ' + wo.lob.port + ' -Action Allow -Profile ' +
+        (wo.join.type === 'domain' ? 'Domain,Private' : 'Private') + ' -RemoteAddress ' + wo.network.lobRemoteSubnet);
+    C('reg add "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f', 'completed successfully');
+    C('Add-LocalGroupMember -Group "Remote Desktop Users" -Member ' + wo.user.name);
+    C('manage-bde -on C: -RecoveryPassword -em xts_aes256', 'Restart the computer');
+    const pw = s.bitlocker.C.protectors.find((p) => p.type === 'RecoveryPassword').password;
+    C('Set-Content -Path F:\\rk.txt -Value "' + pw + '"');
+    C('Restart-Computer');
+    C('Update-MpSignature');
+    C('Add-MpPreference -ExclusionPath "' + wo.defenderExclusion + '"');
+    return s;
+}
+
+module.exports = { p45Shell, p45Gui, p23Gui, p23Shell, ipv4, JOIN_USER, JOIN_PW, defaultInstalledBusiness, EX, opts, sitting, A, X, p1Gui, p1Shell, oobe, activate, wizardDefaults, defaultInstalledState, osDisk, PRIVACY_OFF };

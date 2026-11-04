@@ -23,6 +23,9 @@
 
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
+    var NET = require('./mdfinal-net.js');
+    var FS = require('./mdfinal-fs.js');
+    var NF = require('../netfinal/netfinal-core.js');
 
     /* Built-in local groups (a WO group can never be one of these). */
     var OS_BUILTIN_GROUPS = ['Administrators', 'Users', 'Guests', 'Remote Desktop Users'];
@@ -52,11 +55,157 @@
         return p.plans.filter(function (x) { return x.guid === p.active; })[0] || null;
     }
 
+    /* Home and Home N: no domain join, no Remote Desktop host, no BitLocker (one helper, Nancy D4 A6). */
+    function isHome(s) { return !!s.os && (s.os.edition === 'Home' || s.os.edition === 'Home N'); }
+
     /* Everything P2+ needs exists only once Windows reached the desktop. */
     function desktopDone(s) { return !!(s.os && s.os.oobe && s.os.oobe.done); }
 
     /* The disk the student's own OS VHDX became, or null before a VM exists. */
     function targetDisk(s) { return PC.diskByRole(s, 'os'); }
+
+    /* ═══ D4 rows (4.1-5.4): each reads only view.s and view.k ═══ */
+
+    /* 4.1 IPv4 & DNS: [ip, prefix, gateway, dns1, dns2] */
+    function check41(v) {
+        var s = v.s, n = v.k.wo.network;
+        if (!desktopDone(s)) { return [0, 0, 0, 0, 0]; }
+        var e = s.network.adapters.Ethernet;
+        var stat = e.dhcp === false;
+        var mask = NF.ip.prefixToMask(e.prefix);
+        var roundTrip = NF.ip.prefixToMask(NF.ip.maskToPrefix(mask)) === mask;
+        return [pts(stat && e.ip === n.ip, 1),
+            pts(stat && e.prefix === n.prefix && roundTrip, 1),
+            pts(stat && e.gateway === n.gateway, 1),
+            pts(e.dns[0] === n.dns[0], 1),
+            pts(e.dns[1] === n.dns[1], 1)];
+    }
+
+    /* 4.2 Firewall & profile: [rule, profiles, remote, category] */
+    function check42(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s) || !s.network.firewall) { return [0, 0, 0, catPart(v)]; }
+        /* ONE rule earns parts 1-3 (Nancy D4 A2): an enabled inbound Allow TCP rule naming the WO
+         * port explicitly (an Any-port rule is not "a rule for LedgerSync"). An enabled inbound Block
+         * rule covering the port wins in Windows, so it voids parts 1-3. */
+        var port = wo.lob.port;
+        var rules = s.network.firewall.rules;
+        var blocked = rules.some(function (r) {
+            return r.enabled && r.direction === 'Inbound' && r.action === 'Block' && (r.protocol === 'TCP' || r.protocol === 'Any') && NET.coversPort(r, port);
+        });
+        var cands = blocked ? [] : rules.filter(function (r) {
+            return r.enabled && r.direction === 'Inbound' && r.action === 'Allow' && r.protocol === 'TCP' && r.localPort[0] !== 'Any' && NET.coversPort(r, port);
+        });
+        if (!cands.length) { return [0, 0, 0, catPart(v)]; }
+        var wantProf = JSON.stringify(wo.join.type === 'domain' ? ['Domain', 'Private'] : ['Private']);
+        var wantRemote = NET.remote(wo.network.lobRemoteSubnet);
+        var best = cands.reduce(function (m, r) {
+            var sc = (JSON.stringify(r.profiles) === wantProf ? 1 : 0) + (r.remote.length === 1 && r.remote[0] === wantRemote ? 2 : 0);
+            return Math.max(m, sc);
+        }, 0);
+        return [1, pts(best === 1 || best === 3, 1), pts(best >= 2, 1), catPart(v)];
+    }
+    /* Category part: contractor Private; domain DomainAuthenticated, or Private when the join is not effective. */
+    function catPart(v) {
+        var s = v.s;
+        if (!desktopDone(s)) { return 0; }
+        var c = NET.category(s);
+        if (v.k.wo.join.type !== 'domain') { return pts(c === 'Private', 1); }
+        var joined = s.identity.membership.type === 'domain' && !s.identity.membership.pending;
+        return pts(c === 'DomainAuthenticated' || (!joined && c === 'Private'), 1);
+    }
+
+    /* 4.3 Remote Desktop: [enabled, user in Remote Desktop Users] */
+    function check43(v) {
+        var s = v.s;
+        if (!desktopDone(s)) { return [0, 0]; }
+        var r = s.os.policies.rdp;
+        var on = !!r && r.fDenyTSConnections === 0 && !isHome(s);
+        var uk = findKey(s.identity.users, v.k.wo.user.name);
+        return [pts(on, 1), pts(!!uk && isMember(s, 'Remote Desktop Users', uk), 1)];
+    }
+
+    /* 4.4 Share: [share on path, Everyone absent, group Change/Full at share, effective network = Modify] */
+    function check44(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s) || !s.network.shares) { return [0, 0, 0, 0]; }
+        var sh = s.network.shares.filter(function (x) { return x.name.toLowerCase() === wo.share.name.toLowerCase(); })[0];
+        var path = FS.canon(wo.share.path);
+        if (!sh || !path || sh.path.toUpperCase() !== path.toUpperCase()) { return [0, 0, 0, 0]; }
+        var noEveryone = !sh.perms.some(function (p) { return p.principal.toLowerCase() === 'everyone'; });
+        var gk = findKey(s.identity.groups, wo.group);
+        var groupShare = !!gk && OS_BUILTIN_GROUPS.indexOf(gk) < 0 && sh.perms.some(function (p) {
+            return p.type === 'Allow' && p.principal.toLowerCase() === gk.toLowerCase() && (p.right === 'Change' || p.right === 'Full');
+        });
+        var eff = gk ? FS.memberNetworkMask(s, sh, gk) : 0;
+        return [1, pts(noEveryone, 1), pts(groupShare, 1), pts(!!gk && eff === FS.RIGHTS.Modify, 1)];
+    }
+
+    /* 5.1 Data volumes: [D: fills target free space, D: NTFS + label, pool = two pool disks (2), resiliency (2), spaces volume] */
+    function check51(v) {
+        var s = v.s, wo = v.k.wo, k = v.k;
+        if (!desktopDone(s)) { return [0, 0, 0, 0, 0]; }
+        var os = s.disks.filter(function (d) { return d.role === 'os'; })[0];
+        var dpart = null;
+        s.disks.forEach(function (d) { d.partitions.forEach(function (p) { if (p.letter === 'D') { dpart = { d: d, p: p }; } }); });
+        var dOnTarget = !!dpart && dpart.d === os && os.n === s.os.installDisk && freeMbOf(os) < 1024;
+        var dFormat = !!dpart && dpart.d === os && dpart.p.fs === 'NTFS' && String(dpart.p.label || '').toLowerCase() === wo.disks.dLabel.toLowerCase();
+        var pool = s.pool;
+        var poolFiles = pool ? pool.disks.slice().sort() : [];
+        var poolOk = !!pool && JSON.stringify(poolFiles) === JSON.stringify(['MER-POOL1.vhdx', 'MER-POOL2.vhdx']);
+        /* Each part on its own (Nancy D4 A5): a wrong pool does not also cost the space's parts. */
+        var resOk = !!pool && !!pool.space && pool.space.resiliency === k.resiliency;
+        var sp = null;
+        if (pool && pool.space) { s.disks.forEach(function (d) { if (d.n === pool.space.disk) { sp = d.partitions.filter(function (p) { return p.type === 'Primary'; })[0]; } }); }
+        var spOk = !!sp && sp.letter === wo.disks.spacesLetter && sp.fs === 'NTFS' && String(sp.label || '').toLowerCase() === wo.disks.spacesLabel.toLowerCase();
+        return [pts(dOnTarget, 1), pts(dFormat, 1), pts(poolOk, 2), pts(resOk, 2), pts(spOk, 1)];
+    }
+    /* Unallocated MB on a disk. */
+    function freeMbOf(d) { return d.gb * 1024 - d.partitions.reduce(function (a, p) { return a + p.mb; }, 0); }
+
+    /* 5.2 BitLocker C:: [XTS-AES 256, protection on and fully encrypted, TPM, recovery password, key file on F:] */
+    function check52(v) {
+        var s = v.s;
+        if (!desktopDone(s) || !s.bitlocker) { return [0, 0, 0, 0, 0]; }
+        var b = s.bitlocker.C;
+        /* Each part on its own (Nancy D4 A5): only "protection on and fully encrypted" needs the
+         * encryption to have completed; the method counts once encryption has started. */
+        var started = b.status !== 'off';
+        var rps = b.protectors.filter(function (p) { return p.type === 'RecoveryPassword'; });
+        var digits = function (x) { return String(x).split('').filter(function (c) { return c >= '0' && c <= '9'; }).join(''); };
+        var onUsb = rps.length > 0 && s.host.usb.F.files.some(function (f) {
+            var t = digits(f.text);
+            /* the full 48-digit password must appear; an empty needle never matches (QC hook) */
+            return rps.some(function (p) { var pd = digits(p.password); return pd.length === 48 && t.indexOf(pd) >= 0; });
+        });
+        return [pts(started && b.method === 7, 1), pts(b.status === 'on', 1), pts(b.protectors.some(function (p) { return p.type === 'Tpm'; }), 1),
+            pts(rps.length > 0, 1), pts(onUsb, 1)];
+    }
+
+    /* 5.3 Confidential NTFS: [inheritance disabled, Users/Auth Users no access, group RX]; gate: Administrators and SYSTEM keep Full. */
+    function check53(v) {
+        var s = v.s, wo = v.k.wo;
+        if (!desktopDone(s) || !s.fs) { return [0, 0, 0]; }
+        var path = FS.canon(wo.confidentialPath);
+        var f = path && FS.folder(s, path);
+        if (!f) { return [0, 0, 0]; }
+        var full = FS.RIGHTS.FullControl;
+        if (FS.effectiveMask(s, path, 'Administrators') !== full || FS.effectiveMask(s, path, 'SYSTEM') !== full) { return [0, 0, 0]; }
+        var gk = findKey(s.identity.groups, wo.group);
+        /* effective access, as the spec says: no allow reaches Users or Authenticated Users (or Everyone, which both carry) */
+        var noUsers = FS.effectiveMask(s, path, 'Users') === 0 && FS.effectiveMask(s, path, 'Authenticated Users') === 0;
+        return [pts(f.protect === true, 1), pts(noUsers, 1),
+            pts(!!gk && OS_BUILTIN_GROUPS.indexOf(gk) < 0 && FS.memberMask(s, path, gk) === FS.RIGHTS.ReadAndExecute, 1)];
+    }
+
+    /* 5.4 Defender: [signatures updated after install, exclusions exactly the WO path] */
+    function check54(v) {
+        var s = v.s;
+        if (!desktopDone(s) || !s.defender) { return [0, 0]; }
+        var want = FS.canon(v.k.wo.defenderExclusion);
+        var ex = s.defender.exclusions;
+        return [pts(s.defender.sigUpdated === true, 1), pts(ex.length === 1 && !!want && ex[0].toLowerCase() === want.toLowerCase(), 1)];
+    }
 
     var CHECKS = [
         /* ── P1 Build and install (16) ── */
@@ -196,34 +345,34 @@
         { id: '4.1', phase: 'P4', objective: 3, points: 5, basis: 'snap', title: 'IPv4 and DNS',
           parts: [{ id: 'ip', points: 1 }, { id: 'prefix', points: 1 }, { id: 'gateway', points: 1 },
                   { id: 'dns1', points: 1 }, { id: 'dns2', points: 1 }],
-          negative: '255.255.255.0 on a /23 WO: prefix 0; DNS reversed: both DNS parts 0', knockOn: [], check: null },
+          negative: '255.255.255.0 on a /23 WO: prefix 0; DNS reversed: both DNS parts 0', knockOn: [], check: check41 },
         { id: '4.2', phase: 'P4', objective: 7, points: 4, basis: 'snap', title: 'Firewall and profile',
           parts: [{ id: 'rule', points: 1 }, { id: 'profiles', points: 1 }, { id: 'remote', points: 1 }, { id: 'category', points: 1 }],
-          negative: 'rule on Any profile; remote Any; category left Public', knockOn: [], check: null },
+          negative: 'rule on Any profile; remote Any; category left Public', knockOn: ['4.1'], check: check42 },
         { id: '4.3', phase: 'P4', objective: 9, points: 2, basis: 'snap', title: 'Remote Desktop',
           parts: [{ id: 'enabled', points: 1 }, { id: 'rdu', points: 1 }],
-          negative: 'enabled, user not added', knockOn: ['1.2', '3.1'], check: null },
+          negative: 'enabled, user not added', knockOn: ['1.2', '3.1'], check: check43 },
         { id: '4.4', phase: 'P4', objective: 3, points: 4, basis: 'snap', title: 'Share',
           parts: [{ id: 'share', points: 1 }, { id: 'no-everyone', points: 1 }, { id: 'group-share', points: 1 },
                   { id: 'effective', points: 1 }],
-          negative: 'Everyone Full Control left; group Read at share', knockOn: ['5.1', '1.3', '3.1'], check: null },
+          negative: 'Everyone Full Control left; group Read at share', knockOn: ['5.1', '1.3', '3.1'], check: check44 },
 
         /* ── P5 Storage and security (17) ── */
         { id: '5.1', phase: 'P5', objective: 2, points: 7, basis: 'snap', title: 'Data volumes',
           parts: [{ id: 'd-space', points: 1 }, { id: 'd-format', points: 1 }, { id: 'pool', points: 2 },
                   { id: 'resiliency', points: 2 }, { id: 'spaces-volume', points: 1 }],
           negative: 'D: on the archive disk; pool including the archive; mirror where the prose wants Simple',
-          knockOn: ['1.3'], check: null },
+          knockOn: ['1.3'], check: check51 },
         { id: '5.2', phase: 'P5', objective: 7, points: 5, basis: 'snap', title: 'BitLocker C:',
           parts: [{ id: 'method', points: 1 }, { id: 'protection', points: 1 }, { id: 'tpm', points: 1 },
                   { id: 'rp', points: 1 }, { id: 'usb-backup', points: 1 }],
-          negative: 'wizard with no policy: method 0; suspended: protection 0', knockOn: ['1.1', '1.2'], check: null },
+          negative: 'wizard with no policy: method 0; suspended: protection 0', knockOn: ['1.1', '1.2'], check: check52 },
         { id: '5.3', phase: 'P5', objective: 7, points: 3, basis: 'snap', title: 'Confidential NTFS',
           parts: [{ id: 'inheritance', points: 1 }, { id: 'no-users', points: 1 }, { id: 'group-rx', points: 1 }],
-          negative: 'inheritance converted but Users left with Read: 2/3', knockOn: ['5.1', '1.3', '3.1'], check: null },
+          negative: 'inheritance converted but Users left with Read: 2/3', knockOn: ['5.1', '1.3', '3.1'], check: check53 },
         { id: '5.4', phase: 'P5', objective: 7, points: 2, basis: 'snap', title: 'Defender',
           parts: [{ id: 'signatures', points: 1 }, { id: 'exclusion', points: 1 }],
-          negative: 'exclusion D:\\: part 2 = 0', knockOn: [], check: null },
+          negative: 'exclusion D:\\: part 2 = 0', knockOn: [], check: check54 },
 
         /* ── P6 Apps, updates, performance (11) ── */
         { id: '6.1', phase: 'P6', objective: 4, points: 5, basis: 'snap', title: 'Applications',
@@ -273,7 +422,22 @@
                   var u = s.identity.users[k];
                   return !u.builtin && !u.oobe && k.toLowerCase() !== wouser;
               });
-          } }
+          } },
+        { id: 'P4-firewall-off', phase: 'P4', points: 1, title: 'A firewall profile turned off',
+          applies: function (v) { var f = v.s.network && v.s.network.firewall; return !!f && desktopDone(v.s) && Object.keys(f.profiles).some(function (k) { return f.profiles[k] === false; }); } },
+        { id: 'P4-nla-off', phase: 'P4', points: 1, title: 'Network Level Authentication disabled',
+          applies: function (v) { var r = v.s.os && v.s.os.policies && v.s.os.policies.rdp; return desktopDone(v.s) && !!r && r.UserAuthentication === 0; } },
+        { id: 'P4-smb1', phase: 'P4', points: 1, title: 'SMB1 enabled',
+          applies: function (v) { return desktopDone(v.s) && !!v.s.network && v.s.network.smb1 === true; } },
+        { id: 'P4-everyone-full', phase: 'P4', points: 1, title: 'Another share grants Everyone Full Control',
+          applies: function (v) {
+              var sh = desktopDone(v.s) && v.s.network.shares;
+              if (!sh) { return false; }
+              var wo = v.k.wo.share.name.toLowerCase();
+              return sh.some(function (x) { return x.name.toLowerCase() !== wo && x.perms.some(function (p) { return p.principal.toLowerCase() === 'everyone' && p.right === 'Full' && p.type === 'Allow'; }); });
+          } },
+        { id: 'P5-realtime-off', phase: 'P5', points: 1, title: 'Defender real-time protection off',
+          applies: function (v) { return desktopDone(v.s) && !!v.s.defender && v.s.defender.realtime === false; } }
     ];
 
     LIM.deepFreeze(CHECKS);

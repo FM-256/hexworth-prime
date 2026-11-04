@@ -916,3 +916,52 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
 6. **Registry tree:** ancestors of default keys exist (`HKLM:\SOFTWARE\Microsoft` and the like), forward slashes are accepted, `Run`, `Services` and `Memory Management` keys exist for D5, and an inert value never shadows a modelled one in queries.
 7. **Callable contract (D6, required):** an engine call either completes or throws. The callable writes the session only when the call returns, so a throw leaves the stored document unchanged (all-or-nothing). `state.shell.pending` and `state.shell.history` are never part of the client projection.
 8. **Known simplification:** the 13.4 wall-clock abort is not implemented, because nothing in the consoles is slow enough to need it (Mallory measured a 1,988-row pipeline at about 3 ms). The step budget and the 400-line output cap are the bounds.
+
+### 13.10 D4 decisions (2026-11-04)
+
+1. **BitLocker hidden values in the key.** `buildAnswerKey` carries `bitlocker.ids` (4 protector GUIDs, label `bl-guid#n`) and `bitlocker.passwords` (4 recovery passwords, 8 blocks, each block `11 × hidden(bl-rp#n#b, 65536)`, as real ones are multiples of 11). The nth protector a student creates takes slot n. A value enters the state only when its protector exists, and the engine never needs the secret at action time (ctx carries the key). `GENERATOR_VERSION` 1.1.0. The state is unchanged; the golden hash is updated in the same commit.
+2. **Modules:** `mdfinal-fs.js` (NTFS folders, ACLs, inheritance, effective access as a bitset; share ∩ NTFS over SMB), `mdfinal-storage.js` (Disk Management, Shrink/Extend, Storage Spaces), `mdfinal-bitlocker.js`, `mdfinal-net.js` (category, firewall, RDP, shares, SMB1, Defender, NTFS UI wrappers), `mdfinal-cmdlets-d4.js` (P4/P5 console commands, registered into the D3 pipeline engine).
+3. **Declared simplifications:**
+   - the DVD drive is R:, so D: is free;
+   - Windows' used space on C: is 30 GB (the Shrink floor);
+   - one pool and one space, which take the whole pool;
+   - the no-TPM BitLocker startup policy is not modelled, so a PC without a vTPM cannot start BitLocker (1.1 knock-on);
+   - files exist only on TECH-USB (F:) and folders only on NTFS data volumes;
+   - `New-StoragePool -PhysicalDisks` takes `PhysicalDisk<n>` names;
+   - `Get-NetFirewallRule` shows its own port and address;
+   - one adapter, "Ethernet".
+4. **Real behaviour kept:**
+   - new data volumes give Authenticated Users Modify, Users Read & execute, and Administrators/SYSTEM Full;
+   - inherited entries cannot be removed until inheritance is disabled;
+   - Advanced Sharing and `New-SmbShare` default to Everyone Read;
+   - a DomainAuthenticated network's category cannot be set by hand;
+   - Tamper Protection (on) makes `Set-MpPreference -DisableRealtimeMonitoring` report success and do nothing, while the Windows Security toggle works;
+   - the BitLocker wizard has no method picker and cannot save the key to C:;
+   - encryption completes at the hardware-test restart;
+   - the CanPool rules hold (the archive cannot be pooled while it holds its volume).
+5. **Grading notes:**
+   - 4.2 takes the best enabled inbound allow TCP rule covering the WO port;
+   - remote addresses compare as canonical network/prefix;
+   - 4.4 "effective" is share ∩ NTFS for the WO group;
+   - 5.3 "no access" is effective access for Users and Authenticated Users;
+   - 5.2's TECH-USB part needs the full 48-digit current recovery password in a file on F: (dashes optional);
+   - P4-everyone-full excludes the WO share, which 4.4 grades.
+
+### 13.11 D4 R2 outcomes (2026-11-04): Nancy BLOCK, fixed
+
+1. **One rule earns 4.2 (answers Nancy E2):** parts 1-3 come from a single enabled inbound Allow TCP rule that names the WO port explicitly. An Any-port rule is not "a rule for LedgerSync". An enabled inbound Block rule covering the port voids parts 1-3, as Block wins in Windows. 4.2 now declares 4.1 as a knock-on: a joined PC whose DNS stops pointing at the DC loses DomainAuthenticated.
+2. **No cascade gates (answers E1):** 5.1's resiliency and spaces parts and 5.2's method, TPM, recovery-password and TECH-USB parts are each scored on their own. Only 5.2 "protection on and fully encrypted" needs the hardware-test restart. The method counts once encryption has started.
+3. **Effective access as a member sees it (A1):** 5.3 part 3 and 4.4 part 4 evaluate a representative member of the WO group, carrying the group plus Users, Authenticated Users and Everyone. 5.3 needs exactly Read & execute; the brief says "Read & execute" (answers E3). Leaving Authenticated Users with Modify costs both part 2 and part 3, which is what Windows would really grant (declared).
+4. **Home and Home N** share one helper for RDP-host, domain-join and BitLocker availability.
+5. **Console parsing:** list arguments accept spaces after commas (`a, b`); netsh keyword values are case-insensitive; `{GUID}` literals (`manage-bde -id {...}`) pass the deny rule; icacls accepts `/T /C /Q /L`, the `X` and `N` rights, `(R,X)` lists and `.\Group`.
+6. **BitLocker (answers E4):** decrypt exists (`manage-bde -off`, `Disable-BitLocker`, Control Panel > Turn off), and decrypting removes every protector. The wizard reuses an existing TPM protector. `Enable-BitLocker` with both protector switches, or a recovery-password-only start on C:, is refused up front. The key carries **8** slots per sitting (lifetime: a removed protector's slot is never reused). GUIDs use the RFC 4122 v4 layout.
+7. **gpedit:** `gpedit/fve-os-method` sets "Choose drive encryption method and cipher strength" (OS drives) and writes the same policy model as the registry route. The Windows Update gpedit policies arrive with D5.
+8. **Supported now:** the `New-Partition ... | Format-Volume ...` pipeline, `Enable-`/`Disable-NetFirewallRule`, `Get-NetAdapter`, `Get-NetIPAddress`, remote address ranges `a-b`, and `%ProgramData%`-style exclusion paths. The GUI New Simple Volume wizard defaults to the next free letter (D:).
+9. **Declared, not modelled:**
+   - `("a","b")` and `@(...)` list forms are refused (the comma list works);
+   - output redirection (`>`, `Out-File`) is refused, so the recovery key reaches TECH-USB through the wizard's "Save to a file", "Back up your recovery key", or `Set-Content` with the password;
+   - `Get-NetFirewallPortFilter` is absent (`Get-NetFirewallRule` shows its port and address);
+   - Extend ignores partition adjacency (lenient);
+   - the admin shares (C$, ADMIN$, IPC$) are not listed.
+10. **Knock-ons are derived, not just named:** a test breaks each upstream dependency (no D:, whole-disk layout, no vTPM, WO group missing, WO user missing) on two profiles and asserts that every row that moves declares the broken row.
+11. **D6 assertions (required):** the callable always passes `ctx.key`, and refuses a stored session whose key predates generator 1.1.0 (no `bitlocker` section).

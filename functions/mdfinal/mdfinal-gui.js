@@ -19,6 +19,9 @@
     var PC = require('./mdfinal-pc.js');
     var OS = require('./mdfinal-os.js');
     var REG = require('./mdfinal-registry.js');
+    var NET = require('./mdfinal-net.js');
+    var STO = require('./mdfinal-storage.js');
+    var BL = require('./mdfinal-bitlocker.js');
 
     var L = LIM.LIMITS.params;
     var KEY_RE = /^[A-Za-z][A-Za-z0-9]{0,31}$/;  /* literal of LIMITS.params.keyPattern (tested equal) */
@@ -31,7 +34,8 @@
         bool: { type: 'bool' },
         oneOf: function (values) { return { type: 'enum', values: values }; },
         strOrNull: function (max) { return { type: 'string', max: max || L.maxString, nullable: true }; },
-        intOrWord: function (min, max, word) { return { type: 'int-or-word', min: min, max: max, word: word }; }
+        intOrWord: function (min, max, word) { return { type: 'int-or-word', min: min, max: max, word: word }; },
+        intList: function (min, max, maxLen) { return { type: 'int-list', min: min, max: max, maxLen: maxLen }; }
     };
 
     /* window -> which screens offer it (2.3). The host windows exist from the first second. */
@@ -50,7 +54,15 @@
         'uac':         { screens: ['desktop'] },
         'sysprops':    { screens: ['desktop'] },
         'regedit':     { screens: ['desktop'] },
-        'ncpa':        { screens: ['desktop'] }
+        'ncpa':        { screens: ['desktop'] },
+        'wf':          { screens: ['desktop'] },
+        'explorer':    { screens: ['desktop'] },
+        'features':    { screens: ['desktop'] },
+        'diskmgmt':    { screens: ['desktop'] },
+        'storagespaces': { screens: ['desktop'] },
+        'bitlocker':   { screens: ['desktop'] },
+        'defender':    { screens: ['desktop'] },
+        'gpedit':      { screens: ['desktop'] }
     });
 
     var ACTION_SCHEMA = LIM.deepFreeze({
@@ -110,7 +122,45 @@
                                    data: T.str(500) }, required: ['key', 'name', 'type', 'data'] },
         'regedit/delete': { params: { key: T.str(260), name: T.str(64) }, required: ['key', 'name'] },
         'regedit/new-key': { params: { key: T.str(260) }, required: ['key'] },
-        'ncpa/ipv4': { params: { dhcp: T.bool, ip: T.str(15), mask: T.str(15), gateway: T.str(15), dnsAuto: T.bool, dns1: T.str(15), dns2: T.str(15) }, required: [] }
+        'ncpa/ipv4': { params: { dhcp: T.bool, ip: T.str(15), mask: T.str(15), gateway: T.str(15), dnsAuto: T.bool, dns1: T.str(15), dns2: T.str(15) }, required: [] },
+        'settings/net-profile': { params: { category: T.oneOf(['Public', 'Private']) }, required: ['category'] },
+        'wf/rule-new': { params: { name: T.str(64), direction: T.oneOf(['Inbound', 'Outbound']), action: T.oneOf(['Allow', 'Block']),
+                                   protocol: T.oneOf(['TCP', 'UDP', 'Any']), localPort: T.str(100), profile: T.str(40), remoteAddress: T.str(300), enabled: T.bool },
+                         required: ['name'] },
+        'wf/rule-set': { params: { name: T.str(64), profile: T.str(40), remoteAddress: T.str(300), localPort: T.str(100), enabled: T.bool }, required: ['name'] },
+        'wf/rule-delete': { params: { name: T.str(64) }, required: ['name'] },
+        'wf/profile': { params: { profile: T.str(40), on: T.bool }, required: ['profile', 'on'] },
+        'sysprops/remote': { params: { enabled: T.bool, nla: T.bool }, required: [] },
+        'sysprops/remote-users-add': { params: { user: T.str(64) }, required: ['user'] },
+        'explorer/new-folder': { params: { path: T.str(260) }, required: ['path'] },
+        'explorer/share': { params: { path: T.str(260), name: T.str(80) }, required: ['path', 'name'] },
+        'explorer/share-perm': { params: { name: T.str(80), principal: T.str(64), right: T.oneOf(['Read', 'Change', 'Full']), type: T.oneOf(['Allow', 'Deny']) }, required: ['name', 'principal', 'right'] },
+        'explorer/share-perm-remove': { params: { name: T.str(80), principal: T.str(64) }, required: ['name', 'principal'] },
+        'explorer/stop-share': { params: { name: T.str(80) }, required: ['name'] },
+        'explorer/security-inheritance': { params: { path: T.str(260), mode: T.oneOf(['convert', 'remove', 'enable']) }, required: ['path', 'mode'] },
+        'explorer/security-grant': { params: { path: T.str(260), principal: T.str(64), rights: T.oneOf(['FullControl', 'Modify', 'ReadAndExecute', 'Read', 'Write']), type: T.oneOf(['Allow', 'Deny']) }, required: ['path', 'principal', 'rights'] },
+        'explorer/security-remove': { params: { path: T.str(260), principal: T.str(64) }, required: ['path', 'principal'] },
+        'features/smb1': { params: { on: T.bool }, required: ['on'] },
+        'diskmgmt/init': { params: { disk: T.int(0, 15), style: T.oneOf(['GPT', 'MBR']) }, required: ['disk'] },
+        'diskmgmt/new-volume': { params: { disk: T.int(0, 15), sizeMB: T.int(8, 2097152), letter: T.str(2), fs: T.oneOf(['NTFS', 'ReFS', 'exFAT', 'FAT32']), label: T.str(32) }, required: ['disk'] },
+        'diskmgmt/format': { params: { letter: T.str(2), fs: T.oneOf(['NTFS', 'ReFS', 'exFAT', 'FAT32']), label: T.str(32) }, required: ['letter'] },
+        'diskmgmt/change-letter': { params: { from: T.str(2), to: T.str(2) }, required: ['from', 'to'] },
+        'diskmgmt/delete-volume': { params: { letter: T.str(2) }, required: ['letter'] },
+        'diskmgmt/shrink': { params: { letter: T.str(2), shrinkMB: T.int(1, 2097152) }, required: ['letter', 'shrinkMB'] },
+        'diskmgmt/extend': { params: { letter: T.str(2), extendMB: T.int(1, 2097152) }, required: ['letter'] },
+        'storagespaces/pool-new': { params: { name: T.str(64), disks: T.intList(0, 15, 8) }, required: ['name', 'disks'] },
+        'storagespaces/space-new': { params: { name: T.str(64), resiliency: T.oneOf(['Simple', 'Two-way mirror']), letter: T.str(2), fs: T.oneOf(['NTFS', 'ReFS']), label: T.str(32) }, required: ['resiliency', 'letter'] },
+        'bitlocker/turn-on': { params: { saveTo: T.str(260), backup: T.oneOf(['file', 'print']), runSystemCheck: T.bool }, required: [] },
+        'bitlocker/backup': { params: { saveTo: T.str(260) }, required: ['saveTo'] },
+        'bitlocker/suspend': { params: {}, required: [] },
+        'bitlocker/turn-off': { params: {}, required: [] },
+        'gpedit/fve-os-method': { params: { method: T.oneOf(['AES-CBC 128', 'AES-CBC 256', 'XTS-AES 128', 'XTS-AES 256']) }, required: ['method'] },
+        'bitlocker/resume': { params: {}, required: [] },
+        'defender/update': { params: {}, required: [] },
+        'defender/realtime': { params: { on: T.bool }, required: ['on'] },
+        'defender/tamper': { params: { on: T.bool }, required: ['on'] },
+        'defender/exclusion-add': { params: { path: T.str(260) }, required: ['path'] },
+        'defender/exclusion-remove': { params: { path: T.str(260) }, required: ['path'] }
     });
 
     /* lusrmgr.msc is not available on Home editions (the real snap-in refusal). */
@@ -174,6 +224,49 @@
         'regedit/set': function (s, p) { return REG.write(s, 'desktop', p.key, p.name, p.type, p.data, false); },
         'regedit/delete': function (s, p) { return REG.del(s, p.key, p.name); },
         'ncpa/ipv4': function (s, p) { return OS.setIpv4(s, p); },
+        'settings/net-profile': function (s, p) { return NET.setCategory(s, p.category); },
+        'wf/rule-new': function (s, p) { return NET.newRule(s, p); },
+        'wf/rule-set': function (s, p) { return NET.setRule(s, p.name, p); },
+        'wf/rule-delete': function (s, p) { return NET.deleteRule(s, p.name); },
+        'wf/profile': function (s, p) { return NET.setProfile(s, p.profile, p.on); },
+        'sysprops/remote': function (s, p) { return NET.setRemote(s, p); },
+        'sysprops/remote-users-add': function (s, p) {
+            if (s.os && (s.os.edition === 'Home' || s.os.edition === 'Home N')) { return { ok: false, msg: 'Your Home edition of Windows 11 doesn\'t support Remote Desktop.' }; }
+            return OS.addMember(s, { group: 'Remote Desktop Users', member: p.user });
+        },
+        'explorer/new-folder': function (s, p) { return NET.newFolder(s, p.path, false); },
+        'explorer/share': function (s, p) { return NET.newShare(s, { name: p.name, path: p.path }); },
+        'explorer/share-perm': function (s, p) { return NET.sharePermSet(s, p.name, p.principal, p.right, p.type || 'Allow'); },
+        'explorer/share-perm-remove': function (s, p) { return NET.sharePermRemove(s, p.name, p.principal); },
+        'explorer/stop-share': function (s, p) { return NET.removeShare(s, p.name); },
+        'explorer/security-inheritance': function (s, p) { return NET.ntfsInheritance(s, p.path, p.mode); },
+        'explorer/security-grant': function (s, p) { return NET.ntfsGrant(s, p.path, p.principal, p.rights, p.type || 'Allow'); },
+        'explorer/security-remove': function (s, p) { return NET.ntfsRemove(s, p.path, p.principal); },
+        'features/smb1': function (s, p) { return NET.setSmb1(s, p.on); },
+        'diskmgmt/init': function (s, p) { return STO.initDisk(s, p.disk, p.style || 'GPT'); },
+        'diskmgmt/new-volume': function (s, p) { var q = JSON.parse(JSON.stringify(p)); q.defaultLetter = true; return STO.newVolume(s, q); },
+        'diskmgmt/format': function (s, p) { return STO.formatVolume(s, p.letter, p.fs, p.label); },
+        'diskmgmt/change-letter': function (s, p) { return STO.changeLetter(s, p.from, p.to); },
+        'diskmgmt/delete-volume': function (s, p) { return STO.deleteVolume(s, p.letter); },
+        'diskmgmt/shrink': function (s, p) { return STO.shrink(s, p.letter, p.shrinkMB); },
+        'diskmgmt/extend': function (s, p) { return STO.extend(s, p.letter, p.extendMB); },
+        'storagespaces/pool-new': function (s, p) { return STO.newPool(s, p.name, p.disks); },
+        'storagespaces/space-new': function (s, p) { return STO.newSpace(s, p); },
+        'bitlocker/turn-on': function (s, p, ctx) { return BL.wizard(s, ctx, p); },
+        'bitlocker/backup': function (s, p) { return BL.backupToUsb(s, p.saveTo); },
+        'bitlocker/suspend': function (s) { return BL.suspend(s, true); },
+        'bitlocker/turn-off': function (s) { return BL.decrypt(s); },
+        'gpedit/fve-os-method': function (s, p) {
+            var code = { 'AES-CBC 128': 3, 'AES-CBC 256': 4, 'XTS-AES 128': 6, 'XTS-AES 256': 7 }[p.method];
+            var r = REG.write(s, 'desktop', 'HKLM\\SOFTWARE\\Policies\\Microsoft\\FVE', 'EncryptionMethodWithXtsOs', 'REG_DWORD', String(code), true);
+            return r.ok && !r.inert ? { ok: true, msg: '' } : { ok: false, msg: r.msg || 'The policy could not be set.' };
+        },
+        'bitlocker/resume': function (s) { return BL.suspend(s, false); },
+        'defender/update': function (s) { return NET.updateSignatures(s); },
+        'defender/realtime': function (s, p) { return NET.setRealtime(s, p.on, false); },
+        'defender/tamper': function (s, p) { return NET.setTamper(s, p.on); },
+        'defender/exclusion-add': function (s, p) { return NET.addExclusion(s, p.path); },
+        'defender/exclusion-remove': function (s, p) { return NET.removeExclusion(s, p.path); },
         'regedit/new-key': function (s, p) {
             var k = REG.canonKey(p.key);
             if (!k) { return { ok: false, msg: 'Cannot create key: the key name is not valid.' }; }
@@ -231,6 +324,9 @@
                 if (typeof v !== 'boolean') { return 'bad bool ' + k; }
             } else if (t.type === 'enum') {
                 if (typeof v !== 'string' || t.values.indexOf(v) < 0) { return 'bad enum ' + k; }
+            } else if (t.type === 'int-list') {
+                if (!Array.isArray(v) || v.length < 1 || v.length > t.maxLen) { return 'bad list ' + k; }
+                for (var q = 0; q < v.length; q++) { if (typeof v[q] !== 'number' || Math.floor(v[q]) !== v[q] || v[q] < t.min || v[q] > t.max) { return 'bad list ' + k; } }
             } else if (t.type === 'int-or-word') {
                 if (v !== t.word && (typeof v !== 'number' || Math.floor(v) !== v || v < t.min || v > t.max)) { return 'bad value ' + k; }
             } else { return 'unknown type'; }
@@ -243,14 +339,14 @@
 
     /* The one entry point for a GUI action. Refuses (generic message) an unknown window/action, a
      * window the current screen does not offer, or params that fail R3 or the schema. */
-    function act(state, windowName, action, params) {
+    function act(state, windowName, action, params, ctx) {
         var id = String(windowName) + '/' + String(action);
         if (!Object.prototype.hasOwnProperty.call(ACTION_SCHEMA, id)) { return { ok: false, msg: GENERIC, refused: 'unknown action' }; }
         if (!screenAllows(state, String(windowName))) { return { ok: false, msg: GENERIC, refused: 'screen' }; }
         var why = invalid(ACTION_SCHEMA[id], params === undefined ? {} : params);
         if (why) { return { ok: false, msg: GENERIC, refused: why }; }
         if (state.ledger.length >= LIM.LIMITS.ledger.maxEntries) { return { ok: false, msg: LIM.STORAGE_MESSAGE, refused: 'ledger cap' }; }
-        var r = HANDLERS[id](state, params || {});
+        var r = HANDLERS[id](state, params || {}, ctx || {});
         return { ok: r.ok, msg: r.msg, screen: currentScreen(state) };
     }
 

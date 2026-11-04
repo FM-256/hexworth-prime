@@ -78,8 +78,25 @@
 
     /* Constructs the exam never models, refused before any command runs (13.4). Pipes are allowed
      * only in the desktop console; variables only as $true, $false and $null. */
+    /* {GUID} literals (manage-bde -id {...}) are data, not script blocks: blank them first. */
+    function blankGuids(sk) {
+        var out = '', i = 0;
+        while (i < sk.length) {
+            if (sk[i] === '{' && i + 37 < sk.length + 1 && sk[i + 37] === '}') {
+                var inner = sk.slice(i + 1, i + 37), okG = inner.length === 36;
+                for (var j = 0; j < 36 && okG; j++) {
+                    var c = inner[j];
+                    okG = (j === 8 || j === 13 || j === 18 || j === 23) ? c === '-' : '0123456789abcdefABCDEF'.indexOf(c) >= 0;
+                }
+                if (okG) { out += 'G'; i += 38; continue; }
+            }
+            out += sk[i]; i++;
+        }
+        return out;
+    }
+
     function denied(line, ctx) {
-        var sk = skeleton(line);
+        var sk = blankGuids(skeleton(line));
         if (sk.indexOf('{') >= 0 || sk.indexOf('}') >= 0) { return SCRIPTBLOCK_MSG; }
         var lower = sk.toLowerCase();
         var bad = ['$(', '@(', '::', '`', ';', '&', '>', '<', '||', '(', ')', 'iex ', 'invoke-expression', 'invoke-command',
@@ -98,7 +115,19 @@
     }
 
     /* Named parameters of a PowerShell-style line: -Name value, -Switch (true). Lowercased names. */
-    function psArgs(tokens) {
+    /* "a, b" and "a ,b" are one list argument in PowerShell: re-join tokens around commas (Nancy D4 A3). */
+    function joinCommas(tokens) {
+        var out = [];
+        for (var i = 0; i < tokens.length; i++) {
+            var t = tokens[i];
+            if (out.length && (out[out.length - 1].slice(-1) === ',' || (t[0] === ',' && t.length))) { out[out.length - 1] += t; }
+            else { out.push(t); }
+        }
+        return out;
+    }
+
+    function psArgs(raw) {
+        var tokens = joinCommas(raw);
         var a = Object.create(null);
         a._ = [];
         for (var i = 1; i < tokens.length; i++) {
@@ -469,7 +498,7 @@
 
     /* Runs one line. Returns { out, context, prompt }. Every refusal leaves the state unchanged
      * apart from the capped history entry. */
-    function exec(state, requested, line) {
+    function exec(state, requested, line, ectx) {
         var ctx = resolveContext(state, requested);
         if (!ctx) { return { out: 'That console is not available.', context: null, prompt: '' }; }
         var raw = typeof line === 'string' ? line : '';
@@ -513,7 +542,7 @@
             if (segs.length > C.maxPipelineStages) { return result(state, ctx, LIMIT_MSG, trimmed, 'refused'); }
             var stages = segs.map(tokenise);
             if (stages.some(function (st) { return !st || !st.length; })) { return result(state, ctx, 'An empty pipe element is not allowed.', trimmed, 'refused'); }
-            var r = CMD.run(state, stages, MATCH.budget(), DESKTOP);
+            var r = CMD.run(state, stages, MATCH.budget(), DESKTOP, ectx || {});
             if (r.pending) { sh.pending = r.pending; }
             out = r.out;
             if (out === CMD.LIMIT_MSG || out === CMD.DENY_MSG) { return result(state, ctx, out, trimmed, 'refused'); }
