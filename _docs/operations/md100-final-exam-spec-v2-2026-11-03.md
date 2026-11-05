@@ -1183,3 +1183,32 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - **Item 1 closed after a second fix.** `Get-Process` and `tasklist` stamp their evidence from the processes they LISTED, not from the reply text: an error echoes the typed name (`-Name "x msynchlp"`). `stamp()` keeps a data-based stamp.
    - **Item 2 confirmed:** an unverified allowlisted token is denied on every hardened gate, and a verified one passes.
    - **The same hardening was extended to** the Dr. Hex instructor role (`hex-ai-bridge.js`, both entry points) and the unexported `manage-announcements.js` helper.
+
+### 13.21 D11 load check (2026-11-04): PASS, with one deviation
+
+1. **Deviation from the D11 row: no Functions emulator.**
+   - The Functions emulator loads `functions/.env`, and in this repo it has fired real webhooks.
+   - `_tools/mdfinal/mdfinal-load.js` therefore calls the shipped callables in-process with `.run()`, against the Firestore and Auth emulators. This is the `submit-class-progress.test.js` discipline.
+   - It refuses to run without both emulator hosts, or with `DISCORD_WEBHOOK_URL` set.
+   - Not measured: cold starts, instance concurrency and the network hop. Only the deployed service shows these.
+2. **The method:**
+   - 30 sittings run concurrently.
+   - Each sitting replays its own uid's canonical perfect walk through the callables, with mean think time 2.2 s (10x compressed): start, about 80 writes, then submit.
+   - All 30 sittings are in one class with a staff handler and the final assigned, so grade recording runs under the same load.
+   - Every sitting is replayed again, sequentially, on an in-memory store. Its ledger kinds and graded total must match the emulator document.
+3. **Run 1** (default, 3 sittings with a forced concurrent same-document pair, so the abort path is exercised and an abort rate of 0% cannot pass just because no abort ever happened):
+
+   | Measure | Result |
+   |---|---|
+   | Callable invocations | 2423 |
+   | Lost ledger entries | 0 |
+   | Grades differing from the reference | 0 |
+   | Grades recorded to the class | 30/30 |
+   | Aborted | 3 (0.12%), all recovered by the page's single retry |
+   | Latency | p50 16 ms, p95 26 ms, p99 39 ms |
+   | Max document | 50.7 KB |
+
+4. **The spikes.** Six calls took 2.0 to 3.5 s. They are the three forced pairs: the emulator held the lock on the shared document.
+   - **Run 2** (`--dup 0`): max 133 ms, 0 aborts, all checks pass.
+   - The engine takes at most 2 ms per call in-process.
+   - A same-document collision needs two tabs on one sitting.
