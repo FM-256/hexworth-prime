@@ -54,6 +54,15 @@
         return { $s: String(v).slice(0, S_MAX) };
     }
 
+    /* Each ISO on the host with its OS, version and edition list (spec 2.2: the host panel lists
+     * each ISO with its edition list), so the right image is chosen before Setup, not by trial. */
+    function isoEditions(s) {
+        return s.host.isoLibrary.filter(function (f) { return Object.prototype.hasOwnProperty.call(PC.ISO_LIBRARY, f); }).map(function (f) {
+            var x = PC.ISO_LIBRARY[f];
+            return { file: f, os: x.os, version: x.version, build: x.build, editions: x.editions.slice() };
+        });
+    }
+
     /* Read-only parameters some windows take (the address bar). Anything else is refused. */
     var VIEW_PARAMS = LIM.deepFreeze({ regedit: ['key'], explorer: ['path'] });
 
@@ -129,6 +138,7 @@
         var vm = s.vm;
         return {
             isoLibrary: s.host.isoLibrary.slice(),
+            isoEditions: isoEditions(s),
             switches: s.host.switches.map(function (x) { return { name: x.name, type: x.type }; }),
             vm: vm ? { name: S(vm.name), generation: vm.generation, memoryMB: vm.memoryMB, dynamicMemory: vm.dynamicMemory,
                        vcpu: vm.vcpu, state: vm.power === 'on' ? 'Running' : 'Off', osVhdx: { file: S(vm.osVhdx.file), sizeGB: vm.osVhdx.gb },
@@ -151,6 +161,7 @@
                 return { location: d.n, file: d.role === 'os' ? S(d.file) : d.file, sizeGB: d.gb };
             }),
             isoLibrary: s.host.isoLibrary.slice(),
+            isoEditions: isoEditions(s),
             secureBootTemplates: PC.SECURE_BOOT_TEMPLATES.slice()
         };
     };

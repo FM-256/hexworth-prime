@@ -47,6 +47,7 @@
             'Registry edits outside the areas this work order covers are recorded but have no effect.',
             'The consoles support the common cmdlets and tools, not every one. To set a password from a console: New-LocalUser prompts for it; for an existing account use net user <name> <password>. ConvertTo-SecureString is not available. If a command is not recognised, the matching window does the same job.',
             'Save the BitLocker recovery key to TECH-USB. You may need it.',
+            'Where the work order gives no name (a storage pool or space, a firewall rule, a restore point, a virtual hard disk file), the name is your choice and is not graded.',
             'Passwords: technician account ' + PASSWORDS.technician + '; end-user accounts ' + PASSWORDS.user + '; domain join account (domain PCs only) ' + PASSWORDS.join + '.'
         ];
     }
@@ -114,7 +115,7 @@
             ' can read and run files; Administrators and SYSTEM keep full control.');
         add('P5', 'Update the Defender signatures. Exclude ' + wo.defenderExclusion + ' and nothing else. Real-time protection stays on.');
 
-        add('P6', 'Install LedgerSync from C:\\LabFiles (LedgerSync_2.4_x64.msi and LedgerSync_2.4_x86.msi are there): the 64-bit package, configured for the server ' + wo.lob.fqdn + ' on port ' + wo.lob.port + '.');
+        add('P6', 'Install LedgerSync from C:\\LabFiles (LedgerSync_2.4_x64.msi and LedgerSync_2.4_x86.msi are there): the 64-bit package, configured for the server ' + wo.lob.fqdn + ' on port ' + wo.lob.port + ' (the package\'s SERVER and PORT properties).');
         add('P6', 'Remove ' + wo.consumerApp + ' for the user and from the image, so new users do not get it. Calculator, Microsoft Store and Notepad stay.');
         add('P6', 'Defer feature updates ' + u.featureDeferralDays + ' days and quality updates ' + u.qualityDeferralDays + ' days by policy. Active hours ' + hh(u.activeHours.start) + ' to ' + hh(u.activeHours.end) + '.');
         add('P6', 'Disable the startup apps with a High startup impact. SecurityHealth stays enabled.');

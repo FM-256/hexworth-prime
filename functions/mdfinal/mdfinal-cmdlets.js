@@ -579,11 +579,26 @@
     var POWER_SETTINGS = { 'monitor-timeout-ac': ['ac', 'display'], 'monitor-timeout-dc': ['dc', 'display'],
                            'standby-timeout-ac': ['ac', 'sleep'], 'standby-timeout-dc': ['dc', 'sleep'] };
     var POWERCFG_BAD = 'Invalid Parameters -- try "/?" for help';
+    /* The help the real tool prints, cut to the commands this lab supports (G3: "/?" used to answer
+     * with POWERCFG_BAD, so the help pointed back at itself). */
+    var POWERCFG_HELP = 'POWERCFG /COMMAND [ARGUMENTS]\n\nDescription:\n  Enables users to control power settings on a local system.\n\nCommand List:\n' +
+        '  /LIST, /L          Lists all power schemes.\n  /GETACTIVESCHEME   Retrieves the currently active power scheme.\n  /SETACTIVE         Makes a power scheme active on the system.\n' +
+        '  /CHANGE, /X        Modifies a setting value in the current power scheme.\n  /DUPLICATESCHEME   Duplicates a power scheme.\n  /CHANGENAME        Modifies the name and description of a power scheme.\n' +
+        '  /SETACVALUEINDEX   Sets the value associated with a power setting while the system is powered by AC power.\n' +
+        '  /SETDCVALUEINDEX   Sets the value associated with a power setting while the system is powered by DC power.\n' +
+        '  /QUERY, /Q         Displays the contents of a power scheme.\n  /AVAILABLESLEEPSTATES, /A  Reports the sleep states available on the system.\n\n' +
+        'For help on a command, type "POWERCFG /? <COMMAND>", for example "POWERCFG /CHANGE /?".';
+    var POWERCFG_CHANGE_HELP = 'POWERCFG /CHANGE <SETTING> <VALUE>\n\nDescription:\n  Modifies a setting value in the current power scheme.\n\nParameter List:\n' +
+        '  <SETTING>   Specifies one of the following options:\n                monitor-timeout-ac <minutes>\n                monitor-timeout-dc <minutes>\n' +
+        '                standby-timeout-ac <minutes>\n                standby-timeout-dc <minutes>\n  <VALUE>     Specifies the new value, in minutes. 0 means never.\n\n' +
+        'Example:\n  POWERCFG /CHANGE monitor-timeout-ac 5';
 
     /* powercfg /list /getactivescheme /setactive /change /duplicatescheme /changename /setacvalueindex /setdcvalueindex /a /query. */
     function powercfg(state, t) {
         var op = String(t[1] || '').toLowerCase().replace(/^-/, '/');
         var pw = state.os.power;
+        if (op === '/?' || op === '/help') { return POWERCFG_HELP; }
+        if ((op === '/change' || op === '/x') && t[2] === '/?') { return POWERCFG_CHANGE_HELP; }
         if (op === '/list' || op === '/l') {
             return 'Existing Power Schemes (* Active)\n-----------------------------------\n' + pw.plans.map(function (p) {
                 return 'Power Scheme GUID: ' + p.guid + '  (' + p.name + ')' + (p.guid === pw.active ? ' *' : '');
