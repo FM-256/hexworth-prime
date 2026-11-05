@@ -1,7 +1,9 @@
 # MD-100 Final (CTS1156C): Staff Runbook
 
-**TL;DR.** On the day you do four things:
-1. Arm the window at 17:30.
+> **Changed 2026-11-05 (operator: open the final now, commit 293af4dad).** The window opens 2026-11-05 12:00 EST and the last new start stays 2026-11-19 18:30 EST. Arm it once the functions deploy is verified; it then stays armed until 11-19. Students start on their own schedule, so sweep expired sittings daily, not only on 11-19. The 11-19 timings below now apply to the last starters only.
+
+**TL;DR.** You do four things:
+1. Arm the window once (from 2026-11-05).
 2. Rescue students only with Provision (failed install) or Restart (platform fault).
 3. Sweep at 21:05 and again at 21:15.
 4. Grade from the CSV.
@@ -16,8 +18,8 @@ Every action is on the results page. The server enforces who may do what; the pa
 
 | Check | How | Pass |
 |---|---|---|
-| Window constants | `functions/mdfinal/mdfinal-exams.js` `WINDOWS` | opens 2026-11-19 22:30Z (17:30 EST), last new start 23:30Z (18:30 EST) |
-| Not armed | Results page, Window control | "Armed: no" |
+| Window constants | `functions/mdfinal/mdfinal-exams.js` `WINDOWS` | opens 2026-11-05 17:00Z (12:00 EST), last new start 2026-11-19 23:30Z (18:30 EST) |
+| Armed (since 11-05) | Results page, Window control | "Armed: yes" |
 | Real-exam allowlist empty | Results page, Window control | "Allowlisted: none" |
 | Generator frozen | `GENERATOR_VERSION` in `mdfinal-core.js` unchanged since D11 | A bump refuses every live sitting (13.17 item 7) |
 | Secret works | A rehearsal start by an admin succeeds | A weak or missing secret refuses every start |
@@ -28,7 +30,7 @@ Every action is on the results page. The server enforces who may do what; the pa
 ## The sitting (Thu 2026-11-19, Eastern)
 
 1. **17:15** Open the results page and pick the class. Confirm the roster.
-2. **17:30** Window control: Armed, Apply. New starts are now allowed until 18:30.
+2. **17:30** Window control: confirm "Armed: yes" (armed since 11-05). New starts are allowed until 18:30.
 3. **18:00** Students open the exam page. Each student's 150-minute clock starts at their own start.
 4. **During the sitting**, rescue only for these reasons:
    - **Failed install**, judged by staff, before the student hands over: select the student, then **Provision PC**. Phase 1 is graded as it stood. Tell the student the technician password: `Meridian-Tech-2026`.
