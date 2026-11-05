@@ -130,15 +130,19 @@
     /* The page's starting picture of the sitting: screen, WO, open windows and consoles, the ticket
      * once there is one, the P8 fields offered, the brief and the task list. Never the shell history
      * or a pending prompt (13.13 item 7): the page keeps its own scrollback within a visit. */
-    function toInitialState(state) {
+    function toInitialState(state, key) {
         var wo = projectWo(state.wo);
+        /* the four specs the brief states from the key (operator, 2026-11-05); without a key the
+         * brief falls back to its generic wording */
+        var spec = key ? { edition: key.edition, channel: key.channel, resiliency: key.resiliency,
+                           highImpact: (state.wo.performance && state.wo.performance.highImpact || []).slice() } : null;
         return {
             screen: GUI.currentScreen(state),
             screenMessage: screenMessage(state),
             wo: wo,
             rules: BRIEF.rules(state.meta.examId),
             keyTable: BRIEF.keyTable(),
-            tasks: BRIEF.tasks(wo),
+            tasks: BRIEF.tasks(wo, spec),
             windows: VIEWS.WINDOW_NAMES.filter(function (w) { return GUI.screenAllows(state, w); }),
             consoles: SH.CONSOLES.filter(function (c) { return SH.consoleAvailable(state, c); }),
             handedOver: !!state.handedOver,

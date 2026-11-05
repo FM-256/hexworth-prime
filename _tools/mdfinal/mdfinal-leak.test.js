@@ -287,23 +287,25 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
         t.check(sv.indexOf('mbafilt') < 0 && sv.indexOf('Dnscache') >= 0, 'services.msc lists services, not the boot-start driver');
     }
 
-    /* ═══ the brief's task list says what, never which startup apps; it scans clean ════════════ */
+    /* ═══ the brief names exactly the High-impact startup apps (operator, 2026-11-05: every spec is
+     * stated), never the other candidates; it scans clean ═══════════════════════════════════════ */
     {
         let named = 0, dirty = 0, count = 0;
         for (let p = 0; p < 3; p++) {
             for (let v = 0; v < 4; v++) {
-                const { state } = W.sitting('brief-' + p + v, [p, v]);
-                const init = CLIENT.toInitialState(state);
+                const { state, key } = W.sitting('brief-' + p + v, [p, v]);
+                const init = CLIENT.toInitialState(state, key);
                 count += init.tasks.length;
                 const js = JSON.stringify(init.tasks) + JSON.stringify(init.rules);
-                state.wo.performance.startupCandidates.forEach((n) => { if (js.indexOf(n) >= 0) { named++; } });
+                const hi = state.wo.performance.highImpact;
+                state.wo.performance.startupCandidates.forEach((n) => { if ((js.indexOf(n) >= 0) !== (hi.indexOf(n) >= 0)) { named++; } });
                 if (CLIENT.findDisclosures(init, 'init').length || strict(init).length) { dirty++; }
                 t.check((state.wo.network.kms ? 1 : 0) === (/KMS host/.test(js) ? 1 : 0), 'brief ' + p + v + ': a KMS host is printed exactly when the WO has one');
                 const plain = init.tasks.map((x) => x.text).join('\n');
                 t.check(plain.indexOf(state.wo.hostname) >= 0 && plain.indexOf(state.wo.share.path) >= 0 && plain.indexOf(String(state.wo.performance.pagefileMB)) >= 0, 'brief ' + p + v + ': (could fail) the tasks carry the WO values');
             }
         }
-        t.check(named === 0, 'no task or rule names a startup candidate (' + named + ')');
+        t.check(named === 0, 'the brief names the High-impact startup apps and no other candidate (' + named + ' wrong)');
         t.check(dirty === 0 && count === 12 * 30, 'the initial state with its brief scans clean on 12 classes (' + count + ' tasks)');
     }
 
@@ -316,10 +318,10 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
         const COVER = {
             '1.1:gen2': () => ['Create one Generation 2 VM', 'Windows 11 hardware requirements natively'], '1.1:vtpm': () => ['Enable its virtual TPM', 'no Setup bypasses'],
             '1.1:cpu-ram': (w) => [w.vm.startupMemoryMB + ' MB of startup memory (static', w.vm.vcpu + ' virtual processors'], '1.1:vhdx': (w) => [w.vm.vhdxGB + ' GB OS virtual hard disk'],
-            '1.2:build': (w) => ['Windows 11 ' + w.build.version + ' (build ' + w.build.build + ')'], '1.2:edition': () => ['edition the requirements call for'],
+            '1.2:build': (w) => ['Windows 11 ' + w.build.version + ' (build ' + w.build.build + ')'], '1.2:edition': (w, k) => [', ' + k.edition + ' edition, from Win11_24H2_Business_x64.iso'],
             '1.3:target-explicit': () => ['Install Windows on the new OS disk', 'Create the Windows partition yourself'], '1.3:c-size': (w) => ['C: at ' + w.disks.cGB + ' GB'],
             '1.4:account': (w) => ['local technician administrator ' + w.technician], '1.4:privacy': () => ['all six privacy settings', 'required diagnostic data only'],
-            '1.4:key': () => ['Activate Windows as the licensing requirement says'], '1.4:licensed': () => ['Activate Windows'],
+            '1.4:key': (w, k) => (k.channel === 'KMS' ? ['against the Meridian KMS host ' + w.network.kms.fqdn, 'Windows 11 ' + k.edition + ' KMS client setup key'] : ['Activate Windows with the Multiple Activation Key on this work order: ' + w.mak]), '1.4:licensed': () => ['Activate Windows'],
             '2.1:hostname': (w) => ['Name the PC ' + w.hostname], '2.1:timezone': (w) => [tz(w.timeZone)], '2.1:cu': (w) => [w.updates.cumulativeKb + ' cumulative update and complete its restart'],
             '2.2:plan': (w) => ['"' + w.power.planName + '" and make it the active plan'], '2.2:ac-display': (w) => ['Plugged in: turn off the display after ' + w.power.acDisplayMin],
             '2.2:ac-sleep': (w) => ['sleep after ' + w.power.acSleepMin + ' minutes'], '2.3:dc-display': (w) => ['On battery: turn off the display after ' + w.power.dcDisplayMin],
@@ -336,7 +338,7 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
             '4.4:share': (w) => ['Share ' + w.share.path + ' as ' + w.share.name], '4.4:no-everyone': () => ['Everyone has no share permission'],
             '4.4:group-share': (w) => [w.group + ' may change files at share level'], '4.4:effective': () => ['Modify access over the network'],
             '5.1:d-space': () => ['Create D: in all of the free space on the OS disk'], '5.1:d-format': (w) => ['NTFS, label ' + w.disks.dLabel],
-            '5.1:pool': () => ['both blank pool disks into one storage pool'], '5.1:resiliency': (w) => [w.disks.resiliencyProse],
+            '5.1:pool': () => ['MER-POOL1 and MER-POOL2 into one storage pool'], '5.1:resiliency': (w, k) => ['create one ' + k.resiliency + ' storage space', w.disks.resiliencyProse],
             '5.1:spaces-volume': (w) => ['letter ' + w.disks.spacesLetter + ':, NTFS, label ' + w.disks.spacesLabel],
             '5.2:method': () => ['XTS-AES 256'], '5.2:protection': () => ['Encrypt C: with BitLocker'], '5.2:tpm': () => ['unlocked by the TPM'], '5.2:rp': () => ['with a recovery password'],
             '5.2:usb-backup': () => ['Save the BitLocker recovery key to TECH-USB'],
@@ -346,7 +348,7 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
             '6.1:msi-x64': () => ['LedgerSync_2.4_x64.msi', 'the 64-bit package'], '6.1:server': (w) => ['server ' + w.lob.fqdn], '6.1:port': (w) => ['on port ' + w.lob.port],
             '6.1:appx-user': (w) => ['Remove ' + w.consumerApp + ' for the user'], '6.1:appx-provisioned': () => ['from the image, so new users do not get it'],
             '6.2:feature': (w) => ['Defer feature updates ' + w.updates.featureDeferralDays + ' days'], '6.2:quality': (w) => ['quality updates ' + w.updates.qualityDeferralDays + ' days by policy'],
-            '6.2:active-hours': () => ['Active hours '], '6.3:startup-1': () => ['Disable the startup apps with a High startup impact'], '6.3:startup-2': () => ['Disable the startup apps with a High startup impact'],
+            '6.2:active-hours': () => ['Active hours '], '6.3:startup-1': (w, k, sw) => ['Disable the startup apps ' + sw.performance.highImpact[0]], '6.3:startup-2': (w, k, sw) => [' and ' + sw.performance.highImpact[1] + ' (High startup impact)'],
             '6.3:pagefile': (w) => ['fixed page file on C: of ' + w.performance.pagefileMB + ' MB', 'not system managed'],
             '7.1:resolved': () => ['find the cause, fix it'], '7.1:no-regression': () => ['without breaking the build'],
             '8.1:b1': () => ['recovery-password protector ID (its first 8 characters)'], '8.1:b2': () => ["C:'s encryption method"],
@@ -363,10 +365,10 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
         const missing = [];
         for (let p = 0; p < 3; p++) {
             for (let v = 0; v < 4; v++) {
-                const { state } = W.sitting('cover-' + p + v, [p, v]);
-                const init = CLIENT.toInitialState(state);
+                const { state, key } = W.sitting('cover-' + p + v, [p, v]);
+                const init = CLIENT.toInitialState(state, key);
                 const text = init.tasks.map((x) => x.text).join('\n') + '\n' + init.rules.join('\n');
-                ids.forEach((id) => (COVER[id] ? COVER[id](init.wo) : []).forEach((s) => { if (text.indexOf(s) < 0) { missing.push(p + '' + v + ' ' + id + ': ' + s); } }));
+                ids.forEach((id) => (COVER[id] ? COVER[id](init.wo, key, state.wo) : []).forEach((s) => { if (text.indexOf(s) < 0) { missing.push(p + '' + v + ' ' + id + ': ' + s); } }));
                 const ed = kit.req('mdfinal-core.js').buildAnswerKey('cover-' + p + v, EX, { secret: kit.TEST_SECRET });
                 t.check(init.keyTable.length === Object.keys(kit.req('mdfinal-pc.js').GVLK).length, 'brief ' + p + v + ': the key table lists every edition, revealing none');
                 t.check(/penalty you already incurred .* still counts/.test(init.rules.join(' ')), 'brief ' + p + v + ': the rules say penalties survive a restart');

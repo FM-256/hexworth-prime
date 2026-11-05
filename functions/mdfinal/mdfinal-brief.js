@@ -6,9 +6,9 @@
  *
  * THE TASK LIST STATES WHAT IS REQUIRED, NEVER HOW. Each line names the outcome a CHECKS row
  * grades, in the words a real Meridian work order would use, with the WO's own values; it never
- * names the tool, the cmdlet or the setting path. Two things are deliberately left to the student:
- *   - the edition and licensing channel (derived from the requirements prose and the edition rule);
- *   - which startup apps are High impact (found in Task Manager; 13.14 item 6).
+ * names the tool, the cmdlet or the setting path. Operator, 2026-11-05: a work order states every
+ * spec, so the brief also names the edition, the activation method, the storage layout and the
+ * startup apps to disable. Those four come from the answer key (`spec`), not the projected WO.
  * The VM is stated in full, as a host build sheet would: name, generation, memory, processors,
  * disk, switch, vTPM and Secure Boot (operator, 2026-11-05: every slot the student fills has its
  * value in the brief). "No Setup bypasses" still stands: the Setup checks are not to be skipped.
@@ -47,7 +47,7 @@
             'Registry edits outside the areas this work order covers are recorded but have no effect.',
             'The consoles support the common cmdlets and tools, not every one. To set a password from a console: New-LocalUser prompts for it; for an existing account use net user <name> <password>. ConvertTo-SecureString is not available. If a command is not recognised, the matching window does the same job.',
             'Save the BitLocker recovery key to TECH-USB. You may need it.',
-            'Where the work order gives no name (a storage pool or space, a firewall rule, a restore point, a virtual hard disk file), the name is your choice and is not graded.',
+            'Name the OS virtual hard disk <VM name>.vhdx (the default). A name this work order does not give, such as a restore point you choose to make, is your choice and is not graded.',
             'Passwords: technician account ' + PASSWORDS.technician + '; end-user accounts ' + PASSWORDS.user + '; domain join account (domain PCs only) ' + PASSWORDS.join + '.'
         ];
     }
@@ -68,7 +68,8 @@
     function hh(n) { return (n < 10 ? '0' : '') + n + ':00'; }
 
     /* The work order's tasks for one sitting, grouped by phase. `wo` is the PROJECTED work order. */
-    function tasks(wo) {
+    function tasks(wo, spec) {
+        spec = spec || {};
         var domain = wo.join && wo.join.type === 'domain';
         var n = wo.network, d = wo.disks, u = wo.updates, p = wo.power;
         var T = [];
@@ -78,15 +79,22 @@
          * generator field (GENERATOR_VERSION is frozen while sittings are live) and no check grades it. */
         add('P1', 'Create one Generation 2 VM named ' + wo.hostname + ' on the Meridian-LAN switch: ' + wo.vm.startupMemoryMB + ' MB of startup memory (static, not dynamic), ' + wo.vm.vcpu +
             ' virtual processors, and a new ' + wo.vm.vhdxGB + ' GB OS virtual hard disk. Enable its virtual TPM. Keep Secure Boot on. It must meet the Windows 11 hardware requirements natively: no Setup bypasses.');
-        add('P1', 'Install Windows 11 ' + wo.build.version + ' (build ' + wo.build.build + ') from the ISO library, in the edition the requirements call for (see Requirements).');
+        add('P1', 'Install Windows 11 ' + wo.build.version + ' (build ' + wo.build.build + ')' + (spec.edition ? ', ' + spec.edition + ' edition,' : '') + ' from Win11_24H2_Business_x64.iso in the ISO library' + (spec.edition ? '.' : ', in the edition the requirements call for (see Requirements).'));
         add('P1', 'Install Windows on the new OS disk. Create the Windows partition yourself, with C: at ' + d.cGB + ' GB; leave the rest of that disk unallocated for D:.');
         add('P1', 'MER-ARCHIVE holds the only copy of these files. Do not modify, format or delete it: ' +
             d.archiveManifest.map(function (f) { return f.name + ' (' + f.bytes + ' bytes, SHA-256 ' + f.sha256 + ')'; }).join('; ') + '.');
         add('P1', 'During setup, create the local technician administrator ' + wo.technician + ' (no Microsoft account). Turn off all six privacy settings and send required diagnostic data only.');
         /* a KMS host exists only on the volume-licensed (domain) work orders; the requirement prose
          * already names the channel, so printing it reveals nothing */
-        add('P1', 'Activate Windows as the licensing requirement says.' + (n.kms ? ' KMS host: ' + n.kms.fqdn + ' (' + n.kms.ip + ').' : '') +
-            ' Multiple Activation Key on this work order: ' + wo.mak + '. The box also carries a retail COA sticker: ' + wo.retailCoa + '.');
+        if (spec.channel === 'KMS') {
+            add('P1', 'Activate Windows against the Meridian KMS host ' + n.kms.fqdn + ' (' + n.kms.ip + ') with the Windows 11 ' + spec.edition +
+                ' KMS client setup key from the key table. Do not use the Multiple Activation Key on this work order (' + wo.mak + ') or the retail COA sticker on the box (' + wo.retailCoa + ').');
+        } else if (spec.channel === 'MAK') {
+            add('P1', 'Activate Windows with the Multiple Activation Key on this work order: ' + wo.mak + '. Do not use the retail COA sticker on the box (' + wo.retailCoa + ').');
+        } else {
+            add('P1', 'Activate Windows as the licensing requirement says.' + (n.kms ? ' KMS host: ' + n.kms.fqdn + ' (' + n.kms.ip + ').' : '') +
+                ' Multiple Activation Key on this work order: ' + wo.mak + '. The box also carries a retail COA sticker: ' + wo.retailCoa + '.');
+        }
 
         add('P2', 'Name the PC ' + wo.hostname + ' and set the time zone to ' + tzName(wo.timeZone) + '.');
         add('P2', 'Install the ' + u.cumulativeKb + ' cumulative update and complete its restart.');
@@ -103,12 +111,12 @@
 
         add('P4', 'Static IPv4 ' + n.ip + '/' + n.prefix + ' (mask ' + n.mask + '), gateway ' + n.gateway + ', DNS ' + n.dns[0] + ' then ' + n.dns[1] + '.');
         add('P4', 'LedgerSync listens on TCP ' + wo.lob.port + '. Allow it inbound from ' + n.lobRemoteSubnet + ' only, on the ' + (domain ? 'Domain and Private profiles' : 'Private profile') +
-            ', never Public. This PC is not on a public network. All firewall profiles stay on.');
+            ', never Public, in a rule named "LedgerSync ' + wo.lob.port + '". This PC is not on a public network. All firewall profiles stay on.');
         add('P4', 'Allow Remote Desktop connections with Network Level Authentication; ' + wo.user.name + ' may sign in remotely.');
         add('P4', 'Share ' + wo.share.path + ' as ' + wo.share.name + '. Everyone has no share permission; ' + wo.group + ' may change files at share level, and its members end up with Modify access over the network. SMB 1.0 stays off.');
 
         add('P5', 'Create D: in all of the free space on the OS disk: NTFS, label ' + d.dLabel + '.');
-        add('P5', 'Put both blank pool disks into one storage pool and create one storage space on it. ' + d.resiliencyProse + ' Give its volume the letter ' + d.spacesLetter +
+        add('P5', 'Put the blank pool disks MER-POOL1 and MER-POOL2 into one storage pool named MeridianPool and create one ' + (spec.resiliency || '') + (spec.resiliency ? ' ' : '') + 'storage space on it named MeridianSpace. ' + d.resiliencyProse + ' Give its volume the letter ' + d.spacesLetter +
             ':, NTFS, label ' + d.spacesLabel + '.');
         add('P5', 'Encrypt C: with BitLocker, XTS-AES 256, unlocked by the TPM, with a recovery password.');
         add('P5', 'On ' + wo.confidentialPath + ': it no longer inherits permissions; Users and Authenticated Users have no access; ' + wo.group +
@@ -118,7 +126,7 @@
         add('P6', 'Install LedgerSync from C:\\LabFiles (LedgerSync_2.4_x64.msi and LedgerSync_2.4_x86.msi are there): the 64-bit package, configured for the server ' + wo.lob.fqdn + ' on port ' + wo.lob.port + ' (the package\'s SERVER and PORT properties).');
         add('P6', 'Remove ' + wo.consumerApp + ' for the user and from the image, so new users do not get it. Calculator, Microsoft Store and Notepad stay.');
         add('P6', 'Defer feature updates ' + u.featureDeferralDays + ' days and quality updates ' + u.qualityDeferralDays + ' days by policy. Active hours ' + hh(u.activeHours.start) + ' to ' + hh(u.activeHours.end) + '.');
-        add('P6', 'Disable the startup apps with a High startup impact. SecurityHealth stays enabled.');
+        add('P6', 'Disable the startup apps' + (spec.highImpact && spec.highImpact.length ? ' ' + spec.highImpact.join(' and ') + ' (High startup impact)' : ' with a High startup impact') + '. SecurityHealth stays enabled.');
         add('P6', 'Use a fixed page file on C: of ' + wo.performance.pagefileMB + ' MB (initial and maximum size the same), not system managed.');
 
         add('P7', 'When the build is done, hand the PC over. Then work the user\'s ticket on this PC: find the cause, fix it without breaking the build, and confirm the fix.');

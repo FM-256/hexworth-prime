@@ -146,8 +146,8 @@
 
     /* The initial-state projection, through the scanner like every other payload (defence in depth:
      * the projection is a pinned whitelist). */
-    function scannedInitial(st) {
-        var E = eng(), init = E.CLIENT.toInitialState(st);
+    function scannedInitial(st, key) {
+        var E = eng(), init = E.CLIENT.toInitialState(st, key);
         var leaks = E.CLIENT.findDisclosures(init, 'initial');
         if (leaks.length) { throw refuseDisclosure('initial', leaks, 'The exam could not be loaded.'); }
         return init;
@@ -160,7 +160,7 @@
             sessionId: session.sessionId, resumed: resumed,
             submitted: !!session.submittedAt, handedOver: !!session.handedOverAt,
             screen: E.GUI.currentScreen(st),
-            initialState: scannedInitial(st),
+            initialState: scannedInitial(st, session.answerKey),
             answers: savedAnswers(st),
             answerFields: E.ANS.answerFields(st),
             remainingMs: session.submittedAt ? 0 : remainingMs(session, opts),
@@ -353,7 +353,7 @@
             session.handedOverAt = nowMs(opts);
             return { handedOver: true, already: false, applied: !!h.applied, screen: E.GUI.currentScreen(session.state),
                      ticket: E.VIEWS.ticket(session.state), answerFields: E.ANS.answerFields(session.state),
-                     initialState: E.CLIENT.toInitialState(session.state), remainingMs: remainingMs(session, opts) };
+                     initialState: E.CLIENT.toInitialState(session.state, session.answerKey), remainingMs: remainingMs(session, opts) };
         }, { ledgerExempt: true });
     }
 
