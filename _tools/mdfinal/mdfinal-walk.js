@@ -51,7 +51,7 @@ const PRIVACY_OFF = { location: false, findMyDevice: false, diagnosticData: 'Req
 function p1Gui(s, key, o) {
     o = o || {};
     const wo = s.wo;
-    A(s, 'hyperv', 'new-vm', { name: 'MER-WS', generation: o.generation || 2, memoryMB: o.memoryMB || wo.vm.startupMemoryMB,
+    A(s, 'hyperv', 'new-vm', { name: wo.hostname, generation: o.generation || 2, memoryMB: o.memoryMB || wo.vm.startupMemoryMB,
         dynamicMemory: o.dynamicMemory === true, vhdxGB: o.vhdxGB || wo.vm.vhdxGB, switch: 'Meridian-LAN',
         iso: o.iso || 'Win11_24H2_Business_x64.iso' });
     const vmSet = { vcpu: o.vcpu || wo.vm.vcpu };
@@ -124,12 +124,12 @@ function activate(s, key, o) {
 /* Canonical P1 through the consoles: Hyper-V PowerShell, diskpart from Shift+F10, slmgr. */
 function p1Shell(s, key) {
     const wo = s.wo;
-    X(s, 'hyperv-ps', 'New-VM -Name MER-WS -Generation 2 -MemoryStartupBytes ' + wo.vm.startupMemoryMB + 'MB -NewVHDPath MER-WS.vhdx -NewVHDSizeBytes ' + wo.vm.vhdxGB + 'GB -SwitchName Meridian-LAN', 'MER-WS');
-    X(s, 'hyperv-ps', 'Set-VMProcessor -VMName MER-WS -Count ' + wo.vm.vcpu, '');
-    X(s, 'hyperv-ps', 'Set-VMKeyProtector -VMName MER-WS -NewLocalKeyProtector', '');
-    X(s, 'hyperv-ps', 'Enable-VMTPM -VMName MER-WS', '');
-    X(s, 'hyperv-ps', 'Add-VMDvdDrive -VMName MER-WS -Path C:\\ISO\\Win11_24H2_Business_x64.iso', '');
-    X(s, 'hyperv-ps', 'Start-VM -Name MER-WS', '');
+    X(s, 'hyperv-ps', 'New-VM -Name ' + wo.hostname + ' -Generation 2 -MemoryStartupBytes ' + wo.vm.startupMemoryMB + 'MB -NewVHDPath ' + wo.hostname + '.vhdx -NewVHDSizeBytes ' + wo.vm.vhdxGB + 'GB -SwitchName Meridian-LAN', wo.hostname);
+    X(s, 'hyperv-ps', 'Set-VMProcessor -VMName ' + wo.hostname + ' -Count ' + wo.vm.vcpu, '');
+    X(s, 'hyperv-ps', 'Set-VMKeyProtector -VMName ' + wo.hostname + ' -NewLocalKeyProtector', '');
+    X(s, 'hyperv-ps', 'Enable-VMTPM -VMName ' + wo.hostname, '');
+    X(s, 'hyperv-ps', 'Add-VMDvdDrive -VMName ' + wo.hostname + ' -Path C:\\ISO\\Win11_24H2_Business_x64.iso', '');
+    X(s, 'hyperv-ps', 'Start-VM -Name ' + wo.hostname, '');
     const n = osDisk(s).n;
     X(s, 'setup-cmd', 'diskpart', 'DiskPart');
     X(s, 'setup-cmd', 'select disk ' + n, 'is now the selected disk');

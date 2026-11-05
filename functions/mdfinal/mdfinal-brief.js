@@ -9,8 +9,9 @@
  * names the tool, the cmdlet or the setting path. Two things are deliberately left to the student:
  *   - the edition and licensing channel (derived from the requirements prose and the edition rule);
  *   - which startup apps are High impact (found in Task Manager; 13.14 item 6).
- * Hardware is stated as an outcome too: "meets the Windows 11 requirements natively, no Setup
- * bypasses" rather than "Generation 2 with a vTPM".
+ * The VM is stated in full, as a host build sheet would: name, generation, memory, processors,
+ * disk, switch, vTPM and Secure Boot (operator, 2026-11-05: every slot the student fills has its
+ * value in the brief). "No Setup bypasses" still stands: the Setup checks are not to be skipped.
  *
  * Pure: reads the projected WO only (mdfinal-client.js projectWo), so it can say nothing the
  * projection withholds.
@@ -74,8 +75,8 @@
 
         /* The VM is named after the PC it hosts, as a host inventory would list it. The name is not a
          * generator field (GENERATOR_VERSION is frozen while sittings are live) and no check grades it. */
-        add('P1', 'Create one VM named ' + wo.hostname + ' on the Meridian-LAN switch: ' + wo.vm.startupMemoryMB + ' MB of startup memory (static, not dynamic), ' + wo.vm.vcpu +
-            ' virtual processors, and a new ' + wo.vm.vhdxGB + ' GB OS virtual hard disk. It must meet the Windows 11 hardware requirements natively: no Setup bypasses. Keep Secure Boot on.');
+        add('P1', 'Create one Generation 2 VM named ' + wo.hostname + ' on the Meridian-LAN switch: ' + wo.vm.startupMemoryMB + ' MB of startup memory (static, not dynamic), ' + wo.vm.vcpu +
+            ' virtual processors, and a new ' + wo.vm.vhdxGB + ' GB OS virtual hard disk. Enable its virtual TPM. Keep Secure Boot on. It must meet the Windows 11 hardware requirements natively: no Setup bypasses.');
         add('P1', 'Install Windows 11 ' + wo.build.version + ' (build ' + wo.build.build + ') from the ISO library, in the edition the requirements call for (see Requirements).');
         add('P1', 'Install Windows on the new OS disk. Create the Windows partition yourself, with C: at ' + d.cGB + ' GB; leave the rest of that disk unallocated for D:.');
         add('P1', 'MER-ARCHIVE holds the only copy of these files. Do not modify, format or delete it: ' +

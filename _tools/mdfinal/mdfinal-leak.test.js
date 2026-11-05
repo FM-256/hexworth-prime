@@ -314,7 +314,7 @@ const FUZZ = ['Get-VM', 'Get-VMHardDiskDrive -VMName MER-WS', 'pnputil /enum-dri
         const CH = kit.req('mdfinal-checks.js');
         const tz = (id) => kit.req('mdfinal-os.js').TIME_ZONES.find((z) => z.id === id).display;
         const COVER = {
-            '1.1:gen2': () => ['Windows 11 hardware requirements natively'], '1.1:vtpm': () => ['no Setup bypasses'],
+            '1.1:gen2': () => ['Create one Generation 2 VM', 'Windows 11 hardware requirements natively'], '1.1:vtpm': () => ['Enable its virtual TPM', 'no Setup bypasses'],
             '1.1:cpu-ram': (w) => [w.vm.startupMemoryMB + ' MB of startup memory (static', w.vm.vcpu + ' virtual processors'], '1.1:vhdx': (w) => [w.vm.vhdxGB + ' GB OS virtual hard disk'],
             '1.2:build': (w) => ['Windows 11 ' + w.build.version + ' (build ' + w.build.build + ')'], '1.2:edition': () => ['edition the requirements call for'],
             '1.3:target-explicit': () => ['Install Windows on the new OS disk', 'Create the Windows partition yourself'], '1.3:c-size': (w) => ['C: at ' + w.disks.cGB + ' GB'],

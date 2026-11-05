@@ -38,7 +38,8 @@
      * returns it on the desktop with a `provisioned` ledger entry (ref 'staff': never student text). */
     function build(fresh) {
         var s = fresh, wo = s.wo;
-        step(s, 'hyperv', 'new-vm', { name: 'MER-WS', generation: 2, memoryMB: wo.vm.startupMemoryMB, dynamicMemory: false,
+        /* named as the brief names it (the sitting's hostname), so a rescued PC matches the work order */
+        step(s, 'hyperv', 'new-vm', { name: wo.hostname, generation: 2, memoryMB: wo.vm.startupMemoryMB, dynamicMemory: false,
                                       vhdxGB: wo.vm.vhdxGB, switch: 'Meridian-LAN', iso: 'Win11_24H2_Business_x64.iso' });
         step(s, 'vm-settings', 'apply', { vcpu: wo.vm.vcpu, vtpm: true });
         step(s, 'hyperv', 'start');
