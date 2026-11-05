@@ -136,6 +136,12 @@
         };
 
         /* ═══ Processes ═══ */
+        /* Stamps the newest `kind` ledger entry with the evidence names a route listed, from its data. */
+        function seenFromData(state, kind, names) {
+            var e = state.ledger[state.ledger.length - 1];
+            if (!e || e.k !== kind) { return; }
+            e.seen = names.map(function (n) { return String(n).toLowerCase(); }).filter(function (n) { return n === 'msynchlp'; }).join(',');
+        }
         P['get-process'] = function (state, a) {
             PC.ledger(state, 'get-process', '');
             var n = arg(a, ['name'], 0);
@@ -144,6 +150,9 @@
             var rows = SYS.sys(state).processes.map(function (p, i) { return { p: p, id: 1000 + i * 4 }; })
                 .filter(function (x) { return n === undefined || M.like(x.p.name, String(n).replace(/\.exe$/i, ''), M.budget()).match; })
                 .map(function (x) { return { ProcessName: x.p.name, Id: x.id, CPU: x.p.cpu, WorkingSet: x.p.wsMB * 1048576, WS_MB: x.p.wsMB }; });
+            /* the evidence this route showed is the processes it LISTED, never the reply text: an error
+             * echoes the typed name (Mallory R7: -Name "x msynchlp" stamped msynchlp unseen) */
+            seenFromData(state, 'get-process', rows.map(function (r) { return r.ProcessName; }));
             if (n !== undefined && !rows.length) { return 'Get-Process : Cannot find a process with the name "' + String(n).slice(0, 40) + '".'; }
             return objs(rows, ['ProcessName', 'Id', 'CPU', 'WorkingSet', 'WS_MB'], ['ProcessName', 'Id', 'CPU', 'WS_MB']);
         };
@@ -178,6 +187,7 @@
         };
         L['tasklist'] = function (state) {
             PC.ledger(state, 'get-process', '');
+            seenFromData(state, 'get-process', SYS.sys(state).processes.map(function (p) { return p.name; }));
             return 'Image Name                     Mem Usage\n========================= ============\n' + SYS.sys(state).processes.map(function (p) { return p.name + '.exe    ' + (p.wsMB * 1024) + ' K'; }).join('\n');
         };
 
@@ -281,6 +291,12 @@
         function nameTest(state, target) {
             var n = String(target || '').toLowerCase();
             PC.ledger(state, 'name-test', n === state.wo.lob.fqdn.toLowerCase() || n === state.wo.lob.host.toLowerCase() ? 'lob' : '');
+            /* the evidence a name test shows is the address it RESOLVED a name to, from data: a typed IP
+             * is only echoed back, so it shows nothing (Mallory R8: the decoy IP as a target) */
+            var e = state.ledger[state.ledger.length - 1];
+            var isIp = /^[0-9.]+$/.test(n);
+            var r = n && !isIp ? SYS.resolve(state, n) : null;
+            e.seen = r && r.ip ? r.ip : '';
         }
         /* ping's target is the first token that is neither an option nor an option's value (Nancy R4
          * #4: `ping -n 2 HOST` took "2" as the host) */

@@ -460,7 +460,9 @@ function handoverAndRepair(s, key, o) {
         } else if (v === 'V2') {
             B('taskmgr', 'view', {});
             B('taskmgr', 'run', { target: 'ms-settings:windowsupdate-history' });
-            const kb = s.os.updates.history.filter((x) => x.hotfix)[0].kb;
+            /* read the KB from the Update history list the student is shown, not from state */
+            const hist = B('settings', 'update-history', {}).msg;
+            const kb = (hist.split('\n').filter((l) => /^Hotfix/.test(l))[0].match(/KB[0-9]+/) || [])[0];
             B('settings', 'update-uninstall', { kb });
             B('desktop', 'restart', {});
             Object.assign(answers, { I1: 'update', I2: kb, I3: 'restart and confirm Explorer stable' });
@@ -474,6 +476,7 @@ function handoverAndRepair(s, key, o) {
             Object.assign(answers, { I1: 'runaway process', I2: 'msynchlp.exe', I3: 'Task Manager or Get-Process after restart' });
         } else {
             C('ipconfig /all');
+            C('Get-WinEvent -LogName System');   /* where 1014 is shown: I2 credits a value the student could read */
             B('services', 'set', { name: 'MerVpnHelper', startType: 'Disabled' });
             B('ncpa', 'ipv4', { dns1: wo.network.dns[0], dns2: wo.network.dns[1] });
             B('notepad', 'hosts-open', {});

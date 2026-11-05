@@ -89,11 +89,8 @@ const STUBS = {
         /* restart is disabled, with a reason, after submit */
         await page.evaluate(() => document.querySelectorAll('#roster tr')[3].click());
         await page.waitForFunction(() => !document.getElementById('detailCard').hidden, { timeout: 3000 });
-        const rs = await page.evaluate(() => { const b = [...document.querySelectorAll('#detail button')].find((x) => x.textContent === 'Restart sitting'); return b && { d: b.disabled, t: b.title }; });
-        t.check(rs && rs.d === true && /seed policy/.test(rs.t), 'restart is disabled after submit, with the reason');
-        const before = sent.length;
-        await page.evaluate(() => [...document.querySelectorAll('#detail button')].find((x) => x.textContent === 'Restart sitting').click());
-        t.check(!sent.slice(before).some((s) => s.name === 'mdfinalReset'), 'and clicking it sends nothing');
+        const rs = await page.evaluate(() => [...document.querySelectorAll('#detail button')].some((x) => x.textContent === 'Restart on a new lab' && !x.disabled));
+        t.check(rs, 'after submit, restart is offered as a new lab (13.19 item 1)');
         /* on a live sitting it sends the reason and evidence */
         await page.evaluate(() => document.querySelectorAll('#roster tr')[1].click());
         await page.evaluate(() => { const d = document.getElementById('detail'); d.querySelector('input').value = 'INC-42'; [...d.querySelectorAll('button')].find((x) => x.textContent === 'Restart sitting').click(); });

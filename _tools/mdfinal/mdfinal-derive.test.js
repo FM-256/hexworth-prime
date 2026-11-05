@@ -137,7 +137,7 @@ t.check(Object.isFrozen(D.PLACEHOLDERS), 'placeholder list frozen');
 /* every hidden label the generator uses is distinct and in the spec's list (static) */
 {
     const src = require('fs').readFileSync(require('path').join(kit.MD, 'mdfinal-core.js'), 'utf8');
-    const labels = [...src.matchAll(/DERIVE\.hidden(?:Hex)?\(K, uid, examId, '([^']+)'/g)].map((m) => m[1]);
+    const labels = [...src.matchAll(/DERIVE\.hidden(?:Hex)?\(K, uid, (?:examId|dx), '([^']+)'/g)].map((m) => m[1]);
     /* R1 labels: five single picks plus the two BitLocker families (bl-rp#<n>#<block>, bl-guid#<n>) */
     const SPEC_LABELS = ['profile', 'fault', 'fault-kb', 'fault-driver', 'fault-decoy-ip', 'bl-rp#', 'bl-guid#', 'archive-hash#'];
     t.check(labels.length === 8 && new Set(labels).size === 8 && labels.every((l) => SPEC_LABELS.includes(l)), 'generator hidden labels distinct and in the spec list: ' + labels.join(','));

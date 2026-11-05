@@ -230,7 +230,37 @@
         return out;
     }
 
+    /* The ledgered routes that DISPLAY each accepted I2 value (13.19 item 7, Mallory R4 F1): a value
+     * earns I2 only after one of its routes ran. A value whose displays are all unledgered windows
+     * (the Startup tab, Task Scheduler, Services) maps to null and keeps the general diagnostic gate,
+     * so a student who found it there is not penalised. */
+    function evidenceRoutes(key) {
+        var ev = ['eventvwr'];
+        var r = {};
+        if (key.variant === 'V1') {
+            r['stop:7b'] = ['winre-view', 'eventvwr'];
+            r['1001'] = ev; r['41'] = ev;
+            r.mbafilt = ['pnputil-enum'];
+            r[normEvidence(key.fault.driverInf)] = ['pnputil-enum'];
+        } else if (key.variant === 'V2') {
+            r[key.fault.kb.slice(2)] = ['update-history', 'hotfix-list', 'eventvwr'];
+            r['1000'] = ev; r['1001'] = ev; r.mer_shellhook = ev;
+        } else if (key.variant === 'V3') {
+            r.msynchlp = ['taskmgr-view', 'get-process'];
+            r.mersync = null; r.synchelperwatchdog = null;
+        } else {
+            r['1014'] = ev; r['5719'] = ev; r['1129'] = ev;
+            r.mervpnhelper = null;
+            r[normEvidence(key.fault.decoyIp)] = ['hosts-view', 'name-test'];
+            /* the vendor DNS also shows in Network Connections and Get-NetIPConfiguration, which are not
+             * ledgered, so it keeps the general gate (Nancy R6 #1) */
+            VENDOR_DNS.forEach(function (d) { r[normEvidence(d)] = null; });
+        }
+        return r;
+    }
+
     module.exports = {
+        evidenceRoutes: evidenceRoutes,
         VENDOR_DNS: VENDOR_DNS, CATEGORIES: CATEGORIES, VERIFY_OPTIONS: VERIFY_OPTIONS, CATALOGUE: CATALOGUE,
         ticketId: ticketId, apply: apply, bootedClone: bootedClone, resolved: resolved,
         domains: domains, normalised: normalised, noRegression: noRegression, normEvidence: normEvidence, evidenceSet: evidenceSet

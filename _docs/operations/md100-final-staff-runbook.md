@@ -22,7 +22,7 @@ Every action is on the results page. The server enforces who may do what; the pa
 | Generator frozen | `GENERATOR_VERSION` in `mdfinal-core.js` unchanged since D11 | A bump refuses every live sitting (13.17 item 7) |
 | Secret works | A rehearsal start by an admin succeeds | A weak or missing secret refuses every start |
 | Class roster | Results page, pick the class | Every student listed; the class assigned `forge-md100-final`; the handler is staff |
-| Rehearsal sittings | Each dry run used its own uid | A finished rehearsal cannot be restarted while the seed policy is open (13.17 item 7) |
+| Rehearsal sittings | Restart each finished rehearsal (it deals a new lab) or use a fresh uid | No real student's lab is ever touched by a dry run |
 | Runbook printed | This page | The provision password below is on paper |
 
 ## The sitting (Thu 2026-11-19, Eastern)
@@ -37,10 +37,14 @@ Every action is on the results page. The server enforces who may do what; the pa
      - To return the time the student lost, choose "Give back the time lost at the fault" and enter when the fault began.
      - A second restart of the same student needs the operator.
    - **A broken build**: the student may restart it themselves, up to twice, before handover. Their clock keeps running and penalties carry. Staff do nothing.
-   - **Never restart to give a second attempt.** After handover or submit, restart is refused until the operator decides the seed policy.
-   - **Platform fault after handover:** no in-exam remedy exists, because Restart is refused and Provision is pre-handover only.
-     - Record the student, the time and the evidence.
-     - The instructor adjusts from the CSV with that evidence. That is the operator's call.
+   - **Never restart to give a second attempt.**
+   - **Platform fault after handover or submit:** **Restart on a new lab.** It deals a different work order and fault with a fresh 150-minute clock (spec 13.19 item 1), because the student has already seen the old fault and its answers.
+     - Use it only for a platform fault, with a fault code and evidence.
+     - The new sitting's grade supersedes the old one; both attempts stay archived.
+     - **Download the CSV first.** The CSV lists live submitted sittings, so the old grade leaves it once the student is restarted; it stays in the archive.
+     - Expect mismatch flag (d) on that student until they submit again: the gradebook still holds the old entry.
+     - The new clock is a full 150 minutes from the restart, not capped at 21:00. Restart early, or decide the end time with the student.
+     - The new lab always has a different fault from the voided one. Penalties from the voided lab do not carry.
    - **Late arrival after 18:30:** new starts are closed. Only if staff decide to admit the student, Window control > Allowlist add (their uid) lets them start.
      - Their 150 minutes run from their own start, so they finish after 21:00.
      - Sweep again once their clock ends, then remove them from the allowlist.
@@ -61,7 +65,7 @@ MDFINAL_SEED_SECRET=<the bound secret> node _tools/mdfinal/mdfinal-walkthrough.j
 
 The bound secret is the `NETFINAL_SEED_SECRET` Functions secret (operator decision 12.2). An inline assignment lands in shell history, so run it with history off (a leading space where `HISTCONTROL=ignorespace`), or `read -s MDFINAL_SEED_SECRET; export MDFINAL_SEED_SECRET` first.
 
-It prints the edition, channel and expected key, the storage resiliency, the fault and its ticket, and the accepted I1, I2 and I3 answers. The full per-check report is on the results page (select the student).
+For a sitting restarted onto a new lab, add `--seed N`, with N the seed shown for that sitting. It prints the edition, channel and expected key, the storage resiliency, the fault and its ticket, and the accepted I1, I2 and I3 answers. The full per-check report is on the results page (select the student).
 
 ## What students are told (the in-page brief)
 

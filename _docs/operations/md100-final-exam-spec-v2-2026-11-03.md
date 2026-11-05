@@ -1139,3 +1139,47 @@ Code changes are in `functions/mdfinal/` and `_tools/mdfinal/`. Decisions record
    - **Option b:** credit I2 only when the student's ledger shows the route that displays the value they answered (for example, Event Viewer for an event ID, `pnputil` for the inf name).
    - **Option c:** add a per-sitting value as the only accepted form.
    Behaviour until decided: (a).
+
+### 13.19 Operator decisions (2026-11-04): the recommended set
+
+1. **Admin reset after handover or submit: a NEW seed.** The sitting index enters derivation (only there): a new lab with a fresh clock. Self-reset is unchanged (refused after handover). This closes 13.5 item 6.7's OPEN item, and a finished rehearsal can now be reset.
+2. **`GENERATOR_VERSION` is frozen from the D11 deploy until grading ends.**
+3. **The operator times V1 and V4** in the D10 and D12 runs.
+4. **Results for a class handler carry totals and phases only.** Per-check reports and the per-row CSV are for admins.
+5. **Admin by allowlist:**
+   - (a) the operator confirms both allowlisted addresses exist as verified Auth users;
+   - (b) the platform `requireAdmin` accepts the allowlist route only with `email_verified === true`.
+6. **Crowding of the admin all-sittings view by mass-started sittings: accepted** (13.16 item 3).
+7. **I2 credits an evidence value only when the student's ledger shows a route that displays that value** (Mallory R4 F1). Values whose only display is an unledgered window keep the general diagnostic gate.
+8. **The operator removes the stray `t1.js` and `_tools/mdfinal/md6e.kfcsk326/`.**
+
+### 13.20 R6 outcomes (2026-11-04): Nancy APPROVE-WITH-CHANGES, Mallory BLOCK, fixed
+
+1. **Nancy R6 fixes:**
+   - The vendor DNS keeps the general gate: Network Connections and `Get-NetIPConfiguration` show it, unledgered.
+   - A new-lab reset steps to the next seed whose fault variant differs from the voided lab's, and penalties are not carried onto it.
+   - The handler CSV carries the reset flags.
+   - The runbook covers exporting the CSV before a restart after submit, flag (d) until the new submit, and the uncapped clock.
+2. **Mallory R6 blocker 1:** I2's display-route gate was satisfied by a route that showed nothing, because the ledger entry was written before the route's filter ran.
+   - `mdfinal-evidence.js` now stamps each diagnostic ledger entry with the evidence values its reply actually contained. The stamp is applied at `gui.act` and `shell.exec`, and the failed-boot stop screen stamps `stop:7b`.
+   - I2 credits a value only when an entry from one of its routes shows it.
+   - Consequences:
+     - a query that matched nothing earns nothing;
+     - a value read after it was already removed earns nothing (I1 and I3 still can);
+     - a table view that truncates a message shows only what it prints. `Format-List` and Event Viewer show the full message.
+   - The canonical walk now reads the KB from the Update history list it is shown.
+3. **Mallory R6 finding 2: every admin-allowlist check needs a verified email.** This extends 13.19 item 5b to the same field beside it:
+   - `index.js`:
+     - `setAdminClaim`, which minted a real admin claim for an unverified allowlisted account;
+     - admin-code activation;
+     - `grantHandler`;
+     - `getCohortComparison`;
+     - the c2 device callables;
+     - Discord posting.
+   - The `firestore.rules` `isAdmin()` function.
+   - **Left unchanged (frozen this window, spec 1.1):** netfinal's results gate, its module's `isStaff`, and `netfinalClassOwnerIsStaff`, which reads the user's email without the verified flag. Raised to the operator.
+   - **Operator check before the functions deploy:** `setAdminClaim` re-derives the admin claim at every sign-in. An allowlisted admin whose Auth account is not verified loses admin at their next sign-in, so confirm both allowlisted addresses are verified accounts first.
+4. **Mallory R7 A/B outcomes:**
+   - **Item 1 closed after a second fix.** `Get-Process` and `tasklist` stamp their evidence from the processes they LISTED, not from the reply text: an error echoes the typed name (`-Name "x msynchlp"`). `stamp()` keeps a data-based stamp.
+   - **Item 2 confirmed:** an unverified allowlisted token is denied on every hardened gate, and a verified one passes.
+   - **The same hardening was extended to** the Dr. Hex instructor role (`hex-ai-bridge.js`, both entry points) and the unexported `manage-announcements.js` helper.

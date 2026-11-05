@@ -63,7 +63,10 @@ const verify = {
     V4: (r) => C(r, 'Test-NetConnection ' + r.state.wo.lob.fqdn + ' -Port ' + r.state.wo.lob.port)
 };
 /* The diagnostic step each variant's repair starts with (I1/I2 gate). */
-const diag = { V1: () => {}, V2: (r) => A(r, 'taskmgr', 'view'), V3: (r) => A(r, 'taskmgr', 'view'), V4: (r) => C(r, 'ipconfig /all') };
+/* each shows the value the canonical answer names (13.19 item 7): V1's stop code on the recovery screen,
+ * V2's KB in Update history, V3's process in Task Manager, V4's 1014 in the System log */
+const diag = { V1: () => {}, V2: (r) => { A(r, 'taskmgr', 'view'); A(r, 'taskmgr', 'run', { target: 'ms-settings:windowsupdate-history' }); A(r, 'settings', 'update-history'); },
+               V3: (r) => A(r, 'taskmgr', 'view'), V4: (r) => { C(r, 'ipconfig /all'); C(r, 'Get-WinEvent -LogName System'); } };
 
 /* [variant index, route label, steps(r), expected 7.1 parts] */
 const ROUTES = [

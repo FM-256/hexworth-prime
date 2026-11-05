@@ -420,6 +420,8 @@
                 state.screen = 'winre';
                 if (state.sys) { state.sys.winre = { unlocked: false, skipped: false, offlineHive: false }; }
                 ledger(state, 'winre-view', '');
+                /* the stop screen shows the stop code, whichever call booted (handover included) */
+                state.ledger[state.ledger.length - 1].seen = 'stop:7b';
                 return ok('Your PC ran into a problem and needs to restart. Stop code: INACCESSIBLE_BOOT_DEVICE. Automatic Repair: Your PC did not start correctly.', 'winre');
             }
             state.screen = state.os.oobe.done ? 'desktop' : 'oobe';

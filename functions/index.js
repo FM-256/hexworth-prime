@@ -67,7 +67,8 @@ exports.setAdminClaim = onCall(cfOptions, async (request) => {
 
     const uid = request.auth.uid;
     const email = request.auth.token.email || '';
-    const isAdmin = ADMIN_EMAILS.includes(email.toLowerCase());
+    /* allowlist route needs a verified email (MD-100 spec 13.20: an unverified account under an allowlisted address must not become admin) */
+    const isAdmin = request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase());
 
     // PRESERVE AN INSTRUCTOR GRANT ON THE CLAIM TOO (2026-08-21). The Firestore `role` write
     // below was fixed for exactly this on 2026-08-03; the CLAIM write up here was left deriving
@@ -961,8 +962,8 @@ exports.validateActivationCode = onCall(cfOptions, async (request) => {
     // Check admin code first (admin is higher tier)
     if (codeHash === ADMIN_CODE_HASH) {
         // Admin requires email allowlist check
-        if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
-            throw new HttpsError('permission-denied', 'Admin activation requires an authorized email.');
+        if (!(request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()))) {
+            throw new HttpsError('permission-denied', 'Admin activation requires an authorized, verified email.');
         }
 
         // Set custom claims
@@ -983,7 +984,7 @@ exports.validateActivationCode = onCall(cfOptions, async (request) => {
 
     // Helper: activate handler for this user (preserves admin if already admin)
     async function grantHandler() {
-        const isAlreadyAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email.toLowerCase());
+        const isAlreadyAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
         await getAuth().setCustomUserClaims(uid, {
             handler: true,
             admin: isAlreadyAdmin
@@ -2886,7 +2887,9 @@ function requireAdmin(request) {
     }
     const hasAdminClaim = request.auth.token.admin === true;
     const email = (request.auth.token.email || '').toLowerCase();
-    const inAllowlist = ADMIN_EMAILS.includes(email);
+    /* the allowlist route needs a VERIFIED email: an unverified account registered under an
+     * allowlisted address is not an admin (operator decision 2026-11-04, MD-100 spec 13.19 item 5) */
+    const inAllowlist = request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email);
     if (!hasAdminClaim && !inAllowlist) {
         throw new HttpsError('permission-denied', 'Admin privileges required.');
     }
@@ -4762,7 +4765,7 @@ exports.getCohortComparison = onCall(cfOptions, async (request) => {
     }
     // Admin gate — mirrors firestore.rules isAdmin() (custom claim OR email allowlist).
     const email = (request.auth.token.email || '').toLowerCase();
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
     if (!isAdmin) {
         throw new HttpsError('permission-denied', 'Cohort analytics are admin-only.');
     }
@@ -6977,7 +6980,7 @@ exports.c2Dispatch = onCall(cfOptions, async (request) => {
     // Require admin
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
     const email = request.auth.token.email || '';
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
     if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
 
     const { deviceId, action, params, ttl } = request.data;
@@ -7061,7 +7064,7 @@ exports.c2Dispatch = onCall(cfOptions, async (request) => {
 exports.c2ListDevices = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
     const email = request.auth.token.email || '';
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
     if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
 
     const snap = await db.collection('c2_devices')
@@ -7152,7 +7155,7 @@ function generatePairingCodeString() {
 exports.c2GeneratePairingCode = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
     const email = request.auth.token.email || '';
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
     if (!isAdmin) throw new HttpsError('permission-denied', 'Admin access required.');
 
     const { ttl, label } = request.data || {};
@@ -7412,7 +7415,7 @@ exports.c2DecommissionDevice = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
     const uid = request.auth.uid;
     const email = request.auth.token.email || '';
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()));
 
     const { deviceId } = request.data || {};
     if (!deviceId) throw new HttpsError('invalid-argument', 'deviceId is required.');
@@ -10246,7 +10249,7 @@ exports.postPatchNote = onCall(cfOptions, async (request) => {
         throw new HttpsError('unauthenticated', 'Must be signed in.');
     }
     const email = request.auth.token.email || '';
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!(request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()))) {
         throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -10584,7 +10587,7 @@ exports.createTournamentChannels = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
     const email = request.auth.token.email || '';
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!(request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()))) {
         throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -10641,7 +10644,7 @@ exports.deleteTournamentChannels = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
     const email = request.auth.token.email || '';
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!(request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()))) {
         throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -10692,7 +10695,7 @@ const NEW_CONTENT_CHANNEL = '1494417030109990922';
 exports.announceNewContent = onCall(cfOptions, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
     const email = request.auth.token.email || '';
-    if (!ADMIN_EMAILS.includes(email.toLowerCase())) {
+    if (!(request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email.toLowerCase()))) {
         throw new HttpsError('permission-denied', 'Admin only.');
     }
 
@@ -11907,7 +11910,8 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
             if (flags.length) { console.warn('[mdfinal] mismatch ' + uid + ' class ' + (cls ? cls.id : '-') + ': ' + flags.join('; ') + ' row=' + JSON.stringify(p).slice(0, 500)); }
             const u = user.exists ? user.data() : {};
             return { uid, name: u.displayName || u.callsign || u.email || uid, email: u.email || null,
-                     sitting: MD.instructorView(sess, {}), attempts: arch.docs.length, flags };
+                     /* per-check reports are for admins; a class handler gets totals and phases (13.19 item 4) */
+                     sitting: admin ? MD.instructorView(sess, {}) : MD.handlerView(MD.instructorView(sess, {})), attempts: arch.docs.length, flags };
         }));
     };
 
@@ -11959,6 +11963,6 @@ exports.mdfinalResults = onCall(mdfinalOpts, async (request) => {
     const students = await rowsFor(members, cls);
     const sessions = await Promise.all(members.map(async (u) => MD.fromDocument(await store.get(MD.sessionIdFor(u, examId)))));
     return { examId, contentId, class: { id: cls.id, name: cls.data().name || cls.id }, students,
-             csv: MD.resultsCsv(sessions.filter(Boolean)), memberCount: (cls.data().memberUids || []).length };
+             csv: admin ? MD.resultsCsv(sessions.filter(Boolean)) : MD.totalsCsv(sessions.filter(Boolean)), memberCount: (cls.data().memberUids || []).length };
 });
 /* ═══ MDFINAL END ═════════════════════════════════════════════════════════════════════════════════ */

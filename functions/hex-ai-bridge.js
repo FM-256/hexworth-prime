@@ -220,7 +220,8 @@ exports.hexAiChat = onCall(cfOptions, async (request) => {
     // request.auth.token.admin is set by setAdminClaim. Email check is a
     // belt-and-suspenders fallback in case the claim was wiped.
     const email = (request.auth.token.email || '').toLowerCase();
-    const isAdmin = request.auth.token.admin === true || ADMIN_EMAILS.includes(email);
+    /* the allowlist route needs a verified email (MD-100 spec 13.20) */
+    const isAdmin = request.auth.token.admin === true || (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email));
     const role = isAdmin ? 'instructor' : 'student';
 
     // v0.4.0: failed_attempts derived from Firestore, NOT from client.
@@ -388,7 +389,7 @@ exports.hexAiChatStream = onRequest({
     }
     const uid = decoded.uid;
     const email = (decoded.email || '').toLowerCase();
-    const isAdmin = decoded.admin === true || ADMIN_EMAILS.includes(email);
+    const isAdmin = decoded.admin === true || (decoded.email_verified === true && ADMIN_EMAILS.includes(email));
 
     // Parse body (Firebase auto-parses JSON for onRequest).
     const data = (req.body && typeof req.body === 'object') ? req.body : {};

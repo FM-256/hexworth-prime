@@ -153,6 +153,13 @@
         }
     }
 
+    /* The id the HMAC derivation uses: the exam id for seed 0, else exam id + '#seed' + n. */
+    function seedId(examId, seed) {
+        var n = seed === undefined || seed === null ? 0 : seed;
+        if (typeof n !== 'number' || Math.floor(n) !== n || n < 0 || n > 99) { throw new Error('mdfinal-core: seed must be an integer 0..99'); }
+        return n === 0 ? examId : examId + '#seed' + n;
+    }
+
     /* All hidden picks for one sitting, each its own HMAC label (R1). */
     function hiddenPicks(K, uid, examId) {
         return {
@@ -214,15 +221,19 @@
 
     /* Builds the full sitting from the hidden picks and the visible stream. Internal: callers use
      * generate() and buildAnswerKey(), which each return a fresh clone of their half. */
-    function draft(uid, examId, K, force) {
+    function draft(uid, examId, K, force, seed) {
         checkIdentity(uid, examId);
-        var h = hiddenPicks(K, uid, examId);
+        /* The derivation id: the exam id, plus the sitting's seed index after an admin reset that
+         * deals a new lab (13.19 item 1). Seed 0 is the original derivation, byte for byte, so every
+         * existing sitting and golden hash is unchanged. state.meta.examId stays the real id. */
+        var dx = seedId(examId, seed);
+        var h = hiddenPicks(K, uid, dx);
         if (force) {
             if (force.profileIndex !== undefined) { h.profileIndex = force.profileIndex; }
             if (force.variantIndex !== undefined) { h.variantIndex = force.variantIndex; }
         }
         var profile = PROFILES[h.profileIndex];
-        var rng = DERIVE.visibleStream(K, uid, examId, 'wo');
+        var rng = DERIVE.visibleStream(K, uid, dx, 'wo');
 
         var vhdxGB = rng.pick(SETS.vhdxGB);
         var cChoices = SETS.cGB.filter(function (c) { return vhdxGB - SYSTEM_OVERHEAD_GB - c >= D_MIN_GB; });
@@ -297,7 +308,7 @@
         wo.disks.resiliencyProse = RESILIENCY_PROSE[resiliency];
         /* Manifest hashes: keyed, and drawn from no visible stream, so they shift nothing. */
         wo.disks.archiveManifest.forEach(function (f, i) {
-            f.sha256 = DERIVE.hiddenHex(K, uid, examId, 'archive-hash#' + i, 64);
+            f.sha256 = DERIVE.hiddenHex(K, uid, dx, 'archive-hash#' + i, 64);
         });
         /* D2 onward: each later section draws from its own sub-stream, e.g.
          * DERIVE.visibleStream(K, uid, examId, 'd2'), APPENDED here and never interleaved above. */
@@ -332,7 +343,7 @@
             technician: wo.technician,
             variant: VARIANTS[h.variantIndex],
             fault: { kb: 'KB' + h.faultKb, driverInf: 'oem' + h.driverOem + '.inf', decoyIp: h.decoyIp },
-            bitlocker: bitlockerMaterial(K, uid, examId),
+            bitlocker: bitlockerMaterial(K, uid, dx),
             wo: wo
         };
         return { state: state, key: key };
@@ -341,14 +352,14 @@
     /* The initial state for one sitting. `opts.secret` is the bound seed secret; it fails closed. */
     function generate(uid, examId, opts) {
         var K = DERIVE.deriveKey(opts && opts.secret);
-        return clone(draft(uid, examId, K, null).state);
+        return clone(draft(uid, examId, K, null, opts && opts.seed).state);
     }
 
     /* The frozen answer key (D1 minimum, 13.3): WO values, derived edition and channel, the correct
      * key, resiliency, profile, variant, technician name. D5 adds fault evidence and ladders. */
     function buildAnswerKey(uid, examId, opts) {
         var K = DERIVE.deriveKey(opts && opts.secret);
-        return freeze(clone(draft(uid, examId, K, null).key));
+        return freeze(clone(draft(uid, examId, K, null, opts && opts.seed).key));
     }
 
     /* TEST AND --qc ONLY (index.js must never reference it; D6 adds the grep test): one sitting with the profile and variant forced, so all 12 classes are

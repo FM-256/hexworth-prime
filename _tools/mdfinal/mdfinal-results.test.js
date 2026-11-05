@@ -37,6 +37,7 @@ const AUTH = {                                // uid -> { email, customClaims }
     stu: { email: 'stu@students.example', customClaims: {} }
 };
 const SECRET = { value: 'mdfinal-results-test-secret-7f3a91c2e05b' };
+const CLAIMS = {};   /* custom claims the code under test writes */
 const TS = { __serverTimestamp: true };
 /* clone copies like Firestore does (no shared references); isPlain says whether a value is a map
    that merge should descend into; deepMerge is Firestore's set-with-merge on nested maps. */
@@ -113,7 +114,7 @@ const STUBS = {
     'firebase-functions/params': { defineSecret: () => ({ value: () => SECRET.value }), defineString: () => ({ value: () => '' }) },
     'firebase-admin/app': { initializeApp: () => ({}) },
     /* Real per-user claims, because the gradebook write checks the CLASS OWNER's claims. */
-    'firebase-admin/auth': { getAuth: () => ({ getUser: async (uid) => {
+    'firebase-admin/auth': { getAuth: () => ({ setCustomUserClaims: async (uid, c) => { CLAIMS[uid] = JSON.parse(JSON.stringify(c)); }, getUser: async (uid) => {
         if (uid === 'flaky') { const q = new Error('quota exceeded'); q.code = 'auth/internal-error'; throw q; }
         if (!AUTH[uid]) { const e = new Error('no user'); e.code = 'auth/user-not-found'; throw e; }
         return AUTH[uid];
@@ -243,8 +244,15 @@ chk('a class that did not assign the final gets nothing', !docs.has('classes/c-n
 chk('a class owned by a non-staff user gets nothing (Mallory\'s planted class)', !docs.has('classes/c-evil/progress/stu'));
 chk('a second submit is idempotent', (await call(F.mdfinalSubmit, student('stu'), { examId: EX })).alreadySubmitted === true);
 chk('a student cannot restart after submit', (await code(call(F.mdfinalReset, student('stu'), { examId: EX }))) === 'permission-denied');
-chk('an admin cannot restart a submitted sitting while the seed policy is open',
-    (await code(call(F.mdfinalReset, admin('boss'), { examId: EX, uid: 'stu', reason: 'outage', evidence: 'INC-1' }))) === 'failed-precondition');
+/* 13.19 item 1, on a disposable student so the sections below keep stu's sitting */
+await call(F.mdfinalControl, admin('boss'), { examId: EX, allowUids: { add: ['nl'] } });
+await call(F.mdfinalStart, student('nl'), { examId: EX });
+await call(F.mdfinalSubmit, student('nl'), { examId: EX });
+const nlBefore = JSON.parse(docs.get('mdfinal_sessions/nl::' + EX).answerKeyJson);
+const nlReset = await call(F.mdfinalReset, admin('boss'), { examId: EX, uid: 'nl', reason: 'outage', evidence: 'INC-1' });
+const nlAfter = docs.get('mdfinal_sessions/nl::' + EX);
+chk('an admin restart of a submitted sitting deals a new lab (seed 1) through the callable',
+    nlReset.kind === 'admin' && JSON.parse(nlAfter.lineageJson).seed === 1 && !nlAfter.submittedAt && JSON.stringify(JSON.parse(nlAfter.answerKeyJson)) !== JSON.stringify(nlBefore));
 
 section('R6 mutation: swapping in netfinal\'s rule must be visible to this suite');
 /* on a disposable student, because the swapped rule really does reset the sitting */
@@ -271,7 +279,10 @@ section('R7 results: who sees what, sweep, mismatch flags');
 chk('a student cannot read results', (await code(call(F.mdfinalResults, student('stu'), { examId: EX, classId: 'c-md' }))) === 'permission-denied');
 const hr = await call(F.mdfinalResults, handler('teach'), { examId: EX, classId: 'c-md' });
 chk('the class handler reads their assigning class', hr.students && hr.students.length === 3 && typeof hr.csv === 'string');
-chk('the handler sees the full report for staff', hr.students.find((s) => s.uid === 'stu').sitting.report.rows.length === 24);
+chk('the handler sees totals and phases, never the per-check report (13.19 item 4)', (() => { const r = hr.students.find((s) => s.uid === 'stu').sitting.report; return r && typeof r.display === 'number' && r.phases && !r.rows && !r.penalties; })());
+chk('the handler CSV carries totals only', /^studentId,total,result,flags\n/.test(hr.csv) && hr.csv.indexOf('row1.1') < 0, hr.csv.slice(0, 80));
+const ar = await call(F.mdfinalResults, admin('boss'), { examId: EX, classId: 'c-md' });
+chk('an admin still sees the full report and the per-row CSV', ar.students.find((s) => s.uid === 'stu').sitting.report.rows.length === 24 && /row1\.1/.test(ar.csv));
 chk('the handler cannot sweep', (await code(call(F.mdfinalResults, handler('teach'), { examId: EX, classId: 'c-md', sweep: true }))) === 'permission-denied');
 chk('a handler without the claim is refused', (await code(call(F.mdfinalResults, { auth: { uid: 'teach', token: {} } }, { examId: EX, classId: 'c-md' }))) === 'permission-denied');
 chk('a handler cannot read a class they do not own', (await code(call(F.mdfinalResults, handler('other'), { examId: EX, classId: 'c-md' }))) === 'permission-denied');
@@ -307,12 +318,37 @@ const lateDoc = docs.get('mdfinal_sessions/late::' + EX);
 chk('an admin sweep auto-submits the expired sitting', !!lateDoc.submittedAt && lateDoc.autoSubmitted === true);
 const all = await call(F.mdfinalResults, admin('boss'), { examId: EX });
 chk('an admin without a class also gets the classes that assigned the final', Array.isArray(all.classes) && all.classes.some((c) => c.id === 'c-md') && !all.classes.some((c) => c.id === 'c-none'), JSON.stringify(all.classes));
-chk('an admin without a class gets every sitting of the exam (stu, late, mut, anon1)', all.students.length === 4 && /studentId,total/.test(all.csv), all.students.map((s) => s.uid).join(','));
+chk('an admin without a class gets every sitting of the exam (stu, late, mut, anon1, nl)', all.students.length === 5 && /studentId,total/.test(all.csv), all.students.map((s) => s.uid).join(','));
 
 section('secret: a weak bound secret fails closed');
 const keep = SECRET.value; SECRET.value = 'too-short';
 chk('a start with a short secret is refused', (await code(call(F.mdfinalStart, admin('boss2'), { examId: RH }))) === 'failed-precondition');
 SECRET.value = keep;
+
+section('platform requireAdmin (13.19 item 5b): the allowlist route needs a verified email');
+/* adminSearchUsers checks requireAdmin first, then refuses an empty query: the code shows which gate answered */
+chk('an unverified allowlisted email is refused by requireAdmin', (await code(call(F.adminSearchUsers, { auth: { uid: 'fake', token: { email: ADMIN_EMAILS[0], email_verified: false } } }, { query: '' }))) === 'permission-denied');
+chk('a token with no email_verified is refused too', (await code(call(F.adminSearchUsers, { auth: { uid: 'fake', token: { email: ADMIN_EMAILS[0] } } }, { query: '' }))) === 'permission-denied');
+chk('(could fail) a verified allowlisted email passes the gate', (await code(call(F.adminSearchUsers, { auth: { uid: 'real', token: { email: ADMIN_EMAILS[0], email_verified: true } } }, { query: '' }))) === 'invalid-argument');
+chk('(could fail) the admin claim passes the gate', (await code(call(F.adminSearchUsers, admin('boss'), { query: '' }))) === 'invalid-argument');
+
+section('every allowlist check needs a verified email (13.20)');
+AUTH.fake = { email: ADMIN_EMAILS[0], customClaims: {} };
+await caught(call(F.setAdminClaim, { auth: { uid: 'fake', token: { email: ADMIN_EMAILS[0], email_verified: false } } }, {}));
+chk('setAdminClaim does not make an unverified allowlisted account an admin', !CLAIMS.fake || CLAIMS.fake.admin !== true, JSON.stringify(CLAIMS.fake));
+AUTH.real = { email: ADMIN_EMAILS[0], customClaims: {} };
+await caught(call(F.setAdminClaim, { auth: { uid: 'real', token: { email: ADMIN_EMAILS[0], email_verified: true } } }, {}));
+chk('(could fail) setAdminClaim does make a verified allowlisted account an admin', CLAIMS.real && CLAIMS.real.admin === true, JSON.stringify(CLAIMS.real));
+const unv = { auth: { uid: 'fake', token: { email: ADMIN_EMAILS[0], email_verified: false } } };
+for (const fn of ['getCohortComparison', 'c2GeneratePairingCode', 'c2ListDevices', 'postPatchNote', 'createTournamentChannels', 'announceNewContent']) {
+    if (typeof F[fn] !== 'function') { chk('callable exists: ' + fn, false); continue; }
+    chk(fn + ' refuses an unverified allowlisted email', (await code(call(F[fn], unv, {}))) === 'permission-denied');
+}
+const rulesText = fs.readFileSync(path.join(REPO, 'firestore.rules'), 'utf8');
+chk('rules isAdmin needs email_verified for the allowlist route', /function isAdmin\(\) \{[\s\S]{0,400}email_verified == true && \(/.test(rulesText));
+const idx2 = fs.readFileSync(path.join(REPO, 'functions/index.js'), 'utf8');
+const loose = idx2.split('\n').filter((l) => /ADMIN_EMAILS\.includes\(/.test(l) && !/email_verified/.test(l));
+chk('the only allowlist check without email_verified is netfinal\'s frozen block', loose.length === 1 && /String\(request\.auth\.token\.email/.test(loose[0]), loose.join(' | '));
 
 section('static checks on the MDFINAL block and the rules');
 const src = fs.readFileSync(path.join(REPO, 'functions/index.js'), 'utf8');

@@ -60,8 +60,8 @@ async function verifyAdmin(request) {
     // Check custom claims
     if (request.auth.token.admin === true) return true;
 
-    // Fallback: email allowlist
-    if (ADMIN_EMAILS.includes(email)) return true;
+    // Fallback: email allowlist, verified email only (MD-100 spec 13.20)
+    if (request.auth.token.email_verified === true && ADMIN_EMAILS.includes(email)) return true;
 
     throw new HttpsError('permission-denied', 'Admin access required.');
 }

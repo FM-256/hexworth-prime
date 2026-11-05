@@ -14,6 +14,7 @@
  * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
 (function () {
     'use strict';
+    var EVID = require('./mdfinal-evidence.js');
 
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
@@ -471,7 +472,10 @@
         var why = invalid(ACTION_SCHEMA[id], params === undefined ? {} : params);
         if (why) { return { ok: false, msg: GENERIC, refused: why }; }
         if (state.ledger.length >= LIM.LIMITS.ledger.maxEntries) { return { ok: false, msg: LIM.STORAGE_MESSAGE, refused: 'ledger cap' }; }
+        var ledgerBefore = state.ledger.length;
         var r = HANDLERS[id](state, params || {}, ctx || {});
+        /* record which evidence the reply showed on any diagnostic ledger entry it wrote (13.19 item 7) */
+        EVID.stamp(state, ledgerBefore, r.msg);
         return { ok: r.ok, msg: r.msg, screen: currentScreen(state) };
     }
 

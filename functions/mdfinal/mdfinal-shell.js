@@ -16,6 +16,7 @@
  * ═══════════════════════════════════════════════════════════════════════════════════════════════ */
 (function () {
     'use strict';
+    var EVID = require('./mdfinal-evidence.js');
 
     var LIM = require('./mdfinal-limits.js');
     var PC = require('./mdfinal-pc.js');
@@ -515,7 +516,15 @@
 
     /* Runs one line. Returns { out, context, prompt }. Every refusal leaves the state unchanged
      * apart from the capped history entry. */
+    /* Runs one line, then records which evidence its output showed on any diagnostic ledger entry
+     * the line wrote (13.19 item 7). */
     function exec(state, requested, line, ectx) {
+        var before = state && state.ledger ? state.ledger.length : 0;
+        var res = execLine(state, requested, line, ectx);
+        EVID.stamp(state, before, res && res.out);
+        return res;
+    }
+    function execLine(state, requested, line, ectx) {
         var ctx = resolveContext(state, requested);
         if (!ctx) { return { out: 'That console is not available.', context: null, prompt: '' }; }
         var raw = typeof line === 'string' ? line : '';

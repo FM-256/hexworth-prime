@@ -285,7 +285,15 @@
         var diag = firstAfter(L, from, c.diag) >= 0;
         var i1 = diag && ans.I1 && ans.I1.value === c.category;
         var ev = ans.I2 ? FAULTS.normEvidence(ans.I2.value) : '';
-        var i2 = diag && ev.length > 0 && FAULTS.evidenceSet(f, v.k).indexOf(ev) >= 0;
+        /* the value must be one the student could have read: a route that displays it ran after the
+         * handover (13.19 item 7); values shown only by unledgered windows keep the general gate */
+        var routes = FAULTS.evidenceRoutes(v.k), own = Object.prototype.hasOwnProperty.call(routes, ev) ? routes[ev] : undefined;
+        /* a route counts only if its output SHOWED this value (the entry's `seen`, stamped by the
+         * engine): a query that matched nothing does not (Mallory R6 blocker 1) */
+        var seen = own === null || (own !== undefined && L.some(function (e, i) {
+            return i >= from && own.indexOf(e.k) >= 0 && typeof e.seen === 'string' && e.seen.split(',').indexOf(ev) >= 0;
+        }));
+        var i2 = diag && ev.length > 0 && FAULTS.evidenceSet(f, v.k).indexOf(ev) >= 0 && seen;
         /* I3: the fault must really be fixed (Resolved >= 4), and the verification must come after the
          * last fix action; V4's name test must name the LedgerSync server (Nancy D5 R3 #6). */
         var fixAt = lastAfter(L, from, c.fix);

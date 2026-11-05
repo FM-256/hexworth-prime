@@ -236,10 +236,29 @@ async function rejects(p, code, label) {
         const g = await fresh('rs-2');
         await EXAM.handover(g.st, { sessionId: g.sid, confirm: true }, g.o);
         await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o), 'permission-denied', 'self-reset after handover denied');
-        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rs-2', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-1' }, g.o), 'failed-precondition', 'admin reset after handover refused (seed decision open)');
+        /* 13.19 item 1: an admin reset after handover deals a NEW lab with a fresh clock */
+        const seed0 = EXAM.fromDocument(await g.st.get(g.sid));
+        g.c.add(30 * 60000);
+        const ra = await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rs-2', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-1' }, g.o);
+        const seed1 = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(ra.kind === 'admin' && seed1.lineage.seed >= 1 && seed1.attempt === 1 && !seed1.handedOverAt && !seed1.submittedAt && seed1.answerKey.variant !== seed0.answerKey.variant, 'admin reset after handover: a new sitting on a new seed, with a different fault variant');
+        t.check(JSON.stringify(seed1.answerKey) !== JSON.stringify(seed0.answerKey) && seed1.state.wo.hostname + seed1.answerKey.fault.kb !== seed0.state.wo.hostname + seed0.answerKey.fault.kb, 'the new sitting is a different lab (key and work order differ)');
+        t.check(JSON.stringify(seed1.answerKey) === JSON.stringify(CORE.buildAnswerKey('rs-2', EX, { secret: kit.TEST_SECRET, seed: seed1.lineage.seed })) && JSON.stringify(seed1.state) === JSON.stringify(CORE.generate('rs-2', EX, { secret: kit.TEST_SECRET, seed: seed1.lineage.seed })), 'and it is exactly that seed\'s derivation');
+        t.check(seed1.startedAt === g.c.now() && seed1.expiresAt === g.c.now() + 150 * 60000, 'with a fresh clock');
+        t.check(Object.values(g.st.archived()).some((a) => a.newLab === true && a.kind === 'admin'), 'the old attempt is archived, marked newLab');
+        /* a self-reset of the new sitting keeps its seed (same lab as this sitting, not the original) */
+        await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o);
+        const self1 = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(self1.lineage.seed === 1 && JSON.stringify(self1.answerKey) === JSON.stringify(seed1.answerKey), 'a self-reset afterwards keeps the new lab');
         await EXAM.submitExam(g.st, { sessionId: g.sid }, g.o);
         await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'rs-2', targetUid: 'rs-2', token: {}, adminEmails: ADMINS }, g.o), 'permission-denied', 'self-reset after submit denied');
-        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rs-2', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-1' }, g.o), 'failed-precondition', 'admin reset after submit refused (seed decision open)');
+        await rejects(EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'adm', targetUid: 'rs-2', token: ADMIN_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-1' }, g.o), 'permission-denied', 'a second admin reset needs the operator, after submit too');
+        const ro = await EXAM.resetSession(g.st, { sessionId: g.sid, callerUid: 'op', targetUid: 'rs-2', token: OPERATOR_TOKEN, adminEmails: ADMINS, reason: 'outage', evidence: 'INC-2' }, g.o);
+        const seed2 = EXAM.fromDocument(await g.st.get(g.sid));
+        t.check(ro.kind === 'admin' && seed2.lineage.seed > seed1.lineage.seed && !seed2.submittedAt, 'the operator resets a submitted sitting: a later seed, unsubmitted');
+        /* provision of a reset sitting rebuilds the same (seed-2) lab */
+        await EXAM.provision(g.st, { sessionId: g.sid, staffUid: 'staff-1' }, g.o);
+        t.check(EXAM.fromDocument(await g.st.get(g.sid)).state.wo.hostname === CORE.generate('rs-2', EX, { secret: kit.TEST_SECRET, seed: seed2.lineage.seed }).wo.hostname, 'provision rebuilds the sitting\'s own seed');
 
         const h = await fresh('rs-3');
         h.c.add(151 * 60000);

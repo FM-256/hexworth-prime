@@ -258,11 +258,19 @@ const p7 = (r) => rowOf(gradeOf(r), '7.1').parts;
     ANS.save(q.state, 'I1', 'runaway process'); ANS.save(q.state, 'I2', 'msynchlp'); ANS.save(q.state, 'I3', 'Task Manager or Get-Process after restart');
     t.check(JSON.stringify(rowOf(gradeOf(q), '8.2').parts) === '[0,0,0]', 'right answers with no diagnostic or verification event: 0/5');
     A(q, 'taskmgr', 'view');
-    t.check(JSON.stringify(rowOf(gradeOf(q), '8.2').parts) === '[2,2,1]', 'Task Manager after the fix: diagnostic and verification both satisfied');
+    t.check(JSON.stringify(rowOf(gradeOf(q), '8.2').parts) === '[2,0,1]', 'Task Manager after the fix: diagnosis and verification, but I2 is 0 (msynchlp was never on screen, 13.19 item 7)');
+    const q2 = toHandover('p8-seen', [0, 2]);
+    A(q2, 'taskmgr', 'view');
+    A(q2, 'apps', 'uninstall', { name: 'Meridian Sync Helper' });
+    A(q2, 'desktop', 'restart');
+    ANS.save(q2.state, 'I1', 'runaway process'); ANS.save(q2.state, 'I2', 'msynchlp'); ANS.save(q2.state, 'I3', 'Task Manager or Get-Process after restart');
+    A(q2, 'taskmgr', 'view');
+    t.check(JSON.stringify(rowOf(gradeOf(q2), '8.2').parts) === '[2,2,1]', 'Task Manager before the fix shows msynchlp: I2 earned');
     const pre = W.sitting('p8-pre', [0, 2]).state;
     t.check(!ANS.save(pre, 'I1', 'driver').ok && !ANS.save(pre, 'B1', 'ABCDEF12').ok, 'P8 fields refused before they exist');
     for (const [v, ev] of [[0, ['0x7B', '0x0000007b', 'INACCESSIBLE_BOOT_DEVICE', '1001']], [3, ['1014']]]) {
         const z = W.perfect('p8-ev-' + v, [0, v]);
+        kit.req('mdfinal-shell.js').exec(z.state, 'ps', 'Get-WinEvent -LogName System', { key: z.key });   /* 1001 and 1014 are shown there */
         for (const e of ev) { ANS.save(z.state, 'I2', e); t.check(rowOf(gradeOf(z), '8.2').parts[1] === 2, 'V' + (v + 1) + ' evidence "' + e + '" accepted'); }
     }
 }

@@ -184,4 +184,91 @@ const CLIENT = kit.req('mdfinal-client.js');
     t.check(/test secrets are refused/.test(out) && !/answer sheet/.test(out), 'a test secret with stray whitespace is refused by --student');
 }
 
-t.done();
+/* 13.19 item 7: I2 credits a value only after a route that displays it ran (Mallory R4 F1) */
+{
+    const ANS = kit.req('mdfinal-answers.js');
+    const i2 = (r) => G.grade(r.snapshot, r.key, r.state).rows.find((x) => x.id === '8.2').parts[1];
+    const cases = [
+        [0, '41', (r) => SH.exec(r.state, 'ps', 'Get-WinEvent -LogName System', { key: r.key })],
+        [1, 'mer_shellhook.dll', (r) => SH.exec(r.state, 'ps', 'Get-WinEvent -LogName Application | Format-List', { key: r.key })],
+        [3, '1014', (r) => SH.exec(r.state, 'ps', 'Get-WinEvent -LogName System', { key: r.key })]
+    ];
+    for (const [v, val, route] of cases) {
+        const r = W.perfect('d7-route-' + v + val, [0, v], { skipP8: true });
+        /* the walk's repair ran its own diagnostic (the general gate), so only the display route differs */
+        if (v === 0) { r.state.ledger = r.state.ledger.filter((l, i) => i < r.state.fault.appliedAtLedger || ['eventvwr', 'pnputil-enum'].indexOf(l.k) < 0); }
+        if (v === 3) { r.state.ledger = r.state.ledger.filter((l, i) => i < r.state.fault.appliedAtLedger || l.k !== 'eventvwr'); }
+        if (v === 1) { r.state.ledger = r.state.ledger.filter((l, i) => i < r.state.fault.appliedAtLedger || l.k !== 'eventvwr'); }
+        ANS.save(r.state, 'I1', kit.req('mdfinal-faults.js').CATALOGUE[r.key.variant].category);
+        ANS.save(r.state, 'I2', val);
+        t.check(i2(r) === 0, 'I2 "' + val + '" (' + r.key.variant + ') with no route that shows it: 0');
+        route(r);
+        t.check(i2(r) === 2, 'I2 "' + val + '" (' + r.key.variant + ') after the route that shows it: 2');
+    }
+    /* mbafilt is read from pnputil while the driver is still there (Safe Mode, before the repair) */
+    {
+        const r = W.perfect('d7-route-mbafilt', [0, 0], { skipRepair: true, skipP8: true });
+        GUI.act(r.state, 'winre', 'startup-settings', { option: 4 }, { key: r.key });
+        ANS.save(r.state, 'I1', 'driver'); ANS.save(r.state, 'I2', 'mbafilt');
+        t.check(i2(r) === 0, 'I2 "mbafilt" before pnputil ran: 0');
+        SH.exec(r.state, 'ps', 'pnputil /enum-drivers', { key: r.key });
+        t.check(i2(r) === 2, 'I2 "mbafilt" after pnputil listed it: 2');
+    }
+    /* Mallory R6 blocker 1: a route that SHOWED nothing does not count */
+    {
+        const r = W.perfect('d7-route-empty', [0, 3], { skipP8: true });
+        r.state.ledger = r.state.ledger.filter((l, i) => i < r.state.fault.appliedAtLedger || l.k !== 'eventvwr');
+        ANS.save(r.state, 'I1', 'name resolution'); ANS.save(r.state, 'I2', '1014');
+        GUI.act(r.state, 'eventvwr', 'query', { log: 'Setup', id: 65535 }, { key: r.key });
+        t.check(i2(r) === 0, 'an Event Viewer query that matched nothing does not credit 1014');
+        const r3 = W.perfect('d7-route-empty3', [0, 2], { skipP8: true });
+        r3.state.ledger = r3.state.ledger.filter((l, i) => i < r3.state.fault.appliedAtLedger || ['taskmgr-view', 'get-process'].indexOf(l.k) < 0);
+        ANS.save(r3.state, 'I1', 'runaway process'); ANS.save(r3.state, 'I2', 'msynchlp');
+        SH.exec(r3.state, 'ps', 'Get-Process -Name zzzz', { key: r3.key });
+        t.check(i2(r3) === 0, 'Get-Process -Name <nothing> does not credit msynchlp');
+        SH.exec(r3.state, 'ps', 'Get-Process -Name "x msynchlp"', { key: r3.key });
+        t.check(i2(r3) === 0, 'an error that echoes a typed "msynchlp" does not credit it (Mallory R7)');
+        const r4 = W.perfect('d7-route-decoy', [0, 3], { skipP8: true, skipRepair: true });
+        r4.state.ledger = r4.state.ledger.filter((l, i) => i < r4.state.fault.appliedAtLedger || ['hosts-view', 'name-test'].indexOf(l.k) < 0);
+        ANS.save(r4.state, 'I1', 'name resolution'); ANS.save(r4.state, 'I2', r4.key.fault.decoyIp);
+        SH.exec(r4.state, 'ps', 'ping ' + r4.key.fault.decoyIp, { key: r4.key });
+        t.check(i2(r4) === 0, 'pinging the decoy IP itself does not credit it (only echoed, Mallory R8)');
+        SH.exec(r4.state, 'ps', 'ping ' + r4.state.wo.lob.fqdn, { key: r4.key });
+        t.check(i2(r4) === 2, '(could fail) pinging the LOB name shows the decoy it resolves to: credited');
+    }
+    /* a value shown only by an unledgered window keeps the general gate */
+    const z = W.perfect('d7-route-v3', [0, 2], { skipP8: true });
+    ANS.save(z.state, 'I1', 'runaway process'); ANS.save(z.state, 'I2', 'MerSync');
+    t.check(i2(z) === 2, 'I2 "MerSync" (Startup tab only) is credited under the general diagnostic gate');
+}
+
+/* ── Nancy R6 fixes ── */
+(async () => {
+    const SK = require('./mdfinal-svc-kit.js');
+    const EXAM = kit.req('mdfinal-exam.js');
+    const ADMIN = { admin: true, email: 'a@x.test' };
+    let sameVariant = 0, n = 0, carried = 0;
+    for (let i = 0; i < 40; i++) {
+        const uid = 'd7-nl-' + i;
+        const f = await SK.started(uid);
+        await EXAM.handover(f.st, { sessionId: f.sid, confirm: true }, f.o);
+        await EXAM.submitExam(f.st, { sessionId: f.sid }, f.o);
+        const before = EXAM.fromDocument(await f.st.get(f.sid));
+        /* a penalty recorded on the voided lab's lineage */
+        const d = await f.st.get(f.sid); const lin = JSON.parse(d.lineageJson); lin.penalties = ['P3-guest']; d.lineageJson = JSON.stringify(lin); f.st.raw()[f.sid] = d;
+        await EXAM.resetSession(f.st, { sessionId: f.sid, callerUid: 'adm', targetUid: uid, token: ADMIN, adminEmails: [], reason: 'outage', evidence: 'INC' }, f.o);
+        const after = EXAM.fromDocument(await f.st.get(f.sid));
+        n++;
+        if (after.answerKey.variant === before.answerKey.variant) { sameVariant++; }
+        if (after.lineage.penalties.length) { carried++; }
+    }
+    t.check(n === 40 && sameVariant === 0, 'a restart onto a new lab always deals a different fault variant (' + sameVariant + ' of ' + n + ' the same)');
+    t.check(carried === 0, 'no penalty from the voided lab carries onto the new lab (' + carried + ')');
+    const FA = kit.req('mdfinal-faults.js');
+    const k4 = kit.req('mdfinal-core.js').buildAnswerKey(SK.naturalUid(0, 3, 'd7-dns-'), 'md100-final-2026', { secret: kit.TEST_SECRET });
+    t.check(FA.evidenceRoutes(k4)[FA.normEvidence(FA.VENDOR_DNS[0])] === null, 'the vendor DNS keeps the general gate (shown in unledgered Network Connections)');
+    const s = { studentId: 'u', submittedAt: 1, report: { total: 80, rows: [], phases: { P1: { score: 1, max: 1 } } }, lineage: { selfResets: 1, adminResets: 1 }, provisionedAt: null, autoSubmitted: false };
+    t.check(/selfReset:1 adminReset:1/.test(EXAM.totalsCsv([s])), 'the handler CSV carries the reset flags');
+    t.done();
+})();
+

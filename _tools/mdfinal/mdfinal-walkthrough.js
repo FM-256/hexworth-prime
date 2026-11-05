@@ -9,7 +9,7 @@
  * @catalog what    resiliency, fault, ticket, accepted evidence and verification) for staff marking
  * @catalog what    and disputes. Needs the bound secret in MDFINAL_SEED_SECRET; never prints it.
  * @catalog run     node _tools/mdfinal/mdfinal-walkthrough.js --qc 300 | --print-steps | --print-weights
- * @catalog run     MDFINAL_SEED_SECRET=... node _tools/mdfinal/mdfinal-walkthrough.js --student <uid>
+ * @catalog run     MDFINAL_SEED_SECRET=... node _tools/mdfinal/mdfinal-walkthrough.js --student <uid> [--seed N]
  * @catalog status  TOOL
  */
 const kit = require('./mdfinal-test-kit.js');
@@ -71,7 +71,11 @@ if (si >= 0) {
     if (secret !== rawSecret) { console.log('Note: MDFINAL_SEED_SECRET had leading or trailing whitespace; it was trimmed.'); }
     if (!uid || uid[0] === '-') { console.log('Usage: MDFINAL_SEED_SECRET=... node mdfinal-walkthrough.js --student <uid> [--rehearsal]'); process.exit(2); }
     if (!secret || secret === kit.TEST_SECRET || secret === kit.ALT_SECRET) { console.log('Set MDFINAL_SEED_SECRET to the bound exam secret (the test secrets are refused).'); process.exit(2); }
-    const opts = { secret };
+    /* --seed N: the lab of a sitting restarted onto a new lab (13.19 item 1); its seed is the
+     * lineage seed the results page shows. Default 0, the original lab. */
+    const sv = argv.indexOf('--seed') >= 0 ? Number(argv[argv.indexOf('--seed') + 1]) : 0;
+    if (!(Number.isInteger(sv) && sv >= 0 && sv <= 99)) { console.log('--seed must be an integer 0..99'); process.exit(2); }
+    const opts = { secret, seed: sv };
     const key = CORE.buildAnswerKey(uid, examId, opts);
     const state = CORE.generate(uid, examId, opts);
     const wo = state.wo, f = FAULTS.CATALOGUE[key.variant];
@@ -79,7 +83,7 @@ if (si >= 0) {
     const probe = { identity: { membership: { type: wo.join.type, pending: null } } };
     const evidence = FAULTS.evidenceSet(probe, key);
     const lines = [
-        'MD-100 final answer sheet: ' + uid + ' (' + examId + ', generator ' + key.version + ')',
+        'MD-100 final answer sheet: ' + uid + ' (' + examId + ', seed ' + sv + ', generator ' + key.version + ')',
         'Work order ' + wo.ticket + ', hostname ' + wo.hostname + ', technician ' + key.technician,
         'Edition: Windows 11 ' + key.edition + '; channel ' + key.channel + '; expected key ' + (key.channel === 'KMS' ? key.productKey + ' with /skms ' + wo.network.kms.fqdn + ' or ' + wo.network.kms.ip : wo.mak + ' (the work order MAK)'),
         'Storage space resiliency: ' + key.resiliency,

@@ -121,7 +121,9 @@
             && Number(stored.attempt || 0) === Number(incoming.attempt || 0);
     }
 
-    function freshLineage() { return { selfResets: 0, adminResets: 0, resets: [], penalties: [] }; }
+    function freshLineage() { return { selfResets: 0, adminResets: 0, resets: [], penalties: [], seed: 0 }; }
+    /* The seed index a sitting's lab is derived with (0 until an admin reset deals a new lab). */
+    function seedOf(lineage) { return lineage && typeof lineage.seed === 'number' ? lineage.seed : 0; }
 
     /* ── start and resume ────────────────────────────────────────────────────────────────────── */
 
@@ -172,8 +174,9 @@
      * exam id), on the given clock. */
     function newSession(uid, examId, clock, secret, attempt, lineage) {
         var E = eng();
-        var state = E.CORE.generate(uid, examId, { secret: secret });
-        var key = E.GRADE.buildAnswerKey(uid, examId, { secret: secret });
+        var seed = seedOf(lineage);
+        var state = E.CORE.generate(uid, examId, { secret: secret, seed: seed });
+        var key = E.GRADE.buildAnswerKey(uid, examId, { secret: secret, seed: seed });
         return {
             sessionId: sessionIdFor(uid, examId), studentId: uid, examId: examId, attempt: attempt,
             startedAt: clock.startedAt, expiresAt: clock.expiresAt, durationMs: clock.durationMs,
@@ -425,7 +428,8 @@
             var E = eng();
             if (session.handedOverAt) { throw err('failed-precondition', 'This PC has been handed over; it can no longer be provisioned.'); }
             if (!session.p1Snapshot) { session.p1Snapshot = JSON.parse(JSON.stringify(session.state)); }
-            var fresh = E.CORE.generate(session.studentId, session.examId, { secret: opts.secret });
+            /* the same lab the sitting has (its seed), rebuilt as the fabric baseline */
+            var fresh = E.CORE.generate(session.studentId, session.examId, { secret: opts.secret, seed: seedOf(session.lineage) });
             session.state = E.PROV.build(fresh);
             session.provisionedAt = nowMs(opts);
             session.provisionedBy = staff;
@@ -476,10 +480,6 @@
         var clock = { startedAt: cur.startedAt, expiresAt: cur.expiresAt, durationMs: cur.durationMs };
         var meta = { resetAt: t, resetBy: args.callerUid, kind: who };
         if (who === 'admin') {
-            /* Seed decision OPEN (13.5 item 6.7): no admin reset of a handed-over or submitted sitting. */
-            if (cur.submittedAt || cur.handedOverAt) {
-                throw err('failed-precondition', 'A handed-over or submitted sitting cannot be restarted until the seed policy is decided.');
-            }
             if (EXAMS.PLATFORM_FAULT_CODES.indexOf(args.reason) < 0) { throw err('invalid-argument', 'Give a platform fault code as the reason.'); }
             if (typeof args.evidence !== 'string' || !args.evidence.trim() || args.evidence.length > 500) {
                 throw err('invalid-argument', 'Give an evidence reference for the restart.');
@@ -487,7 +487,19 @@
             if (lineage.adminResets >= EXAMS.ADMIN_RESET_CAP && !isOperator(args.token, args.adminEmails)) {
                 throw err('permission-denied', 'A further restart of this sitting needs the operator.');
             }
-            if (args.freshClock === true) {
+            /* After handover or submit (13.19 item 1): a NEW sitting on a NEW lab (the seed index goes
+             * up, so the fault, the values and the answers are all new) with a fresh clock. The
+             * student has seen the old fault and its answers, so the same lab would be a retake. */
+            if (cur.submittedAt || cur.handedOverAt) {
+                /* the next seed whose fault variant differs from the voided lab's, so the retake is
+                 * never the same fault with the same answers (Nancy R6 #3: about 1 in 4 otherwise) */
+                var nextSeed = seedOf(lineage) + 1, E0 = eng();
+                while (nextSeed <= 99 && E0.GRADE.buildAnswerKey(cur.studentId, cur.examId, { secret: opts.secret, seed: nextSeed }).variant === cur.answerKey.variant) { nextSeed++; }
+                if (nextSeed > 99) { throw err('failed-precondition', 'This sitting has no further lab to deal.'); }
+                lineage.seed = nextSeed;
+                clock = { startedAt: t, expiresAt: t + cur.durationMs, durationMs: cur.durationMs };
+                meta.newLab = true;
+            } else if (args.freshClock === true) {
                 var faultAt = Number(args.faultAt);
                 if (!isFinite(faultAt) || faultAt < cur.startedAt || faultAt > t) { throw err('invalid-argument', 'faultAt must fall within the sitting.'); }
                 /* Gives back the time left at the fault, never takes any (Nancy D6 #4): the new expiry
@@ -506,11 +518,13 @@
         } else {
             lineage.selfResets += 1;
         }
-        /* penalties this attempt incurred survive into the next (13.5 item 6.4) */
+        /* penalties this attempt incurred survive into the next (13.5 item 6.4), but not onto a NEW
+         * lab: that lab was voided for a platform fault (Nancy R6 #2) */
         var E = eng();
-        var incurred = E.GRADE.appliedPenalties(cur.state, cur.answerKey);
+        var incurred = meta.newLab ? [] : E.GRADE.appliedPenalties(cur.state, cur.answerKey);
+        if (meta.newLab) { lineage.penalties = []; }
         /* after a provision, the P1 penalties of the PC as it stood count too (Nancy D6 #5) */
-        if (cur.p1Snapshot) { incurred = incurred.concat(E.GRADE.appliedPenalties(cur.p1Snapshot, cur.answerKey, 'P1')); }
+        if (cur.p1Snapshot && !meta.newLab) { incurred = incurred.concat(E.GRADE.appliedPenalties(cur.p1Snapshot, cur.answerKey, 'P1')); }
         incurred.forEach(function (id) { if (lineage.penalties.indexOf(id) < 0) { lineage.penalties.push(id); } });
         lineage.resets.push({ at: t, by: args.callerUid, kind: who, reason: meta.reason || null });
         var next = newSession(cur.studentId, cur.examId, clock, opts.secret, cur.attempt + 1, lineage);
@@ -548,9 +562,37 @@
             startedAt: session.startedAt, expiresAt: session.expiresAt, submittedAt: session.submittedAt,
             remainingMs: session.submittedAt ? 0 : remainingMs(session, opts),
             handedOverAt: session.handedOverAt, provisionedAt: session.provisionedAt, autoSubmitted: !!session.autoSubmitted,
-            selfResets: session.lineage.selfResets, adminResets: session.lineage.adminResets,
+            selfResets: session.lineage.selfResets, adminResets: session.lineage.adminResets, seed: seedOf(session.lineage),
             report: session.report, entry: gradebookEntry(session)
         };
+    }
+
+    /* What a class handler sees of one sitting (13.19 item 4): the staff view with the per-check
+     * report replaced by its total and phase scores, so listing a student in a class cannot reveal
+     * their per-check marks (Mallory D6 F1). */
+    function handlerView(view) {
+        if (!view) { return null; }
+        var out = JSON.parse(JSON.stringify(view));
+        if (out.report) {
+            var sr = eng().GRADE.studentReport(out.report);
+            out.report = { display: sr.total, phases: sr.phases, provisioned: !!out.report.provisioned };
+        }
+        return out;
+    }
+
+    /* The handler's CSV: totals only, one line per submitted sitting. */
+    function totalsCsv(sessions) {
+        var esc = function (v) { var t = String(v === undefined || v === null ? '' : v); return /[",\n]/.test(t) ? '"' + t.split('"').join('""') + '"' : t; };
+        var rows = sessions.filter(function (s) { return s && s.submittedAt && s.report; }).map(function (s) {
+            var e = gradebookEntry(s);
+            var fl = [];
+            if (s.provisionedAt) { fl.push('provisioned'); }
+            if (s.autoSubmitted) { fl.push('autoSubmitted'); }
+            if (s.lineage.selfResets) { fl.push('selfReset:' + s.lineage.selfResets); }
+            if (s.lineage.adminResets) { fl.push('adminReset:' + s.lineage.adminResets); }
+            return [s.studentId, e.score, e.passed ? 'pass' : 'not passed', fl.join(' ')].map(esc).join(',');
+        });
+        return ['studentId,total,result,flags'].concat(rows).join('\n');
     }
 
     /* The CSV the instructor grades from: one line per submitted sitting. */
@@ -596,7 +638,7 @@
         startExam: startExam, runCommand: runCommand, renderWindow: renderWindow, runAction: runAction, saveAnswer: saveAnswer,
         handover: handover, submitExam: submitExam, sweepExpired: sweepExpired, provision: provision,
         resetSession: resetSession, mayReset: mayReset, isAdmin: isAdmin, isOperator: isOperator,
-        gradebookEntry: gradebookEntry, instructorView: instructorView, resultsCsv: resultsCsv, examModeFlags: examModeFlags,
+        gradebookEntry: gradebookEntry, instructorView: instructorView, handlerView: handlerView, resultsCsv: resultsCsv, totalsCsv: totalsCsv, examModeFlags: examModeFlags,
         toDocument: toDocument, fromDocument: fromDocument, documentBytes: documentBytes, sameSitting: sameSitting,
         sessionIdFor: sessionIdFor, validUid: validUid, remainingMs: remainingMs, memoryStore: memoryStore,
         WRITE_LIMIT: WRITE_LIMIT
