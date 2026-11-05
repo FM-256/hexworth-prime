@@ -597,8 +597,11 @@
     function powercfg(state, t) {
         var op = String(t[1] || '').toLowerCase().replace(/^-/, '/');
         var pw = state.os.power;
-        if (op === '/?' || op === '/help') { return POWERCFG_HELP; }
-        if ((op === '/change' || op === '/x') && t[2] === '/?') { return POWERCFG_CHANGE_HELP; }
+        /* help: "/?", "/? /change", and "/change /?" (or -? or /help) as the real tool takes them */
+        var isHelp = function (x) { x = String(x || '').toLowerCase(); return x === '/?' || x === '-?' || x === '/help' || x === '-help'; };
+        var isChange = function (x) { x = String(x || '').toLowerCase().replace(/^-/, '/'); return x === '/change' || x === '/x'; };
+        if (isHelp(op)) { return isChange(t[2]) ? POWERCFG_CHANGE_HELP : POWERCFG_HELP; }
+        if (isChange(op) && isHelp(t[2])) { return POWERCFG_CHANGE_HELP; }
         if (op === '/list' || op === '/l') {
             return 'Existing Power Schemes (* Active)\n-----------------------------------\n' + pw.plans.map(function (p) {
                 return 'Power Scheme GUID: ' + p.guid + '  (' + p.name + ')' + (p.guid === pw.active ? ' *' : '');

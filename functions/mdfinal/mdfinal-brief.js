@@ -41,6 +41,7 @@
             'There is no Dr. Hex, no course content and no hint system during the exam. Nothing on screen tells you whether a step is right.',
             'The lab host is Hyper-V. The fabric attaches the MER-ARCHIVE, MER-POOL1, MER-POOL2 and TECH-USB disks to the VM you create. TECH-USB appears as F: inside Windows and in the host\'s Lab Files panel. After setup, C:\\LabFiles on the PC holds the installation packages.',
             'Windows 11 version 24H2 (build 26100) is pinned for this exam. KB numbers are lab values.',
+            'Language, time and currency format, region and keyboard: English (United States), United States, US keyboard.',
             'The edition is chosen at install. Product keys do not change the edition in this lab. The KMS client setup keys are in the key table below.',
             'Setup and the OOBE consoles (Shift+F10) take one command per line; pipelines are available in the Windows console after setup. oobe\\bypassnro is the offline OOBE route. To reinstall, start the VM with the ISO attached and press any key.',
             'This image ships to laptops, but a VM has no battery and no sleep state: set the battery and sleep values with powercfg.',
@@ -113,13 +114,13 @@
         add('P4', 'LedgerSync listens on TCP ' + wo.lob.port + '. Allow it inbound from ' + n.lobRemoteSubnet + ' only, on the ' + (domain ? 'Domain and Private profiles' : 'Private profile') +
             ', never Public, in a rule named "LedgerSync ' + wo.lob.port + '". This PC is not on a public network. All firewall profiles stay on.');
         add('P4', 'Allow Remote Desktop connections with Network Level Authentication; ' + wo.user.name + ' may sign in remotely.');
-        add('P4', 'Share ' + wo.share.path + ' as ' + wo.share.name + '. Everyone has no share permission; ' + wo.group + ' may change files at share level, and its members end up with Modify access over the network. SMB 1.0 stays off.');
+        add('P4', 'Create the folder ' + wo.share.path + ' and share it as ' + wo.share.name + '. Everyone has no share permission; ' + wo.group + ' may change files at share level, and its members end up with Modify access over the network. SMB 1.0 stays off.');
 
         add('P5', 'Create D: in all of the free space on the OS disk: NTFS, label ' + d.dLabel + '.');
-        add('P5', 'Put the blank pool disks MER-POOL1 and MER-POOL2 into one storage pool named MeridianPool and create one ' + (spec.resiliency || '') + (spec.resiliency ? ' ' : '') + 'storage space on it named MeridianSpace. ' + d.resiliencyProse + ' Give its volume the letter ' + d.spacesLetter +
+        add('P5', 'Put the blank pool disks MER-POOL1 and MER-POOL2 (the two blank ' + d.poolGB + ' GB disks) into one storage pool named MeridianPool and create one ' + (spec.resiliency || '') + (spec.resiliency ? ' ' : '') + 'storage space on it named MeridianSpace. ' + d.resiliencyProse + ' Give its volume the letter ' + d.spacesLetter +
             ':, NTFS, label ' + d.spacesLabel + '.');
         add('P5', 'Encrypt C: with BitLocker, XTS-AES 256, unlocked by the TPM, with a recovery password.');
-        add('P5', 'On ' + wo.confidentialPath + ': it no longer inherits permissions; Users and Authenticated Users have no access; ' + wo.group +
+        add('P5', 'Create the folder ' + wo.confidentialPath + '. On it: it no longer inherits permissions; Users and Authenticated Users have no access; ' + wo.group +
             ' can read and run files; Administrators and SYSTEM keep full control.');
         add('P5', 'Update the Defender signatures. Exclude ' + wo.defenderExclusion + ' and nothing else. Real-time protection stays on.');
 
