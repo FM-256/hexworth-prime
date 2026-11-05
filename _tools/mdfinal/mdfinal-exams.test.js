@@ -11,7 +11,7 @@ const kit = require('./mdfinal-test-kit.js');
 const X = kit.req('mdfinal-exams.js');
 const t = kit.harness('mdfinal-exams');
 const REAL = 'md100-final-2026', REH = 'md100-final-rehearsal';
-const open = Date.parse('2026-11-19T22:30:00Z'), close = Date.parse('2026-11-19T23:30:00Z');
+const open = Date.parse('2026-11-05T17:00:00Z'), close = Date.parse('2026-11-19T23:30:00Z');
 
 /* ids */
 t.check(X.resolveExamId(undefined) === REAL && X.resolveExamId('') === REAL, 'default id');
@@ -43,9 +43,9 @@ t.check(!X.mayCreate(REH, 'u', false, armed, open + 1), 'student on the rehearsa
 t.check(X.mayCreate(REH, 'u', true, unarmed, 0), 'admin on the rehearsal id: created');
 t.check(X.mayCreate(REH, 'u', false, { allowUids: ['u'] }, 0), 'allowlisted on the rehearsal id: created');
 t.check(X.windowFor(REH) === null, 'rehearsal has no window');
-/* window is 17:30-18:30 Eastern on 2026-11-19 (EST, UTC-5) */
+/* window opens 12:00 Eastern 2026-11-05 (operator, open now); last new start 18:30 Eastern 2026-11-19 */
 const fmt = (ms) => new Date(ms).toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false });
-t.check(fmt(open) === '11/19/2026, 17:30:00' && fmt(close) === '11/19/2026, 18:30:00', 'window is 17:30-18:30 Eastern: ' + fmt(open) + ' / ' + fmt(close));
+t.check(fmt(open) === '11/5/2026, 12:00:00' && fmt(close) === '11/19/2026, 18:30:00', 'window is 11-05 12:00 to 11-19 18:30 Eastern: ' + fmt(open) + ' / ' + fmt(close));
 
 /* type strictness (Mallory D1) */
 t.check(!X.mayCreate(REH, 'u', 1, unarmed, 0) && !X.mayCreate(REH, 'u', 'true', unarmed, 0), 'rehearsal admin must be boolean true');

@@ -33,12 +33,12 @@
     var CATALOG_IDS = freeze({ 'md100-final-2026': 'forge-md100-final' });
 
     /* Release window for a NEW start (R2). Resume is always allowed; the session clock governs it.
-     * Operator, 2026-11-03: opens 5:30 pm, last new start 6:30 pm, Thursday 2026-11-19, Eastern
-     * (EST, UTC-5 on that date). The rehearsal has no window; its gate is the admin claim or the
-     * allowlist. */
+     * Operator, 2026-11-05 ("let people take the final"): open now, last new start unchanged at
+     * 6:30 pm Thursday 2026-11-19, Eastern (EST, UTC-5). Was 5:30-6:30 pm that day only. The
+     * rehearsal has no window; its gate is the admin claim or the allowlist. */
     var WINDOWS = freeze({
         'md100-final-2026': {
-            opensAt: Date.parse('2026-11-19T22:30:00Z'),   /* 17:30 EST */
+            opensAt: Date.parse('2026-11-05T17:00:00Z'),   /* 12:00 EST, 2026-11-05 */
             closesAt: Date.parse('2026-11-19T23:30:00Z')   /* 18:30 EST, last new start */
         }
     });
