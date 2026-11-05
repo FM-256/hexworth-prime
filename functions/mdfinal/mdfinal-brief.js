@@ -73,7 +73,8 @@
         var add = function (phase, text) { T.push({ phase: phase, text: text }); };
 
         add('P1', 'Create one VM on the Meridian-LAN switch: ' + wo.vm.startupMemoryMB + ' MB of startup memory (static, not dynamic), ' + wo.vm.vcpu +
-            ' virtual processors, and a new ' + wo.vm.vhdxGB + ' GB OS virtual hard disk. It must meet the Windows 11 hardware requirements natively: no Setup bypasses. Keep Secure Boot on.');
+            ' virtual processors, and a new ' + wo.vm.vhdxGB + ' GB OS virtual hard disk. It must meet the Windows 11 hardware requirements natively: no Setup bypasses. Keep Secure Boot on. ' +
+            'Name the VM whatever you like; its name is not graded (the PC\'s own name is set in Phase 2).');
         add('P1', 'Install Windows 11 ' + wo.build.version + ' (build ' + wo.build.build + ') from the ISO library, in the edition the requirements call for (see Requirements).');
         add('P1', 'Install Windows on the new OS disk. Create the Windows partition yourself, with C: at ' + d.cGB + ' GB; leave the rest of that disk unallocated for D:.');
         add('P1', 'MER-ARCHIVE holds the only copy of these files. Do not modify, format or delete it: ' +
